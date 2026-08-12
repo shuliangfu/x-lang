@@ -274,7 +274,6 @@ int32_t driver_run_x_emit_c_from_compile_state(struct RtDispatchState * state, i
 int32_t driver_run_compiler_full_x_post_parse_impl_c(struct RtDispatchState * state, int32_t argc, uint8_t * argv) {
   uint8_t * out_ptr = ((uint8_t *)(0));
   uint8_t * target_ptr = ((uint8_t *)(0));
-  int32_t want_generic_check = 0;
   int32_t has_import = 0;
   if ((state ==((struct RtDispatchState *)(0)))) {
     return 1;
@@ -289,32 +288,14 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(struct RtDispatchState * st
       (void)(((state->use_asm_backend) = 0));
     }
   }
-  (void)((want_generic_check = 0));
-  if (((state->out_path_len) ==0)) {
-    (void)((want_generic_check = 1));
-  } else {
-    {
-      if ((driver_asm_output_want_exe(&(((state->out_path_buf))[0])) !=0)) {
-        (void)((want_generic_check = 1));
-      }
-    }
-  }
-  if (((state->use_asm_backend) !=0)) {
-    if ((want_generic_check !=0)) {
-      {
-        if ((driver_source_has_generic_syntax(&(((state->path_buf))[0]), (state->path_len)) !=0)) {
-          (void)(((state->use_asm_backend) = 0));
-        }
-      }
-    }
-  }
+  /* PLATFORM: SHARED — PC invoke_cc opt-in 2026-08-12: silent generic→C removed
+   * (mirror rt_dispatch_impl.x). Product host-cc only via -backend c / check-only / emit-c. */
   if (((state->out_path_len) > 0)) {
     (void)((out_ptr = &(((state->out_path_buf))[0])));
   }
   if (((state->target_len) > 0)) {
     (void)((target_ptr = &(((state->target_buf))[0])));
   }
-  /* PLATFORM: SHARED — import→C force removed 2026-08-12 (mirror rt_dispatch_impl.x). */
   if (((state->out_path_len) > 0)) {
     if (((state->backend_asm_explicit) ==0)) {
       {

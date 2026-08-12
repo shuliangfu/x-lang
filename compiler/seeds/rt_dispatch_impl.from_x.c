@@ -172,7 +172,6 @@ int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int 
 int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv) {
   uint8_t *out_ptr;
   uint8_t *target_ptr;
-  int32_t want_generic_check;
 
   if (!state)
     return 1;
@@ -182,29 +181,19 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
 #endif
   if (driver_check_only_get())
     state->use_asm_backend = 0;
-  want_generic_check = 0;
-  if (state->out_path_len == 0)
-    want_generic_check = 1;
-  else if (driver_asm_output_want_exe(state->out_path_buf))
-    want_generic_check = 1;
-  if (state->use_asm_backend && want_generic_check) {
-    if (driver_source_has_generic_syntax(state->path_buf, state->path_len))
-      state->use_asm_backend = 0;
-  }
-  if (state->use_asm_backend && state->out_path_len > 0 && driver_asm_output_want_exe(state->out_path_buf)) {
-    /* 复合赋值已由 X lexer/parser 支持；勿降级 C。 */
-  }
+  /*
+   * PLATFORM: SHARED — PC invoke_cc opt-in (2026-08-12): silent generic→C removed.
+   * Prior residual: driver_source_has_generic_syntax on want_exe forced C without
+   * `-backend c`. G.7 cold twin of rt_dispatch_impl.x. Product host-cc only via
+   * explicit `-backend c` / check-only / emit-c. Import→C + APPLE exe→C already closed.
+   * No-import -o still locks backend_asm_explicit. Seed cold twin under !FROM_X only.
+   */
   out_ptr = NULL;
   if (state->out_path_len > 0)
     out_ptr = state->out_path_buf;
   target_ptr = NULL;
   if (state->target_len > 0)
     target_ptr = state->target_buf;
-  /*
-   * PLATFORM: SHARED — product default is asm. Import→C force removed 2026-08-12
-   * (mirror src/runtime/rt_dispatch_impl.x; dual-end option/hello -backend asm green).
-   * No-import -o still locks backend_asm_explicit. Seed cold twin under !FROM_X only.
-   */
 #if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
   if (state->out_path_len > 0 && !state->backend_asm_explicit &&
       !driver_source_has_top_level_import_path((const char *)state->path_buf))
@@ -216,15 +205,6 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
     driver_freestanding_set(1);
     cfg_set_freestanding(1);
   }
-  /*
-   * PLATFORM: SHARED — no host-OS force of C for want_exe.
-   * Historical residual: #if __APPLE__ forced use_asm_backend=0 on product -o exe
-   * (CG002 empty text on arm64). That was dual-authority vs pure .x (never had the
-   * block) and vs Ubuntu default-asm. Closed after bare mangle + METHOD spill +
-   * drop import→C (2026-08-12 dual-end DEF option/hello = ASM). Explicit -backend c
-   * and generic-syntax downgrade remain the only default C paths. Cold twin must
-   * match rt_dispatch_impl.x (G.7).
-   */
   if (state->use_asm_backend) {
     return driver_run_asm_backend_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr, argc, argv);
   }

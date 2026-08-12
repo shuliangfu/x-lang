@@ -576,25 +576,19 @@ export function run_compiler_full_x_post_parse(state: *DriverCompileState, argc:
       return one;
     }
     if (driver_check_only_get() != 0) {
-      /* See implementation. */
+      /* check-only forces C/typeck path (not product -o). */
       state.use_asm_backend = zero;
     }
-    let want_generic_check: i32 = zero;
-    if (state.out_path_len == zero) {
-      want_generic_check = one;
-    } else if (driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
-      want_generic_check = one;
-    }
-    if (state.use_asm_backend != 0 && want_generic_check != 0) {
-      if (driver_source_has_generic_syntax(&state.path_buf[0], state.path_len) != 0) {
-        state.use_asm_backend = zero;
-      }
-      /* See implementation. */
-    }
-    if (state.use_asm_backend != 0 && state.out_path_len > 0 &&
-        driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
-      /* See implementation. */
-    }
+    /*
+     * PLATFORM: SHARED — PC invoke_cc opt-in (2026-08-12): silent generic→C removed.
+     * Historical: driver_source_has_generic_syntax on want_exe forced use_asm_backend=0
+     * so product -o with generics auto-exec host-cc (invoke_cc) without `-backend c`.
+     * That violated PC "C is opt-in only". Root fix: keep asm unless user passed
+     * `-backend c` (argv parse) or check-only / emit-c flags. Generics that still
+     * need host-C must pass `-backend c` explicitly.
+     * Prior residual closed same class: import→C, seed __APPLE__ exe→C.
+     * No-import -o still locks backend_asm_explicit for explicit-asm gate consumers.
+     */
     let out_ptr: *u8 = 0 as *u8;
     if (state.out_path_len > 0) {
       out_ptr = &state.out_path_buf[0];
@@ -603,14 +597,6 @@ export function run_compiler_full_x_post_parse(state: *DriverCompileState, argc:
     if (state.target_len > 0) {
       target_ptr = &state.target_buf[0];
     }
-    /*
-     * PLATFORM: SHARED — product default backend is asm (driver_want_asm_emit_to_file).
-     * Historical residual: top-level import forced C + invoke_cc when backend was not
-     * explicit. Removed 2026-08-12 after dual-end option/hello `-backend asm` matrix green
-     * (bare mangle dep_pipe@1384 + import METHOD spill-then-load). Explicit `-backend c`
-     * still selects C; generic syntax downgrade above is unchanged.
-     * No-import -o still locks backend_asm_explicit so later gates treat asm as explicit.
-     */
     if (state.out_path_len > 0 && state.backend_asm_explicit == 0 &&
         driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) == 0) {
       state.backend_asm_explicit = one;

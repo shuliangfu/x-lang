@@ -1309,8 +1309,6 @@ export function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 {
   let c: *u8 = 0 as *u8;
   let m: *u8 = 0 as *u8;
   let rc: i32 = 0;
-  let plen: i32 = 0;
-  let want_exe: i32 = 0;
   if (p == 0 as *u8) {
     return 1;
   }
@@ -1333,29 +1331,12 @@ export function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 {
       want_asm = 0;
     }
   }
-  /* See signature and body for contracts. */
-  if (want_asm != 0) {
-    want_exe = 1;
-    if (outp != 0 as *u8) {
-      unsafe {
-        want_exe = xlang_output_want_exe(outp);
-      }
-    }
-    if (want_exe != 0) {
-      unsafe {
-        plen = strlen(path) as i32;
-      }
-      if (plen > 0) {
-        if (plen < 512) {
-          unsafe {
-            if (driver_source_has_generic_syntax(path, plen) != 0) {
-              want_asm = 0;
-            }
-          }
-        }
-      }
-    }
-  }
+  /*
+   * PLATFORM: SHARED — PC invoke_cc opt-in (2026-08-12): silent generic→C removed.
+   * Prior residual: generic syntax on want_exe forced want_asm=0 → emit C + host-cc
+   * without `-backend c`. Product C is now opt-in only (explicit `-backend c` /
+   * check-only / emit-c). G.7: match compile.x + rt_dispatch_impl.x same commit.
+   */
   if (want_asm != 0) {
     unsafe {
       lib = driver_asm_bind_lib_roots(lib, nlib, &nlib);
