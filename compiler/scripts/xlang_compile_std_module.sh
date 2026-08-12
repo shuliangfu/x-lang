@@ -731,6 +731,25 @@ for x_path in "$@"; do
           "$gen_c" >"$gen_c.strip" && mv "$gen_c.strip" "$gen_c"
     fi
   fi
+  # PLATFORM: SHARED — rt_preamble injects weak process_xlang_argc_get / argv_get that
+  # return 0 as a minimal fallback when process_argv is not linked. Formal_mod then
+  # Mac-export-filters only std_<leaf>_* → demotes those weak stubs to local T.
+  # Internal calls (args_iter_count_c → process_args_count_c → process_xlang_*) bind
+  # the local zero body forever; product ondemand complement scans for U process_xlang_*
+  # and never pushes runtime_process_argv.o → run-env env_iter exit 1 (a0==null).
+  # G.7 root: drop weak zero *definitions*, keep extern decls so the .o has U faces;
+  # ondemand process_argv complement + runtime_process_argv strong T win at product link.
+  # Do not invent a second argc authority in formal_mod.
+  if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    if grep -qE '__attribute__\(\(weak\)\).*process_xlang_argc_get' "$gen_c" 2>/dev/null; then
+      # In-place: replace weak zero *bodies* with extern decls (keep position after
+      # includes / typedefs so int32_t is known). Leaves U in .o for process_argv.
+      sed \
+        -e 's/^__attribute__((weak)) int32_t process_xlang_argc_get(void) { return 0; }$/extern int32_t process_xlang_argc_get(void); \/* formal_mod U→process_argv *\//' \
+        -e 's/^__attribute__((weak)) uint8_t \*process_xlang_argv_get(int32_t i) { (void)i; return (uint8_t \*)0; }$/extern uint8_t *process_xlang_argv_get(int32_t i); \/* formal_mod U→process_argv *\//' \
+        "$gen_c" >"$gen_c.pav" && mv "$gen_c.pav" "$gen_c"
+    fi
+  fi
   # PLATFORM: SHARED — generic weak-stub dedup after --bare-impl prefix strip.
   # After stripping the path prefix (e.g. std_context_context_), a weak preamble stub
   # can collide with a strong def that was previously differently-named
@@ -1212,12 +1231,17 @@ for fm in _func_def_re.finditer(s):
     # *_c impl face or already-prefixed impl names.
     if fname.endswith('_c'):
         continue
-    # Skip co-emitted foreign module bodies (io driver / process / ctx glue / args).
+    # Skip co-emitted foreign module bodies (io driver / process / ctx glue).
     # PLATFORM: SHARED — do NOT skip this module's real API that shares a short
     # prefix. std.error exports io_err_cancelled/timeout/generic; the old blanket
     # `io_*` skip left those bare on Mac → product UNDEF std_error_io_err_*
     # (L4 run-std-io-context-gate). G.7: prefix skip only for known co-emit faces.
-    if fname.startswith(('process_', 'args_')):
+    # PLATFORM: MACOS — do NOT blanket-skip args_*: std.env product API is
+    # args_iter / args_iter_count / args_iter_next (need std_env_* wrappers).
+    # Co-emitted args_iter_at_c / args_iter_count_c already skipped via
+    # endswith('_c') + _skip_names. Historical args_ prefix skip → run-env
+    # UNDEF std_env_args_iter* (env_iter.x key_is_x_it). Same class as io_err_*.
+    if fname.startswith('process_'):
         continue
     if fname.startswith('ctx_'):
         continue  # co-emitted ctx_*_c glue; product uses std_context_* wrappers
@@ -1554,14 +1578,23 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
     done
     # PLATFORM: SHARED — env product surface: bare getenv_exists/z/ptr/temp_dir/iter*
     # are not in the libc-clash list above; import calls std_env_*. Complete the rename.
+    # PLATFORM: LINUX|ELF — objcopy redefine (underscore-aware Mach-O-style nm too).
+    # PLATFORM: MACOS — primary path is pre-cc thin wrappers (above); this block
+    # is no-op when objcopy missing. Keep underscore form so Linux-with-underscore
+    # toolchains and future Mac llvm-objcopy still map bare → std_env_*.
     if [ "$leaf" = "env" ]; then
       for bare in getenv getenv_exists getenv_z getenv_ptr setenv unsetenv temp_dir \
                   iter iter_count iter_next args_iter args_iter_count args_iter_next; do
         if nm "$out_o" 2>/dev/null | grep -q " T ${bare}$"; then
           objcopy --redefine-sym "${bare}=std_env_${bare}" "$out_o" 2>/dev/null || true
+        elif nm "$out_o" 2>/dev/null | grep -q " T _${bare}$"; then
+          # Mach-O / underscored ELF: T _args_iter → _std_env_args_iter
+          objcopy --redefine-sym "_${bare}=_std_env_${bare}" "$out_o" 2>/dev/null || true
         fi
         if nm "$out_o" 2>/dev/null | grep -q " T std_env_${bare}_api$"; then
           objcopy --redefine-sym "std_env_${bare}_api=std_env_${bare}" "$out_o" 2>/dev/null || true
+        elif nm "$out_o" 2>/dev/null | grep -q " T _std_env_${bare}_api$"; then
+          objcopy --redefine-sym "_std_env_${bare}_api=_std_env_${bare}" "$out_o" 2>/dev/null || true
         fi
       done
     fi
