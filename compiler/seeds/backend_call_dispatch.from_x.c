@@ -3125,7 +3125,7 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
  * Emit redirected or direct call by symbol name.
  * PLATFORM: LINUX+MACOS x86_64 SysV — float arg/ret xmm is type-driven only:
  *   args: glue_emit_call_args / f32_xmm path (param type + FLOAT_LIT + resolved)
- *   ret:  glue_asm_harvest_sse_call_ret_to_gpr_c (pipeline_asm_call_return_type_kind_ord_c)
+ *   ret:  glue_asm_harvest_call_ret_to_gpr_c (pipeline_asm_call_return_type_kind_ord_c)
  * G.7: no std_math_* symbol-name pre/post xmm choke (import FIELD_ACCESS + dep type map
  * are the authority; name gates hide missing type resolve on other callees).
  */
@@ -3523,7 +3523,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                 if (cln < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
                   return -1;
               }
-              if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+              if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
                 return -1;
               return 0;
             }
@@ -3564,7 +3564,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
         if (cln2 < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln2, ta) != 0)
           return -1;
       }
-      if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+      if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
         return -1;
       return 0;
     }
@@ -3888,7 +3888,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             }
           }
           /* Type-driven f32/f64 ret harvest (same authority as EXPR_CALL). */
-          if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+          if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
             return -1;
           return 0;
         }
@@ -4231,7 +4231,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       if (cln > 0 && backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
         return -1;
     }
-    if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+    if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
       return -1;
     return 0;
   }
