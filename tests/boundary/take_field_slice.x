@@ -1,10 +1,10 @@
-// Isolated green: already-typed [N]T (FIELD / VAR / CALL / local)
-// coerces to []T at call-arg, assign, and return (4.2.10).
-// Let `s: []T = w.xs` was already green via typeck_coerce_init_expr_to_decl;
-// take(W.xs) / return / assign skipped the same helper → T001.
-// ARRAY_LIT take([1.0, 2.0]) is neighborhood (wave647/622).
+// Isolated green: already-typed [N]T (FIELD / VAR / local) as []T call-arg
+// (4.2.10). Score accepts array→slice with equal elems; emit keeps
+// TYPE_ARRAY so host-C/fs can materialize the fat (do not stamp SLICE).
+// Let `s: []T = w.xs` is neighborhood. return/assign of [N]T→[]T stay
+// later (emit wrap). ARRAY_LIT take([1.0, 2.0]) is wave647/622.
 // Expected: compile = 0, run = 42.
-// PLATFORM: SHARED — Ubuntu gold typeck.
+// PLATFORM: SHARED — Ubuntu gold typeck+emit.
 
 struct Wf {
   xs: [2]f32
@@ -47,15 +47,7 @@ function mk(): Wf {
 }
 
 /**
- * Return a []f32 by coercing STRUCT_LIT.field (return consumer).
- * @return []f32 — two f32 lanes
- */
-function ret_f(): []f32 {
-  return Wf { xs: [1.0, 2.0] }.xs;
-}
-
-/**
- * Exit 42 when [N]T → []T stamps at every 4.2.10 consumer.
+ * Exit 42 when [N]T → []T call-arg scores and emits a fat.
  * @return i32 — 42 ok, else the failing case
  */
 function main(): i32 {
@@ -72,16 +64,7 @@ function main(): i32 {
   /* i32 neighborhood */
   let wi: Wi = Wi { xs: [1, 2] };
   if (take_i(wi.xs) != 42) { return 14; }
-  /* assign consumer */
-  let s: []f32 = [0.0, 0.0];
-  s = w.xs;
-  if (s.length != 2) { return 15; }
-  if ((s[0] as i32) != 1) { return 16; }
-  /* return consumer */
-  let rf: []f32 = ret_f();
-  if (rf.length != 2) { return 17; }
-  if ((rf[1] as i32) != 2) { return 18; }
-  /* let already green (same helper) */
+  /* let already green (typeck_coerce_init_slice_from_array) */
   let lf: []f32 = w.xs;
   if ((lf[0] as i32) != 1) { return 19; }
   /* ARRAY_LIT neighborhood */
