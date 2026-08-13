@@ -24981,15 +24981,19 @@ int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
   kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
   if (kind_ord == 16) return 0;
   if (kind_ord == 2) return 1;
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 13 || kind_ord == 14) return 4;
+  /* TYPE_VECTOR=13 is lanes*esz (with ARRAY below), not scalar 4.
+   * Stage12: size=4 → 1 GP pack vs formal dual-GP/SSE SEGV. */
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) return 4;
   if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) return 8;
   if (kind_ord == 11) return 16;
-  if (kind_ord == 10 || kind_ord == 12) {
+  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
     elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
     asz = pipeline_type_array_size_at(a, ty_ref);
     if (elem_ref <= 0 || asz <= 0) return 0;
-    soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
-    if (soa_sz > 0) return soa_sz;
+    if (kind_ord == 10 || kind_ord == 12) {
+      soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
+      if (soa_sz > 0) return soa_sz;
+    }
     es = glue_type_size_simple(m, a, elem_ref, depth + 1);
     return es > 0 ? asz * es : 0;
   }

@@ -49781,9 +49781,11 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   if (kind_ord == 2) {
     return 1;
   }
-  // i32=0 u32=3 u8=1 f64-related 13? wait: i32/u32/u8/f32: 0,3,1,13,14 → 4
-  // C: kind_ord == 0 || 3 || 1 || 13 || 14 return 4
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 13 || kind_ord == 14) {
+  // i32=0 u32=3 bool-like u8=1 f32=14 → 4
+  // TYPE_VECTOR=13 is NOT scalar — handled with ARRAY below (lanes * esz).
+  // Stage12 soft residual (2026-08-13): old `|| kind_ord == 13` made Vec4f size=4
+  // → call pack 1 GP + formal gcc SSE xmm0/xmm1 SEGV (mask ptr never in rdi).
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) {
     return 4;
   }
   // i64/u64/usize/isize/ptr/f64: 5,4,6,7,15,9 → 8
@@ -49794,8 +49796,8 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   if (kind_ord == 11) {
     return 16;
   }
-  // ARRAY=10 LINEAR=12
-  if (kind_ord == 10 || kind_ord == 12) {
+  // ARRAY=10 LINEAR=12 TYPE_VECTOR=13 → N * elem_size (SIMD lanes via array_size)
+  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
     unsafe {
       elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
       asz = pipeline_type_array_size_at(a, ty_ref);
@@ -49803,11 +49805,14 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     if (elem_ref <= 0 || asz <= 0) {
       return 0;
     }
-    unsafe {
-      soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
-    }
-    if (soa_sz > 0) {
-      return soa_sz;
+    // SoA only for fixed ARRAY (not SIMD VECTOR).
+    if (kind_ord == 10 || kind_ord == 12) {
+      unsafe {
+        soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
+      }
+      if (soa_sz > 0) {
+        return soa_sz;
+      }
     }
     es = glue_type_size_simple(m, a, elem_ref, depth + 1);
     if (es > 0) {

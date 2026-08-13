@@ -1,8 +1,14 @@
 /* std/simd/formal_surface.c — host-C formal faces for pure-asm import METHOD mid.
  *
  * G.7 authority twin of std/simd/mod.x export mangle (codegen VECTOR = f32x4 / i32x8).
- * Use plain POD arrays (not gcc vector_size) so ABI matches pure-asm SysV MEMORY /
- * stack formals without requiring -mavx (vector_size(32) changes ABI without AVX).
+ *
+ * ABI (Stage12 soft residual 2026-08-13):
+ *   - Do NOT use `struct { float v[4]; }` for f32x4: gcc SysV classifies it as
+ *     SSE (xmm0+xmm1) while pure-asm packs 16B POD as INTEGER dual-GP (rdi+rsi).
+ *     That mismatch put mask bits in rdi → SEGV on mask[i].
+ *   - Use uint64_t lo/hi so the type is INTEGER dual-GP ≡ pure-asm size=16 pack
+ *     after glue_type_size_simple TYPE_VECTOR = lanes*esz.
+ *   - i32x8 remains 32B MEMORY (stack) — pure-asm MEMORY path matches gcc.
  *
  * PLATFORM: SHARED formal .o for pure-asm link (Ubuntu gold + mac L2).
  * Bodies match mod.x scalar-lane semantics (STD-047).
@@ -10,12 +16,33 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct { float v[4]; } f32x4_t;
-typedef struct { int32_t v[8]; } i32x8_t;
+/* INTEGER dual-GP (16B) — pure-asm SysV rdi+rsi / ret rax+rdx. */
+typedef struct {
+  uint64_t lo;
+  uint64_t hi;
+} f32x4_t;
+
+/* 32B MEMORY by-value — pure-asm stack pack. */
+typedef struct {
+  int32_t v[8];
+} i32x8_t;
+
+static void f32x4_from_lanes(f32x4_t *o, float a, float b, float c, float d) {
+  float t[4];
+  t[0] = a;
+  t[1] = b;
+  t[2] = c;
+  t[3] = d;
+  memcpy(o, t, 16);
+}
+
+static void f32x4_to_lanes(f32x4_t v, float out[4]) {
+  memcpy(out, &v, 16);
+}
 
 f32x4_t std_simd_splat_f32(float x) {
   f32x4_t r;
-  r.v[0] = r.v[1] = r.v[2] = r.v[3] = x;
+  f32x4_from_lanes(&r, x, x, x, x);
   return r;
 }
 
@@ -29,14 +56,18 @@ i32x8_t std_simd_splat_i32(int32_t x) {
 
 f32x4_t std_simd_shuffle_f32x4_i32_a4(f32x4_t v, int32_t *mask) {
   f32x4_t r;
+  float src[4];
+  float dst[4];
   int32_t i0 = mask ? mask[0] : 0;
   int32_t i1 = mask ? mask[1] : 0;
   int32_t i2 = mask ? mask[2] : 0;
   int32_t i3 = mask ? mask[3] : 0;
-  r.v[0] = v.v[i0 & 3];
-  r.v[1] = v.v[i1 & 3];
-  r.v[2] = v.v[i2 & 3];
-  r.v[3] = v.v[i3 & 3];
+  f32x4_to_lanes(v, src);
+  dst[0] = src[i0 & 3];
+  dst[1] = src[i1 & 3];
+  dst[2] = src[i2 & 3];
+  dst[3] = src[i3 & 3];
+  memcpy(&r, dst, 16);
   return r;
 }
 
@@ -68,9 +99,14 @@ i32x8_t std_simd_select_i32x8_i32x8_i32x8(i32x8_t mask, i32x8_t a, i32x8_t b) {
 
 f32x4_t std_simd_select_f32x4_f32x4_f32x4(f32x4_t mask, f32x4_t a, f32x4_t b) {
   f32x4_t r;
-  r.v[0] = std_simd_select_lane_f32_f32_f32(mask.v[0], a.v[0], b.v[0]);
-  r.v[1] = std_simd_select_lane_f32_f32_f32(mask.v[1], a.v[1], b.v[1]);
-  r.v[2] = std_simd_select_lane_f32_f32_f32(mask.v[2], a.v[2], b.v[2]);
-  r.v[3] = std_simd_select_lane_f32_f32_f32(mask.v[3], a.v[3], b.v[3]);
+  float m[4], aa[4], bb[4], out[4];
+  f32x4_to_lanes(mask, m);
+  f32x4_to_lanes(a, aa);
+  f32x4_to_lanes(b, bb);
+  out[0] = std_simd_select_lane_f32_f32_f32(m[0], aa[0], bb[0]);
+  out[1] = std_simd_select_lane_f32_f32_f32(m[1], aa[1], bb[1]);
+  out[2] = std_simd_select_lane_f32_f32_f32(m[2], aa[2], bb[2]);
+  out[3] = std_simd_select_lane_f32_f32_f32(m[3], aa[3], bb[3]);
+  memcpy(&r, out, 16);
   return r;
 }
