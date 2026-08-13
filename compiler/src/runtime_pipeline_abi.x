@@ -54180,12 +54180,10 @@ export function glue_binop_kill_assign_lhs_slots_elf_c(arena: *u8, ctx: *u8, ass
 // PLATFORM: SHARED freestanding frame-size estimation · dual-end L2.
 // ============================================================================
 
-// Cap residual / pool faces used by wave157 pure (method_call not previously
-// declared in this TU; while/for cond use ast_ast_block_* authority already
-// export-extern above). PLATFORM: SHARED.
-export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, expr_ref: i32): i32;
-export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, expr_ref: i32): i32;
-export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
+// METHOD_CALL accessors: declared once at file top (export extern "C").
+// Do not redeclare here — dual export extern is scored as same-param overload
+// and pure-asm emits _u8_ptr_i32_reti32 U (G.7; Stage12 s4 HW hybrid).
+// PLATFORM: SHARED.
 
 // Soft leave-off BSS: recursive expr walk totals + iterative block stack.
 // Last-wins reentrancy (matches historical Cap residual statics).
