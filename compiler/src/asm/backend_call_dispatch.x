@@ -2066,7 +2066,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                      * and used arg index as GP index → Result_i32 (16B INTEGER dual-GP) only packed
                      * lows into x0/x1; host core_result_or_i32 expects x0:x1 + x2:x3 → return -3.
                      * Free CALL already uses size→units + gp_start; import METHOD must match.
-                     * G.7: one discipline for free CALL and import METHOD_CALL (dual-GP units).
+                     * Root (run-slice subslice_split_chunks SEGV): pure import METHOD started
+                     * gp_cur at 0 while let-init sret had already placed hidden dest in rdi and
+                     * set call_sret_reg_shift=1. Args overwrote rdi with arg0 → callee
+                     * core_slice_split_at_i32 (sret, slice*, at) read at-as-pointer → SEGV.
+                     * Seed twin already starts gp_cur at sret_sh; pure .x must match.
+                     * G.7: one discipline for free CALL and import METHOD_CALL (dual-GP + sret).
                      */
                     {
                       let spill_off_m: i32[96] = [];
@@ -2074,7 +2079,13 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       let gp_units_m: i32[96] = [];
                       let i_m: i32 = 0;
                       let reg_max_m: i32 = glue_asm_call_reg_max(ta);
-                      let gp_cur_m: i32 = 0;
+                      // SysV hidden sret consumes rdi (GP0); shift formals by sret_sh.
+                      // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV; AAPCS64 uses x8 (sret_sh=0).
+                      let sret_sh_m: i32 = 0;
+                      if (ta == 0) {
+                        sret_sh_m = pipeline_asm_emit_call_sret_reg_shift_c();
+                      }
+                      let gp_cur_m: i32 = sret_sh_m;
                       if (reg_max_m < 1) { reg_max_m = 6; }
                       // Classify: 9–16B dual-GP; >16B host-C large POD → 1 GP lea (not MEMORY stack).
                       // PLATFORM: SHARED import METHOD → host-C std .o (std_string_length_String
