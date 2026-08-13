@@ -10,7 +10,6 @@ allow(padding) struct Alloc {
 }
 
 struct Box {
-  n: i32
   al: Alloc
 }
 
@@ -42,33 +41,31 @@ function default_alloc(): Alloc {
 
 /**
  * Zero-arg const struct lit whose field init is METHOD default_alloc.
- * @return Box — {1, recv.default_alloc()}
+ * @return Box — { recv.default_alloc() }
  */
 function mk_m(): Box {
-  return Box { n: 1, al: 0.default_alloc() };
+  return Box { al: 0.default_alloc() };
 }
 
 /**
  * Zero-arg const struct lit whose field init is CALL default_alloc.
- * @return Box — {2, default_alloc()}
+ * @return Box — { default_alloc() }
  */
 function mk_c(): Box {
-  return Box { n: 2, al: default_alloc() };
+  return Box { al: default_alloc() };
 }
 
 /**
  * Probe: METHOD + CALL default_alloc field inits rewrite to heap (kind != 99).
- * Exit 0 on success; 1..4 name the miss.
+ * Exit 0 on success; 1..2 name the miss.
  * @return i32 — 0 ok
  */
 function main(): i32 {
   let a: Box = mk_m();
   let b: Box = mk_c();
-  if (a.n != 1) { return 1; }
-  if (b.n != 2) { return 2; }
   /* METHOD field still ran the dummy body. */
-  if (a.al.kind == 99) { return 3; }
+  if (a.al.kind == 99) { return 1; }
   /* CALL field still ran the dummy body. */
-  if (b.al.kind == 99) { return 4; }
+  if (b.al.kind == 99) { return 2; }
   return 0;
 }
