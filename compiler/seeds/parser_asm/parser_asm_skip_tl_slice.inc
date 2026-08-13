@@ -2378,6 +2378,9 @@ void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len) {
  *
  * Bound pattern: `function IDENT < IDENT : IDENT >` — the second IDENT is
  *   the bound trait name; stored as (function_name, trait_name).
+ *   Same type-param may list several traits with `+` (`T: Clone + Default`):
+ *   each `IDENT` after `+` is another bound at the SAME pos (COMMA still
+ *   advances pos). Check already walks every bound row.
  * Call pattern: `IDENT < IDENT > (` — the inner IDENT is the type arg;
  *   stored as (callee_name, type_arg). Only captured when `>` is followed
  *   by `(` to avoid false-matching comparison operators `a < b`.
@@ -2453,6 +2456,8 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
         int32_t angle_depth = 1;
         int32_t expect_trait = 0;
         int32_t expect_tp = 1;
+        /* 1 after a bound IDENT so `+ Trait` stays on the same pos. */
+        int32_t after_bound = 0;
         int32_t pos = 0;
         int32_t gp_slot = -1;
         if (g_fn_gp_n < XLANG_FN_GP_MAX) {
@@ -2477,6 +2482,15 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
           } else if (r.tok.kind == (int32_t)TOKEN_COLON && angle_depth == 1) {
             expect_trait = 1;
             expect_tp = 0;
+            after_bound = 0;
+          } else if (r.tok.kind == (int32_t)TOKEN_PLUS && angle_depth == 1 && after_bound) {
+            /* T: Clone + Default — another bound on this type-param slot.
+             * Do not increment pos (COMMA does that). Previously PLUS was
+             * ignored so Default never registered → call-site false-green.
+             * PLATFORM: SHARED parse. */
+            expect_trait = 1;
+            expect_tp = 0;
+            after_bound = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_trait) {
             if (g_fn_bound_n < XLANG_FN_BOUND_MAX) {
               memcpy(g_fn_bound_name[g_fn_bound_n], last_ident, (size_t)last_ident_len);
@@ -2489,6 +2503,7 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               g_fn_bound_n++;
             }
             expect_trait = 0;
+            after_bound = 1;
           } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_tp
                      && !expect_trait) {
             /* wave455: type-param name at declaration position. */
@@ -2502,9 +2517,11 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               g_fn_gp_nargs[gp_slot] = pi + 1;
             }
             expect_tp = 0;
+            after_bound = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_COMMA && angle_depth == 1) {
             expect_trait = 0;
             expect_tp = 1;
+            after_bound = 0;
             pos++;
           }
           lex = r.next_lex;
