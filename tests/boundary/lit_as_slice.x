@@ -3,8 +3,8 @@
 // (stamps the lit SLICE); emit identity-forwards so the existing ARRAY_LIT
 // fat path fires. Bare `let s = …` is P010 (no inference). const EXPR_AS
 // is a later const-expr leaf.
-// Expected: compile = 0, run = 42.
-// PLATFORM: SHARED — Ubuntu gold parse+typeck+emit.
+// Expected: host-C compile = 0, run = 42. asm compile = 0 (fat length leftover).
+// PLATFORM: SHARED — Ubuntu gold parse+typeck+host-C.
 
 /**
  * Let-init `[10, 32] as []i32`.
