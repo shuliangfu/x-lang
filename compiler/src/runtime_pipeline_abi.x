@@ -70774,10 +70774,11 @@ export function glue_loop_continue_head_live_union_into_u8(dst: *u8, d: i32): vo
 // G.7 product authority for freestanding CALL-arg packing into rax[/rdx] or lea:
 //   pipeline_asm_emit_expr_elf_for_call_args
 // Domains: f32 lit · VAR array→slice fat · dual-GP · fixed array · STRUCT_LIT
-//   · INDEX · FIELD array/slice · ARRAY_LIT→slice · CALL/METHOD→slice reent
+//   · INDEX · FIELD array/slice · ARRAY_LIT→slice · ARRAY_LIT→SIMD 16B
+//   · CALL/METHOD→slice reent
 // Reuses pure resolve / lea gate / dual-GP load / f32 load / deep_copy /
 //   field_type_ref / try_index field base / array durable+force_esz /
-//   emit_expr_elf_rec / emit globals via emit_ctx getters.
+//   vector_type_let_init / emit_expr_elf_rec / emit globals via emit_ctx getters.
 // Deferred: CALL thin wrappers · pipeline_x mega host-cc.
 // PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
 // ===========================================================================
@@ -70788,7 +70789,8 @@ export function glue_loop_continue_head_live_union_into_u8(dst: *u8, d: i32): vo
  * Routes by expr kind + formal (call_param_ty) vs resolved type:
  * f32 lit; VAR fixed-array→slice fat; VAR lea vs dual-GP load; FIELD
  * array→slice / array formal / named-struct pass-addr; ARRAY_LIT→slice;
- * CALL/METHOD returning array or slice as slice* formal; else rec.
+ * ARRAY_LIT→SIMD ≤16B (i32x4 / f32x4) dual-GP; CALL/METHOD returning
+ * array or slice as slice* formal; else rec.
  *
  * @param arena *u8 — ASTArena*; null skips typed routes (rec may still run)
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1 on routes that encode
@@ -70846,6 +70848,10 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   let payload_off: i32 = 0;
   let ai: i32 = 0;
   let elem_tr: i32 = 0;
+  let simd_ty: i32 = 0;
+  let lanes: i32 = 0;
+  let vec_nbytes: i32 = 0;
+  let vec_reserve: i32 = 0;
   // Kind ords (ast_ExprKind / TypeKind single authority).
   let kind_int_lit: i32 = 1;
   let kind_var: i32 = 3;
@@ -71124,6 +71130,72 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
         unsafe { rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta); }
         if (rc != 0) { return 0 - 1; }
         return 0;
+      }
+      /*
+       * ARRAY_LIT as SIMD/VECTOR formal (i32x4 / f32x4 / NAMED spelling).
+       * G.7 complete of this function's ARRAY_LIT family: slice route is
+       * above; rec would lea a stack array (pointer in rax) while the
+       * callee expects 9–16B INTEGER dual-GP (same as VAR i32x4).
+       * Reuse glue_emit_vector_type_let_init (let `a: i32x4 = [lit]`).
+       * METHOD receiver also enters here with pty often unset — also
+       * accept resolved SIMD stamp. >16B (i32x8) stays rec / MEMORY.
+       * PLATFORM: SHARED freestanding · LINUX+MACOS x86 high-end ·
+       * MACOS|ARM64 AAPCS64 low-end (same polarity as vector let-init).
+       */
+      simd_ty = 0;
+      if (pty > 0) {
+        unsafe { rc = asm_type_is_simd_vector_spelling(arena, pty); }
+        if (rc != 0) { simd_ty = pty; }
+      }
+      unsafe { rty = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+      if (simd_ty == 0 && rty > 0) {
+        unsafe { rc = asm_type_is_simd_vector_spelling(arena, rty); }
+        if (rc != 0) { simd_ty = rty; }
+      }
+      if (simd_ty > 0) {
+        lanes = 0;
+        esz = 0;
+        if (glue_vector_type_lanes_esz_c(arena, simd_ty, &lanes, &esz) != 0) {
+          return 0 - 1;
+        }
+        if (lanes <= 0 || esz <= 0) { return 0 - 1; }
+        vec_nbytes = lanes * esz;
+        if (vec_nbytes > 0 && vec_nbytes <= 16) {
+          vec_reserve = (vec_nbytes + 7) & (0 - 8);
+          if (vec_reserve < 8) { vec_reserve = 8; }
+          base_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+          if ((base_off % 8) != 0) { base_off = (base_off + 7) / 8 * 8; }
+          if (ta == 1) {
+            home = base_off;
+            pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), base_off + vec_reserve);
+          } else {
+            home = base_off + vec_reserve;
+            pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), home);
+          }
+          glue_align_next_offset(ctx);
+          if (glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, expr_ref, ctx, ta, home, simd_ty) != 0) {
+            return 0 - 1;
+          }
+          if (vec_nbytes > 8) {
+            if (ta == 1) {
+              unsafe { rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home + 8, ta); }
+              if (rc != 0) { return 0 - 1; }
+              unsafe { rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta); }
+              if (rc != 0) { return 0 - 1; }
+              unsafe { rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta); }
+              if (rc != 0) { return 0 - 1; }
+            } else {
+              unsafe { rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta); }
+              if (rc != 0) { return 0 - 1; }
+              unsafe { rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, home - 8, ta); }
+              if (rc != 0) { return 0 - 1; }
+            }
+          } else {
+            unsafe { rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta); }
+            if (rc != 0) { return 0 - 1; }
+          }
+          return 0;
+        }
       }
     }
   }

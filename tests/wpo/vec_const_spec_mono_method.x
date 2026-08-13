@@ -5,8 +5,8 @@
  * `lane0__wpo_1_2_3_4_10_20_30_40`.
  *
  * METHOD inner + METHOD outer only. CALL-inner neighborhood lives on
- * vec_const_spec_fold.x (typeck ARRAY_LIT→i32x4 CALL now green; bare
- * ARRAY_LIT as SIMD CALL-arg emit is a later codegen knife).
+ * vec_const_spec_fold.x (typeck ARRAY_LIT→i32x4 CALL green; bare
+ * ARRAY_LIT SIMD CALL-arg emit is pipeline_asm_emit_expr_elf_for_call_args).
  * smf 25/26 keep the CALL-inner neighborhood on the larger file.
  */
 
