@@ -40087,6 +40087,10 @@ export function glue_callee_is_vec4f_fma3_c(cname: *u8, clen: i32): i32 {
   if (clen == 8 && wave148_bytes_eq(cname, "simd_fma", 8) != 0) {
     return 1;
   }
+  /* METHOD import std.simd.fma — bare name after receiver. */
+  if (clen == 3 && wave148_bytes_eq(cname, "fma", 3) != 0) {
+    return 1;
+  }
   return 0;
 }
 
@@ -41384,7 +41388,8 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_c
 }
 
 /**
- * Inline vec4f_fma / vec4f_madd / simd_fma CALL.
+ * Inline vec4f_fma / vec4f_madd / simd_fma CALL or METHOD import simd.fma.
+ * Completes METHOD path + bare "fma" (s4 shuffle/select pattern).
  * @return i32 - 1 inlined; 0 no match; -1 error
  * wave148 pure: G.7 authority (was pipeline_asm_simd_try_inline_fma3_call_elf_c).
  * PLATFORM: SHARED freestanding · LINUX|x86 FMA.
@@ -41406,23 +41411,51 @@ export function pipeline_asm_simd_try_inline_fma3_call_elf_c(arena: *u8, elf_ctx
   let ko: i32 = 0;
   let nargs: i32 = 0;
   let rc: i32 = 0;
+  let is_method: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
     return 0;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_ref);
-    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
   }
-  if (ko != 48 || nargs != 3) {
+  /* CALL=48, METHOD_CALL=49 (import simd.fma is METHOD). */
+  if (ko != 48 && ko != 49) {
     return 0;
   }
-  unsafe {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+  if (ko == 49) {
+    is_method = 1;
   }
-  if (callee_ref <= 0) {
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
+  }
+  if (nargs != 3) {
     return 0;
   }
-  clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
+  if (is_method != 0) {
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
+    }
+  } else {
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
+  }
   if (clen <= 0 || glue_callee_is_vec4f_fma3_c(&g_wave148_cname[0], clen) == 0) {
     return 0;
   }
@@ -41433,10 +41466,18 @@ export function pipeline_asm_simd_try_inline_fma3_call_elf_c(arena: *u8, elf_ctx
   if (lanes != 4 || esz != 4 || glue_vector_elem_is_f32_c(arena, type_ref) == 0) {
     return 0;
   }
-  unsafe {
-    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-    arg2 = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  if (is_method != 0) {
+    unsafe {
+      arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+      arg2 = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
+    }
+  } else {
+    unsafe {
+      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+      arg2 = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+    }
   }
   if (arg0 <= 0 || arg1 <= 0 || arg2 <= 0) {
     return 0 - 1;

@@ -20527,6 +20527,9 @@ int32_t glue_callee_is_vec4f_fma3_c(uint8_t *cname, int32_t clen) {
     return 1;
   if (clen == 8 && memcmp(cname, "simd_fma", 8) == 0)
     return 1;
+  /* METHOD import std.simd.fma — bare name after receiver. */
+  if (clen == 3 && memcmp(cname, "fma", 3) == 0)
+    return 1;
   return 0;
 }
 
@@ -20551,26 +20554,46 @@ int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(void *arena,
   int32_t off_c;
   uint32_t feats;
   const char *hw_env;
+  int32_t ko;
+  int32_t is_method;
 
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != 48)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  /* CALL=48, METHOD_CALL=49 (import simd.fma is METHOD). */
+  if (ko != 48 && ko != 49)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, call_ref) != 3)
-    return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  if (callee_ref <= 0)
-    return 0;
-  clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
+  is_method = (ko == 49);
+  if (is_method) {
+    if (pipeline_expr_method_call_num_args_at(arena, call_ref) != 3)
+      return 0;
+    clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    if (clen <= 0 || clen >= 64)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, call_ref, cname);
+  } else {
+    if (pipeline_expr_call_num_args_at(arena, call_ref) != 3)
+      return 0;
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    if (callee_ref <= 0)
+      return 0;
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
+  }
   if (clen <= 0 || glue_callee_is_vec4f_fma3_c(cname, clen) == 0)
     return 0;
   if (glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz) != 0)
     return -1;
   if (lanes != 4 || esz != 4 || glue_vector_elem_is_f32_c(arena, type_ref) == 0)
     return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-  arg2 = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  if (is_method) {
+    arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+    arg2 = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+    arg2 = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  }
   if (arg0 <= 0 || arg1 <= 0 || arg2 <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, arg0) != 3 || pipeline_expr_kind_ord_at(arena, arg1) != 3 ||
