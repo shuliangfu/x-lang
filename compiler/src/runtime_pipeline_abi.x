@@ -51279,6 +51279,17 @@ export function glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx: *u8, rehome_off: 
  * Sentinels: DEST_IN_RBX=-3 (dest already in rbx; CPU-stack rehome),
  * REHOME_CPU_STACK=-4. Empty nf==0 ZST ok. Nested STRUCT_LIT in-place;
  * dual-GP 9-16; arm64 nest polarity (ta==1 low-end vs ta==0 high-end).
+ * Implicit dest (stack_slot_off<0, not sret / DEST_IN_RBX): reserve the
+ * full value width (layout bytes, else field-span) before lea. Same
+ * polarity as glue_field_access_call_base_rvalue_elf_c. A 16B Quad
+ * written at an unbumped next_off overlaps the previous 8B local
+ * (self@dest+8); `.c` clobbers self and `.d` becomes (self+2)+3.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param expr_ref i32 — STRUCT_LIT expr
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — 0=x86 high-end; 1=arm64 low-end
+ * @param stack_slot_off i32 — >=0 existing home; -1 implicit; -3 DEST_IN_RBX
  * @return i32 - 0 ok; -1 fail
  * wave154 pure: G.7 authority (was pipeline_asm_emit_struct_lit_fields_elf_c).
  * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
@@ -51357,7 +51368,53 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
     if (stack_slot_off >= 0) {
       base_off = stack_slot_off;
     } else {
-      base_off = next_off;
+      // Implicit dest (return Struct { ... }): reserve full width.
+      // PLATFORM: LINUX|x86 high-end home=next+alloc; MACOS|ARM64 low-end home=next.
+      vb = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
+      if (vb <= 0 && nf > 0) {
+        fi = 0;
+        while (fi < nf) {
+          foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
+          fsz = glue_struct_lit_field_store_sz(arena, expr_ref, fi);
+          if (foff < 0) {
+            foff = 0;
+          }
+          if (fsz < 0) {
+            fsz = 0;
+          }
+          if (foff + fsz > vb) {
+            vb = foff + fsz;
+          }
+          fi = fi + 1;
+        }
+        fi = 0;
+      }
+      if (vb <= 8) {
+        nest_alloc = 8;
+      } else {
+        if (vb <= 16) {
+          nest_alloc = 16;
+        } else {
+          nest_alloc = vb + ((8 - (vb % 8)) % 8);
+        }
+      }
+      if ((next_off % 8) != 0) {
+        next_off = (next_off + 7) / 8 * 8;
+      }
+      if (ta == 1) {
+        base_off = next_off;
+        unsafe {
+          pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), next_off + nest_alloc);
+        }
+      } else {
+        base_off = next_off + nest_alloc;
+        unsafe {
+          pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), base_off);
+        }
+      }
+      unsafe {
+        glue_align_next_offset(ctx);
+      }
     }
     unsafe {
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0) {
