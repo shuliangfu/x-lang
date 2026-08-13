@@ -7788,6 +7788,12 @@ decl_kind: i32): i32 {
  * (`let a:i32[2]=[true,false]` run=1). Hard-fail known elem mismatch; do not stamp outer
  * on failure. Soft-skip still-unknown elem_ty (incomplete resolve). LANG-006 bool→int
  * is scalar let/const only — not array elems.
+ *
+ * 4.2.3 deep lit: recurse when the element decl is TYPE_SLICE as well as
+ * TYPE_ARRAY. Prior peel only matched TYPE_ARRAY, so `let x: [][]i32 = [[1,2]]`
+ * compared wave611's inferred `[2]i32` to `[]i32` (expected []i32 found [2]i32).
+ * Same-layer: already-typed TYPE_ARRAY elems (`let a:[2]i32=…; [a]` → `[][]i32`)
+ * reuse typeck_coerce_init_slice_from_array (no second peel). PLATFORM: SHARED.
  */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
@@ -7836,7 +7842,14 @@ decl_ty_ref: i32): i32 {
         continue;
       }
       elem_kind = pipeline_expr_kind_ord_at(arena, elem_ref);
-      if (elem_kind == ord_expr_array_lit && elem_decl_kind == ord_type_array) {
+      /*
+       * Nested ARRAY_LIT must peel both TYPE_ARRAY (`[N][M]T`) and TYPE_SLICE
+       * (`[][]T` / `[N][]T`). Recurse on the same authority so 3+ layers
+       * (`[][][]T = [[[1]]]`) stamp inward; do not stop at one ARRAY peel.
+       * PLATFORM: SHARED.
+       */
+      if (elem_kind == ord_expr_array_lit
+      && (elem_decl_kind == ord_type_array || elem_decl_kind == ord_type_slice)) {
         if (typeck_coerce_array_lit_elem_types_to_decl(arena, elem_ref, elem_decl_ref) < 0) {
           return - 1;
         }
@@ -7844,6 +7857,8 @@ decl_ty_ref: i32): i32 {
         typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind);
         /* wave617: f32/f64 ARRAY_LIT elems — same stamp as scalar let f32 = 10.0. */
         typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind);
+        /* Already-typed [N]T elem → T[] dest: same helper as let `x: T[] = arr`. */
+        typeck_coerce_init_slice_from_array(arena, elem_ref, elem_decl_ref, elem_decl_kind);
         elem_ty = expr_type_ref(arena, elem_ref);
         if (!ast.ref_is_null(elem_ty) && elem_ty > 0) {
           got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
