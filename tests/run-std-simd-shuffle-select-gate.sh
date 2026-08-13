@@ -35,7 +35,8 @@ if ! grep -qF 'v[mask[0]]' "$MOD_X" 2>/dev/null; then
   echo "std-simd-shuffle-select gate FAIL: missing lane-scalar shuffle in $MOD_X" >&2
   exit 1
 fi
-if ! grep -qF 'vec8i_select_lane' "$MOD_X" 2>/dev/null; then
+# Product API is select_lane (mod.x); legacy gate string vec8i_select_lane drifted.
+if ! grep -qE 'function select_lane\(' "$MOD_X" 2>/dev/null; then
   echo "std-simd-shuffle-select gate FAIL: missing select_lane helper in $MOD_X" >&2
   exit 1
 fi
