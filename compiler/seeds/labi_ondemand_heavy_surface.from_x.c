@@ -96,6 +96,7 @@ extern int32_t xlang_ensure_runtime_net_workers_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_process_argv_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_queue_contention_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_env_os_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_thread_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_atomic_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_sync_os_o(uint8_t * argv0);
@@ -114,6 +115,7 @@ extern uint8_t * xlang_runtime_process_argv_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_queue_contention_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_test_fn_invoke_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_env_os_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_thread_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_atomic_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_sync_os_o_path(uint8_t * argv0);
@@ -1556,6 +1558,76 @@ uint8_t * labi_od_rel_test_fn_invoke(void) {
   uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f");
   return p;
 }
+/* PLATFORM: SHARED — ≡ pure labi_od_rel_env_os (test monofile env_getenv_c). */
+uint8_t * labi_od_rel_env_os(void) {
+  uint8_t * p = ((uint8_t *)"compiler/runtime_env_os.o");
+  return p;
+}
+/* PLATFORM: SHARED — ≡ pure labi_od_push_test_monofile_companions. */
+void labi_od_push_test_monofile_companions(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
+  if ((la == 0)) {
+    return;
+  }
+  if ((argv == 0)) {
+    return;
+  }
+  {
+    int32_t er_t = 0;
+    uint8_t * tp = 0;
+    uint8_t * tfrel = labi_od_rel_test_fn_invoke();
+    (void)((er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0)));
+    (void)((tp = xlang_runtime_test_fn_invoke_o_path(link_argv0)));
+    (void)(labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+  }
+  {
+    int32_t er_e = 0;
+    uint8_t * ep = 0;
+    uint8_t * erel = labi_od_rel_env_os();
+    (void)((er_e = xlang_ensure_runtime_env_os_o(link_argv0)));
+    (void)((ep = xlang_runtime_env_os_o_path(link_argv0)));
+    (void)(labi_od_glue_push_if(er_e, ep, link_argv0, erel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+  }
+  {
+    int32_t er_to = 0;
+    uint8_t * top = 0;
+    uint8_t * torel = labi_od_time_os_rel();
+    (void)((er_to = xlang_ensure_runtime_time_os_o(link_argv0)));
+    (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
+    (void)(labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+  }
+}
+/* PLATFORM: SHARED — ≡ pure labi_od_push_time_formal_and_os (mega-frame spill residual). */
+void labi_od_push_time_formal_and_os(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
+  if ((la == 0)) {
+    return;
+  }
+  if ((argv == 0)) {
+    return;
+  }
+  {
+    uint8_t * rtt = 0;
+    (void)((rtt = xlang_repo_root_from_argv0(link_argv0)));
+    if ((rtt != 0)) {
+      if (((rtt)[0] != 0)) {
+        (void)(xlang_ensure_formal_std_make_o(rtt, ((uint8_t *)"std/time/time.o"), ((uint8_t *)"../std/time/time.o")));
+      }
+    }
+  }
+  {
+    int32_t er_to = 0;
+    uint8_t * top = 0;
+    uint8_t * torel = labi_od_time_os_rel();
+    (void)((er_to = xlang_ensure_runtime_time_os_o(link_argv0)));
+    (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
+    if ((er_to == 0)) {
+      (void)(link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0));
+    }
+  }
+  {
+    uint8_t * trel = labi_od_time_rel();
+    (void)(link_abi_asm_ld_push_obj(0, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0));
+  }
+}
 int32_t labi_od_provides_core_mem_sym_count(void) {
   return 2;
 }
@@ -2138,6 +2210,7 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
       }
     }
   }
+  /* PLATFORM: SHARED — test formal + monofile companions (fn_invoke/env_os/time_os). */
   int32_t need_test = link_abi_user_o_needs_std_test(user_o);
   if ((need_test !=0)) {
     uint8_t * rt_test = 0;
@@ -2147,19 +2220,11 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
         (void)(xlang_ensure_formal_std_make_o(rt_test, ((uint8_t *)"std/test/test.o"), ((uint8_t *)"../std/test/test.o")));
       }
     }
-    int32_t have_test = 0;
     uint8_t * trel = labi_od_rel_test();
     {
-      int32_t _tt = link_abi_asm_ld_push_obj(0, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, &(have_test));
+      int32_t _tt = link_abi_asm_ld_push_obj(0, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
     }
-    if ((have_test !=0)) {
-      int32_t er_t = 0;
-      uint8_t * tp = 0;
-      uint8_t * tfrel = labi_od_rel_test_fn_invoke();
-      (void)((er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0)));
-      (void)((tp = xlang_runtime_test_fn_invoke_o_path(link_argv0)));
-      (void)(labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la));
-    }
+    (void)(labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la));
   }
   if ((fs ==0)) {
     int32_t la_hu = (la)[0];
@@ -2275,6 +2340,18 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
               }
             }
           }
+          /* PLATFORM: SHARED — g12 std.test formal (pure-asm run-stdtest residual). */
+          if ((sg ==12)) {
+            uint8_t * rt12 = 0;
+            (void)((rt12 = xlang_repo_root_from_argv0(link_argv0)));
+            if ((rt12 !=0)) {
+              if (((rt12)[0] !=0)) {
+                {
+                  int32_t _fe12 = xlang_ensure_formal_std_make_o(rt12, ((uint8_t *)"std/test/test.o"), ((uint8_t *)"../std/test/test.o"));
+                }
+              }
+            }
+          }
           /* PLATFORM: SHARED — g2 encoding formal ensure (L4 wipe). */
           if ((sg ==2)) {
             uint8_t * rt2 = 0;
@@ -2289,6 +2366,10 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
           }
           {
             int32_t _sg = link_abi_asm_ld_push_obj(0, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+          }
+          /* PLATFORM: SHARED — g12 test monofile companions (≡ need_test path). */
+          if ((sg ==12)) {
+            (void)(labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la));
           }
           /* PLATFORM: SHARED — g2 encoding companion string+base64 (transitive U; ≡ g9 glue). */
           if ((sg ==2)) {
@@ -2391,31 +2472,10 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
       }
     }
   }
+  /* PLATFORM: SHARED — time formal+os via thin helper (≡ pure mega-frame spill fix). */
   int32_t n_tm = labi_od_time_sym_count();
   if ((labi_od_user_needs_table_which(user_o, n_tm, 2) !=0)) {
-    uint8_t * rtt = 0;
-    (void)((rtt = xlang_repo_root_from_argv0(link_argv0)));
-    if ((rtt !=0)) {
-      if (((rtt)[0] !=0)) {
-        {
-          int32_t _te = xlang_ensure_formal_std_make_o(rtt, ((uint8_t *)"\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f"));
-        }
-      }
-    }
-    int32_t er_to = 0;
-    uint8_t * top = 0;
-    uint8_t * torel = labi_od_time_os_rel();
-    (void)((er_to = xlang_ensure_runtime_time_os_o(link_argv0)));
-    (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
-    if ((er_to ==0)) {
-      {
-        int32_t _to = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
-      }
-    }
-    uint8_t * trel = labi_od_time_rel();
-    {
-      int32_t _tm = link_abi_asm_ld_push_obj(0, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
-    }
+    (void)(labi_od_push_time_formal_and_os(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la));
   }
   /* G.7: queue monofile SyncQueue companions (sync/atomic/contention) — ≡ pure .x. */
   int32_t need_qp = link_abi_user_o_needs_std_queue(user_o);

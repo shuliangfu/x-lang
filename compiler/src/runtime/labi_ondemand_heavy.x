@@ -60,6 +60,7 @@ export extern function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
@@ -78,6 +79,7 @@ export extern function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_env_os_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
@@ -1958,6 +1960,17 @@ export function labi_od_rel_test_fn_invoke(): *u8 {
 }
 
 /**
+ * Relative path for runtime_env_os.o (std.env OS face: env_getenv_c*).
+ * @return *u8 — static C string "compiler/runtime_env_os.o"
+ * PLATFORM: SHARED — monofile test.o C dual U env_getenv_c (fuzz_seed).
+ */
+#[no_mangle]
+export function labi_od_rel_env_os(): *u8 {
+  let p: *u8 = "compiler/runtime_env_os.o";
+  return p;
+}
+
+/**
  * Count of defined-symbol probes for user.o co-emit core.mem strong defs.
  * Used to skip hard-linking core/mem/mem.o when user.o already defines mem API.
  * @return i32 — 2
@@ -2377,6 +2390,144 @@ function labi_od_glue_push_if(er: i32, primary: *u8, link_argv0: *u8, glue_rel: 
     }
     if (_p == 0) {
       return;
+    }
+  }
+}
+
+/**
+ * Push std.test monofile C-dual companions onto the pure-asm ld argv.
+ *
+ * Formal test.o co-emits C helpers that UNDEF:
+ *   - test_call_i32_void_c  → runtime_test_fn_invoke.o
+ *   - env_getenv_c          → runtime_env_os.o
+ *   - time_now_monotonic_ns_c → runtime_time_os.o
+ * User.o only names std_test_* so fk0/time/env user needles never fire.
+ * Whole-.o link pulls monofile U even for plain expect() (≡ queue/net companions).
+ *
+ * Thin helper keeps a small frame so pure-asm large-frame spill in the mega
+ * append_on_demand body cannot drop these pushes (have_test gate soft-miss).
+ * push_obj dedup makes double-call from need_test + g12 safe.
+ *
+ * @param link_argv0 *u8 — product host argv0
+ * @param lib_roots **u8 — -L roots
+ * @param n_lib_roots i32
+ * @param bank *u8 — path bank (may be null)
+ * @param argv **u8 — ld argv
+ * @param la *i32 — argv length
+ * @param max_la i32
+ * PLATFORM: SHARED pure thin.
+ */
+#[no_mangle]
+export function labi_od_push_test_monofile_companions(
+  link_argv0: *u8,
+  lib_roots: **u8,
+  n_lib_roots: i32,
+  bank: *u8,
+  argv: **u8,
+  la: *i32,
+  max_la: i32
+): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (la == 0 as *i32) {
+      return;
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab == 0 as *u8) {
+      return;
+    }
+    // 1) test_call_i32_void_c — runner/bench/fuzz invoke glue
+    let er_t: i32 = 0;
+    let tp: *u8 = 0 as *u8;
+    let tfrel: *u8 = labi_od_rel_test_fn_invoke();
+    unsafe {
+      er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
+      tp = xlang_runtime_test_fn_invoke_o_path(link_argv0);
+    }
+    labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    // 2) env_getenv_c — test_fuzz_seed_c reads XLANG_FUZZ_SEED via env OS face
+    let er_e: i32 = 0;
+    let ep: *u8 = 0 as *u8;
+    let erel: *u8 = labi_od_rel_env_os();
+    unsafe {
+      er_e = xlang_ensure_runtime_env_os_o(link_argv0);
+      ep = xlang_runtime_env_os_o_path(link_argv0);
+    }
+    labi_od_glue_push_if(er_e, ep, link_argv0, erel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    // 3) time_now_monotonic_ns_c — bench_run / bench_run_noop timing
+    let er_to: i32 = 0;
+    let top: *u8 = 0 as *u8;
+    let torel: *u8 = labi_od_time_os_rel();
+    unsafe {
+      er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+      top = xlang_runtime_time_os_o_path(link_argv0);
+    }
+    labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  }
+}
+
+/**
+ * Formal-ensure + push std/time/time.o and runtime_time_os.o.
+ *
+ * Thin helper: mega append_on_demand large-frame pure-asm spill mis-loads the
+ * `rel` argument to push_obj (trel stored at low slot, call setup reloads a high
+ * garbage slot → rel=0x100000000 → SEGV in push_obj ldrb). Small frame keeps
+ * spill correct. Callers gate on user time needles (labi_od_time_sym_*).
+ *
+ * @param link_argv0 *u8 — product host argv0
+ * @param lib_roots **u8 — -L roots
+ * @param n_lib_roots i32
+ * @param bank *u8 — path bank (may be null)
+ * @param argv **u8 — ld argv
+ * @param la *i32 — argv length
+ * @param max_la i32
+ * PLATFORM: SHARED pure thin — pure-asm run-time residual class.
+ */
+#[no_mangle]
+export function labi_od_push_time_formal_and_os(
+  link_argv0: *u8,
+  lib_roots: **u8,
+  n_lib_roots: i32,
+  bank: *u8,
+  argv: **u8,
+  la: *i32,
+  max_la: i32
+): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (la == 0 as *i32) {
+      return;
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab == 0 as *u8) {
+      return;
+    }
+    let rtt: *u8 = 0 as *u8;
+    unsafe {
+      rtt = xlang_repo_root_from_argv0(link_argv0);
+    }
+    if (rtt != 0 as *u8) {
+      if (rtt[0] != 0) {
+        unsafe {
+          let _te: i32 = xlang_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
+        }
+      }
+    }
+    let er_to: i32 = 0;
+    let top: *u8 = 0 as *u8;
+    let torel: *u8 = labi_od_time_os_rel();
+    unsafe {
+      er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+      top = xlang_runtime_time_os_o_path(link_argv0);
+    }
+    if (er_to == 0) {
+      unsafe {
+        let _to: i32 = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    let trel: *u8 = labi_od_time_rel();
+    unsafe {
+      let _tm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
     }
   }
 }
@@ -2817,9 +2968,13 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       }
     }
 
-    // --- test + fn_invoke glue ---
+    // --- test + monofile companions (fn_invoke / env_os / time_os) ---
     // PLATFORM: SHARED — pure-asm run-stdtest residual: always formal-ensure test.o
     // before push (L4 wipe / stale marker .o lack std_test_* T surface).
+    // Monofile C dual U test_call_i32_void_c / env_getenv_c / time_now_monotonic_ns_c
+    // even when user.o only names std_test_expect* (≡ queue/net companion class).
+    // Companions always after need_test (not only have_test): mega-frame spill can
+    // leave have_test=0 while g12 still lands test.o; thin helper is idempotent.
     let need_test: i32 = link_abi_user_o_needs_std_test(user_o);
     if (need_test != 0) {
       let rt_test: *u8 = 0 as *u8;
@@ -2833,20 +2988,12 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           }
         }
       }
-      let have_test: i32 = 0;
       let trel: *u8 = labi_od_rel_test();
       unsafe {
-        let _tt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
+        let _tt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
-      if (have_test != 0) {
-        let er_t: i32 = 0;
-        let tp: *u8 = 0 as *u8;
-        let tfrel: *u8 = labi_od_rel_test_fn_invoke();
-        unsafe {
-          er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
-          tp = xlang_runtime_test_fn_invoke_o_path(link_argv0);
-        }
-        labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      unsafe {
+        labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
       }
     }
 
@@ -2988,6 +3135,7 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
               }
             }
             // PLATFORM: SHARED — g12 std.test formal (pure-asm run-stdtest residual).
+            // Formal ensure here; companions after the shared push_obj below (≡ g2).
             if (sg == 12) {
               let rt12: *u8 = 0 as *u8;
               unsafe {
@@ -3089,6 +3237,13 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
             }
             unsafe {
               let _sg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+            }
+            // PLATFORM: SHARED — g12 std.test monofile C dual companions
+            // (fn_invoke / env_os / time_os). ≡ need_test path; dedup-safe.
+            if (sg == 12) {
+              unsafe {
+                labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+              }
             }
             // PLATFORM: SHARED — g2 encoding.o carries U std_base64_* + std_string_string_*
             // (encode_hex/base64/base32 helpers). User.o only U encoding_* so g0/g3 alone miss.
@@ -3205,35 +3360,13 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       }
     }
 
-    // --- time formal + time_os ---
+    // --- time formal + time_os (thin helper: mega-frame spill SEGV residual) ---
+    // PLATFORM: SHARED — pure-asm run-time: large-frame push_obj rel arg mis-load
+    // → SEGV under ASLR. Gate stays here; body in labi_od_push_time_formal_and_os.
     let n_tm: i32 = labi_od_time_sym_count();
     if (labi_od_user_needs_table_which(user_o, n_tm, 2) != 0) {
-      let rtt: *u8 = 0 as *u8;
       unsafe {
-        rtt = xlang_repo_root_from_argv0(link_argv0);
-      }
-      if (rtt != 0 as *u8) {
-        if (rtt[0] != 0) {
-          unsafe {
-            let _te: i32 = xlang_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
-          }
-        }
-      }
-      let er_to: i32 = 0;
-      let top: *u8 = 0 as *u8;
-      let torel: *u8 = labi_od_time_os_rel();
-      unsafe {
-        er_to = xlang_ensure_runtime_time_os_o(link_argv0);
-        top = xlang_runtime_time_os_o_path(link_argv0);
-      }
-      if (er_to == 0) {
-        unsafe {
-          let _to: i32 = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        }
-      }
-      let trel: *u8 = labi_od_time_rel();
-      unsafe {
-        let _tm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        labi_od_push_time_formal_and_os(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
       }
     }
 
