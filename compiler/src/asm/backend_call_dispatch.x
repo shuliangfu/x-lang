@@ -112,7 +112,9 @@ export extern function pipeline_module_func_return_type_at(m: *u8, fi: i32): i32
 /**
  * G.7 import-binding CALL/METHOD_CALL mangle (pre+mid with overload suffixes).
  * Defined later in this TU; METHOD/CALL sites must not bare-concat pre+name.
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED — pure-asm mangles this surface (…_u8_ptr_…_reti32). Body must
+ * NOT use #[no_mangle]: short def + mangled call → pure-ld U on Ubuntu PREFER
+ * thin+rest (seed-only path keeps static short name; dual authority same commit).
  */
 export extern function glue_asm_mangle_import_binding_call_sym_c(
   arena: *u8, ctx: *u8, expr_ref: i32, mod_ref: *u8, imp_j: i32,
@@ -3018,9 +3020,10 @@ export function glue_asm_res_mod_for_import_binding_c(
  * @param is_method i32 — 1 METHOD_CALL, 0 CALL
  * @param sym_flat *u8 — out symbol buffer (cap 128)
  * @return i32 — symbol length, or -1 on failure
- * PLATFORM: SHARED — mac + Ubuntu pure-asm product
+ * PLATFORM: SHARED — mac + Ubuntu pure-asm product. No #[no_mangle]: must match
+ * pure-asm mangled call sites from the forward export extern (see comment above).
+ * Seed mirror is static short name (seed-only fallback); PREFER .x uses mangled T.
  */
-#[no_mangle]
 export function glue_asm_mangle_import_binding_call_sym_c(
   arena: *u8, ctx: *u8, expr_ref: i32, mod_ref: *u8, imp_j: i32,
   pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32,
