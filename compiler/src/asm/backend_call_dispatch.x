@@ -835,8 +835,25 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
       i = stk_push[si];
       let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, er, i);
       if (arg_ref != 0) {
-        if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref, i, ctx, ta) != 0) { return 0 - 1; }
-        if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
+        /*
+         * G.7: f32-xmm is the default CALL packer (XLANG_ABI_F32_XMM
+         * unset → on). Stack-class >16B must multi-qword push — the
+         * old emit+push rax left INDEX leave-addr as the first 8B
+         * (take_w(a[1]) on Wide → .e = 0). Same helper as seed
+         * wave601 / non-f32 emit_call_args / METHOD UFCS.
+         * PLATFORM: LINUX+MACOS x86_64 SysV.
+         */
+        let pty_s: i32 = glue_call_param_type_ref_at(arena, er, i);
+        let sz_s: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_s, arg_ref);
+        if (glue_sysv_arg_is_memory_by_value_c(sz_s) != 0) {
+          let pushed_s: i32 = pipeline_asm_push_sysv_memory_by_value_elf_c(
+            arena, elf, ctx, arg_ref, sz_s, ta);
+          if (pushed_s < 0) { return 0 - 1; }
+        } else if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref, i, ctx, ta) != 0) {
+          return 0 - 1;
+        } else if (backend_enc_push_rax_arch(elf, ta) != 0) {
+          return 0 - 1;
+        }
       }
       si = si - 1;
     }
@@ -1448,10 +1465,25 @@ export function pipeline_asm_emit_call_args_elf_c(
         if (arg_ref0 != 0) {
           glue_sysv_x86_call_arg_slot_c(arena, expr_ref, nargs, i0, &kind_i, &reg_k_i, &stack_k_i);
           if (kind_i == 2) {
-            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref0, i0, ctx, ta) != 0) {
+            /*
+             * G.7: >16B MEMORY by-value must multi-qword push (seed wave601).
+             * emit+push rax left INDEX/FIELD leave-addr as the first 8B
+             * (take_w(a[1]) on Wide → .e miss). Reuse
+             * pipeline_asm_push_sysv_memory_by_value_elf_c (INDEX now
+             * shares the FIELD lvalue loop). Do not invent a second copy.
+             * PLATFORM: LINUX+MACOS x86_64 SysV.
+             */
+            let pty0: i32 = glue_call_param_type_ref_at(arena, expr_ref, i0);
+            let sz0: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty0, arg_ref0);
+            if (glue_sysv_arg_is_memory_by_value_c(sz0) != 0) {
+              let pushed0: i32 = pipeline_asm_push_sysv_memory_by_value_elf_c(
+                arena, elf_ctx, ctx, arg_ref0, sz0, ta);
+              if (pushed0 < 0) { return 0 - 1; }
+            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref0, i0, ctx, ta) != 0) {
+              return 0 - 1;
+            } else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
               return 0 - 1;
             }
-            if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
           }
         }
         i0 = i0 - 1;

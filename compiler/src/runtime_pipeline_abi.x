@@ -34834,6 +34834,29 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
       handled = 1;
     }
+    // Path A2: sret return INDEX of large struct. emit_index esz>16 leaves
+    // the element address in rax — same pointer as VAR slot lea. Reuse
+    // glue_emit_sret_memcpy_rbx_to_home (rbx = src). Do not memcpy inside
+    // emit_index and do not widen the frozen CALL-only classifier.
+    // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64 AAPCS64.
+    if (handled == 0 && sret_act != 0 && sret_sz > 16 && (ta == 0 || ta == 1) && ko == 47) {
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      if (glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, sret_sz, ta) != 0) {
+        return 0 - 1;
+      }
+      handled = 1;
+    }
     // Path B: VAR + module — slice escape or emit+float promote
     if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8) && (ta == 0 || ta == 1) && ko == 3 && mod != (0 as *u8) && fi >= 0) {
       esc = glue_try_return_slice_escape_from_fixed_array_elf_c(arena, elf_ctx, ret_op, ctx, ta);
@@ -64986,6 +65009,8 @@ export function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i3
  *  3. size_simple(emit_mod, pty) then resolved type_ref
  *  4. EXPR_VAR (3): max(var_decl size, dual_gp) — arrays already returned at 2
  *  5. FIELD_ACCESS (44): max(field type size, named layout, dual_gp)
+ *  5b. INDEX (47): max(elem byte size, resolved named layout) so
+ *      take(a[i]) of >16B is MEMORY, not 1-GP leave-addr
  *  6. dual_gp widen when sz≤8 for pty / resolved
  *  7. sz≤0 → 8 floor
  *
@@ -65125,6 +65150,28 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
           sz = sz2;
         }
         sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+      }
+    }
+    // INDEX == 47: elem / resolved named layout (take(a[i]) MEMORY class).
+    // G.7: same size harvest as FIELD — do not add a second packer.
+    // PLATFORM: SHARED freestanding CALL-arg SysV packing.
+    if (ek == 47) {
+      sz2 = pipeline_asm_index_elem_byte_sz_c(arena, arg_ref);
+      if (sz2 > sz) {
+        sz = sz2;
+      }
+      unsafe {
+        tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      }
+      if (tr > 0) {
+        sz2 = glue_type_size_simple(emit_mod, arena, tr, 0);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+        sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
         if (sz2 > sz) {
           sz = sz2;
         }
@@ -66377,7 +66424,7 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
 // G.7 product authority for >16B aggregate CALL packing:
 //   pipeline_asm_push_sysv_memory_by_value_elf_c   (x86_64 SysV push reverse)
 //   pipeline_asm_store_memory_by_value_to_sp_elf_c (arm64 AAPCS64 store to SP)
-// Sources: VAR local / nested CALL sret / STRUCT_LIT / FIELD_ACCESS.
+// Sources: VAR local / nested CALL sret / STRUCT_LIT / FIELD_ACCESS / INDEX.
 // Reuses pure glue_call_return_byte_size_c (w194) + struct_let_init (w132) +
 //   emit_expr_elf_rec (w152) + lvalue_eff_addr (w185) + set_call_sret_reg_shift +
 //   glue_arm64_mov_x0_to_x8 + pure glue_call_arg_resolve_var_stack_off (w203) +
@@ -66388,8 +66435,9 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
 
 /**
  * Push a MEMORY-class (>16B) by-value aggregate onto the x86_64 SysV call stack.
- * Materializes arg from VAR / nested CALL sret / STRUCT_LIT / FIELD_ACCESS into
- * a high-end frame temp, then pushes qwords high-first so [rsp+0] is byte0.
+ * Materializes arg from VAR / nested CALL sret / STRUCT_LIT / FIELD_ACCESS /
+ * INDEX into a high-end frame temp, then pushes qwords high-first so [rsp+0]
+ * is byte0. INDEX uses the same lvalue_eff_addr loop as FIELD (scaled lea).
  * @param arena *u8 — ASTArena*; null → -1
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param ctx *u8 — AsmFuncCtx*; null → -1; next_offset@4 bumped during materialize
@@ -66478,8 +66526,13 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
           return 0 - 1;
         }
       } else {
-        if (ko == 44) {
-          // 4) FIELD_ACCESS: copy aggregate from lvalue address into temp.
+        if (ko == 44 || ko == 47) {
+          /*
+           * 4) FIELD_ACCESS / INDEX: copy aggregate from lvalue address into temp.
+           * INDEX lvalue_eff_addr is scaled lea (same pointer emit_index leaves
+           * for esz>16). G.7: one copy loop — do not add a second INDEX matcher.
+           * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
+           */
           cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
           sum = cur + nbytes;
           if (sum < cur) {
@@ -66543,8 +66596,9 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
 
 /**
  * Store a MEMORY-class (>16B) by-value aggregate to SP+offset for AAPCS64.
- * Materializes arg from VAR / nested CALL sret (x8) / STRUCT_LIT / FIELD_ACCESS
- * into a low-end frame temp, then copies qwords to SP+sp_off.
+ * Materializes arg from VAR / nested CALL sret (x8) / STRUCT_LIT / FIELD_ACCESS /
+ * INDEX into a low-end frame temp, then copies qwords to SP+sp_off. INDEX
+ * shares the FIELD lvalue_eff_addr copy loop.
  * @param arena *u8 — ASTArena*; null → -1
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param ctx *u8 — AsmFuncCtx*; null → -1; next_offset@4 bumped during materialize
@@ -66636,8 +66690,12 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
           return 0 - 1;
         }
       } else {
-        if (ko == 44) {
-          // 4) FIELD_ACCESS: copy aggregate from lvalue address into temp.
+        if (ko == 44 || ko == 47) {
+          /*
+           * 4) FIELD_ACCESS / INDEX: copy aggregate from lvalue address into temp.
+           * INDEX lvalue_eff_addr is scaled lea. G.7: same loop as x86 push.
+           * PLATFORM: MACOS|ARM64 AAPCS64.
+           */
           cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
           off = cur;
           if (off < 16) {
@@ -67022,8 +67080,8 @@ function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, 
 }
 
 /**
- * Store CALL/METHOD/expr result into a let stack slot (rax half first; 9–16B
- * dual-GP adds rdx half; >16B via *rax memcpy; TYPE_SLICE length half + deep-copy).
+ * Store CALL/METHOD/INDEX/expr result into a let stack slot (rax half first;
+ * 9–16B dual-GP adds rdx half; >16B via *rax memcpy; TYPE_SLICE length + deep-copy).
  * @param m *u8 — Module* (may be null for early gates; dual-GP non-SLICE needs m)
  * @param arena *u8 — ASTArena*; null skips dual-GP widen / SLICE / kind tests
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
@@ -67057,14 +67115,15 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       sz = nsz;
     }
   }
-  // >16B + CALL(48)/METHOD(49): memcpy from *rax (x86 MEMORY class only).
-  // G.7: same harvest as slice deep-copy below. CALL-only stored 8B of rax
-  // (the hidden pointer) and dropped the payload on residual emit+store.
+  // >16B + CALL(48)/METHOD(49)/INDEX(47): memcpy from *rax (x86 MEMORY class).
+  // emit_index esz>16 leaves the element address (same pointer contract as
+  // CALL sret). CALL-only stored 8B of rax (the hidden pointer) and dropped
+  // the payload. G.7: one memcpy gate — do not widen the frozen classifier.
   if (sz > 16 && init_ref > 0 && arena != (0 as *u8)) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, init_ref);
     }
-    if (ko == 48 || ko == 49) {
+    if (ko == 48 || ko == 49 || ko == 47) {
       return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
     }
   }
