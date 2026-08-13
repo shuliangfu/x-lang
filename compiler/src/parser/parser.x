@@ -3930,7 +3930,19 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           || (r.tok.kind as i32) == 3 || (r.tok.kind as i32) == 11
           || (r.tok.kind as i32) == 4 || (r.tok.kind as i32) == 6
           || (r.tok.kind as i32) == 8 || (r.tok.kind as i32) == 85;
-      if (is_let != 0 && ((r.tok.kind as i32) == 128 || !arr_init_plain)) {
+      /*
+       * Compound `[..]` / `as` reparse for BOTH let and const.
+       * The shallow INT/FLOAT/COMMA walk cannot nest (`[[1]]`) or take
+       * token 128 `as`. Gating on is_let dropped the whole function
+       * (P001 no functions) for:
+       *   const x: [][]i32 = [[1, 2]];
+       *   const x: []i32 = [10, 32] as []i32;
+       * parse_body_let_bracket_compound_init_ref rewind-parses from `[`
+       * via parse_expr_into; const then append_const. G.7: complete this
+       * gate (no second matcher). Top-level const already uses parse_expr.
+       * PLATFORM: SHARED parse.
+       */
+      if ((r.tok.kind as i32) == 128 || !arr_init_plain) {
         let reparsed_ref: i32 =
             parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, source, &lex, &r);
         if (reparsed_ref == 0) {
