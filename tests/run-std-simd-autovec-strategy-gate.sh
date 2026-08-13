@@ -28,15 +28,15 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SIMD_X" "$SMOKE_X" \
   fi
 done
 
-for kw in STD-153 recommend_simd_path XLANG_SIMD_AUTovec SIMD_PATH_HW; do
+for kw in STD-153 recommend_path XLANG_SIMD_AUTovec SIMD_PATH_HW; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-simd-autovec gate FAIL: doc missing '$kw'" >&2
     exit 1
   fi
 done
 
-if ! grep -qF "recommend_simd_path" std/simd/README.md 2>/dev/null; then
-  echo "std-simd-autovec gate FAIL: README missing recommend_simd_path" >&2
+if ! grep -qF "recommend_path" std/simd/README.md 2>/dev/null; then
+  echo "std-simd-autovec gate FAIL: README missing recommend_path" >&2
   exit 1
 fi
 
