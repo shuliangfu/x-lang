@@ -980,6 +980,7 @@ export extern "C" function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_l
 // PLATFORM: SHARED — pure owns VAR type-ref + lazy block-let append faces only.
 export extern "C" function asm_ctx_scope_block_ref_at(ctx: *u8): i32;
 export extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, block_ref: i32, vname: *u8, vlen: i32): i32;
+export extern "C" function pipeline_block_parent_block_ref_at(arena: *u8, block_ref: i32): i32;
 export extern "C" function pipeline_module_func_param_type_ref_for_name(module: *u8, func_index: i32, var_name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 // wave141: module_ref_c / func_index_c pure export below (emit-context leave).
@@ -40883,12 +40884,14 @@ export function glue_emit_vector_shuffle_lane_scalar_elf_c(arena: *u8, elf_ctx: 
 
 /**
  * Peel shuffle mask to ARRAY_LIT (46).
- * Accepts direct array lit, or same-scope `let m = […]; simd.shuffle(v, m)` VAR.
+ * Accepts a direct array lit, or a named `let m = […]; simd.shuffle(v, m)` VAR
+ * in the current scope or an ancestor block (while/for/if body → function lets).
  * @param arena *u8 — ASTArena*
- * @param ctx *u8 — AsmFuncCtx* (scope block for let peel)
+ * @param ctx *u8 — AsmFuncCtx* (innermost scope block; walk parents)
  * @param mask_ref i32 — mask expr ref (ARRAY_LIT or VAR)
  * @return i32 — array-lit expr ref; 0 if not peelable
- * G.7 helper for Stage12 s4 HW residual (smoke uses METHOD + named mask).
+ * G.7 complete: same-block peel was half; STD-061 heat-loop keeps masks
+ * outside the while, so parent walk is required for pshufd inline.
  * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
@@ -40902,6 +40905,7 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   let kk: i32 = 0;
   let is_match: i32 = 0;
   let init_ref: i32 = 0;
+  let depth: i32 = 0;
   let vbuf: u8[128] = [];
   let lb: u8[128] = [];
   if (arena == (0 as *u8) || mask_ref <= 0) {
@@ -40930,10 +40934,16 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   }
   unsafe {
     pipeline_expr_var_name_into(arena, mask_ref, &vbuf[0]);
-    nlet = ast_ast_block_num_lets(arena, br);
   }
-  li = 0;
-  while (li < nlet) {
+  // Walk ancestor blocks (typeck parent_block_ref). Shadow: name hit that is
+  // not ARRAY_LIT stops the walk so an inner non-lit m is not peeled as outer.
+  depth = 0;
+  while (br > 0 && depth < 128) {
+    unsafe {
+      nlet = ast_ast_block_num_lets(arena, br);
+    }
+    li = 0;
+    while (li < nlet) {
     unsafe {
       llen = pipeline_block_let_name_len(arena, br, li);
     }
@@ -40965,6 +40975,11 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
       }
     }
     li = li + 1;
+    }
+    unsafe {
+      br = pipeline_block_parent_block_ref_at(arena, br);
+    }
+    depth = depth + 1;
   }
   return 0;
 }

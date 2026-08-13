@@ -19743,10 +19743,16 @@ int32_t glue_emit_vector_shuffle_lane_scalar_elf_c(void *arena,
   return 0;
 }
 
+/* Same-TU parent-block face (def later). Peel walks ancestors. */
+extern int32_t pipeline_block_parent_block_ref_at(void *a, int32_t block_ref);
+
 /**
  * Peel shuffle mask to ARRAY_LIT (46).
- * Accepts direct array lit, or same-scope `let m = […]; simd.shuffle(v, m)` VAR.
- * G.7 helper for Stage12 s4 HW residual (smoke uses METHOD + named mask).
+ * Accepts a direct array lit, or a named `let m = […]; simd.shuffle(v, m)` VAR
+ * in the current scope or an ancestor block (while/for/if body → function lets).
+ * G.7 complete: same-block peel was half; STD-061 heat-loop keeps masks
+ * outside the while, so parent walk is required for pshufd inline.
+ * Shadow: a same-name let that is not ARRAY_LIT stops the walk.
  * PLATFORM: SHARED freestanding emit.
  * @return array-lit expr ref; 0 if not peelable
  */
@@ -19760,6 +19766,7 @@ int32_t glue_peel_comptime_array_lit_mask_c(void *arena, void *ctx, int32_t mask
   int32_t kk;
   int32_t is_match;
   int32_t init_ref;
+  int32_t depth;
   uint8_t vbuf[128];
   uint8_t lb[128];
 
@@ -19777,27 +19784,32 @@ int32_t glue_peel_comptime_array_lit_mask_c(void *arena, void *ctx, int32_t mask
   if (vlen <= 0 || vlen > 127)
     return 0;
   pipeline_expr_var_name_into(arena, mask_ref, vbuf);
-  nlet = ast_ast_block_num_lets(arena, br);
-  li = 0;
-  while (li < nlet) {
-    llen = pipeline_block_let_name_len(arena, br, li);
-    if (llen == vlen) {
-      is_match = 1;
-      pipeline_block_let_name_copy64(arena, br, li, lb);
-      kk = 0;
-      while (kk < vlen) {
-        if (lb[kk] != vbuf[kk])
-          is_match = 0;
-        kk++;
+  depth = 0;
+  while (br > 0 && depth < 128) {
+    nlet = ast_ast_block_num_lets(arena, br);
+    li = 0;
+    while (li < nlet) {
+      llen = pipeline_block_let_name_len(arena, br, li);
+      if (llen == vlen) {
+        is_match = 1;
+        pipeline_block_let_name_copy64(arena, br, li, lb);
+        kk = 0;
+        while (kk < vlen) {
+          if (lb[kk] != vbuf[kk])
+            is_match = 0;
+          kk++;
+        }
+        if (is_match) {
+          init_ref = pipeline_block_let_init_ref(arena, br, li);
+          if (init_ref > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 46)
+            return init_ref;
+          return 0;
+        }
       }
-      if (is_match) {
-        init_ref = pipeline_block_let_init_ref(arena, br, li);
-        if (init_ref > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 46)
-          return init_ref;
-        return 0;
-      }
+      li++;
     }
-    li++;
+    br = pipeline_block_parent_block_ref_at(arena, br);
+    depth++;
   }
   return 0;
 }
