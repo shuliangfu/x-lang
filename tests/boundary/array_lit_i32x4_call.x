@@ -4,6 +4,7 @@
 // (reuse glue_emit_vector_type_let_init). Non-const elems block WPO fold
 // so run≠7 cannot hide behind mov-imm. METHOD receiver is
 // tests/boundary/array_lit_i32x4_method.x (UFCS place + pty=self).
+// METHOD n_elems!=lanes T001: array_lit_i32x4_method_badlen.x.
 // PLATFORM: SHARED — Ubuntu gold.
 
 /**

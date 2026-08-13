@@ -13129,6 +13129,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
  *    ARRAY_LIT receiver / extra args coerce to SIMD/VECTOR formals via
  *    typeck_coerce_init_array_vector_lit_to_decl before type_refs_equal
  *    (same stamp as CALL-arg / let `a: i32x4 = [1,2,3,4]`).
+ *    Coerce 0 on ARRAY_LIT + SIMD formal (n_elems != lanes or elem type)
+ *    refuses that candidate — same hard miss as CALL score T001, not
+ *    LANG-004 "no impl" and not type_refs_equal fallback.
  * 5) bootstrap i32.double() when impl blocks skipped
  * 6) no-impl LANG-004 diagnostic
  *
@@ -13302,6 +13305,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       let uj: i32 = 0;
       let uf_best: i32 = 0 - 1;
       let uf_best_score: i32 = 0 - 1;
+      let saw_simd_mismatch: i32 = 0;
       let nf: i32 = pipeline_module_num_funcs(module);
       while (uj < nf) {
         let nparams: i32 = 0;
@@ -13310,36 +13314,49 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         let p0: i32 = 0;
         let sc0: i32 = 0 - 1;
         let ai: i32 = 0;
+        let simd_recv_refuse: i32 = 0;
         if (pipeline_module_func_name_equal_at(module, uj, &method_nm[0], method_nlen) != 0) {
           nparams = pipeline_module_func_num_params_at(module, uj);
           if (nparams == num_args + 1) {
             p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
             sc0 = 0 - 1;
+            simd_recv_refuse = 0;
             /*
              * ARRAY_LIT receiver was check_expr'd with ambient 0 → wave611
              * TYPE_ARRAY [N]T. Self formal is TYPE_VECTOR / NAMED i32x4.
              * G.7: reuse typeck_coerce_init_array_vector_lit_to_decl (CALL-arg /
              * let authority) so type_refs_equal sees the stamped SIMD type.
+             * Coerce 0 + ARRAY_LIT + SIMD lanes: n_elems != lanes or elem
+             * type — refuse this candidate (≡ CALL score T001). Do not
+             * fall through to type_refs_equal / auto-ref / weak integer.
              * PLATFORM: SHARED.
              */
             if (p0 > 0 && base_ref > 0) {
-              typeck_coerce_init_array_vector_lit_to_decl(arena, base_ref, p0,
+              let crc0: i32 = typeck_coerce_init_array_vector_lit_to_decl(arena, base_ref, p0,
               pipeline_type_kind_ord_at(arena, p0),
               pipeline_expr_kind_ord_at(arena, base_ref));
-              base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+              let bk0: i32 = pipeline_expr_kind_ord_at(arena, base_ref);
+              if (crc0 == 0 && bk0 == 46 && typeck_vector_lanes_of_type(arena, p0) > 0) {
+                simd_recv_refuse = 1;
+                saw_simd_mismatch = 1;
+              } else {
+                base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+              }
             }
-            if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
+            if (simd_recv_refuse == 0 && p0 > 0
+                && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
               sc0 = 1000;
             }
             /* auto-ref: value T.method when formal is *T */
-            if (sc0 < 0 && p0 > 0 && pipeline_type_kind_ord_at(arena, p0) == ord_ptr) {
+            if (simd_recv_refuse == 0 && sc0 < 0 && p0 > 0
+                && pipeline_type_kind_ord_at(arena, p0) == ord_ptr) {
               let pe: i32 = pipeline_type_elem_ref_at(arena, p0);
               if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, pe) != 0) {
                 sc0 = 900;
               }
             }
             /* Weak integer family match on self (strict seed parity). */
-            if (sc0 < 0 && p0 > 0) {
+            if (simd_recv_refuse == 0 && sc0 < 0 && p0 > 0) {
               let ak: i32 = pipeline_type_kind_ord_at(arena, base_ty);
               let pk: i32 = pipeline_type_kind_ord_at(arena, p0);
               if ((pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
@@ -13358,10 +13375,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 let param_raw: i32 = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
                 let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
                 let arg_ty: i32 = 0;
+                let crc_a: i32 = 0;
                 if (arg_ref2 > 0 && param_raw > 0) {
-                  typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref2, param_raw,
+                  crc_a = typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref2, param_raw,
                   pipeline_type_kind_ord_at(arena, param_raw),
                   pipeline_expr_kind_ord_at(arena, arg_ref2));
+                  /*
+                   * Extra ARRAY_LIT → SIMD formal: same refuse as self
+                   * (e.g. recv.add4([1,2,3]) vs other: i32x4).
+                   * PLATFORM: SHARED.
+                   */
+                  if (crc_a == 0
+                      && pipeline_expr_kind_ord_at(arena, arg_ref2) == 46
+                      && typeck_vector_lanes_of_type(arena, param_raw) > 0) {
+                    saw_simd_mismatch = 1;
+                    matched = 0;
+                    break;
+                  }
                 }
                 if (arg_ref2 > 0) {
                   arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref2);
@@ -13392,6 +13422,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           typeck_stamp_resolved_args_float_lit(arena, expr_ref, module, uf_best, 0 - 1, ctx, 1);
           return 0;
         }
+      }
+      /*
+       * Same-name SIMD UFCS existed but ARRAY_LIT lanes/elem refused coerce.
+       * G.7: same T001 as typeck_check_call_arg_types (not LANG-004).
+       * PLATFORM: SHARED.
+       */
+      if (saw_simd_mismatch != 0) {
+        line = pipeline_expr_line_at(arena, expr_ref);
+        col = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_call_arg_type_mismatch(line, col);
+        return 0 - 1;
       }
     }
 

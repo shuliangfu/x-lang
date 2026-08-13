@@ -1,4 +1,6 @@
 // Isolated: ARRAY_LIT as SIMD METHOD receiver (UFCS self = formal 0).
+// typeck: coerce before UFCS equal; n_elems!=lanes / bad elem → T001
+// (tests/boundary/array_lit_i32x4_method_badlen.x).
 // emit: pipeline_asm_emit_method_call_elf_c places receiver via
 // glue_emit_one_call_arg (pty=self) + dual-GP spill/load.
 // Non-const elems block WPO fold so run≠7 cannot hide behind mov-imm.
