@@ -23019,8 +23019,13 @@ export function pipeline_asm_bump_next_offset_after_let_init(arena: *u8, block_r
   // STRUCT_LIT (45) writes stack slot directly — skip temp area.
   if (init_ref > 0) {
     let iko: i32 = 0;
+    let src: i32 = 0;
+    src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+    if (src <= 0) {
+      src = init_ref;
+    }
     unsafe {
-      iko = pipeline_expr_kind_ord_at(arena, init_ref);
+      iko = pipeline_expr_kind_ord_at(arena, src);
     }
     if (iko == 46 || iko == 45) {
       return;
@@ -28228,6 +28233,7 @@ export function pipeline_asm_emit_cmp_elf(arena: *u8, elf_ctx: *u8, cmp_expr_ref
 // G.7 product authority for:
 //   glue_expr_is_await_at_c
 //   glue_expr_is_x_as_cast_at_c
+//   glue_peel_as_array_slice_ascription_c
 //   pipeline_asm_emit_await_sync_elf_impl
 //   pipeline_asm_emit_try_propagate_elf_impl
 //   glue_emit_float_lit_to_rax_elf_c
@@ -28321,6 +28327,56 @@ export function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32 {
     return 1;
   }
   return 0;
+}
+
+/**
+ * Peel identity ARRAY/SLICE ascriptions so ARRAY_LIT/VAR/FIELD consumers fire.
+ * `[10,32] as []i32` / `a as [2]i32` are ascriptions, not numeric casts.
+ * Scalar `5 as i32` is left intact (target kind is not ARRAY/SLICE).
+ * Caps the walk at 8 so a corrupt cycle cannot hang emit.
+ * @param arena *u8 — ASTArena*; null → return expr_ref
+ * @param expr_ref i32 — expr to peel; <=0 returned unchanged
+ * @return i32 — innermost operand, or expr_ref when not an ARRAY/SLICE ascription
+ * PLATFORM: SHARED — language ascription; not ABI / fat layout.
+ */
+#[no_mangle]
+export function glue_peel_as_array_slice_ascription_c(arena: *u8, expr_ref: i32): i32 {
+  let cur: i32 = 0;
+  let i: i32 = 0;
+  let tgt: i32 = 0;
+  let tk: i32 = 0;
+  let op: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return expr_ref;
+  }
+  cur = expr_ref;
+  while (i < 8) {
+    if (glue_expr_is_x_as_cast_at_c(arena, cur) == 0) {
+      return cur;
+    }
+    unsafe {
+      tgt = pipeline_expr_as_target_type_ref_at(arena, cur);
+    }
+    if (tgt <= 0) {
+      return cur;
+    }
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, tgt);
+    }
+    // TYPE_ARRAY=10 / TYPE_SLICE=11 only. Numeric/ptr casts stay wrapped.
+    if (tk != 10 && tk != 11) {
+      return cur;
+    }
+    unsafe {
+      op = pipeline_expr_as_operand_ref_at(arena, cur);
+    }
+    if (op <= 0) {
+      return cur;
+    }
+    cur = op;
+    i = i + 1;
+  }
+  return cur;
 }
 
 /**
@@ -31817,6 +31873,11 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
   if (left_ref <= 0 || right_ref <= 0) {
     return -1;
   }
+  // Identity ascription: `s = [10,32] as []i32` / `s = a as []T` must see ARRAY_LIT/VAR.
+  right_ref = glue_peel_as_array_slice_ascription_c(arena, right_ref);
+  if (right_ref <= 0) {
+    return -1;
+  }
   unsafe {
     lko = pipeline_expr_kind_ord_at(arena, left_ref);
   }
@@ -32876,17 +32937,22 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
 export function glue_init_is_empty_array_lit(arena: *u8, init_ref: i32): i32 {
   let ko: i32 = 0;
   let ne: i32 = 0;
+  let src: i32 = 0;
   if (init_ref <= 0) {
     return 0;
   }
+  src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  if (src <= 0) {
+    src = init_ref;
+  }
   unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
+    ko = pipeline_expr_kind_ord_at(arena, src);
   }
   if (ko != 46) {
     return 0;
   }
   unsafe {
-    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    ne = pipeline_expr_array_lit_num_elems_at(arena, src);
   }
   if (ne == 0) {
     return 1;
@@ -33031,6 +33097,7 @@ export function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32
   let esz: i32 = 4;
   let inner: i32 = 0;
   let itk: i32 = 0;
+  let src: i32 = 0;
   bytes = glue_fixed_array_temp_bytes(arena, let_type_ref);
   if (bytes > 0) {
     return bytes;
@@ -33043,16 +33110,20 @@ export function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32
     if (bytes > 0) {
       return bytes;
     }
+    src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+    if (src <= 0) {
+      src = init_ref;
+    }
     unsafe {
-      ko = pipeline_expr_kind_ord_at(arena, init_ref);
+      ko = pipeline_expr_kind_ord_at(arena, src);
     }
     if (ko == 46) {
       unsafe {
-        ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+        ne = pipeline_expr_array_lit_num_elems_at(arena, src);
       }
       if (ne > 0) {
         esz = 4;
-        inner = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+        inner = pipeline_asm_array_lit_elem_type_ref(arena, src);
         if (inner > 0) {
           unsafe {
             itk = pipeline_type_kind_ord_at(arena, inner);
@@ -34878,6 +34949,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
     ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
   if (ret_op != 0) {
+    // Identity ascription: `return [10,32] as []i32` must hit Path C ARRAY_LIT.
+    ret_op = glue_peel_as_array_slice_ascription_c(arena, ret_op);
     handled = 0;
     unsafe {
       sret_act = pipeline_asm_emit_ctx_sret_active_get();
@@ -35866,6 +35939,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let lea_rc: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let rc: i32 = 0;
+  let src: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0 || let_type_ref <= 0 || init_ref <= 0) {
     return 0;
   }
@@ -35875,12 +35949,16 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   if (tk != 11) {
     return 0;
   }
+  src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  if (src <= 0) {
+    src = init_ref;
+  }
   unsafe {
-    init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+    init_ko = pipeline_expr_kind_ord_at(arena, src);
   }
   if (init_ko == 46) {
     unsafe {
-      n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, src);
     }
     if (n_arr < 0 || n_arr > 1024) {
       return 0 - 1;
@@ -35892,13 +35970,13 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     durable = 0;
     if (ta == 0 || ta == 1) {
       unsafe {
-        rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta, ctx);
+        rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, src, force_esz, ta, ctx);
       }
       if (rc == 0) {
         durable = 1;
       } else {
         unsafe {
-          rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, init_ref, ctx, ta, force_esz);
+          rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, src, ctx, ta, force_esz);
         }
         if (rc != 0) {
           return 0 - 1;
@@ -35906,7 +35984,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
       }
     } else {
       unsafe {
-        rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, init_ref, ctx, ta, force_esz);
+        rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, src, ctx, ta, force_esz);
       }
       if (rc != 0) {
         return 0 - 1;
@@ -35931,20 +36009,20 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
       return 0 - 1;
     }
     if (durable == 0 && n_arr > 0) {
-      pipeline_asm_bump_next_offset_for_array_lit(arena, init_ref, ctx);
+      pipeline_asm_bump_next_offset_for_array_lit(arena, src, ctx);
     }
     glue_slice_dual_gp_bump_past_home_c(ctx, slice_slot_off, ta);
     return 1;
   }
   if (init_ko == 3) {
     unsafe {
-      vlen = pipeline_expr_var_name_len(arena, init_ref);
+      vlen = pipeline_expr_var_name_len(arena, src);
     }
     if (vlen <= 0 || vlen > 127) {
       return 0;
     }
     unsafe {
-      pipeline_expr_var_name_into(arena, init_ref, &vname[0]);
+      pipeline_expr_var_name_into(arena, src, &vname[0]);
     }
     li = 0;
     while (li < let_idx) {
@@ -35983,7 +36061,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     }
     if (arr_sz <= 0) {
       unsafe {
-        init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+        init_tr = pipeline_expr_resolved_type_ref(arena, src);
       }
       if (init_tr > 0) {
         unsafe {
@@ -36000,26 +36078,26 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
       return 0;
     }
     unsafe {
-      arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+      arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, src);
     }
     if (arr_off < 0) {
       return 0 - 1;
     }
     unsafe {
-      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta);
+      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, src, arr_off, ctx, ta);
     }
     if (rc != 0) {
       return 0 - 1;
     }
   } else if (init_ko == 44) {
     unsafe {
-      rc = pipeline_expr_field_access_is_enum_variant(arena, init_ref);
+      rc = pipeline_expr_field_access_is_enum_variant(arena, src);
     }
     if (rc != 0) {
       return 0;
     }
     unsafe {
-      init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+      init_tr = pipeline_expr_resolved_type_ref(arena, src);
     }
     if (init_tr > 0) {
       unsafe {
@@ -36034,7 +36112,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     if (arr_sz <= 0) {
       unsafe {
         mod = pipeline_asm_emit_module_ref_c();
-        ftr = glue_field_access_field_type_ref_c(arena, mod, init_ref);
+        ftr = glue_field_access_field_type_ref_c(arena, mod, src);
       }
       if (ftr > 0) {
         unsafe {
@@ -36051,7 +36129,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
       return 0;
     }
     unsafe {
-      lea_rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      lea_rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, src, ctx, ta);
     }
     if (lea_rc != 0) {
       if (lea_rc < 0) {
@@ -37374,16 +37452,21 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   let store_off: i32 = 0;
   let empty_array_zero: i32 = 0;
   let lit_n: i32 = 0;
+  let src: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0 || fty <= 0) {
     return 0 - 1;
   }
+  src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  if (src <= 0) {
+    src = init_ref;
+  }
   unsafe {
-    iko = pipeline_expr_kind_ord_at(arena, init_ref);
+    iko = pipeline_expr_kind_ord_at(arena, src);
     n_arr = pipeline_type_array_size_at(arena, fty);
   }
   if (n_arr <= 0 && iko == 46) {
     unsafe {
-      n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, src);
     }
   }
   // Empty ARRAY_LIT `[]` has 0 elems; type size still supplies n_arr for zero-fill.
@@ -37412,14 +37495,14 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   // PLATFORM: SHARED freestanding — Stage 12.2.7 CG002 root (struct field `data: []`).
   if (iko == 46) {
     unsafe {
-      lit_n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      lit_n = pipeline_expr_array_lit_num_elems_at(arena, src);
     }
     if (lit_n == 0) {
       empty_array_zero = 1;
     } else if (n_arr > 1024) {
       return 0 - 1;
     } else if (sret_direct == 0) {
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, field_mag);
+      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, src, ctx, ta, field_mag);
     } else {
       unsafe {
         sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
@@ -37427,7 +37510,7 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       ai = 0;
       while (ai < n_arr) {
         unsafe {
-          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, src, ai);
         }
         if (elem_ref == 0) {
           ai = ai + 1;
@@ -37558,17 +37641,17 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   src_off = 0 - 1;
   if (iko == 3) {
     unsafe {
-      src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+      src_off = glue_var_expr_stack_off_elf_c(arena, ctx, src);
     }
   } else if (iko == 44) {
     unsafe {
-      is_enum = pipeline_expr_field_access_is_enum_variant(arena, init_ref);
+      is_enum = pipeline_expr_field_access_is_enum_variant(arena, src);
     }
     if (is_enum != 0) {
       return 0 - 2;
     }
     unsafe {
-      var_base = pipeline_expr_field_access_base_ref(arena, init_ref);
+      var_base = pipeline_expr_field_access_base_ref(arena, src);
     }
     if (var_base <= 0) {
       return 0 - 2;
@@ -37587,7 +37670,7 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     }
     mod = pipeline_asm_emit_module_ref_c();
     unsafe {
-      field_off = glue_field_access_effective_offset_c(arena, mod, init_ref);
+      field_off = glue_field_access_effective_offset_c(arena, mod, src);
     }
     if (field_off < 0) {
       field_off = 0;
@@ -37609,7 +37692,7 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), next_off);
     spill_off = next_off;
     unsafe {
-      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, src, ctx, ta);
     }
     if (emit_rc != 0) {
       return 0 - 1;
@@ -38015,11 +38098,16 @@ export function glue_block_let_is_fixed_array_type(arena: *u8, block_ref: i32, l
 #[no_mangle]
 export function glue_fixed_array_let_init_uses_direct_slot(arena: *u8, type_ref: i32, init_ref: i32): i32 {
   let ko: i32 = 0;
+  let src: i32 = 0;
   if (glue_type_is_fixed_array(arena, type_ref) == 0 || init_ref <= 0) {
     return 0;
   }
+  src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  if (src <= 0) {
+    src = init_ref;
+  }
   unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
+    ko = pipeline_expr_kind_ord_at(arena, src);
   }
   if (ko == 46) {
     return 1;

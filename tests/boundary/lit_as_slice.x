@@ -1,10 +1,9 @@
-// Isolated: `[lit] as []T` must parse (not P001) and run as a fat slice.
-// as_suffix uses the full type_ref parser; typeck ascribes ARRAY_LIT→[]T
-// (stamps the lit SLICE); emit identity-forwards so the existing ARRAY_LIT
-// fat path fires. Bare `let s = …` is P010 (no inference). const EXPR_AS
-// is a later const-expr leaf.
-// Expected: host-C compile = 0, run = 42. asm compile = 0 (fat length leftover).
-// PLATFORM: SHARED — Ubuntu gold parse+typeck+host-C.
+// Isolated: `[lit] as []T` must parse and emit a live fat (let / return / assign).
+// as_suffix type_ref + typeck ARRAY_LIT stamp + asm peel of identity ascription
+// so the existing ARRAY_LIT dual-GP path fires. Bare `let s = …` is P010.
+// const EXPR_AS is a later const-expr leaf.
+// Expected: compile = 0, run = 42 (host-C and asm).
+// PLATFORM: SHARED — Ubuntu gold.
 
 /**
  * Let-init `[10, 32] as []i32`.
@@ -36,5 +35,10 @@ function main(): i32 {
   if (c.length != 2) { return 7; }
   if (c[0] != 10) { return 8; }
   if (c[1] != 32) { return 9; }
+  let d: []i32 = [0, 0];
+  d = [10, 32] as []i32;
+  if (d.length != 2) { return 11; }
+  if (d[0] != 10) { return 12; }
+  if (d[1] != 32) { return 13; }
   return 42;
 }
