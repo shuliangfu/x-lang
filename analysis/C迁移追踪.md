@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；LANG-006 保留；下一硬叶 4.2.2 dyn Trait／struct·impl bound |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；LANG-006 保留；下一硬叶 4.2.2 dyn Trait／impl 级 bound |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -498,12 +498,13 @@
   - parser.x 无条件豁免改为同门（防下次 assemble 假绿 skip）
   - LANG-006 标量 bool→int 保留不动
 
-🟡 **4.2.2 trait bounds / dyn Trait** 泛型体方法 ✅ @ **`10bfd56f4`**（PLUS ✅ @ **`fe000ba3a`**）
+🟡 **4.2.2 trait bounds / dyn Trait** struct 级 bound ✅ @ **`377bd8d74`**（体方法 ✅ @ **`10bfd56f4`** · PLUS ✅ @ **`fe000ba3a`**）
 
   - 调用点 `function foo<T: Trait>` 已 T001（既有 scan+check）
   - **`T: Clone + Default` PLUS**：同 pos 多 trait 已硬查（A 缺第二／第三 trait → T001）
   - **泛型体 `T: Clone` 下 `x.clone()`**：typeck 放行；Self／T 返盖 receiver；codegen C6 调 impl（run=7 非 identity）
-  - 余（勿并本叶）：①`dyn Trait` 无 KW／TYPE_DYN（`dyn Clone` 形参静默丢函数）②struct／impl 级 `<T: Trait>` 仍不扫
+  - **struct 级 `Foo<T: Clone>`**：scan 认 TOKEN_STRUCT；类型位 `Foo<B>` T001；`Foo<T>` 签名跳过；PLUS 同 pos
+  - 余（勿并本叶）：①`dyn Trait` 无 KW／TYPE_DYN（`dyn Clone` 形参静默丢函数）②impl 级 `impl<T: Trait>` 仍不扫（`<` 前无 IDENT）
 
 ⬜ **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** soft
 
