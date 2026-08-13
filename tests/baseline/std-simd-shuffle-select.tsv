@@ -14,6 +14,6 @@ api_simd_select	api	select	std/simd/mod.x	@select
 smoke_roundtrip	smoke	tests/simd/shuffle_select_roundtrip.x	金样
 smoke_s4	smoke	tests/simd/vec4f_shuffle_smoke.x	S4 联动
 cross_std061	cross_ref	tests/baseline/std-simd-prod-wave.tsv	STD-061	prod bench
-bench_prod	bench	bench/simd_shuffle_select.x	hot-loop
+bench_prod	bench	bench/r04_simd_shuffle_select.x	hot-loop
 lib	script	lib/std-simd-shuffle-select.sh	tests/lib/std-simd-shuffle-select.sh
 gate	script	run-std-simd-shuffle-select-gate.sh	tests/run-std-simd-shuffle-select-gate.sh
