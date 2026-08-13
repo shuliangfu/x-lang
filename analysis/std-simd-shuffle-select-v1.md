@@ -21,6 +21,7 @@
 历史类型限定名只作文档说明，不进 `mod.x`。
 
 `import std.simd` 产品车是 formal c_face（不能 host-cc `.x` monofile）。
+g18 针表现含 `select_lane` i32／f32 mid（count **23**）；仅调 `simd.select_lane` 也能 ensure `std/simd/simd.o`。
 129 白名单里的 `run-std-simd-xlangffle-select-gate.sh` 是本闸门的薄包装，不是第二套 gate 体。
 129 白名单里的 `run-perf-simd-xlangffle-select.sh` 是 `run-perf-simd-shuffle-select.sh` 的薄包装，不是第二套 bench 体。
 
@@ -60,6 +61,8 @@
 
 gate 验证 `mod.x` 含 lane-scalar 实装（`v[mask[0]]`）与产品 `select_lane` helper。
 产品验收以 `-L . -o` 真链 + `shuffle_select_roundtrip.x` run=0 为准。
+s2 烟测断言 Vec8i splat/add 与 `select_lane`；**不再**把 `placeholder()` 当退出码。
+Vec4f `splat(1.0)[0]` 仍是独立 emit residual（本 RFC 不在本刀修）。
 自举期 check 闸门暂停（2026-08-05）。
 
 回归：`run-simd-s4-gate.sh`（硬件 pshufd／select）、`run-std-simd-prod-gate.sh`。
