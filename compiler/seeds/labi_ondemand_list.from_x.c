@@ -186,7 +186,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 17)
     return 3; /* std.debug */
   if (g == 18)
-    return 21; /* std.simd VECTOR mid + binop/dot/fma + scalar faces */
+    return 23; /* std.simd VECTOR mid + binop/dot/fma + scalar faces + select_lane */
   if (g == 19)
     return 3; /* std.io ctx-timeout STD-091 */
   return 0;
@@ -509,6 +509,10 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_simd_SIMD_PATH_SCALAR";
     if (i == 20)
       return "std_simd_SIMD_PATH_HW";
+    if (i == 21)
+      return "std_simd_select_lane_i32_i32_i32";
+    if (i == 22)
+      return "std_simd_select_lane_f32_f32_f32";
     return NULL;
   }
   if (g == 19) {

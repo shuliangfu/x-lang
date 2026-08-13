@@ -359,9 +359,10 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   }
   // PLATFORM: SHARED — std.simd formal (run-perf-simd + STD-SIMD-INTRINSIC).
   // VECTOR mid faces: shuffle/select/splat + add/sub/mul/hsum/dot/fma/madd
-  // + scalar placeholder/hw_available/recommend_path/SIMD_PATH_* (s2/autovec).
+  // + scalar placeholder/hw_available/recommend_path/SIMD_PATH_* (s2/autovec)
+  // + select_lane i32/f32 (product helper; sole-call UNDEF without these needles).
   if (g == 18) {
-    return 21;
+    return 23;
   }
   // PLATFORM: SHARED — std.io context-timeout formal (run-std-io-context residual).
   // timeout_from_ctx / read_ctx / write_ctx (mod.x; monofile skip std.io emit).
@@ -956,6 +957,14 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 20) {
       let p: *u8 = "std_simd_SIMD_PATH_HW";
+      return p;
+    }
+    if (i == 21) {
+      let p: *u8 = "std_simd_select_lane_i32_i32_i32";
+      return p;
+    }
+    if (i == 22) {
+      let p: *u8 = "std_simd_select_lane_f32_f32_f32";
       return p;
     }
     return 0 as *u8;

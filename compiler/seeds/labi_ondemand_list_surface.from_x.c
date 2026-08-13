@@ -256,7 +256,7 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
     return 3;
   }
   if ((g ==18)) {
-    return 21; /* std.simd VECTOR mid + binop/dot/fma + scalar faces */
+    return 23; /* std.simd VECTOR mid + binop/dot/fma + scalar faces + select_lane */
   }
   if ((g ==19)) {
     return 3; /* std.io ctx-timeout */
@@ -606,6 +606,8 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==18)) { uint8_t * p = ((uint8_t *)"std_simd_recommend_path"); return p; }
     if ((i ==19)) { uint8_t * p = ((uint8_t *)"std_simd_SIMD_PATH_SCALAR"); return p; }
     if ((i ==20)) { uint8_t * p = ((uint8_t *)"std_simd_SIMD_PATH_HW"); return p; }
+    if ((i ==21)) { uint8_t * p = ((uint8_t *)"std_simd_select_lane_i32_i32_i32"); return p; }
+    if ((i ==22)) { uint8_t * p = ((uint8_t *)"std_simd_select_lane_f32_f32_f32"); return p; }
     return ((uint8_t *)(0));
   }
   if ((g ==19)) {
