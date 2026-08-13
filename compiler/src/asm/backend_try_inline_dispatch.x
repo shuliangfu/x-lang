@@ -1275,25 +1275,43 @@ export function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, 
 
 /* ---- G-02f-111 / G-02f-131：try_inline alloc/const-lit ---- */
 
-// glue_call_is_zero_arg_default_alloc: see function docblock below.
-/** Exported function `glue_call_is_zero_arg_default_alloc`.
- * Memory management helper `glue_call_is_zero_arg_default_alloc`.
- * @param arena *u8
- * @param call_ref i32
- * @return i32
+/**
+ * True when expr is zero-extra `default_alloc` / `heap.default_alloc`.
+ * CALL=48: nargs==0 and callee VAR(3) or FIELD_ACCESS(44) named default_alloc.
+ * METHOD_CALL=49: extra==0 and method name default_alloc (UFCS / import method).
+ * Const-struct-lit inliners rewrite a matching field init to the heap factory emit.
+ * @param arena *u8 — AST arena; null → 0
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
+ * @return i32 — 1 match, 0 no
+ * PLATFORM: SHARED — product PREFER thin+rest; seed _impl same name match.
  */
 #[no_mangle]
 export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
   unsafe {
-    if (pipeline_expr_kind_ord_at(arena, call_ref) != 48) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, call_ref);
+    // CALL=48 METHOD_CALL=49: same zero-extra default_alloc name match.
+    if (ko != 48 && ko != 49) { return 0; }
+    let nm: u8[128] = [];
+    if (ko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, call_ref) != 0) { return 0; }
+      let nlen: i32 = pipeline_expr_method_call_name_len(arena, call_ref);
+      if (nlen != 13) { return 0; }
+      pipeline_expr_method_call_name_into(arena, call_ref, &nm[0]);
+      // "default_alloc"
+      if (nm[0]==100 && nm[1]==101 && nm[2]==102 && nm[3]==97 && nm[4]==117 && nm[5]==108
+          && nm[6]==116 && nm[7]==95 && nm[8]==97 && nm[9]==108 && nm[10]==108 && nm[11]==111
+          && nm[12]==99) {
+        return 1;
+      }
+      return 0;
+    }
     if (pipeline_expr_call_num_args_at(arena, call_ref) != 0) { return 0; }
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, call_ref);
     if (callee_ref <= 0) { return 0; }
-    let ko: i32 = pipeline_expr_kind_ord_at(arena, callee_ref);
-    let nm: u8[128] = [];
-    if (ko == 3) {
+    let cko: i32 = pipeline_expr_kind_ord_at(arena, callee_ref);
+    if (cko == 3) {
       let nlen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
       if (nlen != 13) { return 0; }
       pipeline_expr_var_name_into(arena, callee_ref, &nm[0]);
@@ -1305,7 +1323,7 @@ export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): 
       }
       return 0;
     }
-    if (ko == 44) {
+    if (cko == 44) {
       let nlen: i32 = pipeline_expr_field_access_name_len(arena, callee_ref);
       if (nlen != 13) { return 0; }
       pipeline_expr_field_access_name_into(arena, callee_ref, &nm[0]);
@@ -1341,7 +1359,8 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
       return 0;
     }
     let ko: i32 = pipeline_expr_kind_ord_at(arena, init_ref);
-    if (ko == 48) {
+    // CALL=48 METHOD_CALL=49: same zero-extra default_alloc field init.
+    if (ko == 48 || ko == 49) {
       return glue_call_is_zero_arg_default_alloc(arena, init_ref);
     }
     if (ko == 0) { return 1; }
@@ -1426,8 +1445,8 @@ export function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, fu
         return 0;
       }
       let ko: i32 = pipeline_expr_kind_ord_at(arena, init_ref);
-      // See implementation.
-      if (ko == 48) {
+      // CALL=48 METHOD_CALL=49: same zero-extra default_alloc field init.
+      if (ko == 48 || ko == 49) {
         if (glue_call_is_zero_arg_default_alloc(arena, init_ref) == 0) { return 0; }
       } else {
         if (ko != 0) {
@@ -2223,7 +2242,9 @@ export function try_inline_const_struct_lit_return_call_to_slot_elf(
       let init_ref: i32 = pipeline_expr_struct_lit_init_ref(callee_arena, lit_ref, fj);
       let foff: i32 = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
       let fsz: i32 = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
-      if (pipeline_expr_kind_ord_at(callee_arena, init_ref) == 48) {
+      let iko: i32 = pipeline_expr_kind_ord_at(callee_arena, init_ref);
+      // CALL=48 METHOD_CALL=49: rewrite matching default_alloc field to heap emit.
+      if (iko == 48 || iko == 49) {
         if (glue_call_is_zero_arg_default_alloc(callee_arena, init_ref) == 0) { return 0; }
         if (glue_emit_default_alloc_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0) { return 0 - 1; }
       } else {

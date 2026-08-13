@@ -2350,7 +2350,10 @@ extern int32_t glue_with_arena_scope_active_c(void);
 extern int32_t glue_with_arena_scope_top_off_c(void);
 
 /**
- * 零实参 CALL 的 callee 是否为 `default_alloc` / `heap.default_alloc`。
+ * True when expr is zero-extra `default_alloc` / `heap.default_alloc`.
+ * CALL=48: nargs==0 and callee VAR or FIELD_ACCESS named default_alloc.
+ * METHOD_CALL=49: extra==0 and method name default_alloc.
+ * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
 /* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-373 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -2358,11 +2361,25 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
   int32_t callee_ref;
   int32_t nlen;
   int32_t narg;
+  int32_t ko;
   uint8_t nm[128];
   if (!arena || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    narg = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    if (narg != 0) {
+      backend_try_inline_debugf("default alloc method narg=%d ref=%d", (int)narg, (int)call_ref);
+      return 0;
+    }
+    nlen = pipeline_expr_method_call_name_len(arena, call_ref);
+    if (nlen <= 0 || nlen > 127)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, call_ref, nm);
+    return (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0) ? 1 : 0;
+  }
   narg = pipeline_expr_call_num_args_at(arena, call_ref);
   if (narg != 0) {
     backend_try_inline_debugf("default alloc call narg=%d ref=%d", (int)narg, (int)call_ref);
@@ -2417,7 +2434,7 @@ int32_t glue_const_struct_lit_field_can_inline_impl(struct ast_ASTArena *arena, 
   if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, lit_ref, fj, &pix) == 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
-  if (ko == GLUE_EXPR_CALL)
+  if (ko == GLUE_EXPR_CALL || ko == GLUE_EXPR_METHOD_CALL)
     return glue_call_is_zero_arg_default_alloc(arena, init_ref);
   return (ko == 0 || ko == 1 || ko == 2) ? 1 : 0;
 }
@@ -2510,8 +2527,8 @@ int32_t glue_fold_func_returns_const_struct_lit_impl(struct ast_ASTArena *arena,
     if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, ret_ref, fj, &pix) == 0)
       return 0;
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
-    /** vec_u8_new 等：Struct 末字段可为零实参 default_alloc() CALL。 */
-    if (ko == GLUE_EXPR_CALL) {
+    /** vec_u8_new 等：Struct 字段可为零实参 default_alloc() CALL 或 METHOD。 */
+    if (ko == GLUE_EXPR_CALL || ko == GLUE_EXPR_METHOD_CALL) {
       if (glue_call_is_zero_arg_default_alloc(arena, init_ref) == 0) {
         backend_try_inline_debugf("const struct fold miss call fi=%d fj=%d init=%d", (int)func_idx, (int)fj,
                                   (int)init_ref);
@@ -2558,6 +2575,7 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTA
   int32_t foff;
   int32_t fsz;
   int32_t ko;
+  int32_t iko;
   int32_t extra;
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
@@ -2595,8 +2613,9 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTA
     init_ref = pipeline_expr_struct_lit_init_ref(callee_arena, lit_ref, fj);
     foff = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
     fsz = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
-    if (pipeline_expr_kind_ord_at(callee_arena, init_ref) == GLUE_EXPR_CALL) {
-      /** default_alloc()：直写 kind=heap + null arena，勿 call 返回悬空栈指针。 */
+    iko = pipeline_expr_kind_ord_at(callee_arena, init_ref);
+    if (iko == GLUE_EXPR_CALL || iko == GLUE_EXPR_METHOD_CALL) {
+      /** default_alloc() / recv.default_alloc()：直写 heap factory，勿 call 返回悬空栈指针。 */
       if (glue_call_is_zero_arg_default_alloc(callee_arena, init_ref) == 0)
         return 0;
       if (glue_emit_default_alloc_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0)
