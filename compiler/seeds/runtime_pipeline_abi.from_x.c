@@ -27257,6 +27257,7 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
  * Freestanding-safe stub (-1 = gate/enc fail). Hybrid product links pure.
  * Private copy_large pure helper has no cold surface (sole pure consumer).
  * PLATFORM: SHARED freestanding CALL/METHOD/STRUCT let-home retval store.
+ * Product .x memcpy gate is CALL(48)||METHOD(49); this cold twin is a stub.
  */
 int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
                                             int32_t slot_off, int32_t ta, int32_t init_ref, void *ctx) {

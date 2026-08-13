@@ -62,11 +62,45 @@ impl Originable for Pair {
   }
 }
 
+// >16B SysV MEMORY class (5×i32). Binop fields refuse try_inline.
+struct Wide {
+  a: i32
+  b: i32
+  c: i32
+  d: i32
+  e: i32
+}
+
+trait Wideable {
+  function as_wide(self): Wide;
+}
+
 /**
- * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init.
- * Exit 0 on success; 1..16 name the miss.
+ * METHOD returning >16B: binop field inits refuse try_inline (sret / memcpy).
+ * @param self i32 — copied into a; b..e are self+1 .. self+4
+ * @return Wide
+ */
+impl Wideable for i32 {
+  function as_wide(self: i32): Wide {
+    return Wide { a: self + 0, b: self + 1, c: self + 2, d: self + 3, e: self + 4 };
+  }
+}
+
+/**
+ * CALL neighborhood of as_wide (same layout, same binop inits).
+ * @param x i32 — base for a..e
+ * @return Wide
+ */
+function mk_wide(x: i32): Wide {
+  return Wide { a: x + 0, b: x + 1, c: x + 2, d: x + 3, e: x + 4 };
+}
+
+/**
+ * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init plus >16B.
+ * Exit 0 on success; 1..22 name the miss.
  * 1-4 materialise/sret neighborhood; 5-8 field-access inline;
- * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood.
+ * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood;
+ * 17-22 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
  * @return i32 — 0 ok
  */
 function main(): i32 {
@@ -99,5 +133,16 @@ function main(): i32 {
   let m: Pair = mk(3, 4);
   if (m.a != 3) { return 15; }
   if (m.b != 4) { return 16; }
+  /* >16B METHOD field-access: sret home then load (memcpy if residual store). */
+  if (7.as_wide().a != 7) { return 17; }
+  if (7.as_wide().e != 11) { return 18; }
+  /* >16B METHOD let-init. */
+  let w: Wide = 7.as_wide();
+  if (w.a != 7) { return 19; }
+  if (w.e != 11) { return 20; }
+  /* >16B CALL neighborhood. */
+  if (mk_wide(7).e != 11) { return 21; }
+  let cw: Wide = mk_wide(7);
+  if (cw.e != 11) { return 22; }
   return 0;
 }

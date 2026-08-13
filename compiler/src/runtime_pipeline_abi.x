@@ -66869,7 +66869,7 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
 // ===========================================================================
 
 /**
- * Copy a large (>16B) struct CALL retval from *rax into the let slot via memcpy.
+ * Copy a large (>16B) struct CALL/METHOD retval from *rax into the let slot via memcpy.
  * Sequence: push rax (src) → lea rbp+slot → arg0 dest → pop → arg1 src →
  * imm sz → arg2 → call memcpy.
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
@@ -66943,15 +66943,15 @@ function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, 
 }
 
 /**
- * Store CALL/expr result into a let stack slot (rax half first; 9–16B dual-GP
- * adds rdx half; >16B via *rax memcpy; TYPE_SLICE length half + deep-copy).
+ * Store CALL/METHOD/expr result into a let stack slot (rax half first; 9–16B
+ * dual-GP adds rdx half; >16B via *rax memcpy; TYPE_SLICE length half + deep-copy).
  * @param m *u8 — Module* (may be null for early gates; dual-GP non-SLICE needs m)
  * @param arena *u8 — ASTArena*; null skips dual-GP widen / SLICE / kind tests
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param ty_ref i32 — let type_ref (0 = rax-only store)
  * @param slot_off i32 — rbp-relative home for low/data half
  * @param ta i32 — 0=x86_64 SysV high-end; 1=arm64 AAPCS64 low-end
- * @param init_ref i32 — init expr (STRUCT/CALL routing); 0 skips large/struct16/deep
+ * @param init_ref i32 — init expr (STRUCT/CALL/METHOD routing); 0 skips large/struct16/deep
  * @param ctx *u8 — AsmFuncCtx*; required for SLICE deep-copy (use_frame=1)
  * @return i32 — 0 success / non-storeable; -1 enc fail
  *
@@ -66978,12 +66978,14 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       sz = nsz;
     }
   }
-  // >16B + EXPR_CALL (48): memcpy from *rax (x86 MEMORY class only).
+  // >16B + CALL(48)/METHOD(49): memcpy from *rax (x86 MEMORY class only).
+  // G.7: same harvest as slice deep-copy below. CALL-only stored 8B of rax
+  // (the hidden pointer) and dropped the payload on residual emit+store.
   if (sz > 16 && init_ref > 0 && arena != (0 as *u8)) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, init_ref);
     }
-    if (ko == 48) {
+    if (ko == 48 || ko == 49) {
       return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
     }
   }
