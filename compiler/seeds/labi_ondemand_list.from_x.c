@@ -186,7 +186,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 17)
     return 3; /* std.debug */
   if (g == 18)
-    return 16; /* std.simd VECTOR mid + binop/dot/fma */
+    return 21; /* std.simd VECTOR mid + binop/dot/fma + scalar faces */
   if (g == 19)
     return 3; /* std.io ctx-timeout STD-091 */
   return 0;

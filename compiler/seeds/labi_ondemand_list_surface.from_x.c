@@ -256,7 +256,7 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
     return 3;
   }
   if ((g ==18)) {
-    return 16; /* std.simd VECTOR mid + binop/dot/fma */
+    return 21; /* std.simd VECTOR mid + binop/dot/fma + scalar faces */
   }
   if ((g ==19)) {
     return 3; /* std.io ctx-timeout */
