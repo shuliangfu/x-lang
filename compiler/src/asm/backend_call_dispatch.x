@@ -84,6 +84,13 @@ export extern function pipeline_typeck_type_refs_equal_c(a: *u8, x: i32, y: i32)
 export extern function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(a: *u8, er: i32): i32;
 export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(a: *u8, elf: *u8, lr: i32, ctx: *u8, ta: i32): i32;
+/**
+ * SysV x86_64 MEMORY by-value push (multi-qword reverse). Used by import METHOD
+ * for host-C large POD (String ~260B) on LINUX|x86 — matches gcc stack formals.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0); returns -1 on other arches.
+ */
+export extern function pipeline_asm_push_sysv_memory_by_value_elf_c(
+  arena: *u8, elf: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32;
 export extern function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
@@ -2077,7 +2084,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       let spill_off_m: i32[96] = [];
                       let gp_start_m: i32[96] = [];
                       let gp_units_m: i32[96] = [];
+                      // is_mem_m: 0=reg/int, 1=x86 SysV MEMORY stack, 2=arm64 host-indirect lea.
+                      let is_mem_m: i32[96] = [];
+                      let arg_sz_m: i32[96] = [];
                       let i_m: i32 = 0;
+                      let mem_stack_m: i32 = 0;
                       let reg_max_m: i32 = glue_asm_call_reg_max(ta);
                       // SysV hidden sret consumes rdi (GP0); shift formals by sret_sh.
                       // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV; AAPCS64 uses x8 (sret_sh=0).
@@ -2087,26 +2098,44 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       }
                       let gp_cur_m: i32 = sret_sh_m;
                       if (reg_max_m < 1) { reg_max_m = 6; }
-                      // Classify: 9–16B dual-GP; >16B host-C large POD → 1 GP lea (not MEMORY stack).
-                      // PLATFORM: SHARED import METHOD → host-C std .o (std_string_length_String
-                      // takes x0=&String). Pure→pure UFCS still uses MEMORY on its own path.
+                      /*
+                       * Classify large POD for import METHOD → host-C std .o (string.o):
+                       * - PLATFORM: LINUX|x86_64 SysV — MEMORY by-value on stack (gcc formals
+                       *   at [rbp+0x10..]; run-string length(String) residual when lea→rdi).
+                       * - PLATFORM: MACOS|ARM64 AAPCS64 — large composite as pointer in GP
+                       *   (lea; host-C std_string_length_String takes x0=&String).
+                       * Pure→pure UFCS still uses MEMORY stack on its own path (wave602).
+                       * G.7: one authority with seed is_mem=1 (x86) / is_mem=2 (arm64).
+                       */
                       while (i_m < nargs) {
                         let ar_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                         let pty_m: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
                         let sz_m: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_m, ar_m);
                         let u_m: i32 = glue_sysv_arg_gp_units_from_size_c(sz_m);
                         spill_off_m[i_m] = 0 - 1;
+                        is_mem_m[i_m] = 0;
+                        arg_sz_m[i_m] = sz_m;
+                        gp_start_m[i_m] = 0 - 1;
+                        gp_units_m[i_m] = 0;
                         if (u_m < 1) { u_m = 1; }
                         if (u_m > 2) { u_m = 2; }
-                        // >16B: host-C invisible reference — 1 GP + lea at emit (run-string root).
                         if (glue_sysv_arg_is_memory_by_value_c(sz_m) != 0) {
-                          if (gp_cur_m + 1 <= reg_max_m) {
-                            gp_start_m[i_m] = gp_cur_m;
-                            gp_units_m[i_m] = 1;
-                            gp_cur_m = gp_cur_m + 1;
-                          } else {
+                          if (ta == 0) {
+                            // x86 SysV MEMORY: stack only (not lea into GP).
+                            is_mem_m[i_m] = 1;
                             gp_start_m[i_m] = 0 - 1;
-                            gp_units_m[i_m] = 1;
+                            gp_units_m[i_m] = 0;
+                          } else {
+                            // arm64 large composite: 1 GP + lea at emit.
+                            is_mem_m[i_m] = 2;
+                            if (gp_cur_m + 1 <= reg_max_m) {
+                              gp_start_m[i_m] = gp_cur_m;
+                              gp_units_m[i_m] = 1;
+                              gp_cur_m = gp_cur_m + 1;
+                            } else {
+                              gp_start_m[i_m] = 0 - 1;
+                              gp_units_m[i_m] = 1;
+                            }
                           }
                         } else if (gp_cur_m + u_m <= reg_max_m) {
                           gp_start_m[i_m] = gp_cur_m;
@@ -2118,46 +2147,57 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                         }
                         i_m = i_m + 1;
                       }
-                      // Excess stack args (x86 only): push high→low before reg spill/load.
+                      // x86: MEMORY multi-word + excess integer stack (high→low) before reg load.
+                      // PLATFORM: LINUX+MACOS x86_64 SysV — pad first for 16-align (seed twin).
                       if (ta == 0) {
-                        let stk_n: i32 = 0;
+                        let raw_mem: i32 = 0;
+                        let pushed_total: i32 = 0;
                         i_m = 0;
                         while (i_m < nargs) {
-                          if (gp_start_m[i_m] < 0) { stk_n = stk_n + 1; }
+                          if (is_mem_m[i_m] == 1) {
+                            raw_mem = raw_mem + ((arg_sz_m[i_m] + 7) & (0 - 8));
+                          } else if (gp_start_m[i_m] < 0) {
+                            raw_mem = raw_mem + 8;
+                          }
                           i_m = i_m + 1;
                         }
-                        if (stk_n > 0) {
-                          let pad: i32 = 0;
-                          if ((stk_n & 1) != 0) { pad = 1; }
-                          if (pad != 0) {
-                            if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-                            if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-                          }
-                          i_m = nargs - 1;
-                          while (i_m >= 0) {
-                            if (gp_start_m[i_m] < 0) {
-                              let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                              if (arg_stk != 0) {
-                                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, i_m, ctx, ta) != 0) {
-                                  return 0 - 1;
-                                }
-                                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-                              }
-                            }
-                            i_m = i_m - 1;
-                          }
+                        while (((raw_mem + pushed_total) & 15) != 0) {
+                          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+                          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                          pushed_total = pushed_total + 8;
                         }
+                        i_m = nargs - 1;
+                        while (i_m >= 0) {
+                          if (is_mem_m[i_m] == 1) {
+                            let arg_mem: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                            let pushed: i32 = 0;
+                            if (arg_mem == 0) { return 0 - 1; }
+                            pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(
+                              arena, elf_ctx, ctx, arg_mem, arg_sz_m[i_m], ta);
+                            if (pushed < 0) { return 0 - 1; }
+                            pushed_total = pushed_total + pushed;
+                          } else if (gp_start_m[i_m] < 0) {
+                            let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                            if (arg_stk != 0) {
+                              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, i_m, ctx, ta) != 0) {
+                                return 0 - 1;
+                              }
+                              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                              pushed_total = pushed_total + 8;
+                            }
+                          }
+                          i_m = i_m - 1;
+                        }
+                        mem_stack_m = pushed_total;
                       }
-                      // Emit + spill register-class args (dual-GP; >16B → lea for host-C).
+                      // Emit + spill register-class args (dual-GP; arm64 >16B → lea).
                       i_m = 0;
                       while (i_m < nargs) {
                         if (gp_start_m[i_m] >= 0) {
                           let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                           if (arg_ref_m != 0) {
-                            let pty_e: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
-                            let sz_e: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_e, arg_ref_m);
-                            if (glue_sysv_arg_is_memory_by_value_c(sz_e) != 0) {
-                              // PLATFORM: SHARED — host-C large POD: lea into GP (not by-value load).
+                            if (is_mem_m[i_m] == 2) {
+                              // PLATFORM: MACOS|ARM64 — host-C large POD lea into GP.
                               if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref_m, ctx, ta) != 0) {
                                 return 0 - 1;
                               }
@@ -2172,20 +2212,23 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                         i_m = i_m + 1;
                       }
                       // arm64 excess: place on [sp] via x0 *before* final GP load (do not clobber GPs).
+                      // Skip is_mem==2 (already in GP); only true excess integer stack.
                       if (ta == 1) {
                         let stk_slot_m: i32 = 0;
                         i_m = 0;
                         while (i_m < nargs) {
                           if (gp_start_m[i_m] < 0) {
-                            let arg_stk_a: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
-                            if (arg_stk_a != 0) {
-                              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk_a, i_m, ctx, ta) != 0) {
-                                return 0 - 1;
+                            if (is_mem_m[i_m] != 2) {
+                              let arg_stk_a: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                              if (arg_stk_a != 0) {
+                                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk_a, i_m, ctx, ta) != 0) {
+                                  return 0 - 1;
+                                }
+                                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot_m * 8, ta) != 0) {
+                                  return 0 - 1;
+                                }
+                                stk_slot_m = stk_slot_m + 1;
                               }
-                              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot_m * 8, ta) != 0) {
-                                return 0 - 1;
-                              }
-                              stk_slot_m = stk_slot_m + 1;
                             }
                           }
                           i_m = i_m + 1;
@@ -2202,11 +2245,19 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                         }
                         i_m = i_m - 1;
                       }
+                      if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
+                      // Cleanup: MEMORY multi-word bytes when tracked; else nargs-based.
+                      {
+                        let cln_m: i32 = mem_stack_m;
+                        if (cln_m <= 0) {
+                          cln_m = glue_asm_call_stack_cleanup_bytes(ta, n_ov);
+                        }
+                        if (cln_m < 0) { return 0 - 1; }
+                        if (cln_m > 0) {
+                          if (backend_enc_call_stack_cleanup_arch(elf_ctx, cln_m, ta) != 0) { return 0 - 1; }
+                        }
+                      }
                     }
-                    if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
-                    let cln: i32 = glue_asm_call_stack_cleanup_bytes(ta, n_ov);
-                    if (cln < 0) { return 0 - 1; }
-                    if (backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0) { return 0 - 1; }
                     /*
                      * PLATFORM: SHARED freestanding — after import METHOD_CALL, harvest
                      * ret into full GPR (i32 sxtw / u32 zxt / f32 xmm). G.7 complete:

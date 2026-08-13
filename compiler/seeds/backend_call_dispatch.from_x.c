@@ -3833,14 +3833,19 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 continue;
               }
               /*
-               * PLATFORM: SHARED freestanding import METHOD → host-C std .o.
-               * >16B X value types (String ~260B): host-C surface is *invisible reference*
-               * (x0 = pointer; std_string_length_String memmove-from-x0 then length_String).
-               * Pure-asm param_home MEMORY stack words are for pure→pure UFCS only.
-               * Root (run-string): MEMORY stack dump without x0=&s → SEGV / wrong length.
-               * G.7: import METHOD large POD → 1 GP + lea (AAPCS large composite), not is_mem.
+               * Import METHOD → host-C std .o large POD (String ~260B):
+               * - PLATFORM: LINUX|x86_64 SysV — MEMORY by-value on stack (is_mem=1).
+               *   Host-C gcc formals read [rbp+0x10..]; pure lea→rdi residual run-string
+               *   length(String) exit≠1 (len_ptr OK, by-value length garbage).
+               * - PLATFORM: MACOS|ARM64 AAPCS64 — large composite as pointer in GP (is_mem=2 lea).
+               * Pure→pure UFCS still uses MEMORY stack on its own path (wave602).
+               * G.7: pure .x import METHOD same split (x86 stack / arm64 lea).
                */
               if (sz > 16) {
+                if (ta == 0) {
+                  is_mem[i] = 1; /* x86 SysV MEMORY stack multi-word */
+                  continue;
+                }
                 if (gp_cur + 1 > 6) {
                   is_stk[i] = 1;
                   continue;
@@ -3848,9 +3853,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 reg_start[i] = gp_cur;
                 reg_units[i] = 1;
                 gp_cur += 1;
-                /* mark via is_sse unused slot: reuse is_mem=-1? use is_f64 as lea flag no —
-                 * reg_units==1 + sz>16 means lea at emit. */
-                is_mem[i] = 2; /* 2 = host-indirect lea → GP (not stack MEMORY) */
+                is_mem[i] = 2; /* arm64 host-indirect lea → GP */
                 continue;
               }
               /*
