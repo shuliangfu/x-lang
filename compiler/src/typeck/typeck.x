@@ -10203,6 +10203,8 @@ name_len: i32): i32 {
  * struct layout or type alias). wave249 G.7: inverted typeck_named_is_module_type
  * (no second name scan). Used by call arg gate so formals `x: T` on generics
  * accept concrete args.
+ * NAMED SIMD spellings (i32x4 / f32x4 / …) are concrete — typeck_vector_lanes_of_type
+ * > 0 — not free T. Else generic UFCS binds `[1,2,3].take0()` to take0(self: i32x4).
  * @param module *Module — callee module (layouts / aliases)
  * @param arena *ASTArena
  * @param ty_ref i32 — candidate formal type_ref
@@ -10215,6 +10217,13 @@ export function typeck_type_is_free_type_param(module: *Module, arena: *ASTArena
     let nm: u8[128] = [];
     let nlen: i32 = 0;
     if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0) {
+      return 0;
+    }
+    /*
+     * Concrete SIMD (TYPE_VECTOR or NAMED i32x4 / f32x4 / …) is not free T.
+     * PLATFORM: SHARED.
+     */
+    if (typeck_vector_lanes_of_type(arena, ty_ref) > 0) {
       return 0;
     }
     /* TYPE_NAMED ord == 8 */
@@ -13124,7 +13133,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
  * 1) typecheck base + all method args
  * 2) import.binding.method via path-matched dep slot + W-heap overload (call_strict_minimal)
  *    with multi-dep fallback when path slot is empty
- * 3) generic method UFCS (pattern-unify self) BEFORE non-generic UFCS
+ * 3) generic method UFCS (pattern-unify self) BEFORE non-generic UFCS.
+ *    Only n_gp>0; NAMED SIMD (i32x4) is not free T.
  * 4) same-module free-fn UFCS (exact / auto-ref *T / weak integer self).
  *    ARRAY_LIT receiver / extra args coerce to SIMD/VECTOR formals via
  *    typeck_coerce_init_array_vector_lit_to_decl before type_refs_equal
@@ -18078,6 +18088,7 @@ ret_ty: i32): i32 {
 /**
  * Generic method_call UFCS: pattern-unify formal self with concrete receiver,
  * verify non-self args (after subst), stamp mono return + call_resolve.
+ * Only functions with n_gp>0 enter (non-generic take0(self: i32x4) is not T).
  * @return i32 — 1 success (stamped), 0 no match
  * PLATFORM: SHARED freestanding typeck.
  */
@@ -18115,6 +18126,15 @@ base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32 {
       }
       nparams = pipeline_module_func_num_params_at(module, fi);
       if (nparams != num_args + 1) {
+        fi = fi + 1;
+        continue;
+      }
+      /*
+       * Non-generic fn (n_gp==0): i32x4 NAMED is not a free T. Leave to
+       * same-module UFCS + coerce refuse / T001.
+       * PLATFORM: SHARED.
+       */
+      if (pipeline_module_func_num_generic_params_at(module, fi) <= 0) {
         fi = fi + 1;
         continue;
       }
