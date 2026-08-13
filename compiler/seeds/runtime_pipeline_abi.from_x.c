@@ -16709,13 +16709,22 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
         /* 向量 ARRAY_LIT / VAR 拷贝 / 逐 lane binop 已直写 let 槽 */
       } else if (vst == -1) {
         return -1;
-      } else if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
-        return -1;
-      } else if (glue_store_retval_pair_to_rbp_elf_c(
-                     glue_emit_module_from_ctx(ctx), arena, elf_ctx, type_ref,
-                     backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref, ctx) != 0) {
-        /* dual-GP store — bare store_rax drops hi half of Vec4f return */
-        return -1;
+      } else {
+        /* METHOD_CALL/CALL: G.7 reuse struct CALL sret/dual-GP (Vec8i sret). */
+        int32_t st = glue_emit_struct_type_let_init_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, type_ref,
+            backend_asm_ctx_slot_offset(ctx, slot));
+        if (st == 0) {
+          /* handled */
+        } else if (st == -1) {
+          return -1;
+        } else if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+          return -1;
+        } else if (glue_store_retval_pair_to_rbp_elf_c(
+                       glue_emit_module_from_ctx(ctx), arena, elf_ctx, type_ref,
+                       backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref, ctx) != 0) {
+          return -1;
+        }
       }
     } else if (glue_block_let_is_fixed_array_type(arena, block_ref, i)) {
       /**

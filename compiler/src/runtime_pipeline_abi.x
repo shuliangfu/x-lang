@@ -35891,22 +35891,30 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
           return 0 - 1;
         }
         if (vst != 0) {
-          /* METHOD_CALL/CALL residual: vector_let returns -2 (no inline). Emit
-           * then dual-GP store (rax+rdx) — bare store_rax drops hi half →
-           * pure-asm shuffle r4[2]/r4[3] wrong (Stage12 soft residual). */
-          unsafe {
-            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
+          /* METHOD_CALL/CALL residual: G.7 reuse struct CALL sret/dual-GP
+           * (Vec8i ret>16 needs hidden rdi sret; Vec4f uses rax+rdx). */
           unsafe {
             slot_off = backend_asm_ctx_slot_offset(ctx, slot);
-            rc = glue_store_retval_pair_to_rbp_elf_c(
-                glue_emit_module_from_ctx(ctx), arena, elf_ctx, type_ref, slot_off, ta, init_ref, ctx);
+            rc = glue_emit_struct_type_let_init_elf_c(
+                arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+          }
+          if (rc == 0 - 1) {
+            return 0 - 1;
           }
           if (rc != 0) {
-            return 0 - 1;
+            unsafe {
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = glue_store_retval_pair_to_rbp_elf_c(
+                  glue_emit_module_from_ctx(ctx), arena, elf_ctx, type_ref, slot_off, ta, init_ref, ctx);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
           }
         }
         done = 1;
@@ -48589,8 +48597,16 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
       if (vst == 0 - 1) {
         return 0 - 1;
       }
-      /* -2: e.g. METHOD_CALL simd.shuffle — emit + dual-GP store (G.7 ≡ struct CALL). */
+      /* -2: METHOD_CALL/CALL — G.7 reuse struct CALL sret/dual-GP authority. */
       glue_index_assign_addr_cache_clear();
+      rc = glue_emit_struct_type_let_init_elf_c(
+          arena, elf_ctx, init_ref, ctx, ta, vtype_ref, slot_off);
+      if (rc == 0) {
+        return 0;
+      }
+      if (rc == 0 - 1) {
+        return 0 - 1;
+      }
       rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
       if (rc != 0) {
         return 0 - 1;
