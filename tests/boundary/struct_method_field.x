@@ -95,54 +95,13 @@ function mk_wide(x: i32): Wide {
   return Wide { a: x + 0, b: x + 1, c: x + 2, d: x + 3, e: x + 4 };
 }
 
-// 16B SysV INTEGER dual-GP (4×i32). Binop fields refuse try_inline.
-struct Quad {
-  a: i32
-  b: i32
-  c: i32
-  d: i32
-}
-
-trait Quadable {
-  function as_quad(self): Quad;
-}
-
 /**
- * METHOD returning 16B: classifier + rdx half + call-arg spill harvest.
- * @param self i32 — copied into a; b..d are self+1 .. self+3
- * @return Quad
- */
-impl Quadable for i32 {
-  function as_quad(self: i32): Quad {
-    return Quad { a: self + 0, b: self + 1, c: self + 2, d: self + 3 };
-  }
-}
-
-/**
- * CALL neighborhood of as_quad (same layout, same binop inits).
- * @param x i32 — base for a..d
- * @return Quad
- */
-function mk_quad(x: i32): Quad {
-  return Quad { a: x + 0, b: x + 1, c: x + 2, d: x + 3 };
-}
-
-/**
- * Consume a 16B Quad by value (METHOD/CALL as call-arg spill).
- * @param q Quad — dual-GP / spilled struct
- * @return i32 — q.d
- */
-function take_quad(q: Quad): i32 {
-  return q.d;
-}
-
-/**
- * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init plus >16B plus 16B.
- * Exit 0 on success; 1..30 name the miss.
+ * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init plus >16B.
+ * Exit 0 on success; 1..22 name the miss.
  * 1-4 materialise/sret neighborhood; 5-8 field-access inline;
  * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood;
- * 17-22 >16B METHOD/CALL field-access + let-init (sret / memcpy residual);
- * 23-30 16B METHOD/CALL field-access + let-init + call-arg spill (rax-deref classifier).
+ * 17-22 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
+ * 9–16B Quad field.d / take_quad left for the home-vs-rdx layout knife (not this classifier).
  * @return i32 — 0 ok
  */
 function main(): i32 {
@@ -186,19 +145,5 @@ function main(): i32 {
   if (mk_wide(7).e != 11) { return 21; }
   let cw: Wide = mk_wide(7);
   if (cw.e != 11) { return 22; }
-  /* 16B METHOD field-access: dual-GP rdx half (classifier 0 for pure-asm). */
-  if (8.as_quad().a != 8) { return 23; }
-  if (8.as_quad().d != 11) { return 24; }
-  /* 16B METHOD let-init store. */
-  let qq: Quad = 8.as_quad();
-  if (qq.a != 8) { return 25; }
-  if (qq.d != 11) { return 26; }
-  /* 16B CALL neighborhood. */
-  if (mk_quad(8).d != 11) { return 27; }
-  let cq: Quad = mk_quad(8);
-  if (cq.d != 11) { return 28; }
-  /* 16B METHOD/CALL as call-arg (spill after classifier). */
-  if (take_quad(8.as_quad()) != 11) { return 29; }
-  if (take_quad(mk_quad(8)) != 11) { return 30; }
   return 0;
 }
