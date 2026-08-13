@@ -13989,6 +13989,16 @@ ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_invalid_as_cast(line_as, col_as);
         return -1;
       }
+      /*
+       * ARRAY_LIT as []T: stamp the lit SLICE so emit_expr(ARRAY_LIT) takes
+       * the existing durable-fat path (let `x: []T = [lit]`). VAR/FIELD stay
+       * TYPE_ARRAY — return/assign wrap keys off that (do not stamp).
+       * G.7: reuse typeck_coerce_init_slice_from_array. PLATFORM: SHARED.
+       */
+      if (pipeline_expr_kind_ord_at(arena, op_ref) == 46
+          && typeck_array_to_slice_ok(arena, src_ty, tgt) != 0) {
+        typeck_coerce_init_slice_from_array(arena, op_ref, tgt, 11);
+      }
     }
     if (!ast.ref_is_null(tgt)) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, tgt);

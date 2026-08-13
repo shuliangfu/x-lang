@@ -9818,6 +9818,22 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         as_tgt = pipeline_typeck_resolve_type_alias_ref_c(arena, as_tgt);
         as_tgt = codegen_mono_subst_type(ctx, arena, as_tgt);
       }
+      /*
+       * Aggregate ascription (`[lit] as []T` / `as [N]T`): C cast of an
+       * array/slice is BLD001. Identity-emit the operand so ARRAY_LIT uses
+       * the existing SLICE fat / TYPE_ARRAY braced paths (typeck stamps
+       * ARRAY_LIT SLICE for `as []T`). Scalar/ptr `as` stays below.
+       * G.7: no second fat builder. PLATFORM: SHARED host-C emit.
+       */
+      if (!ast.ref_is_null(as_tgt)) {
+        let as_tk: i32 = pipeline_type_kind_ord_at(arena, as_tgt);
+        if (as_tk == (TypeKind.TYPE_SLICE as i32) || as_tk == (TypeKind.TYPE_ARRAY as i32)) {
+          if (!ast.ref_is_null(e.as_operand_ref)) {
+            return emit_expr(arena, out, e.as_operand_ref, ctx);
+          }
+          return -1;
+        }
+      }
       let as_struct: i32 = 0;
       if (!ast.ref_is_null(as_tgt) && ctx != 0 as *PipelineDepCtx
           && ctx.current_codegen_module != 0 as *Module
