@@ -2957,7 +2957,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 | 当前名称                    | 功能说明                                                                                                                                                       | 简化名称                  | 说明             | 绑定调用                            |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | -------------- | ------------------------------- |
-| `simd_hw_available_c` | std.simd — SIMD-S2：标准向量类型 Vec4f / Vec8i（映射 f32x4 / i32x8 语义） STD-047：vec4f_shuffle / vec8i_select lane-scalar 实装；STD-061：shuffle/select 生产级 perf bench 锚点。 | `hw_available` | 去模块前缀+去类型名（C层） | `simd.hw_available(...)` |
+| `simd_hw_available_c` | std.simd — SIMD-S2：标准向量类型 Vec4f / Vec8i（映射 f32x4 / i32x8 语义） STD-047：shuffle / select / select_lane lane-scalar 实装（无 vec4f_shuffle 第二套）；STD-061：shuffle/select 生产级 perf bench 锚点。 | `hw_available` | 去模块前缀+去类型名（C层） | `simd.hw_available(...)` |
 | `simd_recommend_path_c` | extern C/平台 | `recommend_path` | 去模块前缀+去类型名（C层） | `simd.recommend_path(...)` |
 | `SIMD_PATH_SCALAR`      | lane-scalar 回退路径常量（与 simd.c SIMD_PATH_SCALAR 一致）。                                                                                                          | `SIMD_PATH_SCALAR`    | 已符合命名          | `simd.SIMD_PATH_SCALAR(...)`    |
 | `SIMD_PATH_HW`          | 硬件向量 emit 路径常量（与 simd.c SIMD_PATH_HW 一致）。                                                                                                                  | `SIMD_PATH_HW`        | 已符合命名          | `simd.SIMD_PATH_HW(...)`        |
