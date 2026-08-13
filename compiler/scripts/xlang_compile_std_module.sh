@@ -1377,8 +1377,14 @@ PYEOF
     # without rename, cc -c fails "conflicting types for 'abs'" (C int abs(int) vs
     # X f64 abs(f64)); L4 cold ensure math.o never lands → run-math C smoke + product
     # UNDEF std_math_*. G.7: extend same pre-cc clash gate (no second math-only path).
+    # PLATFORM: LINUX|UBUNTU GCC15+ — C23 stddef.h `#define unreachable() …` (0-arg
+    # function-like macro). core.builtin export `void unreachable(void)` becomes
+    # `unreachable(void)` → "macro passed 1 arguments, but takes just 0" → formal
+    # builtin.o never built → pure-asm run-builtin UNDEF core_builtin_*. G.7: same
+    # pre-cc rename gate (not a second path).
     for _cn in wait free open close malloc realloc calloc getcwd chdir pipe exit \
                getenv setenv unsetenv getpid getppid waitpid exec signal abort \
+               unreachable \
                remove rename system time clock read write \
                abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
@@ -1619,16 +1625,24 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         fi
       done
     fi
-    # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait + libm math bare names).
+    # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait + libm + C23 unreachable).
     # Pre-cc rewrites def to xlang_formal_bare_<name>; post-o must map that body to
-    # std_<leaf>_<name> (product face). Looking only for bare T <clash> missed
-    # xlang_formal_bare_log → run-log UNDEF std_log_log @71d9c714e. G.7 complete.
+    # product face: std_<leaf>_* or core_<leaf>_* (use prod_pref, not hard-coded std_).
+    # Looking only for bare T <clash> missed xlang_formal_bare_log → run-log UNDEF
+    # std_log_log @71d9c714e. Root (run-builtin): hard-coded std_${leaf}_ would map
+    # core.builtin abort/unreachable → std_builtin_* (wrong) vs core_builtin_*.
+    # G.7 complete: prod_pref from out path (core/builtin → core_builtin_).
     for clash in free open close malloc realloc calloc getcwd chdir pipe exit \
                  getenv setenv unsetenv getpid getppid waitpid wait exec signal abort \
+                 unreachable \
                  remove rename system time clock read write \
                  abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                  sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
-      prod="std_${leaf}_${clash}"
+      if [ -n "$prod_pref" ]; then
+        prod="${prod_pref}${clash}"
+      else
+        prod="std_${leaf}_${clash}"
+      fi
       fb="xlang_formal_bare_${clash}"
       if nm "$out_o" 2>/dev/null | grep -qE " T ${fb}$| T _${fb}$"; then
         if nm "$out_o" 2>/dev/null | grep -qE " T ${prod}$| T _${prod}$"; then
@@ -1643,11 +1657,11 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         fi
       fi
       if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
-        # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
-        # historical clash guard; product import-binding calls std_env_getenv not *_api.
+        # Prefer product export (std_env_getenv / core_builtin_abort). *_api was a
+        # historical clash guard when product already present; keep side body local.
         # PLATFORM: SHARED — Ubuntu asm -o of mod.x often emits bare names; mac may prefix.
         if nm "$out_o" 2>/dev/null | grep -q " T ${prod}$"; then
-          objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
+          objcopy --redefine-sym "${clash}=${prod}_api" "$out_o" 2>/dev/null || true
         else
           objcopy --redefine-sym "${clash}=${prod}" "$out_o" 2>/dev/null || true
         fi
