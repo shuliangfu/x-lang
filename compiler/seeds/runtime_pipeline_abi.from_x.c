@@ -16711,7 +16711,10 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
         return -1;
       } else if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
         return -1;
-      } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0) {
+      } else if (glue_store_retval_pair_to_rbp_elf_c(
+                     glue_emit_module_from_ctx(ctx), arena, elf_ctx, type_ref,
+                     backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref, ctx) != 0) {
+        /* dual-GP store — bare store_rax drops hi half of Vec4f return */
         return -1;
       }
     } else if (glue_block_let_is_fixed_array_type(arena, block_ref, i)) {
@@ -20538,7 +20541,8 @@ int32_t glue_emit_vector_type_let_init_elf_c(void *arena,
     return pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
   if (glue_is_vector_lane_scalar_binop_ko(ko))
     return pipeline_asm_emit_vector_binop_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-  if (ko == 48) {
+  /* CALL=48 / METHOD_CALL=49 (import simd.shuffle is METHOD). */
+  if (ko == 48 || ko == 49) {
     inl = pipeline_asm_simd_try_inline_select_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     if (inl == 1)
       return 0;

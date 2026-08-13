@@ -35891,6 +35891,9 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
           return 0 - 1;
         }
         if (vst != 0) {
+          /* METHOD_CALL/CALL residual: vector_let returns -2 (no inline). Emit
+           * then dual-GP store (rax+rdx) — bare store_rax drops hi half →
+           * pure-asm shuffle r4[2]/r4[3] wrong (Stage12 soft residual). */
           unsafe {
             rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
           }
@@ -35899,7 +35902,8 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
           }
           unsafe {
             slot_off = backend_asm_ctx_slot_offset(ctx, slot);
-            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+            rc = glue_store_retval_pair_to_rbp_elf_c(
+                glue_emit_module_from_ctx(ctx), arena, elf_ctx, type_ref, slot_off, ta, init_ref, ctx);
           }
           if (rc != 0) {
             return 0 - 1;
@@ -41523,7 +41527,8 @@ export function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   if (rc != 0) {
     return pipeline_asm_emit_vector_binop_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
   }
-  if (ko == 48) {
+  /* CALL=48 and METHOD_CALL=49 (import simd.shuffle is METHOD). */
+  if (ko == 48 || ko == 49) {
     inl = pipeline_asm_simd_try_inline_select_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     if (inl == 1) {
       return 0;
@@ -48584,12 +48589,14 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
       if (vst == 0 - 1) {
         return 0 - 1;
       }
+      /* -2: e.g. METHOD_CALL simd.shuffle — emit + dual-GP store (G.7 ≡ struct CALL). */
       glue_index_assign_addr_cache_clear();
       rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
       if (rc != 0) {
         return 0 - 1;
       }
-      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+      rc = glue_store_retval_pair_to_rbp_elf_c(
+          glue_emit_module_from_ctx(ctx), arena, elf_ctx, vtype_ref, slot_off, ta, init_ref, ctx);
       if (rc != 0) {
         return 0 - 1;
       }
