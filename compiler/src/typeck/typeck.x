@@ -6126,6 +6126,9 @@ func_index_out: *i32): i32 {
               typeck_coerce_init_array_vector_lit_to_decl(caller_arena, aref, pty,
               pipeline_type_kind_ord_at(caller_arena, pty),
               pipeline_expr_kind_ord_at(caller_arena, aref));
+              /* 4.2.10: G.7 twin of typeck_check_call_arg_types — stamp [N]T→[]T. */
+              typeck_coerce_init_slice_from_array(caller_arena, aref, pty,
+              pipeline_type_kind_ord_at(caller_arena, pty));
             }
             let sc: i32 = typeck_overload_arg_param_score(caller_arena, call_expr_ref, ai, param_raw,
             from_dep_index, ctx);
@@ -6313,6 +6316,9 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
                 typeck_coerce_init_array_vector_lit_to_decl(caller_arena, aref2, pty2,
                 pipeline_type_kind_ord_at(caller_arena, pty2),
                 pipeline_expr_kind_ord_at(caller_arena, aref2));
+                /* 4.2.10: G.7 twin of by_name_overload — stamp [N]T→[]T. */
+                typeck_coerce_init_slice_from_array(caller_arena, aref2, pty2,
+                pipeline_type_kind_ord_at(caller_arena, pty2));
               }
               let sc: i32 = typeck_overload_arg_param_score(caller_arena, call_expr_ref, ai, param_raw,
               from_dep_index, ctx);
@@ -9383,6 +9389,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       /*
+       * 4.2.10: already-typed TYPE_ARRAY RHS → TYPE_SLICE LHS (`s = w.xs`).
+       * Let already calls this via typeck_coerce_init_expr_to_decl.
+       * G.7: reuse typeck_coerce_init_slice_from_array. PLATFORM: SHARED.
+       */
+      typeck_coerce_init_slice_from_array(arena, right_ref, lt, lt_kind);
+      rt_after = expr_type_ref(arena, right_ref);
+      /*
        * wave308: assign RHS bare EXPR_LIT — reuse typeck_coerce_init_lit_to_decl
        * (G.7 single authority; same full-i64 path as let-init / wave307).
        * Prior hand path used pipeline_expr_int_val_at (i32 truncate) +
@@ -9679,6 +9692,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (crc_arr < 0) {
         return - 1;
       }
+      /*
+       * 4.2.10: already-typed TYPE_ARRAY operand → TYPE_SLICE return
+       * (`return w.xs` where f(): []T). G.7: same helper as let/assign.
+       * PLATFORM: SHARED.
+       */
+      typeck_coerce_init_slice_from_array(arena, op_ref, return_type_ref, rt_kind);
     }
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
       op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -10567,11 +10586,14 @@ formal_ty: i32, arg_ty: i32, depth: i32): i32 {
  * `typeck_generic_formal_matches_arg_type` when formal tree has free type-param (G.7 twin
  * of glue pattern-unify shape; not a second score matcher).
  * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
- * array→slice / null→*T); free-T is a pre-score accept, not a second matcher.
+ * null→*T); free-T is a pre-score accept, not a second matcher.
  * ARRAY_LIT → SIMD/VECTOR formals (i32x4 / f32x4 / Vec4f / …): args are check_expr'd
  * before resolve, so wave611 infers TYPE_ARRAY [N]T and score would T001. G.7: reuse
  * typeck_coerce_init_array_vector_lit_to_decl (let/assign/return/slice-region) BEFORE
  * score — same stamp as `let a: i32x4 = [1,2,3,4]`.
+ * 4.2.10 already-typed [N]T (VAR/FIELD/CALL) → []T formal: score has no array→slice
+ * arm (same-kind 10/11 only). G.7: reuse typeck_coerce_init_slice_from_array BEFORE
+ * score — same stamp as `let s: []T = arr`. Do not add a second score matcher.
  * METHOD_CALL=49 (import.binding extras): same accessors as score; formal[ai]
  * aligns with extra[ai] (param_base=0). UFCS self is not an extra — do not
  * call this on same-module UFCS (nparams==nargs+1).
@@ -10698,6 +10720,14 @@ ctx: *PipelineDepCtx): i32 {
           typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, pty_c,
           pipeline_type_kind_ord_at(arena, pty_c),
           pipeline_expr_kind_ord_at(arena, arg_ref));
+          /*
+           * 4.2.10: already-typed [N]T (VAR / FIELD / CALL) → []T formal.
+           * ARRAY_LIT is stamped above; this covers take(W.xs) / take(a).
+           * G.7: reuse typeck_coerce_init_slice_from_array (let authority).
+           * PLATFORM: SHARED.
+           */
+          typeck_coerce_init_slice_from_array(arena, arg_ref, pty_c,
+          pipeline_type_kind_ord_at(arena, pty_c));
         }
         /*
          * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring
@@ -12084,6 +12114,8 @@ ctx: *PipelineDepCtx): i32 {
         arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
         param_kind = pipeline_type_kind_ord_at(arena, param_ref);
         typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_ref, param_kind, arg_kind);
+        /* 4.2.10: stamp [N]T→[]T so emit_call_arg_slice_abi sees the fat formal. */
+        typeck_coerce_init_slice_from_array(arena, arg_ref, param_ref, param_kind);
       }
       arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
       if (typeck_check_slice_region_assign(arena, arg_ref, param_ref, arg_ty) != 0) {
@@ -15250,6 +15282,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
     if (!ast.ref_is_null(fin_op) && fin_op > 0 && !ast.ref_is_null(return_type_ref)) {
       typeck_ret_coerce_integral_to_expect_i32(arena, fin_op, return_type_ref);
       typeck_ret_coerce_integral_widen(arena, fin_op, return_type_ref);
+      /* 4.2.10: G.7 twin of typeck_check_expr_return — stamp [N]T→[]T final. */
+      typeck_coerce_init_slice_from_array(arena, fin_op, return_type_ref,
+      pipeline_type_kind_ord_at(arena, return_type_ref));
     }
     if (typeck_return_operand_matches(arena, fin_op, return_type_ref)) {
       return 0;
