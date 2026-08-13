@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；LANG-006 保留；下一硬叶 4.2.17–18 核查／`[lit] as T` parse_expr |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；LANG-006 保留；下一硬叶 `[lit] as T` parse_expr |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -606,19 +606,19 @@
   - 决策：`*T[N]` = array-of-pointers（C 式故意）；pointer-to-array 写 `*[N]T`
   - 类似 4.2.9 LANG-006，属显式保留的语言契约，非 bug
 
-⬜ **4.2.17 `fixed return S24[2]` fx=11** 疑似已闭待核查
+✅ **4.2.17 `fixed return S24[2]`** ✅ @ **`51eee33cc`**
 
-  - 来源：wave632 soft 项
-  - 症状：fixed TYPE_ARRAY 的 return 路径（`return S24[2]`）仍 soft
-  - wave633 修的是 let 路径（let from CALL/VAR bulk），探针含 "fx" 但未明确包含 return 路径
-  - 疑似由 wave633 fx 探针间接覆盖，但文档未明确标记关闭
+  - 来源：wave632 soft 项（ARRAY_LIT durable／let-from-CALL 已绿；`return s` 未闭）
+  - 现场：`return s`／`return w.xs`（S24[2] VAR／FIELD）asm SEGV；host-C 110；`return [S24…]`／`let s=mk()`／`return lit()` 本绿
+  - **根修**：Path B0 dest TYPE_ARRAY 同 COMMON 拷后 rax=E*；keep esz>8（wave632；同层 `[]S24`）；dest SLICE 仍 pack length
+  - **禁**：stamp；全量 assemble pipeline_abi mega；动 seed return 冷体
+  - 证：`ret_fixed_s24` asm／host-C **110**（lit／var／call／field／`[]S24`）
 
-⬜ **4.2.18 未知 arg_ty soft-skip（param_raw≤0 路径）** 待确认
+✅ **4.2.18 未知 arg_ty／param_raw≤0** 核查闭 ✅ @ **`51eee33cc`**（wave676 已闭）
 
-  - 来源：wave673 描述 + wave660–673 soft 项
-  - 症状：wave673 修复了「形参已知时 sc<0 一律 T001」，但 `param_raw≤0`（形参类型未知）仍 soft-skip
-  - wave676（定义侧 untyped formal）可能间接闭合此路径，但未明确登记
-  - 待确认 wave676 是否覆盖此路径
+  - 现场：定义侧 `function bad(x)`／缺 `): Type` 已 **P011**；无产品入口再造 untyped formal
+  - typeck `param_raw<=0` 仍 defensive skip（不是第二套 score）
+  - 证：`untyped_formal`／`untyped_formal_noret` **P011**
 
 ---
 
