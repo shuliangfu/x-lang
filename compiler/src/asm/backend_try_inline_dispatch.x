@@ -108,8 +108,103 @@ export extern "C" function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *
 export extern "C" function pipeline_expr_struct_lit_field_store_sz(a: *u8, m: *u8, er: i32, fj: i32): i32;
 export extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
 export extern "C" function glue_wpo_mono_register_thunk(name: *u8, a0: i32, a1: i32, folded: i32): void;
-export extern "C" function codegen_wpo_mono_sym_format(name: *u8, nargs: i32, args: *i32, out: *u8, out_cap: i32): i32;
 export extern "C" function glue_wpo_mono_register_thunk_n(name: *u8, nargs: i32, args: *i32, folded: i32): void;
+
+/**
+ * Format a WPO mono thunk symbol: `base__wpo` then `_arg` per constant.
+ * Negative args use `_n` + absolute decimal (INT_MIN → `n2147483648`).
+ * Strong definition; overrides the host-cc WEAK stub that always returned -1.
+ * @param base *u8 — NUL-terminated callee name; null → -1
+ * @param nargs i32 — arg count; <0 → -1; >0 requires args
+ * @param args *i32 — constant arg values; null when nargs>0 → -1
+ * @param out *u8 — destination buffer; null → -1
+ * @param cap i32 — out capacity including NUL; <=1 → -1
+ * @return i32 — symbol length excluding NUL, or -1 on overflow/null
+ * PLATFORM: SHARED — product PREFER full.x; seed twin same format.
+ */
+#[no_mangle]
+export function codegen_wpo_mono_sym_format(base: *u8, nargs: i32, args: *i32, out: *u8, cap: i32): i32 {
+  if (base == 0) { return 0 - 1; }
+  if (out == 0) { return 0 - 1; }
+  if (cap <= 1) { return 0 - 1; }
+  if (nargs < 0) { return 0 - 1; }
+  if (nargs > 0) {
+    if (args == 0) { return 0 - 1; }
+  }
+  unsafe {
+    let pos: i32 = 0;
+    let bi: i32 = 0;
+    while (base[bi] != 0) {
+      if (pos + 1 >= cap) { return 0 - 1; }
+      out[pos] = base[bi];
+      pos = pos + 1;
+      bi = bi + 1;
+    }
+    // "__wpo"
+    if (pos + 5 >= cap) { return 0 - 1; }
+    out[pos] = 95; pos = pos + 1;
+    out[pos] = 95; pos = pos + 1;
+    out[pos] = 119; pos = pos + 1;
+    out[pos] = 112; pos = pos + 1;
+    out[pos] = 111; pos = pos + 1;
+    let ni: i32 = 0;
+    while (ni < nargs) {
+      if (pos + 1 >= cap) { return 0 - 1; }
+      out[pos] = 95;
+      pos = pos + 1;
+      let v: i32 = args[ni];
+      if (v < 0) {
+        if (pos + 1 >= cap) { return 0 - 1; }
+        out[pos] = 110;
+        pos = pos + 1;
+        if (v == (0 - 2147483647 - 1)) {
+          // INT_MIN absolute decimal, written forward.
+          let imin: u8[10] = [];
+          imin[0] = 50; imin[1] = 49; imin[2] = 52; imin[3] = 55;
+          imin[4] = 52; imin[5] = 56; imin[6] = 51; imin[7] = 54;
+          imin[8] = 52; imin[9] = 56;
+          let mj: i32 = 0;
+          while (mj < 10) {
+            if (pos + 1 >= cap) { return 0 - 1; }
+            out[pos] = imin[mj];
+            pos = pos + 1;
+            mj = mj + 1;
+          }
+        } else {
+          v = 0 - v;
+        }
+      }
+      if (v >= 0) {
+        if (v == 0) {
+          if (pos + 1 >= cap) { return 0 - 1; }
+          out[pos] = 48;
+          pos = pos + 1;
+        } else {
+          let start: i32 = pos;
+          while (v > 0) {
+            if (pos + 1 >= cap) { return 0 - 1; }
+            out[pos] = (48 + (v - (v / 10) * 10)) as u8;
+            pos = pos + 1;
+            v = v / 10;
+          }
+          let end: i32 = pos - 1;
+          while (start < end) {
+            let tmp: u8 = out[start];
+            out[start] = out[end];
+            out[end] = tmp;
+            start = start + 1;
+            end = end - 1;
+          }
+        }
+      }
+      ni = ni + 1;
+    }
+    if (pos >= cap) { return 0 - 1; }
+    out[pos] = 0;
+    return pos;
+  }
+  return 0 - 1;
+}
 
 /** Exported function `backend_try_inline_dispatch_x_doc_anchor`.
  * Implements `backend_try_inline_dispatch_x_doc_anchor`.

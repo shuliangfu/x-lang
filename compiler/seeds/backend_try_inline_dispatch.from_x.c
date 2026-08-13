@@ -202,7 +202,77 @@ extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCt
                                                 int32_t ta);
 extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t bytes,
                                                    int32_t ta);
-extern int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap);
+/* Strong twin of backend_try_inline_dispatch.x codegen_wpo_mono_sym_format.
+ * Overrides runtime_driver_strict_glue_stubs WEAK stub (always -1).
+ * Format: base + "__wpo" + "_" + decimal (negatives: "_n" + abs). */
+int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
+  int i;
+  int n;
+  int pos;
+  int v;
+  int start;
+  int end;
+  char tmp;
+  unsigned uv;
+  if (!base || !out || cap <= 1)
+    return -1;
+  if (nargs < 0)
+    return -1;
+  if (nargs > 0 && !args)
+    return -1;
+  pos = 0;
+  for (i = 0; base[i] != 0; i++) {
+    if (pos + 1 >= cap)
+      return -1;
+    out[pos++] = base[i];
+  }
+  if (pos + 5 >= cap)
+    return -1;
+  out[pos++] = '_';
+  out[pos++] = '_';
+  out[pos++] = 'w';
+  out[pos++] = 'p';
+  out[pos++] = 'o';
+  for (n = 0; n < nargs; n++) {
+    if (pos + 1 >= cap)
+      return -1;
+    out[pos++] = '_';
+    v = args[n];
+    if (v < 0) {
+      if (pos + 1 >= cap)
+        return -1;
+      out[pos++] = 'n';
+      uv = (unsigned)(-(v + 1)) + 1u;
+    } else {
+      uv = (unsigned)v;
+    }
+    start = pos;
+    if (uv == 0u) {
+      if (pos + 1 >= cap)
+        return -1;
+      out[pos++] = '0';
+    } else {
+      while (uv > 0u) {
+        if (pos + 1 >= cap)
+          return -1;
+        out[pos++] = (char)('0' + (int)(uv % 10u));
+        uv /= 10u;
+      }
+      end = pos - 1;
+      while (start < end) {
+        tmp = out[start];
+        out[start] = out[end];
+        out[end] = tmp;
+        start++;
+        end--;
+      }
+    }
+  }
+  if (pos >= cap)
+    return -1;
+  out[pos] = 0;
+  return pos;
+}
 extern void glue_wpo_mono_register_thunk(const char *base, int32_t av0, int32_t av1, int32_t folded);
 extern void glue_wpo_mono_register_thunk_n(const char *base, int32_t nargs, const int32_t *args, int32_t folded);
 extern int32_t pipeline_asm_block_final_expr_ref_at(struct ast_ASTArena *arena, int32_t block_ref);
