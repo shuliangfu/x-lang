@@ -1572,14 +1572,19 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
 }
 
 // try_inline_param0_field_sum_call_elf: see function docblock below.
-/** Exported function `try_inline_param0_field_sum_call_elf`.
- * Implements `try_inline_param0_field_sum_call_elf`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param expr_ref i32
- * @param ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Inline `recv.pair_sum()` / `field_sum(recv)` when the callee is
+ * `return param0.f0 + param0.f1`. CALL(48): one positional arg is the
+ * struct. METHOD_CALL(49): extra args must be 0 and param0 is
+ * method_call_base (UFCS self). Nested CALL arg still peels via
+ * glue_inner_call_arg; METHOD-as-arg falls through (0).
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
+ * @param ta i32 — target arch token
+ * @return i32 — 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — product PREFER thin+rest; seed _impl same predicate.
  */
 #[no_mangle]
 export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -1588,7 +1593,14 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
   if (ctx == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
-    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    // CALL=48 METHOD_CALL=49: same param0.f0+param0.f1 load+add.
+    if (ko != 48 && ko != 49) { return 0; }
+    if (ko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
+    } else {
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
     let fi: i32 = 0;
@@ -1617,7 +1629,12 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
     let ar: i32 = pipeline_expr_binop_right_ref_at(callee_arena, ret_ref);
     let off_a: i32 = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, al);
     let off_b: i32 = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ar);
-    let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    let arg_ref: i32 = 0;
+    if (ko == 49) {
+      arg_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
     if (arg_ref <= 0) { return 0 - 1; }
     if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48) {
       let inner_arg_a: i32 = 0;

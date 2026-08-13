@@ -4092,12 +4092,18 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       }
     }
   }
-  /* G.7: same param0.field fold as CALL emit (recv.first() ≡ take_a(recv)).
+  /* G.7: same param0.field / field-sum folds as CALL emit
+   * (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv)).
    * After import-binding so import methods never enter lookup/fold. */
   {
     int32_t inline_sf = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
     if (inline_sf != 0)
       return inline_sf < 0 ? -1 : 0;
+  }
+  {
+    int32_t inline_fs = try_inline_param0_field_sum_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_fs != 0)
+      return inline_fs < 0 ? -1 : 0;
   }
   /*
    * wave602 Cap residual pure — freestanding UFCS method self SysV dual-GP / MEMORY.
