@@ -3,6 +3,7 @@
 // typeck: typeck_check_expr_method_call UFCS honors coerce 0 then
 // driver_diagnostic_typeck_call_arg_type_mismatch.
 // Expected: compile != 0 (T001). Do not -o / run.
+// import.binding extras: array_lit_vec4f_import_badlen.x.
 // PLATFORM: SHARED — Ubuntu gold.
 
 /**

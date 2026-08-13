@@ -5,6 +5,7 @@
 // so run≠7 cannot hide behind mov-imm. METHOD receiver is
 // tests/boundary/array_lit_i32x4_method.x (UFCS place + pty=self).
 // METHOD n_elems!=lanes T001: array_lit_i32x4_method_badlen.x.
+// import.binding extras: array_lit_vec4f_import.x / _badlen.x.
 // PLATFORM: SHARED — Ubuntu gold.
 
 /**

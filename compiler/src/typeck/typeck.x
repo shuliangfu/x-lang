@@ -6087,6 +6087,28 @@ func_index_out: *i32): i32 {
           let expect_match: i32 = 0;
           while (ai < num_args) {
             let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
+            let pty: i32 = param_raw;
+            let aref: i32 = 0;
+            /*
+             * ARRAY_LIT extras were check_expr'd against METHOD/CALL ambient
+             * (often the return type, not this formal). Stamp SIMD/array/slice
+             * formals before score — same coerce as typeck_check_call_arg_types.
+             * Map dep formals into the caller arena (import.binding METHOD).
+             * PLATFORM: SHARED.
+             */
+            if (from_dep_index >= 0) {
+              pty = get_dep_return_type_in_caller_arena(from_dep_index, param_raw, caller_arena, ctx);
+            }
+            if (pipeline_expr_kind_ord_at(caller_arena, call_expr_ref) == 49) {
+              aref = pipeline_expr_method_call_arg_ref(caller_arena, call_expr_ref, ai);
+            } else {
+              aref = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, ai);
+            }
+            if (aref > 0 && pty > 0) {
+              typeck_coerce_init_array_vector_lit_to_decl(caller_arena, aref, pty,
+              pipeline_type_kind_ord_at(caller_arena, pty),
+              pipeline_expr_kind_ord_at(caller_arena, aref));
+            }
             let sc: i32 = typeck_overload_arg_param_score(caller_arena, call_expr_ref, ai, param_raw,
             from_dep_index, ctx);
             if (sc < 0) {
@@ -6233,7 +6255,11 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
     let expect_ty: i32 = 0;
     /* See implementation. */
     if (call_expr_ref > 0 && call_expr_ref <= caller_arena.num_exprs) {
-      num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+      if (pipeline_expr_kind_ord_at(caller_arena, call_expr_ref) == 49) {
+        num_args = pipeline_expr_method_call_num_args_at(caller_arena, call_expr_ref);
+      } else {
+        num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+      }
       has_call_info = 1;
     }
     expect_ty = typeck_overload_expected_ret_peek();
@@ -6254,6 +6280,22 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
             let rtr_cand: i32 = pipeline_module_func_return_type_at(mod, j);
             while (ai < num_args) {
               let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
+              let pty2: i32 = param_raw;
+              let aref2: i32 = 0;
+              /* G.7 twin of by_name_overload: coerce ARRAY_LIT before score. */
+              if (from_dep_index >= 0) {
+                pty2 = get_dep_return_type_in_caller_arena(from_dep_index, param_raw, caller_arena, ctx);
+              }
+              if (pipeline_expr_kind_ord_at(caller_arena, call_expr_ref) == 49) {
+                aref2 = pipeline_expr_method_call_arg_ref(caller_arena, call_expr_ref, ai);
+              } else {
+                aref2 = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, ai);
+              }
+              if (aref2 > 0 && pty2 > 0) {
+                typeck_coerce_init_array_vector_lit_to_decl(caller_arena, aref2, pty2,
+                pipeline_type_kind_ord_at(caller_arena, pty2),
+                pipeline_expr_kind_ord_at(caller_arena, aref2));
+              }
               let sc: i32 = typeck_overload_arg_param_score(caller_arena, call_expr_ref, ai, param_raw,
               from_dep_index, ctx);
               if (sc < 0) {
@@ -7815,9 +7857,13 @@ decl_ty_ref: i32): i32 {
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Lane count of a SIMD/VECTOR type, or 0 if the type is not a vector.
+ * TYPE_VECTOR uses array_size. TYPE_NAMED matches i32x4 / f32x4 / … ('x'+4/8/16)
+ * and product aliases Vec4f (4) / Vec8i (8) — twin of typeck_vector_elem_type_ref.
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — type to classify; <=0 → 0
+ * @return i32 — 4 / 8 / 16 or TYPE_VECTOR array_size; 0 if not SIMD
+ * PLATFORM: SHARED — coerce / wave705 / free-T gate all use this.
  */
 export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7861,6 +7907,19 @@ export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i3
         return 0;
       }
       i = i + 1;
+    }
+    /*
+     * Product aliases have no 'x'+digit spelling. Twin of
+     * typeck_vector_elem_type_ref (Vec4f→f32 / Vec8i→i32). Without this,
+     * coerce/wave705 treat NAMED Vec4f as 0 lanes so import METHOD extras
+     * stay TYPE_ARRAY and first_idx-bind the wrong add overload.
+     * PLATFORM: SHARED.
+     */
+    if (nlen == 5 && nm[0] == 86 && nm[1] == 101 && nm[2] == 99 && nm[3] == 52 && nm[4] == 102) {
+      return 4;
+    }
+    if (nlen == 5 && nm[0] == 86 && nm[1] == 101 && nm[2] == 99 && nm[3] == 56 && nm[4] == 105) {
+      return 8;
     }
     return 0;
   }
@@ -10476,13 +10535,16 @@ formal_ty: i32, arg_ty: i32, depth: i32): i32 {
  * of glue pattern-unify shape; not a second score matcher).
  * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
  * array→slice / null→*T); free-T is a pre-score accept, not a second matcher.
- * ARRAY_LIT → SIMD/VECTOR formals (i32x4 / f32x4 / …): args are check_expr'd before
- * resolve, so wave611 infers TYPE_ARRAY [N]T and score would T001. G.7: reuse
+ * ARRAY_LIT → SIMD/VECTOR formals (i32x4 / f32x4 / Vec4f / …): args are check_expr'd
+ * before resolve, so wave611 infers TYPE_ARRAY [N]T and score would T001. G.7: reuse
  * typeck_coerce_init_array_vector_lit_to_decl (let/assign/return/slice-region) BEFORE
  * score — same stamp as `let a: i32x4 = [1,2,3,4]`.
+ * METHOD_CALL=49 (import.binding extras): same accessors as score; formal[ai]
+ * aligns with extra[ai] (param_base=0). UFCS self is not an extra — do not
+ * call this on same-module UFCS (nparams==nargs+1).
  * @param module *Module — entry / local module
  * @param arena *ASTArena
- * @param expr_ref i32 — EXPR_CALL
+ * @param expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL after apply_call_resolve
  * @param ctx *PipelineDepCtx — dep module when resolved_dep_index ≥ 0
  * @return i32 — 0 ok, -1 type mismatch (diagnostic emitted)
  * PLATFORM: SHARED — G.7 single gate; product path also from pipeline_typeck_check_expr_call_c.
@@ -10511,7 +10573,11 @@ ctx: *PipelineDepCtx): i32 {
     if (fi < 0) {
       return 0;
     }
-    num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) == 49) {
+      num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    } else {
+      num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    }
     dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
     mod = module;
     if (dep >= 0 && ctx != 0 as *PipelineDepCtx) {
@@ -10529,7 +10595,11 @@ ctx: *PipelineDepCtx): i32 {
        * false-red; leave soft residual (not this hard leaf).
        */
       if (param_raw > 0) {
-        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+        if (pipeline_expr_kind_ord_at(arena, expr_ref) == 49) {
+          arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+        } else {
+          arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+        }
         /*
          * wave670: hard-fail keyword `null`→non-ptr BEFORE score.
          * Root: ambient check_expr may stamp lit as i32; score then returns 1000
@@ -10585,8 +10655,15 @@ ctx: *PipelineDepCtx): i32 {
          * PLATFORM: SHARED.
          */
         if (arg_ref > 0) {
-          typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_raw,
-          pipeline_type_kind_ord_at(arena, param_raw),
+          let pty_c: i32 = param_raw;
+          if (dep >= 0) {
+            let mapped_c: i32 = get_dep_return_type_in_caller_arena(dep, param_raw, arena, ctx);
+            if (mapped_c > 0) {
+              pty_c = mapped_c;
+            }
+          }
+          typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, pty_c,
+          pipeline_type_kind_ord_at(arena, pty_c),
           pipeline_expr_kind_ord_at(arena, arg_ref));
         }
         /*
@@ -13132,7 +13209,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
  * Order (must match product strict_minimal seed — G.7 single path):
  * 1) typecheck base + all method args
  * 2) import.binding.method via path-matched dep slot + W-heap overload (call_strict_minimal)
- *    with multi-dep fallback when path slot is empty
+ *    with multi-dep fallback when path slot is empty. Overload pick coerces
+ *    ARRAY_LIT extras to SIMD formals before score (Vec4f/Vec8i/i32x4). After
+ *    resolve, typeck_check_call_arg_types (METHOD extras) T001s coerce/score miss
+ *    — first_idx type-mismatch bind must not stay soft-green.
  * 3) generic method UFCS (pattern-unify self) BEFORE non-generic UFCS.
  *    Only n_gp>0; NAMED SIMD (i32x4) is not free T.
  * 4) same-module free-fn UFCS (exact / auto-ref *T / weak integer self).
@@ -13296,6 +13376,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
       /* G.7: stamp FLOAT_LIT args to formal f32/f64 (ambient was call return). */
       typeck_stamp_resolved_args_float_lit(arena, expr_ref, cm, func_ix, dep_ix, ctx, 0);
+      /*
+       * Post-resolve extras: same T001 gate as CALL. first_idx fallback can
+       * bind a same-arity func after all scores failed (3-lane hsum).
+       * PLATFORM: SHARED.
+       */
+      if (typeck_check_call_arg_types(module, arena, expr_ref, ctx) != 0) {
+        return 0 - 1;
+      }
       return 0;
     }
 
