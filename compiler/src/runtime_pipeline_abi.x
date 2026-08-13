@@ -39547,13 +39547,16 @@ export function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lane
 }
 
 /**
- * Vector let-init can write directly to stack slot (ARRAY_LIT / VAR / CALL / lane binop).
- * @param arena *u8 - ASTArena*
- * @param type_ref i32 - let type
- * @param init_ref i32 - init expr
- * @return i32 - 1 direct; 0 otherwise
+ * Vector let-init can write directly to the type stack slot (no extra ARRAY/STRUCT temp).
+ * ARRAY_LIT(46) / VAR(3) / CALL(48) / METHOD_CALL(49) / lane binop.
+ * METHOD matches CALL: import simd.splat/shuffle/select and UFCS write the
+ * vector home via try_inline or sret/dual-GP — same as glue_emit_vector_type_let_init.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param type_ref i32 — let type; must be SIMD vector spelling
+ * @param init_ref i32 — init expr; ≤0 → 0
+ * @return i32 — 1 direct-slot (extra reserve 0); 0 otherwise
  * wave148 pure: G.7 authority (was glue_vector_let_init_uses_direct_slot).
- * PLATFORM: SHARED pure classification.
+ * PLATFORM: SHARED — pure classification; Ubuntu gold for frame layout.
  */
 #[no_mangle]
 export function glue_vector_let_init_uses_direct_slot(arena: *u8, type_ref: i32, init_ref: i32): i32 {
@@ -39571,7 +39574,8 @@ export function glue_vector_let_init_uses_direct_slot(arena: *u8, type_ref: i32,
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
   }
-  if (ko == 46 || ko == 3 || ko == 48) {
+  /* CALL=48 METHOD_CALL=49 share the vector let-init direct-slot path. */
+  if (ko == 46 || ko == 3 || ko == 48 || ko == 49) {
     return 1;
   }
   unsafe {

@@ -21025,12 +21025,13 @@ int32_t glue_emit_vector_type_let_init_elf_c(void *arena,
 extern int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
 
 /**
- * Return 1 if a vector let-init can write directly to the stack slot
- * (ARRAY_LIT / VAR copy / per-lane scalar binop). Returns 0 otherwise.
+ * Return 1 if a vector let-init can write directly to the type stack slot
+ * (ARRAY_LIT=46 / VAR=3 / CALL=48 / METHOD_CALL=49 / per-lane scalar binop).
+ * METHOD matches CALL: import simd.splat/shuffle/select and UFCS write the
+ * vector home via try_inline or sret/dual-GP (same as emit_vector_type_let_init).
  *
- * Why: direct-slot writes avoid a temporary register and an extra store
- * cycle. This classifier is the single authority for the direct-slot
- * fast path.
+ * Why: direct-slot writes skip extra ARRAY/STRUCT temp reserve in
+ * pipeline_asm_let_init_stack_reserve_bytes. Sole consumer today.
  *
  * Contract: arena must be non-NULL, type_ref must be a SIMD vector,
  * init_ref > 0. Returns 0/1.
@@ -21043,7 +21044,8 @@ int32_t glue_vector_let_init_uses_direct_slot(void *arena, int32_t type_ref, int
   if (!asm_type_is_simd_vector_spelling(arena, type_ref) || init_ref <= 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
-  if (ko == 46 || ko == 3 || ko == 48)
+  /* CALL=48 METHOD_CALL=49 share the vector let-init direct-slot path. */
+  if (ko == 46 || ko == 3 || ko == 48 || ko == 49)
     return 1;
   return glue_is_vector_lane_scalar_binop_ko(ko);
 }

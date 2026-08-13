@@ -16,8 +16,9 @@ function fill4(x: f32): Vec4f {
 
 /**
  * SIMD-S2 product smoke: Vec8i/Vec4f splat/add lanes plus select_lane i32/f32
- * plus same-module CALL fill4(1.0) (typeck post-resolve FLOAT_LIT stamp).
- * @return i32 — 0 on success; 1..10 name the failed assertion
+ * plus same-module CALL fill4(1.0) (typeck post-resolve FLOAT_LIT stamp)
+ * plus METHOD(49) shuffle let-init (direct-slot stack reserve ≡ CALL).
+ * @return i32 — 0 on success; 1..13 name the failed assertion
  */
 function main(): i32 {
   let vi: Vec8i = simd.splat(1);
@@ -42,5 +43,13 @@ function main(): i32 {
   if (simd.placeholder() != 0) { return 9; }
   let vfill: Vec4f = fill4(1.0);
   if (vfill[0] != 1.0) { return 10; }
+  /* METHOD(49) vector let-init: classifier must treat as direct-slot like CALL.
+   * Identity shuffle + trailing i32 marker: extra ARRAY/STRUCT reserve on the
+   * METHOD would shift later locals and smash `marker` or vshuf lanes. */
+  let vshuf: Vec4f = simd.shuffle(vfill, [0, 1, 2, 3]);
+  let marker: i32 = 42;
+  if (vshuf[0] != 1.0) { return 11; }
+  if (vshuf[3] != 1.0) { return 12; }
+  if (marker != 42) { return 13; }
   return 0;
 }
