@@ -2394,8 +2394,9 @@ void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len) {
  *   or type-position `{` `=` `;` `,` `)` (`let f: Foo<B> = …`, `x: Foo<B>`,
  *   `Foo<B> { … }`). Comparisons `a < b` have no `>` so they are not
  *   captured. Nested `foo<Vec<i32>>` (angle depth > 1) stays soft-skip.
- * Soft: dyn Trait (no KW / TYPE_DYN). Bare `Foo { }` without a type-pos
- *   `Foo<B>` is not captured (inference leftover).
+ * Soft: TYPE_DYN / vtable (dyn / impl type-pos now peel to the trait
+ *   NAMED in type_ref; no object dispatch). Bare `Foo { }` without a
+ *   type-pos `Foo<B>` is not captured (inference leftover).
  * PLATFORM: SHARED parse.
  */
 

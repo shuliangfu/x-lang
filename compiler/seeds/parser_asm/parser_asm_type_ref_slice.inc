@@ -152,6 +152,48 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
                                                 struct parser_asm_slice_u8 *source,
                                                 struct parser_asm_lexer *out_lex);
 
+/**
+ * True when IDENT spelling is contextual prefix `dyn` (docs/01 does not list
+ * dyn as a keyword; same TOKEN_IDENT shape as `mut`).
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *source,
+                                                  struct parser_asm_lexer_result *r) {
+  uint8_t n[4];
+  if (!source || !r)
+    return 0;
+  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len != 3)
+    return 0;
+  parser_asm_copy_slice_to_name64_slice_c(source, r->token_start, 3, n);
+  return n[0] == 100 && n[1] == 121 && n[2] == 110; /* d y n */
+}
+
+/**
+ * Token that may start a type after a peeled `dyn` / `impl` prefix.
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_type_ref_token_starts_type_c(int32_t kind) {
+  if (kind == (int32_t)TOKEN_IDENT || kind == (int32_t)TOKEN_STAR || kind == (int32_t)TOKEN_LBRACKET)
+    return 1;
+  if (kind == (int32_t)TOKEN_IMPL)
+    return 1;
+  if (kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL)
+    return 1;
+  if (kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64)
+    return 1;
+  if (kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_ISIZE || kind == (int32_t)TOKEN_VOID)
+    return 1;
+  if (kind == (int32_t)TOKEN_F32 || kind == (int32_t)TOKEN_F64)
+    return 1;
+  if (kind == (int32_t)TOKEN_I32X4 || kind == (int32_t)TOKEN_I32X8 || kind == (int32_t)TOKEN_I32X16)
+    return 1;
+  if (kind == (int32_t)TOKEN_U32X4 || kind == (int32_t)TOKEN_U32X8 || kind == (int32_t)TOKEN_U32X16)
+    return 1;
+  if (kind == (int32_t)TOKEN_F32X4)
+    return 1;
+  return 0;
+}
+
 /** 将 lex 写入 out_lex（parse_type_ref 失败/成功路径共用）。 */
 static void parser_asm_write_out_lex_c(struct parser_asm_lexer *out_lex, struct parser_asm_lexer lex) {
   if (!out_lex)
@@ -493,6 +535,27 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
+  /*
+   * 4.2.2 dyn / impl type prefix (G.7 complete this type_ref).
+   *
+   * Prior: `dyn` is TOKEN_IDENT → TYPE_NAMED "dyn", leftover `Clone` failed
+   * the surrounding param / ret / let type parse. The function was dropped
+   * with no diagnostic (`take(x: dyn Clone)` vanished; `let x: dyn Clone`
+   * dropped main → P001 no functions). Keyword `impl` as a type prefix
+   * (`x: impl Clone`) returned 0 the same way (TOKEN_IMPL is not a type).
+   *
+   * Peel the prefix and parse the following type. No TOKEN_DYN (docs/01
+   * does not list dyn as a keyword) and no TYPE_DYN / vtable this leaf —
+   * the existing TYPE_NAMED trait path (`x: Clone`) is the consumer.
+   * Bare `dyn` (no following type) stays TYPE_NAMED "dyn".
+   * PLATFORM: SHARED type grammar.
+   */
+  if (parser_asm_type_ref_ident_is_dyn_c(source, &r) || r.tok.kind == (int32_t)TOKEN_IMPL) {
+    struct parser_asm_lexer_result peek_pref;
+    lexer_next_into(&peek_pref, r.next_lex, source);
+    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind))
+      return parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
+  }
   if (r.tok.kind == (int32_t)TOKEN_STAR) {
     ptr_depth = 0;
     while (r.tok.kind == (int32_t)TOKEN_STAR) {
@@ -507,6 +570,18 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
        * the `[`), then PTR is wrapped around it. The C-style postfix *T[N]
        * (ARRAY of PTR to T, scalar base T) is preserved for the scalar path
        * below. PLATFORM: SHARED parse.
+       */
+      elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+      if (elem_ref == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+    } else if (parser_asm_type_ref_ident_is_dyn_c(source, &r) || r.tok.kind == (int32_t)TOKEN_IMPL) {
+      /*
+       * Same-layer: `*dyn Trait` / `*impl Trait`. alloc_pointee only accepts
+       * IDENT as TYPE_NAMED, so `*dyn Clone` became `*dyn` + leftover Clone
+       * (function dropped). Recurse so the peel above consumes the prefix.
+       * `lex` sits after the stars, before the pointee token. PLATFORM: SHARED.
        */
       elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
       if (elem_ref == 0) {
