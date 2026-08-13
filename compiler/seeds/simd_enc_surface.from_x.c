@@ -571,9 +571,9 @@ int32_t simd_x86_movups_xmm0_from_rbx_rax4(uint8_t * elf) {
 }
 int32_t simd_x86_movups_xmm1_from_rbx_rax4(uint8_t * elf) {
   uint8_t b0 = 197;
-  uint8_t b1 = 240;
+  uint8_t b1 = 248;
   uint8_t b2 = 16;
-  uint8_t b3 = 4;
+  uint8_t b3 = 12;
   uint8_t b4 = 131;
   int32_t r = 0;
   {
@@ -613,8 +613,8 @@ int32_t simd_x86_movups_xmm1_from_rbx_rax4(uint8_t * elf) {
 }
 int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(uint8_t * elf) {
   uint8_t b0 = 196;
-  uint8_t b1 = 226;
-  uint8_t b2 = 125;
+  uint8_t b1 = 225;
+  uint8_t b2 = 124;
   uint8_t b3 = 16;
   uint8_t b4 = 4;
   uint8_t b5 = 131;
@@ -662,10 +662,10 @@ int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(uint8_t * elf) {
 }
 int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(uint8_t * elf) {
   uint8_t b0 = 196;
-  uint8_t b1 = 226;
-  uint8_t b2 = 117;
+  uint8_t b1 = 225;
+  uint8_t b2 = 124;
   uint8_t b3 = 16;
-  uint8_t b4 = 4;
+  uint8_t b4 = 12;
   uint8_t b5 = 131;
   int32_t r = 0;
   {
@@ -711,8 +711,8 @@ int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(uint8_t * elf) {
 }
 int32_t simd_x86_vmovups_ymm0_to_rbx_rax4(uint8_t * elf) {
   uint8_t b0 = 196;
-  uint8_t b1 = 226;
-  uint8_t b2 = 125;
+  uint8_t b1 = 225;
+  uint8_t b2 = 124;
   uint8_t b3 = 17;
   uint8_t b4 = 4;
   uint8_t b5 = 131;

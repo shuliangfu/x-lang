@@ -769,11 +769,11 @@ int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
 }
 #endif
 
-/** x86 AVX2：vmovups ymm0, [rbx+rax*4]（C4 E2 7D 10 04 83）。 */
+/** x86 AVX2：vmovups ymm0, [rbx+rax*4]（C4 E1 7C 10 04 83；VEX.256.0F not 0F38）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vmovups_ymm0_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[6] = {0xc4, 0xe2, 0x7d, 0x10, 0x04, 0x83};
+    static const uint8_t insn[6] = {0xc4, 0xe1, 0x7c, 0x10, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 6);
 }
 
@@ -786,11 +786,11 @@ int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *e
 
 
 
-/** x86 AVX2：vmovups ymm1, [rbx+rax*4]（C4 E2 75 10 04 83）。 */
+/** x86 AVX2：vmovups ymm1, [rbx+rax*4]（C4 E1 7C 10 0C 83；dest=ModRM.reg, map=0F）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vmovups_ymm1_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[6] = {0xc4, 0xe2, 0x75, 0x10, 0x04, 0x83};
+    static const uint8_t insn[6] = {0xc4, 0xe1, 0x7c, 0x10, 0x0c, 0x83};
     return simd_append_impl(elf_ctx, insn, 6);
 }
 
@@ -803,11 +803,11 @@ int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *e
 
 
 
-/** x86 AVX2：vmovups [rbx+rax*4], ymm0（C4 E2 7D 11 04 83）。 */
+/** x86 AVX2：vmovups [rbx+rax*4], ymm0（C4 E1 7C 11 04 83；VEX.256.0F 11 /r）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vmovups_ymm0_to_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[6] = {0xc4, 0xe2, 0x7d, 0x11, 0x04, 0x83};
+    static const uint8_t insn[6] = {0xc4, 0xe1, 0x7c, 0x11, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 6);
 }
 
@@ -837,11 +837,11 @@ int32_t simd_x86_movups_xmm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *el
 
 
 
-/** x86 SSE：movups xmm1, [rbx+rax*4]（C5 F0 10 04 83）。 */
+/** x86 SSE/AVX：vmovups xmm1, [rbx+rax*4]（C5 F8 10 0C 83；dest=ModRM.reg, vvvv=1111）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_movups_xmm1_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[5] = {0xc5, 0xf0, 0x10, 0x04, 0x83};
+    static const uint8_t insn[5] = {0xc5, 0xf8, 0x10, 0x0c, 0x83};
     return simd_append_impl(elf_ctx, insn, 5);
 }
 

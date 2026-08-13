@@ -391,17 +391,20 @@ export function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_movups_xmm1_from_rbx_rax4`.
- * Implements `simd_x86_movups_xmm1_from_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups xmm1, [rbx+rax*4]` (VEX.128.0F.WIG 10 /r).
+ * Dest is ModRM.reg=xmm1 (`0C`), not VEX.vvvv — vmovups is 2-operand so vvvv must be 1111
+ * (`C5 F8`). Old `C5 F0 10 04 83` put dest in vvvv and SIGILL'd the integer strip remainder.
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 — AVX VEX form of SSE movups; lanes==4 strip path.
  */
 #[no_mangle]
 export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
-  let b1: u8 = 240;
+  let b1: u8 = 248;
   let b2: u8 = 16;
-  let b3: u8 = 4;
+  let b3: u8 = 12;
   let b4: u8 = 131;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
@@ -418,16 +421,18 @@ export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vmovups_ymm0_from_rbx_rax4`.
- * Implements `simd_x86_vmovups_ymm0_from_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups ymm0, [rbx+rax*4]` (VEX.256.0F.WIG 10 /r = `C4 E1 7C 10 04 83`).
+ * Map must be 0F (not 0F38). Same-pattern twin of the xmm1 dest-in-ModRM fix.
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX2 — lanes==8 indexed strip/peel.
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
-  let b1: u8 = 226;
-  let b2: u8 = 125;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
   let b3: u8 = 16;
   let b4: u8 = 4;
   let b5: u8 = 131;
@@ -448,18 +453,20 @@ export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vmovups_ymm1_from_rbx_rax4`.
- * Implements `simd_x86_vmovups_ymm1_from_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups ymm1, [rbx+rax*4]` (VEX.256.0F.WIG 10 /r = `C4 E1 7C 10 0C 83`).
+ * Dest is ModRM.reg=ymm1; vvvv=1111; map=0F. Old `C4 E2 75 10 04 83` was 0F38+vvvv dest.
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX2 — lanes==8 indexed strip/peel.
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
-  let b1: u8 = 226;
-  let b2: u8 = 117;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
   let b3: u8 = 16;
-  let b4: u8 = 4;
+  let b4: u8 = 12;
   let b5: u8 = 131;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
@@ -478,16 +485,17 @@ export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vmovups_ymm0_to_rbx_rax4`.
- * Implements `simd_x86_vmovups_ymm0_to_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups [rbx+rax*4], ymm0` (VEX.256.0F.WIG 11 /r = `C4 E1 7C 11 04 83`).
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX2 — lanes==8 indexed strip/peel store.
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
-  let b1: u8 = 226;
-  let b2: u8 = 125;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
   let b3: u8 = 17;
   let b4: u8 = 4;
   let b5: u8 = 131;
