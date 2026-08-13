@@ -1054,6 +1054,12 @@ int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_
                                                     const uint8_t names[][64], const int32_t *lens,
                                                     int32_t n);
 void xlang_generic_func_reg_reset_c(void);
+/* 4.2.2 generic-body method: T: Trait → Trait.method (typeck method_call). */
+int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len,
+                                               const uint8_t *method_name, int32_t method_name_len,
+                                               int32_t num_args, int32_t *out_ret_kind,
+                                               uint8_t *out_ret_name, int32_t *out_ret_name_len);
 
 /* wave439: source buffer stash. Populated by xlang_generic_bound_stash_source_c
  * from the top-level skip functions (struct/enum/trait/impl), each of which
@@ -2693,6 +2699,104 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
     return -1;
   }
   return -1;
+}
+
+/**
+ * 4.2.2 generic-body method via bound (G.7 complete the skip_tl bound+trait tables).
+ *
+ * typeck method_call used to LANG-004 `x.clone()` when `x: T` even if the
+ * enclosing function declared `T: Clone` and Clone lists `clone`. Call-site
+ * `copy<A>` already checks the impl; the body still needs the method.
+ *
+ * Walk (fn, type-param pos) bounds (PLUS rows share pos) and the trait
+ * registry. First trait that lists `method_name` with matching arity wins.
+ * `num_args` is METHOD_CALL extras (not including self). expect_np < 0
+ * (uncaptured) skips the arity gate.
+ *
+ * On hit, writes TypeKind ordinal + optional NAMED spelling (`Self`, `A`).
+ * typeck maps Self / the type-param name to the receiver type_ref.
+ *
+ * Same globals as scan+check (last parsed file). Soft: dyn Trait;
+ * struct/impl-level `<T: Trait>`; compound ret (PTR/SLICE/ARRAY) still
+ * reported so typeck can refuse or leave unresolved.
+ * PLATFORM: SHARED parse+typeck — rebuild parser thin glue after edit.
+ *
+ * @param fn_name           enclosing generic function name
+ * @param fn_name_len       ≤63
+ * @param tp_name           receiver type-param spelling (e.g. "T")
+ * @param tp_name_len       length
+ * @param method_name       method spelling
+ * @param method_name_len   length
+ * @param num_args          extra METHOD_CALL args (self is implicit)
+ * @param out_ret_kind      TypeKind ord, or -1 unknown; may be NULL
+ * @param out_ret_name      64-byte NAMED spelling; may be NULL
+ * @param out_ret_name_len  name length; may be NULL
+ * @return 1 method granted by a bound; 0 no
+ */
+int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len,
+                                               const uint8_t *method_name, int32_t method_name_len,
+                                               int32_t num_args, int32_t *out_ret_kind,
+                                               uint8_t *out_ret_name, int32_t *out_ret_name_len) {
+  int32_t pos;
+  int32_t bi;
+  int32_t ti;
+  int32_t mi;
+  if (!fn_name || fn_name_len <= 0 || !tp_name || tp_name_len <= 0
+      || !method_name || method_name_len <= 0)
+    return 0;
+  if (fn_name_len > 63)
+    fn_name_len = 63;
+  if (tp_name_len > 63)
+    tp_name_len = 63;
+  if (method_name_len > 63)
+    method_name_len = 63;
+  pos = xlang_generic_func_type_param_index_c(fn_name, fn_name_len, tp_name, tp_name_len);
+  if (pos < 0)
+    return 0;
+  for (bi = 0; bi < g_fn_bound_n; bi++) {
+    if (g_fn_bound_name_len[bi] != fn_name_len
+        || memcmp(g_fn_bound_name[bi], fn_name, (size_t)fn_name_len) != 0)
+      continue;
+    if (g_fn_bound_pos[bi] != pos)
+      continue;
+    for (ti = 0; ti < g_xlang_skip_trait_reg_n; ti++) {
+      if (g_xlang_skip_trait_reg[ti].name_len != g_fn_bound_trait_len[bi]
+          || memcmp(g_xlang_skip_trait_reg[ti].name, g_fn_bound_trait[bi],
+                    (size_t)g_fn_bound_trait_len[bi]) != 0)
+        continue;
+      for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
+        int32_t expect_np;
+        if (g_xlang_skip_trait_reg[ti].method_lens[mi] != method_name_len)
+          continue;
+        if (memcmp(g_xlang_skip_trait_reg[ti].methods[mi], method_name,
+                   (size_t)method_name_len) != 0)
+          continue;
+        /* Trait param count includes self. METHOD extras = count - 1. */
+        expect_np = g_xlang_skip_trait_reg[ti].method_param_counts[mi];
+        if (expect_np >= 0 && expect_np != num_args + 1)
+          continue;
+        if (out_ret_kind)
+          *out_ret_kind = g_xlang_skip_trait_reg[ti].method_ret_kinds[mi];
+        if (out_ret_name_len)
+          *out_ret_name_len = 0;
+        if (out_ret_name) {
+          int32_t rnl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+          memset(out_ret_name, 0, 64);
+          if (rnl > 0) {
+            if (rnl > 63)
+              rnl = 63;
+            memcpy(out_ret_name, g_xlang_skip_trait_reg[ti].method_ret_names[mi],
+                   (size_t)rnl);
+            if (out_ret_name_len)
+              *out_ret_name_len = rnl;
+          }
+        }
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
 
 /**

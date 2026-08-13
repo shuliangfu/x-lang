@@ -728,6 +728,24 @@ idx: i32): i32;
 export extern function xlang_generic_func_type_param_index_c(fn_name: *u8, fn_name_len: i32,
 tp_name: *u8, tp_name_len: i32): i32;
 /**
+ * skip_tl: does enclosing `fn<T: Trait>` grant `method` on type-param T?
+ * @param fn_name *u8 — generic function spelling
+ * @param fn_name_len i32
+ * @param tp_name *u8 — receiver type-param name
+ * @param tp_name_len i32
+ * @param method_name *u8 — method spelling
+ * @param method_name_len i32
+ * @param num_args i32 — METHOD extras (self not counted)
+ * @param out_ret_kind *i32 — TypeKind ord or -1
+ * @param out_ret_name *u8 — 64-byte NAMED spelling
+ * @param out_ret_name_len *i32
+ * @return i32 — 1 granted, 0 no
+ * PLATFORM: SHARED parser skip_tl registry.
+ */
+export extern function xlang_generic_bound_method_on_param_c(fn_name: *u8, fn_name_len: i32,
+tp_name: *u8, tp_name_len: i32, method_name: *u8, method_name_len: i32, num_args: i32,
+out_ret_kind: *i32, out_ret_name: *u8, out_ret_name_len: *i32): i32;
+/**
  * wave247 pure leave: CALL callee return-type resolve Cap residual face.
  * → typeck.x EOF (#[no_mangle] thin → resolve_call_callee_return_type).
  * Cap residual method_call deletes second body (G.7 dual-export ban).
@@ -13204,6 +13222,116 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
 }
 
 /**
+ * Resolve `x.method(...)` when `x` is a free type-param T and the enclosing
+ * function declared `T: Trait` with Trait listing that method.
+ *
+ * Call-site `foo<A>` already hard-checks the impl (scan+check). The generic
+ * body still saw T as a nameless TYPE_NAMED and LANG-004'd. G.7: consume the
+ * skip_tl bound+trait tables via xlang_generic_bound_method_on_param_c.
+ *
+ * Return type: builtin kind → ensure_by_kind; NAMED Self or the type-param
+ * name → receiver type_ref; other NAMED → find_or_alloc_named. Compound
+ * PTR/SLICE/ARRAY ret is not formed this wave (leave resolved 0).
+ * Resolve slots stay dep=-1 / func=-1 so mono C6 (not a random impl) picks
+ * the concrete method.
+ *
+ * @param module *Module — current module (func name + free-T test)
+ * @param arena *ASTArena
+ * @param expr_ref i32 — METHOD_CALL
+ * @param ctx *PipelineDepCtx — current_func_index
+ * @param base_ty i32 — resolved receiver type
+ * @param method_nm *u8 — method spelling
+ * @param method_nlen i32
+ * @param num_args i32 — extras
+ * @return i32 — 1 resolved and stamped, 0 not this case
+ * PLATFORM: SHARED typeck method_call bound step.
+ */
+export function typeck_method_call_resolve_generic_bound(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx, base_ty: i32, method_nm: *u8, method_nlen: i32,
+num_args: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let cfi: i32 = 0 - 1;
+    let fn_len: i32 = 0;
+    let tp_len: i32 = 0;
+    let ret_kind: i32 = 0 - 1;
+    let ret_nlen: i32 = 0;
+    let ret_ty: i32 = 0;
+    let hit: i32 = 0;
+    let i: i32 = 0;
+    let same: i32 = 0;
+    let fn_nm: u8[128] = [];
+    let tp_nm: u8[128] = [];
+    let ret_nm: u8[64] = [];
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx
+        || expr_ref <= 0 || base_ty <= 0 || method_nm == 0 as *u8 || method_nlen <= 0) {
+      return 0;
+    }
+    if (typeck_type_is_free_type_param(module, arena, base_ty) == 0) {
+      return 0;
+    }
+    cfi = pipeline_dep_ctx_current_func_index(ctx);
+    if (cfi < 0) {
+      return 0;
+    }
+    if (pipeline_module_func_num_generic_params_at(module, cfi) <= 0) {
+      return 0;
+    }
+    fn_len = pipeline_module_func_name_len_at(module, cfi);
+    if (fn_len <= 0 || fn_len > 127) {
+      return 0;
+    }
+    pipeline_module_func_name_copy64(module, cfi, &fn_nm[0]);
+    tp_len = pipeline_type_named_name_into(arena, base_ty, &tp_nm[0]);
+    if (tp_len <= 0 || tp_len > 127) {
+      return 0;
+    }
+    ret_kind = 0 - 1;
+    ret_nlen = 0;
+    hit = xlang_generic_bound_method_on_param_c(&fn_nm[0], fn_len, &tp_nm[0], tp_len, method_nm,
+    method_nlen, num_args, &ret_kind, &ret_nm[0], &ret_nlen);
+    if (hit == 0) {
+      return 0;
+    }
+    /* NAMED Self or the type-param name means "same as receiver". */
+    if (ret_kind == 8 && ret_nlen > 0) {
+      same = 0;
+      if (ret_nlen == 4 && ret_nm[0] == 83 && ret_nm[1] == 101 && ret_nm[2] == 108
+          && ret_nm[3] == 102) {
+        same = 1;
+      }
+      if (same == 0 && ret_nlen == tp_len) {
+        same = 1;
+        i = 0;
+        while (i < tp_len) {
+          if (ret_nm[i] != tp_nm[i]) {
+            same = 0;
+            i = tp_len;
+          } else {
+            i = i + 1;
+          }
+        }
+      }
+      if (same != 0) {
+        ret_ty = base_ty;
+      } else {
+        ret_ty = pipeline_type_find_or_alloc_named(arena, &ret_nm[0], ret_nlen);
+      }
+    } else if (ret_kind >= 0 && ret_kind != 8 && ret_kind != 9 && ret_kind != 10
+        && ret_kind != 11 && ret_kind != 13) {
+      ret_ty = pipeline_type_ensure_by_kind_ord(arena, ret_kind);
+    } else {
+      ret_ty = 0;
+    }
+    pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, 0 - 1);
+    if (ret_ty > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+    }
+    return 1;
+  }
+}
+
+/**
  * EXPR_METHOD_CALL typeck authority (wave253 pure leave).
  *
  * Order (must match product strict_minimal seed — G.7 single path):
@@ -13222,8 +13350,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
  *    Coerce 0 on ARRAY_LIT + SIMD formal (n_elems != lanes or elem type)
  *    refuses that candidate — same hard miss as CALL score T001, not
  *    LANG-004 "no impl" and not type_refs_equal fallback.
- * 5) bootstrap i32.double() when impl blocks skipped
- * 6) no-impl LANG-004 diagnostic
+ * 5) generic-body bound method: receiver is free T, enclosing `fn<T: Trait>`
+ *    lists Trait.method — stamp ret (Self / T → receiver type) and accept.
+ *    func_ix stays -1; codegen C6 re-resolves the impl on the concrete type.
+ * 6) bootstrap i32.double() when impl blocks skipped
+ * 7) no-impl LANG-004 diagnostic
  *
  * Cap residual / strict_minimal faces thin → this function (dual-export ban).
  *
@@ -13531,6 +13662,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         col = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_call_arg_type_mismatch(line, col);
         return 0 - 1;
+      }
+    }
+
+    /*
+     * Generic body: T: Trait grants Trait.method on a free type-param receiver.
+     * Must run after UFCS (concrete impls / SIMD) and before LANG-004.
+     * PLATFORM: SHARED.
+     */
+    if (base_ty > 0 && method_nlen > 0) {
+      if (typeck_method_call_resolve_generic_bound(module, arena, expr_ref, ctx, base_ty,
+          &method_nm[0], method_nlen, num_args) != 0) {
+        return 0;
       }
     }
 
