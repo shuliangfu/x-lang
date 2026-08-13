@@ -63,6 +63,7 @@ gate 验证 `mod.x` 含 lane-scalar 实装（`v[mask[0]]`）与产品 `select_la
 产品验收以 `-L . -o` 真链 + `shuffle_select_roundtrip.x` run=0 为准。
 s2 烟测断言 Vec8i／Vec4f splat/add 与 `select_lane`；**不再**把 `placeholder()` 当退出码。
 `splat(1.0)[0]` emit：try_inline_splat 对 dest esz==4 走 ARRAY_LIT `force_esz==4` 的 f64→f32 pack（未标 FLOAT_LIT 的 f64 低 32 位曾是 0.0f）。
+METHOD／CALL 实参 FLOAT_LIT：resolve 后按形参 f32/f64 盖戳（G.7 `typeck_stamp_resolved_args_float_lit` → `typeck_coerce_init_float_lit_to_decl`；dep kind → caller `ensure_by_kind_ord`）。emit pack 仍作 belt。s2 另用同模块 `fill4(1.0)` 测 formal CALL ABI。
 自举期 check 闸门暂停（2026-08-05）。
 
 回归：`run-simd-s4-gate.sh`（硬件 pshufd／select）、`run-std-simd-prod-gate.sh`。

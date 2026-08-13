@@ -7530,6 +7530,85 @@ decl_kind: i32, init_kind: i32): i32 {
 }
 
 /**
+ * After CALL / METHOD resolve: stamp FLOAT_LIT / `-float` args to formal f32/f64.
+ * Args are check_expr'd against the call ambient (e.g. let Vec4f) before resolve,
+ * so `simd.splat(1.0)` / `fill4(1.0)` stay default f64. G.7 reuse
+ * typeck_coerce_init_float_lit_to_decl — this is only the post-resolve loop.
+ * Dep formals live in the dep arena: read kind there, then
+ * pipeline_type_ensure_by_kind_ord in the caller arena (same map as overload
+ * score's primitive path). CALL arg i → param i; UFCS arg i → param i+1 (self).
+ * @param arena *ASTArena — caller expr/type arena (must own arg refs)
+ * @param expr_ref i32 — EXPR_CALL (48) or EXPR_METHOD_CALL (49)
+ * @param callee_mod *Module — resolved callee module (dep or same-module)
+ * @param func_ix i32 — resolved func index in callee_mod
+ * @param dep_ix i32 — dep slot (>=0) or -1 same-module
+ * @param ctx *PipelineDepCtx — dep arenas; nullable when dep_ix < 0
+ * @param param_base i32 — 0 CALL/import-method; 1 same-module UFCS (skip self)
+ * @return void
+ * PLATFORM: SHARED — seed typeck_gen twin same commit.
+ */
+export function typeck_stamp_resolved_args_float_lit(arena: *ASTArena, expr_ref: i32,
+callee_mod: *Module, func_ix: i32, dep_ix: i32, ctx: *PipelineDepCtx, param_base: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ord_method: i32 = 49;
+    let ord_f32: i32 = 14;
+    let ord_f64: i32 = 15;
+    let call_kind: i32 = 0;
+    let i: i32 = 0;
+    let n: i32 = 0;
+    let arg_ref: i32 = 0;
+    let param_raw: i32 = 0;
+    let arg_kind: i32 = 0;
+    let pk: i32 = 0;
+    let caller_ty: i32 = 0;
+    let da: *ASTArena = 0 as *ASTArena;
+    if (arena == 0 as *ASTArena || callee_mod == 0 as *Module || expr_ref <= 0 || func_ix < 0) {
+      return;
+    }
+    if (param_base < 0) {
+      param_base = 0;
+    }
+    call_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (call_kind == ord_method) {
+      n = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    } else {
+      n = pipeline_expr_call_num_args_at(arena, expr_ref);
+    }
+    if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx) {
+      da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+      if (da == 0 as *ASTArena) {
+        da = pipeline_get_dep_arena_slot(dep_ix);
+      }
+    }
+    while (i < n) {
+      if (call_kind == ord_method) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      }
+      param_raw = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i + param_base);
+      pk = 0;
+      if (param_raw > 0) {
+        if (da != 0 as *ASTArena) {
+          pk = pipeline_type_kind_ord_at(da, param_raw);
+        } else {
+          pk = pipeline_type_kind_ord_at(arena, param_raw);
+        }
+      }
+      if (arg_ref > 0 && (pk == ord_f32 || pk == ord_f64)) {
+        caller_ty = pipeline_type_ensure_by_kind_ord(arena, pk);
+        if (caller_ty > 0) {
+          arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+          typeck_coerce_init_float_lit_to_decl(arena, arg_ref, caller_ty, pk, arg_kind);
+        }
+      }
+      i = i + 1;
+    }
+  }
+}
+
+/**
 * See implementation.
 * See implementation.
 */
@@ -11832,6 +11911,11 @@ ctx: *PipelineDepCtx): i32 {
     if (num_args != np) {
       return 0;
     }
+    /*
+     * FLOAT_LIT args were check_expr'd against call ambient (not the formal).
+     * G.7: reuse typeck_stamp_resolved_args_float_lit → coerce_init_float_lit.
+     */
+    typeck_stamp_resolved_args_float_lit(arena, call_expr_ref, callee_mod, func_ix, dep_ix, ctx, 0);
     i = 0;
     while (i < num_args) {
       arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, i);
@@ -13149,8 +13233,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
 
     if (import_ret_ty > 0) {
+      let cm: *Module = module;
+      if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx) {
+        dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
+        if (dm != 0 as *Module) {
+          cm = dm;
+        }
+      }
       pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
+      /* G.7: stamp FLOAT_LIT args to formal f32/f64 (ambient was call return). */
+      typeck_stamp_resolved_args_float_lit(arena, expr_ref, cm, func_ix, dep_ix, ctx, 0);
       return 0;
     }
 
@@ -13238,6 +13331,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         if (uf_ret > 0) {
           pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, uf_best);
           pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+          /* UFCS: arg i maps to param i+1 (param 0 is self). */
+          typeck_stamp_resolved_args_float_lit(arena, expr_ref, module, uf_best, 0 - 1, ctx, 1);
           return 0;
         }
       }

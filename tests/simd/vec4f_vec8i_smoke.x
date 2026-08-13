@@ -4,8 +4,20 @@
 const simd = import("std.simd");
 
 /**
- * SIMD-S2 product smoke: Vec8i/Vec4f splat/add lanes plus select_lane i32/f32.
- * @return i32 — 0 on success; 1..9 name the failed assertion
+ * Same-module CALL with Vec4f ambient: FLOAT_LIT 1.0 must stamp to formal f32.
+ * splat emit-pack is a belt; this path is formal ABI (no try_inline_splat).
+ * @param x f32 — lane value
+ * @return Vec4f — [x, x, x, x]
+ */
+function fill4(x: f32): Vec4f {
+  let v: Vec4f = [x, x, x, x];
+  return v;
+}
+
+/**
+ * SIMD-S2 product smoke: Vec8i/Vec4f splat/add lanes plus select_lane i32/f32
+ * plus same-module CALL fill4(1.0) (typeck post-resolve FLOAT_LIT stamp).
+ * @return i32 — 0 on success; 1..10 name the failed assertion
  */
 function main(): i32 {
   let vi: Vec8i = simd.splat(1);
@@ -28,5 +40,7 @@ function main(): i32 {
   let lg: f32 = simd.select_lane(0.0, 3.0, 4.0);
   if (lg != 4.0) { return 8; }
   if (simd.placeholder() != 0) { return 9; }
+  let vfill: Vec4f = fill4(1.0);
+  if (vfill[0] != 1.0) { return 10; }
   return 0;
 }

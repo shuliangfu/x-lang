@@ -18247,6 +18247,9 @@ export function asm_typeck_emit_heavy_safe_helper(m: *u8, func_index: i32): i32 
     if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_float_lit_to_decl", 36) != 0) {
       return 1;
     }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_stamp_resolved_args_float_lit", 36) != 0) {
+      return 1;
+    }
     if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_named_call_to_decl", 37) != 0) {
       return 1;
     }
