@@ -2264,11 +2264,10 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
       }
     }
   }
-  /* wave439: tokenize stashed source to capture generic bounds + call sites,
-   * then verify each call site's type arg satisfies its function's bound.
-   * Scan is idempotent (resets globals at entry); running it here (inside the
-   * trait checker) guarantees it executes on every product path regardless of
-   * which .x entry invoked us. PLATFORM: SHARED parse. */
+  /* wave439: tokenize stashed source to capture generic bounds + sites,
+   * then verify each site's type arg satisfies the decl bound (function
+   * or struct). Scan is idempotent (resets globals at entry); running it
+   * here guarantees it executes on every product path. PLATFORM: SHARED. */
   xlang_generic_bound_scan_c(g_w439_src_data, g_w439_src_len);
   if (xlang_generic_bound_check_c() != 0)
     rc = -1;
@@ -2382,17 +2381,16 @@ void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len) {
  * sites. Called from xlang_trait_check_impls_complete_c via the stashed source
  * pointer. Populates g_fn_bound_* and g_call_* globals.
  *
- * Bound pattern: `function IDENT < IDENT : IDENT >` — the second IDENT is
- *   the bound trait name; stored as (function_name, trait_name).
- *   Same type-param may list several traits with `+` (`T: Clone + Default`):
- *   each `IDENT` after `+` is another bound at the SAME pos (COMMA still
- *   advances pos). Check already walks every bound row.
- * Call pattern: `IDENT < IDENT > (` — the inner IDENT is the type arg;
- *   stored as (callee_name, type_arg). Only captured when `>` is followed
- *   by `(` to avoid false-matching comparison operators `a < b`.
- *
- * Soft-skip: nested generics like `foo<Vec<i32>>()` (angle depth > 1)
- * are not captured; only simple single-IDENT type args are checked.
+ * Bound pattern: `function IDENT < IDENT : IDENT >` and
+ *   `struct IDENT < IDENT : IDENT >` — the second IDENT is the bound trait;
+ *   stored as (decl_name, trait_name). Same type-param may list several
+ *   traits with `+` (`T: Clone + Default`): each IDENT after `+` is another
+ *   bound at the SAME pos (COMMA still advances pos).
+ * Instantiation pattern: `IDENT < IDENT >` followed by `(` (generic call)
+ *   or type-position `{` `=` `;` `,` `)` (`let f: Foo<B> = …`, `x: Foo<B>`,
+ *   `Foo<B> { … }`). Comparisons `a < b` have no `>` so they are not
+ *   captured. Nested `foo<Vec<i32>>` (angle depth > 1) stays soft-skip.
+ * Soft: dyn Trait; impl-level `impl<T: Trait>` (no IDENT before `<`).
  * PLATFORM: SHARED parse.
  */
 void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
@@ -2400,9 +2398,11 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
   int32_t prev_function = 0;
+  int32_t prev_struct = 0;
   uint8_t last_ident[64];
   int32_t last_ident_len = 0;
   int32_t last_ident_is_fn = 0;
+  int32_t last_ident_is_struct = 0;
 
   /*
    * wave455: if source was never stashed (product pure parse path fully
@@ -2441,23 +2441,34 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
 
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       prev_function = 1;
+      prev_struct = 0;
+      last_ident_len = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
+      /* 4.2.2 struct-level `<T: Trait>` — same bound tables as function.
+       * Prior: only TOKEN_FUNCTION armed last_ident_is_fn, so
+       * `struct Foo<T: Clone>` never recorded → Foo<B> false-green. */
+      prev_struct = 1;
+      prev_function = 0;
       last_ident_len = 0;
     } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
       last_ident_len = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
       if (last_ident_len > 0 && source.data)
         memcpy(last_ident, source.data + r.token_start, (size_t)last_ident_len);
       last_ident_is_fn = prev_function;
+      last_ident_is_struct = prev_struct;
       prev_function = 0;
+      prev_struct = 0;
     } else if (r.tok.kind == (int32_t)TOKEN_LT && last_ident_len > 0) {
       /* advance lex past the `<` so the inner loops read the token AFTER it
        * (otherwise the first lexer_next_into re-reads `<` and inflates depth). */
       lex = r.next_lex;
-      if (last_ident_is_fn) {
-        /* function name < ... > — scan for:
+      if (last_ident_is_fn || last_ident_is_struct) {
+        /* function/struct name < ... > — scan for:
          *  (1) wave442 `IDENT : IDENT` bounds with positional pos
          *  (2) wave455 declaration-order type-param names (all slots)
          * Type-param IDENT is the first IDENT at depth 1 after `<` or `,`
          * (expect_tp); COLON switches to expect_trait for the bound name.
+         * struct Foo<T: Clone> uses the same tables (name = struct name).
          * PLATFORM: SHARED — same angle walk as bound-only path. */
         int32_t angle_depth = 1;
         int32_t expect_trait = 0;
@@ -2572,11 +2583,17 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
           }
           lex = r.next_lex;
         }
-        /* only record if `(` follows the closing `>` (generic call, not compare) */
+        /* Record instantiations: generic call `foo<T>(` or type-position
+         * `Foo<B>` followed by `{` `=` `;` `,` `)`. Comparisons `a < b`
+         * never produce `>` so they stay out. PLATFORM: SHARED parse. */
         if (nargs > 0 && simple) {
           struct parser_asm_lexer after = r.next_lex;
+          int32_t nk;
           lexer_next_into(&r, after, &source);
-          if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
+          nk = r.tok.kind;
+          if (nk == (int32_t)TOKEN_LPAREN || nk == (int32_t)TOKEN_LBRACE
+              || nk == (int32_t)TOKEN_ASSIGN || nk == (int32_t)TOKEN_SEMICOLON
+              || nk == (int32_t)TOKEN_COMMA || nk == (int32_t)TOKEN_RPAREN) {
             int32_t k;
             memcpy(g_call_callee[g_call_n], last_ident, (size_t)last_ident_len);
             g_call_callee_len[g_call_n] = last_ident_len;
@@ -2597,9 +2614,12 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
       }
       last_ident_len = 0;
       last_ident_is_fn = 0;
+      last_ident_is_struct = 0;
       prev_function = 0;
+      prev_struct = 0;
     } else {
       prev_function = 0;
+      prev_struct = 0;
       if (r.tok.kind != (int32_t)TOKEN_DOT && r.tok.kind != (int32_t)TOKEN_COLON) {
         /* clear last_ident for tokens that can't precede `<` in a call;
          * keep it for `.` (qualified path) — though we only handle simple
@@ -2717,8 +2737,8 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
  * typeck maps Self / the type-param name to the receiver type_ref.
  *
  * Same globals as scan+check (last parsed file). Soft: dyn Trait;
- * struct/impl-level `<T: Trait>`; compound ret (PTR/SLICE/ARRAY) still
- * reported so typeck can refuse or leave unresolved.
+ * impl-level `impl<T: Trait>` (no IDENT before `<`); compound ret
+ * (PTR/SLICE/ARRAY) still reported so typeck can refuse or leave unresolved.
  * PLATFORM: SHARED parse+typeck — rebuild parser thin glue after edit.
  *
  * @param fn_name           enclosing generic function name
@@ -2849,6 +2869,12 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
     ta = type_args[pos];
     if (ta_len <= 0)
       continue;
+    /* `Foo<T>` in a generic signature uses the callee's own type-param
+     * name — not a concrete instantiation. Skip or `impl Clone for T`
+     * false-reds every `x: Foo<T>` / `function f<T>(x: Foo<T>)`.
+     * `Foo<B>` (B not a type-param of Foo) still checks. */
+    if (xlang_generic_func_type_param_index_c(fn_name, fn_name_len, ta, ta_len) >= 0)
+      continue;
     impl_ok = 0;
     for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
       if (g_xlang_skip_impl_trait_len[si] == g_fn_bound_trait_len[bi] &&
@@ -2873,13 +2899,15 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
 }
 
 /**
- * Verify captured generic call sites against function bounds.
- * For each call `foo<Type>(...)` where foo declared `T: Trait`, checks
- * that `impl Trait for Type` exists in the impl registry. Reports a
- * typeck error if not satisfied.
+ * Verify captured generic call / type-position sites against decl bounds.
+ * For each site `foo<Type>(...)` or `Foo<Type>` where the decl has
+ * `T: Trait`, checks that `impl Trait for Type` exists. Type-arg names
+ * that are the callee's own type params (`Foo<T>`) are skipped.
  * wave442: multi-arg positional bounds via g_call_typeargs / g_fn_bound_pos.
  * wave449: body delegated to xlang_generic_bound_check_type_args_c (shared with
- * typeck no-turbofish inference path). PLATFORM: SHARED parse.
+ * typeck no-turbofish inference path).
+ * 4.2.2: struct-level `<T: Trait>` uses the same tables (decl name = struct).
+ * PLATFORM: SHARED parse.
  * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
  */
 int32_t xlang_generic_bound_check_c(void) {
