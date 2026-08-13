@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；LANG-006 保留；下一硬叶 4.2.3 深 lit typeck（soft） |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；LANG-006 保留；下一硬叶 4.2.10–11 核查闭／`const [][]` parse／4.2.15 INDEX method |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -508,11 +508,12 @@
   - **dyn／impl 类型位**：type_ref 剥 contextual `dyn`／TOKEN_IMPL；`take(x: dyn Clone)`／let／`*dyn`／返／`impl Clone` 函数不再静默丢；消费既有 TYPE_NAMED `Clone`
   - 余（勿并本叶）：TYPE_DYN／vtable（dyn 仍非 KW；对象分发后期）
 
-🟡 **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** 布局 1..16 ✅ @ **`028959695`**
+✅ **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** 布局 1..16 ✅ @ **`028959695`** · 深 lit ✅ @ **`89e611150`**
 
   - wave698 闭 8 层 scalar / 7 层 NAMED
   - **fat 布局**：`codegen_emit_slice_fat_one` 循环 1..16（piecewise，破 `u8[256]` 墙）；scalar 9..16 走 `XLANG_SLICE_LAYOUTS_N16`；named companion 同顶
-  - 余（勿并本叶）：深 lit typeck（`let x: [][]i32 = [[1]]` 仍 expected `[]i32` found `[1]i32`；typeck 另层）
+  - **深 lit typeck**：`typeck_coerce_array_lit_elem_types_to_decl` 递归 peel 认 TYPE_SLICE（原仅 TYPE_ARRAY）；`[][]i32 = [[1,2]]`／`[2][]i32`／`[][][]i32`／return／assign／named／INDEX `x[0][1]=32`；elem `[N]T` 复用 `typeck_coerce_init_slice_from_array`；`[[true]]` 仍 T001（expected i32 found bool）
+  - 余（勿并本叶）：`const x: [][]i32 = [[1]]` 仍 P001 no functions（parser 另层）；`[][2]i32` INDEX 发射另层；nest>16 soft
 
 ⬜ **4.2.4 bare `unit_t()` 无 turbofish + 零参 T subst** leave-off
 
