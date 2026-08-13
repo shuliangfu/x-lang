@@ -209,22 +209,30 @@ impl Lane0able for i32x4 {
 }
 
 /**
- * CALL neighborhood of lane0 (same fold: return param0[0]).
- * @param v i32x4 — vector
- * @return i32 — v[0]
- */
-function lane0_call(v: i32x4): i32 {
-  return v[0];
-}
-
-/**
  * CALL inner of vector_lane fold: `return param0 + param1` on i32x4.
+ * Named apart from the METHOD so name-scan / overload do not collide.
  * @param a i32x4 — left lanes
  * @param b i32x4 — right lanes
  * @return i32x4 — a + b
  */
-function vec_add4(a: i32x4, b: i32x4): i32x4 {
+function vec_add4_call(a: i32x4, b: i32x4): i32x4 {
   return a + b;
+}
+
+trait VecAdd4able {
+  function vec_add4(self, other: i32x4): i32x4;
+}
+
+/**
+ * METHOD inner of vector_lane fold: same `return self + other` as vec_add4.
+ * @param self i32x4 — left lanes (array lit at the call site)
+ * @param other i32x4 — right lanes
+ * @return i32x4 — self + other
+ */
+impl VecAdd4able for i32x4 {
+  function vec_add4(self: i32x4, other: i32x4): i32x4 {
+    return self + other;
+  }
 }
 
 /**
@@ -236,7 +244,7 @@ function vec_add4(a: i32x4, b: i32x4): i32x4 {
  * 19-20 param0-field-sum METHOD pair_sum() + CALL field_sum neighborhood;
  * 21-22 x+K METHOD plus_one() + CALL add_one neighborhood;
  * 23-24 wpo_const scalar METHOD fold_add() + CALL fold_add_call neighborhood;
- * 25-26 wpo_const vector_lane METHOD lane0() + CALL lane0_call neighborhood;
+ * 25-26 wpo_const vector_lane METHOD lane0() (CALL inner + METHOD inner);
  * 27-32 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
  * 9–16B Quad field.d / take_quad left for the home-vs-rdx layout knife (not this classifier).
  * @return i32 — 0 ok
@@ -287,10 +295,10 @@ function main(): i32 {
   if (10.fold_add(3) != 13) { return 23; }
   /* CALL neighborhood of the same fold. */
   if (fold_add_call(10, 3) != 13) { return 24; }
-  /* METHOD wpo_const vector_lane: fold lane0 of const vec_add4 (not a CALL). */
-  if (vec_add4([1, 2, 3, 4], [10, 20, 30, 40]).lane0() != 11) { return 25; }
-  /* CALL neighborhood of the same fold. */
-  if (lane0_call(vec_add4([1, 2, 3, 4], [10, 20, 30, 40])) != 11) { return 26; }
+  /* METHOD wpo_const vector_lane: fold lane0 of const vec_add4 CALL (not a CALL). */
+  if (vec_add4_call([1, 2, 3, 4], [10, 20, 30, 40]).lane0() != 11) { return 25; }
+  /* METHOD inner + METHOD outer: same fold (array-lit.vec_add4.lane0). */
+  if ([1, 2, 3, 4].vec_add4([10, 20, 30, 40]).lane0() != 11) { return 26; }
   /* >16B METHOD field-access: sret home then load (memcpy if residual store). */
   if (7.as_wide().a != 7) { return 27; }
   if (7.as_wide().e != 11) { return 28; }
