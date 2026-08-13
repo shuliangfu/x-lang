@@ -61,8 +61,8 @@ g18 针表现含 `select_lane` i32／f32 mid（count **23**）；仅调 `simd.se
 
 gate 验证 `mod.x` 含 lane-scalar 实装（`v[mask[0]]`）与产品 `select_lane` helper。
 产品验收以 `-L . -o` 真链 + `shuffle_select_roundtrip.x` run=0 为准。
-s2 烟测断言 Vec8i splat/add 与 `select_lane`；**不再**把 `placeholder()` 当退出码。
-Vec4f `splat(1.0)[0]` 仍是独立 emit residual（本 RFC 不在本刀修）。
+s2 烟测断言 Vec8i／Vec4f splat/add 与 `select_lane`；**不再**把 `placeholder()` 当退出码。
+`splat(1.0)[0]` emit：try_inline_splat 对 dest esz==4 走 ARRAY_LIT `force_esz==4` 的 f64→f32 pack（未标 FLOAT_LIT 的 f64 低 32 位曾是 0.0f）。
 自举期 check 闸门暂停（2026-08-05）。
 
 回归：`run-simd-s4-gate.sh`（硬件 pshufd／select）、`run-std-simd-prod-gate.sh`。

@@ -20083,6 +20083,7 @@ static int32_t glue_simd_alloc_vector_temp_slot_c(void *arena, void *ctx, int32_
 
 /**
  * Inline simd.splat / splat(const) into a stack slot.
+ * FLOAT_LIT + dest esz==4 packs IEEE f64 bits to f32 (ARRAY_LIT force_esz==4).
  * G.7 无才新增: sibling of try_inline_select/shuffle (no second fill path).
  * @return 1 inlined; 0 no match; -1 error
  * PLATFORM: SHARED freestanding · LINUX gold / MACOS L2 same emit.
@@ -20146,6 +20147,20 @@ int32_t pipeline_asm_simd_try_inline_splat_call_elf_c(void *arena, void *elf_ctx
     return 1;
   }
   if (ko == 1) {
+    /*
+     * FLOAT_LIT splat: dest esz==4 is f32 lanes (Vec4f / f32x4).
+     * Unstamped 1.0 is IEEE f64 (0x3FF00000_00000000); store-4 of that
+     * low half is 0.0f — same ARRAY_LIT residual typeck already stamped.
+     * G.7 complete: reuse force_esz==4 pack + imm_fill (no second store path).
+     * PLATFORM: SHARED freestanding emit · LINUX gold.
+     */
+    if (esz == 4) {
+      imm = glue_ieee_f64_bits_to_f32_bits(pipeline_expr_float_bits_lo_at(arena, arg0),
+                                          pipeline_expr_float_bits_hi_at(arena, arg0));
+      if (glue_simd_emit_imm_fill_slot_c(elf_ctx, stack_slot_off, lanes, esz, ta, imm) != 0)
+        return -1;
+      return 1;
+    }
     /* FLOAT_LIT: emit bits to rax, then same lane stores. */
     if (glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, arg0, ta, 0, 0) != 0)
       return -1;

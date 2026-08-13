@@ -41420,6 +41420,7 @@ function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32)
 
 /**
  * Inline simd.splat / splat(const) into a stack slot.
+ * FLOAT_LIT + dest esz==4 packs IEEE f64 bits to f32 (ARRAY_LIT force_esz==4).
  * @param arena *u8 — ASTArena*
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param call_ref i32 — CALL(48) or METHOD_CALL(49)
@@ -41523,6 +41524,24 @@ export function pipeline_asm_simd_try_inline_splat_call_elf_c(arena: *u8, elf_ct
     return 1;
   }
   if (ko == 1) {
+    /*
+     * FLOAT_LIT splat: dest esz==4 is f32 lanes (Vec4f / f32x4).
+     * Unstamped 1.0 is IEEE f64 (0x3FF00000_00000000); store-4 of that
+     * low half is 0.0f — same ARRAY_LIT residual typeck already stamped.
+     * G.7 complete: reuse force_esz==4 pack + imm_fill (no second store path).
+     * PLATFORM: SHARED freestanding emit · LINUX gold.
+     */
+    if (esz == 4) {
+      unsafe {
+        imm = glue_ieee_f64_bits_to_f32_bits(
+            pipeline_expr_float_bits_lo_at(arena, arg0),
+            pipeline_expr_float_bits_hi_at(arena, arg0));
+      }
+      if (glue_simd_emit_imm_fill_slot_c(elf_ctx, stack_slot_off, lanes, esz, ta, imm) != 0) {
+        return 0 - 1;
+      }
+      return 1;
+    }
     rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, arg0, ta, 0, 0);
     if (rc != 0) {
       return 0 - 1;
