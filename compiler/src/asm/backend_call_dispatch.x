@@ -2280,9 +2280,10 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
-    // G.7: same param0.field / field-sum / x+K / wpo_const-scalar folds as CALL emit
-    // (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
-    //  recv.plus_one() ≡ add_one(recv); recv.fold_add(K) ≡ fold_add_call(recv, K)).
+    // G.7: same param0.field / field-sum / x+K / wpo_const-scalar / vector_lane
+    // folds as CALL emit (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
+    //  recv.plus_one() ≡ add_one(recv); recv.fold_add(K) ≡ fold_add_call(recv, K);
+    //  recv.lane0() ≡ lane0_call(recv) when recv is const vec_binop).
     // After import-binding: import methods must not enter lookup/fold (option/si SEGV).
     // extra mismatch / fold miss / PTR → 0, fall through to UFCS CALL.
     {
@@ -2307,8 +2308,14 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       }
     }
     // Same env gate as CALL emit: XLANG_WPO_MONO / XLANG_WPO_NO_FOLD skip const fold.
+    // Order matches CALL emit: vector_lane then scalar.
     if (link_abi_getenv("XLANG_WPO_MONO") == 0) {
       if (link_abi_getenv("XLANG_WPO_NO_FOLD") == 0) {
+        let inline_vl: i32 = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+        if (inline_vl != 0) {
+          if (inline_vl < 0) { return 0 - 1; }
+          return 0;
+        }
         let inline_wc: i32 = try_inline_wpo_const_scalar_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
         if (inline_wc != 0) {
           if (inline_wc < 0) { return 0 - 1; }

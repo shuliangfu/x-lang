@@ -1853,21 +1853,25 @@ int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, st
 
 
 /**
- * WPO-S2 vec 特化：laneK(vec_binop([const…],[const…])) 编译期 fold 为标量 imm（rax）。
- * 典型：lane0(vec_add4([1,2,3,4],[10,20,30,40])) → 11。
- * 返回 1=已 fold，0=未匹配，-1=错误。
+ * WPO-S2 vec: laneK(vec_binop([const…],[const…])) folds to scalar imm (rax).
+ * Typical: lane0(vec_add4([1,2,3,4],[10,20,30,40])) → 11.
+ * CALL(48) outer: nargs==1. METHOD_CALL(49) outer: extra==0, arg0=base.
+ * Inner CALL: nargs==2. Inner METHOD: extra==1, arg0=base, arg1=extra[0].
+ * Lookup is METHOD-safe (glue_call_lookup; CALL prefers resolved_func_index).
+ * Returns 1=folded, 0=no match, -1=error.
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-376 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                            struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_Module *mod_ref;
-  int32_t outer_callee_ref;
+  struct ast_ASTArena *outer_arena;
+  struct ast_Module *outer_mod;
+  struct ast_ASTArena *inner_arena;
+  struct ast_Module *inner_mod;
   int32_t outer_fi;
   int32_t lane;
   int32_t inner_call_ref;
-  int32_t inner_callee_ref;
   int32_t inner_fi;
   int32_t binop_ko;
   int32_t arg0;
@@ -1876,50 +1880,51 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf_impl(struct ast_ASTAr
   int32_t av1;
   int32_t folded;
   int32_t hi;
-  uint8_t outer_name[128];
-  uint8_t inner_name[128];
-  int32_t olen;
-  int32_t ilen;
+  int32_t ko;
+  int32_t iko;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  mod_ref = ctx->module_ref;
-  if (!mod_ref)
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1)
+  }
+  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &outer_arena, &outer_mod, &outer_fi) == 0)
     return 0;
-  outer_callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-  if (outer_callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, outer_callee_ref) != GLUE_EXPR_VAR)
+  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
+   * (overload pick). Name-only first-match is METHOD-only. */
+  if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0)
     return 0;
-  olen = pipeline_expr_var_name_len(arena, outer_callee_ref);
-  if (olen <= 0 || olen > 63)
+  if (ko == GLUE_EXPR_METHOD_CALL)
+    inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  else
+    inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+  if (inner_call_ref <= 0)
     return 0;
-  pipeline_expr_var_name_into(arena, outer_callee_ref, outer_name);
-  outer_fi = glue_module_func_index_by_name(mod_ref, outer_name, olen);
-  if (outer_fi < 0)
+  iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
+  if (iko != GLUE_EXPR_CALL && iko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  if (glue_fold_func_returns_param0_index_const(arena, mod_ref, outer_fi, &lane) == 0)
+  if (iko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) {
     return 0;
-  inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-  if (inner_call_ref <= 0 || pipeline_expr_kind_ord_at(arena, inner_call_ref) != GLUE_EXPR_CALL)
+  }
+  if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &inner_arena, &inner_mod, &inner_fi) == 0)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2)
+  if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0)
     return 0;
-  inner_callee_ref = pipeline_expr_call_callee_ref_at(arena, inner_call_ref);
-  if (inner_callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, inner_callee_ref) != GLUE_EXPR_VAR)
-    return 0;
-  ilen = pipeline_expr_var_name_len(arena, inner_callee_ref);
-  if (ilen <= 0 || ilen > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, inner_callee_ref, inner_name);
-  inner_fi = glue_module_func_index_by_name(mod_ref, inner_name, ilen);
-  if (inner_fi < 0)
-    return 0;
-  if (glue_fold_func_returns_param01_vector_binop(arena, mod_ref, inner_fi, &binop_ko) == 0)
-    return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+  if (iko == GLUE_EXPR_METHOD_CALL) {
+    arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+  }
   if (arg0 <= 0 || arg1 <= 0)
     return 0;
   if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0)

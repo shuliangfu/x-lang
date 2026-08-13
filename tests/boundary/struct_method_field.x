@@ -193,16 +193,51 @@ function fold_add_call(x: i32, y: i32): i32 {
   return x + y;
 }
 
+trait Lane0able {
+  function lane0(self): i32;
+}
+
+/**
+ * METHOD wpo_const vector_lane: callee is `return self[0]` (one i32x4 param).
+ * @param self i32x4 — receiver (const vec_binop at the call site)
+ * @return i32 — lane 0
+ */
+impl Lane0able for i32x4 {
+  function lane0(self: i32x4): i32 {
+    return self[0];
+  }
+}
+
+/**
+ * CALL neighborhood of lane0 (same fold: return param0[0]).
+ * @param v i32x4 — vector
+ * @return i32 — v[0]
+ */
+function lane0_call(v: i32x4): i32 {
+  return v[0];
+}
+
+/**
+ * CALL inner of vector_lane fold: `return param0 + param1` on i32x4.
+ * @param a i32x4 — left lanes
+ * @param b i32x4 — right lanes
+ * @return i32x4 — a + b
+ */
+function vec_add4(a: i32x4, b: i32x4): i32x4 {
+  return a + b;
+}
+
 /**
  * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init plus >16B.
- * Exit 0 on success; 1..30 name the miss.
+ * Exit 0 on success; 1..32 name the miss.
  * 1-4 materialise/sret neighborhood; 5-8 field-access inline;
  * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood;
  * 17-18 param0-single-field METHOD first() + CALL take_a neighborhood;
  * 19-20 param0-field-sum METHOD pair_sum() + CALL field_sum neighborhood;
  * 21-22 x+K METHOD plus_one() + CALL add_one neighborhood;
  * 23-24 wpo_const scalar METHOD fold_add() + CALL fold_add_call neighborhood;
- * 25-30 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
+ * 25-26 wpo_const vector_lane METHOD lane0() + CALL lane0_call neighborhood;
+ * 27-32 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
  * 9–16B Quad field.d / take_quad left for the home-vs-rdx layout knife (not this classifier).
  * @return i32 — 0 ok
  */
@@ -252,16 +287,20 @@ function main(): i32 {
   if (10.fold_add(3) != 13) { return 23; }
   /* CALL neighborhood of the same fold. */
   if (fold_add_call(10, 3) != 13) { return 24; }
+  /* METHOD wpo_const vector_lane: fold lane0 of const vec_add4 (not a CALL). */
+  if (vec_add4([1, 2, 3, 4], [10, 20, 30, 40]).lane0() != 11) { return 25; }
+  /* CALL neighborhood of the same fold. */
+  if (lane0_call(vec_add4([1, 2, 3, 4], [10, 20, 30, 40])) != 11) { return 26; }
   /* >16B METHOD field-access: sret home then load (memcpy if residual store). */
-  if (7.as_wide().a != 7) { return 25; }
-  if (7.as_wide().e != 11) { return 26; }
+  if (7.as_wide().a != 7) { return 27; }
+  if (7.as_wide().e != 11) { return 28; }
   /* >16B METHOD let-init. */
   let w: Wide = 7.as_wide();
-  if (w.a != 7) { return 27; }
-  if (w.e != 11) { return 28; }
+  if (w.a != 7) { return 29; }
+  if (w.e != 11) { return 30; }
   /* >16B CALL neighborhood. */
-  if (mk_wide(7).e != 11) { return 29; }
+  if (mk_wide(7).e != 11) { return 31; }
   let cw: Wide = mk_wide(7);
-  if (cw.e != 11) { return 30; }
+  if (cw.e != 11) { return 32; }
   return 0;
 }
