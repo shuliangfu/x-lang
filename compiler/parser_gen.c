@@ -3629,7 +3629,8 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
        * PLATFORM: SHARED parse.
        */
       if ((init_handled ==0)) {
-        if (((((r.tok).kind) ==59) || (((r.tok).kind) ==51))) {
+        /* 59=IDENT, 51=SELF, 129=TOKEN_AT (@shuffle/@select body-let init). G.7 ≡ parser.x. */
+        if (((((r.tok).kind) ==59) || (((r.tok).kind) ==51) || (((r.tok).kind) ==129))) {
           size_t rhs_ident_start = (r.token_start);
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           struct lexer_Lexer expr_lex = (struct lexer_Lexer){ .pos = rhs_ident_start, .line = ((r.tok).line), .col = ((r.tok).col) };

@@ -3936,10 +3936,18 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
      * this branch, init_handled stays 0 → body_lets fails or drops the let →
      * free methods return `?` and trait default hoist skips inject ("missing
      * method"). G.7: extend this authority only; no second let-init parser.
+     *
+     * Stage12 residual: TOKEN_AT (129) `@shuffle` / `@select` as body-let init
+     * (`let r: Vec8i = @shuffle(v, mask)`). Primary already lowers via
+     * parse_at_simd_builtin_into → CALL simd_shuffle/select; body_lets must
+     * route here or init_handled stays 0 → whole function soft-drop (P001 no
+     * functions). Same rewind/finish as IDENT/SELF. Ordinal 129 ≡ token.x
+     * TOKEN_AT (keep hardcode form of sibling branches).
      * PLATFORM: SHARED parse.
      */
     if (init_handled == 0) {
-      if ((r.tok.kind as i32) == 59 || (r.tok.kind as i32) == 51) {
+      if ((r.tok.kind as i32) == 59 || (r.tok.kind as i32) == 51
+          || (r.tok.kind as i32) == 129) {
         let rhs_ident_start: usize = r.token_start;
         lex_from_result_ptr_into(&lex, &r);
         let expr_lex: Lexer = Lexer { pos: rhs_ident_start, line: r.tok.line, col: r.tok.col };
