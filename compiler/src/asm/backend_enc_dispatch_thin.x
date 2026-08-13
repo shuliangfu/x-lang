@@ -3297,13 +3297,18 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
   return 0 - 1;
 }
 
-// backend_enc_store_eax_to_rbp_arch: see function docblock below.
-/** Exported function `backend_enc_store_eax_to_rbp_arch`.
- * Implements `backend_enc_store_eax_to_rbp_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Store EAX to a frame slot: `movl %eax, -offset(%rbp)` (x86_64).
+ * Product path for 32-bit locals (TYPE_F32 let / assign). `offset` is the
+ * magnitude below rbp — same convention as `store_rax_to_rbp`.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null rejected
+ * @param offset i32 — frame offset magnitude (>=0); encoded as disp = -offset
+ * @param ta i32 — 0=x86_64 SysV, 1=arm64 STUR w0 helper, else -1
+ * @return i32 — 0 ok, -1 failure
+ * Disp32 bytes MUST be taken from `disp as u32`. Signed i32 `/ 256` truncates
+ * toward zero and drops the 0xFF bytes (offset 0xE0 became +0x20, not -0xE0).
+ * Seed thin C already used `(uint32_t)(-offset)`; this matches that extract.
+ * PLATFORM: LINUX+MACOS x86_64 SysV disp32 / MACOS|ARM64 STUR helper
  */
 #[no_mangle]
 export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
@@ -3319,23 +3324,25 @@ export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
     if (elf_ctx == 0 as *u8) {
       return 0 - 1;
     }
-    let off: i32 = 0 - offset;
+    // Two's-complement LE bytes of disp=-offset. Unsigned div keeps 0xFF..20.
+    let disp: i32 = 0 - offset;
+    let u: u32 = disp as u32;
     if (backend_enc_append_u8_c_impl(elf_ctx, 137) != 0) {
       return 0 - 1;
     }
     if (backend_enc_append_u8_c_impl(elf_ctx, 133) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c_impl(elf_ctx, off & 255) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, (u & 255) as i32) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c_impl(elf_ctx, (off / 256) & 255) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, ((u / 256) & 255) as i32) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c_impl(elf_ctx, (off / 65536) & 255) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, ((u / 65536) & 255) as i32) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u8_c_impl(elf_ctx, (off / 16777216) & 255);
+    return backend_enc_append_u8_c_impl(elf_ctx, ((u / 16777216) & 255) as i32);
   }
 }
 
