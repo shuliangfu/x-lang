@@ -55,6 +55,20 @@ void parser_sig_type_hard_reset_c(void) { g_parser_sig_type_hard = 0; }
 
 int32_t parser_sig_type_hard_pending_c(void) { return g_parser_sig_type_hard; }
 
+/*
+ * 4.2.1 / wave676: product P011 rejects untyped formals, including free/inherent
+ * `function m(self)`. Trait default hoist re-parses `function get(self): T {…}`
+ * via the buf onefunc path and must be allowed to leave param0 type_ref=0;
+ * commit then stamps the impl for-type (wave477).
+ * Set 1 only around that hoist parse; always clear afterwards.
+ * PLATFORM: SHARED parse.
+ */
+static int32_t g_parser_allow_bare_self = 0;
+
+void parser_allow_bare_self_set_c(int32_t on) { g_parser_allow_bare_self = on ? 1 : 0; }
+
+int32_t parser_allow_bare_self_pending_c(void) { return g_parser_allow_bare_self; }
+
 void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind) {
   extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
                                     const char *code, const char *msg, const char *detail);

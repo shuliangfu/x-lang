@@ -3662,6 +3662,21 @@ export extern function parser_sig_type_hard_reset_c(): void;
 export extern function parser_sig_type_hard_pending_c(): i32;
 
 /**
+ * Allow bare `self` (no `: Type`) only while hoisting a trait default body.
+ * Product free / inherent methods stay P011 (4.2.1 / wave493).
+ * @param on i32 — 1 = hoist re-parse may leave param0 type_ref 0; 0 = P011
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_allow_bare_self_set_c(on: i32): void;
+
+/**
+ * Non-zero while trait-default hoist is re-parsing a method body.
+ * @return i32 — 0 = product P011; non-zero = bare self receiver permitted
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_allow_bare_self_pending_c(): i32;
+
+/**
  * Wrapper: i32 is_let flag → C is_let int flag for P010.
  * @param line i32
  * @param col i32
@@ -5639,14 +5654,17 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       /*
        * wave676 Cap residual: param must be `name: Type`. Missing COLON was
        * silent set_onefunc_fail → function dropped (soft residual). P011 hard.
-       * wave324: bare TOKEN_SELF receiver exempt when next is `)` or `,`.
+       * 4.2.1: free / inherent `function m(self)` stays P011 (wave493).
+       * Trait-default hoist sets parser_allow_bare_self so `get(self)` can
+       * parse; commit stamps the impl for-type (wave477). Not a product skip.
        * PLATFORM: SHARED parse.
        */
       if ((r.tok.kind as i32) != (token.TokenKind.TOKEN_COLON as i32)) {
         if (is_self_param
+            && parser_allow_bare_self_pending_c() != 0
             && ((r.tok.kind as i32) == (token.TokenKind.TOKEN_RPAREN as i32)
                 || (r.tok.kind as i32) == (token.TokenKind.TOKEN_COMMA as i32))) {
-          // Leave type_ref 0; typeck / trait layout supply Self.
+          /* Hoist only: leave type_ref 0; commit supplies the for-type. */
           type_ref_param = 0;
           pipeline_onefunc_set_param_type_ref(param_pool, param_idx, type_ref_param);
           driver_diagnostic_parser_onefunc_param_ref(&dummy_name[0], func_name_len_storage[0], &pname_row[0], plen_param,

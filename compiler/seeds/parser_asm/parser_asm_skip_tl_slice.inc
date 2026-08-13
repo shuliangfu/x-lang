@@ -1668,7 +1668,12 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
       if (fn_lex.col <= 0)
         fn_lex.col = 1;
       res = parser_asm_onefunc_alloc_wired_for_parse_c(fn_lex);
-      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
+      {
+        extern void parser_allow_bare_self_set_c(int32_t on);
+        parser_allow_bare_self_set_c(1);
+        parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
+        parser_allow_bare_self_set_c(0);
+      }
       if (!res.ok)
         continue;
       (void)xlang_skip_commit_default_onefunc_c(arena, module, &res,

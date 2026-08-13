@@ -987,8 +987,13 @@ static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, i
       if (fn_lex.col <= 0)
         fn_lex.col = 1;
       res = parser_asm_seed_onefunc_wired_c(fn_lex);
-      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_xlang_seed_trait_src_data,
-                                              g_xlang_seed_trait_src_len);
+      {
+        extern void parser_allow_bare_self_set_c(int32_t on);
+        parser_allow_bare_self_set_c(1);
+        parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_xlang_seed_trait_src_data,
+                                                g_xlang_seed_trait_src_len);
+        parser_allow_bare_self_set_c(0);
+      }
       if (!res.ok)
         continue;
       nf_before = pipeline_module_num_funcs(module);
@@ -1013,6 +1018,11 @@ static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, i
           if (plen > 32)
             plen = 32;
           pty = xlang_seed_rewrite_self_type_ref_c(arena, pty, for_name, for_nlen, for_is_ptr);
+          /* wave477 / 4.2.1: bare self (type_ref 0) → impl for-type so UFCS matches. */
+          if (pty == 0 && pi == 0 && for_name && for_nlen > 0) {
+            extern int32_t pipeline_type_find_or_alloc_named(void *arena, uint8_t *name, int32_t name_len);
+            pty = pipeline_type_find_or_alloc_named(arena, (uint8_t *)for_name, for_nlen);
+          }
           pipeline_module_func_param_write(module, new_fi, pi, pname32, plen, pty);
         }
       }
