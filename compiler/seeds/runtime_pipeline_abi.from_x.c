@@ -19969,9 +19969,234 @@ int32_t glue_emit_vector_select_lane_scalar_elf_c(void *arena,
 }
 
 /**
+ * splat / simd_splat / vec8i_splat / vec4f_splat callee name.
+ * PLATFORM: SHARED — G.7 single name table for splat inline + select compose.
+ */
+static int32_t glue_simd_callee_is_splat_c(const uint8_t *cname, int32_t clen) {
+  if (!cname || clen <= 0)
+    return 0;
+  if (clen == 5 && memcmp(cname, "splat", 5) == 0)
+    return 1;
+  if (clen == 10 && memcmp(cname, "simd_splat", 10) == 0)
+    return 1;
+  if (clen == 11 && memcmp(cname, "vec8i_splat", 11) == 0)
+    return 1;
+  if (clen == 11 && memcmp(cname, "vec4f_splat", 11) == 0)
+    return 1;
+  return 0;
+}
+
+/**
+ * If expr is CALL/METHOD splat(INT_LIT|BOOL_LIT), write the scalar to *out_imm.
+ * @return 1 peelable comptime int splat; 0 otherwise (no emit).
+ * PLATFORM: SHARED — select fold of select(splat(k), a, b).
+ */
+static int32_t glue_simd_expr_splat_int_imm_c(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  int32_t nargs;
+  int32_t arg0;
+  int32_t clen;
+  int32_t callee_ref;
+  uint8_t cname[128];
+
+  if (!arena || expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 49) {
+    nargs = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    clen = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (clen <= 0 || clen >= 64 || nargs != 1)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, expr_ref, cname);
+    if (!glue_simd_callee_is_splat_c(cname, clen))
+      return 0;
+    arg0 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+  } else if (ko == 48) {
+    nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (callee_ref <= 0 || nargs != 1)
+      return 0;
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
+    if (clen <= 0 || !glue_simd_callee_is_splat_c(cname, clen))
+      return 0;
+    arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+  } else {
+    return 0;
+  }
+  if (arg0 <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, arg0);
+  if (ko != 0 && ko != 2)
+    return 0;
+  if (out_imm)
+    *out_imm = pipeline_expr_int_val_at(arena, arg0);
+  return 1;
+}
+
+/**
+ * Fill a vector stack slot with a 32-bit pattern already decided (i32 splat
+ * or f32 IEEE bits). Reuses lea+store-lane (ARRAY_LIT polarity).
+ * PLATFORM: SHARED · LINUX|x86 / MACOS|ARM64 via backend_enc_*.
+ */
+static int32_t glue_simd_emit_imm_fill_slot_c(void *elf_ctx, int32_t stack_slot_off, int32_t lanes,
+                                            int32_t esz, int32_t ta, int32_t imm_bits) {
+  int32_t li;
+  int32_t store_sz;
+
+  if (!elf_ctx || stack_slot_off < 0 || lanes <= 0)
+    return -1;
+  store_sz = esz;
+  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+    store_sz = 4;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, imm_bits, ta) != 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta) != 0)
+    return -1;
+  for (li = 0; li < lanes; li++) {
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * store_sz, store_sz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/**
+ * Bump AsmFuncCtx.next_offset@4 and return a new vector-sized rbp slot.
+ * Frame already reserves >=512B call-spill scratch (compute_frame_size).
+ * PLATFORM: SHARED — uses asm_local_slot_reg_offset (host polarity).
+ */
+static int32_t glue_simd_alloc_vector_temp_slot_c(void *arena, void *ctx, int32_t type_ref) {
+  int32_t cur;
+  int32_t inout;
+  int32_t slot;
+
+  if (!arena || !ctx || type_ref <= 0)
+    return -1;
+  glue_align_next_offset(ctx);
+  cur = *(int32_t *)((uint8_t *)ctx + 4);
+  inout = cur;
+  slot = asm_local_slot_reg_offset(arena, type_ref, cur, &inout);
+  *(int32_t *)((uint8_t *)ctx + 4) = inout;
+  if (slot < 0)
+    return -1;
+  return slot;
+}
+
+/**
+ * Inline simd.splat / splat(const) into a stack slot.
+ * G.7 无才新增: sibling of try_inline_select/shuffle (no second fill path).
+ * @return 1 inlined; 0 no match; -1 error
+ * PLATFORM: SHARED freestanding · LINUX gold / MACOS L2 same emit.
+ */
+int32_t pipeline_asm_simd_try_inline_splat_call_elf_c(void *arena, void *elf_ctx, int32_t call_ref,
+                                                     void *ctx, int32_t ta, int32_t stack_slot_off,
+                                                     int32_t type_ref) {
+  int32_t callee_ref;
+  int32_t clen;
+  uint8_t cname[128];
+  int32_t arg0;
+  int32_t lanes;
+  int32_t esz;
+  int32_t ko;
+  int32_t nargs;
+  int32_t is_method;
+  int32_t imm;
+  int32_t store_sz;
+  int32_t li;
+
+  if (!arena || !elf_ctx || !ctx || call_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  if (ko != 48 && ko != 49)
+    return 0;
+  is_method = (ko == 49) ? 1 : 0;
+  if (is_method)
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+  else
+    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+  if (nargs != 1)
+    return 0;
+  if (is_method) {
+    clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    if (clen <= 0 || clen >= 64)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, call_ref, cname);
+  } else {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    if (callee_ref <= 0)
+      return 0;
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
+    if (clen <= 0)
+      return 0;
+  }
+  if (!glue_simd_callee_is_splat_c(cname, clen))
+    return 0;
+  if (glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz) != 0)
+    return -1;
+  if (is_method)
+    arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+  else
+    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+  if (arg0 <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, arg0);
+  if (ko == 0 || ko == 2) {
+    imm = pipeline_expr_int_val_at(arena, arg0);
+    if (glue_simd_emit_imm_fill_slot_c(elf_ctx, stack_slot_off, lanes, esz, ta, imm) != 0)
+      return -1;
+    return 1;
+  }
+  if (ko == 1) {
+    /* FLOAT_LIT: emit bits to rax, then same lane stores. */
+    if (glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, arg0, ta, 0, 0) != 0)
+      return -1;
+    store_sz = esz;
+    if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+      store_sz = 4;
+    if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta) != 0)
+      return -1;
+    for (li = 0; li < lanes; li++) {
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * store_sz, store_sz, ta) != 0)
+        return -1;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Resolve a select operand to a rbp slot: IDENT local, or nested splat(const)
+ * materialized into a frame temp (512B scratch already reserved).
+ * @return slot off >= 0; -1 not resolvable (no emit on IDENT miss; splat may emit)
+ * PLATFORM: SHARED.
+ */
+static int32_t glue_simd_select_arg_stack_off_c(void *arena, void *elf_ctx, void *ctx, int32_t ta,
+                                               int32_t arg_ref, int32_t type_ref) {
+  int32_t ko;
+  int32_t off;
+  int32_t tmp;
+  int32_t rc;
+
+  if (!arena || !ctx || arg_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  if (ko == 3)
+    return glue_asm_local_var_stack_off_scoped(arena, ctx, arg_ref);
+  if (ko != 48 && ko != 49)
+    return -1;
+  tmp = glue_simd_alloc_vector_temp_slot_c(arena, ctx, type_ref);
+  if (tmp < 0)
+    return -1;
+  rc = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, arg_ref, ctx, ta, tmp, type_ref);
+  if (rc == 1)
+    return tmp;
+  return -1;
+}
+
+/**
  * let r = vec8i_select / vec4f_select / simd_select / @select / simd.select：
  * mask?a:b 内联。
  * G.7 complete: CALL(48) and METHOD_CALL(49); bare name "select".
+ * G.7 complete: nested splat(const) args (heat-loop select(splat(1), r8, splat(0))).
  * 返回 1=已内联，0=未匹配，-1=错误。
  * PLATFORM: SHARED · LINUX|x86 pcmpgtd/cmpgtps · MACOS|ARM64 cmgt/bsl fallback.
  */
@@ -20049,12 +20274,31 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena,
   }
   if (arg_m <= 0 || arg_a <= 0 || arg_b <= 0)
     return -1;
-  if (pipeline_expr_kind_ord_at(arena, arg_m) != 3 || pipeline_expr_kind_ord_at(arena, arg_a) != 3 ||
-      pipeline_expr_kind_ord_at(arena, arg_b) != 3)
-    return 0;
-  off_m = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_m);
-  off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_a);
-  off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_b);
+  /* Comptime-uniform mask: select(splat(k), a, b) → a if k!=0 else b.
+   * Product select_lane is mask!=0 ? a : b. Avoids two splat sret + select.
+   * PLATFORM: SHARED — fold before any temp emit. */
+  {
+    int32_t mask_imm;
+    int32_t pick;
+    int32_t pko;
+    if (glue_simd_expr_splat_int_imm_c(arena, arg_m, &mask_imm)) {
+      pick = (mask_imm != 0) ? arg_a : arg_b;
+      pko = pipeline_expr_kind_ord_at(arena, pick);
+      if (pko == 3) {
+        if (pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, pick, ctx, ta, stack_slot_off,
+                                                    type_ref) != 0)
+          return -1;
+        return 1;
+      }
+      if (pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, pick, ctx, ta, stack_slot_off,
+                                                        type_ref) == 1)
+        return 1;
+      return 0;
+    }
+  }
+  off_m = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_m, type_ref);
+  off_a = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_a, type_ref);
+  off_b = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_b, type_ref);
   if (off_m < 0 || off_a < 0 || off_b < 0)
     return 0;
   is_f32 = glue_vector_elem_is_f32_c(arena, type_ref);
@@ -20066,6 +20310,10 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena,
     if (simd_enc_try_hw_vector_select_rbp(elf_ctx, off_m, off_a, off_b, stack_slot_off, lanes, is_f32, ta, feats) == 0)
       return 1;
   }
+  /* Lane-scalar fallback still requires IDENT args (expr refs, not temps). */
+  if (pipeline_expr_kind_ord_at(arena, arg_m) != 3 || pipeline_expr_kind_ord_at(arena, arg_a) != 3 ||
+      pipeline_expr_kind_ord_at(arena, arg_b) != 3)
+    return 0;
   if (glue_emit_vector_select_lane_scalar_elf_c(arena, elf_ctx, arg_m, arg_a, arg_b, stack_slot_off, type_ref, ctx,
                                                 ta) != 0)
     return 0;
@@ -20708,8 +20956,11 @@ int32_t glue_emit_vector_type_let_init_elf_c(void *arena,
     return pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
   if (glue_is_vector_lane_scalar_binop_ko(ko))
     return pipeline_asm_emit_vector_binop_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-  /* CALL=48 / METHOD_CALL=49 (import simd.shuffle is METHOD). */
+  /* CALL=48 / METHOD_CALL=49 (import simd.shuffle/splat/select is METHOD). */
   if (ko == 48 || ko == 49) {
+    inl = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    if (inl == 1)
+      return 0;
     inl = pipeline_asm_simd_try_inline_select_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     if (inl == 1)
       return 0;

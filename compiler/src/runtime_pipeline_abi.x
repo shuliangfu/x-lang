@@ -41241,9 +41241,360 @@ export function glue_emit_vector_select_lane_scalar_elf_c(arena: *u8, elf_ctx: *
 }
 
 /**
+ * True when callee bytes are splat / simd_splat / vec8i_splat / vec4f_splat.
+ * @param cname *u8 — name bytes
+ * @param clen i32 — byte count
+ * @return i32 — 1 match; 0 otherwise
+ * PLATFORM: SHARED — G.7 single name table for splat inline + select compose.
+ */
+function wave148_cname_is_splat(cname: *u8, clen: i32): i32 {
+  if (cname == (0 as *u8) || clen <= 0) {
+    return 0;
+  }
+  if (clen == 5 && wave148_bytes_eq(cname, "splat", 5) != 0) {
+    return 1;
+  }
+  if (clen == 10 && wave148_bytes_eq(cname, "simd_splat", 10) != 0) {
+    return 1;
+  }
+  if (clen == 11 && wave148_bytes_eq(cname, "vec8i_splat", 11) != 0) {
+    return 1;
+  }
+  if (clen == 11 && wave148_bytes_eq(cname, "vec4f_splat", 11) != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Peel CALL/METHOD splat(INT_LIT|BOOL_LIT) without emitting.
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — candidate splat expr
+ * @param out_imm *i32 — written on success; null allowed
+ * @return i32 — 1 peelable; 0 otherwise
+ * PLATFORM: SHARED — select(splat(k), a, b) fold.
+ */
+function glue_simd_expr_splat_int_imm_c(arena: *u8, expr_ref: i32, out_imm: *i32): i32 {
+  let ko: i32 = 0;
+  let nargs: i32 = 0;
+  let arg0: i32 = 0;
+  let clen: i32 = 0;
+  let callee_ref: i32 = 0;
+  let v: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 49) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      clen = pipeline_expr_method_call_name_len(arena, expr_ref);
+    }
+    if (clen <= 0 || clen >= 64 || nargs != 1) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, expr_ref, &g_wave148_pbuf[0]);
+    }
+    if (wave148_cname_is_splat(&g_wave148_pbuf[0], clen) == 0) {
+      return 0;
+    }
+    unsafe {
+      arg0 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    }
+  } else {
+    if (ko != 48) {
+      return 0;
+    }
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    }
+    if (callee_ref <= 0 || nargs != 1) {
+      return 0;
+    }
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_pbuf[0], 64);
+    if (clen <= 0 || wave148_cname_is_splat(&g_wave148_pbuf[0], clen) == 0) {
+      return 0;
+    }
+    unsafe {
+      arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+  }
+  if (arg0 <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg0);
+  }
+  if (ko != 0 && ko != 2) {
+    return 0;
+  }
+  unsafe {
+    v = pipeline_expr_int_val_at(arena, arg0);
+  }
+  if (out_imm != (0 as *i32)) {
+    unsafe {
+      out_imm[0] = v;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Fill a vector slot with a 32-bit lane pattern (i32 splat / f32 bits).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param stack_slot_off i32 — dst rbp slot
+ * @param lanes i32 — lane count
+ * @param esz i32 — elem size
+ * @param ta i32 — target arch
+ * @param imm_bits i32 — bits written to each lane
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: SHARED — lea+store-lane (ARRAY_LIT polarity).
+ */
+function glue_simd_emit_imm_fill_slot_c(elf_ctx: *u8, stack_slot_off: i32, lanes: i32, esz: i32, ta: i32, imm_bits: i32): i32 {
+  let li: i32 = 0;
+  let store_sz: i32 = 0;
+  let rc: i32 = 0;
+  if (elf_ctx == (0 as *u8) || stack_slot_off < 0 || lanes <= 0) {
+    return 0 - 1;
+  }
+  store_sz = esz;
+  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {
+    store_sz = 4;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, imm_bits, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  li = 0;
+  while (li < lanes) {
+    unsafe {
+      rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * store_sz, store_sz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
+/**
+ * Allocate a vector-sized temp from AsmFuncCtx.next_offset@4 (512B scratch).
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param type_ref i32 — result vector type
+ * @return i32 — slot off; -1 fail
+ * PLATFORM: SHARED — asm_local_slot_reg_offset host polarity.
+ */
+function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32): i32 {
+  let cur: i32 = 0;
+  let inout_slot: i32[1] = [];
+  let slot: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || type_ref <= 0) {
+    return 0 - 1;
+  }
+  glue_align_next_offset(ctx);
+  cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+  inout_slot[0] = cur;
+  unsafe {
+    slot = asm_local_slot_reg_offset(arena, type_ref, cur, &inout_slot[0]);
+  }
+  pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), inout_slot[0]);
+  if (slot < 0) {
+    return 0 - 1;
+  }
+  return slot;
+}
+
+/**
+ * Inline simd.splat / splat(const) into a stack slot.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @param stack_slot_off i32 — dst slot
+ * @param type_ref i32 — result vector type
+ * @return i32 — 1 inlined; 0 no match; -1 error
+ * G.7 无才新增: sibling of try_inline_select/shuffle (no second fill path).
+ * PLATFORM: SHARED freestanding · LINUX gold / MACOS L2 same emit.
+ */
+#[no_mangle]
+export function pipeline_asm_simd_try_inline_splat_call_elf_c(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
+  let callee_ref: i32 = 0;
+  let clen: i32 = 0;
+  let arg0: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let ko: i32 = 0;
+  let nargs: i32 = 0;
+  let is_method: i32 = 0;
+  let imm: i32 = 0;
+  let store_sz: i32 = 0;
+  let li: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  }
+  if (ko != 48 && ko != 49) {
+    return 0;
+  }
+  if (ko == 49) {
+    is_method = 1;
+  }
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
+  }
+  if (nargs != 1) {
+    return 0;
+  }
+  if (is_method != 0) {
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
+    }
+  } else {
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
+    if (clen <= 0) {
+      return 0;
+    }
+  }
+  if (wave148_cname_is_splat(&g_wave148_cname[0], clen) == 0) {
+    return 0;
+  }
+  rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (is_method != 0) {
+    unsafe {
+      arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+    }
+  } else {
+    unsafe {
+      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+    }
+  }
+  if (arg0 <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg0);
+  }
+  if (ko == 0 || ko == 2) {
+    unsafe {
+      imm = pipeline_expr_int_val_at(arena, arg0);
+    }
+    if (glue_simd_emit_imm_fill_slot_c(elf_ctx, stack_slot_off, lanes, esz, ta, imm) != 0) {
+      return 0 - 1;
+    }
+    return 1;
+  }
+  if (ko == 1) {
+    rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, arg0, ta, 0, 0);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    store_sz = esz;
+    if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {
+      store_sz = 4;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    li = 0;
+    while (li < lanes) {
+      unsafe {
+        rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * store_sz, store_sz, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      li = li + 1;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Resolve a select operand to a rbp slot: IDENT local or nested splat(const) temp.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @param arg_ref i32 — operand expr
+ * @param type_ref i32 — result vector type
+ * @return i32 — slot off; -1 not resolvable
+ * PLATFORM: SHARED.
+ */
+function glue_simd_select_arg_stack_off_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, arg_ref: i32, type_ref: i32): i32 {
+  let ko: i32 = 0;
+  let tmp: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || arg_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  }
+  if (ko == 3) {
+    return glue_asm_local_var_stack_off_scoped(arena, ctx, arg_ref);
+  }
+  if (ko != 48 && ko != 49) {
+    return 0 - 1;
+  }
+  tmp = glue_simd_alloc_vector_temp_slot_c(arena, ctx, type_ref);
+  if (tmp < 0) {
+    return 0 - 1;
+  }
+  rc = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, arg_ref, ctx, ta, tmp, type_ref);
+  if (rc == 1) {
+    return tmp;
+  }
+  return 0 - 1;
+}
+
+/**
  * Inline vec4f/vec8i/simd_select CALL.
  * @return i32 - 1 inlined; 0 no match; -1 error
  * wave148 pure: G.7 authority (was pipeline_asm_simd_try_inline_select_call_elf_c).
+ * G.7 complete: nested splat(const) args (heat-loop select(splat(1), r8, splat(0))).
  * PLATFORM: SHARED freestanding.
  */
 #[no_mangle]
@@ -41354,27 +41705,32 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_c
   if (arg_m <= 0 || arg_a <= 0 || arg_b <= 0) {
     return 0 - 1;
   }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg_m);
-  }
-  if (ko != 3) {
+  /* Comptime-uniform mask: select(splat(k), a, b) → a if k!=0 else b. */
+  let mask_imm_slot: i32[1] = [];
+  let pick: i32 = 0;
+  if (glue_simd_expr_splat_int_imm_c(arena, arg_m, &mask_imm_slot[0]) != 0) {
+    if (mask_imm_slot[0] != 0) {
+      pick = arg_a;
+    } else {
+      pick = arg_b;
+    }
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, pick);
+    }
+    if (ko == 3) {
+      if (pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, pick, ctx, ta, stack_slot_off, type_ref) != 0) {
+        return 0 - 1;
+      }
+      return 1;
+    }
+    if (pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, pick, ctx, ta, stack_slot_off, type_ref) == 1) {
+      return 1;
+    }
     return 0;
   }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg_a);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg_b);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  off_m = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_m);
-  off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_a);
-  off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, arg_b);
+  off_m = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_m, type_ref);
+  off_a = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_a, type_ref);
+  off_b = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_b, type_ref);
   if (off_m < 0 || off_a < 0 || off_b < 0) {
     return 0;
   }
@@ -41395,6 +41751,25 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_c
     if (rc == 0) {
       return 1;
     }
+  }
+  /* Lane-scalar fallback still requires IDENT args (expr refs, not temps). */
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg_m);
+  }
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg_a);
+  }
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg_b);
+  }
+  if (ko != 3) {
+    return 0;
   }
   if (glue_emit_vector_select_lane_scalar_elf_c(arena, elf_ctx, arg_m, arg_a, arg_b, stack_slot_off, type_ref, ctx, ta) != 0) {
     return 0;
@@ -41769,8 +42144,12 @@ export function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   if (rc != 0) {
     return pipeline_asm_emit_vector_binop_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
   }
-  /* CALL=48 and METHOD_CALL=49 (import simd.shuffle is METHOD). */
+  /* CALL=48 and METHOD_CALL=49 (import simd.shuffle/splat/select is METHOD). */
   if (ko == 48 || ko == 49) {
+    inl = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    if (inl == 1) {
+      return 0;
+    }
     inl = pipeline_asm_simd_try_inline_select_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     if (inl == 1) {
       return 0;
