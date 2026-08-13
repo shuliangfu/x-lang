@@ -4,7 +4,7 @@
 // the field still ran the dummy (helper/gates missed METHOD or CALL).
 // PLATFORM: SHARED — Ubuntu gold; no Wide / no array-lit CALL (typeck T001).
 
-struct Alloc {
+allow(padding) struct Alloc {
   kind: i32
   arena: i64
 }
