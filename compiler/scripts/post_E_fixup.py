@@ -244,6 +244,14 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       return 0;
     return typeck_is_const_expr_ref_impl(a, final_expr_ref, const_names, n_const_names);
   }
+  /* PLATFORM: SHARED — EXPR_AS is const iff the operand is (mirror
+   * typeck_cap_residual.from_x.c). Recurse as_operand only. */
+  if (kd == ast_ExprKind_EXPR_AS) {
+    int32_t op = e->as_operand_ref;
+    if (op <= 0)
+      return 0;
+    return typeck_is_const_expr_ref_impl(a, op, const_names, n_const_names);
+  }
   return 0;
 }
 
@@ -595,6 +603,14 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
     if (final_expr_ref <= 0)
       return 0;
     return typeck_is_const_expr_ref_impl(a, final_expr_ref, const_names, n_const_names);
+  }
+  /* PLATFORM: SHARED — EXPR_AS is const iff the operand is (mirror
+   * typeck_cap_residual.from_x.c). Recurse as_operand only. */
+  if (kd == ast_ExprKind_EXPR_AS) {
+    int32_t op = e->as_operand_ref;
+    if (op <= 0)
+      return 0;
+    return typeck_is_const_expr_ref_impl(a, op, const_names, n_const_names);
   }
   return 0;
 }

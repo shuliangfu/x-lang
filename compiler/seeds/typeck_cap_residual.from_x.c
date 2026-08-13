@@ -348,6 +348,26 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       return 0;
     return typeck_is_const_expr_ref_impl(a, final_expr_ref, const_names, n_const_names);
   }
+  /**
+   * PLATFORM: SHARED — EXPR_AS is a const expression iff the operand is.
+   *
+   * Why: `const n: i32 = 5 as i32` and `const s: []i32 = [10, 32] as []i32`
+   *      parse as EXPR_AS wrapping a const operand. The whitelist runs
+   *      before fold (wave460 already folds EXPR_AS) and had no case, so
+   *      typeck emitted T001 "const init must be constant expression".
+   *      Recurse into as_operand only — the target is a type_ref, not a
+   *      value. Identity ascriptions (ARRAY / SLICE) stay unstamped in
+   *      fold; emit peel remains authority for fat / fixed-array materialize.
+   *
+   * G.7: extend this whitelist (same helper as ARRAY_LIT / unary). Do not
+   *      add a second const-expr checker.
+   */
+  if (kd == ast_ExprKind_EXPR_AS) {
+    int32_t op = e->as_operand_ref;
+    if (op <= 0)
+      return 0;
+    return typeck_is_const_expr_ref_impl(a, op, const_names, n_const_names);
+  }
   return 0;
 }
 

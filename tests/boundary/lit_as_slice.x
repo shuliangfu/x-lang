@@ -1,7 +1,7 @@
 // Isolated: `[lit] as []T` must parse and emit a live fat (let / return / assign).
 // as_suffix type_ref + typeck ARRAY_LIT stamp + asm peel of identity ascription
 // so the existing ARRAY_LIT dual-GP path fires. Bare `let s = …` is P010.
-// const EXPR_AS is a later const-expr leaf.
+// const EXPR_AS is a separate const-expr leaf (lit_as_const.x).
 // Expected: compile = 0, run = 42 (host-C and asm).
 // PLATFORM: SHARED — Ubuntu gold.
 
