@@ -4,16 +4,26 @@ set -e
 cd "$(dirname "$0")/.."
 # Prefer explicit XLANG (caller-owned binary). bootstrap-link defaults XLANG_LINK to
 # xlang-c which is often broken after G-02a; do not force it when XLANG is set.
+# Product pure-asm default: do NOT inject silent -backend c (host-cc-requires-allow).
+# Host-cc only with XLANG_FORCE_LINK_BACKEND / XLANG_ALLOW_HOST_CC=1 (≡ hello/vector).
+# PLATFORM: SHARED
 CALLER_XLANG="${XLANG:-}"
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 if [ -n "$CALLER_XLANG" ] && [ -x "$CALLER_XLANG" ]; then
   XLANG="$CALLER_XLANG"
   LINK_XLANG="$CALLER_XLANG"
-  XLANG_LINK_BACKEND_ARGS="-backend c"
 else
   XLANG="${XLANG:-./compiler/xlang}"
   LINK_XLANG="${XLANG_LINK_XLANG:-${RUN_XLANG:-$XLANG}}"
+fi
+# Resolve backend once: FORCE > ALLOW host-c > pure-asm empty.
+if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+  XLANG_LINK_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
+elif [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ]; then
+  XLANG_LINK_BACKEND_ARGS="-backend c"
+else
+  XLANG_LINK_BACKEND_ARGS="${XLANG_LINK_BACKEND_ARGS:-}"
 fi
 compile_ub() {
     if [ -n "${XLANG_LINK_BACKEND_ARGS:-}" ]; then

@@ -14,7 +14,8 @@ fi
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 XLANG=${XLANG:-./compiler/xlang}
 LINK_XLANG="${RUN_XLANG:-$XLANG}"
-# 产品冷链：优先 XLANG/xlang_asm + -backend c；禁止 pin wrap 静默失败
+# Product pure-asm default. Host-cc -backend c only with FORCE/ALLOW.
+# PLATFORM: SHARED — silent -backend c hits host-cc-requires-allow (≡ hello/slice).
 case "$(basename "${XLANG:-}")" in
   xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
     LINK_XLANG="$XLANG"
@@ -30,8 +31,11 @@ case "$(basename "$LINK_XLANG")" in
   xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
     if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
       VEC_BACKEND="-backend ${XLANG_FORCE_LINK_BACKEND}"
-    else
+    elif [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ]; then
       VEC_BACKEND="-backend c"
+    else
+      # pure-asm product -o (default empty backend args)
+      VEC_BACKEND=""
     fi
     ;;
 esac

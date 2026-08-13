@@ -475,8 +475,8 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       esac
       ;;
     run-vector.sh)
-      # 产品冷链：-o 用 xlang_asm + -backend c（须已有 std/string/string.o）。
-      # 旧逻辑强绑 pin xlang-c → 冷 L2 后静默 compile fail、无 FAIL 文案。
+      # Product pure-asm -o via xlang_asm (same as hello/slice). No silent -backend c.
+      # PLATFORM: SHARED — host-cc only if caller exports FORCE/ALLOW.
       case "$(uname -m 2>/dev/null)" in
         x86_64|amd64)
           script_link="${XLANG_LINK_XLANG:-$script_shu}"
