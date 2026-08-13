@@ -2457,9 +2457,9 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(uint8_t * elf_ctx, int32_t off_a
   if ((ta !=0)) {
     return (0 - 1);
   }
-  int32_t elem0_a = (off_a - ((array_n - 1) * esz));
-  int32_t elem0_b = (off_b - ((array_n - 1) * esz));
-  int32_t elem0_d = (off_d - ((array_n - 1) * esz));
+  int32_t elem0_a = off_a;
+  int32_t elem0_b = off_b;
+  int32_t elem0_d = off_d;
   int32_t re9 = 0;
   {
     (void)((re9 = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta)));

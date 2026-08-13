@@ -892,9 +892,10 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx_impl(struct platform_elf_ElfCode
         return -1;
     if (ta != 0)
         return -1;
-    elem0_a = off_a - (array_n - 1) * esz;
-    elem0_b = off_b - (array_n - 1) * esz;
-    elem0_d = off_d - (array_n - 1) * esz;
+    /* Slot off_* is elem0 / array base (≡ peel `off - start*esz`). */
+    elem0_a = off_a;
+    elem0_b = off_b;
+    elem0_d = off_d;
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0)
         return -1;
     if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_a, ta) != 0)

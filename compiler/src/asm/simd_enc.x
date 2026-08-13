@@ -1833,9 +1833,12 @@ export function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32
   if (array_n <= 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
-  let elem0_a: i32 = off_a - (array_n - 1) * esz;
-  let elem0_b: i32 = off_b - (array_n - 1) * esz;
-  let elem0_d: i32 = off_d - (array_n - 1) * esz;
+  // Slot off_* is elem0 (array base), same convention as glue_emit_full_const_peel_c
+  // (`off - start*esz`). Subtracting (n-1)*esz pointed at the last element so i=0
+  // loaded padding and dst[0] stayed 0 (strip n=20 returned 0, not 6).
+  let elem0_a: i32 = off_a;
+  let elem0_b: i32 = off_b;
+  let elem0_d: i32 = off_d;
   let re9: i32 = 0;
   unsafe { re9 = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
   if (re9 != 0) { return 0 - 1; }
