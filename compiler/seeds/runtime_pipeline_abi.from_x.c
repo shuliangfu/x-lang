@@ -23291,9 +23291,10 @@ int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(void *arena,
  * G.7 authority (same as `let s = mk()` / glue_emit_struct_type_let_init):
  *   materialise CALL/METHOD/STRUCT_LIT root once into frame temp:
  *     0) STRUCT_LIT (45): emit fields into home (struct_let_init)
- *     1) try_inline STRUCT_LIT return (any size; CALL only)
+ *     1) try_inline STRUCT_LIT return (any size; CALL+METHOD attempt;
+ *        inliner still no-ops kind!=48)
  *     2) >16B: sret (x86 SysV rdi+shift / arm64 AAPCS64 x8)
- *     3) ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
+ *     3) ≤16B: emit CALL/METHOD + glue_store_retval_pair_to_rbp_elf_c
  *   then lea home+sum(field_offs); leave_addr ? return addr : load outermost field.
  *
  * Soft residual: frame temps ≥512 scratch.
@@ -23383,7 +23384,8 @@ int32_t glue_field_access_call_base_rvalue_elf_c(void *arena,
   ret_sz = 0;
   if (base_ty > 0)
     ret_sz = glue_type_size_simple(mod, arena, base_ty, 0);
-  if (ret_sz <= 0 && base_ko == 48)
+  /* CALL=48 METHOD_CALL=49: same callee-return size when type_size missed. */
+  if (ret_sz <= 0 && (base_ko == 48 || base_ko == 49))
     ret_sz = glue_call_return_byte_size_c(arena, base_ref);
   if (ret_sz <= 0 && base_ko == 45)
     ret_sz = pipeline_expr_struct_lit_value_bytes(arena, mod, base_ref);
@@ -23425,9 +23427,10 @@ int32_t glue_field_access_call_base_rvalue_elf_c(void *arena,
 
   /*
    * Materialise root CALL/METHOD/STRUCT_LIT into home — same order as let_init (G.7):
-   * STRUCT_LIT fields → inline STRUCT_LIT return CALL → sret if >16 → dual-GP if ≤16.
+   * STRUCT_LIT fields → inline STRUCT_LIT return CALL/METHOD → sret if >16 → dual-GP if ≤16.
    * wave593: pull try_inline out of >16-only so 9–16B STRUCT_LIT CALL.field greens.
    * wave608: bare STRUCT_LIT.field (not only CALL-return inline).
+   * METHOD shares ret_sz + try_inline attempt; inliner still no-ops kind!=48.
    */
   materialised = 0;
   if (base_ko == 45) {
@@ -23436,7 +23439,7 @@ int32_t glue_field_access_call_base_rvalue_elf_c(void *arena,
       return -1;
     materialised = 1;
   }
-  if (materialised == 0 && base_ko == 48) {
+  if (materialised == 0 && (base_ko == 48 || base_ko == 49)) {
     int32_t inl;
     inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
     if (inl == 1)
@@ -23449,10 +23452,10 @@ int32_t glue_field_access_call_base_rvalue_elf_c(void *arena,
   }
   if (materialised == 0 && ret_sz > 16) {
     /*
-     * Non-inline large CALL: materialise via sret into home.
+     * Non-inline large CALL/METHOD: materialise via sret into home.
      * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest in rdi + GP shift.
      * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest in x8; no GP shift.
-     * METHOD_CALL has no STRUCT_LIT-return inline helper; sret path covers it.
+     * try_inline no-ops METHOD (kind!=48); this sret path then covers it.
      */
     if (ta != 0 && ta != 1)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;

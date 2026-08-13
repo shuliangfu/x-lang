@@ -47502,6 +47502,8 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
 
 /**
  * CALL/METHOD/STRUCT_LIT-rooted field chains: materialise root, walk offsets.
+ * CALL(48) and METHOD_CALL(49) share ret_sz fallback and try_inline attempt;
+ * the inliner still no-ops kind!=48, then sret (>16) or emit+store (<=16).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - FIELD_ACCESS expr ref
@@ -47593,7 +47595,8 @@ export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u
     if (base_ty > 0) {
       ret_sz = glue_type_size_simple(mod, arena, base_ty, 0);
     }
-    if (ret_sz <= 0 && base_ko == 48) {
+    // CALL=48 METHOD_CALL=49: same callee-return size when type_size missed.
+    if (ret_sz <= 0 && (base_ko == 48 || base_ko == 49)) {
       ret_sz = glue_call_return_byte_size_c(arena, base_ref);
     }
     if (ret_sz <= 0 && base_ko == 45) {
@@ -47659,7 +47662,8 @@ export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u
     }
     materialised = 1;
   }
-  if (materialised == 0 && base_ko == 48) {
+  // METHOD shares the attempt; inliner returns 0 on kind!=48 then sret/dual-GP.
+  if (materialised == 0 && (base_ko == 48 || base_ko == 49)) {
     unsafe {
       inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
     }
