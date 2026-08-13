@@ -10822,14 +10822,13 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
   if (ko == 45)
     return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
   if (ko == 48 || ko == 49) {
-    if (ko == 48) {
-      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-      if (inl == 1)
-        return 0;
-      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-      if (inl == 1)
-        return 0;
-    }
+    /* G.7: METHOD(49) shares try_inline with CALL(48). Body already accepts 49. */
+    inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+    if (inl == 1)
+      return 0;
+    inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+    if (inl == 1)
+      return 0;
     pipeline_asm_set_call_expected_ret_ty_c(let_ty_ref > 0 ? let_ty_ref : 0);
     call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
     if (call_ret_sz <= 16 && let_ty_ref > 0) {

@@ -24457,7 +24457,7 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * @param stack_slot_off i32 - rbp-relative home
  * @return i32 - 0 handled; -1 error; -2 not a struct let-init kind
  * wave132 pure: G.7 authority (was static glue_emit_struct_type_let_init_elf_c).
- * CALL(48)/METHOD_CALL(49) share sret authority (import vec.new is METHOD_CALL).
+ * CALL(48)/METHOD_CALL(49) share try_inline then sret (import vec.new is METHOD_CALL).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
@@ -24481,21 +24481,20 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   if (ko == 45) {
     return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
   }
-  // CALL (48) or METHOD_CALL (49): inline then sret / dual-GP store
+  // CALL (48) or METHOD_CALL (49): try_inline param/const twins, then sret / dual-GP.
+  // G.7: METHOD shares the inliner (body already accepts 49). Do not CALL-only the gate.
   if (ko == 48 || ko == 49) {
-    if (ko == 48) {
-      unsafe {
-        inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-      }
-      if (inl == 1) {
-        return 0;
-      }
-      unsafe {
-        inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-      }
-      if (inl == 1) {
-        return 0;
-      }
+    unsafe {
+      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+    }
+    if (inl == 1) {
+      return 0;
+    }
+    unsafe {
+      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+    }
+    if (inl == 1) {
+      return 0;
     }
     // Install let decl type as expected return for import overload mangle.
     if (let_ty_ref > 0) {

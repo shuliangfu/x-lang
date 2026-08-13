@@ -63,8 +63,10 @@ impl Originable for Pair {
 }
 
 /**
- * Probe: METHOD.field plus CALL.field. Exit 0 on success; 1..8 name the miss.
- * 1-4 materialise/sret neighborhood; 5-6 param-struct-lit inline; 7-8 const inline.
+ * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init.
+ * Exit 0 on success; 1..16 name the miss.
+ * 1-4 materialise/sret neighborhood; 5-8 field-access inline;
+ * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood.
  * @return i32 — 0 ok
  */
 function main(): i32 {
@@ -81,5 +83,21 @@ function main(): i32 {
   /* METHOD const-struct-lit: try_inline writes literals; receiver unused. */
   if (p.origin().a != 0) { return 7; }
   if (p.origin().b != 0) { return 8; }
+  /* let-init METHOD param-struct-lit: glue_emit_struct_type_let_init try_inline gate. */
+  let q: Pair = 5.as_pair();
+  if (q.a != 5) { return 9; }
+  if (q.b != 5) { return 10; }
+  /* let-init METHOD const-struct-lit. */
+  let o: Pair = p.origin();
+  if (o.a != 0) { return 11; }
+  if (o.b != 0) { return 12; }
+  /* let-init METHOD sret neighborhood (increment is not param/const lit). */
+  let inc: Pair = p.increment();
+  if (inc.a != 11) { return 13; }
+  if (inc.b != 21) { return 14; }
+  /* let-init CALL neighborhood (gate already accepted 48). */
+  let m: Pair = mk(3, 4);
+  if (m.a != 3) { return 15; }
+  if (m.b != 4) { return 16; }
   return 0;
 }
