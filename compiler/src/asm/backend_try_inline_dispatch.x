@@ -2290,15 +2290,24 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
 // See implementation.
 
 /**
- * Try WPO mono vector-lane-of-binop call emit when XLANG_WPO_MONO is set.
+ * Emit a zero-arg WPO mono thunk call for `recv.lane0()` /
+ * `lane0_call(vec_binop([c…],[c…]))` when XLANG_WPO_MONO is set.
+ * Outer callee is `return param0[K]`; inner callee is
+ * `return param0 binop param1` (SIMD). CALL(48) outer: nargs==1.
+ * METHOD_CALL(49) outer: extra==0, param0 is method_call_base (UFCS).
+ * Inner CALL: nargs==2. Inner METHOD: extra==1, arg0=base, arg1=extra[0].
+ * Lookup is METHOD-safe (glue_call_lookup; CALL prefers resolved_func_index).
+ * Thunk base name comes from the looked-up outer func (copy64 cap),
+ * not CALL-only callee_ref VAR. Profile packs every lane of both
+ * array-lits (`outer__wpo_l0..ln_r0..rn`).
  * wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
- * @param arena *u8 — AST arena; null → return 0
- * @param elf_ctx *u8 — ELF/codegen context; null → return 0
- * @param expr_ref i32 — outer call expr ref; must be > 0
- * @param ctx *u8 — AsmFuncCtx; null → return 0
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param expr_ref i32 — outer CALL(48) or METHOD_CALL(49); <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
  * @param ta i32 — target arch token
- * @return i32 — 1 if mono path handled, 0 if skipped, -1 on encode failure
- * PLATFORM: SHARED — host residual only link_abi_getenv_impl
+ * @return i32 — 1 mono call emitted, 0 no match / env unset, -1 encode error
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same predicate.
  */
 #[no_mangle]
 export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
@@ -2315,50 +2324,67 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
     // wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv).
     if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
-    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
-    if (mod_ref == 0) { return 0; }
-    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    let outer_callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-    if (outer_callee_ref <= 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, outer_callee_ref) != 3) { return 0; }
-    let olen: i32 = pipeline_expr_var_name_len(arena, outer_callee_ref);
-    if (olen <= 0) { return 0; }
-    if (olen > 127) { return 0; }
-    let outer_name: u8[128] = [];
-    pipeline_expr_var_name_into(arena, outer_callee_ref, &outer_name[0]);
-    outer_name[olen] = 0;
-    let outer_fi: i32 = glue_module_func_index_by_name(mod_ref, &outer_name[0], olen);
-    if (outer_fi < 0) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    // CALL=48 METHOD_CALL=49: same lane-of-const-vector-binop → mono thunk.
+    if (ko != 48 && ko != 49) { return 0; }
+    if (ko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
+    } else {
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    }
+    let oca_slot: u8[8] = [];
+    let ocm_slot: u8[8] = [];
+    let outer_fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &oca_slot[0], &ocm_slot[0], &outer_fi) == 0) {
+      return 0;
+    }
+    let outer_arena: *u8 = g02f_load_ptr_at(&oca_slot[0], 0);
+    let outer_mod: *u8 = g02f_load_ptr_at(&ocm_slot[0], 0);
+    if (outer_arena == 0) { return 0; }
+    if (outer_mod == 0) { return 0; }
     let lane: i32 = 0;
-    if (glue_fold_func_returns_param0_index_const(arena, mod_ref, outer_fi, &lane) == 0) { return 0; }
-    let inner_call_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0) { return 0; }
+    let inner_call_ref: i32 = 0;
+    if (ko == 49) {
+      inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
     if (inner_call_ref <= 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, inner_call_ref) != 48) { return 0; }
-    if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) { return 0; }
-    let inner_callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner_call_ref);
-    if (inner_callee_ref <= 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, inner_callee_ref) != 3) { return 0; }
-    let ilen: i32 = pipeline_expr_var_name_len(arena, inner_callee_ref);
-    if (ilen <= 0) { return 0; }
-    if (ilen > 127) { return 0; }
-    let inner_name: u8[128] = [];
-    pipeline_expr_var_name_into(arena, inner_callee_ref, &inner_name[0]);
-    let inner_fi: i32 = glue_module_func_index_by_name(mod_ref, &inner_name[0], ilen);
-    if (inner_fi < 0) { return 0; }
+    let iko: i32 = pipeline_expr_kind_ord_at(arena, inner_call_ref);
+    if (iko != 48 && iko != 49) { return 0; }
+    if (iko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1) { return 0; }
+    } else {
+      if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) { return 0; }
+    }
+    let ica_slot: u8[8] = [];
+    let icm_slot: u8[8] = [];
+    let inner_fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &ica_slot[0], &icm_slot[0], &inner_fi) == 0) {
+      return 0;
+    }
+    let inner_arena: *u8 = g02f_load_ptr_at(&ica_slot[0], 0);
+    let inner_mod: *u8 = g02f_load_ptr_at(&icm_slot[0], 0);
+    if (inner_arena == 0) { return 0; }
+    if (inner_mod == 0) { return 0; }
     let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_vector_binop(arena, mod_ref, inner_fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-    let arg1: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+    if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = 0;
+    let arg1: i32 = 0;
+    if (iko == 49) {
+      arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
+    } else {
+      arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+    }
     if (arg0 <= 0) { return 0; }
     if (arg1 <= 0) { return 0; }
-    // ARRAY_LIT=46
-    if (pipeline_expr_kind_ord_at(arena, arg0) != 46) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, arg1) != 46) { return 0; }
     let nargs: i32 = pipeline_expr_array_lit_num_elems_at(arena, arg0);
     if (nargs <= 0) { return 0; }
     if (nargs != pipeline_expr_array_lit_num_elems_at(arena, arg1)) { return 0; }
-    // See implementation.
+    // Profile packs both vectors; cap matches GLUE_WPO_MONO_MAX_ARGS/2.
     if (nargs > 4) { return 0; }
     let mono_args: i32[8] = [];
     let li: i32 = 0;
@@ -2377,9 +2403,16 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0) { return 0; }
     let folded: i32 = 0;
     if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
-    glue_wpo_mono_register_thunk_n(&outer_name[0], nargs * 2, &mono_args[0], folded);
+    // copy64 dest is 128 bytes; refuse longer names rather than truncate the thunk base.
+    let clen: i32 = pipeline_asm_module_func_name_len_at(outer_mod, outer_fi);
+    if (clen <= 0) { return 0; }
+    if (clen > 63) { return 0; }
+    let cname: u8[128] = [];
+    pipeline_asm_module_func_name_copy64(outer_mod, outer_fi, &cname[0]);
+    cname[clen] = 0;
+    glue_wpo_mono_register_thunk_n(&cname[0], nargs * 2, &mono_args[0], folded);
     let sym: u8[128] = [];
-    let sym_len: i32 = codegen_wpo_mono_sym_format(&outer_name[0], nargs * 2, &mono_args[0], &sym[0], 128);
+    let sym_len: i32 = codegen_wpo_mono_sym_format(&cname[0], nargs * 2, &mono_args[0], &sym[0], 128);
     if (sym_len <= 0) { return 0 - 1; }
     if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }
     if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }

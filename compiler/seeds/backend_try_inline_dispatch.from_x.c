@@ -2172,7 +2172,12 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
 #endif
 
 /**
- * WPO-S2 vec mono：laneK(vec_binop([const…],[const…])) → bl 单态 thunk（零实参，rax=fold 结果）。
+ * WPO-S2 vec mono：recv.lane0() / lane0(vec_binop([const…],[const…])) →
+ * call 单态 thunk（零实参，rax=fold 结果）。
+ * CALL(48) outer: nargs==1. METHOD_CALL(49) outer: extra==0, arg=base.
+ * Inner CALL: nargs==2. Inner METHOD: extra==1, arg0=base, arg1=extra[0].
+ * Lookup is METHOD-safe (glue_call_lookup; CALL prefers resolved_func_index).
+ * Thunk base name comes from the looked-up outer func (copy64 cap).
  * 符号形如 lane0__wpo_1_2_3_4_10_20_30_40（8 个 lane 常量实参 profile）。
  * 返回 1=已发射 call，0=未匹配或未启用，-1=错误。
  */
@@ -2181,12 +2186,13 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
 int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_Module *mod_ref;
-  int32_t outer_callee_ref;
+  struct ast_ASTArena *outer_arena;
+  struct ast_Module *outer_mod;
+  struct ast_ASTArena *inner_arena;
+  struct ast_Module *inner_mod;
   int32_t outer_fi;
   int32_t lane;
   int32_t inner_call_ref;
-  int32_t inner_callee_ref;
   int32_t inner_fi;
   int32_t binop_ko;
   int32_t arg0;
@@ -2199,60 +2205,57 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena
   int32_t li;
   char sym[128];
   int sym_len;
-  uint8_t outer_name[128];
-  int32_t olen;
+  uint8_t cname[128];
+  int32_t clen;
+  int32_t ko;
+  int32_t iko;
   /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
   if (!link_abi_getenv("XLANG_WPO_MONO"))
     return 0;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  mod_ref = ctx->module_ref;
-  if (!mod_ref)
-    return 0;
-  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1)
-    return 0;
-  outer_callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-  if (outer_callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, outer_callee_ref) != GLUE_EXPR_VAR)
-    return 0;
-  olen = pipeline_expr_var_name_len(arena, outer_callee_ref);
-  if (olen <= 0 || olen > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, outer_callee_ref, outer_name);
-  outer_name[olen] = 0;
-  outer_fi = glue_module_func_index_by_name(mod_ref, outer_name, olen);
-  if (outer_fi < 0)
-    return 0;
-  if (glue_fold_func_returns_param0_index_const(arena, mod_ref, outer_fi, &lane) == 0)
-    return 0;
-  inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-  if (inner_call_ref <= 0 || pipeline_expr_kind_ord_at(arena, inner_call_ref) != GLUE_EXPR_CALL)
-    return 0;
-  if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2)
-    return 0;
-  inner_callee_ref = pipeline_expr_call_callee_ref_at(arena, inner_call_ref);
-  if (inner_callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, inner_callee_ref) != GLUE_EXPR_VAR)
-    return 0;
-  {
-    uint8_t inner_name[128];
-    int32_t ilen;
-    ilen = pipeline_expr_var_name_len(arena, inner_callee_ref);
-    if (ilen <= 0 || ilen > 63)
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0)
       return 0;
-    pipeline_expr_var_name_into(arena, inner_callee_ref, inner_name);
-    inner_fi = glue_module_func_index_by_name(mod_ref, inner_name, ilen);
+  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
+    return 0;
   }
-  if (inner_fi < 0)
+  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &outer_arena, &outer_mod, &outer_fi) == 0)
     return 0;
-  if (glue_fold_func_returns_param01_vector_binop(arena, mod_ref, inner_fi, &binop_ko) == 0)
+  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
+   * (overload pick). Name-only first-match is METHOD-only. */
+  if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0)
     return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+  if (ko == GLUE_EXPR_METHOD_CALL)
+    inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  else
+    inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+  if (inner_call_ref <= 0)
+    return 0;
+  iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
+  if (iko != GLUE_EXPR_CALL && iko != GLUE_EXPR_METHOD_CALL)
+    return 0;
+  if (iko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) {
+    return 0;
+  }
+  if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &inner_arena, &inner_mod, &inner_fi) == 0)
+    return 0;
+  if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0)
+    return 0;
+  if (iko == GLUE_EXPR_METHOD_CALL) {
+    arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+  }
   if (arg0 <= 0 || arg1 <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, arg0) != GLUE_EXPR_ARRAY_LIT ||
-      pipeline_expr_kind_ord_at(arena, arg1) != GLUE_EXPR_ARRAY_LIT)
     return 0;
   nargs = pipeline_expr_array_lit_num_elems_at(arena, arg0);
   if (nargs <= 0 || nargs != pipeline_expr_array_lit_num_elems_at(arena, arg1))
@@ -2275,8 +2278,13 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena
     return 0;
   if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0)
     return 0;
-  glue_wpo_mono_register_thunk_n((const char *)outer_name, nargs * 2, mono_args, folded);
-  sym_len = codegen_wpo_mono_sym_format((const char *)outer_name, nargs * 2, mono_args, sym, (int)sizeof(sym));
+  clen = pipeline_asm_module_func_name_len_at(outer_mod, outer_fi);
+  if (clen <= 0 || clen > 63)
+    return 0;
+  pipeline_asm_module_func_name_copy64(outer_mod, outer_fi, cname);
+  cname[clen] = 0;
+  glue_wpo_mono_register_thunk_n((const char *)cname, nargs * 2, mono_args, folded);
+  sym_len = codegen_wpo_mono_sym_format((const char *)cname, nargs * 2, mono_args, sym, (int)sizeof(sym));
   if (sym_len <= 0)
     return -1;
   if (backend_enc_call_arch(elf_ctx, (uint8_t *)sym, sym_len, ta) != 0)

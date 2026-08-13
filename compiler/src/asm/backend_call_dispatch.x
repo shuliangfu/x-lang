@@ -2280,10 +2280,13 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
-    // G.7: same param0.field / field-sum / x+K / wpo_mono-symbol / wpo_const-scalar / vector_lane
-    // folds as CALL emit (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
+    // G.7: same param0.field / field-sum / x+K / wpo_mono-symbol / wpo_mono-vector_lane
+    // / wpo_const-scalar / vector_lane folds as CALL emit
+    // (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
     //  recv.plus_one() ≡ add_one(recv); recv.fold_add(K) ≡ fold_add_call(recv, K);
     //  XLANG_WPO_MONO: recv.fold_add(K) ≡ fold_add_call(recv, K) via zero-arg thunk;
+    //  XLANG_WPO_MONO: recv.lane0() ≡ lane0_call(recv) via zero-arg thunk
+    //  when recv is const vec_binop;
     //  recv.lane0() ≡ lane0_call(recv) when recv is const vec_binop).
     // After import-binding: import methods must not enter lookup/fold (option/si SEGV).
     // extra mismatch / fold miss / PTR → 0, fall through to UFCS CALL.
@@ -2308,12 +2311,20 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         return 0;
       }
     }
-    // Same order as CALL emit: mono symbol (self-gates on XLANG_WPO_MONO) then
-    // const fold only when neither mono nor no-fold env is set.
+    // Same order as CALL emit: mono symbol then vector_lane mono
+    // (both self-gate on XLANG_WPO_MONO) then const fold only when
+    // neither mono nor no-fold env is set.
     {
       let inline_ms: i32 = try_call_wpo_mono_symbol_elf(arena, elf_ctx, expr_ref, ctx, ta);
       if (inline_ms != 0) {
         if (inline_ms < 0) { return 0 - 1; }
+        return 0;
+      }
+    }
+    {
+      let inline_mv: i32 = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+      if (inline_mv != 0) {
+        if (inline_mv < 0) { return 0 - 1; }
         return 0;
       }
     }
