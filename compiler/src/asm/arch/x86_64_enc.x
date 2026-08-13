@@ -68,11 +68,27 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   if (elf.append_elf_bytes(ctx, mov, 3) != 0) { return -1; }
   /* pushq %rbx — callee-saved; body may use rbx as store base. */
   if (enc_u8(ctx, 83) != 0) { return -1; }
+  /*
+   * PLATFORM: SHARED x86_64 SysV.
+   * push rbp + push rbx leave RSP ≡ 8 (mod 16) after entry (RSP ≡ 8).
+   * Before CALL, ABI needs RSP ≡ 0 — so sub imm must be ≡ 8 (mod 16).
+   * See arch_x86_64_enc_enc_prologue (product authority; same pad rule).
+   */
+  let fs_i: i32 = frame_size;
+  if (fs_i < 0) { fs_i = 0; }
+  let rem: i32 = fs_i % 16;
+  if (rem != 8) {
+    if (rem < 8) {
+      fs_i = fs_i + (8 - rem);
+    } else {
+      fs_i = fs_i + (16 - rem + 8);
+    }
+  }
   let sub: u8[7] = [72, 129, 236, 0, 0, 0, 0];
-  sub[3] = elf.elf_to_u8(frame_size);
-  sub[4] = elf.elf_to_u8(frame_size >> 8);
-  sub[5] = elf.elf_to_u8(frame_size >> 16);
-  sub[6] = elf.elf_to_u8(frame_size >> 24);
+  sub[3] = elf.elf_to_u8(fs_i);
+  sub[4] = elf.elf_to_u8(fs_i >> 8);
+  sub[5] = elf.elf_to_u8(fs_i >> 16);
+  sub[6] = elf.elf_to_u8(fs_i >> 24);
   return elf.append_elf_bytes(ctx, sub, 7);
 }
 

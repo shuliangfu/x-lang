@@ -406,8 +406,17 @@ int32_t arch_x86_64_enc_enc_prologue(uint8_t * elf_ctx, int32_t frame_size) {
   if ((x86_enc_u8(elf_ctx, 83) !=0)) {
     return -1;
   }
+  /* SysV 16B: after push rbp+rbx, pad sub imm to ≡8 mod 16 (see .x authority). */
+  int32_t fs_i = frame_size;
+  int32_t rem;
+  if (fs_i < 0) fs_i = 0;
+  rem = fs_i % 16;
+  if (rem != 8) {
+    if (rem < 8) fs_i = fs_i + (8 - rem);
+    else fs_i = fs_i + (16 - rem + 8);
+  }
   uint8_t sub[7] = {72, 129, 236, 0, 0, 0, 0};
-  uint32_t fs = ((uint32_t)(frame_size));
+  uint32_t fs = ((uint32_t)(fs_i));
   (void)(((sub)[3] = ((uint8_t)((fs & 255)))));
   (void)(((sub)[4] = ((uint8_t)(((fs / 256) & 255)))));
   (void)(((sub)[5] = ((uint8_t)(((fs / 65536) & 255)))));

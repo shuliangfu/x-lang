@@ -239,19 +239,30 @@ int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int
 /*
  * 【Why 根源】push/pop %rbx：body 用 rbx 作 array/const 基址却未保存，破坏 SysV 被调方保存；
  *   args_iter_count_c 覆写 next 保存在 rbx 的 it → run-env env_iter Ubuntu exit 1。
+ * SysV 16B CALL align (same as backend_x86_64_enc_c.x): after push rbp+push rbx,
+ *   RSP≡8; sub imm must be ≡8 mod 16 so body CALL sites have RSP≡0. Else glibc
+ *   mktime/tzset/sscanf SEGV (run-time format_timezone). Locals rbp-relative.
  * PLATFORM: SHARED x86_64 SysV. Seed 与 arch/x86_64_enc.x 同语义。
  */
 int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
   uint8_t mov[3] = {72, 137, 229};
   uint8_t sub[7] = {72, 129, 236, 0, 0, 0, 0};
+  int32_t fs_i = frame_size;
+  int32_t rem;
   if (!elf_ctx) return -1;
   if (x86_enc_u8(elf_ctx, 85) != 0) return -1; /* push rbp */
   if (X86_ENC_FIXED(elf_ctx, mov) != 0) return -1; /* mov rbp, rsp */
   if (x86_enc_u8(elf_ctx, 83) != 0) return -1; /* push rbx (callee-saved) */
-  sub[3] = (uint8_t)(frame_size & 255);
-  sub[4] = (uint8_t)((frame_size >> 8) & 255);
-  sub[5] = (uint8_t)((frame_size >> 16) & 255);
-  sub[6] = (uint8_t)((frame_size >> 24) & 255);
+  if (fs_i < 0) fs_i = 0;
+  rem = fs_i % 16;
+  if (rem != 8) {
+    if (rem < 8) fs_i = fs_i + (8 - rem);
+    else fs_i = fs_i + (16 - rem + 8);
+  }
+  sub[3] = (uint8_t)(fs_i & 255);
+  sub[4] = (uint8_t)((fs_i >> 8) & 255);
+  sub[5] = (uint8_t)((fs_i >> 16) & 255);
+  sub[6] = (uint8_t)((fs_i >> 24) & 255);
   return X86_ENC_FIXED(elf_ctx, sub);
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */

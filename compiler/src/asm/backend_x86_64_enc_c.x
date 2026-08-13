@@ -338,9 +338,20 @@ export function x86_enc_alu_imm32_to_reg(elf_ctx: *u8, imm: i32, op_prefix: u8, 
 
 /** Emit x86_64 function prologue: push rbp; mov rbp,rsp; push rbx; sub rsp,frame.
  * Saves rbx (callee-saved) because body may use it as array/const base (SysV).
- * PLATFORM: SHARED — x86_64 SysV. Cap residual pure R2 wave1.
+ *
+ * SysV AMD64 stack alignment (G.7 authority for pure-asm CALL sites):
+ *   At function entry RSP ≡ 8 (mod 16). After `push rbp` + `push rbx`, RSP ≡ 8.
+ *   ABI requires RSP ≡ 0 (mod 16) immediately before every CALL. Therefore the
+ *   `sub rsp, imm` amount must be ≡ 8 (mod 16). compute_frame_size rounds to a
+ *   multiple of 16 (≡ 0), which alone leaves CALL sites misaligned and crashes
+ *   glibc paths that use SSE/movaps (e.g. mktime/tzset → sscanf → SEGV in
+ *   format_timezone / wall_local_offset_min). Locals stay rbp-relative; padding
+ *   only grows the sub amount. Epilogue lea rsp,[rbp-8]; pop rbx; pop rbp is
+ *   independent of the padded size.
+ *
+ * PLATFORM: SHARED — x86_64 SysV (LINUX gold + Darwin x86_64). Cap residual pure R2 wave1.
  * @param elf_ctx opaque ElfCodegenCtx*
- * @param frame_size stack frame bytes (LE encoded into sub imm32)
+ * @param frame_size stack frame bytes (LE encoded into sub imm32); padded to ≡8 mod 16
  * @return 0 on success, -1 on failure
  */
 #[no_mangle]
@@ -350,8 +361,20 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_size: i32): i32
   let mov: u8[3] = [72, 137, 229];
   if (x86_enc_bytes(elf_ctx, mov, 3) != 0) { return 0 - 1; }
   if (x86_enc_u8(elf_ctx, 83) != 0) { return 0 - 1; }
+  // Pad frame so after push rbp+push rbx, RSP ≡ 0 before body CALLs (SysV 16B).
+  let fs_i: i32 = frame_size;
+  if (fs_i < 0) { fs_i = 0; }
+  let rem: i32 = fs_i % 16;
+  if (rem != 8) {
+    // rem in 0..15; add (8-rem) mod 16, with positive remainder.
+    if (rem < 8) {
+      fs_i = fs_i + (8 - rem);
+    } else {
+      fs_i = fs_i + (16 - rem + 8);
+    }
+  }
   let sub: u8[7] = [72, 129, 236, 0, 0, 0, 0];
-  let fs: u32 = frame_size as u32;
+  let fs: u32 = fs_i as u32;
   sub[3] = (fs & 255) as u8;
   sub[4] = ((fs / 256) & 255) as u8;
   sub[5] = ((fs / 65536) & 255) as u8;
