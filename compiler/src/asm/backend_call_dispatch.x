@@ -956,9 +956,8 @@ export function glue_emit_one_call_arg_elf_c(
       return 0 - 1;
     }
     let pty: i32 = glue_call_param_type_ref_at(arena, call_expr_ref, arg_index);
-    let arg_ko: i32 = pipeline_expr_kind_ord_at(arena, arg_ref);
-    // CALL=48 METHOD_CALL=49: same classifier + 16B spill (G.7 harvest).
-    if (arg_ko == 48 || arg_ko == 49) {
+    // CALL=48
+    if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48) {
       if (pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, arg_ref) != 0) {
         if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
           pipeline_asm_emit_call_arg_end_c();

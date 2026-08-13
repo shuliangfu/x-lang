@@ -38154,11 +38154,14 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
     btk = 0;
   }
   if (bty > 0 && btk == 11 && (base_ko == 48 || base_ko == 49)) {
-    // CALL/METHOD: classifier is the sret-vs-dual-GP authority (TYPE_SLICE → 0).
-    unsafe {
-      nd = pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref);
+    if (base_ko != 48) {
+      nd = 0;
+    } else {
+      unsafe {
+        nd = pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref);
+      }
     }
-    if (nd == 0) {
+    if (base_ko != 48 || nd == 0) {
       // SysV arg_reg 2 = rdx — length half after dual-GP return
       unsafe {
         rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 2, ta);
@@ -38445,15 +38448,16 @@ export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8,
     return 0 - 2;
   }
   dual_gp = 0;
-  if (base_ko == 47) {
-    // INDEX is not a call; outer emit already left dual-GP in rax+rdx.
+  if (base_ko == 49 || base_ko == 47) {
     dual_gp = 1;
-  } else if (base_ko == 48 || base_ko == 49) {
-    unsafe {
-      nd = pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref);
-    }
-    if (nd == 0) {
-      dual_gp = 1;
+  } else {
+    if (base_ko == 48) {
+      unsafe {
+        nd = pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref);
+      }
+      if (nd == 0) {
+        dual_gp = 1;
+      }
     }
   }
   ly = pipeline_asm_ctx_layout(ctx);
@@ -65239,17 +65243,17 @@ export function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32)
 }
 
 /**
- * Classify whether a 16B struct CALL/METHOD retval arrives via rax pointer
- * (C sret) vs rax+rdx by-value (pure-asm dual-GP).
+ * Classify whether a 16B struct CALL retval arrives via rax pointer (C sret)
+ * vs rax+rdx by-value (pure-asm dual-GP).
  * Rule (G.7 single classifier — do not reimplement elsewhere):
- *   non-CALL/METHOD / resolve fail / null mod → 0 (safe dual-GP default)
+ *   non-CALL / resolve fail / null mod → 0 (safe dual-GP default)
  *   TYPE_SLICE / TYPE_ARRAY / fixed-array return → 0
  *   ok_i32 / err_i32 / ok_u8 / err_u8 whitelist → 0 (asm dual-GP)
  *   skip_heavy C body → 1 (pointer in rax)
  *   pure-asm body → 0
  * heavy alone is the deref authority (wave594: ban blanket size>8 → 1).
  * @param arena *u8 — ASTArena*; null → 0
- * @param call_expr_ref i32 — EXPR_CALL(48) or METHOD_CALL(49); ≤0 or other → 0
+ * @param call_expr_ref i32 — EXPR_CALL ref; ≤0 or non-CALL (kind≠48) → 0
  * @return i32 — 1 needs *rax deref; 0 dual-GP by value (never negative)
  *
  * wave197 pure: G.7 authority (was Cap residual call_args wave1061).
@@ -65277,9 +65281,8 @@ export function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, cal
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_expr_ref);
   }
-  // EXPR_CALL=48 / EXPR_METHOD_CALL=49: same skip_heavy sret-vs-dual-GP harvest.
-  // resolve_call_target already walks METHOD (import BINDING + resolved_fi).
-  if (ko != 48 && ko != 49) {
+  // EXPR_CALL == 48
+  if (ko != 48) {
     return 0;
   }
   pipe_store_ptr_slot(&mod_slot[0], 0, 0 as *u8);
@@ -66986,7 +66989,7 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
     }
   }
-  // 9–16B CALL/METHOD returning struct16 via rax-pointer may need *rax → dual-GP first.
+  // 9–16B CALL returning struct16 via rax-pointer may need *rax → dual-GP first.
   if (sz > 8 && sz <= 16 && init_ref > 0 && arena != (0 as *u8)) {
     if (pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, init_ref) != 0) {
       if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
