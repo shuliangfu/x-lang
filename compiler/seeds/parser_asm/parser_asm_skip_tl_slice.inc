@@ -2381,28 +2381,98 @@ void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len) {
  * sites. Called from xlang_trait_check_impls_complete_c via the stashed source
  * pointer. Populates g_fn_bound_* and g_call_* globals.
  *
- * Bound pattern: `function IDENT < IDENT : IDENT >` and
- *   `struct IDENT < IDENT : IDENT >` — the second IDENT is the bound trait;
- *   stored as (decl_name, trait_name). Same type-param may list several
- *   traits with `+` (`T: Clone + Default`): each IDENT after `+` is another
- *   bound at the SAME pos (COMMA still advances pos).
+ * Bound pattern: `function IDENT < IDENT : IDENT >`,
+ *   `struct IDENT < IDENT : IDENT >`, `impl IDENT < IDENT : IDENT >`, and
+ *   `impl < IDENT : IDENT > Type` / `impl <…> Trait for Type` — the bound
+ *   trait is the IDENT after `:`; stored as (decl_name, trait_name).
+ *   Impl-level rows are keyed by the for-type (inherent Type or `for Type`)
+ *   so type-position `Foo<B>` uses the same check as struct-level bounds.
+ *   Same type-param may list several traits with `+` (`T: Clone + Default`):
+ *   each IDENT after `+` is another bound at the SAME pos (COMMA still
+ *   advances pos).
  * Instantiation pattern: `IDENT < IDENT >` followed by `(` (generic call)
  *   or type-position `{` `=` `;` `,` `)` (`let f: Foo<B> = …`, `x: Foo<B>`,
  *   `Foo<B> { … }`). Comparisons `a < b` have no `>` so they are not
  *   captured. Nested `foo<Vec<i32>>` (angle depth > 1) stays soft-skip.
- * Soft: dyn Trait; impl-level `impl<T: Trait>` (no IDENT before `<`).
+ * Soft: dyn Trait (no KW / TYPE_DYN). Bare `Foo { }` without a type-pos
+ *   `Foo<B>` is not captured (inference leftover).
  * PLATFORM: SHARED parse.
  */
+
+extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out,
+                                                            struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source);
+
+/*
+ * Peek the for-type IDENT after `impl<...>`.
+ * `lex` must sit at the `<` of `impl<`. Does not mutate caller lex.
+ * Inherent `impl<T: Clone> Foo` → Foo; `impl<T: Clone> Clone for Foo` → Foo.
+ * @param source   file slice (same as the scan lexer)
+ * @param lex      lexer at the impl-level `<`
+ * @param name64   out: for-type bytes (cleared on miss)
+ * @param name_len out: length ≤63
+ * @return 1 hit; 0 no IDENT for-type
+ * PLATFORM: SHARED parse — G.7 peek only; bound walk stays in scan.
+ */
+static int32_t xlang_generic_bound_peek_impl_for_type_c(struct parser_asm_slice_u8 *source,
+                                                        struct parser_asm_lexer lex,
+                                                        uint8_t *name64, int32_t *name_len) {
+  struct parser_asm_lexer peek;
+  struct parser_asm_lexer_result pr;
+  uint8_t name1[64];
+  int32_t n1;
+  if (!source || !name64 || !name_len)
+    return 0;
+  *name_len = 0;
+  memset(name64, 0, 64);
+  memset(name1, 0, 64);
+  n1 = 0;
+  parser_asm_skip_generic_angle_list_into_slice_c(&peek, lex, source);
+  lexer_next_into(&pr, peek, source);
+  if (pr.tok.kind != (int32_t)TOKEN_IDENT)
+    return 0;
+  n1 = pr.tok.ident_len > 63 ? 63 : pr.tok.ident_len;
+  if (n1 > 0 && source->data)
+    memcpy(name1, source->data + pr.token_start, (size_t)n1);
+  peek = pr.next_lex;
+  lexer_next_into(&pr, peek, source);
+  if (pr.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&peek, peek, source);
+    lexer_next_into(&pr, peek, source);
+  }
+  if (pr.tok.kind == (int32_t)TOKEN_FOR) {
+    peek = pr.next_lex;
+    lexer_next_into(&pr, peek, source);
+    if (pr.tok.kind == (int32_t)TOKEN_STAR) {
+      peek = pr.next_lex;
+      lexer_next_into(&pr, peek, source);
+    }
+    if (pr.tok.kind != (int32_t)TOKEN_IDENT)
+      return 0;
+    n1 = pr.tok.ident_len > 63 ? 63 : pr.tok.ident_len;
+    memset(name1, 0, 64);
+    if (n1 > 0 && source->data)
+      memcpy(name1, source->data + pr.token_start, (size_t)n1);
+  }
+  if (n1 <= 0)
+    return 0;
+  memcpy(name64, name1, (size_t)n1);
+  *name_len = n1;
+  return 1;
+}
+
 void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
   struct parser_asm_slice_u8 source;
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
   int32_t prev_function = 0;
   int32_t prev_struct = 0;
+  int32_t prev_impl = 0;
   uint8_t last_ident[64];
   int32_t last_ident_len = 0;
   int32_t last_ident_is_fn = 0;
   int32_t last_ident_is_struct = 0;
+  int32_t last_ident_is_impl = 0;
 
   /*
    * wave455: if source was never stashed (product pure parse path fully
@@ -2442,6 +2512,7 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       prev_function = 1;
       prev_struct = 0;
+      prev_impl = 0;
       last_ident_len = 0;
     } else if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
       /* 4.2.2 struct-level `<T: Trait>` — same bound tables as function.
@@ -2449,6 +2520,17 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
        * `struct Foo<T: Clone>` never recorded → Foo<B> false-green. */
       prev_struct = 1;
       prev_function = 0;
+      prev_impl = 0;
+      last_ident_len = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_IMPL) {
+      /* 4.2.2 impl-level `<T: Trait>` — `impl<T: Clone> Foo` has no IDENT
+       * before `<`; `impl Foo<T: Clone>` has IDENT Foo after impl.
+       * prev_impl arms both: peek for-type on bare `<`, or last_ident_is_impl
+       * on `impl Type<...>`. Key = for-type so Foo<B> uses the same check.
+       * PLATFORM: SHARED parse. */
+      prev_impl = 1;
+      prev_function = 0;
+      prev_struct = 0;
       last_ident_len = 0;
     } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
       last_ident_len = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
@@ -2456,19 +2538,31 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
         memcpy(last_ident, source.data + r.token_start, (size_t)last_ident_len);
       last_ident_is_fn = prev_function;
       last_ident_is_struct = prev_struct;
+      last_ident_is_impl = prev_impl;
       prev_function = 0;
       prev_struct = 0;
-    } else if (r.tok.kind == (int32_t)TOKEN_LT && last_ident_len > 0) {
+      prev_impl = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_LT && (last_ident_len > 0 || prev_impl)) {
+      /* `impl<T: Trait> Type` — no IDENT before `<`. Peek the for-type and
+       * reuse the function/struct bound walk (name = for-type). */
+      if (prev_impl && last_ident_len == 0) {
+        if (xlang_generic_bound_peek_impl_for_type_c(&source, lex, last_ident,
+                                                     &last_ident_len))
+          last_ident_is_impl = 1;
+        prev_impl = 0;
+      }
       /* advance lex past the `<` so the inner loops read the token AFTER it
        * (otherwise the first lexer_next_into re-reads `<` and inflates depth). */
       lex = r.next_lex;
-      if (last_ident_is_fn || last_ident_is_struct) {
-        /* function/struct name < ... > — scan for:
+      if (last_ident_len > 0 && (last_ident_is_fn || last_ident_is_struct
+                                 || last_ident_is_impl)) {
+        /* function/struct/impl name < ... > — scan for:
          *  (1) wave442 `IDENT : IDENT` bounds with positional pos
          *  (2) wave455 declaration-order type-param names (all slots)
          * Type-param IDENT is the first IDENT at depth 1 after `<` or `,`
          * (expect_tp); COLON switches to expect_trait for the bound name.
-         * struct Foo<T: Clone> uses the same tables (name = struct name).
+         * struct Foo<T: Clone> / impl Foo<T: Clone> / impl<T: Clone> Foo
+         * use the same tables (name = struct / for-type).
          * PLATFORM: SHARED — same angle walk as bound-only path. */
         int32_t angle_depth = 1;
         int32_t expect_trait = 0;
@@ -2543,7 +2637,7 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
           }
           lex = r.next_lex;
         }
-      } else if (!last_ident_is_fn && g_call_n < XLANG_GENERIC_CALL_MAX) {
+      } else if (!last_ident_is_fn && last_ident_len > 0 && g_call_n < XLANG_GENERIC_CALL_MAX) {
         /* IDENT < ... > — possible generic call. wave442: capture ALL simple
          * type args (up to XLANG_GENERIC_CALL_MAX_ARGS) at angle depth 1, not
          * just the first, so multi-arg bounds `foo<A,B>` check each type arg
@@ -2615,11 +2709,14 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
       last_ident_len = 0;
       last_ident_is_fn = 0;
       last_ident_is_struct = 0;
+      last_ident_is_impl = 0;
       prev_function = 0;
       prev_struct = 0;
+      prev_impl = 0;
     } else {
       prev_function = 0;
       prev_struct = 0;
+      prev_impl = 0;
       if (r.tok.kind != (int32_t)TOKEN_DOT && r.tok.kind != (int32_t)TOKEN_COLON) {
         /* clear last_ident for tokens that can't precede `<` in a call;
          * keep it for `.` (qualified path) — though we only handle simple
@@ -2737,8 +2834,8 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
  * typeck maps Self / the type-param name to the receiver type_ref.
  *
  * Same globals as scan+check (last parsed file). Soft: dyn Trait;
- * impl-level `impl<T: Trait>` (no IDENT before `<`); compound ret
- * (PTR/SLICE/ARRAY) still reported so typeck can refuse or leave unresolved.
+ * compound ret (PTR/SLICE/ARRAY) still reported so typeck can refuse
+ * or leave unresolved.
  * PLATFORM: SHARED parse+typeck — rebuild parser thin glue after edit.
  *
  * @param fn_name           enclosing generic function name
@@ -2906,7 +3003,8 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
  * wave442: multi-arg positional bounds via g_call_typeargs / g_fn_bound_pos.
  * wave449: body delegated to xlang_generic_bound_check_type_args_c (shared with
  * typeck no-turbofish inference path).
- * 4.2.2: struct-level `<T: Trait>` uses the same tables (decl name = struct).
+ * 4.2.2: struct-level `<T: Trait>` and impl-level `impl<T: Trait>` /
+ * `impl Type<T: Trait>` use the same tables (decl name = struct / for-type).
  * PLATFORM: SHARED parse.
  * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
  */
@@ -3813,9 +3911,12 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  *   interior after `{`. Outer parse_into commits each `function` as free UFCS method;
  *   trailing `}` is skipped as non-function noise.
  * G.7 authority: this function (glue for parser.x + seed fallback).
- * Soft: dyn Trait; generic trait bounds.
+ * Soft: dyn Trait.
  * wave421: record trait name for missing-method check (typeck).
  * wave428: also record for-type (kind / named / *T) for untyped-self check.
+ * 4.2.2: skip `impl<T: Trait>` / `Type<T>` / `for Type<T>` angle lists
+ *   (same helper as skip_one_struct) so the header reaches `{` instead of
+ *   early-return on TOKEN_LT (methods leaked as unconstrained free fns).
  * PLATFORM: SHARED parse.
  */
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
@@ -3842,6 +3943,11 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   impl_col = r.tok.col;
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
+  /* impl<T: Trait> … — skip impl-level type params (≡ skip_one_struct). */
+  if (r.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+    lexer_next_into(&r, lex, source);
+  }
   /* Trait name or inherent type: IDENT or built-in type keyword. */
   if (r.tok.kind != (int32_t)TOKEN_IDENT && r.tok.kind != (int32_t)TOKEN_I32
       && r.tok.kind != (int32_t)TOKEN_I64 && r.tok.kind != (int32_t)TOKEN_BOOL
@@ -3863,6 +3969,11 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   }
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
+  /* impl Type<T> / impl Trait<T> for … — skip the type's angle list. */
+  if (r.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+    lexer_next_into(&r, lex, source);
+  }
   if (r.tok.kind == (int32_t)TOKEN_FOR) {
     /* wave421: record impl Trait for …; wave428: fill for-type after Type token. */
     int32_t si = -1;
@@ -3921,6 +4032,11 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     }
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
+    /* impl Trait for Type<T> — skip for-type angle list. */
+    if (r.tok.kind == (int32_t)TOKEN_LT) {
+      parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+      lexer_next_into(&r, lex, source);
+    }
   }
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
     out->pos = lex.pos;
