@@ -1275,12 +1275,13 @@ int32_t simd_x86_xorps_xmm3_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 SSE：cmpgtps xmm2, xmm3（0F 55 D3）。 */
+/** x86 SSE：cmpgtps xmm2, xmm3 == cmpps xmm2, xmm3, 6（0F C2 D3 06）.
+ * 0F 55 D3 is ANDNPS (historical typo). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-393：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_cmpgtps_xmm2_xmm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[3] = {0x0f, 0x55, 0xd3};
-    return simd_append_impl(elf_ctx, insn, 3);
+    static const uint8_t insn[4] = {0x0f, 0xc2, 0xd3, 0x06};
+    return simd_append_impl(elf_ctx, insn, 4);
 }
 
 #ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X

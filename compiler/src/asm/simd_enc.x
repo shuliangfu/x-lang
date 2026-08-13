@@ -897,15 +897,19 @@ export function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
  */
 #[no_mangle]
 export function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
+  /* cmpps xmm2, xmm3, 6 (GT) = 0F C2 D3 06. Not 0F 55 (andnps). */
   let b0: u8 = 15;
-  let b1: u8 = 85;
+  let b1: u8 = 194;
   let b2: u8 = 211;
+  let b3: u8 = 6;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b1, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;

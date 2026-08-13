@@ -1286,8 +1286,9 @@ int32_t simd_x86_xorps_xmm3_xmm3(uint8_t * elf) {
 }
 int32_t simd_x86_cmpgtps_xmm2_xmm3(uint8_t * elf) {
   uint8_t b0 = 15;
-  uint8_t b1 = 85;
+  uint8_t b1 = 194;
   uint8_t b2 = 211;
+  uint8_t b3 = 6;
   int32_t r = 0;
   {
     (void)((r = simd_append(elf, &(b0), 1)));
@@ -1303,6 +1304,12 @@ int32_t simd_x86_cmpgtps_xmm2_xmm3(uint8_t * elf) {
   }
   {
     (void)((r = simd_append(elf, &(b2), 1)));
+  }
+  if ((r !=0)) {
+    return (0 - 1);
+  }
+  {
+    (void)((r = simd_append(elf, &(b3), 1)));
   }
   if ((r !=0)) {
     return (0 - 1);
