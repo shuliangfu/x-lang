@@ -46,6 +46,8 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1
 无 native `xlang_asm` 时 manifest 仍须绿；perf runnable **SKIP**。
 自举期 check 闸门暂停（2026-08-05）：产品验收以 `-L . -o` 真链 + run 为准。
 
+2026-08-13：peel 已跨 while 外层 comptime mask，热循环 `shuffle` 走 `pshufd`。余量是循环内 `simd.splat`＋`select(i32x8)` formal call（ratio 仍 < 1.0，gate 软 SKIP；**不**改门槛）。
+
 ---
 
 ## 4. 联动
