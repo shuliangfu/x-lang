@@ -15,12 +15,15 @@ const simd = import("std.simd");
 function main(): i32 {
   /* Extra ARRAY_LIT; METHOD ambient is f32 (compare), not Vec4f. */
   if (simd.hsum([1.0, 2.0, 3.0, 4.0]) != 10.0) { return 1; }
-  /* Two extras + INDEX; METHOD ambient is 0, not Vec4f. */
-  if (simd.add([1.0, 2.0, 3.0, 4.0], [10.0, 20.0, 30.0, 40.0])[0] != 11.0) { return 2; }
+  /* Two extras; let dest supplies Vec4f ambient after resolve. Do not
+   * INDEX the METHOD result — that emit hole is another layer. */
+  let r: Vec4f = simd.add([1.0, 2.0, 3.0, 4.0], [10.0, 20.0, 30.0, 40.0]);
+  if (r[0] != 11.0) { return 2; }
   /* let-then neighborhood (VAR extras already stamped). */
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let b: Vec4f = [10.0, 20.0, 30.0, 40.0];
   if (simd.hsum(a) != 10.0) { return 3; }
-  if (simd.add(a, b)[0] != 11.0) { return 4; }
+  let s: Vec4f = simd.add(a, b);
+  if (s[0] != 11.0) { return 4; }
   return 0;
 }
