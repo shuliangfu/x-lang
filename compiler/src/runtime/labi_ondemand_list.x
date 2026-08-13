@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 13 (was 12; +g12 std.test pure-asm batch residual 2026-08-13)
+ * @return i32 — 18 (was 13; +g13..g16 +g17 std.debug class-batch 2)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 13;
+  return 18;
 }
 
 /**
@@ -333,6 +333,29 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // the same authority path as g10/g11 (ensure formal + push).
   if (g == 12) {
     return 5;
+  }
+  // PLATFORM: SHARED — core.assert formal (run-debug core-assert residual).
+  // Distinct from g8 core.debug (core_debug_*); pure-asm mangles core.assert → core_assert_*.
+  if (g == 13) {
+    return 6;
+  }
+  // PLATFORM: SHARED — std.fmt formal (run-fmt / run-fmt-std residual).
+  // Not on default OP_STD plan; simple-group is sole pure-asm push path.
+  if (g == 14) {
+    return 8;
+  }
+  // PLATFORM: SHARED — std.compress formal facade (run-compress residual).
+  // Product path previously retired compress.o for C co-emit; pure-asm needs formal T.
+  if (g == 15) {
+    return 6;
+  }
+  // PLATFORM: SHARED — std.io.driver formal (run-io-driver residual).
+  if (g == 16) {
+    return 4;
+  }
+  // PLATFORM: SHARED — std.debug formal (run-debug std-debug residual).
+  if (g == 17) {
+    return 3;
   }
   return 0;
 }
@@ -709,6 +732,135 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — core.assert formal export surface (core/assert/mod.x).
+  if (g == 13) {
+    if (i == 0) {
+      let p: *u8 = "core_assert_assert";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_assert_assert_eq_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_assert_assert_ne_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_assert_debug_assert";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_assert_assert_eq_u32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_assert_assert_eq_bool";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.fmt formal export surface (std/fmt/mod.x).
+  // Exact needles cover sole-caller overload faces used by tests/fmt/main.x.
+  if (g == 14) {
+    if (i == 0) {
+      let p: *u8 = "std_fmt_format_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_u32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_i64";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_u64";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_fmt_hex_to_buf_u8_ptr_i32_u32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_fmt_append_to_buf_u8_ptr_i32_i32_i32";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_fmt_format_u8_ptr_i32_i32_i32";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.compress formal facade (std/compress/mod.x).
+  if (g == 15) {
+    if (i == 0) {
+      let p: *u8 = "std_compress_gzip_compress";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_compress_gzip_decompress";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_compress_brotli_compress";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_compress_brotli_decompress";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_compress_zstd_compress";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_compress_zstd_decompress";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.io.driver formal (std/io/driver.x).
+  if (g == 16) {
+    if (i == 0) {
+      let p: *u8 = "std_io_driver_register";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_io_driver_submit_read";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_io_driver_submit_write";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_io_driver_submit_register_fixed_buffers_buf";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.debug formal (std/debug formal_surface).
+  if (g == 17) {
+    if (i == 0) {
+      let p: *u8 = "std_debug_assert";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_debug_println_u8_ptr_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_debug_print_u8_ptr_i32";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -776,6 +928,31 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — std.test formal product .o (pure-asm run-stdtest residual).
   if (g == 12) {
     let p: *u8 = "std/test/test.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.assert formal product .o (run-debug core-assert residual).
+  if (g == 13) {
+    let p: *u8 = "core/assert/assert.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.fmt formal product .o (run-fmt residual).
+  if (g == 14) {
+    let p: *u8 = "std/fmt/fmt.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.compress formal product .o (run-compress residual).
+  if (g == 15) {
+    let p: *u8 = "std/compress/compress.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.io.driver formal product .o (run-io-driver residual).
+  if (g == 16) {
+    let p: *u8 = "std/io/driver.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.debug formal product .o (run-debug residual).
+  if (g == 17) {
+    let p: *u8 = "std/debug/debug.o";
     return p;
   }
   return 0 as *u8;

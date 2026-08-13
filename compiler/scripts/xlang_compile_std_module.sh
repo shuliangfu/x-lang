@@ -87,6 +87,16 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — pure-asm batch residual (2026-08-13): formal export std_* faces.
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
+    # PLATFORM: SHARED — soft residual class-batch 2 (2026-08-13): formal vehicles for
+    # plan/simple-group modules that pure-asm still UNDEF (runtime/backtrace/assert/fmt/
+    # compress/io.driver). G.7 single catalog authority.
+    ../std/runtime/runtime.o|std/runtime/runtime.o|*std/runtime/runtime.o) printf '%s' "std/runtime/runtime.o" ;;
+    ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
+    ../core/assert/assert.o|core/assert/assert.o|*core/assert/assert.o) printf '%s' "core/assert/assert.o" ;;
+    ../std/fmt/fmt.o|std/fmt/fmt.o|*std/fmt/fmt.o) printf '%s' "std/fmt/fmt.o" ;;
+    ../std/compress/compress.o|std/compress/compress.o|*std/compress/compress.o) printf '%s' "std/compress/compress.o" ;;
+    ../std/io/driver.o|std/io/driver.o|*std/io/driver.o) printf '%s' "std/io/driver.o" ;;
+    ../std/debug/debug.o|std/debug/debug.o|*std/debug/debug.o) printf '%s' "std/debug/debug.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -143,6 +153,22 @@ formal_mod_spec_for_key() {
     # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
     std/unicode/unicode.o) printf '%s' "mod|1|../std/unicode/mod.x|../std/unicode/unicode.x" ;;
     std/channel/channel.o) printf '%s' "mod|0|../std/channel/mod.x" ;;
+    # PLATFORM: SHARED — soft residual class-batch 2 formal bodies.
+    # runtime: mod wrappers (ready/panic/abort) + runtime.x leaf faces for glue.
+    # backtrace: mod.x capture → backtrace_capture_c (platform .o companion on plan).
+    # assert: freestanding core.assert (no I/O); panic via host panic face.
+    # fmt: std.fmt wrappers co-emit core.fmt bodies (monofile entry).
+    # compress: std.compress facade co-emits zlib/gzip/brotli/zstd submods.
+    # io.driver: nested module path std/io/driver.x → std_io_driver_* surface.
+    # runtime / fmt / compress / io.driver / debug: c_face vehicles (pure-asm link surface).
+    # Product .x monofile remains C-path authority; faces avoid monofile host-cc / companion U.
+    std/runtime/runtime.o) printf '%s' "c_face|0|../std/runtime/formal_surface.c" ;;
+    std/backtrace/backtrace.o) printf '%s' "mod|0|../std/backtrace/mod.x" ;;
+    core/assert/assert.o) printf '%s' "mod|0|../core/assert/mod.x" ;;
+    std/fmt/fmt.o) printf '%s' "c_face|0|../std/fmt/formal_surface.c" ;;
+    std/compress/compress.o) printf '%s' "c_face|0|../std/compress/formal_surface.c" ;;
+    std/io/driver.o) printf '%s' "c_face|0|../std/io/driver_formal_surface.c" ;;
+    std/debug/debug.o) printf '%s' "c_face|0|../std/debug/formal_surface.c" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -189,7 +215,14 @@ formal_mod_all_keys() {
     std/http/http.o \
     std/tar/tar.o \
     std/unicode/unicode.o \
-    std/channel/channel.o
+    std/channel/channel.o \
+    std/runtime/runtime.o \
+    std/backtrace/backtrace.o \
+    core/assert/assert.o \
+    std/fmt/fmt.o \
+    std/compress/compress.o \
+    std/io/driver.o \
+    std/debug/debug.o
 }
 
 formal_mod_out_for_key() {
@@ -349,7 +382,7 @@ KEYS
     echo "formal_mod --check: FAIL" >&2
     return 1
   fi
-  echo "formal_mod --check: OK (41 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
+  echo "formal_mod --check: OK (47 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
   return 0
 }
 
@@ -398,6 +431,30 @@ case "${1:-}" in
       [ -f "$_str_sh" ] || _str_sh="./xlang_compile_std_string_o.sh"
       # Dedicated script ignores out path; always writes $ROOT/std/string/string.o
       exec sh "$_str_sh"
+    fi
+    if [ "$_kind" = "c_face" ]; then
+      # PLATFORM: SHARED — pure-asm formal vehicle is a committed .c face (no .x monofile).
+      # Used when product .x monofile cannot host-cc (zlib deflate clash / io prefix drift).
+      # G.7: one catalog key → one out .o; product .x remains C-path authority.
+      _csrc="${_srcs}"
+      case "$_csrc" in
+        '')
+          echo "xlang_compile_std_module.sh ensure: c_face missing source for $_key" >&2
+          exit 1
+          ;;
+      esac
+      if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ] && [ -f "$_csrc" ] && [ ! "$_csrc" -nt "$out_o" ]; then
+        echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
+        exit 0
+      fi
+      mkdir -p "$(dirname "$out_o")"
+      # shellcheck disable=SC2086
+      if ! cc -c -fPIE -I.. -I. -o "$out_o" "$_csrc"; then
+        echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
+        exit 1
+      fi
+      echo "xlang_compile_std_module.sh: OK (c_face $_csrc -> $out_o)"
+      exit 0
     fi
     BARE_IMPL="$_bare"
     # Rebuild positional args as sources for shared compile body below (out_o already set).
@@ -1475,10 +1532,17 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
   esac
   # PLATFORM: SHARED — product prefix for core/* and std/* formal .o after KEEP_C/cc.
   # out: ../core/slice/mod.o → core_slice_*; ../std/env/env.o → std_env_*.
+  # Nested leaf exception: ../std/io/driver.o → std_io_driver_* (not std_io_*).
   # Skip symbols already core_*/std_* (co-emitted deps). G.7 complete authority for
   # core.slice length.x: bare len_i32 must become core_slice_len_i32.
   out_rel=$(printf '%s' "$out_o" | sed -e 's|^\.\./||')
   out_root=$(printf '%s' "$out_rel" | sed -e 's|/.*||')
+  case "$out_rel" in
+    std/io/driver.o)
+      # PLATFORM: SHARED — nested module std.io.driver product face.
+      leaf="io_driver"
+      ;;
+  esac
   case "$out_root" in
     core) prod_pref="core_${leaf}_" ;;
     std)  prod_pref="std_${leaf}_" ;;

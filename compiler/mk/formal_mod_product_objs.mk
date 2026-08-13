@@ -51,5 +51,12 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/http/http.o \
 	../std/tar/tar.o \
 	../std/unicode/unicode.o \
-	../std/channel/channel.o
+	../std/channel/channel.o \
+	../std/runtime/runtime.o \
+	../std/backtrace/backtrace.o \
+	../core/assert/assert.o \
+	../std/fmt/fmt.o \
+	../std/compress/compress.o \
+	../std/io/driver.o \
+	../std/debug/debug.o
 

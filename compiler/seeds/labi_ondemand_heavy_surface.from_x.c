@@ -270,8 +270,8 @@ int32_t labi_user_needs_std_task(uint8_t * user_o) {
   return 0;
 }
 int32_t labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — +tar +unicode batch residual 2026-08-13 */
-  return 18;
+  /* PLATFORM: SHARED — +tar +unicode +runtime class-batch 2 */
+  return 19;
 }
 uint8_t * labi_fk0_rel_at(int32_t k) {
   if ((k ==0)) {
@@ -346,6 +346,10 @@ uint8_t * labi_fk0_rel_at(int32_t k) {
     uint8_t * p = ((uint8_t *)"std/unicode/unicode.o");
     return p;
   }
+  if ((k ==18)) {
+    uint8_t * p = ((uint8_t *)"std/runtime/runtime.o");
+    return p;
+  }
   return ((uint8_t *)(0));
 }
 int32_t labi_fk0_sym_count(int32_t k) {
@@ -404,6 +408,9 @@ int32_t labi_fk0_sym_count(int32_t k) {
   }
   if ((k ==17)) {
     return 6;
+  }
+  if ((k ==18)) {
+    return 5;
   }
   return 0;
 }
@@ -958,6 +965,14 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_unicode_is_whitespace"); return p; }
     if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_unicode_is_ascii"); return p; }
     if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_unicode_case_fold_rune"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==18)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_runtime_ready"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_runtime_panic"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_runtime_abort"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_runtime_diag_enabled"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_runtime_crash_evidence_collect"); return p; }
     return ((uint8_t *)(0));
   }
   return ((uint8_t *)(0));

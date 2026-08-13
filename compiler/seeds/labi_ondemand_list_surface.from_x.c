@@ -192,7 +192,8 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
-  return 13;
+  /* PLATFORM: SHARED — +g13..g16 +g17 std.debug class-batch 2 */
+  return 18;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -238,6 +239,21 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   }
   if ((g ==12)) {
     return 5;
+  }
+  if ((g ==13)) {
+    return 6;
+  }
+  if ((g ==14)) {
+    return 8;
+  }
+  if ((g ==15)) {
+    return 6;
+  }
+  if ((g ==16)) {
+    return 4;
+  }
+  if ((g ==17)) {
+    return 3;
   }
   return 0;
 }
@@ -520,6 +536,48 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_test_runner_case"); return p; }
     return ((uint8_t *)(0));
   }
+  if ((g ==13)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"core_assert_assert"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"core_assert_assert_eq_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"core_assert_assert_ne_i32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"core_assert_debug_assert"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"core_assert_assert_eq_u32"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"core_assert_assert_eq_bool"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==14)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_fmt_format_i32"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_u32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_i64"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_u64"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_fmt_hex_to_buf_u8_ptr_i32_u32"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"std_fmt_append_to_buf_u8_ptr_i32_i32_i32"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_fmt_format_u8_ptr_i32_i32_i32"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==15)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_compress_gzip_compress"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_compress_gzip_decompress"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_compress_brotli_compress"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_compress_brotli_decompress"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_compress_zstd_compress"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_compress_zstd_decompress"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==16)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_io_driver_register"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_io_driver_submit_read"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_io_driver_submit_write"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_io_driver_submit_register_fixed_buffers_buf"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==17)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_debug_assert"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_debug_println_u8_ptr_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_debug_print_u8_ptr_i32"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_simple_group_rel(int32_t g) {
@@ -576,6 +634,26 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
   }
   if ((g ==12)) {
     uint8_t * p = ((uint8_t *)"std/test/test.o");
+    return p;
+  }
+  if ((g ==13)) {
+    uint8_t * p = ((uint8_t *)"core/assert/assert.o");
+    return p;
+  }
+  if ((g ==14)) {
+    uint8_t * p = ((uint8_t *)"std/fmt/fmt.o");
+    return p;
+  }
+  if ((g ==15)) {
+    uint8_t * p = ((uint8_t *)"std/compress/compress.o");
+    return p;
+  }
+  if ((g ==16)) {
+    uint8_t * p = ((uint8_t *)"std/io/driver.o");
+    return p;
+  }
+  if ((g ==17)) {
+    uint8_t * p = ((uint8_t *)"std/debug/debug.o");
     return p;
   }
   return ((uint8_t *)(0));

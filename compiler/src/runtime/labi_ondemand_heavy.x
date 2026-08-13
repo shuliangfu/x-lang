@@ -292,7 +292,8 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  return 18;
+  // PLATFORM: SHARED — was 18 (+tar/+unicode); +k18 std/runtime class-batch 2.
+  return 19;
 }
 
 /**
@@ -380,6 +381,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/unicode/unicode.o";
     return p;
   }
+  // PLATFORM: SHARED — std/runtime/runtime.o is OP_STD flag_kind=0 but was missing from
+  // fk0 table → never push formal runtime.o; stale marker .o lacked std_runtime_ready
+  // (run-runtime residual). G.7 complete: add rel×sym like tar/unicode.
+  if (k == 18) {
+    let p: *u8 = "std/runtime/runtime.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -459,6 +467,10 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // PLATFORM: SHARED — unicode formal public surface (std_unicode_*).
   if (k == 17) {
     return 6;
+  }
+  // PLATFORM: SHARED — runtime formal public surface (std_runtime_*).
+  if (k == 18) {
+    return 5;
   }
   return 0;
 }
@@ -1073,6 +1085,31 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 5) {
         let p: *u8 = "std_unicode_case_fold_rune";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/runtime/runtime.o exact UNDEF needles (fk0 k==18).
+    // Pure-asm import METHOD → std_runtime_ready (sole caller in tests/runtime/main.x).
+    if (k == 18) {
+      if (i == 0) {
+        let p: *u8 = "std_runtime_ready";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_runtime_panic";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_runtime_abort";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_runtime_diag_enabled";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_runtime_crash_evidence_collect";
         return p;
       }
       return 0 as *u8;
@@ -2960,6 +2997,77 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 if (rt12[0] != 0) {
                   unsafe {
                     let _fe12: i32 = xlang_ensure_formal_std_make_o(rt12, "std/test/test.o", "../std/test/test.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g13 core.assert formal (run-debug core-assert residual).
+            if (sg == 13) {
+              let rt13: *u8 = 0 as *u8;
+              unsafe {
+                rt13 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt13 != 0 as *u8) {
+                if (rt13[0] != 0) {
+                  unsafe {
+                    let _fe13: i32 = xlang_ensure_formal_std_make_o(rt13, "core/assert/assert.o", "../core/assert/assert.o");
+                  }
+                  pushed_core_formal = 1;
+                }
+              }
+            }
+            // PLATFORM: SHARED — g14 std.fmt formal (run-fmt residual).
+            if (sg == 14) {
+              let rt14: *u8 = 0 as *u8;
+              unsafe {
+                rt14 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt14 != 0 as *u8) {
+                if (rt14[0] != 0) {
+                  unsafe {
+                    let _fe14: i32 = xlang_ensure_formal_std_make_o(rt14, "std/fmt/fmt.o", "../std/fmt/fmt.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g15 std.compress formal (run-compress residual).
+            if (sg == 15) {
+              let rt15: *u8 = 0 as *u8;
+              unsafe {
+                rt15 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt15 != 0 as *u8) {
+                if (rt15[0] != 0) {
+                  unsafe {
+                    let _fe15: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/compress.o", "../std/compress/compress.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g16 std.io.driver formal (run-io-driver residual).
+            if (sg == 16) {
+              let rt16: *u8 = 0 as *u8;
+              unsafe {
+                rt16 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt16 != 0 as *u8) {
+                if (rt16[0] != 0) {
+                  unsafe {
+                    let _fe16: i32 = xlang_ensure_formal_std_make_o(rt16, "std/io/driver.o", "../std/io/driver.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g17 std.debug formal (run-debug residual).
+            if (sg == 17) {
+              let rt17: *u8 = 0 as *u8;
+              unsafe {
+                rt17 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt17 != 0 as *u8) {
+                if (rt17[0] != 0) {
+                  unsafe {
+                    let _fe17: i32 = xlang_ensure_formal_std_make_o(rt17, "std/debug/debug.o", "../std/debug/debug.o");
                   }
                 }
               }
