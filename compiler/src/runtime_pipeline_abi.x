@@ -43654,6 +43654,12 @@ export function glue_try_emit_ptr_arith_scaled_elf_c(arena: *u8, elf_ctx: *u8, c
  * when either operand is TYPE_I32 so signed compares and countdown loops work.
  * INT_LIT alone has no resolved type — if either side resolves to I32, sxt.
  * Skip when neither side is known i32 (u32 keeps zero-ext; i64/ptr use other paths).
+ *
+ * P0-4 / i64_min: never cdqe/sxtw when the op is 64-bit width (typed i64/u64/ptr
+ * or wide int lit outside i32, or nested binop that is 64-bit). Forced sxt after
+ * `0 - INT64_MAX` destroyed high bits (rax=0x8000…0001 → cdqe → 1) then
+ * `… - 1` became 0 → `zero == i64_min` wrongly true.
+ *
  * @return i32 - 0 ok, non-zero encode fail
  * PLATFORM: SHARED freestanding · MACOS|ARM64 sxtw · x86_64 cdqe.
  */
@@ -43662,6 +43668,10 @@ function glue_binop_maybe_sxt_i32_result_elf_c(arena: *u8, ctx: *u8, left_ref: i
   let k: i32 = 0;
   let need: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8)) {
+    return 0;
+  }
+  /* 64-bit result width: no sxt (would clobber high bits after REX.W / X sub). */
+  if (glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref) != 0) {
     return 0;
   }
   unsafe {
@@ -43714,8 +43724,8 @@ function glue_binop_maybe_sxt_i32_result_elf_c(arena: *u8, ctx: *u8, left_ref: i
       }
     }
   }
-  /* INT_LIT kind_ord is typically unstamped; when one side is INT_LIT (ko=2)
-   * and the other is not known u32/f*, default X integer is i32 → sxt. */
+  /* EXPR_LIT (ast.x ord 0) unstamped: default X integer is i32 → sxt.
+   * Wide lits are already classified 64-bit above and return early. */
   if (need == 0) {
     let ko_l: i32 = 0;
     let ko_r: i32 = 0;
@@ -43723,8 +43733,8 @@ function glue_binop_maybe_sxt_i32_result_elf_c(arena: *u8, ctx: *u8, left_ref: i
       ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
       ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
     }
-    /* EXPR_INT_LIT = 2 (ast.x). */
-    if (ko_l == 2 || ko_r == 2) {
+    /* EXPR_LIT = 0 (not BOOL_LIT=2). */
+    if (ko_l == 0 || ko_r == 0) {
       need = 1;
     }
   }
@@ -43937,6 +43947,7 @@ export function pipeline_asm_emit_binop_add_elf_c(arena: *u8, elf_ctx: *u8, left
 #[no_mangle]
 export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
   let rc: i32 = 0;
+  let is_64bit: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
@@ -43944,10 +43955,25 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
     }
-    rc = backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+    /* x86 then_mov is already REX.W; arm64 face is still W — emit SUB X when 64-bit. */
+    if (is_64bit != 0 && ta == 1) {
+      /* 0xCB000020 — SUB X0, X1, X0 (sf=1). */
+      let subx: u8[4] = [];
+      subx[0] = 0x20 as u8;
+      subx[1] = 0x00 as u8;
+      subx[2] = 0x00 as u8;
+      subx[3] = 0xcb as u8;
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &subx[0], 4);
+    } else {
+      rc = backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+    }
   }
   if (rc != 0) {
     return rc;
+  }
+  if (is_64bit != 0) {
+    return 0;
   }
   return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
@@ -43966,6 +43992,7 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
 #[no_mangle]
 export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
   let rc: i32 = 0;
+  let is_64bit: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
@@ -43977,10 +44004,36 @@ export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8
     if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0) {
       return -1;
     }
-    rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+    if (is_64bit != 0) {
+      /* P0-4: 64-bit SUB (default enc_sub is 32-bit W / subl).
+       * x86: subq %rbx, %rax (48 29 d8); arm64: SUB X0,X0,X1 (CB010000).
+       * PLATFORM: SHARED · MACOS|ARM64 X-reg · x86_64 REX.W. */
+      if (ta == 0) {
+        let subq: u8[3] = [];
+        subq[0] = 0x48 as u8;
+        subq[1] = 0x29 as u8;
+        subq[2] = 0xd8 as u8;
+        rc = pipeline_elf_ctx_append_bytes(elf_ctx, &subq[0], 3);
+      } else if (ta == 1) {
+        let subx: u8[4] = [];
+        subx[0] = 0x00 as u8;
+        subx[1] = 0x00 as u8;
+        subx[2] = 0x01 as u8;
+        subx[3] = 0xcb as u8;
+        rc = pipeline_elf_ctx_append_bytes(elf_ctx, &subx[0], 4);
+      } else {
+        rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+      }
+    } else {
+      rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    }
   }
   if (rc != 0) {
     return rc;
+  }
+  if (is_64bit != 0) {
+    return 0;
   }
   /* 32-bit SUB W zeros-extends; i32 `j = n - 1` then `j >= 0` must sxtw or
    * j=-1 becomes 0x00000000ffffffff (signed-positive) and loops forever
@@ -43988,6 +44041,7 @@ export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8
    * PLATFORM: SHARED · MACOS|ARM64 sxtw · x86_64 cdqe. */
   return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
+
 
 /**
  * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_emit_binop_mul_rax_rbx_elf_c).
@@ -44301,7 +44355,44 @@ export function glue_binop_operand_is_unsigned_elf_c(arena: *u8, ctx: *u8, left_
 }
 
 /**
+ * True when expr is INT_LIT (EXPR_LIT) whose full i64 bits do not fit in i32.
+ * P0-4: 9223372036854775807 must force 64-bit arith + ban post-op cdqe.
+ * @param arena *u8 - AST arena
+ * @param expr_ref i32 - expression ref
+ * @return i32 - 1 if wide lit, else 0
+ * PLATFORM: SHARED freestanding emit.
+ */
+function glue_binop_expr_is_wide_int_lit_elf_c(arena: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let v64: i64 = 0;
+  let i32_max: i64 = 2147483647;
+  let i32_min: i64 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  /* EXPR_LIT = 0 (ast.x). */
+  if (ko != 0) {
+    return 0;
+  }
+  unsafe {
+    v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+  }
+  i32_min = 0 - 2147483647 - 1;
+  if (v64 < i32_min || v64 > i32_max) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_binop_operand_is_64bit_elf_c).
+ * True when either operand is typed u64/i64/usize/isize/ptr, is a wide INT_LIT
+ * outside i32, or is a nested ADD/SUB/MUL/… that is itself 64-bit (P0-4 chain
+ * `0 - INT64_MAX - 1` — intermediate SUB has no stamped type but inherits width
+ * from the wide lit).
  * @param arena *u8 - parameter
  * @param ctx *u8 - parameter
  * @param left_ref i32 - parameter
@@ -44314,6 +44405,9 @@ export function glue_binop_operand_is_64bit_elf_c(arena: *u8, ctx: *u8, left_ref
   unsafe {
     let tr: i32 = 0;
     let kind_ord: i32 = 0;
+    let ko: i32 = 0;
+    let l: i32 = 0;
+    let r: i32 = 0;
     if ((arena == (0 as *u8))) {
       return 0;
     }
@@ -44329,13 +44423,41 @@ export function glue_binop_operand_is_64bit_elf_c(arena: *u8, ctx: *u8, left_ref
         tr = glue_var_decl_type_ref_elf_c(arena, ctx, right_ref);
       }
     }
-    if (tr <= 0) {
-      return 0;
+    if (tr > 0) {
+      kind_ord = pipeline_type_kind_ord_at(arena, tr);
+      /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
+      if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9) {
+        return 1;
+      }
     }
-    kind_ord = pipeline_type_kind_ord_at(arena, tr);
-    /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
-    if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9) {
+    /* Wide INT_LIT on either side (P0-4 INT64_MAX / INT64_MIN construction). */
+    if (glue_binop_expr_is_wide_int_lit_elf_c(arena, left_ref) != 0) {
       return 1;
+    }
+    if (glue_binop_expr_is_wide_int_lit_elf_c(arena, right_ref) != 0) {
+      return 1;
+    }
+    /* Nested binop: inherit 64-bit if either child sub-tree is 64-bit. */
+    if (left_ref > 0) {
+      ko = pipeline_expr_kind_ord_at(arena, left_ref);
+      /* EXPR_ADD=4 .. EXPR_BITXOR=13 */
+      if (ko >= 4 && ko <= 13) {
+        l = pipeline_expr_binop_left_ref_at(arena, left_ref);
+        r = pipeline_expr_binop_right_ref_at(arena, left_ref);
+        if (glue_binop_operand_is_64bit_elf_c(arena, ctx, l, r) != 0) {
+          return 1;
+        }
+      }
+    }
+    if (right_ref > 0) {
+      ko = pipeline_expr_kind_ord_at(arena, right_ref);
+      if (ko >= 4 && ko <= 13) {
+        l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+        r = pipeline_expr_binop_right_ref_at(arena, right_ref);
+        if (glue_binop_operand_is_64bit_elf_c(arena, ctx, l, r) != 0) {
+          return 1;
+        }
+      }
     }
     return 0;
   }

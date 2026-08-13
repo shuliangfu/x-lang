@@ -21818,29 +21818,63 @@ int32_t pipeline_asm_emit_binop_add_elf_c(void *arena, void *elf_ctx, int32_t le
   return 0;
 }
 
-/* wave149 cold twin glue_emit_binop_sub_rbx_minus_rax_elf_c. PLATFORM: SHARED. */
+/* wave149 cold twin glue_emit_binop_sub_rbx_minus_rax_elf_c. PLATFORM: SHARED.
+ * P0-4: skip trailing sxt when 64-bit (pure leave twin). */
 int32_t glue_emit_binop_sub_rbx_minus_rax_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref, int32_t right_ref, int32_t ta) {
+  int32_t rc;
+  int32_t is_64bit = 0;
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
-  return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+  is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  if (is_64bit && ta == 1) {
+    static const uint8_t subx[4] = {0x20, 0x00, 0x00, 0xcb};
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)subx, 4);
+  } else {
+    rc = backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+  }
+  if (rc != 0)
+    return rc;
+  if (is_64bit)
+    return 0;
+  return 0; /* seed cold: no maybe_sxt face; pure leave owns sxt */
 }
 
-/* wave149 cold twin glue_emit_binop_sub_rax_minus_rbx_elf_c. PLATFORM: SHARED. */
+/* wave149 cold twin glue_emit_binop_sub_rax_minus_rbx_elf_c. PLATFORM: SHARED.
+ * P0-4: 64-bit SUB when wide lit / i64; ban 32-bit subl + cdqe class. */
 int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref, int32_t right_ref, int32_t ta) {
+  int32_t rc;
+  int32_t is_64bit = 0;
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_subss_rax_rbx_arch(elf_ctx, ta);
-  /* wave642: assign `p -= n` — left@rax right@rbx; scale integer offset. */
   if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0)
     return -1;
-  return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+  is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  if (is_64bit) {
+    if (ta == 0) {
+      static const uint8_t subq[3] = {0x48, 0x29, 0xd8};
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)subq, 3);
+    } else if (ta == 1) {
+      static const uint8_t subx[4] = {0x00, 0x00, 0x01, 0xcb};
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)subx, 4);
+    } else {
+      rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    }
+  } else {
+    rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0)
+    return rc;
+  if (is_64bit)
+    return 0;
+  return 0; /* seed cold: pure leave owns i32 sxt */
 }
 
 /* wave149 cold twin glue_emit_binop_mul_rax_rbx_elf_c. PLATFORM: SHARED. */
@@ -22052,10 +22086,30 @@ int32_t glue_binop_operand_is_unsigned_elf_c(void *arena, void *ctx, int32_t lef
   return 0;
 }
 
-/* wave149 cold twin glue_binop_operand_is_64bit_elf_c. PLATFORM: SHARED. */
+/* P0-4: wide INT_LIT outside i32. PLATFORM: SHARED. */
+static int32_t glue_binop_expr_is_wide_int_lit_elf_c(void *arena, int32_t expr_ref) {
+  int32_t ko;
+  int64_t v64;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  /* EXPR_LIT = 0 */
+  if (ko != 0)
+    return 0;
+  v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+  if (v64 < (int64_t)INT32_MIN || v64 > (int64_t)INT32_MAX)
+    return 1;
+  return 0;
+}
+
+/* wave149 cold twin glue_binop_operand_is_64bit_elf_c. PLATFORM: SHARED.
+ * P0-4: also wide INT_LIT + nested ADD..BITXOR that inherit 64-bit width. */
 int32_t glue_binop_operand_is_64bit_elf_c(void *arena, void *ctx, int32_t left_ref, int32_t right_ref) {
   int32_t tr = 0;
   int32_t kind_ord;
+  int32_t ko;
+  int32_t l;
+  int32_t r;
   if (!arena)
     return 0;
   if (left_ref > 0) {
@@ -22068,12 +22122,34 @@ int32_t glue_binop_operand_is_64bit_elf_c(void *arena, void *ctx, int32_t left_r
     if (tr <= 0 && ctx)
       tr = glue_var_decl_type_ref_elf_c(arena, ctx, right_ref);
   }
-  if (tr <= 0)
-    return 0;
-  kind_ord = pipeline_type_kind_ord_at(arena, tr);
-  /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
-  if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+  if (tr > 0) {
+    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+    /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
+    if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+      return 1;
+  }
+  if (glue_binop_expr_is_wide_int_lit_elf_c(arena, left_ref))
     return 1;
+  if (glue_binop_expr_is_wide_int_lit_elf_c(arena, right_ref))
+    return 1;
+  if (left_ref > 0) {
+    ko = pipeline_expr_kind_ord_at(arena, left_ref);
+    if (ko >= 4 && ko <= 13) {
+      l = pipeline_expr_binop_left_ref_at(arena, left_ref);
+      r = pipeline_expr_binop_right_ref_at(arena, left_ref);
+      if (glue_binop_operand_is_64bit_elf_c(arena, ctx, l, r))
+        return 1;
+    }
+  }
+  if (right_ref > 0) {
+    ko = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (ko >= 4 && ko <= 13) {
+      l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+      r = pipeline_expr_binop_right_ref_at(arena, right_ref);
+      if (glue_binop_operand_is_64bit_elf_c(arena, ctx, l, r))
+        return 1;
+    }
+  }
   return 0;
 }
 
