@@ -641,7 +641,8 @@ int32_t glue_emit_one_call_arg_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
       return (0 - 1);
     }
     int32_t pty = glue_call_param_type_ref_at(arena, call_expr_ref, arg_index);
-    if ((pipeline_expr_kind_ord_at(arena, arg_ref) ==48)) {
+    int32_t arg_ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if ((arg_ko == 48 || arg_ko == 49)) {
       if ((pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, arg_ref) !=0)) {
         if ((pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) !=0)) {
           (void)(pipeline_asm_emit_call_arg_end_c());

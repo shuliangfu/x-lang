@@ -2524,8 +2524,9 @@ int32_t glue_emit_one_call_arg_elf_c_impl(struct ast_ASTArena *arena, struct pla
   }
   {
     int32_t pty = glue_call_param_type_ref_at(arena, call_expr_ref, arg_index);
-    /** 嵌套 CALL 实参：C struct 返回 rax=指针，须 deref 后再 spill/lea。 */
-    if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48 &&
+    int32_t arg_ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+    /** Nested CALL/METHOD arg: C struct return rax=pointer, deref then spill/lea. */
+    if ((arg_ko == 48 || arg_ko == 49) &&
         pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, arg_ref) != 0) {
       if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
         pipeline_asm_emit_call_arg_end_c();
@@ -2533,8 +2534,8 @@ int32_t glue_emit_one_call_arg_elf_c_impl(struct ast_ASTArena *arena, struct pla
         return -1;
       }
     }
-    /** 仅嵌套 CALL 返回 16B struct（rax+rdx）；VAR lea 已在 rax 中，勿 spill（rdx 可能已失效）。 */
-    if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48 &&
+    /** Nested CALL/METHOD 16B struct (rax+rdx); VAR lea already in rax, do not spill. */
+    if ((arg_ko == 48 || arg_ko == 49) &&
         glue_spill_struct16_call_arg_to_lea_elf_c(arena, elf_ctx, ctx, pty, ta) != 0) {
       pipeline_asm_emit_call_arg_end_c();
       pipeline_asm_emit_set_call_param_type_ref(0);

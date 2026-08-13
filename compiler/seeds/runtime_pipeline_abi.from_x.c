@@ -18447,7 +18447,7 @@ int32_t glue_emit_slice_length_to_rbx_elf_c(void *arena,
   /*
    * wave336 Cap residual pure: non-VAR slice base (esp. CALL take()[1]).
    * Index is live in rax (bounds guard). Emit base may clobber rax/rdx.
-   * TYPE_SLICE CALL/METHOD_CALL return is dual-GP (needs_rax_deref=0): length@rdx.
+   * TYPE_SLICE CALL/METHOD return is dual-GP when classifier==0: length@rdx.
    * Else historical fat* in rax: length at [rax+8].
    * PLATFORM: SHARED freestanding · LINUX gold (host-C uses C codegen INDEX).
    */
@@ -18458,7 +18458,7 @@ int32_t glue_emit_slice_length_to_rbx_elf_c(void *arena,
   bty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (bty > 0 && pipeline_type_kind_ord_at(arena, bty) == 11 &&
       (base_ko == 48 || base_ko == 49) &&
-      (base_ko != 48 || pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)) {
+      pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0) {
     /* SysV arg_reg 2 = rdx — length half after dual-GP return. */
     if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 2, ta) != 0)
       return -1;
@@ -18626,15 +18626,16 @@ int32_t glue_try_index_rvalue_slice_once_elf_c(void *arena,
   if (bty <= 0 || pipeline_type_kind_ord_at(arena, bty) != 11)
     return -2;
   /*
-   * dual-GP: freestanding TYPE_SLICE return (wave333/335); CALL only when
-   * needs_rax_deref==0. METHOD_CALL TYPE_SLICE treated as dual-GP (wave336).
+   * dual-GP: freestanding TYPE_SLICE return (wave333/335); CALL/METHOD when
+   * needs_rax_deref==0 (classifier is the harvest authority).
    * wave692: INDEX of nested outer yields dual-GP (emit_index TYPE_SLICE load).
    * Else fat* in rax (length at [rax+8], data at [rax]).
    */
   dual_gp = 0;
-  if (base_ko == 49 || base_ko == 47)
-    dual_gp = 1;
-  else if (base_ko == 48 && pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)
+  if (base_ko == 47)
+    dual_gp = 1; /* INDEX is not a call */
+  else if ((base_ko == 48 || base_ko == 49) &&
+           pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)
     dual_gp = 1;
 
   ly = pipeline_asm_ctx_layout(ctx);
@@ -27127,8 +27128,9 @@ int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta) {
 }
 
 /*
- * wave197 cold twin: struct16 CALL retval sret-vs-dual-GP classifier (G.7 pure leave).
+ * wave197 cold twin: struct16 CALL/METHOD retval sret-vs-dual-GP classifier (G.7).
  * Freestanding-safe stub (0 = dual-GP default). Hybrid product links pure.
+ * Product .x gate is CALL(48)||METHOD(49); this cold twin is a stub.
  * PLATFORM: SHARED freestanding struct16 classifier.
  */
 int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(void *arena, int32_t call_expr_ref) {
