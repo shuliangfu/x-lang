@@ -2658,6 +2658,22 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
       return 100;
     }
   }
+  /* G.7 ≡ typeck.x: bare FLOAT_LIT / NEG(FLOAT_LIT) weak-match f32/f64. */
+  {
+    int32_t arg_ko_fl = pipeline_expr_kind_ord_at(caller_arena, arg_ref);
+    int32_t fl_inner = arg_ref;
+    if (arg_ko_fl == 22) {
+      fl_inner = pipeline_expr_unary_operand_ref_at(caller_arena, arg_ref);
+      if (fl_inner > 0)
+        arg_ko_fl = pipeline_expr_kind_ord_at(caller_arena, fl_inner);
+    }
+    if (arg_ko_fl == 1) {
+      int32_t pk_fl = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      if (pk_fl == 14 || pk_fl == 15)
+        return 100;
+      return -1;
+    }
+  }
   if ((arg_ty > 0)) {
     int32_t ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);
     int32_t pk = pipeline_type_kind_ord_at(caller_arena, param_ty);

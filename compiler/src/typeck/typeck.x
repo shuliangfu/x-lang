@@ -5937,6 +5937,29 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
         return 100;
       }
     }
+    /*
+     * Bare FLOAT_LIT (kind 1) / NEG(FLOAT_LIT) weak-match f32/f64 formals.
+     * Root (intrinsic_binop_dot): simd.splat(0.0) vs splat(i32)/splat(f32) —
+     * both overloads scored -1 (lit defaults f64; no FLOAT_LIT clause) → first_idx
+     * splat(i32) → emit U/sret SEGV. Score 100 < exact 1000; i32 stays -1.
+     * G.7 complete this score authority (≡ INT_LIT vs integer formals).
+     * PLATFORM: SHARED — typeck pick; emit consumes r_func (do not first-wins re-score).
+     */
+    let arg_ko_fl: i32 = pipeline_expr_kind_ord_at(caller_arena, arg_ref);
+    let fl_inner: i32 = arg_ref;
+    if (arg_ko_fl == 22) {
+      fl_inner = pipeline_expr_unary_operand_ref_at(caller_arena, arg_ref);
+      if (fl_inner > 0) {
+        arg_ko_fl = pipeline_expr_kind_ord_at(caller_arena, fl_inner);
+      }
+    }
+    if (arg_ko_fl == 1) {
+      let pk_fl: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      if (pk_fl == 14 || pk_fl == 15) {
+        return 100;
+      }
+      return 0 - 1;
+    }
     /* See implementation. */
     if (arg_ty > 0) {
       let ak: i32 = pipeline_type_kind_ord_at(caller_arena, arg_ty);

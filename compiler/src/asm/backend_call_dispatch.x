@@ -3085,13 +3085,14 @@ export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32,
  * @param field_len i32 — name length
  * @param want_np i32 — expected param count (= call nargs)
  * @param is_method i32 — 1 → METHOD_CALL arg refs; 0 → CALL arg refs
+ * @param out_best_score *i32 — optional; written best suffix-score (1 arity / +10 match)
  * @return i32 — best func_ix or -1
  * PLATFORM: SHARED
  */
 #[no_mangle]
 export function glue_asm_score_import_binding_func_ix_c(
   arena: *u8, expr_ref: i32, res_mod: *u8, res_arena: *u8,
-  field_name: *u8, field_len: i32, want_np: i32, is_method: i32
+  field_name: *u8, field_len: i32, want_np: i32, is_method: i32, out_best_score: *i32
 ): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
   if (res_mod == 0 as *u8) { return 0 - 1; }
@@ -3152,6 +3153,9 @@ export function glue_asm_score_import_binding_func_ix_c(
         }
       }
       fi = fi + 1;
+    }
+    if (out_best_score != (0 as *i32)) {
+      out_best_score[0] = best_score;
     }
     return best;
   }
@@ -3302,16 +3306,24 @@ export function glue_asm_mangle_import_binding_call_sym_c(
           }
           if (use_fi < 0) {
             use_fi = glue_asm_score_import_binding_func_ix_c(
-              arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method
+              arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method, 0 as *i32
             );
           }
-          // Overloaded: re-score with arg types when score would improve selection.
+          /* Overloaded: re-score only when suffix evidence exists (score>=11).
+           * Seed already gated sc_best>=11; pure .x used to always overwrite →
+           * FLOAT_LIT splat(0.0) first-wins splat_i32 (score==1). G.7 ≡ seed.
+           * PLATFORM: SHARED — typeck r_func is the pick authority. */
           if (use_fi >= 0) {
             if (glue_module_func_overload_count_c(res_mod, field_name, field_len) > 1) {
+              let sc_best: i32 = 0 - 1;
               let scored: i32 = glue_asm_score_import_binding_func_ix_c(
-                arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method
+                arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method, &sc_best
               );
-              if (scored >= 0) { use_fi = scored; }
+              if (scored >= 0) {
+                if (sc_best >= 11) {
+                  use_fi = scored;
+                }
+              }
             }
           }
         }
@@ -3327,7 +3339,7 @@ export function glue_asm_mangle_import_binding_call_sym_c(
             let ra3: *u8 = pipeline_dep_ctx_arena_at(dp, di2);
             if (ra3 == 0 as *u8) { ra3 = arena; }
             let cand: i32 = glue_asm_score_import_binding_func_ix_c(
-              arena, expr_ref, rm, ra3, field_name, field_len, want_np, is_method
+              arena, expr_ref, rm, ra3, field_name, field_len, want_np, is_method, 0 as *i32
             );
             if (cand >= 0) {
               res_mod = rm;
