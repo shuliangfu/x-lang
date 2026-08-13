@@ -1976,13 +1976,18 @@ export function pipeline_asm_emit_call_args_text_c(
  * fall through to the normal call path.
  * wave360: UFCS auto-ref — free fn `method(self: *T, ...)` with value receiver emits lea
  * of receiver as arg0 (not by-value load).
+ * UFCS leave (after import-binding + folds): places are [receiver, extra0..] with
+ * formal types 0..n_place-1. Receiver goes through glue_emit_one_call_arg (pty=self)
+ * so ARRAY_LIT `[7,8,9,10].take0()` packs i32x4 as 16B INTEGER dual-GP — the old
+ * 1-GP `for_call_args` + `mov rax→rdi` dropped rdx. Same classify/spill/load as
+ * import METHOD (wave214) and seed wave602. Export-sym mangle ≡ seed wave683.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen context
  * @param expr_ref i32 — METHOD_CALL expr ref
  * @param ctx *u8 — AsmFuncCtx (module_ref at +16)
  * @param ta i32 — target arch (0=x86_64, 1=arm64, …)
  * @return i32 — 0 ok, -1 fail
- * PLATFORM: SHARED — mac + Ubuntu freestanding
+ * PLATFORM: SHARED — mac + Ubuntu freestanding · LINUX gold dual-GP
  */
 #[no_mangle]
 export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -2344,25 +2349,44 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
-    // wave360: UFCS auto-ref — self: *T + value receiver → lea (not by-value).
-    if (base_ref != 0) {
+    // wave360 + ARRAY_LIT SIMD self: UFCS places [receiver, extra0..] (seed wave602).
+    // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV dual-GP; MACOS|ARM64 AAPCS64 spill.
+    {
+      let has_recv: i32 = 0;
+      let n_place: i32 = 0;
       let need_aref: i32 = 0;
-      let r_fn2: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
-      let r_dep2: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-      if (r_fn2 >= 0) {
-        if (r_dep2 < 0) {
-          if (mod_ref != 0) {
-            let p0: i32 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn2, 0);
-            let bty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
-            if (p0 > 0) {
-              if (bty > 0) {
-                // TYPE_PTR kind ord = 9
-                if (pipeline_type_kind_ord_at(arena, p0) == 9) {
-                  if (pipeline_typeck_type_refs_equal_c(arena, bty, p0) == 0) {
-                    let pe: i32 = pipeline_type_elem_ref_at(arena, p0);
-                    if (pe > 0) {
-                      if (pipeline_typeck_type_refs_equal_c(arena, bty, pe) != 0) {
-                        need_aref = 1;
+      let spill_off_u: i32[96] = [];
+      let gp_start_u: i32[96] = [];
+      let gp_units_u: i32[96] = [];
+      let is_mem_u: i32[96] = [];
+      let arg_sz_u: i32[96] = [];
+      let i_u: i32 = 0;
+      let mem_stack_u: i32 = 0;
+      let reg_max_u: i32 = glue_asm_call_reg_max(ta);
+      let sret_sh_u: i32 = 0;
+      let gp_cur_u: i32 = 0;
+      if (base_ref != 0) { has_recv = 1; }
+      n_place = has_recv + nargs;
+      if (n_place < 0) { return 0 - 1; }
+      if (n_place > 96) { return 0 - 1; }
+      if (has_recv != 0) {
+        let r_fn2: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        let r_dep2: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        if (r_fn2 >= 0) {
+          if (r_dep2 < 0) {
+            if (mod_ref != 0) {
+              let p0: i32 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn2, 0);
+              let bty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+              if (p0 > 0) {
+                if (bty > 0) {
+                  // TYPE_PTR kind ord = 9
+                  if (pipeline_type_kind_ord_at(arena, p0) == 9) {
+                    if (pipeline_typeck_type_refs_equal_c(arena, bty, p0) == 0) {
+                      let pe: i32 = pipeline_type_elem_ref_at(arena, p0);
+                      if (pe > 0) {
+                        if (pipeline_typeck_type_refs_equal_c(arena, bty, pe) != 0) {
+                          need_aref = 1;
+                        }
                       }
                     }
                   }
@@ -2372,45 +2396,285 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
           }
         }
       }
-      if (need_aref != 0) {
-        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) { return 0 - 1; }
-      } else {
-        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) { return 0 - 1; }
+      if (ta == 0) {
+        sret_sh_u = pipeline_asm_emit_call_sret_reg_shift_c();
       }
-      if (ta != 1) {
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+      gp_cur_u = sret_sh_u;
+      if (reg_max_u < 1) { reg_max_u = 6; }
+      while (i_u < n_place) {
+        let ar_u: i32 = 0;
+        let pty_u: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_u);
+        let sz_u: i32 = 0;
+        let u_u: i32 = 0;
+        if (has_recv != 0) {
+          if (i_u == 0) {
+            ar_u = base_ref;
+          } else {
+            ar_u = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
+          }
+        } else {
+          ar_u = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u);
+        }
+        if (has_recv != 0) {
+          if (i_u == 0) {
+            if (need_aref != 0) {
+              sz_u = 8;
+            } else {
+              sz_u = glue_sysv_arg_byte_size_c(arena, ctx, pty_u, ar_u);
+            }
+          } else {
+            sz_u = glue_sysv_arg_byte_size_c(arena, ctx, pty_u, ar_u);
+          }
+        } else {
+          sz_u = glue_sysv_arg_byte_size_c(arena, ctx, pty_u, ar_u);
+        }
+        u_u = glue_sysv_arg_gp_units_from_size_c(sz_u);
+        spill_off_u[i_u] = 0 - 1;
+        is_mem_u[i_u] = 0;
+        arg_sz_u[i_u] = sz_u;
+        gp_start_u[i_u] = 0 - 1;
+        gp_units_u[i_u] = 0;
+        if (u_u < 1) { u_u = 1; }
+        if (u_u > 2) { u_u = 2; }
+        if (glue_sysv_arg_is_memory_by_value_c(sz_u) != 0) {
+          if (ta == 0) {
+            is_mem_u[i_u] = 1;
+            gp_start_u[i_u] = 0 - 1;
+            gp_units_u[i_u] = 0;
+          } else {
+            // arm64 large composite: 1 GP + lea (≡ import METHOD is_mem=2).
+            is_mem_u[i_u] = 2;
+            if (gp_cur_u + 1 <= reg_max_u) {
+              gp_start_u[i_u] = gp_cur_u;
+              gp_units_u[i_u] = 1;
+              gp_cur_u = gp_cur_u + 1;
+            } else {
+              gp_start_u[i_u] = 0 - 1;
+              gp_units_u[i_u] = 1;
+            }
+          }
+        } else if (gp_cur_u + u_u <= reg_max_u) {
+          gp_start_u[i_u] = gp_cur_u;
+          gp_units_u[i_u] = u_u;
+          gp_cur_u = gp_cur_u + u_u;
+        } else {
+          gp_start_u[i_u] = 0 - 1;
+          gp_units_u[i_u] = u_u;
+        }
+        i_u = i_u + 1;
       }
-    }
-    if (ta == 1) {
-      let i3: i32 = nargs - 1;
-      while (i3 >= 0) {
-        let arg_ref3: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i3);
-        if (arg_ref3 != 0) {
-          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref3, i3, ctx, ta) != 0) {
+      // x86: MEMORY multi-word + excess integer stack (high→low) before reg load.
+      if (ta == 0) {
+        let raw_mem: i32 = 0;
+        let pushed_total: i32 = 0;
+        i_u = 0;
+        while (i_u < n_place) {
+          if (is_mem_u[i_u] == 1) {
+            raw_mem = raw_mem + ((arg_sz_u[i_u] + 7) & (0 - 8));
+          } else if (gp_start_u[i_u] < 0) {
+            raw_mem = raw_mem + 8;
+          }
+          i_u = i_u + 1;
+        }
+        while (((raw_mem + pushed_total) & 15) != 0) {
+          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+          pushed_total = pushed_total + 8;
+        }
+        i_u = n_place - 1;
+        while (i_u >= 0) {
+          let arg_pl: i32 = 0;
+          if (has_recv != 0) {
+            if (i_u == 0) {
+              arg_pl = base_ref;
+            } else {
+              arg_pl = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
+            }
+          } else {
+            arg_pl = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u);
+          }
+          if (is_mem_u[i_u] == 1) {
+            let pushed: i32 = 0;
+            if (arg_pl == 0) { return 0 - 1; }
+            pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(
+              arena, elf_ctx, ctx, arg_pl, arg_sz_u[i_u], ta);
+            if (pushed < 0) { return 0 - 1; }
+            pushed_total = pushed_total + pushed;
+          } else if (gp_start_u[i_u] < 0) {
+            if (arg_pl != 0) {
+              if (has_recv != 0) {
+                if (i_u == 0) {
+                  if (need_aref != 0) {
+                    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                      return 0 - 1;
+                    }
+                  } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_pl, i_u, ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+              } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_pl, i_u, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+              pushed_total = pushed_total + 8;
+            }
+          }
+          i_u = i_u - 1;
+        }
+        mem_stack_u = pushed_total;
+      }
+      if (ta == 1) {
+        let nw_u: i32 = 0;
+        let stack_reserve_u: i32 = 0;
+        i_u = 0;
+        while (i_u < n_place) {
+          if (is_mem_u[i_u] == 1) {
+            nw_u = nw_u + glue_sysv_arg_stack_words_c(arg_sz_u[i_u], 0);
+          } else if (gp_start_u[i_u] < 0) {
+            if (is_mem_u[i_u] != 2) {
+              nw_u = nw_u + 1;
+            }
+          }
+          i_u = i_u + 1;
+        }
+        stack_reserve_u = nw_u * 8;
+        if (stack_reserve_u > 0) {
+          stack_reserve_u = (stack_reserve_u + 15) & (0 - 16);
+        }
+        mem_stack_u = stack_reserve_u;
+        if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve_u, ta) != 0) { return 0 - 1; }
+      }
+      // Emit + spill register-class places (receiver uses pty=formal0 via glue_emit_one_call_arg).
+      i_u = 0;
+      while (i_u < n_place) {
+        if (gp_start_u[i_u] >= 0) {
+          let arg_rg: i32 = 0;
+          if (has_recv != 0) {
+            if (i_u == 0) {
+              arg_rg = base_ref;
+            } else {
+              arg_rg = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
+            }
+          } else {
+            arg_rg = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u);
+          }
+          if (arg_rg != 0) {
+            if (is_mem_u[i_u] == 2) {
+              if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_rg, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+            } else if (has_recv != 0) {
+              if (i_u == 0) {
+                if (need_aref != 0) {
+                  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+              } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_rg, i_u, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_rg, i_u, ctx, ta) != 0) {
+              return 0 - 1;
+            }
+            let so_u: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_u[i_u]);
+            if (so_u < 0) { return 0 - 1; }
+            spill_off_u[i_u] = so_u;
+          }
+        }
+        i_u = i_u + 1;
+      }
+      // arm64 excess integer stack via x0 *before* final GP load.
+      if (ta == 1) {
+        let stk_slot_u: i32 = 0;
+        i_u = 0;
+        while (i_u < n_place) {
+          if (gp_start_u[i_u] < 0) {
+            if (is_mem_u[i_u] != 2) {
+              let arg_sk: i32 = 0;
+              if (has_recv != 0) {
+                if (i_u == 0) {
+                  arg_sk = base_ref;
+                } else {
+                  arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
+                }
+              } else {
+                arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u);
+              }
+              if (arg_sk != 0) {
+                if (has_recv != 0) {
+                  if (i_u == 0) {
+                    if (need_aref != 0) {
+                      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                        return 0 - 1;
+                      }
+                    } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+                      return 0 - 1;
+                    }
+                  } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_sk, i_u, ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_sk, i_u, ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot_u * 8, ta) != 0) {
+                  return 0 - 1;
+                }
+                stk_slot_u = stk_slot_u + 1;
+              }
+            }
+          }
+          i_u = i_u + 1;
+        }
+      }
+      // Load high→low so rax/x0 temp does not wipe lower GPs. Dual-GP uses gp_start+units.
+      i_u = n_place - 1;
+      while (i_u >= 0) {
+        if (spill_off_u[i_u] >= 0) {
+          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_u[i_u], gp_start_u[i_u], gp_units_u[i_u]) != 0) {
             return 0 - 1;
           }
-          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i3 + 1, ta) != 0) { return 0 - 1; }
         }
-        i3 = i3 - 1;
+        i_u = i_u - 1;
       }
-    } else {
-      let i4: i32 = 0;
-      while (i4 < nargs) {
-        if (i4 >= 6) { break; }
-        let arg_ref4: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i4);
-        if (arg_ref4 != 0) {
-          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref4, i4, ctx, ta) != 0) {
-            return 0 - 1;
+      // wave683: overload-safe export-sym (get_S / take0) — bare name UNDEF on Ubuntu.
+      {
+        let r_fn_call: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        let r_dep_call: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        let call_sym: u8[128] = [];
+        let call_sym_len: i32 = 0 - 1;
+        if (r_fn_call >= 0) {
+          if (r_dep_call < 0) {
+            if (mod_ref != 0) {
+              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, &call_sym[0], 128);
+            }
+          } else {
+            let dep_pipe_u: *u8 = pipeline_asm_emit_dep_pipe_c();
+            if (dep_pipe_u != 0 as *u8) {
+              let dm_u: *u8 = pipeline_dep_ctx_module_at(dep_pipe_u, r_dep_call);
+              let da_u: *u8 = pipeline_dep_ctx_arena_at(dep_pipe_u, r_dep_call);
+              if (dm_u != 0 as *u8) {
+                if (da_u == 0 as *u8) { da_u = arena; }
+                call_sym_len = glue_asm_build_func_export_sym_c(dm_u, da_u, r_fn_call, &call_sym[0], 128);
+              }
+            }
           }
-          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i4 + 1, ta) != 0) { return 0 - 1; }
         }
-        i4 = i4 + 1;
+        if (call_sym_len > 0) {
+          if (glue_asm_enc_call_redirected(elf_ctx, &call_sym[0], call_sym_len, ta) != 0) { return 0 - 1; }
+        } else if (glue_asm_enc_call_redirected(elf_ctx, &name[0], name_len, ta) != 0) {
+          return 0 - 1;
+        }
       }
+      if (mem_stack_u > 0) {
+        if (backend_enc_call_stack_cleanup_arch(elf_ctx, mem_stack_u, ta) != 0) { return 0 - 1; }
+      }
+      if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) { return 0 - 1; }
+      return 0;
     }
-    // PLATFORM: SHARED — UFCS / bare-name METHOD leave: harvest ret same as free CALL.
-    if (glue_asm_enc_call_redirected(elf_ctx, &name[0], name_len, ta) != 0) { return 0 - 1; }
-    if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) { return 0 - 1; }
-    return 0;
   }
   return 0 - 1;
 }

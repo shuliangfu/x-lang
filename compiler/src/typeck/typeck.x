@@ -13125,7 +13125,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
  * 2) import.binding.method via path-matched dep slot + W-heap overload (call_strict_minimal)
  *    with multi-dep fallback when path slot is empty
  * 3) generic method UFCS (pattern-unify self) BEFORE non-generic UFCS
- * 4) same-module free-fn UFCS (exact / auto-ref *T / weak integer self)
+ * 4) same-module free-fn UFCS (exact / auto-ref *T / weak integer self).
+ *    ARRAY_LIT receiver / extra args coerce to SIMD/VECTOR formals via
+ *    typeck_coerce_init_array_vector_lit_to_decl before type_refs_equal
+ *    (same stamp as CALL-arg / let `a: i32x4 = [1,2,3,4]`).
  * 5) bootstrap i32.double() when impl blocks skipped
  * 6) no-impl LANG-004 diagnostic
  *
@@ -13312,6 +13315,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           if (nparams == num_args + 1) {
             p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
             sc0 = 0 - 1;
+            /*
+             * ARRAY_LIT receiver was check_expr'd with ambient 0 → wave611
+             * TYPE_ARRAY [N]T. Self formal is TYPE_VECTOR / NAMED i32x4.
+             * G.7: reuse typeck_coerce_init_array_vector_lit_to_decl (CALL-arg /
+             * let authority) so type_refs_equal sees the stamped SIMD type.
+             * PLATFORM: SHARED.
+             */
+            if (p0 > 0 && base_ref > 0) {
+              typeck_coerce_init_array_vector_lit_to_decl(arena, base_ref, p0,
+              pipeline_type_kind_ord_at(arena, p0),
+              pipeline_expr_kind_ord_at(arena, base_ref));
+              base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+            }
             if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
               sc0 = 1000;
             }
@@ -13342,6 +13358,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 let param_raw: i32 = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
                 let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
                 let arg_ty: i32 = 0;
+                if (arg_ref2 > 0 && param_raw > 0) {
+                  typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref2, param_raw,
+                  pipeline_type_kind_ord_at(arena, param_raw),
+                  pipeline_expr_kind_ord_at(arena, arg_ref2));
+                }
                 if (arg_ref2 > 0) {
                   arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref2);
                 }

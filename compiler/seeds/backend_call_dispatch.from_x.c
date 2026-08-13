@@ -4303,7 +4303,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             if (need_aref) {
               if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
                 return -1;
-            } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+              /* G.7: receiver uses same pty=formal0 path as extra args (ARRAY_LIT i32x4). */
               return -1;
             }
           } else {
@@ -4352,7 +4353,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         if (need_aref) {
           if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
             return -1;
-        } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+          /* G.7: receiver pty=formal0 so ARRAY_LIT SIMD packs dual-GP. */
           return -1;
         }
       } else {
@@ -4404,7 +4406,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           if (need_aref) {
             if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
               return -1;
-          } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+          } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+            /* G.7: receiver pty=formal0 so ARRAY_LIT SIMD packs dual-GP. */
             return -1;
           }
         } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0) {

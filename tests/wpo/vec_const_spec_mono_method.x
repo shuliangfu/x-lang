@@ -6,7 +6,8 @@
  *
  * METHOD inner + METHOD outer only. CALL-inner neighborhood lives on
  * vec_const_spec_fold.x (typeck ARRAY_LIT→i32x4 CALL green; bare
- * ARRAY_LIT SIMD CALL-arg emit is pipeline_asm_emit_expr_elf_for_call_args).
+ * ARRAY_LIT SIMD CALL-arg emit is pipeline_asm_emit_expr_elf_for_call_args;
+ * ARRAY_LIT SIMD METHOD receiver emit is pipeline_asm_emit_method_call_elf_c).
  * smf 25/26 keep the CALL-inner neighborhood on the larger file.
  */
 

@@ -2,8 +2,8 @@
 // typeck: coerce before score (typeck_check_call_arg_types).
 // emit: pipeline_asm_emit_expr_elf_for_call_args packs ≤16B dual-GP
 // (reuse glue_emit_vector_type_let_init). Non-const elems block WPO fold
-// so run≠7 cannot hide behind mov-imm. METHOD receiver uses the same
-// emit function when rty/pty is SIMD (same-layer leftover, later probe).
+// so run≠7 cannot hide behind mov-imm. METHOD receiver is
+// tests/boundary/array_lit_i32x4_method.x (UFCS place + pty=self).
 // PLATFORM: SHARED — Ubuntu gold.
 
 /**
