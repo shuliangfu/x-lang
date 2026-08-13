@@ -2869,15 +2869,88 @@ export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, o
 }
 
 /**
- * Build overload mid name for func_ix: bare when unique; else name_t1_t2[…].
+ * Count overloads that share the same param-type suffix signature as func_ix.
+ * Used to decide whether import-binding / export mid must append `_ret_<T>`
+ * (return-only overloads: set.new(i32)->Set_i32 vs Set_u64, vec.new, …).
+ * @param a *u8 — arena for param type_refs (same module as m)
+ * @param m *u8 — owning Module
+ * @param func_ix i32 — function index in m
+ * @return i32 — count of same name+param-sig siblings; 0 on bad input
+ * PLATFORM: SHARED — G.7 twin of seed glue_asm_overload_param_sig_count_c.
+ * Why: pure mid lacked this gate → stop at name_t1… without _ret_ → user.o
+ * U std_set_new_i32 while formal T std_set_new_i32_retSet_i32 (run-set BLD001).
+ */
+#[no_mangle]
+export function glue_asm_overload_param_sig_count_c(a: *u8, m: *u8, func_ix: i32): i32 {
+  if (a == 0 as *u8) { return 0; }
+  if (m == 0 as *u8) { return 0; }
+  if (func_ix < 0) { return 0; }
+  unsafe {
+    let fname_len: i32 = pipeline_asm_module_func_name_len_at(m, func_ix);
+    if (fname_len <= 0) { return 0; }
+    if (fname_len > 127) { return 0; }
+    let fname: u8[128] = [];
+    pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
+    let np0: i32 = pipeline_module_func_num_params_at(m, func_ix);
+    let c: i32 = 0;
+    let nfunc: i32 = pipeline_module_num_funcs(m);
+    let i: i32 = 0;
+    while (i < nfunc) {
+      if (pipeline_asm_module_func_is_extern_at(m, i) == 0) {
+        if (pipeline_module_func_name_equal_at(m, i, &fname[0], fname_len) != 0) {
+          let npi: i32 = pipeline_module_func_num_params_at(m, i);
+          if (npi == np0) {
+            let same: i32 = 1;
+            let pi: i32 = 0;
+            while (pi < np0) {
+              let sa: u8[64] = [];
+              let sb: u8[64] = [];
+              let na: i32 = glue_asm_type_ref_to_suffix_c(
+                a, pipeline_module_func_param_type_ref_at(m, func_ix, pi), &sa[0], 64
+              );
+              let nb: i32 = glue_asm_type_ref_to_suffix_c(
+                a, pipeline_module_func_param_type_ref_at(m, i, pi), &sb[0], 64
+              );
+              if (na != nb) {
+                same = 0;
+                break;
+              }
+              let k: i32 = 0;
+              while (k < na) {
+                if (sa[k] != sb[k]) {
+                  same = 0;
+                  break;
+                }
+                k = k + 1;
+              }
+              if (same == 0) { break; }
+              pi = pi + 1;
+            }
+            if (same != 0) {
+              c = c + 1;
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+    return c;
+  }
+  return 0;
+}
+
+/**
+ * Build overload mid name for func_ix: bare when unique; else name_t1_t2[_ret_T].
  * Aligns seed glue_asm_build_func_overload_mid_c (import-binding mid, no dep path).
+ * Same param-sig overloads append `_ret_<T>` so call site matches formal export
+ * (codegen_emit_func_link_name / seed export: set.new → new_i32_retSet_i32).
  * @param m *u8 — owning Module
  * @param a *u8 — arena for param type_refs
  * @param func_ix i32 — function index in m
  * @param out *u8 — destination
  * @param out_cap i32 — capacity
  * @return i32 — mid length, or -1 on failure
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — G.7 complete pure twin of seed mid (was param-only incomplete).
  */
 #[no_mangle]
 export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32 {
@@ -2922,6 +2995,34 @@ export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32,
         }
       }
       pi = pi + 1;
+    }
+    // PLATFORM: SHARED — same param-sig overloads need _ret_<T> (seed mid authority).
+    // Without this, pure product emits std_set_new_i32 while formal exports
+    // std_set_new_i32_retSet_i32 → BLD001 even when set.o is on the link line.
+    let sig_count: i32 = glue_asm_overload_param_sig_count_c(a, m, func_ix);
+    if (sig_count > 1) {
+      let ret_ref: i32 = pipeline_module_func_return_type_at(m, func_ix);
+      if (ret_ref > 0) {
+        let rsuf: u8[64] = [];
+        let rsl: i32 = glue_asm_type_ref_to_suffix_c(a, ret_ref, &rsuf[0], 64);
+        if (rsl > 0) {
+          if (pos + 4 + rsl >= out_cap) { return 0 - 1; }
+          out[pos] = 95; // '_'
+          pos = pos + 1;
+          out[pos] = 114; // 'r'
+          pos = pos + 1;
+          out[pos] = 101; // 'e'
+          pos = pos + 1;
+          out[pos] = 116; // 't'
+          pos = pos + 1;
+          let ri: i32 = 0;
+          while (ri < rsl) {
+            out[pos] = rsuf[ri];
+            pos = pos + 1;
+            ri = ri + 1;
+          }
+        }
+      }
     }
     if (pos > 0) { return pos; }
   }
