@@ -245,7 +245,9 @@ impl VecAdd4able for i32x4 {
  * 21-22 x+K METHOD plus_one() + CALL add_one neighborhood;
  * 23-24 wpo_const scalar METHOD fold_add() + CALL fold_add_call neighborhood;
  * 25-26 wpo_const vector_lane METHOD lane0() (CALL inner + METHOD inner);
- * 27-32 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
+ * 27-32 >16B METHOD/CALL field-access + let-init (sret / memcpy residual);
+ * 33-36 nested METHOD factory peel (first/take_a/pair_sum/field_sum);
+ * 37-38 nested CALL factory neighborhood of the same peel.
  * 9–16B Quad field.d / take_quad left for the home-vs-rdx layout knife (not this classifier).
  * @return i32 — 0 ok
  */
@@ -310,5 +312,14 @@ function main(): i32 {
   if (mk_wide(7).e != 11) { return 31; }
   let cw: Wide = mk_wide(7);
   if (cw.e != 11) { return 32; }
+  /* Nested METHOD factory peel: first/take_a over as_pair (this knife). */
+  if (take_a(5.as_pair()) != 5) { return 33; }
+  if (5.as_pair().first() != 5) { return 34; }
+  /* Nested METHOD factory peel: pair_sum/field_sum over as_pair. */
+  if (field_sum(5.as_pair()) != 10) { return 35; }
+  if (5.as_pair().pair_sum() != 10) { return 36; }
+  /* Nested CALL factory neighborhood of the same peel. */
+  if (take_a(mk(3, 4)) != 3) { return 37; }
+  if (mk(3, 4).first() != 3) { return 38; }
   return 0;
 }

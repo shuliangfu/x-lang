@@ -1215,7 +1215,13 @@ int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t 
 
 
 /**
- * 外层 field_access 经 inner CALL（struct_lit 按值返回）映射到实参 expr_ref。
+ * Map an outer FIELD_ACCESS through an inner factory that returns
+ * `Struct { f: param… }` to the matching constructor argument.
+ * CALL(48): arg is call_arg_ref[pix]. METHOD_CALL(49): UFCS
+ * nparams==nargs+1 → pix 0 is method_call_base, pix k is method_arg[k-1];
+ * import-method nparams==nargs → method_arg[pix] (no implicit self).
+ * @return 1 mapped, 0 no match
+ * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-375 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -1229,14 +1235,21 @@ int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, st
   int32_t fj;
   int32_t pix;
   int32_t flen;
+  int32_t iko;
+  int32_t arg;
+  int32_t nargs;
+  int32_t nparams;
   uint8_t fname[128];
-  if (!out_arg_ref || inner_call_ref <= 0 || outer_field_ref <= 0 || !ctx)
+  if (!out_arg_ref || !arena || inner_call_ref <= 0 || outer_field_ref <= 0 || !ctx)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, inner_call_ref) != GLUE_EXPR_CALL)
+  iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
+  if (iko != GLUE_EXPR_CALL && iko != GLUE_EXPR_METHOD_CALL)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, outer_field_ref) != GLUE_EXPR_FIELD_ACCESS)
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &callee_arena, &callee_mod, &inner_fi) == 0)
+    return 0;
+  if (!callee_arena || !callee_mod)
     return 0;
   if (glue_fold_func_returns_param_struct_lit(callee_arena, callee_mod, inner_fi, &lit_ref) == 0)
     return 0;
@@ -1249,8 +1262,25 @@ int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, st
     return 0;
   if (glue_struct_lit_field_init_param_index(callee_arena, callee_mod, inner_fi, lit_ref, fj, &pix) != 0)
     return 0;
-  *out_arg_ref = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
-  return (*out_arg_ref > 0) ? 1 : 0;
+  if (iko == GLUE_EXPR_CALL) {
+    arg = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
+  } else {
+    /* METHOD: same UFCS / import-method contract as struct-lit slot inliner. */
+    nargs = pipeline_expr_method_call_num_args_at(arena, inner_call_ref);
+    nparams = pipeline_asm_module_func_num_params_at(callee_mod, inner_fi);
+    if (nparams != nargs + 1 && nparams != nargs)
+      return 0;
+    if (nparams == nargs + 1) {
+      if (pix == 0)
+        arg = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
+      else
+        arg = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, pix - 1);
+    } else {
+      arg = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, pix);
+    }
+  }
+  *out_arg_ref = arg;
+  return (arg > 0) ? 1 : 0;
 }
 
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -1265,7 +1295,8 @@ int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct 
 /**
  * Inline `recv.first()` / `take_a(recv)` when the callee is `return param0.field`.
  * CALL(48): one positional arg. METHOD_CALL(49): extra args == 0; param0 is
- * method_call_base (UFCS self). Nested CALL arg still peels; METHOD-as-arg → 0.
+ * method_call_base (UFCS self). Nested CALL(48) or METHOD(49) factory
+ * peels via glue_inner_call_arg (UFCS pix map).
  * @return 1 inlined, 0 no match, -1 encode error
  * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
@@ -1324,13 +1355,16 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
-  if (pipeline_expr_kind_ord_at(arena, arg_ref) == GLUE_EXPR_CALL) {
-    int32_t inner_arg;
-    if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ret_ref, &inner_arg) == 0)
-      return 0;
-    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg, ctx, ta) != 0)
-      return -1;
-    return 1;
+  {
+    int32_t ako = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if (ako == GLUE_EXPR_CALL || ako == GLUE_EXPR_METHOD_CALL) {
+      int32_t inner_arg;
+      if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ret_ref, &inner_arg) == 0)
+        return 0;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg, ctx, ta) != 0)
+        return -1;
+      return 1;
+    }
   }
   if (pipeline_expr_kind_ord_at(arena, arg_ref) != GLUE_EXPR_VAR)
     return 0;
@@ -1605,7 +1639,7 @@ int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena, struct pl
  * Inline `recv.pair_sum()` / `field_sum(recv)` when callee is
  * `return param0.f0 + param0.f1`. CALL(48): one positional arg.
  * METHOD_CALL(49): extra args == 0; param0 is method_call_base (UFCS self).
- * Nested CALL arg still peels; METHOD-as-arg → 0.
+ * Nested CALL(48) or METHOD(49) factory peels via glue_inner_call_arg.
  * @return 1 inlined, 0 no match, -1 encode error
  * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
@@ -1661,7 +1695,9 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
-  if (pipeline_expr_kind_ord_at(arena, arg_ref) == GLUE_EXPR_CALL) {
+  {
+    int32_t ako = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if (ako == GLUE_EXPR_CALL || ako == GLUE_EXPR_METHOD_CALL) {
     int32_t inner_arg_a;
     int32_t inner_arg_b;
     if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, al, &inner_arg_a) == 0)
@@ -1681,6 +1717,7 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
     if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
       return -1;
     return 1;
+    }
   }
   if (pipeline_expr_kind_ord_at(arena, arg_ref) != GLUE_EXPR_VAR)
     return 0;

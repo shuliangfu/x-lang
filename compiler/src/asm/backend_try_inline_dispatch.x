@@ -949,16 +949,22 @@ export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn
   }
   return 0 - 1;
 }
-// See implementation.
-// CALL=48，FIELD_ACCESS=44
-/** Exported function `glue_inner_call_arg_for_field_access`.
- * Implements `glue_inner_call_arg_for_field_access`.
- * @param arena *u8
- * @param ctx *u8
- * @param inner_call_ref i32
- * @param outer_field_ref i32
- * @param out_arg_ref *i32
- * @return i32
+/**
+ * Map an outer FIELD_ACCESS through an inner factory that returns
+ * `Struct { f: param… }` to the matching constructor argument.
+ * CALL(48): arg is call_arg_ref[pix]. METHOD_CALL(49): UFCS
+ * nparams==nargs+1 → pix 0 is method_call_base, pix k is method_arg[k-1];
+ * import-method nparams==nargs → method_arg[pix] (no implicit self).
+ * Lookup is METHOD-safe (glue_call_lookup). Used by single_field / field_sum
+ * peels so `take_a(recv.as_pair())` / `recv.as_pair().first()` emit the
+ * peeled arg instead of calling the factory.
+ * @param arena *u8 — AST arena of the inner call; null → 0
+ * @param ctx *u8 — AsmFuncCtx (dep pipe for lookup); null → 0
+ * @param inner_call_ref i32 — CALL(48) or METHOD_CALL(49) factory; <=0 → 0
+ * @param outer_field_ref i32 — FIELD_ACCESS(44) whose name selects the field; <=0 → 0
+ * @param out_arg_ref *i32 — written with the peeled arg expr_ref; null → 0
+ * @return i32 — 1 mapped, 0 no match
+ * PLATFORM: SHARED — product PREFER thin+rest; seed _impl same mapping.
  */
 #[no_mangle]
 export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner_call_ref: i32, outer_field_ref: i32, out_arg_ref: *i32): i32 {
@@ -968,7 +974,9 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
   if (ctx == 0) { return 0; }
   if (arena == 0) { return 0; }
   unsafe {
-    if (pipeline_expr_kind_ord_at(arena, inner_call_ref) != 48) { return 0; }
+    let iko: i32 = pipeline_expr_kind_ord_at(arena, inner_call_ref);
+    // CALL=48 METHOD_CALL=49: same param-struct-lit peel.
+    if (iko != 48 && iko != 49) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, outer_field_ref) != 44) { return 0; }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
@@ -978,6 +986,8 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
     }
     let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
     let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    if (callee_arena == 0) { return 0; }
+    if (callee_mod == 0) { return 0; }
     let lit_ref: i32 = 0;
     if (glue_fold_func_returns_param_struct_lit(callee_arena, callee_mod, inner_fi, &lit_ref) == 0) {
       return 0;
@@ -993,7 +1003,26 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
     if (glue_struct_lit_field_init_param_index(callee_arena, callee_mod, inner_fi, lit_ref, fj, &pix) != 0) {
       return 0;
     }
-    let arg: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
+    let arg: i32 = 0;
+    if (iko == 48) {
+      arg = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
+    } else {
+      // METHOD: same UFCS / import-method contract as struct-lit slot inliner.
+      let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, inner_call_ref);
+      let nparams: i32 = pipeline_asm_module_func_num_params_at(callee_mod, inner_fi);
+      if (nparams != nargs + 1) {
+        if (nparams != nargs) { return 0; }
+      }
+      if (nparams == nargs + 1) {
+        if (pix == 0) {
+          arg = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
+        } else {
+          arg = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, pix - 1);
+        }
+      } else {
+        arg = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, pix);
+      }
+    }
     out_arg_ref[0] = arg;
     if (arg > 0) { return 1; }
   }
@@ -1592,8 +1621,8 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
 /**
  * Inline `recv.first()` / `take_a(recv)` when the callee is `return param0.field`.
  * CALL(48): one positional arg is the struct. METHOD_CALL(49): extra args must
- * be 0 and param0 is method_call_base (UFCS self). Nested CALL arg still
- * peels via glue_inner_call_arg; METHOD-as-arg falls through (0).
+ * be 0 and param0 is method_call_base (UFCS self). Nested CALL(48) or
+ * METHOD(49) factory peels via glue_inner_call_arg (UFCS pix map).
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1654,13 +1683,17 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
     }
     if (arg_ref <= 0) { return 0 - 1; }
-    if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48) {
-      let inner_arg: i32 = 0;
-      if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ret_ref, &inner_arg) == 0) {
-        return 0;
+    {
+      let ako: i32 = pipeline_expr_kind_ord_at(arena, arg_ref);
+      // Nested factory: CALL or METHOD that returns param-struct-lit.
+      if (ako == 48 || ako == 49) {
+        let inner_arg: i32 = 0;
+        if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ret_ref, &inner_arg) == 0) {
+          return 0;
+        }
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg, ctx, ta) != 0) { return 0 - 1; }
+        return 1;
       }
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg, ctx, ta) != 0) { return 0 - 1; }
-      return 1;
     }
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, arg_ref);
@@ -1684,8 +1717,8 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
  * Inline `recv.pair_sum()` / `field_sum(recv)` when the callee is
  * `return param0.f0 + param0.f1`. CALL(48): one positional arg is the
  * struct. METHOD_CALL(49): extra args must be 0 and param0 is
- * method_call_base (UFCS self). Nested CALL arg still peels via
- * glue_inner_call_arg; METHOD-as-arg falls through (0).
+ * method_call_base (UFCS self). Nested CALL(48) or METHOD(49) factory
+ * peels via glue_inner_call_arg (UFCS pix map).
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1744,18 +1777,22 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
     }
     if (arg_ref <= 0) { return 0 - 1; }
-    if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48) {
-      let inner_arg_a: i32 = 0;
-      let inner_arg_b: i32 = 0;
-      if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, al, &inner_arg_a) == 0) { return 0; }
-      if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ar, &inner_arg_b) == 0) { return 0; }
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg_a, ctx, ta) != 0) { return 0 - 1; }
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg_b, ctx, ta) != 0) { return 0 - 1; }
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-      if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-      return 1;
+    {
+      let ako: i32 = pipeline_expr_kind_ord_at(arena, arg_ref);
+      // Nested factory: CALL or METHOD that returns param-struct-lit.
+      if (ako == 48 || ako == 49) {
+        let inner_arg_a: i32 = 0;
+        let inner_arg_b: i32 = 0;
+        if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, al, &inner_arg_a) == 0) { return 0; }
+        if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ar, &inner_arg_b) == 0) { return 0; }
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg_a, ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg_b, ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        return 1;
+      }
     }
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, arg_ref);
