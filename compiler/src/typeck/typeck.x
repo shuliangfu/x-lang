@@ -748,6 +748,7 @@ export extern function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, 
 ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32;
 export extern function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32;
+export extern function pipeline_typeck_is_simd_comptime_callee_c(name: *u8, name_len: i32): i32;
 export extern function pipeline_block_let_type_ref(arena: *ASTArena, br: i32, li: i32): i32;
 export extern function pipeline_block_set_let_type_ref(arena: *ASTArena, br: i32, li: i32, type_ref: i32): i32;
 /**
@@ -9852,6 +9853,27 @@ ctx: *PipelineDepCtx): i32 {
     if (cnml > 0 && pipeline_typeck_is_read_ptr_slice_callee_c(&cnm[0], cnml) != 0) {
       ret_ty = pipeline_typeck_read_ptr_slice_return_ref_c(arena);
     }
+    /*
+     * Stage12 @shuffle/@select: parser lowers to bare CALL simd_shuffle /
+     * simd_select (codegen inlines pshufd / blend). No module fi — stamp ret
+     * from vector operand (arg0 shuffle, arg1 select) after args typecked.
+     * G.7: pipeline_typeck_is_simd_comptime_callee_c authority.
+     * PLATFORM: SHARED.
+     */
+    if (ret_ty == 0 && cnml > 0 && pipeline_typeck_is_simd_comptime_callee_c(&cnm[0], cnml) != 0) {
+      let arg_i: i32 = 0;
+      let arg_ref: i32 = 0;
+      if (cnml == 11) {
+        /* simd_select(mask, a, b) → type of a */
+        arg_i = 1;
+      }
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) > arg_i) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, arg_i);
+        if (!ast.ref_is_null(arg_ref)) {
+          ret_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
+      }
+    }
     if (ret_ty != 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
     }
@@ -9949,6 +9971,10 @@ ctx: *PipelineDepCtx): i32 {
     pipeline_expr_var_name_into(arena, callee_eff, &cnm[0]);
     /* PLATFORM: SHARED — product intrinsics that type without module fi. */
     if (pipeline_typeck_is_read_ptr_slice_callee_c(&cnm[0], cnml) != 0) {
+      return 0;
+    }
+    /* @shuffle/@select → simd_shuffle/simd_select (codegen-inline; no fi). */
+    if (pipeline_typeck_is_simd_comptime_callee_c(&cnm[0], cnml) != 0) {
       return 0;
     }
     name_hits = 0;
@@ -15977,6 +16003,28 @@ export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: 
     return 1;
   }
   if (name_len == 16 && name_equal(name, name_len, "io_read_ptr_slice" as *u8, 16)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Return 1 if callee is a SIMD comptime builtin lowered from @shuffle / @select.
+ * Names: simd_shuffle (12) / simd_select (11). Codegen inlines; no module fi.
+ * @param name *u8 — callee name bytes (not required NUL-terminated)
+ * @param name_len i32 — byte count; <=0 or null → 0
+ * @return i32 — 1 match; 0 no match / invalid
+ * PLATFORM: SHARED freestanding typeck. G.7 single gate for @ simd CALL names.
+ */
+#[no_mangle]
+export function pipeline_typeck_is_simd_comptime_callee_c(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  if (name_len == 12 && name_equal(name, name_len, "simd_shuffle" as *u8, 12)) {
+    return 1;
+  }
+  if (name_len == 11 && name_equal(name, name_len, "simd_select" as *u8, 11)) {
     return 1;
   }
   return 0;
