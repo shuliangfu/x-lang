@@ -431,11 +431,13 @@ int32_t simd_x86_movups_xmm2_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx
 
 
 
-/** x86 FMA3：vfmadd231ps xmm0, xmm1, xmm2（xmm0 = xmm1 * xmm2 + xmm0）。 */
+/** x86 FMA3：vfmadd231ps xmm0, xmm1, xmm2（xmm0 = xmm1 * xmm2 + xmm0）。
+ * PLATFORM: LINUX+MACOS x86 — VEX.128.66.0F38.W0 B8 /r (C4 E2 71 B8 C2).
+ * A9/C1 is vfmadd213ss xmm0,xmm1,xmm1 (scalar, wrong rm); must stay B8/C2. */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-391：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[5] = {0xc4, 0xe2, 0x71, 0xa9, 0xc1};
+    static const uint8_t insn[5] = {0xc4, 0xe2, 0x71, 0xb8, 0xc2};
     return simd_append_impl(elf_ctx, insn, 5);
 }
 

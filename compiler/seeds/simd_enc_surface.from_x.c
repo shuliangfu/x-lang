@@ -442,12 +442,13 @@ int32_t simd_x86_vpmulld_ymm0_ymm1(uint8_t * elf) {
   }
   return r;
 }
+/* VEX.128.66.0F38.W0 B8 /r: vfmadd231ps xmm0,xmm1,xmm2 (not A9/C1 = 213ss). */
 int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(uint8_t * elf) {
   uint8_t b0 = 196;
   uint8_t b1 = 226;
   uint8_t b2 = 113;
-  uint8_t b3 = 169;
-  uint8_t b4 = 193;
+  uint8_t b3 = 184;
+  uint8_t b4 = 194;
   int32_t r = 0;
   {
     (void)((r = simd_append(elf, &(b0), 1)));

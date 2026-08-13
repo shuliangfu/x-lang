@@ -307,18 +307,21 @@ export function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vfmadd231ps_xmm0_xmm1_xmm2`.
- * Implements `simd_x86_vfmadd231ps_xmm0_xmm1_xmm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode vfmadd231ps xmm0, xmm1, xmm2 (xmm0 = xmm1 * xmm2 + xmm0).
+ * VEX.128.66.0F38.W0 B8 /r — opcode B8 is packed 231PS; ModRM C2 is rm=xmm2.
+ * Do not emit A9/C1: A9 is vfmadd213ss (scalar) and C1 is rm=xmm1.
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 ok, -1 append fail
+ * PLATFORM: LINUX+MACOS x86 FMA3 encoding (SysV xmm).
  */
 #[no_mangle]
 export function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
   let b2: u8 = 113;
-  let b3: u8 = 169;
-  let b4: u8 = 193;
+  let b3: u8 = 184;
+  let b4: u8 = 194;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
