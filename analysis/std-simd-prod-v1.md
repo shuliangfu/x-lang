@@ -46,7 +46,8 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1
 无 native `xlang_asm` 时 manifest 仍须绿；perf runnable **SKIP**。
 自举期 check 闸门暂停（2026-08-05）：产品验收以 `-L . -o` 真链 + run 为准。
 
-2026-08-13：peel 已跨 while 外层 comptime mask，热循环 `shuffle` 走 `pshufd`。余量是循环内 `simd.splat`＋`select(i32x8)` formal call（ratio 仍 < 1.0，gate 软 SKIP；**不**改门槛）。
+2026-08-13：peel 已跨 while 外层 comptime mask，热循环 `shuffle` 走 `pshufd`。
+2026-08-13：`try_inline_select` 补 fold `select(splat(k),a,b)`＋嵌套 splat 物化；同族 `try_inline_splat`。Ubuntu L2 r04 UNDEF **NONE** · ratio **2.42**（stub 0.029s／Xlang 0.012s）硬过 1.0 · `bench_ok=1`。**不**改门槛。
 
 ---
 
