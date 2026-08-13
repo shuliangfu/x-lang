@@ -7141,16 +7141,35 @@ int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena,
     int32_t ord_type_vector = 13;
     int32_t ord_expr_array_lit = 46;
     int32_t lanes = 0;
+    int32_t n_elems = 0;
+    int32_t elem_decl = 0;
+    int32_t elem_decl_kind = 0;
+    int32_t i = 0;
+    int32_t elem_ref = 0;
+    int32_t ek = 0;
     if ((((decl_kind ==ord_type_array) || (decl_kind ==ord_type_slice)) && (init_kind ==ord_expr_array_lit))) {
       return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
     }
     if ((init_kind ==ord_expr_array_lit)) {
-      (void)((lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref)));
-      if (((lanes > 0) && (pipeline_expr_array_lit_num_elems_at(arena, init_ref) ==lanes))) {
-        (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-        return 1;
-      }
-      if (((decl_kind ==ord_type_vector) && (pipeline_expr_array_lit_num_elems_at(arena, init_ref) ==pipeline_type_array_size_at(arena, decl_ty_ref)))) {
+      n_elems = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref);
+      if (lanes <= 0 && decl_kind == ord_type_vector)
+        lanes = pipeline_type_array_size_at(arena, decl_ty_ref);
+      if (lanes > 0 && n_elems == lanes) {
+        /* Stage12 soft residual: stamp FLOAT_LIT elems to vector lane type (f32)
+         * before freestanding pack (G.7 reuse float_lit/lit coerce). */
+        elem_decl = typeck_vector_elem_type_ref(arena, decl_ty_ref);
+        if (elem_decl > 0) {
+          elem_decl_kind = pipeline_type_kind_ord_at(arena, elem_decl);
+          for (i = 0; i < n_elems; i++) {
+            elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
+            if (elem_ref > 0) {
+              ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+              (void)typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+              (void)typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+            }
+          }
+        }
         (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
         return 1;
       }
@@ -11488,6 +11507,10 @@ int32_t typeck_vector_elem_type_ref(struct ast_ASTArena * arena, int32_t type_re
     }
     if (((((nlen >=3) && ((nm)[0] ==102)) && ((nm)[1] ==54)) && ((nm)[2] ==52))) {
       return typeck_ensure_f64_type_ref(arena);
+    }
+    /* Vec4f product alias → f32 (≡ glue_vector_elem_is_f32_c). */
+    if (nlen == 5 && (nm)[0] == 86 && (nm)[1] == 101 && (nm)[2] == 99 && (nm)[3] == 52 && (nm)[4] == 102) {
+      return typeck_ensure_f32_type_ref(arena);
     }
     if (((((nlen >=3) && ((nm)[0] ==105)) && ((nm)[1] ==54)) && ((nm)[2] ==52))) {
       return typeck_ensure_i64_type_ref(arena);

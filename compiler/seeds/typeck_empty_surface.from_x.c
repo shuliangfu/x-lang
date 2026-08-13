@@ -3885,19 +3885,37 @@ int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t type_re
 }
 int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   int32_t ord_type_array = 10;
+  int32_t ord_type_slice = 11;
   int32_t ord_type_vector = 13;
   int32_t ord_expr_array_lit = 46;
   int32_t lanes = 0;
-  if (((decl_kind ==ord_type_array) && (init_kind ==ord_expr_array_lit))) {
+  int32_t n_elems = 0;
+  int32_t elem_decl = 0;
+  int32_t elem_decl_kind = 0;
+  int32_t i = 0;
+  int32_t elem_ref = 0;
+  int32_t ek = 0;
+  if ((((decl_kind ==ord_type_array) || (decl_kind ==ord_type_slice)) && (init_kind ==ord_expr_array_lit))) {
     return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
   }
   if ((init_kind ==ord_expr_array_lit)) {
-    (void)((lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref)));
-    if (((lanes > 0) && (pipeline_expr_array_lit_num_elems_at(arena, init_ref) ==lanes))) {
-      (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-      return 1;
-    }
-    if (((decl_kind ==ord_type_vector) && (pipeline_expr_array_lit_num_elems_at(arena, init_ref) ==pipeline_type_array_size_at(arena, decl_ty_ref)))) {
+    n_elems = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref);
+    if (lanes <= 0 && decl_kind == ord_type_vector)
+      lanes = pipeline_type_array_size_at(arena, decl_ty_ref);
+    if (lanes > 0 && n_elems == lanes) {
+      elem_decl = typeck_vector_elem_type_ref(arena, decl_ty_ref);
+      if (elem_decl > 0) {
+        elem_decl_kind = pipeline_type_kind_ord_at(arena, elem_decl);
+        for (i = 0; i < n_elems; i++) {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
+          if (elem_ref > 0) {
+            ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+            (void)typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+            (void)typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+          }
+        }
+      }
       (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
       return 1;
     }

@@ -32669,9 +32669,13 @@ export function glue_body_expr_stmt_at_c(arena: *u8, body_ref: i32, si: i32, nso
  * ARRAY_LIT element type_ref from stamped resolved TYPE_ARRAY/TYPE_SLICE.
  * @param arena *u8 - ASTArena*
  * @param array_lit_expr_ref i32 - ARRAY_LIT expr_ref
- * @return i32 - elem_type_ref; 0 if invalid / not array-or-slice
+ * @return i32 - elem_type_ref; 0 if invalid / not array-slice-or-vector
  * wave143 pure: G.7 authority (was pipeline_asm_array_lit_elem_type_ref in array_lit.c).
  * wave631: peel TYPE_SLICE (11) as well as TYPE_ARRAY (10).
+ * Stage12 soft residual (2026-08-13): also peel TYPE_VECTOR (13) so Vec4f/f32x4
+ * ARRAY_LIT elems resolve to TYPE_F32 and glue_array_lit_emit_scalar_elem packs
+ * true f32 IEEE bits (bare emit_expr FLOAT_LIT kept f64 movabs → store low-32
+ * of 0x3ff0… = 0.0f → pure-asm simd roundtrip exit=1).
  * PLATFORM: SHARED freestanding.
  */
 #[no_mangle]
@@ -32695,7 +32699,8 @@ export function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit_expr_
   unsafe {
     tk = pipeline_type_kind_ord_at(arena, arr_tr);
   }
-  if (tk != 10 && tk != 11) {
+  /* TYPE_ARRAY=10, TYPE_SLICE=11, TYPE_VECTOR=13 — all have elem_type_ref. */
+  if (tk != 10 && tk != 11 && tk != 13) {
     return 0;
   }
   unsafe {
@@ -36732,7 +36737,9 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
     }
     unsafe {
       may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
+      /* G.7 ≡ pipeline_asm_emit_array_lit_force_esz: FLOAT_LIT + force_esz packs
+       * f32/f64 correctly. Bare emit_expr left f64 bits for f32 leaf stores. */
+      rc = glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, init_ref, elem_ref, ctx, ta, leaf_esz);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -36904,7 +36911,9 @@ export function pipeline_asm_emit_vector_let_init_elf_c(arena: *u8, elf_ctx: *u8
     }
     unsafe {
       may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
+      /* G.7 ≡ emit_array_lit_force_esz scalar path (wave617 f32 pack authority).
+       * PLATFORM: SHARED freestanding · Vec4f/f32xN let-init pure-asm gold. */
+      rc = glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, init_ref, elem_ref, ctx, ta, esz);
     }
     if (rc != 0) {
       return 0 - 1;

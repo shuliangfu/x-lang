@@ -14704,7 +14704,10 @@ int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr
   if (arr_tr <= 0)
     return 0;
   tk = pipeline_type_kind_ord_at(arena, arr_tr);
-  if (tk != 10 && tk != 11)
+  /* TYPE_ARRAY=10, TYPE_SLICE=11, TYPE_VECTOR=13 — all carry elem_type_ref.
+   * Stage12 soft residual: peel VECTOR so Vec4f ARRAY_LIT elems get TYPE_F32
+   * force for glue_array_lit_emit_scalar_elem (f64 movabs low-32 pack was 0.0f). */
+  if (tk != 10 && tk != 11 && tk != 13)
     return 0;
   return pipeline_type_elem_ref_at(arena, arr_tr);
 }
@@ -17455,7 +17458,9 @@ int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
       return -1;
     {
       int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+      /* G.7 ≡ emit_array_lit_force_esz: FLOAT_LIT + force_esz packs f32 IEEE bits. */
+      if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, init_ref, elem_ref, ctx, ta,
+                                                        leaf_esz) != 0)
         return -1;
       if (may_clobber != 0) {
         if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -17575,7 +17580,10 @@ int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
       return -1;
     {
       int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+      /* G.7 ≡ emit_array_lit_force_esz scalar path (wave617 f32 pack).
+       * PLATFORM: SHARED freestanding · Vec4f/f32xN pure-asm gold. */
+      if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, init_ref, elem_ref, ctx, ta,
+                                                        esz) != 0)
         return -1;
       if (may_clobber != 0) {
         /* value@rax; restore fixed-array base@rbx (wave340 dual-slot). */

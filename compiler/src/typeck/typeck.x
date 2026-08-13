@@ -7782,20 +7782,47 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
     let ord_type_vector: i32 = 13;
     let ord_expr_array_lit: i32 = 46;
     let lanes: i32 = 0;
+    let n_elems: i32 = 0;
+    let elem_decl: i32 = 0;
+    let elem_decl_kind: i32 = 0;
+    let i: i32 = 0;
+    let elem_ref: i32 = 0;
+    let ek: i32 = 0;
     /* Fixed array T[N] or open slice T[] ← [e0, e1, …] */
     if ((decl_kind == ord_type_array || decl_kind == ord_type_slice)
     && init_kind == ord_expr_array_lit) {
       return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
     }
     if (init_kind == ord_expr_array_lit) {
+      n_elems = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
       lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref);
-      if (lanes > 0 && pipeline_expr_array_lit_num_elems_at(arena, init_ref) == lanes) {
-        pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-        return 1;
+      if (lanes <= 0 && decl_kind == ord_type_vector) {
+        lanes = pipeline_type_array_size_at(arena, decl_ty_ref);
       }
-      if (decl_kind == ord_type_vector
-      && pipeline_expr_array_lit_num_elems_at(arena, init_ref) == pipeline_type_array_size_at(arena,
-      decl_ty_ref)) {
+      if (lanes > 0 && n_elems == lanes) {
+        /*
+         * Stage12 soft residual (2026-08-13): prior path only stamped the outer
+         * ARRAY_LIT as the vector type; FLOAT_LIT elems stayed default f64.
+         * Freestanding vector let-init then movabs f64 bits and store low-32
+         * (many finite doubles → 0.0f) → pure-asm Vec4f[i] / simd shuffle red.
+         * G.7: reuse typeck_coerce_init_float_lit_to_decl / lit coerce (wave316 /
+         * wave617 array authority) on each lane elem + stamp outer.
+         * PLATFORM: SHARED typeck · LINUX pure-asm gold.
+         */
+        elem_decl = typeck_vector_elem_type_ref(arena, decl_ty_ref);
+        if (!ast.ref_is_null(elem_decl) && elem_decl > 0) {
+          elem_decl_kind = pipeline_type_kind_ord_at(arena, elem_decl);
+          i = 0;
+          while (i < n_elems) {
+            elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
+            if (!ast.ref_is_null(elem_ref) && elem_ref > 0) {
+              ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+              typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+              typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+            }
+            i = i + 1;
+          }
+        }
         pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
         return 1;
       }
@@ -13659,6 +13686,10 @@ export function typeck_vector_elem_type_ref(arena: *ASTArena, type_ref: i32): i3
     if (nlen >= 3 && nm[0] == 102 && nm[1] == 54 && nm[2] == 52) {
       return ensure_f64_type_ref(arena);
     }
+    /* Product aliases: Vec4f → f32 (≡ glue_vector_elem_is_f32_c). */
+    if (nlen == 5 && nm[0] == 86 && nm[1] == 101 && nm[2] == 99 && nm[3] == 52 && nm[4] == 102) {
+      return ensure_f32_type_ref(arena);
+    }
     if (nlen >= 3 && nm[0] == 105 && nm[1] == 54 && nm[2] == 52) {
       return ensure_i64_type_ref(arena);
     }
@@ -13671,7 +13702,7 @@ export function typeck_vector_elem_type_ref(arena: *ASTArena, type_ref: i32): i3
     if (nlen >= 2 && nm[0] == 117 && nm[1] == 56) {
       return ensure_u8_type_ref(arena);
     }
-    /* i32x* / Vec* / residual → i32 */
+    /* i32x* / Vec8i / residual → i32 */
     return ensure_i32_type_ref(arena);
   }
 }
