@@ -1502,9 +1502,16 @@ int labi_user_needs_std_task(const char *user_o) {
 }
 
 
-/* wave135: labi_std_fk0_user_needs_rel pure cold twin (tables + orch). */
+/* wave135: labi_std_fk0_user_needs_rel pure cold twin (tables + orch).
+ * PLATFORM: SHARED — must mirror labi_ondemand_heavy.x (G.7 single authority).
+ * Product/cold both hit this TU when PREFER_X_O falls back or FROM_X off.
+ * Was return 16 (fs last): ac064cc62/2d8b92871 pure+surface added tar/unicode/
+ * runtime but cold twin lagged → Ubuntu product labi_fk0_rel_count still 0x10
+ * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
+ * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  return 16;
+  /* PLATFORM: SHARED — was 16; +tar +unicode +runtime (=heavy return 19). */
+  return 19;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -1540,6 +1547,13 @@ const char *labi_fk0_rel_at(int k) {
     return "std/time/time.o";
   if (k == 15)
     return "std/fs/fs.o";
+  /* PLATFORM: SHARED — mirror heavy k16–18 (pure-asm soft residual class). */
+  if (k == 16)
+    return "std/tar/tar.o";
+  if (k == 17)
+    return "std/unicode/unicode.o";
+  if (k == 18)
+    return "std/runtime/runtime.o";
   return NULL;
 }
 
@@ -1583,6 +1597,13 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — fs fk0 complete (mirror heavy.x): +readv_buf/writev_buf. */
   if (k == 15)
     return 11;
+  /* PLATFORM: SHARED — tar/unicode/runtime formal public surface (mirror heavy). */
+  if (k == 16)
+    return 7;
+  if (k == 17)
+    return 6;
+  if (k == 18)
+    return 5;
   return 0;
 }
 
@@ -1880,6 +1901,54 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_fs_readv_buf";
     if (i == 10)
       return "std_fs_writev_buf";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/tar/tar.o exact UNDEF needles (fk0 k==16; mirror heavy). */
+  if (k == 16) {
+    if (i == 0)
+      return "std_tar_read_header";
+    if (i == 1)
+      return "std_tar_write_header";
+    if (i == 2)
+      return "std_tar_append_entry";
+    if (i == 3)
+      return "std_tar_next_entry";
+    if (i == 4)
+      return "std_tar_read_entry_data";
+    if (i == 5)
+      return "std_tar_path_max";
+    if (i == 6)
+      return "tar_read_header_c";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/unicode/unicode.o exact UNDEF needles (fk0 k==17). */
+  if (k == 17) {
+    if (i == 0)
+      return "std_unicode_category";
+    if (i == 1)
+      return "std_unicode_to_lower";
+    if (i == 2)
+      return "std_unicode_to_upper";
+    if (i == 3)
+      return "std_unicode_is_whitespace";
+    if (i == 4)
+      return "std_unicode_is_ascii";
+    if (i == 5)
+      return "std_unicode_case_fold_rune";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/runtime/runtime.o exact UNDEF needles (fk0 k==18). */
+  if (k == 18) {
+    if (i == 0)
+      return "std_runtime_ready";
+    if (i == 1)
+      return "std_runtime_panic";
+    if (i == 2)
+      return "std_runtime_abort";
+    if (i == 3)
+      return "std_runtime_diag_enabled";
+    if (i == 4)
+      return "std_runtime_crash_evidence_collect";
     return NULL;
   }
   return NULL;
