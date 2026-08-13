@@ -271,15 +271,21 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label */
+/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label when FROM_X.
+ * Ordering: pad_code_to_4 BEFORE emit_code_len (G.7 dual-authority with .x).
+ * Hoist of emit_code_len before pad → multi-func SEGV (overload.x). */
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
   uint8_t mn[128];
   int32_t k;
+  int32_t code_len;
   if (!elf_ctx || !name || name_len < 0) return -1;
   cb = x86_enc_ctx_bytes(elf_ctx);
+  /* Block 1: pad only. */
   if (is_func != 0 && pipeline_elf_ctx_pad_code_to_4(cb) != 0) return -1;
-  if (pipeline_elf_ctx_add_label(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb)) != 0) return -1;
+  /* Block 2: capture after pad. */
+  code_len = pipeline_elf_ctx_emit_code_len(cb);
+  if (pipeline_elf_ctx_add_label(cb, name, name_len, code_len) != 0) return -1;
   if (is_func == 0) return 0;
   /* wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
    * PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name. */

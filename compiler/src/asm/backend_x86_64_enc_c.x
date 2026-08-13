@@ -1068,32 +1068,51 @@ export function arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32 {
 // ---- Cap residual pure R2 wave2: label/imm/jcc/rbp/arg/call (product C ABI) ----
 // G.7: same authority as wave1 — this TU + seed FROM_X rest.
 
-/** Define a code label; pad+export sym when is_func!=0 (Mach-O leading underscore).
- * Cap residual pure R2 wave2. PLATFORM: SHARED — ELF/Mach-O product asm encode.
+/**
+ * Define a code label; when is_func!=0, pad text to 4-byte alignment then
+ * export the function symbol (Mach-O may add a leading underscore).
+ *
+ * **Ordering contract (Stage12 pure-asm product root):** pass0 may hoist
+ * `let code_len = emit_code_len()` (and code_len2/3) to the top of their
+ * enclosing block. If those lets share a block with `pad_code_to_4` side
+ * effects, code_len is captured **before** padding zeros are appended →
+ * exported sym/label points at the zero pad, not the real prologue →
+ * multi-function pure-asm SEGV (Ubuntu `tests/types/overload.x`: pick_i64/main
+ * start with `00 00 00` then `55 48 89 e5`). Mitigation: pad in one block,
+ * then capture emit_code_len + add_label/add_sym in a **later** block
+ * (same shape as `x86_enc_jcc_rel32` / enc_jmp / enc_call). Do not merge.
+ *
  * @param elf_ctx opaque ElfCodegenCtx*
  * @param name label/symbol bytes (not necessarily NUL-terminated; use name_len)
- * @param name_len byte length of name
+ * @param name_len byte length of name; Mach-O underscore path requires 1..127
  * @param is_func non-zero: pad code to 4 and add exported symbol
  * @return 0 on success, -1 on failure
+ * PLATFORM: SHARED — ELF/Mach-O product asm encode (LINUX gold for multi-func).
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
   if (name_len < 0) { return 0 - 1; }
-  unsafe {
-    if (is_func != 0) {
+  // Block 1: pad only. Must complete before any emit_code_len() let.
+  if (is_func != 0) {
+    unsafe {
       if (pipeline_elf_ctx_pad_code_to_4(elf_ctx) != 0) { return 0 - 1; }
     }
+  }
+  // Block 2: capture code_len after pad; register label + optional export sym.
+  // Hoist of emit_code_len stays inside this block only (pad already done).
+  unsafe {
     let code_len: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
     if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) { return 0 - 1; }
     if (is_func == 0) { return 0; }
     // Mach-O: export with leading underscore when host requests it.
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+    // wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
       let mn: u8[128] = [0];
       mn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 63) {
+      while (k < name_len && k < 127) {
         mn[k + 1] = name[k];
         k = k + 1;
       }

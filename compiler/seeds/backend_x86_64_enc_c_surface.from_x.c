@@ -812,6 +812,9 @@ int32_t arch_x86_64_enc_enc_setz_movzbl_eax(uint8_t * elf_ctx) {
   uint8_t ins1[3] = {15, 182, 192};
   return x86_enc_bytes(elf_ctx, ins1, 3);
 }
+/* Ordering contract: pad_code_to_4 BEFORE emit_code_len (same as .x authority).
+ * pass0 hoist of emit_code_len before pad → sym points at zero pad → multi-func SEGV.
+ * PLATFORM: SHARED — dual-authority with backend_x86_64_enc_c.x arch_x86_64_enc_enc_label. */
 int32_t arch_x86_64_enc_enc_label(uint8_t * elf_ctx, uint8_t * name, int32_t name_len, int32_t is_func) {
   if ((elf_ctx ==0)) {
     return -1;
@@ -822,12 +825,14 @@ int32_t arch_x86_64_enc_enc_label(uint8_t * elf_ctx, uint8_t * name, int32_t nam
   if ((name_len < 0)) {
     return -1;
   }
-  {
-    if ((is_func !=0)) {
-      if ((pipeline_elf_ctx_pad_code_to_4(elf_ctx) !=0)) {
-        return -1;
-      }
+  /* Block 1: pad only. */
+  if ((is_func !=0)) {
+    if ((pipeline_elf_ctx_pad_code_to_4(elf_ctx) !=0)) {
+      return -1;
     }
+  }
+  /* Block 2: capture code_len after pad; register label + optional export sym. */
+  {
     int32_t code_len = pipeline_elf_ctx_emit_code_len(elf_ctx);
     if ((pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) !=0)) {
       return -1;
