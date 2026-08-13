@@ -34828,7 +34828,13 @@ export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 
 
 /**
  * EXPR_RETURN ELF emit impl (sret / slice escape / ARRAY_LIT dual-GP / float / tail_join).
- * @return i32 - 0 ok; -1 fail
+ * Path B0 also durables VAR/FIELD [N]T → dest []T (fat) or dest T[N] (E*).
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param expr_ref i32 — EXPR_RETURN
+ * @param ctx *u8 — asm func ctx
+ * @param ta i32 — 0 x86_64 SysV / 1 arm64 AAPCS64
+ * @return i32 — 0 ok; -1 fail
  * wave144 pure: G.7 authority (was static pipeline_asm_emit_return_elf_impl).
  * Public for expr_rec residual callsite. Operand emit uses public emit_expr_elf_c.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
@@ -34910,9 +34916,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
       handled = 1;
     }
-    // Path B0: already-typed [N]T VAR/FIELD → []T. Durable COMMON copy
-    // then dual-GP (rax=data, rdx/x1=N). Stack view would dangle after
-    // return (same as wave342 `return s` escape). Do not stamp SLICE.
+    // Path B0: already-typed [N]T VAR/FIELD → []T (fat) or T[N] (E*).
+    // Durable COMMON copy then either dual-GP (dest SLICE) or rax=E*
+    // (dest TYPE_ARRAY). Stack view / lea-local dangles after return
+    // (wave342 / 4.2.17 `return s` of S24[2] SEGV). Do not stamp.
+    // Keep esz>8 (wave632 NAMED); only weird mid widths 3/5/6/7 → 4.
     // G.7: reuse lea helpers + bulk_mem_copy + Path C dual-GP pack.
     // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
     if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8)
@@ -34926,7 +34934,8 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         unsafe {
           tk = pipeline_type_kind_ord_at(arena, rty);
         }
-        if (tk == 11) {
+        // dest SLICE=11 (fat) or dest TYPE_ARRAY=10 (E*). slice_ty holds dest.
+        if (tk == 11 || tk == 10) {
           slice_ty = rty;
         }
       }
@@ -34946,12 +34955,30 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
               force_esz = glue_index_elem_byte_sz_from_type_ref_c(arena, rar_elem);
             }
           }
-          if (force_esz != 1 && force_esz != 2 && force_esz != 4 && force_esz != 8) {
+          if (force_esz <= 0) {
+            force_esz = 4;
+          }
+          // wave632: keep esz>8 large NAMED; weird mid widths 3/5/6/7 → 4.
+          if (force_esz != 1 && force_esz != 2 && force_esz != 4 && force_esz != 8 && force_esz <= 8) {
             force_esz = 4;
           }
         }
       }
-      if (n_arr > 0 && n_arr <= 1024 && force_esz > 0 && n_arr <= (4096 / force_esz)) {
+      // Scalar face 4KiB; large NAMED up to 64KiB (wave632).
+      if (n_arr > 0 && n_arr <= 1024 && force_esz > 0) {
+        if (force_esz > 8) {
+          if (n_arr > (65536 / force_esz)) {
+            n_arr = 0;
+          }
+        } else {
+          if (n_arr > (4096 / force_esz)) {
+            n_arr = 0;
+          }
+        }
+      } else {
+        n_arr = 0;
+      }
+      if (n_arr > 0) {
         if (ko == 3) {
           unsafe {
             rar_src = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
@@ -35069,34 +35096,40 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         if (rc != 0) {
           return 0 - 1;
         }
+        // dest SLICE: pack length (dual-GP). dest TYPE_ARRAY: rax is already E*.
         unsafe {
-          rc = backend_enc_push_rax_arch(elf_ctx, ta);
+          tk = pipeline_type_kind_ord_at(arena, slice_ty);
         }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-        unsafe {
-          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-        if (ta == 1) {
-          len_arg = 1;
-        } else {
-          len_arg = 2;
-        }
-        unsafe {
-          rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-        unsafe {
-          rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
+        if (tk == 11) {
+          unsafe {
+            rc = backend_enc_push_rax_arch(elf_ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          if (ta == 1) {
+            len_arg = 1;
+          } else {
+            len_arg = 2;
+          }
+          unsafe {
+            rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
         }
         handled = 1;
       }
