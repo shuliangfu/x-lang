@@ -3610,7 +3610,11 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           }
         }
         int arr_init_plain = ((((((((((r.tok).kind) ==95) || (((r.tok).kind) ==2)) || (((r.tok).kind) ==3)) || (((r.tok).kind) ==11)) || (((r.tok).kind) ==4)) || (((r.tok).kind) ==6)) || (((r.tok).kind) ==8)) || (((r.tok).kind) ==85));
-        if ((is_let && ((((r.tok).kind) ==128) || !(arr_init_plain)))) {
+        /* PLATFORM: SHARED — body const nested [..] / as: same compound
+         * reparse as let. is_let gate dropped the whole function (P001).
+         * Twin: parser.x parse_body_lets_into. Do not full-reassemble
+         * parser.x (tip -E drops generic_bound_scan). */
+        if (((((r.tok).kind) ==128) || !(arr_init_plain))) {
           int32_t reparsed_ref = parser_parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, source, &(lex), &(r));
           if ((reparsed_ref ==0)) {
             (void)(((lex_out->pos) = (lex.pos)));
