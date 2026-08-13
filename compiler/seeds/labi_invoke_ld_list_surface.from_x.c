@@ -1448,9 +1448,11 @@ void labi_std_append_formal_ensure_for_rel(uint8_t * link_argv0, uint8_t * rel, 
         (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
         if ((er_to == 0)) {
           int32_t _pto = 0;
-          (void)((_pto = link_abi_asm_ld_push_obj(top, link_argv0, ((uint8_t *)"compiler/runtime_time
-  *)"std/fs/fs.o"))));
-  (void)((eq_http = strcmp(rel, ((uint8_t *)"std/http/http.o"))));
+          (void)((_pto = link_abi_asm_ld_push_obj(top, link_argv0, ((uint8_t *)"compiler/runtime_time_os.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        }
+      }
+    }
+  }
   if ((eq_http == 0)) {
     int32_t _fe = 0;
     int32_t _fc = 0;
@@ -1477,6 +1479,31 @@ void labi_std_append_formal_ensure_for_rel(uint8_t * link_argv0, uint8_t * rel, 
         if ((er_to == 0)) {
           int32_t _pto = 0;
           (void)((_pto = link_abi_asm_ld_push_obj(top, link_argv0, ((uint8_t *)"compiler/runtime_time_os.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        }
+      }
+    }
+  }
+  /* PLATFORM: SHARED — direct OP_STD context.o companions (STD-091). G.7 ≡ C need_context. */
+  int32_t eq_ctx = 0;
+  (void)((eq_ctx = strcmp(rel, ((uint8_t *)"std/context/context.o"))));
+  if ((eq_ctx == 0)) {
+    if ((ab != 0)) {
+      if ((la != 0)) {
+        int32_t er_ag_c = 0;
+        uint8_t * agp_c = 0;
+        (void)((er_ag_c = xlang_ensure_runtime_atomic_glue_o(link_argv0)));
+        (void)((agp_c = xlang_runtime_atomic_glue_o_path(link_argv0)));
+        if ((er_ag_c == 0)) {
+          int32_t _pag_c = 0;
+          (void)((_pag_c = link_abi_asm_ld_push_obj(agp_c, link_argv0, ((uint8_t *)"compiler/runtime_atomic_glue.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        }
+        int32_t er_to_c = 0;
+        uint8_t * top_c = 0;
+        (void)((er_to_c = xlang_ensure_runtime_time_os_o(link_argv0)));
+        (void)((top_c = xlang_runtime_time_os_o_path(link_argv0)));
+        if ((er_to_c == 0)) {
+          int32_t _pto_c = 0;
+          (void)((_pto_c = link_abi_asm_ld_push_obj(top_c, link_argv0, ((uint8_t *)"compiler/runtime_time_os.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
         }
       }
     }

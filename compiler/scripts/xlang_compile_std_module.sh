@@ -96,6 +96,8 @@ formal_mod_key_for_out() {
     ../std/fmt/fmt.o|std/fmt/fmt.o|*std/fmt/fmt.o) printf '%s' "std/fmt/fmt.o" ;;
     ../std/compress/compress.o|std/compress/compress.o|*std/compress/compress.o) printf '%s' "std/compress/compress.o" ;;
     ../std/io/driver.o|std/io/driver.o|*std/io/driver.o) printf '%s' "std/io/driver.o" ;;
+    # PLATFORM: SHARED — pure-asm std.io ctx-timeout formal (STD-091; ≠ driver nested).
+    ../std/io/io.o|std/io/io.o|*std/io/io.o) printf '%s' "std/io/io.o" ;;
     ../std/debug/debug.o|std/debug/debug.o|*std/debug/debug.o) printf '%s' "std/debug/debug.o" ;;
     # PLATFORM: SHARED — pure-asm std.simd formal (shuffle/select/splat VECTOR mid).
     ../std/simd/simd.o|std/simd/simd.o|*std/simd/simd.o) printf '%s' "std/simd/simd.o" ;;
@@ -170,6 +172,8 @@ formal_mod_spec_for_key() {
     std/fmt/fmt.o) printf '%s' "c_face|0|../std/fmt/formal_surface.c" ;;
     std/compress/compress.o) printf '%s' "c_face|0|../std/compress/formal_surface.c" ;;
     std/io/driver.o) printf '%s' "c_face|0|../std/io/driver_formal_surface.c" ;;
+    # PLATFORM: SHARED — pure-asm std.io ctx-timeout faces (≡ mod.x; STD-091).
+    std/io/io.o) printf '%s' "c_face|0|../std/io/formal_surface.c" ;;
     std/debug/debug.o) printf '%s' "c_face|0|../std/debug/formal_surface.c" ;;
     # PLATFORM: SHARED — pure-asm VECTOR mid faces (≡ codegen f32x4/i32x8 mangle).
     std/simd/simd.o) printf '%s' "c_face|0|../std/simd/formal_surface.c" ;;
@@ -226,6 +230,7 @@ formal_mod_all_keys() {
     std/fmt/fmt.o \
     std/compress/compress.o \
     std/io/driver.o \
+    std/io/io.o \
     std/debug/debug.o \
     std/simd/simd.o
 }

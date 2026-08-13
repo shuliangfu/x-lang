@@ -58,5 +58,6 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/fmt/fmt.o \
 	../std/compress/compress.o \
 	../std/io/driver.o \
+	../std/io/io.o \
 	../std/debug/debug.o
 

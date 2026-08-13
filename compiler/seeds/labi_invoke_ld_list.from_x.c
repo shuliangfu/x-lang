@@ -833,6 +833,22 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
       }
     }
   }
+  /* PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
+   * context.o U atomic_*_i32_c + time_now_monotonic_ns_c. G.7 ≡ C need_context. */
+  if (strcmp(rel, "std/context/context.o") == 0) {
+    if (argv && la) {
+      if (xlang_ensure_runtime_atomic_glue_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+      if (xlang_ensure_runtime_time_os_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+    }
+  }
   (void)lib_roots;
   (void)n_lib_roots;
   (void)bank;

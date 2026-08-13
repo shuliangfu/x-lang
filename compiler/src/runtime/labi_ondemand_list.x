@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 19 (was 18; +g18 std.simd VECTOR formal faces)
+ * @return i32 — 20 (was 19; +g19 std.io ctx-timeout formal faces STD-091)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 19;
+  return 20;
 }
 
 /**
@@ -361,6 +361,11 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // VECTOR mid faces: shuffle/select/splat with f32x4/i32x8 suffixes.
   if (g == 18) {
     return 6;
+  }
+  // PLATFORM: SHARED — std.io context-timeout formal (run-std-io-context residual).
+  // timeout_from_ctx / read_ctx / write_ctx (mod.x; monofile skip std.io emit).
+  if (g == 19) {
+    return 3;
   }
   return 0;
 }
@@ -894,6 +899,22 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — std.io context-timeout formal (formal_surface STD-091).
+  if (g == 19) {
+    if (i == 0) {
+      let p: *u8 = "std_io_timeout_from_ctx";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_io_read_ctx";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_io_write_ctx";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -991,6 +1012,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — std.simd formal product .o (run-perf-simd residual).
   if (g == 18) {
     let p: *u8 = "std/simd/simd.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.io context-timeout formal product .o (STD-091 residual).
+  if (g == 19) {
+    let p: *u8 = "std/io/io.o";
     return p;
   }
   return 0 as *u8;

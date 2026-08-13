@@ -2385,6 +2385,44 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
       }
     }
   }
+  // PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
+  // context.o U atomic_*_i32_c + time_now_monotonic_ns_c. C path need_context already
+  // pairs them; pure-asm plan only pushed context.o until companions added here.
+  // G.7 complete authority ≡ invoke_cc need_context companions (atomic_glue + time_os).
+  let eq_ctx: i32 = 0;
+  unsafe {
+    eq_ctx = strcmp(rel, "std/context/context.o");
+  }
+  if (eq_ctx == 0) {
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let er_ag_c: i32 = 0;
+        let agp_c: *u8 = 0 as *u8;
+        unsafe {
+          er_ag_c = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp_c = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        if (er_ag_c == 0) {
+          let _pag_c: i32 = 0;
+          unsafe {
+            _pag_c = link_abi_asm_ld_push_obj(agp_c, link_argv0, "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+        let er_to_c: i32 = 0;
+        let top_c: *u8 = 0 as *u8;
+        unsafe {
+          er_to_c = xlang_ensure_runtime_time_os_o(link_argv0);
+          top_c = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        if (er_to_c == 0) {
+          let _pto_c: i32 = 0;
+          unsafe {
+            _pto_c = link_abi_asm_ld_push_obj(top_c, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
   // keep Cap residual peer args live for typeck (bank/lib_roots used only via push_obj).
   if (lb == 0 as *u8) {
     if (_ens != 0) {
