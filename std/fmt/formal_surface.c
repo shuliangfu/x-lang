@@ -173,6 +173,20 @@ int32_t std_fmt_ptr_to_buf(uint8_t *buf, int32_t cap, void *p) {
   if (buf == NULL || cap <= 0) {
     return -1;
   }
+  /* PLATFORM: SHARED — null must be portable "0x0" (len 3).
+   * glibc snprintf("%p", NULL) → "(nil)" (len 5); macOS often "0x0".
+   * tests/fmt/main.x and format(*u8,i32) contract expect "0x0" (see comment
+   * on std_fmt_format_u8_ptr_i32_u8_ptr_i32). G.7: formal face authority, not
+   * host %p dialect. */
+  if (p == NULL) {
+    if (cap < 3) {
+      return -1;
+    }
+    buf[0] = (uint8_t)'0';
+    buf[1] = (uint8_t)'x';
+    buf[2] = (uint8_t)'0';
+    return 3;
+  }
   n = snprintf(tmp, sizeof(tmp), "%p", p);
   if (n < 0 || n >= (int)sizeof(tmp) || n > cap) {
     return -1;
