@@ -182,8 +182,10 @@ int32_t backend_enc_x86_jcc_rel32_c(uint8_t * elf_ctx, uint8_t opcode2, uint8_t 
   uint8_t b0 = 15;
   uint8_t b1 = opcode2;
   uint8_t z = 0;
+  /* Dual-authority mirror of backend_enc_dispatch.x: append then rel32_at.
+   * Prior surface had rel32_at before appends (hoist artifact) — wrong for
+   * product pure-asm path. PLATFORM: SHARED x86_64. */
   {
-    int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &(b0), 1) !=0)) {
       return (0 - 1);
     }
@@ -202,6 +204,9 @@ int32_t backend_enc_x86_jcc_rel32_c(uint8_t * elf_ctx, uint8_t opcode2, uint8_t 
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &(z), 1) !=0)) {
       return (0 - 1);
     }
+  }
+  {
+    int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
     if ((pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) !=0)) {
       return (0 - 1);
     }

@@ -51,13 +51,19 @@ export extern "C" function pipeline_elf_ctx_macho_leading_underscore(ctx: *u8): 
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, word: i32): i32;
 
 // backend_enc_x86_jcc_rel32_c: see function docblock below.
-/** Exported function `backend_enc_x86_jcc_rel32_c`.
- * Implements `backend_enc_x86_jcc_rel32_c`.
- * @param elf_ctx *u8
- * @param opcode2 u8
- * @param label *u8
- * @param label_len i32
- * @return i32
+/**
+ * Emit x86_64 near jcc (`0F <opcode2> rel32`) and patch to `label`.
+ *
+ * Same ordering contract as `x86_enc_jcc_rel32`: append bytes in block 1, then
+ * `emit_code_len()-4` + append_patch in block 2 so pass0 cannot hoist the
+ * rel32 let before the jcc bytes (option/si instruction-stream corruption).
+ *
+ * @param elf_ctx opaque ElfCodegenCtx*
+ * @param opcode2 second opcode byte
+ * @param label patch target name
+ * @param label_len name length; must be > 0
+ * @return 0 on success, -1 on failure
+ * PLATFORM: SHARED — x86_64 product asm encode path.
  */
 #[no_mangle]
 export function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
@@ -67,6 +73,7 @@ export function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: u8, label: *u
   let b0: u8 = 15;
   let b1: u8 = opcode2;
   let z: u8 = 0;
+  // Block 1: append jcc skeleton only.
   unsafe {
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
@@ -74,6 +81,9 @@ export function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: u8, label: *u
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+  }
+  // Block 2: patch slot after appends (hoist-safe vs prior side effects).
+  unsafe {
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) { return 0 - 1; }
     return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 32);

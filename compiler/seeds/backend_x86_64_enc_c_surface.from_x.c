@@ -175,6 +175,10 @@ int32_t x86_enc_jcc_rel32(uint8_t * elf_ctx, uint8_t opcode2, uint8_t * label, i
   uint8_t b0 = 15;
   uint8_t b1 = opcode2;
   uint8_t z = 0;
+  /* Dual-authority mirror of backend_x86_64_enc_c.x x86_enc_jcc_rel32:
+   * append jcc skeleton first, then rel32_at = emit_code_len()-4.
+   * Same-block let hoist of emit_code_len()-4 before appends corrupts prior
+   * insns (Ubuntu option SIGILL / stdlib-import SEGV). PLATFORM: SHARED x86_64. */
   {
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &(b0), 1) !=0)) {
       return -1;
@@ -194,6 +198,8 @@ int32_t x86_enc_jcc_rel32(uint8_t * elf_ctx, uint8_t opcode2, uint8_t * label, i
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &(z), 1) !=0)) {
       return -1;
     }
+  }
+  {
     int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
     if ((pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) !=0)) {
       return -1;

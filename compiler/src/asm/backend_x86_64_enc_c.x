@@ -81,13 +81,26 @@ export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
 }
 
 // x86_enc_jcc_rel32: see function docblock below.
-/** Exported function `x86_enc_jcc_rel32`.
- * Implements `x86_enc_jcc_rel32`.
- * @param elf_ctx *u8
- * @param opcode2 u8
- * @param label *u8
- * @param label_len i32
- * @return i32
+/**
+ * Emit x86_64 near jcc: `0F <opcode2> rel32` and register a patch to `label`.
+ *
+ * Encoding: 6 bytes (`0F` + opcode2 + 4 zero displ). Patch slot is the displ
+ * at `emit_code_len() - 4` **after** the 6 bytes are appended.
+ *
+ * **Ordering contract (Stage12.0.5 product root):** pass0 may hoist
+ * `let rel32_at = emit_code_len() - 4` (BINOP with nested CALL) to the top of
+ * its enclosing block. If that let shares a block with the append side effects,
+ * rel32_at is computed **before** the jcc bytes exist → patch overwrites the
+ * prior insn stream (and/test/setz) → Ubuntu option SIGILL / stdlib-import SEGV.
+ * Mitigation: append in one block, then compute rel32_at + patch in a **later**
+ * block (same shape as `arch_x86_64_enc_enc_jmp` / `enc_call`). Do not merge.
+ *
+ * @param elf_ctx opaque ElfCodegenCtx*
+ * @param opcode2 second opcode byte (e.g. 0x84 jz, 0x85 jnz)
+ * @param label patch target name bytes
+ * @param label_len name length; must be > 0
+ * @return 0 on success, -1 on null/encode/patch failure
+ * PLATFORM: SHARED — x86_64 SysV product asm (LINUX gold for jcc stream).
  */
 #[no_mangle]
 export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
@@ -97,6 +110,7 @@ export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_l
   let b0: u8 = 15; // 0x0F
   let b1: u8 = opcode2;
   let z: u8 = 0;
+  // Block 1: append only. Must complete before any emit_code_len()-4 let.
   unsafe {
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
@@ -104,6 +118,9 @@ export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_l
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+  }
+  // Block 2: rel32_at after appends (hoist stays inside this block only).
+  unsafe {
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) { return 0 - 1; }
     return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
