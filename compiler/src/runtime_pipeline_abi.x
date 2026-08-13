@@ -40874,9 +40874,105 @@ export function glue_emit_vector_shuffle_lane_scalar_elf_c(arena: *u8, elf_ctx: 
 }
 
 /**
- * Inline vec4f/vec8i/simd_shuffle CALL into stack slot.
+ * Peel shuffle mask to ARRAY_LIT (46).
+ * Accepts direct array lit, or same-scope `let m = […]; simd.shuffle(v, m)` VAR.
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx* (scope block for let peel)
+ * @param mask_ref i32 — mask expr ref (ARRAY_LIT or VAR)
+ * @return i32 — array-lit expr ref; 0 if not peelable
+ * G.7 helper for Stage12 s4 HW residual (smoke uses METHOD + named mask).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_ref: i32): i32 {
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let nlet: i32 = 0;
+  let li: i32 = 0;
+  let vlen: i32 = 0;
+  let llen: i32 = 0;
+  let kk: i32 = 0;
+  let is_match: i32 = 0;
+  let init_ref: i32 = 0;
+  let vbuf: u8[128] = [];
+  let lb: u8[128] = [];
+  if (arena == (0 as *u8) || mask_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, mask_ref);
+  }
+  if (ko == 46) {
+    return mask_ref;
+  }
+  if (ko != 3 || ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    br = asm_ctx_scope_block_ref_at(ctx);
+  }
+  if (br <= 0) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, mask_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, mask_ref, &vbuf[0]);
+    nlet = ast_ast_block_num_lets(arena, br);
+  }
+  li = 0;
+  while (li < nlet) {
+    unsafe {
+      llen = pipeline_block_let_name_len(arena, br, li);
+    }
+    if (llen == vlen) {
+      is_match = 1;
+      unsafe {
+        pipeline_block_let_name_copy64(arena, br, li, &lb[0]);
+      }
+      kk = 0;
+      while (kk < vlen) {
+        if (lb[kk] != vbuf[kk]) {
+          is_match = 0;
+        }
+        kk = kk + 1;
+      }
+      if (is_match != 0) {
+        unsafe {
+          init_ref = pipeline_block_let_init_ref(arena, br, li);
+        }
+        if (init_ref > 0) {
+          unsafe {
+            ko = pipeline_expr_kind_ord_at(arena, init_ref);
+          }
+          if (ko == 46) {
+            return init_ref;
+          }
+        }
+        return 0;
+      }
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
+/**
+ * Inline vec4f/vec8i/simd_shuffle / @shuffle / simd.shuffle into stack slot.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @param stack_slot_off i32 — dst slot
+ * @param type_ref i32 — result vector type
  * @return i32 - 1 inlined; 0 no match; -1 error
  * wave148 pure: G.7 authority (was pipeline_asm_simd_try_inline_shuffle_call_elf_c).
+ * Completes METHOD import path + bare "shuffle" + peel named array-lit mask.
  * PLATFORM: SHARED freestanding · LINUX|x86 pshufd · MACOS|ARM64 lane-scalar.
  */
 #[no_mangle]
@@ -40886,6 +40982,7 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
   let expect_lanes: i32 = 0;
   let arg0: i32 = 0;
   let arg1: i32 = 0;
+  let mask_lit: i32 = 0;
   let lanes: i32 = 0;
   let esz: i32 = 0;
   let src_off: i32 = 0;
@@ -40895,25 +40992,53 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
   let ko: i32 = 0;
   let nargs: i32 = 0;
   let rc: i32 = 0;
+  let is_method: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
     return 0;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_ref);
-    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
   }
-  if (ko != 48 || nargs != 2) {
+  /* CALL=48, METHOD_CALL=49 (import simd.shuffle is METHOD). */
+  if (ko != 48 && ko != 49) {
     return 0;
   }
-  unsafe {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+  if (ko == 49) {
+    is_method = 1;
   }
-  if (callee_ref <= 0) {
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
+  }
+  if (nargs != 2) {
     return 0;
   }
-  clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
-  if (clen <= 0) {
-    return 0;
+  if (is_method != 0) {
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
+    }
+  } else {
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
+    if (clen <= 0) {
+      return 0;
+    }
   }
   expect_lanes = 0;
   if (clen == 13 && wave148_bytes_eq(&g_wave148_cname[0], "vec4f_shuffle", 13) != 0) {
@@ -40925,7 +41050,11 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
       if (clen == 12 && wave148_bytes_eq(&g_wave148_cname[0], "simd_shuffle", 12) != 0) {
         expect_lanes = 0;
       } else {
-        return 0;
+        if (clen == 7 && wave148_bytes_eq(&g_wave148_cname[0], "shuffle", 7) != 0) {
+          expect_lanes = 0;
+        } else {
+          return 0;
+        }
       }
     }
   }
@@ -40936,9 +41065,16 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
   if (expect_lanes != 0 && lanes != expect_lanes) {
     return 0;
   }
-  unsafe {
-    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  if (is_method != 0) {
+    unsafe {
+      arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+    }
+  } else {
+    unsafe {
+      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+    }
   }
   if (arg0 <= 0 || arg1 <= 0) {
     return 0 - 1;
@@ -40949,10 +41085,8 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
   if (ko != 3) {
     return 0;
   }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg1);
-  }
-  if (ko != 46) {
+  mask_lit = glue_peel_comptime_array_lit_mask_c(arena, ctx, arg1);
+  if (mask_lit <= 0) {
     return 0;
   }
   src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
@@ -40963,7 +41097,7 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
     hw_env = link_abi_getenv("XLANG_SIMD_HW");
   }
   if (hw_env == (0 as *u8) || hw_env[0] != 48) {
-    if (glue_shuffle_pshufd_imm8_from_mask_c(arena, arg1, lanes, &imm8) == 0) {
+    if (glue_shuffle_pshufd_imm8_from_mask_c(arena, mask_lit, lanes, &imm8) == 0) {
       feats = glue_simd_emit_cpu_features_c();
       if (feats == 0) {
         unsafe {
@@ -40978,7 +41112,7 @@ export function pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena: *u8, elf_
       }
     }
   }
-  if (glue_emit_vector_shuffle_lane_scalar_elf_c(arena, elf_ctx, arg0, arg1, stack_slot_off, type_ref, ctx, ta) != 0) {
+  if (glue_emit_vector_shuffle_lane_scalar_elf_c(arena, elf_ctx, arg0, mask_lit, stack_slot_off, type_ref, ctx, ta) != 0) {
     return 0;
   }
   return 1;
@@ -41108,25 +41242,53 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_c
   let ko: i32 = 0;
   let nargs: i32 = 0;
   let rc: i32 = 0;
+  let is_method: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
     return 0;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_ref);
-    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
   }
-  if (ko != 48 || nargs != 3) {
+  /* CALL=48, METHOD_CALL=49 (import simd.select is METHOD). */
+  if (ko != 48 && ko != 49) {
     return 0;
   }
-  unsafe {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+  if (ko == 49) {
+    is_method = 1;
   }
-  if (callee_ref <= 0) {
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
+  }
+  if (nargs != 3) {
     return 0;
   }
-  clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
-  if (clen <= 0) {
-    return 0;
+  if (is_method != 0) {
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
+    }
+  } else {
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
+    if (clen <= 0) {
+      return 0;
+    }
   }
   expect_lanes = 0;
   if (clen == 12 && wave148_bytes_eq(&g_wave148_cname[0], "vec4f_select", 12) != 0) {
@@ -41138,7 +41300,11 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_c
       if (clen == 11 && wave148_bytes_eq(&g_wave148_cname[0], "simd_select", 11) != 0) {
         expect_lanes = 0;
       } else {
-        return 0;
+        if (clen == 6 && wave148_bytes_eq(&g_wave148_cname[0], "select", 6) != 0) {
+          expect_lanes = 0;
+        } else {
+          return 0;
+        }
       }
     }
   }
@@ -41149,10 +41315,18 @@ export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_c
   if (expect_lanes != 0 && lanes != expect_lanes) {
     return 0;
   }
-  unsafe {
-    arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-    arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  if (is_method != 0) {
+    unsafe {
+      arg_m = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+      arg_a = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+      arg_b = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
+    }
+  } else {
+    unsafe {
+      arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+      arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+      arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+    }
   }
   if (arg_m <= 0 || arg_a <= 0 || arg_b <= 0) {
     return 0 - 1;

@@ -19183,6 +19183,11 @@ extern int32_t pipeline_asm_emit_vector_let_init_elf_c(void *arena, void *elf, i
 extern int32_t pipeline_expr_call_num_args_at(void *a, int32_t er);
 extern int32_t pipeline_expr_call_callee_ref_at(void *a, int32_t er);
 extern int32_t pipeline_expr_call_arg_ref(void *a, int32_t er, int32_t i);
+/* METHOD_CALL=49 accessors — Stage12 s4 HW: simd.shuffle/select import METHOD. */
+extern int32_t pipeline_expr_method_call_num_args_at(void *a, int32_t er);
+extern int32_t pipeline_expr_method_call_arg_ref(void *a, int32_t er, int32_t i);
+extern int32_t pipeline_expr_method_call_name_len(void *a, int32_t er);
+extern void pipeline_expr_method_call_name_into(void *a, int32_t er, uint8_t *out);
 extern int32_t pipeline_expr_field_access_name_len(void *a, int32_t er);
 extern void pipeline_expr_field_access_name_into(void *a, int32_t er, uint8_t *out);
 extern int32_t pipeline_expr_int_val_at(void *a, int32_t er);
@@ -19739,8 +19744,71 @@ int32_t glue_emit_vector_shuffle_lane_scalar_elf_c(void *arena,
 }
 
 /**
- * let r = vec4f_shuffle / vec8i_shuffle / simd_shuffle / @shuffle：comptime pshufd 内联。
+ * Peel shuffle mask to ARRAY_LIT (46).
+ * Accepts direct array lit, or same-scope `let m = […]; simd.shuffle(v, m)` VAR.
+ * G.7 helper for Stage12 s4 HW residual (smoke uses METHOD + named mask).
+ * PLATFORM: SHARED freestanding emit.
+ * @return array-lit expr ref; 0 if not peelable
+ */
+int32_t glue_peel_comptime_array_lit_mask_c(void *arena, void *ctx, int32_t mask_ref) {
+  int32_t ko;
+  int32_t br;
+  int32_t nlet;
+  int32_t li;
+  int32_t vlen;
+  int32_t llen;
+  int32_t kk;
+  int32_t is_match;
+  int32_t init_ref;
+  uint8_t vbuf[128];
+  uint8_t lb[128];
+
+  if (!arena || mask_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, mask_ref);
+  if (ko == 46)
+    return mask_ref;
+  if (ko != 3 || !ctx)
+    return 0;
+  br = asm_ctx_scope_block_ref_at((uint8_t *)ctx);
+  if (br <= 0)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, mask_ref);
+  if (vlen <= 0 || vlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, mask_ref, vbuf);
+  nlet = ast_ast_block_num_lets(arena, br);
+  li = 0;
+  while (li < nlet) {
+    llen = pipeline_block_let_name_len(arena, br, li);
+    if (llen == vlen) {
+      is_match = 1;
+      pipeline_block_let_name_copy64(arena, br, li, lb);
+      kk = 0;
+      while (kk < vlen) {
+        if (lb[kk] != vbuf[kk])
+          is_match = 0;
+        kk++;
+      }
+      if (is_match) {
+        init_ref = pipeline_block_let_init_ref(arena, br, li);
+        if (init_ref > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 46)
+          return init_ref;
+        return 0;
+      }
+    }
+    li++;
+  }
+  return 0;
+}
+
+/**
+ * let r = vec4f_shuffle / vec8i_shuffle / simd_shuffle / @shuffle / simd.shuffle：
+ * comptime pshufd 内联。
+ * G.7 complete: CALL(48) and METHOD_CALL(49) import `simd.shuffle`;
+ * bare name "shuffle"; peel named array-lit mask lets.
  * 返回 1=已内联，0=未匹配，-1=错误。
+ * PLATFORM: SHARED · LINUX|x86 pshufd · MACOS|ARM64 lane-scalar fallback.
  */
 int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(void *arena,
                                                        void *elf_ctx, int32_t call_ref,
@@ -19752,25 +19820,44 @@ int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(void *arena,
   int32_t expect_lanes;
   int32_t arg0;
   int32_t arg1;
+  int32_t mask_lit;
   int32_t lanes;
   int32_t esz;
   int32_t src_off;
   int32_t imm8;
   uint32_t feats;
   const char *hw_env;
+  int32_t ko;
+  int32_t nargs;
+  int32_t is_method;
 
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != 48)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  /* CALL=48, METHOD_CALL=49 (import simd.shuffle is METHOD). */
+  if (ko != 48 && ko != 49)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, call_ref) != 2)
+  is_method = (ko == 49) ? 1 : 0;
+  if (is_method)
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+  else
+    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+  if (nargs != 2)
     return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  if (callee_ref <= 0)
-    return 0;
-  clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
-  if (clen <= 0)
-    return 0;
+  if (is_method) {
+    /* Method name lives on METHOD_CALL node (not FIELD callee). */
+    clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    if (clen <= 0 || clen >= 64)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, call_ref, cname);
+  } else {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    if (callee_ref <= 0)
+      return 0;
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
+    if (clen <= 0)
+      return 0;
+  }
   expect_lanes = 0;
   if (clen == 13 && memcmp(cname, "vec4f_shuffle", 13) == 0)
     expect_lanes = 4;
@@ -19778,26 +19865,35 @@ int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(void *arena,
     expect_lanes = 8;
   else if (clen == 12 && memcmp(cname, "simd_shuffle", 12) == 0)
     expect_lanes = 0;
+  else if (clen == 7 && memcmp(cname, "shuffle", 7) == 0)
+    /* import METHOD bare name: simd.shuffle → "shuffle". */
+    expect_lanes = 0;
   else
     return 0;
   if (glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz) != 0)
     return -1;
   if (expect_lanes != 0 && lanes != expect_lanes)
     return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  if (is_method) {
+    arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  }
   if (arg0 <= 0 || arg1 <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, arg0) != 3)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, arg1) != 46)
+  mask_lit = glue_peel_comptime_array_lit_mask_c(arena, ctx, arg1);
+  if (mask_lit <= 0)
     return 0;
   src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
   if (src_off < 0)
     return 0;
   hw_env = link_abi_getenv("XLANG_SIMD_HW");
   if (!hw_env || hw_env[0] != '0') {
-    if (glue_shuffle_pshufd_imm8_from_mask_c(arena, arg1, lanes, &imm8) == 0) {
+    if (glue_shuffle_pshufd_imm8_from_mask_c(arena, mask_lit, lanes, &imm8) == 0) {
       feats = glue_simd_emit_cpu_features_c();
       if (feats == 0)
         feats = xlang_target_cpu_detect_host();
@@ -19805,7 +19901,7 @@ int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(void *arena,
         return 1;
     }
   }
-  if (glue_emit_vector_shuffle_lane_scalar_elf_c(arena, elf_ctx, arg0, arg1, stack_slot_off, type_ref, ctx, ta) != 0)
+  if (glue_emit_vector_shuffle_lane_scalar_elf_c(arena, elf_ctx, arg0, mask_lit, stack_slot_off, type_ref, ctx, ta) != 0)
     return 0;
   return 1;
 }
@@ -19861,8 +19957,11 @@ int32_t glue_emit_vector_select_lane_scalar_elf_c(void *arena,
 }
 
 /**
- * let r = vec8i_select / vec4f_select / simd_select / @select：mask?a:b 内联。
+ * let r = vec8i_select / vec4f_select / simd_select / @select / simd.select：
+ * mask?a:b 内联。
+ * G.7 complete: CALL(48) and METHOD_CALL(49); bare name "select".
  * 返回 1=已内联，0=未匹配，-1=错误。
+ * PLATFORM: SHARED · LINUX|x86 pcmpgtd/cmpgtps · MACOS|ARM64 cmgt/bsl fallback.
  */
 int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena,
                                                       void *elf_ctx, int32_t call_ref,
@@ -19883,19 +19982,35 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena,
   int32_t is_f32;
   uint32_t feats;
   const char *hw_env;
+  int32_t ko;
+  int32_t nargs;
+  int32_t is_method;
 
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != 48)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  if (ko != 48 && ko != 49)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, call_ref) != 3)
+  is_method = (ko == 49) ? 1 : 0;
+  if (is_method)
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+  else
+    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+  if (nargs != 3)
     return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  if (callee_ref <= 0)
-    return 0;
-  clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
-  if (clen <= 0)
-    return 0;
+  if (is_method) {
+    clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    if (clen <= 0 || clen >= 64)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, call_ref, cname);
+  } else {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    if (callee_ref <= 0)
+      return 0;
+    clen = glue_call_callee_func_name_into_c(arena, callee_ref, cname, 64);
+    if (clen <= 0)
+      return 0;
+  }
   expect_lanes = 0;
   if (clen == 12 && memcmp(cname, "vec4f_select", 12) == 0)
     expect_lanes = 4;
@@ -19903,15 +20018,23 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena,
     expect_lanes = 8;
   else if (clen == 11 && memcmp(cname, "simd_select", 11) == 0)
     expect_lanes = 0;
+  else if (clen == 6 && memcmp(cname, "select", 6) == 0)
+    expect_lanes = 0;
   else
     return 0;
   if (glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz) != 0)
     return -1;
   if (expect_lanes != 0 && lanes != expect_lanes)
     return 0;
-  arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-  arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-  arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  if (is_method) {
+    arg_m = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+    arg_a = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
+    arg_b = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
+  } else {
+    arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+    arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+    arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
+  }
   if (arg_m <= 0 || arg_a <= 0 || arg_b <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, arg_m) != 3 || pipeline_expr_kind_ord_at(arena, arg_a) != 3 ||
