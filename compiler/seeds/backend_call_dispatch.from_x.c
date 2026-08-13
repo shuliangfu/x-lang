@@ -3803,6 +3803,13 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       return 0;
     }
   }
+  /* G.7: same param0.field fold as CALL emit (recv.first() ≡ take_a(recv)).
+   * extra!=0 / fold miss / PTR → 0, then import or UFCS. Fold needs X body. */
+  {
+    int32_t inline_sf = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_sf != 0)
+      return inline_sf < 0 ? -1 : 0;
+  }
   /** import binding：encoding.foo(args) 静态调用，receiver 不入参。 */
   if (mod_ref && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == GLUE_EXPR_VAR_ORD) {
     uint8_t base_name[128];

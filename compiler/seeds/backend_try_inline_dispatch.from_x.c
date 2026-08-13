@@ -1193,8 +1193,11 @@ int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct 
 
 
 /**
- * ELF CALL 内联：同模块 f(arg0) 且 f 为 return p.f（param0 单字段）时字段 load。
- * 返回 1=已内联，0=未匹配，-1=错误。
+ * Inline `recv.first()` / `take_a(recv)` when the callee is `return param0.field`.
+ * CALL(48): one positional arg. METHOD_CALL(49): extra args == 0; param0 is
+ * method_call_base (UFCS self). Nested CALL arg still peels; METHOD-as-arg → 0.
+ * @return 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
 /* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-376 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -1206,14 +1209,22 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
   int32_t ret_ref;
   int32_t off;
   int32_t arg_ref;
+  int32_t ko;
   uint8_t vname[128];
   int32_t vlen;
   int32_t slot_off;
   struct ast_Module *layout_mod;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1)
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
+    return 0;
+  }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
   /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
@@ -1237,7 +1248,10 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
         return 0;
     }
   }
-  arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+  if (ko == GLUE_EXPR_METHOD_CALL)
+    arg_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  else
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, arg_ref) == GLUE_EXPR_CALL) {
