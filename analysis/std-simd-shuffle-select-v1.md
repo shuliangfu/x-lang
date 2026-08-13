@@ -22,6 +22,7 @@
 
 `import std.simd` 产品车是 formal c_face（不能 host-cc `.x` monofile）。
 129 白名单里的 `run-std-simd-xlangffle-select-gate.sh` 是本闸门的薄包装，不是第二套 gate 体。
+129 白名单里的 `run-perf-simd-xlangffle-select.sh` 是 `run-perf-simd-shuffle-select.sh` 的薄包装，不是第二套 bench 体。
 
 ---
 
@@ -53,6 +54,8 @@
 ./tests/run-std-simd-shuffle-select-gate.sh
 # 129 alias (zero-logic wrapper):
 ./tests/run-std-simd-xlangffle-select-gate.sh
+# 129 alias (zero-logic wrapper → shuffle-select perf):
+./tests/run-perf-simd-xlangffle-select.sh
 ```
 
 gate 验证 `mod.x` 含 lane-scalar 实装（`v[mask[0]]`）与产品 `select_lane` helper。

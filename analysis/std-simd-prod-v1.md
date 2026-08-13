@@ -17,7 +17,8 @@
 产品路径是 **`r04_simd_shuffle_select*`**（wave1191 rename）。
 **没有** `bench/simd_shuffle_select.x` 第二套 fixture（G.7：一功能一权威）。
 
-129 白名单里的 `r04_simd_xlangffle_select*` 是历史双关副本；本 RFC 不把它当 STD-061 权威。
+129 白名单里的 `run-perf-simd-xlangffle-select.sh` 是 `run-perf-simd-shuffle-select.sh` 的薄 `exec`，不是第二套 bench 体。
+历史 `r04_simd_xlangffle_select*` 双关副本已删；本 RFC 不把它当 STD-061 权威。
 
 ---
 
@@ -48,6 +49,7 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1
 
 2026-08-13：peel 已跨 while 外层 comptime mask，热循环 `shuffle` 走 `pshufd`。
 2026-08-13：`try_inline_select` 补 fold `select(splat(k),a,b)`＋嵌套 splat 物化；同族 `try_inline_splat`。Ubuntu L2 r04 UNDEF **NONE** · ratio **2.42**（stub 0.029s／Xlang 0.012s）硬过 1.0 · `bench_ok=1`。**不**改门槛。
+2026-08-13：129 `run-perf-simd-xlangffle-select.sh` 改薄 `exec` 权威 `run-perf-simd-shuffle-select.sh`；删除无引用 `r04_simd_xlangffle_select*`／dual smoke。Ubuntu L2 xffle／ss 同走权威 r04 · ratio **2.3／2.08**。
 
 ---
 
@@ -65,5 +67,5 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1
 - NEON/SVE 专用 intrinsic bench
 - 与 OpenSSL/Intel IPP 对标
 - 跨平台 ratio 硬门禁（Windows CI）
-- 把 129 的 `xlangffle-select` 副本当 STD-061 第二权威
-- 第二套 `bench/simd_shuffle_select.x` 旧路径
+- 把 129 的 `xlangffle-select` 薄包装当 STD-061 第二权威
+- 第二套 `bench/simd_shuffle_select.x`／`r04_simd_xlangffle_select*` 旧路径
