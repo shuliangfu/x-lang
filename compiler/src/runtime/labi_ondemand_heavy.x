@@ -3220,6 +3220,21 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 }
               }
             }
+            // PLATFORM: SHARED — g18 std.simd formal (run-perf-simd residual).
+            // VECTOR mid faces from formal_surface; L4 wipe drops gitignored simd.o.
+            if (sg == 18) {
+              let rt18: *u8 = 0 as *u8;
+              unsafe {
+                rt18 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt18 != 0 as *u8) {
+                if (rt18[0] != 0) {
+                  unsafe {
+                    let _fe18: i32 = xlang_ensure_formal_std_make_o(rt18, "std/simd/simd.o", "../std/simd/simd.o");
+                  }
+                }
+              }
+            }
             // PLATFORM: SHARED — g2 encoding formal may be gitignored after L4 wipe.
             // encode_hex/base64 wrappers U string + base64; ensure primary before push.
             if (sg == 2) {
@@ -3231,6 +3246,36 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 if (rt2[0] != 0) {
                   unsafe {
                     let _fe2: i32 = xlang_ensure_formal_std_make_o(rt2, "std/encoding/encoding.o", "../std/encoding/encoding.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — ensure formal by rel for every simple group (seed/pure
+            // index skew: seed g12=simd while pure g12=test / g18=simd). G.7: one
+            // ensure authority = formal_mod catalog key = rel path.
+            {
+              let rta: *u8 = 0 as *u8;
+              unsafe {
+                rta = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rta != 0 as *u8) {
+                if (rta[0] != 0) {
+                  // make_target = "../" + rel (compiler/ cwd convention).
+                  let mt: u8[160] = [];
+                  let mi: i32 = 0;
+                  mt[0] = 46; mt[1] = 46; mt[2] = 47; // ../
+                  mi = 3;
+                  let ri: i32 = 0;
+                  while (ri < 140) {
+                    let c: u8 = rel[ri];
+                    if (c == 0) { break; }
+                    mt[mi] = c;
+                    mi = mi + 1;
+                    ri = ri + 1;
+                  }
+                  mt[mi] = 0;
+                  unsafe {
+                    let _fea: i32 = xlang_ensure_formal_std_make_o(rta, rel, &mt[0]);
                   }
                 }
               }

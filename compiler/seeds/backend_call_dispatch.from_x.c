@@ -1491,6 +1491,64 @@ static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t typ
       out[n++] = (uint8_t)('0' + digs[di]);
     return n;
   }
+  /* TYPE_VECTOR = 13 → <elem>x<lanes> (f32x4 / i32x8). G.7 ≡ codegen + pure .x.
+   * P0 soft: run-perf-simd-xlangffle-select UNDEF short mid without vector suffix. */
+  if (tk == 13) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    int32_t lanes = pipeline_type_array_size_at(a, type_ref);
+    int32_t ek;
+    int32_t pos = 0;
+    if (elem <= 0 || lanes <= 0)
+      return 0;
+    ek = pipeline_type_kind_ord_at(a, elem);
+    if (ek == 0) { /* i32 */
+      if (out_cap < 4)
+        return 0;
+      out[0] = (uint8_t)'i';
+      out[1] = (uint8_t)'3';
+      out[2] = (uint8_t)'2';
+      pos = 3;
+    } else if (ek == 3) { /* u32 */
+      if (out_cap < 4)
+        return 0;
+      out[0] = (uint8_t)'u';
+      out[1] = (uint8_t)'3';
+      out[2] = (uint8_t)'2';
+      pos = 3;
+    } else if (ek == 14) { /* f32 */
+      if (out_cap < 4)
+        return 0;
+      out[0] = (uint8_t)'f';
+      out[1] = (uint8_t)'3';
+      out[2] = (uint8_t)'2';
+      pos = 3;
+    } else {
+      return 0;
+    }
+    if (pos >= out_cap)
+      return 0;
+    out[pos++] = (uint8_t)'x';
+    if (lanes == 4) {
+      if (pos >= out_cap)
+        return 0;
+      out[pos++] = (uint8_t)'4';
+      return pos;
+    }
+    if (lanes == 8) {
+      if (pos >= out_cap)
+        return 0;
+      out[pos++] = (uint8_t)'8';
+      return pos;
+    }
+    if (lanes == 16) {
+      if (pos + 1 >= out_cap)
+        return 0;
+      out[pos++] = (uint8_t)'1';
+      out[pos++] = (uint8_t)'6';
+      return pos;
+    }
+    return 0;
+  }
   /* Named / user types: always try type name (String, Vec_u8, …). */
   n = pipeline_type_named_name_into(a, type_ref, out);
   if (n > 0 && n < out_cap) {

@@ -139,7 +139,8 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
  * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  return 12;
+  /* +g12 std.simd VECTOR formal (pure g18; seed-only product path until pure leave). */
+  return 13;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -169,6 +170,8 @@ int labi_od_simple_group_sym_count(int g) {
     return 14;
   if (g == 11)
     return 8;
+  if (g == 12)
+    return 6; /* std.simd formal_surface VECTOR mid */
   return 0;
 }
 
@@ -363,6 +366,22 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "ffi_cstring_free_c";
     return NULL;
   }
+  /* PLATFORM: SHARED — std.simd formal VECTOR mid faces. */
+  if (g == 12) {
+    if (i == 0)
+      return "std_simd_shuffle_f32x4_i32_a4";
+    if (i == 1)
+      return "std_simd_shuffle_i32x8_i32_a8";
+    if (i == 2)
+      return "std_simd_select_f32x4_f32x4_f32x4";
+    if (i == 3)
+      return "std_simd_select_i32x8_i32x8_i32x8";
+    if (i == 4)
+      return "std_simd_splat_i32";
+    if (i == 5)
+      return "std_simd_splat_f32";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -393,6 +412,8 @@ const char *labi_od_simple_group_rel(int g) {
     return "core/builtin/builtin.o";
   if (g == 11)
     return "std/ffi/ffi.o";
+  if (g == 12)
+    return "std/simd/simd.o";
   return NULL;
 }
 

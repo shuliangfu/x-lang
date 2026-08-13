@@ -97,6 +97,8 @@ formal_mod_key_for_out() {
     ../std/compress/compress.o|std/compress/compress.o|*std/compress/compress.o) printf '%s' "std/compress/compress.o" ;;
     ../std/io/driver.o|std/io/driver.o|*std/io/driver.o) printf '%s' "std/io/driver.o" ;;
     ../std/debug/debug.o|std/debug/debug.o|*std/debug/debug.o) printf '%s' "std/debug/debug.o" ;;
+    # PLATFORM: SHARED — pure-asm std.simd formal (shuffle/select/splat VECTOR mid).
+    ../std/simd/simd.o|std/simd/simd.o|*std/simd/simd.o) printf '%s' "std/simd/simd.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -169,6 +171,8 @@ formal_mod_spec_for_key() {
     std/compress/compress.o) printf '%s' "c_face|0|../std/compress/formal_surface.c" ;;
     std/io/driver.o) printf '%s' "c_face|0|../std/io/driver_formal_surface.c" ;;
     std/debug/debug.o) printf '%s' "c_face|0|../std/debug/formal_surface.c" ;;
+    # PLATFORM: SHARED — pure-asm VECTOR mid faces (≡ codegen f32x4/i32x8 mangle).
+    std/simd/simd.o) printf '%s' "c_face|0|../std/simd/formal_surface.c" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -222,7 +226,8 @@ formal_mod_all_keys() {
     std/fmt/fmt.o \
     std/compress/compress.o \
     std/io/driver.o \
-    std/debug/debug.o
+    std/debug/debug.o \
+    std/simd/simd.o
 }
 
 formal_mod_out_for_key() {

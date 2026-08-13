@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 18 (was 13; +g13..g16 +g17 std.debug class-batch 2)
+ * @return i32 — 19 (was 18; +g18 std.simd VECTOR formal faces)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 18;
+  return 19;
 }
 
 /**
@@ -356,6 +356,11 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // PLATFORM: SHARED — std.debug formal (run-debug std-debug residual).
   if (g == 17) {
     return 3;
+  }
+  // PLATFORM: SHARED — std.simd formal (run-perf-simd-xlangffle-select residual).
+  // VECTOR mid faces: shuffle/select/splat with f32x4/i32x8 suffixes.
+  if (g == 18) {
+    return 6;
   }
   return 0;
 }
@@ -861,6 +866,34 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — std.simd formal (formal_surface VECTOR mid).
+  if (g == 18) {
+    if (i == 0) {
+      let p: *u8 = "std_simd_shuffle_f32x4_i32_a4";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_simd_shuffle_i32x8_i32_a8";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_simd_select_f32x4_f32x4_f32x4";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_simd_select_i32x8_i32x8_i32x8";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_simd_splat_i32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_simd_splat_f32";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -953,6 +986,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — std.debug formal product .o (run-debug residual).
   if (g == 17) {
     let p: *u8 = "std/debug/debug.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.simd formal product .o (run-perf-simd residual).
+  if (g == 18) {
+    let p: *u8 = "std/simd/simd.o";
     return p;
   }
   return 0 as *u8;

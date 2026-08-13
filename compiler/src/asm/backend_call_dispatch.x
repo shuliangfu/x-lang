@@ -2849,6 +2849,52 @@ export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, o
       }
       return na;
     }
+    // TYPE_VECTOR = 13 → <elem>x<lanes> (f32x4 / i32x8). G.7 ≡ codegen_type_ref_to_suffix.
+    // Root (run-perf-simd-xlangffle-select): without this, import METHOD mid skips the
+    // vector param → U std_simd_shuffle_i32_a4 while host-C formal exports
+    // std_simd_shuffle_f32x4_i32_a4 (BLD001). PLATFORM: SHARED pure-asm product.
+    if (tk == 13) {
+      let elem_v: i32 = pipeline_type_elem_ref_at(a, type_ref);
+      let lanes: i32 = pipeline_type_array_size_at(a, type_ref);
+      let ek: i32 = 0;
+      let pos: i32 = 0;
+      if (elem_v <= 0) { return 0; }
+      if (lanes <= 0) { return 0; }
+      ek = pipeline_type_kind_ord_at(a, elem_v);
+      // TYPE_I32=0 → i32; TYPE_U32=3 → u32; TYPE_F32=14 → f32
+      if (ek == 0) {
+        if (out_cap < 4) { return 0; }
+        out[0] = 105; out[1] = 51; out[2] = 50; pos = 3;
+      } else if (ek == 3) {
+        if (out_cap < 4) { return 0; }
+        out[0] = 117; out[1] = 51; out[2] = 50; pos = 3;
+      } else if (ek == 14) {
+        if (out_cap < 4) { return 0; }
+        out[0] = 102; out[1] = 51; out[2] = 50; pos = 3;
+      } else {
+        return 0;
+      }
+      if (pos >= out_cap) { return 0; }
+      out[pos] = 120; // 'x'
+      pos = pos + 1;
+      if (lanes == 4) {
+        if (pos >= out_cap) { return 0; }
+        out[pos] = 52; // '4'
+        return pos + 1;
+      }
+      if (lanes == 8) {
+        if (pos >= out_cap) { return 0; }
+        out[pos] = 56; // '8'
+        return pos + 1;
+      }
+      if (lanes == 16) {
+        if (pos + 1 >= out_cap) { return 0; }
+        out[pos] = 49; // '1'
+        out[pos + 1] = 54; // '6'
+        return pos + 2;
+      }
+      return 0;
+    }
     // NAMED / user types: prefer type name (String, StrView, Vec_u8, …).
     let n2: i32 = pipeline_type_named_name_into(a, type_ref, out);
     if (n2 > 0) {
