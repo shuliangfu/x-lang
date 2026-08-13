@@ -167,15 +167,42 @@ function add_one(x: i32): i32 {
   return x + 1;
 }
 
+trait FoldAddable {
+  function fold_add(self, other: i32): i32;
+}
+
+/**
+ * METHOD wpo_const scalar: callee is `return self + other` (two const i32).
+ * @param self i32 — receiver (const at the call site)
+ * @param other i32 — extra UFCS arg (const at the call site)
+ * @return i32 — self + other
+ */
+impl FoldAddable for i32 {
+  function fold_add(self: i32, other: i32): i32 {
+    return self + other;
+  }
+}
+
+/**
+ * CALL neighborhood of fold_add (same fold: return param0 + param1).
+ * @param x i32 — left const
+ * @param y i32 — right const
+ * @return i32 — x + y
+ */
+function fold_add_call(x: i32, y: i32): i32 {
+  return x + y;
+}
+
 /**
  * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init plus >16B.
- * Exit 0 on success; 1..28 name the miss.
+ * Exit 0 on success; 1..30 name the miss.
  * 1-4 materialise/sret neighborhood; 5-8 field-access inline;
  * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood;
  * 17-18 param0-single-field METHOD first() + CALL take_a neighborhood;
  * 19-20 param0-field-sum METHOD pair_sum() + CALL field_sum neighborhood;
  * 21-22 x+K METHOD plus_one() + CALL add_one neighborhood;
- * 23-28 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
+ * 23-24 wpo_const scalar METHOD fold_add() + CALL fold_add_call neighborhood;
+ * 25-30 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
  * 9–16B Quad field.d / take_quad left for the home-vs-rdx layout knife (not this classifier).
  * @return i32 — 0 ok
  */
@@ -221,16 +248,20 @@ function main(): i32 {
   if (10.plus_one() != 11) { return 21; }
   /* CALL neighborhood of the same fold. */
   if (add_one(10) != 11) { return 22; }
+  /* METHOD wpo_const scalar: fold two i32 consts (not a CALL). */
+  if (10.fold_add(3) != 13) { return 23; }
+  /* CALL neighborhood of the same fold. */
+  if (fold_add_call(10, 3) != 13) { return 24; }
   /* >16B METHOD field-access: sret home then load (memcpy if residual store). */
-  if (7.as_wide().a != 7) { return 23; }
-  if (7.as_wide().e != 11) { return 24; }
+  if (7.as_wide().a != 7) { return 25; }
+  if (7.as_wide().e != 11) { return 26; }
   /* >16B METHOD let-init. */
   let w: Wide = 7.as_wide();
-  if (w.a != 7) { return 25; }
-  if (w.e != 11) { return 26; }
+  if (w.a != 7) { return 27; }
+  if (w.e != 11) { return 28; }
   /* >16B CALL neighborhood. */
-  if (mk_wide(7).e != 11) { return 27; }
+  if (mk_wide(7).e != 11) { return 29; }
   let cw: Wide = mk_wide(7);
-  if (cw.e != 11) { return 28; }
+  if (cw.e != 11) { return 30; }
   return 0;
 }

@@ -2280,11 +2280,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
-    // G.7: same param0.field / field-sum / x+K folds as CALL emit
+    // G.7: same param0.field / field-sum / x+K / wpo_const-scalar folds as CALL emit
     // (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
-    //  recv.plus_one() ≡ add_one(recv)).
+    //  recv.plus_one() ≡ add_one(recv); recv.fold_add(K) ≡ fold_add_call(recv, K)).
     // After import-binding: import methods must not enter lookup/fold (option/si SEGV).
-    // extra!=0 / fold miss / PTR → 0, fall through to UFCS CALL.
+    // extra mismatch / fold miss / PTR → 0, fall through to UFCS CALL.
     {
       let inline_sf: i32 = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
       if (inline_sf != 0) {
@@ -2304,6 +2304,16 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       if (inline_xk != 0) {
         if (inline_xk < 0) { return 0 - 1; }
         return 0;
+      }
+    }
+    // Same env gate as CALL emit: XLANG_WPO_MONO / XLANG_WPO_NO_FOLD skip const fold.
+    if (link_abi_getenv("XLANG_WPO_MONO") == 0) {
+      if (link_abi_getenv("XLANG_WPO_NO_FOLD") == 0) {
+        let inline_wc: i32 = try_inline_wpo_const_scalar_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+        if (inline_wc != 0) {
+          if (inline_wc < 0) { return 0 - 1; }
+          return 0;
+        }
       }
     }
     // wave360: UFCS auto-ref — self: *T + value receiver → lea (not by-value).

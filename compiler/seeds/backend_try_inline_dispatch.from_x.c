@@ -1944,6 +1944,8 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *
 
 /**
  * WPO-S2：两整型常量实参 + callee 为 `return param0 binop param1`（i32 标量）时编译期 fold 到 rax。
+ * CALL(48): nargs==2. METHOD_CALL(49): extra==1, arg0=base, arg1=extra[0].
+ * Lookup is METHOD-safe (glue_call_lookup; CALL prefers resolved_func_index).
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1951,8 +1953,8 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *
 int32_t try_inline_wpo_const_scalar_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                     struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_Module *mod_ref;
-  int32_t callee_ref;
+  struct ast_ASTArena *callee_arena;
+  struct ast_Module *callee_mod;
   int32_t fi;
   int32_t binop_ko;
   int32_t arg0;
@@ -1961,31 +1963,31 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf_impl(struct ast_ASTArena *are
   int32_t av1;
   int32_t folded;
   int32_t hi;
-  uint8_t cname[128];
-  int32_t clen;
+  int32_t ko;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  mod_ref = ctx->module_ref;
-  if (!mod_ref)
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) {
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2)
+  }
+  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-  if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != GLUE_EXPR_VAR)
+  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
+   * (overload pick_i32 vs pick_i64). Name-only first-match is METHOD-only. */
+  if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0)
     return 0;
-  clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_ref, cname);
-  fi = glue_module_func_index_by_name(mod_ref, cname, clen);
-  if (fi < 0)
-    return 0;
-  if (glue_fold_func_returns_param01_scalar_binop(arena, mod_ref, fi, &binop_ko) == 0)
-    return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+  }
   if (arg0 <= 0 || arg1 <= 0)
     return 0;
   if (glue_try_expr_const_i32(arena, arg0, &av0) == 0)

@@ -4092,8 +4092,9 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       }
     }
   }
-  /* G.7: same param0.field / field-sum folds as CALL emit
-   * (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv)).
+  /* G.7: same param0.field / field-sum / x+K / wpo_const-scalar folds as CALL emit
+   * (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
+   *  recv.plus_one() ≡ add_one(recv); recv.fold_add(K) ≡ fold_add_call(recv, K)).
    * After import-binding so import methods never enter lookup/fold. */
   {
     int32_t inline_sf = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
@@ -4109,6 +4110,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     int32_t inline_xk = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
     if (inline_xk != 0)
       return inline_xk < 0 ? -1 : 0;
+  }
+  /* Same env gate as CALL emit: XLANG_WPO_MONO / XLANG_WPO_NO_FOLD skip const fold. */
+  if (!link_abi_getenv("XLANG_WPO_MONO") && !link_abi_getenv("XLANG_WPO_NO_FOLD")) {
+    int32_t inline_wc = try_inline_wpo_const_scalar_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_wc != 0)
+      return inline_wc < 0 ? -1 : 0;
   }
   /*
    * wave602 Cap residual pure — freestanding UFCS method self SysV dual-GP / MEMORY.

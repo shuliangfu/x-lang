@@ -1778,10 +1778,20 @@ export function try_inline_var_field_sum_binop_elf(
 // See implementation.
 // See implementation.
 
-// See implementation.
-/** Function `try_inline_wpo_const_scalar_binop_call_elf`.
- * Purpose: implements `try_inline_wpo_const_scalar_binop_call_elf`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * Inline `recv.fold_add(K)` / `fold_add_call(A, B)` when both
+ * operands are i32 constants and the callee is
+ * `return param0 binop param1`. CALL(48): two positional args.
+ * METHOD_CALL(49): extra==1, param0 is method_call_base, param1
+ * is extra arg 0 (UFCS). Lookup is METHOD-safe (glue_call_lookup;
+ * CALL still prefers resolved_func_index so overload pick stays).
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
+ * @param ta i32 — target arch token
+ * @return i32 — 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same predicate.
  */
 #[no_mangle]
 export function try_inline_wpo_const_scalar_binop_call_elf(
@@ -1792,24 +1802,35 @@ export function try_inline_wpo_const_scalar_binop_call_elf(
   if (ctx == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
-    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
-    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
-    if (mod_ref == 0) { return 0; }
-    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
-    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-    if (callee_ref <= 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-    let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
-    if (clen <= 0) { return 0; }
-    if (clen > 127) { return 0; }
-    let cname: u8[128] = [];
-    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
-    let fi: i32 = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
-    if (fi < 0) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    // CALL=48 METHOD_CALL=49: same two-const scalar binop fold.
+    if (ko != 48 && ko != 49) { return 0; }
+    if (ko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    } else {
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
+    }
+    let ca_slot: u8[8] = [];
+    let cm_slot: u8[8] = [];
+    let fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
+      return 0;
+    }
+    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
+    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    if (callee_arena == 0) { return 0; }
+    if (callee_mod == 0) { return 0; }
     let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_scalar_binop(arena, mod_ref, fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    let arg1: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = 0;
+    let arg1: i32 = 0;
+    if (ko == 49) {
+      arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    }
     if (arg0 <= 0) { return 0; }
     if (arg1 <= 0) { return 0; }
     let av0: i32 = 0;
