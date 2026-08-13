@@ -2016,15 +2016,18 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
 #endif
 
 /**
- * WPO-S2 monomorphize：XLANG_WPO_MONO=1 时将全常量实参 call 改调单态符号（零实参 thunk）。
+ * WPO-S2 monomorphize：XLANG_WPO_MONO=1 时将全常量实参 CALL/METHOD 改调单态符号（零实参 thunk）。
+ * CALL(48): nargs==2. METHOD_CALL(49): extra==1, arg0=base, arg1=extra[0].
+ * Lookup is METHOD-safe (glue_call_lookup; CALL prefers resolved_func_index).
+ * Thunk base name comes from the looked-up func (copy64 cap).
  * 返回 1=已发射 call，0=未匹配或未启用，-1=错误。
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-376 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_Module *mod_ref;
-  int32_t callee_ref;
+  struct ast_ASTArena *callee_arena;
+  struct ast_Module *callee_mod;
   int32_t fi;
   int32_t binop_ko;
   int32_t arg0;
@@ -2037,33 +2040,34 @@ int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct pla
   int sym_len;
   uint8_t cname[128];
   int32_t clen;
+  int32_t ko;
   /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
   if (!link_abi_getenv("XLANG_WPO_MONO"))
     return 0;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  mod_ref = ctx->module_ref;
-  if (!mod_ref)
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) {
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2)
+  }
+  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-  if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != GLUE_EXPR_VAR)
+  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
+   * (overload pick). Name-only first-match is METHOD-only. */
+  if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0)
     return 0;
-  clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_ref, cname);
-  cname[clen] = 0;
-  fi = glue_module_func_index_by_name(mod_ref, cname, clen);
-  if (fi < 0)
-    return 0;
-  if (glue_fold_func_returns_param01_scalar_binop(arena, mod_ref, fi, &binop_ko) == 0)
-    return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+  }
   if (arg0 <= 0 || arg1 <= 0)
     return 0;
   if (glue_try_expr_const_i32(arena, arg0, &av0) == 0)
@@ -2072,6 +2076,11 @@ int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct pla
     return 0;
   if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0)
     return 0;
+  clen = pipeline_asm_module_func_name_len_at(callee_mod, fi);
+  if (clen <= 0 || clen > 63)
+    return 0;
+  pipeline_asm_module_func_name_copy64(callee_mod, fi, cname);
+  cname[clen] = 0;
   glue_wpo_mono_register_thunk((const char *)cname, av0, av1, folded);
   args[0] = av0;
   args[1] = av1;

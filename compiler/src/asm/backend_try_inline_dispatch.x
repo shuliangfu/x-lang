@@ -1943,15 +1943,22 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
 }
 
 /**
- * Try WPO mono symbol emit for a 2-arg call when XLANG_WPO_MONO is set.
+ * Emit a zero-arg WPO mono thunk call for `recv.fold_add(K)` /
+ * `fold_add_call(A, B)` when XLANG_WPO_MONO is set, both operands
+ * are i32 constants, and the callee is `return param0 binop param1`.
+ * CALL(48): two positional args. METHOD_CALL(49): extra==1, param0
+ * is method_call_base, param1 is extra arg 0 (UFCS). Lookup is
+ * METHOD-safe (glue_call_lookup; CALL still prefers resolved_func_index
+ * so overload pick stays). Thunk base name comes from the looked-up
+ * func (copy64 cap), not CALL-only callee_ref VAR.
  * wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
- * @param arena *u8 — AST arena; null → return 0
- * @param elf_ctx *u8 — ELF/codegen context; null → return 0
- * @param expr_ref i32 — call expr ref; must be > 0
- * @param ctx *u8 — AsmFuncCtx; null → return 0
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
  * @param ta i32 — target arch token
- * @return i32 — 1 if mono path handled, 0 if skipped, -1 on encode failure
- * PLATFORM: SHARED — host residual only link_abi_getenv_impl
+ * @return i32 — 1 mono call emitted, 0 no match / env unset, -1 encode error
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same predicate.
  */
 #[no_mangle]
 export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -1966,25 +1973,35 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
     // wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv).
     if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
-    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
-    if (mod_ref == 0) { return 0; }
-    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
-    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-    if (callee_ref <= 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-    let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
-    if (clen <= 0) { return 0; }
-    if (clen > 127) { return 0; }
-    let cname: u8[128] = [];
-    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
-    cname[clen] = 0;
-    let fi: i32 = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
-    if (fi < 0) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    // CALL=48 METHOD_CALL=49: same two-const scalar binop → mono thunk.
+    if (ko != 48 && ko != 49) { return 0; }
+    if (ko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    } else {
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
+    }
+    let ca_slot: u8[8] = [];
+    let cm_slot: u8[8] = [];
+    let fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
+      return 0;
+    }
+    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
+    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    if (callee_arena == 0) { return 0; }
+    if (callee_mod == 0) { return 0; }
     let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_scalar_binop(arena, mod_ref, fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    let arg1: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = 0;
+    let arg1: i32 = 0;
+    if (ko == 49) {
+      arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    }
     if (arg0 <= 0) { return 0; }
     if (arg1 <= 0) { return 0; }
     let av0: i32 = 0;
@@ -1993,6 +2010,13 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     if (glue_try_expr_const_i32(arena, arg1, &av1) == 0) { return 0; }
     let folded: i32 = 0;
     if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
+    // copy64 dest is 64 bytes; refuse longer names rather than truncate the thunk base.
+    let clen: i32 = pipeline_asm_module_func_name_len_at(callee_mod, fi);
+    if (clen <= 0) { return 0; }
+    if (clen > 63) { return 0; }
+    let cname: u8[128] = [];
+    pipeline_asm_module_func_name_copy64(callee_mod, fi, &cname[0]);
+    cname[clen] = 0;
     glue_wpo_mono_register_thunk(&cname[0], av0, av1, folded);
     let args: i32[2] = [];
     args[0] = av0;
