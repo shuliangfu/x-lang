@@ -42,6 +42,9 @@ int32_t pipeline_typeck_check_return_slice_region_in_scope_c_ASTArena_ptr_i32_i3
 extern int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t * name, int32_t name_len);
 int32_t pipeline_typeck_is_read_ptr_slice_callee_c_u8_ptr_i32_reti32(uint8_t * name, int32_t name_len) { return pipeline_typeck_is_read_ptr_slice_callee_c(name, name_len); }
 
+extern int32_t pipeline_typeck_is_simd_comptime_callee_c(uint8_t * name, int32_t name_len);
+int32_t pipeline_typeck_is_simd_comptime_callee_c_u8_ptr_i32_reti32(uint8_t * name, int32_t name_len) { return pipeline_typeck_is_simd_comptime_callee_c(name, name_len); }
+
 extern int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena * arena, int32_t decl_ref, int32_t init_ref);
 int32_t pipeline_typeck_linear_accepts_init_c_ASTArena_ptr_i32_i32_reti32(struct ast_ASTArena * arena, int32_t decl_ref, int32_t init_ref) { return pipeline_typeck_linear_accepts_init_c(arena, decl_ref, init_ref); }
 
