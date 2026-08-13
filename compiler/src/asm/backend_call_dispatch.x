@@ -2280,8 +2280,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
-    // G.7: same param0.field / field-sum folds as CALL emit
-    // (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv)).
+    // G.7: same param0.field / field-sum / x+K folds as CALL emit
+    // (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
+    //  recv.plus_one() ≡ add_one(recv)).
     // After import-binding: import methods must not enter lookup/fold (option/si SEGV).
     // extra!=0 / fold miss / PTR → 0, fall through to UFCS CALL.
     {
@@ -2295,6 +2296,13 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       let inline_fs: i32 = try_inline_param0_field_sum_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
       if (inline_fs != 0) {
         if (inline_fs < 0) { return 0 - 1; }
+        return 0;
+      }
+    }
+    {
+      let inline_xk: i32 = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+      if (inline_xk != 0) {
+        if (inline_xk < 0) { return 0 - 1; }
         return 0;
       }
     }

@@ -1650,42 +1650,41 @@ int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct 
 #endif
 
 /**
- * ELF CALL 简单内联：同模块 f(x) 且 f 为 x+K 链时 emit 实参后 add K。
- * 返回 1=已内联，0=未匹配，-1=错误。
+ * Inline `recv.plus_one()` / `add_one(recv)` when callee is
+ * `return param0 + K` (or a same-module x+K chain). CALL(48): one
+ * positional arg is x. METHOD_CALL(49): extra args == 0; param0 is
+ * method_call_base (UFCS self). Lookup is METHOD-safe
+ * (glue_call_lookup; CALL still prefers resolved_func_index so
+ * overload pick_i32 vs pick_i64 stays correct).
+ * @return 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
 /* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-375 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_Module *mod_ref;
-  int32_t callee_ref;
+  struct ast_ASTArena *callee_arena;
+  struct ast_Module *callee_mod;
   int32_t fi;
   int32_t k;
   int32_t arg_ref;
-  uint8_t cname[128];
-  int32_t clen;
+  int32_t ko;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  mod_ref = ctx->module_ref;
-  if (!mod_ref)
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-  if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != GLUE_EXPR_VAR)
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0)
+      return 0;
+  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1)
+  }
+  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
-  clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_ref, cname);
-  /* 【Why 根源】必须优先 call_resolved_func_index（overload 分派结果）。
-   * 仅按名 first-match 会把 pick(20 as i64) 折成 pick_i32 的 +1（overload.x exit=2）。 */
-  fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
-  if (fi < 0)
-    fi = glue_module_func_index_by_name(mod_ref, cname, clen);
-  if (fi < 0)
-    return 0;
-  k = backend_fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);
+  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
+   * (overload pick_i32 vs pick_i64). Name-only first-match is METHOD-only. */
+  k = backend_fold_func_x_plus_k_chain(callee_arena, callee_mod, fi, 0);
   if (k < 0)
     return 0;
   /**
@@ -1698,21 +1697,24 @@ int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct pla
     uint8_t rname[128];
     int32_t plen;
     int32_t rlen;
-    ret_ref = glue_fold_func_return_operand_ref_module(arena, mod_ref, fi);
+    ret_ref = glue_fold_func_return_operand_ref_module(callee_arena, callee_mod, fi);
     if (ret_ref <= 0)
-      ret_ref = backend_fold_func_return_operand_ref(arena, mod_ref, fi);
-    if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != GLUE_EXPR_VAR)
+      ret_ref = backend_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
+    if (ret_ref <= 0 || pipeline_expr_kind_ord_at(callee_arena, ret_ref) != GLUE_EXPR_VAR)
       return 0;
-    plen = pipeline_module_func_param_name_len_at(mod_ref, fi, 0);
-    rlen = pipeline_expr_var_name_len(arena, ret_ref);
+    plen = pipeline_module_func_param_name_len_at(callee_mod, fi, 0);
+    rlen = pipeline_expr_var_name_len(callee_arena, ret_ref);
     if (plen <= 0 || plen > 63 || rlen != plen)
       return 0;
-    pipeline_module_func_param_name_copy32(mod_ref, fi, 0, pname);
-    pipeline_expr_var_name_into(arena, ret_ref, rname);
+    pipeline_module_func_param_name_copy32(callee_mod, fi, 0, pname);
+    pipeline_expr_var_name_into(callee_arena, ret_ref, rname);
     if (memcmp(pname, rname, (size_t)plen) != 0)
       return 0;
   }
-  arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+  if (ko == GLUE_EXPR_METHOD_CALL)
+    arg_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  else
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)

@@ -4105,6 +4105,11 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     if (inline_fs != 0)
       return inline_fs < 0 ? -1 : 0;
   }
+  {
+    int32_t inline_xk = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_xk != 0)
+      return inline_xk < 0 ? -1 : 0;
+  }
   /*
    * wave602 Cap residual pure — freestanding UFCS method self SysV dual-GP / MEMORY.
    * Root: receiver was always 1 GP (`mov rax→rdi`); 9–16B self dropped high half (rdx);

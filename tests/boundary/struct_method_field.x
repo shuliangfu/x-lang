@@ -143,14 +143,39 @@ function field_sum(p: Pair): i32 {
   return p.a + p.b;
 }
 
+trait Addable {
+  function plus_one(self): i32;
+}
+
+/**
+ * METHOD x+K: callee is `return self + 1` (try_inline emit-arg then add).
+ * @param self i32 — receiver added to the constant
+ * @return i32 — self + 1
+ */
+impl Addable for i32 {
+  function plus_one(self: i32): i32 {
+    return self + 1;
+  }
+}
+
+/**
+ * CALL neighborhood of plus_one (same fold: return param0 + 1).
+ * @param x i32 — source
+ * @return i32 — x + 1
+ */
+function add_one(x: i32): i32 {
+  return x + 1;
+}
+
 /**
  * Probe: METHOD.field plus CALL.field plus METHOD/CALL let-init plus >16B.
- * Exit 0 on success; 1..26 name the miss.
+ * Exit 0 on success; 1..28 name the miss.
  * 1-4 materialise/sret neighborhood; 5-8 field-access inline;
  * 9-12 let-init try_inline (param + const); 13-16 let-init sret/CALL neighborhood;
  * 17-18 param0-single-field METHOD first() + CALL take_a neighborhood;
  * 19-20 param0-field-sum METHOD pair_sum() + CALL field_sum neighborhood;
- * 21-26 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
+ * 21-22 x+K METHOD plus_one() + CALL add_one neighborhood;
+ * 23-28 >16B METHOD/CALL field-access + let-init (sret / memcpy residual).
  * 9–16B Quad field.d / take_quad left for the home-vs-rdx layout knife (not this classifier).
  * @return i32 — 0 ok
  */
@@ -192,16 +217,20 @@ function main(): i32 {
   if (p.pair_sum() != 30) { return 19; }
   /* CALL neighborhood of the same fold. */
   if (field_sum(p) != 30) { return 20; }
+  /* METHOD x+K: try_inline emits recv then add 1 (not a CALL). */
+  if (10.plus_one() != 11) { return 21; }
+  /* CALL neighborhood of the same fold. */
+  if (add_one(10) != 11) { return 22; }
   /* >16B METHOD field-access: sret home then load (memcpy if residual store). */
-  if (7.as_wide().a != 7) { return 21; }
-  if (7.as_wide().e != 11) { return 22; }
+  if (7.as_wide().a != 7) { return 23; }
+  if (7.as_wide().e != 11) { return 24; }
   /* >16B METHOD let-init. */
   let w: Wide = 7.as_wide();
-  if (w.a != 7) { return 23; }
-  if (w.e != 11) { return 24; }
+  if (w.a != 7) { return 25; }
+  if (w.e != 11) { return 26; }
   /* >16B CALL neighborhood. */
-  if (mk_wide(7).e != 11) { return 25; }
+  if (mk_wide(7).e != 11) { return 27; }
   let cw: Wide = mk_wide(7);
-  if (cw.e != 11) { return 26; }
+  if (cw.e != 11) { return 28; }
   return 0;
 }

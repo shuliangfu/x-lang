@@ -1411,14 +1411,20 @@ export function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, 
 // See implementation.
 
 // try_inline_x_plus_k_call_elf: see function docblock below.
-/** Exported function `try_inline_x_plus_k_call_elf`.
- * Implements `try_inline_x_plus_k_call_elf`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param expr_ref i32
- * @param ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Inline `recv.plus_one()` / `add_one(recv)` when the callee is
+ * `return param0 + K` (or a same-module x+K chain). CALL(48): one
+ * positional arg is x. METHOD_CALL(49): extra args must be 0 and
+ * param0 is method_call_base (UFCS self). Lookup is METHOD-safe
+ * (glue_call_lookup; CALL still prefers resolved_func_index so
+ * overload pick_i32 vs pick_i64 stays correct).
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
+ * @param ta i32 — target arch token
+ * @return i32 — 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same predicate.
  */
 #[no_mangle]
 export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -1427,49 +1433,56 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
   if (ctx == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
-    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
-    if (mod_ref == 0) { return 0; }
-    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-    if (callee_ref <= 0) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
-    if (clen <= 0) { return 0; }
-    if (clen > 127) { return 0; }
-    let cname: u8[128] = [];
-    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
-    /* See implementation. */
-    let fi: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
-    if (fi < 0) {
-      fi = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    // CALL=48 METHOD_CALL=49: same emit-arg then add K.
+    if (ko != 48 && ko != 49) { return 0; }
+    if (ko == 49) {
+      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
+    } else {
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
     }
-    if (fi < 0) { return 0; }
-    let k: i32 = backend_fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);
+    let ca_slot: u8[8] = [];
+    let cm_slot: u8[8] = [];
+    let fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
+      return 0;
+    }
+    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
+    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    if (callee_arena == 0) { return 0; }
+    if (callee_mod == 0) { return 0; }
+    let k: i32 = backend_fold_func_x_plus_k_chain(callee_arena, callee_mod, fi, 0);
     if (k < 0) { return 0; }
-    // See implementation.
+    // k==0 must be a true identity (return param0). Fold +0 can false-match
+    // vec_*_reserve_one; inlining would leave only the arg load.
     if (k == 0) {
-      let ret_ref: i32 = glue_fold_func_return_operand_ref_module(arena, mod_ref, fi);
+      let ret_ref: i32 = glue_fold_func_return_operand_ref_module(callee_arena, callee_mod, fi);
       if (ret_ref <= 0) {
-        ret_ref = backend_fold_func_return_operand_ref(arena, mod_ref, fi);
+        ret_ref = backend_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
       }
       if (ret_ref <= 0) { return 0; }
-      if (pipeline_expr_kind_ord_at(arena, ret_ref) != 3) { return 0; }
-      let plen: i32 = pipeline_asm_module_func_param_name_len_at(mod_ref, fi, 0);
-      let rlen: i32 = pipeline_expr_var_name_len(arena, ret_ref);
+      if (pipeline_expr_kind_ord_at(callee_arena, ret_ref) != 3) { return 0; }
+      let plen: i32 = pipeline_asm_module_func_param_name_len_at(callee_mod, fi, 0);
+      let rlen: i32 = pipeline_expr_var_name_len(callee_arena, ret_ref);
       if (plen <= 0) { return 0; }
       if (plen > 127) { return 0; }
       if (rlen != plen) { return 0; }
       let pname: u8[128] = [];
       let rname: u8[128] = [];
-      pipeline_asm_module_func_param_name_copy32(mod_ref, fi, 0, &pname[0]);
-      pipeline_expr_var_name_into(arena, ret_ref, &rname[0]);
+      pipeline_asm_module_func_param_name_copy32(callee_mod, fi, 0, &pname[0]);
+      pipeline_expr_var_name_into(callee_arena, ret_ref, &rname[0]);
       let pi: i32 = 0;
       while (pi < plen) {
         if (pname[pi] != rname[pi]) { return 0; }
         pi = pi + 1;
       }
     }
-    let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    let arg_ref: i32 = 0;
+    if (ko == 49) {
+      arg_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
     if (arg_ref <= 0) { return 0 - 1; }
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) { return 0 - 1; }
     if (k != 0) {
