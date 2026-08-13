@@ -186,7 +186,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 17)
     return 3; /* std.debug */
   if (g == 18)
-    return 6; /* std.simd VECTOR mid */
+    return 16; /* std.simd VECTOR mid + binop/dot/fma */
   if (g == 19)
     return 3; /* std.io ctx-timeout STD-091 */
   return 0;
@@ -479,6 +479,26 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_simd_splat_i32";
     if (i == 5)
       return "std_simd_splat_f32";
+    if (i == 6)
+      return "std_simd_mul_f32x4_f32x4";
+    if (i == 7)
+      return "std_simd_mul_i32x8_i32x8";
+    if (i == 8)
+      return "std_simd_sub_i32x8_i32x8";
+    if (i == 9)
+      return "std_simd_sub_f32x4_f32x4";
+    if (i == 10)
+      return "std_simd_add_f32x4_f32x4";
+    if (i == 11)
+      return "std_simd_add_i32x8_i32x8";
+    if (i == 12)
+      return "std_simd_dot";
+    if (i == 13)
+      return "std_simd_madd";
+    if (i == 14)
+      return "std_simd_fma";
+    if (i == 15)
+      return "std_simd_hsum";
     return NULL;
   }
   if (g == 19) {

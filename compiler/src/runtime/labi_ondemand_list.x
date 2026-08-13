@@ -357,10 +357,10 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   if (g == 17) {
     return 3;
   }
-  // PLATFORM: SHARED — std.simd formal (run-perf-simd-xlangffle-select residual).
-  // VECTOR mid faces: shuffle/select/splat with f32x4/i32x8 suffixes.
+  // PLATFORM: SHARED — std.simd formal (run-perf-simd + STD-SIMD-INTRINSIC).
+  // VECTOR mid faces: shuffle/select/splat + add/sub/mul/hsum/dot/fma/madd.
   if (g == 18) {
-    return 6;
+    return 16;
   }
   // PLATFORM: SHARED — std.io context-timeout formal (run-std-io-context residual).
   // timeout_from_ctx / read_ctx / write_ctx (mod.x; monofile skip std.io emit).
@@ -871,7 +871,7 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
-  // PLATFORM: SHARED — std.simd formal (formal_surface VECTOR mid).
+  // PLATFORM: SHARED — std.simd formal (shuffle/select/splat + binop/dot/fma).
   if (g == 18) {
     if (i == 0) {
       let p: *u8 = "std_simd_shuffle_f32x4_i32_a4";
@@ -895,6 +895,46 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 5) {
       let p: *u8 = "std_simd_splat_f32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_simd_mul_f32x4_f32x4";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_simd_mul_i32x8_i32x8";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_simd_sub_i32x8_i32x8";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_simd_sub_f32x4_f32x4";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "std_simd_add_f32x4_f32x4";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_simd_add_i32x8_i32x8";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "std_simd_dot";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "std_simd_madd";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "std_simd_fma";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "std_simd_hsum";
       return p;
     }
     return 0 as *u8;

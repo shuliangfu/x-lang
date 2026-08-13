@@ -256,7 +256,7 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
     return 3;
   }
   if ((g ==18)) {
-    return 6; /* std.simd */
+    return 16; /* std.simd VECTOR mid + binop/dot/fma */
   }
   if ((g ==19)) {
     return 3; /* std.io ctx-timeout */
@@ -591,6 +591,16 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_simd_select_i32x8_i32x8_i32x8"); return p; }
     if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_simd_splat_i32"); return p; }
     if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_simd_splat_f32"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"std_simd_mul_f32x4_f32x4"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_simd_mul_i32x8_i32x8"); return p; }
+    if ((i ==8)) { uint8_t * p = ((uint8_t *)"std_simd_sub_i32x8_i32x8"); return p; }
+    if ((i ==9)) { uint8_t * p = ((uint8_t *)"std_simd_sub_f32x4_f32x4"); return p; }
+    if ((i ==10)) { uint8_t * p = ((uint8_t *)"std_simd_add_f32x4_f32x4"); return p; }
+    if ((i ==11)) { uint8_t * p = ((uint8_t *)"std_simd_add_i32x8_i32x8"); return p; }
+    if ((i ==12)) { uint8_t * p = ((uint8_t *)"std_simd_dot"); return p; }
+    if ((i ==13)) { uint8_t * p = ((uint8_t *)"std_simd_madd"); return p; }
+    if ((i ==14)) { uint8_t * p = ((uint8_t *)"std_simd_fma"); return p; }
+    if ((i ==15)) { uint8_t * p = ((uint8_t *)"std_simd_hsum"); return p; }
     return ((uint8_t *)(0));
   }
   if ((g ==19)) {

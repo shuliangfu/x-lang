@@ -110,3 +110,100 @@ f32x4_t std_simd_select_f32x4_f32x4_f32x4(f32x4_t mask, f32x4_t a, f32x4_t b) {
   memcpy(&r, out, 16);
   return r;
 }
+
+/* Remaining mod.x exports (STD-SIMD-INTRINSIC). Overload mids use VECTOR
+ * suffixes; unique names (dot/hsum/fma/madd) stay bare — matches
+ * glue_asm_build_func_overload_mid_c. Lane math ≡ mod.x (fma = a + b*c).
+ * PLATFORM: SHARED formal face; Ubuntu gold + mac L2. */
+
+f32x4_t std_simd_add_f32x4_f32x4(f32x4_t a, f32x4_t b) {
+  f32x4_t r;
+  float aa[4], bb[4], out[4];
+  f32x4_to_lanes(a, aa);
+  f32x4_to_lanes(b, bb);
+  out[0] = aa[0] + bb[0];
+  out[1] = aa[1] + bb[1];
+  out[2] = aa[2] + bb[2];
+  out[3] = aa[3] + bb[3];
+  memcpy(&r, out, 16);
+  return r;
+}
+
+i32x8_t std_simd_add_i32x8_i32x8(i32x8_t a, i32x8_t b) {
+  i32x8_t r;
+  int i;
+  for (i = 0; i < 8; i++)
+    r.v[i] = a.v[i] + b.v[i];
+  return r;
+}
+
+f32x4_t std_simd_sub_f32x4_f32x4(f32x4_t a, f32x4_t b) {
+  f32x4_t r;
+  float aa[4], bb[4], out[4];
+  f32x4_to_lanes(a, aa);
+  f32x4_to_lanes(b, bb);
+  out[0] = aa[0] - bb[0];
+  out[1] = aa[1] - bb[1];
+  out[2] = aa[2] - bb[2];
+  out[3] = aa[3] - bb[3];
+  memcpy(&r, out, 16);
+  return r;
+}
+
+i32x8_t std_simd_sub_i32x8_i32x8(i32x8_t a, i32x8_t b) {
+  i32x8_t r;
+  int i;
+  for (i = 0; i < 8; i++)
+    r.v[i] = a.v[i] - b.v[i];
+  return r;
+}
+
+f32x4_t std_simd_mul_f32x4_f32x4(f32x4_t a, f32x4_t b) {
+  f32x4_t r;
+  float aa[4], bb[4], out[4];
+  f32x4_to_lanes(a, aa);
+  f32x4_to_lanes(b, bb);
+  out[0] = aa[0] * bb[0];
+  out[1] = aa[1] * bb[1];
+  out[2] = aa[2] * bb[2];
+  out[3] = aa[3] * bb[3];
+  memcpy(&r, out, 16);
+  return r;
+}
+
+i32x8_t std_simd_mul_i32x8_i32x8(i32x8_t a, i32x8_t b) {
+  i32x8_t r;
+  int i;
+  for (i = 0; i < 8; i++)
+    r.v[i] = a.v[i] * b.v[i];
+  return r;
+}
+
+float std_simd_hsum(f32x4_t v) {
+  float a[4];
+  f32x4_to_lanes(v, a);
+  return a[0] + a[1] + a[2] + a[3];
+}
+
+float std_simd_dot(f32x4_t a, f32x4_t b) {
+  return std_simd_hsum(std_simd_mul_f32x4_f32x4(a, b));
+}
+
+f32x4_t std_simd_fma(f32x4_t a, f32x4_t b, f32x4_t c) {
+  /* mod.x: r[i] = a[i] + b[i] * c[i] (not a*b+c). */
+  f32x4_t r;
+  float aa[4], bb[4], cc[4], out[4];
+  f32x4_to_lanes(a, aa);
+  f32x4_to_lanes(b, bb);
+  f32x4_to_lanes(c, cc);
+  out[0] = aa[0] + bb[0] * cc[0];
+  out[1] = aa[1] + bb[1] * cc[1];
+  out[2] = aa[2] + bb[2] * cc[2];
+  out[3] = aa[3] + bb[3] * cc[3];
+  memcpy(&r, out, 16);
+  return r;
+}
+
+f32x4_t std_simd_madd(f32x4_t a, f32x4_t b, f32x4_t c) {
+  return std_simd_fma(a, b, c);
+}
