@@ -139,8 +139,11 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
  * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  /* +g12 std.simd VECTOR formal (pure g18; seed-only product path until pure leave). */
-  return 13;
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g19).
+   * G.7: seed cold twin must match pure table; L4 product often falls back to
+   * this host-cc seed when pure prefer times out. Was return 13 with g12=simd
+   * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe. */
+  return 20;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -171,7 +174,21 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 11)
     return 8;
   if (g == 12)
-    return 6; /* std.simd formal_surface VECTOR mid */
+    return 5; /* std.test */
+  if (g == 13)
+    return 6; /* core.assert */
+  if (g == 14)
+    return 8; /* std.fmt */
+  if (g == 15)
+    return 6; /* std.compress */
+  if (g == 16)
+    return 4; /* std.io.driver */
+  if (g == 17)
+    return 3; /* std.debug */
+  if (g == 18)
+    return 6; /* std.simd VECTOR mid */
+  if (g == 19)
+    return 3; /* std.io ctx-timeout STD-091 */
   return 0;
 }
 
@@ -366,8 +383,90 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "ffi_cstring_free_c";
     return NULL;
   }
-  /* PLATFORM: SHARED — std.simd formal VECTOR mid faces. */
+  /* PLATFORM: SHARED — ≡ pure g12..g19 (test/assert/fmt/compress/driver/debug/simd/io). */
   if (g == 12) {
+    if (i == 0)
+      return "std_test_expect";
+    if (i == 1)
+      return "std_test_expect_eq_i32";
+    if (i == 2)
+      return "std_test_expect_ne_i32";
+    if (i == 3)
+      return "std_test_assert";
+    if (i == 4)
+      return "std_test_runner_case";
+    return NULL;
+  }
+  if (g == 13) {
+    if (i == 0)
+      return "core_assert_assert";
+    if (i == 1)
+      return "core_assert_assert_eq_i32";
+    if (i == 2)
+      return "core_assert_assert_ne_i32";
+    if (i == 3)
+      return "core_assert_debug_assert";
+    if (i == 4)
+      return "core_assert_assert_eq_u32";
+    if (i == 5)
+      return "core_assert_assert_eq_bool";
+    return NULL;
+  }
+  if (g == 14) {
+    if (i == 0)
+      return "std_fmt_format_i32";
+    if (i == 1)
+      return "std_fmt_to_buf_u8_ptr_i32_i32";
+    if (i == 2)
+      return "std_fmt_to_buf_u8_ptr_i32_u32";
+    if (i == 3)
+      return "std_fmt_to_buf_u8_ptr_i32_i64";
+    if (i == 4)
+      return "std_fmt_to_buf_u8_ptr_i32_u64";
+    if (i == 5)
+      return "std_fmt_hex_to_buf_u8_ptr_i32_u32";
+    if (i == 6)
+      return "std_fmt_append_to_buf_u8_ptr_i32_i32_i32";
+    if (i == 7)
+      return "std_fmt_format_u8_ptr_i32_i32_i32";
+    return NULL;
+  }
+  if (g == 15) {
+    if (i == 0)
+      return "std_compress_gzip_compress";
+    if (i == 1)
+      return "std_compress_gzip_decompress";
+    if (i == 2)
+      return "std_compress_brotli_compress";
+    if (i == 3)
+      return "std_compress_brotli_decompress";
+    if (i == 4)
+      return "std_compress_zstd_compress";
+    if (i == 5)
+      return "std_compress_zstd_decompress";
+    return NULL;
+  }
+  if (g == 16) {
+    if (i == 0)
+      return "std_io_driver_register";
+    if (i == 1)
+      return "std_io_driver_submit_read";
+    if (i == 2)
+      return "std_io_driver_submit_write";
+    if (i == 3)
+      return "std_io_driver_submit_register_fixed_buffers_buf";
+    return NULL;
+  }
+  if (g == 17) {
+    if (i == 0)
+      return "std_debug_assert";
+    if (i == 1)
+      return "std_debug_println_u8_ptr_i32";
+    if (i == 2)
+      return "std_debug_print_u8_ptr_i32";
+    return NULL;
+  }
+  if (g == 18) {
     if (i == 0)
       return "std_simd_shuffle_f32x4_i32_a4";
     if (i == 1)
@@ -380,6 +479,15 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_simd_splat_i32";
     if (i == 5)
       return "std_simd_splat_f32";
+    return NULL;
+  }
+  if (g == 19) {
+    if (i == 0)
+      return "std_io_timeout_from_ctx";
+    if (i == 1)
+      return "std_io_read_ctx";
+    if (i == 2)
+      return "std_io_write_ctx";
     return NULL;
   }
   return NULL;
@@ -413,7 +521,21 @@ const char *labi_od_simple_group_rel(int g) {
   if (g == 11)
     return "std/ffi/ffi.o";
   if (g == 12)
+    return "std/test/test.o";
+  if (g == 13)
+    return "core/assert/assert.o";
+  if (g == 14)
+    return "std/fmt/fmt.o";
+  if (g == 15)
+    return "std/compress/compress.o";
+  if (g == 16)
+    return "std/io/driver.o";
+  if (g == 17)
+    return "std/debug/debug.o";
+  if (g == 18)
     return "std/simd/simd.o";
+  if (g == 19)
+    return "std/io/io.o";
   return NULL;
 }
 
@@ -2549,27 +2671,18 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 continue;
             if (!labi_od_user_needs_simple_group(user_o, sg))
                 continue;
-            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result/debug/slice/builtin .o;
-             * ensure via formal_mod before push (same pattern as formal vec/math).
-             * g9 core/slice/mod.o is formal API; glue slice.o is pushed immediately after.
-             * g10 core/builtin/builtin.o: pure-asm product residual (C-path G-01 stays __builtin_*). */
-            if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")
-                || strstr(rel, "core/debug/") || strstr(rel, "core/slice/")
-                || strstr(rel, "core/builtin/")) {
+            /* PLATFORM: SHARED — L4 wipe drops gitignored formal std/core .o.
+             * G.7: ensure by rel for every simple-group hit (≡ pure heavy generic
+             * ensure). Covers g12..g19 (test/assert/fmt/compress/driver/debug/simd/io)
+             * and legacy core/* + encoding. Do not leave seed-only subset. */
+            {
                 const char *include_root = xlang_repo_root_from_argv0(link_argv0);
                 char make_tgt[PATH_MAX];
                 if (include_root && include_root[0] &&
                     (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
                     (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
-                pushed_core_formal = 1;
-            }
-            /* PLATFORM: SHARED — g2 encoding formal may be missing after L4 wipe. */
-            if (strstr(rel, "std/encoding/encoding.o")) {
-                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
-                char make_tgt[PATH_MAX];
-                if (include_root && include_root[0] &&
-                    (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
-                    (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
+                if (strstr(rel, "core/"))
+                    pushed_core_formal = 1;
             }
             link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             /* PLATFORM: SHARED — encoding.o U std_base64_* + std_string_string_* helpers.

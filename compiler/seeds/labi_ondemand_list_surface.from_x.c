@@ -192,8 +192,8 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
-  /* PLATFORM: SHARED — +g13..g16 +g17 std.debug class-batch 2 */
-  return 18;
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x g0..g19 (G.7 cold twin). */
+  return 20;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -254,6 +254,12 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   }
   if ((g ==17)) {
     return 3;
+  }
+  if ((g ==18)) {
+    return 6; /* std.simd */
+  }
+  if ((g ==19)) {
+    return 3; /* std.io ctx-timeout */
   }
   return 0;
 }
@@ -578,6 +584,21 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_debug_print_u8_ptr_i32"); return p; }
     return ((uint8_t *)(0));
   }
+  if ((g ==18)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_simd_shuffle_f32x4_i32_a4"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_simd_shuffle_i32x8_i32_a8"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_simd_select_f32x4_f32x4_f32x4"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_simd_select_i32x8_i32x8_i32x8"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_simd_splat_i32"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_simd_splat_f32"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==19)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_io_timeout_from_ctx"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_io_read_ctx"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_io_write_ctx"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_simple_group_rel(int32_t g) {
@@ -654,6 +675,14 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
   }
   if ((g ==17)) {
     uint8_t * p = ((uint8_t *)"std/debug/debug.o");
+    return p;
+  }
+  if ((g ==18)) {
+    uint8_t * p = ((uint8_t *)"std/simd/simd.o");
+    return p;
+  }
+  if ((g ==19)) {
+    uint8_t * p = ((uint8_t *)"std/io/io.o");
     return p;
   }
   return ((uint8_t *)(0));

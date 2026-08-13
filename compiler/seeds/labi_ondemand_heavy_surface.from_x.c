@@ -2364,6 +2364,39 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
               }
             }
           }
+          /* PLATFORM: SHARED — G.7 generic formal ensure by rel for g13..g19
+           * (assert/fmt/compress/driver/debug/simd/io). L4 wipe drops these .o;
+           * pure heavy already had this; surface lagged → run-compress UNDEF. */
+          {
+            uint8_t * rta = 0;
+            (void)((rta = xlang_repo_root_from_argv0(link_argv0)));
+            if ((rta !=0)) {
+              if (((rta)[0] !=0)) {
+                uint8_t mt[160];
+                int32_t mi = 0;
+                (void)(((mt)[0] = 46));
+                (void)(((mt)[1] = 46));
+                (void)(((mt)[2] = 47));
+                (void)((mi = 3));
+                int32_t ri = 0;
+                while ((ri < 140)) {
+                  uint8_t c = (rel)[ri];
+                  if ((c ==0)) {
+                    break;
+                  }
+                  (void)(((mt)[mi] = c));
+                  (void)((mi = (mi + 1)));
+                  (void)((ri = (ri + 1)));
+                }
+                if ((mi < 159)) {
+                  (void)(((mt)[mi] = 0));
+                  {
+                    int32_t _fea = xlang_ensure_formal_std_make_o(rta, rel, &((mt)[0]));
+                  }
+                }
+              }
+            }
+          }
           {
             int32_t _sg = link_abi_asm_ld_push_obj(0, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
           }
