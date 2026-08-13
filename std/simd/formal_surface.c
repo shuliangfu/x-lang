@@ -14,6 +14,7 @@
  * Bodies match mod.x scalar-lane semantics (STD-047).
  */
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* INTEGER dual-GP (16B) — pure-asm SysV rdi+rsi / ret rax+rdx. */
@@ -210,15 +211,46 @@ f32x4_t std_simd_madd(f32x4_t a, f32x4_t b, f32x4_t c) {
 
 /* Scalar product faces (mod.x unique names → bare mid).
  * PLATFORM: SHARED — s2 / autovec import METHOD.
- * hw_available / recommend_path stay conservative (scalar path):
- * formal must not claim HW without the simd_hw_available_c companion.
- * autovec_strategy accepts hw==0 && path==0. */
+ *
+ * STD-153 twin of simd.x (c_face vehicle cannot host-cc the .x monofile).
+ * hw_available: v1 reports 1 on product hosts (arm64 / x86_64 / riscv64),
+ * matching simd_hw_available_c. Env policy lives on recommend_path only.
+ * recommend_path: same getenv rules as simd_recommend_path_c —
+ *   XLANG_SIMD_HW=0 or XLANG_SIMD_AUTovec=scalar|0 → SCALAR (0)
+ *   XLANG_SIMD_AUTovec=hw|1 and hw_available → HW (1)
+ *   default and hw_available → HW (1)
+ */
 int32_t std_simd_placeholder(void) { return 0; }
 
 int32_t std_simd_SIMD_PATH_SCALAR(void) { return 0; }
 
 int32_t std_simd_SIMD_PATH_HW(void) { return 1; }
 
-int32_t std_simd_hw_available(void) { return 0; }
+int32_t std_simd_hw_available(void) { return 1; }
 
-int32_t std_simd_recommend_path(void) { return 0; }
+static int simd_cstr_eq(const char *a, const char *b) {
+  if (a == 0 || b == 0) {
+    return 0;
+  }
+  while (*a != 0 && *b != 0 && *a == *b) {
+    a++;
+    b++;
+  }
+  return *a == 0 && *b == 0;
+}
+
+int32_t std_simd_recommend_path(void) {
+  const char *hw;
+  const char *aut;
+
+  hw = getenv("XLANG_SIMD_HW");
+  if (hw != 0 && hw[0] == '0' && hw[1] == 0) {
+    return 0;
+  }
+  aut = getenv("XLANG_SIMD_AUTovec");
+  if (aut != 0 && (simd_cstr_eq(aut, "scalar") || simd_cstr_eq(aut, "0"))) {
+    return 0;
+  }
+  /* force_hw (AUTovec=hw|1) and default share the same rule: HW iff available. */
+  return std_simd_hw_available() != 0 ? 1 : 0;
+}
