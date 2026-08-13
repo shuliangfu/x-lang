@@ -1646,6 +1646,39 @@ off_t lseek(int fd, off_t offset, int whence) {
 #endif
 }
 
+/**
+ * ftruncate：Linux x86_64 syscall 77 (SYS_ftruncate).
+ * Why: PREFER driver_x co-emits std_sys_linux_linux_mmap_rw (#[cfg(not(freestanding))])
+ * which calls ftruncate; g05 nostdlib pure-ld drops -lc → U without this face.
+ * PLATFORM: LINUX x86_64 nostdlib product link. G.7: same stub TU as open/lseek.
+ */
+int ftruncate(int fd, off_t length) {
+#if defined(__linux__) && defined(__x86_64__)
+    return (int)bootstrap_syscall3(77L, (long)fd, (long)length, 0L);
+#else
+    (void)fd;
+    (void)length;
+    return -1;
+#endif
+}
+
+/**
+ * msync：Linux x86_64 syscall 26 (SYS_msync).
+ * Why: PREFER driver_x co-emits std_sys_linux_linux_msync_sync → msync; same nostdlib
+ * pure-ld residual as ftruncate (Ubuntu L4 g05 after PREFER main.x).
+ * PLATFORM: LINUX x86_64 nostdlib product link. G.7: same stub TU as mmap/munmap.
+ */
+int msync(void *addr, size_t length, int flags) {
+#if defined(__linux__) && defined(__x86_64__)
+    return (int)bootstrap_syscall3(26L, (long)addr, (long)length, (long)flags);
+#else
+    (void)addr;
+    (void)length;
+    (void)flags;
+    return -1;
+#endif
+}
+
 /** stat：Linux syscall 4。 */
 int stat(const char *path, struct stat *st) {
 #if defined(__linux__) && defined(__x86_64__)
