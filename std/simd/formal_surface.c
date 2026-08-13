@@ -207,3 +207,18 @@ f32x4_t std_simd_fma(f32x4_t a, f32x4_t b, f32x4_t c) {
 f32x4_t std_simd_madd(f32x4_t a, f32x4_t b, f32x4_t c) {
   return std_simd_fma(a, b, c);
 }
+
+/* Scalar product faces (mod.x unique names → bare mid).
+ * PLATFORM: SHARED — s2 / autovec import METHOD.
+ * hw_available / recommend_path stay conservative (scalar path):
+ * formal must not claim HW without the simd_hw_available_c companion.
+ * autovec_strategy accepts hw==0 && path==0. */
+int32_t std_simd_placeholder(void) { return 0; }
+
+int32_t std_simd_SIMD_PATH_SCALAR(void) { return 0; }
+
+int32_t std_simd_SIMD_PATH_HW(void) { return 1; }
+
+int32_t std_simd_hw_available(void) { return 0; }
+
+int32_t std_simd_recommend_path(void) { return 0; }

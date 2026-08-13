@@ -601,6 +601,11 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==13)) { uint8_t * p = ((uint8_t *)"std_simd_madd"); return p; }
     if ((i ==14)) { uint8_t * p = ((uint8_t *)"std_simd_fma"); return p; }
     if ((i ==15)) { uint8_t * p = ((uint8_t *)"std_simd_hsum"); return p; }
+    if ((i ==16)) { uint8_t * p = ((uint8_t *)"std_simd_placeholder"); return p; }
+    if ((i ==17)) { uint8_t * p = ((uint8_t *)"std_simd_hw_available"); return p; }
+    if ((i ==18)) { uint8_t * p = ((uint8_t *)"std_simd_recommend_path"); return p; }
+    if ((i ==19)) { uint8_t * p = ((uint8_t *)"std_simd_SIMD_PATH_SCALAR"); return p; }
+    if ((i ==20)) { uint8_t * p = ((uint8_t *)"std_simd_SIMD_PATH_HW"); return p; }
     return ((uint8_t *)(0));
   }
   if ((g ==19)) {

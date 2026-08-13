@@ -871,7 +871,7 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
-  // PLATFORM: SHARED — std.simd formal (shuffle/select/splat + binop/dot/fma).
+  // PLATFORM: SHARED — std.simd formal (shuffle/select/splat + binop/dot/fma + scalar faces).
   if (g == 18) {
     if (i == 0) {
       let p: *u8 = "std_simd_shuffle_f32x4_i32_a4";
@@ -935,6 +935,26 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 15) {
       let p: *u8 = "std_simd_hsum";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "std_simd_placeholder";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "std_simd_hw_available";
+      return p;
+    }
+    if (i == 18) {
+      let p: *u8 = "std_simd_recommend_path";
+      return p;
+    }
+    if (i == 19) {
+      let p: *u8 = "std_simd_SIMD_PATH_SCALAR";
+      return p;
+    }
+    if (i == 20) {
+      let p: *u8 = "std_simd_SIMD_PATH_HW";
       return p;
     }
     return 0 as *u8;

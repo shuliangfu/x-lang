@@ -499,6 +499,16 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_simd_fma";
     if (i == 15)
       return "std_simd_hsum";
+    if (i == 16)
+      return "std_simd_placeholder";
+    if (i == 17)
+      return "std_simd_hw_available";
+    if (i == 18)
+      return "std_simd_recommend_path";
+    if (i == 19)
+      return "std_simd_SIMD_PATH_SCALAR";
+    if (i == 20)
+      return "std_simd_SIMD_PATH_HW";
     return NULL;
   }
   if (g == 19) {
