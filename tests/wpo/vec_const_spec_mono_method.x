@@ -4,10 +4,9 @@
  * XLANG_WPO_MONO=1: try_call_wpo_mono_vector_lane emits zero-arg thunk
  * `lane0__wpo_1_2_3_4_10_20_30_40`.
  *
- * METHOD inner + METHOD outer only. Do not add
- * `vec_add4_call([lit],[lit]).lane0()` or `lane0_call(...)` here:
- * array-lit to i32x4 CALL args is a typeck residual
- * (vec_const_spec_fold.x already T001), not this inliner.
+ * METHOD inner + METHOD outer only. CALL-inner neighborhood lives on
+ * vec_const_spec_fold.x (typeck ARRAY_LIT→i32x4 CALL now green; bare
+ * ARRAY_LIT as SIMD CALL-arg emit is a later codegen knife).
  * smf 25/26 keep the CALL-inner neighborhood on the larger file.
  */
 
