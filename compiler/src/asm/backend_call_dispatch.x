@@ -2029,16 +2029,6 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
-    // G.7: same param0.field fold as CALL emit (recv.first() ≡ take_a(recv)).
-    // extra!=0 / fold miss / PTR → 0, fall through to import or UFCS CALL.
-    // Do not steal import-binding names: fold requires an X body return p.f.
-    {
-      let inline_sf: i32 = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
-      if (inline_sf != 0) {
-        if (inline_sf < 0) { return 0 - 1; }
-        return 0;
-      }
-    }
     if (mod_ref != 0) {
       if (base_ref > 0) {
         if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
@@ -2288,6 +2278,16 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
             }
           }
         }
+      }
+    }
+    // G.7: same param0.field fold as CALL emit (recv.first() ≡ take_a(recv)).
+    // After import-binding: import methods must not enter lookup/fold (option/si SEGV).
+    // extra!=0 / fold miss / PTR → 0, fall through to UFCS CALL.
+    {
+      let inline_sf: i32 = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+      if (inline_sf != 0) {
+        if (inline_sf < 0) { return 0 - 1; }
+        return 0;
       }
     }
     // wave360: UFCS auto-ref — self: *T + value receiver → lea (not by-value).
