@@ -57,6 +57,8 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, idx: 
 export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
 export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_method_call_name_len(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_method_call_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
@@ -498,16 +500,21 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
 /* ---- G-02f-110 / G-02f-136 / G-02f-138：try_inline fold/field ---- */
 
 // See implementation.
-// module_ref@16，dep_pipe@1384；FIELD_ACCESS=44，VAR=3
-/** Exported function `glue_call_lookup_callee_mod_fi_arena`.
- * Implements `glue_call_lookup_callee_mod_fi_arena`.
- * @param caller_arena *u8
- * @param call_ref i32
- * @param ctx *u8
- * @param out_ca *u8
- * @param out_cm *u8
- * @param out_fi *i32
- * @return i32
+// module_ref@16，dep_pipe@1384；FIELD_ACCESS=44，VAR=3，METHOD_CALL=49
+/**
+ * Resolve callee module + func index for a CALL or METHOD_CALL site.
+ * METHOD must not use CALL resolved_func/dep slots: a stale dep_ix makes
+ * pipeline_dep_ctx_module_at return a non-module pointer and
+ * pipeline_module_func_body_ref_at SIGSEGV (Ubuntu increment().field).
+ * METHOD path: same-module then dep scan by method name (UFCS / impl).
+ * @param caller_arena *u8 — caller AST arena; null → 0
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr; <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx (module_ref@16, dep_pipe@1384); null → 0
+ * @param out_ca *u8 — 8-byte slot for callee arena pointer
+ * @param out_cm *u8 — 8-byte slot for callee module pointer
+ * @param out_fi *i32 — filled with func index; null → 0
+ * @return i32 — 1 found, 0 miss
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same METHOD name path.
  */
 #[no_mangle]
 export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
@@ -523,6 +530,43 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
     g02f_store_ptr_at(out_ca, 0, caller_arena);
     g02f_store_ptr_at(out_cm, 0, entry_mod);
     out_fi[0] = 0 - 1;
+    // METHOD_CALL=49: name lookup only (do not read CALL resolve slots).
+    if (pipeline_expr_kind_ord_at(caller_arena, call_ref) == 49) {
+      let mlen: i32 = pipeline_expr_method_call_name_len(caller_arena, call_ref);
+      if (mlen <= 0) { return 0; }
+      if (mlen > 127) { return 0; }
+      let mname: u8[128] = [];
+      pipeline_expr_method_call_name_into(caller_arena, call_ref, &mname[0]);
+      let mfi: i32 = glue_module_func_index_by_name(entry_mod, &mname[0], mlen);
+      if (mfi >= 0) {
+        out_fi[0] = mfi;
+        return 1;
+      }
+      let mpctx: *u8 = g02f_load_ptr_at(ctx, 1384);
+      if (mpctx == 0) {
+        mpctx = pipeline_asm_emit_dep_pipe_c();
+      }
+      if (mpctx == 0) { return 0; }
+      let mj: i32 = 0;
+      let mnd: i32 = pipeline_dep_ctx_ndep(mpctx);
+      while (mj < mnd) {
+        let mdm: *u8 = pipeline_dep_ctx_module_at(mpctx, mj);
+        let mda: *u8 = pipeline_dep_ctx_arena_at(mpctx, mj);
+        if (mdm != 0) {
+          let mfi2: i32 = glue_module_func_index_by_name(mdm, &mname[0], mlen);
+          if (mfi2 >= 0) {
+            out_fi[0] = mfi2;
+            g02f_store_ptr_at(out_cm, 0, mdm);
+            if (mda != 0) {
+              g02f_store_ptr_at(out_ca, 0, mda);
+            }
+            return 1;
+          }
+        }
+        mj = mj + 1;
+      }
+      return 0;
+    }
     let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
     let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
     if (func_ix >= 0) {

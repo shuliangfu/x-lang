@@ -167,6 +167,8 @@ extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *arena, int32_t ex
 extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *arena, int32_t expr_ref);
+extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out);
 extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out);
 extern int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -505,6 +507,38 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   *out_ca = caller_arena;
   *out_cm = entry_mod;
   *out_fi = -1;
+  /* METHOD_CALL=49: name lookup only. CALL resolve slots can hand a stale
+   * dep_ix → non-module pointer → pipeline_module_func_body_ref_at SIGSEGV. */
+  if (pipeline_expr_kind_ord_at(caller_arena, call_ref) == GLUE_EXPR_METHOD_CALL) {
+    clen = pipeline_expr_method_call_name_len(caller_arena, call_ref);
+    if (clen <= 0 || clen > 127)
+      return 0;
+    pipeline_expr_method_call_name_into(caller_arena, call_ref, cname);
+    *out_fi = glue_module_func_index_by_name(entry_mod, cname, clen);
+    if (*out_fi >= 0)
+      return 1;
+    pctx = (struct ast_PipelineDepCtx *)ctx->dep_pipe;
+    if (!pctx)
+      pctx = pipeline_asm_emit_dep_pipe_c();
+    if (!pctx)
+      return 0;
+    j = 0;
+    while (j < pipeline_dep_ctx_ndep(pctx)) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(pctx, j);
+      struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(pctx, j);
+      if (dm) {
+        *out_fi = glue_module_func_index_by_name(dm, cname, clen);
+        if (*out_fi >= 0) {
+          *out_cm = dm;
+          if (da)
+            *out_ca = da;
+          return 1;
+        }
+      }
+      j = j + 1;
+    }
+    return 0;
+  }
   dep_ix = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
   func_ix = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
   if (func_ix >= 0) {
