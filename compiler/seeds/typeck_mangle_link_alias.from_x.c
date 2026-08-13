@@ -1,6 +1,10 @@
 /* seeds/typeck_mangle_link_alias.from_x.c — wave317 typeck M4 layer-2
  * X-mangle call sites from tip typeck.x -E → short product C faces.
  * G.7: alias-only (zero business logic); short faces on typeck_x / pipeline_abi.
+ * Any #[no_mangle] Cap face that typeck.x also forward-declares as
+ * `export extern` (call sites emit the mangled name; body stays short)
+ * MUST have a thin alias here. Seed typeck_gen snapshot is not the assemble
+ * authority — missing rows here UNDEF on the next typeck.x -E.
  * PLATFORM: SHARED freestanding typeck tip re-pin companion (ld -r or append).
  */
 #include <stdint.h>
