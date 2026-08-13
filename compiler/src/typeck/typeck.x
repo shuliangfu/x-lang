@@ -7360,6 +7360,46 @@ export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
 }
 
 /**
+ * True when src is T[N] and dest is T[] with equal element types.
+ * Let coerce stamps after this check; return / assign / call-arg score
+ * must not stamp — emit wrap keys off TYPE_ARRAY to build {.data,.length}.
+ * G.7: one predicate for let coerce, return match, and assign match.
+ * @param arena *ASTArena — type pool
+ * @param src_ty i32 — operand / RHS type ref (must be TYPE_ARRAY)
+ * @param dest_ty i32 — return / LHS type ref (must be TYPE_SLICE)
+ * @return i32 — 1 when array→slice with equal elems, else 0
+ * PLATFORM: SHARED
+ */
+export function typeck_array_to_slice_ok(arena: *ASTArena, src_ty: i32, dest_ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let se: i32 = 0;
+    let de: i32 = 0;
+    if (ast.ref_is_null(src_ty) || ast.ref_is_null(dest_ty)) {
+      return 0;
+    }
+    if (src_ty <= 0 || dest_ty <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, dest_ty) != 11) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, src_ty) != 10) {
+      return 0;
+    }
+    se = pipeline_type_elem_ref_at(arena, src_ty);
+    de = pipeline_type_elem_ref_at(arena, dest_ty);
+    if (ast.ref_is_null(se) || ast.ref_is_null(de)) {
+      return 0;
+    }
+    if (!type_refs_equal(arena, se, de)) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
+/**
  * Whether a return operand type matches the function's declared return type.
  * Accepts equal types, integer widen (wave313), f32→f64 (wave314), linear unwrap,
  * and bare INT 0 → pointer (nullish lit). Does not widen bool to integer.
@@ -7369,6 +7409,8 @@ export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
  * no int↔bool and with EQ/LOGAND return mismatch. Explicit `as i32` still works
  * (EXPR_AS stamps target before match). LANG-006 bool→int on let/const init is
  * typeck_coerce_init_bool_to_int_decl only — not return.
+ * [N]T → []T (equal elems) is accepted without stamping: emit wrap keys off
+ * TYPE_ARRAY to materialize the fat (same contract as 4.2.10 call-arg score).
  * @param arena *ASTArena — type/expr arena
  * @param op_ref i32 — return operand expr
  * @param expect_ref i32 — declared function return type
@@ -7406,6 +7448,15 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
     }
     /* wave314: f32→f64 float widen on return. */
     if (typeck_float_widen_ok(expect_kind, got_kind)) {
+      return true;
+    }
+    /*
+     * [N]T → []T: accept, do not stamp. emit_return / asm Path B0 wrap the
+     * still-TYPE_ARRAY operand into a fat pair. Stamping SLICE made host-C
+     * emit a raw array and asm skip the wrap (4.2.10 lesson).
+     * G.7: same predicate as let coerce / assign. PLATFORM: SHARED.
+     */
+    if (typeck_array_to_slice_ok(arena, got, expect_ref) != 0) {
       return true;
     }
     let ord_linear: i32 = 12;
@@ -8245,34 +8296,28 @@ decl_kind: i32): i32 {
   }
 }
 
-/* See implementation. */
+/**
+ * Let/const: coerce already-typed T[N] init to declared T[].
+ * Stamps resolved_type_ref so the dest let type is TYPE_SLICE (emit looks at
+ * the dest + source var, not this stamp). Return/assign must not call this
+ * stamp path — they use typeck_array_to_slice_ok only.
+ * @param arena *ASTArena — type/expr pool
+ * @param init_ref i32 — already type-checked init expr
+ * @param decl_ty_ref i32 — declared TYPE_SLICE
+ * @param decl_kind i32 — TypeKind of decl_ty_ref
+ * @return i32 — 1 stamped, 0 not this shape
+ * PLATFORM: SHARED
+ */
 export function typeck_coerce_init_slice_from_array(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    let ord_type_slice: i32 = 11;
-    let ord_type_array: i32 = 10;
-    let decl_elem: i32 = 0;
     let init_res: i32 = 0;
-    let init_kind: i32 = 0;
-    let init_elem: i32 = 0;
-    if (decl_kind != ord_type_slice) {
+    if (decl_kind != 11) {
       return 0;
     }
-    decl_elem = pipeline_type_elem_ref_at(arena, decl_ty_ref);
     init_res = pipeline_expr_resolved_type_ref(arena, init_ref);
-    if (ast.ref_is_null(decl_elem) || ast.ref_is_null(init_res)) {
-      return 0;
-    }
-    init_kind = pipeline_type_kind_ord_at(arena, init_res);
-    if (init_kind != ord_type_array) {
-      return 0;
-    }
-    init_elem = pipeline_type_elem_ref_at(arena, init_res);
-    if (ast.ref_is_null(init_elem)) {
-      return 0;
-    }
-    if (!type_refs_equal(arena, init_elem, decl_elem)) {
+    if (typeck_array_to_slice_ok(arena, init_res, decl_ty_ref) == 0) {
       return 0;
     }
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
@@ -9519,7 +9564,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
         let rt_kind_mis: i32 = pipeline_type_kind_ord_at(arena, rt);
         /* wave314: f32→f64 is not a mismatch (emit promotes with cvtss2sd). */
-        if (!typeck_float_widen_ok(lt_kind, rt_kind_mis)) {
+        /* [N]T → []T: accept without stamping (emit assign wrap keys off ARRAY). */
+        if (!typeck_float_widen_ok(lt_kind, rt_kind_mis)
+        && typeck_array_to_slice_ok(arena, rt, lt) == 0) {
           eb = driver_typeck_diag_scratch_expect();
           gb = driver_typeck_diag_scratch_found();
           el = typeck_diag_fmt_type_into(arena, lt, eb, 96);

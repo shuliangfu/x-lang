@@ -1,8 +1,8 @@
 // Isolated green: already-typed [N]T (FIELD / VAR / local) as []T call-arg
 // (4.2.10). Score accepts array→slice with equal elems; emit keeps
 // TYPE_ARRAY so host-C/fs can materialize the fat (do not stamp SLICE).
-// Let `s: []T = w.xs` is neighborhood. return/assign of [N]T→[]T stay
-// later (emit wrap). ARRAY_LIT take([1.0, 2.0]) is wave647/622.
+// Let `s: []T = w.xs` is neighborhood. return/assign of [N]T→[]T
+// are ret_array_as_slice / asg_array_as_slice. ARRAY_LIT take is wave647/622.
 // Expected: compile = 0, run = 42.
 // PLATFORM: SHARED — Ubuntu gold typeck+emit.
 
