@@ -13836,7 +13836,8 @@ export function typeck_as_cast_type_class_ok(module: *Module, arena: *ASTArena, 
 /**
  * Return 1 when `src as tgt` is a legal cast (wave659 Cap residual).
  * Allowed: same type; numeric↔numeric (int/bool/float family); int↔ptr; ptr↔ptr;
- * enum-like NAMED↔integer. Rejected: any aggregate side; float↔ptr; void; other.
+ * enum-like NAMED↔integer; `[N]T as []T` (equal elems, reuse typeck_array_to_slice_ok);
+ * same-type ARRAY/SLICE ascription. Rejected: other aggregates; float↔ptr; void.
  * @param module *Module
  * @param arena *ASTArena
  * @param src_ty i32 — resolved type of cast operand
@@ -13868,6 +13869,23 @@ tgt_ty: i32): i32 {
     }
     if (ast.ref_is_null(src_ty) || ast.ref_is_null(tgt_ty)) {
       return 0;
+    }
+    /*
+     * `[N]T as []T` / same-type ARRAY|SLICE ascription.
+     * wave659 class_ok rejects every aggregate to stop `arr as i32` false-green.
+     * `[10,32] as []i32` is the existing array→slice coerce, not a numeric cast.
+     * Check these first. G.7: reuse typeck_array_to_slice_ok + type_refs_equal.
+     * Do not stamp the operand (emit wrap keys off TYPE_ARRAY), same as return.
+     * PLATFORM: SHARED typeck.
+     */
+    if (typeck_array_to_slice_ok(arena, src_ty, tgt_ty) != 0) {
+      return 1;
+    }
+    if (type_refs_equal(arena, src_ty, tgt_ty)) {
+      let sk0: i32 = pipeline_type_kind_ord_at(arena, src_ty);
+      if (sk0 == 10 || sk0 == 11) {
+        return 1;
+      }
     }
     if (typeck_as_cast_type_class_ok(module, arena, src_ty) == 0
     || typeck_as_cast_type_class_ok(module, arena, tgt_ty) == 0) {
@@ -13932,8 +13950,10 @@ tgt_ty: i32): i32 {
 
 /**
  * Type-check `operand as TargetType`. Stamps resolved type to target on success.
- * wave659: hard-fail illegal casts (aggregate / float↔ptr / void) instead of stamping
- * target and leaving host-cc BLD001 or silent false green.
+ * wave659: hard-fail illegal casts (aggregate-to-scalar / float↔ptr / void)
+ * instead of stamping target and leaving host-cc BLD001 or silent false green.
+ * `[N]T as []T` / same-type ARRAY|SLICE ascription is allowed (reuse
+ * typeck_array_to_slice_ok); operand stays TYPE_ARRAY so emit can wrap.
  * @param module *Module
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_AS

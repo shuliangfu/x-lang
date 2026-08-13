@@ -195,8 +195,8 @@ extern struct ast_Type ast_arena_type_get(void *arena, int32_t ref);
 extern void ast_arena_type_set(void *arena, int32_t ref, struct ast_Type t);
 extern int32_t parser_asm_alloc_pointee_type_ref_from_tok_c(void *arena, struct parser_asm_slice_u8 *source,
                                                            struct parser_asm_lexer_result *r);
-/* wave438: full type_ref parser entry — used by as_suffix STAR branch to
- * support `as *[N]T` / `as *[]T` / `as *[N][M]T` casts. PLATFORM: SHARED. */
+/* Full type_ref parser entry — as_suffix after `as` (scalars / NAMED / *T /
+ * []T / [N]T / SIMD). PLATFORM: SHARED. */
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex);

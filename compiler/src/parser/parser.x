@@ -1619,12 +1619,15 @@ export function parse_primary_into(arena: *ASTArena, lex: Lexer, source: u8[], o
 
 /* See implementation. */
 export extern function parser_parse_as_suffix_into_glue(arena: *ASTArena, source: u8[], out: *ParseExprResult): void;
-/** Exported function `parse_as_suffix_into`.
- * Implements `parse_as_suffix_into`.
- * @param arena *ASTArena
- * @param source u8[]
- * @param out *ParseExprResult
+/**
+ * Parse zero or more postfix suffixes (`?` / `as T`) on an already-parsed primary.
+ * After `as`, the full type_ref parser is the only matcher (`[]T` / `[N]T` /
+ * `*T` / scalars / NAMED / SIMD). Glue body lives in parser_asm_as_suffix_slice.inc.
+ * @param arena *ASTArena — expr/type pool
+ * @param source u8[] — source bytes (must outlive the parse)
+ * @param out *ParseExprResult — in: primary ok+expr_ref+next_lex; out: EXPR_AS chain
  * @return void
+ * PLATFORM: SHARED parse — do not tip-assemble this file (generic_bound_scan).
  */
 export function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
