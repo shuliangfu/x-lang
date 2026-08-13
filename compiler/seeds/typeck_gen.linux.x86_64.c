@@ -1708,6 +1708,7 @@ extern int32_t typeck_scan_expr_stack_escape_c(struct ast_Module * m, struct ast
 extern int32_t typeck_scan_block_stack_escape_c(struct ast_Module * m, struct ast_ASTArena * a, struct ast_PipelineDepCtx * ctx, int32_t func_ix, int32_t block_ref);
 extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t * name, int32_t name_len);
+extern int32_t pipeline_typeck_is_simd_comptime_callee_c(uint8_t * name, int32_t name_len);
 extern int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena * arena);
 extern int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena * arena, int32_t block_ref, int32_t let_idx, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t region_idx, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
