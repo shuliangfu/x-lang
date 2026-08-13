@@ -916,6 +916,10 @@ export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32)
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
 export extern "C" function pipeline_expr_method_call_name_len(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_method_call_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
+/* METHOD_CALL=49 arg faces — early decl for Stage12 s4 HW try_inline (G.7; used before mid-file redecl). */
+export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
+export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function lsp_diag_get_enabled(): i32;
 export extern "C" function lsp_diag_add_code(line: i32, col: i32, severity: i32, code: *u8, msg: *u8): void;
 export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
