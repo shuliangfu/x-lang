@@ -482,6 +482,36 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp_impl(struct platform_elf_ElfCodegen
             return -1;
         return 0;
     }
+    /* Vec8i without AVX2: two SSE2 128-bit paddd/psubd (s4 pshufd pattern). */
+    if (lanes == 8 && (cpu_features & XLANG_CPU_FEAT_SSE2) != 0) {
+        if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
+            return -1;
+        if (is_sub) {
+            if (simd_x86_psubd_xmm0_xmm1_impl(elf_ctx) != 0)
+                return -1;
+        } else {
+            if (simd_x86_paddd_xmm0_xmm1_impl(elf_ctx) != 0)
+                return -1;
+        }
+        if (simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, dd) != 0)
+            return -1;
+        if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da + 16) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db + 16) != 0)
+            return -1;
+        if (is_sub) {
+            if (simd_x86_psubd_xmm0_xmm1_impl(elf_ctx) != 0)
+                return -1;
+        } else {
+            if (simd_x86_paddd_xmm0_xmm1_impl(elf_ctx) != 0)
+                return -1;
+        }
+        if (simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, dd + 16) != 0)
+            return -1;
+        return 0;
+    }
     if (lanes == 4 && (cpu_features & XLANG_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
@@ -562,6 +592,27 @@ int32_t simd_enc_try_hw_vector_imul_rbp_impl(struct platform_elf_ElfCodegenCtx *
         if (simd_x86_vpmulld_ymm0_ymm1_impl(elf_ctx) != 0)
             return -1;
         if (simd_x86_vmovups_ymm0_to_rbp_impl(elf_ctx, dd) != 0)
+            return -1;
+        return 0;
+    }
+    /* Vec8i without AVX2: two 128-bit pmulld. Pending often SSE2-only. */
+    if (lanes == 8 && ((cpu_features & XLANG_CPU_FEAT_SSE2) != 0 ||
+                       (cpu_features & XLANG_CPU_FEAT_SSE41) != 0)) {
+        if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
+            return -1;
+        if (simd_x86_pmulld_xmm0_xmm1_impl(elf_ctx) != 0)
+            return -1;
+        if (simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, dd) != 0)
+            return -1;
+        if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da + 16) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db + 16) != 0)
+            return -1;
+        if (simd_x86_pmulld_xmm0_xmm1_impl(elf_ctx) != 0)
+            return -1;
+        if (simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, dd + 16) != 0)
             return -1;
         return 0;
     }

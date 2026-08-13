@@ -1841,6 +1841,46 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp(uint8_t * elf_ctx, int32_t slot_off
       }
       return 0;
     }
+    /* Vec8i without AVX2: two SSE2 128-bit paddd/psubd (s4 pshufd pattern). */
+    if (((cpu_features & 1) !=0)) {
+      if ((simd_x86_movups_xmm0_from_rbp(elf_ctx, da) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm1_from_rbp(elf_ctx, db) !=0)) {
+        return (0 - 1);
+      }
+      if ((is_sub !=0)) {
+        if ((simd_x86_psubd_xmm0_xmm1(elf_ctx) !=0)) {
+          return (0 - 1);
+        }
+      } else {
+        if ((simd_x86_paddd_xmm0_xmm1(elf_ctx) !=0)) {
+          return (0 - 1);
+        }
+      }
+      if ((simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) !=0)) {
+        return (0 - 1);
+      }
+      if ((is_sub !=0)) {
+        if ((simd_x86_psubd_xmm0_xmm1(elf_ctx) !=0)) {
+          return (0 - 1);
+        }
+      } else {
+        if ((simd_x86_paddd_xmm0_xmm1(elf_ctx) !=0)) {
+          return (0 - 1);
+        }
+      }
+      if ((simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) !=0)) {
+        return (0 - 1);
+      }
+      return 0;
+    }
   }
   if ((lanes ==4)) {
     if (((cpu_features & 1) !=0)) {
@@ -1907,6 +1947,34 @@ int32_t simd_enc_try_hw_vector_imul_rbp(uint8_t * elf_ctx, int32_t slot_off_a, i
         return (0 - 1);
       }
       if ((simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) !=0)) {
+        return (0 - 1);
+      }
+      return 0;
+    }
+    /* Vec8i without AVX2: two 128-bit pmulld. Pending often SSE2-only. */
+    if ((((cpu_features & 1) !=0) || ((cpu_features & 2) !=0))) {
+      if ((simd_x86_movups_xmm0_from_rbp(elf_ctx, da) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm1_from_rbp(elf_ctx, db) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_pmulld_xmm0_xmm1(elf_ctx) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_pmulld_xmm0_xmm1(elf_ctx) !=0)) {
+        return (0 - 1);
+      }
+      if ((simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) !=0)) {
         return (0 - 1);
       }
       return 0;
