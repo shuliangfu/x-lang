@@ -7891,6 +7891,8 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
     let i: i32 = 0;
     let elem_ref: i32 = 0;
     let ek: i32 = 0;
+    let elem_ty: i32 = 0;
+    let got_kind: i32 = 0;
     /* Fixed array T[N] or open slice T[] ← [e0, e1, …] */
     if ((decl_kind == ord_type_array || decl_kind == ord_type_slice)
     && init_kind == ord_expr_array_lit) {
@@ -7922,6 +7924,25 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
               ek = pipeline_expr_kind_ord_at(arena, elem_ref);
               typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
               typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+              /*
+               * Known elem must match the SIMD lane type (≡ array/slice
+               * wave672). Refuse the outer stamp so CALL score still T001
+               * on `[true,…]` → i32x4 and let/assign compare the inferred
+               * TYPE_ARRAY. Do not emit assign_mismatch here — CALL would
+               * get the wrong diagnostic.
+               * PLATFORM: SHARED.
+               */
+              elem_ty = expr_type_ref(arena, elem_ref);
+              if (!ast.ref_is_null(elem_ty) && elem_ty > 0) {
+                got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
+                if (type_refs_equal(arena, elem_ty, elem_decl)
+                || typeck_integer_widen_ok_refs(arena, elem_decl, elem_ty)
+                || typeck_float_widen_ok(elem_decl_kind, got_kind)) {
+                  pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl);
+                } else {
+                  return 0;
+                }
+              }
             }
             i = i + 1;
           }
@@ -10446,6 +10467,10 @@ formal_ty: i32, arg_ty: i32, depth: i32): i32 {
  * of glue pattern-unify shape; not a second score matcher).
  * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
  * array→slice / null→*T); free-T is a pre-score accept, not a second matcher.
+ * ARRAY_LIT → SIMD/VECTOR formals (i32x4 / f32x4 / …): args are check_expr'd before
+ * resolve, so wave611 infers TYPE_ARRAY [N]T and score would T001. G.7: reuse
+ * typeck_coerce_init_array_vector_lit_to_decl (let/assign/return/slice-region) BEFORE
+ * score — same stamp as `let a: i32x4 = [1,2,3,4]`.
  * @param module *Module — entry / local module
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_CALL
@@ -10543,6 +10568,17 @@ ctx: *PipelineDepCtx): i32 {
             ai = ai + 1;
             continue;
           }
+        }
+        /*
+         * ARRAY_LIT args were check_expr'd against the CALL ambient (not the
+         * formal). Stamp SIMD/VECTOR / array / slice formals here so score
+         * sees the same type as let-init. G.7: one coerce authority.
+         * PLATFORM: SHARED.
+         */
+        if (arg_ref > 0) {
+          typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_raw,
+          pipeline_type_kind_ord_at(arena, param_raw),
+          pipeline_expr_kind_ord_at(arena, arg_ref));
         }
         /*
          * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring

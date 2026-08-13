@@ -3926,9 +3926,23 @@ int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena,
         for (i = 0; i < n_elems; i++) {
           elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
           if (elem_ref > 0) {
+            int32_t elem_ty = 0;
+            int32_t got_kind = 0;
             ek = pipeline_expr_kind_ord_at(arena, elem_ref);
             (void)typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
             (void)typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+            /* G.7 ≡ typeck.x: refuse outer SIMD stamp on known elem mismatch. */
+            elem_ty = pipeline_expr_resolved_type_ref(arena, elem_ref);
+            if (elem_ty > 0) {
+              got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
+              if (type_refs_equal(arena, elem_ty, elem_decl)
+                  || typeck_integer_widen_ok_refs(arena, elem_decl, elem_ty)
+                  || typeck_float_widen_ok(elem_decl_kind, got_kind)) {
+                (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl));
+              } else {
+                return 0;
+              }
+            }
           }
         }
       }
@@ -5549,6 +5563,12 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
           (void)((ai = (ai + 1)));
           continue;
         }
+      }
+      /* G.7 ≡ typeck.x: ARRAY_LIT → SIMD/array/slice formal before score. */
+      if (arg_ref > 0) {
+        (void)typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_raw,
+          pipeline_type_kind_ord_at(arena, param_raw),
+          pipeline_expr_kind_ord_at(arena, arg_ref));
       }
       /* wave673: any score miss with known formal → T001 (unknown arg_ty no longer soft-skipped). */
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
