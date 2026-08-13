@@ -30130,7 +30130,13 @@ export function pipeline_asm_index_elem_byte_sz(a: *u8, index_expr_ref: i32): i3
 }
 
 /**
- * Emit EXPR_INDEX: effective address then load (or leave addr for ARRAY / large esz).
+ * Emit EXPR_INDEX: effective address then load (or leave addr for ARRAY / MEMORY).
+ * After lea, 1/2/4/8 load into rax; 9–16B named/agg rvalue reuses
+ * pipeline_asm_deref_struct16_rax_ptr_elf_c (*addr → rax+rdx dual-GP) so
+ * METHOD / let / call-arg see INTEGER class by-value. TYPE_ARRAY still
+ * leave-addr (E*). TYPE_SLICE still loads fat. esz>16 MEMORY still
+ * leave-addr (let/call-arg consume as pointer; classifier frozen).
+ * FIELD of INDEX uses lvalue eff_addr, not this rvalue path.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - INDEX expr
@@ -30138,7 +30144,7 @@ export function pipeline_asm_index_elem_byte_sz(a: *u8, index_expr_ref: i32): i3
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 fail; -99 FAST_UNHANDLED
  * wave140 pure: G.7 authority (was pipeline_asm_emit_index_elf_c).
- * PLATFORM: SHARED freestanding · LINUX gold.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
 #[no_mangle]
 export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -30230,6 +30236,22 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
       }
       return rc;
     }
+  }
+  /*
+   * 9–16B INDEX rvalue: rax is the element address after lea.
+   * Leaving it (old gate) made METHOD/let/take see a pointer as the
+   * first 8B of the struct (Trip/Quad a[i].last() garbage). G.7: reuse
+   * pipeline_asm_deref_struct16_rax_ptr_elf_c — do not copy the 3-op
+   * load and do not widen the frozen CALL-only struct16 classifier.
+   * FIELD of INDEX stays on lvalue eff_addr (a[i].field already green).
+   * >16B MEMORY still leave-addr (other consume layer).
+   * PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
+   */
+  if (esz > 8 && esz <= 16) {
+    unsafe {
+      rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+    }
+    return rc;
   }
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
     return 0;

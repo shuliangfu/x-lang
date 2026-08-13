@@ -13377,6 +13377,10 @@ int32_t pipeline_asm_index_elem_byte_sz(void *a, int32_t index_expr_ref) {
   return pipeline_asm_index_elem_byte_sz_c(a, index_expr_ref);
 }
 
+/* PLATFORM: SHARED — INDEX 9–16B rvalue forward to G.7 deref (defined later).
+ * Twin: runtime_pipeline_abi.x pipeline_asm_emit_index_elf_c. */
+extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
+
 int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t base_ref;
   int32_t idx_ref;
@@ -13420,6 +13424,12 @@ int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_r
       return -1;
     return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
   }
+  /* PLATFORM: SHARED — INDEX 9–16B rvalue: *rax → rax+rdx via G.7 deref.
+   * Twin: runtime_pipeline_abi.x pipeline_asm_emit_index_elf_c.
+   * Old leave-addr made METHOD/let/take treat the pointer as payload.
+   * >16B MEMORY still leave-addr. Do not touch struct16 classifier. */
+  if (esz > 8 && esz <= 16)
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     return 0;
   if (esz == 1)
