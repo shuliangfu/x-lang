@@ -32,8 +32,39 @@ function mk(x: i32, y: i32): Pair {
   return Pair { a: x, b: y };
 }
 
+trait Pairable {
+  function as_pair(self): Pair;
+}
+
 /**
- * Probe: METHOD.field plus CALL.field. Exit 0 on success; 1..4 name the miss.
+ * METHOD param-struct-lit: fields are the receiver param (try_inline body, not sret).
+ * @param self i32 — copied into both Pair fields
+ * @return Pair — { self, self }
+ */
+impl Pairable for i32 {
+  function as_pair(self: i32): Pair {
+    return Pair { a: self, b: self };
+  }
+}
+
+trait Originable {
+  function origin(self): Pair;
+}
+
+/**
+ * METHOD const-struct-lit: unused receiver, fields are integer literals.
+ * @param self Pair — ignored
+ * @return Pair — { 0, 0 }
+ */
+impl Originable for Pair {
+  function origin(self: Pair): Pair {
+    return Pair { a: 0, b: 0 };
+  }
+}
+
+/**
+ * Probe: METHOD.field plus CALL.field. Exit 0 on success; 1..8 name the miss.
+ * 1-4 materialise/sret neighborhood; 5-6 param-struct-lit inline; 7-8 const inline.
  * @return i32 — 0 ok
  */
 function main(): i32 {
@@ -44,5 +75,11 @@ function main(): i32 {
   /* CALL-rooted neighborhood (already green before this knife). */
   if (mk(3, 4).a != 3) { return 3; }
   if (mk(3, 4).b != 4) { return 4; }
+  /* METHOD param-struct-lit: try_inline maps self → field inits. */
+  if (5.as_pair().a != 5) { return 5; }
+  if (5.as_pair().b != 5) { return 6; }
+  /* METHOD const-struct-lit: try_inline writes literals; receiver unused. */
+  if (p.origin().a != 0) { return 7; }
+  if (p.origin().b != 0) { return 8; }
   return 0;
 }

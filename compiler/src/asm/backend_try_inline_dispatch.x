@@ -54,6 +54,9 @@ export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8,
 export extern "C" function pipeline_dep_ctx_arena_at(pctx: *u8, di: i32): *u8;
 export extern "C" function pipeline_asm_emit_dep_pipe_c(): *u8;
 export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
+export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
+export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
@@ -1863,9 +1866,18 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
 }
 
 // See implementation.
-/** Function `try_inline_const_struct_lit_return_call_to_slot_elf`.
- * Purpose: implements `try_inline_const_struct_lit_return_call_to_slot_elf`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * Inline `recv.const_factory()` / `mk()` when the callee returns a const struct lit.
+ * Zero extra args: CALL uses call_num_args; METHOD_CALL uses method_call_num_args
+ * (receiver is unused; fields are literals).
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr; <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
+ * @param ta i32 — target arch token
+ * @param stack_slot_off i32 — rbp-relative destination slot
+ * @return i32 — 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same predicate.
  */
 #[no_mangle]
 export function try_inline_const_struct_lit_return_call_to_slot_elf(
@@ -1876,8 +1888,16 @@ export function try_inline_const_struct_lit_return_call_to_slot_elf(
   if (ctx == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
   unsafe {
-    if (pipeline_expr_kind_ord_at(arena, call_ref) != 48) { return 0; }
-    if (pipeline_expr_call_num_args_at(arena, call_ref) != 0) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, call_ref);
+    // CALL=48 METHOD_CALL=49: same const-lit rewrite when extra args are zero.
+    if (ko != 48 && ko != 49) { return 0; }
+    let extra: i32 = 0;
+    if (ko == 49) {
+      extra = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    } else {
+      extra = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
+    if (extra != 0) { return 0; }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
     let fi: i32 = 0;
@@ -1920,9 +1940,19 @@ export function try_inline_const_struct_lit_return_call_to_slot_elf(
 }
 
 // See implementation.
-/** Function `try_inline_struct_lit_return_call_to_slot_elf`.
- * Purpose: implements `try_inline_struct_lit_return_call_to_slot_elf`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * Inline `recv.as_pair()` / `mk(x,y)` when the callee returns Struct { f: param… }.
+ * CALL args are call_arg_ref[pix]. METHOD maps callee params:
+ * UFCS nparams==nargs+1 → pix 0 is method_call_base, pix k is method_arg[k-1];
+ * import-method nparams==nargs → method_arg[pix] (no implicit self).
+ * @param arena *u8 — AST arena; null → 0
+ * @param elf_ctx *u8 — ELF codegen context; null → 0
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr; <=0 → 0
+ * @param ctx *u8 — AsmFuncCtx; null → 0
+ * @param ta i32 — target arch token
+ * @param stack_slot_off i32 — rbp-relative destination slot
+ * @return i32 — 1 inlined, 0 no match, -1 encode error
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same mapping.
  */
 #[no_mangle]
 export function try_inline_struct_lit_return_call_to_slot_elf(
@@ -1933,7 +1963,9 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
   if (ctx == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
   unsafe {
-    if (pipeline_expr_kind_ord_at(arena, call_ref) != 48) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, call_ref);
+    // CALL=48 METHOD_CALL=49: same param-struct-lit rewrite.
+    if (ko != 48 && ko != 49) { return 0; }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
     let fi: i32 = 0;
@@ -1949,6 +1981,16 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
     let nf: i32 = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
     if (nf <= 0) { return 0; }
     if (nf > 8) { return 0; }
+    // METHOD param map is a function-level contract; reject before any store.
+    let nargs: i32 = 0;
+    let nparams: i32 = 0;
+    if (ko == 49) {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+      nparams = pipeline_asm_module_func_num_params_at(callee_mod, fi);
+      if (nparams != nargs + 1) {
+        if (nparams != nargs) { return 0; }
+      }
+    }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) { return 0 - 1; }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
     let fj: i32 = 0;
@@ -1957,7 +1999,21 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
       if (glue_struct_lit_field_init_param_index(callee_arena, callee_mod, fi, lit_ref, fj, &pix) != 0) {
         return 0 - 1;
       }
-      let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_ref, pix);
+      let arg_ref: i32 = 0;
+      if (ko == 48) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, call_ref, pix);
+      } else {
+        // METHOD: UFCS self is param 0; import-method has no implicit self.
+        if (nparams == nargs + 1) {
+          if (pix == 0) {
+            arg_ref = pipeline_expr_method_call_base_ref_at(arena, call_ref);
+          } else {
+            arg_ref = pipeline_expr_method_call_arg_ref(arena, call_ref, pix - 1);
+          }
+        } else {
+          arg_ref = pipeline_expr_method_call_arg_ref(arena, call_ref, pix);
+        }
+      }
       if (arg_ref <= 0) { return 0 - 1; }
       let foff: i32 = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
       let fsz: i32 = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);

@@ -164,6 +164,9 @@ extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t exp
 extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out);
 extern int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -333,14 +336,15 @@ enum {
   GLUE_TYPE_ARRAY = 10
 };
 
-/** ExprKind.EXPR_VAR / EXPR_ARRAY_LIT / EXPR_STRUCT_LIT / EXPR_CALL / EXPR_FIELD_ACCESS */
+/** ExprKind.EXPR_VAR / EXPR_ARRAY_LIT / EXPR_STRUCT_LIT / EXPR_CALL / EXPR_METHOD_CALL / EXPR_FIELD_ACCESS */
 enum {
   GLUE_EXPR_VAR = 3,
   GLUE_EXPR_FIELD_ACCESS = 44,
   GLUE_EXPR_STRUCT_LIT = 45,
   GLUE_EXPR_ARRAY_LIT = 46,
   GLUE_EXPR_INDEX = 47,
-  GLUE_EXPR_CALL = 48
+  GLUE_EXPR_CALL = 48,
+  GLUE_EXPR_METHOD_CALL = 49
 };
 
 extern int32_t pipeline_asm_module_func_num_params_at(struct ast_Module *m, int32_t func_index);
@@ -2337,8 +2341,10 @@ int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, stru
 
 
 /**
- * let v: Struct = mk() 内联：零实参且 callee 为 return Struct { 常量… } 时，字段直写 let 栈槽。
+ * let v: Struct = mk() / recv.origin() 内联：零额外实参且 callee 为 return Struct { 常量… } 时，字段直写槽。
+ * CALL=48 用 call_num_args；METHOD_CALL=49 用 method_call_num_args（receiver 不参与字段）。
  * 返回 1=已内联，0=未匹配，-1=错误。
+ * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-378 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -2355,11 +2361,16 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTA
   int32_t init_ref;
   int32_t foff;
   int32_t fsz;
+  int32_t ko;
+  int32_t extra;
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, call_ref) != 0)
+  extra = (ko == GLUE_EXPR_METHOD_CALL) ? pipeline_expr_method_call_num_args_at(arena, call_ref)
+                                        : pipeline_expr_call_num_args_at(arena, call_ref);
+  if (extra != 0)
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, call_ref, ctx, &callee_arena, &callee_mod, &fi) == 0) {
     backend_try_inline_debugf("const struct call inline miss lookup call_ref=%d", (int)call_ref);
@@ -2415,8 +2426,11 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
 #endif
 
 /**
- * let p: Struct = mk(...) 内联：callee 为 return Struct { f: param… } 时，CALL 实参直写 let 栈槽。
+ * let p: Struct = mk(...) / recv.as_pair() 内联：callee 为 return Struct { f: param… } 时，实参直写槽。
+ * CALL=48：call_arg_ref[pix]。METHOD_CALL=49：UFCS nparams==nargs+1 时 pix0=base、pix k=arg[k-1]；
+ * import-method nparams==nargs 时 arg[pix]（无隐式 self）。
  * 返回 1=已内联，0=未匹配，-1=错误。
+ * PLATFORM: SHARED — seed _impl twin of backend_try_inline_dispatch.x
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-378 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -2434,9 +2448,13 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTArena *
   int32_t arg_ref;
   int32_t foff;
   int32_t fsz;
+  int32_t ko;
+  int32_t nargs;
+  int32_t nparams;
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != GLUE_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, call_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
@@ -2445,6 +2463,12 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTArena *
   nf = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
   if (nf <= 0 || nf > GLUE_INLINE_MAX_STRUCT_LIT_FIELDS)
     return 0;
+  if (ko == GLUE_EXPR_METHOD_CALL) {
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    nparams = pipeline_asm_module_func_num_params_at(callee_mod, fi);
+    if (nparams != nargs + 1 && nparams != nargs)
+      return 0;
+  }
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
@@ -2453,7 +2477,16 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTArena *
   while (fj < nf) {
     if (glue_struct_lit_field_init_param_index(callee_arena, callee_mod, fi, lit_ref, fj, &pix) != 0)
       return -1;
-    arg_ref = pipeline_expr_call_arg_ref(arena, call_ref, pix);
+    if (ko == GLUE_EXPR_CALL) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, call_ref, pix);
+    } else if (nparams == nargs + 1) {
+      if (pix == 0)
+        arg_ref = pipeline_expr_method_call_base_ref_at(arena, call_ref);
+      else
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, call_ref, pix - 1);
+    } else {
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, call_ref, pix);
+    }
     if (arg_ref <= 0)
       return -1;
     foff = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
