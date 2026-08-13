@@ -44443,10 +44443,23 @@ export function pipeline_asm_emit_binop_div_elf_c(arena: *u8, elf_ctx: *u8, left
       if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0) {
         return -1;
       }
+      /**
+       * idiv/div leave quotient in rax — must drop slot-cache so a sibling
+       * `a%b` does not reuse stale "rax==a" (ub div_ok: a/b+a%b → 4).
+       * PLATFORM: SHARED freestanding · LINUX x86_64 gold.
+       */
       if (is_unsigned != 0) {
-      return backend_enc_div_rbx_arch(elf_ctx, ta);
-    }
-    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+        if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      } else {
+        if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      }
+      glue_binop_var_slot_cache_invalidate_rax();
+      glue_binop_var_slot_cache_invalidate_rbx();
+      return 0;
     }
     vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
     if (vr == -1) {
@@ -44457,9 +44470,17 @@ export function pipeline_asm_emit_binop_div_elf_c(arena: *u8, elf_ctx: *u8, left
         return -1;
       }
       if (is_unsigned != 0) {
-      return backend_enc_div_rbx_arch(elf_ctx, ta);
-    }
-    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+        if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      } else {
+        if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      }
+      glue_binop_var_slot_cache_invalidate_rax();
+      glue_binop_var_slot_cache_invalidate_rbx();
+      return 0;
     }
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0) {
       return -1;
@@ -44480,9 +44501,17 @@ export function pipeline_asm_emit_binop_div_elf_c(arena: *u8, elf_ctx: *u8, left
       return -1;
     }
     if (is_unsigned != 0) {
-      return backend_enc_div_rbx_arch(elf_ctx, ta);
+      if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0) {
+        return -1;
+      }
+    } else {
+      if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0) {
+        return -1;
+      }
     }
-    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
   }
 }
 
@@ -44811,10 +44840,22 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
       if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0) {
         return -1;
       }
+      /**
+       * rem leaves remainder in rax — drop slot-cache (twin of div; a%b+a/b).
+       * PLATFORM: SHARED freestanding · LINUX x86_64 gold.
+       */
       if (is_unsigned != 0) {
-      return backend_enc_rem_mod_unsigned_arch(elf_ctx, ta);
-    }
-    return backend_enc_rem_mod_arch(elf_ctx, ta);
+        if (backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      } else {
+        if (backend_enc_rem_mod_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      }
+      glue_binop_var_slot_cache_invalidate_rax();
+      glue_binop_var_slot_cache_invalidate_rbx();
+      return 0;
     }
     vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
     if (vr == -1) {
@@ -44825,9 +44866,17 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
         return -1;
       }
       if (is_unsigned != 0) {
-      return backend_enc_rem_mod_unsigned_arch(elf_ctx, ta);
-    }
-    return backend_enc_rem_mod_arch(elf_ctx, ta);
+        if (backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      } else {
+        if (backend_enc_rem_mod_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+      }
+      glue_binop_var_slot_cache_invalidate_rax();
+      glue_binop_var_slot_cache_invalidate_rbx();
+      return 0;
     }
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0) {
       return -1;
@@ -44848,9 +44897,17 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
       return -1;
     }
     if (is_unsigned != 0) {
-      return backend_enc_rem_mod_unsigned_arch(elf_ctx, ta);
+      if (backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) != 0) {
+        return -1;
+      }
+    } else {
+      if (backend_enc_rem_mod_arch(elf_ctx, ta) != 0) {
+        return -1;
+      }
     }
-    return backend_enc_rem_mod_arch(elf_ctx, ta);
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
   }
 }
 

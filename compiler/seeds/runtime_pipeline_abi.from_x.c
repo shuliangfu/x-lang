@@ -22146,7 +22146,12 @@ int32_t pipeline_asm_emit_binop_div_elf_c(void *arena, void *elf_ctx, int32_t le
     glue_binop_var_slot_cache_invalidate_rbx();
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta);
+    /* idiv leaves quotient in rax — drop slot-cache (sibling a%b must reload). */
+    if ((is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta)) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
   }
   vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   if (vr == -1)
@@ -22154,7 +22159,11 @@ int32_t pipeline_asm_emit_binop_div_elf_c(void *arena, void *elf_ctx, int32_t le
   if (vr == 0) {
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
       return -1;
-    return is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta);
+    if ((is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta)) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
   }
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
     return -1;
@@ -22168,7 +22177,11 @@ int32_t pipeline_asm_emit_binop_div_elf_c(void *arena, void *elf_ctx, int32_t le
     return -1;
   if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  return is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta);
+  if ((is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta)) != 0)
+    return -1;
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
+  return 0;
 }
 
 /* wave149 cold twin pipeline_asm_emit_binop_and_elf_c. PLATFORM: SHARED. */
@@ -22374,7 +22387,12 @@ int32_t pipeline_asm_emit_binop_mod_elf_c(void *arena, void *elf_ctx, int32_t le
     glue_binop_var_slot_cache_invalidate_rbx();
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta);
+    /* rem leaves remainder in rax — drop slot-cache (twin of div). */
+    if ((is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta)) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
   }
   vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   if (vr == -1)
@@ -22382,7 +22400,11 @@ int32_t pipeline_asm_emit_binop_mod_elf_c(void *arena, void *elf_ctx, int32_t le
   if (vr == 0) {
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
       return -1;
-    return is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta);
+    if ((is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta)) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
   }
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
     return -1;
@@ -22396,7 +22418,11 @@ int32_t pipeline_asm_emit_binop_mod_elf_c(void *arena, void *elf_ctx, int32_t le
     return -1;
   if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  return is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta);
+  if ((is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta)) != 0)
+    return -1;
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
+  return 0;
 }
 
 
