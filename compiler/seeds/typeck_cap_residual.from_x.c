@@ -458,6 +458,28 @@ int32_t typeck_expr_is_c_static_const_init(struct ast_ASTArena *arena, int32_t e
   return typeck_is_const_expr_ref_impl(arena, expr_ref, NULL, 0) ? 1 : 0;
 }
 
+/**
+ * PLATFORM: SHARED — same whitelist as typeck_block_const_init_is_const, with
+ * const_names != NULL so module top-level const VAR / import-const FIELD pass.
+ *
+ * Why: typeck_x_ast never walked Module.num_top_level_lets. Function-scope
+ *      const used typeck_block_const_init_is_const (block names + module
+ *      const lookup). Module `const x: i32 = foo()` / `const x: i32 = [1,2]`
+ *      therefore skipped T001 (probe run=42 / BLD001 UNDEF).
+ *
+ *      C-static-init stays on typeck_expr_is_c_static_const_init (NULL names).
+ *      This wrapper is not a second checker — it calls the same impl.
+ *
+ * G.7: complete the existing whitelist. Do not fold as i32. Do not accept
+ *      bare import const VAR. Mutable module lets are not const-expr.
+ */
+int32_t typeck_expr_is_const_with_module_consts(struct ast_ASTArena *arena, int32_t expr_ref) {
+  static const char *empty_names[1] = { NULL };
+  if (!arena || expr_ref <= 0)
+    return 0;
+  return typeck_is_const_expr_ref_impl(arena, expr_ref, empty_names, 0) ? 1 : 0;
+}
+
 /** block 内第 const_idx 条 const 的 init 是否为常量表达式；是返回 1，否返回 0。 */
 int32_t typeck_block_const_init_is_const(struct ast_ASTArena *arena, int32_t block_ref, int32_t const_idx) {
   const char *names[64];

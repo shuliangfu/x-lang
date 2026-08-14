@@ -922,6 +922,16 @@ export extern function typeck_const_init_not_constant(line: i32, col: i32): void
  * PLATFORM: SHARED freestanding typeck
  */
 export extern function typeck_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
+/**
+ * Same const-expr whitelist as typeck_block_const_init_is_const, with
+ * const_names != NULL so module top-level const VAR / import FIELD pass.
+ * Residual body: typeck_cap_residual.from_x.c (same TU after -E).
+ * @param arena *ASTArena — expr arena
+ * @param expr_ref i32 — init expr
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck. G.7: not a second checker.
+ */
+export extern function typeck_expr_is_const_with_module_consts(arena: *ASTArena, expr_ref: i32): i32;
 
 
 /* See implementation. */
@@ -15939,6 +15949,129 @@ export function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTA
  */
 export extern function xlang_trait_check_impls_complete_c(module: *Module): i32;
 
+/**
+ * Typecheck one module top-level let/const initializer.
+ *
+ * Function-scope lets go through typeck_check_block_one_const / one_let.
+ * typeck_x_ast historically walked only function bodies, so
+ * `const x: i32 = [1, 2]` / `const x: i32 = foo()` at module scope skipped
+ * T001. This is G.7 complete of the same check_expr + coerce + const-expr
+ * whitelist (not a second checker).
+ *
+ * @param module *Module — entry or library module after parse
+ * @param arena *ASTArena — expr/type arena
+ * @param ctx *PipelineDepCtx — current_func_index / current_block_ref
+ * @param tl i32 — top-level let index; must be in range
+ * @return i32 — 0 ok, -1 typeck fail (diagnostic already emitted)
+ * PLATFORM: SHARED typeck. Do not fold module const / import FIELD as i32.
+ */
+export function typeck_x_ast_check_one_top_level_let(module: *Module, arena: *ASTArena,
+ctx: *PipelineDepCtx, tl: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let init_ref: i32 = 0;
+    let decl_ty: i32 = 0;
+    let is_const: i32 = 0;
+    let init_ty: i32 = 0;
+    let init_ctx: i32 = 0;
+    let eb: *u8 = 0 as *u8;
+    let gb: *u8 = 0 as *u8;
+    let el: i32 = 0;
+    let gl: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    if (tl < 0 || tl >= module.num_top_level_lets) {
+      return -1;
+    }
+    init_ref = pipeline_module_top_level_let_init_ref(module, tl);
+    decl_ty = pipeline_module_top_level_let_type_ref(module, tl);
+    is_const = pipeline_module_top_level_let_is_const(module, tl);
+    if (ast.ref_is_null(init_ref)) {
+      return 0;
+    }
+    if (is_const != 0) {
+      if (typeck_expr_is_const_with_module_consts(arena, init_ref) == 0) {
+        typeck_const_init_not_constant(pipeline_expr_line_at(arena, init_ref),
+            pipeline_expr_col_at(arena, init_ref));
+        return -1;
+      }
+    }
+    init_ctx = 0;
+    if (!ast.ref_is_null(decl_ty)) {
+      init_ctx = decl_ty;
+    }
+    if (check_expr(module, arena, init_ref, init_ctx, ctx) != 0) {
+      return -1;
+    }
+    if (ast.ref_is_null(decl_ty)) {
+      init_ty = expr_type_ref(arena, init_ref);
+      if (ast.ref_is_null(init_ty)) {
+        return -1;
+      }
+      pipeline_module_top_level_let_set_type_ref(module, tl, init_ty);
+      return 0;
+    }
+    if (typeck_coerce_init_expr_to_decl(module, arena, init_ref, decl_ty) < 0) {
+      return -1;
+    }
+    init_ty = expr_type_ref(arena, init_ref);
+    if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, decl_ty, init_ty)) {
+      if (typeck_integer_widen_ok_refs(arena, decl_ty, init_ty)) {
+        pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty);
+        init_ty = decl_ty;
+      }
+    }
+    if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, decl_ty, init_ty)) {
+      eb = driver_typeck_diag_scratch_expect();
+      gb = driver_typeck_diag_scratch_found();
+      el = typeck_diag_fmt_type_into(arena, decl_ty, eb, 96);
+      gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96);
+      driver_diagnostic_typeck_assign_mismatch(0, pipeline_expr_line_at(arena, init_ref),
+          pipeline_expr_col_at(arena, init_ref), eb, el, gb, gl);
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Typecheck every module top-level let/const initializer before function bodies.
+ *
+ * Iterative walk (while), not recursion — same mega-safe discipline as
+ * typeck_x_ast_check_all_funcs_loop. Sets current_func_index=-1 and
+ * current_block_ref=0 so VAR resolve uses the module table, not a stale block.
+ *
+ * @param module *Module — entry or library module after parse
+ * @param arena *ASTArena — expr/type arena
+ * @param ctx *PipelineDepCtx — mutated current_func_index / current_block_ref
+ * @return i32 — 0 ok, -1 typeck fail
+ * PLATFORM: SHARED typeck. G.7: sole module-let typeck walker.
+ */
+export function typeck_x_ast_check_top_level_lets(module: *Module, arena: *ASTArena,
+ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let i: i32 = 0;
+    let n: i32 = 0;
+    let no_func_ix: i32 = -1;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    pipeline_typeck_set_entry_module_for_dep_map_c(module);
+    pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
+    ctx.current_block_ref = 0;
+    n = module.num_top_level_lets;
+    while (i < n) {
+      if (typeck_x_ast_check_one_top_level_let(module, arena, ctx, i) != 0) {
+        return -1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
 export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -15999,6 +16132,9 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     typeck_driver_diagnostic_pipe_marker(pipe_marker_layout_validated);
     typeck_patch_all_body_parent_links(module, arena);
     typeck_driver_diagnostic_pipe_marker(pipe_marker_parent_links_patched);
+    if (typeck_x_ast_check_top_level_lets(module, arena, ctx) != 0) {
+      return -5;
+    }
     num_funcs = pipeline_module_num_funcs(module);
     return typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
   }
@@ -16018,6 +16154,9 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
       return -7;
     }
     typeck_patch_all_body_parent_links(module, arena);
+    if (typeck_x_ast_check_top_level_lets(module, arena, ctx) != 0) {
+      return -5;
+    }
     num_funcs = pipeline_module_num_funcs(module);
     return typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
   }
