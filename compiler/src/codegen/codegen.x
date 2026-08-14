@@ -5500,13 +5500,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     let base_e: Expr = init_e;
     let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
 
-    /*
-     * VAR dest-SLICE: kind_ord_at and Expr.kind can disagree (sidecar vs
-     * struct). Honor either. Module-level `const v:[]T = B` must enter
-     * this branch so the top-level TYPE_ARRAY scan can recover N.
-     * PLATFORM: SHARED host-C.
-     */
-    if ((init_ko == 3 || (init_e.kind as i32) == 3) && init_e.var_name_len > 0) {
+    if (init_ko == 3 && init_e.var_name_len > 0) {
       let li: i32 = 0;
       while (li < let_idx) {
         let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
