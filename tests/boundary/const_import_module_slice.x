@@ -1,18 +1,17 @@
 // Isolated: function-scope const of an import-module const FIELD.
-// Same-module `const n:i32 = A` is already green. Import spelling is
-// `dep.K` (FIELD): the const-expr whitelist only accepted enum variants,
-// so typeck emitted T001. Typed `dep.A` also stamped a dep-arena type_ref
-// (not portable) → `[]i32` vs i32. This knife closes both typeck holes.
-// dest-SLICE `const s:[]i32 = dep.A` typecks now; host-C still emits
-// `dep.A` (undeclared) and asm CG002 — emit leftover, next knife.
-// Expected: compile = 0, run = 42 (three backends).
-// PLATFORM: SHARED — Ubuntu gold typeck import-const FIELD.
+// Product spelling is `dep.Name` (bare import const is rejected).
+// typeck whitelist + caller-arena remap already closed (T001 / i32 stamp).
+// This knife is host-C emit: INT_LIT must read dep-arena init_ref
+// (`n = 10`, not undeclared `K`); dest-SLICE `dep.A` must wrap
+// `{.data=A,.length=N}` (not C member `dep.A`).
+// Expected: compile = 0, run = 42 (host-C; asm CG002 leftover).
+// PLATFORM: SHARED — Ubuntu gold import-const FIELD emit.
 
 const dep = import("const_import_module_slice_dep.x");
 
 /**
  * Function-scope const of an import-module scalar const FIELD.
- * typeck whitelist must accept binding.CONST (not only enum FIELD).
+ * host-C must inline the dep INT_LIT (dep-arena init_ref).
  * @return i32 — 42 ok, else the failing case
  */
 function wrap_cdecl(): i32 {
@@ -24,11 +23,61 @@ function wrap_cdecl(): i32 {
 }
 
 /**
- * Main: import-module const FIELD must be a const-expr.
+ * dest-SLICE let of an import-module const TYPE_ARRAY FIELD.
+ * @return i32 — 42 ok, else the failing case
+ */
+function wrap_let(): i32 {
+  let s: []i32 = dep.A;
+  if (s.length != 2) { return 1; }
+  if (s[0] != 10) { return 2; }
+  if (s[1] != 32) { return 3; }
+  return 42;
+}
+
+/**
+ * dest-SLICE ARRAY_LIT row of an import-module const TYPE_ARRAY.
+ * @return i32 — 42 ok, else the failing case
+ */
+function wrap_row(): i32 {
+  let x: [][]i32 = [dep.A];
+  if (x.length != 1) { return 31; }
+  if (x[0].length != 2) { return 32; }
+  if (x[0][0] != 10) { return 33; }
+  if (x[0][1] != 32) { return 34; }
+  return 42;
+}
+
+/**
+ * Function-scope const dest-SLICE / row / INDEX of an import const FIELD.
+ * @return i32 — 42 ok, else the failing case
+ */
+function wrap_slice(): i32 {
+  const s: []i32 = dep.A;
+  if (s.length != 2) { return 61; }
+  if (s[0] != 10) { return 62; }
+  if (s[1] != 32) { return 63; }
+  const x: [][]i32 = [dep.A];
+  if (x.length != 1) { return 64; }
+  if (x[0].length != 2) { return 65; }
+  if (x[0][0] != 10) { return 66; }
+  if (x[0][1] != 32) { return 67; }
+  const n: i32 = dep.A[1];
+  if (n != 32) { return 68; }
+  return 42;
+}
+
+/**
+ * Main: import-module const FIELD emit must be a legal C initializer.
  * @return i32 — 42 ok, else the first failing helper code
  */
 function main(): i32 {
   let rc: i32 = wrap_cdecl();
+  if (rc != 42) { return rc; }
+  rc = wrap_let();
+  if (rc != 42) { return rc; }
+  rc = wrap_row();
+  if (rc != 42) { return rc; }
+  rc = wrap_slice();
   if (rc != 42) { return rc; }
   return 42;
 }

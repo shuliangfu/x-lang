@@ -5446,6 +5446,9 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * - wave348: EXPR_FIELD_ACCESS with VAR base + fixed TYPE_ARRAY field
  *   (`let s: T[] = b.a`). Prior: bare `(b.a)` is not a slice compound → host-cc red;
  *   freestanding dual-GP unwritten → panic/SIGSEGV.
+ *   Import-module const FIELD (`dep.A`) is not a struct member: this helper
+ *   returns 0; try_emit_dest_slice_from_module_array_var dispatches to
+ *   try_emit_dest_slice_from_import_const_field (`{.data=A,.length=N}`).
  * - Non-VAR FIELD base (`let s:[]T = W{}.xs` / `mk().xs` / `rows[i].xs`):
  *   dest-SLICE stamps FIELD to TYPE_SLICE, hiding N. Recover N from the
  *   base TYPE_NAMED layout. `.data` is `((base).field)` (C array decays).
@@ -5505,6 +5508,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     let is_field: i32 = 0;
     let is_call: i32 = 0;
     let field_base_ko: i32 = 0;
+    let field_base_named: i32 = 0;
     let base_e: Expr = init_e;
     let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
 
@@ -5653,6 +5657,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
               }
             }
             if (bk == 8) {
+              field_base_named = 1;
               snl = pipeline_type_named_name_into(arena, bty, &snm[0]);
             }
           }
@@ -5668,7 +5673,14 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           }
         }
       }
-      if (arr_sz <= 0 && field_base_ko != 3) {
+      /*
+       * dest-SLICE import-module const FIELD (`dep.A`): VAR base is an
+       * import binding, not TYPE_NAMED. Do not emit C member `dep.A`
+       * (dep is not a struct). Return 0 so the caller fallback wraps
+       * `{.data=A,.length=N}`. sizeof fallback stays for NAMED struct
+       * fields when typeck N is missing. PLATFORM: SHARED host-C.
+       */
+      if (arr_sz <= 0 && (field_base_ko != 3 || field_base_named == 0)) {
         return 0;
       }
     } else if ((init_ko == 48 || init_ko == 49) && ctx != 0 as *PipelineDepCtx) {
@@ -6000,6 +6012,133 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
 }
 
 /**
+ * Host-C dest-SLICE wrap of an import-module const FIELD (`dep.A`).
+ * try_emit treats `dep.A` as a struct member (`dep.A`) because the
+ * base is EXPR_VAR. Import bindings are not TYPE_NAMED, so try_emit
+ * now returns 0. This sibling emits `(T){ .data = A, .length = N }`
+ * with N from the dep-arena TYPE_ARRAY (type_ref is not portable).
+ * Bare `A` is the co-emitted file-static dep const (same C TU).
+ *
+ * G.7: fallback family, own local-slot budget. Invoked from
+ * try_emit_dest_slice_from_module_array_var when linit is FIELD so
+ * every try_emit==0 caller is covered. Do not add this walk to
+ * try_emit. Do not add an 8th pointer param.
+ *
+ * @param arena *ASTArena — caller type/expr pool (dest_type_ref)
+ * @param out *CodegenOutBuf — C text sink
+ * @param dest_type_ref i32 — dest TYPE_SLICE (kind 11)
+ * @param linit_ref i32 — EXPR_FIELD_ACCESS of an import binding
+ * @param ctx *PipelineDepCtx — dep table; null → 0
+ * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
+ * PLATFORM: SHARED host-C emit
+ */
+export function try_emit_dest_slice_from_import_const_field(
+  arena: *ASTArena,
+  out: *CodegenOutBuf,
+  dest_type_ref: i32,
+  linit_ref: i32,
+  ctx: *PipelineDepCtx
+): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf) {
+      return 0;
+    }
+    if (ast.ref_is_null(dest_type_ref) || pipeline_type_kind_ord_at(arena, dest_type_ref) != 11) {
+      return 0;
+    }
+    if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+    if ((init_e.kind as i32) != 44 || init_e.field_access_field_len <= 0) {
+      return 0;
+    }
+    let dep_path: u8[128] = [];
+    let dep_path_len: i32 = codegen_resolve_binding_import_path_for_field_access(
+      ctx, arena, linit_ref, &dep_path[0]);
+    if (dep_path_len <= 0) {
+      return 0;
+    }
+    let dep_ix: i32 = codegen_find_dep_index_by_path(ctx, &dep_path[0], dep_path_len);
+    if (dep_ix < 0 || dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+      return 0;
+    }
+    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    let dep_ar: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+    if (dep_mod == 0 as *Module || dep_ar == 0 as *ASTArena) {
+      return 0;
+    }
+    let arr_sz: i32 = 0;
+    let ti: i32 = 0;
+    while (ti < dep_mod.num_top_level_lets && arr_sz <= 0) {
+      if (pipeline_module_top_level_let_is_const(dep_mod, ti) == 0) {
+        ti = ti + 1;
+      } else {
+        let nlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, ti);
+        if (nlen == init_e.field_access_field_len && nlen > 0) {
+          let matched: i32 = 1;
+          let ci: i32 = 0;
+          while (ci < nlen) {
+            if (pipeline_module_top_level_let_name_byte_at(dep_mod, ti, ci)
+                != init_e.field_access_field_name[ci]) {
+              matched = 0;
+              ci = nlen;
+            } else {
+              ci = ci + 1;
+            }
+          }
+          if (matched != 0) {
+            let tr: i32 = pipeline_module_top_level_let_type_ref(dep_mod, ti);
+            if (!ast.ref_is_null(tr) && pipeline_type_kind_ord_at(dep_ar, tr) == 10) {
+              arr_sz = pipeline_type_array_size_at(dep_ar, tr);
+            }
+          }
+        }
+        ti = ti + 1;
+      }
+    }
+    if (arr_sz <= 0) {
+      return 0;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (emit_type(arena, out, dest_type_ref, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 123) != 0) {
+      return -1;
+    }
+    let d1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &d1[0], 9) != 0) {
+      return -1;
+    }
+    if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+      return -1;
+    }
+    let d2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &d2[0], 12) != 0) {
+      return -1;
+    }
+    if (format_int(out, arr_sz) != 0) {
+      return -1;
+    }
+    let d3: u8[4] = [32, 125, 0, 0];
+    if (emit_bytes_4(out, &d3[0], 2) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
  * Host-C dest-SLICE wrap of a module top-level TYPE_ARRAY VAR.
  * try_emit_slice_init_from_array_var only scans block lets/consts. A
  * module-table walk / 8th Module* / extra helper call inside that
@@ -6011,6 +6150,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * G.7: one helper. Callers invoke it only after try_emit returns 0.
  * Never add this walk to try_emit. Never add ARRAY_LIT here
  * (function-scope (E[]){…} would dangle if init_globals reused it).
+ * Import-module const FIELD dispatches to
+ * try_emit_dest_slice_from_import_const_field (own slot budget).
  *
  * Emits `(T){ .data = Name, .length = N }` when linit is EXPR_VAR
  * matching a current_codegen_module top-level let/const of TYPE_ARRAY.
@@ -6020,7 +6161,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * @param arena *ASTArena — type/expr pool (same arena as dest_type_ref)
  * @param out *CodegenOutBuf — C text sink
  * @param dest_type_ref i32 — dest TYPE_SLICE (kind 11)
- * @param linit_ref i32 — init expr; must be EXPR_VAR
+ * @param linit_ref i32 — init expr; EXPR_VAR or import-module const FIELD
  * @param ctx *PipelineDepCtx — current_codegen_module; null → 0
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit
@@ -6043,10 +6184,22 @@ export function try_emit_dest_slice_from_module_array_var(
     if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
       return 0;
     }
-    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+    if (ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
     let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+    /*
+     * Import-module const FIELD (`dep.A`) is not a current-module VAR.
+     * Dispatch before the current_codegen_module gate: the sibling
+     * walks the dep table, not this module. PLATFORM: SHARED.
+     */
+    if ((init_e.kind as i32) == 44) {
+      return try_emit_dest_slice_from_import_const_field(
+        arena, out, dest_type_ref, linit_ref, ctx);
+    }
+    if (ctx.current_codegen_module == 0 as *Module) {
+      return 0;
+    }
     if ((init_e.kind as i32) != 3 || init_e.var_name_len <= 0) {
       return 0;
     }
@@ -9982,8 +10135,10 @@ export function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenO
  * Emit C for `binding.CONST` when CONST is a dep-module top-level const.
  * Prefer the const init literal (INT_LIT → decimal digits) so host C does not
  * need a mangled symbol that never matches file-static `static const int32_t NAME`.
+ * INT_LIT init_ref / kind / int_val are read from the dep arena
+ * (`pipeline_dep_ctx_arena_at`); the caller arena is not portable.
  * Fallback: bare field name (matches dep const emit without module prefix).
- * @param arena *ASTArena
+ * @param arena *ASTArena — caller expr pool (FIELD itself)
  * @param out *CodegenOutBuf
  * @param expr_ref i32 — EXPR_FIELD_ACCESS
  * @param ctx *PipelineDepCtx
@@ -10044,10 +10199,17 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
        * Prior emit_import_module_field_symbol prefixed the path → BLD001 undeclared.
        * Prefer INT_LIT init value; else bare field name. PLATFORM: SHARED.
        */
+      /*
+       * init_ref / kind / int_val live in the dep arena. The caller
+       * arena must not be used: a dep INT_LIT index is not portable
+       * (kind_ord_at(caller, init_ref) misses → bare undeclared `K`).
+       * PLATFORM: SHARED host-C.
+       */
       let init_ref: i32 = pipeline_module_top_level_let_init_ref(dep_mod, ti);
-      if (init_ref > 0 && init_ref <= arena.num_exprs
-      && pipeline_expr_kind_ord_at(arena, init_ref) == 0) {
-        if (format_int(out, pipeline_expr_int_val_at(arena, init_ref) as i64) != 0) {
+      let dep_ar: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+      if (dep_ar != 0 as *ASTArena && init_ref > 0 && init_ref <= dep_ar.num_exprs
+      && pipeline_expr_kind_ord_at(dep_ar, init_ref) == 0) {
+        if (format_int(out, pipeline_expr_int_val_at(dep_ar, init_ref) as i64) != 0) {
           return -1;
         }
         return 0;
