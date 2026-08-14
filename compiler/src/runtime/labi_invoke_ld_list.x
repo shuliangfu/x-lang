@@ -173,6 +173,9 @@ export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 // wave191 companions + wave192 glue leaves call this after ensure.
 // Note: single-line signature (multi-line export decls can drop the symbol).
 export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;
+// Peer pure (ondemand L8b): formal .o UNDEF table for std.heap API (heap.o gate).
+// wave191 companions probe the just-ensured rel, not only user.o / vec-set-map whitelist.
+export extern "C" function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32;
 
 // Cap residual / peer pure (ensure_list L4 + path_pure L0): OP_GLUE_* runtime glue
 // ensure + path for append_std plan leaves (wave192).
@@ -2108,7 +2111,7 @@ export function labi_std_rel_is_std_or_core(rel: *u8): i32 {
  *   2) Cap residual xlang_repo_root_from_argv0 → pure make_tgt="../"+rel
  *   3) peer pure xlang_ensure_formal_std_make_o(root, rel, make_tgt)
  *   4) companions (exact rel match ≡ mega strstr on plan exact paths):
- *        vec/set/map → ensure+push heap.o + core/mem/mem.o
+ *        vec/set/map OR just-ensured rel U std_heap_* → ensure+push heap.o + core/mem/mem.o
  *        env.o → ensure+push runtime_env_os.o
  *        random.o → ensure+push runtime_random_fill.o
  *        time.o → ensure+push runtime_time_os.o
@@ -2176,6 +2179,12 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   let lb: *u8 = lib_roots as *u8;
   // Companion: formal vec/set/map .o carry U std_heap_* / core_mem_*.
   // Exact path match (plan rels are exact; mega used strstr on those exact strings).
+  // Also probe the just-ensured formal .o: http.o (and any later std) U
+  // std_heap_alloc_usize / std_heap_free_u8_ptr while user.o only U std_http_*.
+  // On-demand heap scan of user.o therefore misses; Darwin ld is hard UNDEF
+  // (Linux ELF may look green without heap.o). G.7 complete the existing
+  // needs_std_heap_api consumer — do not grow a second http-only heap path.
+  // PLATFORM: SHARED — L4 wipe + mac run-http residual.
   let need_heap_mem: i32 = 0;
   let eq_vec: i32 = 0;
   let eq_set: i32 = 0;
@@ -2193,6 +2202,19 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   }
   if (eq_map == 0) {
     need_heap_mem = 1;
+  }
+  if (need_heap_mem == 0) {
+    let abs_rel: u8[4096] = [];
+    let joined: i32 = labi_net_tls_join_repo_rel(&abs_rel[0], 4096, include_root, rel);
+    if (joined != 0) {
+      let need_rel_heap: i32 = 0;
+      unsafe {
+        need_rel_heap = link_abi_user_o_needs_std_heap_api(&abs_rel[0]);
+      }
+      if (need_rel_heap != 0) {
+        need_heap_mem = 1;
+      }
+    }
   }
   if (need_heap_mem != 0) {
     let _h: i32 = 0;

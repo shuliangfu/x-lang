@@ -98,6 +98,8 @@ const char *xlang_runtime_time_os_o_path(const char *argv0);
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out);
+/* Peer pure (ondemand L8b): probe just-ensured formal .o for std.heap API UNDEFs. */
+int link_abi_user_o_needs_std_heap_api(const char *user_o);
 /* Peer pure / Cap residual (wave194 TASK_SPECIAL). */
 int labi_user_needs_std_task(const char *user_o);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
@@ -758,15 +760,26 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
   if (pos < 0)
     return;
   (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
-  if (strcmp(rel, "std/vec/vec.o") == 0 || strcmp(rel, "std/set/set.o") == 0
-      || strcmp(rel, "std/map/map.o") == 0) {
-    (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-    (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
-    if (argv && la) {
-      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots,
-                                     bank, argv, la, max_la, NULL);
-      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots,
-                                     bank, argv, la, max_la, NULL);
+  /* PLATFORM: SHARED — vec/set/map whitelist OR probe the just-ensured formal
+   * .o (http.o U std_heap_*). User.o typically only U std_http_*; Darwin ld
+   * hard-fails if heap.o is not ensured+pushed after L4 wipe. */
+  {
+    char abs_rel[4096];
+    int need_heap_mem = (strcmp(rel, "std/vec/vec.o") == 0
+        || strcmp(rel, "std/set/set.o") == 0
+        || strcmp(rel, "std/map/map.o") == 0);
+    if (!need_heap_mem && labi_net_tls_join_repo_rel(abs_rel, 4096, include_root, rel)
+        && link_abi_user_o_needs_std_heap_api(abs_rel))
+      need_heap_mem = 1;
+    if (need_heap_mem) {
+      (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+      if (argv && la) {
+        (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+        (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
     }
   }
   if (strcmp(rel, "std/env/env.o") == 0) {

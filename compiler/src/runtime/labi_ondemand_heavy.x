@@ -2697,9 +2697,24 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     }
 
     // --- heap import (skip if user provides) ---
+    // Aggregate already scans user_o + argv .o (append_std pushed http.o first).
+    // L4 wipe deletes heap.o: push_obj skip-missing is not enough — ensure first
+    // (≡ set/map companions). PLATFORM: SHARED — Darwin hard UNDEF if heap.o absent.
     let la_n: i32 = la[0];
     let need_hi: i32 = link_abi_link_needs_std_heap_import(user_o, argv, la_n);
     if (need_hi != 0) {
+      let root_h: *u8 = 0 as *u8;
+      unsafe {
+        root_h = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_h != 0 as *u8) {
+        if (root_h[0] != 0) {
+          unsafe {
+            let _eh: i32 = xlang_ensure_formal_std_make_o(root_h, "std/heap/heap.o", "../std/heap/heap.o");
+            let _em: i32 = xlang_ensure_formal_std_make_o(root_h, "core/mem/mem.o", "../core/mem/mem.o");
+          }
+        }
+      }
       let prov_m: i32 = link_abi_user_o_provides_core_mem(user_o);
       if (prov_m == 0) {
         let rm: *u8 = labi_od_rel_core_mem();
