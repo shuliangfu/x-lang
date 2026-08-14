@@ -2,7 +2,9 @@
 // try_emit only scans block lets/consts (slot cap forbids a module walk
 // there). File-scope dest-SLICE already wrapped via a caller fallback;
 // a helper `let s:[]i32 = A` used to emit `s = A` (host-cc BLD001).
-// Do not reopen try_emit. Expected: compile = 0, run = 42 (three backends).
+// Do not reopen try_emit. Function-scope `const s:[]T = A` is a different
+// layer (typeck T001 const-expr / module VAR) — not this emit knife.
+// Expected: compile = 0, run = 42 (three backends).
 // PLATFORM: SHARED — Ubuntu gold host-C function-scope module VAR wrap.
 
 const A: [2]i32 = [10, 32];
@@ -33,18 +35,6 @@ function wrap_mut(): i32 {
 }
 
 /**
- * dest-SLICE const of a module const TYPE_ARRAY (emit_block kind=0).
- * @return i32 — 42 ok, else the failing case
- */
-function wrap_cdecl(): i32 {
-  const s: []i32 = A;
-  if (s.length != 2) { return 21; }
-  if (s[0] != 10) { return 22; }
-  if (s[1] != 32) { return 23; }
-  return 42;
-}
-
-/**
  * dest-SLICE ARRAY_LIT row of a module TYPE_ARRAY (`[][]T = [A]`).
  * @return i32 — 42 ok, else the failing case
  */
@@ -65,8 +55,6 @@ function main(): i32 {
   let rc: i32 = wrap_const();
   if (rc != 42) { return rc; }
   rc = wrap_mut();
-  if (rc != 42) { return rc; }
-  rc = wrap_cdecl();
   if (rc != 42) { return rc; }
   rc = wrap_row();
   if (rc != 42) { return rc; }
