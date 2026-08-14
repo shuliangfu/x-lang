@@ -36119,10 +36119,14 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * CALL (48) / METHOD_CALL (49): N from callee return TYPE_ARRAY (same-module
  * emit-module table, or dep-module via map / dep-arena fallback); emit_expr
  * leaves rax = E* (ARRAY return ABI), then wrap {data,length=N}.
- * Typeck stamps a `[a]` / `[mk()]` dest-SLICE row to TYPE_SLICE, so N comes
- * from the decl or callee return (`pipeline_block_resolve_var_type_ref` walks
- * const+parent). ARRAY_LIT rows may pass block_ref=0; then scope / func body
- * is the scan start.
+ * INDEX (47): dest-SLICE stamps the INDEX expr to TYPE_SLICE (hides N and
+ * would make emit_index treat the [N]T element as a fat). N and scale esz
+ * come from the base's elem TYPE_ARRAY; lea via
+ * glue_emit_index_eff_addr_scaled (do not emit_index / lvalue_eff_addr).
+ * Typeck stamps a `[a]` / `[mk()]` / `[a[i]]` dest-SLICE row to TYPE_SLICE,
+ * so N comes from the decl, callee return, or INDEX base elem
+ * (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT rows
+ * may pass block_ref=0; then scope / func body is the scan start.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param block_ref i32 - enclosing block; 0 legal for ARRAY_LIT rows (`[N][]T`)
@@ -36163,11 +36167,15 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let rc: i32 = 0;
   let src: i32 = 0;
   let scan_br: i32 = 0;
+  let idx_esz: i32 = 0;
+  let base_ref: i32 = 0;
   // block_ref may be 0: ARRAY_LIT rows (`[[1,2]]`) do not scan.
   // VAR rows (`[a]`) still need N from the TYPE_ARRAY decl: prior-let
   // when block_ref>0, else scope / func-body resolve (const+parent).
   // CALL/METHOD rows (`[mk()]` / `[w.xs()]`): N from callee return
   // TYPE_ARRAY. emit_expr uses callee ABI (E*), not dest TYPE_SLICE stamp.
+  // INDEX rows (`[a[i]]` / `let s:[]T = a[i]`): N+esz from base elem
+  // TYPE_ARRAY; lea scaled (stamp would make emit_index load a fake fat).
   // G.7: [N][]T / [][]T rows reuse this helper with block_ref=0.
   // PLATFORM: SHARED freestanding.
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || let_type_ref <= 0 || init_ref <= 0) {
@@ -36484,6 +36492,58 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     }
     unsafe {
       rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, src, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else if (init_ko == 47) {
+    // INDEX row: dest-SLICE stamps the INDEX expr to TYPE_SLICE, hiding N
+    // and making emit_index treat the [N]T element as a 16B fat (wrong).
+    // N and scale come from the base's elem TYPE_ARRAY. lea via scaled
+    // eff-addr with that esz — do not emit_index / lvalue_eff_addr
+    // (both consult the stamped SLICE for stride).
+    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    unsafe {
+      base_ref = pipeline_expr_index_base_ref(arena, src);
+    }
+    if (base_ref <= 0) {
+      return 0;
+    }
+    unsafe {
+      init_tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    }
+    if (init_tr > 0) {
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, init_tr);
+      }
+      if (tk == 10 || tk == 11) {
+        unsafe {
+          tr = pipeline_type_elem_ref_at(arena, init_tr);
+        }
+        if (tr > 0) {
+          unsafe {
+            tk = pipeline_type_kind_ord_at(arena, tr);
+          }
+          if (tk == 10) {
+            unsafe {
+              arr_sz = pipeline_type_array_size_at(arena, tr);
+              idx_esz = glue_fixed_array_total_bytes_c(arena, tr, 0);
+            }
+          }
+        }
+      }
+    }
+    if (arr_sz <= 0 || idx_esz <= 0) {
+      return 0;
+    }
+    unsafe {
+      ftr = pipeline_expr_index_index_ref(arena, src);
+    }
+    if (ftr <= 0) {
+      return 0;
+    }
+    unsafe {
+      rc = glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, src, base_ref, ftr, ctx, ta, idx_esz);
     }
     if (rc != 0) {
       return 0 - 1;

@@ -120,6 +120,7 @@ export extern function pipeline_expr_call_type_arg_ref_at(arena: *ASTArena, expr
 export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 /** True if match arm i is the `_` wildcard (ends nested-ternary chain). */
@@ -5312,7 +5313,7 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
  * @param block_ref i32 — enclosing block (let/const scan for VAR path)
  * @param let_idx i32 — current let index; prior lets only for VAR match in this block
  * @param let_type_ref i32 — must be TYPE_SLICE (kind 11)
- * @param linit_ref i32 — init expr (VAR, FIELD_ACCESS, CALL, or METHOD_CALL)
+ * @param linit_ref i32 — init expr (VAR, FIELD_ACCESS, CALL, METHOD_CALL, or INDEX)
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for scalar []i32
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
@@ -5481,6 +5482,32 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           if (!ast.ref_is_null(rty_d) && rty_d > 0 && dep_ar != 0 as *ASTArena) {
             if (pipeline_type_kind_ord_at(dep_ar, rty_d) == 10) {
               arr_sz = pipeline_type_array_size_at(dep_ar, rty_d);
+            }
+          }
+        }
+      }
+      if (arr_sz <= 0) {
+        return 0;
+      }
+    } else if (init_ko == 47) {
+      /*
+       * INDEX row: dest-SLICE stamps INDEX to TYPE_SLICE, hiding N.
+       * N from base elem TYPE_ARRAY. C `a[i]` of `[K][N]T` / `[][N]T`
+       * decays to E* — `.data = a[i]` is a legal pointer rvalue.
+       * PLATFORM: SHARED host-C.
+       */
+      is_call = 1;
+      let ix_base: i32 = pipeline_expr_index_base_ref(arena, linit_ref);
+      if (ix_base > 0 && ix_base <= arena.num_exprs) {
+        let bty: i32 = pipeline_expr_resolved_type_ref(arena, ix_base);
+        if (!ast.ref_is_null(bty) && bty > 0) {
+          let bk: i32 = pipeline_type_kind_ord_at(arena, bty);
+          if (bk == 10 || bk == 11) {
+            let ety: i32 = pipeline_type_elem_ref_at(arena, bty);
+            if (!ast.ref_is_null(ety) && ety > 0) {
+              if (pipeline_type_kind_ord_at(arena, ety) == 10) {
+                arr_sz = pipeline_type_array_size_at(arena, ety);
+              }
             }
           }
         }
