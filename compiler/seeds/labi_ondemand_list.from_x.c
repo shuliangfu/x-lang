@@ -88,6 +88,8 @@ int xlang_ensure_runtime_time_os_o(const char *argv0);
 const char *xlang_runtime_time_os_o_path(const char *argv0);
 int xlang_ensure_runtime_queue_contention_o(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
+void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags);
 const char *xlang_std_async_scheduler_o_path(const char *argv0);
 const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
 const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
@@ -2808,8 +2810,8 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_time_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     /*
-     * PLATFORM: SHARED — product queue (std_queue_*) + contention table.
-     * G.7: complete queue on_demand (product needs_std_queue + existing od_queue table).
+     * PLATFORM: SHARED — product queue (std_queue_*) + monofile companions.
+     * G.7: single helper labi_std_append_queue_monofile_companions.
      */
     {
         int need_q_product = link_abi_user_o_needs_std_queue(user_o);
@@ -2821,14 +2823,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
                 (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
             }
-            if (need_q_contention) {
-                (void)xlang_ensure_runtime_queue_contention_o(link_argv0);
-                link_abi_asm_ld_push_obj(xlang_runtime_queue_contention_o_path(link_argv0), link_argv0,
-                    labi_od_queue_contention_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_queue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
         }
     }
 #else

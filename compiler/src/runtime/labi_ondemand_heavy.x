@@ -54,6 +54,7 @@ export extern function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32;
 export extern function link_abi_user_o_needs_std_test(user_o: *u8): i32;
 export extern function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
 export extern function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
+export extern function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void;
 export extern function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32;
@@ -3467,67 +3468,18 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
             let _q1: i32 = xlang_ensure_formal_std_make_o(rq, "std/queue/queue.o", "../std/queue/queue.o");
             let _q2: i32 = xlang_ensure_formal_std_make_o(rq, "std/heap/heap.o", "../std/heap/heap.o");
             let _q3: i32 = xlang_ensure_formal_std_make_o(rq, "core/mem/mem.o", "../core/mem/mem.o");
-            // Monofile SyncQueue transitive formals (L4 wipe drops gitignored .o).
-            let _q4: i32 = xlang_ensure_formal_std_make_o(rq, "std/sync/sync.o", "../std/sync/sync.o");
-            let _q5: i32 = xlang_ensure_formal_std_make_o(rq, "std/atomic/atomic.o", "../std/atomic/atomic.o");
           }
         }
       }
-      // Always co-push contention: monofile sync_smoke U smoke_c regardless of
-      // need_qc (user never names contention symbols for plain Queue API).
-      let qcp: *u8 = 0 as *u8;
-      let qcrel: *u8 = labi_od_queue_contention_rel();
-      let er_qc: i32 = 0;
-      unsafe {
-        er_qc = xlang_ensure_runtime_queue_contention_o(link_argv0);
-        qcp = xlang_runtime_queue_contention_o_path(link_argv0);
-      }
-      labi_od_glue_push_if(er_qc, qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
       let qrel: *u8 = labi_od_queue_rel();
       let qh: *u8 = labi_od_rel_heap();
       let qm: *u8 = labi_od_rel_core_mem();
-      let qs: *u8 = labi_od_rel_sync();
-      let qa: *u8 = labi_od_rel_atomic();
-      let have_sq: i32 = 0;
       unsafe {
         let _qq: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _qh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qh, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _qm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        let _qs: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qs, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_sq);
-        let _qa: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qa, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
       }
-      // SYNC_PAIR glue (lock_diag_tls + sync_os) + pthread flag; atomic_glue for
-      // formal atomic.o bare atomic_*_c U. Same as plan OP_GLUE when have_sync.
-      if (have_sq != 0) {
-        if (flags != 0 as *u8) {
-          let fsq: *i32 = flags as *i32;
-          fsq[3] = 1;
-        }
-        let er_sd: i32 = 0;
-        let sdp: *u8 = 0 as *u8;
-        let sdrel: *u8 = labi_od_rel_sync_lock_diag();
-        unsafe {
-          er_sd = xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
-          sdp = xlang_runtime_sync_lock_diag_tls_o_path(link_argv0);
-        }
-        labi_od_glue_push_if(er_sd, sdp, link_argv0, sdrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
-        let er_so: i32 = 0;
-        let sop: *u8 = 0 as *u8;
-        let sorel: *u8 = labi_od_rel_sync_os();
-        unsafe {
-          er_so = xlang_ensure_runtime_sync_os_o(link_argv0);
-          sop = xlang_runtime_sync_os_o_path(link_argv0);
-        }
-        labi_od_glue_push_if(er_so, sop, link_argv0, sorel, lib_roots, n_lib_roots, bank, argv, la, max_la);
-      }
-      let er_ag_q: i32 = 0;
-      let agp_q: *u8 = 0 as *u8;
-      let agrel_q: *u8 = labi_od_rel_atomic_glue();
-      unsafe {
-        er_ag_q = xlang_ensure_runtime_atomic_glue_o(link_argv0);
-        agp_q = xlang_runtime_atomic_glue_o_path(link_argv0);
-      }
-      labi_od_glue_push_if(er_ag_q, agp_q, link_argv0, agrel_q, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
   }
 }

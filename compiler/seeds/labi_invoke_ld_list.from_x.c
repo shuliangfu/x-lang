@@ -100,6 +100,10 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     const char **argv, int *la, int max_la, int *flag_out);
 /* Peer pure (ondemand L8b): probe just-ensured formal .o for std.heap API UNDEFs. */
 int link_abi_user_o_needs_std_heap_api(const char *user_o);
+int xlang_ensure_runtime_queue_contention_o(const char *argv0);
+const char *xlang_runtime_queue_contention_o_path(const char *argv0);
+void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags);
 /* Peer pure / Cap residual (wave194 TASK_SPECIAL). */
 int labi_user_needs_std_task(const char *user_o);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
@@ -725,6 +729,46 @@ int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_r
   return asm_link_obj_skip_missing(abs) ? 1 : 0;
 }
 
+/* G.7 single queue monofile companion body (cold twin ≡ .x). */
+void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags) {
+  const char *include_root;
+  int have_sq = 0;
+  if (!link_argv0 || !argv || !la)
+    return;
+  include_root = xlang_repo_root_from_argv0(link_argv0);
+  if (include_root && include_root[0]) {
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/sync/sync.o", "../std/sync/sync.o");
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/atomic/atomic.o", "../std/atomic/atomic.o");
+  }
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sync/sync.o", lib_roots, n_lib_roots,
+                                 bank, argv, la, max_la, &have_sq);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/atomic/atomic.o", lib_roots, n_lib_roots,
+                                 bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_queue_contention_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_queue_contention.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_process_argv_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_process_argv.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  if (have_sq) {
+    int *f;
+    if (flags) {
+      f = (int *)flags;
+      f[3] = 1;
+    }
+    (void)xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+    (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_sync_lock_diag_tls.o",
+                                   lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    (void)xlang_ensure_runtime_sync_os_o(link_argv0);
+    (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_sync_os.o",
+                                   lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  }
+  (void)xlang_ensure_runtime_atomic_glue_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_atomic_glue.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+}
+
 /* wave191: labi_std_append_formal_ensure_for_rel pure orch (cold twin ≡ .x).
  * Cap residual: repo_root + ensure_runtime_* + path; peer formal_std_make + push_obj.
  * PLATFORM: SHARED — append_std OP_STD formal ensure+companions.
@@ -846,6 +890,9 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
       }
     }
   }
+  /* PLATFORM: SHARED — queue.o monofile companions (G.7 single helper). */
+  if (strcmp(rel, "std/queue/queue.o") == 0)
+    labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
   /* PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
    * context.o U atomic_*_i32_c + time_now_monotonic_ns_c. G.7 ≡ C need_context. */
   if (strcmp(rel, "std/context/context.o") == 0) {
