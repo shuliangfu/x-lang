@@ -71783,9 +71783,11 @@ export function glue_loop_continue_head_live_union_into_u8(dst: *u8, d: i32): vo
  *
  * Routes by expr kind + formal (call_param_ty) vs resolved type:
  * f32 lit; VAR fixed-array→slice fat; VAR lea vs dual-GP load; FIELD
- * array→slice / array formal / named-struct pass-addr; ARRAY_LIT→slice;
+ * array→slice / array formal / named-struct pass-addr; INDEX of
+ * `[K][N]T` / `[][N]T` → slice fat (scaled lea + length N); ARRAY_LIT→slice;
  * ARRAY_LIT→SIMD ≤16B (i32x4 / f32x4) dual-GP; CALL/METHOD returning
- * array or slice as slice* formal; else rec.
+ * array or slice as slice* formal; identity ARRAY/SLICE ascription peel;
+ * else rec.
  *
  * @param arena *u8 — ASTArena*; null skips typed routes (rec may still run)
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1 on routes that encode
@@ -71852,6 +71854,7 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   let kind_var: i32 = 3;
   let kind_field: i32 = 44;
   let kind_array_lit: i32 = 46;
+  let kind_index: i32 = 47;
   let kind_call: i32 = 48;
   let kind_method: i32 = 49;
   let type_array: i32 = 10;
@@ -71892,6 +71895,16 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   }
 
   unsafe { pty = pipeline_asm_emit_ctx_call_param_ty_get(); }
+
+  // Identity ARRAY/SLICE ascription: take(a as [2]i32) must see VAR/INDEX.
+  // G.7 reuse glue_peel. Scalar 5 as i32 stays wrapped.
+  // PLATFORM: SHARED freestanding.
+  if (arena != (0 as *u8) && expr_ref > 0) {
+    unsafe { br = glue_peel_as_array_slice_ascription_c(arena, expr_ref); }
+    if (br > 0) {
+      expr_ref = br;
+    }
+  }
 
   // --- VAR local stack home packing ---
   if (arena != (0 as *u8) && ctx != (0 as *u8)) {
@@ -72020,6 +72033,77 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
           unsafe { rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta); }
           if (rc != 0) { return 0 - 1; }
           return 0;
+        }
+      }
+    }
+  }
+
+  // --- INDEX of [K][N]T / [][N]T as TYPE_SLICE formal ---
+  // take(a[i]): N+esz from INDEX resolved TYPE_ARRAY, else base elem.
+  // lea via scaled (do not emit_index — dest-SLICE stamp would load a 16B fat).
+  // Caller-frame fat* in rax. PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+  if (arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8)) {
+    unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
+    if (ko == kind_index) {
+      want_slice = 0;
+      if (pty > 0) {
+        unsafe { rc = pipeline_type_kind_ord_at(arena, pty); }
+        if (rc == type_slice) { want_slice = 1; }
+      }
+      if (want_slice != 0) {
+        arr_sz = 0;
+        force_esz = 0;
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+        if (rty > 0) {
+          unsafe { rc = pipeline_type_kind_ord_at(arena, rty); }
+          if (rc == type_array) {
+            unsafe { arr_sz = pipeline_type_array_size_at(arena, rty); }
+            force_esz = glue_fixed_array_total_bytes_c(arena, rty, 0);
+          }
+        }
+        if (arr_sz <= 0 || force_esz <= 0) {
+          unsafe { br = pipeline_expr_index_base_ref(arena, expr_ref); }
+          if (br > 0) {
+            unsafe { fty = pipeline_expr_resolved_type_ref(arena, br); }
+            if (fty > 0) {
+              unsafe { rc = pipeline_type_kind_ord_at(arena, fty); }
+              if (rc == type_array || rc == type_slice) {
+                unsafe { fty = pipeline_type_elem_ref_at(arena, fty); }
+                if (fty > 0) {
+                  unsafe { rc = pipeline_type_kind_ord_at(arena, fty); }
+                  if (rc == type_array) {
+                    unsafe { arr_sz = pipeline_type_array_size_at(arena, fty); }
+                    force_esz = glue_fixed_array_total_bytes_c(arena, fty, 0);
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (arr_sz > 0 && force_esz > 0) {
+          unsafe { br = pipeline_expr_index_base_ref(arena, expr_ref); }
+          unsafe { n_arr = pipeline_expr_index_index_ref(arena, expr_ref); }
+          if (br > 0 && n_arr > 0) {
+            base_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+            if ((base_off % 8) != 0) { base_off = (base_off + 7) / 8 * 8; }
+            home = base_off + 16;
+            if (ta == 1) { pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), home + 16); }
+            else { pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), home + 8); }
+            glue_align_next_offset(ctx);
+            unsafe {
+              rc = glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, expr_ref, br, n_arr, ctx, ta, force_esz);
+            }
+            if (rc != 0) { return 0 - 1; }
+            unsafe { rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta); }
+            if (rc != 0) { return 0 - 1; }
+            unsafe { rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta); }
+            if (rc != 0) { return 0 - 1; }
+            unsafe { rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta); }
+            if (rc != 0) { return 0 - 1; }
+            unsafe { rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta); }
+            if (rc != 0) { return 0 - 1; }
+            return 0;
+          }
         }
       }
     }

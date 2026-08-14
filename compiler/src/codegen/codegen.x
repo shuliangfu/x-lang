@@ -2426,6 +2426,8 @@ export extern function codegen_emit_slice_let_reent_finish(arena: *ASTArena, out
  * not `struct xlang_slice_* *` → host reads length from wrong memory (e.g. a[2]=30).
  * wave396: same for CALL/METHOD return `T[N]` and FIELD_ACCESS of fixed array field
  * (`len_of(take3(1))` / `sum3(b.a)` bare `E*` as slice* → length half garbage).
+ * INDEX `take(a[i])` of `[K][N]T`: same fat; C `a[i]` decays to E*.
+ * Identity ascription `take(a as [2]i32)` peels to the ARRAY operand.
  * wave397: CALL/METHOD `.data` deep-copies into unique `__xlang_caN[N]` so dual
  * same-call formals do not both alias callee static `__xlang_ar` (host 66→39).
  * wave400: ARRAY_LIT as TYPE_SLICE formal uses wave345 `__xlang_sp` materialize
@@ -2494,18 +2496,41 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
      * wave395/396 Cap residual pure: fixed TYPE_ARRAY rvalue → slice* formal.
      * Emit: &((struct xlang_slice_T){ .data = <arr>, .length = N })
      * wave395: EXPR_VAR local; wave396: EXPR_CALL / METHOD_CALL / FIELD_ACCESS.
-     * PLATFORM: SHARED host-C (fs: pipeline_asm_emit_expr_elf_for_call_args VAR leaf).
+     * INDEX (`take(a[i])` of `[K][N]T` / `[][N]T`): same wrap; C `a[i]` decays
+     * to E*. Identity ARRAY/SLICE ascription (`take(a as [2]i32)`) peels so
+     * VAR/INDEX/FIELD consumers fire — scalar `5 as i32` stays wrapped.
+     * PLATFORM: SHARED host-C (fs: pipeline_asm_emit_expr_elf_for_call_args).
      */
     {
       let arr_sz: i32 = 0;
       let arr_tr: i32 = 0;
       let elem_tr: i32 = 0;
       let is_arr_rvalue: i32 = 0;
-      /* VAR / CALL / METHOD / FIELD — kinds that can carry fixed TYPE_ARRAY. */
+      let peel_hop: i32 = 0;
+      /* Identity ascription: take(a as [2]i32) must see the ARRAY operand. */
+      while (peel_hop < 8 && (arg.kind as i32) == (ExprKind.EXPR_AS as i32)) {
+        let as_tgt: i32 = arg.as_target_type_ref;
+        let as_op: i32 = arg.as_operand_ref;
+        let as_tk: i32 = 0;
+        if (ast.ref_is_null(as_tgt) || ast.ref_is_null(as_op) || as_op <= 0 || as_op > arena.num_exprs) {
+          peel_hop = 8;
+        } else {
+          as_tk = pipeline_type_kind_ord_at(arena, as_tgt);
+          if (as_tk != (TypeKind.TYPE_ARRAY as i32) && as_tk != (TypeKind.TYPE_SLICE as i32)) {
+            peel_hop = 8;
+          } else {
+            arg_ref = as_op;
+            arg = ast.ast_arena_expr_get(arena, arg_ref);
+            peel_hop = peel_hop + 1;
+          }
+        }
+      }
+      /* VAR / CALL / METHOD / FIELD / INDEX — kinds that can carry fixed TYPE_ARRAY. */
       if ((arg.kind as i32) == (ExprKind.EXPR_VAR as i32) && arg.var_name_len > 0) {
         is_arr_rvalue = 1;
       } else if ((arg.kind as i32) == (ExprKind.EXPR_CALL as i32) || (arg.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)
-          || (arg.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32)) {
+          || (arg.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32)
+          || (arg.kind as i32) == (ExprKind.EXPR_INDEX as i32)) {
         is_arr_rvalue = 1;
       }
       if (is_arr_rvalue != 0) {
@@ -2514,6 +2539,30 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           if (pipeline_type_kind_ord_at(arena, arg.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
             arr_tr = arg.resolved_type_ref;
             arr_sz = pipeline_type_array_size_at(arena, arr_tr);
+          }
+        }
+        /*
+         * INDEX: dest-SLICE may stamp the INDEX expr to TYPE_SLICE (hide N).
+         * Call-arg score does not stamp — resolved is usually TYPE_ARRAY.
+         * Fallback N from base elem TYPE_ARRAY (`[K][N]T` / `[][N]T`).
+         * PLATFORM: SHARED host-C.
+         */
+        if (arr_sz <= 0 && (arg.kind as i32) == (ExprKind.EXPR_INDEX as i32)) {
+          let ix_base: i32 = pipeline_expr_index_base_ref(arena, arg_ref);
+          if (ix_base > 0 && ix_base <= arena.num_exprs) {
+            let bty: i32 = pipeline_expr_resolved_type_ref(arena, ix_base);
+            if (!ast.ref_is_null(bty) && bty > 0) {
+              let bk: i32 = pipeline_type_kind_ord_at(arena, bty);
+              if (bk == (TypeKind.TYPE_ARRAY as i32) || bk == (TypeKind.TYPE_SLICE as i32)) {
+                let ety: i32 = pipeline_type_elem_ref_at(arena, bty);
+                if (!ast.ref_is_null(ety) && ety > 0) {
+                  if (pipeline_type_kind_ord_at(arena, ety) == (TypeKind.TYPE_ARRAY as i32)) {
+                    arr_tr = ety;
+                    arr_sz = pipeline_type_array_size_at(arena, ety);
+                  }
+                }
+              }
+            }
           }
         }
         /* VAR: resolve from let decl when resolved stamp missing. */
