@@ -5765,12 +5765,12 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
           return -1;
         }
-        /* )), sizeof(__xlang_fb */
+        /* ), sizeof(__xlang_fb */
         let fb_sz: u8[24] = [
-          41, 41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97,
-          110, 103, 95, 102, 98, 0, 0, 0
+          41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110,
+          103, 95, 102, 98, 0, 0, 0, 0
         ];
-        if (emit_bytes_from_ptr(out, &fb_sz[0], 21) != 0) {
+        if (emit_bytes_from_ptr(out, &fb_sz[0], 20) != 0) {
           return -1;
         }
         if (format_int(out, tid as i64) != 0) {
@@ -5778,7 +5778,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         }
         /* )); __xlang_fb */
         let fb_tl: u8[16] = [41, 41, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 102, 98, 0, 0];
-        if (emit_bytes_from_ptr(out, &fb_tl[0], 13) != 0) {
+        if (emit_bytes_from_ptr(out, &fb_tl[0], 14) != 0) {
           return -1;
         }
         if (format_int(out, tid as i64) != 0) {
