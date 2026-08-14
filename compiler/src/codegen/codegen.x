@@ -5508,7 +5508,13 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     let base_e: Expr = init_e;
     let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
 
-    if (init_ko == 3 && init_e.var_name_len > 0) {
+    /*
+     * VAR dest-SLICE: kind_ord_at and Expr.kind can disagree (sidecar vs
+     * struct). Honor either. Module-level `const v:[]T = B` must enter
+     * this branch so the top-level TYPE_ARRAY scan can recover N.
+     * PLATFORM: SHARED host-C.
+     */
+    if ((init_ko == 3 || (init_e.kind as i32) == 3) && init_e.var_name_len > 0) {
       let li: i32 = 0;
       while (li < let_idx) {
         let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
@@ -21147,8 +21153,77 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                 if (slice_tl < 0) {
                   return -1;
                 } else if (slice_tl == 0) {
-                  if (emit_expr(arena, out, tl_init, ctx) != 0) {
-                    return -1;
+                  /*
+                   * Fallback: dest-SLICE VAR whose kind_ord sidecar missed
+                   * EXPR_VAR. Recover N from this module's TYPE_ARRAY lets
+                   * via Expr.kind + name. PLATFORM: SHARED host-C.
+                   */
+                  let fe: Expr = ast.ast_arena_expr_get(arena, tl_init);
+                  let fnsz: i32 = 0;
+                  if ((fe.kind as i32) == 3 && fe.var_name_len > 0) {
+                    let fti: i32 = 0;
+                    while (fti < module.num_top_level_lets && fnsz <= 0) {
+                      let flen: i32 = pipeline_module_top_level_let_name_len(module, fti);
+                      if (flen == fe.var_name_len && flen > 0) {
+                        let fmk: i32 = 1;
+                        let fci: i32 = 0;
+                        while (fci < flen) {
+                          if (pipeline_module_top_level_let_name_byte_at(module, fti, fci) != fe.var_name[fci]) {
+                            fmk = 0;
+                            fci = flen;
+                          } else {
+                            fci = fci + 1;
+                          }
+                        }
+                        if (fmk != 0) {
+                          let ftr: i32 = pipeline_module_top_level_let_type_ref(module, fti);
+                          if (!ast.ref_is_null(ftr) && pipeline_type_kind_ord_at(arena, ftr) == 10) {
+                            fnsz = pipeline_type_array_size_at(arena, ftr);
+                          }
+                        }
+                      }
+                      fti = fti + 1;
+                    }
+                  }
+                  if (fnsz > 0) {
+                    slice_tl = try_emit_slice_init_from_array_var(
+                      arena, out, 0, 0, tl_ty, tl_init, ctx, module);
+                    if (slice_tl <= 0) {
+                      if (append_byte(out, 40) != 0) {
+                        return -1;
+                      }
+                      if (emit_type(arena, out, tl_ty, 0 as *u8, 0, ctx) != 0) {
+                        return -1;
+                      }
+                      if (append_byte(out, 41) != 0) {
+                        return -1;
+                      }
+                      if (append_byte(out, 123) != 0) {
+                        return -1;
+                      }
+                      let fd1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+                      if (emit_bytes_from_ptr(out, &fd1[0], 9) != 0) {
+                        return -1;
+                      }
+                      if (emit_bytes_64(out, &fe.var_name[0], fe.var_name_len) != 0) {
+                        return -1;
+                      }
+                      let fd2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
+                      if (emit_bytes_from_ptr(out, &fd2[0], 12) != 0) {
+                        return -1;
+                      }
+                      if (format_int(out, fnsz) != 0) {
+                        return -1;
+                      }
+                      let fd3: u8[4] = [32, 125, 0, 0];
+                      if (emit_bytes_4(out, &fd3[0], 2) != 0) {
+                        return -1;
+                      }
+                    }
+                  } else {
+                    if (emit_expr(arena, out, tl_init, ctx) != 0) {
+                      return -1;
+                    }
                   }
                 }
               }
@@ -21261,7 +21336,65 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               if (slice_ig < 0) {
                 return -1;
               } else if (slice_ig == 0) {
-                if (!ast.ref_is_null(ig_init) && emit_expr(arena, out, ig_init, ctx) != 0) {
+                let ige: Expr = ast.ast_arena_expr_get(arena, ig_init);
+                let ign: i32 = 0;
+                if ((ige.kind as i32) == 3 && ige.var_name_len > 0) {
+                  let igi: i32 = 0;
+                  while (igi < module.num_top_level_lets && ign <= 0) {
+                    let igl: i32 = pipeline_module_top_level_let_name_len(module, igi);
+                    if (igl == ige.var_name_len && igl > 0) {
+                      let igm: i32 = 1;
+                      let igc: i32 = 0;
+                      while (igc < igl) {
+                        if (pipeline_module_top_level_let_name_byte_at(module, igi, igc) != ige.var_name[igc]) {
+                          igm = 0;
+                          igc = igl;
+                        } else {
+                          igc = igc + 1;
+                        }
+                      }
+                      if (igm != 0) {
+                        let igtr: i32 = pipeline_module_top_level_let_type_ref(module, igi);
+                        if (!ast.ref_is_null(igtr) && pipeline_type_kind_ord_at(arena, igtr) == 10) {
+                          ign = pipeline_type_array_size_at(arena, igtr);
+                        }
+                      }
+                    }
+                    igi = igi + 1;
+                  }
+                }
+                if (ign > 0) {
+                  if (append_byte(out, 40) != 0) {
+                    return -1;
+                  }
+                  if (emit_type(arena, out, ig_ty, 0 as *u8, 0, ctx) != 0) {
+                    return -1;
+                  }
+                  if (append_byte(out, 41) != 0) {
+                    return -1;
+                  }
+                  if (append_byte(out, 123) != 0) {
+                    return -1;
+                  }
+                  let igd1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+                  if (emit_bytes_from_ptr(out, &igd1[0], 9) != 0) {
+                    return -1;
+                  }
+                  if (emit_bytes_64(out, &ige.var_name[0], ige.var_name_len) != 0) {
+                    return -1;
+                  }
+                  let igd2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
+                  if (emit_bytes_from_ptr(out, &igd2[0], 12) != 0) {
+                    return -1;
+                  }
+                  if (format_int(out, ign) != 0) {
+                    return -1;
+                  }
+                  let igd3: u8[4] = [32, 125, 0, 0];
+                  if (emit_bytes_4(out, &igd3[0], 2) != 0) {
+                    return -1;
+                  }
+                } else if (!ast.ref_is_null(ig_init) && emit_expr(arena, out, ig_init, ctx) != 0) {
                   return -1;
                 }
               }
