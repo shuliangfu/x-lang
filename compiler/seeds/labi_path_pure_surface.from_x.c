@@ -1091,6 +1091,11 @@ void xlang_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int3
     if ((ok ==0)) {
       continue;
     }
+    int32_t hit = 0;
+    (void)((hit = link_abi_asm_ld_argv_has_obj(argv, cur, p)));
+    if ((hit !=0)) {
+      continue;
+    }
     (void)(((argv)[cur] = p));
     (void)(((la)[0] = (cur + 1)));
   }
