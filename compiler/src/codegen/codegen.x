@@ -5604,42 +5604,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           }
         }
       }
-      /*
-       * Module-level dest-SLICE const/let: no enclosing block. Typeck stamps
-       * the VAR to TYPE_SLICE, hiding N. Scan current-module top-level
-       * lets/consts for a TYPE_ARRAY binding of the same name.
-       * Address-constant `.data = Name` is legal C static init.
-       * PLATFORM: SHARED host-C.
-       */
-      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
-        let tl_mod: *Module = ctx.current_codegen_module;
-        if (tl_mod != 0 as *Module) {
-          let tli: i32 = 0;
-          while (tli < tl_mod.num_top_level_lets && arr_sz <= 0) {
-            let nlen_tl: i32 = pipeline_module_top_level_let_name_len(tl_mod, tli);
-            if (nlen_tl == init_e.var_name_len && nlen_tl > 0) {
-              let matched_tl: i32 = 1;
-              let ci_tl: i32 = 0;
-              while (ci_tl < nlen_tl) {
-                if (pipeline_module_top_level_let_name_byte_at(tl_mod, tli, ci_tl) != init_e.var_name[ci_tl]) {
-                  matched_tl = 0;
-                  ci_tl = nlen_tl;
-                } else {
-                  ci_tl = ci_tl + 1;
-                }
-              }
-              if (matched_tl != 0) {
-                let tr_tl: i32 = pipeline_module_top_level_let_type_ref(tl_mod, tli);
-                if (!ast.ref_is_null(tr_tl) && pipeline_type_kind_ord_at(arena, tr_tl) == 10) {
-                  arr_sz = pipeline_type_array_size_at(arena, tr_tl);
-                }
-              }
-            }
-            tli = tli + 1;
-          }
-        }
-      }
-    } else if (init_ko == 44)
+    } else if (init_ko == 44))
                && init_e.field_access_field_len > 0
                && init_e.field_access_base_ref > 0
                && init_e.field_access_base_ref <= arena.num_exprs) {
