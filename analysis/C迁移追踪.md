@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；host-C dest-SLICE 行 wrap ✅ @ **`75119a170`**；asm dest-SLICE CALL 行 ✅ @ **`454042047`**；4.2.6 let-binding 核查闭；LANG-006 保留；下一硬叶＝nest>16 soft／TYPE_DYN 后期／4.2.4–5／4.2.7 leave-off／dep 模块 CALL dest-SLICE |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；host-C dest-SLICE 行 wrap ✅ @ **`75119a170`**；asm dest-SLICE CALL 行 ✅ @ **`454042047`**；dep 模块 CALL dest-SLICE ✅ @ **`baf8bbae2`**；4.2.6 let-binding 核查闭；LANG-006 保留；下一硬叶＝nest>16 soft／TYPE_DYN 后期／4.2.4–5／4.2.7 leave-off |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -721,7 +721,15 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_slice_from_array_let_init` `else return 0`。补 CALL＝48／METHOD_CALL＝49：同模块 callee 返 TYPE_ARRAY 取 N；emit_expr 按 callee ABI 留 rax=E*（ARRAY 返 8B），再 wrap `{data,length=N}`。dep 模块 return type_ref 另层。权威 `runtime_pipeline_abi.x`（prefer thin+rest；禁 mega）
   - **禁**：改 emit_index／host-C wrap／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
   - 证：`nested_slice_lit_call`／`_method` 三端 **78**；`nested_slice_lit_arr_call` 三端 **71**；`let s:[]i32=mk()` **42**
-  - 余（勿并本叶）：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；dep 模块 CALL dest-SLICE
+  - 余（已闭 dep 模块 CALL dest-SLICE）：@ **`baf8bbae2`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+
+✅ **dep 模块 CALL dest-SLICE** ✅ @ **`baf8bbae2`**
+
+  - 现场：`[][]i32=[dep.mk()]` 同模块 CALL 已绿；`resolved_dep_index>=0` 时 helper `lea_rc<0`／`dep_ix<0` 跳过 → asm 垃圾 length／host-C 无 wrap
+  - **根修（G.7 有则补全）**：产生点＝同一 helper。asm：map callee 返 TYPE_ARRAY 进 caller arena，失败则读 dep arena `array_size`（type_ref 属 arena 本地，≡ wave196）。host-C：`pipeline_dep_ctx_module_at`＋`arena_at` 读 N。权威 `runtime_pipeline_abi.x`＋`codegen.x`
+  - **禁**：改 emit_index／type_to_c_repr／parser assemble／pipeline_abi mega
+  - 证：`nested_slice_lit_call_dep` 三端 **78**（`-E` `.data=dep.mk(),.length=2`）；`_arr_call_dep` 三端 **71**；`let s:[]i32=dep.mk()` 三端 **43**
+  - 余（勿并本叶）：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
 
 ---
 
