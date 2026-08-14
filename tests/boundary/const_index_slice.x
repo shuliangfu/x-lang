@@ -1,12 +1,13 @@
-// Isolated: const INDEX whitelist. `const s: []i32 = a[1]` was T001
-// because typeck_is_const_expr_ref_impl had no EXPR_INDEX=47 case.
-// Base + index must both be const-expr (prior const / lit / ARRAY_LIT).
-// dest-SLICE / dest-[N]T / scalar consume already exist on the emit side.
+// Isolated: const INDEX whitelist + host-C dest-SLICE const wrap.
+// typeck: INDEX=47 is a const-expr iff base+index are both const-expr.
+// host-C: dest-SLICE const INDEX/VAR must emit `{.data,.length}`, not
+// `s = (a)[1]` (pointer into slice struct → BLD001).
 // Expected: compile = 0, run = 42 (asm and host-C).
-// PLATFORM: SHARED — Ubuntu gold typeck.
+// PLATFORM: SHARED — Ubuntu gold typeck + host-C emit.
 
 /**
- * Exit 42 when const INDEX of a prior const / ARRAY_LIT is a const-expr.
+ * Exit 42 when const INDEX of a prior const / ARRAY_LIT is a const-expr
+ * and dest-SLICE const INDEX/VAR host-C wrap is a typed fat compound.
  * @return i32 — 42 ok, else the failing case
  */
 function main(): i32 {
@@ -28,5 +29,8 @@ function main(): i32 {
   const u: []i32 = a[k];
   if (u.length != 2) { return 9; }
   if (u[0] != 10) { return 10; }
+  const v: []i32 = b;
+  if (v.length != 2) { return 11; }
+  if (v[0] != 10) { return 12; }
   return 42;
 }

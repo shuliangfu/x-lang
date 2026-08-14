@@ -5461,6 +5461,9 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  *   legal: ARRAY return ABI is E*. Let-init reent is only for callee TYPE_SLICE.
  * - EXPR_INDEX of `[K][N]T` / `[][N]T` (`let s:[]T = a[i]`, `[][]T = [a[1]]`).
  *   N from base elem TYPE_ARRAY. C `a[i]` decays to E*.
+ * - Block `const` dest-SLICE (`const s:[]T = a[1]` / `= b`): emit_block kind=0
+ *   reuses this helper. Prior: `s = (a)[1]` assigned a pointer into the slice
+ *   struct (host-cc BLD001). Typed compound is a legal C initializer.
  *
  * @param arena *ASTArena — expression/type pool
  * @param out *CodegenOutBuf — C text sink
@@ -15260,8 +15263,24 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (emit_bytes_4(out, &eq[0], 3) != 0) {
               return -1;
             }
-            if (emit_expr(arena, out, cinit_ref, ctx) != 0) {
+            /*
+             * dest-SLICE const INDEX/VAR/FIELD/CALL: same wrap as let.
+             * Prior: emit_expr only → `s = (a)[1]` (pointer into slice struct)
+             * → host-cc BLD001. G.7: reuse try_emit_slice_init_from_array_var.
+             * let_idx = num_lets so VAR scan sees all lets; const scan is
+             * independent of let_idx. PLATFORM: SHARED host-C.
+             */
+            let slice_cinit: i32 = 0;
+            if (!ast.ref_is_null(cinit_ref)) {
+              let nlets_c: i32 = ast.ast_block_num_lets(arena, block_ref);
+              slice_cinit = try_emit_slice_init_from_array_var(arena, out, block_ref, nlets_c, ctype_ref, cinit_ref, ctx);
+            }
+            if (slice_cinit < 0) {
               return -1;
+            } else if (slice_cinit == 0) {
+              if (emit_expr(arena, out, cinit_ref, ctx) != 0) {
+                return -1;
+              }
             }
             let sc: u8[3] = [59, 10, 0];
             if (emit_bytes_3(out, &sc[0], 2) != 0) {
