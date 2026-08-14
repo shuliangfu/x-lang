@@ -5436,51 +5436,6 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
 }
 
 /**
- * Module-table TYPE_ARRAY size for a dest-SLICE VAR name.
- * typeck stamps dest-SLICE VAR exprs to TYPE_SLICE, hiding N; the
- * module let still has TYPE_ARRAY. Used by try_emit so that function
- * stays under the local-slot cap (do not inline this walk there).
- * @param mod *Module — current_codegen_module; null → 0
- * @param arena *ASTArena — type pool for the module lets
- * @param name *u8 — VAR name bytes
- * @param name_len i32 — byte count; <= 0 → 0
- * @return i32 — TYPE_ARRAY N, or 0 if missing / not TYPE_ARRAY
- * PLATFORM: SHARED host-C.
- */
-function codegen_module_top_level_type_array_size(mod: *Module, arena: *ASTArena, name: *u8, name_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    if (mod == 0 as *Module || arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0) {
-      return 0;
-    }
-    let tli: i32 = 0;
-    while (tli < mod.num_top_level_lets) {
-      let nlen_tl: i32 = pipeline_module_top_level_let_name_len(mod, tli);
-      if (nlen_tl == name_len) {
-        let matched_tl: i32 = 1;
-        let ci_tl: i32 = 0;
-        while (ci_tl < nlen_tl) {
-          if (pipeline_module_top_level_let_name_byte_at(mod, tli, ci_tl) != name[ci_tl]) {
-            matched_tl = 0;
-            ci_tl = nlen_tl;
-          } else {
-            ci_tl = ci_tl + 1;
-          }
-        }
-        if (matched_tl != 0) {
-          let tr_tl: i32 = pipeline_module_top_level_let_type_ref(mod, tli);
-          if (!ast.ref_is_null(tr_tl) && pipeline_type_kind_ord_at(arena, tr_tl) == 10) {
-            return pipeline_type_array_size_at(arena, tr_tl);
-          }
-        }
-      }
-      tli = tli + 1;
-    }
-    return 0;
-  }
-}
-
-/**
  * Host-C: wrap a fixed TYPE_ARRAY rvalue as a TYPE_SLICE compound.
  * Emits `(T[]){ .data = <arr>, .length = N }` — typed compound is legal both
  * as a declaration initializer (`let s: T[] = arr`) and as an assignment
@@ -5514,11 +5469,6 @@ function codegen_module_top_level_type_array_size(mod: *Module, arena: *ASTArena
  *   `{.data = A[1], .length = N}` when `.data` is an address constant
  *   (static array / row). VAR N is recovered from module top-level
  *   TYPE_ARRAY lets (typeck stamps the dest-SLICE VAR to TYPE_SLICE).
- * - Function-scope dest-SLICE of a module TYPE_ARRAY VAR
- *   (`let s:[]T = A` where A is file-scope `[N]T`, const or mutable):
- *   typeck stamps the VAR to TYPE_SLICE and the name is not a block let.
- *   Recover N from the module table (same walk as INDEX). `.data = A`
- *   is a C file-scope array decay. Do not fall through to `s = A`.
  *   CALL/statement-expr is not a C static constant — typeck rejects those
  *   as module const; this helper still wraps them for init_globals assign.
  * - Module dest-SLICE ARRAY_LIT (`const t:[]T = [10,32]` / `[][]T = [[…]]`)
@@ -5660,17 +5610,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           }
         }
       }
-      /*
-       * dest-SLICE stamps the VAR to TYPE_SLICE, hiding N. Module
-       * TYPE_ARRAY is not a block let. Helper keeps try_emit under
-       * the local-slot cap. `.data = A` is a file-scope C array.
-       * PLATFORM: SHARED host-C.
-       */
-      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
-        arr_sz = codegen_module_top_level_type_array_size(
-          ctx.current_codegen_module, arena, &init_e.var_name[0], init_e.var_name_len);
-      }
-    } else if (init_ko == 44)
+    } else if (init_ko == 44
                && init_e.field_access_field_len > 0
                && init_e.field_access_base_ref > 0
                && init_e.field_access_base_ref <= arena.num_exprs) {

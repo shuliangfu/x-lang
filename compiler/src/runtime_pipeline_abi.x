@@ -29699,12 +29699,18 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
 }
 
 /**
- * Seed non-zero COMMON cells once on hoist-target entry.
+ * Seed COMMON cells once on hoist-target entry.
+ * Scalar cells: non-zero init_imm (historic wave139).
+ * TYPE_ARRAY ARRAY_LIT cells: prepare emits zero BSS; write LIT elems
+ * into COMMON so dest-SLICE / INDEX LEA sees the source payload
+ * (`let A:[2]i32=[10,32]`). Empty `u8[N]=[]` stays zero (correct).
+ * Arena/module from emit ctx (no extra pointer arg).
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 mov/store fail
  * wave139 pure: G.7 authority (was static seed_nonzero_inits_elf_c).
- * Cap residual: backend_enc_mov_imm64_to_rax_arch + store_from_rax pure face.
+ * Cap residual: backend_enc_mov_imm64_to_rax_arch + store_from_rax +
+ *   store_rax_to_rbx_offset + ARRAY_LIT readers.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -29731,6 +29737,108 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
       }
     }
     i = i + 1;
+  }
+  // Mutable module TYPE_ARRAY ARRAY_LIT → COMMON is BSS zero until we
+  // store elems here (hoist skips those lets). dest-SLICE wrap LEAs the
+  // cell; without this seed s[0] reads 0.
+  // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+  let arena: *u8 = pipeline_asm_emit_ctx_arena_get();
+  let mod: *u8 = pipeline_asm_emit_module_ref_c();
+  if (arena != (0 as *u8) && mod != (0 as *u8)) {
+    let nlets: i32 = pipe_mod_get_num_top_level_lets(mod);
+    let nexprs: i32 = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+    let tl: i32 = 0;
+    while (tl < nlets) {
+      let is_c: i32 = 0;
+      let nlen: i32 = 0;
+      let init_ref: i32 = 0;
+      let type_ref: i32 = 0;
+      let ik: i32 = 0;
+      let tk: i32 = 0;
+      let idx: i32 = 0;
+      let csz: i32 = 0;
+      let et: i32 = 0;
+      let esz: i32 = 0;
+      let ne: i32 = 0;
+      let ei: i32 = 0;
+      let eref: i32 = 0;
+      let ek: i32 = 0;
+      let ev: i32 = 0;
+      let rc2: i32 = 0;
+      let name_buf: u8[128] = [];
+      let k: i32 = 0;
+      unsafe {
+        is_c = pipeline_module_top_level_let_is_const(mod, tl);
+        nlen = pipeline_module_top_level_let_name_len(mod, tl);
+      }
+      if (is_c == 0 && nlen > 0 && nlen <= 127) {
+        k = 0;
+        while (k < nlen) {
+          unsafe {
+            name_buf[k] = pipeline_module_top_level_let_name_byte_at(mod, tl, k) as u8;
+          }
+          k = k + 1;
+        }
+        idx = pipeline_asm_modlet_find(&name_buf[0], nlen);
+        if (idx >= 0) {
+          csz = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx));
+          if (pipe_modlet_cell_is_array(csz) != 0) {
+            unsafe {
+              init_ref = pipeline_module_top_level_let_init_ref(mod, tl);
+              type_ref = pipeline_module_top_level_let_type_ref(mod, tl);
+            }
+            if (init_ref > 0 && init_ref <= nexprs && type_ref > 0) {
+              unsafe {
+                ik = pipeline_expr_kind_ord_at(arena, init_ref);
+                tk = pipeline_type_kind_ord_at(arena, type_ref);
+              }
+              if (ik == 46 && tk == 10) {
+                unsafe {
+                  et = pipeline_type_elem_ref_at(arena, type_ref);
+                  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+                }
+                esz = glue_array_lit_force_esz_from_elem_type_c(arena, et);
+                if (esz <= 0) {
+                  esz = 4;
+                }
+                if (ne > 0 && ne <= 1024) {
+                  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) == 0) {
+                    ei = 0;
+                    while (ei < ne) {
+                      unsafe {
+                        eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+                      }
+                      if (eref > 0) {
+                        unsafe {
+                          ek = pipeline_expr_kind_ord_at(arena, eref);
+                        }
+                        if (ek == 0) {
+                          unsafe {
+                            ev = pipeline_expr_int_val_at(arena, eref);
+                            rc2 = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, 0, ta);
+                          }
+                          if (rc2 != 0) {
+                            return 0 - 1;
+                          }
+                          unsafe {
+                            rc2 = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ei * esz, esz, ta);
+                          }
+                          if (rc2 != 0) {
+                            return 0 - 1;
+                          }
+                        }
+                      }
+                      ei = ei + 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      tl = tl + 1;
+    }
   }
   return 0;
 }

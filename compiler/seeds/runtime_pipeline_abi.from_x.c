@@ -13144,6 +13144,7 @@ int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) 
                                                  g_pipeline_asm_modlet_cold.name_len[i], ta) != 0)
       return -1;
   }
+  /* Live .x also seeds TYPE_ARRAY ARRAY_LIT LIT elems into COMMON. */
   return 0;
 }
 
