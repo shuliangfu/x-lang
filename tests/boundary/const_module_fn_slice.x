@@ -2,10 +2,11 @@
 // try_emit only scans block lets/consts (slot cap forbids a module walk
 // there). File-scope dest-SLICE already wrapped via a caller fallback;
 // a helper `let s:[]i32 = A` used to emit `s = A` (host-cc BLD001).
-// Do not reopen try_emit. Function-scope `const s:[]T = A` is a different
-// layer (typeck T001 const-expr / module VAR) — not this emit knife.
+// Function-scope `const s:[]T = A` is the typeck T001 leftover: the
+// const-expr whitelist only scanned prior block const names. This probe
+// now covers that whitelist (const dest-SLICE / ARRAY_LIT row / INDEX).
 // Expected: compile = 0, run = 42 (three backends).
-// PLATFORM: SHARED — Ubuntu gold host-C function-scope module VAR wrap.
+// PLATFORM: SHARED — Ubuntu gold typeck + host-C function-scope module VAR.
 
 const A: [2]i32 = [10, 32];
 let B: [2]i32 = [10, 32];
@@ -48,6 +49,27 @@ function wrap_row(): i32 {
 }
 
 /**
+ * Function-scope const dest-SLICE / row / INDEX of a module const VAR.
+ * typeck whitelist must accept the module const name (not only prior
+ * block consts). Mutable module `B` stays rejected (not probed here).
+ * @return i32 — 42 ok, else the failing case
+ */
+function wrap_cdecl(): i32 {
+  const s: []i32 = A;
+  if (s.length != 2) { return 51; }
+  if (s[0] != 10) { return 52; }
+  if (s[1] != 32) { return 53; }
+  const x: [][]i32 = [A];
+  if (x.length != 1) { return 54; }
+  if (x[0].length != 2) { return 55; }
+  if (x[0][0] != 10) { return 56; }
+  if (x[0][1] != 32) { return 57; }
+  const n: i32 = A[1];
+  if (n != 32) { return 58; }
+  return 42;
+}
+
+/**
  * Main: all function-scope dest-SLICE-of-module-VAR wraps must be 42.
  * @return i32 — 42 ok, else the first failing helper code
  */
@@ -57,6 +79,8 @@ function main(): i32 {
   rc = wrap_mut();
   if (rc != 42) { return rc; }
   rc = wrap_row();
+  if (rc != 42) { return rc; }
+  rc = wrap_cdecl();
   if (rc != 42) { return rc; }
   return 42;
 }

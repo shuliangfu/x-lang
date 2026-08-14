@@ -121,6 +121,8 @@ extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a
 extern int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
 extern struct ast_Module *pipeline_typeck_active_module_c(void);
+extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *module, uint8_t *vname,
+                                                       int32_t vlen);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -163,6 +165,30 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       if (!const_names[i])
         continue;
       if (e->var_name_len > 0 && strcmp(const_names[i], e->var_name) == 0)
+        return 1;
+    }
+    /**
+     * PLATFORM: SHARED — a module top-level const VAR is a const-expr when
+     * this check is the block-const whitelist (const_names != NULL).
+     *
+     * Why: `const s: []i32 = A` / `const n: i32 = A[1]` / `const x: [][]i32 = [A]`
+     *      in a function, with `const A` at module scope, parse as EXPR_VAR.
+     *      The whitelist only scanned prior *block* const names, so typeck
+     *      emitted T001 "const init must be constant expression". Mutable
+     *      module lets stay rejected (`pipeline_module_top_level_name_is_const`
+     *      is const-only). Active module is set at typeck entry (same BSS
+     *      as the enum FIELD pre-mark).
+     *
+     *      C-static-init / pure-lit fold pass const_names=NULL and must
+     *      still reject VAR (want_decl_init: VAR trees stay init_globals).
+     *
+     * G.7: extend this whitelist. Do not add a second checker. Import
+     *      module consts need dep ctx (not in this helper) — later knife.
+     */
+    if (const_names != NULL && e->var_name_len > 0) {
+      struct ast_Module *mod = pipeline_typeck_active_module_c();
+      if (mod && pipeline_module_top_level_name_is_const(mod, (uint8_t *)e->var_name,
+                                                        e->var_name_len) != 0)
         return 1;
     }
     return 0;

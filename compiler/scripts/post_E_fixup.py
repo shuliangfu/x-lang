@@ -151,6 +151,8 @@ extern int32_t typeck_get_field_offset_from_layout(struct ast_Module * module, u
 extern struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t i);
+extern struct ast_Module *pipeline_typeck_active_module_c(void);
+extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *module, uint8_t *vname, int32_t vlen);
 
 /* (2) STATIC HELPER typeck_is_const_expr_ref_impl (verbatim seed L15610-L15812) */
 static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref, const char *const_names[], int n_const_names) {
@@ -169,6 +171,15 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       if (!const_names[i])
         continue;
       if (e->var_name_len > 0 && strcmp(const_names[i], e->var_name) == 0)
+        return 1;
+    }
+    /* PLATFORM: SHARED — module top-level const VAR is a const-expr in the
+     * block-const whitelist (const_names != NULL). Mirror residual.
+     * C-static-init / pure-lit fold pass NULL and still reject VAR. */
+    if (const_names != NULL && e->var_name_len > 0) {
+      struct ast_Module *mod = pipeline_typeck_active_module_c();
+      if (mod && pipeline_module_top_level_name_is_const(mod, (uint8_t *)e->var_name,
+                                                        e->var_name_len) != 0)
         return 1;
     }
     return 0;
@@ -476,6 +487,10 @@ def append_typeck_missing_bodies(src: str) -> str:
          "extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);"),
         ("ast_pipeline_block_expr_stmt_ref",
          "extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t i);"),
+        ("pipeline_typeck_active_module_c",
+         "extern struct ast_Module *pipeline_typeck_active_module_c(void);"),
+        ("pipeline_module_top_level_name_is_const",
+         "extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *module, uint8_t *vname, int32_t vlen);"),
     ]
     _tx_parts = []
     for _name, _decl in _transitive_externs:
@@ -539,6 +554,15 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       if (!const_names[i])
         continue;
       if (e->var_name_len > 0 && strcmp(const_names[i], e->var_name) == 0)
+        return 1;
+    }
+    /* PLATFORM: SHARED — module top-level const VAR is a const-expr in the
+     * block-const whitelist (const_names != NULL). Mirror residual.
+     * C-static-init / pure-lit fold pass NULL and still reject VAR. */
+    if (const_names != NULL && e->var_name_len > 0) {
+      struct ast_Module *mod = pipeline_typeck_active_module_c();
+      if (mod && pipeline_module_top_level_name_is_const(mod, (uint8_t *)e->var_name,
+                                                        e->var_name_len) != 0)
         return 1;
     }
     return 0;
