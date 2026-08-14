@@ -1393,16 +1393,23 @@ export function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_i32_indirect_to_rax_arch`.
- * Implements `backend_enc_load_i32_indirect_to_rax_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Signed i32 load from [rax/x0] into the full GP (rax/x0).
+ * @param elf_ctx *u8 — emit context
+ * @param ta i32 — 0=x86_64, 1=arm64, 2=riscv64
+ * @return i32 — 0 ok, -1 encoder failure
+ * PLATFORM: SHARED — x86 movsxd (CDQE after movl); MACOS|ARM64 LDRSW.
+ * emit_index / deref esz==4 call this. `ldr w0,[x0]` zero-extends, so
+ * `a[0] != -5` compared a 64-bit literal `-5` as not-equal (RUN=3).
+ * G.7: x86 already CDQE; ARM64 uses LDRSW x0,[x0] (0xB9800000) — same
+ * family as arm64_enc_load_w0_from_rbp_c. Do not change load_32_from_rax
+ * (f32 bits / unsigned 32 stay zero-ext). Do not change 64-bit idiv.
  */
 #[no_mangle]
 export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_load_32_from_rax(elf_ctx); }
+    // LDRSW x0, [x0] — signed 32→64; twin of x86 CDQE. Not ldr w0.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 3112173568 as i32); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_load_32_from_rax(elf_ctx); }

@@ -2487,10 +2487,13 @@ int32_t backend_enc_load_32_from_rax_arch(struct platform_elf_ElfCodegenCtx *elf
 
 /**
  * i32 间接 load 后规范化 rax（x86 已由 load_32_from_rax_arch 内建 cdqe）。
+ * ARM64: LDRSW x0,[x0] — ldr w0 零扩展会让 INDEX 比 64 位 -5 失败。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_i32_indirect_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xB9800000u); /* ldrsw x0,[x0] */
   return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
 }
 #endif

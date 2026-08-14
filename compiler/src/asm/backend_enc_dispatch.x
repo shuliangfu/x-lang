@@ -1993,14 +1993,21 @@ export function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   }
 }
 
-/** Exported function `backend_enc_load_i32_indirect_to_rax_arch`.
- * Implements `backend_enc_load_i32_indirect_to_rax_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Signed i32 load from [rax/x0] into the full GP (rax/x0).
+ * @param elf_ctx *u8 — emit context
+ * @param ta i32 — 0=x86_64, 1=arm64, 2=riscv64
+ * @return i32 — 0 ok, -1 encoder failure
+ * PLATFORM: SHARED — x86 CDQE via load_32; MACOS|ARM64 LDRSW x0,[x0].
+ * G.7 complete: emit_index esz==4 vs 64-bit `-5` needs sign-extend.
+ * Do not change load_32_from_rax (f32 bits stay zero-ext). Product L2
+ * uses thin; this full twin stays aligned.
  */
 #[no_mangle]
 export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 3112173568 as i32); }
+  }
   return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
 }
 

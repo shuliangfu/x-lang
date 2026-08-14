@@ -1275,7 +1275,9 @@ int32_t backend_enc_load_32_from_rax_arch(uint8_t * elf_ctx, int32_t ta) {
 int32_t backend_enc_load_i32_indirect_to_rax_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_load_32_from_rax(elf_ctx);
+      /* LDRSW x0,[x0] 0xB9800000 — signed 32→64; twin of x86 CDQE.
+       * ldr w0 zero-extends so INDEX vs 64-bit -5 fails. */
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xB9800000u);
     }
   }
   if ((ta ==2)) {
