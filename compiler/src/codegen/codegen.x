@@ -5479,14 +5479,10 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * @param let_type_ref i32 — must be TYPE_SLICE (kind 11)
  * @param linit_ref i32 — init expr (VAR, FIELD_ACCESS, CALL, METHOD_CALL, or INDEX)
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for scalar []i32
- * @param scan_mod *Module — module whose top-level lets supply VAR/INDEX N
- *   when there is no enclosing block (file-scope dest-SLICE). Null →
- *   ctx.current_codegen_module. Top-level emit must pass the live module:
- *   ctx may be null or still pointing at a dep.
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
  */
-export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx, scan_mod: *Module): i32 {
+export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
@@ -5495,10 +5491,6 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     }
     if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
       return 0;
-    }
-    let tl_scan: *Module = scan_mod;
-    if (tl_scan == 0 as *Module && ctx != 0 as *PipelineDepCtx) {
-      tl_scan = ctx.current_codegen_module;
     }
     let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
     let arr_sz: i32 = 0;
@@ -5625,8 +5617,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
        * Address-constant `.data = Name` is legal C static init.
        * PLATFORM: SHARED host-C.
        */
-      if (arr_sz <= 0 && tl_scan != 0 as *Module) {
-        let tl_mod: *Module = tl_scan;
+      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
+        let tl_mod: *Module = ctx.current_codegen_module;
         if (tl_mod != 0 as *Module) {
           let tli: i32 = 0;
           while (tli < tl_mod.num_top_level_lets && arr_sz <= 0) {
@@ -5784,10 +5776,10 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
             }
           }
         }
-        if (arr_sz <= 0 && tl_scan != 0 as *Module) {
+        if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
           let be: Expr = ast.ast_arena_expr_get(arena, ix_base);
           if (pipeline_expr_kind_ord_at(arena, ix_base) == 3 && be.var_name_len > 0) {
-            let ix_mod: *Module = tl_scan;
+            let ix_mod: *Module = ctx.current_codegen_module;
             if (ix_mod != 0 as *Module) {
               let tli: i32 = 0;
               while (tli < ix_mod.num_top_level_lets && arr_sz <= 0) {
@@ -6156,7 +6148,7 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
           }
           if (!ast.ref_is_null(et_br) && et_br > 0
               && pipeline_type_kind_ord_at(arena, et_br) == (TypeKind.TYPE_SLICE as i32)) {
-            wrap_br = try_emit_slice_init_from_array_var(arena, out, br_br, nlets_br, et_br, elem_ref, ctx, 0 as *Module);
+            wrap_br = try_emit_slice_init_from_array_var(arena, out, br_br, nlets_br, et_br, elem_ref, ctx);
           }
         }
         if (wrap_br < 0) {
@@ -14471,7 +14463,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 nlets_nc = ast.ast_block_num_lets(arena, br_nc);
               }
             }
-            wrap_nc = try_emit_slice_init_from_array_var(arena, out, br_nc, nlets_nc, elem_type_ref, er_nc, ctx, 0 as *Module);
+            wrap_nc = try_emit_slice_init_from_array_var(arena, out, br_nc, nlets_nc, elem_type_ref, er_nc, ctx);
           }
           if (wrap_nc < 0) {
             return -1;
@@ -15378,7 +15370,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             let slice_cinit: i32 = 0;
             if (!ast.ref_is_null(cinit_ref)) {
               let nlets_c: i32 = ast.ast_block_num_lets(arena, block_ref);
-              slice_cinit = try_emit_slice_init_from_array_var(arena, out, block_ref, nlets_c, ctype_ref, cinit_ref, ctx, 0 as *Module);
+              slice_cinit = try_emit_slice_init_from_array_var(arena, out, block_ref, nlets_c, ctype_ref, cinit_ref, ctx);
             }
             if (slice_cinit < 0) {
               return -1;
@@ -15582,7 +15574,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
               let slice_init: i32 = 0;
               if (!ast.ref_is_null(linit_ref)) {
-                slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref, ctx, 0 as *Module);
+                slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref, ctx);
               }
               if (ast.ref_is_null(linit_ref)) {
                 let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
@@ -21148,7 +21140,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                     ctx.current_codegen_arena = arena;
                   }
                   slice_tl = try_emit_slice_init_from_array_var(
-                    arena, out, 0, 0, tl_ty, tl_init, ctx, module);
+                    arena, out, 0, 0, tl_ty, tl_init, ctx);
                 }
                 if (slice_tl < 0) {
                   return -1;
@@ -21186,12 +21178,9 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                     }
                   }
                   if (fnsz > 0) {
-                    slice_tl = try_emit_slice_init_from_array_var(
-                      arena, out, 0, 0, tl_ty, tl_init, ctx, module);
-                    if (slice_tl <= 0) {
-                      if (append_byte(out, 40) != 0) {
-                        return -1;
-                      }
+                    if (append_byte(out, 40) != 0) {
+                      return -1;
+                    }
                       if (emit_type(arena, out, tl_ty, 0 as *u8, 0, ctx) != 0) {
                         return -1;
                       }
@@ -21219,7 +21208,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                       if (emit_bytes_4(out, &fd3[0], 2) != 0) {
                         return -1;
                       }
-                    }
                   } else {
                     if (emit_expr(arena, out, tl_init, ctx) != 0) {
                       return -1;
@@ -21331,7 +21319,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                   && pipeline_type_kind_ord_at(arena, ig_ty) == 11
                   && !ast.ref_is_null(ig_init)) {
                 slice_ig = try_emit_slice_init_from_array_var(
-                  arena, out, 0, 0, ig_ty, ig_init, ctx, module);
+                  arena, out, 0, 0, ig_ty, ig_init, ctx);
               }
               if (slice_ig < 0) {
                 return -1;
@@ -21465,7 +21453,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                       let saved_dig: *Module = ctx.current_codegen_module;
                       ctx.current_codegen_module = dep_mod;
                       slice_dig = try_emit_slice_init_from_array_var(
-                        dep_arena, out, 0, 0, dig_ty, dig_init, ctx, dep_mod);
+                        dep_arena, out, 0, 0, dig_ty, dig_init, ctx);
                       ctx.current_codegen_module = saved_dig;
                     }
                     if (slice_dig < 0) {
