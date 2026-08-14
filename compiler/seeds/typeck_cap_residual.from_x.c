@@ -368,6 +368,30 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       return 0;
     return typeck_is_const_expr_ref_impl(a, op, const_names, n_const_names);
   }
+  /**
+   * PLATFORM: SHARED — EXPR_INDEX is a const expression iff base and index are.
+   *
+   * Why: `const s: []i32 = a[1]` / `const r: [2]i32 = a[0]` / `const n: i32 = b[1]`
+   *      parse as EXPR_INDEX (kind 47). The whitelist had no case, so typeck
+   *      emitted T001 even when `a`/`b` were prior consts and the index was a
+   *      lit or prior const. Recurse both children — a let-bound base stays
+   *      rejected (VAR not in const_names), which is correct.
+   *
+   *      dest-SLICE / dest-[N]T / scalar consume stay on emit (const aggregate
+   *      helpers already wrap INDEX). Fold does not stamp INDEX into i32
+   *      (element may be ARRAY/SLICE).
+   *
+   * G.7: extend this whitelist (same helper as EXPR_AS / ARRAY_LIT). Do not
+   *      add a second const-expr checker. Do not touch dest-SLICE emit.
+   */
+  if (kd == ast_ExprKind_EXPR_INDEX) {
+    int32_t base = e->index_base_ref;
+    int32_t idx = e->index_index_ref;
+    if (base <= 0 || idx <= 0)
+      return 0;
+    return typeck_is_const_expr_ref_impl(a, base, const_names, n_const_names) &&
+           typeck_is_const_expr_ref_impl(a, idx, const_names, n_const_names);
+  }
   return 0;
 }
 
@@ -665,6 +689,23 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       if (init_ref > 0)
         typeck_fold_expr_ref_impl(a, init_ref, const_names, const_values, n_const_names);
     }
+    return;
+  }
+
+  if (kd == ast_ExprKind_EXPR_INDEX) {
+    /*
+     * PLATFORM: SHARED — CTFE recurse for EXPR_INDEX (const whitelist twin).
+     * Fold base + index so nested lits/binops still CTFE. Never stamp the
+     * INDEX node: the element may be ARRAY/SLICE (dest-SLICE `const s = a[1]`)
+     * and cannot fit i32 const_folded_val. Scalar `const n = b[1]` emit loads
+     * from the const array slot. G.7: same producer as ARRAY_LIT / STRUCT_LIT.
+     */
+    int32_t base = e->index_base_ref;
+    int32_t idx = e->index_index_ref;
+    if (base > 0)
+      typeck_fold_expr_ref_impl(a, base, const_names, const_values, n_const_names);
+    if (idx > 0)
+      typeck_fold_expr_ref_impl(a, idx, const_names, const_values, n_const_names);
     return;
   }
 
@@ -1234,6 +1275,10 @@ void typeck_fold_expr(struct ast_ASTArena *arena, int32_t expr_ref) {
        * block-const env), the handler inside glue_typeck_fold_expr_ref
        * picks the live branch and stamps the result. Mirrors EXPR_MATCH
        * treatment above. */
+      typeck_fold_expr_ref_impl(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_INDEX) {
+      /* PLATFORM: SHARED — INDEX of a runtime base is not a const-expr.
+       * Still recurse so a const index / nested lit tree can fold. */
       typeck_fold_expr_ref_impl(arena, expr_ref, NULL, NULL, 0);
     } else if (e->kind == ast_ExprKind_EXPR_BLOCK) {
       /* PLATFORM: SHARED — Block expression `({ stmt; expr })` is not a pure

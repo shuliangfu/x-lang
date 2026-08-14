@@ -252,6 +252,16 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
       return 0;
     return typeck_is_const_expr_ref_impl(a, op, const_names, n_const_names);
   }
+  /* PLATFORM: SHARED — EXPR_INDEX is const iff base and index are (mirror
+   * typeck_cap_residual.from_x.c). Let-bound bases stay rejected. */
+  if (kd == ast_ExprKind_EXPR_INDEX) {
+    int32_t base = e->index_base_ref;
+    int32_t idx = e->index_index_ref;
+    if (base <= 0 || idx <= 0)
+      return 0;
+    return typeck_is_const_expr_ref_impl(a, base, const_names, n_const_names) &&
+           typeck_is_const_expr_ref_impl(a, idx, const_names, n_const_names);
+  }
   return 0;
 }
 
@@ -611,6 +621,16 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
     if (op <= 0)
       return 0;
     return typeck_is_const_expr_ref_impl(a, op, const_names, n_const_names);
+  }
+  /* PLATFORM: SHARED — EXPR_INDEX is const iff base and index are (mirror
+   * typeck_cap_residual.from_x.c). Let-bound bases stay rejected. */
+  if (kd == ast_ExprKind_EXPR_INDEX) {
+    int32_t base = e->index_base_ref;
+    int32_t idx = e->index_index_ref;
+    if (base <= 0 || idx <= 0)
+      return 0;
+    return typeck_is_const_expr_ref_impl(a, base, const_names, n_const_names) &&
+           typeck_is_const_expr_ref_impl(a, idx, const_names, n_const_names);
   }
   return 0;
 }
