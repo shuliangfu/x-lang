@@ -6041,8 +6041,84 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
     scratch[n + 1] = (uint8_t)'*';
     return n + 2;
   }
-  if (tk == 10 && elem_ref > 0)
-    return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+  /* TYPE_ARRAY: `xlang_arr<N>_<elemC>` (matches runtime_pipeline_abi.x).
+   * Prior decay made [][2]i32 → xlang_slice_int32_t (host-C INDEX BLD001).
+   * arr_sz<=0 keeps decay. PLATFORM: SHARED cold twin. */
+  if (tk == 10 && elem_ref > 0) {
+    int32_t w;
+    int32_t n_el;
+    int32_t sp_el;
+    int32_t pi_el;
+    int32_t keep;
+    int32_t d;
+    int32_t nv;
+    uint8_t tmp[16];
+    int32_t tlen;
+    int32_t ti;
+    static const uint8_t k_arr[9] = {'x', 'l', 'a', 'n', 'g', '_', 'a', 'r', 'r'};
+    if (arr_sz <= 0)
+      return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+    n_el = pipeline_codegen_type_to_c_repr_inner(arena, eb, 256, elem_ref, struct_prefix, struct_prefix_len);
+    if (n_el < 0 || n_el >= 256)
+      return -1;
+    sp_el = 0;
+    if (n_el >= 7 && eb[0] == 's' && eb[1] == 't' && eb[2] == 'r' && eb[3] == 'u' && eb[4] == 'c' && eb[5] == 't'
+        && eb[6] == ' ') {
+      sp_el = 7;
+      while (sp_el < n_el && eb[sp_el] == ' ')
+        sp_el++;
+    }
+    if (9 >= cap)
+      return -1;
+    for (w = 0; w < 9; w++)
+      scratch[w] = k_arr[w];
+    nv = arr_sz;
+    tlen = 0;
+    if (nv <= 0) {
+      tmp[0] = (uint8_t)'0';
+      tlen = 1;
+    } else {
+      while (nv > 0 && tlen < 16) {
+        d = nv % 10;
+        tmp[tlen++] = (uint8_t)('0' + d);
+        nv = nv / 10;
+      }
+    }
+    if (w + tlen >= cap)
+      return -1;
+    for (ti = 0; ti < tlen; ti++)
+      scratch[w++] = tmp[tlen - 1 - ti];
+    if (w + 1 >= cap)
+      return -1;
+    scratch[w++] = (uint8_t)'_';
+    for (pi_el = sp_el; pi_el < n_el; pi_el++) {
+      uint8_t ch = eb[pi_el];
+      if (ch == (uint8_t)'*') {
+        if (w + 2 >= cap)
+          return -1;
+        scratch[w++] = (uint8_t)'_';
+        scratch[w++] = (uint8_t)'p';
+      } else {
+        keep = 0;
+        if (ch >= (uint8_t)'0' && ch <= (uint8_t)'9')
+          keep = 1;
+        if (ch >= (uint8_t)'A' && ch <= (uint8_t)'Z')
+          keep = 1;
+        if (ch >= (uint8_t)'a' && ch <= (uint8_t)'z')
+          keep = 1;
+        if (ch == (uint8_t)'_')
+          keep = 1;
+        if (keep) {
+          if (w >= cap)
+            return -1;
+          scratch[w++] = ch;
+        }
+      }
+    }
+    if (w <= 10)
+      return -1;
+    return w;
+  }
   if (tk == 13 && elem_ref > 0) {
     elem_kind = pipeline_type_kind_ord_at(arena, elem_ref);
     n = pipeline_codegen_vector_type_copy(scratch, cap, elem_kind, arr_sz);

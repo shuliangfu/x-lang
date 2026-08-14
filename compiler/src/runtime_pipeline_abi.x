@@ -14983,6 +14983,49 @@ function cg_ttc_write_bytes(dst: *u8, cap: i32, src: *u8, n: i32): i32 {
 }
 
 /**
+ * Write a non-negative decimal integer at dst[off] (no NUL).
+ * @param dst *u8 — destination; null → -1
+ * @param cap i32 — destination capacity
+ * @param off i32 — start offset; must be >= 0
+ * @param v i32 — value; v < 0 treated as 0
+ * @return i32 — offset after the last written digit, or -1 on overflow
+ * PLATFORM: SHARED — type_to_c ARRAY tag `xlang_arr<N>_…`.
+ */
+function cg_ttc_write_uint_at(dst: *u8, cap: i32, off: i32, v: i32): i32 {
+  if (dst == 0 as *u8 || cap <= 0 || off < 0 || off >= cap) {
+    return -1;
+  }
+  let n: i32 = v;
+  if (n < 0) {
+    n = 0;
+  }
+  let tmp: u8[16] = [];
+  let tlen: i32 = 0;
+  if (n == 0) {
+    tmp[0] = 48;
+    tlen = 1;
+  } else {
+    while (n > 0 && tlen < 16) {
+      let d: i32 = n - (n / 10) * 10;
+      tmp[tlen] = (48 + d) as u8;
+      tlen = tlen + 1;
+      n = n / 10;
+    }
+  }
+  if (off + tlen > cap) {
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < tlen) {
+    unsafe {
+      dst[off + i] = tmp[tlen - 1 - i];
+    }
+    i = i + 1;
+  }
+  return off + tlen;
+}
+
+/**
  * TypeKind builtin -> C type name into dst (no NUL).
  * @param dst *u8 - destination buffer
  * @param cap i32 - capacity
@@ -15124,6 +15167,7 @@ export function pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w: i32
  * @return i32 - byte count, or -1 on overflow
  * wave109 pure: G.7 single product authority (was type_to_c_repr_inner + entry).
  * Uses stack inner/eb for recursive SLICE/PTR (wave691; no static re-entry).
+ * TYPE_ARRAY writes `xlang_arr<N>_<elem>` so `[][N]T` is not `xlang_slice_<T>`.
  * PLATFORM: SHARED host-C type_to_c_repr authority.
  */
 #[no_mangle]
@@ -15174,9 +15218,108 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
     }
     return n + 2;
   }
-  // TYPE_ARRAY (10): decay to elem C type
+  // TYPE_ARRAY (10): sanitizable tag `xlang_arr<N>_<elemC>` (no `[]` / `*` in names).
+  // Prior: decayed to the leaf so `[][2]i32` became `struct xlang_slice_int32_t`
+  // and host-C INDEX `(x).data[0][1]` was `i32[1]` (BLD001). Slice-of-array
+  // layouts use this tag; `data` is `E (*)[N]` so INDEX needs no consume patch.
+  // arr_sz<=0 keeps the old decay (unsized / invalid).
+  // PLATFORM: SHARED host-C type_to_c_repr. G.7 complete same authority.
   if (tk == 10 && elem_ref > 0) {
-    return pipeline_codegen_type_to_c_repr(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+    if (arr_sz <= 0) {
+      return pipeline_codegen_type_to_c_repr(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+    }
+    let n_el: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 256, elem_ref, struct_prefix, struct_prefix_len);
+    if (n_el < 0 || n_el >= 256) {
+      return -1;
+    }
+    let sp_el: i32 = 0;
+    if (n_el >= 7) {
+      let is_st: i32 = 0;
+      unsafe {
+        if (eb[0] == 115 && eb[1] == 116 && eb[2] == 114 && eb[3] == 117 && eb[4] == 99 && eb[5] == 116 && eb[6] == 32) {
+          is_st = 1;
+        }
+      }
+      if (is_st != 0) {
+        sp_el = 7;
+        while (sp_el < n_el) {
+          let chs: u8 = 0;
+          unsafe {
+            chs = eb[sp_el];
+          }
+          if (chs != 32) {
+            break;
+          }
+          sp_el = sp_el + 1;
+        }
+      }
+    }
+    // "xlang_arr" = 9 bytes
+    if (9 >= cap) {
+      return -1;
+    }
+    let hdr_ar: u8[9] = [120, 108, 97, 110, 103, 95, 97, 114, 114];
+    let w_ar: i32 = 0;
+    while (w_ar < 9) {
+      unsafe {
+        scratch[w_ar] = hdr_ar[w_ar];
+      }
+      w_ar = w_ar + 1;
+    }
+    w_ar = cg_ttc_write_uint_at(scratch, cap, w_ar, arr_sz);
+    if (w_ar < 0 || w_ar + 1 >= cap) {
+      return -1;
+    }
+    unsafe {
+      scratch[w_ar] = 95;
+    }
+    w_ar = w_ar + 1;
+    // Copy elem tag: keep [A-Za-z0-9_]; map `*` → `_p`; skip spaces / brackets.
+    let pi_el: i32 = sp_el;
+    while (pi_el < n_el) {
+      let ch: u8 = 0;
+      unsafe {
+        ch = eb[pi_el];
+      }
+      if (ch == 42) {
+        if (w_ar + 2 >= cap) {
+          return -1;
+        }
+        unsafe {
+          scratch[w_ar] = 95;
+          scratch[w_ar + 1] = 112;
+        }
+        w_ar = w_ar + 2;
+      } else {
+        let keep: i32 = 0;
+        if (ch >= 48 && ch <= 57) {
+          keep = 1;
+        }
+        if (ch >= 65 && ch <= 90) {
+          keep = 1;
+        }
+        if (ch >= 97 && ch <= 122) {
+          keep = 1;
+        }
+        if (ch == 95) {
+          keep = 1;
+        }
+        if (keep != 0) {
+          if (w_ar >= cap) {
+            return -1;
+          }
+          unsafe {
+            scratch[w_ar] = ch;
+          }
+          w_ar = w_ar + 1;
+        }
+      }
+      pi_el = pi_el + 1;
+    }
+    if (w_ar <= 10) {
+      return -1;
+    }
+    return w_ar;
   }
   // TYPE_VECTOR (13)
   if (tk == 13 && elem_ref > 0) {
