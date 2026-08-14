@@ -67781,9 +67781,13 @@ function glue_var_is_current_func_param_c(arena: *u8, ctx: *u8, var_expr_ref: i3
 }
 
 /**
- * Load f32 VAR stack home into rax (SSE bits in low 32 of GP).
- * Param path: XLANG_ABI_F32_XMM=1 + scalar f32 → 4B lane load; else load 8B
- * (caller-widened f64 home) then cvtsd2ss. Local non-param → 4B lane load.
+ * Load f32 VAR stack home into rax (IEEE bits in the low 32 of GP).
+ * Param path: XLANG_ABI_F32_XMM unset/on + scalar f32 → 4B lane load.
+ * That flag also turns off CALL `call_abi_widen_f64`, so the incoming
+ * formal home holds native f32 bits on both SysV (xmm0→4B store) and
+ * AAPCS64 (x0/w0 GP; local callee still homes GP, not s0). Legacy
+ * XLANG_ABI_F32_XMM=0 keeps the 8B f64-widened home + cvtsd2ss.
+ * Local non-param → 4B lane load.
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → enc fail path via enc
  * @param arena *u8 — ASTArena* (param/type lookup)
  * @param ctx *u8 — AsmFuncCtx* (var decl type)
@@ -67793,7 +67797,7 @@ function glue_var_is_current_func_param_c(arena: *u8, ctx: *u8, var_expr_ref: i3
  * @return i32 — 0 success; -1 enc failure
  *
  * wave200 pure: G.7 authority (was Cap residual call_args / binop leave face).
- * PLATFORM: SHARED freestanding f32 slot · LINUX+MACOS SysV xmm · ARM64 co-path.
+ * PLATFORM: SHARED freestanding f32 slot · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
 export function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32 {
@@ -67801,12 +67805,16 @@ export function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ct
   let rc: i32 = 0;
   let f32en: i32 = 0;
   if (glue_var_is_current_func_param_c(arena, ctx, var_expr_ref) != 0) {
-    // SysV xmm home (x86): 4B f32 slot when ABI flag + scalar f32 formal.
+    // Native f32 param home (4B) when the default-on f32 ABI is live.
+    // ta==0: SysV xmm0 harvested into a 4B slot.
+    // ta==1: AAPCS64 local CALL still passes f32 bits in x0 (widen off);
+    //        a 4B load must not treat those bits as f64 then fcvt.
     // pipeline_asm_abi_f32_xmm_enabled_c is Cap residual extern → unsafe.
+    // PLATFORM: SHARED (flag) / LINUX+MACOS x86_64 SysV / MACOS|ARM64 AAPCS64.
     unsafe {
       f32en = pipeline_asm_abi_f32_xmm_enabled_c();
     }
-    if (ta == 0 && f32en != 0) {
+    if ((ta == 0 || ta == 1) && f32en != 0) {
       tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
       if (glue_type_ref_is_scalar_f32_c(arena, tr) != 0) {
         unsafe {
