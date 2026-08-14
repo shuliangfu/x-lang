@@ -10236,7 +10236,15 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
             elem_k = pipeline_type_kind_ord_at(dep_ar, et_al);
           }
         }
-        if (append_byte(out, 40) != 0) {
+        /*
+         * Durable static: `(T[]){…}` dies at the end of a statement-expr
+         * assignment (`__xlang_al[0] = {.data=(T[]){…}}` → wrap_row 33).
+         * Unique `__xlang_icN` so dual uses in one function do not alias.
+         * PLATFORM: SHARED host-C.
+         */
+        let tid_al: i32 = codegen_next_host_call_array_tmp_id();
+        let ic_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &ic_open[0], 10) != 0) {
           return -1;
         }
         if (emit_type_kind(out, elem_k) != 0) {
@@ -10245,16 +10253,33 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
             return -1;
           }
         }
-        if (append_byte(out, 91) != 0) {
+        let ic_nm: u8[12] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 105, 99, 0];
+        if (emit_bytes_from_ptr(out, &ic_nm[0], 11) != 0) {
           return -1;
         }
-        if (append_byte(out, 93) != 0) {
+        if (format_int(out, tid_al as i64) != 0) {
           return -1;
         }
-        if (append_byte(out, 41) != 0) {
+        let ic_eq: u8[8] = [91, 93, 32, 61, 32, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &ic_eq[0], 5) != 0) {
           return -1;
         }
         if (emit_braced_array_lit_init(dep_ar, out, init_ref, ctx) != 0) {
+          return -1;
+        }
+        let ic_sc: u8[4] = [59, 32, 0, 0];
+        if (emit_bytes_4(out, &ic_sc[0], 2) != 0) {
+          return -1;
+        }
+        let ic_use: u8[12] = [95, 95, 120, 108, 97, 110, 103, 95, 105, 99, 0, 0];
+        if (emit_bytes_from_ptr(out, &ic_use[0], 10) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid_al as i64) != 0) {
+          return -1;
+        }
+        let ic_end: u8[8] = [59, 32, 125, 41, 0, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &ic_end[0], 4) != 0) {
           return -1;
         }
         return 0;
