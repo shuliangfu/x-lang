@@ -93,6 +93,33 @@ static int32_t parser_asm_block_lit_init_ref_c(void *arena, int32_t type_ref, in
 }
 
 /**
+ * Copy one OneFunc const sidecar entry onto the block (init_ref, else EXPR_LIT).
+ * PLATFORM: SHARED — same fill/append consume; mid-body TOKEN_CONST reuses this.
+ */
+static int32_t parser_asm_block_append_one_const_c(void *arena, int32_t block_ref, uint8_t *pool, int32_t src_i,
+                                                  int32_t type_ref) {
+  int32_t const_decl_ty;
+  int32_t cinit_ref;
+  uint8_t cname_buf[128];
+  const_decl_ty = type_ref;
+  if (pipeline_onefunc_const_type_ref(pool, src_i) != 0)
+    const_decl_ty = pipeline_onefunc_const_type_ref(pool, src_i);
+  cinit_ref = pipeline_onefunc_const_init_ref(pool, src_i);
+  if (cinit_ref == 0)
+    cinit_ref = parser_asm_block_lit_init_ref_c(arena, const_decl_ty, pipeline_onefunc_const_init_val(pool, src_i));
+  if (cinit_ref == 0)
+    return 0;
+  memset(cname_buf, 0, sizeof(cname_buf));
+  pipeline_onefunc_const_name_copy64(pool, src_i, cname_buf);
+  PARSER_ASM_STRETCH_AUDIT_CALL(
+      parser_asm_stretch_block_bind_name_audit_c(cname_buf, pipeline_onefunc_const_name_len(pool, src_i)));
+  if (pipeline_block_append_const(arena, block_ref, cname_buf, pipeline_onefunc_const_name_len(pool, src_i),
+                                  const_decl_ty, cinit_ref) < 0)
+    return 0;
+  return 1;
+}
+
+/**
  * 解析 let 侧车条目：取 init_ref（无则造 EXPR_LIT）并 append 到 block。
  */
 static int32_t parser_asm_block_append_one_let_c(void *arena, int32_t block_ref, uint8_t *pool, int32_t src_i,
@@ -132,31 +159,13 @@ int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_re
   int32_t nc;
   int32_t let_i;
   int32_t nl;
-  int32_t cinit_ref;
-  int32_t const_decl_ty;
-  /* wave581 Cap residual: OneFunc const names are 128B (content <=127). */
-  uint8_t cname_buf[128];
   if (!arena || !res)
     return 0;
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
   const_i = 0;
   nc = pipeline_onefunc_num_consts(pool);
   while (const_i < nc) {
-    /** 与 let 分支一致：须用侧车 const 声明类型，勿误传 fill 入参 type_ref（常为 0 或函数返回类型）。 */
-    const_decl_ty = type_ref;
-    if (pipeline_onefunc_const_type_ref(pool, const_i) != 0)
-      const_decl_ty = pipeline_onefunc_const_type_ref(pool, const_i);
-    /** 与 let 分支一致：优先侧车 init_ref（如 `const B = A + 2`）；无 ref 时再按 init_val 合成 EXPR_LIT。 */
-    cinit_ref = pipeline_onefunc_const_init_ref(pool, const_i);
-    if (cinit_ref == 0)
-      cinit_ref = parser_asm_block_lit_init_ref_c(arena, const_decl_ty, pipeline_onefunc_const_init_val(pool, const_i));
-    if (cinit_ref == 0)
-      return 0;
-    memset(cname_buf, 0, sizeof(cname_buf));
-    pipeline_onefunc_const_name_copy64(pool, const_i, cname_buf);
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_bind_name_audit_c(cname_buf, pipeline_onefunc_const_name_len(pool, const_i)));
-    if (pipeline_block_append_const(arena, block_ref, cname_buf, pipeline_onefunc_const_name_len(pool, const_i),
-                                    const_decl_ty, cinit_ref) < 0)
+    if (!parser_asm_block_append_one_const_c(arena, block_ref, pool, const_i, type_ref))
       return 0;
     const_i = const_i + 1;
   }
@@ -173,16 +182,28 @@ int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_re
 }
 
 /**
- * append_block_lets_from_res：在已有块上追加 res 中 let（从 let_base 起）。
+ * append_block_lets_from_res: append res consts (always from 0; mid-body resets
+ * temp) then lets from let_base. Prefix fill already copies both; mid-body
+ * TOKEN_CONST was pool-only until this arm.
+ * PLATFORM: SHARED — G.7 complete the mid-body append face.
  */
 int32_t parser_asm_append_block_lets_from_res_c(void *arena, int32_t block_ref, struct parser_asm_onefunc_result *res,
                                                 int32_t let_base, int32_t type_ref) {
   uint8_t *pool;
   int32_t src_i;
+  int32_t nc;
   int32_t nl;
   if (!arena || !res)
     return 0;
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
+  src_i = 0;
+  nc = pipeline_onefunc_num_consts(pool);
+  while (src_i < nc) {
+    if (!parser_asm_block_append_one_const_c(arena, block_ref, pool, src_i, type_ref))
+      return 0;
+    src_i = src_i + 1;
+  }
+  res->num_consts = nc;
   src_i = let_base;
   nl = pipeline_onefunc_num_lets(pool);
   while (src_i < nl) {

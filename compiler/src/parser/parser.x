@@ -2347,8 +2347,15 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     }
     /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
+      /**
+       * Mid-body let/const after a prior stmt. parse_body_lets_into fills the
+       * scratch sidecar; append_block_lets_from_res copies both pools onto the
+       * block. Prefix already records kind=0 consts then kind=1 lets — mid-body
+       * must do the same or host-C emit_block never declares later consts.
+       * PLATFORM: SHARED — G.7 complete the prefix stmt_order face.
+       */
       let let_base_mid: i32 = b.num_lets;
-      /* See implementation. */
+      let const_base_mid: i32 = b.num_consts;
       ast_pool_onefunc_reset(onefunc_result_pool_ptr(temp));
       temp.num_lets = 0;
       temp.num_consts = 0;
@@ -2361,12 +2368,19 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
-      /* See implementation. */
       if (!append_block_lets_from_res(arena, block_ref, temp, 0, type_ref)) {
         out.ok = false;
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
+      let ci_mid: i32 = const_base_mid;
+      while (ci_mid < b.num_consts) {
+        if (pipeline_block_append_stmt_order(arena, block_ref, 0, ci_mid) < 0) {
+          out.ok = false;
+          return;
+        }
+        ci_mid = ci_mid + 1;
+      }
       let pi_mid: i32 = let_base_mid;
       while (pi_mid < b.num_lets) {
         if (pipeline_block_append_stmt_order(arena, block_ref, 1, pi_mid) < 0) {
@@ -5935,8 +5949,15 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
+        /**
+         * Mid-body let/const on the function OneFunc path. Sidecar already
+         * stores consts; only kind=1 lets were pushed. Prefix records kind=0
+         * first — complete the same here so fill_stmt_order_from_onefunc
+         * exposes later consts to host-C emit_block.
+         * PLATFORM: SHARED — G.7 complete the prefix onefunc stmt_order face.
+         */
         let n_before_mid: i32 = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
-        /* See implementation. */
+        let n_const_before: i32 = pipeline_onefunc_num_consts(onefunc_result_pool_ptr(out));
         let kw_back: i32 = 3;
         if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
           kw_back = 5;
@@ -5947,6 +5968,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           return;
         }
         out.num_lets = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
+        out.num_consts = pipeline_onefunc_num_consts(onefunc_result_pool_ptr(out));
+        let push_ci: i32 = n_const_before;
+        while (push_ci < out.num_consts) {
+          onefunc_push_src_stmt(out, 0, push_ci);
+          push_ci = push_ci + 1;
+        }
         let push_mi: i32 = n_before_mid;
         while (push_mi < out.num_lets) {
           onefunc_push_src_stmt(out, 1, push_mi);

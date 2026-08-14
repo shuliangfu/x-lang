@@ -2351,7 +2351,9 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         (void)(lexer_next_into(&(r), lex_cur, source));
       }
       if (((((r.tok).kind) ==2) || (((r.tok).kind) ==3))) {
+        /* Mid-body let/const: copy both pools; record kind=0 then kind=1 (prefix face). */
         int32_t let_base_mid = (b.num_lets);
+        int32_t const_base_mid = (b.num_consts);
         (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(temp)));
         (void)(((temp->num_lets) = 0));
         (void)(((temp->num_consts) = 0));
@@ -2369,6 +2371,14 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           return;
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+        int32_t ci_mid = const_base_mid;
+        while ((ci_mid < (b.num_consts))) {
+          if ((pipeline_block_append_stmt_order(arena, block_ref, 0, ci_mid) < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          (void)((ci_mid = (ci_mid + 1)));
+        }
         int32_t pi_mid = let_base_mid;
         while ((pi_mid < (b.num_lets))) {
           if ((pipeline_block_append_stmt_order(arena, block_ref, 1, pi_mid) < 0)) {
@@ -5026,7 +5036,9 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           return;
         }
         if (((((r.tok).kind) ==2) || (((r.tok).kind) ==3))) {
+          /* Mid-body let/const: push kind=0 consts then kind=1 lets (prefix face). */
           int32_t n_before_mid = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out));
+          int32_t n_const_before = pipeline_onefunc_num_consts(parser_onefunc_result_pool_ptr(out));
           int32_t kw_back = 3;
           if ((((r.tok).kind) ==3)) {
             (void)((kw_back = 5));
@@ -5037,6 +5049,12 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             return;
           }
           (void)(((out->num_lets) = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out))));
+          (void)(((out->num_consts) = pipeline_onefunc_num_consts(parser_onefunc_result_pool_ptr(out))));
+          int32_t push_ci = n_const_before;
+          while ((push_ci < (out->num_consts))) {
+            (void)(parser_onefunc_push_src_stmt(out, 0, push_ci));
+            (void)((push_ci = (push_ci + 1)));
+          }
           int32_t push_mi = n_before_mid;
           while ((push_mi < (out->num_lets))) {
             (void)(parser_onefunc_push_src_stmt(out, 1, push_mi));
