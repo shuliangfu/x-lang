@@ -14380,63 +14380,37 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (emit_indent(out, indent) != 0) {
               return -1;
             }
-            let use_carr: i32 = 0;
-            if (!ast.ref_is_null(ctype_ref) && pipeline_type_kind_ord_at(arena, ctype_ref) == 10) {
-              use_carr = 1;
+            if (emit_type(arena, out, ctype_ref, 0 as *u8, 0, ctx) != 0) {
+              return -1;
             }
-            let c_nm: u8[128] = [];
-            let c_nml: i32 = 0;
+            let sp: u8[3] = [32, 0, 0];
+            if (emit_bytes_3(out, &sp[0], 1) != 0) {
+              return -1;
+            }
+            /* See implementation. */
             if (cname_len > 0 && (cname_buf[0] > 32)) {
-              let ci: i32 = 0;
-              while (ci < cname_len && ci < 128) {
-                c_nm[ci] = cname_buf[ci];
-                ci = ci + 1;
+              if (emit_bytes_64(out, &cname_buf[0], cname_len) != 0) {
+                return -1;
               }
-              c_nml = cname_len;
             } else {
-              c_nm[0] = 95;
-              c_nm[1] = 99;
-              c_nml = 2;
+              let place: u8[4] = [95, 99, 48, 0];
+              if (emit_bytes_4(out, &place[0], 2) != 0) {
+                return -1;
+              }
+              if (format_int(out, idx) != 0) {
+                return -1;
+              }
             }
-            /* G.7: const [N]T reuses let fixed-array declarator + finish. */
-            if (use_carr != 0) {
-              if (emit_local_fixed_array_elem_type(arena, out, ctype_ref, ctx) != 0) {
-                return -1;
-              }
-              if (append_byte(out, 32) != 0) {
-                return -1;
-              }
-              if (emit_bytes_64(out, &c_nm[0], c_nml) != 0) {
-                return -1;
-              }
-              if (emit_local_fixed_array_suffix(arena, out, ctype_ref) != 0) {
-                return -1;
-              }
-              if (emit_local_fixed_array_let_finish(arena, out, indent, &c_nm[0], c_nml, cinit_ref, ctx) != 0) {
-                return -1;
-              }
-            } else {
-              if (emit_type(arena, out, ctype_ref, 0 as *u8, 0, ctx) != 0) {
-                return -1;
-              }
-              let sp: u8[3] = [32, 0, 0];
-              if (emit_bytes_3(out, &sp[0], 1) != 0) {
-                return -1;
-              }
-              if (emit_bytes_64(out, &c_nm[0], c_nml) != 0) {
-                return -1;
-              }
-              let eq: u8[4] = [32, 61, 32, 0];
-              if (emit_bytes_4(out, &eq[0], 3) != 0) {
-                return -1;
-              }
-              if (emit_expr(arena, out, cinit_ref, ctx) != 0) {
-                return -1;
-              }
-              let sc: u8[3] = [59, 10, 0];
-              if (emit_bytes_3(out, &sc[0], 2) != 0) {
-                return -1;
-              }
+            let eq: u8[4] = [32, 61, 32, 0];
+            if (emit_bytes_4(out, &eq[0], 3) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, cinit_ref, ctx) != 0) {
+              return -1;
+            }
+            let sc: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, &sc[0], 2) != 0) {
+              return -1;
             }
           }
         } else if (k == 1) {
@@ -14970,63 +14944,37 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (emit_indent(out, indent) != 0) {
         return -1;
       }
-      let use_carr_fb: i32 = 0;
-      if (!ast.ref_is_null(ctype_fb) && pipeline_type_kind_ord_at(arena, ctype_fb) == 10) {
-        use_carr_fb = 1;
+      if (emit_type(arena, out, ctype_fb, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
+        return -1;
       }
-      let c_nm_fb: u8[128] = [];
-      let c_nml_fb: i32 = 0;
+      let sp: u8[3] = [32, 0, 0];
+      if (emit_bytes_3(out, &sp[0], 1) != 0) {
+        return -1;
+      }
+      /* See implementation. */
       if (cname_len_fb > 0 && (cname_fb[0] > 32)) {
-        let ci_fb: i32 = 0;
-        while (ci_fb < cname_len_fb && ci_fb < 128) {
-          c_nm_fb[ci_fb] = cname_fb[ci_fb];
-          ci_fb = ci_fb + 1;
+        if (emit_bytes_64(out, &cname_fb[0], cname_len_fb) != 0) {
+          return -1;
         }
-        c_nml_fb = cname_len_fb;
       } else {
-        c_nm_fb[0] = 95;
-        c_nm_fb[1] = 99;
-        c_nml_fb = 2;
+        let place: u8[4] = [95, 99, 48, 0];
+        if (emit_bytes_4(out, &place[0], 2) != 0) {
+          return -1;
+        }
+        if (format_int(out, i) != 0) {
+          return -1;
+        }
       }
-      /* G.7: fallback const [N]T same let declarator + finish. */
-      if (use_carr_fb != 0) {
-        if (emit_local_fixed_array_elem_type(arena, out, ctype_fb, ctx) != 0) {
-          return -1;
-        }
-        if (append_byte(out, 32) != 0) {
-          return -1;
-        }
-        if (emit_bytes_64(out, &c_nm_fb[0], c_nml_fb) != 0) {
-          return -1;
-        }
-        if (emit_local_fixed_array_suffix(arena, out, ctype_fb) != 0) {
-          return -1;
-        }
-        if (emit_local_fixed_array_let_finish(arena, out, indent, &c_nm_fb[0], c_nml_fb, cinit_fb, ctx) != 0) {
-          return -1;
-        }
-      } else {
-        if (emit_type(arena, out, ctype_fb, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
-          return -1;
-        }
-        let sp: u8[3] = [32, 0, 0];
-        if (emit_bytes_3(out, &sp[0], 1) != 0) {
-          return -1;
-        }
-        if (emit_bytes_64(out, &c_nm_fb[0], c_nml_fb) != 0) {
-          return -1;
-        }
-        let eq: u8[4] = [32, 61, 32, 0];
-        if (emit_bytes_4(out, &eq[0], 3) != 0) {
-          return -1;
-        }
-        if (emit_expr(arena, out, cinit_fb, ctx) != 0) {
-          return -1;
-        }
-        let sc: u8[3] = [59, 10, 0];
-        if (emit_bytes_3(out, &sc[0], 2) != 0) {
-          return -1;
-        }
+      let eq: u8[4] = [32, 61, 32, 0];
+      if (emit_bytes_4(out, &eq[0], 3) != 0) {
+        return -1;
+      }
+      if (emit_expr(arena, out, cinit_fb, ctx) != 0) {
+        return -1;
+      }
+      let sc: u8[3] = [59, 10, 0];
+      if (emit_bytes_3(out, &sc[0], 2) != 0) {
+        return -1;
       }
       i = i + 1;
     }
