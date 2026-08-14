@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅ @ **`6767ea638`**；LANG-006 保留；下一硬叶 host-C 多 const 声明 |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅ @ **`9b6bdfde5`**；LANG-006 保留；下一硬叶 `[][2]i32` INDEX 发射 |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -521,7 +521,7 @@
   - **根修**：`parse_body_lets_into` compound `[..]` 再解析去掉 `is_let` 门；const 走既有 `parse_body_let_bracket_compound_init_ref`＋`append_const`
   - **禁全量 assemble**：tip `-E` parser.x 丢 `generic_bound_scan`（hello／option 红）；只手术补 last-good `parser_gen.c`＋seed
   - 证：const／const1／const3／const_arr 三端 **70／42／73／71**
-  - 余（已闭 parse＋asm fat＋const whitelist＋asm 聚合 emit）：`[lit] as T` @ **`6767ea638`**；另层：host-C 多 const 声明；`[][2]i32` INDEX 发射
+  - 余（已闭 parse＋asm fat＋const whitelist＋asm 聚合 emit＋host-C 多 const）：`[lit] as T` @ **`9b6bdfde5`**；另层：`[][2]i32` INDEX 发射
 
 ⬜ **4.2.4 bare `unit_t()` 无 turbofish + 零参 T subst** leave-off
 
@@ -650,6 +650,14 @@
   - **禁**：改 whitelist／peel／fat 布局；全量 assemble pipeline_abi mega；host-C const 声明改写（stmt_order 第二枚起漏 decl 是另层）
   - 证：`const_agg_init`／`lit_as_const` **asm 42**
   - 余（勿并本叶）：host-C 多 const 声明（第二枚起 BLD001）；`[][2]i32` INDEX 发射
+
+✅ **host-C 多 const 声明** ✅ @ **`9b6bdfde5`**
+
+  - 现场：prefix `const n` 入 stmt_order；mid-body `const m`／嵌套块 `const k` 进池但不记 kind=0 → emit_block 漏 decl（lac／cai BLD001）
+  - **根修（G.7 有则补全）**：onefunc／parse_block mid-body 补 kind=0；`append_block_lets_from_res` 拷 const；手术补 last-good parser_gen／seed（**禁** tip `-E` 全量 assemble）
+  - **禁**：改 codegen emit_block 消费端；全量 assemble parser.x／pipeline_abi mega；再动 whitelist／peel／const 聚合 asm emit
+  - 证：`lit_as_const`／`const_agg_init` 三端 **42**（`-E` 有 n／m／k）
+  - 余（勿并本叶）：`[][2]i32` INDEX 发射
 
 ---
 
