@@ -107,8 +107,6 @@ export extern function driver_dep_slot_for_path(path: *u8): i32;
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
 /* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
-/** Peel identity `[lit] as []T` / `as [N]T` (G.7; same helper as freestanding). */
-export extern function glue_peel_as_array_slice_ascription_c(arena: *ASTArena, expr_ref: i32): i32;
 /** True if expr is a C static-initializer constant (pure lit tree; no free VAR).
  * PLATFORM: SHARED — gates mutable top-level let decl-site init vs init_globals. */
 export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
@@ -5201,13 +5199,13 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
  * Host-C: finish a fixed TYPE_ARRAY local after `E name[N]` has been emitted (no `=` yet).
  *
  * - null / zero lit → ` = { 0 };`
- * - EXPR_ARRAY_LIT (after peel of `[lit] as [N]T`) → ` = { elems };`
+ * - EXPR_ARRAY_LIT → ` = { elems };`
  * - other rvalue (CALL / METHOD / VAR / FIELD / …) → `;\n` + indent +
  *   `memcpy((void*)(name), (const void*)(<expr>), sizeof(name));`
  *
  * Root (wave353 Cap residual): C forbids `T t[N] = ptr` and `T t[N] = other_array`.
  * Host lowers TYPE_ARRAY returns as `E*` (wave352 durable static); memcpy once-evals CALL.
- * G.7: single authority for local fixed-array let/const init; reuses wave334 memcpy form.
+ * G.7: single authority for local fixed-array let init; reuses wave334 memcpy form.
  *
  * @param arena *ASTArena — expression pool
  * @param out *CodegenOutBuf — C text sink
@@ -5225,16 +5223,10 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
 
     let use_brace: i32 = 0;
     let use_zero: i32 = 0;
-    let brace_ref: i32 = linit_ref;
     if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
       use_zero = 1;
     } else {
-      /* G.7: peel `[lit] as [N]T` so brace init fires (same peel as asm). */
-      let peeled: i32 = glue_peel_as_array_slice_ascription_c(arena, linit_ref);
-      if (peeled > 0) {
-        brace_ref = peeled;
-      }
-      let ie: Expr = ast.ast_arena_expr_get(arena, brace_ref);
+      let ie: Expr = ast.ast_arena_expr_get(arena, linit_ref);
       if ((ie.kind as i32) == (ExprKind.EXPR_ARRAY_LIT as i32)) {
         use_brace = 1;
       } else if ((ie.kind as i32) == (ExprKind.EXPR_LIT as i32) && ie.int_val == 0) {
@@ -5246,7 +5238,7 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
       if (emit_bytes_4(out, &eqb[0], 3) != 0) {
         return -1;
       }
-      if (emit_braced_array_lit_init(arena, out, brace_ref, ctx) != 0) {
+      if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
         return -1;
       }
       let scb: u8[3] = [59, 10, 0];
