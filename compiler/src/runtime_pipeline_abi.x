@@ -52957,14 +52957,26 @@ export function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i
 
 /**
  * Per-field store width for STRUCT_LIT (ZST=0, dual-GP 9-16, scalar 1/4/8).
+ * bool (kind 2): when C padding to the next field (or struct end) is at least
+ * 4 bytes, store 4 so the pad is zero. Inlined `Option_i32 { is_some: false,
+ * value: 0 }` used to `strb` the tag; `is_some` / `is_none` / `unwrap_or` then
+ * `ldr w` the first word and treated leftover pad as Some. `none_i32()` already
+ * stores `wzr` (4). Packed adjacent bool/u8 (gap < 4) stay 1-byte.
+ * @param arena *u8 — ASTArena
+ * @param expr_ref i32 — STRUCT_LIT expr
+ * @param fi i32 — field index
+ * @return i32 — store width in bytes
  * wave154 pure: G.7 authority (was static glue_struct_lit_field_store_sz).
- * PLATFORM: SHARED freestanding · LINUX+MACOS SysV dual-GP.
+ * PLATFORM: SHARED freestanding — mac AAPCS64 option=254; Ubuntu SysV was 102.
  */
 #[no_mangle]
 export function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i32): i32 {
   let ty: i32 = 0;
   let kind_ord: i32 = 0;
   let nsz: i32 = 0;
+  let foff: i32 = 0;
+  let next_off: i32 = 0;
+  let nf: i32 = 0;
   let mod: *u8 = 0 as *u8;
   unsafe {
     mod = pipeline_asm_emit_module_ref_c();
@@ -52979,7 +52991,23 @@ export function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i3
   unsafe {
     kind_ord = pipeline_type_kind_ord_at(arena, ty);
   }
+  // bool=2 and u8=1: store 1 unless C padding to the next field / struct
+  // end is >= 4, then store 4 so the pad is zero. Option.is_some may be
+  // stamped u8 or bool; is_some/is_none/unwrap then ldr-w the first word.
+  // Packed adjacent bool/u8 (gap < 4) stay 1-byte.
   if (kind_ord == 2 || kind_ord == 1) {
+    if (mod != (0 as *u8)) {
+      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
+      nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      if (fi + 1 < nf) {
+        next_off = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi + 1);
+      } else {
+        next_off = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
+      }
+      if (foff >= 0 && next_off >= foff + 4) {
+        return 4;
+      }
+    }
     return 1;
   }
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {

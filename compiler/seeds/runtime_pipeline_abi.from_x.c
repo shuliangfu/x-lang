@@ -25939,13 +25939,28 @@ int32_t pipeline_expr_struct_lit_value_bytes(void *a, void *m, int32_t expr_ref)
 }
 
 int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi) {
-  int32_t ty, kind_ord, nsz;
+  int32_t ty, kind_ord, nsz, foff, next_off, nf;
   void *mod = pipeline_asm_emit_module_ref_c();
   ty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, expr_ref, fi);
   if (ty <= 0) return 8;
   if (mod && glue_type_is_empty_struct_c(mod, arena, ty, 0) != 0) return 0;
   kind_ord = pipeline_type_kind_ord_at(arena, ty);
-  if (kind_ord == 2 || kind_ord == 1) return 1;
+  /* u8 stays 1. bool: store 4 when C padding to next field / struct end is
+   * >= 4 so inlined Option { is_some:false } zeros the pad that ldr-w tag
+   * loads consume. Packed adjacent bools (gap<4) stay 1.
+   * PLATFORM: SHARED — cold twin of runtime_pipeline_abi.x (FROM_X live). */
+  if (kind_ord == 2 || kind_ord == 1) {
+    if (mod) {
+      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
+      nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      if (fi + 1 < nf)
+        next_off = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi + 1);
+      else
+        next_off = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
+      if (foff >= 0 && next_off >= foff + 4) return 4;
+    }
+    return 1;
+  }
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) return 4;
   nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
   if (nsz > 8 && nsz <= 16) return nsz;
