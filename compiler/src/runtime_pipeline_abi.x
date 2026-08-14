@@ -36355,6 +36355,221 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
 }
 
 /**
+ * Emit an import-module const FIELD (`dep.K` / `dep.A`) into rax.
+ *
+ * dest-SLICE / INDEX / scalar const all see EXPR_FIELD_ACCESS on an
+ * import binding (TYPE_NAMED). That is not a struct member: layout
+ * offset and glue_try_index miss → CG002. Host-C already inlines via
+ * emit_import_module_const_field (dep-arena init_ref). This is the
+ * freestanding twin — same resolve (import kind=1 binding + dep
+ * top-level const), same dep-arena read. INT_LIT → mov imm; ARRAY_LIT
+ * → durable ptr (consts-only deps are not co-emitted; driver nf>0
+ * leftover). Do not fold as i32. Do not treat as C member `dep.A`.
+ *
+ * @param arena *u8 — caller ASTArena* (FIELD names live here)
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → 1
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS; ≤0 → 1
+ * @param ctx *u8 — AsmFuncCtx* (durable COMMON / fat rows; may be null
+ *   for scalar INT_LIT / x86 const ARRAY_LIT text-embed)
+ * @param ta i32 — 0=x86_64, 1=arm64
+ * @param arr_sz_out *i32 — optional; TYPE_ARRAY N, else 0; may be null
+ * @return i32 — 0 rax written; 1 not an import-module const; -1 fail
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ * G.7: single asm authority; field_access / glue_emit_slice /
+ * glue_try_index call this. Mirror host-C emit_import_module_const_field.
+ */
+#[no_mangle]
+export function glue_emit_import_module_const_field_to_rax_elf_c(
+    arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, arr_sz_out: *i32): i32 {
+  let ko: i32 = 0;
+  let base_ref: i32 = 0;
+  let base_len: i32 = 0;
+  let field_len: i32 = 0;
+  let n_imp: i32 = 0;
+  let j: i32 = 0;
+  let bl: i32 = 0;
+  let eq: i32 = 0;
+  let bi: i32 = 0;
+  let ti: i32 = 0;
+  let nlets: i32 = 0;
+  let nlen: i32 = 0;
+  let matched: i32 = 0;
+  let ci: i32 = 0;
+  let init_ref: i32 = 0;
+  let tr: i32 = 0;
+  let et: i32 = 0;
+  let force_esz: i32 = 0;
+  let arr_sz: i32 = 0;
+  let rc: i32 = 0;
+  let ival: i32 = 0;
+  let import_binding: i32 = 1;
+  let kind_var: i32 = 3;
+  let kind_field: i32 = 44;
+  let kind_int: i32 = 0;
+  let kind_array_lit: i32 = 46;
+  let kind_array_ty: i32 = 10;
+  let mod: *u8 = 0 as *u8;
+  let dep_pipe: *u8 = 0 as *u8;
+  let dep_mod: *u8 = 0 as *u8;
+  let dep_ar: *u8 = 0 as *u8;
+  let base_name: u8[128] = [];
+  let field_name: u8[128] = [];
+  if (arr_sz_out != (0 as *i32)) {
+    arr_sz_out[0] = 0;
+  }
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || expr_ref <= 0) {
+    return 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko != kind_field) {
+    return 1;
+  }
+  unsafe {
+    if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0) {
+      return 1;
+    }
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  }
+  if (base_ref <= 0) {
+    return 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  if (ko != kind_var) {
+    return 1;
+  }
+  unsafe {
+    base_len = pipeline_expr_var_name_len(arena, base_ref);
+    field_len = pipeline_expr_field_access_name_len(arena, expr_ref);
+  }
+  if (base_len <= 0 || base_len > 127 || field_len <= 0 || field_len > 127) {
+    return 1;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+    pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (mod == (0 as *u8) || dep_pipe == (0 as *u8)) {
+    return 1;
+  }
+  unsafe {
+    n_imp = parser_get_module_num_imports(mod);
+  }
+  j = 0;
+  while (j < n_imp) {
+    if (pipeline_module_import_kind_at(mod, j) == import_binding) {
+      bl = pipeline_module_import_binding_name_len(mod, j);
+      if (bl == base_len) {
+        eq = 1;
+        bi = 0;
+        while (bi < bl) {
+          if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
+            eq = 0;
+            break;
+          }
+          bi = bi + 1;
+        }
+        if (eq != 0) {
+          unsafe {
+            dep_mod = pipeline_dep_ctx_module_at(dep_pipe, j);
+            dep_ar = pipeline_dep_ctx_arena_at(dep_pipe, j);
+          }
+          if (dep_mod != (0 as *u8) && dep_ar != (0 as *u8)) {
+            nlets = pipe_mod_get_num_top_level_lets(dep_mod);
+            ti = 0;
+            while (ti < nlets) {
+              if (pipeline_module_top_level_let_is_const(dep_mod, ti) != 0) {
+                nlen = pipeline_module_top_level_let_name_len(dep_mod, ti);
+                if (nlen == field_len && nlen > 0) {
+                  matched = 1;
+                  ci = 0;
+                  while (ci < nlen) {
+                    if ((pipeline_module_top_level_let_name_byte_at(dep_mod, ti, ci) as u8) != field_name[ci]) {
+                      matched = 0;
+                      break;
+                    }
+                    ci = ci + 1;
+                  }
+                  if (matched != 0) {
+                    // Hit: read init from the dep arena (caller-arena
+                    // init_ref is not portable — host-C n=K lesson).
+                    // PLATFORM: SHARED freestanding.
+                    init_ref = pipeline_module_top_level_let_init_ref(dep_mod, ti);
+                    tr = pipeline_module_top_level_let_type_ref(dep_mod, ti);
+                    arr_sz = 0;
+                    et = 0;
+                    if (tr > 0) {
+                      unsafe {
+                        ko = pipeline_type_kind_ord_at(dep_ar, tr);
+                      }
+                      if (ko == kind_array_ty) {
+                        unsafe {
+                          arr_sz = pipeline_type_array_size_at(dep_ar, tr);
+                          et = pipeline_type_elem_ref_at(dep_ar, tr);
+                        }
+                      }
+                    }
+                    if (arr_sz_out != (0 as *i32)) {
+                      arr_sz_out[0] = arr_sz;
+                    }
+                    if (init_ref <= 0) {
+                      return 1;
+                    }
+                    unsafe {
+                      ko = pipeline_expr_kind_ord_at(dep_ar, init_ref);
+                    }
+                    if (ko == kind_int) {
+                      unsafe {
+                        ival = pipeline_expr_int_val_at(dep_ar, init_ref);
+                        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ival, 0, ta);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      return 0;
+                    }
+                    if (ko == kind_array_lit) {
+                      force_esz = 0;
+                      if (et > 0) {
+                        unsafe {
+                          force_esz = glue_array_lit_force_esz_from_elem_type_c(dep_ar, et);
+                        }
+                      }
+                      if (force_esz <= 0) {
+                        force_esz = 4;
+                      }
+                      // dest_elem_ty must be a dep-arena type_ref.
+                      // PLATFORM: SHARED freestanding · LINUX gold.
+                      unsafe {
+                        rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(
+                            dep_ar, elf_ctx, init_ref, force_esz, ta, ctx, et);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      return 0;
+                    }
+                    return 1;
+                  }
+                }
+              }
+              ti = ti + 1;
+            }
+          }
+        }
+      }
+    }
+    j = j + 1;
+  }
+  return 1;
+}
+
+/**
  * Let s: T[] = arr / [..] — write dual-GP {data,length} into slice stack slot.
  * ARRAY_LIT (46): durable text/BSS preferred; stack force_esz fallback.
  * VAR (3): prior fixed TYPE_ARRAY local / const / parent; FIELD (44): field lea.
@@ -36371,6 +36586,8 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * Module TYPE_ARRAY (const + mutable) stays SHN_COMMON (hoist skips it).
  * dest-SLICE VAR of that name recovers N from the module table and LEAs
  * COMMON (`pipeline_asm_modlet_load_to_rax`) when there is no stack slot.
+ * Import-module const FIELD (`dep.A`): not a struct member. N + durable
+ * ptr via glue_emit_import_module_const_field_to_rax (dep arena).
  * Typeck stamps a `[a]` / `[mk()]` / `[a[i]]` dest-SLICE row to TYPE_SLICE,
  * so N comes from the decl, callee return, or INDEX base elem
  * (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT rows
@@ -36417,6 +36634,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let scan_br: i32 = 0;
   let idx_esz: i32 = 0;
   let base_ref: i32 = 0;
+  let import_rc: i32 = 0;
+  let imp_sz: i32 = 0;
+  let imp_sz_cell: i32[1] = [];
   // block_ref may be 0: ARRAY_LIT rows (`[[1,2]]`) do not scan.
   // VAR rows (`[a]`) still need N from the TYPE_ARRAY decl: prior-let
   // when block_ref>0, else scope / func-body resolve (const+parent).
@@ -36427,6 +36647,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   // FIELD rows (`W{}.xs` / `mk().xs` / `rows[i].xs`): N from layout via
   // glue_field_access_field_type_ref (base TYPE_NAMED; dest-SLICE stamp
   // hides FA resolved). lea via glue_try_index (STRUCT_LIT/CALL/INDEX).
+  // Import-module const FIELD (`dep.A`): N + durable ptr from dep arena.
   // G.7: [N][]T / [][]T rows reuse this helper with block_ref=0.
   // PLATFORM: SHARED freestanding.
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || let_type_ref <= 0 || init_ref <= 0) {
@@ -36694,6 +36915,23 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     if (rc != 0) {
       return 0;
     }
+    // Import binding FIELD is TYPE_NAMED, not a struct. Recover N from
+    // the dep TYPE_ARRAY and lea the durable ARRAY_LIT (same as host-C
+    // try_emit_dest_slice_from_import_const_field). PLATFORM: SHARED.
+    imp_sz_cell[0] = 0;
+    unsafe {
+      import_rc = glue_emit_import_module_const_field_to_rax_elf_c(
+          arena, elf_ctx, src, ctx, ta, &imp_sz_cell[0]);
+    }
+    if (import_rc == 0) {
+      imp_sz = imp_sz_cell[0];
+      if (imp_sz <= 0) {
+        return 0;
+      }
+      arr_sz = imp_sz;
+    } else if (import_rc < 0) {
+      return 0 - 1;
+    } else {
     unsafe {
       init_tr = pipeline_expr_resolved_type_ref(arena, src);
     }
@@ -36734,6 +36972,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         return 0 - 1;
       }
       return 0;
+    }
     }
   } else if (init_ko == 48 || init_ko == 49) {
     // CALL / METHOD_CALL row: N from callee return TYPE_ARRAY.
@@ -49200,12 +49439,23 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
   let vr: i32 = 0;
   let ns_tag: i32 = 0;
   let agg: i32 = 0;
+  let import_rc: i32 = 0;
   let nm_tokenkind: u8[9] = [84, 111, 107, 101, 110, 75, 105, 110, 100];
   let nm_typekind: u8[8] = [84, 121, 112, 101, 75, 105, 110, 100];
   let nm_exprkind: u8[8] = [69, 120, 112, 114, 75, 105, 110, 100];
   unsafe {
     if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0) {
       return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
+    }
+    // Import-module const FIELD (`dep.K` / `dep.A`): not a struct member.
+    // Inline INT_LIT / durable ARRAY_LIT from the dep arena. PLATFORM: SHARED.
+    import_rc = glue_emit_import_module_const_field_to_rax_elf_c(
+        arena, elf_ctx, expr_ref, ctx, ta, 0 as *i32);
+    if (import_rc == 0) {
+      return 0;
+    }
+    if (import_rc < 0) {
+      return 0 - 1;
     }
     flen_arr = pipeline_expr_field_access_name_len(arena, expr_ref);
     if (flen_arr == 6) {
@@ -61412,6 +61662,7 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
   let ix_esz: i32 = 0;
   let needs: i32 = 0;
   let is_enum: i32 = 0;
+  let import_rc: i32 = 0;
   let mod: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
     return 0 - 2;
@@ -61485,6 +61736,18 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
     }
     if (is_enum != 0) {
       return 0 - 2;
+    }
+    // Import-module const ARRAY_LIT FIELD as INDEX base (`dep.A[1]`).
+    // Not a struct member; durable ptr into rax. PLATFORM: SHARED.
+    unsafe {
+      import_rc = glue_emit_import_module_const_field_to_rax_elf_c(
+          arena, elf_ctx, base_ref, ctx, ta, 0 as *i32);
+    }
+    if (import_rc == 0) {
+      return 0;
+    }
+    if (import_rc < 0) {
+      return 0 - 1;
     }
     unsafe {
       var_base = pipeline_expr_field_access_base_ref(arena, base_ref);
@@ -61626,6 +61889,7 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
   let ix_esz: i32 = 0;
   let needs: i32 = 0;
   let is_enum: i32 = 0;
+  let import_rc: i32 = 0;
   let mod: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
     return 0 - 2;
@@ -61684,6 +61948,23 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
     }
     if (is_enum != 0) {
       return 0 - 2;
+    }
+    // Import-module const ARRAY_LIT FIELD as INDEX assign base.
+    // Helper leaves ptr in rax; mov to rbx. PLATFORM: SHARED.
+    unsafe {
+      import_rc = glue_emit_import_module_const_field_to_rax_elf_c(
+          arena, elf_ctx, base_ref, ctx, ta, 0 as *i32);
+    }
+    if (import_rc == 0) {
+      unsafe {
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      return 0;
+    }
+    if (import_rc < 0) {
+      return 0 - 1;
     }
     unsafe {
       var_base = pipeline_expr_field_access_base_ref(arena, base_ref);

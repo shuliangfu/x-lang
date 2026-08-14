@@ -1,11 +1,11 @@
 // Isolated: function-scope const of an import-module const FIELD.
 // Product spelling is `dep.Name` (bare import const is rejected).
 // typeck whitelist + caller-arena remap already closed (T001 / i32 stamp).
-// This knife is host-C emit: INT_LIT must read dep-arena init_ref
-// (`n = 10`, not undeclared `K`); dest-SLICE `dep.A` must wrap
-// `{.data=A,.length=N}` (not C member `dep.A`).
-// Expected: compile = 0, run = 42 (host-C; asm CG002 leftover).
-// PLATFORM: SHARED — Ubuntu gold import-const FIELD emit.
+// This knife is asm emit: import FIELD is not a struct member.
+// INT_LIT (`dep.K`) mov-imm; dest-SLICE / INDEX (`dep.A`) durable
+// ARRAY_LIT from the dep arena (consts-only dep is not co-emitted).
+// Expected: compile = 0, run = 42 (host-C + asm).
+// PLATFORM: SHARED — Ubuntu gold import-const FIELD asm.
 
 const dep = import("const_import_module_slice_dep.x");
 
