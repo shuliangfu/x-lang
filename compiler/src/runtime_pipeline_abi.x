@@ -36161,6 +36161,11 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * Module-level dest-SLICE const (`const s:[]T = A[i]`) hoists into main;
  * the INDEX base VAR often has no resolved TYPE_ARRAY stamp — recover N
  * from the hoisted / module TYPE_ARRAY decl (same as VAR dest-SLICE).
+ * Mutable module TYPE_ARRAY stays SHN_COMMON (hoist skips it). dest-SLICE
+ * VAR of that name recovers N from the module table and LEAs COMMON
+ * (`pipeline_asm_modlet_load_to_rax`) when there is no stack slot.
+ * Const TYPE_ARRAY is hoisted into main only — non-main INDEX of those
+ * is a different leftover (prepare skips is_const, so no COMMON home).
  * Typeck stamps a `[a]` / `[mk()]` / `[a[i]]` dest-SLICE row to TYPE_SLICE,
  * so N comes from the decl, callee return, or INDEX base elem
  * (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT rows
@@ -36395,6 +36400,60 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         }
       }
     }
+    // dest-SLICE stamps the VAR to TYPE_SLICE, hiding N. Mutable module
+    // TYPE_ARRAY is not hoisted (COMMON only) so block resolve misses.
+    // Recover N from the module top-level table (same as INDEX dest-SLICE).
+    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    if (arr_sz <= 0) {
+      unsafe {
+        mod = pipeline_asm_emit_module_ref_c();
+      }
+      if (mod != (0 as *u8)) {
+        unsafe {
+          n_arr = pipe_mod_get_num_top_level_lets(mod);
+        }
+        li = 0;
+        while (li < n_arr) {
+          unsafe {
+            nlen = pipeline_module_top_level_let_name_len(mod, li);
+          }
+          if (nlen == vlen && nlen > 0) {
+            matched = 1;
+            ci = 0;
+            while (ci < nlen) {
+              unsafe {
+                if ((pipeline_module_top_level_let_name_byte_at(mod, li, ci) as u8) != vname[ci]) {
+                  matched = 0;
+                }
+              }
+              if (matched == 0) {
+                break;
+              }
+              ci = ci + 1;
+            }
+            if (matched != 0) {
+              unsafe {
+                tr = pipeline_module_top_level_let_type_ref(mod, li);
+              }
+              if (tr > 0) {
+                unsafe {
+                  tk = pipeline_type_kind_ord_at(arena, tr);
+                }
+                if (tk == 10) {
+                  unsafe {
+                    arr_sz = pipeline_type_array_size_at(arena, tr);
+                  }
+                }
+              }
+              if (arr_sz > 0) {
+                break;
+              }
+            }
+          }
+          li = li + 1;
+        }
+      }
+    }
     if (arr_sz <= 0) {
       return 0;
     }
@@ -36402,13 +36461,23 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
       arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, src);
     }
     if (arr_off < 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, src, arr_off, ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
+      // Mutable module TYPE_ARRAY lives in SHN_COMMON — LEA via modlet
+      // (same decay as INDEX). Const TYPE_ARRAY is hoisted into main
+      // only; non-main miss here is a different leftover.
+      // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+      unsafe {
+        rc = pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, &vname[0], vlen, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    } else {
+      unsafe {
+        rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, src, arr_off, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
   } else if (init_ko == 44) {
     unsafe {

@@ -16481,6 +16481,10 @@ extern int32_t pipeline_type_array_size_at(struct ast_ASTArena *a, int32_t ref);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t er);
 extern int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *a, void *ctx, int32_t er);
 extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *a, void *elf, int32_t er, int32_t off, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t pipeline_module_top_level_let_name_len(void *m, int32_t idx);
+extern uint8_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t idx, int32_t off);
+extern int32_t pipeline_module_top_level_let_type_ref(void *m, int32_t idx);
 extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t er);
 extern int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *a, void *mod, int32_t fa);
 extern int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena *a, void *elf, int32_t er, void *ctx, int32_t ta);
@@ -16698,13 +16702,41 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
       if (init_tr > 0 && pipeline_type_kind_ord_at(arena, init_tr) == 10)
         arr_sz = pipeline_type_array_size_at(arena, init_tr);
     }
+    /* dest-SLICE stamps VAR to TYPE_SLICE. Mutable module TYPE_ARRAY is
+     * COMMON (not hoisted) — recover N from the module table.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
+    if (arr_sz <= 0 && g_pipeline_asm_emit_module) {
+      int32_t ntl = cold_mod_num_top_level_lets(g_pipeline_asm_emit_module);
+      int32_t tl;
+      for (tl = 0; tl < ntl && arr_sz <= 0; tl++) {
+        int32_t nlen = pipeline_module_top_level_let_name_len(g_pipeline_asm_emit_module, tl);
+        int32_t match = 1;
+        int32_t ci;
+        if (nlen != vlen || nlen <= 0)
+          continue;
+        for (ci = 0; ci < nlen; ci++) {
+          if (pipeline_module_top_level_let_name_byte_at(g_pipeline_asm_emit_module, tl, ci) != vname[ci]) {
+            match = 0;
+            break;
+          }
+        }
+        if (match) {
+          int32_t tr = pipeline_module_top_level_let_type_ref(g_pipeline_asm_emit_module, tl);
+          if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 10)
+            arr_sz = pipeline_type_array_size_at(arena, tr);
+        }
+      }
+    }
     if (arr_sz <= 0)
       return 0;
     arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
-    if (arr_off < 0)
+    if (arr_off < 0) {
+      /* Mutable module TYPE_ARRAY: LEA COMMON (same decay as INDEX). */
+      if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, vname, vlen, ta) != 0)
+        return -1;
+    } else if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0) {
       return -1;
-    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0)
-      return -1;
+    }
   } else if (init_ko == 44) {
     /* EXPR_FIELD_ACCESS: fixed TYPE_ARRAY field of VAR base. */
     int32_t init_tr;

@@ -5469,6 +5469,11 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  *   `{.data = A[1], .length = N}` when `.data` is an address constant
  *   (static array / row). VAR N is recovered from module top-level
  *   TYPE_ARRAY lets (typeck stamps the dest-SLICE VAR to TYPE_SLICE).
+ * - Function-scope dest-SLICE of a module TYPE_ARRAY VAR
+ *   (`let s:[]T = A` where A is file-scope `[N]T`, const or mutable):
+ *   typeck stamps the VAR to TYPE_SLICE and the name is not a block let.
+ *   Recover N from the module table (same walk as INDEX). `.data = A`
+ *   is a C file-scope array decay. Do not fall through to `s = A`.
  *   CALL/statement-expr is not a C static constant — typeck rejects those
  *   as module const; this helper still wraps them for init_globals assign.
  * - Module dest-SLICE ARRAY_LIT (`const t:[]T = [10,32]` / `[][]T = [[…]]`)
@@ -5610,7 +5615,42 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           }
         }
       }
-    } else if (init_ko == 44
+      /*
+       * dest-SLICE stamps the VAR to TYPE_SLICE, hiding N. Module
+       * TYPE_ARRAY (const hoisted / mutable COMMON) is not a block let
+       * in this function. Recover N from the module table — same walk
+       * as INDEX dest-SLICE. `.data = A` is a file-scope C array.
+       * PLATFORM: SHARED host-C.
+       */
+      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
+        let tl_mod: *Module = ctx.current_codegen_module;
+        if (tl_mod != 0 as *Module) {
+          let tli: i32 = 0;
+          while (tli < tl_mod.num_top_level_lets && arr_sz <= 0) {
+            let nlen_tl: i32 = pipeline_module_top_level_let_name_len(tl_mod, tli);
+            if (nlen_tl == init_e.var_name_len && nlen_tl > 0) {
+              let matched_tl: i32 = 1;
+              let ci_tl: i32 = 0;
+              while (ci_tl < nlen_tl) {
+                if (pipeline_module_top_level_let_name_byte_at(tl_mod, tli, ci_tl) != init_e.var_name[ci_tl]) {
+                  matched_tl = 0;
+                  ci_tl = nlen_tl;
+                } else {
+                  ci_tl = ci_tl + 1;
+                }
+              }
+              if (matched_tl != 0) {
+                let tr_tl: i32 = pipeline_module_top_level_let_type_ref(tl_mod, tli);
+                if (!ast.ref_is_null(tr_tl) && pipeline_type_kind_ord_at(arena, tr_tl) == 10) {
+                  arr_sz = pipeline_type_array_size_at(arena, tr_tl);
+                }
+              }
+            }
+            tli = tli + 1;
+          }
+        }
+      }
+    } else if (init_ko == 44)
                && init_e.field_access_field_len > 0
                && init_e.field_access_base_ref > 0
                && init_e.field_access_base_ref <= arena.num_exprs) {
