@@ -5464,6 +5464,13 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * - Block `const` dest-SLICE (`const s:[]T = a[1]` / `= b`): emit_block kind=0
  *   reuses this helper. Prior: `s = (a)[1]` assigned a pointer into the slice
  *   struct (host-cc BLD001). Typed compound is a legal C initializer.
+ * - Module-level dest-SLICE const (`const s:[]T = A[1]` / `= B` at file scope):
+ *   codegen_x_ast top-level decl reuses this helper. C static init allows
+ *   `{.data = A[1], .length = N}` when `.data` is an address constant
+ *   (static array / row). VAR N is recovered from module top-level
+ *   TYPE_ARRAY lets (typeck stamps the dest-SLICE VAR to TYPE_SLICE).
+ *   CALL/statement-expr is not a C static constant — typeck rejects those
+ *   as module const; this helper still wraps them for init_globals assign.
  *
  * @param arena *ASTArena — expression/type pool
  * @param out *CodegenOutBuf — C text sink
@@ -5597,7 +5604,42 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           }
         }
       }
-    } else if (init_ko == 44
+      /*
+       * Module-level dest-SLICE const/let: no enclosing block. Typeck stamps
+       * the VAR to TYPE_SLICE, hiding N. Scan current-module top-level
+       * lets/consts for a TYPE_ARRAY binding of the same name.
+       * Address-constant `.data = Name` is legal C static init.
+       * PLATFORM: SHARED host-C.
+       */
+      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
+        let tl_mod: *Module = ctx.current_codegen_module;
+        if (tl_mod != 0 as *Module) {
+          let tli: i32 = 0;
+          while (tli < tl_mod.num_top_level_lets && arr_sz <= 0) {
+            let nlen_tl: i32 = pipeline_module_top_level_let_name_len(tl_mod, tli);
+            if (nlen_tl == init_e.var_name_len && nlen_tl > 0) {
+              let matched_tl: i32 = 1;
+              let ci_tl: i32 = 0;
+              while (ci_tl < nlen_tl) {
+                if (pipeline_module_top_level_let_name_byte_at(tl_mod, tli, ci_tl) != init_e.var_name[ci_tl]) {
+                  matched_tl = 0;
+                  ci_tl = nlen_tl;
+                } else {
+                  ci_tl = ci_tl + 1;
+                }
+              }
+              if (matched_tl != 0) {
+                let tr_tl: i32 = pipeline_module_top_level_let_type_ref(tl_mod, tli);
+                if (!ast.ref_is_null(tr_tl) && pipeline_type_kind_ord_at(arena, tr_tl) == 10) {
+                  arr_sz = pipeline_type_array_size_at(arena, tr_tl);
+                }
+              }
+            }
+            tli = tli + 1;
+          }
+        }
+      }
+    } else if (init_ko == 44)
                && init_e.field_access_field_len > 0
                && init_e.field_access_base_ref > 0
                && init_e.field_access_base_ref <= arena.num_exprs) {
@@ -21026,8 +21068,27 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                   return -1;
                 }
               } else {
-                if (emit_expr(arena, out, tl_init, ctx) != 0) {
+                /*
+                 * dest-SLICE module const/let: same wrap as emit_block.
+                 * Prior: emit_expr only → `static const T s = (A)[1]`
+                 * (pointer into slice struct) → host-cc BLD001.
+                 * G.7: reuse try_emit_slice_init_from_array_var.
+                 * block_ref/let_idx = 0; VAR N comes from module scan.
+                 * Typed compound is a legal GNU C static initializer when
+                 * .data is an address constant. PLATFORM: SHARED host-C.
+                 */
+                let slice_tl: i32 = 0;
+                if (!ast.ref_is_null(tl_ty)
+                    && pipeline_type_kind_ord_at(arena, tl_ty) == 11) {
+                  slice_tl = try_emit_slice_init_from_array_var(
+                    arena, out, 0, 0, tl_ty, tl_init, ctx);
+                }
+                if (slice_tl < 0) {
                   return -1;
+                } else if (slice_tl == 0) {
+                  if (emit_expr(arena, out, tl_init, ctx) != 0) {
+                    return -1;
+                  }
                 }
               }
             }
@@ -21122,8 +21183,26 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               if (emit_bytes_4(out, &eq2[0], 3) != 0) {
                 return -1;
               }
-              if (!ast.ref_is_null(pipeline_module_top_level_let_init_ref(module, ti)) && emit_expr(arena, out, pipeline_module_top_level_let_init_ref(module, ti), ctx) != 0) {
+              /*
+               * dest-SLICE mutable top-level let: init_globals assign.
+               * Same wrap as decl-site (VAR of a const array is not a
+               * C static-const tree → this path). G.7 reuse try_emit.
+               * PLATFORM: SHARED host-C.
+               */
+              let ig_init: i32 = pipeline_module_top_level_let_init_ref(module, ti);
+              let slice_ig: i32 = 0;
+              if (!ast.ref_is_null(ig_ty)
+                  && pipeline_type_kind_ord_at(arena, ig_ty) == 11
+                  && !ast.ref_is_null(ig_init)) {
+                slice_ig = try_emit_slice_init_from_array_var(
+                  arena, out, 0, 0, ig_ty, ig_init, ctx);
+              }
+              if (slice_ig < 0) {
                 return -1;
+              } else if (slice_ig == 0) {
+                if (!ast.ref_is_null(ig_init) && emit_expr(arena, out, ig_init, ctx) != 0) {
+                  return -1;
+                }
               }
               let sc2: u8[3] = [59, 10, 0];
               if (emit_bytes_3(out, &sc2[0], 2) != 0) {
@@ -21175,8 +21254,32 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                     if (emit_bytes_4(out, &deq[0], 3) != 0) {
                       return -1;
                     }
-                    if (!ast.ref_is_null(pipeline_module_top_level_let_init_ref(dep_mod, dti)) && emit_expr(dep_arena, out, pipeline_module_top_level_let_init_ref(dep_mod, dti), ctx) != 0) {
+                    /*
+                     * Dep-module dest-SLICE mutable let: same init_globals wrap.
+                     * PLATFORM: SHARED host-C.
+                     */
+                    let dig_init: i32 = pipeline_module_top_level_let_init_ref(dep_mod, dti);
+                    let slice_dig: i32 = 0;
+                    if (!ast.ref_is_null(dig_ty)
+                        && pipeline_type_kind_ord_at(dep_arena, dig_ty) == 11
+                        && !ast.ref_is_null(dig_init)) {
+                      /*
+                       * VAR N scan reads ctx.current_codegen_module. Point it
+                       * at the dep so dest-SLICE `= B` finds dep B, not the
+                       * caller's lets. Restore after. PLATFORM: SHARED host-C.
+                       */
+                      let saved_dig: *Module = ctx.current_codegen_module;
+                      ctx.current_codegen_module = dep_mod;
+                      slice_dig = try_emit_slice_init_from_array_var(
+                        dep_arena, out, 0, 0, dig_ty, dig_init, ctx);
+                      ctx.current_codegen_module = saved_dig;
+                    }
+                    if (slice_dig < 0) {
                       return -1;
+                    } else if (slice_dig == 0) {
+                      if (!ast.ref_is_null(dig_init) && emit_expr(dep_arena, out, dig_init, ctx) != 0) {
+                        return -1;
+                      }
                     }
                     let dsc: u8[3] = [59, 10, 0];
                     if (emit_bytes_3(out, &dsc[0], 2) != 0) {
