@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；LANG-006 保留；下一硬叶 asm nslvar INDEX |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；LANG-006 保留；下一硬叶无（nest>16 soft／TYPE_DYN 后期／4.2.4–7 leave-off） |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -681,7 +681,7 @@
   - **根修（G.7 有则补全）**：产生点＝`emit_braced_array_lit_init` 对内层 ARRAY_LIT 一律递归 brace。dest／elem TYPE_SLICE 复用 emit_expr 耐久 slice；TYPE_ARRAY 行仍递归 brace
   - **禁**：改 emit_index／type_to_c_repr／emit_type ARRAY 衰减；全量 assemble parser.x／pipeline_abi mega
   - 证：`nested_slice_lit_arr`／`nested_slice_const_arr` host-C **71**（INDEX 消费；`-E` 有 `__xlang_al`＋`.data`／`.length`）
-  - 余（已闭 asm INDEX）：@ **`a403bc41e`**；另层：nslvar host-C（已闭 @ **`86c3e7ee0`**）／asm nslvar INDEX；nest>16 soft
+  - 余（已闭 asm INDEX）：@ **`a403bc41e`**；另层：nslvar host-C（已闭 @ **`86c3e7ee0`**）／asm nslvar INDEX（已闭 @ **`4e26d1f3f`**）；nest>16 soft
 
 ✅ **asm `[2][]i32` INDEX** ✅ @ **`a403bc41e`**
 
@@ -697,7 +697,15 @@
   - **根修（G.7 有则补全）**：产生点＝ARRAY_LIT 非 const 填充。`try_emit_slice_init_from_array_var` 发 `(T[]){.data,.length}`（赋值合法）；同层扫 const／parent；填充 dest-elem TYPE_SLICE 复用 helper
   - **禁**：改 emit_index／glue／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
   - 证：`nested_slice_lit_var` host-C／xlang-c **78**（INDEX 消费；`-E` 有 typed fat）
-  - 余（勿并本叶）：asm nslvar INDEX（消费 134／偶发 139；先前 return 78 假绿）；nest>16 soft
+  - 余（已闭 asm nslvar INDEX）：@ **`4e26d1f3f`**；nest>16 soft
+
+✅ **asm nslvar INDEX** ✅ @ **`4e26d1f3f`**
+
+  - 现场：`let a:[2]i32=[1,2]; let x:[][]i32=[a]; return x[0][0]+x[0][1]+75` asm 134／偶发 139（先前 `return 78` 假绿）
+  - **根修（G.7 有则补全）**：产生点＝durable ARRAY_LIT 行调 `glue_emit_slice_from_array_let_init` `block_ref=0`，VAR 路径直接 return 0 再 `emit_expr` 写垃圾 fat。typeck 把行 stamp 成 TYPE_SLICE，N 不在 `resolved_type_ref`。补全同一 helper：prior-let 未中则 `pipeline_block_resolve_var_type_ref`（const＋parent）从 scope／func body 取 decl N
+  - **禁**：改 emit_index／host-C fill／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
+  - 证：`nested_slice_lit_var` 三端 **78**；同层 `nested_slice_const_var`／`nested_slice_parent_var` 三端 **78**
+  - 余（勿并本叶）：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–7 leave-off
 
 ---
 
