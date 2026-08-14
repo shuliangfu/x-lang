@@ -90,6 +90,7 @@ extern int32_t link_abi_user_o_needs_std_sys_linux(uint8_t * user_o);
 extern int32_t link_abi_user_o_needs_std_test(uint8_t * user_o);
 extern uint8_t * xlang_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
 extern int32_t xlang_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_repo, uint8_t * make_target);
+extern void labi_std_append_test_monofile_companions(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern int32_t xlang_ensure_runtime_heap_user_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_net_udp_batch_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_net_workers_o(uint8_t * argv0);
@@ -1563,38 +1564,9 @@ uint8_t * labi_od_rel_env_os(void) {
   uint8_t * p = ((uint8_t *)"compiler/runtime_env_os.o");
   return p;
 }
-/* PLATFORM: SHARED — ≡ pure labi_od_push_test_monofile_companions. */
+/* PLATFORM: SHARED — thin trampoline ≡ labi_std_append_test_monofile_companions (L6). */
 void labi_od_push_test_monofile_companions(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
-  if ((la == 0)) {
-    return;
-  }
-  if ((argv == 0)) {
-    return;
-  }
-  {
-    int32_t er_t = 0;
-    uint8_t * tp = 0;
-    uint8_t * tfrel = labi_od_rel_test_fn_invoke();
-    (void)((er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0)));
-    (void)((tp = xlang_runtime_test_fn_invoke_o_path(link_argv0)));
-    (void)(labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la));
-  }
-  {
-    int32_t er_e = 0;
-    uint8_t * ep = 0;
-    uint8_t * erel = labi_od_rel_env_os();
-    (void)((er_e = xlang_ensure_runtime_env_os_o(link_argv0)));
-    (void)((ep = xlang_runtime_env_os_o_path(link_argv0)));
-    (void)(labi_od_glue_push_if(er_e, ep, link_argv0, erel, lib_roots, n_lib_roots, bank, argv, la, max_la));
-  }
-  {
-    int32_t er_to = 0;
-    uint8_t * top = 0;
-    uint8_t * torel = labi_od_time_os_rel();
-    (void)((er_to = xlang_ensure_runtime_time_os_o(link_argv0)));
-    (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
-    (void)(labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la));
-  }
+  labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
 }
 /* PLATFORM: SHARED — ≡ pure labi_od_push_time_formal_and_os (mega-frame spill residual). */
 void labi_od_push_time_formal_and_os(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {

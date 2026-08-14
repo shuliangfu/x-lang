@@ -55,6 +55,7 @@ export extern function link_abi_user_o_needs_std_test(user_o: *u8): i32;
 export extern function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
 export extern function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
 export extern function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void;
+export extern function labi_std_append_test_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void;
 export extern function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32;
@@ -2396,19 +2397,9 @@ function labi_od_glue_push_if(er: i32, primary: *u8, link_argv0: *u8, glue_rel: 
 }
 
 /**
- * Push std.test monofile C-dual companions onto the pure-asm ld argv.
- *
- * Formal test.o co-emits C helpers that UNDEF:
- *   - test_call_i32_void_c  → runtime_test_fn_invoke.o
- *   - env_getenv_c          → runtime_env_os.o
- *   - time_now_monotonic_ns_c → runtime_time_os.o
- * User.o only names std_test_* so fk0/time/env user needles never fire.
- * Whole-.o link pulls monofile U even for plain expect() (≡ queue/net companions).
- *
- * Thin helper keeps a small frame so pure-asm large-frame spill in the mega
- * append_on_demand body cannot drop these pushes (have_test gate soft-miss).
- * push_obj dedup makes double-call from need_test + g12 safe.
- *
+ * Thin trampoline: push std.test monofile companions via the invoke_ld authority.
+ * Body lives in labi_std_append_test_monofile_companions (L6 / seed-phase1 TU).
+ * Call sites (need_test + g12) keep this name so mega-frame spill stays thin.
  * @param link_argv0 *u8 — product host argv0
  * @param lib_roots **u8 — -L roots
  * @param n_lib_roots i32
@@ -2416,7 +2407,7 @@ function labi_od_glue_push_if(er: i32, primary: *u8, link_argv0: *u8, glue_rel: 
  * @param argv **u8 — ld argv
  * @param la *i32 — argv length
  * @param max_la i32
- * PLATFORM: SHARED pure thin.
+ * PLATFORM: SHARED — zero-logic wrapper; G.7 single companion body in invoke_ld.
  */
 #[no_mangle]
 export function labi_od_push_test_monofile_companions(
@@ -2428,43 +2419,7 @@ export function labi_od_push_test_monofile_companions(
   la: *i32,
   max_la: i32
 ): void {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    if (la == 0 as *i32) {
-      return;
-    }
-    let ab: *u8 = argv as *u8;
-    if (ab == 0 as *u8) {
-      return;
-    }
-    // 1) test_call_i32_void_c — runner/bench/fuzz invoke glue
-    let er_t: i32 = 0;
-    let tp: *u8 = 0 as *u8;
-    let tfrel: *u8 = labi_od_rel_test_fn_invoke();
-    unsafe {
-      er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
-      tp = xlang_runtime_test_fn_invoke_o_path(link_argv0);
-    }
-    labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
-    // 2) env_getenv_c — test_fuzz_seed_c reads XLANG_FUZZ_SEED via env OS face
-    let er_e: i32 = 0;
-    let ep: *u8 = 0 as *u8;
-    let erel: *u8 = labi_od_rel_env_os();
-    unsafe {
-      er_e = xlang_ensure_runtime_env_os_o(link_argv0);
-      ep = xlang_runtime_env_os_o_path(link_argv0);
-    }
-    labi_od_glue_push_if(er_e, ep, link_argv0, erel, lib_roots, n_lib_roots, bank, argv, la, max_la);
-    // 3) time_now_monotonic_ns_c — bench_run / bench_run_noop timing
-    let er_to: i32 = 0;
-    let top: *u8 = 0 as *u8;
-    let torel: *u8 = labi_od_time_os_rel();
-    unsafe {
-      er_to = xlang_ensure_runtime_time_os_o(link_argv0);
-      top = xlang_runtime_time_os_o_path(link_argv0);
-    }
-    labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la);
-  }
+  labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
 }
 
 /**

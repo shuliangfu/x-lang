@@ -104,7 +104,9 @@ int xlang_ensure_runtime_queue_contention_o(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags);
-void labi_od_push_test_monofile_companions(const char *link_argv0, const char **lib_roots,
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0);
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
+void labi_std_append_test_monofile_companions(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 /* Peer pure / Cap residual (wave194 TASK_SPECIAL). */
 int labi_user_needs_std_task(const char *user_o);
@@ -771,6 +773,24 @@ void labi_std_append_queue_monofile_companions(const char *link_argv0, const cha
                                  lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
 
+/* G.7 single test monofile companion body (cold twin ≡ .x).
+ * PLATFORM: SHARED — defined here so seed-phase1 runtime_link_abi.o has the T.
+ * Do not call L8c labi_od_push_test_monofile_companions from this TU. */
+void labi_std_append_test_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
+  if (!link_argv0 || !argv || !la)
+    return;
+  (void)xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_test_fn_invoke.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_env_os_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_env_os.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_time_os_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_time_os.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+}
+
 /* wave191: labi_std_append_formal_ensure_for_rel pure orch (cold twin ≡ .x).
  * Cap residual: repo_root + ensure_runtime_* + path; peer formal_std_make + push_obj.
  * PLATFORM: SHARED — append_std OP_STD formal ensure+companions.
@@ -895,9 +915,9 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
   /* PLATFORM: SHARED — queue.o monofile companions (G.7 single helper). */
   if (strcmp(rel, "std/queue/queue.o") == 0)
     labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-  /* PLATFORM: SHARED — test.o monofile companions (G.7 reuse on_demand helper). */
+  /* PLATFORM: SHARED — test.o monofile companions (G.7 single helper in this TU). */
   if (strcmp(rel, "std/test/test.o") == 0)
-    labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
   /* PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
    * context.o U atomic_*_i32_c + time_now_monotonic_ns_c. G.7 ≡ C need_context. */
   if (strcmp(rel, "std/context/context.o") == 0) {

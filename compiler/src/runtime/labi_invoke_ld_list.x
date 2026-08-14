@@ -229,9 +229,12 @@ export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
 // Queue monofile U sync_queue_contention_smoke_c (formal_ensure + on_demand).
 export extern "C" function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern "C" function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
-// Peer pure (ondemand heavy): test.o monofile companions (fn_invoke / env_os / time_os).
-// G.7 single helper — formal_ensure calls the same body as on_demand need_test.
-export extern "C" function labi_od_push_test_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void;
+// Test monofile U test_call_i32_void_c / env_getenv_c / time_now_monotonic_ns_c.
+// Body is labi_std_append_test_monofile_companions in this TU (≡ queue helper).
+// Do not extern labi_od_push_test_monofile_companions (L8c): seed-phase1 links
+// runtime_link_abi.o without L8c → UNDEF (c02468dbf Darwin bootstrap).
+export extern "C" function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
 
 // Peer pure / Cap residual for wave194 TASK_SPECIAL (task.o + scheduler.o + scheduler_glue).
 // PLATFORM: SHARED — append_std plan leaf 30; gate + formal ensure + path ladder + push.
@@ -2181,6 +2184,47 @@ export function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_r
 }
 
 /**
+ * Push std.test monofile C-dual companions onto the ld argv.
+ * Formal test.o UNDEFs test_call_i32_void_c / env_getenv_c / time_now_monotonic_ns_c
+ * even when user.o only names std_test_expect* (≡ queue monofile class).
+ * Authority lives in this TU so seed-phase1 mega runtime_link_abi.o (includes
+ * this file) defines the symbol. L8c labi_od_push_test_monofile_companions is
+ * a zero-logic trampoline to this helper.
+ * Always push_obj after ensure (queue contract); skip_missing no-ops a miss.
+ * @param link_argv0 *u8 — compiler argv0 / link root; null → no-op
+ * @param lib_roots **u8 — -L roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*; may be null
+ * @param argv **u8 — ld argv table; null → no-op
+ * @param la *i32 — in/out argv length; null → no-op
+ * @param max_la i32 — argv capacity
+ * @return void
+ * PLATFORM: SHARED — Darwin ld hard UNDEF; Linux ELF may look green without these.
+ * Track-L: #[no_mangle] product short name (on_demand + formal_ensure).
+ */
+#[no_mangle]
+export function labi_std_append_test_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    let _et: i32 = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
+    let _pt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_test_fn_invoke.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    let _ee: i32 = xlang_ensure_runtime_env_os_o(link_argv0);
+    let _pe: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    let _eto: i32 = xlang_ensure_runtime_time_os_o(link_argv0);
+    let _pto: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+}
+
+/**
  * After OP_STD gate opens and user_o is set: ensure formal std|core .o exists
  * (L4 wipe restores via Makefile) and push companion .o when rel needs them.
  * Pure orch:
@@ -2192,7 +2236,7 @@ export function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_r
  *        env.o → ensure+push runtime_env_os.o
  *        random.o → ensure+push runtime_random_fill.o
  *        time.o → ensure+push runtime_time_os.o
- *        test.o → labi_od_push_test_monofile_companions (fn_invoke / env_os / time_os)
+ *        test.o → labi_std_append_test_monofile_companions (fn_invoke / env_os / time_os)
  * Does NOT push `rel` itself (caller still does link_abi_asm_ld_push_obj for the plan step).
  * @param link_argv0 *u8 — effective compiler argv0 / link root
  * @param rel *u8 — plan OP_STD rel (std/... or core/...)
@@ -2493,7 +2537,7 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   if (eq_queue == 0) {
     labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *u8);
   }
-  // PLATFORM: SHARED — test.o monofile companions (G.7 reuse on_demand helper).
+  // PLATFORM: SHARED — test.o monofile companions (G.7 single helper in this TU).
   // User.o only U std_test_*; formal test.o U test_call / env_getenv / time_now.
   // C path need_test used to skip companions when test.o was already on argv.
   let eq_test: i32 = 0;
@@ -2501,7 +2545,7 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
     eq_test = strcmp(rel, "std/test/test.o");
   }
   if (eq_test == 0) {
-    labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
   }
   // PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
   // context.o U atomic_*_i32_c + time_now_monotonic_ns_c. C path need_context already
