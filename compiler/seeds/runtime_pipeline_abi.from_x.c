@@ -12286,6 +12286,7 @@ extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
 extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int64_t pipeline_expr_int64_val_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
 extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
@@ -12445,10 +12446,18 @@ static int32_t glue_emit_cmp_finish_seed(void *arena, void *ctx, void *elf_ctx, 
 
 static int32_t cmp_expr_lit_i32_seed(void *arena, int32_t expr_ref, int32_t *out_imm) {
   int32_t ko;
+  int64_t v64;
   if (expr_ref == 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   if (ko == 0 || ko == 2) {
+    /* PLATFORM: SHARED — wide INT_LIT is not an i32 imm (2^32 → 0). Twin of
+     * pipeline_asm_cmp_expr_lit_i32_at + glue_binop_expr_is_wide_int_lit. */
+    if (ko == 0) {
+      v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+      if (v64 < (int64_t)(-2147483647 - 1) || v64 > (int64_t)2147483647)
+        return 0;
+    }
     if (out_imm)
       *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
     return 1;

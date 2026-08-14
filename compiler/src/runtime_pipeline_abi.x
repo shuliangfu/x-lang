@@ -27993,13 +27993,16 @@ function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, 
 }
 
 /**
- * Whether expr is int/bool lit; writes imm to out_imm[0].
+ * Whether expr is an i32-fit int/bool lit; writes that i32 to out_imm[0].
+ * INT_LIT whose full i64 bits do not fit in signed i32 returns 0 so callers
+ * fall through to emit_expr (mov_imm64). Otherwise 2^32 is truncated to 0
+ * and 64-bit cmp/add vs `mov w0,#0` / `movl $0,%eax` is wrong.
  * @param arena *u8 - ASTArena*
  * @param expr_ref i32 - expr ref
  * @param out_imm *i32 - out; null → only test
- * @return i32 - 1 if lit; 0 otherwise
+ * @return i32 - 1 if i32-fit lit; 0 otherwise
  * wave137 pure private: mirrors residual pipeline_asm_expr_lit_i32_at_c.
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED — mov_imm32 zero-extends on both SysV x86_64 and AAPCS64.
  */
 function pipeline_asm_cmp_expr_lit_i32_at(arena: *u8, expr_ref: i32, out_imm: *i32): i32 {
   let ko: i32 = 0;
@@ -28012,6 +28015,10 @@ function pipeline_asm_cmp_expr_lit_i32_at(arena: *u8, expr_ref: i32, out_imm: *i
   }
   // INT_LIT=0 BOOL_LIT=2
   if (ko == 0 || ko == 2) {
+    // G.7: reuse wide-lit predicate (P0-4). Wide bits are not an i32 imm.
+    if (ko == 0 && glue_binop_expr_is_wide_int_lit_elf_c(arena, expr_ref) != 0) {
+      return 0;
+    }
     unsafe {
       v = pipeline_expr_int_val_at(arena, expr_ref);
     }
