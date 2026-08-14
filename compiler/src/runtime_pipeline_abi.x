@@ -29492,14 +29492,18 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
 }
 
 /**
- * Build the modlet table and emit SHN_COMMON symbols for module mutable lets.
+ * Build the modlet table and emit SHN_COMMON symbols for module lets.
  * Accepts:
- *   (1) scalar LIT/BOOL init (kind 0/2) → 8-byte COMMON (historic wave139)
+ *   (1) mutable scalar LIT/BOOL init (kind 0/2) → 8-byte COMMON (historic wave139)
  *   (2) fixed TYPE_ARRAY (kind 10) with ARRAY_LIT init (kind 46), e.g. `u8[N]=[]`
- *       → COMMON of full array payload bytes (Stage 12.0.5)
+ *       and `const A:[2]i32=[10,32]` → COMMON of full array payload bytes
  * Without (2), pure-asm stacked every module array into each function frame
  * (~sum of all g_labi_* buffers per call) → stack overflow / dangling path
  * returns (labi_path_pure hybrid SEGV on opt/si/hello).
+ * Const TYPE_ARRAY used to skip here (is_const) and hoist into main only —
+ * non-main INDEX then had no home (CG002). Same COMMON path as mutable;
+ * seed_nonzero writes ARRAY_LIT elems. Other const (scalars, dest-SLICE)
+ * still skip — those hoist / use text cells.
  * @param m *u8 - Module*
  * @param a *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -29530,10 +29534,8 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     unsafe {
       is_const = pipeline_module_top_level_let_is_const(m, tl);
     }
-    if (is_const != 0) {
-      tl = tl + 1;
-      continue;
-    }
+    // Do not skip all const here: const TYPE_ARRAY + ARRAY_LIT needs COMMON
+    // so non-main INDEX can LEA. Gate is after tk / init_kind below.
     let name_len: i32 = 0;
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
@@ -29568,12 +29570,20 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
       }
     }
     if (init_kind == 0 || init_kind == 2) {
+      // Const scalars stay skipped (hoist / text). Mutable LIT/BOOL → COMMON.
+      if (is_const != 0) {
+        tl = tl + 1;
+        continue;
+      }
       unsafe {
         imm = pipeline_expr_int_val_at(a, init_ref);
       }
       cell_sz = 8;
     } else {
-      // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for module path buffers etc.
+      // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for mutable *and* const
+      // module arrays. Const used to skip above; hoist-into-main left non-main
+      // INDEX with no home. dest-SLICE / other const still skip (tk!=10).
+      // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
       if (tk != 10 || init_kind != 46) {
         tl = tl + 1;
         continue;
@@ -29810,7 +29820,8 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
  * Scalar cells: non-zero init_imm (historic wave139).
  * TYPE_ARRAY ARRAY_LIT cells: prepare emits zero BSS; write LIT elems
  * into COMMON so dest-SLICE / INDEX LEA sees the source payload
- * (`let A:[2]i32=[10,32]`). Empty `u8[N]=[]` stays zero (correct).
+ * (`let A:[2]i32=[10,32]` and `const A:[2]i32=[10,32]`). Empty
+ * `u8[N]=[]` stays zero (correct).
  * Arena/module from emit ctx (no extra pointer arg).
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param ta i32 - target arch
@@ -29845,9 +29856,9 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
     }
     i = i + 1;
   }
-  // Mutable module TYPE_ARRAY ARRAY_LIT → COMMON is BSS zero until we
-  // store elems here (hoist skips those lets). dest-SLICE wrap LEAs the
-  // cell; without this seed s[0] reads 0.
+  // Module TYPE_ARRAY ARRAY_LIT (const + mutable) → COMMON is BSS zero
+  // until we store elems here (hoist skips all TYPE_ARRAY). dest-SLICE
+  // wrap / INDEX LEAs the cell; without this seed A[0] reads 0.
   // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
   let arena: *u8 = pipeline_asm_emit_ctx_arena_get();
   let mod: *u8 = pipeline_asm_emit_module_ref_c();
@@ -29856,7 +29867,6 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
     let nexprs: i32 = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
     let tl: i32 = 0;
     while (tl < nlets) {
-      let is_c: i32 = 0;
       let nlen: i32 = 0;
       let init_ref: i32 = 0;
       let type_ref: i32 = 0;
@@ -29869,10 +29879,9 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
       let name_buf: u8[128] = [];
       let k: i32 = 0;
       unsafe {
-        is_c = pipeline_module_top_level_let_is_const(mod, tl);
         nlen = pipeline_module_top_level_let_name_len(mod, tl);
       }
-      if (is_c == 0 && nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 127) {
         k = 0;
         while (k < nlen) {
           unsafe {
@@ -36341,11 +36350,9 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * Module-level dest-SLICE const (`const s:[]T = A[i]`) hoists into main;
  * the INDEX base VAR often has no resolved TYPE_ARRAY stamp — recover N
  * from the hoisted / module TYPE_ARRAY decl (same as VAR dest-SLICE).
- * Mutable module TYPE_ARRAY stays SHN_COMMON (hoist skips it). dest-SLICE
- * VAR of that name recovers N from the module table and LEAs COMMON
- * (`pipeline_asm_modlet_load_to_rax`) when there is no stack slot.
- * Const TYPE_ARRAY is hoisted into main only — non-main INDEX of those
- * is a different leftover (prepare skips is_const, so no COMMON home).
+ * Module TYPE_ARRAY (const + mutable) stays SHN_COMMON (hoist skips it).
+ * dest-SLICE VAR of that name recovers N from the module table and LEAs
+ * COMMON (`pipeline_asm_modlet_load_to_rax`) when there is no stack slot.
  * Typeck stamps a `[a]` / `[mk()]` / `[a[i]]` dest-SLICE row to TYPE_SLICE,
  * so N comes from the decl, callee return, or INDEX base elem
  * (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT rows
@@ -36637,10 +36644,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     if (arr_sz <= 0) {
       return 0;
     }
-    // Prefer COMMON LEA when the name is a mutable module TYPE_ARRAY.
-    // stack_off can false-hit a frame slot (offset 0 / scoped fallback)
-    // and then dest-SLICE .data is not &A — s[0] != A[0].
-    // Const TYPE_ARRAY is hoisted into main only (not COMMON).
+    // Prefer COMMON LEA when the name is a module TYPE_ARRAY (const or
+    // mutable). stack_off can false-hit a frame slot (offset 0 / scoped
+    // fallback) and then dest-SLICE .data is not &A — s[0] != A[0].
     // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
     if (pipeline_asm_modlet_find(&vname[0], vlen) >= 0) {
       unsafe {
@@ -75853,15 +75859,13 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
  * stack-slot init. Keeps num_top_level_lets so emit can still fall back to
  * module const literals for other functions.
  *
- * Stage 12.0.5: do NOT hoist *mutable* fixed TYPE_ARRAY module lets
- * (ARRAY_LIT init). Those become SHN_COMMON via
+ * Stage 12.0.5: do NOT hoist *any* fixed TYPE_ARRAY module lets
+ * (ARRAY_LIT init), const or mutable. Those become SHN_COMMON via
  * pipeline_asm_modlet_prepare_and_emit_elf_c; hoisting them stacked full
  * payload on the hoist-target frame (labi_path_pure g_labi_* ~sum N*2)
  * while COMMON already held the durable home — dual stack/BSS + SEGV.
- * prepare skips *const* (is_const != 0), so const TYPE_ARRAY /
- * dest-SLICE ARRAY_LIT have no COMMON home — hoist them so dest-SLICE
- * INDEX/VAR can lea a stack slot. Non-hoist funcs still skip via
- * sum/register (cross-func module const array is a later leaf).
+ * dest-SLICE ARRAY_LIT (`const t:[]T=[…]`) still hoists — prepare
+ * requires TYPE_ARRAY, so TYPE_SLICE has no COMMON cell.
  *
  * prepend_lets count must equal the number actually appended (not raw n), else
  * skipped COMMON arrays would desync stmt_order vs block lets.
@@ -75943,18 +75947,21 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
               ik_h = pipeline_expr_kind_ord_at(arena, init_ref);
             }
           }
-          if (tk_h == 10 || ik_h == 46) {
-            let is_c_h: i32 = 0;
-            unsafe {
-              is_c_h = pipeline_module_top_level_let_is_const(module, tl);
-            }
-            // Mutable COMMON arrays stay un-hoisted (Stage 12.0.5).
-            // Const TYPE_ARRAY / dest-SLICE ARRAY_LIT must hoist — prepare
-            // skips is_const, so they otherwise have no addressable home
-            // (asm module dest-SLICE const CG002).
+          if (tk_h == 10) {
+            // All TYPE_ARRAY (const + mutable) have COMMON via prepare.
             // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-            if (is_c_h == 0) {
-              skip_common_arr = 1;
+            skip_common_arr = 1;
+          } else {
+            if (ik_h == 46) {
+              let is_c_h: i32 = 0;
+              unsafe {
+                is_c_h = pipeline_module_top_level_let_is_const(module, tl);
+              }
+              // Mutable dest-SLICE ARRAY_LIT stays un-hoisted (pre-existing).
+              // Const dest-SLICE ARRAY_LIT still hoists (no TYPE_ARRAY cell).
+              if (is_c_h == 0) {
+                skip_common_arr = 1;
+              }
             }
           }
         }

@@ -13051,8 +13051,8 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     if (g_pipeline_asm_modlet_cold.n >= XLANG_ASM_MODLET_MAX)
       break;
     is_const = pipeline_module_top_level_let_is_const(m, tl);
-    if (is_const != 0)
-      continue;
+    /* Const TYPE_ARRAY + ARRAY_LIT also needs COMMON (non-main INDEX).
+     * Gate after tk / init_kind. Other const still skip. */
     name_len = pipeline_module_top_level_let_name_len(m, tl);
     if (name_len <= 0 || name_len > 127)
       continue;
@@ -13065,10 +13065,12 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     cell_sz = 8;
     imm = 0;
     if (init_kind == 0 || init_kind == 2) {
+      if (is_const != 0)
+        continue;
       imm = pipeline_expr_int_val_at(a, init_ref);
       cell_sz = 8;
     } else if (tk == 10 && init_kind == 46) {
-      /* TYPE_ARRAY + ARRAY_LIT (e.g. u8[N]=[]): full COMMON payload + array bit.
+      /* TYPE_ARRAY + ARRAY_LIT (mutable *and* const): full COMMON payload.
        * PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare guard.
        * Product fmt_check_cmd_thin g_fmt_file_list_paths = 8192×512 = 4 MiB;
        * historical 1 MiB skip → pure-asm fmt_file_list_at CG002 (Stage12.0.5).
@@ -13144,7 +13146,8 @@ int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) 
                                                  g_pipeline_asm_modlet_cold.name_len[i], ta) != 0)
       return -1;
   }
-  /* Live .x also seeds TYPE_ARRAY ARRAY_LIT LIT elems into COMMON. */
+  /* Live .x also seeds TYPE_ARRAY ARRAY_LIT LIT elems into COMMON
+   * (const + mutable). Cold twin remains scalar-only. */
   return 0;
 }
 
@@ -30142,10 +30145,9 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
 
 /*
  * Cold twin of pure pipeline_module_hoist_top_level_lets_into_main.
- * Stage 12.0.5: skip *mutable* TYPE_ARRAY (10) / ARRAY_LIT (46) module lets —
- * they are COMMON via modlet prepare; hoisting them stacked full payload on
- * main. prepare skips const, so const TYPE_ARRAY / dest-SLICE ARRAY_LIT must
- * hoist (asm module dest-SLICE const home). prepend count = actually appended.
+ * Stage 12.0.5: skip *all* TYPE_ARRAY (10) module lets — they are COMMON
+ * via modlet prepare (const + mutable). dest-SLICE ARRAY_LIT const still
+ * hoists (prepare requires TYPE_ARRAY). prepend count = actually appended.
  * Product pure owns full path when strong; cold must match so WEAK hybrid /
  * freestanding stay aligned.
  * PLATFORM: SHARED freestanding top_level hoist.
@@ -30193,8 +30195,11 @@ void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
       tk = pipeline_type_kind_ord_at(arena, type_ref);
       if (init_ref > 0 && init_ref <= nexprs)
         ik = pipeline_expr_kind_ord_at(arena, init_ref);
-      if (tk == 10 || ik == 46) {
-        /* Mutable COMMON only. Const arrays hoist (prepare skips is_const). */
+      if (tk == 10)
+        continue; /* all TYPE_ARRAY → COMMON (const + mutable) */
+      if (ik == 46) {
+        /* Mutable dest-SLICE ARRAY_LIT stays un-hoisted. Const dest-SLICE
+         * ARRAY_LIT still hoists (no TYPE_ARRAY cell). */
         if (pipeline_module_top_level_let_is_const(module, tl) == 0)
           continue;
       }
