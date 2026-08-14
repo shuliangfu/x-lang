@@ -5451,7 +5451,10 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * Host-C: emit `{ e0, e1, … }` for ARRAY_LIT (fixed TYPE_ARRAY / vector let-init).
  * wave357 Cap residual pure: nested ARRAY_LIT rows recurse (multi-dim `{{1,2},{3,4}}`).
  * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
- * G.7: single recursive authority; non-ARRAY_LIT elems still emit_expr.
+ * ARRAY-of-SLICE (`[N][]T = [[1,2],[3,4]]`): dest elem is TYPE_SLICE. Recurse-braces
+ * yields `struct xlang_slice_* x[N] = {{1,2},{3,4}}` (BLD001 — ints into fat fields).
+ * G.7: same authority; TYPE_ARRAY rows still recurse; TYPE_SLICE rows reuse emit_expr
+ * (durable `({ static E al[]={…}; (slice){.data=al,.length=N}; })`).
  * @param arena *ASTArena — expression pool
  * @param out *CodegenOutBuf — C text sink
  * @param init_ref i32 — ARRAY_LIT or fallback expr
@@ -5477,6 +5480,24 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
       }
       return 0;
     }
+    /*
+     * Dest-elem TYPE_SLICE (`[N][]T` / `[][]T` if this helper is reused):
+     * every nested ARRAY_LIT row is a fat slice, not a braced C array.
+     * Also honor a stamped elem resolved_type_ref when the outer dest is missing.
+     * PLATFORM: SHARED host-C.
+     */
+    let dest_elem_is_slice: i32 = 0;
+    let self_e: Expr = ast.ast_arena_expr_get(arena, init_ref);
+    if (!ast.ref_is_null(self_e.resolved_type_ref) && self_e.resolved_type_ref > 0
+        && self_e.resolved_type_ref <= arena.num_types) {
+      let stk: i32 = pipeline_type_kind_ord_at(arena, self_e.resolved_type_ref);
+      if (stk == (TypeKind.TYPE_ARRAY as i32) || stk == (TypeKind.TYPE_SLICE as i32)) {
+        let et: i32 = pipeline_type_elem_ref_at(arena, self_e.resolved_type_ref);
+        if (!ast.ref_is_null(et) && pipeline_type_kind_ord_at(arena, et) == (TypeKind.TYPE_SLICE as i32)) {
+          dest_elem_is_slice = 1;
+        }
+      }
+    }
     if (append_byte(out, 123) != 0) {
       return -1;
     }
@@ -5492,8 +5513,20 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
         }
       }
       let elem_ref: i32 = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-      /* Nested row: recurse braces; do not emit_expr (that yields (T[]){…} compound). */
-      if (!ast.ref_is_null(elem_ref) && pipeline_expr_kind_ord_at(arena, elem_ref) == (46 as i32)) {
+      let row_is_slice: i32 = dest_elem_is_slice;
+      if (row_is_slice == 0 && !ast.ref_is_null(elem_ref) && elem_ref > 0 && elem_ref <= arena.num_exprs) {
+        let er: Expr = ast.ast_arena_expr_get(arena, elem_ref);
+        if (!ast.ref_is_null(er.resolved_type_ref) && er.resolved_type_ref > 0
+            && er.resolved_type_ref <= arena.num_types) {
+          if (pipeline_type_kind_ord_at(arena, er.resolved_type_ref) == (TypeKind.TYPE_SLICE as i32)) {
+            row_is_slice = 1;
+          }
+        }
+      }
+      /* Nested TYPE_ARRAY row: recurse braces (not emit_expr — that yields (T[]){…}).
+       * Nested TYPE_SLICE row: emit_expr (slice durable static + {.data,.length}). */
+      if (!ast.ref_is_null(elem_ref) && pipeline_expr_kind_ord_at(arena, elem_ref) == (46 as i32)
+          && row_is_slice == 0) {
         if (emit_braced_array_lit_init(arena, out, elem_ref, ctx) != 0) {
           return -1;
         }
