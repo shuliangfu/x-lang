@@ -36115,7 +36115,10 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
 /**
  * Let s: T[] = arr / [..] — write dual-GP {data,length} into slice stack slot.
  * ARRAY_LIT (46): durable text/BSS preferred; stack force_esz fallback.
- * VAR (3): prior fixed TYPE_ARRAY local; FIELD (44): fixed array field lea.
+ * VAR (3): prior fixed TYPE_ARRAY local / const / parent; FIELD (44): field lea.
+ * Typeck stamps a `[a]` dest-SLICE row to TYPE_SLICE, so N comes from the
+ * decl (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT
+ * rows may pass block_ref=0; then scope / func body is the scan start.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param block_ref i32 - enclosing block; 0 legal for ARRAY_LIT rows (`[N][]T`)
@@ -36153,9 +36156,11 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let mod: *u8 = 0 as *u8;
   let rc: i32 = 0;
   let src: i32 = 0;
-  // block_ref may be 0: ARRAY_LIT path does not scan the enclosing block.
-  // VAR-from-prior-let still needs block_ref > 0 (returns 0 without it).
-  // G.7: [N][]T rows reuse this helper with block_ref=0.
+  let scan_br: i32 = 0;
+  // block_ref may be 0: ARRAY_LIT rows (`[[1,2]]`) do not scan.
+  // VAR rows (`[a]`) still need N from the TYPE_ARRAY decl: prior-let
+  // when block_ref>0, else scope / func-body resolve (const+parent).
+  // G.7: [N][]T / [][]T rows reuse this helper with block_ref=0.
   // PLATFORM: SHARED freestanding.
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || let_type_ref <= 0 || init_ref <= 0) {
     return 0;
@@ -36232,9 +36237,6 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     return 1;
   }
   if (init_ko == 3) {
-    if (block_ref <= 0) {
-      return 0;
-    }
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, src);
     }
@@ -36244,40 +36246,43 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     unsafe {
       pipeline_expr_var_name_into(arena, src, &vname[0]);
     }
-    li = 0;
-    while (li < let_idx) {
-      unsafe {
-        nlen = pipeline_block_let_name_len(arena, block_ref, li);
-      }
-      if (nlen == vlen && nlen > 0) {
-        matched = 1;
+    // Prior lets in the enclosing block (let s: T[] = a).
+    if (block_ref > 0) {
+      li = 0;
+      while (li < let_idx) {
         unsafe {
-          pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
+          nlen = pipeline_block_let_name_len(arena, block_ref, li);
         }
-        ci = 0;
-        while (ci < nlen) {
-          if (nb[ci] != vname[ci]) {
-            matched = 0;
-            break;
-          }
-          ci = ci + 1;
-        }
-        if (matched != 0) {
+        if (nlen == vlen && nlen > 0) {
+          matched = 1;
           unsafe {
-            tr = pipeline_block_let_type_ref(arena, block_ref, li);
-            tk = pipeline_type_kind_ord_at(arena, tr);
+            pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
           }
-          if (tk == 10) {
+          ci = 0;
+          while (ci < nlen) {
+            if (nb[ci] != vname[ci]) {
+              matched = 0;
+              break;
+            }
+            ci = ci + 1;
+          }
+          if (matched != 0) {
             unsafe {
-              arr_sz = pipeline_type_array_size_at(arena, tr);
+              tr = pipeline_block_let_type_ref(arena, block_ref, li);
+              tk = pipeline_type_kind_ord_at(arena, tr);
+            }
+            if (tk == 10) {
+              unsafe {
+                arr_sz = pipeline_type_array_size_at(arena, tr);
+              }
+            }
+            if (arr_sz > 0) {
+              break;
             }
           }
-          if (arr_sz > 0) {
-            break;
-          }
         }
+        li = li + 1;
       }
-      li = li + 1;
     }
     if (arr_sz <= 0) {
       unsafe {
@@ -36290,6 +36295,43 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         if (tk == 10) {
           unsafe {
             arr_sz = pipeline_type_array_size_at(arena, init_tr);
+          }
+        }
+      }
+    }
+    // Typeck stamps `[a]` dest-SLICE rows to TYPE_SLICE, hiding N.
+    // ARRAY_LIT callers pass block_ref=0: reuse resolve (const + parent).
+    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    if (arr_sz <= 0) {
+      scan_br = block_ref;
+      if (scan_br <= 0) {
+        unsafe {
+          scan_br = asm_ctx_scope_block_ref_at(ctx);
+        }
+      }
+      if (scan_br <= 0) {
+        unsafe {
+          mod = pipeline_asm_emit_module_ref_c();
+          ftr = pipeline_asm_emit_func_index_c();
+        }
+        if (mod != (0 as *u8) && ftr >= 0) {
+          unsafe {
+            scan_br = pipeline_module_func_body_ref_at(mod, ftr);
+          }
+        }
+      }
+      if (scan_br > 0) {
+        unsafe {
+          tr = pipeline_block_resolve_var_type_ref(arena, scan_br, &vname[0], vlen);
+        }
+        if (tr > 0) {
+          unsafe {
+            tk = pipeline_type_kind_ord_at(arena, tr);
+          }
+          if (tk == 10) {
+            unsafe {
+              arr_sz = pipeline_type_array_size_at(arena, tr);
+            }
           }
         }
       }
