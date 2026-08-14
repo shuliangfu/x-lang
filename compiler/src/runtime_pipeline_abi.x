@@ -41522,12 +41522,44 @@ export function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32 {
 }
 
 /**
- * Vector VAR lane stack off: base_off - lane*esz; failure -1.
+ * True when a vector-lane binop left operand has f32 lanes (Vec4f / f32x4 /
+ * TYPE_VECTOR of F32). Used so lane ALU uses addss/subss/mulss, not integer
+ * add of IEEE bits (1.0+10.0 as i32 is garbage).
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx* (VAR decl fallback; may be null)
+ * @param left_ref i32 — left expr of the vector binop
+ * @return i32 — 1 f32 lanes; 0 otherwise
+ * PLATFORM: SHARED — G.7 complete of glue_vector_elem_is_f32_c.
+ */
+function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32): i32 {
+  let tr: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || left_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+  }
+  if (tr <= 0 && ctx != (0 as *u8)) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, left_ref);
+    }
+    if (ko == 3) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+    }
+  }
+  return glue_vector_elem_is_f32_c(arena, tr);
+}
+
+/**
+ * Vector VAR lane stack off. x86 SysV: base - lane*esz (rbp grows down).
+ * AAPCS64: base + lane*esz (positive [x29,#off]; ≡ INDEX ta==1 at emit_assign).
+ * @return i32 — lane home; -1 failure
  * wave148 pure: G.7 authority (was static glue_vector_var_lane_stack_off_elf_c).
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED load polarity · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
-export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32): i32 {
+export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32, ta: i32): i32 {
   let off: i32 = 0;
   let ko: i32 = 0;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0 || lane < 0 || esz <= 0) {
@@ -41542,6 +41574,9 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
   off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
   if (off < 0) {
     return 0 - 1;
+  }
+  if (ta == 1) {
+    return off + lane * esz;
   }
   return off - lane * esz;
 }
@@ -41825,8 +41860,8 @@ export function glue_try_vector_lane_binop_operands_elf_c(arena: *u8, elf_ctx: *
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
     return 0 - 2;
   }
-  loff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, left_ref, lane, esz);
-  roff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, right_ref, lane, esz);
+  loff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, left_ref, lane, esz, ta);
+  roff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, right_ref, lane, esz, ta);
   comm = 0;
   if (binop_ko == 4 || binop_ko == 6 || binop_ko == 11 || binop_ko == 12 || binop_ko == 13) {
     comm = 1;
@@ -41992,14 +42027,21 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
   let vr: i32 = 0;
   let rc: i32 = 0;
   let is_shr: i32 = 0;
+  let is_f32: i32 = 0;
   unsafe {
     rc = glue_is_vector_lane_scalar_binop_ko(binop_ko);
   }
   if (rc == 0) {
     return 0 - 1;
   }
+  is_f32 = glue_lane_binop_lhs_is_f32_c(arena, ctx, left_ref);
   vr = glue_try_vector_lane_binop_operands_elf_c(arena, elf_ctx, binop_ko, left_ref, right_ref, lane, esz, ctx, ta);
   if (vr == 0) {
+    // G.7: Vec4f/f32x4 lanes are IEEE f32 bits; integer ADD of those bits is
+    // not f32 add (mac a+b was run=1). Reuse scalar addss/subss/mulss.
+    if (is_f32 != 0 && (binop_ko == 4 || binop_ko == 5 || binop_ko == 6)) {
+      return glue_apply_vector_lane_f32_binop_elf_c(elf_ctx, binop_ko, ta);
+    }
     return glue_apply_vector_lane_scalar_binop_elf_c(elf_ctx, binop_ko, ctx, ta);
   }
   if (vr == 0 - 1) {
@@ -42026,6 +42068,9 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
     if (rc != 0) {
       return 0 - 1;
     }
+    if (is_f32 != 0) {
+      return glue_apply_vector_lane_f32_binop_elf_c(elf_ctx, 4, ta);
+    }
     unsafe {
       return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
     }
@@ -42037,6 +42082,9 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
     if (rc != 0) {
       return 0 - 1;
     }
+    if (is_f32 != 0) {
+      return glue_apply_vector_lane_f32_binop_elf_c(elf_ctx, 5, ta);
+    }
     unsafe {
       return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
     }
@@ -42047,6 +42095,9 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
     }
     if (rc != 0) {
       return 0 - 1;
+    }
+    if (is_f32 != 0) {
+      return glue_apply_vector_lane_f32_binop_elf_c(elf_ctx, 6, ta);
     }
     unsafe {
       return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
@@ -42208,6 +42259,11 @@ export function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (off < 0) {
       return 0 - 1;
     }
+    if (ta == 1) {
+      unsafe {
+        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off + lane * esz, esz, ta);
+      }
+    }
     unsafe {
       return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
     }
@@ -42278,7 +42334,11 @@ export function pipeline_asm_emit_vector_var_copy_elf_c(arena: *u8, elf_ctx: *u8
   li = 0;
   while (li < lanes) {
     unsafe {
-      rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - li * esz, esz, ta);
+      if (ta == 1) {
+        rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off + li * esz, esz, ta);
+      } else {
+        rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - li * esz, esz, ta);
+      }
     }
     if (rc != 0) {
       return 0 - 1;
@@ -42493,7 +42553,11 @@ export function glue_emit_vector_shuffle_lane_scalar_elf_c(arena: *u8, elf_ctx: 
       return 0 - 1;
     }
     unsafe {
-      rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - src_lane * esz, esz, ta);
+      if (ta == 1) {
+        rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off + src_lane * esz, esz, ta);
+      } else {
+        rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - src_lane * esz, esz, ta);
+      }
     }
     if (rc != 0) {
       return 0 - 1;
@@ -44375,6 +44439,34 @@ export extern "C" function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32)
 export extern "C" function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
 
+/**
+ * Apply f32 lane ALU after operands are in rax/rbx (addss/subss/mulss).
+ * Placed after the C encoder externs so assemble emits unmangled C calls
+ * (early export-extern of these names mangles the whole TU).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param binop_ko i32 — 4=ADD 5=SUB 6=MUL
+ * @param ta i32 — 0=x86_64 1=arm64
+ * @return i32 — 0 ok; -1 unsupported ko / encode fail
+ * PLATFORM: SHARED — G.7 reuse scalar f32 encoders.
+ */
+function glue_apply_vector_lane_f32_binop_elf_c(elf_ctx: *u8, binop_ko: i32, ta: i32): i32 {
+  if (binop_ko == 4) {
+    unsafe {
+      return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
+    }
+  }
+  if (binop_ko == 5) {
+    unsafe {
+      return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
+    }
+  }
+  if (binop_ko == 6) {
+    unsafe {
+      return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
+    }
+  }
+  return 0 - 1;
+}
 
 /**
  * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_binop_as_needs_full_emit_elf_c).

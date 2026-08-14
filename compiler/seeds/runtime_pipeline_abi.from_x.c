@@ -19450,7 +19450,8 @@ int32_t glue_emit_vector_operand_lane_elf_c(void *arena,
 
 /** 向量 VAR 第 lane 分量的 fp 负偏移；失败 -1。 */
 int32_t glue_vector_var_lane_stack_off_elf_c(void *arena, void *ctx,
-                                                     int32_t var_expr_ref, int32_t lane, int32_t esz) {
+                                                     int32_t var_expr_ref, int32_t lane, int32_t esz,
+                                                     int32_t ta) {
   int32_t off;
   if (!arena || !ctx || var_expr_ref <= 0 || lane < 0 || esz <= 0)
     return -1;
@@ -19459,6 +19460,9 @@ int32_t glue_vector_var_lane_stack_off_elf_c(void *arena, void *ctx,
   off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
   if (off < 0)
     return -1;
+  /* AAPCS64 positive [x29,#off] ≡ INDEX ta==1; x86 rbp grows down. */
+  if (ta == 1)
+    return off + lane * esz;
   return off - lane * esz;
 }
 
@@ -19476,8 +19480,8 @@ int32_t glue_try_vector_lane_binop_operands_elf_c(void *arena,
   int32_t comm;
   if (!arena || !elf_ctx || !ctx)
     return -2;
-  loff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, left_ref, lane, esz);
-  roff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, right_ref, lane, esz);
+  loff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, left_ref, lane, esz, ta);
+  roff = glue_vector_var_lane_stack_off_elf_c(arena, ctx, right_ref, lane, esz, ta);
   comm = (binop_ko == 4 || binop_ko == 6 || binop_ko == 11 || binop_ko == 12 || binop_ko == 13) ? 1 : 0;
   if (comm) {
     if (loff >= 0 && roff >= 0) {
@@ -19600,11 +19604,27 @@ int32_t glue_emit_vector_lane_scalar_binop_elf_c(void *arena,
                                                          int32_t left_ref, int32_t right_ref, int32_t lane,
                                                          int32_t esz, void *ctx, int32_t ta) {
   int32_t vr;
+  int32_t is_f32 = 0;
+  int32_t tr;
   if (!glue_is_vector_lane_scalar_binop_ko(binop_ko))
     return -1;
+  /* Vec4f/f32x4 lanes: IEEE f32 addss, not integer ADD of the bits. */
+  if (arena && left_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (tr <= 0 && ctx && pipeline_expr_kind_ord_at(arena, left_ref) == 3)
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+    is_f32 = glue_vector_elem_is_f32_c(arena, tr);
+  }
   vr = glue_try_vector_lane_binop_operands_elf_c(arena, elf_ctx, binop_ko, left_ref, right_ref, lane, esz, ctx, ta);
-  if (vr == 0)
+  if (vr == 0) {
+    if (is_f32 && binop_ko == 4)
+      return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
+    if (is_f32 && binop_ko == 5)
+      return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
+    if (is_f32 && binop_ko == 6)
+      return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
     return glue_apply_vector_lane_scalar_binop_elf_c(elf_ctx, binop_ko, ctx, ta);
+  }
   if (vr == -1)
     return -1;
   if (glue_emit_vector_operand_lane_elf_c(arena, elf_ctx, left_ref, lane, esz, ctx, ta) != 0)
@@ -19617,14 +19637,20 @@ int32_t glue_emit_vector_lane_scalar_binop_elf_c(void *arena,
   case 4:
     if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
       return -1;
+    if (is_f32)
+      return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
     return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
   case 5:
     if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
       return -1;
+    if (is_f32)
+      return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
     return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
   case 6:
     if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
       return -1;
+    if (is_f32)
+      return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
     return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
   case 7:
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
@@ -19691,7 +19717,9 @@ int32_t glue_emit_vector_operand_lane_elf_c(void *arena,
     off = glue_asm_local_var_stack_off_scoped(arena, ctx, expr_ref);
     if (off < 0)
       return -1;
-    /** slot_off 为槽高端 fp 偏移；lane i 在 fp-(slot_off-i*esz)。 */
+    /* ta==1 AAPCS64: positive [x29,#off] ≡ INDEX; ta==0 SysV rbp grows down. */
+    if (ta == 1)
+      return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off + lane * esz, esz, ta);
     return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
   }
   if (ko == 46) {
@@ -19729,7 +19757,7 @@ int32_t pipeline_asm_emit_vector_var_copy_elf_c(void *arena,
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
     return -1;
   for (li = 0; li < lanes; li++) {
-    if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - li * esz, esz, ta) != 0)
+    if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, ta == 1 ? src_off + li * esz : src_off - li * esz, esz, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * esz, esz, ta) != 0)
       return -1;
