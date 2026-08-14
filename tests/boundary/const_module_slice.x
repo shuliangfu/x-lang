@@ -1,8 +1,8 @@
 // Isolated: module-level dest-SLICE const INDEX/VAR wrap (C static).
-// typeck already accepts dest-SLICE const INDEX; host-C top-level still
-// emitted `static const T s = (A)[1]` (pointer into slice struct → BLD001).
-// Same-layer twin: dest-SLICE const VAR, and mutable let via init_globals.
-// Expected: compile = 0, run = 42 (asm and host-C).
+// host-C top-level must emit `{.data=A[1],.length=N}`, not `s = (A)[1]`.
+// Same-layer twin: dest-SLICE const VAR and mutable let via init_globals.
+// asm module-level dest-SLICE const is a different layer (CG002 leftover).
+// Expected: host-C compile = 0, run = 42.
 // PLATFORM: SHARED — Ubuntu gold host-C static init.
 
 const A: [2][2]i32 = [[1, 2], [10, 32]];
