@@ -103,12 +103,19 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
   return 0 - 1;
 }
 
-// arm64_enc_load_w0_from_rbp_c: see function docblock below.
-/** Exported function `arm64_enc_load_w0_from_rbp_c`.
- * Implements `arm64_enc_load_w0_from_rbp_c`.
- * @param elf_ctx *u8
- * @param offset i32
- * @return i32
+/**
+ * Load one 32-bit product-frame slot into x0 as a signed 64-bit value.
+ * @param elf_ctx *u8 — emit context; null rejected
+ * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095
+ * @return i32 — 0 ok, -1 bad ctx/offset
+ * PLATFORM: MACOS|ARM64 — LDRSW x0,[x29,#off]
+ *   0xB9800000 | ((off/4)<<10) | (29<<5) | Rt=0
+ * Product frame is positive [x29,#off] (wave616). The prior body emitted
+ * LDUR w0,[x29,#-off] and the thin 4B lane path never called it (64-bit
+ * LDR x0 instead). i32x4 `/` later lanes then sdiv-ed two packed i32s.
+ * LDRSW (not LDR w0): seed idiv is 64-bit sdiv x0,x0,x1 (i64 `/` needs
+ * that face); zero-extended negatives would not be signed. 32-bit
+ * add/mul/rem and fmov s0,w0 still see the original low 32 bits.
  */
 #[no_mangle]
 export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
@@ -118,15 +125,46 @@ export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (offset < 0) {
     return 0 - 1;
   }
-  if (offset > 256) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | (256 * 4096) | 928) as i32);
-    }
+  if ((offset % 4) != 0) {
+    return 0 - 1;
+  }
+  if ((offset / 4) > 4095) {
     return 0 - 1;
   }
   unsafe {
-    let u9: i32 = (0 - offset) & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | ((u9 as u32) * 4096) | 928) as i32);
+    let imm12: i32 = offset / 4;
+    let word: i32 = (3112173568 as i32) | (imm12 * 1024) | 928;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, word);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Load one 32-bit product-frame slot into x1 as a signed 64-bit value.
+ * @param elf_ctx *u8 — emit context; null rejected
+ * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095
+ * @return i32 — 0 ok, -1 bad ctx/offset
+ * PLATFORM: MACOS|ARM64 — LDRSW x1,[x29,#off] (Rt=1 twin of w0 helper).
+ * G.7: x86 already has eax32/ebx32; arm64 4B lane `/` needs both x0 and x1.
+ */
+#[no_mangle]
+export function arm64_enc_load_w1_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset % 4) != 0) {
+    return 0 - 1;
+  }
+  if ((offset / 4) > 4095) {
+    return 0 - 1;
+  }
+  unsafe {
+    let imm12: i32 = offset / 4;
+    let word: i32 = (3112173568 as i32) | (imm12 * 1024) | 928 | 1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, word);
   }
   return 0 - 1;
 }
@@ -2136,7 +2174,12 @@ export function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz
  */
 #[no_mangle]
 export function backend_enc_load_rbp_lane_to_rax_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
+  // PLATFORM: MACOS|ARM64 — esz==4 must not LDR x0 (adjacent i32 lane
+  // becomes the high 32 of a 64-bit sdiv). G.7 complete x86 eax32 twin.
   if (ta == 1) {
+    if (esz == 4) {
+      unsafe { return arm64_enc_load_w0_from_rbp_c(elf_ctx, offset); }
+    }
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   }
   if (ta == 2) {
@@ -2473,7 +2516,11 @@ export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: 
  */
 #[no_mangle]
 export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
+  // PLATFORM: MACOS|ARM64 — esz==4 LDRSW x1; see lane-to-rax.
   if (ta == 1) {
+    if (esz == 4) {
+      unsafe { return arm64_enc_load_w1_from_rbp_c(elf_ctx, offset); }
+    }
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   }
   if (ta == 2) {

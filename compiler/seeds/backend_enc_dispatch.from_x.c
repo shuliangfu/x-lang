@@ -36,6 +36,7 @@ int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
 int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
 int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+int32_t arm64_enc_load_w1_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 #define arch_arm64_enc_enc_call arch_arm64_enc_enc_call_impl
 #define arch_arm64_enc_enc_add_sp_imm12 arch_arm64_enc_enc_add_sp_imm12_impl
@@ -2258,19 +2259,24 @@ int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_
  */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+/* PLATFORM: MACOS|ARM64 — product-positive LDRSW x0,[x29,#off] (was LDUR #-off). */
 int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t simm9;
-  int32_t u9;
-  int32_t base;
+  int32_t imm12;
   uint32_t insn;
-  if (!elf_ctx || offset < 0)
+  if (!elf_ctx || offset < 0 || (offset % 4) != 0 || (offset / 4) > 4095)
     return -1;
-  simm9 = 0 - offset;
-  if (simm9 < -256)
-    simm9 = -256;
-  u9 = simm9 & 511;
-  base = -130023424 - 1073741824;
-  insn = (uint32_t)base | ((uint32_t)u9 << 12) | (29u << 5);
+  imm12 = offset / 4;
+  insn = 3112173568u | ((uint32_t)imm12 << 10) | (29u << 5);
+  return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
+}
+/* PLATFORM: MACOS|ARM64 — LDRSW x1,[x29,#off] (Rt=1). */
+int32_t arm64_enc_load_w1_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  int32_t imm12;
+  uint32_t insn;
+  if (!elf_ctx || offset < 0 || (offset % 4) != 0 || (offset / 4) > 4095)
+    return -1;
+  imm12 = offset / 4;
+  insn = 3112173568u | ((uint32_t)imm12 << 10) | (29u << 5) | 1u;
   return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
 }
 #endif
@@ -2303,6 +2309,8 @@ int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx 
                                               int32_t esz, int32_t ta) {
   if (ta == 0 && esz == 4)
     return arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx, offset);
+  if (ta == 1 && esz == 4)
+    return arm64_enc_load_w1_from_rbp_c(elf_ctx, offset);
   return backend_enc_load_rbp_to_rbx_arch(elf_ctx, offset, ta);
 }
 #endif

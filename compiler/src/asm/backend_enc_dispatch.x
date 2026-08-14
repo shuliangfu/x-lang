@@ -208,26 +208,44 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
   return backend_enc_append_u32_le_c(elf_ctx, (4177527776 as u32) | (((off_bytes / 8) as u32) * 1024));
 }
 
-// LDUR w0, [x29, #-offset] — 0xB8400000 | (u9<<12) | (29<<5)
-/** Exported function `arm64_enc_load_w0_from_rbp_c`.
- * Implements `arm64_enc_load_w0_from_rbp_c`.
- * @param elf_ctx *u8
- * @param offset i32
- * @return i32
+/**
+ * Load one 32-bit product-frame slot into x0 as a signed 64-bit value.
+ * @param elf_ctx *u8 — emit context; null rejected
+ * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095
+ * @return i32 — 0 ok, -1 bad ctx/offset
+ * PLATFORM: MACOS|ARM64 — LDRSW x0,[x29,#off]
+ *   0xB9800000 | ((off/4)<<10) | (29<<5) | Rt=0
+ * Align thin: product frame is positive; prior LDUR [x29,#-off] is stale.
  */
 #[no_mangle]
 export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (offset < 0) { return 0 - 1; }
-  if (offset > 256) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | (256 * 4096) | 928) as i32);
-    }
-    return 0 - 1;
-  }
+  if ((offset % 4) != 0) { return 0 - 1; }
+  if ((offset / 4) > 4095) { return 0 - 1; }
   unsafe {
-    let u9: i32 = (0 - offset) & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | ((u9 as u32) * 4096) | 928) as i32);
+    let imm12: i32 = offset / 4;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3112173568 as i32) | (imm12 * 1024) | 928));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Load one 32-bit product-frame slot into x1 as a signed 64-bit value.
+ * @param elf_ctx *u8 — emit context; null rejected
+ * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095
+ * @return i32 — 0 ok, -1 bad ctx/offset
+ * PLATFORM: MACOS|ARM64 — LDRSW x1,[x29,#off] (Rt=1).
+ */
+#[no_mangle]
+export function arm64_enc_load_w1_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  if ((offset % 4) != 0) { return 0 - 1; }
+  if ((offset / 4) > 4095) { return 0 - 1; }
+  unsafe {
+    let imm12: i32 = offset / 4;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3112173568 as i32) | (imm12 * 1024) | 928 | 1));
   }
   return 0 - 1;
 }
@@ -2100,6 +2118,9 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
   unsafe {
   if (ta == 0) {
     if (esz == 4) { return arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx, offset); }
+  }
+  if (ta == 1) {
+    if (esz == 4) { return arm64_enc_load_w1_from_rbp_c(elf_ctx, offset); }
   }
   return backend_enc_load_rbp_to_rbx_arch(elf_ctx, offset, ta);
   }
