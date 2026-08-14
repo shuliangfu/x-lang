@@ -5604,7 +5604,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           }
         }
       }
-    } else if (init_ko == 44))
+    } else if (init_ko == 44
                && init_e.field_access_field_len > 0
                && init_e.field_access_base_ref > 0
                && init_e.field_access_base_ref <= arena.num_exprs) {
