@@ -6519,7 +6519,12 @@ int32_t run_x_pipeline_codegen_one_dep_emit(void *dep_mod, void *out_buf, void *
     return 0;
   if (skip_asm_dep_codegen != 0)
     return 0;
-  if (mod && pipeline_module_num_funcs(mod) > 0) {
+  /* Host-C: co-emit when nf>0 or nlets>0 (consts-only file-static A/K).
+   * Asm stays nf>0-only: asm_asm_codegen_ast hoists lets into main.
+   * LP64: Module.num_top_level_lets @ offset 12 (≡ pipe_mod_get_num_top_level_lets).
+   * PLATFORM: SHARED — seed twin of runtime_pipeline_abi.x same commit. */
+  if (mod && (pipeline_module_num_funcs(mod) > 0 ||
+              (use_asm_backend == 0 && *(int32_t *)((char *)mod + 12) > 0))) {
     void *arena_j = pipeline_dep_ctx_arena_at(ctx, dep_j);
     if (use_asm_backend != 0) {
       if (asm_asm_codegen_ast(mod, arena_j, out_buf, ctx) != 0)

@@ -16054,6 +16054,11 @@ function pipeline_dep_ctx_has_earlier_same_import_path_c(ctx: *u8, dep_j: i32): 
  * @param use_asm_backend i32 - non-zero -> asm_asm_codegen_ast else codegen_x_ast
  * @return i32 - 0 ok, -1 null, -6 emit fail
  * wave111 pure: G.7 single product authority.
+ * Consts-only deps (num_funcs==0, num_top_level_lets>0) used to skip
+ * codegen_x_ast, so file-static `A`/`K` never existed. Host-C now
+ * co-emits when nlets>0 (codegen_x_ast emit_n phantom is live).
+ * Asm stays nf>0-only: asm_asm_codegen_ast hoists lets into main, and
+ * a no-func dep has no main. skip_asm_dep_codegen still skips asm -o.
  * PLATFORM: SHARED - sole provider after codegen_dep leave.
  */
 #[no_mangle]
@@ -16115,10 +16120,13 @@ export function run_x_pipeline_codegen_one_dep_emit(dep_mod: *u8, out_buf: *u8, 
   }
   if (mod != 0 as *u8) {
     let nf: i32 = 0;
+    let nlets: i32 = 0;
     unsafe {
       nf = pipeline_module_num_funcs(mod);
     }
-    if (nf > 0) {
+    nlets = pipe_mod_get_num_top_level_lets(mod);
+    /* Host-C: funcs or top-level lets. Asm: funcs only (see docblock). */
+    if (nf > 0 || (use_asm_backend == 0 && nlets > 0)) {
       let arena_j: *u8 = 0 as *u8;
       unsafe {
         arena_j = pipeline_dep_ctx_arena_at(ctx, dep_j);
