@@ -1,9 +1,10 @@
 // Isolated: module dest-SLICE `[][]T` / dest-ARRAY `[N][]T` ARRAY_LIT.
 // host-C file-scope must emit nested `{.data=(E[]){ (E){.data=(leaf[]){…},
 // .length=n}, … }, .length=N}` — emit_expr statement-expr is illegal C static.
-// asm INDEX of module `[][]T` is a different leftover (hoist/glue).
-// Expected: host-C (`-backend c`) compile = 0, run = 42.
-// PLATFORM: SHARED — Ubuntu gold host-C static.
+// asm: hoist dest-SLICE into main; durable packs dest-SLICE rows via dest
+// elem TYPE_SLICE (module ARRAY_LIT is not check_block-stamped).
+// Expected: host-C (`-backend c`) and asm compile = 0, run = 42.
+// PLATFORM: SHARED — Ubuntu gold host-C static + asm hoist.
 
 const ns: [][]i32 = [[10, 32], [1, 2]];
 const na: [2][]i32 = [[10, 32], [1, 2]];

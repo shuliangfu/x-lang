@@ -15086,7 +15086,8 @@ int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t ex
 }
 
 int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
-                                                       int32_t force_esz, int32_t ta, void *ctx) {
+                                                       int32_t force_esz, int32_t ta, void *ctx,
+                                                       int32_t dest_elem_ty) {
   int32_t n_arr;
   int32_t esz;
   int32_t ai;
@@ -15233,7 +15234,12 @@ int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx
   }
   {
     int32_t elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
-    int32_t etk = elem_ty > 0 ? pipeline_type_kind_ord_at(arena, elem_ty) : 0;
+    int32_t etk;
+    /* Dest elem wins over an unstamped module ARRAY_LIT (no check_block).
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. Cold twin. */
+    if (dest_elem_ty > 0)
+      elem_ty = dest_elem_ty;
+    etk = elem_ty > 0 ? pipeline_type_kind_ord_at(arena, elem_ty) : 0;
     int32_t src_spill;
     int32_t dst_spill;
     int32_t temp_home;
@@ -15241,7 +15247,7 @@ int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx
     int32_t st;
     /* TYPE_ARRAY row (incl. [][2]i32 esz==8): memcpy the row, never store a
      * pointer. Same bulk path as esz>8 NAMED. PLATFORM: SHARED freestanding. */
-    if (esz > 8 || etk == 10) {
+    if (esz > 8 || etk == 10 || (etk == GLUE_TYPE_KIND_SLICE && esz == 16)) {
     ly_next = (int32_t *)((uint8_t *)ctx + 4);
     if (elem_ty > 0 && etk == GLUE_TYPE_KIND_SLICE && esz == 16) {
       int32_t data_spill;
@@ -15467,7 +15473,7 @@ extern int32_t pipeline_typeck_float_widen_ok_c(int32_t dk, int32_t sk);
 extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf, int32_t ta);
 extern int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf, int32_t er, struct backend_AsmFuncCtx *ctx, int32_t ta);
 extern int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *a, int32_t et);
-extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf, int32_t er, int32_t force_esz, int32_t ta, struct backend_AsmFuncCtx *ctx);
+extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf, int32_t er, int32_t force_esz, int32_t ta, struct backend_AsmFuncCtx *ctx, int32_t dest_elem_ty);
 extern int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf, int32_t er, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t force_esz);
 extern void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *a, int32_t er, struct backend_AsmFuncCtx *ctx);
 extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf, int32_t ta);
@@ -16028,7 +16034,7 @@ int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
             arena, pipeline_type_elem_ref_at(arena, rty));
         if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
           return -1;
-        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) != 0) {
+        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, pipeline_type_elem_ref_at(arena, rty)) != 0) {
           if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, ret_op, ctx, ta, force_esz) != 0)
             return -1;
           if (n_arr > 0)
@@ -16043,7 +16049,7 @@ int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
             arena, pipeline_type_elem_ref_at(arena, slice_ty));
         if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
           return -1;
-        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) == 0) {
+        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, pipeline_type_elem_ref_at(arena, slice_ty)) == 0) {
           durable = 1;
         } else if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, ret_op, ctx, ta,
                                                                 force_esz) != 0) {
@@ -16461,7 +16467,7 @@ extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_re
 extern int32_t pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *a, int32_t ref);
 extern int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *a, int32_t et);
-extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *a, void *elf, int32_t er, int32_t force_esz, int32_t ta, void *ctx);
+extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *a, void *elf, int32_t er, int32_t force_esz, int32_t ta, void *ctx, int32_t dest_elem_ty);
 extern int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *a, void *elf, int32_t er, void *ctx, int32_t ta, int32_t force_esz);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf, int32_t lo, int32_t hi, int32_t ta);
@@ -16625,7 +16631,7 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
      * PLATFORM: SHARED freestanding · LINUX|x86_64 · MACOS|ARM64.
      */
     if ((ta == 0 || ta == 1) &&
-        glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta, ctx) == 0) {
+        glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta, ctx, et) == 0) {
       durable = 1;
     } else if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, init_ref, ctx, ta,
                                                              force_esz) != 0) {

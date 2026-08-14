@@ -33639,12 +33639,18 @@ export function pipeline_asm_emit_array_lit_elf_c(arena: *u8, elf_ctx: *u8, expr
 
 /**
  * Freestanding durable ARRAY_LIT payload → rax (text-embed const / COMMON BSS).
+ * dest_elem_ty is the dest TYPE_SLICE / TYPE_ARRAY element (0 = infer from the
+ * ARRAY_LIT stamp). Module top-level lets are not check_block'd, so dest-SLICE
+ * `[][]T = [[…]]` stays unstamped (`[N][M]T` or 0). Inferring then memcpy's
+ * 16B from an 8B `[N]T` row and INDEX `.length` reads garbage (cmns asm 15).
+ * Caller passes dest elem so TYPE_SLICE rows reuse the fat COMMON writer.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - ARRAY_LIT expr_ref
- * @param force_esz i32 - element byte size from TYPE_SLICE elem (0 → infer)
+ * @param force_esz i32 - element byte size from dest elem (0 → infer)
  * @param ta i32 - target arch
  * @param ctx *u8 - AsmFuncCtx* (required for non-const / large-NAMED)
+ * @param dest_elem_ty i32 - dest element type_ref; 0 = ARRAY_LIT stamp
  * @return i32 - 0 success (rax=durable ptr); -1 cannot pack
  * wave143 pure: G.7 authority (was static glue_asm_emit_array_lit_durable_ptr_rax_elf_c).
  * Cap residual: al_nc_seq_take + common_sym + lea_common + bulk_mem +
@@ -33652,7 +33658,7 @@ export function pipeline_asm_emit_array_lit_elf_c(arena: *u8, elf_ctx: *u8, expr
  * PLATFORM: SHARED freestanding · LINUX|x86_64 · MACOS|ARM64.
  */
 #[no_mangle]
-export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8): i32 {
+export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32 {
   let n_arr: i32 = 0;
   let esz: i32 = 0;
   let ai: i32 = 0;
@@ -33890,6 +33896,12 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   // glue_emit_fixed_array_type_let_init (ARRAY_LIT flatten / VAR copy).
   // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
   elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  // Dest elem wins over an unstamped / inferred ARRAY_LIT type. Module
+  // dest-SLICE `[][]T` has no check_block coerce; dest elem is TYPE_SLICE.
+  // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+  if (dest_elem_ty > 0) {
+    elem_ty = dest_elem_ty;
+  }
   if (elem_ty > 0) {
     unsafe {
       etk = pipeline_type_kind_ord_at(arena, elem_ty);
@@ -33897,7 +33909,7 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   } else {
     etk = 0;
   }
-  if (esz > 8 || etk == 10) {
+  if (esz > 8 || etk == 10 || (etk == 11 && esz == 16)) {
     if (ctx == (0 as *u8)) {
       return 0 - 1;
     }
@@ -35493,7 +35505,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
             return 0 - 1;
           }
           unsafe {
-            rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx);
+            rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, pipeline_type_elem_ref_at(arena, rty));
           }
           if (rc != 0) {
             unsafe {
@@ -35521,7 +35533,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         }
         durable = 0;
         unsafe {
-          rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx);
+          rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, pipeline_type_elem_ref_at(arena, slice_ty));
         }
         if (rc == 0) {
           durable = 1;
@@ -36236,8 +36248,10 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     }
     durable = 0;
     if (ta == 0 || ta == 1) {
+      // Pass dest elem so unstamped module `[][]T` ARRAY_LIT takes the fat path.
+      // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
       unsafe {
-        rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, src, force_esz, ta, ctx);
+        rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, src, force_esz, ta, ctx, et);
       }
       if (rc == 0) {
         durable = 1;
@@ -72361,7 +72375,7 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
         pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), past);
         glue_align_next_offset(ctx);
         durable = 0;
-        if ((ta == 0 || ta == 1) && glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, expr_ref, force_esz, ta, ctx) == 0) {
+        if ((ta == 0 || ta == 1) && glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, expr_ref, force_esz, ta, ctx, et) == 0) {
           durable = 1;
         } else {
           if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, expr_ref, ctx, ta, force_esz) != 0) {
