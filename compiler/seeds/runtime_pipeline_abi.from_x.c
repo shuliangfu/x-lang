@@ -16729,13 +16729,14 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
     }
     if (arr_sz <= 0)
       return 0;
-    arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
-    if (arr_off < 0) {
-      /* Mutable module TYPE_ARRAY: LEA COMMON (same decay as INDEX). */
-      if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, vname, vlen, ta) != 0)
+    /* Prefer COMMON LEA when the name is a mutable module TYPE_ARRAY.
+     * stack_off can false-hit a frame slot and poison dest-SLICE .data. */
+    if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, vname, vlen, ta) != 0) {
+      arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+      if (arr_off < 0)
         return -1;
-    } else if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0) {
-      return -1;
+      if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0)
+        return -1;
     }
   } else if (init_ko == 44) {
     /* EXPR_FIELD_ACCESS: fixed TYPE_ARRAY field of VAR base. */

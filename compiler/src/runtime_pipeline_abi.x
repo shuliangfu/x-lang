@@ -36457,14 +36457,12 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     if (arr_sz <= 0) {
       return 0;
     }
-    unsafe {
-      arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, src);
-    }
-    if (arr_off < 0) {
-      // Mutable module TYPE_ARRAY lives in SHN_COMMON — LEA via modlet
-      // (same decay as INDEX). Const TYPE_ARRAY is hoisted into main
-      // only; non-main miss here is a different leftover.
-      // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    // Prefer COMMON LEA when the name is a mutable module TYPE_ARRAY.
+    // stack_off can false-hit a frame slot (offset 0 / scoped fallback)
+    // and then dest-SLICE .data is not &A — s[0] != A[0].
+    // Const TYPE_ARRAY is hoisted into main only (not COMMON).
+    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    if (pipeline_asm_modlet_find(&vname[0], vlen) >= 0) {
       unsafe {
         rc = pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, &vname[0], vlen, ta);
       }
@@ -36472,6 +36470,12 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         return 0 - 1;
       }
     } else {
+      unsafe {
+        arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, src);
+      }
+      if (arr_off < 0) {
+        return 0 - 1;
+      }
       unsafe {
         rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, src, arr_off, ctx, ta);
       }
