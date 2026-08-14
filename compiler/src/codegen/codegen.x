@@ -5471,6 +5471,10 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  *   TYPE_ARRAY lets (typeck stamps the dest-SLICE VAR to TYPE_SLICE).
  *   CALL/statement-expr is not a C static constant — typeck rejects those
  *   as module const; this helper still wraps them for init_globals assign.
+ * - Module dest-SLICE ARRAY_LIT (`const t:[]T = [10,32]`) is NOT this helper.
+ *   File-scope wrap lives at codegen_x_ast decl-site: `(E[]){…}` is an
+ *   address constant. Adding ARRAY_LIT here would also fire from
+ *   init_globals (`block_ref=0`) and dangle a function-scope compound.
  *
  * @param arena *ASTArena — expression/type pool
  * @param out *CodegenOutBuf — C text sink
@@ -21168,7 +21172,95 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                         return -1;
                       }
                   } else {
-                    if (emit_expr(arena, out, tl_init, ctx) != 0) {
+                    /*
+                     * Module dest-SLICE ARRAY_LIT: emit_expr uses
+                     * ({ static E al[]={…}; (T){.data=al,.length=N}; })
+                     * — illegal as a C static initializer (BLD001).
+                     * File-scope (E[]){…} / (E[][N]){{…}} has static
+                     * duration (address constant). Do not add ARRAY_LIT
+                     * to try_emit: init_globals also calls it with
+                     * block_ref=0 and would dangle. TYPE_SLICE elem
+                     * (`[][]T`) still emit_expr — emit_braced would
+                     * inject statement-expr rows. PLATFORM: SHARED host-C.
+                     */
+                    let al_ok: i32 = 0;
+                    let al_n: i32 = 0;
+                    let al_elem: i32 = 0;
+                    let al_ek: i32 = 0;
+                    if ((fe.kind as i32) == 46) {
+                      if (codegen_array_lit_tree_is_const(arena, tl_init) != 0) {
+                        al_n = pipeline_expr_array_lit_num_elems_at(arena, tl_init);
+                        al_elem = pipeline_type_elem_ref_at(arena, tl_ty);
+                        if (al_n > 0 && !ast.ref_is_null(al_elem) && al_elem > 0) {
+                          al_ek = pipeline_type_kind_ord_at(arena, al_elem);
+                          if (al_ek != 11) {
+                            al_ok = 1;
+                          }
+                        }
+                      }
+                    }
+                    if (al_ok != 0) {
+                      if (append_byte(out, 40) != 0) {
+                        return -1;
+                      }
+                      if (emit_type(arena, out, tl_ty, 0 as *u8, 0, ctx) != 0) {
+                        return -1;
+                      }
+                      if (append_byte(out, 41) != 0) {
+                        return -1;
+                      }
+                      if (append_byte(out, 123) != 0) {
+                        return -1;
+                      }
+                      let ad1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+                      if (emit_bytes_from_ptr(out, &ad1[0], 9) != 0) {
+                        return -1;
+                      }
+                      if (append_byte(out, 40) != 0) {
+                        return -1;
+                      }
+                      if (al_ek == 10) {
+                        if (emit_local_fixed_array_elem_type(arena, out, al_elem, ctx) != 0) {
+                          return -1;
+                        }
+                        if (append_byte(out, 91) != 0) {
+                          return -1;
+                        }
+                        if (append_byte(out, 93) != 0) {
+                          return -1;
+                        }
+                        if (emit_local_fixed_array_suffix(arena, out, al_elem) != 0) {
+                          return -1;
+                        }
+                      } else {
+                        if (emit_type(arena, out, al_elem, 0 as *u8, 0, ctx) != 0) {
+                          return -1;
+                        }
+                        if (append_byte(out, 91) != 0) {
+                          return -1;
+                        }
+                        if (append_byte(out, 93) != 0) {
+                          return -1;
+                        }
+                      }
+                      if (append_byte(out, 41) != 0) {
+                        return -1;
+                      }
+                      if (emit_braced_array_lit_init(arena, out, tl_init, ctx) != 0) {
+                        return -1;
+                      }
+                      let ad2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
+                      if (emit_bytes_from_ptr(out, &ad2[0], 12) != 0) {
+                        return -1;
+                      }
+                      if (format_int(out, al_n) != 0) {
+                        return -1;
+                      }
+                      let ad3: u8[4] = [32, 125, 0, 0];
+                      if (emit_bytes_4(out, &ad3[0], 2) != 0) {
+                        return -1;
+                      }
+                    } else if (emit_expr(arena, out, tl_init, ctx) != 0) {
                       return -1;
                     }
                   }

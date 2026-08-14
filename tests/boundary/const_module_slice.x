@@ -1,9 +1,9 @@
-// Isolated: module-level dest-SLICE const INDEX/VAR wrap.
+// Isolated: module-level dest-SLICE const INDEX/VAR/ARRAY_LIT wrap.
 // host-C top-level must emit `{.data=A[1],.length=N}`, not `s = (A)[1]`.
-// asm: hoist const TYPE_ARRAY into main (prepare skips is_const, so they
-// have no COMMON home). dest-SLICE helper then wraps INDEX/VAR.
-// Same-layer twin: dest-SLICE const VAR and mutable let.
-// host-C dest-SLICE ARRAY_LIT at file scope is a different C-static leaf.
+// dest-SLICE ARRAY_LIT at file scope: `{.data=(E[]){…},.length=N}`
+// (emit_expr statement-expr is not a C static initializer).
+// asm: hoist const TYPE_ARRAY / dest-SLICE into main; ARRAY_LIT helper
+// durables the payload. Same-layer twin: dest-SLICE const VAR / mutable let.
 // Expected: host-C and asm compile = 0, run = 42.
 // PLATFORM: SHARED — Ubuntu gold host-C static + asm hoist.
 
@@ -14,10 +14,11 @@ const v: []i32 = B;
 const k: i32 = 1;
 const u: []i32 = A[k];
 let m: []i32 = B;
+const t: []i32 = [10, 32];
 
 /**
- * Exit 42 when module-level dest-SLICE const INDEX/VAR and mutable let
- * wrap as typed fat (host-C static / asm hoist into main).
+ * Exit 42 when module-level dest-SLICE const INDEX/VAR/ARRAY_LIT and
+ * mutable let wrap as typed fat (host-C static / asm hoist into main).
  * @return i32 — 42 ok, else the failing case
  */
 function main(): i32 {
@@ -31,5 +32,8 @@ function main(): i32 {
   if (u[0] != 10) { return 8; }
   if (m.length != 2) { return 9; }
   if (m[0] != 10) { return 10; }
+  if (t.length != 2) { return 11; }
+  if (t[0] != 10) { return 12; }
+  if (t[1] != 32) { return 13; }
   return 42;
 }
