@@ -32661,11 +32661,12 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
       }
       return 0;
     }
-    // TYPE_SLICE + already-typed [N]T VAR/FIELD. Stack view (same frame).
-    // G.7 reuse glue_emit_slice_from_array_let_init. Do not stamp SLICE.
+    // TYPE_SLICE + already-typed [N]T VAR/FIELD/INDEX. Stack view (same frame).
+    // G.7 reuse glue_emit_slice_from_array_let_init (INDEX row already live).
+    // Do not stamp SLICE.
     // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
     if (is_modlet == 0 && off >= 0 && ltk_pre == 11 && ako_asg == 28
-    && (rko_pre == 3 || rko_pre == 44)) {
+    && (rko_pre == 3 || rko_pre == 44 || rko_pre == 47)) {
       unsafe {
         rty = pipeline_expr_resolved_type_ref(arena, right_ref);
       }
@@ -35103,7 +35104,7 @@ export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 
 
 /**
  * EXPR_RETURN ELF emit impl (sret / slice escape / ARRAY_LIT dual-GP / float / tail_join).
- * Path B0 also durables VAR/FIELD [N]T → dest []T (fat) or dest T[N] (E*).
+ * Path B0 also durables VAR/FIELD/INDEX [N]T → dest []T (fat) or dest T[N] (E*).
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
  * @param expr_ref i32 — EXPR_RETURN
@@ -35193,15 +35194,19 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
       handled = 1;
     }
-    // Path B0: already-typed [N]T VAR/FIELD → []T (fat) or T[N] (E*).
+    // Path B0: already-typed [N]T VAR/FIELD/INDEX → []T (fat) or T[N] (E*).
     // Durable COMMON copy then either dual-GP (dest SLICE) or rax=E*
     // (dest TYPE_ARRAY). Stack view / lea-local dangles after return
     // (wave342 / 4.2.17 `return s` of S24[2] SEGV). Do not stamp.
+    // INDEX (`return a[0]` of [K][N]T): return/assign do not stamp, so
+    // N+elem-esz come from the INDEX TYPE_ARRAY; lea scale is the row
+    // total (glue_fixed_array_total_bytes). Do not emit_index (esz>8
+    // leaves a raw addr and never packs dest-SLICE length).
     // Keep esz>8 (wave632 NAMED); only weird mid widths 3/5/6/7 → 4.
     // G.7: reuse lea helpers + bulk_mem_copy + Path C dual-GP pack.
     // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
     if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8)
-    && (ta == 0 || ta == 1) && (ko == 3 || ko == 44) && mod != (0 as *u8) && fi >= 0) {
+    && (ta == 0 || ta == 1) && (ko == 3 || ko == 44 || ko == 47) && mod != (0 as *u8) && fi >= 0) {
       unsafe {
         rty = pipeline_module_func_return_type_at(mod, fi);
         sty = pipeline_expr_resolved_type_ref(arena, ret_op);
@@ -35265,6 +35270,24 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           } else {
             unsafe {
               rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, ret_op, rar_src, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+          }
+        } else if (ko == 47) {
+          // INDEX row: lea scale = sizeof([N]T), not dest-SLICE 16.
+          // rar_src/dst hold base/index refs only until the spill slots below.
+          unsafe {
+            rar_src = pipeline_expr_index_base_ref(arena, ret_op);
+            rar_dst = pipeline_expr_index_index_ref(arena, ret_op);
+            rar_noff = glue_fixed_array_total_bytes_c(arena, sty, 0);
+          }
+          if (rar_src <= 0 || rar_dst <= 0 || rar_noff <= 0) {
+            n_arr = 0;
+          } else {
+            unsafe {
+              rc = glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, ret_op, rar_src, rar_dst, ctx, ta, rar_noff);
             }
             if (rc != 0) {
               return 0 - 1;

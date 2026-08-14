@@ -5103,14 +5103,17 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
  * See implementation.
  */
 /**
- * Host-C: emit a C pointer-to-fixed-array declarator for TYPE_PTR whose pointee is TYPE_ARRAY.
- * wave636 Cap residual pure: bare emit_type(PTR) did emit_type(ARRAY)→`E *` then ` *` → `E * *`
- * while `&a` is `E (*)[N]` → clang warning + runtime SEGV on `(*p)[i]`.
+ * Host-C: emit a C pointer-to-fixed-array declarator.
+ * wave636: TYPE_PTR → TYPE_ARRAY (`*[N]T`) must be `E (*name)[N]`, not `E * *`.
+ * dest-SLICE return/assign of INDEX: TYPE_ARRAY → TYPE_ARRAY (`[K][N]T` param)
+ * decays to a pointer to the row, the same C form `E (*name)[N]…`.
+ * Abstract emit_type peels ARRAY to `E *` twice → `int32_t ** a` and
+ * `(a)[0]` reads the first row's scalars as a pointer (memcpy SEGV).
  * C form: `E (*name)[N][M]…` (name_len==0 → abstract `E (*)[N]…`).
- * Reuses emit_local_fixed_array_elem_type + suffix (G.7; no third array peel path).
+ * Reuses emit_local_fixed_array_elem_type + suffix (G.7; no third peel).
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
- * @param ptr_type_ref i32 — TYPE_PTR → TYPE_ARRAY
+ * @param ptr_type_ref i32 — TYPE_PTR→TYPE_ARRAY or TYPE_ARRAY→TYPE_ARRAY
  * @param name *u8 — optional declarator name (may be null when name_len==0)
  * @param name_len i32 — 0 for abstract type (casts / sizeof)
  * @param ctx *PipelineDepCtx — nested named/struct emit
@@ -5121,7 +5124,12 @@ export function emit_c_ptr_to_fixed_array_decl(arena: *ASTArena, out: *CodegenOu
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let arr_tr: i32 = 0;
-    if (ast.ref_is_null(ptr_type_ref) || pipeline_type_kind_ord_at(arena, ptr_type_ref) != (TypeKind.TYPE_PTR as i32)) {
+    let decl_tk: i32 = 0;
+    if (ast.ref_is_null(ptr_type_ref)) {
+      return -1;
+    }
+    decl_tk = pipeline_type_kind_ord_at(arena, ptr_type_ref);
+    if (decl_tk != (TypeKind.TYPE_PTR as i32) && decl_tk != (TypeKind.TYPE_ARRAY as i32)) {
       return -1;
     }
     arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref);
@@ -5175,6 +5183,48 @@ export function type_is_ptr_to_fixed_array(arena: *ASTArena, type_ref: i32): i32
       return 0;
     }
     return 1;
+  }
+}
+
+/**
+ * Host-C: true when type_ref is TYPE_ARRAY whose element is also TYPE_ARRAY (`[K][N]T`).
+ * Param decay must be `E (*name)[N]…`, not recursive emit_type `E * *`.
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — candidate type
+ * @return i32 — 1 if array-of-fixed-array, else 0
+ * PLATFORM: SHARED host-C emit
+ */
+export function type_is_array_of_fixed_array(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0.
+  unsafe {
+    let elem: i32 = 0;
+    if (ast.ref_is_null(type_ref) || pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_ARRAY as i32)) {
+      return 0;
+    }
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+    if (ast.ref_is_null(elem) || pipeline_type_kind_ord_at(arena, elem) != (TypeKind.TYPE_ARRAY as i32)) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Host-C: true when a param/abstract type needs a named C array declarator
+ * (`E (*name)[N]…`) instead of emit_type + trailing name.
+ * Covers `*[N]T` and `[K][N]T` (same C form; G.7 single emit_c_ptr path).
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — candidate type
+ * @return i32 — 1 if named declarator required, else 0
+ * PLATFORM: SHARED host-C emit
+ */
+export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0.
+  unsafe {
+    if (type_is_ptr_to_fixed_array(arena, type_ref) != 0) {
+      return 1;
+    }
+    return type_is_array_of_fixed_array(arena, type_ref);
   }
 }
 
@@ -17566,9 +17616,11 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
           if (emit_bytes_8(out, &i32_str[0], 7) != 0) {
             return -1;
           }
-        } else if (type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
+        } else if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
           /*
            * wave636: param `p: *[N]T` → `E (*p)[N]` (name inside C declarator).
+           * dest-SLICE INDEX return: `[K][N]T` param is the same form
+           * (`int32_t (*a)[2]`), not emit_type peel `int32_t ** a`.
            * PLATFORM: SHARED host-C.
            */
           let pta_nm: u8[128] = [];
@@ -17624,7 +17676,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         /* PLATFORM: SHARED — lower TYPE_SLICE params as pointers (seed/glue ABI).
          * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
          * Emit: `struct xlang_slice_T * name` so field access uses -> and calls pass &local. */
-        if (type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
             && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -17633,8 +17685,8 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             return -1;
           }
         }
-        /* wave636: PTR→ARRAY already emitted name inside declarator — skip space+name. */
-        if (type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
+        /* wave636: PTR→ARRAY / ARRAY-of-ARRAY already emitted name inside declarator — skip space+name. */
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
           if (append_byte(out, 32) != 0) {
             return -1;
           }
@@ -20399,11 +20451,39 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           if (emit_bytes_8(out, &i32_str[0], 7) != 0) {
             return -1;
           }
+        } else if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
+          /* Proto twin of emit_func: `*[N]T` / `[K][N]T` → `E (*name)[N]`. */
+          let pta_nm: u8[128] = [];
+          let pta_nl: i32 = 0;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            codegen_copy_param_name32_from_module(module, fi, p, &pta_nm[0]);
+            pta_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+            if (pta_nm[0] <= 32) {
+              pta_nl = 0;
+            }
+          }
+          if (pta_nl <= 0) {
+            pta_nm[0] = 95;
+            pta_nm[1] = 112;
+            pta_nl = 2;
+            if (p < 10) {
+              pta_nm[2] = ((p + 48) as u8);
+              pta_nl = 3;
+            } else {
+              pta_nm[2] = ((p / 10) + 48) as u8;
+              pta_nm[3] = ((p % 10) + 48) as u8;
+              pta_nl = 4;
+            }
+          }
+          if (emit_c_ptr_to_fixed_array_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &pta_nm[0], pta_nl, ctx) != 0) {
+            return -1;
+          }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
         /* PLATFORM: SHARED — TYPE_SLICE params as pointers (mirror emit_func body; seed/glue ABI). */
-        if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
           }
@@ -20411,6 +20491,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
             return -1;
           }
         }
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
         if (append_byte(out, 32) != 0) {
           return -1;
         }
@@ -20428,6 +20509,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           if (format_int(out, p) != 0) {
             return -1;
           }
+        }
         }
         p = p + 1;
       }
