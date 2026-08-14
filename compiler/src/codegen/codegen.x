@@ -5508,7 +5508,6 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     let is_field: i32 = 0;
     let is_call: i32 = 0;
     let field_base_ko: i32 = 0;
-    let field_base_named: i32 = 0;
     let base_e: Expr = init_e;
     let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
 
@@ -5657,7 +5656,6 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
               }
             }
             if (bk == 8) {
-              field_base_named = 1;
               snl = pipeline_type_named_name_into(arena, bty, &snm[0]);
             }
           }
@@ -5674,13 +5672,14 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         }
       }
       /*
-       * dest-SLICE import-module const FIELD (`dep.A`): VAR base is an
-       * import binding, not TYPE_NAMED. Do not emit C member `dep.A`
-       * (dep is not a struct). Return 0 so the caller fallback wraps
-       * `{.data=A,.length=N}`. sizeof fallback stays for NAMED struct
-       * fields when typeck N is missing. PLATFORM: SHARED host-C.
+       * dest-SLICE import-module const FIELD (`dep.A`): typeck stamps
+       * the FIELD to TYPE_SLICE (arr_sz=0). Import bindings may also
+       * be TYPE_NAMED, so a named-gate cannot distinguish them from
+       * struct fields. Return 0 whenever N is missing — caller
+       * fallback wraps `{.data=A,.length=N}`. Struct fields that
+       * recovered N (arr_sz>0) still wrap here. PLATFORM: SHARED host-C.
        */
-      if (arr_sz <= 0 && (field_base_ko != 3 || field_base_named == 0)) {
+      if (arr_sz <= 0) {
         return 0;
       }
     } else if ((init_ko == 48 || init_ko == 49) && ctx != 0 as *PipelineDepCtx) {
@@ -21360,7 +21359,17 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       }
     }
     let i: i32 = 0;
-    while (i < module.num_funcs) {
+    /*
+     * Consts-only dep modules have num_funcs==0, so the func loop never
+     * ran i==0 and skipped file-static `A` / `K`. Force one i==0 pass
+     * to emit top-level lets, then break before func-body (i is not a
+     * valid func index). PLATFORM: SHARED host-C co-emit.
+     */
+    let emit_n: i32 = module.num_funcs;
+    if (emit_n == 0 && module.num_top_level_lets > 0) {
+      emit_n = 1;
+    }
+    while (i < emit_n) {
       if (i == 0) {
         /*
          * See implementation.
@@ -21861,6 +21870,9 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             }
           }
         }
+      }
+      if (module.num_funcs == 0) {
+        break;
       }
       /* See implementation. */
       let skip_name: u8[128] = [];
