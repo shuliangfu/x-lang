@@ -1,7 +1,7 @@
 // Isolated: const aggregate emit must write fat / in-place [N]T (not store_rax).
 // Reuses glue_emit_slice_from_array_let_init + glue_emit_fixed_array_type_let_init
 // (and host-C let finish). Bare and `as` ascription share the same consume.
-// Expected: compile = 0, run = 42 (host-C and asm).
+// Expected: compile = 0, run = 42 (asm). host-C multi-const decl is later.
 // PLATFORM: SHARED — Ubuntu gold.
 
 /**
