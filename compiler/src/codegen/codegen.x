@@ -5467,10 +5467,12 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * - Module-level dest-SLICE const (`const s:[]T = A[1]` / `= B` at file scope):
  *   codegen_x_ast top-level decl reuses this helper. C static init allows
  *   `{.data = A[1], .length = N}` when `.data` is an address constant
- *   (static array / row). VAR N is recovered from module top-level
- *   TYPE_ARRAY lets (typeck stamps the dest-SLICE VAR to TYPE_SLICE).
- *   CALL/statement-expr is not a C static constant — typeck rejects those
- *   as module const; this helper still wraps them for init_globals assign.
+ *   (static array / row). Module VAR N is NOT recovered here (local-slot
+ *   cap — a module walk / 8th Module* / extra helper call here regressed
+ *   cis host). Callers use try_emit_dest_slice_from_module_array_var
+ *   after this returns 0. CALL/statement-expr is not a C static constant
+ *   — typeck rejects those as module const; this helper still wraps them
+ *   for init_globals assign.
  * - Module dest-SLICE ARRAY_LIT (`const t:[]T = [10,32]` / `[][]T = [[…]]`)
  *   is NOT this helper. File-scope wrap lives in
  *   emit_file_scope_dest_slice_array_lit (codegen_x_ast decl-site).
@@ -5998,6 +6000,119 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
 }
 
 /**
+ * Host-C dest-SLICE wrap of a module top-level TYPE_ARRAY VAR.
+ * try_emit_slice_init_from_array_var only scans block lets/consts. A
+ * module-table walk / 8th Module* / extra helper call inside that
+ * function overflows the assembler local-slot cap (cis / nslvar host
+ * BLD001). File-scope decl and init_globals already inlined this walk
+ * after try_emit==0. Function-scope emit_block had no fallback →
+ * `s = A` (array into slice struct) host-cc BLD001.
+ *
+ * G.7: one helper. Callers invoke it only after try_emit returns 0.
+ * Never add this walk to try_emit. Never add ARRAY_LIT here
+ * (function-scope (E[]){…} would dangle if init_globals reused it).
+ *
+ * Emits `(T){ .data = Name, .length = N }` when linit is EXPR_VAR
+ * matching a current_codegen_module top-level let/const of TYPE_ARRAY.
+ * Uses Expr.kind (not kind_ord sidecar) so a missed EXPR_VAR stamp
+ * still matches, same as the former file-scope inline fallback.
+ *
+ * @param arena *ASTArena — type/expr pool (same arena as dest_type_ref)
+ * @param out *CodegenOutBuf — C text sink
+ * @param dest_type_ref i32 — dest TYPE_SLICE (kind 11)
+ * @param linit_ref i32 — init expr; must be EXPR_VAR
+ * @param ctx *PipelineDepCtx — current_codegen_module; null → 0
+ * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
+ * PLATFORM: SHARED host-C emit
+ */
+export function try_emit_dest_slice_from_module_array_var(
+  arena: *ASTArena,
+  out: *CodegenOutBuf,
+  dest_type_ref: i32,
+  linit_ref: i32,
+  ctx: *PipelineDepCtx
+): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf) {
+      return 0;
+    }
+    if (ast.ref_is_null(dest_type_ref) || pipeline_type_kind_ord_at(arena, dest_type_ref) != 11) {
+      return 0;
+    }
+    if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+      return 0;
+    }
+    let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+    if ((init_e.kind as i32) != 3 || init_e.var_name_len <= 0) {
+      return 0;
+    }
+    let scan_mod: *Module = ctx.current_codegen_module;
+    let arr_sz: i32 = 0;
+    let ti: i32 = 0;
+    while (ti < scan_mod.num_top_level_lets && arr_sz <= 0) {
+      let nlen: i32 = pipeline_module_top_level_let_name_len(scan_mod, ti);
+      if (nlen == init_e.var_name_len && nlen > 0) {
+        let matched: i32 = 1;
+        let ci: i32 = 0;
+        while (ci < nlen) {
+          if (pipeline_module_top_level_let_name_byte_at(scan_mod, ti, ci) != init_e.var_name[ci]) {
+            matched = 0;
+            ci = nlen;
+          } else {
+            ci = ci + 1;
+          }
+        }
+        if (matched != 0) {
+          let tr: i32 = pipeline_module_top_level_let_type_ref(scan_mod, ti);
+          if (!ast.ref_is_null(tr) && pipeline_type_kind_ord_at(arena, tr) == 10) {
+            arr_sz = pipeline_type_array_size_at(arena, tr);
+          }
+        }
+      }
+      ti = ti + 1;
+    }
+    if (arr_sz <= 0) {
+      return 0;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (emit_type(arena, out, dest_type_ref, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 123) != 0) {
+      return -1;
+    }
+    let d1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &d1[0], 9) != 0) {
+      return -1;
+    }
+    if (emit_bytes_64(out, &init_e.var_name[0], init_e.var_name_len) != 0) {
+      return -1;
+    }
+    let d2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &d2[0], 12) != 0) {
+      return -1;
+    }
+    if (format_int(out, arr_sz) != 0) {
+      return -1;
+    }
+    let d3: u8[4] = [32, 125, 0, 0];
+    if (emit_bytes_4(out, &d3[0], 2) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
  * Host-C: emit `{ e0, e1, … }` for ARRAY_LIT (fixed TYPE_ARRAY / vector let-init).
  * wave357 Cap residual pure: nested ARRAY_LIT rows recurse (multi-dim `{{1,2},{3,4}}`).
  * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
@@ -6007,6 +6122,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * reuse emit_expr (durable `({ static E al[]={…}; (slice){.data=al,.length=N}; })`);
  * TYPE_SLICE VAR/FIELD/CALL rows reuse try_emit_slice_init_from_array_var
  * (`[N][]T = [a, [3,4]]` / `[mk()]` — emit_expr of a VAR is a bare array).
+ * Module TYPE_ARRAY VAR rows (`[][]T = [A]`) fall through to
+ * try_emit_dest_slice_from_module_array_var after try_emit==0.
  * @param arena *ASTArena — expression pool
  * @param out *CodegenOutBuf — C text sink
  * @param init_ref i32 — ARRAY_LIT or fallback expr
@@ -6114,6 +6231,9 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
           if (!ast.ref_is_null(et_br) && et_br > 0
               && pipeline_type_kind_ord_at(arena, et_br) == (TypeKind.TYPE_SLICE as i32)) {
             wrap_br = try_emit_slice_init_from_array_var(arena, out, br_br, nlets_br, et_br, elem_ref, ctx);
+            if (wrap_br == 0) {
+              wrap_br = try_emit_dest_slice_from_module_array_var(arena, out, et_br, elem_ref, ctx);
+            }
           }
         }
         if (wrap_br < 0) {
@@ -14589,6 +14709,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
             }
             wrap_nc = try_emit_slice_init_from_array_var(arena, out, br_nc, nlets_nc, elem_type_ref, er_nc, ctx);
+            if (wrap_nc == 0) {
+              wrap_nc = try_emit_dest_slice_from_module_array_var(arena, out, elem_type_ref, er_nc, ctx);
+            }
           }
           if (wrap_nc < 0) {
             return -1;
@@ -15496,6 +15619,9 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (!ast.ref_is_null(cinit_ref)) {
               let nlets_c: i32 = ast.ast_block_num_lets(arena, block_ref);
               slice_cinit = try_emit_slice_init_from_array_var(arena, out, block_ref, nlets_c, ctype_ref, cinit_ref, ctx);
+              if (slice_cinit == 0) {
+                slice_cinit = try_emit_dest_slice_from_module_array_var(arena, out, ctype_ref, cinit_ref, ctx);
+              }
             }
             if (slice_cinit < 0) {
               return -1;
@@ -15700,6 +15826,9 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               let slice_init: i32 = 0;
               if (!ast.ref_is_null(linit_ref)) {
                 slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref, ctx);
+                if (slice_init == 0) {
+                  slice_init = try_emit_dest_slice_from_module_array_var(arena, out, let_type_ref, linit_ref, ctx);
+                }
               }
               if (ast.ref_is_null(linit_ref)) {
                 let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
@@ -21324,90 +21453,34 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                   slice_tl = try_emit_slice_init_from_array_var(
                     arena, out, 0, 0, tl_ty, tl_init, ctx);
                 }
+                if (slice_tl == 0) {
+                  /*
+                   * Module VAR dest-SLICE: try_emit cannot walk the module
+                   * table (slot cap). G.7: shared caller fallback.
+                   * PLATFORM: SHARED host-C.
+                   */
+                  slice_tl = try_emit_dest_slice_from_module_array_var(
+                    arena, out, tl_ty, tl_init, ctx);
+                }
                 if (slice_tl < 0) {
                   return -1;
                 } else if (slice_tl == 0) {
                   /*
-                   * Fallback: dest-SLICE VAR whose kind_ord sidecar missed
-                   * EXPR_VAR. Recover N from this module's TYPE_ARRAY lets
-                   * via Expr.kind + name. PLATFORM: SHARED host-C.
+                   * Module dest-SLICE ARRAY_LIT: emit_expr uses
+                   * ({ static E al[]={…}; (T){.data=al,.length=N}; })
+                   * — illegal as a C static initializer (BLD001).
+                   * File-scope (E[]){…} / nested [][]T row wrap is an
+                   * address constant. Do not add ARRAY_LIT to try_emit:
+                   * init_globals also calls it with block_ref=0 and
+                   * would dangle. PLATFORM: SHARED host-C.
                    */
-                  let fe: Expr = ast.ast_arena_expr_get(arena, tl_init);
-                  let fnsz: i32 = 0;
-                  if ((fe.kind as i32) == 3 && fe.var_name_len > 0) {
-                    let fti: i32 = 0;
-                    while (fti < module.num_top_level_lets && fnsz <= 0) {
-                      let flen: i32 = pipeline_module_top_level_let_name_len(module, fti);
-                      if (flen == fe.var_name_len && flen > 0) {
-                        let fmk: i32 = 1;
-                        let fci: i32 = 0;
-                        while (fci < flen) {
-                          if (pipeline_module_top_level_let_name_byte_at(module, fti, fci) != fe.var_name[fci]) {
-                            fmk = 0;
-                            fci = flen;
-                          } else {
-                            fci = fci + 1;
-                          }
-                        }
-                        if (fmk != 0) {
-                          let ftr: i32 = pipeline_module_top_level_let_type_ref(module, fti);
-                          if (!ast.ref_is_null(ftr) && pipeline_type_kind_ord_at(arena, ftr) == 10) {
-                            fnsz = pipeline_type_array_size_at(arena, ftr);
-                          }
-                        }
-                      }
-                      fti = fti + 1;
-                    }
-                  }
-                  if (fnsz > 0) {
-                    if (append_byte(out, 40) != 0) {
+                  let al_got: i32 = emit_file_scope_dest_slice_array_lit(
+                    arena, out, tl_ty, tl_init, ctx);
+                  if (al_got < 0) {
+                    return -1;
+                  } else if (al_got == 0) {
+                    if (emit_expr(arena, out, tl_init, ctx) != 0) {
                       return -1;
-                    }
-                      if (emit_type(arena, out, tl_ty, 0 as *u8, 0, ctx) != 0) {
-                        return -1;
-                      }
-                      if (append_byte(out, 41) != 0) {
-                        return -1;
-                      }
-                      if (append_byte(out, 123) != 0) {
-                        return -1;
-                      }
-                      let fd1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
-                      if (emit_bytes_from_ptr(out, &fd1[0], 9) != 0) {
-                        return -1;
-                      }
-                      if (emit_bytes_64(out, &fe.var_name[0], fe.var_name_len) != 0) {
-                        return -1;
-                      }
-                      let fd2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
-                      if (emit_bytes_from_ptr(out, &fd2[0], 12) != 0) {
-                        return -1;
-                      }
-                      if (format_int(out, fnsz) != 0) {
-                        return -1;
-                      }
-                      let fd3: u8[4] = [32, 125, 0, 0];
-                      if (emit_bytes_4(out, &fd3[0], 2) != 0) {
-                        return -1;
-                      }
-                  } else {
-                    /*
-                     * Module dest-SLICE ARRAY_LIT: emit_expr uses
-                     * ({ static E al[]={…}; (T){.data=al,.length=N}; })
-                     * — illegal as a C static initializer (BLD001).
-                     * File-scope (E[]){…} / nested [][]T row wrap is an
-                     * address constant. Do not add ARRAY_LIT to try_emit:
-                     * init_globals also calls it with block_ref=0 and
-                     * would dangle. PLATFORM: SHARED host-C.
-                     */
-                    let al_got: i32 = emit_file_scope_dest_slice_array_lit(
-                      arena, out, tl_ty, tl_init, ctx);
-                    if (al_got < 0) {
-                      return -1;
-                    } else if (al_got == 0) {
-                      if (emit_expr(arena, out, tl_init, ctx) != 0) {
-                        return -1;
-                      }
                     }
                   }
                 }
@@ -21518,68 +21591,14 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                 slice_ig = try_emit_slice_init_from_array_var(
                   arena, out, 0, 0, ig_ty, ig_init, ctx);
               }
+              if (slice_ig == 0) {
+                slice_ig = try_emit_dest_slice_from_module_array_var(
+                  arena, out, ig_ty, ig_init, ctx);
+              }
               if (slice_ig < 0) {
                 return -1;
               } else if (slice_ig == 0) {
-                let ige: Expr = ast.ast_arena_expr_get(arena, ig_init);
-                let ign: i32 = 0;
-                if ((ige.kind as i32) == 3 && ige.var_name_len > 0) {
-                  let igi: i32 = 0;
-                  while (igi < module.num_top_level_lets && ign <= 0) {
-                    let igl: i32 = pipeline_module_top_level_let_name_len(module, igi);
-                    if (igl == ige.var_name_len && igl > 0) {
-                      let igm: i32 = 1;
-                      let igc: i32 = 0;
-                      while (igc < igl) {
-                        if (pipeline_module_top_level_let_name_byte_at(module, igi, igc) != ige.var_name[igc]) {
-                          igm = 0;
-                          igc = igl;
-                        } else {
-                          igc = igc + 1;
-                        }
-                      }
-                      if (igm != 0) {
-                        let igtr: i32 = pipeline_module_top_level_let_type_ref(module, igi);
-                        if (!ast.ref_is_null(igtr) && pipeline_type_kind_ord_at(arena, igtr) == 10) {
-                          ign = pipeline_type_array_size_at(arena, igtr);
-                        }
-                      }
-                    }
-                    igi = igi + 1;
-                  }
-                }
-                if (ign > 0) {
-                  if (append_byte(out, 40) != 0) {
-                    return -1;
-                  }
-                  if (emit_type(arena, out, ig_ty, 0 as *u8, 0, ctx) != 0) {
-                    return -1;
-                  }
-                  if (append_byte(out, 41) != 0) {
-                    return -1;
-                  }
-                  if (append_byte(out, 123) != 0) {
-                    return -1;
-                  }
-                  let igd1: u8[12] = [32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
-                  if (emit_bytes_from_ptr(out, &igd1[0], 9) != 0) {
-                    return -1;
-                  }
-                  if (emit_bytes_64(out, &ige.var_name[0], ige.var_name_len) != 0) {
-                    return -1;
-                  }
-                  let igd2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
-                  if (emit_bytes_from_ptr(out, &igd2[0], 12) != 0) {
-                    return -1;
-                  }
-                  if (format_int(out, ign) != 0) {
-                    return -1;
-                  }
-                  let igd3: u8[4] = [32, 125, 0, 0];
-                  if (emit_bytes_4(out, &igd3[0], 2) != 0) {
-                    return -1;
-                  }
-                } else if (!ast.ref_is_null(ig_init) && emit_expr(arena, out, ig_init, ctx) != 0) {
+                if (!ast.ref_is_null(ig_init) && emit_expr(arena, out, ig_init, ctx) != 0) {
                   return -1;
                 }
               }
@@ -21651,6 +21670,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                       ctx.current_codegen_module = dep_mod;
                       slice_dig = try_emit_slice_init_from_array_var(
                         dep_arena, out, 0, 0, dig_ty, dig_init, ctx);
+                      if (slice_dig == 0) {
+                        slice_dig = try_emit_dest_slice_from_module_array_var(
+                          dep_arena, out, dig_ty, dig_init, ctx);
+                      }
                       ctx.current_codegen_module = saved_dig;
                     }
                     if (slice_dig < 0) {
