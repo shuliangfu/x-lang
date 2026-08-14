@@ -2530,6 +2530,13 @@ int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t t
   return (0 - 1);
 }
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_t ta) {
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov sK, w0. Twin of full seed. */
+  if (ta == 1) {
+    if ((elf_ctx == ((uint8_t *)(0))) || (k < 0) || (k > 7)) {
+      return (0 - 1);
+    }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(0x1e270000u | (uint32_t)k)));
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -2557,6 +2564,13 @@ int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, in
   return (0 - 1);
 }
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta) {
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov w0, sK. Twin of full seed. */
+  if (ta == 1) {
+    if ((elf_ctx == ((uint8_t *)(0))) || (k < 0) || (k > 7)) {
+      return (0 - 1);
+    }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(0x1e260000u | ((uint32_t)k << 5))));
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }

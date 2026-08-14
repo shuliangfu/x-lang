@@ -1,7 +1,6 @@
-// Isolated import METHOD scalar f32 extras must use SysV xmm, not GP.
-// Host-C std_simd_select_lane_f32_f32_f32 reads xmm0–2; GP-only extras
-// make select_lane(1.0, 3.0, 4.0) miss (s2 leftover).
-// PLATFORM: SHARED — Ubuntu x86_64 gold (xmm); Darwin arm64 s0 later.
+// Isolated import METHOD scalar f32 extras must use SysV xmm / AAPCS64 s0.
+// Host-C std_simd_select_lane_f32_f32_f32 reads xmm0–2 (x86) or s0–s2 (arm64).
+// PLATFORM: SHARED — Ubuntu x86_64 gold (xmm); Darwin arm64 s0–s7.
 const simd = import("std.simd");
 
 /**

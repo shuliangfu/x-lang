@@ -586,8 +586,14 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
 static int32_t glue_arg_ref_is_f64_width_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t pty) {
   int32_t atr;
   int32_t ak;
-  if (pty > 0 && arena && pipeline_type_kind_ord_at(arena, pty) == 15)
-    return 1;
+  if (pty > 0 && arena) {
+    int32_t pk = pipeline_type_kind_ord_at(arena, pty);
+    if (pk == 15)
+      return 1;
+    /* Formal f32 wins over unstamped FLOAT_LIT default-f64. */
+    if (pk == 14)
+      return 0;
+  }
   if (!arena || arg_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1)

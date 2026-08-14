@@ -2160,10 +2160,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                         arg_sz_m[i_m] = sz_m;
                         gp_start_m[i_m] = 0 - 1;
                         gp_units_m[i_m] = 0;
-                        // PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras go xmm0–7
-                        // (seed _impl already; .x was GP-only → select_lane(1.0) red).
-                        // AAPCS64 s0–s7 is a later encoder leaf (ta==0 only, ≡ seed).
-                        if (ta == 0) {
+                        // PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras go xmm0–7.
+                        // PLATFORM: MACOS|ARM64 AAPCS64 — same extras go s0–s7 / d0–d7
+                        // (host-C gcc reads FP regs). Encoder now has fmov sK,w0.
+                        // Do NOT open UFCS leave / CALL packer / param home (those
+                        // stay GP on arm64 — local xlang callee homes x0).
+                        if (ta == 0 || ta == 1) {
                           is_sse_m[i_m] = glue_arg_ref_is_sse_float_c(arena, ar_m, pty_m);
                           is_f64_m[i_m] = glue_arg_ref_is_f64_width_c(arena, ar_m, pty_m);
                         }
@@ -2338,6 +2340,21 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                      */
                     if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) {
                       return 0 - 1;
+                    }
+                    // PLATFORM: MACOS|ARM64 AAPCS64 — host-C returns f32/f64 in s0/d0.
+                    // Shared harvest is x86-only so local xlang f32 CALL stays GP-in/GP-out.
+                    // Import METHOD callee is gcc: move s0/d0 → w0/x0 after the no-op harvest.
+                    if (ta == 1) {
+                      let rk_m: i32 = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+                      if (rk_m == 14) {
+                        if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0) {
+                          return 0 - 1;
+                        }
+                      } else if (rk_m == 15) {
+                        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0) {
+                          return 0 - 1;
+                        }
+                      }
                     }
                     return 0;
                   }
@@ -3077,7 +3094,11 @@ function glue_arg_ref_is_f64_width_c(arena: *u8, arg_ref: i32, pty: i32): i32 {
   if (arena != 0 as *u8) {
     if (pty > 0) {
       unsafe {
-        if (pipeline_type_kind_ord_at(arena, pty) == 15) { return 1; }
+        let pk: i32 = pipeline_type_kind_ord_at(arena, pty);
+        if (pk == 15) { return 1; }
+        // Formal f32 wins over unstamped FLOAT_LIT default-f64
+        // (else arm64 emits fmov dK,x0 for select_lane(1.0) extras).
+        if (pk == 14) { return 0; }
       }
     }
   }

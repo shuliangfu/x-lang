@@ -1313,6 +1313,14 @@ int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodeg
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[3] = {0x66, 0x0f, 0x6e};
   uint8_t modrm;
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov sK, w0 (IEEE bits in w0 → sK).
+   * Completes import METHOD f32 extras (host-C reads s0–s7). Same opcode as
+   * addss ta==1 (0x1e270000 = fmov s0,w0). Do not open CALL packer / param home. */
+  if (ta == 1) {
+    if (!elf_ctx || k < 0 || k > 7)
+      return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x1e270000u | (uint32_t)k));
+  }
   if (ta != 0 || !elf_ctx || k < 0 || k > 7)
     return -1;
   modrm = (uint8_t)(0xc0 | (k << 3));
@@ -1330,6 +1338,12 @@ int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCt
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[3] = {0x66, 0x0f, 0x7e};
   uint8_t modrm;
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov w0, sK (host-C f32 ret in s0). */
+  if (ta == 1) {
+    if (!elf_ctx || k < 0 || k > 7)
+      return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x1e260000u | ((uint32_t)k << 5)));
+  }
   if (ta != 0 || !elf_ctx || k < 0 || k > 7)
     return -1;
   modrm = (uint8_t)(0xc0 | (k << 3));
@@ -1346,6 +1360,12 @@ int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCt
 int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[4] = {0x66, 0x48, 0x0f, 0x6e};
   uint8_t modrm;
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov dK, x0 (IEEE bits in x0 → dK). */
+  if (ta == 1) {
+    if (!elf_ctx || k < 0 || k > 7)
+      return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x9e670000u | (uint32_t)k));
+  }
   if (ta != 0 || !elf_ctx || k < 0 || k > 7)
     return -1;
   modrm = (uint8_t)(0xc0 | (k << 3));
@@ -1361,6 +1381,12 @@ int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCt
 int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[4] = {0x66, 0x48, 0x0f, 0x7e};
   uint8_t modrm;
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov x0, dK (host-C f64 ret in d0). */
+  if (ta == 1) {
+    if (!elf_ctx || k < 0 || k > 7)
+      return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x9e660000u | ((uint32_t)k << 5)));
+  }
   if (ta != 0 || !elf_ctx || k < 0 || k > 7)
     return -1;
   modrm = (uint8_t)(0xc0 | (k << 3));

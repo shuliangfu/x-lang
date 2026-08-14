@@ -3224,15 +3224,22 @@ export function backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i3
 }
 
 // movd xmmK, eax：66 0F 6E /r ；modrm = C0 | (k<<3)
-/** Exported function `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
- * Implements `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
- * @param elf_ctx *u8
- * @param k i32
- * @param ta i32
- * @return i32
+/**
+ * Move IEEE f32 bits in eax/w0 into FP arg register k.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null rejected
+ * @param k i32 — xmmK (SysV) or sK (AAPCS64); 0..7
+ * @param ta i32 — 0=x86_64 SysV movd; 1=AAPCS64 fmov sK,w0
+ * @return i32 — 0 ok; -1 null/range/unsupported ta
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
  */
 #[no_mangle]
 export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    if (k < 0) { return 0 - 1; }
+    if (k > 7) { return 0 - 1; }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32);
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -3261,15 +3268,22 @@ export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta
 }
 
 // movd eax, xmmK：66 0F 7E /r
-/** Exported function `backend_enc_mov_xmm_arg_reg_to_eax_arch`.
- * Implements `backend_enc_mov_xmm_arg_reg_to_eax_arch`.
- * @param elf_ctx *u8
- * @param k i32
- * @param ta i32
- * @return i32
+/**
+ * Harvest IEEE f32 bits from FP arg/return register k into eax/w0.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null rejected
+ * @param k i32 — xmmK (SysV) or sK (AAPCS64); 0..7
+ * @param ta i32 — 0=x86_64 SysV movd; 1=AAPCS64 fmov w0,sK
+ * @return i32 — 0 ok; -1 null/range/unsupported ta
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
  */
 #[no_mangle]
 export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    if (k < 0) { return 0 - 1; }
+    if (k > 7) { return 0 - 1; }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32);
+  }
   if (ta != 0) {
     return 0 - 1;
   }
