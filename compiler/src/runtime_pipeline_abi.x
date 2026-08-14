@@ -72356,13 +72356,11 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
         if (rc == type_slice) { slice_ty = rty; }
       }
       if (slice_ty > 0) {
+        let et: i32 = 0;
         unsafe { n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref); }
         if (n_arr < 0 || n_arr > array_lit_max) { return 0 - 1; }
-        {
-          let et: i32 = 0;
-          unsafe { et = pipeline_type_elem_ref_at(arena, slice_ty); }
-          force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, et);
-        }
+        unsafe { et = pipeline_type_elem_ref_at(arena, slice_ty); }
+        force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, et);
         base_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
         if ((base_off % 8) != 0) { base_off = (base_off + 7) / 8 * 8; }
         home = base_off + 16;
