@@ -1,9 +1,11 @@
-// Isolated: module-level dest-SLICE const INDEX/VAR wrap (C static).
+// Isolated: module-level dest-SLICE const INDEX/VAR wrap.
 // host-C top-level must emit `{.data=A[1],.length=N}`, not `s = (A)[1]`.
-// Same-layer twin: dest-SLICE const VAR and mutable let via init_globals.
-// asm module-level dest-SLICE const is a different layer (CG002 leftover).
-// Expected: host-C compile = 0, run = 42.
-// PLATFORM: SHARED — Ubuntu gold host-C static init.
+// asm: hoist const TYPE_ARRAY into main (prepare skips is_const, so they
+// have no COMMON home). dest-SLICE helper then wraps INDEX/VAR.
+// Same-layer twin: dest-SLICE const VAR and mutable let.
+// host-C dest-SLICE ARRAY_LIT at file scope is a different C-static leaf.
+// Expected: host-C and asm compile = 0, run = 42.
+// PLATFORM: SHARED — Ubuntu gold host-C static + asm hoist.
 
 const A: [2][2]i32 = [[1, 2], [10, 32]];
 const s: []i32 = A[1];
@@ -15,7 +17,7 @@ let m: []i32 = B;
 
 /**
  * Exit 42 when module-level dest-SLICE const INDEX/VAR and mutable let
- * wrap as typed fat (C static address-constant / init_globals assign).
+ * wrap as typed fat (host-C static / asm hoist into main).
  * @return i32 — 42 ok, else the failing case
  */
 function main(): i32 {

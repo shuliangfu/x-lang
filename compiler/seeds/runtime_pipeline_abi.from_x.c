@@ -30102,10 +30102,12 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
 
 /*
  * Cold twin of pure pipeline_module_hoist_top_level_lets_into_main.
- * Stage 12.0.5: skip TYPE_ARRAY (10) / ARRAY_LIT (46) module lets — they are
- * COMMON via modlet prepare; hoisting them stacked full payload on main.
- * prepend count = actually appended (not raw n). Product pure owns full path
- * when strong; cold must match so WEAK hybrid / freestanding stay aligned.
+ * Stage 12.0.5: skip *mutable* TYPE_ARRAY (10) / ARRAY_LIT (46) module lets —
+ * they are COMMON via modlet prepare; hoisting them stacked full payload on
+ * main. prepare skips const, so const TYPE_ARRAY / dest-SLICE ARRAY_LIT must
+ * hoist (asm module dest-SLICE const home). prepend count = actually appended.
+ * Product pure owns full path when strong; cold must match so WEAK hybrid /
+ * freestanding stay aligned.
  * PLATFORM: SHARED freestanding top_level hoist.
  */
 void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
@@ -30151,8 +30153,11 @@ void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
       tk = pipeline_type_kind_ord_at(arena, type_ref);
       if (init_ref > 0 && init_ref <= nexprs)
         ik = pipeline_expr_kind_ord_at(arena, init_ref);
-      if (tk == 10 || ik == 46)
-        continue;
+      if (tk == 10 || ik == 46) {
+        /* Mutable COMMON only. Const arrays hoist (prepare skips is_const). */
+        if (pipeline_module_top_level_let_is_const(module, tl) == 0)
+          continue;
+      }
     }
     for (k = 0; k < name_len; k++)
       name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k);

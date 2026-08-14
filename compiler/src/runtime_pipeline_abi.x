@@ -36146,6 +36146,9 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * would make emit_index treat the [N]T element as a fat). N and scale esz
  * come from the base's elem TYPE_ARRAY; lea via
  * glue_emit_index_eff_addr_scaled (do not emit_index / lvalue_eff_addr).
+ * Module-level dest-SLICE const (`const s:[]T = A[i]`) hoists into main;
+ * the INDEX base VAR often has no resolved TYPE_ARRAY stamp — recover N
+ * from the hoisted / module TYPE_ARRAY decl (same as VAR dest-SLICE).
  * Typeck stamps a `[a]` / `[mk()]` / `[a[i]]` dest-SLICE row to TYPE_SLICE,
  * so N comes from the decl, callee return, or INDEX base elem
  * (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT rows
@@ -36554,6 +36557,138 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
             unsafe {
               arr_sz = pipeline_type_array_size_at(arena, tr);
               idx_esz = glue_fixed_array_total_bytes_c(arena, tr, 0);
+            }
+          }
+        }
+      }
+    }
+    // Module dest-SLICE const INDEX: base VAR often has no TYPE_ARRAY stamp.
+    // Recover N+esz from the hoisted block decl or module top-level table.
+    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    if ((arr_sz <= 0 || idx_esz <= 0)) {
+      unsafe {
+        init_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      }
+      if (init_ko == 3) {
+        unsafe {
+          vlen = pipeline_expr_var_name_len(arena, base_ref);
+        }
+        if (vlen > 0 && vlen <= 127) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+          }
+          scan_br = block_ref;
+          if (scan_br <= 0) {
+            unsafe {
+              scan_br = asm_ctx_scope_block_ref_at(ctx);
+            }
+          }
+          if (scan_br <= 0) {
+            unsafe {
+              mod = pipeline_asm_emit_module_ref_c();
+              ftr = pipeline_asm_emit_func_index_c();
+            }
+            if (mod != (0 as *u8) && ftr >= 0) {
+              unsafe {
+                scan_br = pipeline_module_func_body_ref_at(mod, ftr);
+              }
+            }
+          }
+          if (scan_br > 0) {
+            unsafe {
+              tr = pipeline_block_resolve_var_type_ref(arena, scan_br, &vname[0], vlen);
+            }
+            if (tr > 0) {
+              unsafe {
+                tk = pipeline_type_kind_ord_at(arena, tr);
+              }
+              if (tk == 10) {
+                unsafe {
+                  ftr = pipeline_type_elem_ref_at(arena, tr);
+                }
+                if (ftr > 0) {
+                  unsafe {
+                    tk = pipeline_type_kind_ord_at(arena, ftr);
+                  }
+                  if (tk == 10) {
+                    unsafe {
+                      arr_sz = pipeline_type_array_size_at(arena, ftr);
+                      idx_esz = glue_fixed_array_total_bytes_c(arena, ftr, 0);
+                    }
+                  } else {
+                    unsafe {
+                      arr_sz = pipeline_type_array_size_at(arena, tr);
+                      idx_esz = glue_fixed_array_total_bytes_c(arena, tr, 0);
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if ((arr_sz <= 0 || idx_esz <= 0)) {
+            unsafe {
+              mod = pipeline_asm_emit_module_ref_c();
+            }
+            if (mod != (0 as *u8)) {
+              unsafe {
+                n_arr = pipe_mod_get_num_top_level_lets(mod);
+              }
+              li = 0;
+              while (li < n_arr) {
+                unsafe {
+                  nlen = pipeline_module_top_level_let_name_len(mod, li);
+                }
+                if (nlen == vlen && nlen > 0) {
+                  matched = 1;
+                  ci = 0;
+                  while (ci < nlen) {
+                    unsafe {
+                      if ((pipeline_module_top_level_let_name_byte_at(mod, li, ci) as u8) != vname[ci]) {
+                        matched = 0;
+                      }
+                    }
+                    if (matched == 0) {
+                      break;
+                    }
+                    ci = ci + 1;
+                  }
+                  if (matched != 0) {
+                    unsafe {
+                      tr = pipeline_module_top_level_let_type_ref(mod, li);
+                    }
+                    if (tr > 0) {
+                      unsafe {
+                        tk = pipeline_type_kind_ord_at(arena, tr);
+                      }
+                      if (tk == 10) {
+                        unsafe {
+                          ftr = pipeline_type_elem_ref_at(arena, tr);
+                        }
+                        if (ftr > 0) {
+                          unsafe {
+                            tk = pipeline_type_kind_ord_at(arena, ftr);
+                          }
+                          if (tk == 10) {
+                            unsafe {
+                              arr_sz = pipeline_type_array_size_at(arena, ftr);
+                              idx_esz = glue_fixed_array_total_bytes_c(arena, ftr, 0);
+                            }
+                          } else {
+                            unsafe {
+                              arr_sz = pipeline_type_array_size_at(arena, tr);
+                              idx_esz = glue_fixed_array_total_bytes_c(arena, tr, 0);
+                            }
+                          }
+                        }
+                      }
+                    }
+                    if (arr_sz > 0 && idx_esz > 0) {
+                      break;
+                    }
+                  }
+                }
+                li = li + 1;
+              }
             }
           }
         }
@@ -75453,12 +75588,15 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
  * stack-slot init. Keeps num_top_level_lets so emit can still fall back to
  * module const literals for other functions.
  *
- * Stage 12.0.5: do NOT hoist fixed TYPE_ARRAY module lets (ARRAY_LIT init).
- * Those become SHN_COMMON via pipeline_asm_modlet_prepare_and_emit_elf_c;
- * hoisting them into main body stacked full payload on the hoist-target frame
- * (labi_path_pure g_labi_* ~sum N*2 via slot+reserve) while COMMON already
- * held the durable home — dual stack/BSS and SEGV on large modules.
- * Non-hoist functions already skip these via sum/register; main was the hole.
+ * Stage 12.0.5: do NOT hoist *mutable* fixed TYPE_ARRAY module lets
+ * (ARRAY_LIT init). Those become SHN_COMMON via
+ * pipeline_asm_modlet_prepare_and_emit_elf_c; hoisting them stacked full
+ * payload on the hoist-target frame (labi_path_pure g_labi_* ~sum N*2)
+ * while COMMON already held the durable home — dual stack/BSS + SEGV.
+ * prepare skips *const* (is_const != 0), so const TYPE_ARRAY /
+ * dest-SLICE ARRAY_LIT have no COMMON home — hoist them so dest-SLICE
+ * INDEX/VAR can lea a stack slot. Non-hoist funcs still skip via
+ * sum/register (cross-func module const array is a later leaf).
  *
  * prepend_lets count must equal the number actually appended (not raw n), else
  * skipped COMMON arrays would desync stmt_order vs block lets.
@@ -75541,7 +75679,18 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
             }
           }
           if (tk_h == 10 || ik_h == 46) {
-            skip_common_arr = 1;
+            let is_c_h: i32 = 0;
+            unsafe {
+              is_c_h = pipeline_module_top_level_let_is_const(module, tl);
+            }
+            // Mutable COMMON arrays stay un-hoisted (Stage 12.0.5).
+            // Const TYPE_ARRAY / dest-SLICE ARRAY_LIT must hoist — prepare
+            // skips is_const, so they otherwise have no addressable home
+            // (asm module dest-SLICE const CG002).
+            // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+            if (is_c_h == 0) {
+              skip_common_arr = 1;
+            }
           }
         }
         if (skip_common_arr == 0) {
