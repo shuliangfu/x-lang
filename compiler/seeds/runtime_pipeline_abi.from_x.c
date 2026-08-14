@@ -19623,6 +19623,8 @@ int32_t glue_emit_vector_lane_scalar_binop_elf_c(void *arena,
       return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
     if (is_f32 && binop_ko == 6)
       return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
+    if (is_f32 && binop_ko == 7)
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
     return glue_apply_vector_lane_scalar_binop_elf_c(elf_ctx, binop_ko, ctx, ta);
   }
   if (vr == -1)
@@ -19655,10 +19657,15 @@ int32_t glue_emit_vector_lane_scalar_binop_elf_c(void *arena,
   case 7:
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
-    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
-      return -1;
+    /* PLATFORM: SHARED — f32 /0 is IEEE Inf/NaN; skip integer #DE guard. */
+    if (!is_f32) {
+      if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+        return -1;
+    }
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
+    if (is_f32)
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
     return backend_enc_idiv_rbx_arch(elf_ctx, ta);
   case 8:
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)

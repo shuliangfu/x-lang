@@ -42037,9 +42037,11 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
   is_f32 = glue_lane_binop_lhs_is_f32_c(arena, ctx, left_ref);
   vr = glue_try_vector_lane_binop_operands_elf_c(arena, elf_ctx, binop_ko, left_ref, right_ref, lane, esz, ctx, ta);
   if (vr == 0) {
-    // G.7: Vec4f/f32x4 lanes are IEEE f32 bits; integer ADD of those bits is
-    // not f32 add (mac a+b was run=1). Reuse scalar addss/subss/mulss.
-    if (is_f32 != 0 && (binop_ko == 4 || binop_ko == 5 || binop_ko == 6)) {
+    // G.7: Vec4f/f32x4 lanes are IEEE f32 bits; integer ADD/IDIV of those
+    // bits is not f32 arith (mac a+b was run=1; a/b is run=1). Reuse
+    // scalar addss/subss/mulss/divss. IEEE Inf/NaN on /0 — do not trip
+    // the integer divisor-zero check (0.0f has integer bits 0).
+    if (is_f32 != 0 && (binop_ko == 4 || binop_ko == 5 || binop_ko == 6 || binop_ko == 7)) {
       return glue_apply_vector_lane_f32_binop_elf_c(elf_ctx, binop_ko, ta);
     }
     return glue_apply_vector_lane_scalar_binop_elf_c(elf_ctx, binop_ko, ctx, ta);
@@ -42110,17 +42112,23 @@ export function glue_emit_vector_lane_scalar_binop_elf_c(arena: *u8, elf_ctx: *u
     if (rc != 0) {
       return 0 - 1;
     }
-    unsafe {
-      rc = pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
+    // PLATFORM: SHARED — f32 /0 is IEEE Inf/NaN; skip integer #DE guard.
+    if (is_f32 == 0) {
+      unsafe {
+        rc = pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
     unsafe {
       rc = backend_enc_pop_rax_arch(elf_ctx, ta);
     }
     if (rc != 0) {
       return 0 - 1;
+    }
+    if (is_f32 != 0) {
+      return glue_apply_vector_lane_f32_binop_elf_c(elf_ctx, 7, ta);
     }
     unsafe {
       return backend_enc_idiv_rbx_arch(elf_ctx, ta);
@@ -44440,11 +44448,13 @@ export extern "C" function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
- * Apply f32 lane ALU after operands are in rax/rbx (addss/subss/mulss).
+ * Apply f32 lane ALU after operands are in rax/rbx (addss/subss/mulss/divss).
  * Placed after the C encoder externs so assemble emits unmangled C calls
  * (early export-extern of these names mangles the whole TU).
+ * DIV reuses the existing early C face backend_enc_divss_rax_rbx_arch
+ * (line ~781 / scalar `/`); do not add a second late export-extern.
  * @param elf_ctx *u8 — ElfCodegenCtx*
- * @param binop_ko i32 — 4=ADD 5=SUB 6=MUL
+ * @param binop_ko i32 — 4=ADD 5=SUB 6=MUL 7=DIV
  * @param ta i32 — 0=x86_64 1=arm64
  * @return i32 — 0 ok; -1 unsupported ko / encode fail
  * PLATFORM: SHARED — G.7 reuse scalar f32 encoders.
@@ -44463,6 +44473,11 @@ function glue_apply_vector_lane_f32_binop_elf_c(elf_ctx: *u8, binop_ko: i32, ta:
   if (binop_ko == 6) {
     unsafe {
       return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
+    }
+  }
+  if (binop_ko == 7) {
+    unsafe {
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
     }
   }
   return 0 - 1;
