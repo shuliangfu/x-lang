@@ -936,7 +936,7 @@
   - 现场：`let c:Vec4f=a+b` mac asm lane0＝11、lane1+ 红；host-C 0。x86 HW addps 可藏。
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_vector_lane_scalar_binop` 整数 ADD＋load `base-lane*esz`。复用 scalar addss／subss／mulss；lane 槽 ta==1 `base+lane*esz`（≡ INDEX assign）。**禁**开 METHOD binop2 名字表。
   - 权威 `runtime_pipeline_abi.x`（prefer thin+rest）
-  - 证：mac v4a／s2／lf32／iom **0**
+  - 证：mac v4a／s2／lf32／iom **0** · Ubuntu v4a／s2／lf32／iom／aiom **0** · 矩阵 **5/5** @ **`c160fb4ae`**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
 
 ---
