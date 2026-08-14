@@ -2489,8 +2489,15 @@ const char *invoke_cc_argv_resolve_existing_path_impl(const char *path) {
     if (!path || !path[0])
         return NULL;
 #if !defined(_WIN32) && !defined(_WIN64)
+    /* PLATFORM: SHARED — never recycle slots still referenced by argv.
+     * `% SZ` wrap made two argv entries alias one slot: CLI extra
+     * `compiler/runtime_atomic_glue.o` + auto-pushed companion became
+     * Darwin ld "duplicate symbol in the same .o twice". Ubuntu GNU ld
+     * hid the hole. Full pool: keep caller's durable pointer. */
+    if (abs_pool_i >= INVOKE_CC_ABS_POOL_SZ)
+        return path;
     {
-        char *slot = abs_pool[abs_pool_i % INVOKE_CC_ABS_POOL_SZ];
+        char *slot = abs_pool[abs_pool_i];
         abs_pool_i++;
         /* wave261: face (gates + _impl), not raw realpath. */
         if (link_abi_realpath_cap(path, slot) != NULL)

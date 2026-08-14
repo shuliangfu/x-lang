@@ -57,6 +57,7 @@
  * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 /* ShuAsmLdStdLinkFlags for wave156/157 cold twin (standalone seed cc + mega include). */
 #include "runtime_link_abi.h"
@@ -78,6 +79,7 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path);
 const char *asm_link_obj_skip_missing(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
+int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
 /* Cap residual (wave187/188 ensure shell make): skip_missing (+ shell via link_abi_system).
  * wave221: X_OK via public pure thin link_abi_path_executable.
@@ -183,7 +185,6 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path) {
  */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
   const char *use;
-  int k;
   int cur;
   if (!argv || !ia || !path || !path[0])
     return 0;
@@ -193,10 +194,12 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
   use = invoke_cc_argv_resolve_existing_path(path);
   if (!use)
     return 0;
-  for (k = 0; k < cur; k++) {
-    if (argv[k] && strcmp(argv[k], use) == 0)
-      return 0;
-  }
+  /* G.7: has_obj (string + realpath) — strcmp-only missed CLI relative extra
+   * vs auto-pushed compiler-dir absolute. Darwin ld duplicate-symbol. */
+  if (link_abi_asm_ld_argv_has_obj((const char **)argv, cur, use))
+    return 0;
+  if (link_abi_asm_ld_argv_has_obj((const char **)argv, cur, path))
+    return 0;
   argv[(*ia)++] = (char *)use;
   return 1;
 }

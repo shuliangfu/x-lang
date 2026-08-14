@@ -94,6 +94,10 @@ export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 // PLATFORM: SHARED residual; Windows skips realpath (returns validated path as-is).
 export extern "C" function invoke_cc_argv_resolve_existing_path_impl(path: *u8): *u8;
 
+// Peer pure (labi_path_pure L0): realpath-equal argv scan. G.7 single dedup authority
+// for CLI extra .o vs auto-pushed companions (relative vs compiler-dir absolute).
+export extern "C" function link_abi_asm_ld_argv_has_obj(argv: **u8, la: i32, path: *u8): i32;
+
 /**
  * Resolve an existing .o path for invoke_cc argv: skip missing + durable realpath pool.
  * null/empty → null without residual. Product push_existing and compress/net_tls pure
@@ -270,7 +274,10 @@ export extern "C" function labi_std_plan_step_at(i: i32, op_out: *i32, rel_out: 
  * Cap residual: invoke_cc_argv_resolve_existing_path public → _impl (wave215/255 pure
  *   null/empty + skip_missing; residual multi-slot realpath pool stays mega always).
  * Why (wave179): hybrid still had always-mega C body for push_existing (pool + dedup + append).
- * Dedup matches mega strcmp on the resolved-or-original use pointer (EXC-002 ld duplicate).
+ * Dedup: link_abi_asm_ld_argv_has_obj (string + realpath-equal). strcmp-only on
+ * `use` missed CLI extra `compiler/runtime_atomic_glue.o` vs auto-pushed
+ * `{compiler_dir}/runtime_atomic_glue.o` — Darwin ld duplicate-symbol (Ubuntu
+ * GNU ld hid the same .o twice). G.7 complete of the existing has_obj authority.
  * Note: null-check argv via cast to *u8 (do not write argv == 0 as **u8).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED — hybrid L6 pure; mega cold twin under #ifndef INVOKE_LD_LIST_FROM_X.
@@ -305,30 +312,20 @@ export function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, 
   if (use == 0 as *u8) {
     return 0;
   }
-  // Pure dedup: skip if any argv[k] is cstr-equal to use (≡ mega strcmp).
-  let k: i32 = 0;
-  while (k < cur) {
-    let exist: *u8 = argv[k];
-    if (exist != 0 as *u8) {
-      let eq: i32 = 1;
-      let i0: i32 = 0;
-      while (i0 < 1048576) {
-        let ca: u8 = exist[i0];
-        let cb: u8 = use[i0];
-        if (ca != cb) {
-          eq = 0;
-          break;
-        }
-        if (ca == 0) {
-          break;
-        }
-        i0 = i0 + 1;
-      }
-      if (eq != 0) {
-        return 0;
-      }
-    }
-    k = k + 1;
+  // G.7: reuse L0 has_obj (string + realpath). Check resolved `use` and the
+  // original `path` so CLI relative extra .o matches an already-absolute companion.
+  let hit: i32 = 0;
+  unsafe {
+    hit = link_abi_asm_ld_argv_has_obj(argv, cur, use);
+  }
+  if (hit != 0) {
+    return 0;
+  }
+  unsafe {
+    hit = link_abi_asm_ld_argv_has_obj(argv, cur, path);
+  }
+  if (hit != 0) {
+    return 0;
   }
   // Append durable path pointer (no copy; pool / skip path lifetime covers spawn).
   argv[cur] = use;

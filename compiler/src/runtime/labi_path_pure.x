@@ -1441,6 +1441,12 @@ export function xlang_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max
     if (ok == 0) {
       continue;
     }
+    // G.7: skip when this extra .o is already on argv (auto companion or
+    // earlier extra). has_obj is realpath-equal so relative CLI spelling
+    // matches `{compiler_dir}/runtime_*.o`. Darwin ld hard-fails duplicates.
+    if (link_abi_asm_ld_argv_has_obj(argv, cur, p) != 0) {
+      continue;
+    }
     // Store path pointer (no copy; argv lifetime covers subsequent spawn).
     argv[cur] = p;
     la[0] = cur + 1;
