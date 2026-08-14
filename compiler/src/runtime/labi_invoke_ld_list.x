@@ -229,6 +229,9 @@ export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
 // Queue monofile U sync_queue_contention_smoke_c (formal_ensure + on_demand).
 export extern "C" function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern "C" function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
+// Peer pure (ondemand heavy): test.o monofile companions (fn_invoke / env_os / time_os).
+// G.7 single helper — formal_ensure calls the same body as on_demand need_test.
+export extern "C" function labi_od_push_test_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void;
 
 // Peer pure / Cap residual for wave194 TASK_SPECIAL (task.o + scheduler.o + scheduler_glue).
 // PLATFORM: SHARED — append_std plan leaf 30; gate + formal ensure + path ladder + push.
@@ -2189,6 +2192,7 @@ export function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_r
  *        env.o → ensure+push runtime_env_os.o
  *        random.o → ensure+push runtime_random_fill.o
  *        time.o → ensure+push runtime_time_os.o
+ *        test.o → labi_od_push_test_monofile_companions (fn_invoke / env_os / time_os)
  * Does NOT push `rel` itself (caller still does link_abi_asm_ld_push_obj for the plan step).
  * @param link_argv0 *u8 — effective compiler argv0 / link root
  * @param rel *u8 — plan OP_STD rel (std/... or core/...)
@@ -2488,6 +2492,16 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   }
   if (eq_queue == 0) {
     labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *u8);
+  }
+  // PLATFORM: SHARED — test.o monofile companions (G.7 reuse on_demand helper).
+  // User.o only U std_test_*; formal test.o U test_call / env_getenv / time_now.
+  // C path need_test used to skip companions when test.o was already on argv.
+  let eq_test: i32 = 0;
+  unsafe {
+    eq_test = strcmp(rel, "std/test/test.o");
+  }
+  if (eq_test == 0) {
+    labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
   }
   // PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
   // context.o U atomic_*_i32_c + time_now_monotonic_ns_c. C path need_context already

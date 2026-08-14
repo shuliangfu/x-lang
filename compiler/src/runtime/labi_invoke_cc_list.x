@@ -2949,7 +2949,7 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
  * @param trace_o *u8 — product trace.o path (nullable)
  * @param task_o *u8 — product task.o path (nullable; pulls scheduler + glue + LINUX -pthread)
  * @param schema_o *u8 — product schema.o path (nullable)
- * @param test_o *u8 — product test.o path (nullable; + test_fn_invoke glue)
+ * @param test_o *u8 — product test.o path (nullable; + test_fn_invoke / env_os / time_os)
  * @param async_scheduler_o *u8 — explicit async_scheduler.o path (nullable; else scan C needs)
  * @return void — appends .o paths and platform ld flags; mutates *ia only
  * Pure orch: ≡ mega ensure-push heavy slice unicode…process_argv inside xlang_invoke_cc_impl.
@@ -3203,18 +3203,33 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     }
   }
   if (need_test != 0) {
-    let pte: i32 = 0;
+    // PLATFORM: SHARED — formal test.o monofile U test_call_i32_void_c /
+    // env_getenv_c / time_now_monotonic_ns_c even when user only names
+    // std_test_expect* (≡ labi_od_push_test_monofile_companions).
+    // Do not gate companions on push_existing(test_o): append_std / prior
+    // scan may already have test.o on argv (dedup → 0) and Darwin ld then
+    // hard-UNDEF the three faces. G.7 complete the existing need_test block.
     unsafe {
-      pte = invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
-    }
-    if (pte != 0) {
-      unsafe {
-        let _etfi: i32 = xlang_ensure_runtime_test_fn_invoke_o(0 as *u8);
-        let rtfi: *u8 = xlang_runtime_test_fn_invoke_o_path(0 as *u8);
-        if (rtfi != 0 as *u8) {
-          if (rtfi[0] != 0) {
-            let _ptfi: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
-          }
+      let _pte: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
+      let _etfi: i32 = xlang_ensure_runtime_test_fn_invoke_o(0 as *u8);
+      let rtfi: *u8 = xlang_runtime_test_fn_invoke_o_path(0 as *u8);
+      if (rtfi != 0 as *u8) {
+        if (rtfi[0] != 0) {
+          let _ptfi: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
+        }
+      }
+      let _eeo: i32 = xlang_ensure_runtime_env_os_o(0 as *u8);
+      let reo: *u8 = xlang_runtime_env_os_o_path(0 as *u8);
+      if (reo != 0 as *u8) {
+        if (reo[0] != 0) {
+          let _peo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
+        }
+      }
+      let _eto: i32 = xlang_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = xlang_runtime_time_os_o_path(0 as *u8);
+      if (rto != 0 as *u8) {
+        if (rto[0] != 0) {
+          let _pto: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
         }
       }
     }

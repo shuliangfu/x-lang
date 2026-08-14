@@ -1405,12 +1405,28 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     task_linked = invoke_cc_argv_push_existing(argv, ia, argv_cap, task_o);
   if (need_schema)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, schema_o);
-  if (need_test && invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o)) {
+  if (need_test) {
+    /* PLATFORM: SHARED — do not gate companions on first-time test.o push.
+     * Dedup of already-pushed test.o used to skip test_fn_invoke / env_os /
+     * time_os (mac L4 run-stdtest UNDEF). G.7 ≡ labi_od_push_test_monofile_companions. */
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
     (void)xlang_ensure_runtime_test_fn_invoke_o(NULL);
     {
       const char *rtfi = xlang_runtime_test_fn_invoke_o_path(NULL);
       if (rtfi && rtfi[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
+    }
+    (void)xlang_ensure_runtime_env_os_o(NULL);
+    {
+      const char *reo = xlang_runtime_env_os_o_path(NULL);
+      if (reo && reo[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
+    }
+    (void)xlang_ensure_runtime_time_os_o(NULL);
+    {
+      const char *rto = xlang_runtime_time_os_o_path(NULL);
+      if (rto && rto[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
     }
   }
   if (!(sched_link && sched_link[0])) {

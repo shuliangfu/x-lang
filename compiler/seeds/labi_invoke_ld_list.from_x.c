@@ -104,6 +104,8 @@ int xlang_ensure_runtime_queue_contention_o(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags);
+void labi_od_push_test_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 /* Peer pure / Cap residual (wave194 TASK_SPECIAL). */
 int labi_user_needs_std_task(const char *user_o);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
@@ -893,6 +895,9 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
   /* PLATFORM: SHARED — queue.o monofile companions (G.7 single helper). */
   if (strcmp(rel, "std/queue/queue.o") == 0)
     labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  /* PLATFORM: SHARED — test.o monofile companions (G.7 reuse on_demand helper). */
+  if (strcmp(rel, "std/test/test.o") == 0)
+    labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
   /* PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
    * context.o U atomic_*_i32_c + time_now_monotonic_ns_c. G.7 ≡ C need_context. */
   if (strcmp(rel, "std/context/context.o") == 0) {
