@@ -16662,12 +16662,35 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
   nconst = ast_ast_block_num_consts(arena, block_ref);
   nlet = ast_ast_block_num_lets(arena, block_ref);
   idx = 0;
+  /* Const aggregate: G.7 reuse let slice/fixed-array helpers (peel lives there).
+   * Prior: emit_expr + store_rax wrote a payload pointer into the fat / [N]T slot.
+   * PLATFORM: SHARED freestanding emit — cold twin of runtime_pipeline_abi.x. */
   for (i = 0; i < nconst && (slot_base + idx) < ly->num_locals; i++) {
     int32_t init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
-    if (init_ref != 0 && !glue_init_is_empty_array_lit(arena, init_ref)) {
+    int32_t type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+    int32_t slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + idx);
+    int32_t empty = glue_init_is_empty_array_lit(arena, init_ref);
+    int32_t done = 0;
+    if (init_ref != 0 && type_ref > 0) {
+      int32_t slice_st = glue_emit_slice_from_array_let_init_elf_c(
+          arena, elf_ctx, block_ref, i, init_ref, type_ref, ctx, ta, slot_off);
+      if (slice_st == 1)
+        done = 1;
+      else if (slice_st < 0)
+        return -1;
+    }
+    if (!done && init_ref != 0 && type_ref > 0) {
+      int32_t arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+          arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+      if (arr_st == 0)
+        done = 1;
+      else if (arr_st == -1)
+        return -1;
+    }
+    if (!done && init_ref != 0 && !empty) {
       if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot_base + idx), ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0)
         return -1;
     }
     idx++;

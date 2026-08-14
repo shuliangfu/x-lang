@@ -107,6 +107,8 @@ export extern function driver_dep_slot_for_path(path: *u8): i32;
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
 /* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
+/** Peel identity `[lit] as []T` / `as [N]T` (G.7; same helper as freestanding). */
+export extern function glue_peel_as_array_slice_ascription_c(arena: *ASTArena, expr_ref: i32): i32;
 /** True if expr is a C static-initializer constant (pure lit tree; no free VAR).
  * PLATFORM: SHARED — gates mutable top-level let decl-site init vs init_globals. */
 export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
@@ -5199,13 +5201,13 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
  * Host-C: finish a fixed TYPE_ARRAY local after `E name[N]` has been emitted (no `=` yet).
  *
  * - null / zero lit → ` = { 0 };`
- * - EXPR_ARRAY_LIT → ` = { elems };`
+ * - EXPR_ARRAY_LIT (after peel of `[lit] as [N]T`) → ` = { elems };`
  * - other rvalue (CALL / METHOD / VAR / FIELD / …) → `;\n` + indent +
  *   `memcpy((void*)(name), (const void*)(<expr>), sizeof(name));`
  *
  * Root (wave353 Cap residual): C forbids `T t[N] = ptr` and `T t[N] = other_array`.
  * Host lowers TYPE_ARRAY returns as `E*` (wave352 durable static); memcpy once-evals CALL.
- * G.7: single authority for local fixed-array let init; reuses wave334 memcpy form.
+ * G.7: single authority for local fixed-array let/const init; reuses wave334 memcpy form.
  *
  * @param arena *ASTArena — expression pool
  * @param out *CodegenOutBuf — C text sink
@@ -5223,10 +5225,16 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
 
     let use_brace: i32 = 0;
     let use_zero: i32 = 0;
+    let brace_ref: i32 = linit_ref;
     if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
       use_zero = 1;
     } else {
-      let ie: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+      /* G.7: peel `[lit] as [N]T` so brace init fires (same peel as asm). */
+      let peeled: i32 = glue_peel_as_array_slice_ascription_c(arena, linit_ref);
+      if (peeled > 0) {
+        brace_ref = peeled;
+      }
+      let ie: Expr = ast.ast_arena_expr_get(arena, brace_ref);
       if ((ie.kind as i32) == (ExprKind.EXPR_ARRAY_LIT as i32)) {
         use_brace = 1;
       } else if ((ie.kind as i32) == (ExprKind.EXPR_LIT as i32) && ie.int_val == 0) {
@@ -5238,7 +5246,7 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
       if (emit_bytes_4(out, &eqb[0], 3) != 0) {
         return -1;
       }
-      if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
+      if (emit_braced_array_lit_init(arena, out, brace_ref, ctx) != 0) {
         return -1;
       }
       let scb: u8[3] = [59, 10, 0];
@@ -14372,37 +14380,63 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (emit_indent(out, indent) != 0) {
               return -1;
             }
-            if (emit_type(arena, out, ctype_ref, 0 as *u8, 0, ctx) != 0) {
-              return -1;
+            let use_carr: i32 = 0;
+            if (!ast.ref_is_null(ctype_ref) && pipeline_type_kind_ord_at(arena, ctype_ref) == 10) {
+              use_carr = 1;
             }
-            let sp: u8[3] = [32, 0, 0];
-            if (emit_bytes_3(out, &sp[0], 1) != 0) {
-              return -1;
-            }
-            /* See implementation. */
+            let c_nm: u8[128] = [];
+            let c_nml: i32 = 0;
             if (cname_len > 0 && (cname_buf[0] > 32)) {
-              if (emit_bytes_64(out, &cname_buf[0], cname_len) != 0) {
+              let ci: i32 = 0;
+              while (ci < cname_len && ci < 128) {
+                c_nm[ci] = cname_buf[ci];
+                ci = ci + 1;
+              }
+              c_nml = cname_len;
+            } else {
+              c_nm[0] = 95;
+              c_nm[1] = 99;
+              c_nml = 2;
+            }
+            /* G.7: const [N]T reuses let fixed-array declarator + finish. */
+            if (use_carr != 0) {
+              if (emit_local_fixed_array_elem_type(arena, out, ctype_ref, ctx) != 0) {
+                return -1;
+              }
+              if (append_byte(out, 32) != 0) {
+                return -1;
+              }
+              if (emit_bytes_64(out, &c_nm[0], c_nml) != 0) {
+                return -1;
+              }
+              if (emit_local_fixed_array_suffix(arena, out, ctype_ref) != 0) {
+                return -1;
+              }
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &c_nm[0], c_nml, cinit_ref, ctx) != 0) {
                 return -1;
               }
             } else {
-              let place: u8[4] = [95, 99, 48, 0];
-              if (emit_bytes_4(out, &place[0], 2) != 0) {
+              if (emit_type(arena, out, ctype_ref, 0 as *u8, 0, ctx) != 0) {
                 return -1;
               }
-              if (format_int(out, idx) != 0) {
+              let sp: u8[3] = [32, 0, 0];
+              if (emit_bytes_3(out, &sp[0], 1) != 0) {
                 return -1;
               }
-            }
-            let eq: u8[4] = [32, 61, 32, 0];
-            if (emit_bytes_4(out, &eq[0], 3) != 0) {
-              return -1;
-            }
-            if (emit_expr(arena, out, cinit_ref, ctx) != 0) {
-              return -1;
-            }
-            let sc: u8[3] = [59, 10, 0];
-            if (emit_bytes_3(out, &sc[0], 2) != 0) {
-              return -1;
+              if (emit_bytes_64(out, &c_nm[0], c_nml) != 0) {
+                return -1;
+              }
+              let eq: u8[4] = [32, 61, 32, 0];
+              if (emit_bytes_4(out, &eq[0], 3) != 0) {
+                return -1;
+              }
+              if (emit_expr(arena, out, cinit_ref, ctx) != 0) {
+                return -1;
+              }
+              let sc: u8[3] = [59, 10, 0];
+              if (emit_bytes_3(out, &sc[0], 2) != 0) {
+                return -1;
+              }
             }
           }
         } else if (k == 1) {
@@ -14936,37 +14970,63 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (emit_indent(out, indent) != 0) {
         return -1;
       }
-      if (emit_type(arena, out, ctype_fb, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
-        return -1;
+      let use_carr_fb: i32 = 0;
+      if (!ast.ref_is_null(ctype_fb) && pipeline_type_kind_ord_at(arena, ctype_fb) == 10) {
+        use_carr_fb = 1;
       }
-      let sp: u8[3] = [32, 0, 0];
-      if (emit_bytes_3(out, &sp[0], 1) != 0) {
-        return -1;
-      }
-      /* See implementation. */
+      let c_nm_fb: u8[128] = [];
+      let c_nml_fb: i32 = 0;
       if (cname_len_fb > 0 && (cname_fb[0] > 32)) {
-        if (emit_bytes_64(out, &cname_fb[0], cname_len_fb) != 0) {
+        let ci_fb: i32 = 0;
+        while (ci_fb < cname_len_fb && ci_fb < 128) {
+          c_nm_fb[ci_fb] = cname_fb[ci_fb];
+          ci_fb = ci_fb + 1;
+        }
+        c_nml_fb = cname_len_fb;
+      } else {
+        c_nm_fb[0] = 95;
+        c_nm_fb[1] = 99;
+        c_nml_fb = 2;
+      }
+      /* G.7: fallback const [N]T same let declarator + finish. */
+      if (use_carr_fb != 0) {
+        if (emit_local_fixed_array_elem_type(arena, out, ctype_fb, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &c_nm_fb[0], c_nml_fb) != 0) {
+          return -1;
+        }
+        if (emit_local_fixed_array_suffix(arena, out, ctype_fb) != 0) {
+          return -1;
+        }
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &c_nm_fb[0], c_nml_fb, cinit_fb, ctx) != 0) {
           return -1;
         }
       } else {
-        let place: u8[4] = [95, 99, 48, 0];
-        if (emit_bytes_4(out, &place[0], 2) != 0) {
+        if (emit_type(arena, out, ctype_fb, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
           return -1;
         }
-        if (format_int(out, i) != 0) {
+        let sp: u8[3] = [32, 0, 0];
+        if (emit_bytes_3(out, &sp[0], 1) != 0) {
           return -1;
         }
-      }
-      let eq: u8[4] = [32, 61, 32, 0];
-      if (emit_bytes_4(out, &eq[0], 3) != 0) {
-        return -1;
-      }
-      if (emit_expr(arena, out, cinit_fb, ctx) != 0) {
-        return -1;
-      }
-      let sc: u8[3] = [59, 10, 0];
-      if (emit_bytes_3(out, &sc[0], 2) != 0) {
-        return -1;
+        if (emit_bytes_64(out, &c_nm_fb[0], c_nml_fb) != 0) {
+          return -1;
+        }
+        let eq: u8[4] = [32, 61, 32, 0];
+        if (emit_bytes_4(out, &eq[0], 3) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, cinit_fb, ctx) != 0) {
+          return -1;
+        }
+        let sc: u8[3] = [59, 10, 0];
+        if (emit_bytes_3(out, &sc[0], 2) != 0) {
+          return -1;
+        }
       }
       i = i + 1;
     }

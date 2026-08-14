@@ -36165,6 +36165,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
 /**
  * ELF path: block const/let initialization for product-mega freestanding emit.
  * Handles TYPE_VECTOR / TYPE_SLICE / fixed-array / struct let inits + empty-array dual-GP.
+ * Const ARRAY_LIT / `[lit] as []T` / `[lit] as [N]T` reuse the let helpers
+ * (glue_emit_slice_from_array_let_init / glue_emit_fixed_array_type_let_init);
+ * do not store_rax a payload pointer into a fat or in-place array slot.
  * @return i32 - 0 ok; -1 failure
  * wave145 pure: G.7 authority (was pipeline_asm_emit_block_inits_elf_c).
  * PLATFORM: SHARED freestanding emit.
@@ -36212,11 +36215,41 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
   idx = 0;
   i = 0;
   while (i < nconst && (slot_base + idx) < num_locals) {
+    done = 0;
     unsafe {
       init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
       empty = glue_init_is_empty_array_lit(arena, init_ref);
+      type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+      slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + idx);
     }
-    if (init_ref != 0 && empty == 0) {
+    // Const aggregate: same dual-GP / element-wise authority as let.
+    // G.7: do not invent a second fat builder; peel lives in the helpers.
+    // PLATFORM: SHARED freestanding emit.
+    if (init_ref != 0 && type_ref > 0) {
+      unsafe {
+        slice_st = glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, i, init_ref, type_ref, ctx, ta, slot_off);
+      }
+      if (slice_st == 1) {
+        done = 1;
+      } else {
+        if (slice_st < 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (done == 0 && init_ref != 0 && type_ref > 0) {
+      unsafe {
+        arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+      }
+      if (arr_st == 0) {
+        done = 1;
+      } else {
+        if (arr_st == 0 - 1) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (done == 0 && init_ref != 0 && empty == 0) {
       unsafe {
         rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
       }
@@ -36224,7 +36257,6 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
         return 0 - 1;
       }
       unsafe {
-        slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + idx);
         rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
       }
       if (rc != 0) {
@@ -49863,6 +49895,10 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let has_cfg: i32 = 0;
   let peak_n: i32 = 0;
   let defer_bit: i32 = 0;
+  let type_ref: i32 = 0;
+  let slot_off: i32 = 0;
+  let empty: i32 = 0;
+  let done: i32 = 0;
 
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || block_ref <= 0) {
     return 0 - 1;
@@ -49958,22 +49994,51 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
     }
   }
 
-  // Pre-emit consts in declaration order
+  // Pre-emit consts in declaration order.
+  // Const aggregate reuses let slice/fixed-array helpers (G.7); scalar fallback
+  // stays emit_expr_rec + store_rax. Empty non-aggregate still skips (prologue 0).
+  // PLATFORM: SHARED freestanding emit.
   i = 0;
   while (i < nconst) {
+    done = 0;
+    rc = 0;
     unsafe {
       init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+      empty = glue_init_is_empty_array_lit(arena, init_ref);
+      type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+      slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + i);
     }
-    if (init_ref != 0) {
+    if (init_ref != 0 && type_ref > 0) {
       unsafe {
-        if (glue_init_is_empty_array_lit(arena, init_ref) == 0) {
-          glue_index_assign_addr_cache_clear();
-          rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
-          if (rc == 0) {
-            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot_base + i), ta);
-          }
-        } else {
-          rc = 0;
+        glue_index_assign_addr_cache_clear();
+        slice_st = glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, i, init_ref, type_ref, ctx, ta, slot_off);
+      }
+      if (slice_st == 1) {
+        done = 1;
+      } else {
+        if (slice_st < 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (done == 0 && init_ref != 0 && type_ref > 0) {
+      unsafe {
+        arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+      }
+      if (arr_st == 0) {
+        done = 1;
+      } else {
+        if (arr_st == 0 - 1) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (done == 0 && init_ref != 0 && empty == 0) {
+      unsafe {
+        glue_index_assign_addr_cache_clear();
+        rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
+        if (rc == 0) {
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
         }
       }
       if (rc != 0) {

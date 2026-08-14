@@ -1,7 +1,6 @@
 // Isolated: const EXPR_AS must pass the const-expr whitelist (was T001).
 // typeck_is_const_expr_ref_impl recurses into as_operand; fold (wave460)
-// stamps scalar targets. Aggregate `const s: []T = [lit] as []T` compiles
-// after this leaf but emit (host-C decl / asm fat) is a later consume leaf.
+// stamps scalar targets. Aggregate const emit is const_agg_init.x.
 // Expected: compile = 0, run = 42 (host-C and asm).
 // PLATFORM: SHARED — Ubuntu gold.
 
