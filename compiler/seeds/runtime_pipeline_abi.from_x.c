@@ -14791,6 +14791,14 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
         return ssz;
     }
   }
+  /* TYPE_ARRAY=10: row stride = sizeof([N]T). `[][2]i32` must not fall through
+   * to 0 — durable would store each nested ARRAY_LIT as a pointer.
+   * PLATFORM: SHARED freestanding. Cold twin of runtime_pipeline_abi.x. */
+  if (ek == 10) {
+    int32_t asz = glue_fixed_array_total_bytes_c(arena, et, 0);
+    if (asz > 0)
+      return asz;
+  }
   if (ek == GLUE_TYPE_KIND_SLICE)
     return 16;
   return 0;
@@ -15147,16 +15155,19 @@ int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx
     if (pipeline_elf_ctx_add_common_sym(elf_ctx, label, llen, nbytes, common_align) != 0)
       return -1;
   }
-  if (esz > 8) {
-    int32_t elem_ty;
+  {
+    int32_t elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+    int32_t etk = elem_ty > 0 ? pipeline_type_kind_ord_at(arena, elem_ty) : 0;
     int32_t src_spill;
     int32_t dst_spill;
     int32_t temp_home;
     int32_t elem_reserve;
     int32_t st;
+    /* TYPE_ARRAY row (incl. [][2]i32 esz==8): memcpy the row, never store a
+     * pointer. Same bulk path as esz>8 NAMED. PLATFORM: SHARED freestanding. */
+    if (esz > 8 || etk == 10) {
     ly_next = (int32_t *)((uint8_t *)ctx + 4);
-    elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
-    if (elem_ty > 0 && pipeline_type_kind_ord_at(arena, elem_ty) == GLUE_TYPE_KIND_SLICE && esz == 16) {
+    if (elem_ty > 0 && etk == GLUE_TYPE_KIND_SLICE && esz == 16) {
       int32_t data_spill;
       int32_t len_spill;
       if (*ly_next + 48 < *ly_next)
@@ -15228,8 +15239,12 @@ int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx
       elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
       if (elem_ref <= 0)
         return -1;
-      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
-                                                 elem_ty > 0 ? elem_ty : 0, temp_home);
+      if (etk == 10 && elem_ty > 0)
+        st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                       elem_ty, temp_home);
+      else
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                   elem_ty > 0 ? elem_ty : 0, temp_home);
       if (st != 0)
         return -1;
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0)
@@ -15252,6 +15267,7 @@ int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx
     if (ta == 1)
       return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
     return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+    }
   }
   for (ai = 0; ai < n_arr; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);

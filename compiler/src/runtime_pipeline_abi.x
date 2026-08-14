@@ -33001,6 +33001,18 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
       }
     }
   }
+  // TYPE_ARRAY=10: row stride = sizeof([N]T). `[][2]i32` must not fall through
+  // to 0 — durable would then store each nested ARRAY_LIT as a pointer (8B)
+  // and INDEX x[i][j] would read pointer bits. Reuse fixed-array total bytes.
+  // PLATFORM: SHARED freestanding.
+  if (ek == 10) {
+    unsafe {
+      ssz = glue_fixed_array_total_bytes_c(arena, et, 0);
+    }
+    if (ssz > 0) {
+      return ssz;
+    }
+  }
   if (ek == 11) {
     return 16;
   }
@@ -33696,20 +33708,26 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
   if (rc != 0) {
     return 0 - 1;
   }
-  // large NAMED / esz>8 bulk into COMMON
-  if (esz > 8) {
+  // large NAMED / esz>8 / TYPE_ARRAY row bulk into COMMON.
+  // `[][2]i32` has esz==8 (sizeof([2]i32)); the old `esz > 8` gate fell
+  // through to scalar store and wrote a pointer per row. INDEX then
+  // leave-addr + load read pointer bits (exit 240..255). G.7: same
+  // memcpy-row path as >8B NAMED, but TYPE_ARRAY rows go through
+  // glue_emit_fixed_array_type_let_init (ARRAY_LIT flatten / VAR copy).
+  // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  if (elem_ty > 0) {
+    unsafe {
+      etk = pipeline_type_kind_ord_at(arena, elem_ty);
+    }
+  } else {
+    etk = 0;
+  }
+  if (esz > 8 || etk == 10) {
     if (ctx == (0 as *u8)) {
       return 0 - 1;
     }
-    elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
     // TYPE_SLICE fat elements (esz==16)
-    if (elem_ty > 0) {
-      unsafe {
-        etk = pipeline_type_kind_ord_at(arena, elem_ty);
-      }
-    } else {
-      etk = 0;
-    }
     if (elem_ty > 0 && etk == 11 && esz == 16) {
       noff = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
       if (noff + 48 < noff) {
@@ -33861,7 +33879,10 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
         return 0 - 1;
       }
       unsafe {
-        if (elem_ty > 0) {
+        if (etk == 10 && elem_ty > 0) {
+          // TYPE_ARRAY row: flatten ARRAY_LIT / copy VAR into temp, then memcpy.
+          st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_ty, temp_home);
+        } else if (elem_ty > 0) {
           st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_ty, temp_home);
         } else {
           st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, 0, temp_home);
