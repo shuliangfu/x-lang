@@ -5290,6 +5290,53 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
 }
 
 /**
+ * True when a dest-SLICE let init CALL/METHOD's callee already returns TYPE_SLICE.
+ * dest-SLICE of a callee that returns TYPE_ARRAY (`mk(): [N]T`) must wrap via
+ * try_emit_slice_init_from_array_var — typeck stamps the CALL expr to TYPE_SLICE
+ * but ARRAY return ABI is E*, so wave409 reent `__xlang_sp = mk()` is BLD001.
+ * Same-module: current_codegen_module + caller arena. Dep-module: dep arena
+ * (type_ref is arena-local). Unknown / missing ctx → 0 (try_emit or emit_expr).
+ * @param arena *ASTArena — caller expr/type pool
+ * @param linit_ref i32 — CALL (48) or METHOD_CALL (49)
+ * @param ctx *PipelineDepCtx — current module + dep table; null → 0
+ * @return i32 — 1 callee return TYPE_SLICE; 0 otherwise
+ * PLATFORM: SHARED host-C (let-init reent gate).
+ */
+export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(linit_ref) || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, linit_ref);
+    let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, linit_ref);
+    if (dep_ix < 0 && ctx.current_codegen_module != 0 as *Module && func_ix >= 0
+        && func_ix < ctx.current_codegen_module.num_funcs) {
+      let rty: i32 = pipeline_module_func_return_type_at(ctx.current_codegen_module, func_ix);
+      if (!ast.ref_is_null(rty) && rty > 0) {
+        if (pipeline_type_kind_ord_at(arena, rty) == 11) {
+          return 1;
+        }
+      }
+      return 0;
+    }
+    if (dep_ix >= 0 && func_ix >= 0) {
+      let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
+      let dep_ar: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+      if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
+        let rty_d: i32 = pipeline_module_func_return_type_at(dep_mod, func_ix);
+        if (!ast.ref_is_null(rty_d) && rty_d > 0 && dep_ar != 0 as *ASTArena) {
+          if (pipeline_type_kind_ord_at(dep_ar, rty_d) == 11) {
+            return 1;
+          }
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+/**
  * Host-C: wrap a fixed TYPE_ARRAY rvalue as a TYPE_SLICE compound.
  * Emits `(T[]){ .data = <arr>, .length = N }` — typed compound is legal both
  * as a declaration initializer (`let s: T[] = arr`) and as an assignment
@@ -5304,9 +5351,12 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
  *   stamps the row's resolved_type_ref to TYPE_SLICE, so N comes from the
  *   let/const decl (not the stamped expr). Same-block consts and parent
  *   lets/consts are scanned when the prior-let walk misses.
- * - EXPR_CALL / EXPR_METHOD_CALL returning TYPE_ARRAY (`[][]T = [mk()]`).
- *   Typeck stamps the row to TYPE_SLICE; N is the callee return `[N]T` size
- *   (same-module resolved_func_index). `.data = mk()` is legal: ARRAY return ABI is E*.
+ * - EXPR_CALL / EXPR_METHOD_CALL returning TYPE_ARRAY (`[][]T = [mk()]`,
+ *   `let s:[]T = dep.mk()`). Typeck stamps the expr to TYPE_SLICE; N is the
+ *   callee return `[N]T` size (same-module or dep-arena). `.data = mk()` is
+ *   legal: ARRAY return ABI is E*. Let-init reent is only for callee TYPE_SLICE.
+ * - EXPR_INDEX of `[K][N]T` / `[][N]T` (`let s:[]T = a[i]`, `[][]T = [a[1]]`).
+ *   N from base elem TYPE_ARRAY. C `a[i]` decays to E*.
  *
  * @param arena *ASTArena — expression/type pool
  * @param out *CodegenOutBuf — C text sink
@@ -15118,10 +15168,16 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             } else if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 11
                        && !ast.ref_is_null(linit_ref)
                        && (pipeline_expr_kind_ord_at(arena, linit_ref) == 48
-                           || pipeline_expr_kind_ord_at(arena, linit_ref) == 49)) {
+                           || pipeline_expr_kind_ord_at(arena, linit_ref) == 49)
+                       && codegen_slice_let_call_returns_slice(arena, linit_ref, ctx) != 0) {
               /*
-               * wave409: TYPE_SLICE let from CALL/METHOD — frame deep-copy (true reentrancy).
+               * wave409: TYPE_SLICE let from CALL/METHOD that already returns
+               * TYPE_SLICE — frame deep-copy (true reentrancy).
+               * dest-SLICE of a callee that returns TYPE_ARRAY (`let s:[]T=mk()`
+               * / `dep.mk()`) must not enter here: typeck stamps the CALL to
+               * TYPE_SLICE, but mk() ABI is E*. G.7: try_emit wraps those.
                * Type+name already written; finish with ; buffer; { call; copy; name=fat }.
+               * PLATFORM: SHARED host-C.
                */
               if (codegen_emit_slice_let_reent_finish(arena, out, indent, &emit_nm[0], emit_nml, let_type_ref, linit_ref, ctx) != 0) {
                 return -1;
