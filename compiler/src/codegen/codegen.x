@@ -5755,6 +5755,55 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
             }
           }
         }
+        /*
+         * Module-level dest-SLICE const INDEX: typeck may accept the
+         * const-expr without stamping the base VAR (no block walk).
+         * Recover N from the base name's module TYPE_ARRAY decl:
+         * `[K][N]T` → elem size N. Also honor a still-unstamped INDEX
+         * resolved TYPE_ARRAY (the row). PLATFORM: SHARED host-C.
+         */
+        if (arr_sz <= 0) {
+          let ity: i32 = pipeline_expr_resolved_type_ref(arena, linit_ref);
+          if (!ast.ref_is_null(ity) && ity > 0) {
+            if (pipeline_type_kind_ord_at(arena, ity) == 10) {
+              arr_sz = pipeline_type_array_size_at(arena, ity);
+            }
+          }
+        }
+        if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
+          let be: Expr = ast.ast_arena_expr_get(arena, ix_base);
+          if (pipeline_expr_kind_ord_at(arena, ix_base) == 3 && be.var_name_len > 0) {
+            let ix_mod: *Module = ctx.current_codegen_module;
+            if (ix_mod != 0 as *Module) {
+              let tli: i32 = 0;
+              while (tli < ix_mod.num_top_level_lets && arr_sz <= 0) {
+                let nlen_tl: i32 = pipeline_module_top_level_let_name_len(ix_mod, tli);
+                if (nlen_tl == be.var_name_len && nlen_tl > 0) {
+                  let matched_tl: i32 = 1;
+                  let ci_tl: i32 = 0;
+                  while (ci_tl < nlen_tl) {
+                    if (pipeline_module_top_level_let_name_byte_at(ix_mod, tli, ci_tl) != be.var_name[ci_tl]) {
+                      matched_tl = 0;
+                      ci_tl = nlen_tl;
+                    } else {
+                      ci_tl = ci_tl + 1;
+                    }
+                  }
+                  if (matched_tl != 0) {
+                    let tr_tl: i32 = pipeline_module_top_level_let_type_ref(ix_mod, tli);
+                    if (!ast.ref_is_null(tr_tl) && pipeline_type_kind_ord_at(arena, tr_tl) == 10) {
+                      let ety_tl: i32 = pipeline_type_elem_ref_at(arena, tr_tl);
+                      if (!ast.ref_is_null(ety_tl) && pipeline_type_kind_ord_at(arena, ety_tl) == 10) {
+                        arr_sz = pipeline_type_array_size_at(arena, ety_tl);
+                      }
+                    }
+                  }
+                }
+                tli = tli + 1;
+              }
+            }
+          }
+        }
       }
       if (arr_sz <= 0) {
         return 0;
@@ -21080,6 +21129,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                 let slice_tl: i32 = 0;
                 if (!ast.ref_is_null(tl_ty)
                     && pipeline_type_kind_ord_at(arena, tl_ty) == 11) {
+                  if (ctx != 0 as *PipelineDepCtx) {
+                    ctx.current_codegen_module = module;
+                    ctx.current_codegen_arena = arena;
+                  }
                   slice_tl = try_emit_slice_init_from_array_var(
                     arena, out, 0, 0, tl_ty, tl_init, ctx);
                 }
