@@ -36116,9 +36116,12 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * Let s: T[] = arr / [..] — write dual-GP {data,length} into slice stack slot.
  * ARRAY_LIT (46): durable text/BSS preferred; stack force_esz fallback.
  * VAR (3): prior fixed TYPE_ARRAY local / const / parent; FIELD (44): field lea.
- * Typeck stamps a `[a]` dest-SLICE row to TYPE_SLICE, so N comes from the
- * decl (`pipeline_block_resolve_var_type_ref` walks const+parent). ARRAY_LIT
- * rows may pass block_ref=0; then scope / func body is the scan start.
+ * CALL (48) / METHOD_CALL (49): N from same-module callee return TYPE_ARRAY;
+ * emit_expr leaves rax = E* (ARRAY return ABI), then wrap {data,length=N}.
+ * Typeck stamps a `[a]` / `[mk()]` dest-SLICE row to TYPE_SLICE, so N comes
+ * from the decl or callee return (`pipeline_block_resolve_var_type_ref` walks
+ * const+parent). ARRAY_LIT rows may pass block_ref=0; then scope / func body
+ * is the scan start.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param block_ref i32 - enclosing block; 0 legal for ARRAY_LIT rows (`[N][]T`)
@@ -36160,6 +36163,8 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   // block_ref may be 0: ARRAY_LIT rows (`[[1,2]]`) do not scan.
   // VAR rows (`[a]`) still need N from the TYPE_ARRAY decl: prior-let
   // when block_ref>0, else scope / func-body resolve (const+parent).
+  // CALL/METHOD rows (`[mk()]` / `[w.xs()]`): N from callee return
+  // TYPE_ARRAY. emit_expr uses callee ABI (E*), not dest TYPE_SLICE stamp.
   // G.7: [N][]T / [][]T rows reuse this helper with block_ref=0.
   // PLATFORM: SHARED freestanding.
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || let_type_ref <= 0 || init_ref <= 0) {
@@ -36398,6 +36403,41 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         return 0 - 1;
       }
       return 0;
+    }
+  } else if (init_ko == 48 || init_ko == 49) {
+    // CALL / METHOD_CALL row: N from callee return TYPE_ARRAY.
+    // Typeck stamps dest-SLICE rows to TYPE_SLICE, hiding N.
+    // Same-module only (dep return type_ref lives in the dep arena).
+    // emit_expr leaves rax = E* (TYPE_ARRAY return ABI is 8B).
+    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+    unsafe {
+      ftr = pipeline_expr_call_resolved_func_index_at(arena, src);
+      lea_rc = pipeline_expr_call_resolved_dep_index_at(arena, src);
+      mod = pipeline_asm_emit_module_ref_c();
+    }
+    if (lea_rc < 0 && mod != (0 as *u8) && ftr >= 0) {
+      unsafe {
+        tr = pipeline_module_func_return_type_at(mod, ftr);
+      }
+      if (tr > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, tr);
+        }
+        if (tk == 10) {
+          unsafe {
+            arr_sz = pipeline_type_array_size_at(arena, tr);
+          }
+        }
+      }
+    }
+    if (arr_sz <= 0) {
+      return 0;
+    }
+    unsafe {
+      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, src, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
     }
   } else {
     return 0;
