@@ -6014,9 +6014,10 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * Host-C dest-SLICE wrap of an import-module const FIELD (`dep.A`).
  * try_emit treats `dep.A` as a struct member (`dep.A`) because the
  * base is EXPR_VAR. Import bindings are not TYPE_NAMED, so try_emit
- * now returns 0. This sibling emits `(T){ .data = A, .length = N }`
+ * now returns 0. This sibling emits `(T){ .data = <import-const>, .length = N }`
  * with N from the dep-arena TYPE_ARRAY (type_ref is not portable).
- * Bare `A` is the co-emitted file-static dep const (same C TU).
+ * `.data` reuses emit_import_module_const_field (INT_LIT or inlined
+ * `(E[]){…}`) because consts-only deps are not co-emitted.
  *
  * G.7: fallback family, own local-slot budget. Invoked from
  * try_emit_dest_slice_from_module_array_var when linit is FIELD so
@@ -6119,8 +6120,15 @@ export function try_emit_dest_slice_from_import_const_field(
     if (emit_bytes_from_ptr(out, &d1[0], 9) != 0) {
       return -1;
     }
-    if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
-      return -1;
+    /*
+     * .data = emit_import_module_const_field: INT_LIT digits or inlined
+     * `(T[]){…}` (consts-only deps have no file-static `A`). Fallback
+     * bare field name if the import lookup misses. PLATFORM: SHARED.
+     */
+    if (emit_import_module_const_field(arena, out, linit_ref, ctx) != 0) {
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
     }
     let d2: u8[16] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
     if (emit_bytes_from_ptr(out, &d2[0], 12) != 0) {
@@ -10209,6 +10217,44 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
       if (dep_ar != 0 as *ASTArena && init_ref > 0 && init_ref <= dep_ar.num_exprs
       && pipeline_expr_kind_ord_at(dep_ar, init_ref) == 0) {
         if (format_int(out, pipeline_expr_int_val_at(dep_ar, init_ref) as i64) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+      /*
+       * ARRAY_LIT: inline `(T[]){…}` so dest-SLICE `.data` / INDEX base do
+       * not need file-static `A`. Consts-only deps are not co-emitted
+       * (driver `nf > 0` gate — pipeline_abi leftover). PLATFORM: SHARED.
+       */
+      if (dep_ar != 0 as *ASTArena && init_ref > 0 && init_ref <= dep_ar.num_exprs
+      && pipeline_expr_kind_ord_at(dep_ar, init_ref) == 46) {
+        let tr_al: i32 = pipeline_module_top_level_let_type_ref(dep_mod, ti);
+        let elem_k: i32 = TypeKind.TYPE_I32 as i32;
+        if (!ast.ref_is_null(tr_al) && pipeline_type_kind_ord_at(dep_ar, tr_al) == 10) {
+          let et_al: i32 = pipeline_type_elem_ref_at(dep_ar, tr_al);
+          if (!ast.ref_is_null(et_al) && et_al > 0) {
+            elem_k = pipeline_type_kind_ord_at(dep_ar, et_al);
+          }
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_type_kind(out, elem_k) != 0) {
+          let fb_i32: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
+          if (emit_bytes_8(out, &fb_i32[0], 7) != 0) {
+            return -1;
+          }
+        }
+        if (append_byte(out, 91) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 93) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (emit_braced_array_lit_init(dep_ar, out, init_ref, ctx) != 0) {
           return -1;
         }
         return 0;
