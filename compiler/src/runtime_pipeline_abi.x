@@ -61882,7 +61882,7 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
   // sret) into a next_offset temp, then LEA — same polarity as assign
   // STRUCT/CALL rhs (temp_home = next after nbytes). Do not spill
   // TYPE_ARRAY / TYPE_SLICE CALL (rax is already E* / fat.data).
-  // Assign INDEX-on-METHOD (rbx twin, rhs live in rax) is another layer.
+  // Assign twin: glue_try_index_var_or_field_base_to_rbx (push/pop rax).
   // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
   if (ko == 48 || ko == 49) {
     unsafe {
@@ -61948,7 +61948,8 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
 /**
  * Materialize INDEX base address into rbx/x1 for assign paths (rhs stays in rax).
  * Twin of rax path: local VAR / TYPE_SLICE, VAR-base FIELD, FIELD over DEREF,
- * FIELD over INDEX (eff_addr into rax then mov→rbx), STRUCT_LIT/CALL leave_addr.
+ * FIELD over INDEX (eff_addr into rax then mov→rbx), STRUCT_LIT/CALL leave_addr,
+ * SIMD CALL/METHOD (rax twin + push/pop so rhs survives).
  * @param arena *u8 — ASTArena*; null → -2
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -2
  * @param base_ref i32 — INDEX base expr pool ref; <=0 → -2
@@ -61973,6 +61974,7 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
   let needs: i32 = 0;
   let is_enum: i32 = 0;
   let import_rc: i32 = 0;
+  let st: i32 = 0;
   let mod: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
     return 0 - 2;
@@ -62162,6 +62164,36 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
         return 0 - 1;
       }
       if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  // CALL=48 / METHOD_CALL=49 SIMD: reuse the rax twin (spill+LEA), then
+  // mov→rbx. Contract: rhs stays in rax, so push/pop around the rax helper
+  // (let_init uses rax+rdx). TYPE_ARRAY / TYPE_SLICE CALL stay -2 (rax
+  // helper returns -2; fallback emit_expr already has E* / fat.data).
+  // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
+  if (ko == 48 || ko == 49) {
+    unsafe {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      st = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+    }
+    if (st != 0) {
+      unsafe {
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      return st;
+    }
+    unsafe {
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
         return 0 - 1;
       }
     }
