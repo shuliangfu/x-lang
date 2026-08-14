@@ -35,7 +35,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；host-C dest-SLICE 行 wrap ✅ @ **`75119a170`**；asm dest-SLICE CALL 行 ✅ @ **`454042047`**；dep 模块 CALL dest-SLICE ✅ @ **`baf8bbae2`**；dest-SLICE INDEX 行 ✅ @ **`72af1f5a0`**；4.2.6 let-binding 核查闭；LANG-006 保留；下一硬叶＝nest>16 soft／TYPE_DYN 后期／4.2.4–5／4.2.7 leave-off |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；host-C dest-SLICE 行 wrap ✅ @ **`75119a170`**；asm dest-SLICE CALL 行 ✅ @ **`454042047`**；dep 模块 CALL dest-SLICE ✅ @ **`baf8bbae2`**；dest-SLICE INDEX 行 ✅ @ **`72af1f5a0`**；INDEX [N]T→[]T call-arg ✅ @ **`5350f61ac`**；4.2.6 let-binding 核查闭；LANG-006 保留；下一硬叶＝nest>16 soft／TYPE_DYN 后期／4.2.4–5／4.2.7 leave-off／dest-SLICE let 非 VAR FIELD 基 |
 | **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -553,7 +553,7 @@
   - 现场：wave649 已能 emit fat（VAR／FIELD 见 TYPE_ARRAY）；其后 call-arg 硬分把 `[N]T` vs `[]T` 打成 T001，emit 走不到
   - **根修**：`typeck_overload_arg_param_score` ak=10／pk=11 等元返 100；**禁止 stamp** `resolved_type_ref`（emit 要 TYPE_ARRAY 才物化 `{.data,.length}`）
   - 证：`take(W{}.xs)`／`take(mk().xs)`／`take(w.xs)`／`take(a)` f32＋i32 · asm／host-C／fs **42**；`[2]bool`→`[]i32` 仍 T001
-  - 余（已闭）：return／assign `[N]T→[]T` @ **`c652eee5c`**
+  - 余（已闭）：return／assign `[N]T→[]T` @ **`c652eee5c`**；INDEX call-arg @ **`5350f61ac`**
 
 ✅ **4.2.11 `i64[]` call-arg fs** 核查闭 ✅ @ **`eed0261a9`**（wave622 已闭）
 
@@ -737,7 +737,15 @@
   - **根修（G.7 有则补全）**：产生点＝同一 helper。N＋esz 取自基元 TYPE_ARRAY；asm `glue_emit_index_eff_addr_scaled`（禁 emit_index／lvalue）；host-C `.data=a[i]`（C 衰减）。同波 slcdep host-C：wave409 reent 见 CALL dest-SLICE 一律 `__xlang_sp=mk()`；门控 callee 真返 TYPE_SLICE 才 reent，`[N]T` 走 try_emit
   - **禁**：改 emit_index／type_to_c_repr／parser assemble／pipeline_abi mega
   - 证：`nested_slice_let_idx` 三端 **42**（`-E` `.data=(a)[0],.length=2`）；`_lit_idx_row` **82**；`_lit_arr_idx` **78**；`_let_sai_idx` **47**；`_let_call`／`_let_call_dep` **43**（`-E` `.data=dep.mk(),.length=2`；las 真 SLICE 仍 `__xlang_sp=from_let()`）
-  - 余（勿并本叶）：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 INDEX [N]T→[]T call-arg）：@ **`5350f61ac`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+
+✅ **INDEX [N]T→[]T call-arg** ✅ @ **`5350f61ac`**
+
+  - 现场：`take(a[0])`／`take(a[1])` 对 `[2][2]i32` 双端 run=34（length≠2）；`take(a as [2]i32)` SEGV。4.2.10 `take(a)`／`take(w.xs)` 已绿
+  - **根修（G.7 有则补全）**：产生点＝`emit_call_arg_slice_abi`／`pipeline_asm_emit_expr_elf_for_call_args` 只认 VAR／FIELD／CALL／METHOD。补 INDEX＝47：N＋esz 取自 INDEX TYPE_ARRAY 或基元；asm scaled lea（禁 emit_index）；host-C `.data=a[i]`。同波剥 ARRAY／SLICE ascription
+  - **禁**：stamp SLICE；改 dest-SLICE let helper／emit_index／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
+  - 证：`take_index_slice` 双端 **42**（`-E` `.data=(a)[0],.length=2`／`take(b as [2]i32)` peel）
+  - 余（勿并本叶）：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；dest-SLICE let 非 VAR FIELD 基（`W{}.xs`／`mk().xs`）
 
 ---
 
