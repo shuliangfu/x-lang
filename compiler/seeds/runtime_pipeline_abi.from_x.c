@@ -13070,11 +13070,18 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
       imm = pipeline_expr_int_val_at(a, init_ref);
       cell_sz = 8;
     } else if (tk == 10 && init_kind == 46) {
-      /* TYPE_ARRAY + ARRAY_LIT (mutable *and* const): full COMMON payload.
+      /* TYPE_ARRAY + ARRAY_LIT (mutable *and* const scalar/`[K][N]T`).
+       * Const `[N][]T` (elem TYPE_SLICE) stays skipped — fat rows hoist.
        * PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare guard.
        * Product fmt_check_cmd_thin g_fmt_file_list_paths = 8192×512 = 4 MiB;
        * historical 1 MiB skip → pure-asm fmt_file_list_at CG002 (Stage12.0.5).
        * Cap 8 MiB (covers 4 MiB + headroom; << bit30-payload max 0x3FFFFFFF). */
+      if (is_const != 0) {
+        int32_t et_p = pipeline_type_elem_ref_at(a, type_ref);
+        int32_t etk_p = (et_p > 0) ? pipeline_type_kind_ord_at(a, et_p) : 0;
+        if (etk_p == 11)
+          continue;
+      }
       cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
       if (cell_sz <= 0 || cell_sz > 8388608)
         continue;
@@ -30195,8 +30202,18 @@ void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
       tk = pipeline_type_kind_ord_at(arena, type_ref);
       if (init_ref > 0 && init_ref <= nexprs)
         ik = pipeline_expr_kind_ord_at(arena, init_ref);
-      if (tk == 10)
-        continue; /* all TYPE_ARRAY → COMMON (const + mutable) */
+      if (tk == 10) {
+        /* Mutable TYPE_ARRAY always COMMON. Const TYPE_ARRAY COMMON unless
+         * elem is TYPE_SLICE (`[N][]T` fat rows still hoist). */
+        if (pipeline_module_top_level_let_is_const(module, tl) == 0)
+          continue;
+        {
+          int32_t et_h = pipeline_type_elem_ref_at(arena, type_ref);
+          int32_t etk_h = (et_h > 0) ? pipeline_type_kind_ord_at(arena, et_h) : 0;
+          if (etk_h != 11)
+            continue;
+        }
+      }
       if (ik == 46) {
         /* Mutable dest-SLICE ARRAY_LIT stays un-hoisted. Const dest-SLICE
          * ARRAY_LIT still hoists (no TYPE_ARRAY cell). */

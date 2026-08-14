@@ -29501,9 +29501,10 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
  * (~sum of all g_labi_* buffers per call) → stack overflow / dangling path
  * returns (labi_path_pure hybrid SEGV on opt/si/hello).
  * Const TYPE_ARRAY used to skip here (is_const) and hoist into main only —
- * non-main INDEX then had no home (CG002). Same COMMON path as mutable;
- * seed_nonzero writes ARRAY_LIT elems. Other const (scalars, dest-SLICE)
- * still skip — those hoist / use text cells.
+ * non-main INDEX then had no home (CG002). Same COMMON path as mutable
+ * when the elem is not TYPE_SLICE; seed_nonzero writes ARRAY_LIT elems.
+ * Const `[N][]T` (elem SLICE) still skips — fat rows hoist + durable.
+ * Other const (scalars, dest-SLICE) still skip — those hoist / use text cells.
  * @param m *u8 - Module*
  * @param a *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -29580,13 +29581,30 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
       }
       cell_sz = 8;
     } else {
-      // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for mutable *and* const
-      // module arrays. Const used to skip above; hoist-into-main left non-main
-      // INDEX with no home. dest-SLICE / other const still skip (tk!=10).
+      // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for mutable *and*
+      // const scalar / nested `[K][N]T` arrays. Const `[N][]T` (elem
+      // TYPE_SLICE) stays skipped — payload is fat rows, seed writes LIT
+      // only; hoist + durable dest_elem_ty is that home (cmns na).
       // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
       if (tk != 10 || init_kind != 46) {
         tl = tl + 1;
         continue;
+      }
+      if (is_const != 0) {
+        let et_p: i32 = 0;
+        let etk_p: i32 = 0;
+        unsafe {
+          et_p = pipeline_type_elem_ref_at(a, type_ref);
+        }
+        if (et_p > 0) {
+          unsafe {
+            etk_p = pipeline_type_kind_ord_at(a, et_p);
+          }
+        }
+        if (etk_p == 11) {
+          tl = tl + 1;
+          continue;
+        }
       }
       unsafe {
         cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
@@ -75864,8 +75882,9 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
  * pipeline_asm_modlet_prepare_and_emit_elf_c; hoisting them stacked full
  * payload on the hoist-target frame (labi_path_pure g_labi_* ~sum N*2)
  * while COMMON already held the durable home — dual stack/BSS + SEGV.
- * dest-SLICE ARRAY_LIT (`const t:[]T=[…]`) still hoists — prepare
- * requires TYPE_ARRAY, so TYPE_SLICE has no COMMON cell.
+ * dest-SLICE ARRAY_LIT (`const t:[]T=[…]`) and const `[N][]T` (elem
+ * TYPE_SLICE fat rows) still hoist — prepare skips those (seed is LIT
+ * only; durable dest_elem_ty is the fat-row home).
  *
  * prepend_lets count must equal the number actually appended (not raw n), else
  * skipped COMMON arrays would desync stmt_order vs block lets.
@@ -75948,9 +75967,31 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
             }
           }
           if (tk_h == 10) {
-            // All TYPE_ARRAY (const + mutable) have COMMON via prepare.
+            let is_c_arr: i32 = 0;
+            unsafe {
+              is_c_arr = pipeline_module_top_level_let_is_const(module, tl);
+            }
+            // Mutable TYPE_ARRAY always COMMON (Stage 12.0.5).
+            // Const TYPE_ARRAY COMMON unless elem is TYPE_SLICE (`[N][]T`
+            // fat rows — hoist + durable; prepare skips those).
             // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-            skip_common_arr = 1;
+            if (is_c_arr == 0) {
+              skip_common_arr = 1;
+            } else {
+              let et_h: i32 = 0;
+              let etk_h: i32 = 0;
+              unsafe {
+                et_h = pipeline_type_elem_ref_at(arena, type_ref);
+              }
+              if (et_h > 0) {
+                unsafe {
+                  etk_h = pipeline_type_kind_ord_at(arena, et_h);
+                }
+              }
+              if (etk_h != 11) {
+                skip_common_arr = 1;
+              }
+            }
           } else {
             if (ik_h == 46) {
               let is_c_h: i32 = 0;
