@@ -5457,7 +5457,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       /*
        * CALL / METHOD_CALL row: N from callee return TYPE_ARRAY.
        * Typeck stamps the dest-SLICE row to TYPE_SLICE, hiding N.
-       * Same-module only (dep return type_ref lives in the dep arena).
+       * Same-module: current_codegen_module + caller arena.
+       * Dep-module: dep module + dep arena (type_ref is arena-local).
        * PLATFORM: SHARED host-C.
        */
       is_call = 1;
@@ -5470,6 +5471,17 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         if (!ast.ref_is_null(rty) && rty > 0) {
           if (pipeline_type_kind_ord_at(arena, rty) == 10) {
             arr_sz = pipeline_type_array_size_at(arena, rty);
+          }
+        }
+      } else if (dep_ix >= 0 && func_ix >= 0) {
+        let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
+        let dep_ar: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+        if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
+          let rty_d: i32 = pipeline_module_func_return_type_at(dep_mod, func_ix);
+          if (!ast.ref_is_null(rty_d) && rty_d > 0 && dep_ar != 0 as *ASTArena) {
+            if (pipeline_type_kind_ord_at(dep_ar, rty_d) == 10) {
+              arr_sz = pipeline_type_array_size_at(dep_ar, rty_d);
+            }
           }
         }
       }

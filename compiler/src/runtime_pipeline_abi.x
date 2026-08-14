@@ -36116,8 +36116,9 @@ export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta
  * Let s: T[] = arr / [..] — write dual-GP {data,length} into slice stack slot.
  * ARRAY_LIT (46): durable text/BSS preferred; stack force_esz fallback.
  * VAR (3): prior fixed TYPE_ARRAY local / const / parent; FIELD (44): field lea.
- * CALL (48) / METHOD_CALL (49): N from same-module callee return TYPE_ARRAY;
- * emit_expr leaves rax = E* (ARRAY return ABI), then wrap {data,length=N}.
+ * CALL (48) / METHOD_CALL (49): N from callee return TYPE_ARRAY (same-module
+ * emit-module table, or dep-module via map / dep-arena fallback); emit_expr
+ * leaves rax = E* (ARRAY return ABI), then wrap {data,length=N}.
  * Typeck stamps a `[a]` / `[mk()]` dest-SLICE row to TYPE_SLICE, so N comes
  * from the decl or callee return (`pipeline_block_resolve_var_type_ref` walks
  * const+parent). ARRAY_LIT rows may pass block_ref=0; then scope / func body
@@ -36157,6 +36158,8 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let ftr: i32 = 0;
   let lea_rc: i32 = 0;
   let mod: *u8 = 0 as *u8;
+  let dep_pipe: *u8 = 0 as *u8;
+  let dep_arena: *u8 = 0 as *u8;
   let rc: i32 = 0;
   let src: i32 = 0;
   let scan_br: i32 = 0;
@@ -36407,7 +36410,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   } else if (init_ko == 48 || init_ko == 49) {
     // CALL / METHOD_CALL row: N from callee return TYPE_ARRAY.
     // Typeck stamps dest-SLICE rows to TYPE_SLICE, hiding N.
-    // Same-module only (dep return type_ref lives in the dep arena).
+    // Same-module: resolved_func_index + emit module (caller arena).
+    // Dep-module: map return type into caller arena; if map fails, read
+    // N from the dep arena (type_ref is arena-local — same as wave196).
     // emit_expr leaves rax = E* (TYPE_ARRAY return ABI is 8B).
     // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
     unsafe {
@@ -36426,6 +36431,50 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         if (tk == 10) {
           unsafe {
             arr_sz = pipeline_type_array_size_at(arena, tr);
+          }
+        }
+      }
+    } else if (lea_rc >= 0 && ftr >= 0) {
+      unsafe {
+        dep_pipe = pipeline_asm_emit_dep_pipe_c();
+      }
+      if (dep_pipe != (0 as *u8)) {
+        unsafe {
+          mod = pipeline_dep_ctx_module_at(dep_pipe, lea_rc);
+        }
+        if (mod != (0 as *u8)) {
+          unsafe {
+            tr = pipeline_module_func_return_type_at(mod, ftr);
+          }
+          if (tr > 0) {
+            unsafe {
+              init_tr = pipeline_typeck_get_dep_return_type_in_caller_arena_c(lea_rc, tr, arena, dep_pipe);
+            }
+            if (init_tr > 0) {
+              unsafe {
+                tk = pipeline_type_kind_ord_at(arena, init_tr);
+              }
+              if (tk == 10) {
+                unsafe {
+                  arr_sz = pipeline_type_array_size_at(arena, init_tr);
+                }
+              }
+            }
+            if (arr_sz <= 0) {
+              unsafe {
+                dep_arena = pipeline_dep_ctx_arena_at(dep_pipe, lea_rc);
+              }
+              if (dep_arena != (0 as *u8)) {
+                unsafe {
+                  tk = pipeline_type_kind_ord_at(dep_arena, tr);
+                }
+                if (tk == 10) {
+                  unsafe {
+                    arr_sz = pipeline_type_array_size_at(dep_arena, tr);
+                  }
+                }
+              }
+            }
           }
         }
       }
