@@ -29699,6 +29699,113 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
 }
 
 /**
+ * Store ARRAY_LIT LIT elems into COMMON already LEA'd in rbx.
+ * One nested ARRAY_LIT level is enough for `[K][N]T` rows; deeper
+ * nest is a later leaf. Empty lit is a no-op (BSS stays zero).
+ * @param arena *u8 - ASTArena
+ * @param elf_ctx *u8 - ElfCodegenCtx
+ * @param init_ref i32 - ARRAY_LIT expr
+ * @param elem_ty i32 - dest elem type_ref (scalar or TYPE_ARRAY row)
+ * @param ta i32 - 0=x86_64 1=arm64
+ * @param base_off i32 - byte offset in the COMMON cell
+ * @return i32 - 0 ok; -1 store fail
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_seed_array_lit_elems_to_rbx(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, elem_ty: i32, ta: i32, base_off: i32
+): i32 {
+  let ne: i32 = 0;
+  let ei: i32 = 0;
+  let eref: i32 = 0;
+  let ek: i32 = 0;
+  let ev: i32 = 0;
+  let esz: i32 = 4;
+  let etk: i32 = 0;
+  let inner_et: i32 = 0;
+  let row_sz: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || init_ref <= 0) {
+    return 0;
+  }
+  if (elem_ty > 0) {
+    unsafe {
+      etk = pipeline_type_kind_ord_at(arena, elem_ty);
+    }
+  }
+  if (etk == 10) {
+    unsafe {
+      inner_et = pipeline_type_elem_ref_at(arena, elem_ty);
+      ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    }
+    row_sz = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+    if (row_sz <= 0) {
+      row_sz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+    }
+    if (ne <= 0 || ne > 1024) {
+      return 0;
+    }
+    ei = 0;
+    while (ei < ne) {
+      unsafe {
+        eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+      }
+      if (eref > 0) {
+        unsafe {
+          ek = pipeline_expr_kind_ord_at(arena, eref);
+        }
+        if (ek == 46) {
+          rc = pipe_modlet_seed_array_lit_elems_to_rbx(
+            arena, elf_ctx, eref, inner_et, ta, base_off + ei * row_sz);
+          if (rc != 0) {
+            return rc;
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
+    esz = 4;
+  }
+  unsafe {
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  }
+  if (ne <= 0 || ne > 1024) {
+    return 0;
+  }
+  ei = 0;
+  while (ei < ne) {
+    unsafe {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    }
+    if (eref > 0) {
+      unsafe {
+        ek = pipeline_expr_kind_ord_at(arena, eref);
+      }
+      if (ek == 0) {
+        unsafe {
+          ev = pipeline_expr_int_val_at(arena, eref);
+          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, 0, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/**
  * Seed COMMON cells once on hoist-target entry.
  * Scalar cells: non-zero init_imm (historic wave139).
  * TYPE_ARRAY ARRAY_LIT cells: prepare emits zero BSS; write LIT elems
@@ -29758,12 +29865,6 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
       let idx: i32 = 0;
       let csz: i32 = 0;
       let et: i32 = 0;
-      let esz: i32 = 0;
-      let ne: i32 = 0;
-      let ei: i32 = 0;
-      let eref: i32 = 0;
-      let ek: i32 = 0;
-      let ev: i32 = 0;
       let rc2: i32 = 0;
       let name_buf: u8[128] = [];
       let k: i32 = 0;
@@ -29795,41 +29896,12 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
               if (ik == 46 && tk == 10) {
                 unsafe {
                   et = pipeline_type_elem_ref_at(arena, type_ref);
-                  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
                 }
-                esz = glue_array_lit_force_esz_from_elem_type_c(arena, et);
-                if (esz <= 0) {
-                  esz = 4;
-                }
-                if (ne > 0 && ne <= 1024) {
-                  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) == 0) {
-                    ei = 0;
-                    while (ei < ne) {
-                      unsafe {
-                        eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
-                      }
-                      if (eref > 0) {
-                        unsafe {
-                          ek = pipeline_expr_kind_ord_at(arena, eref);
-                        }
-                        if (ek == 0) {
-                          unsafe {
-                            ev = pipeline_expr_int_val_at(arena, eref);
-                            rc2 = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, 0, ta);
-                          }
-                          if (rc2 != 0) {
-                            return 0 - 1;
-                          }
-                          unsafe {
-                            rc2 = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ei * esz, esz, ta);
-                          }
-                          if (rc2 != 0) {
-                            return 0 - 1;
-                          }
-                        }
-                      }
-                      ei = ei + 1;
-                    }
+                if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) == 0) {
+                  rc2 = pipe_modlet_seed_array_lit_elems_to_rbx(
+                    arena, elf_ctx, init_ref, et, ta, 0);
+                  if (rc2 != 0) {
+                    return rc2;
                   }
                 }
               }
