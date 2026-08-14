@@ -5303,13 +5303,16 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
  *   stamps the row's resolved_type_ref to TYPE_SLICE, so N comes from the
  *   let/const decl (not the stamped expr). Same-block consts and parent
  *   lets/consts are scanned when the prior-let walk misses.
+ * - EXPR_CALL / EXPR_METHOD_CALL returning TYPE_ARRAY (`[][]T = [mk()]`).
+ *   Typeck stamps the row to TYPE_SLICE; N is the callee return `[N]T` size
+ *   (same-module resolved_func_index). `.data = mk()` is legal: ARRAY return ABI is E*.
  *
  * @param arena *ASTArena — expression/type pool
  * @param out *CodegenOutBuf — C text sink
  * @param block_ref i32 — enclosing block (let/const scan for VAR path)
  * @param let_idx i32 — current let index; prior lets only for VAR match in this block
  * @param let_type_ref i32 — must be TYPE_SLICE (kind 11)
- * @param linit_ref i32 — init expr (VAR or FIELD_ACCESS)
+ * @param linit_ref i32 — init expr (VAR, FIELD_ACCESS, CALL, or METHOD_CALL)
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for scalar []i32
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
@@ -5327,6 +5330,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
     let arr_sz: i32 = 0;
     let is_field: i32 = 0;
+    let is_call: i32 = 0;
     let base_e: Expr = init_e;
     let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
 
@@ -5449,6 +5453,29 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
           arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
         }
       }
+    } else if ((init_ko == 48 || init_ko == 49) && ctx != 0 as *PipelineDepCtx) {
+      /*
+       * CALL / METHOD_CALL row: N from callee return TYPE_ARRAY.
+       * Typeck stamps the dest-SLICE row to TYPE_SLICE, hiding N.
+       * Same-module only (dep return type_ref lives in the dep arena).
+       * PLATFORM: SHARED host-C.
+       */
+      is_call = 1;
+      let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, linit_ref);
+      let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, linit_ref);
+      let res_mod: *Module = ctx.current_codegen_module;
+      if (dep_ix < 0 && res_mod != 0 as *Module && func_ix >= 0
+          && func_ix < res_mod.num_funcs) {
+        let rty: i32 = pipeline_module_func_return_type_at(res_mod, func_ix);
+        if (!ast.ref_is_null(rty) && rty > 0) {
+          if (pipeline_type_kind_ord_at(arena, rty) == 10) {
+            arr_sz = pipeline_type_array_size_at(arena, rty);
+          }
+        }
+      }
+      if (arr_sz <= 0) {
+        return 0;
+      }
     } else {
       return 0;
     }
@@ -5486,6 +5513,11 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         return -1;
       }
       if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+    } else if (is_call != 0) {
+      /* ARRAY return ABI is E* — `.data = mk()` is a legal pointer rvalue. */
+      if (emit_expr(arena, out, linit_ref, ctx) != 0) {
         return -1;
       }
     } else {
@@ -5548,8 +5580,10 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
  * ARRAY-of-SLICE (`[N][]T = [[1,2],[3,4]]`): dest elem is TYPE_SLICE. Recurse-braces
  * yields `struct xlang_slice_* x[N] = {{1,2},{3,4}}` (BLD001 — ints into fat fields).
- * G.7: same authority; TYPE_ARRAY rows still recurse; TYPE_SLICE rows reuse emit_expr
- * (durable `({ static E al[]={…}; (slice){.data=al,.length=N}; })`).
+ * G.7: same authority; TYPE_ARRAY rows still recurse; TYPE_SLICE ARRAY_LIT rows
+ * reuse emit_expr (durable `({ static E al[]={…}; (slice){.data=al,.length=N}; })`);
+ * TYPE_SLICE VAR/FIELD/CALL rows reuse try_emit_slice_init_from_array_var
+ * (`[N][]T = [a, [3,4]]` / `[mk()]` — emit_expr of a VAR is a bare array).
  * @param arena *ASTArena — expression pool
  * @param out *CodegenOutBuf — C text sink
  * @param init_ref i32 — ARRAY_LIT or fallback expr
@@ -5619,17 +5653,53 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
         }
       }
       /* Nested TYPE_ARRAY row: recurse braces (not emit_expr — that yields (T[]){…}).
-       * Nested TYPE_SLICE row: emit_expr (slice durable static + {.data,.length}). */
+       * Nested TYPE_SLICE ARRAY_LIT: emit_expr (durable static + {.data,.length}).
+       * Nested TYPE_SLICE VAR/FIELD/CALL: try_emit wrap (bare `a` / `mk()` is not a fat). */
       if (!ast.ref_is_null(elem_ref) && pipeline_expr_kind_ord_at(arena, elem_ref) == (46 as i32)
           && row_is_slice == 0) {
         if (emit_braced_array_lit_init(arena, out, elem_ref, ctx) != 0) {
           return -1;
         }
         ai = ai + 1;
-      } else if (emit_expr(arena, out, elem_ref, ctx) == 0) {
-        ai = ai + 1;
       } else {
-        return -1;
+        let wrap_br: i32 = 0;
+        if (row_is_slice != 0 && !ast.ref_is_null(elem_ref)) {
+          let br_br: i32 = 0;
+          let nlets_br: i32 = 0;
+          let et_br: i32 = 0;
+          if (ctx != 0 as *PipelineDepCtx) {
+            br_br = ctx.current_block_ref;
+            if ((ast.ref_is_null(br_br) || br_br <= 0 || br_br > arena.num_blocks)
+                && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+              br_br = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+            }
+            if (!ast.ref_is_null(br_br) && br_br > 0 && br_br <= arena.num_blocks) {
+              nlets_br = ast.ast_block_num_lets(arena, br_br);
+            }
+          }
+          if (!ast.ref_is_null(self_e.resolved_type_ref) && self_e.resolved_type_ref > 0
+              && self_e.resolved_type_ref <= arena.num_types) {
+            let stk_br: i32 = pipeline_type_kind_ord_at(arena, self_e.resolved_type_ref);
+            if (stk_br == (TypeKind.TYPE_ARRAY as i32) || stk_br == (TypeKind.TYPE_SLICE as i32)) {
+              et_br = pipeline_type_elem_ref_at(arena, self_e.resolved_type_ref);
+            }
+          }
+          if (ast.ref_is_null(et_br) || et_br <= 0) {
+            let er_br: Expr = ast.ast_arena_expr_get(arena, elem_ref);
+            et_br = er_br.resolved_type_ref;
+          }
+          if (!ast.ref_is_null(et_br) && et_br > 0
+              && pipeline_type_kind_ord_at(arena, et_br) == (TypeKind.TYPE_SLICE as i32)) {
+            wrap_br = try_emit_slice_init_from_array_var(arena, out, br_br, nlets_br, et_br, elem_ref, ctx);
+          }
+        }
+        if (wrap_br < 0) {
+          return -1;
+        }
+        if (wrap_br == 0 && emit_expr(arena, out, elem_ref, ctx) != 0) {
+          return -1;
+        }
+        ai = ai + 1;
       }
     }
     if (append_byte(out, 125) == 0) {
