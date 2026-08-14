@@ -804,11 +804,18 @@ for x_path in "$@"; do
   # forced -backend c). Authority: strip preamble weak bodies when strong defs exist
   # (same pattern as xlang_compile_std_x.sh args_iter_*).
   if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
-    if grep -qE '__attribute__\(\(weak\)\).*std_vec_len_empty' "$gen_c" 2>/dev/null \
-      && grep -qE '^int32_t std_vec_len_empty\(' "$gen_c" 2>/dev/null; then
-      sed -e '/__attribute__((weak)) int32_t std_vec_len_empty(void)/d' \
-          -e '/__attribute__((weak)) int32_t std_vec_vec_len_empty(void)/d' \
-          "$gen_c" >"$gen_c.strip" && mv "$gen_c.strip" "$gen_c"
+    # Strong def may be `int32_t len_empty(` (unprefixed -E) or `std_vec_len_empty`.
+    # The old `^int32_t std_vec_len_empty(` gate missed unprefixed strong + weak
+    # preamble → Darwin cc redefinition. Always strip weak when any strong
+    # len_empty exists, or when compiling vec/mod.x (this TU is the authority).
+    # PLATFORM: SHARED — G.7 complete existing strip (no second vec stub path).
+    if grep -qE '__attribute__\(\(weak\)\).*std_vec_len_empty' "$gen_c" 2>/dev/null; then
+      if grep -qE 'int32_t (std_vec_)?len_empty\(' "$gen_c" 2>/dev/null \
+        || printf '%s' "$x_path" | grep -q 'std/vec/mod.x'; then
+        sed -e '/__attribute__((weak)) int32_t std_vec_len_empty(void)/d' \
+            -e '/__attribute__((weak)) int32_t std_vec_vec_len_empty(void)/d' \
+            "$gen_c" >"$gen_c.strip" && mv "$gen_c.strip" "$gen_c"
+      fi
     fi
   fi
   # PLATFORM: SHARED — rt_preamble injects weak process_xlang_argc_get / argv_get that

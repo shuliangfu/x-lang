@@ -66,7 +66,9 @@ export function with_capacity(v: *Vec_i32, capacity: i32): i32 {
     return 0;
   }
   let bytes: usize = (capacity as usize) * 4;
-  let pu: *u8 = heap.alloc(v.al, bytes);
+  // typeck: FIELD v.al is not scored as Allocator for heap.alloc 2-arg.
+  let al0: heap.Allocator = v.al;
+  let pu: *u8 = heap.alloc(al0, bytes);
   if (pu == 0) {
     v.cap = 0;
     return -1;
@@ -91,10 +93,11 @@ export function reserve(v: *Vec_i32): i32 {
   if (want <= 0) { return -1; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
   let bytes: usize = (want as usize) * 4;
+  let al1: heap.Allocator = v.al;
   let pu: *u8 = if (v.ptr == 0) {
-    heap.alloc(v.al, bytes)
+    heap.alloc(al1, bytes)
   } else {
-    heap.realloc(v.al, v.ptr as *u8, bytes)
+    heap.realloc(al1, v.ptr as *u8, bytes)
   };
   if (pu == 0) {
     return -1;
@@ -226,10 +229,11 @@ export function reserve(v: *Vec_i32, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
   let bytes: usize = (new_cap as usize) * 4;
+  let al2: heap.Allocator = v.al;
   let pu: *u8 = if (v.ptr == 0) {
-    heap.alloc(v.al, bytes)
+    heap.alloc(al2, bytes)
   } else {
-    heap.realloc(v.al, v.ptr as *u8, bytes)
+    heap.realloc(al2, v.ptr as *u8, bytes)
   };
   if (pu == 0) {
     return -1;
@@ -287,7 +291,8 @@ export function ptr(v: Vec_i32): *i32 { return v.ptr; }
  */
 export function deinit(v: *Vec_i32): void {
   if (v.ptr != 0) {
-    heap.free(v.al, v.ptr as *u8);
+    let al3: heap.Allocator = v.al;
+    heap.free(al3, v.ptr as *u8);
     v.ptr = 0;
   }
   v.length = 0;
@@ -320,7 +325,8 @@ export function with_capacity(v: *Vec_u8, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let pu: *u8 = heap.alloc(v.al, capacity);
+  let al4: heap.Allocator = v.al;
+  let pu: *u8 = heap.alloc(al4, capacity as usize);
   if (pu == 0) {
     v.cap = 0;
     return -1;
@@ -343,10 +349,11 @@ export function reserve(v: *Vec_u8): i32 {
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
+  let al5: heap.Allocator = v.al;
   let pu: *u8 = if (v.ptr == 0) {
-    heap.alloc(v.al, want)
+    heap.alloc(al5, want as usize)
   } else {
-    heap.realloc(v.al, v.ptr, want)
+    heap.realloc(al5, v.ptr, want as usize)
   };
   if (pu == 0) {
     return -1;
@@ -476,10 +483,11 @@ export function truncate(v: *Vec_u8, new_len: i32): void {
 export function reserve(v: *Vec_u8, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
+  let al6: heap.Allocator = v.al;
   let pu: *u8 = if (v.ptr == 0) {
-    heap.alloc(v.al, new_cap)
+    heap.alloc(al6, new_cap as usize)
   } else {
-    heap.realloc(v.al, v.ptr, new_cap)
+    heap.realloc(al6, v.ptr, new_cap as usize)
   };
   if (pu == 0) {
     return -1;
@@ -537,7 +545,8 @@ export function ptr(v: Vec_u8): *u8 { return v.ptr; }
  */
 export function deinit(v: *Vec_u8): void {
   if (v.ptr != 0) {
-    heap.free(v.al, v.ptr);
+    let al7: heap.Allocator = v.al;
+    heap.free(al7, v.ptr);
     v.ptr = 0;
   }
   v.length = 0;
