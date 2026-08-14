@@ -36176,6 +36176,9 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   // TYPE_ARRAY. emit_expr uses callee ABI (E*), not dest TYPE_SLICE stamp.
   // INDEX rows (`[a[i]]` / `let s:[]T = a[i]`): N+esz from base elem
   // TYPE_ARRAY; lea scaled (stamp would make emit_index load a fake fat).
+  // FIELD rows (`W{}.xs` / `mk().xs` / `rows[i].xs`): N from layout via
+  // glue_field_access_field_type_ref (base TYPE_NAMED; dest-SLICE stamp
+  // hides FA resolved). lea via glue_try_index (STRUCT_LIT/CALL/INDEX).
   // G.7: [N][]T / [][]T rows reuse this helper with block_ref=0.
   // PLATFORM: SHARED freestanding.
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || let_type_ref <= 0 || init_ref <= 0) {
@@ -64552,9 +64555,11 @@ function glue_struct_layout_name_matches_type_name_c(mod: *u8, li: i32, type_nam
 }
 
 /**
- * FIELD_ACCESS field type_ref: prefer module struct layout for VAR base
- * (param/local); fall back to FA resolved_type_ref only. Never scan all
- * layouts by field name alone (ambiguous `ptr` fields).
+ * FIELD_ACCESS field type_ref: prefer module struct layout from the base's
+ * TYPE_NAMED (VAR via resolved/param/scope; STRUCT_LIT / CALL / METHOD /
+ * INDEX / DEREF via base resolved). dest-SLICE stamps FIELD to TYPE_SLICE,
+ * so FA resolved is not the field's TYPE_ARRAY. Never scan all layouts by
+ * field name alone (ambiguous `ptr` fields).
  * @param arena *u8 — ASTArena*
  * @param mod *u8 — Module* (emit module; may be null → skip layout arm)
  * @param fa_ref i32 — FIELD_ACCESS expression ref
@@ -64562,8 +64567,9 @@ function glue_struct_layout_name_matches_type_name_c(mod: *u8, li: i32, type_nam
  *
  * Contracts:
  * - field name from pipeline_expr_field_access_name_{len,into}
- * - base from pipeline_expr_field_access_base_ref; VAR arm only for layout
- * - base type: resolved → param (func_index) → scope_block (no body-let fallthrough)
+ * - base from pipeline_expr_field_access_base_ref
+ * - VAR base type: resolved → param (func_index) → scope_block
+ * - other bases: resolved TYPE_NAMED (peel TYPE_PTR once)
  * - peel TYPE_PTR (9) once; require TYPE_NAMED (8) for layout walk
  * - layout name match via glue_struct_layout_name_matches_type_name_c
  *
@@ -64607,7 +64613,11 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
     pipeline_expr_field_access_name_into(arena, fa_ref, &field_name[0]);
     base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
   }
-  // Prefer layout for VAR base (do not trust FA resolved_type misbound *f64).
+  // Prefer layout from base TYPE_NAMED. dest-SLICE stamps FIELD to TYPE_SLICE,
+  // so FA resolved is not the field's TYPE_ARRAY. VAR still uses param/scope
+  // fallback (do not trust a misbound *f64). STRUCT_LIT / CALL / METHOD / INDEX
+  // / DEREF use the base's resolved TYPE_NAMED — never scan all layouts by
+  // field name alone. PLATFORM: SHARED freestanding.
   // EXPR_VAR kind ord = 3.
   if (base_ref > 0 && mod != (0 as *u8)) {
     unsafe {
@@ -64646,67 +64656,71 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
           }
         }
       }
-      if (base_ty > 0) {
+    } else if (base_ko > 0) {
+      unsafe {
+        base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      }
+    }
+    if (base_ty > 0) {
+      unsafe {
+        kord = pipeline_type_kind_ord_at(arena, base_ty);
+      }
+      // TYPE_PTR = 9 → peel once
+      if (kord == 9) {
         unsafe {
-          kord = pipeline_type_kind_ord_at(arena, base_ty);
+          base_ty = pipeline_type_elem_ref_at(arena, base_ty);
         }
-        // TYPE_PTR = 9 → peel once
-        if (kord == 9) {
+        if (base_ty > 0) {
           unsafe {
-            base_ty = pipeline_type_elem_ref_at(arena, base_ty);
+            kord = pipeline_type_kind_ord_at(arena, base_ty);
           }
-          if (base_ty > 0) {
-            unsafe {
-              kord = pipeline_type_kind_ord_at(arena, base_ty);
-            }
-          } else {
-            kord = 0;
-          }
+        } else {
+          kord = 0;
         }
-        // TYPE_NAMED = 8
-        if (kord == 8) {
-          unsafe {
-            nlen = pipeline_type_named_name_into(arena, base_ty, &struct_name[0]);
-            nsl = pipeline_module_num_struct_layouts_at(mod);
-          }
-          if (nlen > 0 && nlen <= 63) {
-            k = 0;
-            while (k < nsl) {
-              if (glue_struct_layout_name_matches_type_name_c(mod, k, &struct_name[0], nlen) != 0) {
-                unsafe {
-                  nf = pipeline_module_struct_layout_num_fields(mod, k);
-                }
-                j = 0;
-                while (j < nf) {
-                  unsafe {
-                    fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
-                  }
-                  feq = 1;
-                  if (fnlen != flen) {
-                    feq = 0;
-                  } else {
-                    unsafe {
-                      pipeline_module_struct_layout_field_name_into(mod, k, j, &fb[0]);
-                    }
-                    fi2 = 0;
-                    while (fi2 < fnlen) {
-                      if (fb[fi2] != field_name[fi2]) {
-                        feq = 0;
-                        break;
-                      }
-                      fi2 = fi2 + 1;
-                    }
-                  }
-                  if (feq != 0) {
-                    unsafe {
-                      return pipeline_module_struct_layout_field_type_ref(mod, k, j);
-                    }
-                  }
-                  j = j + 1;
-                }
+      }
+      // TYPE_NAMED = 8
+      if (kord == 8) {
+        unsafe {
+          nlen = pipeline_type_named_name_into(arena, base_ty, &struct_name[0]);
+          nsl = pipeline_module_num_struct_layouts_at(mod);
+        }
+        if (nlen > 0 && nlen <= 63) {
+          k = 0;
+          while (k < nsl) {
+            if (glue_struct_layout_name_matches_type_name_c(mod, k, &struct_name[0], nlen) != 0) {
+              unsafe {
+                nf = pipeline_module_struct_layout_num_fields(mod, k);
               }
-              k = k + 1;
+              j = 0;
+              while (j < nf) {
+                unsafe {
+                  fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
+                }
+                feq = 1;
+                if (fnlen != flen) {
+                  feq = 0;
+                } else {
+                  unsafe {
+                    pipeline_module_struct_layout_field_name_into(mod, k, j, &fb[0]);
+                  }
+                  fi2 = 0;
+                  while (fi2 < fnlen) {
+                    if (fb[fi2] != field_name[fi2]) {
+                      feq = 0;
+                      break;
+                    }
+                    fi2 = fi2 + 1;
+                  }
+                }
+                if (feq != 0) {
+                  unsafe {
+                    return pipeline_module_struct_layout_field_type_ref(mod, k, j);
+                  }
+                }
+                j = j + 1;
+              }
             }
+            k = k + 1;
           }
         }
       }

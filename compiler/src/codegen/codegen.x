@@ -5396,6 +5396,11 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * - wave348: EXPR_FIELD_ACCESS with VAR base + fixed TYPE_ARRAY field
  *   (`let s: T[] = b.a`). Prior: bare `(b.a)` is not a slice compound → host-cc red;
  *   freestanding dual-GP unwritten → panic/SIGSEGV.
+ * - Non-VAR FIELD base (`let s:[]T = W{}.xs` / `mk().xs` / `rows[i].xs`):
+ *   dest-SLICE stamps FIELD to TYPE_SLICE, hiding N. Recover N from the
+ *   base TYPE_NAMED layout. `.data` is `((base).field)` (C array decays).
+ *   CALL/METHOD bases memcpy into a unique static[N] (return temps die).
+ *   STRUCT_LIT compound literals have block duration — view is legal.
  * - ARRAY_LIT dest-elem TYPE_SLICE + VAR/FIELD row (`[][]T = [a]`). Typeck
  *   stamps the row's resolved_type_ref to TYPE_SLICE, so N comes from the
  *   let/const decl (not the stamped expr). Same-block consts and parent
@@ -5431,6 +5436,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     let arr_sz: i32 = 0;
     let is_field: i32 = 0;
     let is_call: i32 = 0;
+    let field_base_ko: i32 = 0;
     let base_e: Expr = init_e;
     let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
 
@@ -5542,16 +5548,60 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
                && init_e.field_access_field_len > 0
                && init_e.field_access_base_ref > 0
                && init_e.field_access_base_ref <= arena.num_exprs) {
-      /* wave348: let s: T[] = b.a — base VAR; N from TYPE_ARRAY or sizeof C idiom. */
+      /*
+       * dest-SLICE FIELD: VAR / STRUCT_LIT / CALL / METHOD / INDEX.
+       * Typeck stamps FIELD to TYPE_SLICE, hiding N. Recover N from the
+       * base TYPE_NAMED layout (same as glue_field_access_field_type_ref).
+       * CALL/METHOD return temps die — .data memcpy into unique static[N].
+       * STRUCT_LIT C compound has block duration; INDEX/VAR view the object.
+       * PLATFORM: SHARED host-C.
+       */
       is_field = 1;
       base_e = ast.ast_arena_expr_get(arena, init_e.field_access_base_ref);
-      if ((base_e.kind as i32) != (ExprKind.EXPR_VAR as i32) || base_e.var_name_len <= 0) {
-        return 0;
-      }
+      field_base_ko = pipeline_expr_kind_ord_at(arena, init_e.field_access_base_ref);
       if (!ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
         if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
           arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
         }
+      }
+      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
+        let snm: u8[128] = [];
+        let snl: i32 = 0;
+        if (field_base_ko == 45 && base_e.struct_lit_struct_name_len > 0) {
+          snl = base_e.struct_lit_struct_name_len;
+          let si: i32 = 0;
+          while (si < snl && si < 127) {
+            snm[si] = base_e.struct_lit_struct_name[si];
+            si = si + 1;
+          }
+        } else {
+          let bty: i32 = pipeline_expr_resolved_type_ref(arena, init_e.field_access_base_ref);
+          if (!ast.ref_is_null(bty) && bty > 0) {
+            let bk: i32 = pipeline_type_kind_ord_at(arena, bty);
+            if (bk == 9) {
+              bty = pipeline_type_elem_ref_at(arena, bty);
+              if (!ast.ref_is_null(bty) && bty > 0) {
+                bk = pipeline_type_kind_ord_at(arena, bty);
+              }
+            }
+            if (bk == 8) {
+              snl = pipeline_type_named_name_into(arena, bty, &snm[0]);
+            }
+          }
+        }
+        if (snl > 0) {
+          let ftr: i32 = codegen_lookup_struct_field_type_ref(
+            arena, ctx, &snm[0], snl,
+            &init_e.field_access_field_name[0], init_e.field_access_field_len);
+          if (!ast.ref_is_null(ftr) && ftr > 0) {
+            if (pipeline_type_kind_ord_at(arena, ftr) == 10) {
+              arr_sz = pipeline_type_array_size_at(arena, ftr);
+            }
+          }
+        }
+      }
+      if (arr_sz <= 0 && field_base_ko != 3) {
+        return 0;
       }
     } else if ((init_ko == 48 || init_ko == 49) && ctx != 0 as *PipelineDepCtx) {
       /*
@@ -5644,14 +5694,134 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       return -1;
     }
     if (is_field != 0) {
-      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
-        return -1;
-      }
-      if (append_byte(out, 46) != 0) {
-        return -1;
-      }
-      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
-        return -1;
+      if (field_base_ko == 48 || field_base_ko == 49) {
+        /*
+         * CALL/METHOD return temps die at the end of the full expression.
+         * Copy the field array into a unique static[N] (same durability as
+         * dest-SLICE ARRAY_LIT). PLATFORM: SHARED host-C.
+         */
+        let tid: i32 = codegen_next_host_call_array_tmp_id();
+        let elem_tr: i32 = pipeline_type_elem_ref_at(arena, let_type_ref);
+        /* ({ static  */
+        let fb_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &fb_open[0], 10) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(elem_tr) && elem_tr > 0) {
+          if (emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+            let fb_e: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_9(out, &fb_e[0], 7) != 0) {
+              return -1;
+            }
+          }
+        } else {
+          let fb_e2: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+          if (emit_bytes_9(out, &fb_e2[0], 7) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_fb */
+        let fb_nm: u8[12] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 102, 98, 0];
+        if (emit_bytes_from_ptr(out, &fb_nm[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 91) != 0) {
+          return -1;
+        }
+        if (format_int(out, arr_sz) != 0) {
+          return -1;
+        }
+        /* ]; memcpy((void*)(__xlang_fb */
+        let fb_cp: u8[32] = [
+          93, 59, 32, 109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42,
+          41, 40, 95, 95, 120, 108, 97, 110, 103, 95, 102, 98, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &fb_cp[0], 28) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ), (const void*)(( */
+        let fb_mid: u8[24] = [
+          41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41,
+          40, 40, 0, 0, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &fb_mid[0], 18) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, init_e.field_access_base_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 46) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+          return -1;
+        }
+        /* )), sizeof(__xlang_fb */
+        let fb_sz: u8[24] = [
+          41, 41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97,
+          110, 103, 95, 102, 98, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &fb_sz[0], 21) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* )); __xlang_fb */
+        let fb_tl: u8[16] = [41, 41, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 102, 98, 0, 0];
+        if (emit_bytes_from_ptr(out, &fb_tl[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; }) */
+        let fb_end: u8[8] = [59, 32, 125, 41, 0, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &fb_end[0], 4) != 0) {
+          return -1;
+        }
+      } else if (field_base_ko == 3 && base_e.var_name_len > 0) {
+        if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 46) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+          return -1;
+        }
+      } else {
+        /* STRUCT_LIT / INDEX / DEREF: ((base).field) — C array decays. */
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, init_e.field_access_base_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 46) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
       }
     } else if (is_call != 0) {
       /* ARRAY return ABI is E* — `.data = mk()` is a legal pointer rvalue. */
