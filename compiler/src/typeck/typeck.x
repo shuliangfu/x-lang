@@ -3122,6 +3122,10 @@ field_name_len: i32): i32 {
   }
 }
 
+/* Forward: remap a dep type_ref into the caller arena (body later). */
+export extern function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_type_ref: i32,
+caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+
 /**
  * R2 (8.3.3): EXPR_FIELD_ACCESS import binding resolve.
  *
@@ -3218,8 +3222,15 @@ base_ref: i32, ctx: *PipelineDepCtx): i32 {
           /* (2) dep top-level const */
           const_ty = 0;
           if (typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty) != 0) {
+            /* Cross-module type refs are not portable (see
+             * typeck_dep_top_level_const_match). Untyped → i32 in the
+             * caller arena; typed → remap via the existing dep-return
+             * mapper (ARRAY/SLICE/named). Do not stamp a dep-arena
+             * type_ref into the caller expr. */
             if (const_ty <= 0) {
               const_ty = ensure_i32_type_ref(arena);
+            } else {
+              const_ty = get_dep_return_type_in_caller_arena(i, const_ty, arena, ctx);
             }
             if (const_ty > 0) {
               pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
@@ -3259,8 +3270,11 @@ base_ref: i32, ctx: *PipelineDepCtx): i32 {
               const_ty = 0;
               if (typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len,
               &const_ty) != 0) {
+                /* Same as Path A: remap typed dep const into caller arena. */
                 if (const_ty <= 0) {
                   const_ty = ensure_i32_type_ref(arena);
+                } else {
+                  const_ty = get_dep_return_type_in_caller_arena(di, const_ty, arena, ctx);
                 }
                 if (const_ty > 0) {
                   pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
