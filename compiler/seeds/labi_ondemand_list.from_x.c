@@ -90,6 +90,8 @@ int xlang_ensure_runtime_queue_contention_o(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags);
+void labi_std_append_test_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 const char *xlang_std_async_scheduler_o_path(const char *argv0);
 const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
 const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
@@ -2688,11 +2690,19 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         }
     }
     if (link_abi_user_o_needs_std_test(user_o)) {
-        int have_test = 0;
-        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_test(), lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
-        link_abi_asm_ld_push_glue_after_std(have_test, xlang_ensure_runtime_test_fn_invoke_o,
-            xlang_runtime_test_fn_invoke_o_path(link_argv0), link_argv0,
-            labi_od_rel_test_fn_invoke(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+        /* PLATFORM: SHARED — Darwin -backend asm run-stdtest. Cold L4 leaves L8c
+         * unused, so this full L8b seed is the on_demand body. Do not gate
+         * companions on have_test (g12 may already have test.o). G.7 ≡ queue:
+         * always push test.o then labi_std_append_test_monofile_companions. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/test/test.o",
+                                                    "../std/test/test.o");
+        }
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_test(), lib_roots, n_lib_roots,
+                                 bank, argv, la, max_la, NULL);
+        labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     /*
      * PLATFORM: LINUX freestanding / SHARED gate —
@@ -2732,6 +2742,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     pushed_core_formal = 1;
             }
             link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            /* PLATFORM: SHARED — g12 std/test/test.o monofile C dual (≡ need_test). */
+            if (strstr(rel, "std/test/test.o"))
+                labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots,
+                                                       bank, argv, la, max_la);
             /* PLATFORM: SHARED — encoding.o U std_base64_* + std_string_string_* helpers.
              * User.o only U encoding_*; g0/g3 alone miss. Companion ≡ g9 slice glue. */
             if (strstr(rel, "std/encoding/encoding.o")) {
