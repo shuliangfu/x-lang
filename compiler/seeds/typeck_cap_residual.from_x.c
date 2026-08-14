@@ -123,6 +123,9 @@ extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struc
 extern struct ast_Module *pipeline_typeck_active_module_c(void);
 extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *module, uint8_t *vname,
                                                        int32_t vlen);
+extern struct ast_PipelineDepCtx *pipeline_typeck_active_ctx_c(void);
+extern int32_t typeck_field_import_const_is_const(struct ast_Module *module, struct ast_ASTArena *a,
+                                                 int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -182,8 +185,9 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
      *      C-static-init / pure-lit fold pass const_names=NULL and must
      *      still reject VAR (want_decl_init: VAR trees stay init_globals).
      *
-     * G.7: extend this whitelist. Do not add a second checker. Import
-     *      module consts need dep ctx (not in this helper) — later knife.
+     * G.7: extend this whitelist. Do not add a second checker. Bare import
+     *      const stays rejected (typeck_reject_bare_import_const); the
+     *      product spelling is binding.CONST — FIELD arm below.
      */
     if (const_names != NULL && e->var_name_len > 0) {
       struct ast_Module *mod = pipeline_typeck_active_module_c();
@@ -262,6 +266,29 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
     pipeline_expr_try_mark_enum_field_access(pipeline_typeck_active_module_c(), a, expr_ref);
     if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0)
       return 1;
+    /**
+     * PLATFORM: SHARED — import-module const FIELD `dep.A` is a const-expr
+     * when this check is the block-const whitelist (const_names != NULL).
+     *
+     * Why: `const s: []i32 = dep.A` / `const n: i32 = dep.A[1]` /
+     *      `const x: [][]i32 = [dep.A]` parse as FIELD, not VAR. Bare
+     *      import const is rejected (must be binding.CONST). The FIELD
+     *      arm only accepted enum variants, so typeck emitted T001.
+     *
+     *      Reuse typeck_field_import_const_is_const (Path A/B matchers
+     *      from typeck_field_import_binding; const-only, no stamp).
+     *      Active ctx is the same cell set at typeck entry. C-static-init
+     *      / fold pass const_names=NULL and still reject non-enum FIELD.
+     *
+     * G.7: extend this whitelist. Do not add a second checker. Do not
+     *      accept dep functions or runtime obj.field.
+     */
+    if (const_names != NULL) {
+      struct ast_Module *mod = pipeline_typeck_active_module_c();
+      struct ast_PipelineDepCtx *ctx = pipeline_typeck_active_ctx_c();
+      if (mod && ctx && typeck_field_import_const_is_const(mod, a, expr_ref, ctx) != 0)
+        return 1;
+    }
     return 0;
   }
   /**

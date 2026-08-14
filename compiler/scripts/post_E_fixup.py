@@ -153,6 +153,8 @@ extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struc
 extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t i);
 extern struct ast_Module *pipeline_typeck_active_module_c(void);
 extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *module, uint8_t *vname, int32_t vlen);
+extern struct ast_PipelineDepCtx *pipeline_typeck_active_ctx_c(void);
+extern int32_t typeck_field_import_const_is_const(struct ast_Module *module, struct ast_ASTArena *a, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
 
 /* (2) STATIC HELPER typeck_is_const_expr_ref_impl (verbatim seed L15610-L15812) */
 static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref, const char *const_names[], int n_const_names) {
@@ -212,6 +214,15 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
     pipeline_expr_try_mark_enum_field_access(pipeline_typeck_active_module_c(), a, expr_ref);
     if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0)
       return 1;
+    /* PLATFORM: SHARED — import-module const FIELD is a const-expr in the
+     * block-const whitelist (const_names != NULL). Mirror residual.
+     * C-static-init / fold pass NULL and still reject non-enum FIELD. */
+    if (const_names != NULL) {
+      struct ast_Module *mod = pipeline_typeck_active_module_c();
+      struct ast_PipelineDepCtx *ctx = pipeline_typeck_active_ctx_c();
+      if (mod && ctx && typeck_field_import_const_is_const(mod, a, expr_ref, ctx) != 0)
+        return 1;
+    }
     return 0;
   }
   if (kd == ast_ExprKind_EXPR_TERNARY || kd == ast_ExprKind_EXPR_IF) {
@@ -491,6 +502,10 @@ def append_typeck_missing_bodies(src: str) -> str:
          "extern struct ast_Module *pipeline_typeck_active_module_c(void);"),
         ("pipeline_module_top_level_name_is_const",
          "extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *module, uint8_t *vname, int32_t vlen);"),
+        ("pipeline_typeck_active_ctx_c",
+         "extern struct ast_PipelineDepCtx *pipeline_typeck_active_ctx_c(void);"),
+        ("typeck_field_import_const_is_const",
+         "extern int32_t typeck_field_import_const_is_const(struct ast_Module *module, struct ast_ASTArena *a, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);"),
     ]
     _tx_parts = []
     for _name, _decl in _transitive_externs:
@@ -595,6 +610,15 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
     pipeline_expr_try_mark_enum_field_access(pipeline_typeck_active_module_c(), a, expr_ref);
     if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0)
       return 1;
+    /* PLATFORM: SHARED — import-module const FIELD is a const-expr in the
+     * block-const whitelist (const_names != NULL). Mirror residual.
+     * C-static-init / fold pass NULL and still reject non-enum FIELD. */
+    if (const_names != NULL) {
+      struct ast_Module *mod = pipeline_typeck_active_module_c();
+      struct ast_PipelineDepCtx *ctx = pipeline_typeck_active_ctx_c();
+      if (mod && ctx && typeck_field_import_const_is_const(mod, a, expr_ref, ctx) != 0)
+        return 1;
+    }
     return 0;
   }
   if (kd == ast_ExprKind_EXPR_TERNARY || kd == ast_ExprKind_EXPR_IF) {

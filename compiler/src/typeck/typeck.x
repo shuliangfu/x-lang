@@ -3289,6 +3289,110 @@ base_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * True when FIELD is `binding.CONST` and CONST is a dep-module top-level const.
+ *
+ * Const-expr whitelist runs before check_expr, so it cannot wait for
+ * typeck_field_import_binding to stamp. This predicate reuses that function's
+ * Path A (import-list binding) and Path B (const-import sugar) walks, but
+ * only the const match — dep functions and enum type names stay rejected
+ * (they are not const-expr values). No resolved_type_ref stamp.
+ *
+ * @param module *Module — entry module (import list + top-level const sugar)
+ * @param arena *ASTArena — expr arena (names only)
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS
+ * @param ctx *PipelineDepCtx — dep modules; null → 0
+ * @return i32 — 1 import-module const field, 0 otherwise
+ * PLATFORM: SHARED — G.7 complete the existing const path of typeck_field_import_binding.
+ */
+export function typeck_field_import_const_is_const(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_ref: i32 = 0;
+    let base_name: u8[128] = [];
+    let base_name_len: i32 = 0;
+    let field_name: u8[128] = [];
+    let field_name_len: i32 = 0;
+    let i: i32 = 0;
+    let n_imp: i32 = 0;
+    let dep_mod: *Module = 0 as *Module;
+    let nd: i32 = 0;
+    let const_ty: i32 = 0;
+    let ntl: i32 = 0;
+    let tl: i32 = 0;
+    let di: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0 ||
+    ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    if (base_ref <= 0) {
+      return 0;
+    }
+    /* base must be EXPR_VAR (= 3) */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != 3) {
+      return 0;
+    }
+    base_name_len = pipeline_expr_var_name_len(arena, base_ref);
+    if (base_name_len <= 0 || base_name_len > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+    field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (field_name_len <= 0 || field_name_len > 127) {
+      return 0;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
+    /* Path A: import binding list — dep slot aligned with import index. */
+    n_imp = module.num_imports;
+    while (i < n_imp) {
+      if (typeck_import_binding_name_equal(module, i, &base_name[0], base_name_len)) {
+        nd = pipeline_dep_ctx_ndep(ctx);
+        dep_mod = 0 as *Module;
+        if (i < nd) {
+          dep_mod = pipeline_dep_ctx_module_at(ctx, i);
+        }
+        if (dep_mod != 0 as *Module) {
+          const_ty = 0;
+          if (typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len,
+          &const_ty) != 0) {
+            return 1;
+          }
+        }
+      }
+      i = i + 1;
+    }
+    /*
+     * Path B: const-import sugar `const m = import("path")`.
+     * Top-level const name equals base; scan deps for field const only.
+     */
+    ntl = module.num_top_level_lets;
+    tl = 0;
+    while (tl < ntl) {
+      if (pipeline_module_top_level_let_is_const(module, tl) != 0) {
+        if (typeck_top_level_let_name_equal(module, tl, &base_name[0], base_name_len)) {
+          nd = pipeline_dep_ctx_ndep(ctx);
+          di = 0;
+          while (di < nd) {
+            dep_mod = pipeline_dep_ctx_module_at(ctx, di);
+            if (dep_mod != 0 as *Module) {
+              const_ty = 0;
+              if (typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len,
+              &const_ty) != 0) {
+                return 1;
+              }
+            }
+            di = di + 1;
+          }
+        }
+      }
+      tl = tl + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * R2 (8.3.3): reverse-infer owner struct type of FIELD_ACCESS from field name.
  *
  * Migrated from C `pipeline_typeck_field_reverse_infer_base_type_c`
@@ -19982,6 +20086,19 @@ export function pipeline_typeck_set_active_ctx_c(module: *Module, ctx: *Pipeline
     pipeline_typeck_active_module_set_c(module);
     g_typeck_active_ctx = ctx;
   }
+}
+
+/**
+ * Process-local PipelineDepCtx written by pipeline_typeck_set_active_ctx_c.
+ * Null outside typeck_parsed_module. The const-expr whitelist (residual C)
+ * reads this so `import.CONST` FIELD can reuse typeck_field_import_const_is_const
+ * without growing the whitelist helper's signature.
+ * @return *PipelineDepCtx — active ctx, or null
+ * PLATFORM: SHARED — G.7 complete the existing setter cell.
+ */
+#[no_mangle]
+export function pipeline_typeck_active_ctx_c(): *PipelineDepCtx {
+  return g_typeck_active_ctx;
 }
 
 /**
