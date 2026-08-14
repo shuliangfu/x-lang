@@ -61653,6 +61653,8 @@ export function glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena: *u8, elf
  * @param ta i32 — target arch (0=x86_64, 1=arm64)
  * @return i32 — 0 ok, -1 enc error, -2 not applicable
  * wave182 pure-owned G.7 authority (was Cap residual index_helpers).
+ * CALL(48)/METHOD_CALL(49) SIMD: spill via struct let-init then LEA
+ * (value in rax+rdx is not a pointer). TYPE_ARRAY/SLICE CALL stays -2.
  * PLATFORM: SHARED freestanding INDEX base (lit-index + scaled both use this).
  */
 #[no_mangle]
@@ -61671,6 +61673,12 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
   let needs: i32 = 0;
   let is_enum: i32 = 0;
   let import_rc: i32 = 0;
+  let is_simd: i32 = 0;
+  let sz: i32 = 0;
+  let nbytes: i32 = 0;
+  let next_off: i32 = 0;
+  let temp_home: i32 = 0;
+  let st: i32 = 0;
   let mod: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
     return 0 - 2;
@@ -61866,6 +61874,73 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
       }
     }
     return 0;
+  }
+  // CALL=48 / METHOD_CALL=49 returning SIMD: rax+rdx (or sret) holds the
+  // vector value, not an address. emit_expr fallback then add idx*esz
+  // treated lanes as a pointer → SEGV (`simd.add(...)[0]`).
+  // G.7: reuse glue_emit_struct_type_let_init (try_inline / dual-GP /
+  // sret) into a next_offset temp, then LEA — same polarity as assign
+  // STRUCT/CALL rhs (temp_home = next after nbytes). Do not spill
+  // TYPE_ARRAY / TYPE_SLICE CALL (rax is already E* / fat.data).
+  // Assign INDEX-on-METHOD (rbx twin, rhs live in rax) is another layer.
+  // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
+  if (ko == 48 || ko == 49) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    }
+    is_simd = 0;
+    if (tr > 0) {
+      unsafe {
+        if (asm_type_is_simd_vector_spelling(arena, tr) != 0) {
+          is_simd = 1;
+        }
+      }
+      if (is_simd == 0) {
+        unsafe {
+          if (pipeline_type_kind_ord_at(arena, tr) == 13) {
+            is_simd = 1;
+          }
+        }
+      }
+    }
+    if (is_simd != 0) {
+      unsafe {
+        sz = glue_call_return_byte_size_c(arena, base_ref);
+      }
+      if (sz <= 0) {
+        unsafe {
+          mod = glue_emit_module_from_ctx(ctx);
+          sz = glue_type_size_simple(mod, arena, tr, 0);
+        }
+      }
+      if (sz < 16) {
+        sz = 16;
+      }
+      nbytes = (sz + 7) & (~7);
+      glue_align_next_offset(ctx);
+      next_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (next_off + nbytes < next_off) {
+        return 0 - 1;
+      }
+      next_off = next_off + nbytes;
+      temp_home = next_off;
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), next_off);
+      unsafe {
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, base_ref, ctx, ta, tr, temp_home);
+      }
+      if (st == 0 - 1) {
+        return 0 - 1;
+      }
+      if (st != 0) {
+        return 0 - 2;
+      }
+      unsafe {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      return 0;
+    }
   }
   return 0 - 2;
 }
