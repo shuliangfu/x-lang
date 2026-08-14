@@ -124,22 +124,34 @@ static int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx 
  * G.7: one helper for LEA/add_imm and large-frame load/store fallback.
  * ADD imm12 unshifted max 4095; LDR/STR X unsigned scaled max byte 32760
  * (imm12=offset/8 ≤ 4095) — do NOT clamp byte offset to 4095 before /8.
+ *
+ * Signed imm: negative values emit SUB Xd,Xd,#chunk (same 4095 chunks).
+ * Old `left<0 → 0` no-op hid Darwin slice OOB when index==length
+ * (`glue_emit_index_bounds_guard` add_imm_to_rbx(-1) for length-1;
+ *  x86 add imm32=-1 already worked — Ubuntu L4 hid the hole).
  * PLATFORM: MACOS|ARM64 product pure-asm (ta==1).
  *
  * @param elf_ctx emit context
  * @param rd destination Xn (0..30)
  * @param rn source Xn (0..30); if rd!=rn emits MOV Xd,Xn first
- * @param imm non-negative byte addend (0 ok)
+ * @param imm signed byte addend (0 is no-op after optional MOV)
  * @return 0 success, -1 failure
  */
 static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd,
                                              int32_t rn, int32_t imm) {
   int32_t left;
+  int32_t is_sub;
   if (!elf_ctx || rd < 0 || rd > 30 || rn < 0 || rn > 30)
     return -1;
+  is_sub = 0;
   left = imm;
-  if (left < 0)
-    left = 0;
+  if (left < 0) {
+    /* Refuse INT_MIN: 0-left overflows i32; no product caller uses it. */
+    if (left == (0 - 2147483647 - 1))
+      return -1;
+    is_sub = 1;
+    left = 0 - left;
+  }
   if (rd != rn) {
     /* mov xd, xn ≡ orr xd, xzr, xn */
     if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | ((uint32_t)rn << 16) | (uint32_t)rd) != 0)
@@ -147,8 +159,9 @@ static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx 
   }
   while (left > 0) {
     int32_t chunk = left > 4095 ? 4095 : left;
-    /* add xd, xd, #chunk */
-    if (arm64_enc_u32_le(elf_ctx, 0x91000000u | ((uint32_t)chunk << 10) | ((uint32_t)rd << 5) |
+    /* add xd,xd,#c = 0x91000000; sub xd,xd,#c = 0xD1000000 */
+    uint32_t base = is_sub != 0 ? 0xD1000000u : 0x91000000u;
+    if (arm64_enc_u32_le(elf_ctx, base | ((uint32_t)chunk << 10) | ((uint32_t)rd << 5) |
                          (uint32_t)rd) != 0)
       return -1;
     left -= chunk;

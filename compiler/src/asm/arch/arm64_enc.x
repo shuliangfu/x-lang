@@ -913,30 +913,49 @@ export function enc_load_zext8_from_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 960495616);
 }
 
-/** Exported function `enc_add_imm_to_rax`.
- * Implements `enc_add_imm_to_rax`.
- * @param ctx *ElfCodegenCtx
- * @param imm i32
- * @return i32
+/**
+ * ADD/SUB X0, X0, #imm12 (unshifted). Negative imm emits SUB.
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param imm i32 — signed addend; 0 is no-op; |imm|>4095 clamps to 4095
+ * @return i32 — 0 success
+ * G.7 twin of seeds/backend_arm64_enc_c.from_x.c add_rd_rn_imm_chunks (rd=rn=0).
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_add_imm_to_rax(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
+  if (imm < 0) {
+    let n: i32 = 0 - imm;
+    if (n < 0) { return 0 - 1; }
+    if (n > 4095) { n = 4095; }
+    /* sub x0, x0, #n — 0xD1000000 | (n<<10) */
+    return enc_u32_le(ctx, 3506438144 | (n << 10));
+  }
   let imm12: i32 = imm;
   if (imm12 > 4095) { imm12 = 4095; }
   return enc_u32_le(ctx, 2432696320 | (imm12 << 10));
 }
 
-/** Exported function `enc_add_imm_to_rbx`.
- * Implements `enc_add_imm_to_rbx`.
- * @param ctx *ElfCodegenCtx
- * @param imm i32
- * @return i32
+/**
+ * ADD/SUB X1, X1, #imm12 (unshifted). Negative imm emits SUB.
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param imm i32 — signed addend; 0 is no-op; |imm|>4095 clamps to 4095
+ * @return i32 — 0 success
+ * G.7 twin of seeds/backend_arm64_enc_c.from_x.c add_rd_rn_imm_chunks (rd=rn=1).
+ * Used by slice INDEX hi-guard length-1. Prior positive-only encoding
+ * (or silent 0) treated index==length as in-bounds on Darwin.
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_add_imm_to_rbx(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
+  if (imm < 0) {
+    let n: i32 = 0 - imm;
+    if (n < 0) { return 0 - 1; }
+    if (n > 4095) { n = 4095; }
+    /* sub x1, x1, #n — 0xD1000000 | (n<<10) | Rd=1 | Rn=1 */
+    return enc_u32_le(ctx, 3506438144 | (n << 10) | 1 | (1 << 5));
+  }
   let imm12: i32 = imm;
   if (imm12 > 4095) { imm12 = 4095; }
-  /* See implementation. */
   return enc_u32_le(ctx, 2432696320 | (imm12 << 10) | 1 | (1 << 5));
 }
 
