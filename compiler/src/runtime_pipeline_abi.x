@@ -24961,6 +24961,45 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     return 0;
   }
+  /* EXPR_DEREF (52): `y = *p` of a >16B named struct. emit_deref leaves
+   * the pointer (ARRAY twin); memcpy *rax → dest. 9–16B stays -2 so
+   * emit_deref + store_retval_pair dual-GP remains.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+  if (ko == 52 && (ta == 0 || ta == 1)) {
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz <= 16) {
+      return 0 - 2;
+    }
+    unsafe {
+      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    }
+    if (emit_rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
   return 0 - 2;
 }
 
@@ -30977,6 +31016,8 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
 
 /**
  * Emit EXPR_DEREF rvalue: emit operand pointer then load by resolved width.
+ * 9–16B TYPE_NAMED / SLICE / VECTOR reuse deref_struct16 (INDEX rvalue twin).
+ * >16B named leaves the pointer (ARRAY already does) so let-init memcpy.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - DEREF expr
@@ -30985,7 +31026,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
  * @return i32 - 0 ok; -1 fail
  * wave140 pure: G.7 authority (was pipeline_asm_emit_deref_elf_c).
  * Uses public pipeline_asm_emit_expr_elf_c for operand (not static _rec).
- * PLATFORM: SHARED freestanding · LINUX gold.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 dual-GP.
  */
 #[no_mangle]
 export function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -30993,6 +31034,11 @@ export function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   let tr: i32 = 0;
   let esz: i32 = 0;
   let rc: i32 = 0;
+  let trk: i32 = 0;
+  let named_sz: i32 = 0;
+  let modp: *u8 = 0 as *u8;
+  let lanes: i32 = 0;
+  let lane_esz: i32 = 0;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
@@ -31009,12 +31055,19 @@ export function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
     tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
   }
   if (tr > 0) {
-    let trk: i32 = 0;
     unsafe {
       trk = pipeline_type_kind_ord_at(arena, tr);
     }
     if (trk == 10) {
       return 0;
+    }
+    if (trk == 11) {
+      /* TYPE_SLICE fat 16B — same deref_struct16 as INDEX rvalue.
+       * PLATFORM: SHARED · LINUX|x86 rdx · MACOS|ARM64 x1. */
+      unsafe {
+        rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+      }
+      return rc;
     }
     if (trk == 9) {
       unsafe {
@@ -31025,6 +31078,37 @@ export function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   }
   unsafe {
     esz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+    modp = glue_emit_module_from_ctx(ctx);
+    named_sz = glue_type_size_simple(modp, arena, tr, 0);
+  }
+  if (named_sz > esz) {
+    esz = named_sz;
+  }
+  unsafe {
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+  }
+  if (named_sz > esz) {
+    esz = named_sz;
+  }
+  if (esz <= 8) {
+    unsafe {
+      rc = glue_vector_type_lanes_esz_c(arena, tr, &lanes, &lane_esz);
+    }
+    if (rc == 0 && lanes > 0 && lane_esz > 0) {
+      esz = lanes * lane_esz;
+    }
+  }
+  /* >16B named: leave the pointer (ARRAY twin). let-init memcpy dest.
+   * 9–16B: dual-GP load — `y = *p` leftover .b was load_64 only.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+  if (esz > 16) {
+    return 0;
+  }
+  if (esz > 8) {
+    unsafe {
+      rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+    }
+    return rc;
   }
   if (esz == 1) {
     unsafe {

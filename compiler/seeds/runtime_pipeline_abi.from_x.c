@@ -11075,6 +11075,26 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
       return -1;
     return 0;
   }
+  /* EXPR_DEREF (52): >16B named `y = *p` — emit leaves pointer, memcpy dest. */
+  if (ko == 52 && (ta == 0 || ta == 1)) {
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0)
+      ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (ty_ref <= 0)
+      return -2;
+    modp = glue_emit_module_from_ctx(ctx);
+    let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > let_sz)
+      let_sz = named_sz;
+    if (let_sz <= 16)
+      return -2;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      return -1;
+    if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta) != 0)
+      return -1;
+    return 0;
+  }
   return -2;
 }
 
@@ -13765,17 +13785,45 @@ int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   int32_t op;
   int32_t tr;
   int32_t esz;
+  int32_t trk;
+  int32_t named_sz;
+  int32_t lanes = 0;
+  int32_t lane_esz = 0;
+  void *modp;
+  extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
+  extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+  extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+  extern void *glue_emit_module_from_ctx(void *ctx);
+  extern int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out_lanes,
+                                              int32_t *out_esz);
   op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   if (op <= 0)
     return -1;
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0)
     return -1;
   tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 10)
+  trk = (tr > 0) ? pipeline_type_kind_ord_at(arena, tr) : 0;
+  if (trk == 10)
     return 0;
-  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 9)
+  if (trk == 11)
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+  if (trk == 9)
     return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+  modp = glue_emit_module_from_ctx(ctx);
+  named_sz = glue_type_size_simple(modp, arena, tr, 0);
+  if (named_sz > esz)
+    esz = named_sz;
+  named_sz = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+  if (named_sz > esz)
+    esz = named_sz;
+  if (esz <= 8 && glue_vector_type_lanes_esz_c(arena, tr, &lanes, &lane_esz) == 0 && lanes > 0 &&
+      lane_esz > 0)
+    esz = lanes * lane_esz;
+  if (esz > 16)
+    return 0;
+  if (esz > 8)
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
   if (esz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
   if (esz == 4)
