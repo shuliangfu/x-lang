@@ -14477,6 +14477,40 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, left_ref);
       if (load_sz <= 0)
         load_sz = 4;
+      /* TYPE_NAMED FIELD dest: reuse struct let-init at dest =
+       * var_off+field_off (same helper as VAR assign). Historical
+       * store_rax_to_rbx_offset only writes rax — 16B CALL/copy lose
+       * hi (Darwin 2); >16B CALL never installs x8 (Darwin SIGBUS 138).
+       * G.7: same glue_emit_struct_type_let_init; -2 (16B VAR) then
+       * store_retval_pair. Scalars stay on store_rax_to_rbx.
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+      if (ta == 0 || ta == 1) {
+        int32_t field_ty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+        if (field_ty > 0 && pipeline_type_kind_ord_at(arena, field_ty) == 8) {
+          int32_t dest_off = var_off + field_off;
+          int32_t arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                               field_ty, dest_off);
+          int32_t named_sz;
+          int32_t simple_sz;
+          if (arr_st == 0)
+            return 0;
+          if (arr_st == -1)
+            return -1;
+          mod = glue_emit_module_from_ctx(ctx);
+          simple_sz = glue_type_size_simple(mod, arena, field_ty, 0);
+          named_sz = glue_type_named_layout_size_any_module_elf_c(arena, field_ty);
+          if (named_sz > simple_sz)
+            simple_sz = named_sz;
+          if (simple_sz > 8 && simple_sz <= 16) {
+            if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+              return -1;
+            if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, field_ty, dest_off, ta,
+                                                    right_ref, ctx) != 0)
+              return -1;
+            return 0;
+          }
+        }
+      }
       if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
         return -1;
       if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)

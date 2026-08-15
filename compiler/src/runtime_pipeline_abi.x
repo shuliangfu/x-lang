@@ -32383,6 +32383,62 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
           if (load_sz <= 0) {
             load_sz = 4;
           }
+          /* TYPE_NAMED FIELD dest: reuse struct let-init at dest =
+           * var_off+field_off (same helper as VAR assign). The historical
+           * path emit-rhs + store_rax_to_rbx_offset only writes rax, so
+           * 16B CALL/copy lose hi (Darwin 2) and >16B CALL never loads
+           * dest into x8/rdi (Darwin SIGBUS 138). host-C already 0.
+           * G.7: glue_emit_struct_type_let_init handles STRUCT_LIT /
+           * CALL sret / METHOD / >16B VAR memcpy. -2 (16B VAR) then
+           * store_retval_pair to the field slot. Scalars stay below.
+           * Non-VAR-base FIELD (push/pop) is a later leaf.
+           * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+          if (ta == 0 || ta == 1) {
+            unsafe {
+              ltr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+            }
+            if (ltr > 0) {
+              unsafe {
+                ltk = pipeline_type_kind_ord_at(arena, ltr);
+              }
+              if (ltk == 8) {
+                off = var_off + field_off;
+                unsafe {
+                  arr_st = glue_emit_struct_type_let_init_elf_c(
+                      arena, elf_ctx, right_ref, ctx, ta, ltr, off);
+                }
+                if (arr_st == 0) {
+                  return 0;
+                }
+                if (arr_st == 0 - 1) {
+                  return 0 - 1;
+                }
+                unsafe {
+                  mod = glue_emit_module_from_ctx(ctx);
+                  store_sz = glue_type_size_simple(mod, arena, ltr, 0);
+                  rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
+                }
+                if (rty > store_sz) {
+                  store_sz = rty;
+                }
+                if (store_sz > 8 && store_sz <= 16) {
+                  rc = glue_emit_assign_rhs_to_rax_elf_c(
+                      arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = glue_store_retval_pair_to_rbp_elf_c(
+                        mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  return 0;
+                }
+              }
+            }
+          }
           // arm64: emit rhs→rax first, then lea base→x1
           rc = glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
           if (rc != 0) {
