@@ -1067,7 +1067,7 @@
 
   - 现场：`Particle[8]`（12B AoS）／`f32_soa_sum_*` Darwin 139。展开字面量／`One[8]`（×4 LSL）本绿。`mul w1,w1,#12` 后 `add w0,w1,w0` 截断栈指针
   - **根修（G.7 有则补全）**：`glue_emit_index_rax_plus_rbx_scaled` 非 1/4/8 在 `mul_imm` 后走同一 `rax_plus_rbx_scale1`（≡ Stage 12.0.5 ptr+int／esz==1）。同模式 SoA dyn index。权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**改 `enc_add_rax_rbx`（u32 回绕）；**禁** try_inline／全量 assemble
-  - 证：p3／p8／soa8／one8／u32wrap **3／8／8／8／0**（`add x0,x0,x1`）· peel／strip／varn **8／10／12** · `index_struct12_loop` **8** · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：p3／p8／soa8／one8／u32wrap **3／8／8／8／0**（`add x0,x0,x1`）· peel／strip／varn **8／10／12** · `index_struct12_loop` **8** · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 `index_struct12_loop` **8** · peel／strip／varn **8／10／12** · 邻域同上 · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ---
