@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁**（hang RCA ✅；emit 墙钟 fill 模块级 memo ✅；pure-asm ~366s→**CG002** → **拒真开**）· **ALLOW ensure slim ✅** · **树级 PREFER 硬闸 strip ✅** · **ALLOW_TREE 地图 bisect ✅（拒默认化）**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19 · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -19,7 +19,7 @@
 > 2. **禁止** 在本文写波次号、波次 changelog、「waveN 做了 X」流水账。  
 > 3. 波次叙事、tip SHA 演进、commit 序列 **只写 [自举进度.md](自举进度.md)**。  
 > 4. 做到某一项 → 标 🟡；该项完成 → 改 ✅；不要追加「完成波次」段落。  
-> **权威钉盘**（与 [自举进度.md](自举进度.md) 同步）：**`d79a368b2`**（产品 L4 放行；MG 物理删 Makefile 仍有效）。
+> **权威钉盘**（与 [自举进度.md](自举进度.md) 同步）：**`f7424ae47`**（产品 L4 放行；MG 物理删 Makefile 仍有效；前 `e364f4a37` · `d79a368b2`）。
 
 ---
 
@@ -35,15 +35,15 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；host-C dest-SLICE 行 wrap ✅ @ **`75119a170`**；asm dest-SLICE CALL 行 ✅ @ **`454042047`**；dep 模块 CALL dest-SLICE ✅ @ **`baf8bbae2`**；dest-SLICE INDEX 行 ✅ @ **`72af1f5a0`**；INDEX [N]T→[]T call-arg ✅ @ **`5350f61ac`**；dest-SLICE let 非 VAR FIELD 基 ✅ @ **`94aaf1368`**；dest-SLICE return／assign INDEX ✅ @ **`e681baf93`**；const INDEX whitelist ✅ @ **`7a6035edb`**；host-C dest-SLICE const INDEX wrap ✅ @ **`da2cc2b90`**；host-C 模块级 dest-SLICE const wrap ✅ @ **`8e64e35b5`**；asm 模块级 dest-SLICE const hoist ✅ @ **`4e40dec2a`**；host-C 模块级 dest-SLICE ARRAY_LIT ✅ @ **`3673b4149`**；host-C 模块 dest-SLICE `[][]T` ARRAY_LIT ✅ @ **`de5a9bcc4`**；asm 模块 dest-SLICE `[][]T` INDEX ✅ @ **`38be061a4`**；dest-SLICE 可变 COMMON LEA ✅ @ **`387d8425b`**；非 main 读模块 const 数组 ✅ @ **`c06f206ef`**；host-C 函数作用域 dest-SLICE 模块 VAR ✅ @ **`ec28e1f0f`**；函数作用域 const dest-SLICE 模块 VAR（typeck T001）✅ @ **`ff65af43c`**；import 模块 const FIELD（typeck T001＋caller arena 盖印）✅ @ **`41bc131c7`**；import 模块 const FIELD emit（host-C INT_LIT＋dest-SLICE）✅ @ **`3b70c5327`**；import 模块 const FIELD asm（dep-arena INT_LIT＋durable ARRAY_LIT）✅ @ **`ba5581e06`**；pipeline_abi `nf>0` 闸（host-C consts-only dep 共编）✅ @ **`7e028d01a`**；typeck 模块顶层 let／const 初值走查 ✅ @ **`e9b02797c`**；asm INDEX-on-METHOD／CALL SIMD ✅ @ **`1f8560578`**；assign INDEX-on-METHOD rbx 孪 ✅ @ **`492b5a8b1`**；import METHOD 标量 f32 xmm extras ✅；AAPCS64 import METHOD f32 s0–s7 ✅ @ **`320a81d0c`**；本地 f32 CALL 形参 4B 槽 ✅ @ **`acf69ab57`**；Vec4f 逐 lane addss＋AAPCS64 极性 ✅；Vec4f 逐 lane divss ✅；i32x4 `/` 后 lane AAPCS64 4B LDRSW ✅ @ **`4ac03565b`**；INDEX 负 i32 比宽 AAPCS64 LDRSW ✅ @ **`0e42fa8c5`**；i64 大字面量比宽（2^32 跳 i32-imm）✅ @ **`94481923c`**；4.2.6 let-binding 核查闭；LANG-006 保留；下一硬叶＝METHOD binop2 仍 CALL-only／nest>16 soft／TYPE_DYN 后期／4.2.4–5／4.2.7 leave-off |
-| **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
+| **Cap 能力解锁** | 🟡 | 4.2.1 untyped self ✅；4.2.2 PLUS ✅；4.2.2 泛型体方法 ✅；4.2.2 struct 级 bound ✅；4.2.2 impl 级 bound ✅；4.2.2 dyn／impl 类型位 ✅；4.2.3 fat 1..16 ✅；4.2.3 深 lit typeck ✅；4.2.3 体 const `[][]` parse ✅；4.2.10 `take(W.xs)` ✅；4.2.11 `i64[]` lit call-arg ✅；4.2.12–14 核查闭 ✅；4.2.15 INDEX method ≤16B ✅；>16B INDEX MEMORY ✅；return／assign `[N]T→[]T` ✅；4.2.17 `return S24[2]` ✅；4.2.18 P011 核查闭 ✅；`[lit] as T` parse ✅；asm `[lit] as []T` fat ✅；const EXPR_AS whitelist ✅；const 聚合 emit（asm）✅；host-C 多 const 声明 ✅；`[][2]i32` INDEX 发射（asm）✅；host-C `[][2]i32` type_to_c_repr ✅；host-C `[2][]i32` ARRAY-of-SLICE 行 brace ✅；asm `[2][]i32` INDEX ✅ @ **`a403bc41e`**；host-C nslvar VAR-into-slice ✅ @ **`86c3e7ee0`**；asm nslvar INDEX ✅ @ **`4e26d1f3f`**；host-C dest-SLICE 行 wrap ✅ @ **`75119a170`**；asm dest-SLICE CALL 行 ✅ @ **`454042047`**；dep 模块 CALL dest-SLICE ✅ @ **`baf8bbae2`**；dest-SLICE INDEX 行 ✅ @ **`72af1f5a0`**；INDEX [N]T→[]T call-arg ✅ @ **`5350f61ac`**；dest-SLICE let 非 VAR FIELD 基 ✅ @ **`94aaf1368`**；dest-SLICE return／assign INDEX ✅ @ **`e681baf93`**；const INDEX whitelist ✅ @ **`7a6035edb`**；host-C dest-SLICE const INDEX wrap ✅ @ **`da2cc2b90`**；host-C 模块级 dest-SLICE const wrap ✅ @ **`8e64e35b5`**；asm 模块级 dest-SLICE const hoist ✅ @ **`4e40dec2a`**；host-C 模块级 dest-SLICE ARRAY_LIT ✅ @ **`3673b4149`**；host-C 模块 dest-SLICE `[][]T` ARRAY_LIT ✅ @ **`de5a9bcc4`**；asm 模块 dest-SLICE `[][]T` INDEX ✅ @ **`38be061a4`**；dest-SLICE 可变 COMMON LEA ✅ @ **`387d8425b`**；非 main 读模块 const 数组 ✅ @ **`c06f206ef`**；host-C 函数作用域 dest-SLICE 模块 VAR ✅ @ **`ec28e1f0f`**；函数作用域 const dest-SLICE 模块 VAR（typeck T001）✅ @ **`ff65af43c`**；import 模块 const FIELD（typeck T001＋caller arena 盖印）✅ @ **`41bc131c7`**；import 模块 const FIELD emit（host-C INT_LIT＋dest-SLICE）✅ @ **`3b70c5327`**；import 模块 const FIELD asm（dep-arena INT_LIT＋durable ARRAY_LIT）✅ @ **`ba5581e06`**；pipeline_abi `nf>0` 闸（host-C consts-only dep 共编）✅ @ **`7e028d01a`**；typeck 模块顶层 let／const 初值走查 ✅ @ **`e9b02797c`**；asm INDEX-on-METHOD／CALL SIMD ✅ @ **`1f8560578`**；assign INDEX-on-METHOD rbx 孪 ✅ @ **`492b5a8b1`**；import METHOD 标量 f32 xmm extras ✅；AAPCS64 import METHOD f32 s0–s7 ✅ @ **`320a81d0c`**；本地 f32 CALL 形参 4B 槽 ✅ @ **`acf69ab57`**；Vec4f 逐 lane addss＋AAPCS64 极性 ✅；Vec4f 逐 lane divss ✅；i32x4 `/` 后 lane AAPCS64 4B LDRSW ✅ @ **`4ac03565b`**；INDEX 负 i32 比宽 AAPCS64 LDRSW ✅ @ **`0e42fa8c5`**；i64 大字面量比宽（2^32 跳 i32-imm）✅ @ **`94481923c`**；STRUCT_LIT bool／u8 填充存宽 ✅ @ **`7fcc8a02d`**；typeck 导入限定 FIELD 末段 concrete（overload）✅ @ **`565e105b3`**；asm FIELD 16B 实参 ARM64 dual-GP ✅ @ **`2dfbf7157`**；heap `Arena64` FFI 转型 ✅ @ **`1f1aff751`**；用户 `-o` integer div0 panic ✅ @ **`2c8489304`**；ARM64 add_imm 负数 SUB ✅ @ **`2ea18960c`**；extra-.o has_obj 去重 ✅ @ **`f7424ae47`**；Darwin `default_alloc` dest 影子 x19 ✅ @ **`6b42ab1b2`**；4.2.6 let-binding 核查闭；LANG-006 保留；下一硬叶＝METHOD binop2 仍 CALL-only／nest>16 soft／TYPE_DYN 后期／4.2.4–5／4.2.7 leave-off／sat 盖 prefer／**禁** try_inline mega |
+| **产品 L4 放行** | ✅ | 钉盘 **`f7424ae47`**（2026-08-15 升钉 · 前 `e364f4a37` · `d79a368b2`）· Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/**11.2.2** `./xbuild l4`/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi full12 hybrid 双端 5/5 ✅** · **labi-only pure-asm 产品默认双端 ✅**（`PREFER_ASM_O_LABI` 默认 1 · mac+Ubuntu 5/5）· **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK pure-asm hybrid 4/4 ✅**（含 fmt · seed `xlang_fmt_*` XLANG_WEAK）· **async pure-asm hybrid 3/3 双端 ✅** · **R3 pure-asm hybrid 9/9 双端 5/5**（ptr+int scale1 + opaque reject · Ubuntu pin soft recover + gold）· **rt pure-asm hybrid 双端 5/5 ✅**（call-ret harvest · ONLY=rcp＋full multi-slice · Ubuntu 金标 @ `3ad10a0ae`）· **B1／B2／B3 pure-asm hybrid 双端 5/5 ✅** · **SEED_SLICE 不并 no_c** · **prefer 族 pure-asm 产品默认 ✅**（LABI/RT/G05）· **树级 PREFER 硬闸 strip ✅**（无 `ALLOW_TREE` 则 strip ambient · family=0 关泄漏）· **ALLOW_TREE 地图 bisect ✅**（full hybrid／re-leak 双端 5/5 · 拒默认化）· 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
-| **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
+| **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC 🟡（去 import→C／FORBID／ALLOW ✅；默认零 spawn 仍 ⬜）；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
 
@@ -973,7 +973,66 @@
   - 权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - 探针 `tests/boundary/i64_lit_cmp.x`
   - 证：mac i64c／incn／i32d／v4d／v4a／lf32／iom／aiom／imf32 **0** · Ubuntu i64c／incn／i32d／v4d／v4a／lf32／iom／aiom／imf32 **0** · 矩阵 **5/5**
-  - 余（勿并本叶）：METHOD binop2 仍 CALL-only（本地 CALL `add(a,b)` 已 0）；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 STRUCT_LIT bool／u8 填充）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+
+✅ **STRUCT_LIT bool／u8 填充存宽** ✅ @ **`7fcc8a02d`**
+
+  - 现场：Darwin 矩阵 option=254（`return -2`）。inlined `Option { is_some:false }` `strb` 留 3B pad，`is_some`／`unwrap` `ldr w` 当 Some
+  - **根修**：`glue_struct_lit_field_store_sz` — bool／u8 到下一字段／结构尾 gap≥4 则存 4。权威 `runtime_pipeline_abi.x`＋seed
+  - 证：双端矩阵 **5/5** opt=102
+  - 余（已闭 typeck FIELD overload）：见下
+
+✅ **typeck 导入限定 FIELD 末段 concrete（overload）** ✅ @ **`565e105b3`**
+
+  - 现场：`heap.alloc(h.al, n)` T001 expected `*u8` found `*u64`。`typeck_named_is_module_concrete` 精确比 layout 名，`heap.Allocator`≠`Allocator` 当自由 T → ambient `*u8` 盖 FIELD → first_idx `alloc(i32):*u64`
+  - **根修**：末段名 ≡ `typeck_field_layout_named` 去点。权威 `typeck.x`（assemble；禁改 typeck_gen pin／first_idx）
+  - 证：`-E` 发 `alloc_Allocator_usize(((h).al))` · `run-vec` 0 · 矩阵 **5/5**
+  - 余（已闭 asm FIELD 16B）：见下
+
+✅ **asm FIELD 16B 实参 ARM64 dual-GP** ✅ @ **`2dfbf7157`**
+
+  - 现场：`heap.alloc(h.al, n)`／同模 16B `take(h.a)` Darwin `-o` CG002。4B／8B FIELD 与 16B let-bind VAR 本绿
+  - **根修**：`backend_enc_load_qword_*_arch` ta==1 发 `ldr x0,[x1]`／`ldr x1,[x1,#8]`。权威 `backend_enc_dispatch.x`＋seed／thin／surface
+  - **禁**批补其余 `ta!=0` 桩
+  - 证：`field_struct16_arg`=42 · `field_alloc` `-o`=0 · 矩阵 **5/5**
+  - 余（已闭 heap Arena64 FFI）：见下
+
+✅ **heap `Arena64` FFI 转型** ✅ @ **`1f1aff751`**
+
+  - 现场：`alloc(al, n)` 把 `al.arena`（`*Arena64`）裸传 `heap_arena64_alloc_c(*LibcArena64)` → standalone `-E` T001／XP003。同文件 `arena64_init`／`alloc`／`deinit` 已转型
+  - **根修**：bump 路径补同一 `as *heap_libc.LibcArena64`。**禁**改 typeck 把异名结构当兼容
+  - 证：`-E std/heap/mod.x` typeck OK · `field_alloc`／`run-vec` 0 · 矩阵 **5/5**
+  - 余（已闭 dest 影子 x19）：见下
+
+✅ **用户 `-o` integer div0 panic** ✅ @ **`2c8489304`**
+
+  - 现场：Stage 12.0.5 掏空 `pipeline_asm_emit_divisor_zero_check_rbx_elf_c`；Ubuntu `idiv #0` SIGFPE 假绿；Darwin `sdiv #0` 得 0
+  - **根修**：用户 `-o` 恢复 test+jne+CALL `xlang_panic_`；`XLANG_PREFER_ASM_O=1` 仍 no-op
+  - 证：`run-ub`／`run-lang-unsafe` `div_zero` panic · 矩阵 **5/5** · **钉盘 L4 已证**
+  - 余（已闭 ARM64 add_imm SUB）：见下
+
+✅ **ARM64 add_imm 负数发 SUB** ✅ @ **`2ea18960c`**
+
+  - 现场：slice hi-guard `add_imm_to_rbx(-1)` 后 `jge`；encoder `left<0→0` 无 SUB → `bounds_slice` unexpected exit 0
+  - **根修**：`arm64_enc_add_rd_rn_imm_chunks` 负数按 4095 块发 SUB。权威 seed＋`arch/arm64_enc.x`
+  - 证：反汇编 `sub x1,#1` · `bounds_slice` rc=1 · **钉盘 L4 已证**
+  - 余（已闭 extra-.o has_obj）：见下
+
+✅ **extra-.o has_obj 去重（invoke_cc／asm ld／sat mega）** ✅ @ **`f7424ae47`**
+
+  - 现场：`xlang-c -o` 链同一 `runtime_atomic_glue.o`／`time_os.o` 两次 → Darwin ld duplicate symbol。C 路径只 strcmp；asm 路径 Track-L 丢 `if (has_obj())`；L4 sat `try-r1` 编 mega `#ifndef` 旧体盖 prefer `.x`
+  - **根修**：`link_abi_asm_ld_argv_has_obj`（string＋realpath）补进 `push_existing`／`append_user_extra` prefer `.x`／sat mega 冷体
+  - **禁**改 `run-std-io-context-gate.sh`
+  - 证：带 extra／不带 extra／gate 0 · **钉盘双端 L4 io-context 绿**
+  - 残：sat 盖 prefer 另层债（只改 `.x` 会再 L2 绿／L4 红）；`push_stable` 裸 `if (has_obj)` 未并
+
+✅ **Darwin `default_alloc` dest 影子 x19（跨 16B CALL）** ✅ @ **`6b42ab1b2`**
+
+  - 现场：rewrite `bl _std_heap_default_alloc` 后 dest 在 x1，16B 返回写 x1 → `str x0,[x1=0]` SIGSEGV。改 try_inline mega `.x`：Ubuntu 同 TU `-E` 编译器 139（已退）
+  - **根修**：小叶 encoder — `mov_rax_to_rbx` 兼 `mov x19,x0`；`store(sz>=16)` 走 `[x19]`＋hi `[x19+8]`。权威 `arch/arm64_enc.x`＋seed
+  - **禁**再改 try_inline mega `.x`；INDEX／sz<16 仍走 x1
+  - 证：`default_alloc_method` Darwin 0（`mov x19; bl; str [x19]`）· 双端矩阵 **5/5** · **日常 L2 不升钉**
+  - 余（勿并本叶）：METHOD binop2 仍 CALL-only（本地 CALL `add(a,b)` 已 0）；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19（X-to-X dest-across-call 残）
 
 ---
 
@@ -1095,10 +1154,10 @@
 
 ---
 
-## 阶段 7：Mega 去 pin Track M4（进行中 · 2/5 · runtime + typeck）
+## 阶段 7：Mega 去 pin Track M4（**冷链关 pin 5/5 ✅** · 物理删 parser seed／CI 漂移闸仍 ⬜）
 
 > **定义**：M4 关 pin / 空 patch；冷启动可从「上一代 xlang -E」或 **纯 .x 产品路径**重建。  
-> **当前**：runtime monofile 物理退役 ✅；typeck／codegen 冷链 prefer `.x` assemble ✅；parser／link_abi pin 仍 ⬜。  
+> **当前**：runtime monofile 物理退役 ✅；typeck／codegen／parser／link_abi **冷链** prefer `.x` assemble ✅（默认 FROM_X=1；pin 仅考古 egg）。parser seed 文件仍在（7.2.1 ⬜）；`runtime_link_abi_gen.c` 不存在（7.3.2 vacuous ✅）；7.4.4 CI 漂移闸 ⬜。  
 > **补遗**：前端 **typeck / codegen** 亦是 pin 权威（产品链 `typeck_x.o` / `codegen_x.o` 常来自 pin seed），原 0/3 仪表盘漏计，现计 **5** 项。
 
 ### 7.1 runtime mega 去 pin
@@ -1152,7 +1211,10 @@
   - 验收：双端 L2 绿（macOS arm64 + Ubuntu x86_64 gold @ ubuntu-remote-server）；FORCE rebuild runtime_link_abi.o：L2/L3/L8/L9 prefer .x，其余 cold seed fallback，纯合并通过；pure-ld + `./xbuild l2-matrix` 5/5
   - 达标：默认 FROM_X=1 且双端 L2 绿；pin 仅考古 egg — **已达标**
 
-⬜ **7.3.2 runtime_link_abi_gen.c 去 pin**（如存在独立 pin）
+✅ **7.3.2 runtime_link_abi_gen.c 去 pin**（独立 pin 不存在 · vacuous）
+
+  - 树内无 `seeds/runtime_link_abi_gen.c`
+  - 冷／考古 twin 仅 `seeds/runtime_link_abi.from_x.c` + 12 `labi_*.from_x.c`（7.3.1 已关 pin）
 
 ✅ **7.3.3 M3 Stage2 / D-03 验证**
 
@@ -1179,7 +1241,7 @@
   - 组装层：① `CodegenOutBuf`→`codegen_CodegenOutBuf` ② bare→`codegen_*` ③ X-mangle demangle（含 call sites）④ Cap residual（host BSS／slice_let／pipeline scratch+loop）
   - 根修（`.x`）：emit_expr 未闭合注释 + orphan TRY_PROPAGATE 注释 + T001（bool!=0／enum.kind==lit）+ buf wrapper 发射长度 off-by-one（`_bu` 截断）
   - 证据：hide pin seed 后 ensure assemble OK；pure-ld + `./xbuild l2-matrix` 5/5
-  - 残：companion 逐步 fold 进 `.x`；parser／link_abi pin 仍 ⬜
+  - 残：companion 逐步 fold 进 `.x`（非 pin twin 权威）；parser／link_abi **冷链关 pin已闭**（7.2.2／7.3.1）；parser seed 物理删仍 7.2.1
 
 ✅ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
 
@@ -2160,9 +2222,12 @@
 
   - seed_xlang → xlang_v1 → xlang_v2 → xlang_v3；自动 v2==v3
 
-⬜ **11.2.2 L4 真冷全测集成**
+✅ **11.2.2 L4 真冷全测集成**
 
-  - `xbuild cold-test`：全擦 `compiler|std|core` 下 `.o` + 删产品二进制 → seed/g05 或纯 xbuild → 矩阵 → `run-all-bstrict`（`XLANG_BSTRICT_SKIP_BUILD=1`）
+  - 权威：`./xbuild l4`（别名 `l4-cold`／`true-cold`／`product-l4`）→ `compiler/scripts/product_l4_true_cold.sh`
+  - 全擦 `compiler|std|core` `.o` + 删产品二进制 → seed pin → `bootstrap-driver-seed` → g05 → 矩阵 → `XLANG_BSTRICT_SKIP_BUILD=1` 全量 bstrict
+  - 钉盘双端 L4 + bstrict 129 ✅ @ **`f7424ae47`**（mac 63m38s · Ubuntu 24m45s）
+  - 残：COMPILE 仍 host-cc（零 cc 属阶段 12／13.2.1）；**不跑** `xlang check`
 
 ✅ **11.2.3 prove / bstrict / gate 脚本去 make**
 
@@ -2384,7 +2449,7 @@
   - **typeck 墙钟瘦身 ✅（2026-08-12）**：prim BSS + compound G.7 thin→`pipeline_type_find_or_alloc_compound` + stmt_order 迭代 · mac **361s→60s**／Ubuntu **75s**（hang 闭；emit rc=0）  
   - **pipeline_abi mega pure-asm 产品装链 residual**：hang 非根因；pure-asm .o U `xlang_driver_*_opaque`（-E prologue only）→ product basename skip + RT=0 hybrid thin（禁白跑 pure 再 hybrid）  
 
-  - 下一刀候选（本域）：ALLOW ensure 再瘦（若仍有 path 无条件／双扫）／mega pure-asm 真开须 hang 根因＋授权／Stage12 COMPILE residual 其它叶
+  - 下一刀候选（本域）：METHOD binop2 仍 CALL-only（须点名）／sat 盖 prefer（须点名＋双端 L4）／pipeline_abi mega 仍硬禁／ALLOW ensure 再瘦（若仍有 path 无条件／双扫）／Stage12 COMPILE residual 其它叶
   - **单 slice 二分 harness ✅**：`XLANG_PREFER_ASM_O_ONLY`（G.7 `pure_asm_x_to_o` allow-list）  
   - **INDEX `**T` 双剥皮闭 ✅**（`pipeline_asm_index_elem_byte_sz_c` pure+seed）  
   - **真 L2 地图（prefer + soft g05_relink + matrix）**：  
@@ -2553,7 +2618,7 @@
   - **ALLOW early_needs rtr 与 need 对齐**：✅ 全量 ALLOW 下 `invoke_cc_append_early_needs` **不再** freestanding 扫／推 random／time／runtime；权威仅 ensure-push front `need_flags[8/7/4]`；MINIMAL 保留 freestanding rtr（ensure-push 跳过）
   - **formal shell 短标签 residual 扫描**：✅ 矩阵 5 源 tip `-E` Result_／Option_／Arena residual=0；硬编码 type `#define` 别名已无（Result_／Arena64 已闭）；动态 bare→pref 别名机仍服务 formal_mod 体
   - **ALLOW_TREE 树级 PREFER 地图 bisect**：✅ 仅 `ALLOW_TREE` 保留 ambient · B2 full hybrid／D family=0 re-leak 双端 5/5 · **拒默认化**树级 PREFER
-  - 下一刀候选：①ALLOW ensure 再瘦（若仍有 path 无条件／双扫）· ②pipeline_abi mega pure-asm 真开（须 hang 根因＋授权）· ③Stage12 COMPILE residual 其它叶
+  - 下一刀候选：①METHOD binop2（须点名）· ②sat 盖 prefer（须点名＋双端 L4）· ③pipeline_abi mega 仍硬禁 · ④ALLOW ensure 再瘦／Stage12 COMPILE residual 其它叶
 
 
 ---
@@ -2643,9 +2708,9 @@
 
 | mega | rest LOC | 切片数 | 状态 |
 |------|----------|--------|------|
-| parser_asm_thin_c | ~21,935 | 21/21 ✅ | 拆分完成 · 去 pin ⬜ |
-| runtime | ~7,320 | 24/24 ✅ | 拆分完成 · 去 pin ⬜ |
-| runtime_link_abi | ~6,920 | 11/11 ✅ | 拆分完成 · 去 pin ⬜ |
+| parser_asm_thin_c | ~21,935 | 21/21 ✅ | 拆分完成 · 冷链关 pin ✅（7.2.2）· 物理删 seed ⬜（7.2.1） |
+| runtime | ~7,320 | 24/24 ✅ | 拆分完成 · 去 pin ✅（7.1.1 物理删） |
+| runtime_link_abi | ~6,920 | 11/11 ✅ | 拆分完成 · 冷链关 pin ✅（7.3.1）· 无独立 gen pin ✅（7.3.2 vacuous） |
 
 另：**typeck / codegen pin** 见阶段 7.4（非本表三 mega，但是删 Makefile 同级债）。
 
@@ -2653,12 +2718,12 @@
 
 | 项 | 值 |
 |---|---|
-| 钉盘 SHA | **`77b334842`**（Makefile 物理删除 + 双端 L4） |
-| 前钉 SHA | `9bb7a757c` · `4fa4f07e7` |
-| 上次 L4 日期 | 2026-07-31 |
-| 双端 bstrict 数 | 129（历史钉盘）；tip 产品矩阵/bootstrap 绿 |
-| mac 产品链 | ✅ build/g05 OK |
-| Ubuntu L4（金标） | ✅ wipe+bootstrap+build+smoke OK |
+| 钉盘 SHA | **`f7424ae47`**（双端 L4 真冷 + bstrict 129 · 2026-08-15 升钉） |
+| 前钉 SHA | `e364f4a37` · `d79a368b2` · `77b334842` |
+| 上次 L4 日期 | 2026-08-15 |
+| 双端 bstrict 数 | **129**（钉盘双端绿；mac `/tmp/xlang_l4_Darwin_f7424ae47.log` · Ubuntu `/tmp/xlang_l4_Linux_f7424ae47.log`） |
+| mac 产品链 | ✅ L4 remaining_o=0 · 矩阵 5/5 · wall=63m38s |
+| Ubuntu L4（金标） | ✅ L4 remaining_o=0 · 矩阵 5/5 · wall=24m45s |
 | 工程轨 KPI | T 18/18 · N 111/111 IDENTICAL |
 | MG | ✅ 根 + `compiler/Makefile` 已物理删除 |
 | git 锚点 / 波次流水 | 见 `自举进度.md` |
@@ -2669,24 +2734,24 @@
 旧终局（v2==v3 + 无 pin）≈ 74.5%（历史权重）
 
 新终局权重（MG 物理删后）：
-  库+T+N+R2+M拆分+Cap≈         0.40 × ~85%  → ~34%
-  阶段 7/8 gen 去 pin            0.10 × ~25%  → ~2.5%
+  库+T+N+R2+M拆分+Cap≈         0.40 × ~88%  → ~35%
+  阶段 7/8 gen 去 pin            0.10 × ~95%  → ~9.5% （M4 冷链 5/5 · Stage 8 30/30；parser seed 物理删／7.4.4 仍 ⬜）
   阶段 8.3 glue/ast（新）        0.12 × ~5%   → ~0.6%  （CTFE 域已切；整体仍 🟡）
   阶段 9 residual                0.12 × 0%    → 0%
   阶段 10 语言 L2                0.10 × 0%    → 0%
-  阶段 11 Makefile 退役/xbuild   0.12 × ~95%  → ~11%  （**MG 文件删除 ✅**；0-make hub ✅）
+  阶段 11 Makefile 退役/xbuild   0.12 × ~96%  → ~11.5% （**MG 文件删除 ✅**；0-make hub ✅；11.2.2 L4 ✅）
   阶段 12–13 冷启动+终局验收     0.04 × ~10%  → ~0.4% （13.2.2 文件层 ✅；零 cc / v2==v3 ⬜）
-                                 合计 ≈ 48–50%
+                                 合计 ≈ 56–58%
 ```
 
-**综合迁移进度（修订）：约 48–50%**  
-MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC ⬜。剩余主债：**8.3 glue 续切** · **PC 零 cc** · **去 pin** · 阶段 12 冷启动。
+**综合迁移进度（修订）：约 56–58%**  
+MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC 🟡（去 import→C／FORBID／ALLOW 已闭；默认仍可 host-cc）。剩余主债：**8.3 glue 续切** · **PC／BC 零 cc** · 阶段 12 冷启动 · sat 盖 prefer · Cap leave-off。
 
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
 2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 四十九刀（+array_lit durable／slice reent／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**／**TokenKind variant tag 同叶**／**float bits lo/hi 同叶**／**struct_lit field offset/type_ref 同叶**／**block_final_expr 同叶**／**array_let_empty_init 同叶**／**struct_layout_compute_field_offset 同叶**／**func_param_agg_byte_size 同叶**／**func_return_byte_size 同叶**／**func_param_home_width 同叶**／**call_return_byte_size 同叶**）+ index_eff／emit_expr fast／call_arg／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：8.3.3 两叶 host-cc leave ✅ · 8.3.1 leaf residual / pipeline_x mega 仍 host-cc**）
-3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
+3. ✅ **阶段 7.4 + 8.2** typeck/codegen/parser／link_abi **冷链关 pin**（物理删 parser seed 7.2.1／7.4.4 CI 漂移闸仍 ⬜）
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
 
@@ -2703,7 +2768,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 | **E** | `compiler/src` 宿主 .o | 59 | g05 ensure cc | `xbuild runtime-src` | 🟡 |
 | **F** | `runtime_*` residual .o | 31 | g05 ensure | `xbuild residual-c` | 🟡 → 阶段 9 |
 | **C** | glue / pipeline_x / strict_minimal | 3 | Makefile + g05 cc | `xbuild glue` | ⬜ 体积主债 8.3（地图已落） |
-| **B** | pinned `*_gen.c` | 18 | Makefile pin cp | `xbuild pin-gen` | ⬜ 7.4/8.2 |
+| **B** | pinned `*_gen.c` | 18 | g05 assemble／考古 egg | `xbuild pin-gen` | 🟡 冷链关 pin ✅（7.4/8.2）；egg 仍在 |
 | **A** | std/core 模块 .o | 65 | 部分 shell / g05 | `xbuild std` | 🟡 |
 | **G** | `build_asm/*_filtered.o` | 4 | 全 4 🟢 shell | `xbuild build-asm-filter` | ✅ 产品+Makefile 同调 |
 | **J** | test / check / verify | 12 | shell + tests hub | `xbuild test` / `cold-test` | ✅ 11.2.3 tests/** hub |
