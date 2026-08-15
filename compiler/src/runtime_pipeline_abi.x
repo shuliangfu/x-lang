@@ -53726,9 +53726,13 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
 
 /**
  * Alignment of a type (C twin of typeck_x_type_align).
- * @return i32 - alignment (1/4/8 or struct max_align); 1 on miss
+ * TYPE_NAMED SIMD spelling (i32x4 / Vec4f / i32x8) has no struct layout —
+ * miss align is lanes*esz (16/32), not the 4B scalar miss. Same contract
+ * as glue_type_size_simple. Prefixed { tag:i32, v:i32x4 } used to pack v
+ * at +4; 16B dest-in-x19 store encoded offset/8=0 and clobbered tag.
+ * @return i32 - alignment (1/4/8/16/32 or struct max_align); 1 on miss
  * wave154 pure: G.7 authority (was static glue_type_align_simple).
- * PLATFORM: SHARED — f32(14) align 4 not 8 (AoS 3xf32).
+ * PLATFORM: SHARED — f32(14) align 4 not 8 (AoS 3xf32); SIMD named = size.
  */
 #[no_mangle]
 export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32 {
@@ -53738,6 +53742,8 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   let name: u8[128] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
+  let vl: i32 = 0;
+  let ves: i32 = 0;
   let nlayouts: i32 = 0;
   let nf: i32 = 0;
   let j: i32 = 0;
@@ -53825,6 +53831,14 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
         return 1;
       }
       k = k + 1;
+    }
+    /* No struct layout: SIMD named spelling align is lanes*esz.
+     * G.7 complete of glue_type_size_simple SIMD miss. Do not add
+     * an i32x4 name table.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 STRUCT_LIT tag
+     * clobber is the live fail (16B store at packed +4 → offset/8=0). */
+    if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+      return vl * ves;
     }
     return 4;
   }
@@ -54428,7 +54442,11 @@ export function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i3
   if (nsz == 0) {
     return 0;
   }
-  if (nsz > 0 && nsz <= 8) {
+  /* SIMD named is 16 via size_simple. Old `return 8` truncated i32x4
+   * to one GP and left t[2] leftover when tag+pad packed v at +8.
+   * Dual-GP range only (9-16); >16B TYPE_NAMED stays 8 (sret leftover).
+   * PLATFORM: SHARED — do not widen >16B store_sz in this leaf. */
+  if (nsz > 0 && nsz <= 16) {
     return nsz;
   }
   return 8;
@@ -54681,6 +54699,29 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
             return 0 - 1;
           }
           // arr_st == -2 fall through
+        }
+      }
+      /* SIMD named field (`Prefixed { tag, v: i32x4 }`): reuse vector
+       * let-init into the frame-mag dest. Prior path emit_expr + 16B
+       * dest-in-x19 store at compute foff (align 4 → +4) encoded as
+       * offset/8=0 and clobbered tag (Darwin tag=1 / exit 70).
+       * G.7: same glue_emit_vector_type_let_init as FIELD dest.
+       * sret_direct stays on the existing store (do not pass dest-in-rbx -3).
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+      if (sret_direct == 0 && (ta == 0 || ta == 1) && fty > 0) {
+        nest_slot = glue_struct_field_frame_mag_c(base_off, foff, ta);
+        if (nest_slot >= 0) {
+          unsafe {
+            arr_st = glue_emit_vector_type_let_init_elf_c(
+                arena, elf_ctx, init_ref, ctx, ta, nest_slot, fty);
+          }
+          if (arr_st == 0) {
+            fi = fi + 1;
+            continue;
+          }
+          if (arr_st == 0 - 1) {
+            return 0 - 1;
+          }
         }
       }
       unsafe {
