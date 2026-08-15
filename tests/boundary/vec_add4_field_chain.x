@@ -1,8 +1,8 @@
 // Isolated: FIELD-chain receiver of a 2-arg vector binop
 // (`w.h.v = w.h.v.add4(b)` / `w.h.v = w.h.v.sub4(b)` /
 // `w.h.v = add4(w.h.v, b)`). Observe via `let t: i32x4 = w.h.v`
-// (vector let-init FIELD source); do not INDEX `w.h.v[i]`
-// (FIELD-chain SIMD INDEX leftover). Prefixed `tag + Holder`
+// (vector let-init FIELD source). FIELD-chain SIMD INDEX `w.h.v[i]`
+// is gated by vec_field_chain_index.x. Prefixed `tag + Holder`
 // dest is gated by vec_prefixed_simd_dest.x.
 // Depth-1 FIELD receiver is already gated by vec_add4_field_recv.x.
 // Split `let t = w.h.v; t = t.add4(b)` was already 0 (binop2 VAR-base).

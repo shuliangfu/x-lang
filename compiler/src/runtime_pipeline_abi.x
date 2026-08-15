@@ -63441,6 +63441,33 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
         }
         return 0;
       }
+      /* FIELD-chain as INDEX base (`w.h.v[i]`). VAR / DEREF / INDEX
+       * bases already handled. base_ko==44 used to fall through to
+       * call_fa, which only accepts CALL / METHOD / STRUCT_LIT roots —
+       * a VAR-rooted chain returned -99 → emit_expr rvalue of the SIMD
+       * field (packed lanes used as a pointer; Darwin garbage / 138).
+       * G.7: reuse pipeline_asm_emit_lvalue_eff_addr (already walks the
+       * chain to the VAR root, lea + field_off, mid-chain *T deref).
+       * Leave the leaf address; INDEX then adds idx*esz.
+       * Do not use stack_off+lea (x86 high-end lane polarity is not
+       * INDEX dest+idx*esz). Do not pass dest-in-rbx -3.
+       * lvalue -1 (CALL / STRUCT_LIT root) falls through to call_fa.
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+      if (base_ko == 44) {
+        unsafe {
+          st = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+              arena, elf_ctx, base_ref, ctx, ta);
+        }
+        if (st == 0) {
+          unsafe {
+            if (glue_index_deref_ptr_field_slot_rax_elf_c(
+                    arena, elf_ctx, base_ref, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          return 0;
+        }
+      }
     }
     // STRUCT_LIT/CALL/METHOD-rooted FIELD as INDEX base — leave_addr materialize.
     unsafe {
@@ -63772,6 +63799,35 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
             return 0 - 1;
           }
           if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+      /* FIELD-chain as INDEX assign base. Reuse the rax twin (lvalue
+       * walk + call_fa). rhs stays in rax so push/pop around it.
+       * PLATFORM: SHARED — same produce as the rax helper. */
+      if (ko == 44) {
+        unsafe {
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          st = glue_try_index_var_or_field_base_to_rax_elf_c(
+              arena, elf_ctx, base_ref, ctx, ta);
+        }
+        if (st != 0) {
+          unsafe {
+            if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          return st;
+        }
+        unsafe {
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
             return 0 - 1;
           }
         }
