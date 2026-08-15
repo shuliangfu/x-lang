@@ -33705,7 +33705,77 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                 return 0;
               }
             }
+            /* CALL/METHOD: real add4 callee only does lane0 (`add w0,w1,w0`).
+             * VAR `d = add4(a,b)` already reuses vector let-init (binop2).
+             * dest-in-rbx must not emit the CALL — park dest, let-init a
+             * temp, memcpy dest-in-rbx. Do not save x19 in the prologue.
+             * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
             if (nbytes >= 8 && (rko_pre == 48 || rko_pre == 49)) {
+              glue_align_next_offset(ctx);
+              src_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill + 8);
+              unsafe {
+                rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              glue_align_next_offset(ctx);
+              temp_home = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), temp_home + nbytes);
+              unsafe {
+                arr_st = glue_emit_vector_type_let_init_elf_c(
+                    arena, elf_ctx, right_ref, ctx, ta, temp_home, ltr);
+              }
+              if (arr_st == 0 - 1) {
+                return 0 - 1;
+              }
+              if (arr_st == 0) {
+                unsafe {
+                  rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                unsafe {
+                  rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                unsafe {
+                  rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                unsafe {
+                  rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                return 0;
+              }
+              /* -2: restore dest and fall through to CALL emit. */
+              unsafe {
+                rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
               unsafe {
                 rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
               }

@@ -15147,6 +15147,45 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
               }
             }
             if (deref_nbytes >= 8 && (deref_rko == 48 || deref_rko == 49)) {
+              int32_t v_spill;
+              int32_t v_temp;
+              int32_t v_st;
+              extern void glue_align_next_offset(void *ctx);
+              extern int32_t pipe_asm_ctx_off_next_offset(void);
+              extern int32_t pipe_load_i32_le(void *p, int32_t off);
+              extern void pipe_store_i32_le(void *p, int32_t off, int32_t v);
+              extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+              extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t off, int32_t ta);
+              extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t off, int32_t ta);
+              extern int32_t glue_emit_vector_type_let_init_elf_c(void *arena, void *elf_ctx,
+                                                                  int32_t init_ref, void *ctx, int32_t ta,
+                                                                  int32_t stack_slot_off, int32_t type_ref);
+              glue_align_next_offset(ctx);
+              v_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_spill + 8);
+              if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+                return -1;
+              if (backend_enc_store_rax_to_rbp_arch(elf_ctx, v_spill, ta) != 0)
+                return -1;
+              glue_align_next_offset(ctx);
+              v_temp = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_temp + deref_nbytes);
+              v_st = glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, v_temp,
+                                                          deref_tr);
+              if (v_st == -1)
+                return -1;
+              if (backend_enc_load_rbp_to_rax_arch(elf_ctx, v_spill, ta) != 0)
+                return -1;
+              if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+                return -1;
+              if (v_st == 0) {
+                if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, v_temp, ta) != 0)
+                  return -1;
+                if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, GLUE_STRUCT_LIT_DEST_IN_RBX,
+                                                              deref_nbytes, ta) != 0)
+                  return -1;
+                return 0;
+              }
               if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
                 return -1;
               if (ta == 1) {
