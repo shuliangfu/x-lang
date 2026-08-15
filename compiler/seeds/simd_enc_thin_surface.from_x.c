@@ -210,7 +210,8 @@ int32_t simd_arm64_rbp_lea_off_128half(int32_t slot, int32_t half, int32_t esz) 
   if ((half < 0)) {
     return slot;
   }
-  return (slot - ((half * 4) * esz));
+  /* PLATFORM: MACOS|ARM64 low-end home; half1 = slot+16. */
+  return (slot + ((half * 4) * esz));
 }
 int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
   if ((slot_off < 0)) {

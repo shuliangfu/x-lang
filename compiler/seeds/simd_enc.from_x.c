@@ -112,16 +112,18 @@ int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
 #endif
 
 /**
- * arm64 128-bit 半幅 lea 正偏移（sub x29,#off 用）。
- * slot_off 为 lane0 距 fp 的字节距；lane 序号增大时地址升高、#off 减小，
- * 故 half1 = slot_off - 16（非 +16）；与 let 向量 init 的 [base+lane*esz] 一致。
+ * PLATFORM: MACOS|ARM64 — 128-bit half lea for ld1/st1 {v.4s}.
+ * Product vector home is low-end (lane0 at slot, INDEX [base+lane*esz]).
+ * half1 = slot+16. Historic slot-16 assumed high-end; lea_rbp clamps
+ * negative to 0 so half1 loaded [x29] (Vec8i r8[4] leftover).
+ * G.7: same +16 direction as x86 ds+16 / C-order lanes.
  */
 /* G-02f-120/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
 #ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz) {
     if (slot_off < 0 || esz <= 0 || half < 0)
         return slot_off;
-    return slot_off - half * 4 * esz;
+    return slot_off + half * 4 * esz;
 }
 #endif
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */

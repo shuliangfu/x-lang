@@ -42,19 +42,23 @@ export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
 
 // simd_arm64_rbp_lea_off_128half: see function docblock below.
 
-/** Exported function `simd_arm64_rbp_lea_off_128half`.
- * Implements `simd_arm64_rbp_lea_off_128half`.
- * @param slot i32
- * @param half i32
- * @param esz i32
- * @return i32
+/**
+ * ARM64 128-bit half-frame offset for ld1/st1 {v.4s}.
+ * @param slot i32 — lane0 home (ARM64 vector let-init low-end = base_off)
+ * @param half i32 — 0 = lanes 0..3, 1 = lanes 4..7
+ * @param esz i32 — lane bytes (4 for i32/f32)
+ * @return i32 — lea_rbp offset of that 16B half; unchanged if slot/half/esz invalid
+ * PLATFORM: MACOS|ARM64 — product home is low-end (lane0 at slot, INDEX
+ *   [base+lane*esz]). half1 = slot+16. Historic slot-16 assumed high-end
+ *   home; lea_rbp clamps negative to 0 so half1 loaded [x29] (r8[4] leftover).
+ * G.7: same +16 direction as x86 `ds+16` address space / C-order lanes.
  */
 #[no_mangle]
 export function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
   if (slot < 0) { return slot; }
   if (esz <= 0) { return slot; }
   if (half < 0) { return slot; }
-  return slot - half * 4 * esz;
+  return slot + half * 4 * esz;
 }
 
 // simd_append_disp32: see function docblock below.

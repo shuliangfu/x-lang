@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19／dest-SLICE INDEX fat ARM64 dual-GP／ARM64 >16B INDEX MEMORY consume／Darwin import METHOD host-C f32 返回 s0→w0／Darwin 活 seed import METHOD f32 extras s0–s7／ARM64 INDEX 非 1/4/8 步长 64 位 scale1 · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19／dest-SLICE INDEX fat ARM64 dual-GP／ARM64 >16B INDEX MEMORY consume／Darwin import METHOD host-C f32 返回 s0→w0／Darwin 活 seed import METHOD f32 extras s0–s7／ARM64 INDEX 非 1/4/8 步长 64 位 scale1／ARM64 Vec8i shuffle 高半 slot+16 · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -1068,7 +1068,14 @@
   - 现场：`Particle[8]`（12B AoS）／`f32_soa_sum_*` Darwin 139。展开字面量／`One[8]`（×4 LSL）本绿。`mul w1,w1,#12` 后 `add w0,w1,w0` 截断栈指针
   - **根修（G.7 有则补全）**：`glue_emit_index_rax_plus_rbx_scaled` 非 1/4/8 在 `mul_imm` 后走同一 `rax_plus_rbx_scale1`（≡ Stage 12.0.5 ptr+int／esz==1）。同模式 SoA dyn index。权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**改 `enc_add_rax_rbx`（u32 回绕）；**禁** try_inline／全量 assemble
   - 证：p3／p8／soa8／one8／u32wrap **3／8／8／8／0**（`add x0,x0,x1`）· peel／strip／varn **8／10／12** · `index_struct12_loop` **8** · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 `index_struct12_loop` **8** · peel／strip／varn **8／10／12** · 邻域同上 · 矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+  - 余（已闭 ARM64 Vec8i shuffle 高半 slot+16）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；Vec4f select 值验；ARM64 prologue 未存 x19
+
+✅ **ARM64 Vec8i shuffle 高半 slot+16** ✅
+
+  - 现场：`shuffle_select_roundtrip` `r8[4]≠7` Darwin／xlang-c 6。identity `r[4]≠4`＝24。high-copy／lane-scalar 本绿。反汇编 half1 `ld1 [x29]`（`slot-16` 被 `lea_rbp` 钳 0）
+  - **根修（G.7 有则补全）**：`simd_arm64_rbp_lea_off_128half` 改 `slot+half*16`（≡ ARM64 低端 home／INDEX `[base+lane*esz]`）。权威 `simd_enc.x`／thin／seed 冷孪。**禁**改 mega inliner／try_inline
+  - 证：iso／id／hi／`shuffle_vec8i_highhalf` **0**（half1 `add #src+16`）· 4-lane shuffle 仍过 · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 余（勿并本叶）：`shuffle_select_roundtrip` 现 7＝Vec4f select 值验（smoke 不比 lane）；METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ---
 
