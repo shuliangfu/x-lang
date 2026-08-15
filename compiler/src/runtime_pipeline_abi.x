@@ -53095,6 +53095,10 @@ export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32
  * Cap residual: typeck_soa_array_storage_size_glue / typeck_x_type_size_from_layout_glue
  *   + dep pipe for cross-module TYPE_NAMED.
  * PLATFORM: SHARED — f32(14)=4; slice=16; dep-arena field sizing.
+ * SIMD named spelling (i32x4 / Vec4f / i32x8) has no struct layout — miss
+ * used to return 4 (one lane). That classified the 16B INTEGER / 32B MEMORY
+ * ABI as a scalar GP (idv callee stored only x0; c[2] leftover). G.7: reuse
+ * glue_vector_type_lanes_esz_c (lanes*esz). Do not add an i32x4 name table.
  */
 #[no_mangle]
 export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32 {
@@ -53104,6 +53108,8 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let asz: i32 = 0;
   let es: i32 = 0;
   let soa_sz: i32 = 0;
+  let vl: i32 = 0;
+  let ves: i32 = 0;
   let name: u8[128] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
@@ -53156,6 +53162,12 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
       asz = pipeline_type_array_size_at(a, ty_ref);
     }
     if (elem_ref <= 0 || asz <= 0) {
+      /* TYPE_VECTOR without array_size: still SIMD. lanes*esz, not 0→8B floor. */
+      if (kind_ord == 13) {
+        if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+          return vl * ves;
+        }
+      }
       return 0;
     }
     // SoA only for fixed ARRAY (not SIMD VECTOR).
@@ -53228,6 +53240,11 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
         }
         di = di + 1;
       }
+    }
+    /* No struct layout: SIMD named spelling is lanes*esz (16B dual-GP /
+     * 32B sret), not the 4B scalar miss. Non-SIMD named stay 4. */
+    if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+      return vl * ves;
     }
     return 4;
   }

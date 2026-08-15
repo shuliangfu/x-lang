@@ -26232,6 +26232,7 @@ int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, i
 
 int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
   int32_t kind_ord, nt, elem_ref, asz, es, soa_sz, nlen, k, nlayouts, di, nd, sz;
+  int32_t vl, ves;
   uint8_t name[128];
   void *dep, *dm, *da;
   if (!a || ty_ref <= 0 || depth > 64) return 0;
@@ -26248,7 +26249,12 @@ int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
   if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
     elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
     asz = pipeline_type_array_size_at(a, ty_ref);
-    if (elem_ref <= 0 || asz <= 0) return 0;
+    /* TYPE_VECTOR without array_size: still SIMD. lanes*esz, not 0→8B floor. */
+    if (elem_ref <= 0 || asz <= 0) {
+      if (kind_ord == 13 && glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0)
+        return vl * ves;
+      return 0;
+    }
     if (kind_ord == 10 || kind_ord == 12) {
       soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
       if (soa_sz > 0) return soa_sz;
@@ -26281,6 +26287,10 @@ int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
         }
       }
     }
+    /* No struct layout: SIMD named spelling is lanes*esz (16B dual-GP /
+     * 32B sret), not the 4B scalar miss. Non-SIMD named stay 4. */
+    if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0)
+      return vl * ves;
     return 4;
   }
   return 0;
