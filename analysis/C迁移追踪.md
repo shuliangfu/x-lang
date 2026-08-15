@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19／dest-SLICE INDEX fat ARM64 dual-GP／ARM64 >16B INDEX MEMORY consume · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19／dest-SLICE INDEX fat ARM64 dual-GP／ARM64 >16B INDEX MEMORY consume／Darwin import METHOD host-C f32 返回 s0→w0 · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -1048,6 +1048,13 @@
   - **根修（G.7 有则补全）**：`glue_copy` 收 ta==1（≡ sret memcpy：src@x1 n@x2 dest@x0 last）；UFCS／`emit_call_args` ARM64 MEMORY 收回 seed wave603／606（`store_memory_by_value_to_sp`）。权威 `runtime_pipeline_abi.x` prefer thin+rest＋`backend_call_dispatch.x`。**禁** emit_index 内 memcpy；**禁**改 import METHOD is_mem=2（host-C AAPCS64 指针）；**禁** try_inline mega
   - 证：mac method／take／let／ret／`index_method_wide` **0** · Ubuntu 金标 `index_method_wide` **0** · 邻域 da／fs16／fa／idx／trip／quad **0／42／0／0／0／0** · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+
+✅ **Darwin import METHOD host-C f32 返回 s0→w0** ✅
+
+  - 现场：`simd.hsum([1,2,3,4])` Darwin ≠10。本地同体 `hsum`／`simd.add`／lane INDEX 本绿。host-C `_std_simd_hsum` 把 f32 放 `s0`；Darwin 活 seed 只 `str x0`
+  - **根修（G.7 有则补全）**：prefer `.x` import METHOD 已有 `rk==14` `fmov w0,s0`。补进 seed METHOD＋同模式 import-binding／whole-import CALL。权威 `backend_call_dispatch.from_x.c`（Darwin try-heat／r3-prefer 活 seed）。**禁**把 f32 收进共享 `glue_asm_harvest`（本地 X callee 仍 GP）
+  - 证：mac hsum lit／let／`array_lit_vec4f_import`／xlang-c **0** · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 余（勿并本叶）：`import_method_f32_xmm` `select_lane` 仍 7（extras 置 s0–s7）；METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ---
 

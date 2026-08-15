@@ -3645,6 +3645,19 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
               }
               if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
                 return -1;
+              /* PLATFORM: MACOS|ARM64 AAPCS64 — host-C import-binding CALL f32/f64 in s0/d0.
+               * Same-pattern twin of import METHOD harvest. Do not put this in the
+               * shared helper (local xlang f32 CALL stays GP). */
+              if (ta == 1) {
+                int32_t rk_ib = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+                if (rk_ib == 14) {
+                  if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0)
+                    return -1;
+                } else if (rk_ib == 15) {
+                  if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+                    return -1;
+                }
+              }
               return 0;
             }
           }
@@ -3686,6 +3699,18 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       }
       if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
         return -1;
+      /* PLATFORM: MACOS|ARM64 AAPCS64 — host-C whole-import CALL f32/f64 in s0/d0.
+       * Same-pattern twin of import METHOD harvest. */
+      if (ta == 1) {
+        int32_t rk_wi = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+        if (rk_wi == 14) {
+          if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        } else if (rk_wi == 15) {
+          if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        }
+      }
       return 0;
     }
   }
@@ -4093,6 +4118,23 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           /* Type-driven f32/f64 ret harvest (same authority as EXPR_CALL). */
           if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
             return -1;
+          /*
+           * PLATFORM: MACOS|ARM64 AAPCS64 — host-C returns f32/f64 in s0/d0.
+           * Shared harvest is x86-only so local xlang f32 CALL stays GP-in/GP-out.
+           * Import METHOD callee is gcc: move s0/d0 → w0/x0 after the no-op harvest.
+           * G.7: same block as prefer backend_call_dispatch.x after import METHOD.
+           * Darwin product L2 lives in this seed (try-heat / r3-prefer cc -c seed).
+           */
+          if (ta == 1) {
+            int32_t rk_m = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+            if (rk_m == 14) {
+              if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0)
+                return -1;
+            } else if (rk_m == 15) {
+              if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+                return -1;
+            }
+          }
           return 0;
         }
       }
