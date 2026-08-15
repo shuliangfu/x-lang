@@ -14670,6 +14670,19 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       if (vst == -1)
         return -1;
     }
+    /* TYPE_NAMED VAR assign: same struct let-init as .x (G.7).
+     * >16B CALL must lea dest into x8/rdi sret; memcpy-from-rax SIGBUS.
+     * TYPE_NAMED=8; -2 falls through. PLATFORM: SHARED. */
+    if (is_modlet == 0 && off >= 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 28 && ltk_pre == 8) {
+      int32_t sst =
+          glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, ltr_pre, off);
+      if (sst == 0) {
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+        return 0;
+      }
+      if (sst == -1)
+        return -1;
+    }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
     if (is_modlet != 0) {

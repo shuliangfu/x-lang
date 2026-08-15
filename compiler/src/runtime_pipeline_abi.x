@@ -32199,8 +32199,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
 
 /**
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
- * whole assign, TYPE_VECTOR let-init reuse, STRUCT_LIT index in-place, esz>8
- * bulk copy, VAR 9–16B dual-GP).
+ * whole assign, TYPE_VECTOR let-init reuse, TYPE_NAMED >16B sret let-init reuse,
+ * STRUCT_LIT index in-place, esz>8 bulk copy, VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - assign expr ref
@@ -32983,6 +32983,29 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
       unsafe {
         arr_st = glue_emit_vector_type_let_init_elf_c(
             arena, elf_ctx, right_ref, ctx, ta, off, ltr_pre);
+      }
+      if (arr_st == 0) {
+        unsafe {
+          glue_binop_var_slot_cache_kill_def_at_slot(off);
+        }
+        return 0;
+      }
+      if (arr_st == -1) {
+        return -1;
+      }
+    }
+    /* TYPE_NAMED VAR assign: reuse struct let-init (STRUCT_LIT / CALL / METHOD).
+     * Prior path emitted CALL then glue_copy_large_struct from *rax.
+     * AAPCS64 >16B returns via x8 sret; assign never loaded dest into x8,
+     * so callee memcpy(*garbage) and the caller memcpy(y, *rax) SIGBUS.
+     * Let-init already lea slot → x8 then CALL (callee writes dest).
+     * G.7: same glue_emit_struct_type_let_init_elf_c; -2 falls through
+     * (VAR copy / scalar). Gate TYPE_NAMED=8 so VECTOR stays on the sibling.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (is_modlet == 0 && off >= 0 && ako_asg == 28 && ltk_pre == 8) {
+      unsafe {
+        arr_st = glue_emit_struct_type_let_init_elf_c(
+            arena, elf_ctx, right_ref, ctx, ta, ltr_pre, off);
       }
       if (arr_st == 0) {
         unsafe {
