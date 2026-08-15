@@ -24692,8 +24692,9 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
 }
 
 /**
- * let p: Struct init: STRUCT_LIT, CALL/METHOD_CALL (inline/sret/dual-GP), or
- * EXPR_VAR slot-to-slot copy of a >16B named struct.
+ * let p: Struct init: STRUCT_LIT, CALL/METHOD_CALL (inline/sret/dual-GP),
+ * EXPR_VAR slot-to-slot copy of a >16B named struct, or EXPR_FIELD of a
+ * 9B+ named struct (`let h: Holder = w.h`).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param init_ref i32 - init expr ref
@@ -24707,6 +24708,10 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * CALL(48)/METHOD_CALL(49) share try_inline then sret (import vec.new is METHOD_CALL).
  * VAR(3) >16B: lea src then glue_copy_large_struct_from_rax_ptr (same memcpy
  * as CALL/INDEX). Frame dest ≤16B returns -2 so dual-GP fall-through stays.
+ * FIELD(44) 9–16B frame: lvalue lea + deref_struct16 + store_retval_pair
+ * (emit_expr of FIELD is only 8B; memcpy rejects frame dest ≤16).
+ * FIELD >16B frame: lvalue lea + memcpy. dest-in-rbx FIELD stays -2
+ * (lvalue_eff_addr / deref_struct16 clobber dest rbx/x19).
  * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
  * CALL ≤16B dual-GP store via x19/rbx; VAR >8B glue_copy dest-in-rbx
  * (deref_struct16 would clobber dest rbx/x19 — memcpy is the authority).
@@ -24955,6 +24960,68 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     unsafe {
       rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  /* EXPR_FIELD (44): `let h: Holder = w.h` / `h = w.h` of a 9B+ named
+   * struct (Holder wraps i32x4). VAR 16B returns -2 so emit_expr +
+   * store_retval_pair dual-GP fall-through stays; FIELD emit_expr only
+   * loads the first 8B so that fall-through leaves lanes 2–3 (Darwin 30).
+   * G.7: same let-init authority — lea via lvalue_eff_addr, then
+   * deref_struct16 + store_retval_pair for 9–16B frame dest (memcpy
+   * rejects frame ≤16). >16B frame uses the VAR memcpy twin.
+   * dest-in-rbx stays -2: lvalue / deref_struct16 mov_rax_to_rbx
+   * clobbers dest / x19 dest-shadow. Do not change FIELD emit_expr.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+  if (ko == 44 && (ta == 0 || ta == 1)) {
+    if (dest_in_rbx != 0) {
+      return 0 - 2;
+    }
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz < 9) {
+      return 0 - 2;
+    }
+    unsafe {
+      emit_rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    }
+    if (emit_rc != 0) {
+      return 0 - 1;
+    }
+    if (let_sz > 16) {
+      unsafe {
+        rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+    rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_store_retval_pair_to_rbp_elf_c(
+          modp, arena, elf_ctx, ty_ref, stack_slot_off, ta, init_ref, ctx);
     }
     if (rc != 0) {
       return 0 - 1;
