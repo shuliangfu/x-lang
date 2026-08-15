@@ -34629,15 +34629,41 @@ export function pipeline_asm_emit_array_lit_force_esz_elf_c(arena: *u8, elf_ctx:
       unsafe {
         eko = pipeline_expr_kind_ord_at(arena, elem_ref);
       }
-      if (esz > 8 || eko == 45) {
-        if (ta == 1) {
-          elem_home = temp_base + ai * esz;
-        } else {
-          elem_home = temp_base - ai * esz;
+      /* SIMD named elem (`[z, z]` of [2]i32x4): struct let-init -2
+       * (no layout). Scalar emit_expr then dual-GP load of `z`
+       * clobbers dest-in-x1 (high half) and `str [x1]` hits NULL
+       * (Darwin 139). G.7: same vector let-init as FIELD dest
+       * VECTOR CALL — real frame home, not dest-in-rbx.
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+      if (ta == 1) {
+        elem_home = temp_base + ai * esz;
+      } else {
+        elem_home = temp_base - ai * esz;
+      }
+      if (elem_home < 0) {
+        return 0 - 1;
+      }
+      if (elem_ty <= 0) {
+        unsafe {
+          noff = pipeline_expr_resolved_type_ref(arena, elem_ref);
         }
-        if (elem_home < 0) {
+      } else {
+        noff = elem_ty;
+      }
+      if (noff > 0) {
+        unsafe {
+          st = glue_emit_vector_type_let_init_elf_c(
+              arena, elf_ctx, elem_ref, ctx, ta, elem_home, noff);
+        }
+        if (st == 0) {
+          ai = ai + 1;
+          continue;
+        }
+        if (st == 0 - 1) {
           return 0 - 1;
         }
+      }
+      if (esz > 8 || eko == 45) {
         unsafe {
           if (elem_ty > 0) {
             st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_ty, elem_home);
@@ -39388,15 +39414,41 @@ export function pipeline_asm_emit_vector_let_init_elf_c(arena: *u8, elf_ctx: *u8
       ai = ai + 1;
       continue;
     }
-    if (esz > 8 || ko == 45) {
-      if (ta == 1) {
-        elem_home = stack_slot_off + ai * esz;
-      } else {
-        elem_home = stack_slot_off - ai * esz;
+    /* SIMD named elem (`let arr:[2]i32x4 = [z, z]`): dest is the
+     * real frame home. Scalar emit_expr of a 16B VAR loads dual-GP
+     * into x0+x1 and clobbers dest-in-x1; `str [x1]` with z high=0
+     * is Darwin 139. G.7: glue_emit_vector_type_let_init (VAR copy
+     * / CALL / lane ARRAY_LIT) before struct let-init.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (ta == 1) {
+      elem_home = stack_slot_off + ai * esz;
+    } else {
+      elem_home = stack_slot_off - ai * esz;
+    }
+    if (elem_home < 0) {
+      return 0 - 1;
+    }
+    if (elem_ty <= 0) {
+      unsafe {
+        noff = pipeline_expr_resolved_type_ref(arena, elem_ref);
       }
-      if (elem_home < 0) {
+    } else {
+      noff = elem_ty;
+    }
+    if (noff > 0) {
+      unsafe {
+        st = glue_emit_vector_type_let_init_elf_c(
+            arena, elf_ctx, elem_ref, ctx, ta, elem_home, noff);
+      }
+      if (st == 0) {
+        ai = ai + 1;
+        continue;
+      }
+      if (st == 0 - 1) {
         return 0 - 1;
       }
+    }
+    if (esz > 8 || ko == 45) {
       if (elem_ty > 0) {
         st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_ty, elem_home);
       } else {

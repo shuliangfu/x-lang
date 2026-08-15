@@ -15642,18 +15642,38 @@ int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(void *arena, void *elf_ctx, 
           return -1;
         continue;
       }
-      if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
+      /* SIMD named elem (`[z, z]` of [2]i32x4): scalar emit_expr dual-GP
+       * clobbers dest-in-x1 then str [x1] (Darwin 139). G.7: vector
+       * let-init into the real frame home (same as FIELD dest VECTOR CALL).
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+      {
         int32_t elem_home;
         int32_t st;
+        extern int32_t glue_emit_vector_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref,
+                                                            void *ctx, int32_t ta, int32_t off, int32_t ty);
         elem_home = (ta == 1) ? (temp_base + ai * esz) : (temp_base - ai * esz);
         if (elem_home < 0)
           return -1;
-        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
-                                                   elem_ty > 0 ? elem_ty : 0, elem_home);
-        if (st == 0)
-          continue;
-        if (st == -1)
-          return -1;
+        {
+          int32_t vty = elem_ty;
+          if (vty <= 0)
+            vty = pipeline_expr_resolved_type_ref(arena, elem_ref);
+          if (vty > 0) {
+            st = glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_home, vty);
+            if (st == 0)
+              continue;
+            if (st == -1)
+              return -1;
+          }
+        }
+        if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
+          st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                     elem_ty > 0 ? elem_ty : 0, elem_home);
+          if (st == 0)
+            continue;
+          if (st == -1)
+            return -1;
+        }
       }
       {
         int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
@@ -18341,19 +18361,39 @@ int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
      * wave626: STRUCT_LIT (ko=45) at any esz (not only esz>8) — rvalue path aliases
      * high-end array byte0 via next_offset (see function doc).
      */
-    if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
+    /* SIMD named elem (`let arr:[2]i32x4 = [z, z]`): dest is the real
+     * frame home. Scalar emit_expr of a 16B VAR dual-GP clobbers dest-in-x1
+     * then str [x1] (Darwin 139). G.7: vector let-init first.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    {
       int32_t elem_home;
       int32_t st;
+      extern int32_t glue_emit_vector_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref,
+                                                          void *ctx, int32_t ta, int32_t off, int32_t ty);
       elem_home = (ta == 1) ? (stack_slot_off + ai * esz) : (stack_slot_off - ai * esz);
       if (elem_home < 0)
         return -1;
-      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
-                                                 elem_ty > 0 ? elem_ty : 0, elem_home);
-      if (st == 0)
-        continue;
-      if (st == -1)
-        return -1;
-      /* st == -2: not STRUCT_LIT/CALL — fall through to scalar store */
+      {
+        int32_t vty = elem_ty;
+        if (vty <= 0)
+          vty = pipeline_expr_resolved_type_ref(arena, elem_ref);
+        if (vty > 0) {
+          st = glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_home, vty);
+          if (st == 0)
+            continue;
+          if (st == -1)
+            return -1;
+        }
+      }
+      if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                   elem_ty > 0 ? elem_ty : 0, elem_home);
+        if (st == 0)
+          continue;
+        if (st == -1)
+          return -1;
+        /* st == -2: not STRUCT_LIT/CALL — fall through to scalar store */
+      }
     }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
       return -1;
