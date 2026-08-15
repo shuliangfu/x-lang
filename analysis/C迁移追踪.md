@@ -1074,7 +1074,7 @@
 
   - 现场：`shuffle_select_roundtrip` `r8[4]≠7` Darwin／xlang-c 6。identity `r[4]≠4`＝24。high-copy／lane-scalar 本绿。反汇编 half1 `ld1 [x29]`（`slot-16` 被 `lea_rbp` 钳 0）
   - **根修（G.7 有则补全）**：`simd_arm64_rbp_lea_off_128half` 改 `slot+half*16`（≡ ARM64 低端 home／INDEX `[base+lane*esz]`）。权威 `simd_enc.x`／thin／seed 冷孪。**禁**改 mega inliner／try_inline
-  - 证：iso／id／hi／`shuffle_vec8i_highhalf` **0**（half1 `add #src+16`）· 4-lane shuffle 仍过 · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：iso／id／hi／`shuffle_vec8i_highhalf` **0**（half1 `add #src+16`）· 4-lane shuffle 仍过 · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 `shuffle_vec8i_highhalf` **0** · `shuffle_select_roundtrip` **0** · 邻域同上 · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：`shuffle_select_roundtrip` 现 7＝Vec4f select 值验（smoke 不比 lane）；METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ---
