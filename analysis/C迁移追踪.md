@@ -1046,7 +1046,7 @@
 
   - 现场：`index_method_wide` Darwin CG002 139。`let w=a[1]` 走 `glue_copy_large_struct_from_rax_ptr` `ta!=0` 拒；`a[1].last()`／`take_w(a[1])` prefer `.x` 把 INDEX 指针当 20B（is_mem=2 lea／`str x0,[sp]`），callee `param_home` 读栈三字
   - **根修（G.7 有则补全）**：`glue_copy` 收 ta==1（≡ sret memcpy：src@x1 n@x2 dest@x0 last）；UFCS／`emit_call_args` ARM64 MEMORY 收回 seed wave603／606（`store_memory_by_value_to_sp`）。权威 `runtime_pipeline_abi.x` prefer thin+rest＋`backend_call_dispatch.x`。**禁** emit_index 内 memcpy；**禁**改 import METHOD is_mem=2（host-C AAPCS64 指针）；**禁** try_inline mega
-  - 证：mac method／take／let／ret／`index_method_wide` **0** · 邻域 da／fs16／fa／idx／trip／quad **0／42／0／0／0／0** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：mac method／take／let／ret／`index_method_wide` **0** · Ubuntu 金标 `index_method_wide` **0** · 邻域 da／fs16／fa／idx／trip／quad **0／42／0／0／0／0** · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ---
