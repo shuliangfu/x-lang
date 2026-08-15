@@ -1,13 +1,9 @@
 // Isolated green: import-qualified FIELD as 2-arg heap.alloc overload arg.
-// `let p: *u8 = heap.alloc(h.al, n)` used to T001: apply_ambient treated
-// TYPE_NAMED `heap.Allocator` as a free type-param (exact name != layout
-// `Allocator`) and stamped the CALL return `*u8` onto the field → score -1
-// → first_idx `alloc(i32):*u64`. Same-module FIELD already greened.
-// Gate = typeck + host-C `-E` (formal_mod path): must emit
-// `std_heap_alloc_Allocator_usize(((h).al), …)`. Product `-o` asm
-// still CG002 on struct-field-by-value (separate emit residual).
-// Expected: -E = 0 and 2-arg mangle present.
-// PLATFORM: SHARED — Ubuntu gold typeck pick.
+// typeck: last-segment concrete so `h.al` scores as Allocator (not first-wins
+// `alloc(i32):*u64`). asm `-o`: 16B FIELD call-arg dual-GP via deref_struct16
+// → load_qword_*_arch (ARM64 ldr x0,[x1] / ldr x1,[x1,#8]).
+// Gate = typeck + host-C `-E` 2-arg mangle + product `-o` run 0.
+// PLATFORM: SHARED — Ubuntu gold typeck; MACOS|ARM64 dual-GP emit.
 
 const heap = import("std.heap");
 

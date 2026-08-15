@@ -1821,14 +1821,20 @@ export function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offs
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_qword_from_rbx_to_rax_arch`.
- * Implements `backend_enc_load_qword_from_rbx_to_rax_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Load [rbx] → rax (low 8 of 9–16B INTEGER). G.7 twin of full dispatch.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ta i32 — 0=x86_64; 1=arm64; else -1
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: SHARED — LINUX|x86_64; MACOS|ARM64 ldr x0,[x1]
  */
 #[no_mangle]
 export function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    // ldr x0, [x1] = 0xF9400020 — low 8; rbx=x1, rax=x0.
+    // PLATFORM: MACOS|ARM64 AAPCS64. G.7 twin of full dispatch.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (4181721120 as u32) as i32); }
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -1836,14 +1842,19 @@ export function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i3
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_load_qword_rbx8_to_rdx_arch`.
- * Implements `backend_enc_load_qword_rbx8_to_rdx_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Load [rbx+8] → rdx (high 8 of 9–16B INTEGER). ARM64 rdx=x1 (wave408).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ta i32 — 0=x86_64; 1=arm64; else -1
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: SHARED — LINUX|x86_64; MACOS|ARM64 ldr x1,[x1,#8]
  */
 #[no_mangle]
 export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    // ldr x1, [x1, #8] = 0xF9400421
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722145 as u32) as i32); }
+  }
   if (ta != 0) {
     return 0 - 1;
   }

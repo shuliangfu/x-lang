@@ -2095,11 +2095,15 @@ int32_t backend_enc_store_rdx_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf
 #endif
 
 /**
- * ta 分派：enc_load_qword_from_rbx_to_rax_arch（16B struct return 低 half）。
+ * ta 分派：enc_load_qword_from_rbx_to_rax_arch（16B INTEGER 低 half）。
+ * ARM64: ldr x0,[x1] after mov rax→rbx parked the address in x1.
+ * PLATFORM: SHARED — LINUX|x86_64; MACOS|ARM64 AAPCS64.
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_qword_from_rbx_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400020u); /* ldr x0,[x1] */
   if (ta != 0)
     return -1;
   return arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx);
@@ -2107,11 +2111,15 @@ int32_t backend_enc_load_qword_from_rbx_to_rax_arch(struct platform_elf_ElfCodeg
 #endif
 
 /**
- * ta 分派：enc_load_qword_rbx8_to_rdx_arch（16B struct return 高 half）。
+ * ta 分派：enc_load_qword_rbx8_to_rdx_arch（16B INTEGER 高 half）。
+ * ARM64 rdx=x1 (wave408): ldr x1,[x1,#8] samples the base then writes x1.
+ * PLATFORM: SHARED — LINUX|x86_64; MACOS|ARM64 AAPCS64 x0+x1.
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_qword_rbx8_to_rdx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400421u); /* ldr x1,[x1,#8] */
   if (ta != 0)
     return -1;
   return arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx);

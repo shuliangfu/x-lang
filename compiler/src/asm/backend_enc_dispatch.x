@@ -1847,33 +1847,50 @@ export function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
   }
 }
 
-/** Exported function `backend_enc_load_qword_from_rbx_to_rax_arch`.
- * Implements `backend_enc_load_qword_from_rbx_to_rax_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Load [rbx] → rax (low 8 of a 9–16B INTEGER-class aggregate).
+ * Used by pipeline_asm_deref_struct16_rax_ptr_elf_c after mov rax→rbx
+ * parked the address. FIELD-as-call-arg 16B (heap.Allocator / local POD)
+ * goes through this face.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; encoder rejects null
+ * @param ta i32 — 0=x86_64 SysV; 1=arm64 AAPCS64; else -1
+ * @return i32 — 0 ok; -1 encoder / unsupported arch
+ * PLATFORM: SHARED — LINUX|x86_64 mov rax,[rbx]; MACOS|ARM64 ldr x0,[x1]
+ *   (rbx=x1, rax=x0). Same word as pipeline_asm_modlet_load_to_rax_elf_c.
+ * G.7: complete the existing ta shell; do not add a second deref path.
  */
 #[no_mangle]
 export function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
-  // See implementation.
   unsafe {
-  if (ta != 0) { return 0 - 1; }
-  return arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx);
+    if (ta == 1) {
+      // ldr x0, [x1] = 0xF9400020
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (4181721120 as u32) as i32);
+    }
+    if (ta != 0) { return 0 - 1; }
+    return arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx);
   }
 }
 
-/** Exported function `backend_enc_load_qword_rbx8_to_rdx_arch`.
- * Implements `backend_enc_load_qword_rbx8_to_rdx_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Load [rbx+8] → rdx (high 8 of a 9–16B INTEGER-class aggregate).
+ * After mov rax→rbx the address lives in rbx. On ARM64 rdx is x1
+ * (wave408 store_rdx), so this is ldr x1,[x1,#8]: the base is sampled
+ * before Rt is written — valid, and yields AAPCS64 x0+x1.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; encoder rejects null
+ * @param ta i32 — 0=x86_64 SysV rdx; 1=arm64 AAPCS64 x1; else -1
+ * @return i32 — 0 ok; -1 encoder / unsupported arch
+ * PLATFORM: SHARED — LINUX|x86_64 mov rdx,[rbx+8]; MACOS|ARM64 ldr x1,[x1,#8]
+ * G.7: same face as the x86 encoder; do not invent a second dual-GP load.
  */
 #[no_mangle]
 export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): i32 {
-  // See implementation.
   unsafe {
-  if (ta != 0) { return 0 - 1; }
-  return arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx);
+    if (ta == 1) {
+      // ldr x1, [x1, #8] = 0xF9400421
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722145 as u32) as i32);
+    }
+    if (ta != 0) { return 0 - 1; }
+    return arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx);
   }
 }
 

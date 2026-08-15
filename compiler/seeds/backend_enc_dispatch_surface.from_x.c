@@ -1271,12 +1271,18 @@ int32_t backend_enc_store_rdx_to_rbp_arch(uint8_t * elf_ctx, int32_t offset, int
   return arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx, offset);
 }
 int32_t backend_enc_load_qword_from_rbx_to_rax_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta == 1)) {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400020u); /* ldr x0,[x1] */
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
   return arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx);
 }
 int32_t backend_enc_load_qword_rbx8_to_rdx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta == 1)) {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400421u); /* ldr x1,[x1,#8] */
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
