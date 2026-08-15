@@ -1144,9 +1144,6 @@ extern int32_t glue_with_arena_scope_top_off_c(void);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(uint8_t * elf, int32_t lo, int32_t hi, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(uint8_t * elf, int32_t off, int32_t sz, int32_t ta);
 extern int32_t backend_enc_call_arch(uint8_t * elf, uint8_t * name, int32_t nlen, int32_t ta);
-extern int32_t backend_enc_push_rbx_arch(uint8_t * elf, int32_t ta);
-extern int32_t arch_arm64_enc_enc_u32_le(uint8_t * elf, int32_t word);
-extern int32_t backend_enc_call_stack_cleanup_arch(uint8_t * elf, int32_t nbytes, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(uint8_t * elf, int32_t imm, int32_t ta);
 int32_t glue_call_is_zero_arg_default_alloc(uint8_t * arena, int32_t call_ref) {
   if ((arena ==0)) {
@@ -1222,110 +1219,10 @@ int32_t glue_const_struct_lit_field_can_inline(uint8_t * arena, uint8_t * mod, i
   }
   return 0;
 }
+extern int32_t glue_emit_default_alloc_to_rbx_offset_impl(uint8_t * elf_ctx, int32_t foff, int32_t fsz, int32_t ta);
 int32_t glue_emit_default_alloc_to_rbx_offset(uint8_t * elf_ctx, int32_t foff, int32_t fsz, int32_t ta) {
-  if ((elf_ctx ==0)) {
-    return (0 - 1);
-  }
-  {
-    uint8_t da[32] = {};
-    int32_t sz = fsz;
-    if ((glue_with_arena_scope_active_c() !=0)) {
-      int32_t wa_off = glue_with_arena_scope_top_off_c();
-      if ((backend_enc_mov_imm64_to_rax_arch(elf_ctx, 1, 0, ta) !=0)) {
-        return (0 - 1);
-      }
-      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) !=0)) {
-        return (0 - 1);
-      }
-      if ((backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) !=0)) {
-        return (0 - 1);
-      }
-      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (foff + 8), 8, ta) !=0)) {
-        return (0 - 1);
-      }
-      return 0;
-    }
-    (void)(((da)[0] = 115));
-    (void)(((da)[1] = 116));
-    (void)(((da)[2] = 100));
-    (void)(((da)[3] = 95));
-    (void)(((da)[4] = 104));
-    (void)(((da)[5] = 101));
-    (void)(((da)[6] = 97));
-    (void)(((da)[7] = 112));
-    (void)(((da)[8] = 95));
-    (void)(((da)[9] = 100));
-    (void)(((da)[10] = 101));
-    (void)(((da)[11] = 102));
-    (void)(((da)[12] = 97));
-    (void)(((da)[13] = 117));
-    (void)(((da)[14] = 108));
-    (void)(((da)[15] = 116));
-    (void)(((da)[16] = 95));
-    (void)(((da)[17] = 97));
-    (void)(((da)[18] = 108));
-    (void)(((da)[19] = 108));
-    (void)(((da)[20] = 111));
-    (void)(((da)[21] = 99));
-    if ((ta == 1)) {
-      if ((backend_enc_push_rbx_arch(elf_ctx, ta) !=0)) {
-        return (0 - 1);
-      }
-    }
-    if ((backend_enc_call_arch(elf_ctx, &((da)[0]), 27, ta) !=0)) {
-      return (0 - 1);
-    }
-    if ((sz <=0)) {
-      (void)((sz = 8));
-    }
-    if ((sz > 16)) {
-      (void)((sz = 16));
-    }
-    if ((ta == 1)) {
-      if ((sz >= 16)) {
-        if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF90007E1u) !=0)) {
-          return (0 - 1);
-        }
-        if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) !=0)) {
-          return (0 - 1);
-        }
-        if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) !=0)) {
-          return (0 - 1);
-        }
-        if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94007E0u) !=0)) {
-          return (0 - 1);
-        }
-        if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (foff + 8), 8, ta) !=0)) {
-          return (0 - 1);
-        }
-        return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
-      }
-      if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) !=0)) {
-        return (0 - 1);
-      }
-      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) !=0)) {
-        return (0 - 1);
-      }
-      if ((backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) !=0)) {
-        return (0 - 1);
-      }
-      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (foff + 8), 8, ta) !=0)) {
-        return (0 - 1);
-      }
-      return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
-    }
-    if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) !=0)) {
-      return (0 - 1);
-    }
-    if ((sz >=16)) {
-      return 0;
-    }
-    if ((backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) !=0)) {
-      return (0 - 1);
-    }
-    return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (foff + 8), 8, ta);
-  }
-  return (0 - 1);
+  /* G-02f-374: public face is a trampoline; body lives in _impl. */
+  return glue_emit_default_alloc_to_rbx_offset_impl(elf_ctx, foff, fsz, ta);
 }
 int32_t glue_fold_func_returns_const_struct_lit(uint8_t * arena, uint8_t * mod, int32_t func_idx, int32_t * out_lit_ref) {
   if ((out_lit_ref ==0)) {

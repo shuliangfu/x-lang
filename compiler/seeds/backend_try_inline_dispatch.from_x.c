@@ -2765,8 +2765,87 @@ int backend_try_inline_dispatch_slice_marker(void) {
   return 1;
 }
 
-#else /* XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X：产品 rest 业务 H=0 */
+#else /* XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X：产品 rest */
+#include <stdint.h>
 int backend_try_inline_dispatch_slice_marker(void) {
   return 0;
+}
+
+/* G-02f-374: PREFER .x trampolines here. Keep ARM64 dest-spill OUT of the
+ * mega .x TU — Ubuntu gcc of that generated C miscompiled sibling
+ * try_inline_* (option/si SIGSEGV). Twin of the ifndef-FROM_X _impl above.
+ * PLATFORM: SHARED rest · MACOS|ARM64 dest-in-x1 spill · LINUX x86 rbx survives. */
+struct platform_elf_ElfCodegenCtx;
+extern int32_t glue_with_arena_scope_active_c(void);
+extern int32_t glue_with_arena_scope_top_off_c(void);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi,
+                                                 int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                                        int32_t sz, int32_t ta);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
+                                     int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t word);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t bytes,
+                                                   int32_t ta);
+
+int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+                                                         int32_t fsz, int32_t ta) {
+  static const uint8_t da_sym[24] = "std_heap_default_alloc";
+  if (glue_with_arena_scope_active_c() != 0) {
+    int32_t wa_off = glue_with_arena_scope_top_off_c();
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 1, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (ta == 1) {
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_call_arch(elf_ctx, (uint8_t *)da_sym, 27, ta) != 0)
+    return -1;
+  if (fsz <= 0)
+    fsz = 8;
+  if (fsz > 16)
+    fsz = 16;
+  if (ta == 1) {
+    if (fsz >= 16) {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF90007E1u) != 0)
+        return -1;
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0)
+        return -1;
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94007E0u) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
+        return -1;
+      return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+    }
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
+      return -1;
+    return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+  }
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+    return -1;
+  if (fsz >= 16)
+    return 0;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta);
 }
 #endif /* XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X */
