@@ -14745,6 +14745,49 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
         return 0;
       }
     }
+    /* TYPE_NAMED INDEX dest (`arr[0] = id16(x)`). Bulk CALL used
+     * let_ty_ref=0 so store_retval_pair wrote rax only (Darwin .b leftover).
+     * Dest-in-rbx let-init — same authority as pointer / INDEX FIELD dest.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if ((ta == 0 || ta == 1) && esz > 8) {
+      int32_t idx_dest_tr;
+      int32_t idx_dest_tk;
+      int32_t idx_base_tr;
+      int32_t idx_base_tk;
+      int32_t idx_let;
+      idx_dest_tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+      if (idx_dest_tr <= 0) {
+        idx_base_tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+        if (idx_base_tr > 0) {
+          idx_base_tk = pipeline_type_kind_ord_at(arena, idx_base_tr);
+          if (idx_base_tk == 10 || idx_base_tk == 11 || idx_base_tk == 9)
+            idx_dest_tr = pipeline_type_elem_ref_at(arena, idx_base_tr);
+        }
+      }
+      if (idx_dest_tr > 0) {
+        idx_dest_tk = pipeline_type_kind_ord_at(arena, idx_dest_tr);
+        if (idx_dest_tk == 8) {
+          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          idx_let = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, idx_dest_tr,
+                                                         GLUE_STRUCT_LIT_DEST_IN_RBX);
+          if (idx_let == 0) {
+            glue_index_assign_addr_cache_clear();
+            return 0;
+          }
+          if (idx_let == -1) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+        }
+      }
+    }
     if (esz > 8) {
       int32_t rko_bulk;
       int32_t src_spill;

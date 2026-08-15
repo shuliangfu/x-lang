@@ -32849,6 +32849,75 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         }
       }
     }
+    /* TYPE_NAMED INDEX dest (`arr[0] = id16(x)` / `xs[0] = id16(x)`).
+     * Bulk CALL used let_ty_ref=0 → store_retval_pair wrote rax only
+     * (Darwin arr[0].b leftover 0 / dump=1). Authority is dest-in-rbx
+     * let-init (same as pointer / INDEX FIELD dest): 16B CALL dual-GP
+     * via x19 / rdx; >16B CALL dest→x8/rdi; VAR >16B memcpy dest-in-rbx.
+     * 16B VAR still returns -2 and falls through to bulk (already green).
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if ((ta == 0 || ta == 1) && esz > 8) {
+      unsafe {
+        ltr = pipeline_expr_resolved_type_ref(arena, left_ref);
+      }
+      if (ltr <= 0) {
+        unsafe {
+          ltr_pre = pipeline_expr_resolved_type_ref(arena, base_ref);
+        }
+        if (ltr_pre > 0) {
+          unsafe {
+            ltk_pre = pipeline_type_kind_ord_at(arena, ltr_pre);
+          }
+          if (ltk_pre == 10 || ltk_pre == 11 || ltk_pre == 9) {
+            unsafe {
+              ltr = pipeline_type_elem_ref_at(arena, ltr_pre);
+            }
+          }
+        }
+      }
+      if (ltr > 0) {
+        unsafe {
+          ltk = pipeline_type_kind_ord_at(arena, ltr);
+        }
+        if (ltk == 8) {
+          unsafe {
+            rc = glue_emit_index_eff_addr_scaled_elf_c(
+                arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz);
+          }
+          if (rc != 0) {
+            unsafe {
+              glue_index_assign_addr_cache_clear();
+            }
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+          }
+          if (rc != 0) {
+            unsafe {
+              glue_index_assign_addr_cache_clear();
+            }
+            return 0 - 1;
+          }
+          unsafe {
+            arr_st = glue_emit_struct_type_let_init_elf_c(
+                arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+          }
+          if (arr_st == 0) {
+            unsafe {
+              glue_index_assign_addr_cache_clear();
+            }
+            return 0;
+          }
+          if (arr_st == 0 - 1) {
+            unsafe {
+              glue_index_assign_addr_cache_clear();
+            }
+            return 0 - 1;
+          }
+        }
+      }
+    }
     // esz>8 bulk copy path (wave630)
     if (esz > 8) {
       unsafe {
