@@ -14230,6 +14230,8 @@ extern int32_t glue_emit_index_eff_addr_scaled_elf_c(void *arena, void *elf_ctx,
                                                       int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
 extern int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
                                                      int32_t ta, int32_t let_ty_ref, int32_t stack_slot_off);
+extern int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_ref, uint8_t *field_name,
+                                                       int32_t flen);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
@@ -14487,27 +14489,44 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       if (ta == 0 || ta == 1) {
         int32_t field_ty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
         if (field_ty > 0 && pipeline_type_kind_ord_at(arena, field_ty) == 8) {
-          int32_t dest_off = var_off + field_off;
-          int32_t arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta,
-                                                               field_ty, dest_off);
+          int32_t flen_ty = pipeline_expr_field_access_name_len(arena, left_ref);
+          int32_t typed_off;
+          int32_t dest_off;
+          int32_t arr_st;
           int32_t named_sz;
           int32_t simple_sz;
-          if (arr_st == 0)
-            return 0;
-          if (arr_st == -1)
-            return -1;
-          mod = glue_emit_module_from_ctx(ctx);
-          simple_sz = glue_type_size_simple(mod, arena, field_ty, 0);
-          named_sz = glue_type_named_layout_size_any_module_elf_c(arena, field_ty);
-          if (named_sz > simple_sz)
-            simple_sz = named_sz;
-          if (simple_sz > 8 && simple_sz <= 16) {
-            if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+          /* dest = var_off + typed layout off (STRUCT_LIT polarity).
+           * effective_offset can return stored high-end leftover on x86
+           * (Prefixed.s → -8 → dest=start-8). G.7: same
+           * glue_field_layout_offset_for_base_field as STRUCT_LIT.
+           * PLATFORM: SHARED — Ubuntu gold x86 high-end leftover. */
+          if (flen_ty > 0 && flen_ty <= 127) {
+            pipeline_expr_field_access_name_into(arena, left_ref, vname);
+            typed_off = glue_field_layout_offset_for_base_field(arena, mod, base_ref, vname, flen_ty);
+            if (typed_off >= 0)
+              field_off = typed_off;
+          }
+          if (field_off >= 0) {
+            dest_off = var_off + field_off;
+            arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                         field_ty, dest_off);
+            if (arr_st == 0)
+              return 0;
+            if (arr_st == -1)
               return -1;
-            if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, field_ty, dest_off, ta,
-                                                    right_ref, ctx) != 0)
-              return -1;
-            return 0;
+            mod = glue_emit_module_from_ctx(ctx);
+            simple_sz = glue_type_size_simple(mod, arena, field_ty, 0);
+            named_sz = glue_type_named_layout_size_any_module_elf_c(arena, field_ty);
+            if (named_sz > simple_sz)
+              simple_sz = named_sz;
+            if (simple_sz > 8 && simple_sz <= 16) {
+              if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+                return -1;
+              if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, field_ty, dest_off, ta,
+                                                      right_ref, ctx) != 0)
+                return -1;
+              return 0;
+            }
           }
         }
       }

@@ -32402,39 +32402,61 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                 ltk = pipeline_type_kind_ord_at(arena, ltr);
               }
               if (ltk == 8) {
-                off = var_off + field_off;
+                /* dest = var_off + typed layout off (STRUCT_LIT polarity,
+                 * always >=0 from the slot start). effective_offset can
+                 * return a stored high-end leftover on x86 (Prefixed.s
+                 * → -8 → dest=start-8, tag overwritten with q.b).
+                 * G.7: glue_field_layout_offset_for_base_field, same as
+                 * STRUCT_LIT field stores. Skip let-init if off < 0.
+                 * PLATFORM: SHARED — Ubuntu gold x86 high-end leftover. */
                 unsafe {
-                  arr_st = glue_emit_struct_type_let_init_elf_c(
-                      arena, elf_ctx, right_ref, ctx, ta, ltr, off);
+                  vlen = pipeline_expr_field_access_name_len(arena, left_ref);
                 }
-                if (arr_st == 0) {
-                  return 0;
+                if (vlen > 0 && vlen <= 127) {
+                  unsafe {
+                    pipeline_expr_field_access_name_into(arena, left_ref, &vname[0]);
+                    rty = glue_field_layout_offset_for_base_field(
+                        arena, mod, base_ref, &vname[0], vlen);
+                  }
+                  if (rty >= 0) {
+                    field_off = rty;
+                  }
                 }
-                if (arr_st == 0 - 1) {
-                  return 0 - 1;
-                }
-                unsafe {
-                  mod = glue_emit_module_from_ctx(ctx);
-                  store_sz = glue_type_size_simple(mod, arena, ltr, 0);
-                  rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
-                }
-                if (rty > store_sz) {
-                  store_sz = rty;
-                }
-                if (store_sz > 8 && store_sz <= 16) {
-                  rc = glue_emit_assign_rhs_to_rax_elf_c(
-                      arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
-                  if (rc != 0) {
+                if (field_off >= 0) {
+                  off = var_off + field_off;
+                  unsafe {
+                    arr_st = glue_emit_struct_type_let_init_elf_c(
+                        arena, elf_ctx, right_ref, ctx, ta, ltr, off);
+                  }
+                  if (arr_st == 0) {
+                    return 0;
+                  }
+                  if (arr_st == 0 - 1) {
                     return 0 - 1;
                   }
                   unsafe {
-                    rc = glue_store_retval_pair_to_rbp_elf_c(
-                        mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
+                    mod = glue_emit_module_from_ctx(ctx);
+                    store_sz = glue_type_size_simple(mod, arena, ltr, 0);
+                    rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
                   }
-                  if (rc != 0) {
-                    return 0 - 1;
+                  if (rty > store_sz) {
+                    store_sz = rty;
                   }
-                  return 0;
+                  if (store_sz > 8 && store_sz <= 16) {
+                    rc = glue_emit_assign_rhs_to_rax_elf_c(
+                        arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
+                    if (rc != 0) {
+                      return 0 - 1;
+                    }
+                    unsafe {
+                      rc = glue_store_retval_pair_to_rbp_elf_c(
+                          mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
+                    }
+                    if (rc != 0) {
+                      return 0 - 1;
+                    }
+                    return 0;
+                  }
                 }
               }
             }
