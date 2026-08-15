@@ -14495,10 +14495,11 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
           int32_t arr_st;
           int32_t named_sz;
           int32_t simple_sz;
-          /* dest = var_off + typed layout off (STRUCT_LIT polarity).
-           * effective_offset can return stored high-end leftover on x86
-           * (Prefixed.s → -8 → dest=start-8). G.7: same
-           * glue_field_layout_offset_for_base_field as STRUCT_LIT.
+          /* dest frame mag = glue_struct_field_frame_mag_c (same as
+           * FIELD-as-source). Raw var_off+field_off is ARM64-only.
+           * x86 high-end: Prefixed.s typed +8 + raw add → lea -0x80
+           * (start-8), memcpy clobbers tag. mag: arm64 base+foff,
+           * x86 base-foff. Skip if mag < 0.
            * PLATFORM: SHARED — Ubuntu gold x86 high-end leftover. */
           if (flen_ty > 0 && flen_ty <= 127) {
             pipeline_expr_field_access_name_into(arena, left_ref, vname);
@@ -14507,7 +14508,9 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
               field_off = typed_off;
           }
           if (field_off >= 0) {
-            dest_off = var_off + field_off;
+            dest_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
+            if (dest_off < 0)
+              goto field_dest_scalar;
             arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta,
                                                          field_ty, dest_off);
             if (arr_st == 0)
@@ -14530,6 +14533,7 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
           }
         }
       }
+    field_dest_scalar:
       if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
         return -1;
       if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)
