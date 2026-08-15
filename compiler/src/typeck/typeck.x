@@ -4097,7 +4097,8 @@ expr_ref: i32, base_ty: i32): void {
  *
  * Migrated from C `pipeline_typeck_field_apply_ambient_for_type_param_c`.
  * Only stamps when field type is TYPE_NAMED whose name is NOT a module/dep
- * concrete struct/enum (via `typeck_named_is_module_concrete`).
+ * concrete struct/enum (via `typeck_named_is_module_concrete`) and NOT a
+ * builtin SIMD spelling (`typeck_vector_lanes_of_type` > 0).
  * Null/unknown field types are left unresolved (wave472: never invent ambient).
  *
  * @param module *Module
@@ -4125,6 +4126,18 @@ expr_ref: i32, ambient_ty: i32, ctx: *PipelineDepCtx): void {
     got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
     /* wave472: null/unknown field type → leave unresolved; never invent ambient. */
     if (ast.ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena.num_types) {
+      return;
+    }
+    /* Builtin SIMD named (i32x4 / f32x4 / Vec4f / …) is concrete, not a
+     * free type-param. named_is_module_concrete only walks struct/enum
+     * layouts, so i32x4 returned 0 and this helper stamped the outer
+     * ambient (i32 from `return h.v[1]` / `let x: i32 = h.v`) over the
+     * field type. INDEX then saw an i32 base → T001; `return h.v` as
+     * i32 was a false green (lane0).
+     * G.7: typeck_vector_lanes_of_type is the SIMD classifier.
+     * Do not overwrite a SIMD field with a scalar ambient.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (typeck_vector_lanes_of_type(arena, got_ty) > 0) {
       return;
     }
     /* TYPE_NAMED = 8 */
