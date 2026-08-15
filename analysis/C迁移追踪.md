@@ -1113,7 +1113,7 @@
   - 现场：17 层 `[]…[]i32`／`[]…[]Cell` 未用形参 `-E` 发 17 层 tag，header 只到 16 → host-cc `struct` 函数作用域可见性／conflicting types。asm `-o` 本绿（未用形参）
   - **根修（G.7 有则补全）**：同一 `codegen_emit_slice_fat_one`／`codegen_emit_scalar_slice_nests`／companion／`emit_header` 墙 16→17；第三闸 `XLANG_SLICE_LAYOUTS_N17`。**禁**抬到 24（`type_to_c_repr` `u8[256]` 12×24 溢出 XP003）；**禁**改 pipeline_abi／seed emit_header u8[256]／driver_preamble N=224
   - 权威 `codegen.x`（FROM_X assemble → `codegen_x.o`）。pin `codegen_gen.linux.x86_64.c` 不改
-  - 证：mac `nested_slice17`／`nested_named17` asm **70／75** · `-E`+host-cc **0** · ALLOW `-backend c` **70／75** · n16／named16／n8／n9／named8／named7／nslvar **60／65／40／50／55／45／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：mac `nested_slice17`／`nested_named17` asm **70／75** · `-E`+host-cc **0** · ALLOW `-backend c` **70／75** · n16／named16／n8／n9／named8／named7／nslvar **60／65／40／50／55／45／78** · 矩阵 **5/5** · Ubuntu 金标 n17／named17 asm **70／75** · `-E`+cc **0** · ALLOW c **70／75** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；codegen_x.o FROM_X 447944）· **日常 L2 不升钉**
   - 余（勿并本叶）：nest>17 soft（256 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ---
