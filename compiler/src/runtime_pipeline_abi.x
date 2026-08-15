@@ -24719,8 +24719,11 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * clobber dest / x19. INDEX-base FIELD (`*p = arr[i].h`) and dest-in-rbx
  * INDEX whole (`*p = arr[i]`) lvalue uses rbx (var index / slice):
  * park dest then src addr (same polarity as VECTOR CALL dest) and
- * restore dest to rbx before memcpy. Darwin x19 dest-shadow hid the
- * FIELD case (Ubuntu 139); INDEX whole leftover hi is Darwin 12
+ * restore dest to rbx before memcpy. dest-in-rbx DEREF source
+ * (`*p = *q` of a 9–16B named struct) used to return -2; emit_deref
+ * dual-GP then dest re-lea clobbers hi (Darwin leftover 30). Same
+ * lvalue (operand pointer) + memcpy dest-in-rbx. Darwin x19 dest-shadow
+ * hid the FIELD case (Ubuntu 139); INDEX whole leftover hi is Darwin 12
  * (emit_expr of INDEX is 8B).
  * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
  * CALL ≤16B dual-GP store via x19/rbx; VAR >8B glue_copy dest-in-rbx
@@ -25006,26 +25009,28 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     return 0;
   }
-  /* EXPR_FIELD (44) / EXPR_INDEX (47): `let h: Holder = w.h` /
-   * `h = w.h` / dest-in-rbx `*p = w.h` / dest-in-rbx INDEX whole
-   * `*p = arr[i]` of a 9B+ named struct (Holder / Wrap). VAR 16B
-   * returns -2 so emit_expr + store_retval_pair dual-GP fall-through
-   * stays; FIELD / INDEX emit_expr only loads the first 8B so that
-   * fall-through leaves lanes 2–3 (Darwin 30 / 12).
+  /* EXPR_FIELD (44) / EXPR_INDEX (47) / EXPR_DEREF (52):
+   * `let h: Holder = w.h` / dest-in-rbx `*p = w.h` /
+   * dest-in-rbx INDEX whole `*p = arr[i]` / dest-in-rbx DEREF
+   * source `*p = *q` of a 9B+ named struct (Holder / Wrap).
+   * VAR 16B returns -2 so emit_expr + store_retval_pair dual-GP
+   * fall-through stays; FIELD / INDEX emit_expr only loads the
+   * first 8B so that fall-through leaves lanes 2–3 (Darwin 30 / 12).
+   * dest-in-rbx DEREF 9–16B used to return -2; emit_deref dual-GP
+   * then dest re-lea overwrites hi in x1 (Darwin leftover 30).
    * G.7: same let-init authority — lea via lvalue_eff_addr, then
    * deref_struct16 + store_retval_pair for 9–16B frame dest (memcpy
    * rejects frame ≤16). >16B frame uses the VAR memcpy twin.
    * dest-in-rbx: same VAR dest-in-rbx twin (lea src + glue_copy).
-   * FIELD-on-VAR lvalue is lea + add_imm (rax only; dest rbx/x19
-   * stays). INDEX / INDEX-base FIELD var-index / slice lvalue uses
-   * rbx — park dest then src addr (VECTOR CALL dest polarity) and
-   * restore dest to rbx before memcpy. Darwin x19 dest-shadow hid
-   * Ubuntu 139 on FIELD; INDEX whole leftover is Darwin 12.
+   * FIELD-on-VAR / DEREF-of-VAR lvalue is rax-only (dest rbx/x19
+   * stays). INDEX / INDEX-base FIELD / DEREF-of-INDEX var-index
+   * / slice lvalue uses rbx — park dest then src addr (VECTOR CALL
+   * dest polarity) and restore dest to rbx before memcpy.
    * deref_struct16 mov_rax_to_rbx would clobber dest / x19.
-   * Do not change FIELD / INDEX emit_expr. Do not lower frame dest
-   * ≤16 memcpy.
+   * Do not change FIELD / INDEX / DEREF emit_expr. Do not lower
+   * frame dest ≤16 memcpy.
    * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 dest-shadow hid rbx. */
-  if ((ko == 44 || ko == 47) && (ta == 0 || ta == 1)) {
+  if ((ko == 44 || ko == 47 || ko == 52) && (ta == 0 || ta == 1)) {
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
       unsafe {
@@ -25046,12 +25051,12 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (let_sz < 9) {
       return 0 - 2;
     }
-    /* dest-in-rbx + INDEX / INDEX-base FIELD (`*p = arr[i]` /
-     * `*p = arr[i].h`): var-index / slice lvalue uses rbx. G.7:
-     * reuse binop INDEX-clobber detector and VECTOR CALL dest park
-     * polarity (ARM64 home=cur, x86 home=cur+8). Park dest, then
-     * src addr after lvalue, restore dest to rbx, then memcpy
-     * dest-in-rbx.
+    /* dest-in-rbx + INDEX / INDEX-base FIELD / DEREF (`*p = arr[i]` /
+     * `*p = arr[i].h` / `*p = *q`): var-index / slice / DEREF-of-INDEX
+     * lvalue uses rbx. G.7: reuse binop INDEX-clobber detector and
+     * VECTOR CALL dest park polarity (ARM64 home=cur, x86 home=cur+8).
+     * Park dest, then src addr after lvalue, restore dest to rbx,
+     * then memcpy dest-in-rbx.
      * PLATFORM: SHARED — LINUX|x86_64 rbx dest is the live 139. */
     if (dest_in_rbx != 0) {
       parked = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, init_ref);
@@ -25092,10 +25097,10 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (emit_rc != 0) {
       return 0 - 1;
     }
-    /* dest-in-rbx FIELD / INDEX (`*p = w.h` / `*p = arr[i].h` /
-     * `*p = arr[i]`): memcpy dest-in-rbx. Do not deref_struct16
-     * (mov_rax_to_rbx clobbers dest / x19). If INDEX parked dest,
-     * restore dest then src.
+    /* dest-in-rbx FIELD / INDEX / DEREF (`*p = w.h` / `*p = arr[i].h` /
+     * `*p = arr[i]` / `*p = *q`): memcpy dest-in-rbx. Do not
+     * deref_struct16 (mov_rax_to_rbx clobbers dest / x19). If INDEX
+     * / DEREF-of-INDEX parked dest, restore dest then src.
      * PLATFORM: SHARED — Darwin leftover was lane2=30 / 12. */
     if (dest_in_rbx != 0) {
       if (parked != 0) {
@@ -25148,45 +25153,6 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     unsafe {
       rc = glue_store_retval_pair_to_rbp_elf_c(
           modp, arena, elf_ctx, ty_ref, stack_slot_off, ta, init_ref, ctx);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    return 0;
-  }
-  /* EXPR_DEREF (52): `y = *p` of a >16B named struct. emit_deref leaves
-   * the pointer (ARRAY twin); memcpy *rax → dest. 9–16B stays -2 so
-   * emit_deref + store_retval_pair dual-GP remains.
-   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-  if (ko == 52 && (ta == 0 || ta == 1)) {
-    ty_ref = let_ty_ref;
-    if (ty_ref <= 0) {
-      unsafe {
-        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
-      }
-    }
-    if (ty_ref <= 0) {
-      return 0 - 2;
-    }
-    unsafe {
-      modp = glue_emit_module_from_ctx(ctx);
-      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
-      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
-    }
-    if (named_sz > let_sz) {
-      let_sz = named_sz;
-    }
-    if (let_sz <= 16) {
-      return 0 - 2;
-    }
-    unsafe {
-      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
-    }
-    if (emit_rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -46374,6 +46340,18 @@ export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, exp
     /* wave625: FIELD of INDEX still runs INDEX bounds/addr in rbx (a[i].x dual-slot). */
     if (ko == 44) {
       op_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+      if (op_ref > 0) {
+        return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
+      }
+      return 0;
+    }
+    /* DEREF of INDEX / slice: lvalue emits the operand pointer; INDEX
+     * / slice operand uses rbx. Walk the operand (same as FIELD).
+     * DEREF of VAR is rax-only. dest-in-rbx `*p = *q` of a 16B named
+     * struct reuses this park.
+     * PLATFORM: SHARED — park dest before DEREF-of-INDEX lvalue. */
+    if (ko == 52) {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
       if (op_ref > 0) {
         return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
       }
