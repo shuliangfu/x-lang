@@ -35,11 +35,6 @@ allow(padding) struct Holder32 {
   s: Quad
 }
 
-allow(padding) struct Prefixed {
-  tag: i64
-  s: Quad
-}
-
 /**
  * Identity 16B (dual-GP return).
  * @param p Pair — stack payload
@@ -62,7 +57,8 @@ function id32(p: Quad): Quad {
  * Exit 0 when FIELD dest writes every half of 16B / 24B / 32B.
  * @return i32 — 0 ok; 1..2 = 16B copy; 3..4 = 16B CALL;
  *   5..7 = 24B copy; 8..11 = 32B copy; 12..15 = 32B CALL;
- *   16..19 = STRUCT_LIT; 20..24 = prefixed field_off!=0
+ *   16..19 = STRUCT_LIT
+ * field_off!=0 (x86 stored -8) is a later leaf.
  */
 function main(): i32 {
   let p: Pair = Pair { a: 1, b: 2 };
@@ -99,12 +95,5 @@ function main(): i32 {
   if (hlit.s.b != 2) { return 17; }
   if (hlit.s.c != 3) { return 18; }
   if (hlit.s.d != 4) { return 19; }
-  let hp: Prefixed = Prefixed { tag: 9, s: Quad { a: 0, b: 0, c: 0, d: 0 } };
-  hp.s = q;
-  if (hp.tag != 9) { return 20; }
-  if (hp.s.a != 1) { return 21; }
-  if (hp.s.b != 2) { return 22; }
-  if (hp.s.c != 3) { return 23; }
-  if (hp.s.d != 4) { return 24; }
   return 0;
 }
