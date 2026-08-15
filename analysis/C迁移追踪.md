@@ -1089,7 +1089,7 @@
   - 现场：`let c:i32x4=a.add4(b)` Darwin `c[1]=0`（lane0=11）。CALL `add4(a,b)` 已 0。官方 `array_lit_i32x4_method` 只比 lane0 假绿。反汇编 METHOD 走 `bl _add4`：caller 只传前 8B，callee `add w` 只加 lane0
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_simd_try_inline_binop2_call_elf_c` 只认 CALL=48。METHOD=49 UFCS `nargs==1`：名走 `method_call_name_*`，arg0=base／arg1=extra[0]，同一 body fold（nparams==2，p0 binop p1）。**禁** add／sub／mul 名字表（会抢 import METHOD／INDEX-on-METHOD）
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble／try_inline mega／改 callee 体／x19 序言
-  - 证：mac `vec_add4_method_inline`／xlang-c **0**（反汇编 4×`ldrsw; add w; str` 无 `bl _add4`）· Vec8i METHOD let **0** · CALL／iom／imf／sel4／sv8／da／fs16／fa／imw／nslvar／is12 **0／0／0／0／0／0／42／0／0／78／8** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：mac `vec_add4_method_inline`／xlang-c **0**（反汇编 4×`ldrsw; add w; str` 无 `bl _add4`）· Vec8i METHOD let **0** · CALL／iom／imf／sel4／sv8／da／fs16／fa／imw／nslvar／is12 **0／0／0／0／0／0／42／0／0／78／8** · 矩阵 **5/5** · Ubuntu 金标 `vec_add4_method_inline`／xlang-c **0** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1615104）· **日常 L2 不升钉**
   - 余（勿并本叶）：import `simd.add` METHOD extras=2 仍 CALL emit；非 let 的 16B X-to-X dest-across-call（ARM64 prologue 未存 x19）；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer
 
 ---
