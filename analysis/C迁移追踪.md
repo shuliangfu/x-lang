@@ -1081,7 +1081,7 @@
 
   - 现场：`shuffle_select_roundtrip` Darwin／xlang-c 7（`s4[0]≠2.0`）。`sel4_only`／`sel4_local` 同 7。dump `s4[0]` 既非 2.0／0.5／1.0／0.0（99）。all-a／all-b 亦红。Vec8i select 本绿。反汇编 `fcmgt.4s v3, v0, #0.0` 后 `bit.16b v3, v1, v2`
   - **根修（G.7 有则补全）**：i32 路径已用 `BSL Vd,Vn,Vm`＝`(Vd AND Vn) OR (~Vd AND Vm)`（dest=谓词，n=a，m=b）。f32 误用 `BIT`＝`(Vm AND Vn) OR (~Vm AND Vd)`，把 b 当谓词。权威 `simd_arm64_select_128_rbp` 改发同一 BSL 字 `0x6e621c23`。`simd_enc.x`＋seed／surface 冷孪。**禁**改 mega inliner／try_inline
-  - 证：mac iso／dump／all-a／all-b／local／`select_vec4f`／`shuffle_select_roundtrip`／xlang-c **0**（反汇编 `fcmgt; bsl v3,v1,v2`）· 邻域 da／fs16／fa／imw／nslvar／imf／vec4f／is12／sv8 **0／42／0／0／78／0／0／8／0** · 矩阵 **5/5** · **日常 L2 不升钉**（Ubuntu 行后补）
+  - 证：mac iso／dump／all-a／all-b／local／`select_vec4f`／`shuffle_select_roundtrip`／xlang-c **0**（反汇编 `fcmgt; bsl v3,v1,v2`）· 邻域 da／fs16／fa／imw／nslvar／imf／vec4f／is12／sv8 **0／42／0／0／78／0／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `select_vec4f`／`shuffle_select_roundtrip` **0** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；simd_enc prefer thin+rest 68808）· **日常 L2 不升钉**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ---
