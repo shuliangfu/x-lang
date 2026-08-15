@@ -15114,16 +15114,24 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
             }
           }
         }
-        if (deref_tk == 10 || deref_tk == 11) {
+        if ((deref_tk == 10 || deref_tk == 11) && (deref_rko == 48 || deref_rko == 49)) {
           deref_mod = glue_emit_module_from_ctx(ctx);
           deref_nbytes = glue_type_size_simple(deref_mod, arena, deref_tr, 0);
           if (deref_tk == 11)
             deref_nbytes = 16;
           if (deref_nbytes < 8)
             deref_nbytes = glue_fixed_array_total_bytes_c(arena, deref_tr, 0);
-          if (deref_nbytes >= 8 && (deref_rko == 48 || deref_rko == 49)) {
+          if (deref_nbytes >= 8) {
             if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
               return -1;
+            /* x86 SysV SLICE CALL is rax+rdx; Darwin AAPCS64 is E*. */
+            if (deref_tk == 11 && ta == 0) {
+              if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+                return -1;
+              if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+                return -1;
+              return 0;
+            }
             if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, GLUE_STRUCT_LIT_DEST_IN_RBX,
                                                           deref_nbytes, ta) != 0)
               return -1;

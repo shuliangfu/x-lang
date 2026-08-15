@@ -33646,11 +33646,11 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
               return 0;
             }
         }
-        /* TYPE_ARRAY CALL and SLICE CALL return E* (pointer to payload /
-         * fat), not register-class halves. take(xs) returns the incoming
-         * fat pointer; dest-in-rbx 16B store wrote E* as .data.
-         * PLATFORM: SHARED — glue_call_return_byte_size is 8 for ARRAY. */
-        if (ltk == 10 || ltk == 11) {
+        /* TYPE_ARRAY CALL returns E* (8B). SLICE CALL is split:
+         * Darwin AAPCS64 take() returns E* to the incoming fat;
+         * x86 SysV take() loads *E* into rax+rdx dual-GP.
+         * PLATFORM: SHARED dest / LINUX+MACOS x86 dual-GP / MACOS|ARM64 E*. */
+        if ((ltk == 10 || ltk == 11) && (rko_pre == 48 || rko_pre == 49)) {
           unsafe {
             mod = glue_emit_module_from_ctx(ctx);
             nbytes = glue_type_size_simple(mod, arena, ltr, 0);
@@ -33663,12 +33663,24 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
               nbytes = glue_fixed_array_total_bytes_c(arena, ltr, 0);
             }
           }
-          if (nbytes >= 8 && (rko_pre == 48 || rko_pre == 49)) {
+          if (nbytes >= 8) {
             unsafe {
               rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
             }
             if (rc != 0) {
               return 0 - 1;
+            }
+            if (ltk == 11 && ta == 0) {
+              unsafe {
+                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+              }
+              if (rc == 0) {
+                rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              return 0;
             }
             unsafe {
               rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
