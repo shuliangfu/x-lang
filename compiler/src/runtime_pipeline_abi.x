@@ -24701,14 +24701,15 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * @param ta i32 - target arch 0=x86_64 SysV, 1=AAPCS64, other unused
  * @param let_ty_ref i32 - let decl type ref (0 if unknown; recover from VAR)
  * @param stack_slot_off i32 - rbp-relative home; -3 = dest already in rbx
- *   (pointer / INDEX FIELD dest; STRUCT_LIT dest-in-rbx sibling)
+ *   (pointer / INDEX / DEREF dest; STRUCT_LIT dest-in-rbx sibling)
  * @return i32 - 0 handled; -1 error; -2 not a struct let-init kind
  * wave132 pure: G.7 authority (was static glue_emit_struct_type_let_init_elf_c).
  * CALL(48)/METHOD_CALL(49) share try_inline then sret (import vec.new is METHOD_CALL).
  * VAR(3) >16B: lea src then glue_copy_large_struct_from_rax_ptr (same memcpy
- * as CALL/INDEX). ≤16B returns -2 so dual-GP fall-through stays the store.
+ * as CALL/INDEX). Frame dest ≤16B returns -2 so dual-GP fall-through stays.
  * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
- * CALL ≤16B dual-GP store via x19/rbx; VAR >16B glue_copy dest-in-rbx.
+ * CALL ≤16B dual-GP store via x19/rbx; VAR >8B glue_copy dest-in-rbx
+ * (deref_struct16 would clobber dest rbx/x19 — memcpy is the authority).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
@@ -24896,11 +24897,11 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     return 0;
   }
-  /* EXPR_VAR (3): slot-to-slot copy of a >16B named struct.
-   * ≤16B already works via fall-through (rax + rdx/x1). >16B fall-through
-   * only stores rax (first 8B), so y.b stays 0 (Darwin 2).
-   * G.7: lea src → rax then glue_copy_large_struct_from_rax_ptr (same
-   * memcpy as CALL/INDEX *rax → slot). Do not widen store_retval_pair's
+  /* EXPR_VAR (3): slot-to-slot copy of a named struct.
+   * Frame dest ≤16B: dual-GP fall-through (rax + rdx/x1). Frame dest >16B
+   * and dest-in-rbx >8B: lea src → rax then glue_copy (same memcpy as
+   * CALL/INDEX *rax → slot). dest-in-rbx 16B cannot use deref_struct16
+   * (mov_rax_to_rbx clobbers dest / x19). Do not widen store_retval_pair's
    * CALL/METHOD/INDEX gate — VAR emit_expr leaves a value, not a pointer.
    * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
   if (ko == 3 && (ta == 0 || ta == 1)) {
@@ -24932,7 +24933,13 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (named_sz > let_sz) {
       let_sz = named_sz;
     }
-    if (let_sz <= 16) {
+    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx 9–16B: memcpy
+     * (deref_struct16 mov_rax_to_rbx clobbers dest / x19 dest-shadow).
+     * PLATFORM: SHARED — DEREF dest 16B VAR leftover was Darwin 2. */
+    if (let_sz <= 8) {
+      return 0 - 2;
+    }
+    if (let_sz <= 16 && dest_in_rbx == 0) {
       return 0 - 2;
     }
     if (dest_in_rbx == 0 && src_off == stack_slot_off) {
@@ -32359,7 +32366,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
  * whole assign, TYPE_VECTOR let-init reuse, TYPE_NAMED >16B sret let-init reuse,
  * FIELD-chain dest to VAR root, pointer / INDEX FIELD dest-in-rbx let-init,
- * STRUCT_LIT index in-place, esz>8 bulk copy, VAR 9–16B dual-GP).
+ * DEREF TYPE_NAMED dest-in-rbx let-init, STRUCT_LIT index in-place,
+ * esz>8 bulk copy, VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - assign expr ref
@@ -33514,6 +33522,78 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
   }
   // DEREF assign (wave324)
   if (lko == 52) {
+    /* TYPE_NAMED dest (`*p = id16(x)` / `*p = src` / `*p = Quad{...}`).
+     * Prior path emitted rhs then store_rax_to_rbx_indirect (rax only).
+     * Darwin 16B leftover (dump a=5 b=2) / >16B CALL SIGBUS 138 / STRUCT_LIT a leftover.
+     * Authority is dest-in-rbx let-init (same as pointer / INDEX dest):
+     * 16B CALL dual-GP via x19 / rdx; >16B CALL dest→x8/rdi; VAR >8B memcpy dest-in-rbx.
+     * Scalar stays on store_rax_to_rbx_indirect. Deref write is unsafe in source.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (ta == 0 || ta == 1) {
+      unsafe {
+        ltr = pipeline_expr_resolved_type_ref(arena, left_ref);
+      }
+      ltk = 0;
+      if (ltr > 0) {
+        unsafe {
+          ltk = pipeline_type_kind_ord_at(arena, ltr);
+        }
+      }
+      if (ltk != 8) {
+        unsafe {
+          base_ref = pipeline_expr_unary_operand_ref_at(arena, left_ref);
+        }
+        if (base_ref > 0) {
+          unsafe {
+            ltr_pre = pipeline_expr_resolved_type_ref(arena, base_ref);
+          }
+          if (ltr_pre <= 0) {
+            unsafe {
+              ltr_pre = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+            }
+          }
+          if (ltr_pre > 0) {
+            unsafe {
+              ltk_pre = pipeline_type_kind_ord_at(arena, ltr_pre);
+            }
+            if (ltk_pre == 9) {
+              unsafe {
+                ltr = pipeline_type_elem_ref_at(arena, ltr_pre);
+              }
+              if (ltr > 0) {
+                unsafe {
+                  ltk = pipeline_type_kind_ord_at(arena, ltr);
+                }
+              }
+            }
+          }
+        }
+      }
+      if (ltr > 0 && ltk == 8) {
+        unsafe {
+          rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          arr_st = glue_emit_struct_type_let_init_elf_c(
+              arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+        }
+        if (arr_st == 0) {
+          return 0;
+        }
+        if (arr_st == 0 - 1) {
+          return 0 - 1;
+        }
+      }
+    }
     rc = glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
     if (rc != 0) {
       return -1;
@@ -69575,7 +69655,13 @@ export function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off
   memcpy_sym[4] = 112 as u8;
   memcpy_sym[5] = 121 as u8;
   memcpy_sym[6] = 0 as u8;
-  if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz <= 16) {
+  /* Frame dest stays >16B (≤16B dual-GP). dest-in-rbx 9–16B memcpy is
+   * the VAR dest-in-rbx path (DEREF / pointer FIELD 16B copy).
+   * PLATFORM: SHARED — do not lower the frame dest gate. */
+  if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz <= 8) {
+    return 0 - 1;
+  }
+  if (sz <= 16 && slot_off != (0 - 3)) {
     return 0 - 1;
   }
   /* dest-in-rbx: dest already in rbx (x86) / x19 (ARM64 dest-shadow).

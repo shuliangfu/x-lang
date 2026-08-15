@@ -11060,7 +11060,12 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
     named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
     if (named_sz > let_sz)
       let_sz = named_sz;
-    if (let_sz <= 16)
+    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx 9–16B: memcpy
+     * (deref_struct16 would clobber dest rbx/x19).
+     * PLATFORM: SHARED — DEREF dest 16B VAR leftover was Darwin 2. */
+    if (let_sz <= 8)
+      return -2;
+    if (let_sz <= 16 && !dest_in_rbx)
       return -2;
     if (!dest_in_rbx && src_off == stack_slot_off)
       return 0;
@@ -11085,7 +11090,11 @@ int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_of
   memcpy_sym[4] = 112;
   memcpy_sym[5] = 121;
   memcpy_sym[6] = 0;
-  if (!elf_ctx || (ta != 0 && ta != 1) || sz <= 16)
+  /* Frame dest stays >16B. dest-in-rbx 9–16B memcpy is VAR dest-in-rbx.
+   * PLATFORM: SHARED — do not lower the frame dest gate. */
+  if (!elf_ctx || (ta != 0 && ta != 1) || sz <= 8)
+    return -1;
+  if (sz <= 16 && slot_off != -3)
     return -1;
   if (slot_off == -3) {
     if (ta == 1) {
@@ -15028,6 +15037,47 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
   if (lko == 52) {
     int32_t store_sz;
     int32_t tr;
+    /* TYPE_NAMED dest (`*p = id16(x)` / `*p = src`). Prior path
+     * store_rax_to_rbx_indirect (rax only): Darwin 16B leftover / >16B SIGBUS.
+     * Dest-in-rbx let-init — same authority as pointer / INDEX dest.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (ta == 0 || ta == 1) {
+      int32_t deref_tr;
+      int32_t deref_tk;
+      int32_t deref_op;
+      int32_t deref_op_tr;
+      int32_t deref_op_tk;
+      int32_t deref_let;
+      deref_tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+      deref_tk = (deref_tr > 0) ? pipeline_type_kind_ord_at(arena, deref_tr) : 0;
+      if (deref_tk != 8) {
+        deref_op = pipeline_expr_unary_operand_ref_at(arena, left_ref);
+        if (deref_op > 0) {
+          deref_op_tr = pipeline_expr_resolved_type_ref(arena, deref_op);
+          if (deref_op_tr <= 0)
+            deref_op_tr = glue_var_decl_type_ref_elf_c(arena, ctx, deref_op);
+          if (deref_op_tr > 0) {
+            deref_op_tk = pipeline_type_kind_ord_at(arena, deref_op_tr);
+            if (deref_op_tk == 9) {
+              deref_tr = pipeline_type_elem_ref_at(arena, deref_op_tr);
+              deref_tk = (deref_tr > 0) ? pipeline_type_kind_ord_at(arena, deref_tr) : 0;
+            }
+          }
+        }
+      }
+      if (deref_tr > 0 && deref_tk == 8) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        deref_let = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, deref_tr,
+                                                         GLUE_STRUCT_LIT_DEST_IN_RBX);
+        if (deref_let == 0)
+          return 0;
+        if (deref_let == -1)
+          return -1;
+      }
+    }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
