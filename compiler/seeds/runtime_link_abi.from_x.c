@@ -40,6 +40,8 @@ void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *u
 void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 /* wave151: CLI extra .o append (path_pure L0 pure orch; Cap residual table+access). */
 void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+/* wave146: argv dedup used by extra append (mega #ifndef body; proto before first call). */
+int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
@@ -3403,6 +3405,13 @@ void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_
         if (*la >= max_la - 1)
             break;
         if (!link_abi_path_readable(p))
+            continue;
+        /* G.7: skip extra .o already on argv (auto companion / earlier extra).
+         * has_obj is realpath-equal so relative CLI spelling matches
+         * `{compiler_dir}/runtime_*.o`. Cold sat try-r1 compiles this mega
+         * TU without FROM_X and overwrites prefer .x; L4 product is this body.
+         * PLATFORM: SHARED — Darwin ld rejects the same .o twice; Ubuntu GNU ld hid it. */
+        if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
             continue;
         argv[(*la)++] = p;
     }
