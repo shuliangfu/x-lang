@@ -68632,7 +68632,9 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
  * Push a MEMORY-class (>16B) by-value aggregate onto the x86_64 SysV call stack.
  * Materializes arg from VAR / nested CALL sret / STRUCT_LIT / FIELD_ACCESS /
  * INDEX into a high-end frame temp, then pushes qwords high-first so [rsp+0]
- * is byte0. INDEX uses the same lvalue_eff_addr loop as FIELD (scaled lea).
+ * is byte0. Nested CALL saves/restores incoming rdi (outer sret dest) around
+ * the inner lea so id32(id32(x)) still writes the outer slot. INDEX uses the
+ * same lvalue_eff_addr loop as FIELD (scaled lea).
  * @param arena *u8 — ASTArena*; null → -1
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param ctx *u8 — AsmFuncCtx*; null → -1; next_offset@4 bumped during materialize
@@ -68655,6 +68657,7 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
   let cur: i32 = 0;
   let sum: i32 = 0;
   let rc: i32 = 0;
+  let save_off: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || arg_ref <= 0 || sz <= 16 || ta != 0) {
     return 0 - 1;
   }
@@ -68673,6 +68676,11 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
   } else {
     if (ko == 48 || ko == 49) {
       // 2) Nested CALL/METHOD large return: sret into high-end frame temp.
+      // Outer dest lives in rdi. Inner sret overwrites rdi, so
+      // id32(id32(x)) wrote the inner temp and left y zero (Darwin/Ubuntu).
+      // G.7: save incoming rdi to an 8B high-end slot, restore after emit.
+      // Recursive-safe (id32(id32(id32(x)))). host-C already correct.
+      // PLATFORM: SHARED — Ubuntu gold x86_64 SysV rdi sret.
       ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
       if (ret_sz <= 16) {
         ret_sz = sz;
@@ -68681,12 +68689,25 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
         return 0 - 1;
       }
       cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
-      sum = cur + nbytes;
+      sum = cur + nbytes + 8;
       if (sum < cur) {
         return 0 - 1;
       }
       pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
-      off = sum;
+      off = sum - 8;
+      save_off = sum;
+      unsafe {
+        rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
       unsafe {
         rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
       }
@@ -68706,6 +68727,18 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
         return 0 - 1;
       }
       pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     } else {
       if (ko == 45) {
         // 3) STRUCT_LIT: materialize fields into high-end frame temp.
@@ -68792,8 +68825,10 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
 /**
  * Store a MEMORY-class (>16B) by-value aggregate to SP+offset for AAPCS64.
  * Materializes arg from VAR / nested CALL sret (x8) / STRUCT_LIT / FIELD_ACCESS /
- * INDEX into a low-end frame temp, then copies qwords to SP+sp_off. INDEX
- * shares the FIELD lvalue_eff_addr copy loop.
+ * INDEX into a low-end frame temp, then copies qwords to SP+sp_off. Nested
+ * CALL saves/restores incoming x8 (outer sret dest) around the inner lea so
+ * id32(id32(x)) still writes the outer slot. INDEX shares the FIELD
+ * lvalue_eff_addr copy loop.
  * @param arena *u8 — ASTArena*; null → -1
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param ctx *u8 — AsmFuncCtx*; null → -1; next_offset@4 bumped during materialize
@@ -68817,6 +68852,7 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
   let cur: i32 = 0;
   let sum: i32 = 0;
   let rc: i32 = 0;
+  let save_off: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || arg_ref <= 0 || sz <= 16 || ta != 1 || sp_off < 0) {
     return 0 - 1;
   }
@@ -68835,6 +68871,13 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
   } else {
     if (ko == 48 || ko == 49) {
       // 2) Nested CALL/METHOD large return: AAPCS64 sret via x8 into low-end temp.
+      // Outer dest lives in x8. Inner lea+mov_x8 overwrites it, so
+      // id32(id32(x)) wrote #temp and left y zero (Darwin RUN 1 / dump 0).
+      // G.7: save incoming x8 (mov x8,x0 + store) then restore after emit.
+      // Same helper pair as callee incoming-sret save. Recursive-safe.
+      // host-C `y = id32(id32(x))` already correct. Do not use x19
+      // (dest-shadow; prologue does not save it).
+      // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail.
       ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
       if (ret_sz <= 16) {
         ret_sz = sz;
@@ -68847,11 +68890,22 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
       if (off < 16) {
         off = 16;
       }
-      sum = off + nbytes;
+      save_off = off + nbytes;
+      sum = save_off + 8;
       if (sum < off) {
         return 0 - 1;
       }
       pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+      rc = glue_arm64_mov_x8_to_x0_elf_c(elf_ctx);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
       unsafe {
         rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
       }
@@ -68864,6 +68918,16 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
         return 0 - 1;
       }
       rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      rc = glue_arm64_mov_x0_to_x8_elf_c(elf_ctx);
       if (rc != 0) {
         return 0 - 1;
       }
