@@ -43756,10 +43756,22 @@ export function glue_fold_func_returns_param01_vector_binop_dst_c(arena: *u8, mo
 }
 
 /**
- * Inline 2-arg vector CALL when body is return p0 binop p1.
- * @return i32 - 1 inlined; 0 no match; -1 error
- * wave148 pure: G.7 authority (was pipeline_asm_simd_try_inline_binop2_call_elf_c).
- * PLATFORM: SHARED freestanding.
+ * Inline 2-arg vector CALL or UFCS METHOD when body is return p0 binop p1.
+ * CALL=48: `vec_add4(a, b)` — two extras, callee IDENT looked up in this module.
+ * METHOD=49: `a.add4(b)` — one extra; receiver is p0, extra[0] is p1.
+ * Lookup is the method/func name + the same body fold (nparams==2, p0 binop p1).
+ * No add/sub/mul name table — a hardcoded name list would steal import METHOD
+ * (select_lane / INDEX-on-METHOD) that is not a local p0-binop-p1 callee.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param call_ref i32 — CALL=48 or METHOD=49 expr
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch (0=x86_64, 1=ARM64)
+ * @param stack_slot_off i32 — let-home rbp/x29 offset
+ * @param type_ref i32 — result TYPE_VECTOR
+ * @return i32 — 1 inlined; 0 no match; -1 emit error
+ * PLATFORM: SHARED freestanding emit. Completing METHOD does not fix X-to-X
+ * dest-across-call for non-inlined 16B returns (ARM64 prologue still unsaved x19).
  */
 #[no_mangle]
 export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
@@ -43776,14 +43788,20 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
   let ko: i32 = 0;
   let nargs: i32 = 0;
   let rc: i32 = 0;
+  let is_method: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
     return 0;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, call_ref);
   }
-  if (ko != 48) {
+  /* CALL=48; METHOD_CALL=49 (UFCS `recv.add4(other)`). Import simd.add is
+   * METHOD with two extras — rejected below (nargs!=1) so it stays CALL emit. */
+  if (ko != 48 && ko != 49) {
     return 0;
+  }
+  if (ko == 49) {
+    is_method = 1;
   }
   unsafe {
     mod_ref = pipeline_asm_emit_module_ref_c();
@@ -43795,32 +43813,51 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
   if (mod_ref == (0 as *u8)) {
     return 0;
   }
-  unsafe {
-    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
-  }
-  if (nargs != 2) {
-    return 0;
-  }
-  unsafe {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  }
-  if (callee_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, callee_ref);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  unsafe {
-    clen = pipeline_expr_var_name_len(arena, callee_ref);
-  }
-  if (clen <= 0 || clen > 127) {
-    return 0;
-  }
-  unsafe {
-    pipeline_expr_var_name_into(arena, callee_ref, &g_wave148_cname[0]);
+  if (is_method != 0) {
+    unsafe {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    }
+    /* UFCS 2-param method: receiver + one extra. */
+    if (nargs != 1) {
+      return 0;
+    }
+    unsafe {
+      clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    }
+    if (clen <= 0 || clen >= 64) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
+    }
+  } else {
+    unsafe {
+      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+    }
+    if (nargs != 2) {
+      return 0;
+    }
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    }
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, callee_ref);
+    }
+    if (ko != 3) {
+      return 0;
+    }
+    unsafe {
+      clen = pipeline_expr_var_name_len(arena, callee_ref);
+    }
+    if (clen <= 0 || clen > 127) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_var_name_into(arena, callee_ref, &g_wave148_cname[0]);
+    }
   }
   fi = glue_module_func_index_by_name_c(mod_ref, &g_wave148_cname[0], clen);
   if (fi < 0) {
@@ -43833,9 +43870,16 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
   if (rc != 0) {
     return 0;
   }
-  unsafe {
-    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  if (is_method != 0) {
+    unsafe {
+      arg0 = pipeline_expr_method_call_base_ref_at(arena, call_ref);
+      arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+    }
+  } else {
+    unsafe {
+      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+    }
   }
   if (arg0 <= 0 || arg1 <= 0) {
     return 0 - 1;

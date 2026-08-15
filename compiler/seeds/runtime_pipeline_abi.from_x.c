@@ -19389,6 +19389,7 @@ extern int32_t pipeline_expr_method_call_num_args_at(void *a, int32_t er);
 extern int32_t pipeline_expr_method_call_arg_ref(void *a, int32_t er, int32_t i);
 extern int32_t pipeline_expr_method_call_name_len(void *a, int32_t er);
 extern void pipeline_expr_method_call_name_into(void *a, int32_t er, uint8_t *out);
+extern int32_t pipeline_expr_method_call_base_ref_at(void *a, int32_t er);
 extern int32_t pipeline_expr_field_access_name_len(void *a, int32_t er);
 extern void pipeline_expr_field_access_name_into(void *a, int32_t er, uint8_t *out);
 extern int32_t pipeline_expr_int_val_at(void *a, int32_t er);
@@ -21127,8 +21128,10 @@ int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(void *arena,
 }
 
 /**
- * let c: i32xN = vec_fn(a, b) 内联：callee 为 `return param0 + param1`（等逐 lane binop）时直写 let 槽。
- * 返回 1=已内联，0=未匹配，-1=错误。
+ * let c = vec_fn(a, b) or c = a.add4(b): inline when callee is `return p0 binop p1`.
+ * CALL=48 two extras; METHOD=49 UFCS one extra (receiver=p0, extra0=p1).
+ * No add/sub/mul name table — body fold only. Returns 1 inlined, 0 no match, -1 error.
+ * PLATFORM: SHARED — seed twin of runtime_pipeline_abi.x (Darwin try-heat / L4 sat).
  */
 int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(void *arena,
                                                          void *elf_ctx, int32_t call_ref,
@@ -21145,24 +21148,39 @@ int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(void *arena,
   int32_t lanes;
   int32_t esz;
   int32_t li;
+  int32_t is_method;
+  int32_t ko;
+  int32_t nargs;
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, call_ref) != 48)
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  if (ko != 48 && ko != 49)
     return 0;
+  is_method = (ko == 49);
   mod_ref = pipeline_asm_emit_module_ref_c();
   if (!mod_ref)
     mod_ref = *(void **)((uint8_t *)ctx + 16);
   if (!mod_ref)
     return 0;
-  if (pipeline_expr_call_num_args_at(arena, call_ref) != 2)
-    return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-  if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3)
-    return 0;
-  clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_ref, cname);
+  if (is_method) {
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
+    if (nargs != 1)
+      return 0;
+    clen = pipeline_expr_method_call_name_len(arena, call_ref);
+    if (clen <= 0 || clen >= 64)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, call_ref, cname);
+  } else {
+    if (pipeline_expr_call_num_args_at(arena, call_ref) != 2)
+      return 0;
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+    if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3)
+      return 0;
+    clen = pipeline_expr_var_name_len(arena, callee_ref);
+    if (clen <= 0 || clen > 127)
+      return 0;
+    pipeline_expr_var_name_into(arena, callee_ref, cname);
+  }
   fi = glue_module_func_index_by_name_c(mod_ref, cname, clen);
   if (fi < 0)
     return 0;
@@ -21170,8 +21188,13 @@ int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(void *arena,
     return 0;
   if (glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz) != 0)
     return 0;
-  arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-  arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  if (is_method) {
+    arg0 = pipeline_expr_method_call_base_ref_at(arena, call_ref);
+    arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
+  } else {
+    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
+  }
   if (arg0 <= 0 || arg1 <= 0)
     return -1;
   if (binop_ko == 51)
