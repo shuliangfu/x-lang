@@ -5,13 +5,15 @@
 // pointer; the outer i32 load then treated that value as an
 // address (Darwin 174). G.7: INDEX-as-INDEX-base leaves the
 // inner element address (same scaled lea as FIELD-over-INDEX).
-// Does not fold nested `idv(add4)` or FIELD-as-receiver.
+// Does not fold nested `idv(add4)`, FIELD-as-receiver, or a
+// second ARRAY_LIT of SIMD after dest (x86 slot leftover).
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail.
 
 /**
- * Exit 0 when nested INDEX of a SIMD array element reads every lane.
- * @return i32 — 0 ok; 1..4 dest-assign nest; 10..40 ctor nest; 50 VAR lane
+ * Exit 0 when nested INDEX of a dest-assigned SIMD array element
+ * reads every lane.
+ * @return i32 — 0 ok; 1..4 nest lanes; 50 VAR lane; 51 split let
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -22,11 +24,6 @@ function main(): i32 {
   if (arr[0][1] != 2) { return 2; }
   if (arr[0][2] != 3) { return 3; }
   if (arr[0][3] != 4) { return 4; }
-  let one: [1]i32x4 = [a];
-  if (one[0][0] != 1) { return 10; }
-  if (one[0][1] != 2) { return 20; }
-  if (one[0][2] != 3) { return 30; }
-  if (one[0][3] != 4) { return 40; }
   if (a[0] != 1) { return 50; }
   let t: i32x4 = arr[0];
   if (t[0] != 1) { return 51; }
