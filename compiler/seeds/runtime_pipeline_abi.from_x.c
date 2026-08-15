@@ -10882,8 +10882,17 @@ extern int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *e
 extern void *glue_emit_module_from_ctx(void *ctx);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_call_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
 extern int32_t glue_arm64_mov_x0_to_x8_elf_c(void *elf_ctx);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz, int32_t ta);
 
 void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift) {
   g_wave132_call_sret_reg_shift = shift > 0 ? 1 : 0;
@@ -10975,7 +10984,81 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
       return -1;
     return 0;
   }
+  /* EXPR_VAR (3): same slot-to-slot >16B copy as .x (G.7).
+   * lea src then glue_copy_large_struct; ≤16B returns -2.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+  if (ko == 3 && (ta == 0 || ta == 1)) {
+    int32_t src_off;
+    int32_t ty_ref;
+    src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    if (src_off < 0)
+      return -2;
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      ty_ref = glue_var_decl_type_ref_elf_c(arena, ctx, init_ref);
+      if (ty_ref <= 0)
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+    }
+    if (ty_ref <= 0)
+      return -2;
+    modp = glue_emit_module_from_ctx(ctx);
+    let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > let_sz)
+      let_sz = named_sz;
+    if (let_sz <= 16)
+      return -2;
+    if (src_off == stack_slot_off)
+      return 0;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
+      return -1;
+    if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta) != 0)
+      return -1;
+    return 0;
+  }
   return -2;
+}
+
+/* Seed twin of .x glue_copy_large_struct_from_rax_ptr (wave204).
+ * Prefer FROM_X owns the .x export; this cold body is #ifndef FROM_X only.
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64. */
+int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz, int32_t ta) {
+  uint8_t memcpy_sym[8];
+  memcpy_sym[0] = 109;
+  memcpy_sym[1] = 101;
+  memcpy_sym[2] = 109;
+  memcpy_sym[3] = 99;
+  memcpy_sym[4] = 112;
+  memcpy_sym[5] = 121;
+  memcpy_sym[6] = 0;
+  if (!elf_ctx || (ta != 0 && ta != 1) || sz <= 16)
+    return -1;
+  if (ta == 1) {
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
+      return -1;
+    return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+  }
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+    return -1;
+  return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
 }
 
 /*

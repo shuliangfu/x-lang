@@ -24641,17 +24641,20 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
 }
 
 /**
- * let p: Struct init: STRUCT_LIT, or CALL/METHOD_CALL with inline/sret/dual-GP store.
+ * let p: Struct init: STRUCT_LIT, CALL/METHOD_CALL (inline/sret/dual-GP), or
+ * EXPR_VAR slot-to-slot copy of a >16B named struct.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param init_ref i32 - init expr ref
  * @param ctx *u8 - AsmFuncCtx*
  * @param ta i32 - target arch 0=x86_64 SysV, 1=AAPCS64, other unused
- * @param let_ty_ref i32 - let decl type ref (0 if unknown)
+ * @param let_ty_ref i32 - let decl type ref (0 if unknown; recover from VAR)
  * @param stack_slot_off i32 - rbp-relative home
  * @return i32 - 0 handled; -1 error; -2 not a struct let-init kind
  * wave132 pure: G.7 authority (was static glue_emit_struct_type_let_init_elf_c).
  * CALL(48)/METHOD_CALL(49) share try_inline then sret (import vec.new is METHOD_CALL).
+ * VAR(3) >16B: lea src then glue_copy_large_struct_from_rax_ptr (same memcpy
+ * as CALL/INDEX). ≤16B returns -2 so dual-GP fall-through stays the store.
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
@@ -24663,6 +24666,8 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let let_sz: i32 = 0;
   let named_sz: i32 = 0;
   let best: i32 = 0;
+  let src_off: i32 = 0;
+  let ty_ref: i32 = 0;
   let modp: *u8 = 0 as *u8;
   let rc: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
@@ -24788,6 +24793,62 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     unsafe {
       modp = glue_emit_module_from_ctx(ctx);
       rc = glue_store_retval_pair_to_rbp_elf_c(modp, arena, elf_ctx, let_ty_ref, stack_slot_off, ta, init_ref, ctx);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  /* EXPR_VAR (3): slot-to-slot copy of a >16B named struct.
+   * ≤16B already works via fall-through (rax + rdx/x1). >16B fall-through
+   * only stores rax (first 8B), so y.b stays 0 (Darwin 2).
+   * G.7: lea src → rax then glue_copy_large_struct_from_rax_ptr (same
+   * memcpy as CALL/INDEX *rax → slot). Do not widen store_retval_pair's
+   * CALL/METHOD/INDEX gate — VAR emit_expr leaves a value, not a pointer.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+  if (ko == 3 && (ta == 0 || ta == 1)) {
+    unsafe {
+      src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    }
+    if (src_off < 0) {
+      return 0 - 2;
+    }
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = glue_var_decl_type_ref_elf_c(arena, ctx, init_ref);
+      }
+      if (ty_ref <= 0) {
+        unsafe {
+          ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+        }
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz <= 16) {
+      return 0 - 2;
+    }
+    if (src_off == stack_slot_off) {
+      return 0;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -33000,7 +33061,8 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
      * so callee memcpy(*garbage) and the caller memcpy(y, *rax) SIGBUS.
      * Let-init already lea slot → x8 then CALL (callee writes dest).
      * G.7: same glue_emit_struct_type_let_init_elf_c; -2 falls through
-     * (VAR copy / scalar). Gate TYPE_NAMED=8 so VECTOR stays on the sibling.
+     * (scalar / ≤16B VAR). >16B VAR copy is handled inside let-init.
+     * Gate TYPE_NAMED=8 so VECTOR stays on the sibling.
      * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
     if (is_modlet == 0 && off >= 0 && ako_asg == 28 && ltk_pre == 8) {
       unsafe {
@@ -69074,10 +69136,12 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
  * @param ta i32 — 0=x86_64 SysV; 1=ARM64 AAPCS64; else -1
  * @return i32 — 0 success; -1 gate / enc fail
  *
- * wave204 pure: private G.7 helper for store_retval_pair (was Cap residual static).
+ * wave204 pure: G.7 helper for store_retval_pair and >16B VAR let-init
+ * (was Cap residual static). Same-TU public so let-init can lea-src then copy.
  * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32 {
+#[no_mangle]
+export function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32 {
   let memcpy_sym: u8[8] = [];
   let rc: i32 = 0;
   // "memcpy"
