@@ -18472,7 +18472,9 @@ int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(void *elf_ctx, int32_t esz,
     return backend_enc_rax_plus_rbx_scale8_arch(elf_ctx, ta);
   if (backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
     return -1;
-  return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+  /* PLATFORM: SHARED · MACOS|ARM64 pointer add after non-1/4/8 scale.
+   * add_rax_rbx is 32-bit ADD W (u32 wrap). G.7: same scale1 as ptr+int. */
+  return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
 }
 
 /** 局部 VAR / VAR-base FIELD 数组基底 → rax（lea 或 load ptr）。 */

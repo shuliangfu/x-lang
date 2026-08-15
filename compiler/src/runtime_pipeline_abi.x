@@ -39392,13 +39392,17 @@ export function glue_fixed_array_let_init_uses_direct_slot(arena: *u8, type_ref:
 
 /**
  * INDEX scale-add: base@rax + index@rbx * esz → rax.
- * Non 1/4/8 esz uses mul_imm_to_rbx + add (no lea scale8 misuse for 12B struct).
+ * Non 1/4/8 esz uses mul_imm_to_rbx then 64-bit scale1 (no lea scale8 for 12B).
+ * Must not use backend_enc_add_rax_rbx_arch here: that encoder is 32-bit ADD W
+ * on ARM64 (u32 wrap). Adding a Darwin stack pointer (high 32 bits set) to
+ * index*esz then zero-extends X0 and SIGSEGV on the store/load.
+ * G.7: same scale1 as glue_emit_binop_add is_64bit / ptr+int (Stage 12.0.5).
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param esz i32 - element byte size
  * @param ta i32 - 0=x86 high-end, 1=arm64 low-end
  * @return i32 - 0 ok; -1 error
  * wave147 pure: G.7 authority (was static glue_emit_index_rax_plus_rbx_scaled_elf_c).
- * PLATFORM: SHARED freestanding · LINUX|x86 · MACOS|ARM64.
+ * PLATFORM: SHARED freestanding · LINUX|x86 · MACOS|ARM64 pointer add.
  */
 #[no_mangle]
 export function glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx: *u8, esz: i32, ta: i32): i32 {
@@ -39424,8 +39428,9 @@ export function glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx: *u8, esz: i32
   if (rc != 0) {
     return 0 - 1;
   }
+  /* Pointer add after scale: ADD X0,X0,X1 / REX.W add. Keep add_rax_rbx for i32. */
   unsafe {
-    return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+    return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
   }
 }
 
@@ -65500,8 +65505,10 @@ export function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, i
   if (rc != 0) {
     return 0 - 1;
   }
+  /* SoA dyn index: base@rax + (index*stride)@rbx is a pointer add.
+   * G.7: reuse scale1 (ADD X0,X0,X1). add_rax_rbx is 32-bit ADD W on ARM64. */
   unsafe {
-    return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+    return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
   }
 }
 
