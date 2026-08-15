@@ -62859,6 +62859,9 @@ export function glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena: *u8, elf
  * wave182 pure-owned G.7 authority (was Cap residual index_helpers).
  * CALL(48)/METHOD_CALL(49) SIMD: spill via struct let-init then LEA
  * (value in rax+rdx is not a pointer). TYPE_ARRAY/SLICE CALL stays -2.
+ * INDEX(47) as INDEX base (`arr[0][0]`): leave the inner element
+ * address (same scaled lea as FIELD-over-INDEX). emit_expr fallback
+ * is rvalue deref_struct16 — rax holds packed lanes, not a pointer.
  * PLATFORM: SHARED freestanding INDEX base (lit-index + scaled both use this).
  */
 #[no_mangle]
@@ -63074,6 +63077,34 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
     }
     unsafe {
       if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  /* INDEX as INDEX base (`arr[0][0]` / `arr[0][1]`).
+   * emit_expr fallback is rvalue: esz=16 deref_struct16 so rax holds
+   * packed lanes; the outer load then treats that value as an address
+   * (Darwin 174). G.7: same scaled lea as FIELD-over-INDEX — leave
+   * the inner element address, do not load.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+  if (ko == 47) {
+    unsafe {
+      ix_base = pipeline_expr_index_base_ref(arena, base_ref);
+      ix_idx = pipeline_expr_index_index_ref(arena, base_ref);
+    }
+    if (ix_base <= 0 || ix_idx <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, base_ref);
+    }
+    if (ix_esz <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      if (glue_emit_index_eff_addr_scaled_elf_c(
+              arena, elf_ctx, base_ref, ix_base, ix_idx, ctx, ta, ix_esz) != 0) {
         return 0 - 1;
       }
     }
@@ -63373,12 +63404,12 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
     }
     return 0;
   }
-  // CALL=48 / METHOD_CALL=49 SIMD: reuse the rax twin (spill+LEA), then
-  // mov→rbx. Contract: rhs stays in rax, so push/pop around the rax helper
-  // (let_init uses rax+rdx). TYPE_ARRAY / TYPE_SLICE CALL stay -2 (rax
-  // helper returns -2; fallback emit_expr already has E* / fat.data).
+  // INDEX=47 / CALL=48 / METHOD_CALL=49: reuse the rax twin (inner lea
+  // or SIMD spill+LEA), then mov→rbx. Contract: rhs stays in rax, so
+  // push/pop around the rax helper. TYPE_ARRAY / TYPE_SLICE CALL stay
+  // -2 (rax helper returns -2; fallback emit_expr already has E* / fat.data).
   // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
-  if (ko == 48 || ko == 49) {
+  if (ko == 47 || ko == 48 || ko == 49) {
     unsafe {
       if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
         return 0 - 1;
