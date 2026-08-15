@@ -24707,7 +24707,10 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * wave132 pure: G.7 authority (was static glue_emit_struct_type_let_init_elf_c).
  * CALL(48)/METHOD_CALL(49) share try_inline then sret (import vec.new is METHOD_CALL).
  * VAR(3) >16B: lea src then glue_copy_large_struct_from_rax_ptr (same memcpy
- * as CALL/INDEX). Frame dest ≤16B returns -2 so dual-GP fall-through stays.
+ * as CALL/INDEX). VAR 9–16B frame dest: lea src + deref_struct16 +
+ * store_retval_pair (same as FIELD frame dest). ARRAY_LIT `[w]` of a
+ * 16B named VAR used to -2 then emit_expr dual-GP clobber dest-in-x1
+ * (Darwin 139). Frame dest ≤8B still -2 so scalar fall-through stays.
  * FIELD(44) 9–16B frame: lvalue lea + deref_struct16 + store_retval_pair
  * (emit_expr of FIELD is only 8B; memcpy rejects frame dest ≤16).
  * FIELD >16B frame: lvalue lea + memcpy.
@@ -24905,11 +24908,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     return 0;
   }
   /* EXPR_VAR (3): slot-to-slot copy of a named struct.
-   * Frame dest ≤16B: dual-GP fall-through (rax + rdx/x1). Frame dest >16B
-   * and dest-in-rbx >8B: lea src → rax then glue_copy (same memcpy as
-   * CALL/INDEX *rax → slot). dest-in-rbx 16B cannot use deref_struct16
-   * (mov_rax_to_rbx clobbers dest / x19). Do not widen store_retval_pair's
-   * CALL/METHOD/INDEX gate — VAR emit_expr leaves a value, not a pointer.
+   * Frame dest 9–16B: lea src + deref_struct16 + store_retval_pair
+   * (same as FIELD frame dest). ARRAY_LIT `[w]` of a 16B named VAR
+   * used to return -2; emit_expr then dual-GP-loads the VAR (hi in x1)
+   * and store_rax_to_rbx_offset hits the clobbered dest (Darwin 139).
+   * Frame dest ≤8B still -2 so scalar fall-through stays. Frame dest
+   * >16B and dest-in-rbx ≥8B: lea src → rax then glue_copy (same
+   * memcpy as CALL/INDEX *rax → slot). dest-in-rbx cannot use
+   * deref_struct16 (mov_rax_to_rbx clobbers dest / x19). Do not
+   * lower the frame dest ≤16 memcpy gate. Do not change FIELD
+   * emit_expr. Do not change enc_store /8.
    * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
   if (ko == 3 && (ta == 0 || ta == 1)) {
     unsafe {
@@ -24940,18 +24948,40 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (named_sz > let_sz) {
       let_sz = named_sz;
     }
-    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx ≥8B: memcpy
+    /* Frame dest <8B: scalar fall-through. dest-in-rbx ≥8B: memcpy
      * (deref_struct16 mov_rax_to_rbx clobbers dest / x19 dest-shadow).
      * 8B dest-in-rbx covers `[2]i32` ARRAY (`*p = src`); emit_expr of an
      * ARRAY VAR only loads the first elem.
-     * PLATFORM: SHARED — DEREF dest 16B VAR leftover was Darwin 2. */
+     * Frame dest 9–16B: same FIELD twin (lea + deref_struct16 +
+     * store_retval_pair). memcpy rejects frame dest ≤16.
+     * PLATFORM: SHARED — ARRAY_LIT `[w]` Darwin 139 was dest-in-x1. */
     if (let_sz < 8) {
       return 0 - 2;
     }
-    if (let_sz <= 16 && dest_in_rbx == 0) {
-      return 0 - 2;
-    }
     if (dest_in_rbx == 0 && src_off == stack_slot_off) {
+      return 0;
+    }
+    if (let_sz <= 16 && dest_in_rbx == 0) {
+      if (let_sz < 9) {
+        return 0 - 2;
+      }
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = glue_store_retval_pair_to_rbp_elf_c(
+            modp, arena, elf_ctx, ty_ref, stack_slot_off, ta, init_ref, ctx);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
       return 0;
     }
     unsafe {
