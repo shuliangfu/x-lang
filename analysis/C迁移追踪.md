@@ -1053,7 +1053,7 @@
 
   - 现场：`simd.hsum([1,2,3,4])` Darwin ≠10。本地同体 `hsum`／`simd.add`／lane INDEX 本绿。host-C `_std_simd_hsum` 把 f32 放 `s0`；Darwin 活 seed 只 `str x0`
   - **根修（G.7 有则补全）**：prefer `.x` import METHOD 已有 `rk==14` `fmov w0,s0`。补进 seed METHOD＋同模式 import-binding／whole-import CALL。权威 `backend_call_dispatch.from_x.c`（Darwin try-heat／r3-prefer 活 seed）。**禁**把 f32 收进共享 `glue_asm_harvest`（本地 X callee 仍 GP）
-  - 证：mac hsum lit／let／`array_lit_vec4f_import`／xlang-c **0** · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：mac hsum lit／let／`array_lit_vec4f_import`／xlang-c **0** · Ubuntu 金标 official **0** · `import_method_f32_xmm` Ubuntu **0**／Darwin 仍 7 · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：`import_method_f32_xmm` `select_lane` 仍 7（extras 置 s0–s7）；METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ---
