@@ -8707,12 +8707,12 @@ function codegen_emit_xlang_slice_prefix_rep(out: *CodegenOutBuf, n: i32): i32 {
  * nest>=2:
  *   struct xlang_slice_×nest_<pfx><elem> {
  *     struct xlang_slice_×(nest-1)_<pfx><elem> *data; size_t length; };
- * Hard cap nest<=19 (4.2.3 1..16 + nest>16 soft 17 then 18 then 19).
+ * Hard cap nest<=20 (4.2.3 1..16 + nest>16 soft 17 then 18 then 19 then 20).
  * Piecewise emit — no u8[256] whole-line buffer. type_to_c_repr scratch is
- * still 256; nest 19 i32 tag is 242 bytes; nest 20 is 254; nest 21 overflows
+ * still 256; nest 20 i32 tag is 254 bytes; nest 21 overflows
  * (12*21+14=266). Do not raise to 21 or widen the 256 scratch this leaf.
  * @param out *CodegenOutBuf — C text buffer; null rejected
- * @param nest i32 — slice nest depth; must be 1..19
+ * @param nest i32 — slice nest depth; must be 1..20
  * @param pfx *u8 — optional struct-tag prefix; null or pfx_len<=0 means none
  * @param pfx_len i32 — prefix byte count
  * @param elem *u8 — leaf C type name (int32_t) or named tag (Cell)
@@ -8728,7 +8728,7 @@ function codegen_emit_slice_fat_one(out: *CodegenOutBuf, nest: i32, pfx: *u8, pf
   if (nest < 1) {
     return -1;
   }
-  if (nest > 19) {
+  if (nest > 20) {
     return -1;
   }
   /* "struct " */
@@ -8799,8 +8799,8 @@ function codegen_emit_slice_fat_one(out: *CodegenOutBuf, nest: i32, pfx: *u8, pf
  * Elem set matches wave619 / rt_preamble: uint8_t int8_t int16_t uint16_t
  * int int32_t uint32_t int64_t uint64_t size_t ssize_t float double.
  * @param out *CodegenOutBuf — C text buffer; null rejected
- * @param min_nest i32 — inclusive start; must be 1..19
- * @param max_nest i32 — inclusive end; must be min_nest..19
+ * @param min_nest i32 — inclusive start; must be 1..20
+ * @param max_nest i32 — inclusive end; must be min_nest..20
  * @return i32 — 0 on success, -1 on emit failure
  * PLATFORM: SHARED host-C. G.7: same elem set as rt_preamble 1..8.
  */
@@ -8808,7 +8808,7 @@ function codegen_emit_scalar_slice_nests(out: *CodegenOutBuf, min_nest: i32, max
   if (out == 0 as *CodegenOutBuf) {
     return -1;
   }
-  if (min_nest < 1 || max_nest > 19 || min_nest > max_nest) {
+  if (min_nest < 1 || max_nest > 20 || min_nest > max_nest) {
     return -1;
   }
   let e0: u8[16] = [117, 105, 110, 116, 56, 95, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -8889,12 +8889,12 @@ export function codegen_emit_companion_named_slice_layout(out: *CodegenOutBuf, p
     return -1;
   }
   /*
-   * 4.2.3 + nest>16 soft: loop nest 1..19 through the shared fat emitter.
+   * 4.2.3 + nest>16 soft: loop nest 1..20 through the shared fat emitter.
    * wave698 unrolled only to 7; 8-layer [][][][][][][][]Named was incomplete.
    * PLATFORM: SHARED host-C. G.7 complete same companion authority.
    */
   let nest: i32 = 1;
-  while (nest <= 19) {
+  while (nest <= 20) {
     if (codegen_emit_slice_fat_one(out, nest, pfx, pfx_len, name, name_len, 1) != 0) {
       return -1;
     }
@@ -21263,7 +21263,8 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
  * + 4.2.3 loop `[]×9`..`[]×16` under XLANG_SLICE_LAYOUTS_N16
  * + nest>16 soft `[]×17` under XLANG_SLICE_LAYOUTS_N17
  * + nest>17 soft `[]×18` under XLANG_SLICE_LAYOUTS_N18
- * + nest>18 soft `[]×19` under XLANG_SLICE_LAYOUTS_N19). Without layouts,
+ * + nest>18 soft `[]×19` under XLANG_SLICE_LAYOUTS_N19
+ * + nest>19 soft `[]×20` under XLANG_SLICE_LAYOUTS_N20). Without layouts,
  * bare `-E` output fails host-cc with incomplete type; full `-o` already injects
  * rt_preamble — both sites use XLANG_SLICE_LAYOUTS so redefinition is safe.
  * @param out *CodegenOutBuf — destination C text buffer
@@ -21399,6 +21400,31 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
       return -1;
     }
     if (codegen_emit_scalar_slice_nests(out, 19, 19) != 0) {
+      return -1;
+    }
+    if (emit_bytes_64(out, &ge[0], 7) != 0) {
+      return -1;
+    }
+    /*
+     * nest>19 soft: layer 20 under a sixth guard so -o (rt_preamble 1..8 +
+     * N16 9..16 + N17 + N18 + N19) still emits the extra layer. -E runs
+     * all six blocks. Do not add rows to driver_preamble_io_net_lines
+     * (fixed N=224). Do not grow seed emit_header u8[256]. Do not widen
+     * type_to_c_repr 256 (nest 20 i32 tag=254 fits; nest 21 overflows).
+     * PLATFORM: SHARED host-C. G.7: emit_header is the deep-nest authority.
+     */
+    /* #ifndef XLANG_SLICE_LAYOUTS_N20\n#define XLANG_SLICE_LAYOUTS_N20\n */
+    let g20: u8[80] = [
+      35, 105, 102, 110, 100, 101, 102, 32, 88, 76, 65, 78, 71, 95, 83, 76,
+      73, 67, 69, 95, 76, 65, 89, 79, 85, 84, 83, 95, 78, 50, 48, 10,
+      35, 100, 101, 102, 105, 110, 101, 32, 88, 76, 65, 78, 71, 95, 83, 76,
+      73, 67, 69, 95, 76, 65, 89, 79, 85, 84, 83, 95, 78, 50, 48, 10,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ];
+    if (emit_bytes_from_ptr(out, &g20[0], 64) != 0) {
+      return -1;
+    }
+    if (codegen_emit_scalar_slice_nests(out, 20, 20) != 0) {
       return -1;
     }
     if (emit_bytes_64(out, &ge[0], 7) != 0) {
