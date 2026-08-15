@@ -14674,6 +14674,18 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       }
       if (hit && (ta == 0 || ta == 1)) {
         int32_t field_ty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+        /* SIMD field dest: same vector let-init as VAR assign
+         * (`h.v = add4`). Prior 16B dual-GP store of a real CALL
+         * left h.v[1]=0 (Darwin 20). G.7 complete; -2 falls through.
+         * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+        if (field_ty > 0) {
+          int32_t arr_st = glue_emit_vector_type_let_init_elf_c(
+              arena, elf_ctx, right_ref, ctx, ta, dest_off, field_ty);
+          if (arr_st == 0)
+            return 0;
+          if (arr_st == -1)
+            return -1;
+        }
         if (field_ty > 0 && pipeline_type_kind_ord_at(arena, field_ty) == 8) {
           int32_t arr_st;
           int32_t named_sz;

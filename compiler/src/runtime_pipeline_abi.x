@@ -32451,7 +32451,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
 /**
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
  * whole assign, TYPE_VECTOR let-init reuse, TYPE_NAMED >16B sret let-init reuse,
- * FIELD-chain dest to VAR root, pointer / INDEX FIELD dest-in-rbx let-init,
+ * FIELD-chain dest to VAR root, FIELD dest VECTOR CALL let-init,
+ * pointer / INDEX FIELD dest-in-rbx let-init,
  * DEREF TYPE_NAMED/SLICE/VECTOR dest-in-rbx let-init, ARRAY E* glue_copy,
  * STRUCT_LIT index in-place,
  * esz>8 bulk copy, VAR 9–16B dual-GP).
@@ -32671,9 +32672,16 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
               }
               walk_i = walk_i - 1;
             }
-            /* TYPE_NAMED leaf: same let-init as one-level FIELD dest.
-             * dest = nested mag(var_off, each typed_off).
-             * PLATFORM: SHARED — Ubuntu gold x86 high-end mag. */
+            /* TYPE_NAMED / SIMD leaf: dest = nested mag(var_off, each typed_off).
+             * SIMD field (`h.v = add4(a,b)`): same vector let-init as VAR
+             * assign. Prior path treated i32x4 as TYPE_NAMED 16B dual-GP
+             * store of a real CALL; callee only adds lane0 so h.v[1]
+             * stayed 0 (Darwin 20). G.7: glue_emit_vector_type_let_init
+             * into the frame-mag dest (real slot, not dest-in-rbx).
+             * -2 falls through to TYPE_NAMED struct let-init / scalar store.
+             * Do not call asm_type_is_simd_vector_spelling here (late
+             * extern undeclared in hybrid generated C).
+             * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
             if (hit != 0 && (ta == 0 || ta == 1)) {
               unsafe {
                 ltr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
@@ -32681,6 +32689,14 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
               if (ltr > 0) {
                 unsafe {
                   ltk = pipeline_type_kind_ord_at(arena, ltr);
+                  arr_st = glue_emit_vector_type_let_init_elf_c(
+                      arena, elf_ctx, right_ref, ctx, ta, off, ltr);
+                }
+                if (arr_st == 0) {
+                  return 0;
+                }
+                if (arr_st == 0 - 1) {
+                  return 0 - 1;
                 }
                 if (ltk == 8) {
                   unsafe {
