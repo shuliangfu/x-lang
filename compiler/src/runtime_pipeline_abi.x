@@ -54569,7 +54569,12 @@ export function glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx: *u8, rehome_off: 
  * EXPR_STRUCT_LIT field materialization into stack temp / sret / DEST_IN_RBX.
  * Sentinels: DEST_IN_RBX=-3 (dest already in rbx; CPU-stack rehome),
  * REHOME_CPU_STACK=-4. Empty nf==0 ZST ok. Nested STRUCT_LIT in-place;
- * dual-GP 9-16; arm64 nest polarity (ta==1 low-end vs ta==0 high-end).
+ * dual-GP 9-16 (ta==0 and ta==1); arm64 nest polarity (ta==1 low-end vs
+ * ta==0 high-end). ARM64 9–16B field values must take the dual-GP spill
+ * (save x0+x1, rehome dest, store 8+8). The else-branch
+ * store_rax_to_rbx_offset(foff, fsz=16) writes hi via x1 after
+ * mov_rax_to_rbx parked dest in x1/x19, so Wrap { h: inner } dropped
+ * lanes 2–3 (Darwin 30). Do not change enc_store sz>=16 /8 globally.
  * Implicit dest (stack_slot_off<0, not sret / DEST_IN_RBX): reserve the
  * full value width (layout bytes, else field-span) before lea. Same
  * polarity as glue_field_access_call_base_rvalue_elf_c. A 16B Quad
@@ -54892,8 +54897,15 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
           }
         }
       }
-      // dual-GP store ta==0 fsz 9-16
-      if (ta == 0 && fsz > 8 && fsz <= 16) {
+      /* dual-GP store ta==0||ta==1 fsz 9-16.
+       * PLATFORM: SHARED — x86 already spilled rax+rdx then stored 8+8.
+       * ARM64 emit_expr of a 16B named field leaves lo@x0 hi@x1; the
+       * dest rehome (lea + mov_rax_to_rbx) clobbers x1 with the dest
+       * pointer (and x19 dest-shadow). store(sz=16) then writes that
+       * pointer as the high half. Same spill + 8+8 stores as x86.
+       * Numeric spill = next_off+16 / spill-8 is store/load-symmetric
+       * on both polarities. Do not change enc_store /8. */
+      if ((ta == 0 || ta == 1) && fsz > 8 && fsz <= 16) {
         unsafe {
           next_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
         }

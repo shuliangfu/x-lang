@@ -1,16 +1,20 @@
 // Isolated: dest `w.h.v[i]=` plus typeck of `return` / `let` INDEX
 // of a FIELD-chain SIMD field, plus Holder copy `let h = w.h` /
-// assign `h = w.h` after dest. dest emit was already green after
+// assign `h = w.h` after dest, plus STRUCT_LIT `Wrap { h: inner }`
+// (ARM64 16B field store). dest emit was already green after
 // FIELD-chain SIMD INDEX lea; `return h.v[1]` / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
 // false-green `return h.v` as i32). `let h = w.h` used to copy 8B
 // (Darwin h.v[2] leftover) because struct let-init ignored FIELD.
+// `Wrap { h: inner }` used to store only 8B on ARM64 (Darwin 30)
+// because STRUCT_LIT dual-GP spill was ta==0 only.
 // VAR `return a[1]` / `let h2 = h` / `if (w.h.v[i])` were already 0.
-// Does not fold STRUCT_LIT `Wrap { h: inner }` (ARM64 16B field store
-// sibling) / nest 21 / typeck of unrelated free T.
+// Does not fold dest-in-rbx FIELD source / nest 21 / typeck of
+// unrelated free T.
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail without
-// the SIMD-concrete ambient skip and FIELD let-init copy.
+// the SIMD-concrete ambient skip, FIELD let-init copy, and STRUCT_LIT
+// ARM64 dual-GP 16B field store.
 
 allow(padding) struct Holder {
   v: i32x4
@@ -53,17 +57,22 @@ function ret_depth1(h: Holder, i: i32): i32 {
 }
 
 /**
- * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, and Holder copy
- * `let h = w.h` / assign `h = w.h` write/read every lane.
+ * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
+ * `let h = w.h` / assign `h = w.h`, and STRUCT_LIT `Wrap { h: inner }`
+ * write/read every lane.
  * Depth-1 `return h.v[1]` local lit is the same typeck (already 2).
- * @return i32 — 0 ok; 10/20/30/40 dest; 11/21/31/41 return; 12/22/32/42 let;
- *   13/23/33/43 copy; 14/24/34/44 assign; 15/25/35/45 copy-as-param
+ * @return i32 — 0 ok; 50/51/52/53 slit; 10/20/30/40 dest; 11/21/31/41 return;
+ *   12/22/32/42 let; 13/23/33/43 copy; 14/24/34/44 assign; 15/25/35/45 copy-as-param
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let z: i32x4 = [0, 0, 0, 0];
-  let inner: Holder = Holder { v: z };
+  let inner: Holder = Holder { v: a };
   let w: Wrap = Wrap { h: inner };
+  if (w.h.v[0] != 1) { return 50; }
+  if (w.h.v[1] != 2) { return 51; }
+  if (w.h.v[2] != 3) { return 52; }
+  if (w.h.v[3] != 4) { return 53; }
   w.h.v = a;
   w.h.v[0] = 9;
   w.h.v[1] = 8;
