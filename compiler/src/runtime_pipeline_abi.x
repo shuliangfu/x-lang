@@ -32960,6 +32960,74 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         }
       }
     }
+    /* SIMD INDEX dest (`arr[0] = add4(a,b)` / `arr[0] = a.add4(b)`).
+     * After ARRAY_LIT SIMD VAR the ctor is green; dest CALL is Darwin
+     * 2 (lane1 leftover). dest-in-rbx + struct let-init −2 then a
+     * real CALL; callee only adds lane0. G.7: VAR+lit frame dest +
+     * glue_emit_vector_type_let_init (same as FIELD dest VECTOR CALL).
+     * Do not pass dest-in-rbx −3 (would lea rbp-3). Slice dest /
+     * nested arr[0][0] leftover. Do not call
+     * asm_type_is_simd_vector_spelling (late extern undeclared).
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if ((ta == 0 || ta == 1) && base_kind == 3) {
+      unsafe {
+        ltr = pipeline_expr_resolved_type_ref(arena, left_ref);
+      }
+      if (ltr <= 0) {
+        unsafe {
+          ltr_pre = pipeline_expr_resolved_type_ref(arena, base_ref);
+        }
+        if (ltr_pre > 0) {
+          unsafe {
+            ltk_pre = pipeline_type_kind_ord_at(arena, ltr_pre);
+          }
+          if (ltk_pre == 10 || ltk_pre == 11 || ltk_pre == 9) {
+            unsafe {
+              ltr = pipeline_type_elem_ref_at(arena, ltr_pre);
+            }
+          }
+        }
+      }
+      if (ltr > 0) {
+        unsafe {
+          arr_st = glue_vector_type_lanes_esz_c(arena, ltr, &n_arr, &store_sz);
+        }
+        if (arr_st == 0 && n_arr > 0 && store_sz > 0) {
+          nbytes = n_arr * store_sz;
+          if (pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]) != 0) {
+            lit_imm = lit_slot[0];
+            unsafe {
+              base_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+            }
+            if (base_off >= 0 && nbytes > 0) {
+              if (ta == 1) {
+                elem_home = base_off + lit_imm * nbytes;
+              } else {
+                elem_home = base_off - lit_imm * nbytes;
+              }
+              if (elem_home >= 0) {
+                unsafe {
+                  arr_st = glue_emit_vector_type_let_init_elf_c(
+                      arena, elf_ctx, right_ref, ctx, ta, elem_home, ltr);
+                }
+                if (arr_st == 0) {
+                  unsafe {
+                    glue_index_assign_addr_cache_clear();
+                  }
+                  return 0;
+                }
+                if (arr_st == 0 - 1) {
+                  unsafe {
+                    glue_index_assign_addr_cache_clear();
+                  }
+                  return 0 - 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     /* TYPE_NAMED INDEX dest (`arr[0] = id16(x)` / `xs[0] = id16(x)`).
      * Bulk CALL used let_ty_ref=0 → store_retval_pair wrote rax only
      * (Darwin arr[0].b leftover 0 / dump=1). Authority is dest-in-rbx
