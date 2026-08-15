@@ -15160,16 +15160,30 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
               extern int32_t glue_emit_vector_type_let_init_elf_c(void *arena, void *elf_ctx,
                                                                   int32_t init_ref, void *ctx, int32_t ta,
                                                                   int32_t stack_slot_off, int32_t type_ref);
+              /* PLATFORM: SHARED — ARM64 low-end home=cur; x86 high-end
+               * home=cur+sz. Increment-after on x86 overlaps last local
+               * (Ubuntu memcpy(33) SIGSEGV). Same polarity as
+               * glue_simd_alloc_vector_temp_slot / ARRAY_LIT SIMD formal. */
               glue_align_next_offset(ctx);
               v_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
-              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_spill + 8);
+              if (ta == 1)
+                pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_spill + 8);
+              else {
+                v_spill = v_spill + 8;
+                pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_spill);
+              }
               if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
                 return -1;
               if (backend_enc_store_rax_to_rbp_arch(elf_ctx, v_spill, ta) != 0)
                 return -1;
               glue_align_next_offset(ctx);
               v_temp = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
-              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_temp + deref_nbytes);
+              if (ta == 1)
+                pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_temp + deref_nbytes);
+              else {
+                v_temp = v_temp + deref_nbytes;
+                pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), v_temp);
+              }
               v_st = glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, v_temp,
                                                           deref_tr);
               if (v_st == -1)

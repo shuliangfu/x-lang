@@ -4,7 +4,7 @@
 // temp, memcpy dest-in-rbx. Does not save x19 in the prologue.
 // Deref write is unsafe.
 // Expected exit 0.
-// PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail.
+// PLATFORM: SHARED — Ubuntu gold (x86 high-end spill/temp); Darwin ARM64.
 
 /**
  * Identity add of two i32x4 (inlined at dest-in-rbx CALL via let-init).
