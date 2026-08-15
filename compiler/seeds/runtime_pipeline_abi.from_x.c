@@ -14679,7 +14679,9 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       } else if (ltr > 0 && ltk == 14) {
         if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
           return -1;
-      } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0) {
+      } else if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx,
+                                                    ltr, off, ta, right_ref, ctx) != 0) {
+        /* G.7: same dual-GP as let-init (9–16B struct/vector). Scalar ≤8B stores rax only. */
         return -1;
       }
     }

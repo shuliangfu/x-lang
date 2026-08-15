@@ -32199,7 +32199,7 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
 
 /**
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
- * whole assign, STRUCT_LIT index in-place, esz>8 bulk copy).
+ * whole assign, STRUCT_LIT index in-place, esz>8 bulk copy, VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - assign expr ref
@@ -33027,8 +33027,14 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
           return -1;
         }
       } else {
+        /* 9–16B named struct / vector: same dual-GP as let-init.
+         * Scalar / ≤8B still stores rax only inside the helper.
+         * Prior store_rax-only dropped hi (x1/rdx) so `y = id16(x)` left y.b=0.
+         * G.7: reuse glue_store_retval_pair_to_rbp_elf_c; do not fork a second store.
+         * PLATFORM: SHARED — SysV rdx / AAPCS64 x1; ARM64 low-end home@off+8. */
         unsafe {
-          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta);
+          rc = glue_store_retval_pair_to_rbp_elf_c(
+              glue_emit_module_from_ctx(ctx), arena, elf_ctx, ltr, off, ta, right_ref, ctx);
         }
         if (rc != 0) {
           return -1;
