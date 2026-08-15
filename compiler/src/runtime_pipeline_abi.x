@@ -24933,10 +24933,12 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (named_sz > let_sz) {
       let_sz = named_sz;
     }
-    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx 9–16B: memcpy
+    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx ≥8B: memcpy
      * (deref_struct16 mov_rax_to_rbx clobbers dest / x19 dest-shadow).
+     * 8B dest-in-rbx covers `[2]i32` ARRAY (`*p = src`); emit_expr of an
+     * ARRAY VAR only loads the first elem.
      * PLATFORM: SHARED — DEREF dest 16B VAR leftover was Darwin 2. */
-    if (let_sz <= 8) {
+    if (let_sz < 8) {
       return 0 - 2;
     }
     if (let_sz <= 16 && dest_in_rbx == 0) {
@@ -32366,7 +32368,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
  * whole assign, TYPE_VECTOR let-init reuse, TYPE_NAMED >16B sret let-init reuse,
  * FIELD-chain dest to VAR root, pointer / INDEX FIELD dest-in-rbx let-init,
- * DEREF TYPE_NAMED dest-in-rbx let-init, STRUCT_LIT index in-place,
+ * DEREF TYPE_NAMED/SLICE/VECTOR dest-in-rbx let-init, ARRAY E* glue_copy,
+ * STRUCT_LIT index in-place,
  * esz>8 bulk copy, VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -33522,12 +33525,15 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
   }
   // DEREF assign (wave324)
   if (lko == 52) {
-    /* TYPE_NAMED dest (`*p = id16(x)` / `*p = src` / `*p = Quad{...}`).
+    /* Aggregate dest (`*p = …` TYPE_NAMED / SLICE / VECTOR / ARRAY).
      * Prior path emitted rhs then store_rax_to_rbx_indirect (rax only).
-     * Darwin 16B leftover (dump a=5 b=2) / >16B CALL SIGBUS 138 / STRUCT_LIT a leftover.
-     * Authority is dest-in-rbx let-init (same as pointer / INDEX dest):
-     * 16B CALL dual-GP via x19 / rdx; >16B CALL dest→x8/rdi; VAR >8B memcpy dest-in-rbx.
-     * Scalar stays on store_rax_to_rbx_indirect. Deref write is unsafe in source.
+     * Darwin SLICE length leftover / ARRAY first-elem leftover / VECTOR
+     * 16B CALL SIGBUS 138. Authority is dest-in-rbx let-init for
+     * register-class aggregates (NAMED / SLICE / VECTOR): 16B dual-GP
+     * via x19 / rdx; >16B CALL dest→x8/rdi; VAR ≥8B memcpy dest-in-rbx.
+     * TYPE_ARRAY CALL returns E* (8B), not payload — emit then glue_copy
+     * *rax → dest. Scalar stays on store_rax_to_rbx_indirect.
+     * Deref write is unsafe in source.
      * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
     if (ta == 0 || ta == 1) {
       unsafe {
@@ -33569,7 +33575,9 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
           }
         }
       }
-      if (ltr > 0 && ltk == 8) {
+      /* TYPE_NAMED=8 SLICE=11 VECTOR=13 ARRAY=10. i32x4 is often kind 8
+       * (named SIMD spelling) — still dest-in-rbx. Scalar / ptr stay below. */
+      if (ltr > 0 && (ltk == 8 || ltk == 11 || ltk == 13 || ltk == 10)) {
         unsafe {
           rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
         }
@@ -33581,6 +33589,95 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         }
         if (rc != 0) {
           return 0 - 1;
+        }
+        unsafe {
+          rko_pre = pipeline_expr_kind_ord_at(arena, right_ref);
+          arr_st = glue_vector_type_lanes_esz_c(arena, ltr, &n_arr, &esz);
+        }
+        /* SIMD / TYPE_VECTOR: glue_type_size_simple is often 0 for the
+         * i32x4 named spelling (no struct layout). VAR memcpy dest-in-rbx
+         * with lanes*esz; CALL is 16B dual-GP dest-in-rbx store.
+         * Detect via glue_vector_type_lanes_esz (not a late extern).
+         * PLATFORM: SHARED — Darwin *p = va leftover lane1. */
+        if (arr_st == 0 && n_arr > 0 && esz > 0) {
+            nbytes = n_arr * esz;
+            if (nbytes >= 8 && rko_pre == 3) {
+              unsafe {
+                var_off = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+              }
+              if (var_off >= 0) {
+                unsafe {
+                  rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, var_off, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                unsafe {
+                  rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
+                }
+                if (rc != 0) {
+                  return 0 - 1;
+                }
+                return 0;
+              }
+            }
+            if (nbytes >= 8 && (rko_pre == 48 || rko_pre == 49)) {
+              unsafe {
+                rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              if (ta == 1) {
+                unsafe {
+                  rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
+                }
+              } else {
+                unsafe {
+                  rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+                }
+                if (rc == 0) {
+                  rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+                }
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              return 0;
+            }
+        }
+        /* TYPE_ARRAY CALL and SLICE CALL return E* (pointer to payload /
+         * fat), not register-class halves. take(xs) returns the incoming
+         * fat pointer; dest-in-rbx 16B store wrote E* as .data.
+         * PLATFORM: SHARED — glue_call_return_byte_size is 8 for ARRAY. */
+        if (ltk == 10 || ltk == 11) {
+          unsafe {
+            mod = glue_emit_module_from_ctx(ctx);
+            nbytes = glue_type_size_simple(mod, arena, ltr, 0);
+          }
+          if (ltk == 11) {
+            nbytes = 16;
+          }
+          if (nbytes < 8) {
+            unsafe {
+              nbytes = glue_fixed_array_total_bytes_c(arena, ltr, 0);
+            }
+          }
+          if (nbytes >= 8 && (rko_pre == 48 || rko_pre == 49)) {
+            unsafe {
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            return 0;
+          }
         }
         unsafe {
           arr_st = glue_emit_struct_type_let_init_elf_c(
@@ -69655,10 +69752,10 @@ export function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off
   memcpy_sym[4] = 112 as u8;
   memcpy_sym[5] = 121 as u8;
   memcpy_sym[6] = 0 as u8;
-  /* Frame dest stays >16B (≤16B dual-GP). dest-in-rbx 9–16B memcpy is
-   * the VAR dest-in-rbx path (DEREF / pointer FIELD 16B copy).
+  /* Frame dest stays >16B (≤16B dual-GP). dest-in-rbx ≥8B memcpy is
+   * the VAR dest-in-rbx path (DEREF / pointer FIELD / ARRAY `[2]i32`).
    * PLATFORM: SHARED — do not lower the frame dest gate. */
-  if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz <= 8) {
+  if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz < 8) {
     return 0 - 1;
   }
   if (sz <= 16 && slot_off != (0 - 3)) {

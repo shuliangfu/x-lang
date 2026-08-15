@@ -11060,10 +11060,10 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
     named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
     if (named_sz > let_sz)
       let_sz = named_sz;
-    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx 9–16B: memcpy
-     * (deref_struct16 would clobber dest rbx/x19).
+    /* Frame dest ≤16B: dual-GP fall-through. dest-in-rbx ≥8B: memcpy
+     * (deref_struct16 would clobber dest rbx/x19). 8B covers `[2]i32`.
      * PLATFORM: SHARED — DEREF dest 16B VAR leftover was Darwin 2. */
-    if (let_sz <= 8)
+    if (let_sz < 8)
       return -2;
     if (let_sz <= 16 && !dest_in_rbx)
       return -2;
@@ -11090,9 +11090,9 @@ int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_of
   memcpy_sym[4] = 112;
   memcpy_sym[5] = 121;
   memcpy_sym[6] = 0;
-  /* Frame dest stays >16B. dest-in-rbx 9–16B memcpy is VAR dest-in-rbx.
+  /* Frame dest stays >16B. dest-in-rbx ≥8B memcpy is VAR dest-in-rbx.
    * PLATFORM: SHARED — do not lower the frame dest gate. */
-  if (!elf_ctx || (ta != 0 && ta != 1) || sz <= 8)
+  if (!elf_ctx || (ta != 0 && ta != 1) || sz < 8)
     return -1;
   if (sz <= 16 && slot_off != -3)
     return -1;
@@ -15037,10 +15037,16 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
   if (lko == 52) {
     int32_t store_sz;
     int32_t tr;
-    /* TYPE_NAMED dest (`*p = id16(x)` / `*p = src`). Prior path
-     * store_rax_to_rbx_indirect (rax only): Darwin 16B leftover / >16B SIGBUS.
-     * Dest-in-rbx let-init — same authority as pointer / INDEX dest.
-     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    extern int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out_lanes,
+                                                int32_t *out_esz);
+    extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+    extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+    extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz,
+                                                            int32_t ta);
+    extern int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx);
+    /* Aggregate dest (`*p = …` TYPE_NAMED / SLICE / VECTOR / ARRAY).
+     * Dest-in-rbx let-init for register-class; TYPE_ARRAY CALL is E* then
+     * glue_copy *rax → dest. PLATFORM: SHARED — Darwin ARM64 live fail. */
     if (ta == 0 || ta == 1) {
       int32_t deref_tr;
       int32_t deref_tk;
@@ -15048,9 +15054,12 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       int32_t deref_op_tr;
       int32_t deref_op_tk;
       int32_t deref_let;
+      int32_t deref_rko;
+      int32_t deref_nbytes;
+      void *deref_mod;
       deref_tr = pipeline_expr_resolved_type_ref(arena, left_ref);
       deref_tk = (deref_tr > 0) ? pipeline_type_kind_ord_at(arena, deref_tr) : 0;
-      if (deref_tk != 8) {
+      if (deref_tk != 8 && deref_tk != 11 && deref_tk != 13 && deref_tk != 10) {
         deref_op = pipeline_expr_unary_operand_ref_at(arena, left_ref);
         if (deref_op > 0) {
           deref_op_tr = pipeline_expr_resolved_type_ref(arena, deref_op);
@@ -15065,11 +15074,62 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
           }
         }
       }
-      if (deref_tr > 0 && deref_tk == 8) {
+      if (deref_tr > 0 && (deref_tk == 8 || deref_tk == 11 || deref_tk == 13 || deref_tk == 10)) {
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
           return -1;
         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           return -1;
+        deref_rko = pipeline_expr_kind_ord_at(arena, right_ref);
+        {
+          int32_t v_lanes = 0;
+          int32_t v_esz = 0;
+          int32_t v_src;
+          if (glue_vector_type_lanes_esz_c(arena, deref_tr, &v_lanes, &v_esz) == 0 &&
+              v_lanes > 0 && v_esz > 0) {
+            deref_nbytes = v_lanes * v_esz;
+            if (deref_nbytes >= 8 && deref_rko == 3) {
+              v_src = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+              if (v_src >= 0) {
+                if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, v_src, ta) != 0)
+                  return -1;
+                if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, GLUE_STRUCT_LIT_DEST_IN_RBX,
+                                                              deref_nbytes, ta) != 0)
+                  return -1;
+                return 0;
+              }
+            }
+            if (deref_nbytes >= 8 && (deref_rko == 48 || deref_rko == 49)) {
+              if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+                return -1;
+              if (ta == 1) {
+                if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta) != 0)
+                  return -1;
+              } else {
+                if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+                  return -1;
+                if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+                  return -1;
+              }
+              return 0;
+            }
+          }
+        }
+        if (deref_tk == 10 || deref_tk == 11) {
+          deref_mod = glue_emit_module_from_ctx(ctx);
+          deref_nbytes = glue_type_size_simple(deref_mod, arena, deref_tr, 0);
+          if (deref_tk == 11)
+            deref_nbytes = 16;
+          if (deref_nbytes < 8)
+            deref_nbytes = glue_fixed_array_total_bytes_c(arena, deref_tr, 0);
+          if (deref_nbytes >= 8 && (deref_rko == 48 || deref_rko == 49)) {
+            if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+              return -1;
+            if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, GLUE_STRUCT_LIT_DEST_IN_RBX,
+                                                          deref_nbytes, ta) != 0)
+              return -1;
+            return 0;
+          }
+        }
         deref_let = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, deref_tr,
                                                          GLUE_STRUCT_LIT_DEST_IN_RBX);
         if (deref_let == 0)
