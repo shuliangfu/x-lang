@@ -305,13 +305,20 @@ export function enc_imul_rbx_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 453082112);
 }
 
-/** Exported function `enc_mov_rax_to_rbx`.
- * Implements `enc_mov_rax_to_rbx`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Copy rax/x0 into the ARM64 rbx mapping (x1) and a callee-saved dest shadow (x19).
+ * x86 rbx is callee-saved so dest-in-rbx survives a CALL. ARM64 maps rbx to x1,
+ * which a 16B AAPCS64 return overwrites (hi in x1). x19 keeps the dest pointer
+ * for store_size>=16 (enc_store_rax_to_rbx_offset). sz<8/8 stores still use x1.
+ * @param ctx *ElfCodegenCtx — pure-asm emit context; null rejected by enc_u32_le
+ * @return i32 — 0 ok, -1 emit failure
+ * PLATFORM: MACOS|ARM64 — G.7 twin of seeds/backend_arm64_enc_c.from_x.c
  */
 export function enc_mov_rax_to_rbx(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2852127713);
+  /* mov x1, x0 — 0xAA0003E1; keep INDEX / sz<=8 dest-in-x1 */
+  if (enc_u32_le(ctx, 2852127713) != 0) { return 0 - 1; }
+  /* mov x19, x0 — 0xAA0003F3; dest survives 16B CALL (C callee saves x19) */
+  return enc_u32_le(ctx, 2852127731);
 }
 
 /** mov x0, x1。 */
@@ -1071,10 +1078,13 @@ export function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
 }
 
 /**
- * Store value@x0 into [x1 + offset] with ARM64 scaled-imm width matching store_size.
+ * Store value@x0 into [rbx + offset] with ARM64 scaled-imm width matching store_size.
+ * sz<16 uses dest in x1 (INDEX / byte-wise lit). sz>=16 uses dest shadow x19
+ * (enc_mov_rax_to_rbx) so a prior 16B CALL that wrote hi into x1 cannot clobber
+ * dest; also stores hi from x1 to [x19+offset+8] (AAPCS64 dual-GP).
  * @param ctx *ElfCodegenCtx — pure-asm emit context
- * @param offset i32 — byte offset from base in x1; negative clamped to 0
- * @param store_size i32 — 1=STRB, 2=STRH, 4=STR W, else STR X (scale 1/2/4/8)
+ * @param offset i32 — byte offset from dest base; negative clamped to 0
+ * @param store_size i32 — 1=STRB, 2=STRH, 4=STR W, >=16 dual-GP via x19, else STR X via x1
  * @return i32 — 0 ok, non-zero on emit failure
  * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: seeds/backend_arm64_enc_c.from_x.c
  * wave391: product seed previously ignored store_size (always STR X /8) → multi-field STRUCT_LIT wrong.
@@ -1082,6 +1092,21 @@ export function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
 export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size: i32): i32 {
   if (offset < 0) {
     offset = 0;
+  }
+  /* dest-in-x19 + lo@x0 + hi@x1 after 16B CALL / 16B emit (glue_emit default_alloc). */
+  if (store_size >= 16) {
+    let imm12: i32 = offset / 8;
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    /* str x0, [x19, #offset] — Rn=19 */
+    if (enc_u32_le(ctx, 4177526784 | (imm12 << 10) | (19 << 5)) != 0) { return 0 - 1; }
+    let imm12h: i32 = (offset + 8) / 8;
+    if (imm12h > 4095) {
+      imm12h = 4095;
+    }
+    /* str x1, [x19, #offset+8] — Rt=1 Rn=19 */
+    return enc_u32_le(ctx, 4177526784 | (imm12h << 10) | (19 << 5) | 1);
   }
   if (store_size == 1) {
     /* strb w0, [x1, #offset] — imm12 bytes 0..4095 (u8[] array-lit byte-wise init). */

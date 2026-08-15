@@ -401,8 +401,12 @@ int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *e
 }
 
 int32_t arch_arm64_enc_enc_mov_rax_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mov x1, x0 */
-  return arm64_enc_u32_le(elf_ctx, 0xaa0003e1u);
+  /* PLATFORM: MACOS|ARM64 — x86 rbx is callee-saved; ARM64 rbx=x1 is the
+   * 16B AAPCS64 hi return. Copy dest to x19 so store_size>=16 survives CALL.
+   * sz<=8 / INDEX still use x1. Twin: arch/arm64_enc.x enc_mov_rax_to_rbx. */
+  if (arm64_enc_u32_le(elf_ctx, 0xaa0003e1u) != 0) /* mov x1, x0 */
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xaa0003f3u); /* mov x19, x0 */
 }
 
 int32_t arch_arm64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -886,6 +890,20 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodege
   uint32_t base;
   if (offset < 0)
     offset = 0;
+  /* dest shadow x19 (enc_mov_rax_to_rbx) + dual-GP: lo x0, hi x1.
+   * PLATFORM: MACOS|ARM64 — 16B CALL clobbers x1; do not use x1 as dest. */
+  if (store_size >= 16) {
+    imm12 = offset / 8;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    if (arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12) << 10) | (19u << 5)) != 0)
+      return -1; /* str x0, [x19, #offset] */
+    imm12 = (offset + 8) / 8;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12) << 10) | (19u << 5) | 1u);
+    /* str x1, [x19, #offset+8] */
+  }
   if (store_size == 1) {
     /* strb w0, [x1, #offset] — imm12 is byte count 0..4095 */
     imm12 = offset;
