@@ -30675,23 +30675,14 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
       return 0;
     }
     if (rtk == 11) {
+      /* TYPE_SLICE fat is 16B dual-GP {data,length}. The old hand-roll
+       * parked the length half via mov_rax_to_arg_reg(2). On x86 that is
+       * rdx (SysV dual-GP hi). On ARM64 arg 2 is x2 (AAPCS64 3rd GP), not
+       * x1, so the later store_rdx wrote the hi-guard leftover. G.7: reuse
+       * deref_struct16 (*addr → rax+rdx/x1), same as the 9–16B arm below.
+       * PLATFORM: SHARED · LINUX|x86_64 rdx · MACOS|ARM64 x1. */
       unsafe {
-        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
-          return 0 - 1;
-        }
-        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) {
-          return 0 - 1;
-        }
-        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
-          return 0 - 1;
-        }
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0) {
-          return 0 - 1;
-        }
-        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
-          return 0 - 1;
-        }
-        rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+        rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
       }
       return rc;
     }

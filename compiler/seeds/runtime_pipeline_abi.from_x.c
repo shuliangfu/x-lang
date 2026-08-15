@@ -13528,17 +13528,11 @@ int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   if (res_ty > 0 && pipeline_type_kind_ord_at(arena, res_ty) == 10)
     return 0;
   if (res_ty > 0 && pipeline_type_kind_ord_at(arena, res_ty) == 11) {
-    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
-      return -1;
-    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
-      return -1;
-    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    /* TYPE_SLICE fat is 16B dual-GP. Twin of runtime_pipeline_abi.x
+     * pipeline_asm_emit_index_elf_c rtk==11. Do not use arg_reg(2):
+     * ARM64 x2 is the 3rd AAPCS64 arg, not dual-GP hi (x1).
+     * PLATFORM: SHARED · LINUX|x86_64 rdx · MACOS|ARM64 x1. */
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
   }
   /* PLATFORM: SHARED — INDEX 9–16B rvalue: *rax → rax+rdx via G.7 deref.
    * Twin: runtime_pipeline_abi.x pipeline_asm_emit_index_elf_c.
