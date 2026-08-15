@@ -42560,21 +42560,100 @@ function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32): i32 
 }
 
 /**
- * Vector VAR lane stack off. x86 SysV: base - lane*esz (rbp grows down).
- * AAPCS64: base + lane*esz (positive [x29,#off]; ≡ INDEX ta==1 at emit_assign).
- * @return i32 — lane home; -1 failure
- * wave148 pure: G.7 authority (was static glue_vector_var_lane_stack_off_elf_c).
+ * Vector VAR / depth-1 FIELD lane stack off. x86 SysV: base - lane*esz
+ * (rbp grows down). AAPCS64: base + lane*esz (positive [x29,#off]).
+ * FIELD `h.v` (base VAR, not *T / enum / chain) folds
+ * glue_struct_field_frame_mag_c then the same lane polarity. Completes
+ * the VAR-only `ko != 3` reject so UFCS `h.v.sub4(b)` / CALL `add4(h.v,b)`
+ * hit the lane-binop fast path instead of a real CALL (Darwin lane1 leftover).
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param var_expr_ref i32 — VAR or FIELD expr ref of the vector operand
+ * @param lane i32 — lane index (>=0)
+ * @param esz i32 — lane byte size (>0)
+ * @param ta i32 — 1=arm64, else x86
+ * @return i32 — lane home; -1 failure (caller takes the push slow path)
+ * G.7 authority (was static glue_vector_var_lane_stack_off_elf_c).
  * PLATFORM: SHARED load polarity · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
 export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32, ta: i32): i32 {
   let off: i32 = 0;
   let ko: i32 = 0;
+  let is_enum: i32 = 0;
+  let base_ref: i32 = 0;
+  let base_ko: i32 = 0;
+  let ltr: i32 = 0;
+  let ltk: i32 = 0;
+  let field_off: i32 = 0;
+  let mod: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0 || lane < 0 || esz <= 0) {
     return 0 - 1;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  }
+  /* FIELD=44 depth-1 on a value VAR: same lane home as VAR after frame-mag.
+   * Pointer VAR / enum variant / FIELD-chain stay -1 (dest-in-rbx leftover). */
+  if (ko == 44) {
+    unsafe {
+      is_enum = pipeline_expr_field_access_is_enum_variant(arena, var_expr_ref);
+    }
+    if (is_enum != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      base_ref = pipeline_expr_field_access_base_ref(arena, var_expr_ref);
+    }
+    if (base_ref <= 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    }
+    if (base_ko != 3) {
+      return 0 - 1;
+    }
+    unsafe {
+      ltr = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+    }
+    if (ltr <= 0) {
+      unsafe {
+        ltr = pipeline_expr_resolved_type_ref(arena, base_ref);
+      }
+    }
+    if (ltr > 0) {
+      unsafe {
+        ltk = pipeline_type_kind_ord_at(arena, ltr);
+      }
+      if (ltk == 9) {
+        return 0 - 1;
+      }
+    }
+    off = glue_asm_local_var_stack_off_scoped(arena, ctx, base_ref);
+    if (off < 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+    }
+    if (mod == (0 as *u8)) {
+      return 0 - 1;
+    }
+    unsafe {
+      field_off = glue_field_access_effective_offset_c(arena, mod, var_expr_ref);
+    }
+    if (field_off < 0) {
+      return 0 - 1;
+    }
+    off = glue_struct_field_frame_mag_c(off, field_off, ta);
+    if (off < 0) {
+      return 0 - 1;
+    }
+    if (ta == 1) {
+      return off + lane * esz;
+    }
+    return off - lane * esz;
   }
   if (ko != 3) {
     return 0 - 1;
@@ -43282,6 +43361,17 @@ export function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, ex
     }
     unsafe {
       return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
+    }
+  }
+  /* FIELD=44: reuse stack-off authority (depth-1 VAR base). off already
+   * includes lane polarity — do not add lane*esz again. Miss (pointer /
+   * chain / enum) falls through to emit_expr. */
+  if (ko == 44) {
+    off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, expr_ref, lane, esz, ta);
+    if (off >= 0) {
+      unsafe {
+        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, esz, ta);
+      }
     }
   }
   if (ko == 46) {

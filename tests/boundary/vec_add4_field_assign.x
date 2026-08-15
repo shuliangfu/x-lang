@@ -5,7 +5,7 @@
 // Darwin ARM64 callee only adds lane0 so h.v[1] stayed 0 (exit 20).
 // This gate checks every lane on FIELD dest copy / CALL / METHOD
 // with a VAR receiver. FIELD-as-receiver (`h.v = h.v.sub4(b)`)
-// is a leftover (binop2 still VAR-base only).
+// is gated by vec_add4_field_recv.x.
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail without let-init.
 
