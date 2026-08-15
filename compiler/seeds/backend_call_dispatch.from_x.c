@@ -3876,9 +3876,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, name, name_len, nargs);
           /**
            * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args (math.floor / vec.push / len /
-           * xlang_io_submit_*_batch).
+           * xlang_io_submit_*_batch). f32/f64 extras go xmm0–7 (host-C gcc).
+           * PLATFORM: MACOS|ARM64 AAPCS64 — same extras go s0–s7 / d0–d7 (host-C gcc reads FP regs).
            * Root: product parses `math.floor(x)` / `core.fn(…)` as METHOD_CALL, not CALL+FIELD_ACCESS.
-           * G.7: same SSE class as CALL; 9–16B POD → 2 GPs; >16B MEMORY by-value on stack (formal C);
+           * G.7: same SSE class as CALL / prefer backend_call_dispatch.x import METHOD (ta==0||ta==1).
+           * Do NOT classify UFCS extras as SSE on arm64 (local xlang callee homes GP).
+           * 9–16B POD → 2 GPs; >16B MEMORY by-value on stack (formal C);
            * excess integer args after 6 GPs go on stack (same as EXPR_CALL); sret shift reserves rdi.
            */
           {
@@ -3912,7 +3915,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 continue;
               sz = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
               arg_sz[i] = sz;
-              is_sse[i] = (ta == 0) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
+              /* PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras → xmm0–7.
+               * PLATFORM: MACOS|ARM64 AAPCS64 — same extras → s0–s7 (encoder fmov sK,w0).
+               * Darwin product L2 lives in this seed (try-heat / r3-prefer cc -c seed).
+               * G.7: same gate as prefer backend_call_dispatch.x import METHOD (ta==0||ta==1).
+               * UFCS places[] below stays ta==0 only (local X callee homes x0). */
+              is_sse[i] = (ta == 0 || ta == 1) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
               is_f64[i] = glue_arg_ref_is_f64_width_c(arena, arg_ref, pty_i);
               if (is_sse[i]) {
                 if (xmm_cur >= 8)
