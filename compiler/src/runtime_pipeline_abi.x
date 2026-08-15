@@ -24716,7 +24716,10 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * FIELD >16B frame: lvalue lea + memcpy.
  * dest-in-rbx FIELD (`*p = w.h`): lvalue lea (FIELD-on-VAR is rax-only)
  * then glue_copy dest-in-rbx. deref_struct16 mov_rax_to_rbx would
- * clobber dest / x19. INDEX-base FIELD lvalue uses rbx — sibling.
+ * clobber dest / x19. INDEX-base FIELD (`*p = arr[i].h`) lvalue uses
+ * rbx (var index / slice): park dest then src addr (same polarity as
+ * VECTOR CALL dest) and restore dest to rbx before memcpy. Darwin
+ * x19 dest-shadow hid this; Ubuntu x86 rbx dest is live 139.
  * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
  * CALL ≤16B dual-GP store via x19/rbx; VAR >8B glue_copy dest-in-rbx
  * (deref_struct16 would clobber dest rbx/x19 — memcpy is the authority).
@@ -24734,6 +24737,9 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let src_off: i32 = 0;
   let ty_ref: i32 = 0;
   let dest_in_rbx: i32 = 0;
+  let dest_spill: i32 = 0;
+  let src_spill: i32 = 0;
+  let parked: i32 = 0;
   let modp: *u8 = 0 as *u8;
   let rc: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
@@ -25008,10 +25014,12 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
    * rejects frame ≤16). >16B frame uses the VAR memcpy twin.
    * dest-in-rbx: same VAR dest-in-rbx twin (lea src + glue_copy).
    * FIELD-on-VAR lvalue is lea + add_imm (rax only; dest rbx/x19
-   * stays). deref_struct16 mov_rax_to_rbx would clobber dest / x19.
+   * stays). INDEX-base FIELD var-index / slice lvalue uses rbx —
+   * park dest then src addr (VECTOR CALL dest polarity) and restore
+   * dest to rbx before memcpy. Darwin x19 dest-shadow hid Ubuntu 139.
+   * deref_struct16 mov_rax_to_rbx would clobber dest / x19.
    * Do not change FIELD emit_expr. Do not lower frame dest ≤16 memcpy.
-   * INDEX-base FIELD lvalue uses rbx — sibling leftover.
-   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 dest-shadow hid rbx. */
   if (ko == 44 && (ta == 0 || ta == 1)) {
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
@@ -25033,16 +25041,82 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (let_sz < 9) {
       return 0 - 2;
     }
+    /* dest-in-rbx + INDEX-base FIELD (`*p = arr[i].h`): var-index /
+     * slice lvalue uses rbx. G.7: reuse binop INDEX-clobber detector
+     * and VECTOR CALL dest park polarity (ARM64 home=cur, x86
+     * home=cur+8). Park dest, then src addr after lvalue, restore
+     * dest to rbx, then memcpy dest-in-rbx.
+     * PLATFORM: SHARED — LINUX|x86_64 rbx dest is the live 139. */
+    if (dest_in_rbx != 0) {
+      parked = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, init_ref);
+      if (parked != 0) {
+        glue_align_next_offset(ctx);
+        dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+        if (ta == 1) {
+          pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+        } else {
+          dest_spill = dest_spill + 8;
+          pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+        }
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_align_next_offset(ctx);
+        src_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+        if (ta == 1) {
+          pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill + 8);
+        } else {
+          src_spill = src_spill + 8;
+          pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill);
+        }
+      }
+    }
     unsafe {
       emit_rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
     }
     if (emit_rc != 0) {
       return 0 - 1;
     }
-    /* dest-in-rbx FIELD (`*p = w.h`): memcpy dest-in-rbx. Do not
-     * deref_struct16 (mov_rax_to_rbx clobbers dest / x19).
-     * PLATFORM: SHARED — Darwin leftover was lane2=30. */
+    /* dest-in-rbx FIELD (`*p = w.h` / `*p = arr[i].h`): memcpy
+     * dest-in-rbx. Do not deref_struct16 (mov_rax_to_rbx clobbers
+     * dest / x19). If INDEX parked dest, restore dest then src.
+     * PLATFORM: SHARED — Darwin leftover was lane2=30; Ubuntu 139. */
     if (dest_in_rbx != 0) {
+      if (parked != 0) {
+        unsafe {
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
       unsafe {
         rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, let_sz, ta);
       }
