@@ -63338,10 +63338,14 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
   // CALL=48 / METHOD_CALL=49 returning SIMD: rax+rdx (or sret) holds the
   // vector value, not an address. emit_expr fallback then add idx*esz
   // treated lanes as a pointer → SEGV (`simd.add(...)[0]`).
-  // G.7: reuse glue_emit_struct_type_let_init (try_inline / dual-GP /
-  // sret) into a next_offset temp, then LEA — same polarity as assign
-  // STRUCT/CALL rhs (temp_home = next after nbytes). Do not spill
-  // TYPE_ARRAY / TYPE_SLICE CALL (rax is already E* / fat.data).
+  // G.7: try glue_emit_vector_type_let_init first (identity peel +
+  // binop2 / splat / select). `return idv(add4)[i]` and `return add4[i]`
+  // used to go through struct let-init → real CALL → callee lane0 only
+  // (Darwin 0, host-C 22). Vector let-init writes linear dest+i*esz,
+  // same as store_retval_pair, so the later lea+idx*esz load matches.
+  // -2 falls through to glue_emit_struct_type_let_init (try_inline /
+  // dual-GP / sret). Do not spill TYPE_ARRAY / TYPE_SLICE CALL (rax is
+  // already E* / fat.data). Do not pass dest-in-rbx −3 (would lea rbp-3).
   // Assign twin: glue_try_index_var_or_field_base_to_rbx (push/pop rax).
   // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
   if (ko == 48 || ko == 49) {
@@ -63385,8 +63389,20 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
       next_off = next_off + nbytes;
       temp_home = next_off;
       pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), next_off);
+      /* Vector let-init first: peel idv and inline add4. dest is a real
+       * frame-mag temp (not dest-in-rbx). -2 → struct CALL store. */
       unsafe {
-        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, base_ref, ctx, ta, tr, temp_home);
+        st = glue_emit_vector_type_let_init_elf_c(
+            arena, elf_ctx, base_ref, ctx, ta, temp_home, tr);
+      }
+      if (st == 0 - 1) {
+        return 0 - 1;
+      }
+      if (st != 0) {
+        unsafe {
+          st = glue_emit_struct_type_let_init_elf_c(
+              arena, elf_ctx, base_ref, ctx, ta, tr, temp_home);
+        }
       }
       if (st == 0 - 1) {
         return 0 - 1;

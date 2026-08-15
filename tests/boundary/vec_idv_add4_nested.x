@@ -4,7 +4,8 @@
 // the add4 arg was a real CALL whose callee only adds lane0
 // (Darwin 2). G.7: peel 1-param `return p0` and reuse vector
 // let-init on arg0 (add4 then hits binop2). Does not fold
-// FIELD-as-receiver, return idv(add4)[i], or non-identity wrap.
+// FIELD-as-receiver or non-identity wrap. return idv(add4)[i]
+// is gated by vec_idv_add4_index.x.
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail.
 
