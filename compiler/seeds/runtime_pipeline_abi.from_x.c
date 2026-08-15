@@ -14461,14 +14461,32 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
   if (lko == 44 && pipeline_expr_field_access_is_enum_variant(arena, left_ref) == 0) {
     int32_t base_ref = pipeline_expr_field_access_base_ref(arena, left_ref);
     int32_t field_off;
-    if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
+    int32_t chain_fa[16];
+    int32_t chain_n = 0;
+    int32_t walk_cur = left_ref;
+    int32_t walk_i;
+    int32_t dest_off;
+    int32_t hit;
+    int32_t typed_off;
+    int32_t fa_ref;
+    /* Walk FIELD chain to a local VAR root (h.s or w.h.s). Fold
+     * glue_struct_field_frame_mag_c then reuse let-init. Immediate-VAR
+     * only left w.h.s on push/pop (Darwin 2 / 138).
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    while (chain_n < 16 && walk_cur > 0 &&
+           pipeline_expr_kind_ord_at(arena, walk_cur) == 44) {
+      chain_fa[chain_n++] = walk_cur;
+      walk_cur = pipeline_expr_field_access_base_ref(arena, walk_cur);
+    }
+    if (base_ref > 0 && walk_cur > 0 && chain_n > 0 &&
+        pipeline_expr_kind_ord_at(arena, walk_cur) == 3) {
       uint8_t vname[128];
       int32_t vlen;
       int32_t var_off;
-      vlen = pipeline_expr_var_name_len(arena, base_ref);
+      vlen = pipeline_expr_var_name_len(arena, walk_cur);
       if (vlen <= 0 || vlen > 127)
         return -1;
-      pipeline_expr_var_name_into(arena, base_ref, vname);
+      pipeline_expr_var_name_into(arena, walk_cur, vname);
       var_off = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
       if (var_off < 0)
         var_off = asm_ctx_local_find_offset(ctx, vname, vlen);
@@ -14479,66 +14497,61 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, left_ref);
       if (load_sz <= 0)
         load_sz = 4;
-      /* TYPE_NAMED FIELD dest: reuse struct let-init at dest =
-       * var_off+field_off (same helper as VAR assign). Historical
-       * store_rax_to_rbx_offset only writes rax — 16B CALL/copy lose
-       * hi (Darwin 2); >16B CALL never installs x8 (Darwin SIGBUS 138).
-       * G.7: same glue_emit_struct_type_let_init; -2 (16B VAR) then
-       * store_retval_pair. Scalars stay on store_rax_to_rbx.
-       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-      if (ta == 0 || ta == 1) {
+      dest_off = var_off;
+      hit = 1;
+      for (walk_i = chain_n - 1; walk_i >= 0 && hit; walk_i--) {
+        fa_ref = chain_fa[walk_i];
+        base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+        vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
+        typed_off = -1;
+        if (vlen > 0 && vlen <= 127) {
+          pipeline_expr_field_access_name_into(arena, fa_ref, vname);
+          typed_off = glue_field_layout_offset_for_base_field(arena, mod, base_ref, vname, vlen);
+        }
+        if (typed_off < 0)
+          typed_off = glue_field_access_effective_offset_c(arena, mod, fa_ref);
+        if (typed_off < 0) {
+          hit = 0;
+        } else {
+          dest_off = glue_struct_field_frame_mag_c(dest_off, typed_off, ta);
+          if (dest_off < 0)
+            hit = 0;
+        }
+      }
+      if (hit && (ta == 0 || ta == 1)) {
         int32_t field_ty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
         if (field_ty > 0 && pipeline_type_kind_ord_at(arena, field_ty) == 8) {
-          int32_t flen_ty = pipeline_expr_field_access_name_len(arena, left_ref);
-          int32_t typed_off;
-          int32_t dest_off;
           int32_t arr_st;
           int32_t named_sz;
           int32_t simple_sz;
-          /* dest frame mag = glue_struct_field_frame_mag_c (same as
-           * FIELD-as-source). Raw var_off+field_off is ARM64-only.
-           * x86 high-end: Prefixed.s typed +8 + raw add → lea -0x80
-           * (start-8), memcpy clobbers tag. mag: arm64 base+foff,
-           * x86 base-foff. Skip if mag < 0.
-           * PLATFORM: SHARED — Ubuntu gold x86 high-end leftover. */
-          if (flen_ty > 0 && flen_ty <= 127) {
-            pipeline_expr_field_access_name_into(arena, left_ref, vname);
-            typed_off = glue_field_layout_offset_for_base_field(arena, mod, base_ref, vname, flen_ty);
-            if (typed_off >= 0)
-              field_off = typed_off;
-          }
-          if (field_off >= 0) {
-            dest_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
-            if (dest_off < 0)
-              goto field_dest_scalar;
-            arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta,
-                                                         field_ty, dest_off);
-            if (arr_st == 0)
-              return 0;
-            if (arr_st == -1)
+          arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                       field_ty, dest_off);
+          if (arr_st == 0)
+            return 0;
+          if (arr_st == -1)
+            return -1;
+          mod = glue_emit_module_from_ctx(ctx);
+          simple_sz = glue_type_size_simple(mod, arena, field_ty, 0);
+          named_sz = glue_type_named_layout_size_any_module_elf_c(arena, field_ty);
+          if (named_sz > simple_sz)
+            simple_sz = named_sz;
+          if (simple_sz > 8 && simple_sz <= 16) {
+            if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
               return -1;
-            mod = glue_emit_module_from_ctx(ctx);
-            simple_sz = glue_type_size_simple(mod, arena, field_ty, 0);
-            named_sz = glue_type_named_layout_size_any_module_elf_c(arena, field_ty);
-            if (named_sz > simple_sz)
-              simple_sz = named_sz;
-            if (simple_sz > 8 && simple_sz <= 16) {
-              if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
-                return -1;
-              if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, field_ty, dest_off, ta,
-                                                      right_ref, ctx) != 0)
-                return -1;
-              return 0;
-            }
+            if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, field_ty, dest_off, ta,
+                                                    right_ref, ctx) != 0)
+              return -1;
+            return 0;
           }
         }
       }
-    field_dest_scalar:
-      if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
-        return -1;
-      if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)
-        return -1;
-      return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, field_off, load_sz, ta);
+      if (chain_n == 1) {
+        if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+          return -1;
+        if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, walk_cur, var_off, ctx, ta) != 0)
+          return -1;
+        return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, field_off, load_sz, ta);
+      }
     }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;

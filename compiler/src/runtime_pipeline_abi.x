@@ -32261,7 +32261,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
 /**
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
  * whole assign, TYPE_VECTOR let-init reuse, TYPE_NAMED >16B sret let-init reuse,
- * STRUCT_LIT index in-place, esz>8 bulk copy, VAR 9–16B dual-GP).
+ * FIELD-chain dest to VAR root, STRUCT_LIT index in-place, esz>8 bulk copy,
+ * VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - assign expr ref
@@ -32319,6 +32320,11 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
   let hit: i32 = 0;
   let is_enum: i32 = 0;
   let base_kind: i32 = 0;
+  let chain_fa: i32[16] = [];
+  let chain_n: i32 = 0;
+  let walk_cur: i32 = 0;
+  let walk_i: i32 = 0;
+  let fa_ref: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
     return -1;
   }
@@ -32351,135 +32357,164 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
       unsafe {
         base_ref = pipeline_expr_field_access_base_ref(arena, left_ref);
       }
-      // local VAR base field: lea base + store at field_off
+      /* FIELD dest whose root is a local VAR (h.s or w.h.s). Walk the
+       * FIELD chain, fold glue_struct_field_frame_mag_c from the VAR
+       * slot, reuse struct let-init. Immediate-VAR-only left w.h.s on
+       * the push/pop path: 16B Darwin 2, >16B CALL SIGBUS 138.
+       * Pointer / INDEX roots stay on push/pop (later leaf).
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
       if (base_ref > 0) {
-        unsafe {
-          base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
+        chain_n = 0;
+        walk_cur = left_ref;
+        while (chain_n < 16) {
+          unsafe {
+            base_kind = pipeline_expr_kind_ord_at(arena, walk_cur);
+          }
+          if (base_kind != 44) {
+            break;
+          }
+          chain_fa[chain_n] = walk_cur;
+          chain_n = chain_n + 1;
+          unsafe {
+            walk_cur = pipeline_expr_field_access_base_ref(arena, walk_cur);
+          }
+          if (walk_cur <= 0) {
+            break;
+          }
         }
-        if (base_kind == 3) {
+        if (walk_cur > 0 && chain_n > 0) {
           unsafe {
-            vlen = pipeline_expr_var_name_len(arena, base_ref);
+            base_kind = pipeline_expr_kind_ord_at(arena, walk_cur);
           }
-          if (vlen <= 0 || vlen > 127) {
-            return -1;
-          }
-          unsafe {
-            pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
-            var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
-          }
-          if (var_off < 0) {
+          if (base_kind == 3) {
             unsafe {
-              var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+              vlen = pipeline_expr_var_name_len(arena, walk_cur);
             }
-          }
-          if (var_off < 0) {
-            return -1;
-          }
-          unsafe {
-            mod = pipeline_asm_emit_module_ref_c();
-            field_off = glue_field_access_effective_offset_c(arena, mod, left_ref);
-            load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, left_ref);
-          }
-          if (load_sz <= 0) {
-            load_sz = 4;
-          }
-          /* TYPE_NAMED FIELD dest: reuse struct let-init at dest =
-           * var_off+field_off (same helper as VAR assign). The historical
-           * path emit-rhs + store_rax_to_rbx_offset only writes rax, so
-           * 16B CALL/copy lose hi (Darwin 2) and >16B CALL never loads
-           * dest into x8/rdi (Darwin SIGBUS 138). host-C already 0.
-           * G.7: glue_emit_struct_type_let_init handles STRUCT_LIT /
-           * CALL sret / METHOD / >16B VAR memcpy. -2 (16B VAR) then
-           * store_retval_pair to the field slot. Scalars stay below.
-           * Non-VAR-base FIELD (push/pop) is a later leaf.
-           * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-          if (ta == 0 || ta == 1) {
+            if (vlen <= 0 || vlen > 127) {
+              return -1;
+            }
             unsafe {
-              ltr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+              pipeline_expr_var_name_into(arena, walk_cur, &vname[0]);
+              var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
             }
-            if (ltr > 0) {
+            if (var_off < 0) {
               unsafe {
-                ltk = pipeline_type_kind_ord_at(arena, ltr);
+                var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
               }
-              if (ltk == 8) {
-                /* dest frame mag = glue_struct_field_frame_mag_c(var_off,
-                 * typed_off, ta). Raw var_off+field_off is ARM64-only
-                 * (low-end). x86 high-end home is a positive magnitude:
-                 * Prefixed.s typed +8 + raw add → lea -0x80 (start-8),
-                 * memcpy 32B clobbers tag (Ubuntu 20). Same combiner as
-                 * FIELD-as-source (wave652): arm64 base+foff, x86 base-foff.
-                 * typed_off from glue_field_layout_offset_for_base_field
-                 * (STRUCT_LIT polarity, >=0 from byte0). Skip if mag < 0.
-                 * PLATFORM: SHARED — Ubuntu gold x86 high-end leftover. */
+            }
+            if (var_off < 0) {
+              return -1;
+            }
+            unsafe {
+              mod = pipeline_asm_emit_module_ref_c();
+              field_off = glue_field_access_effective_offset_c(arena, mod, left_ref);
+              load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, left_ref);
+            }
+            if (load_sz <= 0) {
+              load_sz = 4;
+            }
+            off = var_off;
+            hit = 1;
+            walk_i = chain_n - 1;
+            while (walk_i >= 0 && hit != 0) {
+              fa_ref = chain_fa[walk_i];
+              unsafe {
+                base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+                vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
+              }
+              rty = 0 - 1;
+              if (vlen > 0 && vlen <= 127) {
                 unsafe {
-                  vlen = pipeline_expr_field_access_name_len(arena, left_ref);
+                  pipeline_expr_field_access_name_into(arena, fa_ref, &vname[0]);
+                  rty = glue_field_layout_offset_for_base_field(
+                      arena, mod, base_ref, &vname[0], vlen);
                 }
-                if (vlen > 0 && vlen <= 127) {
+              }
+              if (rty < 0) {
+                unsafe {
+                  rty = glue_field_access_effective_offset_c(arena, mod, fa_ref);
+                }
+              }
+              if (rty < 0) {
+                hit = 0;
+              } else {
+                off = glue_struct_field_frame_mag_c(off, rty, ta);
+                if (off < 0) {
+                  hit = 0;
+                }
+              }
+              walk_i = walk_i - 1;
+            }
+            /* TYPE_NAMED leaf: same let-init as one-level FIELD dest.
+             * dest = nested mag(var_off, each typed_off).
+             * PLATFORM: SHARED — Ubuntu gold x86 high-end mag. */
+            if (hit != 0 && (ta == 0 || ta == 1)) {
+              unsafe {
+                ltr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+              }
+              if (ltr > 0) {
+                unsafe {
+                  ltk = pipeline_type_kind_ord_at(arena, ltr);
+                }
+                if (ltk == 8) {
                   unsafe {
-                    pipeline_expr_field_access_name_into(arena, left_ref, &vname[0]);
-                    rty = glue_field_layout_offset_for_base_field(
-                        arena, mod, base_ref, &vname[0], vlen);
+                    arr_st = glue_emit_struct_type_let_init_elf_c(
+                        arena, elf_ctx, right_ref, ctx, ta, ltr, off);
                   }
-                  if (rty >= 0) {
-                    field_off = rty;
+                  if (arr_st == 0) {
+                    return 0;
                   }
-                }
-                if (field_off >= 0) {
-                  off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
-                  if (off >= 0) {
-                    unsafe {
-                      arr_st = glue_emit_struct_type_let_init_elf_c(
-                          arena, elf_ctx, right_ref, ctx, ta, ltr, off);
-                    }
-                    if (arr_st == 0) {
-                      return 0;
-                    }
-                    if (arr_st == 0 - 1) {
+                  if (arr_st == 0 - 1) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    mod = glue_emit_module_from_ctx(ctx);
+                    store_sz = glue_type_size_simple(mod, arena, ltr, 0);
+                    rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
+                  }
+                  if (rty > store_sz) {
+                    store_sz = rty;
+                  }
+                  if (store_sz > 8 && store_sz <= 16) {
+                    rc = glue_emit_assign_rhs_to_rax_elf_c(
+                        arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
+                    if (rc != 0) {
                       return 0 - 1;
                     }
                     unsafe {
-                      mod = glue_emit_module_from_ctx(ctx);
-                      store_sz = glue_type_size_simple(mod, arena, ltr, 0);
-                      rty = glue_type_named_layout_size_any_module_elf_c(arena, ltr);
+                      rc = glue_store_retval_pair_to_rbp_elf_c(
+                          mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
                     }
-                    if (rty > store_sz) {
-                      store_sz = rty;
+                    if (rc != 0) {
+                      return 0 - 1;
                     }
-                    if (store_sz > 8 && store_sz <= 16) {
-                      rc = glue_emit_assign_rhs_to_rax_elf_c(
-                          arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
-                      if (rc != 0) {
-                        return 0 - 1;
-                      }
-                      unsafe {
-                        rc = glue_store_retval_pair_to_rbp_elf_c(
-                            mod, arena, elf_ctx, ltr, off, ta, right_ref, ctx);
-                      }
-                      if (rc != 0) {
-                        return 0 - 1;
-                      }
-                      return 0;
-                    }
+                    return 0;
                   }
                 }
               }
             }
+            /* Depth-1 scalar: lea VAR + store at leaf field_off.
+             * Nested scalar stays on the push/pop path below. */
+            if (chain_n == 1) {
+              rc = glue_emit_assign_rhs_to_rax_elf_c(
+                  arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
+              if (rc != 0) {
+                return -1;
+              }
+              unsafe {
+                rc = glue_enc_local_slot_ptr_or_addr_rbx_elf_c(
+                    arena, elf_ctx, walk_cur, var_off, ctx, ta);
+              }
+              if (rc != 0) {
+                return -1;
+              }
+              unsafe {
+                rc = backend_enc_store_rax_to_rbx_offset_arch(
+                    elf_ctx, field_off, load_sz, ta);
+              }
+              return rc;
+            }
           }
-          // arm64: emit rhs→rax first, then lea base→x1
-          rc = glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
-          if (rc != 0) {
-            return -1;
-          }
-          unsafe {
-            rc = glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta);
-          }
-          if (rc != 0) {
-            return -1;
-          }
-          unsafe {
-            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, field_off, load_sz, ta);
-          }
-          return rc;
         }
       }
       rc = glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
