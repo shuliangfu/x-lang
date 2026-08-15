@@ -2338,7 +2338,8 @@ int32_t simd_arm64_select_128_rbp(uint8_t * elf_ctx, int32_t lea_mask, int32_t l
     if ((simd_append_u32_le(elf_ctx, 1319159811) !=0)) {
       return (0 - 1);
     }
-    if ((simd_append_u32_le(elf_ctx, 1856117795) !=0)) {
+    /* PLATFORM: MACOS|ARM64 — BSL after fcmgt (same word as i32). BIT used b as predicate. */
+    if ((simd_append_u32_le(elf_ctx, 1851923491) !=0)) {
       return (0 - 1);
     }
   } else {

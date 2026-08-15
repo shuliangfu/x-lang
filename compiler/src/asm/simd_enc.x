@@ -1737,8 +1737,12 @@ export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i3
   if (re7 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1279293442) != 0) { return 0 - 1; } // ld1 v2
   if (is_f32 != 0) {
-    if (simd_append_u32_le(elf_ctx, 1319159811) != 0) { return 0 - 1; } // fcmgt
-    if (simd_append_u32_le(elf_ctx, 1856117795) != 0) { return 0 - 1; } // bit
+    if (simd_append_u32_le(elf_ctx, 1319159811) != 0) { return 0 - 1; } // fcmgt v3.4s, v0.4s, #0.0
+    /* PLATFORM: MACOS|ARM64 — same BSL as i32. BIT Vd,Vn,Vm uses Vm as the
+     * predicate, so BIT v3,v1,v2 treated b (v2=0.5 bits) as the mask and
+     * mixed a with leftover compare bits (sel4[0] neither 2.0 nor 0.5).
+     * BSL Vd,Vn,Vm = (Vd AND Vn) OR (~Vd AND Vm): dest=fcmgt, n=a, m=b. */
+    if (simd_append_u32_le(elf_ctx, 1851923491) != 0) { return 0 - 1; } // bsl v3.16b, v1.16b, v2.16b
   } else {
     if (simd_append_u32_le(elf_ctx, 1319143427) != 0) { return 0 - 1; } // cmgt
     if (simd_append_u32_le(elf_ctx, 1851923491) != 0) { return 0 - 1; } // bsl

@@ -1063,7 +1063,10 @@ int32_t simd_arm64_select_128_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     if (is_f32) {
         if (simd_append_u32_le_impl(elf_ctx, 0x4ea0c803U) != 0) /* fcmgt v3.4s, v0.4s, #0 */
             return -1;
-        if (simd_append_u32_le_impl(elf_ctx, 0x6ea21c23U) != 0) /* bit v3.16b, v1.16b, v2.16b */
+        /* PLATFORM: MACOS|ARM64 — fcmgt leaves the predicate in v3; BSL
+         * (same word as i32) selects a where mask>0 else b. BIT used v2=b
+         * as the predicate and mixed a with leftover compare bits. */
+        if (simd_append_u32_le_impl(elf_ctx, 0x6e621c23U) != 0) /* bsl v3.16b, v1.16b, v2.16b */
             return -1;
     } else {
         if (simd_append_u32_le_impl(elf_ctx, 0x4ea08803U) != 0) /* cmgt v3.4s, v0.4s, #0 */
