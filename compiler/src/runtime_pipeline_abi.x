@@ -44723,6 +44723,137 @@ export function glue_fold_func_returns_param01_vector_binop_dst_c(arena: *u8, mo
 }
 
 /**
+ * True when the callee is a 1-param identity (`return p0`).
+ * Used to peel `idv(add4(a,b))` so the inner CALL hits binop2.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param mod *u8 — Module*; null → 0
+ * @param func_idx i32 — callee index; <0 → 0
+ * @return i32 — 1 identity; 0 otherwise
+ * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail.
+ */
+#[no_mangle]
+export function glue_fold_func_returns_param0_c(arena: *u8, mod: *u8, func_idx: i32): i32 {
+  let ret_ref: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || func_idx < 0) {
+    return 0;
+  }
+  unsafe {
+    rc = pipeline_module_func_num_params_at(mod, func_idx);
+  }
+  if (rc != 1) {
+    return 0;
+  }
+  unsafe {
+    ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
+  }
+  if (ret_ref <= 0) {
+    ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  }
+  if (ret_ref <= 0) {
+    return 0;
+  }
+  return glue_expr_is_func_param_at_c(arena, mod, func_idx, ret_ref, 0);
+}
+
+/**
+ * Inline 1-arg vector CALL when the callee is `return p0` (identity).
+ * `let c = idv(add4(a,b))` used to emit a real CALL of idv; the add4
+ * arg was a real CALL whose callee only adds lane0 (Darwin 2).
+ * G.7: peel identity and reuse glue_emit_vector_type_let_init on arg0
+ * (add4 then hits binop2). CALL only — METHOD `v.idv()` leftover.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param call_ref i32 — CALL=48 expr
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch (0=x86_64, 1=ARM64)
+ * @param stack_slot_off i32 — let-home rbp/x29 offset
+ * @param type_ref i32 — result SIMD type
+ * @return i32 — 1 inlined; 0 no match; -1 emit error
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_simd_try_inline_identity_call_elf_c(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
+  let mod_ref: *u8 = 0 as *u8;
+  let callee_ref: i32 = 0;
+  let clen: i32 = 0;
+  let fi: i32 = 0;
+  let arg0: i32 = 0;
+  let ko: i32 = 0;
+  let nargs: i32 = 0;
+  let st: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  }
+  if (ko != 48) {
+    return 0;
+  }
+  unsafe {
+    nargs = pipeline_expr_call_num_args_at(arena, call_ref);
+  }
+  if (nargs != 1) {
+    return 0;
+  }
+  unsafe {
+    mod_ref = pipeline_asm_emit_module_ref_c();
+  }
+  if (mod_ref == (0 as *u8)) {
+    mod_ref = pipe_load_ptr_slot(ctx, 2);
+  }
+  if (mod_ref == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+  }
+  if (callee_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, callee_ref);
+  }
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    clen = pipeline_expr_var_name_len(arena, callee_ref);
+  }
+  if (clen <= 0 || clen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, callee_ref, &g_wave148_cname[0]);
+  }
+  fi = glue_module_func_index_by_name_c(mod_ref, &g_wave148_cname[0], clen);
+  if (fi < 0) {
+    return 0;
+  }
+  if (glue_fold_func_returns_param0_c(arena, mod_ref, fi) == 0) {
+    return 0;
+  }
+  unsafe {
+    arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
+  }
+  if (arg0 <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    st = glue_emit_vector_type_let_init_elf_c(
+        arena, elf_ctx, arg0, ctx, ta, stack_slot_off, type_ref);
+  }
+  if (st == 0) {
+    return 1;
+  }
+  if (st == 0 - 1) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
  * Inline 2-arg vector CALL or UFCS METHOD when body is return p0 binop p1.
  * CALL=48: `vec_add4(a, b)` — two extras, callee IDENT looked up in this module.
  * METHOD=49: `a.add4(b)` — one extra; receiver is p0, extra[0] is p1.
@@ -44933,6 +45064,10 @@ export function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       return 0;
     }
     inl = pipeline_asm_simd_try_inline_binop2_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
+    if (inl == 1) {
+      return 0;
+    }
+    inl = pipeline_asm_simd_try_inline_identity_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
     if (inl == 1) {
       return 0;
     }
