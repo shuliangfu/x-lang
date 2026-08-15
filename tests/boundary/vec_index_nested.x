@@ -5,8 +5,8 @@
 // pointer; the outer i32 load then treated that value as an
 // address (Darwin 174). G.7: INDEX-as-INDEX-base leaves the
 // inner element address (same scaled lea as FIELD-over-INDEX).
-// Does not fold nested `idv(add4)`, FIELD-as-receiver, or a
-// second ARRAY_LIT of SIMD after dest (x86 slot leftover).
+// Does not fold nested `idv(add4)` or FIELD-as-receiver.
+// Second ARRAY_LIT after dest is gated by vec_array_lit_after_dest.x.
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail.
 

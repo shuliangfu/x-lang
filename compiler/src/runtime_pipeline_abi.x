@@ -34392,10 +34392,26 @@ export function glue_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
         // PLATFORM: SHARED freestanding.
         esz = 16;
       } else {
-        if (etk == 8 || etk == 4 || etk == 5 || etk == 6 || etk == 14) {
-          esz = 8;
+        if (etk == 8) {
+          /* TYPE_NAMED: SIMD spelling is lanes*esz (i32x4=16), not 8.
+           * G.7 ≡ glue_fixed_array_total_bytes_c. A second [1]i32x4
+           * temp of 8B overlapped dest-assigned arr on x86 high-end.
+           * PLATFORM: SHARED — Ubuntu gold. */
+          unsafe {
+            mod = pipeline_asm_emit_module_ref_c();
+          }
+          if (mod != (0 as *u8)) {
+            esz = glue_type_size_simple(mod, arena, elem_ref, 0);
+          }
+          if (esz <= 0) {
+            esz = 8;
+          }
         } else {
-          esz = 4;
+          if (etk == 4 || etk == 5 || etk == 6 || etk == 14) {
+            esz = 8;
+          } else {
+            esz = 4;
+          }
         }
       }
     }
@@ -34426,6 +34442,7 @@ export function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32
   let inner: i32 = 0;
   let itk: i32 = 0;
   let src: i32 = 0;
+  let mod: *u8 = 0 as *u8;
   bytes = glue_fixed_array_temp_bytes(arena, let_type_ref);
   if (bytes > 0) {
     return bytes;
@@ -34459,8 +34476,21 @@ export function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32
           if (itk == 2) {
             esz = 1;
           } else {
-            if (itk == 8 || itk == 4) {
-              esz = 8;
+            if (itk == 8) {
+              /* TYPE_NAMED ARRAY_LIT fallback: size_simple (SIMD 16). */
+              unsafe {
+                mod = pipeline_asm_emit_module_ref_c();
+              }
+              if (mod != (0 as *u8)) {
+                esz = glue_type_size_simple(mod, arena, inner, 0);
+              }
+              if (esz <= 0) {
+                esz = 8;
+              }
+            } else {
+              if (itk == 4) {
+                esz = 8;
+              }
             }
           }
         }
@@ -80799,6 +80829,23 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
         }
         return arr_sz;
       }
+      /* SoA/layout miss: SIMD named `[N]i32x4` has no struct layout, so
+       * asm_fixed_array_total_bytes_mod returns 0. The scalar heuristic
+       * below then treats TYPE_NAMED as 8B. `[2]i32x4` became 16B and
+       * `[1]i32x4` became 8B; dest `arr[0]=a` wrote 16B, then
+       * `let one:[1]i32x4=[a]` wrote 16B from a high-end 8B home and
+       * planted a[2]=3 at arr[0][0] (Ubuntu n2lit=3).
+       * G.7: reuse glue_fixed_array_total_bytes_c (TYPE_NAMED →
+       * glue_type_size_simple lanes*esz). Do not add an i32x4 name table.
+       * PLATFORM: SHARED — LINUX|x86 high-end is the live overlap;
+       * MACOS|ARM64 low-end was false-green. */
+      arr_sz = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      if (arr_sz > 0) {
+        if (arr_sz % 8 != 0) {
+          arr_sz = arr_sz + (8 - (arr_sz % 8));
+        }
+        return arr_sz;
+      }
       // Multi-dim T[N][M]: product of dims * leaf esz; pad outer only.
       if (elem_ref > 0 && elem_ref <= nt) {
         unsafe {
@@ -80842,6 +80889,13 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
                     } else {
                       if (lek == 8) {
                         ssz = pipe_slot_bytes_named_in_mod(arena, ce, mod);
+                        if (ssz <= 0) {
+                          /* Same SIMD-named miss as 1D: layout 0 → size_simple. */
+                          if (mod == (0 as *u8)) {
+                            mod = pipeline_asm_glue_emit_module_ref();
+                          }
+                          ssz = glue_type_size_simple(mod, arena, ce, 0);
+                        }
                         if (ssz > 0) {
                           leaf_esz = ssz;
                         } else {
@@ -80886,8 +80940,22 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
           if (ek == 14 || ek == 0 || ek == 3 || ek == 13) {
             esz = 4;
           } else {
-            if (ek == 8 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9) {
-              esz = 8;
+            if (ek == 8) {
+              /* TYPE_NAMED leftover after total_bytes miss: size_simple
+               * (SIMD 16), not pointer-sized 8. */
+              if (mod == (0 as *u8)) {
+                mod = pipeline_asm_glue_emit_module_ref();
+              }
+              ssz = glue_type_size_simple(mod, arena, elem_ref, 0);
+              if (ssz > 0) {
+                esz = ssz;
+              } else {
+                esz = 8;
+              }
+            } else {
+              if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9) {
+                esz = 8;
+              }
             }
           }
           }
