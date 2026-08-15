@@ -1,20 +1,24 @@
 // Isolated: dest `w.h.v[i]=` plus typeck of `return` / `let` INDEX
 // of a FIELD-chain SIMD field, plus Holder copy `let h = w.h` /
 // assign `h = w.h` after dest, plus STRUCT_LIT `Wrap { h: inner }`
-// (ARM64 16B field store). dest emit was already green after
-// FIELD-chain SIMD INDEX lea; `return h.v[1]` / `let x: i32 = w.h.v[i]`
-// used to T001 because apply_ambient stamped i32 over i32x4 (also
-// false-green `return h.v` as i32). `let h = w.h` used to copy 8B
-// (Darwin h.v[2] leftover) because struct let-init ignored FIELD.
-// `Wrap { h: inner }` used to store only 8B on ARM64 (Darwin 30)
-// because STRUCT_LIT dual-GP spill was ta==0 only.
+// (ARM64 16B field store), plus dest-in-rbx FIELD source `*p = w.h`.
+// dest emit was already green after FIELD-chain SIMD INDEX lea;
+// `return h.v[1]` / `let x: i32 = w.h.v[i]` used to T001 because
+// apply_ambient stamped i32 over i32x4 (also false-green `return h.v`
+// as i32). `let h = w.h` used to copy 8B (Darwin h.v[2] leftover)
+// because struct let-init ignored FIELD. `Wrap { h: inner }` used to
+// store only 8B on ARM64 (Darwin 30) because STRUCT_LIT dual-GP spill
+// was ta==0 only. `*p = w.h` used to copy 8B (Darwin 30) because
+// dest-in-rbx FIELD returned -2 and emit_expr of FIELD is 8B;
+// deref_struct16 would clobber dest / x19 so dest-in-rbx uses memcpy.
 // VAR `return a[1]` / `let h2 = h` / `if (w.h.v[i])` were already 0.
-// Does not fold dest-in-rbx FIELD source / nest 21 / typeck of
+// Deref write is unsafe (bare `*p =` drops the function at parse).
+// Does not fold INDEX-base FIELD dest-in-rbx / nest 21 / typeck of
 // unrelated free T.
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail without
-// the SIMD-concrete ambient skip, FIELD let-init copy, and STRUCT_LIT
-// ARM64 dual-GP 16B field store.
+// the SIMD-concrete ambient skip, FIELD let-init copy, STRUCT_LIT
+// ARM64 dual-GP 16B field store, and dest-in-rbx FIELD memcpy.
 
 allow(padding) struct Holder {
   v: i32x4
@@ -58,11 +62,12 @@ function ret_depth1(h: Holder, i: i32): i32 {
 
 /**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
- * `let h = w.h` / assign `h = w.h`, and STRUCT_LIT `Wrap { h: inner }`
- * write/read every lane.
+ * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `Wrap { h: inner }`,
+ * and dest-in-rbx FIELD source `*p = w.h` write/read every lane.
  * Depth-1 `return h.v[1]` local lit is the same typeck (already 2).
  * @return i32 — 0 ok; 50/51/52/53 slit; 10/20/30/40 dest; 11/21/31/41 return;
- *   12/22/32/42 let; 13/23/33/43 copy; 14/24/34/44 assign; 15/25/35/45 copy-as-param
+ *   12/22/32/42 let; 13/23/33/43 copy; 14/24/34/44 assign;
+ *   15/25/35/45 copy-as-param; 16/26/36/46 dest-in-rbx FIELD
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -106,5 +111,12 @@ function main(): i32 {
   if (h2.v[1] != 2) { return 24; }
   if (h2.v[2] != 3) { return 34; }
   if (h2.v[3] != 4) { return 44; }
+  let dst: Holder = Holder { v: z };
+  let p: *Holder = &dst;
+  unsafe { *p = w.h }
+  if (dst.v[0] != 1) { return 16; }
+  if (dst.v[1] != 2) { return 26; }
+  if (dst.v[2] != 3) { return 36; }
+  if (dst.v[3] != 4) { return 46; }
   return 0;
 }
