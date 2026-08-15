@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19／dest-SLICE INDEX fat ARM64 dual-GP · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-15（钉盘升 **`f7424ae47`** · 双端 L4 真冷 + bstrict 129 · Stage 12.0.5 prefer 族／硬禁 mega 仍有效 · Cap 14–15 日叶闭：dest-SLICE 族／STRUCT_LIT bool／u8／FIELD overload／FIELD 16B／heap Arena64 FFI／div0 panic／ARM64 add_imm SUB／extra-.o has_obj／dest 影子 x19／dest-SLICE INDEX fat ARM64 dual-GP／ARM64 >16B INDEX MEMORY consume · M4 冷链 **5/5** · Stage 8 **30/30** · **11.2.2 `./xbuild l4` ✅** · **只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -590,7 +590,8 @@
   - 现场：Wide `a[1].last` 本绿；`take(a[1])` 返 0（f32-xmm 默认 CALL 栈 emit+push 指针）；`let`／`return` 同层
   - **根修**：push／store INDEX 复用 FIELD lvalue 拷循环；store_retval memcpy 48\|\|49\|\|47；return Path A2 sret memcpy；**默认 f32-xmm CALL 栈**走同一 push
   - **禁**：扩冻结 classifier；emit_index 内 memcpy；全量 assemble pipeline_abi mega
-  - 证：`index_method_wide` 三端 **0**；`take_only` **42**；idx／trip／quad／smf 仍 **0**
+  - 证：`index_method_wide` 三端 **0**（Ubuntu x86 @ **`ec82327bb`**；Darwin ARM64 consume 见下）
+  - 余（已闭 Darwin ARM64 consume）：见 **ARM64 >16B INDEX MEMORY consume**
 
 ✅ **return／assign `[N]T→[]T` emit wrap** ✅ @ **`c652eee5c`**
 
@@ -1039,6 +1040,13 @@
   - 现场：`let x:[][]i32=[a]`／`[mk()]`／`[w.xs()]` Darwin `x[0][0]` panic（length=0）。`pipeline_asm_emit_index` rtk==11 手写 `arg_reg(2)`：x86 rdx＝dual-GP 高半；ARM64 第 3 参 x2，随后 `store_rdx` 写 x1（hi-guard `length-1`）
   - **根修（G.7 有则补全）**：TYPE_SLICE fat 复用同一 `pipeline_asm_deref_struct16_rax_ptr_elf_c`（`*addr → rax+rdx/x1` ≡ 9–16B named）。权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble／pure-asm mega；**禁**改 `arg_reg(2)` 真 3 参（memcpy x2）
   - 证：nslvar／nslcall／nslmethod／nslcall_dep／nslcvar／nslpvar **78** · nslarr／nslarr_call／nslarr_call_dep **71** · nsllet_call **43** · nslfield／nslidx／tidx **42** · nslidx_row **82** · nslsai **47** · 矩阵 **5/5** · dest 邻域 default_alloc／field_struct16／field_alloc **0／42／0**
+  - 余（已闭 ARM64 >16B INDEX MEMORY consume）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+
+✅ **ARM64 >16B INDEX MEMORY consume** ✅
+
+  - 现场：`index_method_wide` Darwin CG002 139。`let w=a[1]` 走 `glue_copy_large_struct_from_rax_ptr` `ta!=0` 拒；`a[1].last()`／`take_w(a[1])` prefer `.x` 把 INDEX 指针当 20B（is_mem=2 lea／`str x0,[sp]`），callee `param_home` 读栈三字
+  - **根修（G.7 有则补全）**：`glue_copy` 收 ta==1（≡ sret memcpy：src@x1 n@x2 dest@x0 last）；UFCS／`emit_call_args` ARM64 MEMORY 收回 seed wave603／606（`store_memory_by_value_to_sp`）。权威 `runtime_pipeline_abi.x` prefer thin+rest＋`backend_call_dispatch.x`。**禁** emit_index 内 memcpy；**禁**改 import METHOD is_mem=2（host-C AAPCS64 指针）；**禁** try_inline mega
+  - 证：mac method／take／let／ret／`index_method_wide` **0** · 邻域 da／fs16／fa／idx／trip／quad **0／42／0／0／0／0** · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ---

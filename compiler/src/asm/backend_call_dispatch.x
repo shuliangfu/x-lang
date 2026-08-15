@@ -91,6 +91,13 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(a: *u8, elf: *u8,
  */
 export extern function pipeline_asm_push_sysv_memory_by_value_elf_c(
   arena: *u8, elf: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32;
+/**
+ * AAPCS64 MEMORY by-value store to [sp+off] (multi-qword low-end).
+ * Twin of push_sysv_memory. Seed wave603/606 authority.
+ * PLATFORM: MACOS|ARM64 AAPCS64 (ta==1); returns -1 on other arches.
+ */
+export extern function pipeline_asm_store_memory_by_value_to_sp_elf_c(
+  arena: *u8, elf: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32, sp_off: i32): i32;
 export extern function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
@@ -1437,12 +1444,38 @@ export function pipeline_asm_emit_call_args_elf_c(
           }
         }
       }
-    } else {
-      // arm64: 16-align stack words for excess GP (MEMORY multi-word soft on pure surface).
-      stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    } else if (ta == 1) {
+      /* wave603: AAPCS64 stack words include MEMORY multi-word (≡ x86 wave601),
+       * not nargs-reg_max alone. Align 16 for arm64 SP.
+       * PLATFORM: MACOS|ARM64 AAPCS64. */
+      let nw_a: i32 = 0;
+      let gp_tmp: i32 = 0;
+      let j_a: i32 = 0;
+      while (j_a < nargs) {
+        let ar_j: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, j_a);
+        let pty_j: i32 = glue_call_param_type_ref_at(arena, expr_ref, j_a);
+        let sz_j: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
+        let u_j: i32 = glue_sysv_arg_gp_units_from_size_c(sz_j);
+        let w_j: i32 = glue_sysv_arg_stack_words_c(sz_j, u_j);
+        if (glue_sysv_arg_is_memory_by_value_c(sz_j) != 0) {
+          nw_a = nw_a + w_j;
+        } else if (u_j > 0 && gp_tmp + u_j <= reg_max) {
+          gp_tmp = gp_tmp + u_j;
+        } else {
+          if (w_j > 0) {
+            nw_a = nw_a + w_j;
+          } else {
+            nw_a = nw_a + 1;
+          }
+        }
+        j_a = j_a + 1;
+      }
+      stack_reserve = nw_a * 8;
       if (stack_reserve > 0) {
         stack_reserve = (stack_reserve + 15) & (0 - 16);
       }
+    } else {
+      stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
     }
     if (stack_reserve < 0) { return 0 - 1; }
     if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0) { return 0 - 1; }
@@ -1499,6 +1532,8 @@ export function pipeline_asm_emit_call_args_elf_c(
       let gp_start: i32[96] = [];
       let gp_units: i32[96] = [];
       let spill_off: i32[96] = [];
+      let arg_sz_a: i32[96] = [];
+      let is_mem_a: i32[96] = [];
       let gp_cur: i32 = 0;
       let i: i32 = 0;
       while (i < nargs) {
@@ -1506,7 +1541,9 @@ export function pipeline_asm_emit_call_args_elf_c(
         let pty_i: i32 = glue_call_param_type_ref_at(arena, expr_ref, i);
         let sz_i: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
         spill_off[i] = 0 - 1;
-        if (glue_sysv_arg_is_memory_by_value_c(sz_i) != 0) {
+        arg_sz_a[i] = sz_i;
+        is_mem_a[i] = glue_sysv_arg_is_memory_by_value_c(sz_i);
+        if (is_mem_a[i] != 0) {
           gp_start[i] = 0 - 1;
           gp_units[i] = 0;
         } else {
@@ -1539,20 +1576,29 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
         i = i + 1;
       }
-      // Stack / excess: materialize via x0 *before* final GP load (do not clobber x0).
+      // Stack / MEMORY: materialize *before* final GP load (do not clobber x0).
+      // wave603: MEMORY multi-word via store_to_sp (INDEX/FIELD lvalue copy).
+      // PLATFORM: MACOS|ARM64 AAPCS64.
       let stk_slot: i32 = 0;
       i = 0;
       while (i < nargs) {
         if (gp_start[i] < 0) {
           let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref2 != 0) {
-            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i, ctx, ta) != 0) {
+            if (is_mem_a[i] != 0) {
+              let stored: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
+                arena, elf_ctx, ctx, arg_ref2, arg_sz_a[i], ta, stk_slot * 8);
+              if (stored < 0) { return 0 - 1; }
+              let words: i32 = stored / 8;
+              if (words < 1) { words = 1; }
+              stk_slot = stk_slot + words;
+            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i, ctx, ta) != 0) {
               return 0 - 1;
-            }
-            if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0) {
+            } else if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0) {
               return 0 - 1;
+            } else {
+              stk_slot = stk_slot + 1;
             }
-            stk_slot = stk_slot + 1;
           }
         }
         i = i + 1;
@@ -2534,22 +2580,13 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
           if (u_u < 1) { u_u = 1; }
           if (u_u > 2) { u_u = 2; }
           if (glue_sysv_arg_is_memory_by_value_c(sz_u) != 0) {
-            if (ta == 0) {
-              is_mem_u[i_u] = 1;
-              gp_start_u[i_u] = 0 - 1;
-              gp_units_u[i_u] = 0;
-            } else {
-              // arm64 large composite: 1 GP + lea (≡ import METHOD is_mem=2).
-              is_mem_u[i_u] = 2;
-              if (gp_cur_u + 1 <= reg_max_u) {
-                gp_start_u[i_u] = gp_cur_u;
-                gp_units_u[i_u] = 1;
-                gp_cur_u = gp_cur_u + 1;
-              } else {
-                gp_start_u[i_u] = 0 - 1;
-                gp_units_u[i_u] = 1;
-              }
-            }
+            /* wave606: X-to-X MEMORY is stack-only on SysV and AAPCS64.
+             * Do not lea into GP (callee param_home reads stack words).
+             * Import METHOD keeps is_mem=2 (host-C AAPCS64 pointer).
+             * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64. */
+            is_mem_u[i_u] = 1;
+            gp_start_u[i_u] = 0 - 1;
+            gp_units_u[i_u] = 0;
           } else if (gp_cur_u + u_u <= reg_max_u) {
             gp_start_u[i_u] = gp_cur_u;
             gp_units_u[i_u] = u_u;
@@ -2685,23 +2722,33 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
         i_u = i_u + 1;
       }
-      // arm64 excess integer stack via x0 *before* final GP load.
+      // arm64 MEMORY / excess integer stack *before* final GP load.
+      // wave606: MEMORY multi-word via store_to_sp (≡ free CALL wave603).
+      // PLATFORM: MACOS|ARM64 AAPCS64.
       if (ta == 1) {
         let stk_slot_u: i32 = 0;
         i_u = 0;
         while (i_u < n_place) {
           if (gp_start_u[i_u] < 0) {
-            if (is_mem_u[i_u] != 2) {
-              let arg_sk: i32 = 0;
-              if (has_recv != 0) {
-                if (i_u == 0) {
-                  arg_sk = base_ref;
-                } else {
-                  arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
-                }
+            let arg_sk: i32 = 0;
+            if (has_recv != 0) {
+              if (i_u == 0) {
+                arg_sk = base_ref;
               } else {
-                arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u);
+                arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u - has_recv);
               }
+            } else {
+              arg_sk = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_u);
+            }
+            if (is_mem_u[i_u] == 1) {
+              if (arg_sk == 0) { return 0 - 1; }
+              let stored_u: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
+                arena, elf_ctx, ctx, arg_sk, arg_sz_u[i_u], ta, stk_slot_u * 8);
+              if (stored_u < 0) { return 0 - 1; }
+              let words_u: i32 = stored_u / 8;
+              if (words_u < 1) { words_u = 1; }
+              stk_slot_u = stk_slot_u + words_u;
+            } else if (is_mem_u[i_u] != 2) {
               if (arg_sk != 0) {
                 if (has_recv != 0) {
                   if (i_u == 0) {

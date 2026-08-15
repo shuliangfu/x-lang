@@ -68958,17 +68958,21 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
 // ===========================================================================
 
 /**
- * Copy a large (>16B) struct CALL/METHOD retval from *rax into the let slot via memcpy.
- * Sequence: push rax (src) → lea rbp+slot → arg0 dest → pop → arg1 src →
+ * Copy a large (>16B) struct CALL/METHOD/INDEX rvalue from *rax into the let slot via memcpy.
+ * x86: push rax (src) → lea rbp+slot → arg0 dest → pop → arg1 src →
  * imm sz → arg2 → call memcpy.
+ * ARM64: src is already in x0 after emit_index leave-addr / CALL sret pointer.
+ * Cannot reuse the x86 push/pop (mov_rax_to_arg_reg(0) is a no-op on AAPCS64
+ * so pop would clobber dest). Same order as glue_emit_sret_memcpy ta==1:
+ * park src in x1, size in x2, dest last into x0, then bl memcpy.
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param slot_off i32 — rbp-relative let home (byte0)
  * @param sz i32 — payload bytes; must be >16 (≤16 is dual-GP path)
- * @param ta i32 — target arch; only ta==0 (x86_64 SysV) accepted; arm64 → -1
+ * @param ta i32 — 0=x86_64 SysV; 1=ARM64 AAPCS64; else -1
  * @return i32 — 0 success; -1 gate / enc fail
  *
  * wave204 pure: private G.7 helper for store_retval_pair (was Cap residual static).
- * PLATFORM: LINUX+MACOS x86_64 SysV MEMORY class only (ta!=0 rejected).
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32 {
   let memcpy_sym: u8[8] = [];
@@ -68981,8 +68985,39 @@ function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, 
   memcpy_sym[4] = 112 as u8;
   memcpy_sym[5] = 121 as u8;
   memcpy_sym[6] = 0 as u8;
-  if (elf_ctx == (0 as *u8) || ta != 0 || sz <= 16) {
+  if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz <= 16) {
     return 0 - 1;
+  }
+  /* ARM64: x0=src after leave-addr. Park src@x1, n@x2, dest@x0 last.
+   * PLATFORM: MACOS|ARM64 AAPCS64 — ≡ sret memcpy order (arg0≡x0). */
+  if (ta == 1) {
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
+    }
   }
   unsafe {
     rc = backend_enc_push_rax_arch(elf_ctx, ta);
