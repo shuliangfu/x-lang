@@ -32199,7 +32199,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
 
 /**
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
- * whole assign, STRUCT_LIT index in-place, esz>8 bulk copy, VAR 9–16B dual-GP).
+ * whole assign, TYPE_VECTOR let-init reuse, STRUCT_LIT index in-place, esz>8
+ * bulk copy, VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - assign expr ref
@@ -32970,6 +32971,28 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         return -1;
       }
       // -2: fall through
+    }
+    /* TYPE_VECTOR VAR assign: reuse let-init (ARRAY_LIT / VAR copy / lane
+     * binop / CALL+METHOD splat/select/shuffle/fma3/binop2). Prior path
+     * emitted a real CALL then dual-GP store; METHOD `d = a.add4(b)` callee
+     * only adds lane0 so d[1] stayed 0 (Darwin 12).
+     * G.7: same glue_emit_vector_type_let_init_elf_c as let-init; -2 falls
+     * through to CALL emit (import extras=2 stays host-C).
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (is_modlet == 0 && off >= 0 && ako_asg == 28 && ltr_pre > 0) {
+      unsafe {
+        arr_st = glue_emit_vector_type_let_init_elf_c(
+            arena, elf_ctx, right_ref, ctx, ta, off, ltr_pre);
+      }
+      if (arr_st == 0) {
+        unsafe {
+          glue_binop_var_slot_cache_kill_def_at_slot(off);
+        }
+        return 0;
+      }
+      if (arr_st == -1) {
+        return -1;
+      }
     }
     rc = glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
     if (rc != 0) {

@@ -14218,6 +14218,8 @@ extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int
 extern void pipeline_asm_bump_next_offset_for_array_lit(void *arena, int32_t expr_ref, void *ctx);
 extern int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
                                                           int32_t ta, int32_t arr_ty, int32_t stack_off);
+extern int32_t glue_emit_vector_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                     int32_t ta, int32_t stack_off, int32_t type_ref);
 extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
 extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty_ref,
                                                         int32_t src_ty_ref, int32_t ta);
@@ -14653,6 +14655,19 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
         return 0;
       }
       if (arr_st == -1)
+        return -1;
+    }
+    /* TYPE_VECTOR VAR assign: same let-init authority as .x (G.7).
+     * METHOD `d = a.add4(b)` must lane-inline; -2 falls through to CALL.
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (is_modlet == 0 && off >= 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 28 && ltr_pre > 0) {
+      int32_t vst =
+          glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, off, ltr_pre);
+      if (vst == 0) {
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+        return 0;
+      }
+      if (vst == -1)
         return -1;
     }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
