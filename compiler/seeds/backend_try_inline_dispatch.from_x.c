@@ -198,6 +198,8 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenC
                                                  int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t word);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
                                                 int32_t ta);
 extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t bytes,
@@ -2468,15 +2470,50 @@ int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodege
       return -1;
     return 0;
   }
+  /* PLATFORM: MACOS|ARM64 dest is x1; AAPCS64 16B return writes x0+x1.
+   * push_rbx = sub #16; str x1,[sp] — dest at [sp], [sp+8] pad reused for high.
+   * LINUX|x86_64 rbx is callee-saved so dest survives; no spill. */
+  if (ta == 1) {
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
   if (backend_enc_call_arch(elf_ctx, (uint8_t *)da_sym, 27, ta) != 0)
     return -1;
   if (fsz <= 0)
     fsz = 8;
   if (fsz > 16)
     fsz = 16;
+  if (ta == 1) {
+    if (fsz >= 16) {
+      /* str x1, [sp, #8] = 0xF90007E1 — stash high (arena) */
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF90007E1u) != 0)
+        return -1;
+      /* ldr x1, [sp] = 0xF94003E1 — dest back into rbx */
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0)
+        return -1;
+      /* ldr x0, [sp, #8] = 0xF94007E0 — high into rax */
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94007E0u) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
+        return -1;
+      return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+    }
+    /* ldr x1, [sp] = 0xF94003E1 */
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
+      return -1;
+    return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+  }
   if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
     return -1;
-  /** Allocator 16B：仅写低 8B 时 kind=heap 但 arena 字段未清零，reserve 读 al.kind 越界。 */
+  /* Allocator 16B：仅写低 8B 时 kind=heap 但 arena 字段未清零，reserve 读 al.kind 越界。 */
   if (fsz >= 16)
     return 0;
   if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)

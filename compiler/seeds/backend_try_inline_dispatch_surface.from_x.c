@@ -1144,6 +1144,9 @@ extern int32_t glue_with_arena_scope_top_off_c(void);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(uint8_t * elf, int32_t lo, int32_t hi, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(uint8_t * elf, int32_t off, int32_t sz, int32_t ta);
 extern int32_t backend_enc_call_arch(uint8_t * elf, uint8_t * name, int32_t nlen, int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(uint8_t * elf, int32_t ta);
+extern int32_t arch_arm64_enc_enc_u32_le(uint8_t * elf, int32_t word);
+extern int32_t backend_enc_call_stack_cleanup_arch(uint8_t * elf, int32_t nbytes, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(uint8_t * elf, int32_t imm, int32_t ta);
 int32_t glue_call_is_zero_arg_default_alloc(uint8_t * arena, int32_t call_ref) {
   if ((arena ==0)) {
@@ -1264,6 +1267,11 @@ int32_t glue_emit_default_alloc_to_rbx_offset(uint8_t * elf_ctx, int32_t foff, i
     (void)(((da)[19] = 108));
     (void)(((da)[20] = 111));
     (void)(((da)[21] = 99));
+    if ((ta == 1)) {
+      if ((backend_enc_push_rbx_arch(elf_ctx, ta) !=0)) {
+        return (0 - 1);
+      }
+    }
     if ((backend_enc_call_arch(elf_ctx, &((da)[0]), 27, ta) !=0)) {
       return (0 - 1);
     }
@@ -1272,6 +1280,39 @@ int32_t glue_emit_default_alloc_to_rbx_offset(uint8_t * elf_ctx, int32_t foff, i
     }
     if ((sz > 16)) {
       (void)((sz = 16));
+    }
+    if ((ta == 1)) {
+      if ((sz >= 16)) {
+        if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF90007E1u) !=0)) {
+          return (0 - 1);
+        }
+        if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) !=0)) {
+          return (0 - 1);
+        }
+        if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) !=0)) {
+          return (0 - 1);
+        }
+        if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94007E0u) !=0)) {
+          return (0 - 1);
+        }
+        if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (foff + 8), 8, ta) !=0)) {
+          return (0 - 1);
+        }
+        return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+      }
+      if ((arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF94003E1u) !=0)) {
+        return (0 - 1);
+      }
+      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) !=0)) {
+        return (0 - 1);
+      }
+      if ((backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) !=0)) {
+        return (0 - 1);
+      }
+      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (foff + 8), 8, ta) !=0)) {
+        return (0 - 1);
+      }
+      return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
     }
     if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) !=0)) {
       return (0 - 1);

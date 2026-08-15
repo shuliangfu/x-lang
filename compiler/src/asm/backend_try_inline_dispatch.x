@@ -89,6 +89,8 @@ export extern "C" function glue_with_arena_scope_top_off_c(): i32;
 export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf: *u8, lo: i32, hi: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_rax_to_rbx_offset_arch(elf: *u8, off: i32, sz: i32, ta: i32): i32;
 export extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
+export extern "C" function backend_enc_push_rbx_arch(elf: *u8, ta: i32): i32;
+export extern "C" function arch_arm64_enc_enc_u32_le(elf: *u8, word: i32): i32;
 export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern "C" function pipeline_expr_int_val_at(arena: *u8, er: i32): i32;
 export extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32;
@@ -1370,14 +1372,20 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
   return 0;
 }
 // See implementation.
-// glue_emit_default_alloc_to_rbx_offset: see function docblock below.
-/** Exported function `glue_emit_default_alloc_to_rbx_offset`.
- * Memory management helper `glue_emit_default_alloc_to_rbx_offset`.
- * @param elf_ctx *u8
- * @param foff i32
- * @param fsz i32
- * @param ta i32
- * @return i32
+/**
+ * Emit `std_heap_default_alloc` (or with_arena kind+ptr) into dest at [rbx+foff].
+ * Dest is parked in rbx (ARM64 x1) by the caller. The factory returns a 16B
+ * Allocator in the dual-GP pair (x86 rax+rdx; AAPCS64 x0+x1). On ARM64 that
+ * return writes x1 and clobbers dest — spill dest before the CALL, stash the
+ * high half in the push slot's unused +8, reload dest, then store both halves.
+ * x86 rbx is callee-saved so dest survives; that path is unchanged.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param foff i32 — byte offset from dest (rbx) to the Allocator field
+ * @param fsz i32 — store size; <=0 treated as 8; clamped to 16
+ * @param ta i32 — 0=x86_64 SysV, 1=arm64 AAPCS64
+ * @return i32 — 0 ok, -1 encode / null
+ * PLATFORM: SHARED helper · LINUX|x86_64 rbx dest survives CALL ·
+ *   MACOS|ARM64 dest-in-x1 must spill (x1 is the 16B high return)
  */
 #[no_mangle]
 export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
@@ -1399,10 +1407,35 @@ export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, f
     da[12] = 97; da[13] = 117; da[14] = 108; da[15] = 116;
     da[16] = 95; da[17] = 97; da[18] = 108; da[19] = 108;
     da[20] = 111; da[21] = 99;
+    // ARM64: dest is x1. push_rbx is sub #16; str x1,[sp] — dest at [sp],
+    // [sp+8] is padding we reuse as a high-half temp after the CALL.
+    if (ta == 1) {
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    }
     if (backend_enc_call_arch(elf_ctx, &da[0], 27, ta) != 0) { return 0 - 1; }
     let sz: i32 = fsz;
     if (sz <= 0) { sz = 8; }
     if (sz > 16) { sz = 16; }
+    if (ta == 1) {
+      if (sz >= 16) {
+        // str x1, [sp, #8] = 0xF90007E1 — stash high (arena) in the pad
+        if (arch_arm64_enc_enc_u32_le(elf_ctx, (4177528801 as u32) as i32) != 0) { return 0 - 1; }
+        // ldr x1, [sp] = 0xF94003E1 — dest back into rbx
+        if (arch_arm64_enc_enc_u32_le(elf_ctx, (4181722081 as u32) as i32) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0) { return 0 - 1; }
+        // ldr x0, [sp, #8] = 0xF94007E0 — high into rax
+        if (arch_arm64_enc_enc_u32_le(elf_ctx, (4181723104 as u32) as i32) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0) { return 0 - 1; }
+        return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+      }
+      // ldr x1, [sp] = 0xF94003E1
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (4181722081 as u32) as i32) != 0) { return 0 - 1; }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0) { return 0 - 1; }
+      return backend_enc_call_stack_cleanup_arch(elf_ctx, 16, ta);
+    }
+    // LINUX|x86_64: rbx dest survives the CALL (callee-saved).
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) != 0) { return 0 - 1; }
     if (sz >= 16) { return 0; }
     if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
