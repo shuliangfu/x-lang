@@ -22768,6 +22768,57 @@ export function glue_arm64_mov_x8_to_x0_elf_c(elf_ctx: *u8): i32 {
 }
 
 /**
+ * Emit AAPCS64 mov x0, x19 (dest-shadow reverse for dest-in-rbx memcpy).
+ * enc_mov_rax_to_rbx parks dest in x19 so a later lea-src into x0 cannot
+ * lose it. memcpy wants dest in x0: ORR X0, XZR, X19 → 0xAA1303E0.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @return i32 - 0 on success; -1 on null/encode failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — dest-shadow family (x19).
+ */
+#[no_mangle]
+export function glue_arm64_mov_x19_to_x0_elf_c(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let insn: u8[4] = [];
+  insn[0] = 0xe0 as u8;
+  insn[1] = 0x03 as u8;
+  insn[2] = 0x13 as u8;
+  insn[3] = 0xaa as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &insn[0], 4);
+  }
+  return rc;
+}
+
+/**
+ * Emit SysV movq %rdx, 8(%rbx) after a 16B CALL (hi half).
+ * ARM64 store_rax_to_rbx_offset(sz>=16) already writes x1 via x19;
+ * x86 rbx is callee-saved dest, rdx is the INTEGER hi return.
+ * Encoding: 48 89 53 08.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @return i32 - 0 on success; -1 on null/encode failure
+ * PLATFORM: LINUX+MACOS x86_64 SysV — dest-in-rbx 16B hi store.
+ */
+#[no_mangle]
+export function glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let insn: u8[4] = [];
+  insn[0] = 0x48 as u8;
+  insn[1] = 0x89 as u8;
+  insn[2] = 0x53 as u8;
+  insn[3] = 0x08 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &insn[0], 4);
+  }
+  return rc;
+}
+
+/**
  * Emit arm64 adrp x1 + add pageoff for named COMMON address in x1 (rbx twin).
  * Reloc types: 3 = R_AARCH64_ADR_PREL_PG_HI21 (pcrel=1);
  *              4 = R_AARCH64_ADD_ABS_LO12_NC (pcrel=0).
@@ -24649,12 +24700,15 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * @param ctx *u8 - AsmFuncCtx*
  * @param ta i32 - target arch 0=x86_64 SysV, 1=AAPCS64, other unused
  * @param let_ty_ref i32 - let decl type ref (0 if unknown; recover from VAR)
- * @param stack_slot_off i32 - rbp-relative home
+ * @param stack_slot_off i32 - rbp-relative home; -3 = dest already in rbx
+ *   (pointer / INDEX FIELD dest; STRUCT_LIT dest-in-rbx sibling)
  * @return i32 - 0 handled; -1 error; -2 not a struct let-init kind
  * wave132 pure: G.7 authority (was static glue_emit_struct_type_let_init_elf_c).
  * CALL(48)/METHOD_CALL(49) share try_inline then sret (import vec.new is METHOD_CALL).
  * VAR(3) >16B: lea src then glue_copy_large_struct_from_rax_ptr (same memcpy
  * as CALL/INDEX). ≤16B returns -2 so dual-GP fall-through stays the store.
+ * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
+ * CALL ≤16B dual-GP store via x19/rbx; VAR >16B glue_copy dest-in-rbx.
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
@@ -24668,10 +24722,15 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let best: i32 = 0;
   let src_off: i32 = 0;
   let ty_ref: i32 = 0;
+  let dest_in_rbx: i32 = 0;
   let modp: *u8 = 0 as *u8;
   let rc: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
+  }
+  // DEST_IN_RBX = -3 (same token as glue_struct_lit_dest_in_rbx).
+  if (stack_slot_off == (0 - 3)) {
+    dest_in_rbx = 1;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
@@ -24683,17 +24742,20 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // CALL (48) or METHOD_CALL (49): try_inline param/const twins, then sret / dual-GP.
   // G.7: METHOD shares the inliner (body already accepts 49). Do not CALL-only the gate.
   if (ko == 48 || ko == 49) {
-    unsafe {
-      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    }
-    if (inl == 1) {
-      return 0;
-    }
-    unsafe {
-      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    }
-    if (inl == 1) {
-      return 0;
+    // dest-in-rbx: try_inline would lea rbp-3. Skip; sret / dual-GP below.
+    if (dest_in_rbx == 0) {
+      unsafe {
+        inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      }
+      if (inl == 1) {
+        return 0;
+      }
+      unsafe {
+        inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      }
+      if (inl == 1) {
+        return 0;
+      }
     }
     // Install let decl type as expected return for import overload mangle.
     if (let_ty_ref > 0) {
@@ -24737,9 +24799,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     // >16B struct return into let slot (callee writes; no glue_store_retval).
     // SysV: hidden dest in rdi + GP arg shift. AAPCS64: dest in x8; no GP shift.
+    // dest-in-rbx: dest already computed (pointer / INDEX FIELD); do not lea rbp-3.
     if (call_ret_sz > 16 && (ta == 0 || ta == 1)) {
-      unsafe {
-        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
+      if (dest_in_rbx != 0) {
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+      } else {
+        unsafe {
+          rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
+        }
       }
       if (rc != 0) {
         unsafe {
@@ -24790,6 +24859,34 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (emit_rc != 0) {
       return 0 - 1;
     }
+    if (dest_in_rbx != 0) {
+      /* dest in rbx (x86 callee-saved) / x19 (ARM64 dest-shadow after CALL).
+       * store_rax_to_rbx_offset sz>=16 writes both halves on ARM64.
+       * x86 still one qword — hi via glue_x86_store_rdx_to_rbx8.
+       * PLATFORM: SHARED dest-in-rbx 16B. */
+      if (call_ret_sz > 8) {
+        if (ta == 1) {
+          unsafe {
+            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
+          }
+        } else {
+          unsafe {
+            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+          }
+          if (rc == 0) {
+            rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+          }
+        }
+      } else {
+        unsafe {
+          rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
     unsafe {
       modp = glue_emit_module_from_ctx(ctx);
       rc = glue_store_retval_pair_to_rbp_elf_c(modp, arena, elf_ctx, let_ty_ref, stack_slot_off, ta, init_ref, ctx);
@@ -24838,7 +24935,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (let_sz <= 16) {
       return 0 - 2;
     }
-    if (src_off == stack_slot_off) {
+    if (dest_in_rbx == 0 && src_off == stack_slot_off) {
       return 0;
     }
     unsafe {
@@ -32261,8 +32358,8 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
 /**
  * EXPR_ASSIGN ELF emit (FIELD / INDEX / VAR / DEREF; slice dual-GP, fixed-array
  * whole assign, TYPE_VECTOR let-init reuse, TYPE_NAMED >16B sret let-init reuse,
- * FIELD-chain dest to VAR root, STRUCT_LIT index in-place, esz>8 bulk copy,
- * VAR 9–16B dual-GP).
+ * FIELD-chain dest to VAR root, pointer / INDEX FIELD dest-in-rbx let-init,
+ * STRUCT_LIT index in-place, esz>8 bulk copy, VAR 9–16B dual-GP).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - assign expr ref
@@ -32359,9 +32456,9 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
       }
       /* FIELD dest whose root is a local VAR (h.s or w.h.s). Walk the
        * FIELD chain, fold glue_struct_field_frame_mag_c from the VAR
-       * slot, reuse struct let-init. Immediate-VAR-only left w.h.s on
-       * the push/pop path: 16B Darwin 2, >16B CALL SIGBUS 138.
-       * Pointer / INDEX roots stay on push/pop (later leaf).
+       * slot, reuse struct let-init. Pointer VAR / mid-chain *T is not
+       * a frame-mag dest (would write into the pointer slot → Darwin 139).
+       * Those plus INDEX roots use dest-in-rbx let-init below.
        * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
       if (base_ref > 0) {
         chain_n = 0;
@@ -32415,6 +32512,40 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
             }
             off = var_off;
             hit = 1;
+            /* Pointer VAR / mid-chain *T: dest is *p + field, not slot+field.
+             * Mag onto the pointer slot clobbers it (Darwin 139).
+             * PLATFORM: SHARED — fall through to dest-in-rbx let-init. */
+            unsafe {
+              ltr_pre = glue_var_decl_type_ref_elf_c(arena, ctx, walk_cur);
+            }
+            if (ltr_pre <= 0) {
+              unsafe {
+                ltr_pre = pipeline_expr_resolved_type_ref(arena, walk_cur);
+              }
+            }
+            if (ltr_pre > 0) {
+              unsafe {
+                ltk_pre = pipeline_type_kind_ord_at(arena, ltr_pre);
+              }
+              if (ltk_pre == 9) {
+                hit = 0;
+              }
+            }
+            walk_i = 1;
+            while (walk_i < chain_n && hit != 0) {
+              unsafe {
+                ltr = glue_field_access_field_type_ref_c(arena, mod, chain_fa[walk_i]);
+              }
+              if (ltr > 0) {
+                unsafe {
+                  ltk = pipeline_type_kind_ord_at(arena, ltr);
+                }
+                if (ltk == 9) {
+                  hit = 0;
+                }
+              }
+              walk_i = walk_i + 1;
+            }
             walk_i = chain_n - 1;
             while (walk_i >= 0 && hit != 0) {
               fa_ref = chain_fa[walk_i];
@@ -32493,9 +32624,11 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                 }
               }
             }
-            /* Depth-1 scalar: lea VAR + store at leaf field_off.
-             * Nested scalar stays on the push/pop path below. */
-            if (chain_n == 1) {
+            /* Depth-1 scalar on a value VAR: lea slot + store at field_off.
+             * Pointer VAR (hit==0) must not store into the pointer slot —
+             * dest-in-rbx let-init below writes through *p.
+             * Nested scalar stays on the push/pop path. */
+            if (chain_n == 1 && hit != 0) {
               rc = glue_emit_assign_rhs_to_rax_elf_c(
                   arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
               if (rc != 0) {
@@ -32513,6 +32646,45 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                     elf_ctx, field_off, load_sz, ta);
               }
               return rc;
+            }
+          }
+        }
+      }
+      /* TYPE_NAMED dest through pointer / INDEX / *T field: dest address
+       * first, then the same let-init with DEST_IN_RBX=-3.
+       * 16B CALL uses dest-shadow x19; >16B CALL dest→x8/rdi; VAR memcpy dest-in-rbx.
+       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+      if (ta == 0 || ta == 1) {
+        unsafe {
+          mod = pipeline_asm_emit_module_ref_c();
+          ltr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+        }
+        if (ltr > 0) {
+          unsafe {
+            ltk = pipeline_type_kind_ord_at(arena, ltr);
+          }
+          if (ltk == 8) {
+            unsafe {
+              rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              arr_st = glue_emit_struct_type_let_init_elf_c(
+                  arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+            }
+            if (arr_st == 0) {
+              return 0;
+            }
+            if (arr_st == 0 - 1) {
+              return 0 - 1;
             }
           }
         }
@@ -69312,13 +69484,14 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
  * so pop would clobber dest). Same order as glue_emit_sret_memcpy ta==1:
  * park src in x1, size in x2, dest last into x0, then bl memcpy.
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
- * @param slot_off i32 — rbp-relative let home (byte0)
+ * @param slot_off i32 — rbp-relative let home (byte0); -3 = dest already in rbx
  * @param sz i32 — payload bytes; must be >16 (≤16 is dual-GP path)
  * @param ta i32 — 0=x86_64 SysV; 1=ARM64 AAPCS64; else -1
  * @return i32 — 0 success; -1 gate / enc fail
  *
  * wave204 pure: G.7 helper for store_retval_pair and >16B VAR let-init
  * (was Cap residual static). Same-TU public so let-init can lea-src then copy.
+ * dest-in-rbx (-3): rax=src, dest already in rbx/x19 (pointer / INDEX FIELD).
  * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
@@ -69335,6 +69508,83 @@ export function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off
   memcpy_sym[6] = 0 as u8;
   if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz <= 16) {
     return 0 - 1;
+  }
+  /* dest-in-rbx: dest already in rbx (x86) / x19 (ARM64 dest-shadow).
+   * Do not mov_rax_to_rbx — that would clobber dest with src.
+   * PLATFORM: SHARED — pointer / INDEX FIELD dest. */
+  if (slot_off == (0 - 3)) {
+    if (ta == 1) {
+      unsafe {
+        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
+      }
+    }
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
+    }
   }
   /* ARM64: x0=src after leave-addr. Park src@x1, n@x2, dest@x0 last.
    * PLATFORM: MACOS|ARM64 AAPCS64 — ≡ sret memcpy order (arg0≡x0). */

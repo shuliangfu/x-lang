@@ -9980,6 +9980,30 @@ int32_t glue_arm64_mov_x8_to_x0_elf_c(void *elf_ctx) {
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
 }
 
+/* PLATFORM: MACOS|ARM64 AAPCS64 — mov x0, x19 (dest-shadow reverse). */
+int32_t glue_arm64_mov_x19_to_x0_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe0;
+  insn[1] = 0x03;
+  insn[2] = 0x13;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: LINUX+MACOS x86_64 SysV — movq %rdx, 8(%rbx) dest-in-rbx 16B hi. */
+int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0x48;
+  insn[1] = 0x89;
+  insn[2] = 0x53;
+  insn[3] = 0x08;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
 /* PLATFORM: MACOS|ARM64 — adrp x1 + add pageoff → COMMON in x1 (rbx).
  * r_type 3 = PAGE_HI21 pcrel=1; 4 = LO12_NC pcrel=0. */
 int32_t glue_asm_lea_rbx_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len) {
@@ -10888,6 +10912,10 @@ extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_call_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
 extern int32_t glue_arm64_mov_x0_to_x8_elf_c(void *elf_ctx);
+extern int32_t glue_arm64_mov_x19_to_x0_elf_c(void *elf_ctx);
+extern int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz, int32_t ta);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
 extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
@@ -10920,20 +10948,25 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
   int32_t let_sz;
   int32_t named_sz;
   int32_t best;
+  int32_t dest_in_rbx;
   void *modp;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0)
     return -2;
+  dest_in_rbx = (stack_slot_off == -3) ? 1 : 0;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
   if (ko == 45)
     return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
   if (ko == 48 || ko == 49) {
-    /* G.7: METHOD(49) shares try_inline with CALL(48). Body already accepts 49. */
-    inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    if (inl == 1)
-      return 0;
-    inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    if (inl == 1)
-      return 0;
+    /* dest-in-rbx: try_inline would lea rbp-3. Skip. */
+    if (!dest_in_rbx) {
+      /* G.7: METHOD(49) shares try_inline with CALL(48). Body already accepts 49. */
+      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      if (inl == 1)
+        return 0;
+      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      if (inl == 1)
+        return 0;
+    }
     pipeline_asm_set_call_expected_ret_ty_c(let_ty_ref > 0 ? let_ty_ref : 0);
     call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
     if (call_ret_sz <= 16 && let_ty_ref > 0) {
@@ -10954,7 +10987,12 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
         call_ret_sz = best;
     }
     if (call_ret_sz > 16 && (ta == 0 || ta == 1)) {
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) {
+      if (dest_in_rbx) {
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+          return -1;
+        }
+      } else if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) {
         pipeline_asm_set_call_expected_ret_ty_c(0);
         return -1;
       }
@@ -10979,6 +11017,22 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
     pipeline_asm_set_call_expected_ret_ty_c(0);
     if (emit_rc != 0)
       return -1;
+    if (dest_in_rbx) {
+      if (call_ret_sz > 8) {
+        if (ta == 1) {
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            return -1;
+          if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+            return -1;
+        }
+      } else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0) {
+        return -1;
+      }
+      return 0;
+    }
     modp = glue_emit_module_from_ctx(ctx);
     if (glue_store_retval_pair_to_rbp_elf_c(modp, arena, elf_ctx, let_ty_ref, stack_slot_off, ta, init_ref, ctx) != 0)
       return -1;
@@ -11008,7 +11062,7 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
       let_sz = named_sz;
     if (let_sz <= 16)
       return -2;
-    if (src_off == stack_slot_off)
+    if (!dest_in_rbx && src_off == stack_slot_off)
       return 0;
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
       return -1;
@@ -11033,6 +11087,34 @@ int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_of
   memcpy_sym[6] = 0;
   if (!elf_ctx || (ta != 0 && ta != 1) || sz <= 16)
     return -1;
+  if (slot_off == -3) {
+    if (ta == 1) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+        return -1;
+      if (glue_arm64_mov_x19_to_x0_elf_c(elf_ctx) != 0)
+        return -1;
+      return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+  }
   if (ta == 1) {
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
@@ -14470,8 +14552,9 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
     int32_t typed_off;
     int32_t fa_ref;
     /* Walk FIELD chain to a local VAR root (h.s or w.h.s). Fold
-     * glue_struct_field_frame_mag_c then reuse let-init. Immediate-VAR
-     * only left w.h.s on push/pop (Darwin 2 / 138).
+     * glue_struct_field_frame_mag_c then reuse let-init. Pointer VAR /
+     * mid-chain *T is not a frame-mag dest (Darwin 139). Those plus
+     * INDEX roots use dest-in-rbx let-init below.
      * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
     while (chain_n < 16 && walk_cur > 0 &&
            pipeline_expr_kind_ord_at(arena, walk_cur) == 44) {
@@ -14499,6 +14582,20 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
         load_sz = 4;
       dest_off = var_off;
       hit = 1;
+      {
+        int32_t root_ty = glue_var_decl_type_ref_elf_c(arena, ctx, walk_cur);
+        int32_t mid_i;
+        int32_t mid_ty;
+        if (root_ty <= 0)
+          root_ty = pipeline_expr_resolved_type_ref(arena, walk_cur);
+        if (root_ty > 0 && pipeline_type_kind_ord_at(arena, root_ty) == 9)
+          hit = 0;
+        for (mid_i = 1; mid_i < chain_n && hit; mid_i++) {
+          mid_ty = glue_field_access_field_type_ref_c(arena, mod, chain_fa[mid_i]);
+          if (mid_ty > 0 && pipeline_type_kind_ord_at(arena, mid_ty) == 9)
+            hit = 0;
+        }
+      }
       for (walk_i = chain_n - 1; walk_i >= 0 && hit; walk_i--) {
         fa_ref = chain_fa[walk_i];
         base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
@@ -14545,12 +14642,28 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
           }
         }
       }
-      if (chain_n == 1) {
+      if (chain_n == 1 && hit) {
         if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
           return -1;
         if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, walk_cur, var_off, ctx, ta) != 0)
           return -1;
         return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, field_off, load_sz, ta);
+      }
+    }
+    /* TYPE_NAMED dest through pointer / INDEX / *T field: dest-in-rbx let-init. */
+    if (ta == 0 || ta == 1) {
+      int32_t field_ty = glue_field_access_field_type_ref_c(arena, pipeline_asm_emit_module_ref_c(), left_ref);
+      if (field_ty > 0 && pipeline_type_kind_ord_at(arena, field_ty) == 8) {
+        int32_t arr_st;
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        arr_st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, field_ty, -3);
+        if (arr_st == 0)
+          return 0;
+        if (arr_st == -1)
+          return -1;
       }
     }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
