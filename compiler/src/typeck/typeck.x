@@ -3521,6 +3521,64 @@ expr_ref: i32, outer_expected: i32): i32 {
 }
 
 /**
+ * Byte offset of the last '.' segment in a TYPE_NAMED / layout spelling.
+ * @param name *u8 — bytes; not required to be NUL-terminated
+ * @param name_len i32 — byte count; <=0 → 0
+ * @return i32 — 0 if no '.', else index after the last '.'
+ * PLATFORM: SHARED — same last-dot strip as typeck_field_layout_named.
+ */
+function typeck_named_last_segment_off(name: *u8, name_len: i32): i32 {
+  let i: i32 = 0;
+  let off: i32 = 0;
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  while (i < name_len) {
+    if (name[i] == 46 as u8) {
+      off = i + 1;
+    }
+    i = i + 1;
+  }
+  return off;
+}
+
+/**
+ * True if two type-name spellings are the same struct/enum.
+ * Exact match, or last '.' segment (`heap.Allocator` vs layout `Allocator`).
+ * @param a *u8 — TYPE_NAMED or layout bytes
+ * @param a_len i32 — byte count of a
+ * @param b *u8 — TYPE_NAMED or layout bytes
+ * @param b_len i32 — byte count of b
+ * @return i32 — 1 match, 0 no
+ * PLATFORM: SHARED — G.7 helper for typeck_named_is_module_concrete only.
+ */
+function typeck_named_spelling_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+  let ao: i32 = 0;
+  let bo: i32 = 0;
+  let n: i32 = 0;
+  let i: i32 = 0;
+  if (a == 0 as *u8 || b == 0 as *u8 || a_len <= 0 || b_len <= 0) {
+    return 0;
+  }
+  if (name_equal(a, a_len, b, b_len)) {
+    return 1;
+  }
+  ao = typeck_named_last_segment_off(a, a_len);
+  bo = typeck_named_last_segment_off(b, b_len);
+  n = a_len - ao;
+  if (n <= 0 || n != (b_len - bo)) {
+    return 0;
+  }
+  while (i < n) {
+    if (a[ao + i] != b[bo + i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
  * R2 (8.3.3): TYPE_NAMED name is a module (or dep) concrete struct/enum.
  *
  * Migrated from C `pipeline_typeck_named_is_module_concrete_c`
@@ -3529,11 +3587,16 @@ expr_ref: i32, outer_expected: i32): i32 {
  *
  * wave465: free type-param vs concrete; wave1220 P4 walks dep modules so
  * TokenKind/Lexer etc. are not mistaken for free type params by ambient fill.
+ * Import-qualified field types (`heap.Allocator`) must also count as concrete:
+ * layout tables store the bare struct name (`Allocator`). Exact-only compare
+ * treated `heap.Allocator` as a free type-param → apply_ambient stamped the
+ * CALL return (`*u8`) onto `v.al` → heap.alloc scored -1 → first_idx
+ * `alloc(i32):*u64`. Same last-dot strip as typeck_field_layout_named.
  * G.7 single probe — mono field path + ambient both use this.
  *
  * @param module *Module — entry module layouts/enums
  * @param ctx *PipelineDepCtx — optional deps (NULL/0 = local only; mono uses null)
- * @param name *u8 — TYPE_NAMED spelling
+ * @param name *u8 — TYPE_NAMED spelling (bare or import-qualified)
  * @param name_len i32 — name length (1..127)
  * @return i32 — 1 concrete, 0 free/unknown
  * PLATFORM: SHARED
@@ -3559,16 +3622,9 @@ name: *u8, name_len: i32): i32 {
     k = 0;
     while (k < nsl) {
       sl = pipeline_module_struct_layout_name_len(module, k);
-      if (sl == name_len) {
+      if (sl > 0 && sl <= 127) {
         pipeline_module_struct_layout_name_into(module, k, &snm[0]);
-        bi = 0;
-        while (bi < sl) {
-          if (snm[bi] != name[bi]) {
-            break;
-          }
-          bi = bi + 1;
-        }
-        if (bi == sl) {
+        if (typeck_named_spelling_eq(name, name_len, &snm[0], sl) != 0) {
           return 1;
         }
       }
@@ -3578,21 +3634,19 @@ name: *u8, name_len: i32): i32 {
     k = 0;
     while (k < ne) {
       el = pipeline_module_enum_name_len(module, k);
-      if (el == name_len) {
+      if (el > 0 && el <= 127) {
         bi = 0;
         while (bi < el) {
-          if (pipeline_module_enum_name_byte_at(module, k, bi) != name[bi]) {
-            break;
-          }
+          snm[bi] = pipeline_module_enum_name_byte_at(module, k, bi);
           bi = bi + 1;
         }
-        if (bi == el) {
+        if (typeck_named_spelling_eq(name, name_len, &snm[0], el) != 0) {
           return 1;
         }
       }
       k = k + 1;
     }
-    /* wave1220 P4: dep modules for cross-module TokenKind / Lexer / etc. */
+    /* wave1220 P4: dep modules for cross-module TokenKind / Lexer / Allocator. */
     if (ctx != 0 as *PipelineDepCtx) {
       nd = pipeline_dep_ctx_ndep(ctx);
       di = 0;
@@ -3603,16 +3657,9 @@ name: *u8, name_len: i32): i32 {
           k = 0;
           while (k < nsl) {
             sl = pipeline_module_struct_layout_name_len(dm, k);
-            if (sl == name_len) {
+            if (sl > 0 && sl <= 127) {
               pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
-              bi = 0;
-              while (bi < sl) {
-                if (snm[bi] != name[bi]) {
-                  break;
-                }
-                bi = bi + 1;
-              }
-              if (bi == sl) {
+              if (typeck_named_spelling_eq(name, name_len, &snm[0], sl) != 0) {
                 return 1;
               }
             }
@@ -3622,15 +3669,13 @@ name: *u8, name_len: i32): i32 {
           k = 0;
           while (k < ne) {
             el = pipeline_module_enum_name_len(dm, k);
-            if (el == name_len) {
+            if (el > 0 && el <= 127) {
               bi = 0;
               while (bi < el) {
-                if (pipeline_module_enum_name_byte_at(dm, k, bi) != name[bi]) {
-                  break;
-                }
+                snm[bi] = pipeline_module_enum_name_byte_at(dm, k, bi);
                 bi = bi + 1;
               }
-              if (bi == el) {
+              if (typeck_named_spelling_eq(name, name_len, &snm[0], el) != 0) {
                 return 1;
               }
             }
