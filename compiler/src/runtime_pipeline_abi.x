@@ -42560,12 +42560,15 @@ function glue_lane_binop_lhs_is_f32_c(arena: *u8, ctx: *u8, left_ref: i32): i32 
 }
 
 /**
- * Vector VAR / depth-1 FIELD lane stack off. x86 SysV: base - lane*esz
+ * Vector VAR / FIELD / FIELD-chain lane stack off. x86 SysV: base - lane*esz
  * (rbp grows down). AAPCS64: base + lane*esz (positive [x29,#off]).
- * FIELD `h.v` (base VAR, not *T / enum / chain) folds
- * glue_struct_field_frame_mag_c then the same lane polarity. Completes
- * the VAR-only `ko != 3` reject so UFCS `h.v.sub4(b)` / CALL `add4(h.v,b)`
+ * FIELD `h.v` and FIELD-chain `w.h.v` (value-VAR root, not *T / enum)
+ * walk the chain (max 16), fold glue_struct_field_frame_mag_c from the
+ * VAR slot, then apply the same lane polarity. Completes the depth-1
+ * `base_ko != 3` reject so UFCS `w.h.v.sub4(b)` / CALL `add4(w.h.v,b)`
  * hit the lane-binop fast path instead of a real CALL (Darwin lane1 leftover).
+ * Same walk as FIELD-chain dest in emit_assign (G.7 complete, not a second walker).
+ * Pointer VAR / mid-chain *T / enum stay -1 (dest-in-rbx leftover).
  * @param arena *u8 — ASTArena*
  * @param ctx *u8 — AsmFuncCtx*
  * @param var_expr_ref i32 — VAR or FIELD expr ref of the vector operand
@@ -42587,14 +42590,22 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
   let ltk: i32 = 0;
   let field_off: i32 = 0;
   let mod: *u8 = 0 as *u8;
+  let chain_fa: i32[16] = [];
+  let chain_n: i32 = 0;
+  let walk_cur: i32 = 0;
+  let walk_i: i32 = 0;
+  let fa_ref: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0 || lane < 0 || esz <= 0) {
     return 0 - 1;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
   }
-  /* FIELD=44 depth-1 on a value VAR: same lane home as VAR after frame-mag.
-   * Pointer VAR / enum variant / FIELD-chain stay -1 (dest-in-rbx leftover). */
+  /* FIELD=44 on a value-VAR root (depth-1 `h.v` or chain `w.h.v`).
+   * Walk to the VAR, reject pointer / enum / mid-chain *T, fold mag.
+   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
   if (ko == 44) {
     unsafe {
       is_enum = pipeline_expr_field_access_is_enum_variant(arena, var_expr_ref);
@@ -42602,24 +42613,45 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
     if (is_enum != 0) {
       return 0 - 1;
     }
-    unsafe {
-      base_ref = pipeline_expr_field_access_base_ref(arena, var_expr_ref);
+    walk_cur = var_expr_ref;
+    chain_n = 0;
+    while (chain_n < 16) {
+      unsafe {
+        base_ko = pipeline_expr_kind_ord_at(arena, walk_cur);
+      }
+      if (base_ko != 44) {
+        break;
+      }
+      unsafe {
+        is_enum = pipeline_expr_field_access_is_enum_variant(arena, walk_cur);
+      }
+      if (is_enum != 0) {
+        return 0 - 1;
+      }
+      chain_fa[chain_n] = walk_cur;
+      chain_n = chain_n + 1;
+      unsafe {
+        walk_cur = pipeline_expr_field_access_base_ref(arena, walk_cur);
+      }
+      if (walk_cur <= 0) {
+        break;
+      }
     }
-    if (base_ref <= 0) {
+    if (walk_cur <= 0 || chain_n <= 0) {
       return 0 - 1;
     }
     unsafe {
-      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      base_ko = pipeline_expr_kind_ord_at(arena, walk_cur);
     }
     if (base_ko != 3) {
       return 0 - 1;
     }
     unsafe {
-      ltr = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+      ltr = glue_var_decl_type_ref_elf_c(arena, ctx, walk_cur);
     }
     if (ltr <= 0) {
       unsafe {
-        ltr = pipeline_expr_resolved_type_ref(arena, base_ref);
+        ltr = pipeline_expr_resolved_type_ref(arena, walk_cur);
       }
     }
     if (ltr > 0) {
@@ -42630,7 +42662,7 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
         return 0 - 1;
       }
     }
-    off = glue_asm_local_var_stack_off_scoped(arena, ctx, base_ref);
+    off = glue_asm_local_var_stack_off_scoped(arena, ctx, walk_cur);
     if (off < 0) {
       return 0 - 1;
     }
@@ -42640,15 +42672,51 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
     if (mod == (0 as *u8)) {
       return 0 - 1;
     }
-    unsafe {
-      field_off = glue_field_access_effective_offset_c(arena, mod, var_expr_ref);
+    /* Mid-chain *T: dest is *p + field, not slot+field. Stay -1. */
+    walk_i = 1;
+    while (walk_i < chain_n) {
+      unsafe {
+        ltr = glue_field_access_field_type_ref_c(arena, mod, chain_fa[walk_i]);
+      }
+      if (ltr > 0) {
+        unsafe {
+          ltk = pipeline_type_kind_ord_at(arena, ltr);
+        }
+        if (ltk == 9) {
+          return 0 - 1;
+        }
+      }
+      walk_i = walk_i + 1;
     }
-    if (field_off < 0) {
-      return 0 - 1;
-    }
-    off = glue_struct_field_frame_mag_c(off, field_off, ta);
-    if (off < 0) {
-      return 0 - 1;
+    /* Fold mag from VAR root to leaf (same order as emit_assign dest). */
+    walk_i = chain_n - 1;
+    while (walk_i >= 0) {
+      fa_ref = chain_fa[walk_i];
+      unsafe {
+        base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+        vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
+      }
+      field_off = 0 - 1;
+      if (vlen > 0 && vlen <= 127) {
+        unsafe {
+          pipeline_expr_field_access_name_into(arena, fa_ref, &vname[0]);
+          field_off = glue_field_layout_offset_for_base_field(
+              arena, mod, base_ref, &vname[0], vlen);
+        }
+      }
+      if (field_off < 0) {
+        unsafe {
+          field_off = glue_field_access_effective_offset_c(arena, mod, fa_ref);
+        }
+      }
+      if (field_off < 0) {
+        return 0 - 1;
+      }
+      off = glue_struct_field_frame_mag_c(off, field_off, ta);
+      if (off < 0) {
+        return 0 - 1;
+      }
+      walk_i = walk_i - 1;
     }
     if (ta == 1) {
       return off + lane * esz;
@@ -43363,9 +43431,9 @@ export function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, ex
       return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off - lane * esz, esz, ta);
     }
   }
-  /* FIELD=44: reuse stack-off authority (depth-1 VAR base). off already
-   * includes lane polarity — do not add lane*esz again. Miss (pointer /
-   * chain / enum) falls through to emit_expr. */
+  /* FIELD=44: reuse stack-off authority (VAR root, depth-1 or chain).
+   * off already includes lane polarity — do not add lane*esz again.
+   * Miss (pointer / mid-chain *T / enum) falls through to emit_expr. */
   if (ko == 44) {
     off = glue_vector_var_lane_stack_off_elf_c(arena, ctx, expr_ref, lane, esz, ta);
     if (off >= 0) {
@@ -43403,9 +43471,22 @@ export function glue_emit_vector_operand_lane_elf_c(arena: *u8, elf_ctx: *u8, ex
 }
 
 /**
- * let dst = src_var: per-lane copy vector local into slot.
- * wave148 pure: G.7 authority (was static pipeline_asm_emit_vector_var_copy_elf_c).
- * PLATFORM: SHARED freestanding.
+ * Per-lane copy of a vector VAR / FIELD / FIELD-chain into dest slot.
+ * Source homes come from glue_vector_var_lane_stack_off (VAR, depth-1
+ * FIELD, or FIELD-chain on a value-VAR root). Dest stores are linear
+ * dest+i*esz from a lea of dst_off (same as store_retval_pair).
+ * Completes the VAR-only src so `let t: i32x4 = w.h.v` is a 16B copy
+ * instead of an 8B struct fallthrough (Darwin t[2] leftover).
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param src_expr_ref i32 — VAR or FIELD expr of the vector source
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — 1=arm64, else x86
+ * @param dst_off i32 — dest frame-mag (real slot, not dest-in-rbx)
+ * @param type_ref i32 — SIMD vector type
+ * @return i32 — 0 ok; -1 emit fail
+ * G.7 authority (was static pipeline_asm_emit_vector_var_copy_elf_c).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
 export function pipeline_asm_emit_vector_var_copy_elf_c(arena: *u8, elf_ctx: *u8, src_expr_ref: i32, ctx: *u8, ta: i32, dst_off: i32, type_ref: i32): i32 {
@@ -43419,10 +43500,6 @@ export function pipeline_asm_emit_vector_var_copy_elf_c(arena: *u8, elf_ctx: *u8
   }
   rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz);
   if (rc != 0) {
-    return 0 - 1;
-  }
-  src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, src_expr_ref);
-  if (src_off < 0) {
     return 0 - 1;
   }
   unsafe {
@@ -43439,12 +43516,14 @@ export function pipeline_asm_emit_vector_var_copy_elf_c(arena: *u8, elf_ctx: *u8
   }
   li = 0;
   while (li < lanes) {
+    /* stack_off already includes lane polarity for VAR and FIELD. */
+    src_off = glue_vector_var_lane_stack_off_elf_c(
+        arena, ctx, src_expr_ref, li, esz, ta);
+    if (src_off < 0) {
+      return 0 - 1;
+    }
     unsafe {
-      if (ta == 1) {
-        rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off + li * esz, esz, ta);
-      } else {
-        rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - li * esz, esz, ta);
-      }
+      rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off, esz, ta);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -45099,9 +45178,11 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
 }
 
 /**
- * TYPE_VECTOR let init: ARRAY_LIT / VAR / lane binop / CALL inline.
+ * TYPE_VECTOR let init: ARRAY_LIT / VAR / FIELD / FIELD-chain /
+ * lane binop / CALL inline.
+ * FIELD `h.v` and chain `w.h.v` reuse vector_var_copy (stack_off).
  * @return i32 - 0 handled; -1 error; -2 not vector let init
- * wave148 pure: G.7 authority (was glue_emit_vector_type_let_init_elf_c).
+ * G.7 authority (was glue_emit_vector_type_let_init_elf_c).
  * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
@@ -45126,7 +45207,8 @@ export function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
     }
   }
-  if (ko == 3) {
+  if (ko == 3 || ko == 44) {
+    /* VAR or FIELD / FIELD-chain source: per-lane copy via stack_off. */
     return pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
   }
   unsafe {

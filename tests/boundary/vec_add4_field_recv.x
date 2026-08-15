@@ -5,6 +5,7 @@
 // already 0 (binop2 VAR-base). Depth-1 FIELD receiver used to miss
 // glue_vector_var_lane_stack_off (ko!=3) so binop2 fell to a real CALL
 // and Darwin ARM64 callee only added lane0 (exit 22).
+// FIELD-chain `w.h.v.sub4` is gated by vec_add4_field_chain.x.
 // Expected exit 0.
 // PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail without
 // FIELD lane stack-off.
