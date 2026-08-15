@@ -1060,7 +1060,7 @@
 
   - 现场：`import_method_f32_xmm` `select_lane(1.0,3.0,4.0)` Darwin 7。i32 import／本地 f32 本绿。收获 `fmov w0,s0` 已在；caller 把 extras 放 x0／x1／x2，host-C 读 s0–s2
   - **根修（G.7 有则补全）**：prefer `.x` import METHOD 已 `ta==0||ta==1` SSE 分类（@ **`320a81d0c`** encoder＋prefer）。Darwin 活 seed `is_sse=(ta==0)?…:0` 把 ARM64 extras 当 GP。补同一闸 `ta==0||ta==1`。权威 `backend_call_dispatch.from_x.c`（try-heat／r3-prefer 活 seed）。**禁**开 UFCS extras（本地 X callee 仍 GP）；**禁** try_inline mega
-  - 证：mac `select_lane` f32／i32／local／official／xlang-c **0**（反汇编 `fmov s2; s1; s0; bl; fmov w0,s0`）· 邻域 vec4f／local_f32／i32x4／da／fs16／fa／imw／idx／nslvar **0／0／0／0／42／0／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
+  - 证：mac `select_lane` f32／i32／local／official／xlang-c **0**（反汇编 `fmov s2; s1; s0; bl; fmov w0,s0`）· 邻域 vec4f／local_f32／i32x4／da／fs16／fa／imw／idx／nslvar **0／0／0／0／42／0／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 imf／vec4f／lf32／i32x4／da／fs16／fa／imw／nslvar **0／0／0／0／0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
   - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ---
