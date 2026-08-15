@@ -239,18 +239,22 @@ export function default_alloc(): Allocator {
   return heap_alloc();
 }
 
-/** Exported function `alloc`.
- * Memory management helper `alloc`.
- * @param al Allocator
- * @param size usize
- * @return *u8
+/**
+ * Allocate `size` bytes from `al` (libc heap or Arena64 bump).
+ * Arena path must cast `*Arena64` to `*heap_libc.LibcArena64` at the FFI
+ * boundary — same layout, different TYPE_NAMED. G.7 twin of
+ * `arena64_alloc` / `arena64_init` / `arena64_deinit` (those already cast).
+ * @param al Allocator — kind_heap() uses libc; else bump `al.arena`
+ * @param size usize — bytes; arena path uses 8-byte align
+ * @return *u8 — allocated pointer, or null
+ * PLATFORM: SHARED — typeck of std.heap.mod; Ubuntu gold -E.
  */
 export function alloc(al: Allocator, size: usize): *u8 {
   if (al.kind == kind_heap()) {
     return heap_libc.heap_alloc_c(size);
   }
   if (al.arena == 0) { return 0 as *u8; }
-  return heap_libc.heap_arena64_alloc_c(al.arena, size, 8);
+  return heap_libc.heap_arena64_alloc_c(al.arena as *heap_libc.LibcArena64, size, 8);
 }
 
 /** Exported function `free`.
