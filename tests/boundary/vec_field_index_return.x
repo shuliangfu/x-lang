@@ -589,6 +589,69 @@ function dest_if_dest(a: i32x4): i32 {
   unsafe { *p = if (c) { let th: Holder = { v: a }; { h: th } } else { y } }
   if (dst.h.v[0] != 1) { return 268; }
   if (dst.h.v[3] != 4) { return 269; }
+  /* dest-in-rbx IF of MATCH. Peel yields MATCH (ko==43);
+   * dest-in-rbx STRUCT_LIT / ARRAY_LIT do not apply. dest-in-rbx
+   * let-init MATCH used to return −2 (Darwin CG002).
+   * PLATFORM: SHARED dest-in-rbx IF of MATCH. */
+  let tag: i32 = 1;
+  unsafe { *p = if (c) { match tag { 1 => w; _ => y; } } else { y } }
+  if (dst.h.v[0] != 1) { return 270; }
+  if (dst.h.v[1] != 2) { return 271; }
+  if (dst.h.v[2] != 3) { return 272; }
+  if (dst.h.v[3] != 4) { return 273; }
+  return 0;
+}
+
+/**
+ * dest-in-rbx MATCH `*p = match tag { 1 => w; _ => y }`.
+ * emit_expr of MATCH is 8B (Darwin leftover 12). Frame dest
+ * `let r = match` is already green. Kept in a small helper so
+ * the official large main() late-let dest-name leftover is not
+ * this leaf.
+ * @param a i32x4 — source lanes
+ * @return i32 — 0 ok; 274..297 leftover lanes
+ * PLATFORM: SHARED dest-in-rbx MATCH.
+ */
+function dest_match_dest(a: i32x4): i32 {
+  let z: i32x4 = [0, 0, 0, 0];
+  let b: i32x4 = [5, 6, 7, 8];
+  let w: Wrap = { h: { v: a } };
+  let y: Wrap = { h: { v: b } };
+  let dst: Wrap = { h: { v: z } };
+  let p: *Wrap = &dst;
+  let tag: i32 = 1;
+  unsafe { *p = match tag { 1 => w; _ => y; } }
+  if (dst.h.v[0] != 1) { return 274; }
+  if (dst.h.v[1] != 2) { return 275; }
+  if (dst.h.v[2] != 3) { return 276; }
+  if (dst.h.v[3] != 4) { return 277; }
+  tag = 0;
+  unsafe { *p = match tag { 1 => w; _ => y; } }
+  if (dst.h.v[0] != 5) { return 278; }
+  if (dst.h.v[1] != 6) { return 279; }
+  if (dst.h.v[2] != 7) { return 280; }
+  if (dst.h.v[3] != 8) { return 281; }
+  tag = 1;
+  unsafe { *p = match tag { 1 => { h: { v: a } }; _ => y; } }
+  if (dst.h.v[0] != 1) { return 282; }
+  if (dst.h.v[3] != 4) { return 283; }
+  let dsth: Holder = { v: z };
+  let ph: *Holder = &dsth;
+  unsafe { *ph = match tag { 1 => w.h; _ => y.h; } }
+  if (dsth.v[0] != 1) { return 284; }
+  if (dsth.v[3] != 4) { return 285; }
+  unsafe { *p = match tag { 1 => dest_mk_w(a); _ => y; } }
+  if (dst.h.v[0] != 1) { return 286; }
+  if (dst.h.v[3] != 4) { return 287; }
+  let dsta: [1]Wrap = [{ h: { v: z } }];
+  let pa: *[1]Wrap = &dsta;
+  unsafe { *pa = match tag { 1 => [w]; _ => [y]; } }
+  if (dsta[0].h.v[0] != 1) { return 288; }
+  if (dsta[0].h.v[3] != 4) { return 289; }
+  tag = 0;
+  unsafe { *pa = match tag { 1 => [w]; _ => [y]; } }
+  if (dsta[0].h.v[0] != 5) { return 290; }
+  if (dsta[0].h.v[3] != 8) { return 291; }
   return 0;
 }
 
@@ -817,5 +880,7 @@ function main(): i32 {
   if (r20 != 0) { return r20; }
   let r21: i32 = dest_if_dest(a);
   if (r21 != 0) { return r21; }
+  let r22: i32 = dest_match_dest(a);
+  if (r22 != 0) { return r22; }
   return 0;
 }

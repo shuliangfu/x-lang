@@ -25073,6 +25073,240 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   return extra;
 }
 
+/**
+ * dest-in-rbx MATCH arm walk. emit_match uses emit_expr_if_arm (8B);
+ * dest-in-rbx `*p = match tag { 1 => w; _ => y }` leftover lane2
+ * (Darwin 12). Frame dest `let r = match` is already green.
+ * G.7: same dest-in-rbx IF dest-park + dest-in-rbx arm let-init.
+ * Subject emit / cmp clobber x1+x19; dest lives in dest_spill.
+ * Do not change emit_match (frame dest). Do not open x19 prologue.
+ * Field-bind subject context leftover (official isolate is lit/wild).
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param expr_ref i32 — EXPR_MATCH (ko==43)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — 0 x86 / 1 ARM64
+ * @param ty_ref i32 — dest type (NAMED / ARRAY)
+ * @param dest_spill i32 — 8B dest pointer home on the frame
+ * @return i32 — 0 ok; -1 encoder / arm fail
+ * PLATFORM: SHARED dest-in-rbx MATCH · MACOS|ARM64 dest-shadow.
+ */
+function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, ty_ref: i32, dest_spill: i32): i32 {
+  let matched_ref: i32 = 0;
+  let num_arms: i32 = 0;
+  let i: i32 = 0;
+  let cmp_val: i32 = 0;
+  let is_wild: i32 = 0;
+  let guard_ref: i32 = 0;
+  let done_lbl: u8[128] = [];
+  let next_lbl: u8[128] = [];
+  let done_len: i32 = 0;
+  let next_len: i32 = 0;
+  let result_ref: i32 = 0;
+  let rc: i32 = 0;
+  let saw_terminal_wild: i32 = 0;
+  let arm_ok: i32 = 1;
+  let is_enum: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0 || dest_spill < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+    num_arms = pipeline_expr_match_num_arms_at(arena, expr_ref);
+  }
+  if (matched_ref <= 0 || num_arms <= 0 || num_arms > 32) {
+    return 0 - 1;
+  }
+  unsafe {
+    done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+  }
+  if (done_len <= 0) {
+    return 0 - 1;
+  }
+  i = 0;
+  while (i < num_arms && arm_ok != 0) {
+    unsafe {
+      is_wild = pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i);
+      guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+      result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    }
+    if (result_ref <= 0) {
+      arm_ok = 0;
+    } else {
+      if (is_wild != 0 && guard_ref <= 0) {
+        /* Terminal wild: restore dest then dest-in-rbx the arm. */
+        unsafe {
+          rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+        }
+        if (rc != 0) {
+          arm_ok = 0;
+        } else {
+          unsafe {
+            rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+          }
+          if (rc != 0) {
+            arm_ok = 0;
+          } else {
+            rc = glue_emit_if_arm_dest_in_rbx_elf_c(
+                arena, elf_ctx, result_ref, ctx, ta, ty_ref, dest_spill);
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              unsafe {
+                rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+              }
+              if (rc != 0) {
+                arm_ok = 0;
+              } else {
+                saw_terminal_wild = 1;
+                i = num_arms;
+              }
+            }
+          }
+        }
+      } else {
+        unsafe {
+          next_len = pipeline_asm_emit_next_label_c(ctx, &next_lbl[0], 64);
+        }
+        if (next_len <= 0) {
+          arm_ok = 0;
+        } else {
+          if (is_wild != 0) {
+            unsafe {
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, guard_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              unsafe {
+                rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &next_lbl[0], next_len, ta);
+              }
+              if (rc != 0) {
+                arm_ok = 0;
+              }
+            }
+          } else {
+            /* Lit / enum: re-emit subject; cmp; jne next. dest is
+             * parked — mov_rax_to_rbx here is the subject, not dest. */
+            unsafe {
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, matched_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              unsafe {
+                rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
+                arm_ok = 0;
+              } else {
+                unsafe {
+                  is_enum = pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i);
+                }
+                if (is_enum != 0) {
+                  unsafe {
+                    cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+                  }
+                } else {
+                  unsafe {
+                    cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+                  }
+                }
+                unsafe {
+                  rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, cmp_val, ta);
+                }
+                if (rc != 0) {
+                  arm_ok = 0;
+                } else {
+                  unsafe {
+                    rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
+                  }
+                  if (rc != 0) {
+                    arm_ok = 0;
+                  } else {
+                    unsafe {
+                      rc = backend_enc_jne_arch(elf_ctx, &next_lbl[0], next_len, ta);
+                    }
+                    if (rc != 0) {
+                      arm_ok = 0;
+                    } else {
+                      if (guard_ref > 0) {
+                        unsafe {
+                          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, guard_ref, ctx, ta);
+                        }
+                        if (rc != 0) {
+                          arm_ok = 0;
+                        } else {
+                          unsafe {
+                            rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &next_lbl[0], next_len, ta);
+                          }
+                          if (rc != 0) {
+                            arm_ok = 0;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (arm_ok != 0) {
+            unsafe {
+              rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              unsafe {
+                rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
+                arm_ok = 0;
+              } else {
+                rc = glue_emit_if_arm_dest_in_rbx_elf_c(
+                    arena, elf_ctx, result_ref, ctx, ta, ty_ref, dest_spill);
+                if (rc != 0) {
+                  arm_ok = 0;
+                } else {
+                  unsafe {
+                    rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+                  }
+                  if (rc != 0) {
+                    arm_ok = 0;
+                  } else {
+                    unsafe {
+                      rc = backend_enc_label_arch(elf_ctx, &next_lbl[0], next_len, 0, ta);
+                    }
+                    if (rc != 0) {
+                      arm_ok = 0;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (arm_ok != 0) {
+          i = i + 1;
+        }
+      }
+    }
+  }
+  if (arm_ok != 0) {
+    unsafe {
+      rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+    }
+    if (rc != 0) {
+      arm_ok = 0;
+    }
+  }
+  if (arm_ok == 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
 #[no_mangle]
 export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32 {
   let ko: i32 = 0;
@@ -25254,6 +25488,61 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       return 0 - 1;
     }
     return 0;
+  }
+  /* dest-in-rbx MATCH (`*p = match tag { 1 => w; _ => y }`).
+   * emit_expr of MATCH is 8B (emit_match → emit_expr_if_arm).
+   * dest-in-rbx IF of MATCH peels to ko==43 then dest-in-rbx
+   * let-init MATCH used to return −2 (Darwin CG002). Frame dest
+   * `let r = match` is already green. G.7: dest-in-rbx IF dest-park
+   * then dest-in-rbx each arm. Do not change emit_match.
+   * PLATFORM: SHARED dest-in-rbx MATCH · MACOS|ARM64 dest-shadow. */
+  if (ko == 43 && dest_in_rbx != 0 && (ta == 0 || ta == 1)) {
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz < 8) {
+      return 0 - 2;
+    }
+    glue_align_next_offset(ctx);
+    dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (ta == 1) {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+    } else {
+      dest_spill = dest_spill + 8;
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+    }
+    if (ta == 1) {
+      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+    } else {
+      unsafe {
+        rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return glue_emit_match_dest_in_rbx_elf_c(
+        arena, elf_ctx, init_ref, ctx, ta, ty_ref, dest_spill);
   }
   // CALL (48) or METHOD_CALL (49): try_inline param/const twins, then sret / dual-GP.
   // G.7: METHOD shares the inliner (body already accepts 49). Do not CALL-only the gate.
