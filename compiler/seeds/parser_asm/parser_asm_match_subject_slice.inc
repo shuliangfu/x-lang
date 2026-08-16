@@ -123,6 +123,8 @@ extern void parser_asm_copy_slice_to_name64_slice_c(struct parser_asm_slice_u8 *
 extern struct ast_Module *pipeline_parser_get_match_module(void);
 extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
                                                             uint8_t *variant_name, int32_t variant_len);
+extern int32_t pipeline_module_enum_name_len(void *module, int32_t idx);
+extern uint8_t pipeline_module_enum_name_byte_at(void *module, int32_t idx, int32_t off);
 extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard,
                                               int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
 /* wave700: optional match-arm guard (`pat if cond =>`). */
@@ -329,13 +331,60 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
 }
 
 /**
+ * Dest-typed `.Variant` match pattern: unique registered enum that
+ * owns this variant name. Type comes from the match subject the
+ * same way dest-typed `{ fields }` does; this scan finds the unique
+ * sidecar owner so named `Type.Variant` tag lookup can run.
+ * @return tag >= 0; -1 unknown or ambiguous (caller parse-fails)
+ * G.7: same pipeline_module_enum_variant_tag_for_names as IDENT+DOT.
+ * PLATFORM: SHARED dest-typed enum match.
+ */
+static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t vlen) {
+  uint8_t ename[128];
+  int32_t ei;
+  int32_t nlen;
+  int32_t bi;
+  int32_t tag;
+  int32_t hits;
+  int32_t found;
+  if (!m || !vname || vlen <= 0)
+    return -1;
+  hits = 0;
+  found = -1;
+  ei = 0;
+  while (ei < 64) {
+    nlen = pipeline_module_enum_name_len(m, ei);
+    if (nlen <= 0)
+      break;
+    if (nlen > 127)
+      nlen = 127;
+    memset(ename, 0, sizeof(ename));
+    bi = 0;
+    while (bi < nlen) {
+      ename[bi] = pipeline_module_enum_name_byte_at(m, ei, bi);
+      bi = bi + 1;
+    }
+    tag = pipeline_module_enum_variant_tag_for_names(m, ename, nlen, vname, vlen);
+    if (tag >= 0) {
+      hits = hits + 1;
+      found = tag;
+    }
+    ei = ei + 1;
+  }
+  if (hits != 1)
+    return -1;
+  return found;
+}
+
+/**
  * parse_match_into：解析 `match expr { pat => result; ... }`；lex 指向 match 关键字。
  *
  * PLATFORM: SHARED — arm pattern authority (G.7). wave327: multi-pattern arms
  * `1 | 2 | 3 => result` expand to one MatchArmEntry per lit/enum (same result_ref).
  * Docs/04: `|` here is multi-pattern only, not type union.
  * Struct patterns: named `Type { fields }` or dest-typed `{ fields }`
- * (type from match subject). Rebuild: parser_asm_thin_glue.o + g05.
+ * (type from match subject). Enum patterns: named `Type.Variant` or
+ * dest-typed `.Variant`. Rebuild: parser_asm_thin_glue.o + g05.
  */
 void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out) {
@@ -1254,6 +1303,31 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
                                                   &pat_guard_ref[pat_n]) != 0)
           return;
         is_wc = 1;
+      } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
+        /* Dest-typed `.Variant =>`. Type comes from the match
+         * subject (named `Type.Variant` already uses IDENT+DOT).
+         * Bare `RED =>` stays IDENT-without-DOT leftover.
+         * PLATFORM: SHARED dest-typed enum match. */
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_IDENT)
+          return;
+        variant_len = r.tok.ident_len;
+        if (variant_len > 127)
+          variant_len = 127;
+        variant_start = r.token_start;
+        if (variant_start == 0)
+          variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
+        memset(variant_buf, 0, sizeof(variant_buf));
+        parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
+        parser_lex_from_next_into_glue(&lex, r);
+        is_ev = 1;
+        mod_m = pipeline_parser_get_match_module();
+        var_idx = -1;
+        if (mod_m)
+          var_idx = parser_asm_match_dest_enum_tag_c(mod_m, variant_buf, variant_len);
+        if (var_idx < 0)
+          return;
       } else {
         return;
       }
