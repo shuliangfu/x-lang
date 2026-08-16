@@ -32893,6 +32893,40 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                     return 0;
                   }
                 }
+                /* FIELD dest TYPE_ARRAY (`bag.one = [w]`). Depth-1 scalar
+                 * store below is 8B of the ARRAY_LIT payload pointer
+                 * (Darwin leftover 10). Frame dest ARRAY_LIT via
+                 * store_fixed_array_field → vector_let_init bumps
+                 * emit-time next_offset (official 139). G.7: lea dest
+                 * then dest-in-rbx ARRAY_LIT (`*p = [w]` twin). Do not
+                 * pass dest-in-rbx -3 into vector_let_init. Do not
+                 * store_rax 8B. On -2 skip the scalar store.
+                 * PLATFORM: SHARED — Darwin leftover 10 / official 139. */
+                if (ltk == 10) {
+                  unsafe {
+                    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                        arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+                  }
+                  if (arr_st == 0) {
+                    return 0;
+                  }
+                  if (arr_st == 0 - 1) {
+                    return 0 - 1;
+                  }
+                  hit = 0;
+                }
               }
             }
             /* Depth-1 scalar on a value VAR: lea slot + store at field_off.
@@ -32949,6 +32983,35 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
             }
             unsafe {
               arr_st = glue_emit_struct_type_let_init_elf_c(
+                  arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+            }
+            if (arr_st == 0) {
+              return 0;
+            }
+            if (arr_st == 0 - 1) {
+              return 0 - 1;
+            }
+          }
+          /* FIELD dest TYPE_ARRAY through pointer / INDEX / *T
+           * (`p.one = [w]` / `arr[0].one = [w]`). Same dest-in-rbx
+           * ARRAY_LIT as `*p = [w]`. VAR-root `bag.one = [w]` already
+           * returned via lea rbp dest above.
+           * PLATFORM: SHARED — Darwin leftover 10. */
+          if (ltk == 10) {
+            unsafe {
+              rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              arr_st = glue_emit_fixed_array_type_let_init_elf_c(
                   arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
             }
             if (arr_st == 0) {
