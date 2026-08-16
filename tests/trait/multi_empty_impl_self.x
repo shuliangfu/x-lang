@@ -9,20 +9,20 @@ trait Counter {
 struct Dog { val: i32, }
 struct Cat { val: i32, }
 
-impl Counter for Dog {
+impl Counter for {
   function get(self: Dog): Dog {
-    return Dog { val: self.val };
+    return { val: self.val };
   }
 }
 
-impl Counter for Cat {
+impl Counter for {
   function get(self: Cat): Cat {
-    return Cat { val: self.val };
+    return { val: self.val };
   }
 }
 
 function main(): i32 {
-  let d: Dog = Dog { val: 10 };
-  let c: Cat = Cat { val: 20 };
+  let d: Dog = { val: 10 };
+  let c: Cat = { val: 20 };
   return 42;
 }

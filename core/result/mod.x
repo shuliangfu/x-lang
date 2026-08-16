@@ -30,13 +30,13 @@ allow(padding) struct Result_i32 {
 // ok
 /** `ok`: see signature for params/returns; contracts in body. */
 export function ok(x: i32): Result_i32 {
-  return Result_i32 { value: x, _pad1: 0, err: 0, _pad2: 0 }
+  return { value: x, _pad1: 0, err: 0, _pad2: 0 }
 }
 
 // err
 /** `err`: see signature for params/returns; contracts in body. */
 export function err(e: i32): Result_i32 {
-  return Result_i32 { value: 0, _pad1: 0, err: e, _pad2: 0 }
+  return { value: 0, _pad1: 0, err: e, _pad2: 0 }
 }
 
 // unwrap_or
@@ -144,12 +144,12 @@ allow(padding) struct Result_u8 {
 
 /** `ok_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ok_u8(x: u8): Result_u8 {
-  return Result_u8 { value: x, _pad1: 0, _pad2: 0, _pad3: 0, err: 0, _pad4: 0 };
+  return { value: x, _pad1: 0, _pad2: 0, _pad3: 0, err: 0, _pad4: 0 };
 }
 
 /** `err_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function err_u8(e: i32): Result_u8 {
-  return Result_u8 { value: 0, _pad1: 0, _pad2: 0, _pad3: 0, err: e, _pad4: 0 };
+  return { value: 0, _pad1: 0, _pad2: 0, _pad3: 0, err: e, _pad4: 0 };
 }
 
 /** `unwrap_or_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */

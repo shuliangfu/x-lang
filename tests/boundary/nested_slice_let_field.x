@@ -13,7 +13,7 @@ struct W {
  * @return W — xs = [3, 4]
  */
 function mk(): W {
-  return W { xs: [3, 4] };
+  return { xs: [3, 4] };
 }
 
 /**
@@ -21,7 +21,7 @@ function mk(): W {
  * @return i32 — 42 ok, else the failing check
  */
 function main(): i32 {
-  let s0: []i32 = W { xs: [1, 2] }.xs;
+  let s0: []i32 = { xs: [1, 2] }.xs;
   if (s0.length != 2) { return 1; }
   if (s0[0] != 1) { return 2; }
   if (s0[1] != 2) { return 3; }
@@ -31,18 +31,18 @@ function main(): i32 {
   if (s1[0] != 3) { return 5; }
   if (s1[1] != 4) { return 6; }
 
-  let rows: [2]W = [W { xs: [5, 6] }, W { xs: [7, 8] }];
+  let rows: [2]W = [{ xs: [5, 6] }, { xs: [7, 8] }];
   let s2: []i32 = rows[1].xs;
   if (s2.length != 2) { return 7; }
   if (s2[0] != 7) { return 8; }
   if (s2[1] != 8) { return 9; }
 
-  let w: W = W { xs: [10, 11] };
+  let w: W = { xs: [10, 11] };
   let s3: []i32 = w.xs;
   if (s3.length != 2) { return 10; }
   if (s3[0] != 10) { return 11; }
 
-  let ss: [1][]i32 = [W { xs: [20, 22] }.xs];
+  let ss: [1][]i32 = [{ xs: [20, 22] }.xs];
   if (ss[0].length != 2) { return 12; }
   if (ss[0][0] != 20) { return 13; }
   if (ss[0][1] != 22) { return 14; }

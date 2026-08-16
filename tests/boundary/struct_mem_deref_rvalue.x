@@ -24,9 +24,9 @@ allow(padding) struct Quad {
  * @return i32 — 0 ok; 1..12 fail
  */
 function main(): i32 {
-  let x: Pair = Pair { a: 1, b: 2 };
+  let x: Pair = { a: 1, b: 2 };
   let p: *Pair = &x;
-  let y: Pair = Pair { a: 9, b: 9 };
+  let y: Pair = { a: 9, b: 9 };
   unsafe { y = *p }
   if (y.a != 1) { return 1; }
   if (y.b != 2) { return 2; }
@@ -37,9 +37,9 @@ function main(): i32 {
     if (z.b != 2) { return 4; }
   }
 
-  let q: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
+  let q: Quad = { a: 1, b: 2, c: 3, d: 4 };
   let pq: *Quad = &q;
-  let yq: Quad = Quad { a: 9, b: 9, c: 9, d: 9 };
+  let yq: Quad = { a: 9, b: 9, c: 9, d: 9 };
   unsafe { yq = *pq }
   if (yq.a != 1) { return 5; }
   if (yq.b != 2) { return 6; }

@@ -149,7 +149,7 @@ export function string_empty(): i32 { return 0; }
  * @return StrView
  */
 export function view(ptr: *u8, len: i32): StrView {
-  return StrView { ptr: ptr, length: len };
+  return { ptr: ptr, length: len };
 }
 /** Exported function `len`.
  * Implements `len`.
@@ -510,7 +510,7 @@ export struct StackStr {
  * @return StackStr
  */
 export function stack_str_new(): StackStr {
-  return StackStr { data: [], length: 0 };
+  return { data: [], length: 0 };
 }
 /** Exported function `stack_str_len`.
  * Query helper `stack_str_len`.
@@ -568,7 +568,7 @@ export function stack_str_append_char(s: *StackStr, c: u8): i32 {
  * @return String
  */
 export function new(): String {
-  return String {
+  return {
     data: [],
     length: 0
   }

@@ -79,9 +79,9 @@ export function random_rng_next_u64(r: *RngC): u64 {
  * @return i32
  */
 export function random_rng_smoke_c(): i32 {
-  let a: RngC = RngC { state: 0 };
-  let b: RngC = RngC { state: 0 };
-  let c: RngC = RngC { state: 1 };
+  let a: RngC = { state: 0 };
+  let b: RngC = { state: 0 };
+  let c: RngC = { state: 1 };
   let x: u64 = random_rng_next_u64(&a);
   let y: u64 = random_rng_next_u64(&a);
   if (random_rng_next_u64(&b) != x) { return 1; }

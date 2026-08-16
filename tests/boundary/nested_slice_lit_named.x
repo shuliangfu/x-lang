@@ -5,6 +5,6 @@
 struct Cell { v: i32 }
 
 function main(): i32 {
-  let x: [][]Cell = [[Cell { v: 1 }]];
+  let x: [][]Cell = [[{ v: 1 }]];
   return 76;
 }

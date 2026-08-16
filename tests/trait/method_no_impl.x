@@ -6,6 +6,6 @@ struct S { v: i32 }
  * @return i32
  */
 function main(): i32 {
-  let s: S = S { v: 1 }
+  let s: S = { v: 1 }
   return s.double();
 }

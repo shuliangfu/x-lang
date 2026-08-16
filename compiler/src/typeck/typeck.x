@@ -10949,6 +10949,10 @@ ctx: *PipelineDepCtx): i32 {
           typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, pty_c,
           pipeline_type_kind_ord_at(arena, pty_c),
           pipeline_expr_kind_ord_at(arena, arg_ref));
+          /* Anonymous `{ fields }` call-arg: same dest backfill as let.
+           * Named `Type { fields }` is rejected in struct_lit check.
+           * PLATFORM: SHARED — classify({ x: 0, y: 0 }) needs formal Point. */
+          typeck_coerce_init_struct_lit_to_decl(module, arena, arg_ref, pty_c);
         }
         /*
          * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring
@@ -14367,11 +14371,37 @@ export function typeck_check_expr_struct_lit(
     let name_buf: u8[128] = [];
     let tr: i32 = 0;
     let ord_named: i32 = 8;
+    let err_line: i32 = 0;
+    let err_col: i32 = 0;
+    let expect_msg: u8[10] = [];
+    name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
+    /* Named `Type { fields }` is not allowed as a value. Dest type
+     * already names the struct: `let x: Type = { fields }`.
+     * Match-arm patterns `Type { fields } =>` are not EXPR_STRUCT_LIT
+     * values and do not enter this function.
+     * PLATFORM: SHARED — one form for AI / product .x. */
+    if (name_len > 0) {
+      pipeline_expr_struct_lit_type_name_into(arena, expr_ref, &name_buf[0]);
+      err_line = pipeline_expr_line_at(arena, expr_ref);
+      err_col = pipeline_expr_col_at(arena, expr_ref);
+      /* "{ fields }" */
+      expect_msg[0] = 123;
+      expect_msg[1] = 32;
+      expect_msg[2] = 102;
+      expect_msg[3] = 105;
+      expect_msg[4] = 101;
+      expect_msg[5] = 108;
+      expect_msg[6] = 100;
+      expect_msg[7] = 115;
+      expect_msg[8] = 32;
+      expect_msg[9] = 125;
+      driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, &expect_msg[0], 10, &name_buf[0], name_len);
+      return 0 - 1;
+    }
     if (typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx, 0,
     num_fields) != 0) {
       return - 1;
     }
-    name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
     if (name_len <= 0) {
       /* Anonymous struct literal `{ field: expr, ... }`: backfill struct_lit_struct_name
        * from contextual return_type_ref so codegen emits `(struct <module>_Pair){...}`

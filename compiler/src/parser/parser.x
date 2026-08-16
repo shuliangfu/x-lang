@@ -751,10 +751,10 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
       }
       scan_i = scan_i + (1 as usize);
     }
-    let lex_lp: Lexer = Lexer { pos: new_pos, line: rew_line, col: rew_col };
-    let r_lp: LexerResult = LexerResult {
+    let lex_lp: Lexer = { pos: new_pos, line: rew_line, col: rew_col };
+    let r_lp: LexerResult = {
       next_lex: lex_lp,
-      tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+      tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
       token_start: (0 as usize)
     };
     lexer.lexer_next_into(&r_lp, lex_lp, source);
@@ -908,7 +908,7 @@ export function onefunc_result_layout_prime(): void {
   unsafe {
   let z64: u8[128] = [];
   /* See implementation. */
-  let _prime: OneFuncResult = OneFuncResult {
+  let _prime: OneFuncResult = {
     ok: false,
     next_lex: lexer.lexer_init(),
     name: z64,
@@ -945,7 +945,7 @@ export function onefunc_finish_after_return_lex(out: *OneFuncResult, impl_snap: 
 lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let r_tail: LexerResult = LexerResult { next_lex: lex_after_expr, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  let r_tail: LexerResult = { next_lex: lex_after_expr, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   let lex_tail: Lexer = lex_after_expr;
   if (advance_past_stmt_semicolon_into(&r_tail, lex_after_expr, source) == 0) {
     return false;
@@ -970,7 +970,7 @@ lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32)
 export function onefunc_result_layout_prime_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _q2: OneFuncResult = OneFuncResult {
+  let _q2: OneFuncResult = {
     num_consts: 0,
     num_lets: 0
   };
@@ -984,7 +984,7 @@ export function onefunc_result_layout_prime_b(): void {
 export function onefunc_result_layout_prime_c(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _q3: OneFuncResult = OneFuncResult {
+  let _q3: OneFuncResult = {
     has_if_expr: false,
     if_cond_true: false,
     if_then_val: 0,
@@ -1004,7 +1004,7 @@ export function onefunc_result_layout_prime_d(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let ccn: u8[128] = [];
-  let _q4: OneFuncResult = OneFuncResult {
+  let _q4: OneFuncResult = {
     has_binop: false,
     binop_right_val: 0,
     binop_left_param_idx: -1,
@@ -1025,7 +1025,7 @@ export function onefunc_result_layout_prime_d_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let rvn: u8[128] = [];
-  let _q4b: OneFuncResult = OneFuncResult {
+  let _q4b: OneFuncResult = {
     call_callee_len: 0,
     return_var_name: rvn,
     return_var_name_len: 0,
@@ -1043,7 +1043,7 @@ export function onefunc_result_layout_prime_d_b(): void {
 export function onefunc_result_layout_prime_e(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _q5: OneFuncResult = OneFuncResult {
+  let _q5: OneFuncResult = {
     num_for_loops: 0,
     num_if_stmts: 0
   };
@@ -1057,7 +1057,7 @@ export function onefunc_result_layout_prime_e(): void {
 export function onefunc_result_layout_prime_f(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _q6: OneFuncResult = OneFuncResult {
+  let _q6: OneFuncResult = {
     num_src_stmt_order: 0,
     num_src_body_expr_stmts: 0,
     func_return_type_ref: 0
@@ -1142,7 +1142,7 @@ export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let z64: u8[128] = [];
-  return OneFuncResult {
+  return {
     ok: false,
     next_lex: lexer.lexer_init(),
     name: z64,
@@ -1212,7 +1212,7 @@ export function onefunc_finish_impl_to_out(
 export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[128]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
+  let _w: OneFuncResult = { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1226,7 +1226,7 @@ export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, nam
 export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = OneFuncResult { num_consts: 0, num_lets: 0 };
+  let _w: OneFuncResult = { num_consts: 0, num_lets: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1240,7 +1240,7 @@ export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
 export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = OneFuncResult { has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0 };
+  let _w: OneFuncResult = { has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1255,7 +1255,7 @@ export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
 export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[128]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = OneFuncResult { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
+  let _w: OneFuncResult = { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1269,7 +1269,7 @@ export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u
 export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = OneFuncResult { call_callee_len: 0, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, num_loops: 0 };
+  let _w: OneFuncResult = { call_callee_len: 0, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, num_loops: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1283,7 +1283,7 @@ export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
 export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = OneFuncResult { num_for_loops: 0, num_if_stmts: 0 };
+  let _w: OneFuncResult = { num_for_loops: 0, num_if_stmts: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1459,7 +1459,7 @@ export function parser_alloc_null_lit(arena: *ASTArena): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ref: i32 = 0;
-    let e: Expr = Expr { kind: ExprKind.EXPR_LIT, int_val: (0 as i64), line: 0, col: 0 };
+    let e: Expr = { kind: ExprKind.EXPR_LIT, int_val: (0 as i64), line: 0, col: 0 };
     let zi: i32 = 0;
     ref = parser_alloc_int_lit(arena, 0);
     if (ref == 0) {
@@ -2285,7 +2285,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     }
     li = li + 1;
   }
-  let r_peek_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  let r_peek_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   /*
    * See implementation.
    * See implementation.
@@ -2307,9 +2307,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
    * (force option residual after param-name fix). Zero here; assign + append only on the
    * real expr_stmt path after parse_expr_into succeeds.
    */
-  let stmt_start: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
-  let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
-  let rpeek_fe: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  let stmt_start: Lexer = { pos: 0 as usize, line: 0, col: 0 };
+  let expr_stmt_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: stmt_start };
+  let rpeek_fe: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   let ex_pool_i: i32 = 0;
   while (1 == 1) {
     if (pb_break != 0) {
@@ -2363,7 +2363,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
         kw_back_mid = 5;
       }
-      let lex_mid_let: Lexer = Lexer { pos: lexer_pos_before_run(r.next_lex.pos, kw_back_mid), line: r.tok.line, col: r.tok.col };
+      let lex_mid_let: Lexer = { pos: lexer_pos_before_run(r.next_lex.pos, kw_back_mid), line: r.tok.line, col: r.tok.col };
       if (!parse_body_lets_into(arena, lex_mid_let, source, temp, &lex_cur)) {
         out.ok = false;
         return;
@@ -2440,9 +2440,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       if (label_start_blk == 0) {
         label_start_blk = lexer_pos_before_run(r.next_lex.pos, label_len_blk);
       }
-      let colon_blk: LexerResult = LexerResult {
+      let colon_blk: LexerResult = {
         next_lex: r.next_lex,
-        tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+        tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
         token_start: (0 as usize)
       };
       lexer.lexer_next_into(&colon_blk, r.next_lex, source);
@@ -2495,7 +2495,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       }
       if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
         lex_from_next_into(&lex_cur, r);
-        let ret_val_lbl: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        let ret_val_lbl: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
         lexer.lexer_next_into(&r, lex_cur, source);
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
           parse_expr_into(arena, lex_cur, source, &ret_val_lbl);
@@ -2565,7 +2565,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
        * PLATFORM: SHARED — parse_block return; seed pin same commit.
        */
       lex_from_next_into(&lex_cur, r);
-      let ret_val_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let ret_val_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
       let return_ends_block: bool = false;
       lexer.lexer_next_into(&r, lex_cur, source);
       /* Bare `return;` / `return }` — no operand. Else parse operand then ASI. */
@@ -2629,7 +2629,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
        * PLATFORM: SHARED — product force parser path; seed pin does not hoist the same way.
        */
       let cond_ref_blk: i32 = 0;
-      let block_res_blk: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let block_res_blk: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let while_idx_blk: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
@@ -2643,7 +2643,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
-      block_res_blk = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_blk = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_blk);
       if (!block_res_blk.ok) {
         out.ok = false;
@@ -2676,9 +2676,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
        * PLATFORM: SHARED.
        */
       let loop_cond_start: Lexer = lex_cur;
-      let expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let expr_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
       let cond_ref: i32 = 0;
-      let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let block_res: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let while_idx: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
@@ -2689,7 +2689,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
        */
       lex_cur = lex_at_token_from_result(r);
       loop_cond_start = lex_cur;
-      expr_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: loop_cond_start };
+      expr_res = { ok: false, expr_ref: 0, next_lex: loop_cond_start };
       parse_cond_expr_into(arena, loop_cond_start, source, &expr_res);
       if (!expr_res.ok) {
         out.ok = false;
@@ -2707,7 +2707,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       lex_cur = r.next_lex;
-      block_res = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res);
       if (!block_res.ok) {
         out.ok = false;
@@ -2741,11 +2741,11 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       let init_ref: i32 = 0;
       let cond_ref: i32 = 0;
       let step_ref: i32 = 0;
-      let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let block_res: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let for_idx: i32 = 0;
-      let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let expr_res_fi: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let expr_res_fc: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let expr_res_fs: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
       let cond_expr_ref: i32 = 0;
       let for_past_init_semi: bool = false;
       lex_from_next_into(&lex_cur, r);
@@ -2763,7 +2763,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           ast_pool_onefunc_reset(onefunc_result_pool_ptr(temp));
           temp.num_lets = 0;
           temp.num_consts = 0;
-          let lex_fi_let: Lexer = Lexer {
+          let lex_fi_let: Lexer = {
             pos: lexer_pos_before_run(r.next_lex.pos, 3),
             line: r.tok.line,
             col: r.tok.col
@@ -2789,7 +2789,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           for_past_init_semi = true;
           lexer.lexer_next_into(&r, lex_cur, source);
         } else {
-          expr_res_fi = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+          expr_res_fi = { ok: false, expr_ref: 0, next_lex: lex_cur };
           parse_expr_into(arena, lex_cur, source, &expr_res_fi);
           if (!expr_res_fi.ok) {
             out.ok = false;
@@ -2809,7 +2809,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         lexer.lexer_next_into(&r, lex_cur, source);
       }
       if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-        expr_res_fc = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        expr_res_fc = { ok: false, expr_ref: 0, next_lex: lex_cur };
         parse_expr_into(arena, lex_cur, source, &expr_res_fc);
         if (!expr_res_fc.ok) {
           out.ok = false;
@@ -2826,7 +2826,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       lex_cur = r.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
-        expr_res_fs = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        expr_res_fs = { ok: false, expr_ref: 0, next_lex: lex_cur };
         parse_expr_into(arena, lex_cur, source, &expr_res_fs);
         if (!expr_res_fs.ok) {
           out.ok = false;
@@ -2847,7 +2847,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       lex_cur = r.next_lex;
-      block_res = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res);
       if (!block_res.ok) {
         out.ok = false;
@@ -2887,7 +2887,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
      * PLATFORM: SHARED — same mid-path let hoist class as unsafe/while.
      */
     if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
-      let block_res_def: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let block_res_def: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let def_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
@@ -2897,7 +2897,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       }
       /* parse_block_into wants lex_after_lbrace (same as while/loop/for). */
       lex_cur = r.next_lex;
-      block_res_def = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_def = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_def);
       if (!block_res_def.ok) {
         out.ok = false;
@@ -2922,8 +2922,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
      */
     if (r.tok.kind == token.TokenKind.TOKEN_WITH_ARENA) {
       let cap_ref: i32 = 0;
-      let cap_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      let block_res_wa: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let cap_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let block_res_wa: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let wa_pool_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
@@ -2932,7 +2932,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       lex_from_next_into(&lex_cur, r);
-      cap_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      cap_res = { ok: false, expr_ref: 0, next_lex: lex_cur };
       parse_expr_into(arena, lex_cur, source, &cap_res);
       if (!cap_res.ok || cap_res.expr_ref == 0) {
         out.ok = false;
@@ -2952,7 +2952,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       lex_from_next_into(&lex_cur, r);
-      block_res_wa = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_wa = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_wa);
       if (!block_res_wa.ok) {
         out.ok = false;
@@ -2982,7 +2982,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
       let reg_label_blk: u8[128] = [];
       let reg_label_len_blk: i32 = 0;
-      let block_res_reg: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let block_res_reg: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let reg_pool_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
@@ -3000,7 +3000,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       }
       /* parse_block_into wants lex after `{` (same as while/for). */
       lex_from_next_into(&lex_cur, r);
-      block_res_reg = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_reg = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_reg);
       if (!block_res_reg.ok) {
         out.ok = false;
@@ -3034,7 +3034,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
          * `unsafe { return xlang_sys_*; }` (hello io_libc_* residual).
          * PLATFORM: SHARED.
          */
-        let block_res_unsafe: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+        let block_res_unsafe: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
         let unsafe_pool_i: i32 = 0;
         lex_from_next_into(&lex_cur, r);
         lexer.lexer_next_into(&r, lex_cur, source);
@@ -3043,7 +3043,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           return;
         }
         lex_from_next_into(&lex_cur, r);
-        block_res_unsafe = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+        block_res_unsafe = { ok: false, block_ref: 0, next_lex: lex_cur };
         parse_block_into(arena, lex_cur, source, type_ref, &block_res_unsafe);
         if (!block_res_unsafe.ok) {
           out.ok = false;
@@ -3099,7 +3099,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
      */
     if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
       let match_blk_lex: Lexer = lex_at_token_from_result(r);
-      let match_blk_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_blk_lex };
+      let match_blk_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: match_blk_lex };
       let match_blk_ex: i32 = 0;
       parse_match_into(arena, match_blk_lex, source, &match_blk_res);
       if (!match_blk_res.ok) {
@@ -3110,7 +3110,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_result_ptr_into(&lex_cur, &r);
-        let after_ms_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        let after_ms_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_ms_blk, lex_cur, source);
         r = after_ms_blk;
       }
@@ -3146,11 +3146,11 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
        * Pin X→C otherwise pushes empty expr_stmt before the nested body is parsed.
        * PLATFORM: SHARED.
        */
-      let block_res_bare: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let block_res_bare: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex_cur };
       let bare_expr: i32 = 0;
       let bare_ex_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
-      block_res_bare = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_bare = { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_bare);
       if (!block_res_bare.ok) {
         out.ok = false;
@@ -3189,7 +3189,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     }
     lex_cur = expr_stmt_res.next_lex;
     /* See implementation. */
-    rpeek_fe = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    rpeek_fe = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
     if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       b.final_expr_ref = expr_stmt_res.expr_ref;
@@ -3215,7 +3215,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     }
     if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
       lex_from_result_ptr_into(&lex_cur, &r);
-      let after_semi_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+      let after_semi_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
       lexer.lexer_next_into(&after_semi_blk, lex_cur, source);
       r = after_semi_blk;
     }
@@ -3327,45 +3327,45 @@ export function parse(source: u8[]): ParseResult {
   unsafe {
   let arena_heap_bytes: usize = pipeline_sizeof_arena();
   let lex: Lexer = lexer.lexer_init();
-  let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_I32) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_RETURN) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   let lex_at_expr_start: Lexer = lex;
@@ -3377,15 +3377,15 @@ export function parse(source: u8[]): ParseResult {
   } else {
     let raw_arena: *u8 = calloc(1, arena_heap_bytes);
     if (raw_arena == 0 as *u8) {
-      return ParseResult { ok: false, return_val: 0 }
+      return { ok: false, return_val: 0 }
     }
     let heap_arena: *ASTArena = raw_arena as *ASTArena;
     ast.ast_arena_init(heap_arena);
-    let expr_out: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+    let expr_out: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
     parse_expr_into(heap_arena, lex_at_expr_start, source, &expr_out);
     if (!expr_out.ok || expr_out.expr_ref <= 0) {
       free(raw_arena);
-      return ParseResult { ok: false, return_val: 0 }
+      return { ok: false, return_val: 0 }
     }
     let e_read: Expr = ast.ast_arena_expr_get(heap_arena, expr_out.expr_ref);
     if (e_read.const_folded_valid != 0) {
@@ -3396,19 +3396,19 @@ export function parse(source: u8[]): ParseResult {
   }
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_EOF) {
-    return ParseResult { ok: false, return_val: 0 }
+    return { ok: false, return_val: 0 }
   }
-  return ParseResult { ok: true, return_val: ret_val }
+  return { ok: true, return_val: ret_val }
   }
 }
 
@@ -3724,8 +3724,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let pool: *u8 = onefunc_result_pool_ptr(out);
-  let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
-  let expr_tmp: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+  let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  let expr_tmp: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
   lexer.lexer_next_into(&r, lex, source);
   /* See implementation. */
   if ((r.tok.kind as i32) != 2 && (r.tok.kind as i32) != 3) {
@@ -3994,7 +3994,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           || (r.tok.kind as i32) == 129) {
         let rhs_ident_start: usize = r.token_start;
         lex_from_result_ptr_into(&lex, &r);
-        let expr_lex: Lexer = Lexer { pos: rhs_ident_start, line: r.tok.line, col: r.tok.col };
+        let expr_lex: Lexer = { pos: rhs_ident_start, line: r.tok.line, col: r.tok.col };
         parse_expr_result_reset(&expr_tmp, expr_lex);
         parse_expr_into(arena, expr_lex, source, &expr_tmp);
         if (!expr_tmp.ok) {
@@ -4027,7 +4027,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           lbrace_start = lex.pos;
         }
         lex_from_result_ptr_into(&lex, &r);
-        let lbrace_lex: Lexer = Lexer { pos: lbrace_start, line: r.tok.line, col: r.tok.col };
+        let lbrace_lex: Lexer = { pos: lbrace_start, line: r.tok.line, col: r.tok.col };
         parse_expr_result_reset(&expr_tmp, lbrace_lex);
         parse_expr_into(arena, lbrace_lex, source, &expr_tmp);
         if (!expr_tmp.ok) {
@@ -4212,9 +4212,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         }
         parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
         if ((r.tok.kind as i32) == 95) {
-          let after_semi_str: LexerResult = LexerResult {
+          let after_semi_str: LexerResult = {
             next_lex: r.next_lex,
-            tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+            tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
             token_start: (0 as usize)
           };
           lexer.lexer_next_into(&after_semi_str, r.next_lex, source);
@@ -4297,7 +4297,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         if (float_start == 0) {
           float_start = r.next_lex.pos - 1;
         }
-        let float_lex: Lexer = Lexer { pos: float_start, line: r.tok.line, col: r.tok.col };
+        let float_lex: Lexer = { pos: float_start, line: r.tok.line, col: r.tok.col };
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
         let float_init_plain: bool = (r.tok.kind as i32) == 95 || (r.tok.kind as i32) == 2
@@ -4332,7 +4332,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         if (int_start == 0) {
           int_start = r.next_lex.pos - 1;
         }
-        let int_lex: Lexer = Lexer { pos: int_start, line: lex.line, col: lex.col };
+        let int_lex: Lexer = { pos: int_start, line: lex.line, col: lex.col };
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
         let int_init_plain: bool = (r.tok.kind as i32) == 95 || (r.tok.kind as i32) == 2
@@ -4375,7 +4375,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         if (rhs_unary_start == 0) {
           rhs_unary_start = lex.pos;
         }
-        let unary_lex: Lexer = Lexer { pos: rhs_unary_start, line: r.tok.line, col: r.tok.col };
+        let unary_lex: Lexer = { pos: rhs_unary_start, line: r.tok.line, col: r.tok.col };
         lex_from_result_ptr_into(&lex, &r);
         parse_expr_result_reset(&expr_tmp, unary_lex);
         parse_expr_into(arena, unary_lex, source, &expr_tmp);
@@ -4397,7 +4397,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         if (amp_start == 0) {
           amp_start = lex.pos;
         }
-        let amp_lex: Lexer = Lexer { pos: amp_start, line: r.tok.line, col: r.tok.col };
+        let amp_lex: Lexer = { pos: amp_start, line: r.tok.line, col: r.tok.col };
         lex_from_result_ptr_into(&lex, &r);
         parse_expr_result_reset(&expr_tmp, amp_lex);
         parse_expr_into(arena, amp_lex, source, &expr_tmp);
@@ -4456,7 +4456,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         if (async_start == 0) {
           async_start = lex.pos;
         }
-        let async_lex: Lexer = Lexer { pos: async_start, line: r.tok.line, col: r.tok.col };
+        let async_lex: Lexer = { pos: async_start, line: r.tok.line, col: r.tok.col };
         lex_from_result_ptr_into(&lex, &r);
         parse_expr_result_reset(&expr_tmp, async_lex);
         parse_expr_into(arena, async_lex, source, &expr_tmp);
@@ -4482,7 +4482,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
          * PLATFORM: SHARED — force M2 body-let residual.
          */
         lex_from_result_ptr_into(&lex, &r);
-        let after_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        let after_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_semi, lex, source);
         lexer_copy_into(&lex, lex_at_token_from_result(after_semi));
         lexer.lexer_next_into(&r, lex, source);
@@ -5112,40 +5112,40 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
 export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoResult {
   unsafe {
     if (lexer.lexer_unclosed_block_comment_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_unclosed_string_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_illegal_char_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_incomplete_hex_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_incomplete_exp_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_incomplete_bin_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_incomplete_oct_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_invalid_digit_sep_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_invalid_type_suffix_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_invalid_escape_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_string_lit_overflow_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_ident_too_long_pending() != 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
   }
   return r;
@@ -5161,56 +5161,56 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
   unsafe {
   // wave269: unclosed /* ... at EOF is hard fail (not empty-module success).
   if (lexer.lexer_unclosed_block_comment_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave271: unclosed "..." at EOF is hard fail (not empty-module success / soft P001).
   if (lexer.lexer_unclosed_string_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave272: illegal/unknown byte is hard fail (not soft P001 "no functions").
   if (lexer.lexer_illegal_char_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave273: incomplete `0x`/`0X` (zero hex digits) is hard fail (not silent 0 / soft P001).
   if (lexer.lexer_incomplete_hex_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave274: incomplete float exponent (zero digits after e/E) is hard fail (not silent exp=0).
   if (lexer.lexer_incomplete_exp_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave276: incomplete `0b`/`0B` (zero binary digits) is hard fail (not soft XP003).
   if (lexer.lexer_incomplete_bin_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave276: incomplete `0o`/`0O` (zero octal digits) is hard fail (not soft XP003).
   if (lexer.lexer_incomplete_oct_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave278: invalid digit separator (`42_`, `1__0`) is hard fail (not soft XP003).
   if (lexer.lexer_invalid_digit_sep_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave279: invalid type suffix (`42u32`, `1.5f32`) is hard fail (not soft XP003).
   if (lexer.lexer_invalid_type_suffix_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave281: invalid string escape (`\q`, incomplete `\x`) is hard fail (not silent keep).
   if (lexer.lexer_invalid_escape_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave283: string lit >127 semantic bytes is hard fail (not silent truncate).
   if (lexer.lexer_string_lit_overflow_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   // wave284: identifier span >63 is hard fail (not silent clamp / XP003).
   if (lexer.lexer_ident_too_long_pending() != 0) {
-    return ParseIntoResult { ok: -1, main_idx: -1 }
+    return { ok: -1, main_idx: -1 }
   }
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
-    return ParseIntoResult { ok: -2, main_idx: -1 }
+    return { ok: -2, main_idx: -1 }
   }
-  return ParseIntoResult { ok: 0, main_idx: -1 }
+  return { ok: 0, main_idx: -1 }
   }
 }
 
@@ -5345,9 +5345,9 @@ export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool 
   if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
     return false;
   }
-  let nx: LexerResult = LexerResult {
+  let nx: LexerResult = {
     next_lex: r.next_lex,
-    tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+    tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
     token_start: (0 as usize)
   };
   lexer.lexer_next_into(&nx, r.next_lex, source);
@@ -5532,9 +5532,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
    * saves bare `return N`). Assign only after `):` / param `:` so force parse_one_function_impl
    * can own binop/unary/paren returns without relying on buf_into glue.
    */
-  let lex_before_ret: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
+  let lex_before_ret: Lexer = { pos: 0 as usize, line: 0, col: 0 };
   let ret_type_ref: i32 = 0;
-  let lex_before_type: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
+  let lex_before_type: Lexer = { pos: 0 as usize, line: 0, col: 0 };
   let type_ref_param: i32 = 0;
   /**
    * Hoist-safe param-name capture (pin X→C has no stmt_order).
@@ -5550,7 +5550,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let pname_row: u8[128] = [];
   let zi_param: i32 = 0;
   /* See implementation. */
-  let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   lexer.lexer_next_into(&r, lex, source);
   /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
@@ -5797,7 +5797,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * See implementation.
      * See implementation.
      */
-    let r_peek: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    let r_peek: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     lexer.lexer_next_into(&r_peek, lex, source);
     r = r_peek;
     lex = parser_rewind_lex_for_following_stmt(lex, r_peek);
@@ -5811,8 +5811,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * fmt_bool_to_buf / fmt_f64_to_buf_prec). Zero here; assign + push only after
      * parse_expr_into succeeds on the real expr_stmt path.
      */
-    let stmt_start: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
-    let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
+    let stmt_start: Lexer = { pos: 0 as usize, line: 0, col: 0 };
+    let expr_stmt_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: stmt_start };
     let ex_i: i32 = 0;
     /* See implementation. */
     while (1 == 1) {
@@ -5830,10 +5830,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           ret_id_start = lexer_pos_before_run(r.next_lex.pos, r.tok.ident_len);
         }
         if (parser_return_kw_immediately_before(source, ret_id_start)) {
-          let ret_kw_lex: Lexer = Lexer { pos: ret_id_start - 7, line: r.tok.line, col: r.tok.col };
-          let r_ret_kw: LexerResult = LexerResult {
+          let ret_kw_lex: Lexer = { pos: ret_id_start - 7, line: r.tok.line, col: r.tok.col };
+          let r_ret_kw: LexerResult = {
             next_lex: ret_kw_lex,
-            tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+            tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
             token_start: (0 as usize)
           };
           lexer.lexer_next_into(&r_ret_kw, ret_kw_lex, source);
@@ -5872,7 +5872,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        */
       if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
         lex_from_next_into(&lex, r);
-        let ret_mid_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let ret_mid_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
         lexer.lexer_next_into(&r, lex, source);
         /* Bare `return;` / `return }` — no operand. Else parse operand then ASI. */
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
@@ -5962,7 +5962,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
           kw_back = 5;
         }
-        let lex_mid_let: Lexer = Lexer { pos: lexer_pos_before_run(r.next_lex.pos, kw_back), line: r.tok.line, col: r.tok.col };
+        let lex_mid_let: Lexer = { pos: lexer_pos_before_run(r.next_lex.pos, kw_back), line: r.tok.line, col: r.tok.col };
         if (!parse_body_lets_into(arena, lex_mid_let, source, out, &lex)) {
           set_onefunc_fail(out, lex);
           return;
@@ -5988,7 +5988,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * PLATFORM: SHARED.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
-        let block_res_def_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let block_res_def_fn: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let def_idx_fn: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
@@ -5997,7 +5997,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         /* parse_block_into wants lex_after_lbrace (same as while/loop). */
         lex = r.next_lex;
-        block_res_def_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_def_fn = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_def_fn);
         if (!block_res_def_fn.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6016,8 +6016,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * PLATFORM: SHARED.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_WITH_ARENA) {
-        let cap_res_fn: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
-        let block_res_wa_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let cap_res_fn: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
+        let block_res_wa_fn: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let wa_idx_fn: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
@@ -6025,7 +6025,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
-        cap_res_fn = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        cap_res_fn = { ok: false, expr_ref: 0, next_lex: lex };
         parse_expr_into(arena, lex, source, &cap_res_fn);
         if (!cap_res_fn.ok || cap_res_fn.expr_ref == 0) {
           set_onefunc_fail(out, lex); return;
@@ -6041,7 +6041,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
-        block_res_wa_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_wa_fn = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_wa_fn);
         if (!block_res_wa_fn.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6064,7 +6064,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
         let reg_nm_fn: u8[128] = [];
         let reg_nlen_fn: i32 = 0;
-        let block_res_reg_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let block_res_reg_fn: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let reg_idx_fn: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
@@ -6080,7 +6080,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         /* parse_block_into wants lex after `{` (same as while). */
         lex_from_next_into(&lex, r);
-        block_res_reg_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_reg_fn = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_reg_fn);
         if (!block_res_reg_fn.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6105,7 +6105,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
            * Hoist-safe unsafe (onefunc): append_unsafe only after body parse.
            * PLATFORM: SHARED — force hello needs co-emit of std_io_sync_io_libc_*.
            */
-          let block_res_unsafe_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+          let block_res_unsafe_fn: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
           let unsafe_idx_fn: i32 = 0;
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
@@ -6114,7 +6114,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           }
           /* parse_block_into wants lex after `{`. */
           lex_from_next_into(&lex, r);
-          block_res_unsafe_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+          block_res_unsafe_fn = { ok: false, block_ref: 0, next_lex: lex };
           parse_block_into(arena, lex, source, ret_type_ref, &block_res_unsafe_fn);
           if (!block_res_unsafe_fn.ok) {
             set_onefunc_fail(out, lex); return;
@@ -6173,9 +6173,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         let label_row_fn: u8[128] = [];
         copy_slice_to_param32(source, label_start_fn, label_len_fn, &label_row_fn[0]);
-        let colon_fn: LexerResult = LexerResult {
+        let colon_fn: LexerResult = {
           next_lex: r.next_lex,
-          tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+          tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
           token_start: (0 as usize)
         };
         lexer.lexer_next_into(&colon_fn, r.next_lex, source);
@@ -6183,7 +6183,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
           lex_from_next_into(&lex, r);
-          let ret_val_fn: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          let ret_val_fn: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
           lexer.lexer_next_into(&r, lex, source);
           if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
             parse_expr_into(arena, lex, source, &ret_val_fn);
@@ -6268,7 +6268,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          * PLATFORM: SHARED — pin X→C must not hoist append before parse.
          */
         let cond_ref_loop: i32 = 0;
-        let block_res_loop: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let block_res_loop: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let while_idx_loop: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
@@ -6280,7 +6280,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (cond_ref_loop == 0) {
           set_onefunc_fail(out, lex); return;
         }
-        block_res_loop = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_loop = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_loop);
         if (!block_res_loop.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6302,9 +6302,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          * PLATFORM: SHARED — fixes force hello core_fmt co-emit residual.
          */
         let while_cond_start: Lexer = lex;
-        let expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let expr_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
         let cond_ref: i32 = 0;
-        let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let block_res: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let while_idx: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
@@ -6315,7 +6315,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          */
         lex = lex_at_token_from_result(r);
         while_cond_start = lex;
-        expr_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: while_cond_start };
+        expr_res = { ok: false, expr_ref: 0, next_lex: while_cond_start };
         parse_cond_expr_into(arena, while_cond_start, source, &expr_res);
         if (!expr_res.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6329,7 +6329,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        block_res = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res);
         if (!block_res.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6354,11 +6354,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         let init_ref: i32 = 0;
         let for_cond_ref: i32 = 0;
         let step_ref: i32 = 0;
-        let block_res_f: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let block_res_f: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let for_idx: i32 = 0;
-        let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
-        let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
-        let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let expr_res_fi: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
+        let expr_res_fc: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
+        let expr_res_fs: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex };
         let cond_expr_ref: i32 = 0;
         let for_past_init_semi: bool = false;
         lex_from_next_into(&lex, r);
@@ -6371,7 +6371,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           if (r.tok.kind == token.TokenKind.TOKEN_LET) {
             let n_before_fi: i32 = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
-            let lex_fi_let: Lexer = Lexer {
+            let lex_fi_let: Lexer = {
               pos: lexer_pos_before_run(r.next_lex.pos, 3),
               line: r.tok.line,
               col: r.tok.col
@@ -6389,7 +6389,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             for_past_init_semi = true;
             lexer.lexer_next_into(&r, lex, source);
           } else {
-            expr_res_fi = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+            expr_res_fi = { ok: false, expr_ref: 0, next_lex: lex };
             parse_expr_into(arena, lex, source, &expr_res_fi);
             /* Full expr required (incl. assign); empty step breaks typeck vs xlang-c. */
             if (!expr_res_fi.ok) {
@@ -6408,7 +6408,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lexer.lexer_next_into(&r, lex, source);
         }
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-          expr_res_fc = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          expr_res_fc = { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fc);
           if (!expr_res_fc.ok) {
             set_onefunc_fail(out, lex); return;
@@ -6423,7 +6423,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex = r.next_lex;
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
-          expr_res_fs = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          expr_res_fs = { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fs);
           if (!expr_res_fs.ok) {
             set_onefunc_fail(out, lex); return;
@@ -6441,7 +6441,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        block_res_f = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_f = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_f);
         if (!block_res_f.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6486,7 +6486,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        */
       if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
         let match_mid_lex: Lexer = lex_at_token_from_result(r);
-        let match_mid_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_mid_lex };
+        let match_mid_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: match_mid_lex };
         let match_ex_i: i32 = 0;
         parse_match_into(arena, match_mid_lex, source, &match_mid_res);
         if (!match_mid_res.ok) {
@@ -6496,7 +6496,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           lex_from_result_ptr_into(&lex, &r);
-          let after_match_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+          let after_match_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&after_match_semi, lex, source);
           r = after_match_semi;
         }
@@ -6544,11 +6544,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        */
       if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
         /** Hoist-safe bare block (onefunc): wrap/push only after nested parse succeeds. */
-        let block_res_bare_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let block_res_bare_fn: ParseBlockResult = { ok: false, block_ref: 0, next_lex: lex };
         let bare_expr_fn: i32 = 0;
         let bare_ex_fn: i32 = 0;
         lex_from_next_into(&lex, r);
-        block_res_bare_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_bare_fn = { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_bare_fn);
         if (!block_res_bare_fn.ok) {
           set_onefunc_fail(out, lex); return;
@@ -6587,7 +6587,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       /* Keep r.tok after expr; so next loop head does not swallow return/let/if. */
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_result_ptr_into(&lex, &r);
-        let after_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        let after_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_semi, lex, source);
         r = after_semi;
       }
@@ -6625,7 +6625,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     impl_snap.has_explicit_return_kw = true;
     let match_tail_lex: Lexer = lex_at_token_from_result(r);
-    let match_tail_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_tail_lex };
+    let match_tail_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: match_tail_lex };
     parse_match_into(arena, match_tail_lex, source, &match_tail_res);
     if (!match_tail_res.ok) {
       set_onefunc_fail(out, lex); return;
@@ -6655,8 +6655,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
     if (parser_match_kw_immediately_before(source, subj_start)) {
       impl_snap.has_explicit_return_kw = true;
-      let match_subj_lex: Lexer = Lexer { pos: subj_start - 6, line: r.tok.line, col: r.tok.col };
-      let match_subj_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_subj_lex };
+      let match_subj_lex: Lexer = { pos: subj_start - 6, line: r.tok.line, col: r.tok.col };
+      let match_subj_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: match_subj_lex };
       parse_match_into(arena, match_subj_lex, source, &match_subj_res);
       if (!match_subj_res.ok) {
         set_onefunc_fail(out, lex); return;
@@ -6715,7 +6715,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     let match_ret_lex: Lexer = lex_at_token_from_result(r);
-    let match_ret_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_ret_lex };
+    let match_ret_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: match_ret_lex };
     parse_match_into(arena, match_ret_lex, source, &match_ret_res);
     if (!match_ret_res.ok) {
       set_onefunc_fail(out, lex); return;
@@ -6737,7 +6737,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* See implementation. */
   if (!return_type_is_bool && r.tok.kind != token.TokenKind.TOKEN_IF) {
     let rex_u_lex: Lexer = lex_at_token_from_result(r);
-    let rex_u_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_u_lex };
+    let rex_u_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: rex_u_lex };
     parse_cond_expr_into(arena, rex_u_lex, source, &rex_u_res);
     if (rex_u_res.ok) {
       return_expr_ref_storage = rex_u_res.expr_ref;
@@ -6758,7 +6758,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_IF) {
     let if_lex: Lexer = lex_at_token_from_result(r);
-    let if_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: if_lex };
+    let if_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: if_lex };
     parse_if_expr_into(arena, if_lex, source, 0, &if_res);
     if (if_res.ok) {
       return_expr_ref_storage = if_res.expr_ref;
@@ -6787,7 +6787,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
    */
   if (return_type_is_bool && r.tok.kind != token.TokenKind.TOKEN_IF) {
     let rex_lex: Lexer = lex_at_token_from_result(r);
-    let rex_out: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_lex };
+    let rex_out: ParseExprResult = { ok: false, expr_ref: 0, next_lex: rex_lex };
     parse_cond_expr_into(arena, rex_lex, source, &rex_out);
     if (!rex_out.ok) {
       set_onefunc_fail(out, lex); return;
@@ -6822,7 +6822,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     } else {
-      let cond_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cond_start };
+      let cond_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: lex_cond_start };
       parse_expr_into(arena, lex_cond_start, source, &cond_res);
       if (!cond_res.ok) {
         set_onefunc_fail(out, lex); return;
@@ -6896,11 +6896,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     if (ret_int_start == 0) {
       ret_int_start = r.next_lex.pos - 1;
     }
-    let ret_int_lex: Lexer = Lexer { pos: ret_int_start, line: lex.line, col: lex.col };
+    let ret_int_lex: Lexer = { pos: ret_int_start, line: lex.line, col: lex.col };
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
     if (r.tok.kind == token.TokenKind.TOKEN_AS) {
-      let ret_expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_int_lex };
+      let ret_expr_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: ret_int_lex };
       parse_expr_into(arena, ret_int_lex, source, &ret_expr_res);
       if (!ret_expr_res.ok) {
         set_onefunc_fail(out, lex); return;
@@ -6916,7 +6916,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * Compound after bare INT → full parse_expr. Plain `;`/`}`` → alloc_int_lit.
      */
     if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
-      let rex_add: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_int_lex };
+      let rex_add: ParseExprResult = { ok: false, expr_ref: 0, next_lex: ret_int_lex };
       parse_expr_into(arena, ret_int_lex, source, &rex_add);
       if (!rex_add.ok) {
         set_onefunc_fail(out, lex); return;
@@ -6944,7 +6944,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      */
     if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       let rex_lex_ni: Lexer = lex_at_token_from_result(r);
-      let rex_out_ni: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_lex_ni };
+      let rex_out_ni: ParseExprResult = { ok: false, expr_ref: 0, next_lex: rex_lex_ni };
       parse_expr_into(arena, rex_lex_ni, source, &rex_out_ni);
       if (!rex_out_ni.ok) {
         set_onefunc_fail(out, lex); return;
@@ -7013,8 +7013,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          */
         if (r.tok.kind == token.TokenKind.TOKEN_LBRACE && parser_match_kw_immediately_before(source, cstart)) {
           let match_back: usize = cstart - 6;
-          let match_lex_fix: Lexer = Lexer { pos: match_back, line: r.tok.line, col: r.tok.col };
-          let match_fix_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_lex_fix };
+          let match_lex_fix: Lexer = { pos: match_back, line: r.tok.line, col: r.tok.col };
+          let match_fix_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: match_lex_fix };
           parse_match_into(arena, match_lex_fix, source, &match_fix_res);
           if (!match_fix_res.ok) {
             set_onefunc_fail(out, lex); return;
@@ -7055,8 +7055,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
           /* See implementation. */
-          let ret_expr_lex: Lexer = Lexer { pos: cstart, line: 1, col: 1 };
-          let ret_expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_expr_lex };
+          let ret_expr_lex: Lexer = { pos: cstart, line: 1, col: 1 };
+          let ret_expr_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: ret_expr_lex };
           parse_expr_into(arena, ret_expr_lex, source, &ret_expr_res);
           if (!ret_expr_res.ok) {
             set_onefunc_fail(out, lex); return;
@@ -7082,8 +7082,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          * See implementation.
          * See implementation.
          */
-        let ret_expr_lex_member: Lexer = Lexer { pos: cstart, line: 1, col: 1 };
-        let ret_expr_res_member: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_expr_lex_member };
+        let ret_expr_lex_member: Lexer = { pos: cstart, line: 1, col: 1 };
+        let ret_expr_res_member: ParseExprResult = { ok: false, expr_ref: 0, next_lex: ret_expr_lex_member };
         parse_expr_into(arena, ret_expr_lex_member, source, &ret_expr_res_member);
         if (!ret_expr_res_member.ok) {
           set_onefunc_fail(out, lex); return;
@@ -7107,7 +7107,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       } else {
         /* See implementation. */
         let ret_id_badlen_lex: Lexer = lex_at_token_from_result(r);
-        let ret_id_badlen_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_id_badlen_lex };
+        let ret_id_badlen_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: ret_id_badlen_lex };
         parse_expr_into(arena, ret_id_badlen_lex, source, &ret_id_badlen_res);
         if (!ret_id_badlen_res.ok) {
           set_onefunc_fail(out, lex); return;
@@ -8683,19 +8683,19 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   /* See implementation. */
-  let import_res: CollectImportsResult = CollectImportsResult { lex: lex };
+  let import_res: CollectImportsResult = { lex: lex };
   collect_imports(lex, source, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
   let loop_count: i32 = 0;
   while (1 == 1) {
     /* See implementation. */
     if (loop_count >= 131072) {
-      return ParseIntoResult { ok: -1, main_idx: -1003 }
+      return { ok: -1, main_idx: -1003 }
     }
     loop_count = loop_count + 1;
     let iter_start: Lexer = lex;
     /* See implementation. */
-    let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     let current_tok_lex: Lexer = lex;
     lexer.lexer_next_into(&r, lex, source);
     lex_from_next_into(&lex, r);
@@ -8712,7 +8712,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       module.pending_soa_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8720,7 +8720,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       if (r.tok.int_val == 0) { module.pending_cfg_skip = 1; }
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8728,7 +8728,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       module.pending_repr_c_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8737,7 +8737,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       module.pending_repr_compatible_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8745,7 +8745,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ALLOC) {
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8753,28 +8753,28 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       module.pending_used = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NAKED) {
       module.pending_naked = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ENTRY) {
       module.pending_entry = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NO_MANGLE) {
       module.pending_no_mangle = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_INTERRUPT) {
       module.pending_interrupt = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     /* See implementation. */
@@ -8782,7 +8782,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       module.pending_export = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8792,7 +8792,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start.pos && lex.pos < source.length) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -8801,7 +8801,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start.pos && lex.pos < source.length) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -8810,7 +8810,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start.pos && lex.pos < source.length) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -8821,7 +8821,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         module.pending_export = 0;
         func_is_async_storage[0] = 0;
         if (lex.pos == iter_start.pos && lex.pos < source.length) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -8832,12 +8832,12 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
        * See implementation.
        */
       {
-        let try_cfg_allow: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
+        let try_cfg_allow: TrySkipAllowResult = { lex: lex, skipped: 0, _pad: [] };
         parse_into_try_skip_allow_into(&try_cfg_allow, lex, r, source);
         if (try_cfg_allow.skipped != 0) {
           lex_from_try_skip_into(&lex, try_cfg_allow);
           if (lex.pos == iter_start.pos && lex.pos < source.length) {
-            lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+            lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
           }
           continue;
         }
@@ -8866,14 +8866,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
          * PLATFORM: SHARED parse.
          */
         if (parser_sig_type_hard_pending_c() != 0) {
-          return ParseIntoResult { ok: -2, main_idx: -1 };
+          return { ok: -2, main_idx: -1 };
         }
         skip_one_struct_into(&lex, iter_start, source);
       } else if (pe_struct != 0 && module.num_struct_layouts > nsl_before) {
         pipeline_module_struct_layout_set_is_export(module, module.num_struct_layouts - 1, 1);
       }
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8886,7 +8886,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         pipeline_module_enum_set_is_export(module, module.num_module_enums - 1, 1);
       }
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -8899,11 +8899,11 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       if (module.num_funcs > num_funcs_before_extern) {
         let fi_ext: i32 = num_funcs_before_extern;
         if (pipeline_module_func_is_extern_at(module, fi_ext) == 0) {
-          let r_brace: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+          let r_brace: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&r_brace, lex, source);
           if (r_brace.tok.kind == token.TokenKind.TOKEN_LBRACE) {
             let type_ref_extern: i32 = pipeline_module_func_return_type_at(module, fi_ext);
-            let block_res_extern: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: r_brace.next_lex };
+            let block_res_extern: ParseBlockResult = { ok: false, block_ref: 0, next_lex: r_brace.next_lex };
             parse_block_into(arena, r_brace.next_lex, source, type_ref_extern, &block_res_extern);
             if (block_res_extern.ok) {
               pipeline_module_func_set_body_ref(module, fi_ext, block_res_extern.block_ref);
@@ -8918,32 +8918,32 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         skip_one_extern_into(&lex, lex, source);
       }
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_TRAIT) {
       skip_one_trait_into(&lex, iter_start, source);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_IMPL) {
       skip_one_impl_into(&lex, iter_start, source);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
-      let try_res: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
+      let try_res: TrySkipAllowResult = { lex: lex, skipped: 0, _pad: [] };
       parse_into_try_skip_allow_into(&try_res, lex, r, source);
       if (try_res.skipped != 0) {
         module.pending_allow_padding = 1;
         lex_from_try_skip_into(&lex, try_res);
         if (lex.pos == iter_start.pos && lex.pos < source.length) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -8983,19 +8983,19 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     onefunc_res_wire_dummy_for_if(&res);
     /* See implementation. */
     let empty64_lib_first: u8[128] = [];
-    let lib_first: LibraryParseResult = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
-    lib_first = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
+    let lib_first: LibraryParseResult = { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
+    lib_first = { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     parse_one_function_library_into(&lib_first, arena, module, lex_at_function, source);
     if (lib_first.ok) {
       lex_from_library_into(&lex, lib_first);
       if (lex.pos == lex_at_function.pos && lex.pos < source.length) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     parse_one_function_impl(&res, arena, lex, source);
     if (!res.ok) {
-      return ParseIntoResult { ok: -2, main_idx: -1 };
+      return { ok: -2, main_idx: -1 };
     }
     /* See implementation. */
     let is_main_storage: i32[1] = [];
@@ -9014,7 +9014,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         type_ref = ast.ast_arena_type_alloc(arena);
       }
       if (type_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1001 }
+        return { ok: -1, main_idx: -1001 }
       }
       let t_fb: Type = ast.ast_arena_type_get(arena, type_ref);
       t_fb.kind = TypeKind.TYPE_I32;
@@ -9027,7 +9027,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let expr_ref: i32 = 0;
     expr_ref = ast.ast_arena_expr_alloc(arena);
     if (expr_ref == 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1002 }
+      return { ok: -1, main_idx: -1002 }
     }
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     e = ast.ast_arena_expr_get(arena, expr_ref);
@@ -9093,14 +9093,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (res.return_var_name_len > 0 && res.return_expr_ref == 0) {
       let var_wrapped: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (var_wrapped == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1003 }
+        return { ok: -1, main_idx: -1003 }
       }
       final_expr_ref = var_wrapped;
     }
     if (res.has_mul && !res.has_binop) {
       let mul_right_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (mul_right_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let mre: Expr = ast.ast_arena_expr_get(arena, mul_right_ref);
       mre.kind = ExprKind.EXPR_LIT;
@@ -9136,7 +9136,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_expr_set(arena, mul_right_ref, mre);
       let mul_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (mul_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
       me.kind = ExprKind.EXPR_MUL;
@@ -9179,7 +9179,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       } else {
       let bool_type_ref: i32 = ast.ast_arena_type_alloc(arena);
       if (bool_type_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1005 }
+        return { ok: -1, main_idx: -1005 }
       }
       let bt: Type = ast.ast_arena_type_get(arena, bool_type_ref);
       bt.kind = TypeKind.TYPE_BOOL;
@@ -9189,7 +9189,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_type_set(arena, bool_type_ref, bt);
       cond_ref = ast.ast_arena_expr_alloc(arena);
       if (cond_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ce: Expr = ast.ast_arena_expr_get(arena, cond_ref);
       ce.kind = ExprKind.EXPR_BOOL_LIT;
@@ -9230,7 +9230,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       let then_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (then_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let te: Expr = ast.ast_arena_expr_get(arena, then_ref);
       te.kind = ExprKind.EXPR_LIT;
@@ -9266,7 +9266,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_expr_set(arena, then_ref, te);
       let else_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (else_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ee: Expr = ast.ast_arena_expr_get(arena, else_ref);
       ee.kind = ExprKind.EXPR_LIT;
@@ -9302,7 +9302,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_expr_set(arena, else_ref, ee);
       let if_expr_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (if_expr_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ie: Expr = ast.ast_arena_expr_get(arena, if_expr_ref);
       ie.kind = ExprKind.EXPR_IF;
@@ -9446,7 +9446,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       } else if (res.has_mul) {
         let mul_left_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (mul_left_ref == 0) {
-          return ParseIntoResult { ok: -1, main_idx: -1 }
+          return { ok: -1, main_idx: -1 }
         }
         let mle: Expr = ast.ast_arena_expr_get(arena, mul_left_ref);
         mle.kind = ExprKind.EXPR_LIT;
@@ -9482,7 +9482,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         ast.ast_arena_expr_set(arena, mul_left_ref, mle);
         let mul_r_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (mul_r_ref == 0) {
-          return ParseIntoResult { ok: -1, main_idx: -1 }
+          return { ok: -1, main_idx: -1 }
         }
         let mre: Expr = ast.ast_arena_expr_get(arena, mul_r_ref);
         mre.kind = ExprKind.EXPR_LIT;
@@ -9518,7 +9518,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         ast.ast_arena_expr_set(arena, mul_r_ref, mre);
         let mul_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (mul_ref == 0) {
-          return ParseIntoResult { ok: -1, main_idx: -1 }
+          return { ok: -1, main_idx: -1 }
         }
         let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
         me.kind = ExprKind.EXPR_MUL;
@@ -9556,7 +9556,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       } else {
         right_ref = ast.ast_arena_expr_alloc(arena);
         if (right_ref == 0) {
-          return ParseIntoResult { ok: -1, main_idx: -1 }
+          return { ok: -1, main_idx: -1 }
         }
         let re: Expr = ast.ast_arena_expr_get(arena, right_ref);
         re.kind = ExprKind.EXPR_LIT;
@@ -9593,7 +9593,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       let add_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (add_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ae: Expr = ast.ast_arena_expr_get(arena, add_ref);
       ae.kind = ExprKind.EXPR_ADD;
@@ -9633,7 +9633,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (res.has_unary_neg) {
       let operand_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (operand_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let oe: Expr = ast.ast_arena_expr_get(arena, operand_ref);
       oe.kind = ExprKind.EXPR_LIT;
@@ -9669,7 +9669,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_expr_set(arena, operand_ref, oe);
       let neg_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (neg_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ne: Expr = ast.ast_arena_expr_get(arena, neg_ref);
       ne.kind = ExprKind.EXPR_NEG;
@@ -9808,7 +9808,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let block_ref: i32 = 0;
     block_ref = ast.ast_arena_block_alloc(arena);
     if (block_ref == 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1010 }
+      return { ok: -1, main_idx: -1010 }
     }
     let b: Block = ast.ast_arena_block_get(arena, block_ref);
     b = ast.ast_arena_block_get(arena, block_ref);
@@ -9832,13 +9832,13 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (parser_should_wrap_func_tail_in_return(arena, &res, type_ref)) {
       let wrapped_fe: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (wrapped_fe == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1011 }
+        return { ok: -1, main_idx: -1011 }
       }
       final_expr_ref = wrapped_fe;
     }
     parser_diagnostic_parse_commit_pre(arena, &res.name[0], res.name_len, block_ref, onefunc_result_pool_ptr(&res), final_expr_ref);
     if (!fill_block_const_let_from_res(arena, block_ref, &res, type_ref)) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     b = ast.ast_arena_block_get(arena, block_ref);
     /* See implementation. */
@@ -9875,35 +9875,35 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let ci2: i32 = 0;
     while (ci2 < b.num_consts) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 0, ci2) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       ci2 = ci2 + 1;
     }
     let li2: i32 = 0;
     while (li2 < b.num_lets) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 1, li2) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       li2 = li2 + 1;
     }
     let loop_i: i32 = 0;
     while (loop_i < b.num_loops) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 3, loop_i) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       loop_i = loop_i + 1;
     }
     let for_i: i32 = 0;
     while (for_i < b.num_for_loops) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 4, for_i) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       for_i = for_i + 1;
     }
     let if_oi: i32 = 0;
     while (if_oi < b.num_if_stmts) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 5, if_oi) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       if_oi = if_oi + 1;
     }
@@ -9911,7 +9911,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let reg_oi: i32 = 0;
     while (reg_oi < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oi) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       reg_oi = reg_oi + 1;
     }
@@ -9919,12 +9919,12 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (!ast.ref_is_null(final_expr_ref) && b.num_expr_stmts == 0) {
       let fin_ex: i32 = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
       if (fin_ex < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       b.final_expr_ref = 0;
       final_expr_ref = 0;
       if (pipeline_block_append_stmt_order(arena, block_ref, 2, fin_ex) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       b = ast.ast_arena_block_get(arena, block_ref);
     }
@@ -9957,7 +9957,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let fi: i32 = -1;
     fi = pipeline_module_func_alloc_slot(module);
     if (fi < 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1000 }
+      return { ok: -1, main_idx: -1000 }
     }
     pipeline_module_func_name_write(module, fi, &res.name[0], res.name_len);
     pipeline_module_func_set_num_params(module, fi, res.num_params);
@@ -10810,13 +10810,13 @@ export extern function xlang_trait_check_impls_complete_c(module: *Module): i32;
 
 function parse_into_finish_ok(module: *Module, main_idx: i32): ParseIntoResult {
   unsafe {
-    let r: ParseIntoResult = parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: main_idx });
+    let r: ParseIntoResult = parse_into_apply_unclosed_gate({ ok: 0, main_idx: main_idx });
     if (r.ok != 0) {
       return r;
     }
     /* wave424: hard fail unknown_trait / missing_method on every product parse path. */
     if (xlang_trait_check_impls_complete_c(module) != 0) {
-      return ParseIntoResult { ok: 1, main_idx: -1 };
+      return { ok: 1, main_idx: -1 };
     }
     return r;
   }
@@ -10844,18 +10844,18 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   xlang_trait_reg_reset_c(arena);
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
-  let import_res: CollectImportsResult = CollectImportsResult { lex: lex };
+  let import_res: CollectImportsResult = { lex: lex };
   collect_imports_buf(lex, data, len, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
   let loop_count_buf: i32 = 0;
   while (1 == 1) {
     /* See implementation. */
     if (loop_count_buf >= 131072) {
-      return ParseIntoResult { ok: -1, main_idx: -1003 }
+      return { ok: -1, main_idx: -1003 }
     }
     loop_count_buf = loop_count_buf + 1;
     let iter_start_buf: Lexer = lex;
-    let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     let current_tok_lex_buf: Lexer = lex;
     lexer_next_buf_into(&r, lex, data, len);
     lex_from_next_into(&lex, r);
@@ -10872,7 +10872,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_soa_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -10880,7 +10880,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       if (r.tok.int_val == 0) { module.pending_cfg_skip = 1; }
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -10888,7 +10888,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_repr_c_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -10897,7 +10897,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_repr_compatible_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -10905,7 +10905,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ALLOC) {
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -10914,28 +10914,28 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_used = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NAKED) {
       module.pending_naked = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ENTRY) {
       module.pending_entry = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NO_MANGLE) {
       module.pending_no_mangle = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_INTERRUPT) {
       module.pending_interrupt = 1; lex_from_next_into(&lex, r);
-      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     /* See implementation. */
@@ -10943,7 +10943,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_export = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -10953,7 +10953,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -10962,7 +10962,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -10971,7 +10971,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -10982,18 +10982,18 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         module.pending_export = 0;
         func_is_async_buf[0] = 0;
         if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
       /* See implementation. */
       {
-        let try_cfg_allow_buf: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
+        let try_cfg_allow_buf: TrySkipAllowResult = { lex: lex, skipped: 0, _pad: [] };
         parse_into_try_skip_allow_into_buf(&try_cfg_allow_buf, lex, r, data, len);
         if (try_cfg_allow_buf.skipped != 0) {
           lex_from_try_skip_into(&lex, try_cfg_allow_buf);
           if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-            lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+            lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
           }
           continue;
         }
@@ -11023,14 +11023,14 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
          * PLATFORM: SHARED parse.
          */
         if (parser_sig_type_hard_pending_c() != 0) {
-          return ParseIntoResult { ok: -2, main_idx: -1 };
+          return { ok: -2, main_idx: -1 };
         }
         skip_one_struct_into_buf(&lex, lex_kw, data, len);
       } else if (pe_sb != 0 && module.num_struct_layouts > nsl_before_buf) {
         pipeline_module_struct_layout_set_is_export(module, module.num_struct_layouts - 1, 1);
       }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -11043,21 +11043,21 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         pipeline_module_enum_set_is_export(module, module.num_module_enums - 1, 1);
       }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_TRAIT) {
       skip_one_trait_into_buf(&lex, iter_start_buf, data, len);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_IMPL) {
       skip_one_impl_into_buf(&lex, iter_start_buf, data, len);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -11071,11 +11071,11 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         let fi_ext_buf: i32 = num_funcs_before_extern_buf;
         if (pipeline_module_func_is_extern_at(module, fi_ext_buf) == 0) {
           let slice_ext_buf: u8[] = parser_slice_from_buf(data, len);
-          let r_brace_buf: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+          let r_brace_buf: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&r_brace_buf, lex, slice_ext_buf);
           if (r_brace_buf.tok.kind == token.TokenKind.TOKEN_LBRACE) {
             let type_ref_extern_buf: i32 = pipeline_module_func_return_type_at(module, fi_ext_buf);
-            let block_res_extern_buf: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: r_brace_buf.next_lex };
+            let block_res_extern_buf: ParseBlockResult = { ok: false, block_ref: 0, next_lex: r_brace_buf.next_lex };
             parse_block_into(arena, r_brace_buf.next_lex, slice_ext_buf, type_ref_extern_buf, &block_res_extern_buf);
             if (block_res_extern_buf.ok) {
               pipeline_module_func_set_body_ref(module, fi_ext_buf, block_res_extern_buf.block_ref);
@@ -11090,13 +11090,13 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         skip_one_extern_into_buf(&lex, iter_start_buf, data, len);
       }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
     /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_TYPE) {
-      let alias_res: TypeAliasResult = TypeAliasResult { ok: false, next_lex: lex };
+      let alias_res: TypeAliasResult = { ok: false, next_lex: lex };
       parse_one_type_alias_into_buf(arena, module, r.next_lex, data, len, &alias_res);
       if (alias_res.ok) {
         lex = alias_res.next_lex;
@@ -11108,7 +11108,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       let pe_tl: i32 = module.pending_export;
       module.pending_export = 0;
       let ntl_before: i32 = module.num_top_level_lets;
-      let toplevel_res: TopLevelLetResult = TopLevelLetResult { ok: false, next_lex: lex };
+      let toplevel_res: TopLevelLetResult = { ok: false, next_lex: lex };
       parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, r.tok.kind == token.TokenKind.TOKEN_CONST, &toplevel_res);
       if (toplevel_res.ok) {
         if (pe_tl != 0 && module.num_top_level_lets > ntl_before) {
@@ -11119,13 +11119,13 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
     }
     if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
-      let try_res: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
+      let try_res: TrySkipAllowResult = { lex: lex, skipped: 0, _pad: [] };
       parse_into_try_skip_allow_into_buf(&try_res, lex, r, data, len);
       if (try_res.skipped != 0) {
         module.pending_allow_padding = 1;
         lex_from_try_skip_into(&lex, try_res);
         if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -11141,10 +11141,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
        */
       if (parser_parse_strict_enabled() != 0) {
         parser_diagnostic_parse_skip((iter_start_buf.pos) as i32, module.num_funcs, 0, 0 as *u8);
-        return ParseIntoResult { ok: -2, main_idx: -1 };
+        return { ok: -2, main_idx: -1 };
       }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -11180,7 +11180,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     slice_for_impl = parser_slice_from_buf(data, len);
     /* See implementation. */
     let empty64_lib_buf_first: u8[128] = [];
-    let lib_buf_first: LibraryParseResult = LibraryParseResult {
+    let lib_buf_first: LibraryParseResult = {
       ok: false,
       _pad: [],
       next_lex: lex_at_function_buf,
@@ -11188,7 +11188,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       name_len: 0,
       _pad_tail: []
     };
-    lib_buf_first = LibraryParseResult {
+    lib_buf_first = {
       ok: false,
       _pad: [],
       next_lex: lex_at_function_buf,
@@ -11217,7 +11217,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
        */
       if (parser_sig_type_hard_pending_c() != 0) {
         ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
-        return ParseIntoResult { ok: -2, main_idx: -1 };
+        return { ok: -2, main_idx: -1 };
       }
       let skip_name: u8[128] = [0];
       let skip_nlen: i32 = parse_peek_function_name_buf(lex_at_function_buf, data, len, &skip_name[0]);
@@ -11229,12 +11229,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
        */
       if (parser_parse_strict_enabled() != 0) {
         ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
-        return ParseIntoResult { ok: -2, main_idx: -1 };
+        return { ok: -2, main_idx: -1 };
       }
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
       ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
       if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -11253,12 +11253,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         parser_diagnostic_parse_skip((lex_at_function_buf.pos) as i32, module.num_funcs, res.name_len, &res.name[0]);
         if (parser_parse_strict_enabled() != 0) {
           ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
-          return ParseIntoResult { ok: -2, main_idx: -1 };
+          return { ok: -2, main_idx: -1 };
         }
         skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
         ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
         if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {
-          lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
       }
@@ -11278,7 +11278,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
       ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
       if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -11346,14 +11346,14 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (res.return_var_name_len > 0 && res.return_expr_ref == 0) {
       let var_wrapped: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (var_wrapped == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1003 }
+        return { ok: -1, main_idx: -1003 }
       }
       final_expr_ref = var_wrapped;
     }
     if (res.has_mul && !res.has_binop) {
       let mul_right_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (mul_right_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let mre: Expr = ast.ast_arena_expr_get(arena, mul_right_ref);
       mre.kind = ExprKind.EXPR_LIT;
@@ -11389,7 +11389,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_expr_set(arena, mul_right_ref, mre);
       let mul_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (mul_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
       me.kind = ExprKind.EXPR_BINOP;
@@ -11433,7 +11433,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       } else {
       let bool_type_ref: i32 = ast.ast_arena_type_alloc(arena);
       if (bool_type_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1005 }
+        return { ok: -1, main_idx: -1005 }
       }
       let bt: Type = ast.ast_arena_type_get(arena, bool_type_ref);
       bt.kind = TypeKind.TYPE_BOOL;
@@ -11443,7 +11443,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_type_set(arena, bool_type_ref, bt);
       cond_ref = ast.ast_arena_expr_alloc(arena);
       if (cond_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ce: Expr = ast.ast_arena_expr_get(arena, cond_ref);
       ce.kind = ExprKind.EXPR_BOOL_LIT;
@@ -11484,7 +11484,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       let then_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (then_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let te: Expr = ast.ast_arena_expr_get(arena, then_ref);
       te.kind = ExprKind.EXPR_LIT;
@@ -11520,7 +11520,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_expr_set(arena, then_ref, te);
       let else_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (else_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ee: Expr = ast.ast_arena_expr_get(arena, else_ref);
       ee.kind = ExprKind.EXPR_LIT;
@@ -11556,7 +11556,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_expr_set(arena, else_ref, ee);
       let if_expr_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (if_expr_ref == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ie: Expr = ast.ast_arena_expr_get(arena, if_expr_ref);
       ie.kind = ExprKind.EXPR_IF;
@@ -11696,7 +11696,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       } else {
         right_ref_buf = ast.ast_arena_expr_alloc(arena);
         if (right_ref_buf == 0) {
-          return ParseIntoResult { ok: -1, main_idx: -1 }
+          return { ok: -1, main_idx: -1 }
         }
         let re_buf: Expr = ast.ast_arena_expr_get(arena, right_ref_buf);
         re_buf.kind = ExprKind.EXPR_LIT;
@@ -11733,7 +11733,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       let add_ref_buf: i32 = ast.ast_arena_expr_alloc(arena);
       if (add_ref_buf == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       let ae_buf: Expr = ast.ast_arena_expr_get(arena, add_ref_buf);
       ae_buf.kind = ExprKind.EXPR_ADD;
@@ -11872,7 +11872,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let block_ref: i32 = 0;
     block_ref = ast.ast_arena_block_alloc(arena);
     if (block_ref == 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     let b: Block = ast.ast_arena_block_get(arena, block_ref);
     b = ast.ast_arena_block_get(arena, block_ref);
@@ -11896,13 +11896,13 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (parser_should_wrap_func_tail_in_return(arena, &res, type_ref)) {
       let wrapped_tail2: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (wrapped_tail2 == 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       final_expr_ref = wrapped_tail2;
     }
     parser_diagnostic_parse_commit_pre(arena, &res.name[0], res.name_len, block_ref, onefunc_result_pool_ptr(&res), final_expr_ref);
     if (!fill_block_const_let_from_res(arena, block_ref, &res, type_ref)) {
-      return ParseIntoResult { ok: -1, main_idx: -1 }
+      return { ok: -1, main_idx: -1 }
     }
     b = ast.ast_arena_block_get(arena, block_ref);
     /* See implementation. */
@@ -11938,42 +11938,42 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let ci2b: i32 = 0;
     while (ci2b < b.num_consts) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 0, ci2b) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       ci2b = ci2b + 1;
     }
     let li2b: i32 = 0;
     while (li2b < b.num_lets) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 1, li2b) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       li2b = li2b + 1;
     }
     let loop_ib: i32 = 0;
     while (loop_ib < b.num_loops) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 3, loop_ib) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       loop_ib = loop_ib + 1;
     }
     let for_ib: i32 = 0;
     while (for_ib < b.num_for_loops) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 4, for_ib) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       for_ib = for_ib + 1;
     }
     let if_oib: i32 = 0;
     while (if_oib < b.num_if_stmts) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 5, if_oib) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       if_oib = if_oib + 1;
     }
     let reg_oib: i32 = 0;
     while (reg_oib < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oib) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       reg_oib = reg_oib + 1;
     }
@@ -11981,12 +11981,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (!ast.ref_is_null(final_expr_ref) && b.num_expr_stmts == 0) {
       let fin_ex2: i32 = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
       if (fin_ex2 < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       b.final_expr_ref = 0;
       final_expr_ref = 0;
       if (pipeline_block_append_stmt_order(arena, block_ref, 2, fin_ex2) < 0) {
-        return ParseIntoResult { ok: -1, main_idx: -1 }
+        return { ok: -1, main_idx: -1 }
       }
       b = ast.ast_arena_block_get(arena, block_ref);
     }
@@ -12012,7 +12012,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
       ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
       if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -12023,7 +12023,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
       ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
       if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {
-        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+        lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
@@ -12064,7 +12064,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
     /* See implementation. */
     if (lex.pos == parse_into_guard_pos) {
-      lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
     }
   }
   if (module.num_funcs == 0) {

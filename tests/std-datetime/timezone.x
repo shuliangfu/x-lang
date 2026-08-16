@@ -6,11 +6,11 @@ const datetime = import("std.datetime");
  * @return i32
  */
 function test_jst_roundtrip(): i32 {
-  let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };
+  let tz: TimeZone = { offset_min: 0, iana_id: -1 };
   let jst: u8[3] = [74, 83, 84];
   if (datetime.timezone_from_name(&jst[0], 3, &tz) != 0) { return 1; }
   if (tz.offset_min != 540) { return 2; }
-  let f: DateFields = DateFields {
+  let f: DateFields = {
     year: 2020, month: 1, day: 1, hour: 15, minute: 0, second: 0, nsec: 0
   };
   let t: DateTime = datetime.from_zoned_fields(f, tz);
@@ -30,7 +30,7 @@ function test_parse_offset(): i32 {
   if (datetime.parse_offset_min(&p8[0], 6, &off) != 0) { return 1; }
   if (off != 480) { return 2; }
   let tz: TimeZone = datetime.timezone_fixed(off);
-  let f: DateFields = DateFields {
+  let f: DateFields = {
     year: 2020, month: 1, day: 1, hour: 12, minute: 0, second: 0, nsec: 0
   };
   let t: DateTime = datetime.from_zoned_fields(f, tz);

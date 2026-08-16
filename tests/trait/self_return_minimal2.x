@@ -9,14 +9,14 @@ trait Incrementable {
 
 struct Counter { value: i32, }
 
-impl Incrementable for Counter {
+impl Incrementable for {
   function increment(self: Counter): Counter {
-    return Counter { value: self.value + 1 };
+    return { value: self.value + 1 };
   }
 }
 
 function main(): i32 {
-  let c: Counter = Counter { value: 10 };
+  let c: Counter = { value: 10 };
   let d: Counter = c.increment();
   return d.value;
 }

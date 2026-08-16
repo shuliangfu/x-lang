@@ -1286,7 +1286,7 @@ export function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParse
  * @return i32
  */
 export function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
-  let ctx: YamlParseCtx = YamlParseCtx {
+  let ctx: YamlParseCtx = {
     stack: [], depth: 0, list_prefix: [], list_index: -1, list_indent: -1
   };
   let line: u8[512] = [];

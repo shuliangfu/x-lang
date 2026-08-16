@@ -6,7 +6,7 @@ const heap = import("std.heap");
  * @return i32
  */
 function main(): i32 {
-  let st: HeapTraceStats = HeapTraceStats {
+  let st: HeapTraceStats = {
     alloc_count: 0 as u64,
     free_count: 0 as u64,
     realloc_count: 0 as u64,

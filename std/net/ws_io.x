@@ -63,7 +63,7 @@ extern "C" function _exit(code: i32): void;
  * See implementation.
  */
 export function ws_poll_writable(fd: i32, timeout_ms: u32): i32 {
-  let pfd: PollFd = PollFd { fd: fd, events: 4, revents: 0 };
+  let pfd: PollFd = { fd: fd, events: 4, revents: 0 };
   let to: i32 = (timeout_ms == 0) ? -1 : (timeout_ms as i32);
   let n: i32 = 0;
   unsafe { n = xlang_sys_poll((&pfd) as *u8, 1, to); }
@@ -77,7 +77,7 @@ export function ws_poll_writable(fd: i32, timeout_ms: u32): i32 {
  * See implementation.
  */
 export function ws_poll_readable(fd: i32, timeout_ms: u32): i32 {
-  let pfd: PollFd = PollFd { fd: fd, events: 1, revents: 0 };
+  let pfd: PollFd = { fd: fd, events: 1, revents: 0 };
   let to: i32 = (timeout_ms == 0) ? -1 : (timeout_ms as i32);
   let n: i32 = 0;
   unsafe { n = xlang_sys_poll((&pfd) as *u8, 1, to); }

@@ -9,7 +9,7 @@ const net = import("std.net");
  * @return i32
  */
 function main(): i32 {
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   /* See implementation. */
   let stream: TcpStream = net.connect_blocking(addr, 39999, 100);
   if (stream.fd < 0) { return 2; }

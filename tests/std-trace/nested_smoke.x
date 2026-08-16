@@ -10,9 +10,9 @@ function main(): i32 {
   let zero: i64 = 0;
   let tr: Trace = trace.new();
   let ctx: Context = context.background();
-  let tr2: Trace = Trace { handle: zero };
-  let root: Span = Span { id: zero };
-  let child: Span = Span { id: zero };
+  let tr2: Trace = { handle: zero };
+  let root: Span = { id: zero };
+  let child: Span = { id: zero };
   let n_root: u8[4] = [114, 111, 111, 116];
   let n_child: u8[5] = [99, 104, 105, 108, 100];
   let out: u8[256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

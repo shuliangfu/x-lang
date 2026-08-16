@@ -56,30 +56,30 @@ function id32(p: Quad): Quad {
  * @return i32 — 0 ok; 1..20 fail
  */
 function main(): i32 {
-  let x: Pair = Pair { a: 1, b: 2 };
-  let t: Triple = Triple { a: 1, b: 2, c: 3 };
-  let q: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
+  let x: Pair = { a: 1, b: 2 };
+  let t: Triple = { a: 1, b: 2, c: 3 };
+  let q: Quad = { a: 1, b: 2, c: 3, d: 4 };
 
-  let d16: Pair = Pair { a: 9, b: 9 };
+  let d16: Pair = { a: 9, b: 9 };
   let p16: *Pair = &d16;
   unsafe { *p16 = id16(x) }
   if (d16.a != 1) { return 1; }
   if (d16.b != 2) { return 2; }
 
-  let d16c: Pair = Pair { a: 9, b: 9 };
+  let d16c: Pair = { a: 9, b: 9 };
   let p16c: *Pair = &d16c;
   unsafe { *p16c = x }
   if (d16c.a != 1) { return 3; }
   if (d16c.b != 2) { return 4; }
 
-  let d24: Triple = Triple { a: 9, b: 9, c: 9 };
+  let d24: Triple = { a: 9, b: 9, c: 9 };
   let p24: *Triple = &d24;
   unsafe { *p24 = id24(t) }
   if (d24.a != 1) { return 5; }
   if (d24.b != 2) { return 6; }
   if (d24.c != 3) { return 7; }
 
-  let d32: Quad = Quad { a: 9, b: 9, c: 9, d: 9 };
+  let d32: Quad = { a: 9, b: 9, c: 9, d: 9 };
   let p32: *Quad = &d32;
   unsafe { *p32 = id32(q) }
   if (d32.a != 1) { return 8; }
@@ -87,7 +87,7 @@ function main(): i32 {
   if (d32.c != 3) { return 10; }
   if (d32.d != 4) { return 11; }
 
-  let d32c: Quad = Quad { a: 9, b: 9, c: 9, d: 9 };
+  let d32c: Quad = { a: 9, b: 9, c: 9, d: 9 };
   let p32c: *Quad = &d32c;
   unsafe { *p32c = q }
   if (d32c.a != 1) { return 12; }
@@ -95,7 +95,7 @@ function main(): i32 {
   if (d32c.c != 3) { return 14; }
   if (d32c.d != 4) { return 15; }
 
-  let d32n: Quad = Quad { a: 9, b: 9, c: 9, d: 9 };
+  let d32n: Quad = { a: 9, b: 9, c: 9, d: 9 };
   let p32n: *Quad = &d32n;
   unsafe { *p32n = id32(id32(q)) }
   if (d32n.a != 1) { return 16; }
@@ -103,9 +103,9 @@ function main(): i32 {
   if (d32n.c != 3) { return 18; }
   if (d32n.d != 4) { return 19; }
 
-  let dlit: Quad = Quad { a: 9, b: 9, c: 9, d: 9 };
+  let dlit: Quad = { a: 9, b: 9, c: 9, d: 9 };
   let plit: *Quad = &dlit;
-  unsafe { *plit = Quad { a: 1, b: 2, c: 3, d: 4 } }
+  unsafe { *plit = { a: 1, b: 2, c: 3, d: 4 } }
   if (dlit.a != 1) { return 20; }
   if (dlit.b != 2) { return 21; }
   if (dlit.c != 3) { return 22; }

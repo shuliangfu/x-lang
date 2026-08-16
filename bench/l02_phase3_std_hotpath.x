@@ -12,7 +12,7 @@ const net = import("std.net");
  */
 function main(): i32 {
   let utc_name: u8[4] = [85, 84, 67, 0];
-  let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };
+  let tz: TimeZone = { offset_min: 0, iana_id: -1 };
   let zero: i64 = 0;
   let i: i32 = 0;
   while (i < 50000) {

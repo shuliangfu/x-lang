@@ -16,7 +16,7 @@ allow(padding) struct Holder {
  * @return i32 — 0 ok, 1 alloc failed
  */
 export function main(): i32 {
-  let h: Holder = Holder { al: heap.default_alloc() };
+  let h: Holder = { al: heap.default_alloc() };
   let p: *u8 = heap.alloc(h.al, 8 as usize);
   if (p == 0) { return 1; }
   heap.free(h.al, p);

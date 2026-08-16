@@ -11,6 +11,6 @@ struct P { x: i32, y: i32 }
  */
 function main(): i32 {
   const A: i32 = 2;
-  let p: P = P { x: A + 1, y: A * 3 };
+  let p: P = { x: A + 1, y: A * 3 };
   return p.x + p.y;
 }

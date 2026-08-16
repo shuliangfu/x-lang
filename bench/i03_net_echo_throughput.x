@@ -70,7 +70,7 @@ function main(): i32 {
   }
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   /* See implementation. */
   let stream: TcpStream = net.connect_blocking(addr, echo_port, 0);
   if (stream.fd < 0) { return 1; }

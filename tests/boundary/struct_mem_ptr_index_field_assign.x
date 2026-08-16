@@ -132,35 +132,35 @@ function via_mid(w: *WrapPtr, q: Quad): i32 {
  * @return i32 — 0 ok; see via_* / INDEX codes
  */
 function main(): i32 {
-  let x: Pair = Pair { a: 1, b: 2 };
-  let q: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
-  let h16: Holder16 = Holder16 { s: Pair { a: 0, b: 0 } };
+  let x: Pair = { a: 1, b: 2 };
+  let q: Quad = { a: 1, b: 2, c: 3, d: 4 };
+  let h16: Holder16 = { s: { a: 0, b: 0 } };
   let rc: i32 = via16(&h16, x);
   if (rc != 0) { return rc; }
-  let h32: Holder32 = Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } };
+  let h32: Holder32 = { s: { a: 0, b: 0, c: 0, d: 0 } };
   rc = via_copy(&h32, q);
   if (rc != 0) { return rc; }
-  let h32c: Holder32 = Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } };
+  let h32c: Holder32 = { s: { a: 0, b: 0, c: 0, d: 0 } };
   rc = via_call(&h32c, q);
   if (rc != 0) { return rc; }
-  let hp: Prefixed = Prefixed { tag: 7, s: Quad { a: 0, b: 0, c: 0, d: 0 } };
+  let hp: Prefixed = { tag: 7, s: { a: 0, b: 0, c: 0, d: 0 } };
   rc = via_pref(&hp, q);
   if (rc != 0) { return rc; }
-  let hmid: Holder32 = Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } };
-  let w: WrapPtr = WrapPtr { p: &hmid };
+  let hmid: Holder32 = { s: { a: 0, b: 0, c: 0, d: 0 } };
+  let w: WrapPtr = { p: &hmid };
   rc = via_mid(&w, q);
   if (rc != 0) { return rc; }
   let arr16: [2]Holder16 = [
-    Holder16 { s: Pair { a: 0, b: 0 } },
-    Holder16 { s: Pair { a: 9, b: 9 } }
+    { s: { a: 0, b: 0 } },
+    { s: { a: 9, b: 9 } }
   ];
   arr16[0].s = id16(x);
   if (arr16[0].s.a != 1) { return 20; }
   if (arr16[0].s.b != 2) { return 21; }
   if (arr16[1].s.a != 9) { return 22; }
   let arr32: [2]Holder32 = [
-    Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } },
-    Holder32 { s: Quad { a: 9, b: 9, c: 9, d: 9 } }
+    { s: { a: 0, b: 0, c: 0, d: 0 } },
+    { s: { a: 9, b: 9, c: 9, d: 9 } }
   ];
   arr32[0].s = q;
   if (arr32[0].s.a != 1) { return 23; }
@@ -169,8 +169,8 @@ function main(): i32 {
   if (arr32[0].s.d != 4) { return 26; }
   if (arr32[1].s.a != 9) { return 27; }
   let arr32c: [2]Holder32 = [
-    Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } },
-    Holder32 { s: Quad { a: 9, b: 9, c: 9, d: 9 } }
+    { s: { a: 0, b: 0, c: 0, d: 0 } },
+    { s: { a: 9, b: 9, c: 9, d: 9 } }
   ];
   arr32c[0].s = id32(q);
   if (arr32c[0].s.a != 1) { return 28; }

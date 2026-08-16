@@ -166,7 +166,7 @@ export function queue_os_worker_trampoline(arg: *u8): *u8 {
  *  Returns 0 on success (length == 1000), -1 on failure. */
 #[no_mangle]
 export function sync_queue_contention_smoke_c(): i32 {
-  let st: QueueSmokeState = QueueSmokeState {
+  let st: QueueSmokeState = {
     mu: 0 as *u8,
     data: 0 as *i32,
     cap: 0,

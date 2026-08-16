@@ -28,7 +28,7 @@ function write3(v: *F32Tri, x: f32, y: f32, z: f32): f32 {
  * @return i32
  */
 function main(): i32 {
-  let t: F32Tri = F32Tri { x: 0.0, y: 0.0, z: 0.0 };
+  let t: F32Tri = { x: 0.0, y: 0.0, z: 0.0 };
   write3(&t, 1.0, 2.0, 3.0);
   let s: f32 = t.x + t.y + t.z;
   return s as i32;

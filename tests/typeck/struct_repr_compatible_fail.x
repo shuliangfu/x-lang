@@ -18,7 +18,7 @@ function take_a(_p: *PairA): i32 {
  * @return i32
  */
 function main(): i32 {
-  let c: PairC = PairC { a: 1, b: 2 };
+  let c: PairC = { a: 1, b: 2 };
   take_a(&c);
   return 0;
 }

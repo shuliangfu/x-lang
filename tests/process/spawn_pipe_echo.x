@@ -46,7 +46,7 @@ function check_pipe_payload(r_fd: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): 
 function try_posix_echo_pipe(): i32 {
   let prog: u8[10] = [47, 98, 105, 110, 47, 101, 99, 104, 111, 0];
   let arg: u8[6] = [104, 101, 108, 108, 111, 0];
-  let argv: Argv3 = Argv3 { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8 };
+  let argv: Argv3 = { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8 };
   let r_fd: i32 = 0;
   let w_fd: i32 = 0;
   let pid: i32 = 0;
@@ -55,7 +55,7 @@ function try_posix_echo_pipe(): i32 {
   argv.s1 = &arg[0];
   argv.s2 = 0 as *u8;
   if (process.pipe(&r_fd, &w_fd) != 0) { return 10; }
-  let io: process.SpawnIo = process.SpawnIo { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
+  let io: process.SpawnIo = { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
   let argv_ptr: *u8 = &argv.s0;
   pid = process.spawn_io(&prog[0], argv_ptr, &io);
   fs.close(w_fd);
@@ -81,7 +81,7 @@ function try_win_echo_pipe(): i32 {
   let a_c: u8[3] = [47, 99, 0];
   let a_echo: u8[5] = [101, 99, 104, 111, 0];
   let a_hello: u8[6] = [104, 101, 108, 108, 111, 0];
-  let argv: Argv5 = Argv5 { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8, s3: 0 as *u8, s4: 0 as *u8 };
+  let argv: Argv5 = { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8, s3: 0 as *u8, s4: 0 as *u8 };
   let r_fd: i32 = 0;
   let w_fd: i32 = 0;
   let pid: i32 = 0;
@@ -92,7 +92,7 @@ function try_win_echo_pipe(): i32 {
   argv.s3 = &a_hello[0];
   argv.s4 = 0 as *u8;
   if (process.pipe(&r_fd, &w_fd) != 0) { return 20; }
-  let io: process.SpawnIo = process.SpawnIo { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
+  let io: process.SpawnIo = { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
   let argv_ptr: *u8 = &argv.s0;
   pid = process.spawn_io(&cmd[0], argv_ptr, &io);
   fs.close(w_fd);

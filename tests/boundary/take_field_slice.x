@@ -43,7 +43,7 @@ function take_i(s: []i32): i32 {
  * @return Wf — xs = [1.0, 2.0]
  */
 function mk(): Wf {
-  return Wf { xs: [1.0, 2.0] };
+  return { xs: [1.0, 2.0] };
 }
 
 /**
@@ -52,17 +52,17 @@ function mk(): Wf {
  */
 function main(): i32 {
   /* STRUCT_LIT.field call-arg — original 4.2.10 hole. */
-  if (take_f(Wf { xs: [1.0, 2.0] }.xs) != 42) { return 10; }
+  if (take_f({ xs: [1.0, 2.0] }.xs) != 42) { return 10; }
   /* CALL.field */
   if (take_f(mk().xs) != 42) { return 11; }
   /* VAR.field */
-  let w: Wf = Wf { xs: [1.0, 2.0] };
+  let w: Wf = { xs: [1.0, 2.0] };
   if (take_f(w.xs) != 42) { return 12; }
   /* local [2]f32 */
   let a: [2]f32 = [1.0, 2.0];
   if (take_f(a) != 42) { return 13; }
   /* i32 neighborhood */
-  let wi: Wi = Wi { xs: [1, 2] };
+  let wi: Wi = { xs: [1, 2] };
   if (take_i(wi.xs) != 42) { return 14; }
   /* let already green (typeck_coerce_init_slice_from_array) */
   let lf: []f32 = w.xs;

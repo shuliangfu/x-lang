@@ -22,8 +22,8 @@ struct W {
  */
 function lit(): S24[2] {
   return [
-    S24 { a: 5, b: 6, c: 7, d: 8 },
-    S24 { a: 50, b: 49, c: 1, d: 2 }
+    { a: 5, b: 6, c: 7, d: 8 },
+    { a: 50, b: 49, c: 1, d: 2 }
   ];
 }
 
@@ -49,10 +49,10 @@ function from_call(): S24[2] {
  * @return S24[2] — durable copy of w.xs
  */
 function from_field(): S24[2] {
-  let w: W = W {
+  let w: W = {
     xs: [
-      S24 { a: 5, b: 6, c: 7, d: 8 },
-      S24 { a: 50, b: 49, c: 1, d: 2 }
+      { a: 5, b: 6, c: 7, d: 8 },
+      { a: 50, b: 49, c: 1, d: 2 }
     ]
   };
   return w.xs;
@@ -62,7 +62,7 @@ function from_field(): S24[2] {
  * Same-layer neighborhood: [N]S24 → []S24 (Path B0 dest SLICE, esz>8).
  * @return []S24 — fat over a durable copy of lit()
  */
-function from_var_slice(): []S24 {
+function from_var_slice(): []{
   let s: S24[2] = lit();
   return s;
 }

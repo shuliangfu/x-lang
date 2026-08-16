@@ -52,8 +52,8 @@ function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let b: i32x4 = [10, 20, 30, 40];
   let z: i32x4 = [0, 0, 0, 0];
-  let inner: Holder = Holder { v: z };
-  let w: Wrap = Wrap { h: inner };
+  let inner: Holder = { v: z };
+  let w: Wrap = { h: inner };
   w.h.v = a;
   w.h.v = w.h.v.add4(b);
   let t: i32x4 = w.h.v;

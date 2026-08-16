@@ -46,8 +46,8 @@ function ret_idx(a: [2]Wide): Wide {
  */
 function main(): i32 {
   let a: [2]Wide = [
-    Wide { a: 1, b: 2, c: 3, d: 4, e: 5 },
-    Wide { a: 10, b: 20, c: 30, d: 40, e: 42 }
+    { a: 1, b: 2, c: 3, d: 4, e: 5 },
+    { a: 10, b: 20, c: 30, d: 40, e: 42 }
   ];
   if (a[1].last() != 42) { return 1; }
   if (take_w(a[1]) != 42) { return 2; }

@@ -3916,7 +3916,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
     let br_lens: i32[8] = [];
     let co_lens: i32[8] = [];
     let lbl: u8[128] = [];
-    let ctx: AsmFuncCtx = AsmFuncCtx {
+    let ctx: AsmFuncCtx = {
       frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
       module_ref: 0 as *Module,
       loop_break_label_stack: br_stk, loop_break_len_stack: br_lens,
@@ -4042,7 +4042,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
     let br_lens2: i32[8] = [];
     let co_lens2: i32[8] = [];
     let lbl2: u8[128] = [];
-    let ctx: AsmFuncCtx = AsmFuncCtx {
+    let ctx: AsmFuncCtx = {
       frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
       module_ref: 0 as *Module,
       loop_break_label_stack: br_stk2, loop_break_len_stack: br_lens2,

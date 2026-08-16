@@ -34,7 +34,7 @@ function take_q(q: Quad): i32 {
  * @return i32 — 0 ok; 1..4 name the miss
  */
 function main(): i32 {
-  let a: [2]Quad = [Quad { a: 1, b: 2, c: 3, d: 4 }, Quad { a: 5, b: 6, c: 7, d: 42 }];
+  let a: [2]Quad = [{ a: 1, b: 2, c: 3, d: 4 }, { a: 5, b: 6, c: 7, d: 42 }];
   if (a[1].last() != 42) { return 1; }
   if (take_q(a[1]) != 42) { return 2; }
   let q: Quad = a[1];

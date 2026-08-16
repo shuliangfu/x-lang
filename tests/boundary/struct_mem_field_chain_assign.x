@@ -67,25 +67,25 @@ function id32(p: Quad): Quad {
  *   7..10 = 32B CALL; 11..15 = Prefixed chain
  */
 function main(): i32 {
-  let p: Pair = Pair { a: 1, b: 2 };
-  let w16: Wrap16 = Wrap16 { h: Holder16 { s: Pair { a: 0, b: 0 } } };
+  let p: Pair = { a: 1, b: 2 };
+  let w16: Wrap16 = { h: { s: { a: 0, b: 0 } } };
   w16.h.s = id16(p);
   if (w16.h.s.a != 1) { return 1; }
   if (w16.h.s.b != 2) { return 2; }
-  let q: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
-  let w32: Wrap32 = Wrap32 { h: Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } } };
+  let q: Quad = { a: 1, b: 2, c: 3, d: 4 };
+  let w32: Wrap32 = { h: { s: { a: 0, b: 0, c: 0, d: 0 } } };
   w32.h.s = q;
   if (w32.h.s.a != 1) { return 3; }
   if (w32.h.s.b != 2) { return 4; }
   if (w32.h.s.c != 3) { return 5; }
   if (w32.h.s.d != 4) { return 6; }
-  let w32c: Wrap32 = Wrap32 { h: Holder32 { s: Quad { a: 0, b: 0, c: 0, d: 0 } } };
+  let w32c: Wrap32 = { h: { s: { a: 0, b: 0, c: 0, d: 0 } } };
   w32c.h.s = id32(q);
   if (w32c.h.s.a != 1) { return 7; }
   if (w32c.h.s.b != 2) { return 8; }
   if (w32c.h.s.c != 3) { return 9; }
   if (w32c.h.s.d != 4) { return 10; }
-  let wp: WrapPref = WrapPref { h: Prefixed { tag: 7, s: Quad { a: 0, b: 0, c: 0, d: 0 } } };
+  let wp: WrapPref = { h: { tag: 7, s: { a: 0, b: 0, c: 0, d: 0 } } };
   wp.h.s = q;
   if (wp.h.tag != 7) { return 11; }
   if (wp.h.s.a != 1) { return 12; }

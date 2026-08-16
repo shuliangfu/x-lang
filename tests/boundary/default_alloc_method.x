@@ -27,7 +27,7 @@ trait Factory {
  */
 impl Factory for i32 {
   function default_alloc(self: i32): Alloc {
-    return Alloc { kind: 99, arena: 0 };
+    return { kind: 99, arena: 0 };
   }
 }
 
@@ -36,7 +36,7 @@ impl Factory for i32 {
  * @return Alloc — dummy {99, 0} if the call actually runs
  */
 function default_alloc(): Alloc {
-  return Alloc { kind: 99, arena: 0 };
+  return { kind: 99, arena: 0 };
 }
 
 /**
@@ -44,7 +44,7 @@ function default_alloc(): Alloc {
  * @return Box — { recv.default_alloc() }
  */
 function mk_m(): Box {
-  return Box { al: 0.default_alloc() };
+  return { al: 0.default_alloc() };
 }
 
 /**
@@ -52,7 +52,7 @@ function mk_m(): Box {
  * @return Box — { default_alloc() }
  */
 function mk_c(): Box {
-  return Box { al: default_alloc() };
+  return { al: default_alloc() };
 }
 
 /**

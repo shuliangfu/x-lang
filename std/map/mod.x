@@ -65,7 +65,7 @@ export function find(m: Map_i32_i32, key: i32): i32 {
  */
 export function new(_tag: i32): Map_i32_i32 {
   let _: i32 = _tag;
-  return Map_i32_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
+  return { keys: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -287,7 +287,7 @@ allow(padding) struct MapIter_i32_i32 {
  * @return MapIter_i32_i32
  */
 export function iter_init(m: Map_i32_i32): MapIter_i32_i32 {
-  return MapIter_i32_i32 { map: m, slot: 0 };
+  return { map: m, slot: 0 };
 }
 
 /** Exported function `iter_next`.
@@ -298,7 +298,7 @@ export function iter_init(m: Map_i32_i32): MapIter_i32_i32 {
 export function iter_next(it: *MapIter_i32_i32): MapIterItem_i32 {
   while (it.slot < it.map.cap) {
     if (it.map.occupied[it.slot] != 0) {
-      let item: MapIterItem_i32 = MapIterItem_i32 {
+      let item: MapIterItem_i32 = {
         ok: 1,
         key: it.map.keys[it.slot],
         val: it.map.vals[it.slot],
@@ -308,7 +308,7 @@ export function iter_next(it: *MapIter_i32_i32): MapIterItem_i32 {
     }
     it.slot = it.slot + 1;
   }
-  return MapIterItem_i32 { ok: 0, key: 0, val: 0 };
+  return { ok: 0, key: 0, val: 0 };
 }
 
 /** Exported function `load_factor_pct`.
@@ -377,7 +377,7 @@ export function find(m: Map_u64_i32, key: u64): i32 {
  */
 export function new(_tag: u64): Map_u64_i32 {
   let _: u64 = _tag;
-  return Map_u64_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
+  return { keys: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -636,7 +636,7 @@ export function str_find(m: Map_str_i32, key: *u8, key_len: i32): i32 {
  * @return Map_str_i32
  */
 export function str_new(): Map_str_i32 {
-  return Map_str_i32 { keys: 0, key_lens: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
+  return { keys: 0, key_lens: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `str_with_capacity`.

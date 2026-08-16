@@ -7,7 +7,7 @@ const datetime = import("std.datetime");
  */
 function main(): i32 {
   let raw: u8[20] = [50, 48, 50, 48, 45, 48, 49, 45, 48, 50, 84, 48, 51, 58, 48, 52, 58, 48, 53, 90];
-  let t: DateTime = DateTime { sec: 0, nsec: 0 };
+  let t: DateTime = { sec: 0, nsec: 0 };
   let off: i32 = 0;
   if (datetime.parse_rfc3339(&raw[0], 20, &t, &off) != 0) {
     return 1;

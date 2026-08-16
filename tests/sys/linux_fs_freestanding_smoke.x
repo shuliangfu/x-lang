@@ -18,7 +18,7 @@ function main(): i32 {
   }
   /* See implementation. */
   let path: u8[33] = [47, 116, 109, 112, 47, 120, 108, 97, 110, 103, 95, 110, 111, 108, 105, 98, 99, 95, 102, 115, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0, 0, 0, 0];
-  let h: heap.PageMmapHeap = heap.PageMmapHeap {
+  let h: heap.PageMmapHeap = {
     base: 0 as *u8,
     cap: 0 as usize,
     off: 0 as usize,

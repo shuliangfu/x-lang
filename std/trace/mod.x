@@ -86,7 +86,7 @@ extern function export_text_c(handle: i64, out: *u8, out_cap: i32): i32;
 export function new(): Trace {
   let h: i64 = 0;
   unsafe { h = create_c(); }
-  return Trace { handle: h };
+  return { handle: h };
 }
 
 /** Exported function `free`.
@@ -139,10 +139,10 @@ export function start(tr: *Trace, parent_id: i64, name: *u8, name_len: i32): Spa
   let zero: i64 = 0;
   let sid: i64 = zero;
   if (tr == 0 || tr.handle == zero || name == 0) {
-    return Span { id: zero };
+    return { id: zero };
   }
   unsafe { sid = start_span_c(tr.handle, parent_id, name, name_len); }
-  return Span { id: sid };
+  return { id: sid };
 }
 
 /** Exported function `start_child`.
@@ -156,10 +156,10 @@ export function start_child(tr: *Trace, name: *u8, name_len: i32): Span {
   let zero: i64 = 0;
   let sid: i64 = zero;
   if (tr == 0 || tr.handle == zero || name == 0) {
-    return Span { id: zero };
+    return { id: zero };
   }
   unsafe { sid = start_child_c(tr.handle, name, name_len); }
-  return Span { id: sid };
+  return { id: sid };
 }
 
 /** Exported function `end`.
@@ -220,7 +220,7 @@ export function attach(ctx: Context, tr: Trace): i32 {
 export function from_ctx(ctx: Context): Trace {
   let zero: i64 = 0;
   let h: i64 = zero;
-  let tr: Trace = Trace { handle: zero };
+  let tr: Trace = { handle: zero };
   let k: u8[6] = [116, 114, 97, 99, 101, 0];
   if (context.get_value(ctx, &k[0], &h) != 0) {
     tr.handle = h;
@@ -237,7 +237,7 @@ export function from_ctx(ctx: Context): Trace {
 export function hook_begin(tr: *Trace, name: *u8, name_len: i32): Span {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero || name == 0) {
-    return Span { id: zero };
+    return { id: zero };
   }
   return start_child(tr, name, name_len);
 }

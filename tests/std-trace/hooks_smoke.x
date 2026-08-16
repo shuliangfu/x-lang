@@ -13,7 +13,7 @@ function main(): i32 {
   let tr: Trace = trace.new();
   let ctx: Context = context.background();
   let ctx_bare: Context = context.background();
-  let root: Span = Span { id: zero };
+  let root: Span = { id: zero };
   let rt: AsyncRuntime = async_mod.runtime(ctx);
   let msg: u8[1] = [88];
   let cnt_before: i32 = 0;

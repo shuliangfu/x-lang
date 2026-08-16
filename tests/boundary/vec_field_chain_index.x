@@ -28,8 +28,8 @@ allow(padding) struct Wrap {
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let z: i32x4 = [0, 0, 0, 0];
-  let inner: Holder = Holder { v: z };
-  let w: Wrap = Wrap { h: inner };
+  let inner: Holder = { v: z };
+  let w: Wrap = { h: inner };
   w.h.v = a;
   if (w.h.v[0] != 1) { return 10; }
   if (w.h.v[1] != 2) { return 20; }

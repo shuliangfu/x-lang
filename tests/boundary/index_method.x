@@ -48,14 +48,14 @@ impl Pair {
  * @return i32 — 0 ok; 1..4 name the miss
  */
 function main(): i32 {
-  let a: [2]S = [S { v: 10 }, S { v: 32 }];
+  let a: [2]S = [{ v: 10 }, { v: 32 }];
   let i: i32 = 1;
   if (a[i].get() != 32) { return 1; }
   if (a[0].add(5) != 15) { return 2; }
-  let s: []S = [S { v: 1 }, S { v: 2 }, S { v: 3 }];
+  let s: []S = [{ v: 1 }, { v: 2 }, { v: 3 }];
   if (s[2].get() != 3) { return 3; }
   if (a[1].add(s[0].get()) != 33) { return 4; }
-  let p: [2]Pair = [Pair { a: 1, b: 2 }, Pair { a: 10, b: 42 }];
+  let p: [2]Pair = [{ a: 1, b: 2 }, { a: 10, b: 42 }];
   if (p[1].last() != 42) { return 5; }
   return 0;
 }

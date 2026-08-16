@@ -21,7 +21,7 @@ function main(): i32 {
   let n: i32 = 100000000;
   let s: i32 = 0;
   let i: i32 = 0;
-  let p: Pair = Pair { a: 0, b: 0 };
+  let p: Pair = { a: 0, b: 0 };
   while (i < n) {
     p.a = i;
     p.b = i + 1;

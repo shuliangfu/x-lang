@@ -15,7 +15,7 @@ enum Color { Red, Green, Blue }
 
 function main(): i32 {
   const X: Color = Color.Green;
-  let Y: i32 = match X {
+  let Y: i32 = match {
     Color.Red => 100;
     Color.Green => 200;
     Color.Blue => 300;

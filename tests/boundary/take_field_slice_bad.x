@@ -21,5 +21,5 @@ function take(s: []i32): i32 {
  * @return i32 — never reached
  */
 function main(): i32 {
-  return take(Wb { xs: [true, false] }.xs);
+  return take({ xs: [true, false] }.xs);
 }

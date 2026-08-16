@@ -11,7 +11,7 @@ impl W {
 }
 
 function main(): i32 {
-  let w: W = W { n: 0 };
+  let w: W = { n: 0 };
   let x: [][]i32 = [w.xs()];
   return x[0][0] + x[0][1] + 75;
 }

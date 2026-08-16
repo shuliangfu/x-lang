@@ -24,7 +24,7 @@ trait Quadable {
  */
 impl Quadable for i32 {
   function as_quad(self: i32): Quad {
-    return Quad { a: self + 0, b: self + 1, c: self + 2, d: self + 3 };
+    return { a: self + 0, b: self + 1, c: self + 2, d: self + 3 };
   }
 }
 
@@ -34,7 +34,7 @@ impl Quadable for i32 {
  * @return Quad — {x, x+1, x+2, x+3}
  */
 function mk_quad(x: i32): Quad {
-  return Quad { a: x + 0, b: x + 1, c: x + 2, d: x + 3 };
+  return { a: x + 0, b: x + 1, c: x + 2, d: x + 3 };
 }
 
 trait Copyable {
@@ -49,7 +49,7 @@ trait Copyable {
  */
 impl Copyable for i32 {
   function as_copy(self: i32): Quad {
-    return Quad { a: self, b: self, c: self, d: self };
+    return { a: self, b: self, c: self, d: self };
   }
 }
 
@@ -59,7 +59,7 @@ impl Copyable for i32 {
  * @return Quad — {x, x, x, x}
  */
 function mk_copy(x: i32): Quad {
-  return Quad { a: x, b: x, c: x, d: x };
+  return { a: x, b: x, c: x, d: x };
 }
 
 /**

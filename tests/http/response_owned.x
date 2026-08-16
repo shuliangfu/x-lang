@@ -9,12 +9,12 @@ function main(): i32 {
   let line: u8[48] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
     67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 52, 13, 10, 13, 10,
     116, 101, 115, 116, 0, 0, 0, 0, 0, 0, 0, 0];
-  let resp: HttpResponse = HttpResponse { status: 0, raw_len: 0, header_end: 0, body_len: 0, chunked: 0 };
+  let resp: HttpResponse = { status: 0, raw_len: 0, header_end: 0, body_len: 0, chunked: 0 };
   if (http.parse_response(&line[0], 42, &resp) != 42) { return 1; }
 
-  let owned: HttpResponseOwned = HttpResponseOwned {
+  let owned: HttpResponseOwned = {
     status: 0,
-    body: HttpBodyOwned { ptr: 0, length: 0 }
+    body: { ptr: 0, length: 0 }
   };
   if (http.response_owned_from_parse(&line[0], resp, &owned) != 4) { return 2; }
   if (owned.status != 200) { return 3; }
@@ -22,8 +22,8 @@ function main(): i32 {
   http.response_owned_free(&owned);
 
   http.push_last_reset();
-  let push_body: HttpBodyOwned = HttpBodyOwned { ptr: 0, length: 0 };
-  let meta: Http2PushLast = Http2PushLast { promised_stream_id: 0, body_len: 0 };
+  let push_body: HttpBodyOwned = { ptr: 0, length: 0 };
+  let meta: Http2PushLast = { promised_stream_id: 0, body_len: 0 };
   if (http.push_last_body_owned(&meta, &push_body) != 0) { return 5; }
   if (push_body.ptr != 0) { return 6; }
   http.body_owned_free(push_body);

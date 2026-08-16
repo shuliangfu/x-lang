@@ -8,7 +8,7 @@ const env = import("std.env");
  */
 function main(): i32 {
   let it: ArgsIter = env.args_iter();
-  let res: CliResult = CliResult {
+  let res: CliResult = {
     subcommand_len: 0, help: 0, version: 0, verbose: 0, unknown: 0, positional_count: 0,
     subcommand: [], positional0_len: 0, positional0: []
   };

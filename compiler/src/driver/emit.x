@@ -352,7 +352,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   // (data-first mega field) fail asm emit (empty ARRAY_LIT + field_mag / MAX_ELEMS).
   // Init only scalar fields via STRUCT_LIT; leave large array payloads uninit here —
   // ew_ensure_source_buffers / field stores fill what the path needs.
-  let ctx: PipelineDepCtx = PipelineDepCtx {
+  let ctx: PipelineDepCtx = {
     ndep: 0,
     entry_dir_len: 0,
     num_lib_roots: 0

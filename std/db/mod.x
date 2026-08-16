@@ -58,7 +58,7 @@ export function is_deprecated(): i32 {
  */
 export function open(path: *u8): DbConn {
   let _rc: DbConn = 0;
-  unsafe { _rc = DbConn { handle: db_open_c(path) }; }
+  unsafe { _rc = { handle: db_open_c(path) }; }
   return _rc;
 }
 

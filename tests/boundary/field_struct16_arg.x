@@ -30,6 +30,6 @@ export function take(a: Al, n: i32): i32 {
  * @return i32 — 42 on success
  */
 export function main(): i32 {
-  let h: Holder = Holder { a: Al { kind: 1, p: 0 as *u8 } };
+  let h: Holder = { a: { kind: 1, p: 0 as *u8 } };
   return take(h.a, 41);
 }

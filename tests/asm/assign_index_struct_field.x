@@ -17,6 +17,6 @@ function set_in(p: WithArr, i: i32, v: i32): i32 {
  * @return i32
  */
 function main(): i32 {
-  let w: WithArr = WithArr { arr: [5, 10, 15] };
+  let w: WithArr = { arr: [5, 10, 15] };
   return set_in(w, 1, 99);
 }

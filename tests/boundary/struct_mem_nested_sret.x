@@ -43,14 +43,14 @@ function id32(p: Quad): Quad {
  *   8..11 = 32B let-init; 12..15 = 32B 3-deep
  */
 function main(): i32 {
-  let t: Trip = Trip { a: 1, b: 2, c: 3 };
-  let u: Trip = Trip { a: 0, b: 0, c: 0 };
+  let t: Trip = { a: 1, b: 2, c: 3 };
+  let u: Trip = { a: 0, b: 0, c: 0 };
   u = id24(id24(t));
   if (u.a != 1) { return 1; }
   if (u.b != 2) { return 2; }
   if (u.c != 3) { return 3; }
-  let x: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
-  let y: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let x: Quad = { a: 1, b: 2, c: 3, d: 4 };
+  let y: Quad = { a: 0, b: 0, c: 0, d: 0 };
   y = id32(id32(x));
   if (y.a != 1) { return 4; }
   if (y.b != 2) { return 5; }
@@ -61,7 +61,7 @@ function main(): i32 {
   if (z.b != 2) { return 9; }
   if (z.c != 3) { return 10; }
   if (z.d != 4) { return 11; }
-  let w: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let w: Quad = { a: 0, b: 0, c: 0, d: 0 };
   w = id32(id32(id32(x)));
   if (w.a != 1) { return 12; }
   if (w.b != 2) { return 13; }

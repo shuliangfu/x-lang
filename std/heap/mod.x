@@ -211,7 +211,7 @@ allow(padding) struct Allocator {
  * @return Allocator
  */
 export function heap_alloc(): Allocator {
-  return Allocator { kind: kind_heap(), arena: 0 as *Arena64 };
+  return { kind: kind_heap(), arena: 0 as *Arena64 };
 }
 
 /** Exported function `from_arena`.
@@ -220,7 +220,7 @@ export function heap_alloc(): Allocator {
  * @return Allocator
  */
 export function from_arena(a: *Arena64): Allocator {
-  return Allocator { kind: kind_arena(), arena: a };
+  return { kind: kind_arena(), arena: a };
 }
 
 /**
@@ -299,7 +299,7 @@ export function bump(al: Allocator, size: usize): *u8 {
  * @return Arena64
  */
 export function arena64_empty(): Arena64 {
-  return Arena64 { chunk: 0 as *u8, cap: 0, off: 0 };
+  return { chunk: 0 as *u8, cap: 0, off: 0 };
 }
 
 /**

@@ -6,10 +6,10 @@
 
 trait Clone { function clone(self): i32; }
 struct A { n: i32 }
-impl Clone for A { function clone(self: A): i32 { return self.n; } }
+impl Clone for { function clone(self: A): i32 { return self.n; } }
 struct Foo<T: Clone> { x: T }
 function main(): i32 {
-  let a: A = A { n: 42 };
-  let f: Foo<A> = Foo { x: a };
+  let a: A = { n: 42 };
+  let f: Foo<A> = { x: a };
   return f.x.n;
 }

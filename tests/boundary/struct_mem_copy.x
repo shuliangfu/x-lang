@@ -24,7 +24,7 @@ allow(padding) struct Quad {
  * @return Quad — same quad after VAR assign copy
  */
 function via_assign(p: Quad): Quad {
-  let y: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let y: Quad = { a: 0, b: 0, c: 0, d: 0 };
   y = p;
   return y;
 }
@@ -35,14 +35,14 @@ function via_assign(p: Quad): Quad {
  *   8..11 = 32B let-init; 12..15 = param assign
  */
 function main(): i32 {
-  let t: Trip = Trip { a: 1, b: 2, c: 3 };
-  let u: Trip = Trip { a: 0, b: 0, c: 0 };
+  let t: Trip = { a: 1, b: 2, c: 3 };
+  let u: Trip = { a: 0, b: 0, c: 0 };
   u = t;
   if (u.a != 1) { return 1; }
   if (u.b != 2) { return 2; }
   if (u.c != 3) { return 3; }
-  let x: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
-  let y: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let x: Quad = { a: 1, b: 2, c: 3, d: 4 };
+  let y: Quad = { a: 0, b: 0, c: 0, d: 0 };
   y = x;
   if (y.a != 1) { return 4; }
   if (y.b != 2) { return 5; }

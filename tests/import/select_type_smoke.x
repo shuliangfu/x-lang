@@ -6,6 +6,6 @@ const driver = import("std.io.driver");
  * @return i32
  */
 function main(): i32 {
-  let buf: Buffer = Buffer { ptr: 0, length: 0, handle: 0 };
+  let buf: Buffer = { ptr: 0, length: 0, handle: 0 };
   return if (buf.length == 0) { 0 } else { 1 };
 }

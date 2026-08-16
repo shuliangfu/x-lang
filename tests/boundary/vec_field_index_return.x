@@ -77,12 +77,12 @@ function ret_depth1(h: Holder, i: i32): i32 {
 
 /**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
- * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `Wrap { h: inner }`,
+ * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
  * (`[w]` / `[h]`), INDEX-base FIELD dest-in-rbx `*p = arr[i].h`,
  * dest-in-rbx INDEX whole `*p = arr[i]`, dest-in-rbx DEREF
- * source `*p = *q`, STRUCT_LIT FIELD source `Wrap { h: w.h }`,
- * and dest-in-rbx STRUCT_LIT `*p = Wrap { h: w.h }` write/read
+ * source `*p = *q`, STRUCT_LIT FIELD source `let w5: Wrap = { h: w.h }`,
+ * and dest-in-rbx STRUCT_LIT `*p = { h: w.h }` write/read
  * every lane.
  * Depth-1 `return h.v[1]` local lit is the same typeck (already 2).
  * @return i32 — 0 ok; 50/51/52/53 slit; 10/20/30/40 dest; 11/21/31/41 return;
@@ -98,8 +98,8 @@ function ret_depth1(h: Holder, i: i32): i32 {
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let z: i32x4 = [0, 0, 0, 0];
-  let inner: Holder = Holder { v: a };
-  let w: Wrap = Wrap { h: inner };
+  let inner: Holder = { v: a };
+  let w: Wrap = { h: inner };
   if (w.h.v[0] != 1) { return 50; }
   if (w.h.v[1] != 2) { return 51; }
   if (w.h.v[2] != 3) { return 52; }
@@ -131,13 +131,13 @@ function main(): i32 {
   if (ret_depth1(h, 1) != 2) { return 25; }
   if (ret_depth1(h, 2) != 3) { return 35; }
   if (ret_depth1(h, 3) != 4) { return 45; }
-  let h2: Holder = Holder { v: z };
+  let h2: Holder = { v: z };
   h2 = w.h;
   if (h2.v[0] != 1) { return 14; }
   if (h2.v[1] != 2) { return 24; }
   if (h2.v[2] != 3) { return 34; }
   if (h2.v[3] != 4) { return 44; }
-  let dst: Holder = Holder { v: z };
+  let dst: Holder = { v: z };
   let p: *Holder = &dst;
   unsafe { *p = w.h }
   if (dst.v[0] != 1) { return 16; }
@@ -154,9 +154,9 @@ function main(): i32 {
   if (arrh[0].v[1] != 2) { return 28; }
   if (arrh[0].v[2] != 3) { return 38; }
   if (arrh[0].v[3] != 4) { return 48; }
-  let arr: [2]Wrap = [Wrap { h: Holder { v: z } }, Wrap { h: Holder { v: z } }];
+  let arr: [2]Wrap = [{ h: { v: z } }, { h: { v: z } }];
   arr[0] = w;
-  let dst2: Holder = Holder { v: z };
+  let dst2: Holder = { v: z };
   let p2: *Holder = &dst2;
   let i: i32 = 0;
   unsafe { *p2 = arr[i].h }
@@ -164,14 +164,14 @@ function main(): i32 {
   if (dst2.v[1] != 2) { return 29; }
   if (dst2.v[2] != 3) { return 39; }
   if (dst2.v[3] != 4) { return 49; }
-  let dst3: Wrap = Wrap { h: Holder { v: z } };
+  let dst3: Wrap = { h: { v: z } };
   let p3: *Wrap = &dst3;
   unsafe { *p3 = arr[i] }
   if (dst3.h.v[0] != 1) { return 60; }
   if (dst3.h.v[1] != 2) { return 61; }
   if (dst3.h.v[2] != 3) { return 62; }
   if (dst3.h.v[3] != 4) { return 63; }
-  let dst4: Wrap = Wrap { h: Holder { v: z } };
+  let dst4: Wrap = { h: { v: z } };
   let q4: *Wrap = &arr[0];
   let p4: *Wrap = &dst4;
   unsafe { *p4 = *q4 }
@@ -179,14 +179,14 @@ function main(): i32 {
   if (dst4.h.v[1] != 2) { return 71; }
   if (dst4.h.v[2] != 3) { return 72; }
   if (dst4.h.v[3] != 4) { return 73; }
-  let w5: Wrap = Wrap { h: w.h };
+  let w5: Wrap = { h: w.h };
   if (w5.h.v[0] != 1) { return 80; }
   if (w5.h.v[1] != 2) { return 81; }
   if (w5.h.v[2] != 3) { return 82; }
   if (w5.h.v[3] != 4) { return 83; }
-  let dst5: Wrap = Wrap { h: Holder { v: z } };
+  let dst5: Wrap = { h: { v: z } };
   let p5: *Wrap = &dst5;
-  unsafe { *p5 = Wrap { h: w.h } }
+  unsafe { *p5 = { h: w.h } }
   if (dst5.h.v[0] != 1) { return 84; }
   if (dst5.h.v[1] != 2) { return 85; }
   if (dst5.h.v[2] != 3) { return 86; }

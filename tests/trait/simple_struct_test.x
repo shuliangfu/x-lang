@@ -5,7 +5,7 @@
 struct Counter { value: i32, }
 
 function main(): i32 {
-  let c: Counter = Counter { value: 10 };
-  let d: Counter = Counter { value: c.value + 1 };
+  let c: Counter = { value: 10 };
+  let d: Counter = { value: c.value + 1 };
   return d.value;
 }

@@ -20,10 +20,10 @@ trait GetX {
   }
 }
 
-impl GetX for Point {
+impl GetX for {
 }
 
 function main(): i32 {
-  let p: Point = Point { x: 7, y: 9 };
+  let p: Point = { x: 7, y: 9 };
   return p.get_x();
 }

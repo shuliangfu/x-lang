@@ -16,9 +16,9 @@ trait Incrementable {
  * @param self Pair — receiver
  * @return Pair — { a+1, b+1 }
  */
-impl Incrementable for Pair {
+impl Incrementable for {
   function increment(self: Pair): Pair {
-    return Pair { a: self.a + 1, b: self.b + 1 };
+    return { a: self.a + 1, b: self.b + 1 };
   }
 }
 
@@ -29,7 +29,7 @@ impl Incrementable for Pair {
  * @return Pair — { x, y }
  */
 function mk(x: i32, y: i32): Pair {
-  return Pair { a: x, b: y };
+  return { a: x, b: y };
 }
 
 trait Pairable {
@@ -43,7 +43,7 @@ trait Pairable {
  */
 impl Pairable for i32 {
   function as_pair(self: i32): Pair {
-    return Pair { a: self, b: self };
+    return { a: self, b: self };
   }
 }
 
@@ -56,9 +56,9 @@ trait Originable {
  * @param self Pair — ignored
  * @return Pair — { 0, 0 }
  */
-impl Originable for Pair {
+impl Originable for {
   function origin(self: Pair): Pair {
-    return Pair { a: 0, b: 0 };
+    return { a: 0, b: 0 };
   }
 }
 
@@ -82,7 +82,7 @@ trait Wideable {
  */
 impl Wideable for i32 {
   function as_wide(self: i32): Wide {
-    return Wide { a: self + 0, b: self + 1, c: self + 2, d: self + 3, e: self + 4 };
+    return { a: self + 0, b: self + 1, c: self + 2, d: self + 3, e: self + 4 };
   }
 }
 
@@ -92,7 +92,7 @@ impl Wideable for i32 {
  * @return Wide
  */
 function mk_wide(x: i32): Wide {
-  return Wide { a: x + 0, b: x + 1, c: x + 2, d: x + 3, e: x + 4 };
+  return { a: x + 0, b: x + 1, c: x + 2, d: x + 3, e: x + 4 };
 }
 
 trait Firstable {
@@ -104,7 +104,7 @@ trait Firstable {
  * @param self Pair — receiver whose `.a` is loaded
  * @return i32 — self.a
  */
-impl Firstable for Pair {
+impl Firstable for {
   function first(self: Pair): i32 {
     return self.a;
   }
@@ -128,7 +128,7 @@ trait Summable {
  * @param self Pair — receiver whose `.a` and `.b` are loaded then added
  * @return i32 — self.a + self.b
  */
-impl Summable for Pair {
+impl Summable for {
   function pair_sum(self: Pair): i32 {
     return self.a + self.b;
   }
@@ -252,7 +252,7 @@ impl VecAdd4able for i32x4 {
  * @return i32 — 0 ok
  */
 function main(): i32 {
-  let p: Pair = Pair { a: 10, b: 20 };
+  let p: Pair = { a: 10, b: 20 };
   /* METHOD-rooted field: glue_field_access_call_base_rvalue must size + materialise 49. */
   if (p.increment().a != 11) { return 1; }
   if (p.increment().b != 21) { return 2; }

@@ -46,7 +46,7 @@ function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let b: i32x4 = [10, 20, 30, 40];
   let z: i32x4 = [0, 0, 0, 0];
-  let p: Prefixed = Prefixed { tag: 7, v: a };
+  let p: Prefixed = { tag: 7, v: a };
   if (p.tag != 7) { return 70; }
   let t: i32x4 = p.v;
   if (t[0] != 1) { return 1; }
@@ -76,8 +76,8 @@ function main(): i32 {
   if (w[1] != 22) { return 32; }
   if (w[2] != 33) { return 33; }
   if (w[3] != 44) { return 34; }
-  let inner: Holder = Holder { v: z };
-  let ph: PrefixedH = PrefixedH { tag: 9, h: inner };
+  let inner: Holder = { v: z };
+  let ph: PrefixedH = { tag: 9, h: inner };
   if (ph.tag != 9) { return 80; }
   ph.h.v = a;
   if (ph.tag != 9) { return 81; }

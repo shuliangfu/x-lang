@@ -117,7 +117,7 @@ export extern function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitStat
  * See implementation.
  */
 export function driver_emit_state_default(): DriverXEmitState {
-  return DriverXEmitState {
+  return {
     path_buf: [],
     path_len: 0,
     emit_extern_imports: 0,
@@ -130,7 +130,7 @@ export function driver_emit_state_default(): DriverXEmitState {
  * See implementation.
  */
 export function pipeline_dep_ctx_for_emit(use_asm: i32, target: i32): PipelineDepCtx {
-  let ctx: PipelineDepCtx = PipelineDepCtx {
+  let ctx: PipelineDepCtx = {
     ndep: 0,
     entry_dir_buf: [],
     entry_dir_len: 0,

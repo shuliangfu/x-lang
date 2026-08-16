@@ -14,7 +14,7 @@ function main(): i32 {
   let line: u8[48] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
     67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 52, 13, 10, 13, 10,
     116, 101, 115, 116, 0, 0, 0, 0, 0, 0, 0, 0];
-  let resp: HttpResponse = HttpResponse { status: 0, raw_len: 0, header_end: 0, body_len: 0, chunked: 0 };
+  let resp: HttpResponse = { status: 0, raw_len: 0, header_end: 0, body_len: 0, chunked: 0 };
   let n: i32 = http.parse_response(&line[0], 42, &resp);
   if (n != 42) { return 3; }
   if (resp.status != 200) { return 4; }
@@ -25,7 +25,7 @@ function main(): i32 {
   let view: HttpBodyView = http.response_body_view(&line[0], resp);
   if (view.length != 4) { return 8; }
 
-  let owned: HttpBodyOwned = HttpBodyOwned { ptr: 0, length: 0 };
+  let owned: HttpBodyOwned = { ptr: 0, length: 0 };
   let blen: i32 = http.response_body_owned(&line[0], resp, &owned);
   if (blen != 4) { return 9; }
   if (owned.length != 4) { return 10; }
@@ -33,7 +33,7 @@ function main(): i32 {
 
   let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
     109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let req: HttpRequest = HttpRequest { method: http.method(2), url: &url[0], url_len: 19, body: 0, body_len: 0, timeout_ms: 0 };
+  let req: HttpRequest = { method: http.method(2), url: &url[0], url_len: 19, body: 0, body_len: 0, timeout_ms: 0 };
   let out: u8[4096] = [];
   let got: i32 = http.execute(req, &out[0], 4096, &resp);
   if (got >= 0) {
@@ -44,7 +44,7 @@ function main(): i32 {
   let cancelled: Context = context.with_cancel(bg);
   context.cancel(cancelled);
   let short_url: u8[11] = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
-  let req2: HttpRequest = HttpRequest { method: http.method(0), url: &short_url[0], url_len: 10, body: 0, body_len: 0, timeout_ms: 0 };
+  let req2: HttpRequest = { method: http.method(0), url: &short_url[0], url_len: 10, body: 0, body_len: 0, timeout_ms: 0 };
   if (http.execute_ctx(req2, &out[0], 4096, &resp, cancelled) != err.http_err_cancelled()) { return 12; }
   context.free(cancelled);
 

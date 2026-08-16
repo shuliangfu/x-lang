@@ -35,7 +35,7 @@ function main(): i32 {
     return 5;
   }
 
-  let stream: WsStream = WsStream { fd: -1, tls_ctx: 0 };
+  let stream: WsStream = { fd: -1, tls_ctx: 0 };
   let payload: u8[3] = [97, 98, 99];
   let wr: i32 = ws.ws_write_text_ctx(stream, &payload[0], 3, cancelled);
   if (wr != err.net_err_cancelled()) {

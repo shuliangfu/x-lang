@@ -53,25 +53,25 @@ function via_slc16(xs: []Pair, x: Pair): i32 {
  * @return i32 — 0 ok; 1..14 fail
  */
 function main(): i32 {
-  let x: Pair = Pair { a: 1, b: 2 };
-  let q: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
-  let arr16: [2]Pair = [ Pair { a: 0, b: 0 }, Pair { a: 9, b: 9 } ];
+  let x: Pair = { a: 1, b: 2 };
+  let q: Quad = { a: 1, b: 2, c: 3, d: 4 };
+  let arr16: [2]Pair = [ { a: 0, b: 0 }, { a: 9, b: 9 } ];
   arr16[0] = id16(x);
   if (arr16[0].a != 1) { return 3; }
   if (arr16[0].b != 2) { return 4; }
   if (arr16[1].a != 9) { return 5; }
-  let arr16c: [2]Pair = [ Pair { a: 0, b: 0 }, Pair { a: 9, b: 9 } ];
+  let arr16c: [2]Pair = [ { a: 0, b: 0 }, { a: 9, b: 9 } ];
   arr16c[0] = x;
   if (arr16c[0].a != 1) { return 6; }
   if (arr16c[0].b != 2) { return 7; }
   if (arr16c[1].a != 9) { return 8; }
-  let slc: [2]Pair = [ Pair { a: 0, b: 0 }, Pair { a: 9, b: 9 } ];
+  let slc: [2]Pair = [ { a: 0, b: 0 }, { a: 9, b: 9 } ];
   let rc: i32 = via_slc16(slc, x);
   if (rc != 0) { return rc; }
   if (slc[1].a != 9) { return 9; }
   let arr32: [2]Quad = [
-    Quad { a: 0, b: 0, c: 0, d: 0 },
-    Quad { a: 9, b: 9, c: 9, d: 9 }
+    { a: 0, b: 0, c: 0, d: 0 },
+    { a: 9, b: 9, c: 9, d: 9 }
   ];
   arr32[0] = id32(q);
   if (arr32[0].a != 1) { return 10; }

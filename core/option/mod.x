@@ -32,13 +32,13 @@ export struct Option_i32 {
 // none_i32
 /** `none_i32`: see signature for params/returns; contracts in body. */
 export function none_i32(): Option_i32 {
-  return Option_i32 { is_some: false, value: 0 }
+  return { is_some: false, value: 0 }
 }
 
 // some_i32
 /** `some_i32`: see signature for params/returns; contracts in body. */
 export function some_i32(x: i32): Option_i32 {
-  return Option_i32 { is_some: true, value: x }
+  return { is_some: true, value: x }
 }
 
 // unwrap_or_i32
@@ -95,9 +95,9 @@ allow(padding) struct Option_u8 {
   value: u8;
 }
 /** `none_u8`: see signature for params/returns; contracts in body. */
-export function none_u8(): Option_u8 { return Option_u8 { is_some: false, value: 0 } }
+export function none_u8(): Option_u8 { return { is_some: false, value: 0 } }
 /** `some_u8`: see signature for params/returns; contracts in body. */
-export function some_u8(x: u8): Option_u8 { return Option_u8 { is_some: true, value: x } }
+export function some_u8(x: u8): Option_u8 { return { is_some: true, value: x } }
 /** `unwrap_or_u8`: see signature for params/returns; contracts in body. */
 export function unwrap_or_u8(opt: Option_u8, default_val: u8): u8 {
   if (opt.is_some) {
@@ -139,10 +139,10 @@ allow(padding) struct Option_u64 {
 }
 
 /** `none_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function none_u64(): Option_u64 { return Option_u64 { is_some: false, value: 0 } }
+export function none_u64(): Option_u64 { return { is_some: false, value: 0 } }
 
 /** `some_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function some_u64(x: u64): Option_u64 { return Option_u64 { is_some: true, value: x } }
+export function some_u64(x: u64): Option_u64 { return { is_some: true, value: x } }
 
 // --- section ---
 
@@ -186,12 +186,12 @@ allow(padding) struct Option_ptr_u8 {
 
 /** `none_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function none_ptr_u8(): Option_ptr_u8 {
-  return Option_ptr_u8 { is_some: false, value: 0 as *u8 };
+  return { is_some: false, value: 0 as *u8 };
 }
 
 /** `some_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function some_ptr_u8(ptr: *u8): Option_ptr_u8 {
-  return Option_ptr_u8 { is_some: true, value: ptr };
+  return { is_some: true, value: ptr };
 }
 
 /** `map_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */

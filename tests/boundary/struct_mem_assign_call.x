@@ -43,7 +43,7 @@ function id32(p: Quad): Quad {
  * @return Quad — id32(p)
  */
 function outer32(p: Quad): Quad {
-  let t: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let t: Quad = { a: 0, b: 0, c: 0, d: 0 };
   t = id32(p);
   return t;
 }
@@ -53,20 +53,20 @@ function outer32(p: Quad): Quad {
  * @return i32 — 0 ok; 1..3 = 24B; 4..7 = 32B; 8..11 = nested 32B
  */
 function main(): i32 {
-  let t: Trip = Trip { a: 1, b: 2, c: 3 };
-  let u: Trip = Trip { a: 0, b: 0, c: 0 };
+  let t: Trip = { a: 1, b: 2, c: 3 };
+  let u: Trip = { a: 0, b: 0, c: 0 };
   u = id24(t);
   if (u.a != 1) { return 1; }
   if (u.b != 2) { return 2; }
   if (u.c != 3) { return 3; }
-  let x: Quad = Quad { a: 1, b: 2, c: 3, d: 4 };
-  let y: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let x: Quad = { a: 1, b: 2, c: 3, d: 4 };
+  let y: Quad = { a: 0, b: 0, c: 0, d: 0 };
   y = id32(x);
   if (y.a != 1) { return 4; }
   if (y.b != 2) { return 5; }
   if (y.c != 3) { return 6; }
   if (y.d != 4) { return 7; }
-  let z: Quad = Quad { a: 0, b: 0, c: 0, d: 0 };
+  let z: Quad = { a: 0, b: 0, c: 0, d: 0 };
   z = outer32(x);
   if (z.a != 1) { return 8; }
   if (z.b != 2) { return 9; }

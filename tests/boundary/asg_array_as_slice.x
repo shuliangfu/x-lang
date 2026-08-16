@@ -19,12 +19,12 @@ function main(): i32 {
   if (s.length != 2) { return 1; }
   if (s[0] != 10) { return 2; }
   if (s[1] != 32) { return 3; }
-  let w: W = W { xs: [10, 32] };
+  let w: W = { xs: [10, 32] };
   s = w.xs;
   if (s.length != 2) { return 4; }
   if (s[0] != 10) { return 5; }
   if (s[1] != 32) { return 6; }
-  s = W { xs: [10, 32] }.xs;
+  s = { xs: [10, 32] }.xs;
   if (s.length != 2) { return 7; }
   if (s[0] != 10) { return 8; }
   if (s[1] != 32) { return 9; }

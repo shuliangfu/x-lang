@@ -4,7 +4,7 @@
 // PLATFORM: SHARED — Ubuntu gold.
 
 trait Clone { function clone(self): i32; }
-function mk(): dyn Clone { return 0; }
+function mk(): dyn { return 0; }
 function main(): i32 {
   return 7;
 }

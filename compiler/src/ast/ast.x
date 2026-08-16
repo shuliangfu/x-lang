@@ -650,7 +650,7 @@ export function ast_placeholder(): i32 {
  * See implementation.
  */
 export function expr_layout_prime_call_resolved(): void {
-  let _tail: Expr = Expr {
+  let _tail: Expr = {
     kind: ExprKind.EXPR_LIT,
     resolved_type_ref: 0,
     line: 0,
@@ -670,7 +670,7 @@ export function expr_layout_prime_call_resolved(): void {
  */
 export function func_layout_prime_generic_params(): void {
   let name0: u8[128] = [];
-  let f0: Func = Func {
+  let f0: Func = {
     name: name0,
     name_len: 0,
     param_base: 0,

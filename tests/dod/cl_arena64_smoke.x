@@ -10,7 +10,7 @@ const heap = import("std.heap");
  */
 function main(): i32 {
   /* See implementation. */
-  let a: Arena64 = Arena64 { chunk: 0 as *u8, cap: 0 as usize, off: 0 as usize };
+  let a: Arena64 = { chunk: 0 as *u8, cap: 0 as usize, off: 0 as usize };
   if (heap.arena64_init(&a, 4096) != 0) {
     return 1;
   }

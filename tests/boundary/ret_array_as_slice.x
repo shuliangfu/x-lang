@@ -22,7 +22,7 @@ function from_var(): []i32 {
  * @return []i32 — fat over a durable copy of w.xs
  */
 function from_field(): []i32 {
-  let w: W = W { xs: [10, 32] };
+  let w: W = { xs: [10, 32] };
   return w.xs;
 }
 
@@ -31,7 +31,7 @@ function from_field(): []i32 {
  * @return []i32 — fat over a durable copy of W{}.xs
  */
 function from_lit(): []i32 {
-  return W { xs: [10, 32] }.xs;
+  return { xs: [10, 32] }.xs;
 }
 
 /**

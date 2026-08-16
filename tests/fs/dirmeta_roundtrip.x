@@ -32,7 +32,7 @@ function main(): i32 {
   let inner_name: u8[11] = [105, 110, 110, 101, 114, 46, 116, 120, 116, 0, 0];
   let payload: u8[5] = [83, 72, 85, 33, 0];
   let pay_len: usize = 4 as usize;
-  let st: FsStatOut = FsStatOut { size: 0, mode: 0, is_dir: 0, is_file: 0, mtime_sec: 0 };
+  let st: FsStatOut = { size: 0, mode: 0, is_dir: 0, is_file: 0, mtime_sec: 0 };
   let fd: i32 = 0;
   let dh: i64 = 0;
   let name_buf: u8[64] = [];

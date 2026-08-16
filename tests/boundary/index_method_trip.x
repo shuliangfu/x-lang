@@ -33,7 +33,7 @@ function take_t(t: Trip): i32 {
  * @return i32 — 0 ok; 1..4 name the miss
  */
 function main(): i32 {
-  let a: [2]Trip = [Trip { a: 1, b: 2, c: 3 }, Trip { a: 4, b: 5, c: 42 }];
+  let a: [2]Trip = [{ a: 1, b: 2, c: 3 }, { a: 4, b: 5, c: 42 }];
   if (a[1].last() != 42) { return 1; }
   if (take_t(a[1]) != 42) { return 2; }
   let t: Trip = a[1];

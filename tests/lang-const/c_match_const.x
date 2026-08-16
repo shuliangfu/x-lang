@@ -5,7 +5,7 @@
  */
 function main(): i32 {
   const X: i32 = 2;
-  let Y: i32 = match X {
+  let Y: i32 = match {
     1 => 10;
     2 => 20;
     3 => 30;

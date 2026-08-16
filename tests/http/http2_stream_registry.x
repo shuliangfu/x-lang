@@ -9,7 +9,7 @@ function main(): i32 {
   if (http.registry_smoke() != 0) { return 1; }
   if (http.registry_max() != 8) { return 2; }
 
-  let reg: Http2StreamRegistry = Http2StreamRegistry {
+  let reg: Http2StreamRegistry = {
     slots_blob: [],
     count: 0,
     next_id: 0

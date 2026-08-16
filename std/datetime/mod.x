@@ -79,7 +79,7 @@ export function now_utc(): DateTime {
   unsafe {
     datetime_now_utc_c(&sec, &nsec);
   }
-  return DateTime { sec: sec, nsec: nsec };
+  return { sec: sec, nsec: nsec };
 }
 
 /** Exported function `from_unix`.
@@ -89,7 +89,7 @@ export function now_utc(): DateTime {
  * @return DateTime
  */
 export function from_unix(sec: i64, nsec: i32): DateTime {
-  return DateTime { sec: sec, nsec: nsec };
+  return { sec: sec, nsec: nsec };
 }
 
 /** Exported function `from_utc_fields`.
@@ -102,10 +102,10 @@ export function from_utc_fields(f: DateFields): DateTime {
   let nsec: i32 = 0;
   unsafe {
     if (datetime_from_utc_fields_c(f.year, f.month, f.day, f.hour, f.minute, f.second, f.nsec, &sec, &nsec) != 0) {
-      return DateTime { sec: -1, nsec: 0 };
+      return { sec: -1, nsec: 0 };
     }
   }
-  return DateTime { sec: sec, nsec: nsec };
+  return { sec: sec, nsec: nsec };
 }
 
 /** Exported function `to_utc_fields`.
@@ -123,7 +123,7 @@ export function to_utc_fields(t: DateTime): DateFields {
   unsafe {
     datetime_utc_fields_c(t.sec, &y, &mo, &d, &h, &mi, &s);
   }
-  return DateFields { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
+  return { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
 }
 
 /** Exported function `compare`.
@@ -211,7 +211,7 @@ export function to_local_fields(t: DateTime, offset_min: i32): DateFields {
   unsafe {
     datetime_local_fields_c(t.sec, offset_min, &y, &mo, &d, &h, &mi, &s);
   }
-  return DateFields { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
+  return { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
 }
 
 /** Exported function `duration_from_ns`.
@@ -220,7 +220,7 @@ export function to_local_fields(t: DateTime, offset_min: i32): DateFields {
  * @return Duration
  */
 export function duration_from_ns(ns: i64): Duration {
-  return Duration { ns: ns };
+  return { ns: ns };
 }
 
 /** Exported function `duration_from_sec`.
@@ -229,7 +229,7 @@ export function duration_from_ns(ns: i64): Duration {
  * @return Duration
  */
 export function duration_from_sec(s: i64): Duration {
-  return Duration { ns: s * 1000000000 };
+  return { ns: s * 1000000000 };
 }
 
 /** Exported function `duration_between`.
@@ -243,7 +243,7 @@ export function duration_between(a: DateTime, b: DateTime): Duration {
   unsafe {
     ns = datetime_duration_between_ns_c(a.sec, a.nsec, b.sec, b.nsec);
   }
-  return Duration { ns: ns };
+  return { ns: ns };
 }
 
 /** Exported function `add_duration`.
@@ -257,10 +257,10 @@ export function add_duration(t: DateTime, d: Duration): DateTime {
   let nsec: i32 = 0;
   unsafe {
     if (datetime_add_duration_ns_c(t.sec, t.nsec, d.ns, &sec, &nsec) != 0) {
-      return DateTime { sec: -1, nsec: 0 };
+      return { sec: -1, nsec: 0 };
     }
   }
-  return DateTime { sec: sec, nsec: nsec };
+  return { sec: sec, nsec: nsec };
 }
 
 /** Exported function `duration_sleep`.
@@ -279,7 +279,7 @@ export function duration_sleep(d: Duration): void {
  * @return Duration
  */
 export function duration_from_monotonic(from_ns: i64, to_ns: i64): Duration {
-  return Duration { ns: time.duration_ns(from_ns, to_ns) };
+  return { ns: time.duration_ns(from_ns, to_ns) };
 }
 
 // See implementation.
@@ -295,7 +295,7 @@ allow(padding) struct TimeZone {
  * @return TimeZone
  */
 export function timezone_utc(): TimeZone {
-  return TimeZone { offset_min: 0, iana_id: 0 };
+  return { offset_min: 0, iana_id: 0 };
 }
 
 /** Exported function `timezone_local`.
@@ -303,7 +303,7 @@ export function timezone_utc(): TimeZone {
  * @return TimeZone
  */
 export function timezone_local(): TimeZone {
-  return TimeZone { offset_min: local_offset_min(), iana_id: -1 };
+  return { offset_min: local_offset_min(), iana_id: -1 };
 }
 
 /** Exported function `timezone_fixed`.
@@ -312,7 +312,7 @@ export function timezone_local(): TimeZone {
  * @return TimeZone
  */
 export function timezone_fixed(offset_min: i32): TimeZone {
-  return TimeZone { offset_min: offset_min, iana_id: -1 };
+  return { offset_min: offset_min, iana_id: -1 };
 }
 
 /**
@@ -400,18 +400,18 @@ export function from_zoned_fields(f: DateFields, tz: TimeZone): DateTime {
     unsafe {
       if (datetime_from_iana_zoned_fields_c(tz.iana_id, f.year, f.month, f.day, f.hour, f.minute, f.second, f.nsec,
           &sec, &nsec) != 0) {
-        return DateTime { sec: -1, nsec: 0 };
+        return { sec: -1, nsec: 0 };
       }
     }
-    return DateTime { sec: sec, nsec: nsec };
+    return { sec: sec, nsec: nsec };
   }
   unsafe {
     if (datetime_from_zoned_fields_c(f.year, f.month, f.day, f.hour, f.minute, f.second, f.nsec,
         tz.offset_min, &sec, &nsec) != 0) {
-      return DateTime { sec: -1, nsec: 0 };
+      return { sec: -1, nsec: 0 };
     }
   }
-  return DateTime { sec: sec, nsec: nsec };
+  return { sec: sec, nsec: nsec };
 }
 
 /** Exported function `iana_dst_smoke`.

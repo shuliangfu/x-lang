@@ -22,11 +22,11 @@ impl S {
 }
 
 function main(): i32 {
-  let a: [2]S = [S { v: 10 }, S { v: 32 }];
+  let a: [2]S = [{ v: 10 }, { v: 32 }];
   let i: i32 = 1;
   let r1: i32 = a[i].get();
   let r2: i32 = a[0].add(5);
-  let s: []S = [S { v: 1 }, S { v: 2 }, S { v: 3 }];
+  let s: []S = [{ v: 1 }, { v: 2 }, { v: 3 }];
   let r3: i32 = s[2].get();
   let r4: i32 = a[1].add(s[0].get());
   return r1 + r2 + r3 + r4 - 83;

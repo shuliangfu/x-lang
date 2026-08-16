@@ -25,7 +25,7 @@ function id16(p: Pair): Pair {
  * @return Pair — {a+1, b+2}
  */
 function inner(p: Pair): Pair {
-  return Pair { a: p.a + 1, b: p.b + 2 };
+  return { a: p.a + 1, b: p.b + 2 };
 }
 
 /**
@@ -34,7 +34,7 @@ function inner(p: Pair): Pair {
  * @return Pair — inner(p)
  */
 function outer(p: Pair): Pair {
-  let t: Pair = Pair { a: 0, b: 0 };
+  let t: Pair = { a: 0, b: 0 };
   t = inner(p);
   return t;
 }
@@ -44,12 +44,12 @@ function outer(p: Pair): Pair {
  * @return i32 — 0 ok; 1..2 simple assign; 3..4 nested assign
  */
 function main(): i32 {
-  let x: Pair = Pair { a: 11, b: 22 };
-  let y: Pair = Pair { a: 0, b: 0 };
+  let x: Pair = { a: 11, b: 22 };
+  let y: Pair = { a: 0, b: 0 };
   y = id16(x);
   if (y.a != 11) { return 1; }
   if (y.b != 22) { return 2; }
-  let z: Pair = Pair { a: 0, b: 0 };
+  let z: Pair = { a: 0, b: 0 };
   z = outer(x);
   if (z.a != 12) { return 3; }
   if (z.b != 24) { return 4; }

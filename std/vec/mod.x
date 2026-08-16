@@ -51,7 +51,7 @@ allow(padding) struct Vec_i32 {
  * @return Vec_i32
  */
 export function new(): Vec_i32 {
-  return Vec_i32 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
+  return { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -266,13 +266,13 @@ export function extend(v: *Vec_i32, ptr: *i32, n: i32): i32 {
 export function from_slice(ptr: *i32, n: i32): Vec_i32 {
   let v: Vec_i32 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_i32 { ptr: 0, length: -1, cap: 0, al: heap.default_alloc() }; }
+  if (with_capacity(&v, n) != 0) { return { ptr: 0, length: -1, cap: 0, al: heap.default_alloc() }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.length = n;
     return v;
   }
-  return Vec_i32 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
+  return { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `ptr`.
  * Implements `ptr`.
@@ -306,7 +306,7 @@ allow(padding) struct Vec_u8 {
  * @return Vec_u8
  */
 export function new(): Vec_u8 {
-  return Vec_u8 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
+  return { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -516,13 +516,13 @@ export function extend(v: *Vec_u8, ptr: *u8, n: i32): i32 {
 export function from_slice(ptr: *u8, n: i32): Vec_u8 {
   let v: Vec_u8 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_u8 { ptr: 0, length: -1, cap: 0, al: heap.default_alloc() }; }
+  if (with_capacity(&v, n) != 0) { return { ptr: 0, length: -1, cap: 0, al: heap.default_alloc() }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.length = n;
     return v;
   }
-  return Vec_u8 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
+  return { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `ptr`.
  * Implements `ptr`.
@@ -607,7 +607,7 @@ allow(padding) struct Vec_u16 {
  * @return Vec_u16
  */
 export function new(): Vec_u16 {
-  return Vec_u16 { ptr: 0, length: 0, cap: 0 };
+  return { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `reserve`.
@@ -679,7 +679,7 @@ allow(padding) struct Vec_u64 {
  * @return Vec_u64
  */
 export function new(): Vec_u64 {
-  return Vec_u64 { ptr: 0, length: 0, cap: 0 };
+  return { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -772,13 +772,13 @@ export function extend(v: *Vec_u64, ptr: *u64, n: i32): i32 {
 export function from_slice(ptr: *u64, n: i32): Vec_u64 {
   let v: Vec_u64 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_u64 { ptr: 0, length: -1, cap: 0 }; }
+  if (with_capacity(&v, n) != 0) { return { ptr: 0, length: -1, cap: 0 }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.length = n;
     return v;
   }
-  return Vec_u64 { ptr: 0, length: 0, cap: 0 };
+  return { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `len`.
@@ -821,7 +821,7 @@ allow(padding) struct Vec_f64 {
  * @return Vec_f64
  */
 export function new(): Vec_f64 {
-  return Vec_f64 { ptr: 0, length: 0, cap: 0 };
+  return { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -914,13 +914,13 @@ export function extend(v: *Vec_f64, ptr: *f64, n: i32): i32 {
 export function from_slice(ptr: *f64, n: i32): Vec_f64 {
   let v: Vec_f64 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_f64 { ptr: 0, length: -1, cap: 0 }; }
+  if (with_capacity(&v, n) != 0) { return { ptr: 0, length: -1, cap: 0 }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.length = n;
     return v;
   }
-  return Vec_f64 { ptr: 0, length: 0, cap: 0 };
+  return { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `len`.
@@ -969,7 +969,7 @@ allow(padding) struct Vec3f_aos {
  * @return Vec3f_soa
  */
 export function vec3f_soa_new(): Vec3f_soa {
-  return Vec3f_soa { col_x: 0, col_y: 0, col_z: 0, length: 0, cap: 0 };
+  return { col_x: 0, col_y: 0, col_z: 0, length: 0, cap: 0 };
 }
 /** Exported function `vec3f_soa_with_capacity`.
  * Implements `vec3f_soa_with_capacity`.
@@ -1124,7 +1124,7 @@ export function vec3f_soa_deinit(v: *Vec3f_soa): void {
  * @return Vec3f_aos
  */
 export function vec3f_aos_new(): Vec3f_aos {
-  return Vec3f_aos { ptr: 0, length: 0, cap: 0 };
+  return { ptr: 0, length: 0, cap: 0 };
 }
 /** Exported function `vec3f_aos_with_capacity`.
  * Implements `vec3f_aos_with_capacity`.

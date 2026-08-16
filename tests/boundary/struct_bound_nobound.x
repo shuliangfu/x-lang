@@ -6,7 +6,7 @@
 struct B { n: i32 }
 struct Foo<T> { x: T }
 function main(): i32 {
-  let b: B = B { n: 1 };
-  let f: Foo<B> = Foo { x: b };
+  let b: B = { n: 1 };
+  let f: Foo<B> = { x: b };
   return f.x.n;
 }

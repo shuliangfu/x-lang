@@ -42,7 +42,7 @@ function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let b: i32x4 = [10, 20, 30, 40];
   let z: i32x4 = [0, 0, 0, 0];
-  let h: Holder = Holder { v: z };
+  let h: Holder = { v: z };
   h.v = a;
   h.v = h.v.add4(b);
   if (h.v[0] != 11) { return 11; }

@@ -122,7 +122,7 @@ export function mode_decompress(): i32 { return 1; }
  * @return BlockCodec
  */
 export function block_codec_new(kind: i32): BlockCodec {
-  return BlockCodec { kind: kind };
+  return { kind: kind };
 }
 
 /** Exported function `encoder_new`.
@@ -131,7 +131,7 @@ export function block_codec_new(kind: i32): BlockCodec {
  * @return Encoder
  */
 export function encoder_new(kind: i32): Encoder {
-  return Encoder { kind: kind };
+  return { kind: kind };
 }
 
 /** Exported function `decoder_new`.
@@ -140,7 +140,7 @@ export function encoder_new(kind: i32): Encoder {
  * @return Decoder
  */
 export function decoder_new(kind: i32): Decoder {
-  return Decoder { kind: kind };
+  return { kind: kind };
 }
 
 /** Exported function `block_encode`.
@@ -219,7 +219,7 @@ export function block_decode(c: BlockCodec, src: *u8, src_len: i32, out: *u8, ou
  * @return i32
  */
 export function encoder_encode(e: Encoder, src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  let c: BlockCodec = BlockCodec { kind: e.kind };
+  let c: BlockCodec = { kind: e.kind };
   return block_encode(c, src, src_len, out, out_cap);
 }
 
@@ -233,7 +233,7 @@ export function encoder_encode(e: Encoder, src: *u8, src_len: i32, out: *u8, out
  * @return i32
  */
 export function decoder_decode(d: Decoder, src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  let c: BlockCodec = BlockCodec { kind: d.kind };
+  let c: BlockCodec = { kind: d.kind };
   return block_decode(c, src, src_len, out, out_cap);
 }
 

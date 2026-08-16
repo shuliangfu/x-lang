@@ -20,7 +20,7 @@ trait Pairable {
  */
 impl Pairable for i32 {
   function as_pair(self: i32): Pair {
-    return Pair { a: self, b: self };
+    return { a: self, b: self };
   }
 }
 
@@ -31,7 +31,7 @@ impl Pairable for i32 {
  * @return Pair — { x, y }
  */
 function mk(x: i32, y: i32): Pair {
-  return Pair { a: x, b: y };
+  return { a: x, b: y };
 }
 
 trait Firstable {
@@ -43,7 +43,7 @@ trait Firstable {
  * @param self Pair — receiver
  * @return i32 — self.a
  */
-impl Firstable for Pair {
+impl Firstable for {
   function first(self: Pair): i32 {
     return self.a;
   }
@@ -67,7 +67,7 @@ trait Summable {
  * @param self Pair — receiver
  * @return i32 — self.a + self.b
  */
-impl Summable for Pair {
+impl Summable for {
   function pair_sum(self: Pair): i32 {
     return self.a + self.b;
   }
