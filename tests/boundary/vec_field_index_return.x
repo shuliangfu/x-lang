@@ -475,14 +475,16 @@ function dest_arrlit_call(a: i32x4): i32 {
 
 /**
  * dest-in-rbx IF `*p = if (c) { w } else { y }` / false arm /
- * FIELD / CALL. dest-in-rbx let-init used to miss EXPR_IF (25);
- * emit_expr of the then-arm VAR is 8B (Darwin leftover 12).
- * Frame dest `let r: Wrap = if` is already green. dest-in-rbx IF
- * of STRUCT_LIT `{ { h: { v: a } } }` is leftover (CG002).
+ * FIELD / CALL / STRUCT_LIT / ARRAY_LIT `[w]`. dest-in-rbx
+ * let-init used to miss EXPR_IF (25); emit_expr of the then-arm
+ * VAR is 8B (Darwin leftover 12). Frame dest `let r: Wrap = if`
+ * is already green. dest-in-rbx IF of ARRAY_LIT used to CG002
+ * (peel yields ARRAY_LIT; dest-in-rbx STRUCT_LIT is ko==45).
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
+ * Extra arm stmts (nso>1) leftover.
  * @param a i32x4 — then-arm lanes
- * @return i32 — 0 ok; 218..237 leftover lanes
+ * @return i32 — 0 ok; 218..257 leftover lanes
  */
 function dest_if_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -543,6 +545,24 @@ function dest_if_dest(a: i32x4): i32 {
   if (dsts.h.v[1] != 6) { return 247; }
   if (dsts.h.v[2] != 7) { return 248; }
   if (dsts.h.v[3] != 8) { return 249; }
+  /* dest-in-rbx IF of ARRAY_LIT. dest TYPE_ARRAY peel is ARRAY_LIT
+   * (ko==46); dest-in-rbx STRUCT_LIT is ko==45. G.7: dest-in-rbx
+   * ARRAY_LIT standalone. Extra arm stmts leftover.
+   * PLATFORM: SHARED dest-in-rbx IF ARRAY_LIT. */
+  let dsta: [1]Wrap = [{ h: { v: z } }];
+  let pa: *[1]Wrap = &dsta;
+  c = true;
+  unsafe { *pa = if (c) { [w] } else { [y] } }
+  if (dsta[0].h.v[0] != 1) { return 250; }
+  if (dsta[0].h.v[1] != 2) { return 251; }
+  if (dsta[0].h.v[2] != 3) { return 252; }
+  if (dsta[0].h.v[3] != 4) { return 253; }
+  c = false;
+  unsafe { *pa = if (c) { [w] } else { [y] } }
+  if (dsta[0].h.v[0] != 5) { return 254; }
+  if (dsta[0].h.v[1] != 6) { return 255; }
+  if (dsta[0].h.v[2] != 7) { return 256; }
+  if (dsta[0].h.v[3] != 8) { return 257; }
   return 0;
 }
 

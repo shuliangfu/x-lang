@@ -24820,12 +24820,18 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * change pipeline_asm_block_final_expr_ref_at (block_body would
  * double-emit). Do not ignore then-arm !=0. Do not open x19
  * prologue. Extra arm stmts (nso>1) are leftover.
+ * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
+ * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
+ * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
+ * G.7: dest-in-rbx ARRAY_LIT standalone (`*p = [w]`) already
+ * writes through dest; reuse it. Do not frame-temp (emit-time
+ * next_offset past prologue → Darwin 139).
  * @param arena *u8 — ASTArena*
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param arm_ref i32 — then/else expr ref
  * @param ctx *u8 — AsmFuncCtx*
  * @param ta i32 — 0=x86_64 SysV, 1=AAPCS64
- * @param let_ty_ref i32 — dest named type
+ * @param let_ty_ref i32 — dest named / TYPE_ARRAY type
  * @param dest_spill i32 — rbp home of the parked dest pointer (8B)
  * @return i32 — 0 handled; -1 error; -2 let-init miss
  * PLATFORM: SHARED dest-in-rbx IF arm · MACOS|ARM64 dest-shadow.
@@ -24882,6 +24888,22 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
     rc = rc + 1;
   }
   rc = 0;
+  /* dest-in-rbx IF of ARRAY_LIT. Peel yields ARRAY_LIT (46);
+   * dest-in-rbx STRUCT_LIT (45) does not apply. dest is live in
+   * rbx/x19 after dest restore. G.7: dest-in-rbx ARRAY_LIT
+   * standalone. Do not pass dest-in-rbx −3 into vector_let_init.
+   * Extra arm stmts (nso>1) leftover.
+   * PLATFORM: SHARED dest-in-rbx IF ARRAY_LIT. */
+  if (ko == 46 && dest_spill >= 0 && (ta == 0 || ta == 1)) {
+    unsafe {
+      rc = glue_emit_fixed_array_type_let_init_elf_c(
+          arena, elf_ctx, init, ctx, ta, let_ty_ref, 0 - 3);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
   /* dest-in-rbx IF STRUCT_LIT: dest-in-rbx −3 then-arm returns !=0
    * after dest park (Darwin CG002). Frame dest STRUCT_LIT into a
    * let_sz temp is the dest-in-rbx CALL twin (src_spill + memcpy).
