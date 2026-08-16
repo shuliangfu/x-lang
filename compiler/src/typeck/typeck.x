@@ -8512,6 +8512,70 @@ decl_kind: i32): i32 {
 }
 
 /**
+ * Stamp STRUCT_LIT elems of an ARRAY_LIT from the ARRAY/SLICE dest elem type.
+ * Let `let r: [1]Wrap = [{ h: { v: a } }]` dest-stamps at
+ * typeck_coerce_init_expr_to_decl. STRUCT_LIT field
+ * `{ one: [{ h: { v: a } }] }` dest-stamps at
+ * typeck_coerce_struct_lit_field_inits_to_layout / nest recurse.
+ * Field inits are check_expr'd with expected=0; without this the inner
+ * `{ v: a }` has no Holder dest and emit stores 8B (Darwin leftover 12/13).
+ * Recurse ARRAY_LIT elems whose dest is ARRAY/SLICE (`{ rows: [[{ … }]] }`).
+ * @param module *Module — ensure_struct_layout for nested lits (may be null)
+ * @param arena *ASTArena — type/expr pool
+ * @param init_ref i32 — ARRAY_LIT (46); other kinds no-op
+ * @param decl_ty_ref i32 — TYPE_ARRAY (10) / TYPE_SLICE (11) dest
+ * @return i32 — 1 walked elems, 0 not this shape
+ * PLATFORM: SHARED — G.7 complete ARRAY_LIT dest stamp (let + STRUCT_LIT field).
+ */
+export function typeck_coerce_array_lit_struct_elems_to_decl(module: *Module, arena: *ASTArena,
+init_ref: i32, decl_ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let dk: i32 = 0;
+    let ik: i32 = 0;
+    let ed: i32 = 0;
+    let n: i32 = 0;
+    let k: i32 = 0;
+    let er: i32 = 0;
+    let ek: i32 = 0;
+    if (arena == 0 as *ASTArena || init_ref <= 0 || init_ref > arena.num_exprs ||
+    decl_ty_ref <= 0 || decl_ty_ref > arena.num_types) {
+      return 0;
+    }
+    ik = pipeline_expr_kind_ord_at(arena, init_ref);
+    dk = pipeline_type_kind_ord_at(arena, decl_ty_ref);
+    if (ik != 46) {
+      return 0;
+    }
+    if (dk != 10) {
+      if (dk != 11) {
+        return 0;
+      }
+    }
+    ed = pipeline_type_elem_ref_at(arena, decl_ty_ref);
+    if (ed <= 0) {
+      return 0;
+    }
+    n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    k = 0;
+    while (k < n) {
+      er = pipeline_expr_array_lit_elem_ref(arena, init_ref, k);
+      if (er > 0 && er <= arena.num_exprs) {
+        ek = pipeline_expr_kind_ord_at(arena, er);
+        if (ek == 45) {
+          typeck_coerce_init_struct_lit_to_decl(module, arena, er, ed);
+        }
+        if (ek == 46) {
+          typeck_coerce_array_lit_struct_elems_to_decl(module, arena, er, ed);
+        }
+      }
+      k = k + 1;
+    }
+    return 1;
+  }
+}
+
+/**
 * See implementation.
 * See implementation.
 */
@@ -8565,23 +8629,7 @@ decl_ty_ref: i32): i32 {
          * elems with the same coerce as nest `{ h: { v: a } }`.
          * PLATFORM: SHARED — G.7 complete array-elem dest.
          */
-        if (init_kind == 46 && (decl_kind == 10 || decl_kind == 11)) {
-          let ed: i32 = pipeline_type_elem_ref_at(arena, decl_ty_ref);
-          let n: i32 = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-          let k: i32 = 0;
-          let er: i32 = 0;
-          if (ed > 0) {
-            while (k < n) {
-              er = pipeline_expr_array_lit_elem_ref(arena, init_ref, k);
-              if (er > 0 && er <= arena.num_exprs) {
-                if (pipeline_expr_kind_ord_at(arena, er) == 45) {
-                  typeck_coerce_init_struct_lit_to_decl(module, arena, er, ed);
-                }
-              }
-              k = k + 1;
-            }
-          }
-        }
+        typeck_coerce_array_lit_struct_elems_to_decl(module, arena, init_ref, decl_ty_ref);
         return 1;
       }
     }
@@ -8671,9 +8719,10 @@ decl_ty_ref: i32): i32 {
       }
       pipeline_expr_struct_lit_type_name_into(arena, init_ref, &decl_nm[0]);
     }
-    /* Nested `{ field: { ... } }`: stamp each STRUCT_LIT init from the
-     * dest field type. check_expr of field inits uses expected=0.
-     * PLATFORM: SHARED — dest-in-rbx / frame dest nest `{ h: { v: a } }`. */
+    /* Nested `{ field: { ... } }` and `{ one: [{ h: { v: a } }] }`:
+     * stamp each STRUCT_LIT / ARRAY_LIT-of-STRUCT_LIT init from the dest
+     * field type. check_expr of field inits uses expected=0.
+     * PLATFORM: SHARED — dest-in-rbx / frame dest nest. */
     if (module != 0 as *Module && name_len > 0) {
       num_fields = pipeline_expr_struct_lit_num_fields(arena, init_ref);
       j = 0;
@@ -8681,11 +8730,14 @@ decl_ty_ref: i32): i32 {
         flen = pipeline_expr_struct_lit_field_name_len(arena, init_ref, j);
         init_r = pipeline_expr_struct_lit_init_ref(arena, init_ref, j);
         if (flen > 0 && flen <= 127 && init_r > 0 && init_r <= arena.num_exprs) {
-          if (pipeline_expr_kind_ord_at(arena, init_r) == ord_struct_lit) {
-            pipeline_expr_struct_lit_field_name_into(arena, init_ref, j, &field_buf[0]);
-            ftr = get_field_type_ref_from_layout(module, &decl_nm[0], name_len, &field_buf[0], flen);
-            if (ftr > 0) {
+          pipeline_expr_struct_lit_field_name_into(arena, init_ref, j, &field_buf[0]);
+          ftr = get_field_type_ref_from_layout(module, &decl_nm[0], name_len, &field_buf[0], flen);
+          if (ftr > 0) {
+            if (pipeline_expr_kind_ord_at(arena, init_r) == ord_struct_lit) {
               typeck_coerce_init_struct_lit_to_decl(module, arena, init_r, ftr);
+            }
+            if (pipeline_expr_kind_ord_at(arena, init_r) == 46) {
+              typeck_coerce_array_lit_struct_elems_to_decl(module, arena, init_r, ftr);
             }
           }
         }
@@ -14385,6 +14437,15 @@ expr_ref: i32, base_ty: i32): i32 {
           crc = typeck_coerce_init_array_vector_lit_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
           if (crc < 0) {
             return -1;
+          }
+          /* STRUCT_LIT field ARRAY_LIT `{ one: [{ h: { v: a } }] }`:
+           * array coerce stamps the ARRAY_LIT dest type but used to skip
+           * STRUCT_LIT elems. Let dest / dest-in-rbx / sret all emit 8B
+           * (Darwin leftover 12/13). G.7: same dest-stamp as let
+           * `let r: [1]Wrap = [{ … }]`.
+           * PLATFORM: SHARED — STRUCT_LIT field ARRAY_LIT of nest. */
+          if (init_kind == 46) {
+            typeck_coerce_array_lit_struct_elems_to_decl(module, arena, init_r, ftr);
           }
           typeck_coerce_init_vector_binop_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
           typeck_coerce_init_int_binop_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
