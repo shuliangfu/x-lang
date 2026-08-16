@@ -55430,6 +55430,70 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
           fty_ko = pipeline_type_kind_ord_at(arena, fty);
         }
         if (fty_ko == 10) {
+          /* dest-in-rbx / sret TYPE_ARRAY field (`*p = { one: [w] }` /
+           * `return { two: [w, w] }`). store_fixed_array_field sret
+           * path emit_expr + store esz (Darwin leftover 13: hi of a
+           * 16B named VAR) and reloads dest from sret_home (dest-in-rbx
+           * dest lives on the CPU stack). G.7: dest-in-rbx ARRAY_LIT
+           * (`*p = [w]` twin). Sync dest-shadow X19 from dest in X1
+           * after rehome — dest-in-rbx memcpy / n>1 write through X19.
+           * Do not change add_imm_to_rbx globally. Do not pass dest-in-rbx
+           * −3 into vector_let_init.
+           * PLATFORM: SHARED — dest-in-rbx STRUCT_LIT field ARRAY_LIT. */
+          if ((dest_on_cpu_stack != 0 || sret_direct != 0) && (ta == 0 || ta == 1)) {
+            if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0) {
+              return 0 - 1;
+            }
+            if (ta == 1) {
+              unsafe {
+                if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+                  return 0 - 1;
+                }
+              }
+            }
+            if (foff != 0) {
+              unsafe {
+                arr_st = backend_enc_add_imm_to_rbx_arch(elf_ctx, foff, ta);
+              }
+              if (arr_st != 0) {
+                return 0 - 1;
+              }
+              if (ta == 1) {
+                arr_st = glue_arm64_add_imm_to_x19_elf_c(elf_ctx, foff);
+                if (arr_st != 0) {
+                  return 0 - 1;
+                }
+              }
+            }
+            unsafe {
+              arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                  arena, elf_ctx, init_ref, ctx, ta, fty, 0 - 3);
+            }
+            if (arr_st == 0) {
+              if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0) {
+                return 0 - 1;
+              }
+              if (ta == 1) {
+                unsafe {
+                  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+                    return 0 - 1;
+                  }
+                }
+              }
+              fi = fi + 1;
+              continue;
+            }
+            if (arr_st == 0 - 1) {
+              return 0 - 1;
+            }
+            /* -2: fall through to store_fixed_array_field */
+          }
           unsafe {
             arr_st = glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, sret_direct, base_off, foff, fty);
           }

@@ -56,7 +56,10 @@
 // `grid[0] = [[w]]` are the same produce), and dest-in-rbx
 // ARRAY_LIT n>1 `*p = [w, w]` (ARM64 dest-shadow stayed at dest+0;
 // Darwin leftover 12; FIELD `bag.two = [w, w]` / INDEX
-// `grid[0] = [w, w]` / nested `*p = [[w], [w]]` are the same produce).
+// `grid[0] = [w, w]` / nested `*p = [[w], [w]]` are the same produce),
+// and dest-in-rbx STRUCT_LIT field ARRAY_LIT `*p = { one: [w] }` /
+// `*p = { two: [w, w] }` / sret `return { two: [w, w] }` (sret path
+// emit_expr 8B + store esz; Darwin leftover 13 / 10).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -299,6 +302,55 @@ function dest_arrlit_n2(w: Wrap): i32 {
 }
 
 /**
+ * sret STRUCT_LIT field ARRAY_LIT `return { two: [w, w] }`.
+ * @param w Wrap — source element
+ * @return PairBag — two copies of w
+ */
+function dest_mk_pair(w: Wrap): PairBag {
+  return { two: [w, w] };
+}
+
+/**
+ * dest-in-rbx STRUCT_LIT field ARRAY_LIT `*p = { one: [w] }` /
+ * `*p = { two: [w, w] }` / dest-in-rbx ARRAY VAR `*p = { two: src }`
+ * / sret `return { two: [w, w] }`. store_fixed_array_field sret path
+ * used emit_expr + store esz (Darwin leftover 13 / 10 / 139). Nest
+ * elems `{ two: [{ h: { v } }, …] }` is a dest leftover of dest-in-rbx
+ * STRUCT_LIT wrapping dest-in-rbx ARRAY_LIT of nest STRUCT_LIT — not
+ * this leaf. Kept in a small helper so the official large main()
+ * late-let dest-name leftover is not this leaf.
+ * @param w Wrap — source element
+ * @return i32 — 0 ok; 170..181 leftover lanes
+ */
+function dest_slit_arrlit(w: Wrap): i32 {
+  let z: i32x4 = [0, 0, 0, 0];
+  let dst: Bag = { one: [{ h: { v: z } }] };
+  let p: *Bag = &dst;
+  unsafe { *p = { one: [w] } }
+  if (dst.one[0].h.v[0] != 1) { return 170; }
+  if (dst.one[0].h.v[3] != 4) { return 171; }
+  let dst2: PairBag = { two: [{ h: { v: z } }, { h: { v: z } }] };
+  let p2: *PairBag = &dst2;
+  unsafe { *p2 = { two: [w, w] } }
+  if (dst2.two[0].h.v[0] != 1) { return 172; }
+  if (dst2.two[1].h.v[0] != 1) { return 173; }
+  if (dst2.two[1].h.v[3] != 4) { return 174; }
+  let src: [2]Wrap = [w, w];
+  let dst4: PairBag = { two: [{ h: { v: z } }, { h: { v: z } }] };
+  let p4: *PairBag = &dst4;
+  unsafe { *p4 = { two: src } }
+  if (dst4.two[0].h.v[0] != 1) { return 175; }
+  if (dst4.two[1].h.v[0] != 1) { return 176; }
+  if (dst4.two[1].h.v[3] != 4) { return 177; }
+  let bag: PairBag = dest_mk_pair(w);
+  if (bag.two[0].h.v[0] != 1) { return 178; }
+  if (bag.two[0].h.v[3] != 4) { return 179; }
+  if (bag.two[1].h.v[0] != 1) { return 180; }
+  if (bag.two[1].h.v[3] != 4) { return 181; }
+  return 0;
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
@@ -500,5 +552,7 @@ function main(): i32 {
   if (r16 != 0) { return r16; }
   let r17: i32 = dest_arrlit_n2(w);
   if (r17 != 0) { return r17; }
+  let r18: i32 = dest_slit_arrlit(w);
+  if (r18 != 0) { return r18; }
   return 0;
 }
