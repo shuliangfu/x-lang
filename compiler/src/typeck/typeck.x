@@ -9463,6 +9463,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     } else if (!ast.ref_is_null(ty_e)) {
       resolved = ty_e;
     }
+    if (ast.ref_is_null(resolved) && !ast.ref_is_null(return_type_ref)
+        && return_type_ref > 0 && return_type_ref <= arena.num_types) {
+      /* dest-in-rbx IF of STRUCT_LIT both arms (`*p = if (c) { { h: { v: a } } }
+       * else { { h: { v: b } } }`). Each arm is a BLOCK whose final
+       * STRUCT_LIT dest-stamps, but the BLOCK expr type stayed `?` so
+       * assign saw expected Wrap, found ?. Dest already checked both
+       * arms. G.7: IF result is the dest type.
+       * PLATFORM: SHARED dest-in-rbx IF STRUCT_LIT. */
+      expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+      if (expect_kind == ord_named) {
+        resolved = return_type_ref;
+      }
+    }
     if (!ast.ref_is_null(resolved)) {
       /* See implementation. */
       if (!ast.ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena.num_types) {

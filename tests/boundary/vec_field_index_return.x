@@ -482,7 +482,7 @@ function dest_arrlit_call(a: i32x4): i32 {
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
  * @param a i32x4 — then-arm lanes
- * @return i32 — 0 ok; 218..233 leftover lanes
+ * @return i32 — 0 ok; 218..237 leftover lanes
  */
 function dest_if_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -516,6 +516,15 @@ function dest_if_dest(a: i32x4): i32 {
   if (dst.h.v[1] != 2) { return 231; }
   if (dst.h.v[2] != 3) { return 232; }
   if (dst.h.v[3] != 4) { return 233; }
+  /* Frame dest IF both-arm STRUCT_LIT. dest-in-rbx IF of STRUCT_LIT
+   * is leftover CG002. Both arms used to typeck XT001 (expected
+   * Wrap, found ?) because the BLOCK expr type stayed `?`.
+   * G.7: IF result is the dest type. */
+  let rslit: Wrap = if (c) { { h: { v: a } } } else { { h: { v: b } } };
+  if (rslit.h.v[0] != 1) { return 234; }
+  if (rslit.h.v[1] != 2) { return 235; }
+  if (rslit.h.v[2] != 3) { return 236; }
+  if (rslit.h.v[3] != 4) { return 237; }
   return 0;
 }
 

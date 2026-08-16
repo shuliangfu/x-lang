@@ -24797,7 +24797,9 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * emit_expr of the then-arm VAR (8B) + dest store leftover lane2
  * (Darwin 12 / FIELD 52 / CALL 62 / STRUCT_LIT 72). G.7: cond +
  * jz, dest-in-rbx let-init each peeled arm (BLOCK `{ w }` → VAR).
- * Frame dest `let r = if` stays on emit_expr + store_retval_pair.
+ * dest-in-rbx IF of STRUCT_LIT (`*p = if (c) { { h: { v: a } } }`)
+ * leftover CG002 (done label undefined). Frame dest `let r = if`
+ * stays on emit_expr + store_retval_pair.
  * Do not open the x19 prologue. Do not use push_rbx (ARM64 pushes x1).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
@@ -24808,6 +24810,7 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * EXPR_BLOCK (26) whose final_expr is the value. emit_if_arm uses
  * emit_expr (8B). Peel the block and reuse dest-in-rbx let-init
  * (VAR / FIELD / CALL / STRUCT_LIT / INDEX / DEREF).
+ * dest-in-rbx IF of STRUCT_LIT leftover CG002.
  * Extra arm stmts (nso>0) are leftover — official `{ w }` is final-only.
  * @param arena *u8 — ASTArena*
  * @param elf_ctx *u8 — ElfCodegenCtx*
