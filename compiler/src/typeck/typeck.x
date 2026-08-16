@@ -14521,8 +14521,9 @@ export function typeck_check_expr_struct_lit(
     name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
     /* Named `Type { fields }` is not allowed as a value. Dest type
      * already names the struct: `let x: Type = { fields }`.
-     * Match-arm patterns `Type { fields } =>` are not EXPR_STRUCT_LIT
-     * values and do not enter this function.
+     * Match-arm patterns (`Type { fields } =>` or dest-typed
+     * `{ fields } =>`) are not EXPR_STRUCT_LIT values and do not
+     * enter this function.
      * PLATFORM: SHARED — one form for AI / product .x. */
     if (name_len > 0) {
       pipeline_expr_struct_lit_type_name_into(arena, expr_ref, &name_buf[0]);

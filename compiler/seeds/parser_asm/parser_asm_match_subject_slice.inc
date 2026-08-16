@@ -224,12 +224,118 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
 }
 
 /**
+ * Parse `{ field, field: lit, field: _ }` after TOKEN_LBRACE is consumed.
+ * *r is the first token inside the braces. On 0: *lex sits after `}`,
+ * *out_guard is 0 or the implicit `subject.field == lit && ...` chain.
+ * On -1: parse fail (caller returns).
+ * Named `Type { fields }` and anonymous `{ fields }` share this loop.
+ * The type name is not stored; match subject type names the struct.
+ * PLATFORM: SHARED — one field-pattern authority (G.7).
+ */
+static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser_asm_lexer *lex,
+                                                      struct parser_asm_slice_u8 *source,
+                                                      struct parser_asm_lexer_result *r,
+                                                      int32_t subject_ref, int32_t *out_guard) {
+  int32_t field_guard = 0;
+  if (!arena || !lex || !source || !r || !out_guard)
+    return -1;
+  *out_guard = 0;
+  while (r->tok.kind != (int32_t)TOKEN_RBRACE && r->tok.kind != (int32_t)TOKEN_EOF) {
+    if (r->tok.kind == (int32_t)TOKEN_IDENT) {
+      uint8_t fname[128];
+      int32_t flen = r->tok.ident_len;
+      size_t fstart = r->token_start;
+      int32_t fi;
+      if (flen > 127)
+        flen = 127;
+      memset(fname, 0, sizeof(fname));
+      for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
+        fname[fi] = source->data[fstart + fi];
+      parser_lex_from_next_into_glue(lex, *r);
+      lexer_next_into(r, *lex, source);
+      if (r->tok.kind == (int32_t)TOKEN_COLON) {
+        int32_t fval;
+        int32_t fref, lit_ref, eq_ref;
+        struct ast_Expr fe, le, ee;
+        parser_lex_from_next_into_glue(lex, *r);
+        lexer_next_into(r, *lex, source);
+        /* `field: _` — wildcard field value, skip (no guard). */
+        if (r->tok.kind == (int32_t)TOKEN_UNDERSCORE) {
+          parser_lex_from_next_into_glue(lex, *r);
+          lexer_next_into(r, *lex, source);
+        } else {
+          if (r->tok.kind != (int32_t)TOKEN_INT)
+            return -1;
+          fval = r->tok.int_val;
+          parser_lex_from_next_into_glue(lex, *r);
+          lexer_next_into(r, *lex, source);
+          fref = ast_ast_arena_expr_alloc(arena);
+          if (fref == 0)
+            return -1;
+          fe = ast_ast_arena_expr_get(arena, fref);
+          memset(&fe, 0, sizeof(fe));
+          fe.kind = 44; /* EXPR_FIELD_ACCESS */
+          fe.field_access_base_ref = subject_ref;
+          memcpy(fe.field_access_field_name, fname, (size_t)flen);
+          fe.field_access_field_len = flen;
+          ast_ast_arena_expr_set(arena, fref, fe);
+          lit_ref = ast_ast_arena_expr_alloc(arena);
+          if (lit_ref == 0)
+            return -1;
+          le = ast_ast_arena_expr_get(arena, lit_ref);
+          memset(&le, 0, sizeof(le));
+          le.kind = 0; /* EXPR_LIT */
+          le.int_val = (int64_t)fval;
+          ast_ast_arena_expr_set(arena, lit_ref, le);
+          eq_ref = ast_ast_arena_expr_alloc(arena);
+          if (eq_ref == 0)
+            return -1;
+          ee = ast_ast_arena_expr_get(arena, eq_ref);
+          memset(&ee, 0, sizeof(ee));
+          ee.kind = 14; /* EXPR_EQ */
+          ee.binop_left_ref = fref;
+          ee.binop_right_ref = lit_ref;
+          ast_ast_arena_expr_set(arena, eq_ref, ee);
+          if (field_guard == 0) {
+            field_guard = eq_ref;
+          } else {
+            int32_t and_ref = ast_ast_arena_expr_alloc(arena);
+            struct ast_Expr ae;
+            if (and_ref == 0)
+              return -1;
+            ae = ast_ast_arena_expr_get(arena, and_ref);
+            memset(&ae, 0, sizeof(ae));
+            ae.kind = 20; /* EXPR_LOGAND */
+            ae.binop_left_ref = field_guard;
+            ae.binop_right_ref = eq_ref;
+            ast_ast_arena_expr_set(arena, and_ref, ae);
+            field_guard = and_ref;
+          }
+        }
+      }
+      /* `field` bind — skip here; typeck/codegen resolve as subject fields. */
+      if (r->tok.kind == (int32_t)TOKEN_COMMA) {
+        parser_lex_from_next_into_glue(lex, *r);
+        lexer_next_into(r, *lex, source);
+      }
+    } else {
+      return -1;
+    }
+  }
+  if (r->tok.kind == (int32_t)TOKEN_RBRACE)
+    parser_lex_from_next_into_glue(lex, *r);
+  *out_guard = field_guard;
+  return 0;
+}
+
+/**
  * parse_match_into：解析 `match expr { pat => result; ... }`；lex 指向 match 关键字。
  *
  * PLATFORM: SHARED — arm pattern authority (G.7). wave327: multi-pattern arms
  * `1 | 2 | 3 => result` expand to one MatchArmEntry per lit/enum (same result_ref).
- * Docs/04: `|` here is multi-pattern only, not type union. Cap residual pure leaf.
- * Rebuild: parser_asm_thin_glue.o (includes this .inc) + g05.
+ * Docs/04: `|` here is multi-pattern only, not type union.
+ * Struct patterns: named `Type { fields }` or dest-typed `{ fields }`
+ * (type from match subject). Rebuild: parser_asm_thin_glue.o + g05.
  */
 void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out) {
@@ -1110,97 +1216,12 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
          * PLATFORM: SHARED — parser_asm match arm authority.
          */
         if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
-          int32_t field_guard = 0; /* 0 = no guard yet; >0 = expr_ref */
           parser_lex_from_next_into_glue(&lex, r);
           lexer_next_into(&r, lex, source);
-          while (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_EOF) {
-            if (r.tok.kind == (int32_t)TOKEN_IDENT) {
-              uint8_t fname[128];
-              int32_t flen = r.tok.ident_len;
-              size_t fstart = r.token_start;
-              int32_t fi;
-              if (flen > 127) flen = 127;
-              memset(fname, 0, sizeof(fname));
-              for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
-                fname[fi] = source->data[fstart + fi];
-              parser_lex_from_next_into_glue(&lex, r);
-              lexer_next_into(&r, lex, source);
-              if (r.tok.kind == (int32_t)TOKEN_COLON) {
-                /* `field: lit_val` — literal comparison */
-                int32_t fval;
-                int32_t fref, lit_ref, eq_ref;
-                struct ast_Expr fe, le, ee;
-                parser_lex_from_next_into_glue(&lex, r);
-                lexer_next_into(&r, lex, source);
-                /* wave709: `field: _` — wildcard field value, skip (no guard). */
-                if (r.tok.kind == (int32_t)TOKEN_UNDERSCORE) {
-                  parser_lex_from_next_into_glue(&lex, r);
-                  lexer_next_into(&r, lex, source);
-                } else {
-                  if (r.tok.kind != (int32_t)TOKEN_INT)
-                    return;
-                  fval = r.tok.int_val;
-                  parser_lex_from_next_into_glue(&lex, r);
-                  lexer_next_into(&r, lex, source); /* wave708: get next token (, or }) */
-                  /* construct FIELD_ACCESS: subject.field */
-                  fref = ast_ast_arena_expr_alloc(arena);
-                  if (fref == 0) return;
-                  fe = ast_ast_arena_expr_get(arena, fref);
-                  memset(&fe, 0, sizeof(fe));
-                  fe.kind = 44; /* EXPR_FIELD_ACCESS */
-                  fe.field_access_base_ref = matched_res.expr_ref;
-                  memcpy(fe.field_access_field_name, fname, (size_t)flen);
-                  fe.field_access_field_len = flen;
-                  ast_ast_arena_expr_set(arena, fref, fe);
-                  /* construct INT_LIT: val */
-                  lit_ref = ast_ast_arena_expr_alloc(arena);
-                  if (lit_ref == 0) return;
-                  le = ast_ast_arena_expr_get(arena, lit_ref);
-                  memset(&le, 0, sizeof(le));
-                  le.kind = 0; /* EXPR_LIT */
-                  le.int_val = (int64_t)fval;
-                  ast_ast_arena_expr_set(arena, lit_ref, le);
-                  /* construct EQ: field == val */
-                  eq_ref = ast_ast_arena_expr_alloc(arena);
-                  if (eq_ref == 0) return;
-                  ee = ast_ast_arena_expr_get(arena, eq_ref);
-                  memset(&ee, 0, sizeof(ee));
-                  ee.kind = 14; /* EXPR_EQ */
-                  ee.binop_left_ref = fref;
-                  ee.binop_right_ref = lit_ref;
-                  ast_ast_arena_expr_set(arena, eq_ref, ee);
-                  /* chain with LOGAND */
-                  if (field_guard == 0) {
-                    field_guard = eq_ref;
-                  } else {
-                    int32_t and_ref = ast_ast_arena_expr_alloc(arena);
-                    struct ast_Expr ae;
-                    if (and_ref == 0) return;
-                    ae = ast_ast_arena_expr_get(arena, and_ref);
-                    memset(&ae, 0, sizeof(ae));
-                    ae.kind = 20; /* EXPR_LOGAND */
-                    ae.binop_left_ref = field_guard;
-                    ae.binop_right_ref = eq_ref;
-                    ast_ast_arena_expr_set(arena, and_ref, ae);
-                    field_guard = and_ref;
-                  }
-                }
-              }
-              /* `field` bind mode — skip (wave707 field bind handles) */
-              /* skip comma */
-              if (r.tok.kind == (int32_t)TOKEN_COMMA) {
-                parser_lex_from_next_into_glue(&lex, r);
-                lexer_next_into(&r, lex, source);
-              }
-            } else {
-              return;
-            }
-          }
-          /* consume closing RBRACE */
-          if (r.tok.kind == (int32_t)TOKEN_RBRACE)
-            parser_lex_from_next_into_glue(&lex, r);
+          if (parser_asm_parse_match_struct_fields_c(arena, &lex, source, &r, matched_res.expr_ref,
+                                                    &pat_guard_ref[pat_n]) != 0)
+            return;
           is_wc = 1;
-          pat_guard_ref[pat_n] = field_guard;
         } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
           parser_lex_from_next_into_glue(&lex, r);
           lexer_next_into(&r, lex, source);
@@ -1223,6 +1244,16 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         } else {
           return;
         }
+      } else if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+        /* Anonymous `{ fields } =>`. Type comes from the match subject
+         * (named `Type { fields }` discards IDENT the same way).
+         * PLATFORM: SHARED — dest-typed match pattern. */
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (parser_asm_parse_match_struct_fields_c(arena, &lex, source, &r, matched_res.expr_ref,
+                                                  &pat_guard_ref[pat_n]) != 0)
+          return;
+        is_wc = 1;
       } else {
         return;
       }

@@ -1,6 +1,6 @@
 // Named `Type { fields }` is rejected as a value. Dest type names the
-// struct: `let x: Type = { fields }`. Match-arm patterns still use
-// `Type { fields } =>` (anonymous `{ fields } =>` is T001).
+// struct: `let x: Type = { fields }`. Match-arm patterns may write
+// `{ fields } =>` (type from subject) or `Type { fields } =>`.
 // Expected: typeck T001 on the named let.
 // PLATFORM: SHARED — Ubuntu gold.
 
