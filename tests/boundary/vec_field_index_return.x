@@ -486,6 +486,8 @@ function dest_arrlit_call(a: i32x4): i32 {
  * prefix) used to skip so dest was ok and the side effect
  * was lost (isolate run=11). dest-in-rbx IF extra arm region
  * (`unsafe { k = 1 }; { dest }`) used to skip so_k==6
+ * (isolate run=11). dest-in-rbx IF extra arm labeled
+ * (`goto L` / `L:` then dest) used to skip so_k==7
  * (isolate run=11). dest-in-rbx IF dest wrapped in unsafe
  * is gated in dest_if_region_wrap.x (this helper dest-park
  * overflowed into caller w; official large main dest-park
@@ -493,7 +495,7 @@ function dest_arrlit_call(a: i32x4): i32 {
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
  * @param a i32x4 — then-arm lanes
- * @return i32 — 0 ok; 218..303 leftover lanes
+ * @return i32 — 0 ok; 84..87 / 218..303 leftover lanes
  */
 function dest_if_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -695,6 +697,40 @@ function dest_if_dest(a: i32x4): i32 {
   }
   if (dst.h.v[0] != 5) { return 302; }
   if (k != 1) { return 303; }
+  /* dest-in-rbx IF extra arm labeled. Prefix so_k==7
+   * used to skip (dest ok, side effect lost, isolate
+   * run=11). Frame dest extra labeled is already green
+   * via body_sync. G.7: body_sync jmp/label as prefix.
+   * Leftover 84–87 stay in 1..255 (main exit is 8-bit).
+   * PLATFORM: SHARED dest-in-rbx IF extra arm labeled. */
+  k = 0;
+  c = true;
+  unsafe {
+    *p = if (c) {
+      goto dif_lta
+      dif_lta:
+      k = 1;
+      { h: { v: a } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 1) { return 84; }
+  if (k != 1) { return 85; }
+  k = 0;
+  c = false;
+  unsafe {
+    *p = if (c) {
+      w
+    } else {
+      goto dif_lea
+      dif_lea:
+      k = 1;
+      { h: { v: b } }
+    }
+  }
+  if (dst.h.v[0] != 5) { return 86; }
+  if (k != 1) { return 87; }
   return 0;
 }
 

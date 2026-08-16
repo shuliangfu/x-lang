@@ -24838,9 +24838,13 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * (isolate run=11). Reuse body_sync region emit
  * (`pipeline_block_region_body_ref` +
  * `pipeline_asm_emit_block_body_sync_elf`; with_arena
- * init/deinit when cap>0). Do not body_sync the whole
- * arm. Do not emit labeled (kind 7) this leaf. Do not
- * change block_body.
+ * init/deinit when cap>0). Prefix labeled/goto
+ * (stmt_order kind 7, `goto L` / `L:`) used to skip
+ * so dest was ok and the side effect after the label
+ * was lost (isolate run=11). Frame dest extra labeled
+ * is already green via body_sync. G.7: same jmp/label
+ * emit as block_body_sync. Do not body_sync the whole
+ * arm. Do not change block_body.
  * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
  * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
  * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
@@ -24884,6 +24888,13 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let dest_wa_off: i32 = 0;
   let have_br: i32 = 0;
   let dest_from_region: i32 = 0;
+  let dest_fin: i32 = 0;
+  let prefix_lim: i32 = 0;
+  let gt_buf: u8[128] = [];
+  let lb_buf: u8[128] = [];
+  let gt_len: i32 = 0;
+  let lb_len: i32 = 0;
+  let is_g: i32 = 0;
   let modp: *u8 = 0 as *u8;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
     return 0 - 1;
@@ -24902,7 +24913,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
    * CG002). Frame dest wrap is already green via body_sync.
    * G.7: last stmt region → dest is the region body dest.
    * Do not body_sync the dest region (would emit dest as 8B).
-   * Kind 7 leftover.
+   * Prefix kind 7 is jmp/label in the extra-arm walk.
    * PLATFORM: SHARED dest-in-rbx IF STRUCT_LIT peel. */
   while ((ko == 26 || have_br != 0) && rc < 8) {
     if (have_br == 0) {
@@ -24926,7 +24937,16 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
       nlet = ast_ast_block_num_lets(arena, br);
       nso = ast_ast_block_num_stmt_order(arena, br);
     }
-    if (nlet > 0 || nso > 1) {
+    dest_fin = pipeline_asm_block_final_expr_ref_at(arena, br);
+    /* Prefix is every stmt_order before dest. Dest is
+     * final_expr (all stmt_order is prefix) or the last
+     * expr_stmt (walk nso-1). `k = 1; w` / labeled then
+     * VAR dest used to skip the last prefix (isolate
+     * run=11). `{ dest }` last expr_stmt already used
+     * nso-1. Enter when dest is final_expr even if
+     * nso==1 (`k = 1` then `w`).
+     * PLATFORM: SHARED dest-in-rbx IF extra arm prefix. */
+    if (nlet > 0 || nso > 1 || (nso > 0 && dest_fin > 0)) {
       if (parent_scope == 0) {
         parent_scope = pipeline_asm_emit_ctx_scope_block_get();
       }
@@ -24944,8 +24964,15 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
           return 0 - 1;
         }
       }
+      prefix_lim = nso - 1;
+      if (dest_fin > 0) {
+        prefix_lim = nso;
+      }
+      if (prefix_lim < 0) {
+        prefix_lim = 0;
+      }
       so_i = 0;
-      while (so_i < (nso - 1)) {
+      while (so_i < prefix_lim) {
         unsafe {
           so_k = ast_ast_block_stmt_order_kind(arena, br, so_i);
           so_idx = ast_ast_block_stmt_order_idx(arena, br, so_i);
@@ -24974,7 +25001,8 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
          * block_body_sync. Restore dest after the prefix
          * walk (loop / region emit clobbers x1/x19).
          * Restore arm scope after a region (body_sync
-         * sets the region body). Kind 7 leftover.
+         * sets the region body). Kind 7 is jmp/label
+         * below (same as body_sync).
          * PLATFORM: SHARED dest-in-rbx IF extra arm loops. */
         if (so_k == 3) {
           unsafe {
@@ -25018,7 +25046,8 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
          * ok, k leftover, run=11). Frame dest extra unsafe
          * is already green via body_sync. G.7: same region
          * emit as block_body_sync. Do not live_snap (this
-         * prefix has no live_fwd). Kind 7 leftover.
+         * prefix has no live_fwd). Kind 7 is jmp/label
+         * below (same as body_sync).
          * PLATFORM: SHARED dest-in-rbx IF extra arm region. */
         if (so_k == 6) {
           unsafe {
@@ -25063,6 +25092,52 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
             }
           }
         }
+        /* dest-in-rbx IF extra arm labeled/goto.
+         * Prefix so_k==7 used to skip (`goto L` / `L:`
+         * then `k = 1; { dest }` dest ok, k leftover,
+         * isolate run=11). Frame dest extra labeled is
+         * already green via body_sync. G.7: same jmp /
+         * label emit as block_body_sync. Labeled return
+         * (`L: return e`) as extra prefix is leftover
+         * (would exit the function; dest is dead).
+         * PLATFORM: SHARED dest-in-rbx IF extra arm labeled. */
+        if (so_k == 7) {
+          unsafe {
+            n_cfg = pipeline_block_num_labeled_stmts(arena, br);
+          }
+          if (so_idx >= 0 && so_idx < n_cfg) {
+            unsafe {
+              is_g = pipeline_block_labeled_is_goto(arena, br, so_idx);
+            }
+            if (is_g != 0) {
+              unsafe {
+                pipeline_block_labeled_goto_target_copy32(arena, br, so_idx, &gt_buf[0]);
+                gt_len = pipeline_block_labeled_goto_target_len(arena, br, so_idx);
+              }
+              if (gt_len > 0 && gt_len <= 127) {
+                unsafe {
+                  extra = backend_enc_jmp_arch(elf_ctx, &gt_buf[0], gt_len, ta);
+                }
+                if (extra != 0) {
+                  return 0 - 1;
+                }
+              }
+            } else {
+              unsafe {
+                pipeline_block_labeled_label_copy32(arena, br, so_idx, &lb_buf[0]);
+                lb_len = pipeline_block_labeled_label_len(arena, br, so_idx);
+              }
+              if (lb_len > 0 && lb_len <= 127) {
+                unsafe {
+                  extra = backend_enc_label_arch(elf_ctx, &lb_buf[0], lb_len, 0, ta);
+                }
+                if (extra != 0) {
+                  return 0 - 1;
+                }
+              }
+            }
+          }
+        }
         so_i = so_i + 1;
       }
       if (dest_spill >= 0 && (ta == 0 || ta == 1)) {
@@ -25096,7 +25171,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
      * aborted (Darwin CG002 `.Lf0_1`). Last stmt kind 6
      * holds the dest in the region body. Enter the region
      * (ensure / optional with_arena) and peel that body.
-     * Do not body_sync the dest region. Kind 7 leftover.
+     * Do not body_sync the dest region.
      * PLATFORM: SHARED dest-in-rbx IF dest region. */
     if (fin <= 0 && nso > 0) {
       so_i = nso - 1;
