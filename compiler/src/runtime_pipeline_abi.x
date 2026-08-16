@@ -33257,6 +33257,115 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         }
       }
     }
+    /* TYPE_ARRAY INDEX dest (`rows[0] = [w]`).
+     * Prior path emit_expr of ARRAY_LIT is 8B payload pointer then
+     * store (Darwin leftover 10). Frame dest ARRAY_LIT goes through
+     * vector_let_init and bumps emit-time next_offset (official 139).
+     * G.7: peel dest type from the base, lea rbp dest, then dest-in-rbx
+     * glue_emit_fixed_array_type_let_init (same as `*p = [w]`).
+     * Do not pass dest-in-rbx -3 into vector_let_init. Do not INDEX-lea
+     * dest-in-rbx first (official large main() 139).
+     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+    if (ta == 0 || ta == 1) {
+      /* Dest type is the INDEX element, not the base. INDEX
+       * resolved_type_ref may stamp the outer `[1][1]Wrap` and
+       * store_fixed_array_field then treats `[w]` as an array-of-
+       * array (etk==10) and bumps emit-time next_offset → official
+       * large main() Darwin 139. Peel one layer from the base.
+       * PLATFORM: SHARED — Darwin leftover 10 / official 139. */
+      ltr = 0;
+      unsafe {
+        ltr_pre = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+      }
+      if (ltr_pre <= 0) {
+        unsafe {
+          ltr_pre = pipeline_expr_resolved_type_ref(arena, base_ref);
+        }
+      }
+      if (ltr_pre > 0) {
+        unsafe {
+          ltk_pre = pipeline_type_kind_ord_at(arena, ltr_pre);
+        }
+        if (ltk_pre == 10 || ltk_pre == 11 || ltk_pre == 9) {
+          unsafe {
+            ltr = pipeline_type_elem_ref_at(arena, ltr_pre);
+          }
+        }
+      }
+      if (ltr > 0) {
+        unsafe {
+          ltk = pipeline_type_kind_ord_at(arena, ltr);
+        }
+        if (ltk == 10) {
+          /* Lit index + VAR base: frame-home let-init (same as SIMD
+           * INDEX dest). dest-in-rbx after INDEX lea 139'd official
+           * large main() (red zone hid it on the tiny isolate).
+           * Do not bump emit-time next_offset. Do not lea rbp-3.
+           * PLATFORM: SHARED — Darwin leftover 10 / official 139. */
+          if (base_kind == 3) {
+            if (pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]) != 0) {
+              lit_imm = lit_slot[0];
+              unsafe {
+                base_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+                nbytes = glue_fixed_array_total_bytes_c(arena, ltr, 0);
+              }
+              if (nbytes < 8) {
+                nbytes = esz;
+              }
+              if (base_off >= 0 && nbytes > 0) {
+                if (ta == 1) {
+                  elem_home = base_off + lit_imm * nbytes;
+                } else {
+                  elem_home = base_off - lit_imm * nbytes;
+                }
+                if (elem_home >= 0) {
+                  /* Frame dest ARRAY_LIT goes through
+                   * store_fixed_array_field → vector_let_init and
+                   * bumps emit-time next_offset (official 139).
+                   * lea dest then dest-in-rbx ARRAY_LIT (`*p = [w]`).
+                   * Do not pass dest-in-rbx -3 into vector_let_init.
+                   * PLATFORM: SHARED — Darwin leftover 10 / official 139. */
+                  unsafe {
+                    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, elem_home, ta);
+                  }
+                  if (rc != 0) {
+                    unsafe {
+                      glue_index_assign_addr_cache_clear();
+                    }
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+                  }
+                  if (rc != 0) {
+                    unsafe {
+                      glue_index_assign_addr_cache_clear();
+                    }
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                        arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+                  }
+                  if (arr_st == 0) {
+                    unsafe {
+                      glue_index_assign_addr_cache_clear();
+                    }
+                    return 0;
+                  }
+                  if (arr_st == 0 - 1) {
+                    unsafe {
+                      glue_index_assign_addr_cache_clear();
+                    }
+                    return 0 - 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     // esz>8 bulk copy path (wave630)
     if (esz > 8) {
       unsafe {

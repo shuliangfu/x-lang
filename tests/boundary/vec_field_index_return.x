@@ -7,7 +7,8 @@
 // `*p = arr[i]`, plus dest-in-rbx DEREF source `*p = *q`, plus
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` / dest-in-rbx
 // `*p = { h: w.h }`, plus dest-in-rbx ARRAY_LIT `*p = [w]`, plus
-// dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`. dest emit
+// dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`, plus INDEX dest
+// ARRAY_LIT `rows[0] = [w]`. dest emit
 // was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
 // / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
@@ -38,7 +39,9 @@
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` let-init, and dest-in-rbx
 // ARRAY_LIT `*p = [w]` (used to store the payload pointer; Darwin 10),
 // and dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]` (array-elem type
-// sized <9 so dest-in-rbx FIELD returned -2; Darwin leftover 12).
+// sized <9 so dest-in-rbx FIELD returned -2; Darwin leftover 12),
+// and INDEX dest ARRAY_LIT `rows[0] = [w]` (emit_expr of ARRAY_LIT
+// stored the payload pointer; Darwin leftover 10).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -99,7 +102,9 @@ function ret_depth1(h: Holder, i: i32): i32 {
  *   70/71/72/73 dest-in-rbx DEREF source;
  *   80/81/82/83 STRUCT_LIT FIELD source;
  *   84/85/86/87 dest-in-rbx STRUCT_LIT FIELD source;
- *   90/91/92/93 dest-in-rbx ARRAY_LIT `*p = [w]`
+ *   90/91/92/93 dest-in-rbx ARRAY_LIT `*p = [w]`;
+ *   94/95/96/97 dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`;
+ *   98/99/100/101 INDEX dest ARRAY_LIT `rows[0] = [w]`
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -211,5 +216,11 @@ function main(): i32 {
   if (dst7[0].v[1] != 2) { return 95; }
   if (dst7[0].v[2] != 3) { return 96; }
   if (dst7[0].v[3] != 4) { return 97; }
+  let rows: [1][1]Wrap = [[{ h: { v: z } }]];
+  rows[0] = [w];
+  if (rows[0][0].h.v[0] != 1) { return 98; }
+  if (rows[0][0].h.v[1] != 2) { return 99; }
+  if (rows[0][0].h.v[2] != 3) { return 100; }
+  if (rows[0][0].h.v[3] != 4) { return 101; }
   return 0;
 }
