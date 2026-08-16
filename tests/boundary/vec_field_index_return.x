@@ -723,6 +723,10 @@ function main(): i32 {
   if (dst8[0].h.v[1] != 2) { return 103; }
   if (dst8[0].h.v[2] != 3) { return 104; }
   if (dst8[0].h.v[3] != 4) { return 105; }
+  /* Official late-let dest-name gate: after ~30 lets + ifs, stmt_order
+   * used to stop at 96 so this STRUCT_LIT never dest-stamped
+   * (`(struct )` on -E). G.7: walk every stmt_order entry.
+   * PLATFORM: SHARED — large-main late-let dest-name. */
   let dst9: Wrap = { h: inner };
   let p9: *Wrap = &dst9;
   dest_nest_slit(p9, z);

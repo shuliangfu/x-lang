@@ -15785,8 +15785,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
  *
  * Iterative walk (while), not tail recursion. Historical form recursed on
  * si+1 — deep blocks (mega pipeline_abi bodies) stacked dozens of frames
- * (Stage12.0.5 sample: typeck_check_block_stmt_order_one self-chain). Same
- * semantics: fail-fast -1; cap si < 96; void expr_stmt reject (wave663).
+ * (Stage12.0.5 sample: typeck_check_block_stmt_order_one self-chain). The
+ * leftover `i < 96` cap was stack insurance for that recursion. The walk
+ * is iterative now; keeping 96 dropped late lets in a large main() so
+ * anonymous STRUCT_LIT never dest-stamped (`(struct )` on dest7+).
+ * Walk every stmt_order entry. Fail-fast -1; void expr_stmt reject (wave663).
+ * PLATFORM: SHARED — large-main late-let dest-name.
  *
  * @param module *Module — entry / current module
  * @param arena *ASTArena — type/expr pool
@@ -15816,7 +15820,9 @@ nlp: i32, nfp: i32, nif: i32, nreg: i32): i32 {
     let es_ref: i32 = 0;
     i = si;
     // Constant stack: walk stmt_order[i] then i+1 (≡ historical tail recursion).
-    while (i < nso && i < 96) {
+    // Do not recap at 96: that leftover recursive bound skipped dest-stamp
+    // of late lets (official vfir dest7+ emitted `(struct )`).
+    while (i < nso) {
       pipeline_typeck_block_impl_touch_ctx_block_c(ctx, block_ref);
       sk = ast.ast_block_stmt_order_kind(arena, block_ref, i);
       idx = ast.ast_block_stmt_order_idx(arena, block_ref, i);
