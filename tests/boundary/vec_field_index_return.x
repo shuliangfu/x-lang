@@ -11,7 +11,9 @@
 // ARRAY_LIT `rows[0] = [w]`, plus dest-in-rbx ARRAY VAR `*p = src`,
 // plus runtime-index dest ARRAY_LIT `rows[i] = [w]`, plus INDEX dest
 // ARRAY_LIT of a non-VAR base (`rh.rows[0]` / `grid[0][0]`), plus
-// FIELD dest ARRAY_LIT `bag.one = [w]`. dest emit
+// FIELD dest ARRAY_LIT `bag.one = [w]`, plus dest-in-rbx ARRAY_LIT
+// of ARRAY_LIT `*p = [[w]]` / FIELD dest `bag.rows = [[w]]` /
+// INDEX dest `grid[0] = [[w]]`. dest emit
 // was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
 // / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
@@ -48,7 +50,10 @@
 // ARRAY VAR `*p = src` (whole-array memcpy dest-in-rbx; Darwin leftover
 // 12 when total_bytes sized Wrap as 8), and FIELD dest ARRAY_LIT
 // `bag.one = [w]` (depth-1 FIELD dest stored the payload pointer;
-// Darwin leftover 10).
+// Darwin leftover 10), and dest-in-rbx ARRAY_LIT of ARRAY_LIT
+// `*p = [[w]]` (inner ARRAY_LIT stored the payload pointer;
+// Darwin leftover 10; FIELD `bag.rows = [[w]]` / INDEX
+// `grid[0] = [[w]]` are the same produce).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -221,6 +226,39 @@ function dest_field_arrlit(w: Wrap): i32 {
 }
 
 /**
+ * dest-in-rbx ARRAY_LIT of ARRAY_LIT `*p = [[w]]`, plus FIELD dest
+ * `rh.rows = [[w]]` and INDEX dest `grid[0] = [[w]]`. dest-in-rbx
+ * ARRAY_LIT used to emit_expr the inner ARRAY_LIT (8B payload
+ * pointer; Darwin leftover 10). Kept in a small helper so the
+ * official large main() late-let dest-name leftover is not this leaf.
+ * @param w Wrap — source element
+ * @return i32 — 0 ok; 146..157 leftover lanes
+ */
+function dest_arrlit2(w: Wrap): i32 {
+  let z: i32x4 = [0, 0, 0, 0];
+  let dst: [1][1]Wrap = [[{ h: { v: z } }]];
+  let p: *[1][1]Wrap = &dst;
+  unsafe { *p = [[w]] }
+  if (dst[0][0].h.v[0] != 1) { return 146; }
+  if (dst[0][0].h.v[1] != 2) { return 147; }
+  if (dst[0][0].h.v[2] != 3) { return 148; }
+  if (dst[0][0].h.v[3] != 4) { return 149; }
+  let rh: RowHolder = { rows: [[{ h: { v: z } }]] };
+  rh.rows = [[w]];
+  if (rh.rows[0][0].h.v[0] != 1) { return 150; }
+  if (rh.rows[0][0].h.v[1] != 2) { return 151; }
+  if (rh.rows[0][0].h.v[2] != 3) { return 152; }
+  if (rh.rows[0][0].h.v[3] != 4) { return 153; }
+  let grid: [1][1][1]Wrap = [[[{ h: { v: z } }]]];
+  grid[0] = [[w]];
+  if (grid[0][0][0].h.v[0] != 1) { return 154; }
+  if (grid[0][0][0].h.v[1] != 2) { return 155; }
+  if (grid[0][0][0].h.v[2] != 3) { return 156; }
+  if (grid[0][0][0].h.v[3] != 4) { return 157; }
+  return 0;
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
@@ -254,7 +292,10 @@ function dest_field_arrlit(w: Wrap): i32 {
  *   130/131/132/133 FIELD-base runtime `rh.rows[i] = [w]`;
  *   134/135/136/137 nested INDEX lit `grid[0][0] = [w]`;
  *   138/139/140/141 nested INDEX runtime `grid[0][i] = [w]`;
- *   142/143/144/145 FIELD dest ARRAY_LIT `bag.one = [w]`
+ *   142/143/144/145 FIELD dest ARRAY_LIT `bag.one = [w]`;
+ *   146/147/148/149 dest-in-rbx ARRAY_LIT of ARRAY_LIT `*p = [[w]]`;
+ *   150/151/152/153 FIELD dest 2D ARRAY_LIT `rh.rows = [[w]]`;
+ *   154/155/156/157 INDEX dest 2D ARRAY_LIT `grid[0] = [[w]]`
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -412,5 +453,7 @@ function main(): i32 {
   if (r14 != 0) { return r14; }
   let r15: i32 = dest_field_arrlit(w);
   if (r15 != 0) { return r15; }
+  let r16: i32 = dest_arrlit2(w);
+  if (r16 != 0) { return r16; }
   return 0;
 }

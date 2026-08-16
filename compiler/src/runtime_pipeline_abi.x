@@ -40753,6 +40753,9 @@ export function glue_type_is_fixed_array(arena: *u8, type_ref: i32): i32 {
  * not bump an emit-time array temp (large main() is past the red
  * zone → Darwin 139). Each named elem reuses dest-in-rbx struct
  * let-init (`*p = w` for `[w]`); whole-array VAR memcpy dest-in-rbx.
+ * Nested ARRAY_LIT `[[w]]` dest `[1][1]Wrap` used to emit_expr the
+ * inner ARRAY_LIT (8B payload pointer; Darwin leftover 10). Recurse
+ * dest-in-rbx ARRAY_LIT for ARRAY_LIT elems whose dest is TYPE_ARRAY.
  * Do not pass -3 into vector_let_init / store_fixed_array_field.
  * PLATFORM: SHARED freestanding emit · LINUX|x86 · MACOS|ARM64.
  */
@@ -40836,6 +40839,25 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
           eko = pipeline_expr_kind_ord_at(arena, elem_ref);
         }
         rc = 0 - 2;
+        /* Nested ARRAY_LIT `[[w]]` dest `[1][1]Wrap`: elem is
+         * ARRAY_LIT (46) of TYPE_ARRAY. emit_expr of ARRAY_LIT is
+         * the 8B payload pointer (Darwin leftover 10 on
+         * `*p = [[w]]` / `bag.rows = [[w]]` / `grid[0] = [[w]]`).
+         * G.7: recurse dest-in-rbx ARRAY_LIT (`*p = [w]` twin).
+         * n=1 does not advance dest. Do not park dest (emit-time
+         * temp 139; ARM64 dest-shadow is x19, push_rbx is x1).
+         * PLATFORM: SHARED — dest-in-rbx ARRAY_LIT of ARRAY_LIT. */
+        if (eko == 46) {
+          if (glue_type_is_fixed_array(arena, elem_tr) != 0) {
+            unsafe {
+              rc = glue_emit_fixed_array_type_let_init_elf_c(
+                  arena, elf_ctx, elem_ref, ctx, ta, elem_tr, 0 - 3);
+            }
+            if (rc == 0 - 1) {
+              return 0 - 1;
+            }
+          }
+        }
         /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF named elem: dest-in-rbx
          * struct let-init. `[w]` is the VAR twin of `*p = w`.
          * FIELD/INDEX/DEREF may return -2 (array-elem type sizes
