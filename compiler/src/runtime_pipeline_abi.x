@@ -22793,6 +22793,64 @@ export function glue_arm64_mov_x19_to_x0_elf_c(elf_ctx: *u8): i32 {
 }
 
 /**
+ * Emit AAPCS64 ADD/SUB X19, X19, #imm (dest-shadow dest advance).
+ * dest-in-rbx ARRAY_LIT n>1 used add_imm_to_rbx (ADD X1). dest lives
+ * in X19 after enc_mov_rax_to_rbx, so every elem wrote dest+0
+ * (Darwin leftover 12 on `*p = [w, w]`). Do not change
+ * add_imm_to_rbx globally — slice INDEX hi-guard uses X1 as length.
+ * Chunks of 4095 match arm64_enc_add_rd_rn_imm_chunks (rd=rn=19).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @param imm i32 - signed dest stride in bytes; 0 is a no-op
+ * @return i32 - 0 on success; -1 on null / INT_MIN / encode failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — dest-shadow family (x19).
+ */
+#[no_mangle]
+export function glue_arm64_add_imm_to_x19_elf_c(elf_ctx: *u8, imm: i32): i32 {
+  let left: i32 = 0;
+  let is_sub: i32 = 0;
+  let chunk: i32 = 0;
+  let insn: u8[4] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  /* imm==0: while (left > 0) does not run. Do not `return 0` after
+   * `imm == 0` — typeck widens that 0 to i64 (expected i32). */
+  left = imm;
+  if (left < 0) {
+    if (left == ((0 - 2147483647) - 1)) {
+      return 0 - 1;
+    }
+    is_sub = 1;
+    left = 0 - left;
+  }
+  while (left > 0) {
+    chunk = left;
+    if (chunk > 4095) {
+      chunk = 4095;
+    }
+    /* add x19,x19,#c = 91 02 73 | c<<10  (LE 73, 02|(c&63)<<2, c>>6, 91)
+     * sub x19,x19,#c = D1 02 73 | c<<10. Avoid i64 hex literals (T001). */
+    insn[0] = 115 as u8;
+    insn[1] = (2 | ((chunk & 63) << 2)) as u8;
+    insn[2] = (chunk >> 6) as u8;
+    if (is_sub != 0) {
+      insn[3] = 209 as u8;
+    } else {
+      insn[3] = 145 as u8;
+    }
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &insn[0], 4);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    left = left - chunk;
+  }
+  return 0;
+}
+
+/**
  * Emit SysV movq %rdx, 8(%rbx) after a 16B CALL (hi half).
  * ARM64 store_rax_to_rbx_offset(sz>=16) already writes x1 via x19;
  * x86 rbx is callee-saved dest, rdx is the INTEGER hi return.
@@ -40833,6 +40891,17 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
           }
           if (rc != 0) {
             return 0 - 1;
+          }
+          /* ARM64 dest-shadow: dest is X19 after mov_rax_to_rbx.
+           * add_imm_to_rbx is ADD X1 (slice hi-guard / field_off).
+           * dest-in-rbx n>1 wrote every elem to dest+0 (Darwin 12).
+           * G.7: bump X19 too. Do not change add_imm_to_rbx globally.
+           * PLATFORM: MACOS|ARM64 dest-shadow. */
+          if (ta == 1) {
+            rc = glue_arm64_add_imm_to_x19_elf_c(elf_ctx, esz);
+            if (rc != 0) {
+              return 0 - 1;
+            }
           }
         }
         unsafe {
