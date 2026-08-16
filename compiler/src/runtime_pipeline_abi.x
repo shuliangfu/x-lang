@@ -34105,6 +34105,24 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
             return 0;
           }
         }
+        /* TYPE_ARRAY dest-in-rbx (`*p = [w]` / `*p = src`). ARRAY_LIT
+         * used to miss struct let-init (ko==46 → -2) then store the
+         * payload pointer (Darwin leftover 10). G.7: same
+         * glue_emit_fixed_array_type_let_init as frame `[w]`. dest-in-rbx
+         * parks dest and memcpy; do not pass -3 to vector_let_init.
+         * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+        if (ltk == 10) {
+          unsafe {
+            arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+          }
+          if (arr_st == 0) {
+            return 0;
+          }
+          if (arr_st == 0 - 1) {
+            return 0 - 1;
+          }
+        }
         unsafe {
           arr_st = glue_emit_struct_type_let_init_elf_c(
               arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
@@ -40453,17 +40471,155 @@ export function glue_type_is_fixed_array(arena: *u8, type_ref: i32): i32 {
  * @param ctx *u8 - AsmFuncCtx*
  * @param ta i32 - target arch
  * @param type_ref i32 - fixed TYPE_ARRAY type
- * @param stack_slot_off i32 - let slot frame magnitude
+ * @param stack_slot_off i32 - let slot frame magnitude; -3 = dest already in rbx
+ *   (pointer dest `*p = [w]`). Do not treat -3 as a frame mag (lea rbp-3).
  * @return i32 - 0 handled; -1 error; -2 not fixed array / unsupported
  * wave146 pure: G.7 authority (was glue_emit_fixed_array_type_let_init_elf_c).
- * PLATFORM: SHARED freestanding emit.
+ * dest-in-rbx ARRAY_LIT `*p = [w]` used to miss this path: DEREF dest
+ * called struct let-init (ARRAY_LIT → -2) then stored the payload
+ * pointer (Darwin leftover 10). Frame `[w]` already writes via
+ * store_fixed_array_field. dest-in-rbx must not lea rbp-3 and must
+ * not bump an emit-time array temp (large main() is past the red
+ * zone → Darwin 139). Each named elem reuses dest-in-rbx struct
+ * let-init (`*p = w` for `[w]`); whole-array VAR memcpy dest-in-rbx.
+ * Do not pass -3 into vector_let_init / store_fixed_array_field.
+ * PLATFORM: SHARED freestanding emit · LINUX|x86 · MACOS|ARM64.
  */
 #[no_mangle]
 export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, type_ref: i32, stack_slot_off: i32): i32 {
+  let nbytes: i32 = 0;
+  let src: i32 = 0;
+  let iko: i32 = 0;
+  let n_arr: i32 = 0;
+  let esz: i32 = 0;
+  let elem_tr: i32 = 0;
+  let elem_ref: i32 = 0;
+  let eko: i32 = 0;
+  let ai: i32 = 0;
+  let src_off: i32 = 0;
+  let rc: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0 || type_ref <= 0) {
     return 0 - 2;
   }
   if (glue_type_is_fixed_array(arena, type_ref) == 0) {
+    return 0 - 2;
+  }
+  /* DEST_IN_RBX = -3. Write through dest already in rbx.
+   * ARRAY_LIT `[w]`: dest-in-rbx struct let-init of each named elem
+   * (same as `*p = w`). Do not allocate a frame temp — emit-time
+   * next_offset is past the prologue reservation (vfir Darwin 139).
+   * PLATFORM: SHARED — Darwin leftover 10 was the pointer store. */
+  if (stack_slot_off == (0 - 3) && (ta == 0 || ta == 1)) {
+    src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+    if (src <= 0) {
+      src = init_ref;
+    }
+    unsafe {
+      iko = pipeline_expr_kind_ord_at(arena, src);
+      n_arr = pipeline_type_array_size_at(arena, type_ref);
+      elem_tr = pipeline_type_elem_ref_at(arena, type_ref);
+      esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+    }
+    if (iko == 46) {
+      if (n_arr <= 0) {
+        unsafe {
+          n_arr = pipeline_expr_array_lit_num_elems_at(arena, src);
+        }
+      }
+      if (n_arr <= 0 || n_arr > 1024) {
+        return 0 - 1;
+      }
+      if (esz <= 0) {
+        esz = 4;
+      }
+      ai = 0;
+      while (ai < n_arr) {
+        unsafe {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, src, ai);
+        }
+        if (elem_ref <= 0) {
+          ai = ai + 1;
+          continue;
+        }
+        if (ai > 0) {
+          unsafe {
+            rc = backend_enc_add_imm_to_rbx_arch(elf_ctx, esz, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        unsafe {
+          eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+        }
+        rc = 0 - 2;
+        /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF named elem: dest-in-rbx
+         * struct let-init. `[w]` is the VAR twin of `*p = w`. */
+        if (eko == 3 || eko == 44 || eko == 45 || eko == 47 || eko == 52) {
+          unsafe {
+            rc = glue_emit_struct_type_let_init_elf_c(
+                arena, elf_ctx, elem_ref, ctx, ta, elem_tr, 0 - 3);
+          }
+          if (rc == 0 - 1) {
+            return 0 - 1;
+          }
+        }
+        if (rc != 0) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          if (esz > 8) {
+            if (ta == 1) {
+              unsafe {
+                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
+              }
+            } else {
+              unsafe {
+                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+              }
+              if (rc == 0) {
+                rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+              }
+            }
+          } else {
+            unsafe {
+              rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, esz, ta);
+            }
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        ai = ai + 1;
+      }
+      return 0;
+    }
+    /* Whole-array VAR `*p = src`: lea + dest-in-rbx memcpy. */
+    if (iko == 3) {
+      unsafe {
+        src_off = glue_var_expr_stack_off_elf_c(arena, ctx, src);
+        nbytes = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      }
+      if (src_off < 0 || nbytes < 8) {
+        return 0 - 2;
+      }
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
     return 0 - 2;
   }
   return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0, stack_slot_off, 0, type_ref);

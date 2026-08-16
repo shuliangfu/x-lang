@@ -6,8 +6,9 @@
 // FIELD dest-in-rbx `*p = arr[i].h`, plus dest-in-rbx INDEX whole
 // `*p = arr[i]`, plus dest-in-rbx DEREF source `*p = *q`, plus
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` / dest-in-rbx
-// `*p = Wrap { h: w.h }`. dest emit was already green after
-// FIELD-chain SIMD INDEX lea; `return h.v[1]` / `let x: i32 = w.h.v[i]`
+// `*p = { h: w.h }`, plus dest-in-rbx ARRAY_LIT `*p = [w]`. dest emit
+// was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
+// / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
 // false-green `return h.v` as i32). `let h = w.h` used to copy 8B
 // (Darwin h.v[2] leftover) because struct let-init ignored FIELD.
@@ -33,7 +34,8 @@
 // ARM64 dual-GP 16B field store, dest-in-rbx FIELD memcpy,
 // VAR 9–16B frame dest let-init (ARRAY_LIT `[w]`), dest-in-rbx
 // INDEX whole let-init, dest-in-rbx DEREF source `*p = *q`, and
-// STRUCT_LIT FIELD source `Wrap { h: w.h }` let-init.
+// STRUCT_LIT FIELD source `Wrap { h: w.h }` let-init, and dest-in-rbx
+// ARRAY_LIT `*p = [w]` (used to store the payload pointer; Darwin 10).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -82,8 +84,8 @@ function ret_depth1(h: Holder, i: i32): i32 {
  * (`[w]` / `[h]`), INDEX-base FIELD dest-in-rbx `*p = arr[i].h`,
  * dest-in-rbx INDEX whole `*p = arr[i]`, dest-in-rbx DEREF
  * source `*p = *q`, STRUCT_LIT FIELD source `let w5: Wrap = { h: w.h }`,
- * and dest-in-rbx STRUCT_LIT `*p = { h: w.h }` write/read
- * every lane.
+ * dest-in-rbx STRUCT_LIT `*p = { h: w.h }`, and dest-in-rbx
+ * ARRAY_LIT `*p = [w]` write/read every lane.
  * Depth-1 `return h.v[1]` local lit is the same typeck (already 2).
  * @return i32 — 0 ok; 50/51/52/53 slit; 10/20/30/40 dest; 11/21/31/41 return;
  *   12/22/32/42 let; 13/23/33/43 copy; 14/24/34/44 assign;
@@ -93,7 +95,8 @@ function ret_depth1(h: Holder, i: i32): i32 {
  *   60/61/62/63 dest-in-rbx INDEX whole;
  *   70/71/72/73 dest-in-rbx DEREF source;
  *   80/81/82/83 STRUCT_LIT FIELD source;
- *   84/85/86/87 dest-in-rbx STRUCT_LIT FIELD source
+ *   84/85/86/87 dest-in-rbx STRUCT_LIT FIELD source;
+ *   90/91/92/93 dest-in-rbx ARRAY_LIT `*p = [w]`
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -191,5 +194,12 @@ function main(): i32 {
   if (dst5.h.v[1] != 2) { return 85; }
   if (dst5.h.v[2] != 3) { return 86; }
   if (dst5.h.v[3] != 4) { return 87; }
+  let dst6: [1]Wrap = [{ h: { v: z } }];
+  let p6: *[1]Wrap = &dst6;
+  unsafe { *p6 = [w] }
+  if (dst6[0].h.v[0] != 1) { return 90; }
+  if (dst6[0].h.v[1] != 2) { return 91; }
+  if (dst6[0].h.v[2] != 3) { return 92; }
+  if (dst6[0].h.v[3] != 4) { return 93; }
   return 0;
 }
