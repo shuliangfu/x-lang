@@ -24724,7 +24724,8 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * dual-GP then dest re-lea clobbers hi (Darwin leftover 30). Same
  * lvalue (operand pointer) + memcpy dest-in-rbx. Darwin x19 dest-shadow
  * hid the FIELD case (Ubuntu 139); INDEX whole leftover hi is Darwin 12
- * (emit_expr of INDEX is 8B).
+ * (emit_expr of INDEX is 8B). STRUCT_LIT FIELD source `Wrap { h: w.h }`
+ * reuses this let-init into the field nest_slot (or a sret temp).
  * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
  * CALL ≤16B dual-GP store via x19/rbx; VAR >8B glue_copy dest-in-rbx
  * (deref_struct16 would clobber dest rbx/x19 — memcpy is the authority).
@@ -54678,7 +54679,15 @@ export function glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx: *u8, rehome_off: 
  * (save x0+x1, rehome dest, store 8+8). The else-branch
  * store_rax_to_rbx_offset(foff, fsz=16) writes hi via x1 after
  * mov_rax_to_rbx parked dest in x1/x19, so Wrap { h: inner } dropped
- * lanes 2–3 (Darwin 30). Do not change enc_store sz>=16 /8 globally.
+ * lanes 2–3 (Darwin 30). FIELD / INDEX / DEREF 9B+ field sources
+ * (`Wrap { h: w.h }`) cannot use emit_expr + dual-GP: emit_expr of
+ * FIELD/INDEX is 8B only, so the spill hi is garbage (Darwin leftover
+ * 30). G.7: reuse glue_emit_struct_type_let_init (same FIELD/INDEX/
+ * DEREF let-init as dest-in-rbx). Frame dest writes nest_slot;
+ * sret_direct / dest-in-rbx writes a frame temp then chunk-copies
+ * to dest+foff (same as nested STRUCT_LIT sret). VAR field
+ * `Wrap { h: inner }` stays on emit_expr (dual-GP). Do not change
+ * FIELD emit_expr. Do not change enc_store sz>=16 /8 globally.
  * Implicit dest (stack_slot_off<0, not sret / DEST_IN_RBX): reserve the
  * full value width (layout bytes, else field-span) before lea. Same
  * polarity as glue_field_access_call_base_rvalue_elf_c. A 16B Quad
@@ -54975,6 +54984,104 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
         }
         fi = fi + 1;
         continue;
+      }
+      /* EXPR_FIELD (44) / EXPR_INDEX (47) / EXPR_DEREF (52) field
+       * source of a 9B+ named struct: `Wrap { h: w.h }` /
+       * `Wrap { h: arr[i] }` / `Wrap { h: *q }`.
+       * emit_expr of FIELD/INDEX is 8B; dual-GP spill then stores
+       * garbage hi (Darwin leftover 30). VAR field already green
+       * (emit_expr VAR is dual-GP). Nested STRUCT_LIT is the rec
+       * path above. G.7: same glue_emit_struct_type_let_init as
+       * dest-in-rbx FIELD / INDEX / DEREF. Frame dest: let-init
+       * into nest_slot. sret_direct: let-init into a frame temp
+       * then chunk-copy to dest+foff (nested STRUCT_LIT sret twin).
+       * Do not pass dest-in-rbx -3 here (dest is the whole lit,
+       * not the field). Do not change FIELD emit_expr.
+       * PLATFORM: SHARED — Darwin leftover 30 was emit_expr 8B. */
+      if ((init_ko == 44 || init_ko == 47 || init_ko == 52) && (ta == 0 || ta == 1) && fsz > 8) {
+        if (sret_direct == 0) {
+          nest_slot = glue_struct_field_frame_mag_c(base_off, foff, ta);
+          if (nest_slot < 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            arr_st = glue_emit_struct_type_let_init_elf_c(
+                arena, elf_ctx, init_ref, ctx, ta, fty, nest_slot);
+          }
+          if (arr_st == 0) {
+            fi = fi + 1;
+            continue;
+          }
+          if (arr_st == 0 - 1) {
+            return 0 - 1;
+          }
+          /* -2: fall through to emit_expr */
+        } else {
+          unsafe {
+            nest_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+          }
+          if ((nest_off % 8) != 0) {
+            nest_off = (nest_off + 7) / 8 * 8;
+          }
+          nest_alloc = ((fsz + 7) / 8) * 8;
+          if (nest_alloc < 8) {
+            nest_alloc = 8;
+          }
+          if (ta == 1) {
+            /* PLATFORM: MACOS|ARM64 low-end — byte0 @ nest_off */
+            unsafe {
+              pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), nest_off + nest_alloc);
+            }
+          } else {
+            /* PLATFORM: LINUX|x86 high-end — lift base by nest_alloc */
+            nest_off = nest_off + nest_alloc;
+            unsafe {
+              pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), nest_off);
+            }
+          }
+          unsafe {
+            arr_st = glue_emit_struct_type_let_init_elf_c(
+                arena, elf_ctx, init_ref, ctx, ta, fty, nest_off);
+          }
+          if (arr_st == 0) {
+            cop = 0;
+            while (cop < fsz) {
+              if (fsz - cop >= 8) {
+                chunk = 8;
+              } else if (fsz - cop >= 4) {
+                chunk = 4;
+              } else {
+                chunk = 1;
+              }
+              if (ta == 1) {
+                load_off = nest_off + cop;
+              } else {
+                load_off = nest_off - cop;
+              }
+              if (load_off < 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                if (backend_enc_load_rbp_to_rax_arch(elf_ctx, load_off, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0) {
+                  return 0 - 1;
+                }
+                if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + cop, chunk, ta) != 0) {
+                  return 0 - 1;
+                }
+              }
+              cop = cop + chunk;
+            }
+            fi = fi + 1;
+            continue;
+          }
+          if (arr_st == 0 - 1) {
+            return 0 - 1;
+          }
+          /* -2: fall through to emit_expr */
+        }
       }
       // f32 float lit
       if (init_ko == 1 && fty > 0) {

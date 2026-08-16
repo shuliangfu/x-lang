@@ -4,24 +4,27 @@
 // (ARM64 16B field store), plus dest-in-rbx FIELD source `*p = w.h`,
 // plus ARRAY_LIT of a 16B named VAR (`[w]` / `[h]`), plus INDEX-base
 // FIELD dest-in-rbx `*p = arr[i].h`, plus dest-in-rbx INDEX whole
-// `*p = arr[i]`, plus dest-in-rbx DEREF source `*p = *q`. dest emit
-// was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
-// / `let x: i32 = w.h.v[i]` used to T001 because apply_ambient stamped
-// i32 over i32x4 (also false-green `return h.v` as i32). `let h = w.h`
-// used to copy 8B (Darwin h.v[2] leftover) because struct let-init
-// ignored FIELD. `Wrap { h: inner }` used to store only 8B on ARM64
-// (Darwin 30) because STRUCT_LIT dual-GP spill was ta==0 only.
-// `*p = w.h` used to copy 8B (Darwin 30) because dest-in-rbx FIELD
-// returned -2 and emit_expr of FIELD is 8B; deref_struct16 would
-// clobber dest / x19 so dest-in-rbx uses memcpy. ARRAY_LIT `[w]`
-// used to Darwin 139: VAR 9–16B frame dest returned -2, emit_expr
-// dual-GP clobbered dest-in-x1, store hit NULL. dest-in-rbx INDEX
-// whole `*p = arr[i]` used to Darwin 12 (hi leftover): let-init
-// ignored INDEX (47), emit_expr of INDEX is 8B. dest-in-rbx DEREF
-// source `*p = *q` used to Darwin 30: let-init DEREF 9–16B returned
-// -2, emit_deref dual-GP then dest re-lea clobbered hi. VAR
-// `return a[1]` / `let h2 = h` / `if (w.h.v[i])` / INDEX-base FIELD
-// dest-in-rbx were already 0.
+// `*p = arr[i]`, plus dest-in-rbx DEREF source `*p = *q`, plus
+// STRUCT_LIT FIELD source `Wrap { h: w.h }` / dest-in-rbx
+// `*p = Wrap { h: w.h }`. dest emit was already green after
+// FIELD-chain SIMD INDEX lea; `return h.v[1]` / `let x: i32 = w.h.v[i]`
+// used to T001 because apply_ambient stamped i32 over i32x4 (also
+// false-green `return h.v` as i32). `let h = w.h` used to copy 8B
+// (Darwin h.v[2] leftover) because struct let-init ignored FIELD.
+// `Wrap { h: inner }` used to store only 8B on ARM64 (Darwin 30)
+// because STRUCT_LIT dual-GP spill was ta==0 only. `*p = w.h` used
+// to copy 8B (Darwin 30) because dest-in-rbx FIELD returned -2 and
+// emit_expr of FIELD is 8B; deref_struct16 would clobber dest / x19
+// so dest-in-rbx uses memcpy. ARRAY_LIT `[w]` used to Darwin 139:
+// VAR 9–16B frame dest returned -2, emit_expr dual-GP clobbered
+// dest-in-x1, store hit NULL. dest-in-rbx INDEX whole `*p = arr[i]`
+// used to Darwin 12 (hi leftover): let-init ignored INDEX (47),
+// emit_expr of INDEX is 8B. dest-in-rbx DEREF source `*p = *q` used
+// to Darwin 30: let-init DEREF 9–16B returned -2, emit_deref dual-GP
+// then dest re-lea clobbered hi. STRUCT_LIT FIELD source
+// `Wrap { h: w.h }` used to Darwin 30: emit_expr of FIELD is 8B,
+// dual-GP spill stored garbage hi. VAR `return a[1]` / `let h2 = h`
+// / `if (w.h.v[i])` / INDEX-base FIELD dest-in-rbx were already 0.
 // Deref write is unsafe (bare `*p =` drops the function at parse).
 // Does not fold nest 21 / typeck of unrelated free T.
 // Expected exit 0.
@@ -29,7 +32,8 @@
 // the SIMD-concrete ambient skip, FIELD let-init copy, STRUCT_LIT
 // ARM64 dual-GP 16B field store, dest-in-rbx FIELD memcpy,
 // VAR 9–16B frame dest let-init (ARRAY_LIT `[w]`), dest-in-rbx
-// INDEX whole let-init, and dest-in-rbx DEREF source `*p = *q`.
+// INDEX whole let-init, dest-in-rbx DEREF source `*p = *q`, and
+// STRUCT_LIT FIELD source `Wrap { h: w.h }` let-init.
 
 allow(padding) struct Holder {
   v: i32x4
@@ -76,8 +80,10 @@ function ret_depth1(h: Holder, i: i32): i32 {
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `Wrap { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
  * (`[w]` / `[h]`), INDEX-base FIELD dest-in-rbx `*p = arr[i].h`,
- * dest-in-rbx INDEX whole `*p = arr[i]`, and dest-in-rbx DEREF
- * source `*p = *q` write/read every lane.
+ * dest-in-rbx INDEX whole `*p = arr[i]`, dest-in-rbx DEREF
+ * source `*p = *q`, STRUCT_LIT FIELD source `Wrap { h: w.h }`,
+ * and dest-in-rbx STRUCT_LIT `*p = Wrap { h: w.h }` write/read
+ * every lane.
  * Depth-1 `return h.v[1]` local lit is the same typeck (already 2).
  * @return i32 — 0 ok; 50/51/52/53 slit; 10/20/30/40 dest; 11/21/31/41 return;
  *   12/22/32/42 let; 13/23/33/43 copy; 14/24/34/44 assign;
@@ -85,7 +91,9 @@ function ret_depth1(h: Holder, i: i32): i32 {
  *   17/27/37/47 ARRAY_LIT `[w]`; 18/28/38/48 ARRAY_LIT `[h]`;
  *   19/29/39/49 INDEX-base FIELD dest-in-rbx;
  *   60/61/62/63 dest-in-rbx INDEX whole;
- *   70/71/72/73 dest-in-rbx DEREF source
+ *   70/71/72/73 dest-in-rbx DEREF source;
+ *   80/81/82/83 STRUCT_LIT FIELD source;
+ *   84/85/86/87 dest-in-rbx STRUCT_LIT FIELD source
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -171,5 +179,17 @@ function main(): i32 {
   if (dst4.h.v[1] != 2) { return 71; }
   if (dst4.h.v[2] != 3) { return 72; }
   if (dst4.h.v[3] != 4) { return 73; }
+  let w5: Wrap = Wrap { h: w.h };
+  if (w5.h.v[0] != 1) { return 80; }
+  if (w5.h.v[1] != 2) { return 81; }
+  if (w5.h.v[2] != 3) { return 82; }
+  if (w5.h.v[3] != 4) { return 83; }
+  let dst5: Wrap = Wrap { h: Holder { v: z } };
+  let p5: *Wrap = &dst5;
+  unsafe { *p5 = Wrap { h: w.h } }
+  if (dst5.h.v[0] != 1) { return 84; }
+  if (dst5.h.v[1] != 2) { return 85; }
+  if (dst5.h.v[2] != 3) { return 86; }
+  if (dst5.h.v[3] != 4) { return 87; }
   return 0;
 }
