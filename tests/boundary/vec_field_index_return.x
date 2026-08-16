@@ -8,7 +8,8 @@
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` / dest-in-rbx
 // `*p = { h: w.h }`, plus dest-in-rbx ARRAY_LIT `*p = [w]`, plus
 // dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`, plus INDEX dest
-// ARRAY_LIT `rows[0] = [w]`, plus dest-in-rbx ARRAY VAR `*p = src`. dest emit
+// ARRAY_LIT `rows[0] = [w]`, plus dest-in-rbx ARRAY VAR `*p = src`,
+// plus runtime-index dest ARRAY_LIT `rows[i] = [w]`. dest emit
 // was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
 // / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
@@ -128,6 +129,26 @@ function dest_arr_nest_slit(p: *[1]Wrap, a: i32x4): void {
 }
 
 /**
+ * Runtime-index dest ARRAY_LIT `rows[i] = [w]`.
+ * Lit-index `rows[0] = [w]` is already gated in main(); this helper
+ * keeps the runtime-index path off the official large main() late-let
+ * dest-name leftover.
+ * @param w Wrap — source element
+ * @return i32 — 0 ok; 122/123/124/125 leftover lanes
+ */
+function dest_rtidx_arrlit(w: Wrap): i32 {
+  let z: i32x4 = [0, 0, 0, 0];
+  let rows: [1][1]Wrap = [[{ h: { v: z } }]];
+  let i: i32 = 0;
+  rows[i] = [w];
+  if (rows[0][0].h.v[0] != 1) { return 122; }
+  if (rows[0][0].h.v[1] != 2) { return 123; }
+  if (rows[0][0].h.v[2] != 3) { return 124; }
+  if (rows[0][0].h.v[3] != 4) { return 125; }
+  return 0;
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
@@ -155,7 +176,8 @@ function dest_arr_nest_slit(p: *[1]Wrap, a: i32x4): void {
  *   106/107/108/109 dest-in-rbx nested STRUCT_LIT `*p = { h: { v: a } }`;
  *   110/111/112/113 `return [w]`;
  *   114/115/116/117 `return [{ h: { v: a } }]`;
- *   118/119/120/121 dest-in-rbx ARRAY_LIT nest `*p = [{ h: { v: a } }]`
+ *   118/119/120/121 dest-in-rbx ARRAY_LIT nest `*p = [{ h: { v: a } }]`;
+ *   122/123/124/125 runtime-index dest ARRAY_LIT `rows[i] = [w]`
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -307,5 +329,7 @@ function main(): i32 {
   if (dst12[0].h.v[1] != 2) { return 119; }
   if (dst12[0].h.v[2] != 3) { return 120; }
   if (dst12[0].h.v[3] != 4) { return 121; }
+  let r13: i32 = dest_rtidx_arrlit(w);
+  if (r13 != 0) { return r13; }
   return 0;
 }

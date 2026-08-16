@@ -33257,14 +33257,16 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         }
       }
     }
-    /* TYPE_ARRAY INDEX dest (`rows[0] = [w]`).
+    /* TYPE_ARRAY INDEX dest (`rows[0] = [w]` / `rows[i] = [w]`).
      * Prior path emit_expr of ARRAY_LIT is 8B payload pointer then
      * store (Darwin leftover 10). Frame dest ARRAY_LIT goes through
      * vector_let_init and bumps emit-time next_offset (official 139).
-     * G.7: peel dest type from the base, lea rbp dest, then dest-in-rbx
-     * glue_emit_fixed_array_type_let_init (same as `*p = [w]`).
-     * Do not pass dest-in-rbx -3 into vector_let_init. Do not INDEX-lea
-     * dest-in-rbx first (official large main() 139).
+     * G.7: peel dest type from the base. Lit index: lea rbp dest, then
+     * dest-in-rbx glue_emit_fixed_array_type_let_init (same as `*p = [w]`).
+     * Runtime index: INDEX-lea then the same dest-in-rbx ARRAY_LIT
+     * (STRUCT_LIT runtime / TYPE_NAMED INDEX dest twin). dest-in-rbx
+     * ARRAY_LIT writes through dest (no emit-time temp).
+     * Do not pass dest-in-rbx -3 into vector_let_init.
      * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
     if (ta == 0 || ta == 1) {
       /* Dest type is the INDEX element, not the base. INDEX
@@ -33359,6 +33361,55 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                     }
                     return 0 - 1;
                   }
+                }
+              }
+            } else {
+              /* Runtime index `rows[i] = [w]`. Lit path lea rbp dest;
+               * runtime cannot. INDEX-lea then dest-in-rbx ARRAY_LIT
+               * (STRUCT_LIT runtime twin). Scale with dest-array total
+               * bytes, not the 8B index-elem leftover.
+               * PLATFORM: SHARED — Darwin leftover 10. */
+              unsafe {
+                nbytes = glue_fixed_array_total_bytes_c(arena, ltr, 0);
+              }
+              if (nbytes < 8) {
+                nbytes = esz;
+              }
+              if (nbytes > 0) {
+                unsafe {
+                  rc = glue_emit_index_eff_addr_scaled_elf_c(
+                      arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, nbytes);
+                }
+                if (rc != 0) {
+                  unsafe {
+                    glue_index_assign_addr_cache_clear();
+                  }
+                  return 0 - 1;
+                }
+                unsafe {
+                  rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+                }
+                if (rc != 0) {
+                  unsafe {
+                    glue_index_assign_addr_cache_clear();
+                  }
+                  return 0 - 1;
+                }
+                unsafe {
+                  arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                      arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+                }
+                if (arr_st == 0) {
+                  unsafe {
+                    glue_index_assign_addr_cache_clear();
+                  }
+                  return 0;
+                }
+                if (arr_st == 0 - 1) {
+                  unsafe {
+                    glue_index_assign_addr_cache_clear();
+                  }
+                  return 0 - 1;
                 }
               }
             }
