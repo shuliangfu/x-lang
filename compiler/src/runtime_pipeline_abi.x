@@ -24819,7 +24819,16 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * CALL polarity), restore dest, memcpy dest-in-rbx. Do not
  * change pipeline_asm_block_final_expr_ref_at (block_body would
  * double-emit). Do not ignore then-arm !=0. Do not open x19
- * prologue. Extra arm stmts (nso>1) are leftover.
+ * prologue.
+ * dest-in-rbx IF extra arm stmts (`let t: T = a; { dest }`,
+ * `k = 1; { dest }`): peel used to take only the last expr so
+ * the preceding let never landed (Darwin CG002) and preceding
+ * assigns were skipped (dest ok, side effect lost). Frame dest
+ * uses emit_expr_if_arm → body_sync. dest-in-rbx cannot
+ * body_sync the whole arm (would emit dest as 8B). fill_tree
+ * walks if-stmts only, not EXPR_IF arm blocks. G.7: IF-stmt
+ * ensure + block_inits + preceding expr_stmts, then dest-in-rbx
+ * the last dest value. Do not change block_body.
  * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
  * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
  * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
@@ -24846,6 +24855,15 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let src_spill: i32 = 0;
   let rc: i32 = 0;
   let nes: i32 = 0;
+  let nlet: i32 = 0;
+  let nso: i32 = 0;
+  let slot_base: i32 = 0;
+  let so_i: i32 = 0;
+  let so_k: i32 = 0;
+  let so_idx: i32 = 0;
+  let es: i32 = 0;
+  let parent_scope: i32 = 0;
+  let extra: i32 = 0;
   let modp: *u8 = 0 as *u8;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
     return 0 - 1;
@@ -24866,6 +24884,75 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
     }
     if (br <= 0) {
       return 0 - 1;
+    }
+    /* dest-in-rbx IF extra arm stmts. fill_tree does not walk
+     * EXPR_IF arm blocks (only if-stmts). Peel used to skip
+     * preceding lets/assigns. G.7: IF-stmt ensure + block_inits
+     * (all lets) + preceding stmt_order expr_stmts; last dest
+     * value stays on dest-in-rbx. Keep arm scope until dest
+     * emit so VAR `t` resolves. Restore dest after extra emit
+     * (emit_expr of the let/assign may clobber x1).
+     * PLATFORM: SHARED dest-in-rbx IF extra arm stmts. */
+    unsafe {
+      nlet = ast_ast_block_num_lets(arena, br);
+      nso = ast_ast_block_num_stmt_order(arena, br);
+    }
+    if (nlet > 0 || nso > 1) {
+      if (parent_scope == 0) {
+        parent_scope = pipeline_asm_emit_ctx_scope_block_get();
+      }
+      unsafe {
+        backend_ensure_block_local_slots(ctx, arena, br);
+        glue_asm_ctx_set_scope_block(ctx, br);
+      }
+      if (nlet > 0) {
+        unsafe {
+          slot_base = backend_block_slot_base_for(ctx, arena, br);
+          extra = pipeline_asm_emit_block_inits_elf_c(
+              arena, elf_ctx, br, ctx, ta, slot_base);
+        }
+        if (extra != 0) {
+          return 0 - 1;
+        }
+      }
+      so_i = 0;
+      while (so_i < (nso - 1)) {
+        unsafe {
+          so_k = ast_ast_block_stmt_order_kind(arena, br, so_i);
+          so_idx = ast_ast_block_stmt_order_idx(arena, br, so_i);
+        }
+        if (so_k == 2) {
+          unsafe {
+            nes = ast_ast_block_num_expr_stmts(arena, br);
+          }
+          if (so_idx >= 0 && so_idx < nes) {
+            unsafe {
+              es = ast_pipeline_block_expr_stmt_ref(arena, br, so_idx);
+            }
+            if (es > 0) {
+              extra = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, es, ctx, ta);
+              if (extra != 0) {
+                return 0 - 1;
+              }
+            }
+          }
+        }
+        so_i = so_i + 1;
+      }
+      if (dest_spill >= 0 && (ta == 0 || ta == 1)) {
+        unsafe {
+          extra = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+        }
+        if (extra != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          extra = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (extra != 0) {
+          return 0 - 1;
+        }
+      }
     }
     fin = pipeline_asm_block_final_expr_ref_at(arena, br);
     if (fin <= 0) {
@@ -24892,7 +24979,6 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
    * dest-in-rbx STRUCT_LIT (45) does not apply. dest is live in
    * rbx/x19 after dest restore. G.7: dest-in-rbx ARRAY_LIT
    * standalone. Do not pass dest-in-rbx −3 into vector_let_init.
-   * Extra arm stmts (nso>1) leftover.
    * PLATFORM: SHARED dest-in-rbx IF ARRAY_LIT. */
   if (ko == 46 && dest_spill >= 0 && (ta == 0 || ta == 1)) {
     unsafe {
@@ -24901,6 +24987,9 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
     }
     if (rc != 0) {
       return 0 - 1;
+    }
+    if (parent_scope != 0) {
+      glue_asm_ctx_set_scope_block(ctx, parent_scope);
     }
     return 0;
   }
@@ -24972,9 +25061,16 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
         return 0 - 1;
       }
     }
+    if (parent_scope != 0) {
+      glue_asm_ctx_set_scope_block(ctx, parent_scope);
+    }
     return 0;
   }
-  return glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, init, ctx, ta, let_ty_ref, 0 - 3);
+  extra = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, init, ctx, ta, let_ty_ref, 0 - 3);
+  if (parent_scope != 0) {
+    glue_asm_ctx_set_scope_block(ctx, parent_scope);
+  }
+  return extra;
 }
 
 #[no_mangle]

@@ -480,11 +480,12 @@ function dest_arrlit_call(a: i32x4): i32 {
  * VAR is 8B (Darwin leftover 12). Frame dest `let r: Wrap = if`
  * is already green. dest-in-rbx IF of ARRAY_LIT used to CG002
  * (peel yields ARRAY_LIT; dest-in-rbx STRUCT_LIT is ko==45).
+ * dest-in-rbx IF extra arm stmts (`let t: T = a; { dest }`)
+ * used to CG002 (peel skipped the let; `t` never landed).
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
- * Extra arm stmts (nso>1) leftover.
  * @param a i32x4 — then-arm lanes
- * @return i32 — 0 ok; 218..257 leftover lanes
+ * @return i32 — 0 ok; 218..269 leftover lanes
  */
 function dest_if_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -547,7 +548,7 @@ function dest_if_dest(a: i32x4): i32 {
   if (dsts.h.v[3] != 8) { return 249; }
   /* dest-in-rbx IF of ARRAY_LIT. dest TYPE_ARRAY peel is ARRAY_LIT
    * (ko==46); dest-in-rbx STRUCT_LIT is ko==45. G.7: dest-in-rbx
-   * ARRAY_LIT standalone. Extra arm stmts leftover.
+   * ARRAY_LIT standalone.
    * PLATFORM: SHARED dest-in-rbx IF ARRAY_LIT. */
   let dsta: [1]Wrap = [{ h: { v: z } }];
   let pa: *[1]Wrap = &dsta;
@@ -563,6 +564,31 @@ function dest_if_dest(a: i32x4): i32 {
   if (dsta[0].h.v[1] != 6) { return 255; }
   if (dsta[0].h.v[2] != 7) { return 256; }
   if (dsta[0].h.v[3] != 8) { return 257; }
+  /* dest-in-rbx IF extra arm stmts. Peel used to take only the
+   * last expr; preceding `let t` never landed (Darwin CG002)
+   * and preceding assign skipped the side effect. G.7: ensure
+   * + block_inits + preceding expr_stmts.
+   * PLATFORM: SHARED dest-in-rbx IF extra arm stmts. */
+  let k: i32 = 0;
+  c = true;
+  unsafe { *p = if (c) { let t: i32x4 = a; { h: { v: t } } } else { y } }
+  if (dst.h.v[0] != 1) { return 258; }
+  if (dst.h.v[1] != 2) { return 259; }
+  if (dst.h.v[2] != 3) { return 260; }
+  if (dst.h.v[3] != 4) { return 261; }
+  c = false;
+  unsafe { *p = if (c) { w } else { let t2: i32x4 = b; { h: { v: t2 } } } }
+  if (dst.h.v[0] != 5) { return 262; }
+  if (dst.h.v[1] != 6) { return 263; }
+  if (dst.h.v[2] != 7) { return 264; }
+  if (dst.h.v[3] != 8) { return 265; }
+  c = true;
+  unsafe { *p = if (c) { k = 1; { h: { v: a } } } else { y } }
+  if (dst.h.v[0] != 1) { return 266; }
+  if (k != 1) { return 267; }
+  unsafe { *p = if (c) { let th: Holder = { v: a }; { h: th } } else { y } }
+  if (dst.h.v[0] != 1) { return 268; }
+  if (dst.h.v[3] != 4) { return 269; }
   return 0;
 }
 
