@@ -486,7 +486,10 @@ function dest_arrlit_call(a: i32x4): i32 {
  * prefix) used to skip so dest was ok and the side effect
  * was lost (isolate run=11). dest-in-rbx IF extra arm region
  * (`unsafe { k = 1 }; { dest }`) used to skip so_k==6
- * (isolate run=11).
+ * (isolate run=11). dest-in-rbx IF dest wrapped in unsafe
+ * is gated in dest_if_region_wrap.x (this helper dest-park
+ * overflowed into caller w; official large main dest-park
+ * was Darwin CG002 `.Lf0_0`).
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
  * @param a i32x4 — then-arm lanes

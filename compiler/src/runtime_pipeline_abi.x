@@ -24880,6 +24880,10 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let reg_body: i32 = 0;
   let wa_cap: i32 = 0;
   let wa_off: i32 = 0;
+  let dest_wa_cap: i32 = 0;
+  let dest_wa_off: i32 = 0;
+  let have_br: i32 = 0;
+  let dest_from_region: i32 = 0;
   let modp: *u8 = 0 as *u8;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
     return 0 - 1;
@@ -24893,14 +24897,23 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
    * the STRUCT_LIT is one more peel down. Cap 8. Do not widen
    * pipeline_asm_block_final_expr_ref_at (block_body would
    * double-emit expr_stmts).
+   * dest-in-rbx IF dest wrapped in unsafe (`unsafe { { dest } }`)
+   * has nso==1 last stmt kind 6 and no expr dest (Darwin
+   * CG002). Frame dest wrap is already green via body_sync.
+   * G.7: last stmt region → dest is the region body dest.
+   * Do not body_sync the dest region (would emit dest as 8B).
+   * Kind 7 leftover.
    * PLATFORM: SHARED dest-in-rbx IF STRUCT_LIT peel. */
-  while (ko == 26 && rc < 8) {
-    unsafe {
-      br = pipeline_expr_block_ref_at(arena, init);
+  while ((ko == 26 || have_br != 0) && rc < 8) {
+    if (have_br == 0) {
+      unsafe {
+        br = pipeline_expr_block_ref_at(arena, init);
+      }
+      if (br <= 0) {
+        return 0 - 1;
+      }
     }
-    if (br <= 0) {
-      return 0 - 1;
-    }
+    have_br = 0;
     /* dest-in-rbx IF extra arm stmts. fill_tree does not walk
      * EXPR_IF arm blocks (only if-stmts). Peel used to skip
      * preceding lets/assigns. G.7: IF-stmt ensure + block_inits
@@ -25078,6 +25091,66 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
         }
       }
     }
+    /* dest-in-rbx IF dest wrapped in unsafe. Peel used only
+     * final_expr / last expr_stmt so `unsafe { { dest } }`
+     * aborted (Darwin CG002 `.Lf0_1`). Last stmt kind 6
+     * holds the dest in the region body. Enter the region
+     * (ensure / optional with_arena) and peel that body.
+     * Do not body_sync the dest region. Kind 7 leftover.
+     * PLATFORM: SHARED dest-in-rbx IF dest region. */
+    if (fin <= 0 && nso > 0) {
+      so_i = nso - 1;
+      unsafe {
+        so_k = ast_ast_block_stmt_order_kind(arena, br, so_i);
+        so_idx = ast_ast_block_stmt_order_idx(arena, br, so_i);
+        n_cfg = ast_ast_block_num_regions(arena, br);
+      }
+      if (so_k == 6 && so_idx >= 0 && so_idx < n_cfg) {
+        unsafe {
+          reg_body = pipeline_block_region_body_ref(arena, br, so_idx);
+          dest_wa_cap = pipeline_block_region_with_arena_cap_ref(arena, br, so_idx);
+        }
+        if (reg_body > 0) {
+          if (parent_scope == 0) {
+            parent_scope = pipeline_asm_emit_ctx_scope_block_get();
+          }
+          unsafe {
+            backend_ensure_block_local_slots(ctx, arena, reg_body);
+          }
+          if (dest_wa_cap > 0) {
+            unsafe {
+              dest_wa_off = glue_wa_scope_alloc_off_c(ctx);
+              extra = glue_emit_with_arena_init_elf(
+                  arena, elf_ctx, ctx, dest_wa_off, dest_wa_cap, ta);
+            }
+            if (extra != 0) {
+              return 0 - 1;
+            }
+            glue_wa_scope_push_c(dest_wa_off);
+          }
+          glue_asm_ctx_set_scope_block(ctx, reg_body);
+          br = reg_body;
+          have_br = 1;
+          dest_from_region = 1;
+          if (dest_spill >= 0 && (ta == 0 || ta == 1)) {
+            unsafe {
+              extra = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+            }
+            if (extra != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              extra = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+            }
+            if (extra != 0) {
+              return 0 - 1;
+            }
+          }
+          rc = rc + 1;
+          continue;
+        }
+      }
+    }
     if (fin <= 0) {
       return 0 - 1;
     }
@@ -25101,6 +25174,13 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
     if (rc != 0) {
       return 0 - 1;
     }
+    if (dest_wa_cap > 0) {
+      extra = glue_emit_with_arena_deinit_elf(elf_ctx, dest_wa_off, ta);
+      glue_wa_scope_pop_c();
+      if (extra != 0) {
+        return 0 - 1;
+      }
+    }
     if (parent_scope != 0) {
       glue_asm_ctx_set_scope_block(ctx, parent_scope);
     }
@@ -25111,6 +25191,35 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
    * let_sz temp is the dest-in-rbx CALL twin (src_spill + memcpy).
    * dest is live in rbx/x19; emit_struct_let_init clobbers it.
    * PLATFORM: SHARED dest-in-rbx IF STRUCT_LIT. */
+  /* dest-in-rbx IF dest wrapped in unsafe. After dest
+   * restore dest is live in rbx/x19. dest-in-rbx STRUCT_LIT
+   * frame temp bumps emit-time next_offset past a small
+   * helper prologue (official dest_if_region_dest smashed
+   * caller `w`, leftover 51). G.7: dest-in-rbx −3 writes
+   * through dest. dest-in-rbx IF STRUCT_LIT without a
+   * dest region still uses the frame temp (dest-in-rbx −3
+   * as an IF arm leftover CG002).
+   * PLATFORM: SHARED dest-in-rbx IF dest region. */
+  if (ko == 45 && dest_from_region != 0 && dest_spill >= 0 && (ta == 0 || ta == 1)) {
+    unsafe {
+      rc = pipeline_asm_emit_struct_let_init_elf_c(
+          arena, elf_ctx, init, ctx, ta, 0 - 3);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (dest_wa_cap > 0) {
+      extra = glue_emit_with_arena_deinit_elf(elf_ctx, dest_wa_off, ta);
+      glue_wa_scope_pop_c();
+      if (extra != 0) {
+        return 0 - 1;
+      }
+    }
+    if (parent_scope != 0) {
+      glue_asm_ctx_set_scope_block(ctx, parent_scope);
+    }
+    return 0;
+  }
   if (ko == 45 && dest_spill >= 0 && (ta == 0 || ta == 1)) {
     unsafe {
       modp = glue_emit_module_from_ctx(ctx);
@@ -25174,12 +25283,26 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
         return 0 - 1;
       }
     }
+    if (dest_wa_cap > 0) {
+      extra = glue_emit_with_arena_deinit_elf(elf_ctx, dest_wa_off, ta);
+      glue_wa_scope_pop_c();
+      if (extra != 0) {
+        return 0 - 1;
+      }
+    }
     if (parent_scope != 0) {
       glue_asm_ctx_set_scope_block(ctx, parent_scope);
     }
     return 0;
   }
   extra = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, init, ctx, ta, let_ty_ref, 0 - 3);
+  if (dest_wa_cap > 0) {
+    rc = glue_emit_with_arena_deinit_elf(elf_ctx, dest_wa_off, ta);
+    glue_wa_scope_pop_c();
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
   if (parent_scope != 0) {
     glue_asm_ctx_set_scope_block(ctx, parent_scope);
   }
