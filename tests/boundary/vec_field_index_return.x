@@ -484,11 +484,13 @@ function dest_arrlit_call(a: i32x4): i32 {
  * used to CG002 (peel skipped the let; `t` never landed).
  * dest-in-rbx IF extra arm loops/ifs (while/for/if-stmt as
  * prefix) used to skip so dest was ok and the side effect
- * was lost (isolate run=11).
+ * was lost (isolate run=11). dest-in-rbx IF extra arm region
+ * (`unsafe { k = 1 }; { dest }`) used to skip so_k==6
+ * (isolate run=11).
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
  * @param a i32x4 — then-arm lanes
- * @return i32 — 0 ok; 218..299 leftover lanes
+ * @return i32 — 0 ok; 218..303 leftover lanes
  */
 function dest_if_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -661,6 +663,35 @@ function dest_if_dest(a: i32x4): i32 {
   }
   if (dst.h.v[0] != 1) { return 298; }
   if (k != 1) { return 299; }
+  /* dest-in-rbx IF extra arm region. Prefix so_k==6 used
+   * to skip (dest ok, side effect lost, isolate run=11).
+   * Frame dest extra unsafe is already green via body_sync.
+   * G.7: body_sync region emit as prefix.
+   * PLATFORM: SHARED dest-in-rbx IF extra arm region. */
+  k = 0;
+  c = true;
+  unsafe {
+    *p = if (c) {
+      unsafe { k = 1 }
+      { h: { v: a } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 1) { return 300; }
+  if (k != 1) { return 301; }
+  k = 0;
+  c = false;
+  unsafe {
+    *p = if (c) {
+      w
+    } else {
+      unsafe { k = 1 }
+      { h: { v: b } }
+    }
+  }
+  if (dst.h.v[0] != 5) { return 302; }
+  if (k != 1) { return 303; }
   return 0;
 }
 

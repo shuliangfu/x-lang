@@ -24832,9 +24832,15 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * kinds 3/4/5) used to skip so dest was ok and the side
  * effect was lost (isolate run=11). Reuse body_sync emit
  * (`backend_emit_while_loop_elf_sync` / `_for_loop_` /
- * `pipeline_asm_emit_block_if_stmt_elf`). Do not body_sync
- * the whole arm. Do not emit region/labeled (kinds 6/7)
- * this leaf. Do not change block_body.
+ * `pipeline_asm_emit_block_if_stmt_elf`). Prefix region
+ * (stmt_order kind 6, typically `unsafe { k = 1 }`) used
+ * to skip so dest was ok and the side effect was lost
+ * (isolate run=11). Reuse body_sync region emit
+ * (`pipeline_block_region_body_ref` +
+ * `pipeline_asm_emit_block_body_sync_elf`; with_arena
+ * init/deinit when cap>0). Do not body_sync the whole
+ * arm. Do not emit labeled (kind 7) this leaf. Do not
+ * change block_body.
  * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
  * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
  * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
@@ -24871,6 +24877,9 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let parent_scope: i32 = 0;
   let extra: i32 = 0;
   let n_cfg: i32 = 0;
+  let reg_body: i32 = 0;
+  let wa_cap: i32 = 0;
+  let wa_off: i32 = 0;
   let modp: *u8 = 0 as *u8;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
     return 0 - 1;
@@ -24944,13 +24953,15 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
             }
           }
         }
-        /* dest-in-rbx IF extra arm loops/ifs. Prefix used
-         * only so_k==2 so while/for/if-stmt never ran
-         * (dest ok, k leftover, run=11). Frame dest extra
-         * while is already green via body_sync. G.7: same
-         * emit as block_body_sync. Restore dest after the
-         * prefix walk (loop emit clobbers x1/x19).
-         * Kinds 6/7 leftover.
+        /* dest-in-rbx IF extra arm loops/ifs/region.
+         * Prefix used to skip so_k 3/4/5 then 6 so dest
+         * was ok and the side effect was lost (isolate
+         * run=11). Frame dest extra while / unsafe is
+         * already green via body_sync. G.7: same emit as
+         * block_body_sync. Restore dest after the prefix
+         * walk (loop / region emit clobbers x1/x19).
+         * Restore arm scope after a region (body_sync
+         * sets the region body). Kind 7 leftover.
          * PLATFORM: SHARED dest-in-rbx IF extra arm loops. */
         if (so_k == 3) {
           unsafe {
@@ -24986,6 +24997,56 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
             extra = pipeline_asm_emit_block_if_stmt_elf(arena, elf_ctx, br, so_idx, ctx, ta, so_i);
             if (extra != 0) {
               return 0 - 1;
+            }
+          }
+        }
+        /* dest-in-rbx IF extra arm region. Prefix so_k==6
+         * used to skip (`unsafe { k = 1 }; { dest }` dest
+         * ok, k leftover, run=11). Frame dest extra unsafe
+         * is already green via body_sync. G.7: same region
+         * emit as block_body_sync. Do not live_snap (this
+         * prefix has no live_fwd). Kind 7 leftover.
+         * PLATFORM: SHARED dest-in-rbx IF extra arm region. */
+        if (so_k == 6) {
+          unsafe {
+            n_cfg = ast_ast_block_num_regions(arena, br);
+          }
+          if (so_idx >= 0 && so_idx < n_cfg) {
+            unsafe {
+              reg_body = pipeline_block_region_body_ref(arena, br, so_idx);
+              wa_cap = pipeline_block_region_with_arena_cap_ref(arena, br, so_idx);
+            }
+            if (reg_body > 0) {
+              unsafe {
+                backend_ensure_block_local_slots(ctx, arena, reg_body);
+              }
+              if (wa_cap > 0) {
+                unsafe {
+                  wa_off = glue_wa_scope_alloc_off_c(ctx);
+                  extra = glue_emit_with_arena_init_elf(
+                      arena, elf_ctx, ctx, wa_off, wa_cap, ta);
+                }
+                if (extra != 0) {
+                  return 0 - 1;
+                }
+                glue_wa_scope_push_c(wa_off);
+              }
+              unsafe {
+                glue_asm_ctx_set_scope_block(ctx, reg_body);
+                extra = pipeline_asm_emit_block_body_sync_elf(
+                    arena, elf_ctx, reg_body, ctx, ta);
+              }
+              if (extra != 0) {
+                return 0 - 1;
+              }
+              if (wa_cap > 0) {
+                extra = glue_emit_with_arena_deinit_elf(elf_ctx, wa_off, ta);
+                glue_wa_scope_pop_c();
+                if (extra != 0) {
+                  return 0 - 1;
+                }
+              }
+              glue_asm_ctx_set_scope_block(ctx, br);
             }
           }
         }
