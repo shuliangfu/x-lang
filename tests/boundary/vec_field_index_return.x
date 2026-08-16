@@ -735,14 +735,17 @@ function dest_if_dest(a: i32x4): i32 {
 }
 
 /**
- * dest-in-rbx MATCH `*p = match tag { 1 => w; _ => y }`.
- * emit_expr of MATCH is 8B (Darwin leftover 12). Frame dest
- * `let r = match` is already green. Kept in a small helper so
- * the official large main() late-let dest-name leftover is not
- * this leaf.
+ * dest-in-rbx MATCH `*p = match tag { 1 => w; _ => y }` and
+ * dest-in-rbx MATCH field-bind `*ph = match w { Wrap { h } => h }`.
+ * emit_expr of MATCH is 8B (Darwin leftover 12). Field-bind
+ * dest-in-rbx VAR used to abort (Darwin CG002). Frame dest
+ * `let r = match` lit/wild is already green. Kept in a small
+ * helper so the official large main() dest-park leftover is
+ * not this leaf. Leftover codes stay in 1..255 (main exit
+ * is 8-bit).
  * @param a i32x4 — source lanes
- * @return i32 — 0 ok; 274..297 leftover lanes
- * PLATFORM: SHARED dest-in-rbx MATCH.
+ * @return i32 — 0 ok; 88..95 field-bind; 274..291 lit/wild
+ * PLATFORM: SHARED dest-in-rbx MATCH field-bind.
  */
 function dest_match_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -784,6 +787,20 @@ function dest_match_dest(a: i32x4): i32 {
   unsafe { *pa = match tag { 1 => [w]; _ => [y]; } }
   if (dsta[0].h.v[0] != 5) { return 290; }
   if (dsta[0].h.v[3] != 8) { return 291; }
+  let dsth2: Holder = { v: z };
+  let ph2: *Holder = &dsth2;
+  unsafe { *ph2 = match w { Wrap { h } => h; } }
+  if (dsth2.v[0] != 1) { return 88; }
+  if (dsth2.v[3] != 4) { return 89; }
+  unsafe { *ph2 = match y { { h } => h; } }
+  if (dsth2.v[0] != 5) { return 90; }
+  if (dsth2.v[3] != 8) { return 91; }
+  unsafe { *p = match w { Wrap { h } => { h: h }; } }
+  if (dst.h.v[0] != 1) { return 92; }
+  if (dst.h.v[3] != 4) { return 93; }
+  unsafe { *p = match y { { h } => { h: h }; } }
+  if (dst.h.v[0] != 5) { return 94; }
+  if (dst.h.v[3] != 8) { return 95; }
   return 0;
 }
 

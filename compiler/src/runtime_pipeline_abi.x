@@ -25391,7 +25391,9 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
  * G.7: same dest-in-rbx IF dest-park + dest-in-rbx arm let-init.
  * Subject emit / cmp clobber x1+x19; dest lives in dest_spill.
  * Do not change emit_match (frame dest). Do not open x19 prologue.
- * Field-bind subject context leftover (official isolate is lit/wild).
+ * Field-bind (`Wrap { h } => h`) is a wildcard arm. dest-in-rbx
+ * VAR `h` has no local slot unless subject context is live
+ * (same hop as emit_match). G.7: set/restore subject here.
  * @param arena *u8 — ASTArena*
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param expr_ref i32 — EXPR_MATCH (ko==43)
@@ -25418,6 +25420,15 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
   let saw_terminal_wild: i32 = 0;
   let arm_ok: i32 = 1;
   let is_enum: i32 = 0;
+  let prev_mod: *u8 = 0 as *u8;
+  let prev_mref: i32 = 0;
+  let prev_ty: i32 = 0;
+  let emit_mod: *u8 = 0 as *u8;
+  let emit_fi: i32 = 0 - 1;
+  let subj_ty: i32 = 0;
+  let mn: u8[128] = [];
+  let mln: i32 = 0;
+  let ko_m: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0 || dest_spill < 0) {
     return 0 - 1;
   }
@@ -25428,10 +25439,48 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
   if (matched_ref <= 0 || num_arms <= 0 || num_arms > 32) {
     return 0 - 1;
   }
+  /* dest-in-rbx MATCH field-bind. emit_match already sets
+   * subject for frame dest. dest-in-rbx MATCH used to skip
+   * it so dest-in-rbx VAR `h` returned −2 (Darwin CG002).
+   * G.7: same subject hop as emit_match. Restore on every
+   * exit. Do not change emit_match.
+   * PLATFORM: SHARED dest-in-rbx MATCH field-bind. */
+  prev_mod = pipeline_codegen_match_mod_c();
+  prev_mref = pipeline_codegen_match_matched_ref_c();
+  prev_ty = pipeline_codegen_match_subject_ty_c();
+  unsafe {
+    emit_mod = pipeline_asm_emit_module_ref_c();
+    emit_fi = pipeline_asm_emit_func_index_c();
+  }
+  if (emit_mod != 0 as *u8 && matched_ref > 0) {
+    unsafe {
+      subj_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+    }
+    if (subj_ty <= 0) {
+      unsafe {
+        ko_m = pipeline_expr_kind_ord_at(arena, matched_ref);
+      }
+      if (ko_m == 3 && emit_fi >= 0) {
+        unsafe {
+          mln = pipeline_expr_var_name_len(arena, matched_ref);
+        }
+        if (mln > 0 && mln <= 127) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, matched_ref, &mn[0]);
+            subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, &mn[0], mln);
+          }
+        }
+      }
+    }
+    if (subj_ty > 0) {
+      pipeline_codegen_match_set_subject_c(emit_mod, matched_ref, subj_ty);
+    }
+  }
   unsafe {
     done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
   }
   if (done_len <= 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return 0 - 1;
   }
   i = 0;
@@ -25612,6 +25661,7 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
       arm_ok = 0;
     }
   }
+  pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
   if (arm_ok == 0) {
     return 0 - 1;
   }
@@ -25633,6 +25683,11 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let dest_spill: i32 = 0;
   let src_spill: i32 = 0;
   let parked: i32 = 0;
+  let bind_name: u8[128] = [];
+  let bind_len: i32 = 0;
+  let bind_mref: i32 = 0;
+  let bind_foff: i32 = 0;
+  let bind_ko: i32 = 0;
   let modp: *u8 = 0 as *u8;
   let rc: i32 = 0;
   let if_cond: i32 = 0;
@@ -26117,8 +26172,54 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     unsafe {
       src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
     }
+    bind_foff = 0;
+    /* dest-in-rbx MATCH field-bind: `h` in `Wrap { h } => h`
+     * is not a local. dest-in-rbx VAR used to return −2
+     * (Darwin CG002). G.7: same subject.field lea as
+     * glue_try_emit_match_subject_field_var, then dest-in-rbx
+     * / frame memcpy. Do not change that helper (8B rax).
+     * PLATFORM: SHARED dest-in-rbx MATCH field-bind. */
     if (src_off < 0) {
-      return 0 - 2;
+      unsafe {
+        bind_len = pipeline_expr_var_name_len(arena, init_ref);
+      }
+      if (bind_len <= 0 || bind_len > 127) {
+        return 0 - 2;
+      }
+      unsafe {
+        pipeline_expr_var_name_into(arena, init_ref, &bind_name[0]);
+        modp = glue_emit_module_from_ctx(ctx);
+      }
+      if (modp == 0 as *u8) {
+        return 0 - 2;
+      }
+      if (pipeline_codegen_match_name_is_subject_field_c(modp, arena, &bind_name[0], bind_len) == 0) {
+        return 0 - 2;
+      }
+      bind_mref = pipeline_codegen_match_matched_ref_c();
+      if (bind_mref <= 0) {
+        return 0 - 2;
+      }
+      unsafe {
+        bind_ko = pipeline_expr_kind_ord_at(arena, bind_mref);
+      }
+      if (bind_ko != 3) {
+        return 0 - 2;
+      }
+      bind_foff = glue_field_layout_offset_for_var_base_field(
+          arena, modp, bind_mref, &bind_name[0], bind_len);
+      if (bind_foff < 0) {
+        return 0 - 2;
+      }
+      src_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, bind_mref);
+      if (src_off < 0) {
+        unsafe {
+          src_off = glue_var_expr_stack_off_elf_c(arena, ctx, bind_mref);
+        }
+      }
+      if (src_off < 0) {
+        return 0 - 2;
+      }
     }
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
@@ -26165,6 +26266,14 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       if (rc != 0) {
         return 0 - 1;
       }
+      if (bind_foff != 0) {
+        unsafe {
+          rc = backend_enc_add_imm_to_rax_arch(elf_ctx, bind_foff, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
       rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
       if (rc != 0) {
         return 0 - 1;
@@ -26183,6 +26292,14 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     if (rc != 0) {
       return 0 - 1;
+    }
+    if (bind_foff != 0) {
+      unsafe {
+        rc = backend_enc_add_imm_to_rax_arch(elf_ctx, bind_foff, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
     unsafe {
       rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta);
@@ -56759,20 +56876,20 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
         fi = fi + 1;
         continue;
       }
-      /* EXPR_FIELD (44) / EXPR_INDEX (47) / EXPR_DEREF (52) field
-       * source of a 9B+ named struct: `Wrap { h: w.h }` /
-       * `Wrap { h: arr[i] }` / `Wrap { h: *q }`.
-       * emit_expr of FIELD/INDEX is 8B; dual-GP spill then stores
-       * garbage hi (Darwin leftover 30). VAR field already green
-       * (emit_expr VAR is dual-GP). Nested STRUCT_LIT is the rec
-       * path above. G.7: same glue_emit_struct_type_let_init as
-       * dest-in-rbx FIELD / INDEX / DEREF. Frame dest: let-init
-       * into nest_slot. sret_direct: let-init into a frame temp
-       * then chunk-copy to dest+foff (nested STRUCT_LIT sret twin).
+      /* EXPR_FIELD (44) / EXPR_INDEX (47) / EXPR_DEREF (52) /
+       * EXPR_VAR (3) field source of a 9B+ named struct:
+       * `Wrap { h: w.h }` / `Wrap { h: arr[i] }` / `Wrap { h: *q }`
+       * / dest-in-rbx MATCH field-bind `{ h: h }`.
+       * emit_expr of FIELD/INDEX is 8B; field-bind VAR emit_expr
+       * is also 8B (rax load). Local VAR emit_expr is dual-GP.
+       * G.7: same glue_emit_struct_type_let_init as dest-in-rbx
+       * FIELD / INDEX / DEREF / dest-in-rbx VAR field-bind hop.
+       * Frame dest: let-init into nest_slot. sret_direct: let-init
+       * into a frame temp then chunk-copy to dest+foff.
        * Do not pass dest-in-rbx -3 here (dest is the whole lit,
        * not the field). Do not change FIELD emit_expr.
-       * PLATFORM: SHARED — Darwin leftover 30 was emit_expr 8B. */
-      if ((init_ko == 44 || init_ko == 47 || init_ko == 52) && (ta == 0 || ta == 1) && fsz > 8) {
+       * PLATFORM: SHARED dest-in-rbx MATCH field-bind. */
+      if ((init_ko == 44 || init_ko == 47 || init_ko == 52 || init_ko == 3) && (ta == 0 || ta == 1) && fsz > 8) {
         if (sret_direct == 0) {
           nest_slot = glue_struct_field_frame_mag_c(base_off, foff, ta);
           if (nest_slot < 0) {
