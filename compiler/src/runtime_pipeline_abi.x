@@ -25855,14 +25855,15 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     return 0;
   }
-  /* dest-in-rbx MATCH (`*p = match tag { 1 => w; _ => y }`).
-   * emit_expr of MATCH is 8B (emit_match → emit_expr_if_arm).
-   * dest-in-rbx IF of MATCH peels to ko==43 then dest-in-rbx
-   * let-init MATCH used to return −2 (Darwin CG002). Frame dest
-   * `let r = match` is already green. G.7: dest-in-rbx IF dest-park
-   * then dest-in-rbx each arm. Do not change emit_match.
+  /* dest-in-rbx MATCH (`*p = match tag { 1 => w; _ => y }`) and
+   * frame dest 16B MATCH field-bind (`let r: Holder = match w {
+   * Wrap { h } => h }`). emit_match → emit_expr_if_arm of VAR
+   * `h` is 8B (Darwin leftover 11). dest-in-rbx MATCH already
+   * dest-in-rbx let-init each arm. G.7: frame dest 9B+ leas the
+   * let slot into rbx/x19 then the same helper. i32 MATCH stays
+   * emit_expr (let_sz < 9). Do not change emit_match.
    * PLATFORM: SHARED dest-in-rbx MATCH · MACOS|ARM64 dest-shadow. */
-  if (ko == 43 && dest_in_rbx != 0 && (ta == 0 || ta == 1)) {
+  if (ko == 43 && (ta == 0 || ta == 1)) {
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
       unsafe {
@@ -25882,6 +25883,23 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     }
     if (let_sz < 8) {
       return 0 - 2;
+    }
+    if (dest_in_rbx == 0) {
+      if (let_sz < 9 || stack_slot_off < 0) {
+        return 0 - 2;
+      }
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
     glue_align_next_offset(ctx);
     dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
