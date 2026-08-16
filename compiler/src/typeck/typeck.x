@@ -8586,13 +8586,19 @@ decl_ty_ref: i32): i32 {
 /**
  * Coerce anonymous struct literal `{ fields… }` to a named decl type (e.g.
  * PollFd): backfill struct_lit name from TYPE_NAMED decl, ensure layout, stamp
- * resolved_type_ref. wave231 pure leave — residual face is thin.
+ * resolved_type_ref. Nested `{ h: { v: a } }` field inits are also STRUCT_LIT
+ * and check_expr walks them with expected=0, so they never get the field dest
+ * type. Recurse the same coerce onto each nested STRUCT_LIT using the layout
+ * field type (Holder for `h`). Emit `field_type_ref_at` / `field_store_sz`
+ * key off the inner lit name — without this, inner `v: i32x4` sizes 8 and
+ * Darwin leftover is lane2 (isolate 12 / official 108).
+ * Already-named lits (check_expr dest backfill) still recurse field nests.
  *
  * @param module *Module — for ensure_struct_layout_from_struct_lit (may be null → skip layout)
  * @param arena *ASTArena
  * @param init_ref i32 — EXPR_STRUCT_LIT init
  * @param decl_ty_ref i32 — TYPE_NAMED expected type
- * @return i32 — 1 if coerced, 0 if not applicable / fail
+ * @return i32 — 1 if coerced or already named and field nests walked, 0 if not applicable / fail
  * PLATFORM: SHARED freestanding typeck
  */
 export function typeck_coerce_init_struct_lit_to_decl(module: *Module, arena: *ASTArena, init_ref: i32,
@@ -8606,6 +8612,12 @@ decl_ty_ref: i32): i32 {
     let decl_nlen: i32 = 0;
     let ord_named: i32 = 8;
     let ord_struct_lit: i32 = 45;
+    let num_fields: i32 = 0;
+    let j: i32 = 0;
+    let flen: i32 = 0;
+    let init_r: i32 = 0;
+    let ftr: i32 = 0;
+    let field_buf: u8[128] = [];
     if (arena == 0 as *ASTArena || init_ref <= 0 || init_ref > arena.num_exprs ||
     decl_ty_ref <= 0 || decl_ty_ref > arena.num_types) {
       return 0;
@@ -8615,22 +8627,48 @@ decl_ty_ref: i32): i32 {
     if (decl_kind != ord_named || init_kind != ord_struct_lit) {
       return 0;
     }
-    /* Already named: not anonymous — leave to other paths. */
     name_len = pipeline_expr_struct_lit_type_name_len(arena, init_ref);
-    if (name_len > 0) {
-      return 0;
-    }
-    decl_nlen = pipeline_type_named_name_into(arena, decl_ty_ref, &decl_nm[0]);
-    if (decl_nlen <= 0 || decl_nlen > 127) {
-      return 0;
-    }
-    pipeline_expr_struct_lit_type_name_set(arena, init_ref, &decl_nm[0], decl_nlen);
-    if (module != 0 as *Module) {
-      if (ensure_struct_layout_from_struct_lit(module, arena, init_ref) != 0) {
+    if (name_len <= 0) {
+      decl_nlen = pipeline_type_named_name_into(arena, decl_ty_ref, &decl_nm[0]);
+      if (decl_nlen <= 0 || decl_nlen > 127) {
         return 0;
       }
+      pipeline_expr_struct_lit_type_name_set(arena, init_ref, &decl_nm[0], decl_nlen);
+      if (module != 0 as *Module) {
+        if (ensure_struct_layout_from_struct_lit(module, arena, init_ref) != 0) {
+          return 0;
+        }
+      }
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      name_len = decl_nlen;
+      pipeline_expr_struct_lit_type_name_into(arena, init_ref, &decl_nm[0]);
+    } else {
+      if (name_len > 127) {
+        return 0;
+      }
+      pipeline_expr_struct_lit_type_name_into(arena, init_ref, &decl_nm[0]);
     }
-    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    /* Nested `{ field: { ... } }`: stamp each STRUCT_LIT init from the
+     * dest field type. check_expr of field inits uses expected=0.
+     * PLATFORM: SHARED — dest-in-rbx / frame dest nest `{ h: { v: a } }`. */
+    if (module != 0 as *Module && name_len > 0) {
+      num_fields = pipeline_expr_struct_lit_num_fields(arena, init_ref);
+      j = 0;
+      while (j < num_fields) {
+        flen = pipeline_expr_struct_lit_field_name_len(arena, init_ref, j);
+        init_r = pipeline_expr_struct_lit_init_ref(arena, init_ref, j);
+        if (flen > 0 && flen <= 127 && init_r > 0 && init_r <= arena.num_exprs) {
+          if (pipeline_expr_kind_ord_at(arena, init_r) == ord_struct_lit) {
+            pipeline_expr_struct_lit_field_name_into(arena, init_ref, j, &field_buf[0]);
+            ftr = get_field_type_ref_from_layout(module, &decl_nm[0], name_len, &field_buf[0], flen);
+            if (ftr > 0) {
+              typeck_coerce_init_struct_lit_to_decl(module, arena, init_r, ftr);
+            }
+          }
+        }
+        j = j + 1;
+      }
+    }
     return 1;
   }
 }
@@ -14328,8 +14366,17 @@ expr_ref: i32, base_ty: i32): i32 {
           typeck_coerce_init_vector_binop_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
           typeck_coerce_init_int_binop_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
           typeck_coerce_init_slice_from_array(arena, init_r, ftr, ftr_kind);
+          /* Nested STRUCT_LIT field `{ h: { v: a } }`: same dest backfill
+           * as let / call-arg. Prior list omitted struct_lit_to_decl so
+           * the inner lit had no name and emit stored 8B (Darwin 12/108).
+           * Coerce stamps ftr; skip the type_refs_equal gate (layout vs
+           * decl Holder can be distinct pool refs).
+           * PLATFORM: SHARED — G.7 complete field dest coerce. */
+          crc = typeck_coerce_init_struct_lit_to_decl(module, arena, init_r, ftr);
           init_ty = expr_type_ref(arena, init_r);
-          if (!ast.ref_is_null(init_ty) && init_ty > 0) {
+          if (crc != 0) {
+            pipeline_expr_set_resolved_type_ref(arena, init_r, ftr);
+          } else if (!ast.ref_is_null(init_ty) && init_ty > 0) {
             got_kind = pipeline_type_kind_ord_at(arena, init_ty);
             if (type_refs_equal(arena, ftr, init_ty)
             || typeck_integer_widen_ok_refs(arena, ftr, init_ty)
@@ -14422,6 +14469,21 @@ export function typeck_check_expr_struct_lit(
           }
         }
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+      }
+      /* After dest-name backfill the lit is named. Named path already
+       * runs ensure + field_inits_to_layout (nested STRUCT_LIT dest).
+       * Anonymous used to return here so `{ h: { v: a } }` never stamped
+       * the inner Holder lit. Assign `*p = { h: { v: a } }` only
+       * check_expr's the RHS — no later coerce_init_expr_to_decl.
+       * PLATFORM: SHARED — same field_inits authority as named path. */
+      name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
+      if (name_len > 0) {
+        if (ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {
+          return 0 - 1;
+        }
+        if (typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref, return_type_ref) != 0) {
+          return 0 - 1;
+        }
       }
       return 0;
     }

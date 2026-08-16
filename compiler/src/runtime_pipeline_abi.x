@@ -55229,6 +55229,32 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
           fi = fi + 1;
           continue;
         }
+        /* dest-in-rbx nest (`*p = { h: { v: a } }`): write the inner lit
+         * through dest+foff. Prior sret path reserved a frame temp via
+         * emit-time next_offset — official large main() leftover 108
+         * (nest overlapped `a` + zeros; isolate hid it in the red zone).
+         * G.7: same DEST_IN_RBX rec as the outer lit. Do not bump
+         * next_offset. Do not pass dest-in-rbx -3 into vector_let_init.
+         * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
+        if (dest_on_cpu_stack != 0 && (ta == 0 || ta == 1)) {
+          if (foff != 0) {
+            unsafe {
+              arr_st = backend_enc_add_imm_to_rbx_arch(elf_ctx, foff, ta);
+            }
+            if (arr_st != 0) {
+              return 0 - 1;
+            }
+          }
+          if (pipeline_asm_emit_struct_lit_fields_elf_c(
+              arena, elf_ctx, init_ref, ctx, ta, glue_struct_lit_dest_in_rbx()) != 0) {
+            return 0 - 1;
+          }
+          if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0) {
+            return 0 - 1;
+          }
+          fi = fi + 1;
+          continue;
+        }
         // sret_direct nest: emit to frame temp then copy fsz
         unsafe {
           nest_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());

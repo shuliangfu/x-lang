@@ -8,7 +8,7 @@
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` / dest-in-rbx
 // `*p = { h: w.h }`, plus dest-in-rbx ARRAY_LIT `*p = [w]`, plus
 // dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`, plus INDEX dest
-// ARRAY_LIT `rows[0] = [w]`. dest emit
+// ARRAY_LIT `rows[0] = [w]`, plus dest-in-rbx ARRAY VAR `*p = src`. dest emit
 // was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
 // / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
@@ -41,7 +41,9 @@
 // and dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]` (array-elem type
 // sized <9 so dest-in-rbx FIELD returned -2; Darwin leftover 12),
 // and INDEX dest ARRAY_LIT `rows[0] = [w]` (emit_expr of ARRAY_LIT
-// stored the payload pointer; Darwin leftover 10).
+// stored the payload pointer; Darwin leftover 10), and dest-in-rbx
+// ARRAY VAR `*p = src` (whole-array memcpy dest-in-rbx; Darwin leftover
+// 12 when total_bytes sized Wrap as 8).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -84,14 +86,27 @@ function ret_depth1(h: Holder, i: i32): i32 {
 }
 
 /**
+ * dest-in-rbx nested STRUCT_LIT `*p = { h: { v: a } }`.
+ * Kept in a small helper so the official large main() late-let dest-name
+ * hole (empty `(struct )` after ~30 lets) is not this leaf.
+ * @param p *Wrap — dest (must be non-null)
+ * @param a i32x4 — source lanes
+ */
+function dest_nest_slit(p: *Wrap, a: i32x4): void {
+  unsafe { *p = { h: { v: a } } }
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
  * (`[w]` / `[h]`), INDEX-base FIELD dest-in-rbx `*p = arr[i].h`,
  * dest-in-rbx INDEX whole `*p = arr[i]`, dest-in-rbx DEREF
  * source `*p = *q`, STRUCT_LIT FIELD source `let w5: Wrap = { h: w.h }`,
- * dest-in-rbx STRUCT_LIT `*p = { h: w.h }`, and dest-in-rbx
- * ARRAY_LIT `*p = [w]` write/read every lane.
+ * dest-in-rbx STRUCT_LIT `*p = { h: w.h }`, dest-in-rbx
+ * ARRAY_LIT `*p = [w]`, dest-in-rbx ARRAY VAR `*p = src`, and
+ * dest-in-rbx nested STRUCT_LIT `*p = { h: { v: a } }`
+ * write/read every lane.
  * Depth-1 `return h.v[1]` local lit is the same typeck (already 2).
  * @return i32 — 0 ok; 50/51/52/53 slit; 10/20/30/40 dest; 11/21/31/41 return;
  *   12/22/32/42 let; 13/23/33/43 copy; 14/24/34/44 assign;
@@ -104,7 +119,9 @@ function ret_depth1(h: Holder, i: i32): i32 {
  *   84/85/86/87 dest-in-rbx STRUCT_LIT FIELD source;
  *   90/91/92/93 dest-in-rbx ARRAY_LIT `*p = [w]`;
  *   94/95/96/97 dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`;
- *   98/99/100/101 INDEX dest ARRAY_LIT `rows[0] = [w]`
+ *   98/99/100/101 INDEX dest ARRAY_LIT `rows[0] = [w]`;
+ *   102/103/104/105 dest-in-rbx ARRAY VAR `*p = src`;
+ *   106/107/108/109 dest-in-rbx nested STRUCT_LIT `*p = { h: { v: a } }`
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -222,5 +239,21 @@ function main(): i32 {
   if (rows[0][0].h.v[1] != 2) { return 99; }
   if (rows[0][0].h.v[2] != 3) { return 100; }
   if (rows[0][0].h.v[3] != 4) { return 101; }
+  let src8: [1]Wrap = [w];
+  let dst8: [1]Wrap = [{ h: { v: z } }];
+  let p8: *[1]Wrap = &dst8;
+  unsafe { *p8 = src8 }
+  if (dst8[0].h.v[0] != 1) { return 102; }
+  if (dst8[0].h.v[1] != 2) { return 103; }
+  if (dst8[0].h.v[2] != 3) { return 104; }
+  if (dst8[0].h.v[3] != 4) { return 105; }
+  let dst9: Wrap = { h: inner };
+  let p9: *Wrap = &dst9;
+  dest_nest_slit(p9, z);
+  dest_nest_slit(p9, a);
+  if (dst9.h.v[0] != 1) { return 106; }
+  if (dst9.h.v[1] != 2) { return 107; }
+  if (dst9.h.v[2] != 3) { return 108; }
+  if (dst9.h.v[3] != 4) { return 109; }
   return 0;
 }
