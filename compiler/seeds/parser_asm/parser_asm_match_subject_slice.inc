@@ -384,7 +384,7 @@ static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t
  * Docs/04: `|` here is multi-pattern only, not type union.
  * Struct patterns: named `Type { fields }` or dest-typed `{ fields }`
  * (type from match subject). Enum patterns: named `Type.Variant` or
- * dest-typed `.Variant`. Rebuild: parser_asm_thin_glue.o + g05.
+ * dest-typed `.Variant` / bare `Variant`. Rebuild: parser_asm_thin_glue.o + g05.
  */
 void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out) {
@@ -1291,7 +1291,18 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
             var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf,
                                                                 variant_len);
         } else {
-          return;
+          /* Dest-typed `Green =>`. IDENT is already in enum_buf;
+           * r is FATARROW/PIPE/IF and lex still sits after IDENT
+           * so the common next re-reads that token. Same unique
+           * sidecar scan as dest-typed `.Variant`. Unknown IDENT
+           * still parse-fails. PLATFORM: SHARED dest-typed bare enum. */
+          is_ev = 1;
+          mod_m = pipeline_parser_get_match_module();
+          var_idx = -1;
+          if (mod_m)
+            var_idx = parser_asm_match_dest_enum_tag_c(mod_m, enum_buf, enum_len);
+          if (var_idx < 0)
+            return;
         }
       } else if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
         /* Anonymous `{ fields } =>`. Type comes from the match subject
@@ -1306,7 +1317,8 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
       } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
         /* Dest-typed `.Variant =>`. Type comes from the match
          * subject (named `Type.Variant` already uses IDENT+DOT).
-         * Bare `RED =>` stays IDENT-without-DOT leftover.
+         * Bare `Green =>` is the IDENT-without-DOT dest-typed
+         * arm above (same tag scan).
          * PLATFORM: SHARED dest-typed enum match. */
         parser_lex_from_next_into_glue(&lex, r);
         lexer_next_into(&r, lex, source);

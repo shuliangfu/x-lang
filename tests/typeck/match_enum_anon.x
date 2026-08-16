@@ -1,6 +1,6 @@
-// Official gate: dest-typed match patterns `.Variant =>`.
-// Type comes from the match subject. Named `Type.Variant =>`
-// still accepted (same tag lookup).
+// Official gate: dest-typed match patterns `.Variant =>` and
+// bare `Variant =>`. Type comes from the match subject. Named
+// `Type.Variant =>` still accepted (same tag lookup).
 // PLATFORM: SHARED — Ubuntu gold.
 
 enum Color {
@@ -35,7 +35,20 @@ function named_green(c: Color): i32 {
 }
 
 /**
- * Official entry: dest-typed `.Green` / `.Red` / `_` + named neighborhood.
+ * Bare dest-typed `Green =>` / `Red =>` (no leading DOT).
+ * @param c Color — match subject
+ * @return i32 — 1 Green, 0 Red, else -1
+ */
+function classify_bare(c: Color): i32 {
+  return match c {
+    Green => 1;
+    Red => 0;
+    _ => -1;
+  };
+}
+
+/**
+ * Official entry: dest-typed `.Green` / bare `Green` + named neighborhood.
  * @return i32 — 0 on success
  */
 function main(): i32 {
@@ -53,6 +66,15 @@ function main(): i32 {
   }
   if (named_green(Color.Red) != 0) {
     return 5;
+  }
+  if (classify_bare(Color.Green) != 1) {
+    return 6;
+  }
+  if (classify_bare(Color.Red) != 0) {
+    return 7;
+  }
+  if (classify_bare(Color.Blue) != -1) {
+    return 8;
   }
   return 0;
 }
