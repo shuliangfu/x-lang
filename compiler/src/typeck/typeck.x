@@ -8559,6 +8559,29 @@ decl_ty_ref: i32): i32 {
         return -1;
       }
       if (arr_c != 0) {
+        /*
+         * Let-init `let r: [1]Wrap = [{ h: { v: a } }]` check_expr's the
+         * ARRAY_LIT with expected=0; dest arrives only here. Stamp STRUCT_LIT
+         * elems with the same coerce as nest `{ h: { v: a } }`.
+         * PLATFORM: SHARED — G.7 complete array-elem dest.
+         */
+        if (init_kind == 46 && (decl_kind == 10 || decl_kind == 11)) {
+          let ed: i32 = pipeline_type_elem_ref_at(arena, decl_ty_ref);
+          let n: i32 = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+          let k: i32 = 0;
+          let er: i32 = 0;
+          if (ed > 0) {
+            while (k < n) {
+              er = pipeline_expr_array_lit_elem_ref(arena, init_ref, k);
+              if (er > 0 && er <= arena.num_exprs) {
+                if (pipeline_expr_kind_ord_at(arena, er) == 45) {
+                  typeck_coerce_init_struct_lit_to_decl(module, arena, er, ed);
+                }
+              }
+              k = k + 1;
+            }
+          }
+        }
         return 1;
       }
     }
@@ -14766,7 +14789,8 @@ export function typeck_expr_is_any_assign_kind(kind_ord: i32): bool {
  * @param module *Module — current module
  * @param arena *ASTArena — expr/type pool
  * @param expr_ref i32 — EXPR_ARRAY_LIT (kind 46); other kinds return 0
- * @param return_type_ref i32 — ambient expected type passed to nested check_expr
+ * @param return_type_ref i32 — ambient dest; ARRAY/SLICE peel elem dest for
+ *   nested check_expr (STRUCT_LIT elems `{ h: { v: a } }`); SIMD stamps outer only
  * @param ctx *PipelineDepCtx — typeck context
  * @return i32 — 0 on success, -1 if any element fails typeck
  * PLATFORM: SHARED — wave407 Cap residual pure; wave611 untyped ARRAY_LIT infer
@@ -14807,14 +14831,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
       }
     }
-    while (i < num_elems) {
-      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
-      if (!ast.ref_is_null(elem_ref) && elem_ref > 0) {
-        if (check_expr(module, arena, elem_ref, 0, ctx) != 0) {
-          return -1;
+    /*
+     * ARRAY/SLICE dest (`return [{ h: { v: a } }]` / `*p = [{ … }]`): peel
+     * the element dest and pass it into check_expr. Nested STRUCT_LIT elems
+     * used expected=0 so inner `{ v: a }` never got Holder dest (Darwin 12).
+     * SIMD ambient stays 0 on elems (lane stamp is coerce, not this peel).
+     * PLATFORM: SHARED — G.7 complete check_expr_array_lit dest.
+     */
+    {
+      let elem_expected: i32 = 0;
+      let amb_tk: i32 = 0;
+      if (return_type_ref > 0) {
+        amb_tk = pipeline_type_kind_ord_at(arena, return_type_ref);
+        if (amb_tk == 10 || amb_tk == 11) {
+          elem_expected = pipeline_type_elem_ref_at(arena, return_type_ref);
         }
       }
-      i = i + 1;
+      while (i < num_elems) {
+        elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+        if (!ast.ref_is_null(elem_ref) && elem_ref > 0) {
+          if (check_expr(module, arena, elem_ref, elem_expected, ctx) != 0) {
+            return -1;
+          }
+        }
+        i = i + 1;
+      }
     }
     /*
      * wave611 / PLATFORM: SHARED — untyped ARRAY_LIT rvalue type inference.

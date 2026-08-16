@@ -97,6 +97,37 @@ function dest_nest_slit(p: *Wrap, a: i32x4): void {
 }
 
 /**
+ * Return `[w]` of a 16B named VAR. Isolate already 0 after dest stamp;
+ * official gate stays in this helper (large main late-let dest-name leftover).
+ * @param w Wrap — source element
+ * @return [1]Wrap — one-element array
+ */
+function ret_arr(w: Wrap): [1]Wrap {
+  return [w];
+}
+
+/**
+ * Return `[{ h: { v: a } }]` — ARRAY_LIT of a nested STRUCT_LIT.
+ * typeck_check_expr_array_lit used to check_expr elems with expected=0
+ * so inner `{ v: a }` had no Holder dest (Darwin leftover 12).
+ * @param a i32x4 — source lanes
+ * @return [1]Wrap — one-element array
+ */
+function ret_arr_nest(a: i32x4): [1]Wrap {
+  return [{ h: { v: a } }];
+}
+
+/**
+ * dest-in-rbx ARRAY_LIT of nested STRUCT_LIT `*p = [{ h: { v: a } }]`.
+ * Same dest-stamp peel as `return [{ … }]`.
+ * @param p *[1]Wrap — dest (must be non-null)
+ * @param a i32x4 — source lanes
+ */
+function dest_arr_nest_slit(p: *[1]Wrap, a: i32x4): void {
+  unsafe { *p = [{ h: { v: a } }] }
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
@@ -121,7 +152,10 @@ function dest_nest_slit(p: *Wrap, a: i32x4): void {
  *   94/95/96/97 dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`;
  *   98/99/100/101 INDEX dest ARRAY_LIT `rows[0] = [w]`;
  *   102/103/104/105 dest-in-rbx ARRAY VAR `*p = src`;
- *   106/107/108/109 dest-in-rbx nested STRUCT_LIT `*p = { h: { v: a } }`
+ *   106/107/108/109 dest-in-rbx nested STRUCT_LIT `*p = { h: { v: a } }`;
+ *   110/111/112/113 `return [w]`;
+ *   114/115/116/117 `return [{ h: { v: a } }]`;
+ *   118/119/120/121 dest-in-rbx ARRAY_LIT nest `*p = [{ h: { v: a } }]`
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -255,5 +289,23 @@ function main(): i32 {
   if (dst9.h.v[1] != 2) { return 107; }
   if (dst9.h.v[2] != 3) { return 108; }
   if (dst9.h.v[3] != 4) { return 109; }
+  let r10: [1]Wrap = ret_arr(w);
+  if (r10[0].h.v[0] != 1) { return 110; }
+  if (r10[0].h.v[1] != 2) { return 111; }
+  if (r10[0].h.v[2] != 3) { return 112; }
+  if (r10[0].h.v[3] != 4) { return 113; }
+  let r11: [1]Wrap = ret_arr_nest(a);
+  if (r11[0].h.v[0] != 1) { return 114; }
+  if (r11[0].h.v[1] != 2) { return 115; }
+  if (r11[0].h.v[2] != 3) { return 116; }
+  if (r11[0].h.v[3] != 4) { return 117; }
+  let dst12: [1]Wrap = [{ h: { v: z } }];
+  let p12: *[1]Wrap = &dst12;
+  dest_arr_nest_slit(p12, z);
+  dest_arr_nest_slit(p12, a);
+  if (dst12[0].h.v[0] != 1) { return 118; }
+  if (dst12[0].h.v[1] != 2) { return 119; }
+  if (dst12[0].h.v[2] != 3) { return 120; }
+  if (dst12[0].h.v[3] != 4) { return 121; }
   return 0;
 }
