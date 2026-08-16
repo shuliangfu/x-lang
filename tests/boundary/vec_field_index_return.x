@@ -6,7 +6,8 @@
 // FIELD dest-in-rbx `*p = arr[i].h`, plus dest-in-rbx INDEX whole
 // `*p = arr[i]`, plus dest-in-rbx DEREF source `*p = *q`, plus
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` / dest-in-rbx
-// `*p = { h: w.h }`, plus dest-in-rbx ARRAY_LIT `*p = [w]`. dest emit
+// `*p = { h: w.h }`, plus dest-in-rbx ARRAY_LIT `*p = [w]`, plus
+// dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`. dest emit
 // was already green after FIELD-chain SIMD INDEX lea; `return h.v[1]`
 // / `let x: i32 = w.h.v[i]`
 // used to T001 because apply_ambient stamped i32 over i32x4 (also
@@ -35,7 +36,9 @@
 // VAR 9–16B frame dest let-init (ARRAY_LIT `[w]`), dest-in-rbx
 // INDEX whole let-init, dest-in-rbx DEREF source `*p = *q`, and
 // STRUCT_LIT FIELD source `Wrap { h: w.h }` let-init, and dest-in-rbx
-// ARRAY_LIT `*p = [w]` (used to store the payload pointer; Darwin 10).
+// ARRAY_LIT `*p = [w]` (used to store the payload pointer; Darwin 10),
+// and dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]` (array-elem type
+// sized <9 so dest-in-rbx FIELD returned -2; Darwin leftover 12).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -201,5 +204,12 @@ function main(): i32 {
   if (dst6[0].h.v[1] != 2) { return 91; }
   if (dst6[0].h.v[2] != 3) { return 92; }
   if (dst6[0].h.v[3] != 4) { return 93; }
+  let dst7: [1]Holder = [{ v: z }];
+  let p7: *[1]Holder = &dst7;
+  unsafe { *p7 = [w.h] }
+  if (dst7[0].v[0] != 1) { return 94; }
+  if (dst7[0].v[1] != 2) { return 95; }
+  if (dst7[0].v[2] != 3) { return 96; }
+  if (dst7[0].v[3] != 4) { return 97; }
   return 0;
 }

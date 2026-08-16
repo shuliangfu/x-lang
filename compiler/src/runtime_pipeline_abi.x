@@ -40532,6 +40532,18 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
       if (esz <= 0) {
         esz = 4;
       }
+      /* Array-elem TYPE_NAMED (Holder) often sizes 8 via size_simple
+       * without a layout hit. dest-in-rbx FIELD uses named_layout
+       * (16B) for `*p = w.h`. Same dest width for `[w.h]`.
+       * PLATFORM: SHARED — dest-in-rbx ARRAY_LIT of FIELD. */
+      if (elem_tr > 0) {
+        unsafe {
+          rc = glue_type_named_layout_size_any_module_elf_c(arena, elem_tr);
+        }
+        if (rc > esz) {
+          esz = rc;
+        }
+      }
       ai = 0;
       while (ai < n_arr) {
         unsafe {
@@ -40554,7 +40566,9 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
         }
         rc = 0 - 2;
         /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF named elem: dest-in-rbx
-         * struct let-init. `[w]` is the VAR twin of `*p = w`. */
+         * struct let-init. `[w]` is the VAR twin of `*p = w`.
+         * FIELD/INDEX/DEREF may return -2 (array-elem type sizes
+         * <9); fallback below is dest-in-rbx lvalue + memcpy. */
         if (eko == 3 || eko == 44 || eko == 45 || eko == 47 || eko == 52) {
           unsafe {
             rc = glue_emit_struct_type_let_init_elf_c(
@@ -40565,32 +40579,57 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
           }
         }
         if (rc != 0) {
-          unsafe {
-            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
-          }
-          if (rc != 0) {
-            return 0 - 1;
-          }
-          if (esz > 8) {
-            if (ta == 1) {
-              unsafe {
-                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
-              }
-            } else {
-              unsafe {
-                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
-              }
-              if (rc == 0) {
-                rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
-              }
+          /* dest-in-rbx FIELD/INDEX/DEREF let-init returns -2 when the
+           * dest type sizes <9 (array-elem nodes often have no layout).
+           * emit_expr of FIELD is 8B; store 16 then writes garbage hi
+           * (Darwin leftover 12). G.7: same dest-in-rbx FIELD memcpy
+           * as `*p = w.h` — lvalue + glue_copy dest-in-rbx esz.
+           * FIELD-on-VAR / DEREF-of-VAR lvalue is rax-only (dest stays).
+           * Do not emit_expr a 9B+ named elem.
+           * PLATFORM: SHARED — dest-in-rbx ARRAY_LIT of FIELD. */
+          if ((eko == 44 || eko == 47 || eko == 52) && esz >= 8) {
+            unsafe {
+              rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(
+                  arena, elf_ctx, elem_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = glue_copy_large_struct_from_rax_ptr_elf_c(
+                  elf_ctx, 0 - 3, esz, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
             }
           } else {
             unsafe {
-              rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, esz, ta);
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
             }
-          }
-          if (rc != 0) {
-            return 0 - 1;
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            if (esz > 8) {
+              if (ta == 1) {
+                unsafe {
+                  rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
+                }
+              } else {
+                unsafe {
+                  rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+                }
+                if (rc == 0) {
+                  rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+                }
+              }
+            } else {
+              unsafe {
+                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, esz, ta);
+              }
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
           }
         }
         ai = ai + 1;
