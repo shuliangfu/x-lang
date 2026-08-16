@@ -1442,7 +1442,15 @@
   - **根修（G.7 有则补全）**：产生点＝dest-in-rbx ARRAY_LIT 逐元素 dest-in-rbx struct let-init 对 FIELD 返 −2（数组元类型 size&lt;9），再 emit_expr FIELD 8B + store 16 垃圾 hi。权威已是 dest-in-rbx FIELD memcpy。补 named_layout dest 宽；FIELD／INDEX／DEREF −2 回退走 lvalue + glue_copy dest-in-rbx esz。**禁** emit_expr 9B+ named 元／改 FIELD emit_expr／enc_store /8
   - 闸：`tests/boundary/vec_field_index_return.x` dest-in-rbx ARRAY_LIT of FIELD 94／95／96／97
   - 证：双端 vfir／xlang-c **0** · smd／smdrv／vald **0** · fs16 **42** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1381264／Ubuntu 1637688）· **日常 L2 不升钉**
-  - 余（勿并本叶）：dest-in-rbx ARRAY VAR `*p = arr`；INDEX dest ARRAY_LIT `rows[0] = [w]`；dest-in-rbx 嵌套 STRUCT_LIT `*p = { h: { v: a } }`；匿名 match；nest>20；sat／x19 序言
+  - 余（已闭 INDEX dest ARRAY_LIT）：见下；另层：dest-in-rbx ARRAY VAR；dest-in-rbx 嵌套 STRUCT_LIT；`return [w]`；匿名 match；nest>20；sat／x19 序言
+
+✅ **INDEX dest ARRAY_LIT `rows[0] = [w]`** ✅ @ **`3e53921df`**
+
+  - 现场：`rows[0] = [w]`（`rows: [1][1]Wrap`）isolate Darwin **10**（payload 指针）。官方大 `main()` 第一刀 dest-in-rbx after INDEX lea **139**；帧槽 let-init 掉进 `vector_let_init` 同样 139。host-C 已 0。`*p = [w]` 已 0
+  - **根修（G.7 有则补全）**：产生点＝INDEX dest 只认 TYPE_NAMED／VECTOR／STRUCT_LIT，ARRAY_LIT 走 emit_expr 8B 指针。权威已是 dest-in-rbx ARRAY_LIT。从基剥 dest 类型（勿信 INDEX 盖外层 `[1][1]Wrap`），lea rbp dest，再 dest-in-rbx `glue_emit_fixed_array_type_let_init`。**禁** INDEX-lea dest-in-rbx 先手／vector_let_init −3／emit 时开 array temp／enc_store /8
+  - 闸：`tests/boundary/vec_field_index_return.x` INDEX dest ARRAY_LIT 98／99／100／101
+  - 证：双端 vfir／xlang-c **0** · smd／smdrv／vald **0** · fs16 **42** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1382104／Ubuntu 1638792）· **日常 L2 不升钉**
+  - 余（勿并本叶）：dest-in-rbx ARRAY VAR `*p = arr`；dest-in-rbx 嵌套 STRUCT_LIT `*p = { h: { v: a } }`；`return [w]`；匿名 match；nest>20；sat／x19 序言
 
 ---
 
