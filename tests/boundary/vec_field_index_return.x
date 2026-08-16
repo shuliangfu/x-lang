@@ -482,10 +482,13 @@ function dest_arrlit_call(a: i32x4): i32 {
  * (peel yields ARRAY_LIT; dest-in-rbx STRUCT_LIT is ko==45).
  * dest-in-rbx IF extra arm stmts (`let t: T = a; { dest }`)
  * used to CG002 (peel skipped the let; `t` never landed).
+ * dest-in-rbx IF extra arm loops/ifs (while/for/if-stmt as
+ * prefix) used to skip so dest was ok and the side effect
+ * was lost (isolate run=11).
  * Kept in a small helper so the official large main() late-let
  * dest-name leftover is not this leaf.
  * @param a i32x4 — then-arm lanes
- * @return i32 — 0 ok; 218..269 leftover lanes
+ * @return i32 — 0 ok; 218..299 leftover lanes
  */
 function dest_if_dest(a: i32x4): i32 {
   let z: i32x4 = [0, 0, 0, 0];
@@ -599,6 +602,65 @@ function dest_if_dest(a: i32x4): i32 {
   if (dst.h.v[1] != 2) { return 271; }
   if (dst.h.v[2] != 3) { return 272; }
   if (dst.h.v[3] != 4) { return 273; }
+  /* dest-in-rbx IF extra arm loops/ifs. Prefix so_k 3/4/5
+   * used to skip (dest ok, side effect lost, isolate run=11).
+   * Frame dest extra while is already green via body_sync.
+   * G.7: body_sync while/for/if-stmt emit as prefix.
+   * PLATFORM: SHARED dest-in-rbx IF extra arm loops. */
+  k = 0;
+  c = true;
+  unsafe {
+    *p = if (c) {
+      while (k < 1) {
+        k = k + 1
+      }
+      { h: { v: a } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 1) { return 292; }
+  if (k != 1) { return 293; }
+  k = 0;
+  c = false;
+  unsafe {
+    *p = if (c) {
+      w
+    } else {
+      while (k < 1) {
+        k = k + 1
+      }
+      { h: { v: b } }
+    }
+  }
+  if (dst.h.v[0] != 5) { return 294; }
+  if (k != 1) { return 295; }
+  k = 0;
+  c = true;
+  unsafe {
+    *p = if (c) {
+      if (c) {
+        k = 1
+      }
+      { h: { v: a } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 1) { return 296; }
+  if (k != 1) { return 297; }
+  k = 0;
+  unsafe {
+    *p = if (c) {
+      for ( ; k < 1 ; k = k + 1) {
+      }
+      { h: { v: a } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 1) { return 298; }
+  if (k != 1) { return 299; }
   return 0;
 }
 

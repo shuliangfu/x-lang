@@ -24828,7 +24828,13 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * body_sync the whole arm (would emit dest as 8B). fill_tree
  * walks if-stmts only, not EXPR_IF arm blocks. G.7: IF-stmt
  * ensure + block_inits + preceding expr_stmts, then dest-in-rbx
- * the last dest value. Do not change block_body.
+ * the last dest value. Prefix while/for/if-stmt (stmt_order
+ * kinds 3/4/5) used to skip so dest was ok and the side
+ * effect was lost (isolate run=11). Reuse body_sync emit
+ * (`backend_emit_while_loop_elf_sync` / `_for_loop_` /
+ * `pipeline_asm_emit_block_if_stmt_elf`). Do not body_sync
+ * the whole arm. Do not emit region/labeled (kinds 6/7)
+ * this leaf. Do not change block_body.
  * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
  * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
  * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
@@ -24864,6 +24870,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let es: i32 = 0;
   let parent_scope: i32 = 0;
   let extra: i32 = 0;
+  let n_cfg: i32 = 0;
   let modp: *u8 = 0 as *u8;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
     return 0 - 1;
@@ -24934,6 +24941,51 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
               if (extra != 0) {
                 return 0 - 1;
               }
+            }
+          }
+        }
+        /* dest-in-rbx IF extra arm loops/ifs. Prefix used
+         * only so_k==2 so while/for/if-stmt never ran
+         * (dest ok, k leftover, run=11). Frame dest extra
+         * while is already green via body_sync. G.7: same
+         * emit as block_body_sync. Restore dest after the
+         * prefix walk (loop emit clobbers x1/x19).
+         * Kinds 6/7 leftover.
+         * PLATFORM: SHARED dest-in-rbx IF extra arm loops. */
+        if (so_k == 3) {
+          unsafe {
+            n_cfg = ast_ast_block_num_loops(arena, br);
+          }
+          if (so_idx >= 0 && so_idx < n_cfg) {
+            unsafe {
+              extra = backend_emit_while_loop_elf_sync(arena, elf_ctx, br, so_idx, ctx, ta);
+            }
+            if (extra != 0) {
+              return 0 - 1;
+            }
+          }
+        }
+        if (so_k == 4) {
+          unsafe {
+            n_cfg = ast_ast_block_num_for_loops(arena, br);
+          }
+          if (so_idx >= 0 && so_idx < n_cfg) {
+            unsafe {
+              extra = backend_emit_for_loop_elf_sync(arena, elf_ctx, br, so_idx, ctx, ta);
+            }
+            if (extra != 0) {
+              return 0 - 1;
+            }
+          }
+        }
+        if (so_k == 5) {
+          unsafe {
+            n_cfg = ast_ast_block_num_if_stmts(arena, br);
+          }
+          if (so_idx >= 0 && so_idx < n_cfg) {
+            extra = pipeline_asm_emit_block_if_stmt_elf(arena, elf_ctx, br, so_idx, ctx, ta, so_i);
+            if (extra != 0) {
+              return 0 - 1;
             }
           }
         }
