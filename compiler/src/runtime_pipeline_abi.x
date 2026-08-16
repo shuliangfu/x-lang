@@ -33257,15 +33257,16 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
         }
       }
     }
-    /* TYPE_ARRAY INDEX dest (`rows[0] = [w]` / `rows[i] = [w]`).
+    /* TYPE_ARRAY INDEX dest (`rows[0] = [w]` / `rows[i] = [w]` /
+     * `rh.rows[0] = [w]` / `grid[0][i] = [w]`).
      * Prior path emit_expr of ARRAY_LIT is 8B payload pointer then
      * store (Darwin leftover 10). Frame dest ARRAY_LIT goes through
      * vector_let_init and bumps emit-time next_offset (official 139).
-     * G.7: peel dest type from the base. Lit index: lea rbp dest, then
-     * dest-in-rbx glue_emit_fixed_array_type_let_init (same as `*p = [w]`).
-     * Runtime index: INDEX-lea then the same dest-in-rbx ARRAY_LIT
-     * (STRUCT_LIT runtime / TYPE_NAMED INDEX dest twin). dest-in-rbx
-     * ARRAY_LIT writes through dest (no emit-time temp).
+     * G.7: dest type = walk INDEX chain to VAR/FIELD/DEREF root, peel
+     * one ARRAY/SLICE/PTR layer per INDEX (nested `grid[0][0]` is two
+     * peels). Lit VAR: lea rbp dest. Runtime VAR and any non-VAR base:
+     * INDEX-lea then dest-in-rbx ARRAY_LIT (STRUCT_LIT runtime twin).
+     * dest-in-rbx ARRAY_LIT writes through dest (no emit-time temp).
      * Do not pass dest-in-rbx -3 into vector_let_init.
      * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
     if (ta == 0 || ta == 1) {
@@ -33273,26 +33274,67 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
        * resolved_type_ref may stamp the outer `[1][1]Wrap` and
        * store_fixed_array_field then treats `[w]` as an array-of-
        * array (etk==10) and bumps emit-time next_offset → official
-       * large main() Darwin 139. Peel one layer from the base.
+       * large main() Darwin 139. Walk to the VAR/FIELD/DEREF root
+       * and peel one layer per INDEX so `grid[0][0] = [w]` dest is
+       * `[1]Wrap`, not `[1][1]Wrap`.
        * PLATFORM: SHARED — Darwin leftover 10 / official 139. */
       ltr = 0;
-      unsafe {
-        ltr_pre = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
-      }
-      if (ltr_pre <= 0) {
+      ltr_pre = 0;
+      walk_cur = left_ref;
+      chain_n = 0;
+      while (chain_n < 8) {
+        if (walk_cur <= 0) {
+          break;
+        }
         unsafe {
-          ltr_pre = pipeline_expr_resolved_type_ref(arena, base_ref);
+          base_tk = pipeline_expr_kind_ord_at(arena, walk_cur);
+        }
+        if (base_tk != 47) {
+          break;
+        }
+        chain_n = chain_n + 1;
+        unsafe {
+          walk_cur = pipeline_expr_index_base_ref(arena, walk_cur);
         }
       }
-      if (ltr_pre > 0) {
+      if (walk_cur > 0) {
         unsafe {
-          ltk_pre = pipeline_type_kind_ord_at(arena, ltr_pre);
+          base_tk = pipeline_expr_kind_ord_at(arena, walk_cur);
+        }
+        if (base_tk == 3) {
+          unsafe {
+            ltr_pre = glue_var_decl_type_ref_elf_c(arena, ctx, walk_cur);
+          }
+        }
+        if (ltr_pre <= 0 && base_tk == 44) {
+          unsafe {
+            mod = pipeline_asm_emit_module_ref_c();
+            ltr_pre = glue_field_access_field_type_ref_c(arena, mod, walk_cur);
+          }
+        }
+        if (ltr_pre <= 0) {
+          unsafe {
+            ltr_pre = pipeline_expr_resolved_type_ref(arena, walk_cur);
+          }
+        }
+      }
+      ltr = ltr_pre;
+      walk_i = 0;
+      while (walk_i < chain_n && ltr > 0) {
+        unsafe {
+          ltk_pre = pipeline_type_kind_ord_at(arena, ltr);
         }
         if (ltk_pre == 10 || ltk_pre == 11 || ltk_pre == 9) {
           unsafe {
-            ltr = pipeline_type_elem_ref_at(arena, ltr_pre);
+            ltr = pipeline_type_elem_ref_at(arena, ltr);
           }
+        } else {
+          ltr = 0;
         }
+        walk_i = walk_i + 1;
+      }
+      unsafe {
+        base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
       }
       if (ltr > 0) {
         unsafe {
@@ -33304,6 +33346,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
            * large main() (red zone hid it on the tiny isolate).
            * Do not bump emit-time next_offset. Do not lea rbp-3.
            * PLATFORM: SHARED — Darwin leftover 10 / official 139. */
+          hit = 0;
           if (base_kind == 3) {
             if (pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]) != 0) {
               lit_imm = lit_slot[0];
@@ -33361,56 +33404,61 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                     }
                     return 0 - 1;
                   }
+                  hit = 1;
                 }
               }
-            } else {
-              /* Runtime index `rows[i] = [w]`. Lit path lea rbp dest;
-               * runtime cannot. INDEX-lea then dest-in-rbx ARRAY_LIT
-               * (STRUCT_LIT runtime twin). Scale with dest-array total
-               * bytes, not the 8B index-elem leftover.
-               * PLATFORM: SHARED — Darwin leftover 10. */
+            }
+          }
+          /* Runtime VAR `rows[i] = [w]` or non-VAR base
+           * `rh.rows[0] = [w]` / `rh.rows[i] = [w]` /
+           * `grid[0][0] = [w]` / `grid[0][i] = [w]`.
+           * Lit VAR already returned via lea rbp dest. INDEX-lea
+           * then dest-in-rbx ARRAY_LIT (STRUCT_LIT runtime twin).
+           * Scale with dest-array total bytes, not the 8B
+           * index-elem leftover.
+           * PLATFORM: SHARED — Darwin leftover 10. */
+          if (hit == 0) {
+            unsafe {
+              nbytes = glue_fixed_array_total_bytes_c(arena, ltr, 0);
+            }
+            if (nbytes < 8) {
+              nbytes = esz;
+            }
+            if (nbytes > 0) {
               unsafe {
-                nbytes = glue_fixed_array_total_bytes_c(arena, ltr, 0);
+                rc = glue_emit_index_eff_addr_scaled_elf_c(
+                    arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, nbytes);
               }
-              if (nbytes < 8) {
-                nbytes = esz;
+              if (rc != 0) {
+                unsafe {
+                  glue_index_assign_addr_cache_clear();
+                }
+                return 0 - 1;
               }
-              if (nbytes > 0) {
+              unsafe {
+                rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
                 unsafe {
-                  rc = glue_emit_index_eff_addr_scaled_elf_c(
-                      arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, nbytes);
+                  glue_index_assign_addr_cache_clear();
                 }
-                if (rc != 0) {
-                  unsafe {
-                    glue_index_assign_addr_cache_clear();
-                  }
-                  return 0 - 1;
-                }
+                return 0 - 1;
+              }
+              unsafe {
+                arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                    arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+              }
+              if (arr_st == 0) {
                 unsafe {
-                  rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+                  glue_index_assign_addr_cache_clear();
                 }
-                if (rc != 0) {
-                  unsafe {
-                    glue_index_assign_addr_cache_clear();
-                  }
-                  return 0 - 1;
-                }
+                return 0;
+              }
+              if (arr_st == 0 - 1) {
                 unsafe {
-                  arr_st = glue_emit_fixed_array_type_let_init_elf_c(
-                      arena, elf_ctx, right_ref, ctx, ta, ltr, 0 - 3);
+                  glue_index_assign_addr_cache_clear();
                 }
-                if (arr_st == 0) {
-                  unsafe {
-                    glue_index_assign_addr_cache_clear();
-                  }
-                  return 0;
-                }
-                if (arr_st == 0 - 1) {
-                  unsafe {
-                    glue_index_assign_addr_cache_clear();
-                  }
-                  return 0 - 1;
-                }
+                return 0 - 1;
               }
             }
           }
