@@ -517,14 +517,32 @@ function dest_if_dest(a: i32x4): i32 {
   if (dst.h.v[2] != 3) { return 232; }
   if (dst.h.v[3] != 4) { return 233; }
   /* Frame dest IF both-arm STRUCT_LIT. dest-in-rbx IF of STRUCT_LIT
-   * is leftover CG002. Both arms used to typeck XT001 (expected
-   * Wrap, found ?) because the BLOCK expr type stayed `?`.
-   * G.7: IF result is the dest type. */
+   * used to CG002 because `{ { h: { v: a } } }` stores a nested
+   * BLOCK as the last expr_stmt (final_expr 0). G.7: peel BLOCK
+   * wrappers then emit the lit into a frame temp + memcpy. */
   let rslit: Wrap = if (c) { { h: { v: a } } } else { { h: { v: b } } };
   if (rslit.h.v[0] != 1) { return 234; }
   if (rslit.h.v[1] != 2) { return 235; }
   if (rslit.h.v[2] != 3) { return 236; }
   if (rslit.h.v[3] != 4) { return 237; }
+  let dsts: Wrap = { h: { v: z } };
+  let ps: *Wrap = &dsts;
+  unsafe { *ps = if (c) { { h: { v: a } } } else { y } }
+  if (dsts.h.v[0] != 1) { return 238; }
+  if (dsts.h.v[1] != 2) { return 239; }
+  if (dsts.h.v[2] != 3) { return 240; }
+  if (dsts.h.v[3] != 4) { return 241; }
+  unsafe { *ps = if (c) { { h: { v: a } } } else { { h: { v: b } } } }
+  if (dsts.h.v[0] != 1) { return 242; }
+  if (dsts.h.v[1] != 2) { return 243; }
+  if (dsts.h.v[2] != 3) { return 244; }
+  if (dsts.h.v[3] != 4) { return 245; }
+  c = false;
+  unsafe { *ps = if (c) { w } else { { h: { v: b } } } }
+  if (dsts.h.v[0] != 5) { return 246; }
+  if (dsts.h.v[1] != 6) { return 247; }
+  if (dsts.h.v[2] != 7) { return 248; }
+  if (dsts.h.v[3] != 8) { return 249; }
   return 0;
 }
 

@@ -24798,53 +24798,161 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * (Darwin 12 / FIELD 52 / CALL 62 / STRUCT_LIT 72). G.7: cond +
  * jz, dest-in-rbx let-init each peeled arm (BLOCK `{ w }` → VAR).
  * dest-in-rbx IF of STRUCT_LIT (`*p = if (c) { { h: { v: a } } }`)
- * leftover CG002 (done label undefined). Frame dest `let r = if`
- * stays on emit_expr + store_retval_pair.
+ * used dest-in-rbx −3 as the then-arm and aborted before done
+ * (Darwin CG002). G.7: glue_emit_if_arm emits the lit into a frame
+ * temp then memcpy dest-in-rbx (dest-in-rbx CALL polarity).
+ * Frame dest `let r = if` stays on emit_expr + store_retval_pair.
  * Do not open the x19 prologue. Do not use push_rbx (ARM64 pushes x1).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 
 /**
  * dest-in-rbx let-init of one if/ternary arm.
- * `{ w }` / `{ dest_mk_w(a) }` / `{ { h: { v: a } } }` parse as
- * EXPR_BLOCK (26) whose final_expr is the value. emit_if_arm uses
- * emit_expr (8B). Peel the block and reuse dest-in-rbx let-init
- * (VAR / FIELD / CALL / STRUCT_LIT / INDEX / DEREF).
- * dest-in-rbx IF of STRUCT_LIT leftover CG002.
- * Extra arm stmts (nso>0) are leftover — official `{ w }` is final-only.
+ * `{ w }` / `{ dest_mk_w(a) }` parse as EXPR_BLOCK (26) whose
+ * final_expr is the value. `{ { v: a } }` / `{ { h: { v: a } } }`
+ * nest a BLOCK as the last expr_stmt (final_expr 0); the
+ * STRUCT_LIT is one more peel down. dest-in-rbx peel used only
+ * final_expr → then-arm abort before done (Darwin CG002
+ * `.Lf0_1`). G.7: peel BLOCK wrappers (final_expr else last
+ * expr_stmt) up to 8 deep. STRUCT_LIT dest-in-rbx −3 as an IF
+ * arm is leftover; emit the lit into a frame temp (dest-in-rbx
+ * CALL polarity), restore dest, memcpy dest-in-rbx. Do not
+ * change pipeline_asm_block_final_expr_ref_at (block_body would
+ * double-emit). Do not ignore then-arm !=0. Do not open x19
+ * prologue. Extra arm stmts (nso>1) are leftover.
  * @param arena *u8 — ASTArena*
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param arm_ref i32 — then/else expr ref
  * @param ctx *u8 — AsmFuncCtx*
  * @param ta i32 — 0=x86_64 SysV, 1=AAPCS64
  * @param let_ty_ref i32 — dest named type
+ * @param dest_spill i32 — rbp home of the parked dest pointer (8B)
  * @return i32 — 0 handled; -1 error; -2 let-init miss
- * PLATFORM: SHARED dest-in-rbx IF arm.
+ * PLATFORM: SHARED dest-in-rbx IF arm · MACOS|ARM64 dest-shadow.
  */
-function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32): i32 {
+function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, dest_spill: i32): i32 {
   let ko: i32 = 0;
   let br: i32 = 0;
   let fin: i32 = 0;
+  let init: i32 = 0;
+  let let_sz: i32 = 0;
+  let named_sz: i32 = 0;
+  let src_spill: i32 = 0;
+  let rc: i32 = 0;
+  let nes: i32 = 0;
+  let modp: *u8 = 0 as *u8;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
     return 0 - 1;
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, arm_ref);
   }
-  if (ko == 26) {
+  init = arm_ref;
+  /* Peel BLOCK wrappers. `{ w }` has final_expr. `{ { v: a } }`
+   * stores a nested BLOCK as the last expr_stmt (final_expr 0);
+   * the STRUCT_LIT is one more peel down. Cap 8. Do not widen
+   * pipeline_asm_block_final_expr_ref_at (block_body would
+   * double-emit expr_stmts).
+   * PLATFORM: SHARED dest-in-rbx IF STRUCT_LIT peel. */
+  while (ko == 26 && rc < 8) {
     unsafe {
-      br = pipeline_expr_block_ref_at(arena, arm_ref);
+      br = pipeline_expr_block_ref_at(arena, init);
     }
     if (br <= 0) {
       return 0 - 1;
     }
     fin = pipeline_asm_block_final_expr_ref_at(arena, br);
     if (fin <= 0) {
+      unsafe {
+        nes = ast_ast_block_num_expr_stmts(arena, br);
+      }
+      if (nes > 0) {
+        unsafe {
+          fin = ast_pipeline_block_expr_stmt_ref(arena, br, nes - 1);
+        }
+      }
+    }
+    if (fin <= 0) {
       return 0 - 1;
     }
-    return glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, fin, ctx, ta, let_ty_ref, 0 - 3);
+    init = fin;
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, init);
+    }
+    rc = rc + 1;
   }
-  return glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, arm_ref, ctx, ta, let_ty_ref, 0 - 3);
+  rc = 0;
+  /* dest-in-rbx IF STRUCT_LIT: dest-in-rbx −3 then-arm returns !=0
+   * after dest park (Darwin CG002). Frame dest STRUCT_LIT into a
+   * let_sz temp is the dest-in-rbx CALL twin (src_spill + memcpy).
+   * dest is live in rbx/x19; emit_struct_let_init clobbers it.
+   * PLATFORM: SHARED dest-in-rbx IF STRUCT_LIT. */
+  if (ko == 45 && dest_spill >= 0 && (ta == 0 || ta == 1)) {
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, let_ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz < 8) {
+      return 0 - 1;
+    }
+    glue_align_next_offset(ctx);
+    src_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (ta == 1) {
+      /* PLATFORM: MACOS|ARM64 low-end — home=cur, next=cur+sz. */
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill + let_sz);
+    } else {
+      /* PLATFORM: LINUX|x86 high-end — home=cur+sz, next=home.
+       * Do not increment-after (would overlap the last local). */
+      src_spill = src_spill + let_sz;
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill);
+    }
+    rc = pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init, ctx, ta, src_spill);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, let_sz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (ta == 1) {
+      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  return glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, init, ctx, ta, let_ty_ref, 0 - 3);
 }
 
 #[no_mangle]
@@ -24987,7 +25095,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (rc != 0) {
       return 0 - 1;
     }
-    arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref);
+    arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref, dest_spill);
     if (arm_rc != 0) {
       return 0 - 1;
     }
@@ -25016,7 +25124,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       if (rc != 0) {
         return 0 - 1;
       }
-      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref);
+      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref, dest_spill);
       if (arm_rc != 0) {
         return 0 - 1;
       }
