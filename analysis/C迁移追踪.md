@@ -36,7 +36,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／大 main 后段 let dest 名空／nest 17–20／SIMD dest／METHOD binop2／STRUCT_LIT dest **已闭**。 **开项**：nest>20（21 须加宽 `type_to_c_repr` 256）；TYPE_DYN 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19；匿名 match。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 21 |
+| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／大 main 后段 let dest 名空／匿名 match／nest 17–20／SIMD dest／METHOD binop2／STRUCT_LIT dest **已闭**。 **开项**：nest>20（21 须加宽 `type_to_c_repr` 256）；TYPE_DYN 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 21 |
 | **产品 L4 放行** | ✅ | 钉盘 **`f7424ae47`**（2026-08-15 升钉 · 前 `e364f4a37` · `d79a368b2`）· Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -1424,10 +1424,10 @@
 ✅ **值位置只认 `{ fields }`（禁 `Type { fields }`）** ✅ @ **`6c9773729`**
 
   - 现场：`let inner: Holder = Holder { v: a }` 冗余类型名，AI 双写。语言约定：类型只写在 dest
-  - **根修（G.7 有则补全）**：产生点＝`typeck_check_expr_struct_lit` 值 STRUCT_LIT `name_len>0` 拒。call-arg 匿名补同一 `typeck_coerce_init_struct_lit_to_decl`（形参 dest）。match 模式仍 `Type { fields } =>`（匿名模式仍 T001）。源树值位置改写成 `{ fields }`（**未**改 try_inline mega／**未** assemble parser）
+  - **根修（G.7 有则补全）**：产生点＝`typeck_check_expr_struct_lit` 值 STRUCT_LIT `name_len>0` 拒。call-arg 匿名补同一 `typeck_coerce_init_struct_lit_to_decl`（形参 dest）。match 模式 `{ fields } =>` 类型来自主语（`Type { fields } =>` 仍接受）。源树值位置改写成 `{ fields }`（**未**改 try_inline mega／**未** assemble parser）
   - 闸：`tests/boundary/struct_lit_anon_only.x` 期望 typeck 拒；`let x: T = { }`／`take({ })` 绿
   - 证：双端矩阵 **5/5** · vfir／msd／bare **0** · named 拒 `expected { fields }, found Point` · try_inline 仍 seed 72264／57672 · typeck_x Darwin 317352／Ubuntu 384664 · **日常 L2 不升钉**
-  - 余（已闭 dest-in-rbx ARRAY_LIT）：见下；另层：匿名 match 模式；nest>20；sat／x19 序言
+  - 余（已闭 dest-in-rbx ARRAY_LIT）：见下；另层：nest>20；sat／x19 序言
 
 ✅ **dest-in-rbx ARRAY_LIT `*p = [w]`** ✅ @ **`2046f5a15`**
 
@@ -1451,7 +1451,7 @@
   - **根修（G.7 有则补全）**：产生点＝INDEX dest 只认 TYPE_NAMED／VECTOR／STRUCT_LIT，ARRAY_LIT 走 emit_expr 8B 指针。权威已是 dest-in-rbx ARRAY_LIT。从基剥 dest 类型（勿信 INDEX 盖外层 `[1][1]Wrap`），lea rbp dest，再 dest-in-rbx `glue_emit_fixed_array_type_let_init`。**禁** INDEX-lea dest-in-rbx 先手／vector_let_init −3／emit 时开 array temp／enc_store /8
   - 闸：`tests/boundary/vec_field_index_return.x` INDEX dest ARRAY_LIT 98／99／100／101
   - 证：双端 vfir／xlang-c **0** · smd／smdrv／vald **0** · fs16 **42** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1382104／Ubuntu 1638792）· **日常 L2 不升钉**
-  - 余（已闭 dest-in-rbx ARRAY VAR／嵌套 STRUCT_LIT／大 main 后段 let dest 名空）：见下；另层：匿名 match；nest>20；sat／x19 序言
+  - 余（已闭 dest-in-rbx ARRAY VAR／嵌套 STRUCT_LIT／大 main 后段 let dest 名空／匿名 match）：见下；另层：nest>20；sat／x19 序言
 
 ✅ **dest-in-rbx ARRAY VAR `*p = src`** ✅ @ **`25092c1c2`**
 
@@ -1516,6 +1516,10 @@
 ✅ **大 main 后段 let dest 名空**
 
   - 闸：`tests/boundary/vec_field_index_return.x` `main` dest9（`let dst9: Wrap = { h: inner }`）；`-E` 不得 `(struct )`
+
+✅ **匿名 match `{ fields } =>`** ✅ @ **`bb35bfe9c`**
+
+  - 闸：`tests/typeck/match_struct_anon.x`（bind／lit／wild／guard；named `Point { x, y }` 邻域仍绿）
 
 ---
 
