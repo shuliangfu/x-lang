@@ -61,7 +61,10 @@
 // `*p = { two: [w, w] }` / sret `return { two: [w, w] }` (sret path
 // emit_expr 8B + store esz; Darwin leftover 13 / 10), and STRUCT_LIT
 // field ARRAY_LIT of nest `{ one: [{ h: { v: a } }] }` (field dest
-// stamp skipped STRUCT_LIT elems; Darwin leftover 12/13).
+// stamp skipped STRUCT_LIT elems; Darwin leftover 12/13), and
+// dest-in-rbx ARRAY_LIT of CALL `*p = [make_w(a)]` / dest-in-rbx
+// CALL `*p = make_w(a)` (x19 dest-shadow clobbered by callee;
+// Darwin leftover 10 / 20).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -405,6 +408,70 @@ function dest_slit_arrlit_nest(a: i32x4): i32 {
 }
 
 /**
+ * Same-module Wrap factory. dest-in-rbx CALL `*p = make_w(a)` and
+ * dest-in-rbx ARRAY_LIT of CALL `*p = [make_w(a)]` consume this.
+ * @param a i32x4 — source lanes
+ * @return Wrap — { h: { v: a } }
+ */
+function dest_mk_w(a: i32x4): Wrap {
+  return { h: { v: a } };
+}
+
+/**
+ * dest-in-rbx CALL `*p = dest_mk_w(a)` and dest-in-rbx ARRAY_LIT of
+ * CALL `*p = [dest_mk_w(a)]` / n>1 / FIELD dest / INDEX dest.
+ * dest-in-rbx ≤16B CALL stored through x19 after emit; generated
+ * callees use x19 as dest-shadow and the ARM64 prologue does not
+ * save it (Darwin leftover 20 / 10). Frame dest
+ * `let r: [1]Wrap = [dest_mk_w(a)]` is already green. Kept in a
+ * small helper so the official large main() late-let dest-name
+ * leftover is not this leaf.
+ * @param a i32x4 — source lanes
+ * @return i32 — 0 ok; 198..217 leftover lanes
+ */
+function dest_arrlit_call(a: i32x4): i32 {
+  let z: i32x4 = [0, 0, 0, 0];
+  let dst: Wrap = { h: { v: z } };
+  let p: *Wrap = &dst;
+  unsafe { *p = dest_mk_w(a) }
+  if (dst.h.v[0] != 1) { return 198; }
+  if (dst.h.v[1] != 2) { return 199; }
+  if (dst.h.v[2] != 3) { return 200; }
+  if (dst.h.v[3] != 4) { return 201; }
+  let dst2: [1]Wrap = [{ h: { v: z } }];
+  let p2: *[1]Wrap = &dst2;
+  unsafe { *p2 = [dest_mk_w(a)] }
+  if (dst2[0].h.v[0] != 1) { return 202; }
+  if (dst2[0].h.v[1] != 2) { return 203; }
+  if (dst2[0].h.v[2] != 3) { return 204; }
+  if (dst2[0].h.v[3] != 4) { return 205; }
+  let dst3: [2]Wrap = [{ h: { v: z } }, { h: { v: z } }];
+  let p3: *[2]Wrap = &dst3;
+  unsafe { *p3 = [dest_mk_w(a), dest_mk_w(a)] }
+  if (dst3[0].h.v[0] != 1) { return 206; }
+  if (dst3[0].h.v[3] != 4) { return 207; }
+  if (dst3[1].h.v[0] != 1) { return 208; }
+  if (dst3[1].h.v[3] != 4) { return 209; }
+  let bag: Bag = { one: [{ h: { v: z } }] };
+  bag.one = [dest_mk_w(a)];
+  if (bag.one[0].h.v[0] != 1) { return 210; }
+  if (bag.one[0].h.v[3] != 4) { return 211; }
+  let rows: [1][1]Wrap = [[{ h: { v: z } }]];
+  rows[0] = [dest_mk_w(a)];
+  if (rows[0][0].h.v[0] != 1) { return 212; }
+  if (rows[0][0].h.v[3] != 4) { return 213; }
+  let r: [1]Wrap = [dest_mk_w(a)];
+  if (r[0].h.v[0] != 1) { return 214; }
+  if (r[0].h.v[3] != 4) { return 215; }
+  let bag2: Bag = { one: [{ h: { v: z } }] };
+  let p4: *Bag = &bag2;
+  unsafe { *p4 = { one: [dest_mk_w(a)] } }
+  if (bag2.one[0].h.v[0] != 1) { return 216; }
+  if (bag2.one[0].h.v[3] != 4) { return 217; }
+  return 0;
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
@@ -444,7 +511,14 @@ function dest_slit_arrlit_nest(a: i32x4): i32 {
  *   154/155/156/157 INDEX dest 2D ARRAY_LIT `grid[0] = [[w]]`;
  *   158/159/160/161 dest-in-rbx ARRAY_LIT n>1 `*p = [w, w]`;
  *   162/163/164/165 FIELD dest n>1 `bag.two = [w, w]`;
- *   166/167/168/169 INDEX dest n>1 `grid[0] = [w, w]`
+ *   166/167/168/169 INDEX dest n>1 `grid[0] = [w, w]`;
+ *   198..201 dest-in-rbx CALL `*p = dest_mk_w(a)`;
+ *   202..205 dest-in-rbx ARRAY_LIT of CALL `*p = [dest_mk_w(a)]`;
+ *   206..209 dest-in-rbx ARRAY_LIT of CALL n>1;
+ *   210/211 FIELD dest ARRAY_LIT of CALL;
+ *   212/213 INDEX dest ARRAY_LIT of CALL;
+ *   214/215 frame dest ARRAY_LIT of CALL;
+ *   216/217 dest-in-rbx STRUCT_LIT field ARRAY_LIT of CALL
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -610,5 +684,7 @@ function main(): i32 {
   if (r18 != 0) { return r18; }
   let r19: i32 = dest_slit_arrlit_nest(a);
   if (r19 != 0) { return r19; }
+  let r20: i32 = dest_arrlit_call(a);
+  if (r20 != 0) { return r20; }
   return 0;
 }

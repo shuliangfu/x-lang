@@ -24787,6 +24787,13 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * dest-in-rbx (-3): skip try_inline (would lea rbp-3); CALL >16B dest→x8/rdi;
  * CALL ≤16B dual-GP store via x19/rbx; VAR >8B glue_copy dest-in-rbx
  * (deref_struct16 would clobber dest rbx/x19 — memcpy is the authority).
+ * dest-in-rbx ≤16B CALL used to store through x19 after emit: AAPCS64
+ * x19 is callee-saved but the generated prologue does not save it, so
+ * a callee that uses dest-shadow (`return { h: { v: a } }`) clobbers
+ * dest (`*p = make_w(a)` Darwin leftover 20; `[make_w(a)]` 10).
+ * G.7: park dest (INDEX / VECTOR CALL dest polarity), emit CALL,
+ * store_retval_pair into a ret temp, restore dest, memcpy dest-in-rbx.
+ * Do not open the x19 prologue. Do not use push_rbx (ARM64 pushes x1).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
@@ -24930,6 +24937,49 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       }
       return 0;
     }
+    /* dest-in-rbx ≤16B CALL: park dest before emit. Generated callees
+     * use x19 as dest-shadow and the ARM64 prologue does not save it,
+     * so dest is garbage after CALL (Darwin leftover 20 / 10).
+     * G.7: same 8B park polarity as dest-in-rbx INDEX / VECTOR CALL dest.
+     * Do not push_rbx (ARM64 x1). Do not open the x19 prologue.
+     * PLATFORM: SHARED dest-in-rbx CALL · MACOS|ARM64 dest-shadow. */
+    if (dest_in_rbx != 0) {
+      glue_align_next_offset(ctx);
+      dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+      } else {
+        dest_spill = dest_spill + 8;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+      }
+      /* ARM64 dest lives in x19 (enc_mov_rax_to_rbx). mov_rbx_to_rax
+       * is mov x0,x1 — after memcpy dest-in-rbx x1 is the src temp
+       * (n>1 `[make_w, make_w]` parked dest+esz as garbage).
+       * G.7: park from dest-shadow. Do not change mov_rbx_to_rax.
+       * PLATFORM: MACOS|ARM64 dest-shadow. */
+      if (ta == 1) {
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      } else {
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+      }
+      if (rc != 0) {
+        unsafe {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+        }
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        unsafe {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+        }
+        return 0 - 1;
+      }
+    }
     // Scalar / ≤16B import CALL/METHOD_CALL: emit then store rax[+rdx].
     unsafe {
       emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
@@ -24941,30 +24991,76 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       return 0 - 1;
     }
     if (dest_in_rbx != 0) {
-      /* dest in rbx (x86 callee-saved) / x19 (ARM64 dest-shadow after CALL).
-       * store_rax_to_rbx_offset sz>=16 writes both halves on ARM64.
-       * x86 still one qword — hi via glue_x86_store_rdx_to_rbx8.
-       * PLATFORM: SHARED dest-in-rbx 16B. */
-      if (call_ret_sz > 8) {
-        if (ta == 1) {
-          unsafe {
-            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
-          }
-        } else {
-          unsafe {
-            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
-          }
-          if (rc == 0) {
-            rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
-          }
-        }
+      /* Return is in rax[+rdx]/x0[+x1]. dest is in dest_spill (x19
+       * clobbered). Store the return to a frame temp (same polarity as
+       * VECTOR CALL dest), restore dest, memcpy dest-in-rbx.
+       * PLATFORM: SHARED dest-in-rbx CALL ret temp. */
+      named_sz = call_ret_sz;
+      if (named_sz < 8) {
+        named_sz = 8;
+      }
+      glue_align_next_offset(ctx);
+      src_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill + named_sz);
       } else {
-        unsafe {
-          rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
-        }
+        src_spill = src_spill + named_sz;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill);
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta);
       }
       if (rc != 0) {
         return 0 - 1;
+      }
+      if (call_ret_sz > 8) {
+        unsafe {
+          rc = backend_enc_store_rdx_to_rbp_arch(
+              elf_ctx, glue_slice_dual_gp_length_off_c(src_spill, ta), ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, named_sz, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      /* memcpy dest-in-rbx leaves dest in x19 and src in x1. n>1
+       * dest-in-rbx ARRAY_LIT also ADD X1 — resync x1 from x19.
+       * mov_rax_to_rbx writes both x1 and x19.
+       * PLATFORM: MACOS|ARM64 dest-shadow. */
+      if (ta == 1) {
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
       }
       return 0;
     }
@@ -40927,11 +41023,13 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
             }
           }
         }
-        /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF named elem: dest-in-rbx
-         * struct let-init. `[w]` is the VAR twin of `*p = w`.
+        /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF/CALL/METHOD named elem:
+         * dest-in-rbx struct let-init. `[w]` is the VAR twin of `*p = w`.
+         * `[make_w(a)]` is the CALL twin of `*p = make_w(a)` (eko 48/49).
          * FIELD/INDEX/DEREF may return -2 (array-elem type sizes
          * <9); fallback below is dest-in-rbx lvalue + memcpy. */
-        if (eko == 3 || eko == 44 || eko == 45 || eko == 47 || eko == 52) {
+        if (eko == 3 || eko == 44 || eko == 45 || eko == 47 || eko == 52
+            || eko == 48 || eko == 49) {
           unsafe {
             rc = glue_emit_struct_type_let_init_elf_c(
                 arena, elf_ctx, elem_ref, ctx, ta, elem_tr, 0 - 3);
