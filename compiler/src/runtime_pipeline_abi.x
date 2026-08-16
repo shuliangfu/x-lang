@@ -24793,9 +24793,57 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * dest (`*p = make_w(a)` Darwin leftover 20; `[make_w(a)]` 10).
  * G.7: park dest (INDEX / VECTOR CALL dest polarity), emit CALL,
  * store_retval_pair into a ret temp, restore dest, memcpy dest-in-rbx.
+ * dest-in-rbx IF (`*p = if (c) { w } else { y }`) used to -2 then
+ * emit_expr of the then-arm VAR (8B) + dest store leftover lane2
+ * (Darwin 12 / FIELD 52 / CALL 62 / STRUCT_LIT 72). G.7: cond +
+ * jz, dest-in-rbx let-init each peeled arm (BLOCK `{ w }` → VAR).
+ * Frame dest `let r = if` stays on emit_expr + store_retval_pair.
  * Do not open the x19 prologue. Do not use push_rbx (ARM64 pushes x1).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
+
+/**
+ * dest-in-rbx let-init of one if/ternary arm.
+ * `{ w }` / `{ dest_mk_w(a) }` / `{ { h: { v: a } } }` parse as
+ * EXPR_BLOCK (26) whose final_expr is the value. emit_if_arm uses
+ * emit_expr (8B). Peel the block and reuse dest-in-rbx let-init
+ * (VAR / FIELD / CALL / STRUCT_LIT / INDEX / DEREF).
+ * Extra arm stmts (nso>0) are leftover — official `{ w }` is final-only.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param arm_ref i32 — then/else expr ref
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — 0=x86_64 SysV, 1=AAPCS64
+ * @param let_ty_ref i32 — dest named type
+ * @return i32 — 0 handled; -1 error; -2 let-init miss
+ * PLATFORM: SHARED dest-in-rbx IF arm.
+ */
+function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32): i32 {
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let fin: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arm_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arm_ref);
+  }
+  if (ko == 26) {
+    unsafe {
+      br = pipeline_expr_block_ref_at(arena, arm_ref);
+    }
+    if (br <= 0) {
+      return 0 - 1;
+    }
+    fin = pipeline_asm_block_final_expr_ref_at(arena, br);
+    if (fin <= 0) {
+      return 0 - 1;
+    }
+    return glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, fin, ctx, ta, let_ty_ref, 0 - 3);
+  }
+  return glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, arm_ref, ctx, ta, let_ty_ref, 0 - 3);
+}
+
 #[no_mangle]
 export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32 {
   let ko: i32 = 0;
@@ -24813,6 +24861,14 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let parked: i32 = 0;
   let modp: *u8 = 0 as *u8;
   let rc: i32 = 0;
+  let if_cond: i32 = 0;
+  let if_then: i32 = 0;
+  let if_else: i32 = 0;
+  let else_lbl: u8[128] = [];
+  let done_lbl: u8[128] = [];
+  let else_len: i32 = 0;
+  let done_len: i32 = 0;
+  let arm_rc: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
   }
@@ -24826,6 +24882,149 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   // STRUCT_LIT → field write into slot
   if (ko == 45) {
     return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+  }
+  /* dest-in-rbx IF / ternary (`*p = if (c) { w } else { y }`).
+   * emit_expr of the then-arm VAR is 8B; dest store leftover lane2
+   * (Darwin 12). Frame dest stays on emit_expr + store_retval_pair.
+   * G.7: same dest-in-rbx let-init as dest-in-rbx VAR / FIELD / CALL.
+   * Do not emit_if_arm (8B). Do not open the x19 prologue.
+   * PLATFORM: SHARED dest-in-rbx IF · MACOS|ARM64 dest-shadow. */
+  if ((ko == 25 || ko == 27) && dest_in_rbx != 0 && (ta == 0 || ta == 1)) {
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      unsafe {
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+    }
+    if (ty_ref <= 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    }
+    if (named_sz > let_sz) {
+      let_sz = named_sz;
+    }
+    if (let_sz < 8) {
+      return 0 - 2;
+    }
+    unsafe {
+      if_cond = pipeline_expr_if_cond_ref_at(arena, init_ref);
+      if_then = pipeline_expr_if_then_ref_at(arena, init_ref);
+      if_else = pipeline_expr_if_else_ref_at(arena, init_ref);
+    }
+    if (if_cond <= 0 || if_then <= 0) {
+      return 0 - 1;
+    }
+    /* Park dest before cond. dest-in-rbx STRUCT_LIT push_rbx is
+     * ARM64 x1; emit_expr cond clobbers x1 (and x86 rbx). dest
+     * lives in x19 after mov_rax_to_rbx. G.7: same 8B park as
+     * dest-in-rbx CALL. Do not push_rbx. Do not open x19 prologue.
+     * PLATFORM: SHARED dest-in-rbx IF · MACOS|ARM64 dest-shadow. */
+    glue_align_next_offset(ctx);
+    dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (ta == 1) {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+    } else {
+      dest_spill = dest_spill + 8;
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+    }
+    if (ta == 1) {
+      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+    } else {
+      unsafe {
+        rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, if_cond, ctx, ta);
+    }
+    if (emit_rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      else_len = pipeline_asm_emit_next_label_c(ctx, &else_lbl[0], 64);
+      done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+    }
+    if (else_len <= 0 || done_len <= 0) {
+      return 0 - 1;
+    }
+    if (if_else != 0) {
+      unsafe {
+        rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &else_lbl[0], else_len, ta);
+      }
+    } else {
+      unsafe {
+        rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &done_lbl[0], done_len, ta);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_then, ctx, ta, ty_ref);
+    if (arm_rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (if_else != 0) {
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_else, ctx, ta, ty_ref);
+      if (arm_rc != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
   }
   // CALL (48) or METHOD_CALL (49): try_inline param/const twins, then sret / dual-GP.
   // G.7: METHOD shares the inliner (body already accepts 49). Do not CALL-only the gate.
@@ -41023,13 +41222,14 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
             }
           }
         }
-        /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF/CALL/METHOD named elem:
+        /* VAR/FIELD/STRUCT_LIT/INDEX/DEREF/CALL/METHOD/IF named elem:
          * dest-in-rbx struct let-init. `[w]` is the VAR twin of `*p = w`.
          * `[make_w(a)]` is the CALL twin of `*p = make_w(a)` (eko 48/49).
-         * FIELD/INDEX/DEREF may return -2 (array-elem type sizes
-         * <9); fallback below is dest-in-rbx lvalue + memcpy. */
+         * `[if (c) { w } else { y }]` is the IF twin of dest-in-rbx IF
+         * (eko 25/27). FIELD/INDEX/DEREF may return -2 (array-elem
+         * type sizes <9); fallback below is dest-in-rbx lvalue + memcpy. */
         if (eko == 3 || eko == 44 || eko == 45 || eko == 47 || eko == 52
-            || eko == 48 || eko == 49) {
+            || eko == 48 || eko == 49 || eko == 25 || eko == 27) {
           unsafe {
             rc = glue_emit_struct_type_let_init_elf_c(
                 arena, elf_ctx, elem_ref, ctx, ta, elem_tr, 0 - 3);

@@ -64,7 +64,9 @@
 // stamp skipped STRUCT_LIT elems; Darwin leftover 12/13), and
 // dest-in-rbx ARRAY_LIT of CALL `*p = [make_w(a)]` / dest-in-rbx
 // CALL `*p = make_w(a)` (x19 dest-shadow clobbered by callee;
-// Darwin leftover 10 / 20).
+// Darwin leftover 10 / 20), and dest-in-rbx IF
+// `*p = if (c) { w } else { y }` (emit_expr of the then-arm VAR
+// is 8B; Darwin leftover 12 / FIELD 52 / CALL 62 / STRUCT_LIT 72).
 
 allow(padding) struct Holder {
   v: i32x4
@@ -472,6 +474,52 @@ function dest_arrlit_call(a: i32x4): i32 {
 }
 
 /**
+ * dest-in-rbx IF `*p = if (c) { w } else { y }` / false arm /
+ * FIELD / CALL. dest-in-rbx let-init used to miss EXPR_IF (25);
+ * emit_expr of the then-arm VAR is 8B (Darwin leftover 12).
+ * Frame dest `let r: Wrap = if` is already green. dest-in-rbx IF
+ * of STRUCT_LIT `{ { h: { v: a } } }` is leftover (CG002).
+ * Kept in a small helper so the official large main() late-let
+ * dest-name leftover is not this leaf.
+ * @param a i32x4 — then-arm lanes
+ * @return i32 — 0 ok; 218..233 leftover lanes
+ */
+function dest_if_dest(a: i32x4): i32 {
+  let z: i32x4 = [0, 0, 0, 0];
+  let b: i32x4 = [5, 6, 7, 8];
+  let w: Wrap = { h: { v: a } };
+  let y: Wrap = { h: { v: b } };
+  let dst: Wrap = { h: { v: z } };
+  let p: *Wrap = &dst;
+  let c: bool = true;
+  unsafe { *p = if (c) { w } else { y } }
+  if (dst.h.v[0] != 1) { return 218; }
+  if (dst.h.v[1] != 2) { return 219; }
+  if (dst.h.v[2] != 3) { return 220; }
+  if (dst.h.v[3] != 4) { return 221; }
+  c = false;
+  unsafe { *p = if (c) { w } else { y } }
+  if (dst.h.v[0] != 5) { return 222; }
+  if (dst.h.v[1] != 6) { return 223; }
+  if (dst.h.v[2] != 7) { return 224; }
+  if (dst.h.v[3] != 8) { return 225; }
+  let dsth: Holder = { v: z };
+  let ph: *Holder = &dsth;
+  c = true;
+  unsafe { *ph = if (c) { w.h } else { y.h } }
+  if (dsth.v[0] != 1) { return 226; }
+  if (dsth.v[1] != 2) { return 227; }
+  if (dsth.v[2] != 3) { return 228; }
+  if (dsth.v[3] != 4) { return 229; }
+  unsafe { *p = if (c) { dest_mk_w(a) } else { y } }
+  if (dst.h.v[0] != 1) { return 230; }
+  if (dst.h.v[1] != 2) { return 231; }
+  if (dst.h.v[2] != 3) { return 232; }
+  if (dst.h.v[3] != 4) { return 233; }
+  return 0;
+}
+
+/**
  * Exit 0 when dest `w.h.v[i]=`, return/let INDEX, Holder copy
  * `let h = w.h` / assign `h = w.h`, STRUCT_LIT `let w: Wrap = { h: inner }`,
  * dest-in-rbx FIELD source `*p = w.h`, ARRAY_LIT of a 16B named VAR
@@ -518,7 +566,11 @@ function dest_arrlit_call(a: i32x4): i32 {
  *   210/211 FIELD dest ARRAY_LIT of CALL;
  *   212/213 INDEX dest ARRAY_LIT of CALL;
  *   214/215 frame dest ARRAY_LIT of CALL;
- *   216/217 dest-in-rbx STRUCT_LIT field ARRAY_LIT of CALL
+ *   216/217 dest-in-rbx STRUCT_LIT field ARRAY_LIT of CALL;
+ *   218..221 dest-in-rbx IF `*p = if (c) { w } else { y }`;
+ *   222..225 dest-in-rbx IF false arm;
+ *   226..229 dest-in-rbx IF FIELD;
+ *   230..233 dest-in-rbx IF CALL
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -686,5 +738,7 @@ function main(): i32 {
   if (r19 != 0) { return r19; }
   let r20: i32 = dest_arrlit_call(a);
   if (r20 != 0) { return r20; }
+  let r21: i32 = dest_if_dest(a);
+  if (r21 != 0) { return r21; }
   return 0;
 }
