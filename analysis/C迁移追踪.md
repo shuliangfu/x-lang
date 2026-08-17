@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **pin-seed `[N]T→[]T` typeck 双权威闭**（ret／asg **42**）· **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -610,13 +610,14 @@
   - 证：`index_method_wide` 三端 **0**（Ubuntu x86 @ **`ec82327bb`**；Darwin ARM64 consume 见下）
   - 余（已闭 Darwin ARM64 consume）：见 **ARM64 >16B INDEX MEMORY consume**
 
-✅ **return／assign `[N]T→[]T` emit wrap** ✅ @ **`c652eee5c`**
+✅ **return／assign `[N]T→[]T` emit wrap** ✅ @ **`c652eee5c`** · **pin-seed typeck 双权威闭** 2026-08-17 @ **`da7230bc7`**
 
   - 来源：4.2.10 余叶（let／call-arg 已绿；return／assign 仍 T001）
   - 现场：`return a`／`return w.xs`／`return W{}.xs`／`s = a`／`s = w.xs` typeck T001
   - **根修**：`typeck_array_to_slice_ok` 不 stamp；host-C return durable memcpy＋fat；assign 同帧 fat；asm return Path B0 COMMON＋dual-GP；assign 复用 `glue_emit_slice_from_array_let_init`
+  - **pin-seed 双权威闭**（2026-08-17）：`typeck_array_to_slice_ok` 只进 `typeck.x` 时 pin-first migrate 假红 expected []i32 found [2]i32；seed 补谓词＋return／assign／as 调用点；匿名 STRUCT_LIT 基 join reverse-infer（`{ xs:… }.xs` found `?`→layout）
   - **禁**：stamp `resolved_type_ref` 为 TYPE_SLICE；全量 assemble parser.x／pipeline_abi mega
-  - 证：`ret_array_as_slice`／`asg_array_as_slice` 三端 **42**；`[2]bool→[]i32` 仍 **T001**
+  - 证：`ret_array_as_slice`／`asg_array_as_slice` 三端 **42**；`[2]bool→[]i32` 仍 **T001**；双端 pin-seed L2 @ **`da7230bc7`**
 
 ⬜ **4.2.16 `*T[N]` 解析序** **有意保留 soft**（设计决策）
 
