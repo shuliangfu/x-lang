@@ -15168,14 +15168,14 @@ export function pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w: i32
  * wave109 pure: G.7 single product authority (was type_to_c_repr_inner + entry).
  * Uses stack inner/eb for recursive SLICE/PTR (wave691; no static re-entry).
  * TYPE_ARRAY writes `xlang_arr<N>_<elem>` so `[][N]T` is not `xlang_slice_<T>`.
- * Scratch family is 512: nest 30 i32 tag is 374; nest 31 is 386 (12*31+14).
- * nest 41 is 506; nest 42 overflows 512. Do not raise nest past 31 this leaf.
+ * Scratch family is 640: nest 41 i32 tag is 506; nest 42 is 518 (12*42+14).
+ * nest 52 is 638; nest 53 overflows 640. Do not raise nest past 42 this leaf.
  * PLATFORM: SHARED host-C type_to_c_repr authority.
  */
 #[no_mangle]
 export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
-  let inner: u8[512] = [];
-  let eb: u8[512] = [];
+  let inner: u8[640] = [];
+  let eb: u8[640] = [];
   let nm: u8[128] = [];
   if (cap < 16) {
     return -1;
@@ -15203,7 +15203,7 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   }
   // TYPE_PTR (9): elem " *"
   if (tk == 9 && elem_ref > 0) {
-    let n: i32 = pipeline_codegen_type_to_c_repr(arena, &inner[0], 512, elem_ref, struct_prefix, struct_prefix_len);
+    let n: i32 = pipeline_codegen_type_to_c_repr(arena, &inner[0], 640, elem_ref, struct_prefix, struct_prefix_len);
     if (n < 0 || n + 2 >= cap) {
       return -1;
     }
@@ -15230,8 +15230,8 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
     if (arr_sz <= 0) {
       return pipeline_codegen_type_to_c_repr(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
     }
-    let n_el: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 512, elem_ref, struct_prefix, struct_prefix_len);
-    if (n_el < 0 || n_el >= 512) {
+    let n_el: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 640, elem_ref, struct_prefix, struct_prefix_len);
+    if (n_el < 0 || n_el >= 640) {
       return -1;
     }
     let sp_el: i32 = 0;
@@ -15341,8 +15341,8 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   }
   // TYPE_SLICE (11): struct xlang_slice_<elemC> (strip leading "struct ")
   if (tk == 11 && elem_ref > 0) {
-    let n: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 512, elem_ref, struct_prefix, struct_prefix_len);
-    if (n < 0 || n >= 512) {
+    let n: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 640, elem_ref, struct_prefix, struct_prefix_len);
+    if (n < 0 || n >= 640) {
       return -1;
     }
     let sp: i32 = 0;
@@ -15713,7 +15713,7 @@ function cg_se_out_format_int(out: *u8, val: i32): i32 {
  * PLATFORM: SHARED.
  */
 function pipeline_codegen_emit_struct_field_type_inner(arena: *u8, out: *u8, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
-  let scratch: u8[512] = [];
+  let scratch: u8[640] = [];
   let nm: u8[128] = [];
   let ord: i32 = -1;
   if (arena != 0 as *u8 && type_ref > 0) {
@@ -15779,7 +15779,7 @@ function pipeline_codegen_emit_struct_field_type_inner(arena: *u8, out: *u8, typ
   }
   // TYPE_SLICE (11): public type_to_c_repr then append
   if (ord == 11) {
-    let nl2: i32 = pipeline_codegen_type_to_c_repr(arena, &scratch[0], 512, type_ref, struct_prefix, struct_prefix_len);
+    let nl2: i32 = pipeline_codegen_type_to_c_repr(arena, &scratch[0], 640, type_ref, struct_prefix, struct_prefix_len);
     if (nl2 <= 0) {
       return -1;
     }
