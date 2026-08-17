@@ -3093,6 +3093,17 @@ ensure_pipeline_abi_prefer_one() {
     fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (pipeline-abi-prefer)"
+      # Still inject 4.2.7 thin leave (small -E) when leaf present.
+      pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+      return 0
+    fi
+    # 4.2.7 fast path: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
+    # OUT already exists and the reent thin leaf is present, inject-only instead
+    # of full hybrid rebuild. FORCE=1 still does full thin+rest prefer.
+    # PLATFORM: SHARED shell · LINUX gold + MACOS.
+    if [ -s "$o" ] && [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ]; then
+      log "pipeline_abi prefer: inject-only reent thin (skip full mega -E; FORCE=1 for hybrid)"
+      pipeline_abi_inject_reent_deep_copy_thin "$o" || return 1
       return 0
     fi
   fi
