@@ -8,19 +8,27 @@
 // glue_emit_run_language_defers_elf. dest extra-arm extra wrap
 // `{ { let t; dest } }` used to keep dest in dest-in-rbx (peel BLOCK)
 // and drop the value on host-C (`(void)({...})` assigned to dest).
-// parse_block last nested block is now final_expr. Gate lives here
-// so dest-park leftover is not this leaf. Leftover codes stay in 1..255.
+// parse_block last nested block is now final_expr. dest-from-region
+// dest-region-body `with_arena { defer { k = 1 }; dest }` used to
+// keep dest and drop the dest-region defer (asm leftover 53):
+// dest-from-region overwrites br; extra-arm defer_br is empty.
+// Same dest-in-rbx now runs glue_emit_run_language_defers_elf on
+// the dest region body. Gate lives here so dest-park leftover is
+// not this leaf. Leftover codes stay in 1..255.
 // Expected exit 0.
-// PLATFORM: SHARED dest extra-arm region / defer / extra-wrap.
+// PLATFORM: SHARED dest extra-arm region / defer / extra-wrap /
+// dest-from-region dest-region-body defer.
 
 allow(padding) struct Holder { v: i32x4 }
 
 allow(padding) struct Wrap { h: Holder }
 
 /**
- * Gate dest extra-arm `region` / `defer` optional compound ASI.
- * Stacks MATCH / IF / field-bind / no-semi (region + defer + extra wrap).
- * @return i32 — 0 ok; 70..102 leftover lanes
+ * Gate dest extra-arm `region` / `defer` optional compound ASI
+ * plus dest-from-region dest-region-body defer.
+ * Stacks MATCH / IF / field-bind / no-semi (region + defer +
+ * extra wrap + dest-from-region dest-region-body defer).
+ * @return i32 — 0 ok; 70..111 leftover lanes
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -150,5 +158,46 @@ function main(): i32 {
   }
   if (dst.h.v[0] != 1) { return 98; }
   if (dst.h.v[3] != 4) { return 99; }
+
+  // MATCH dest-from-region dest-region-body defer leftover 100..102
+  k = 0;
+  unsafe { *p = match tag { 1 => { with_arena(64) { defer { k = 1 }; { h: { v: a } } } }; _ => y; } }
+  if (dst.h.v[0] != 1) { return 100; }
+  if (dst.h.v[3] != 4) { return 101; }
+  if (k != 1) { return 102; }
+
+  // IF dest-from-region dest-region-body defer leftover 103..105
+  k = 0;
+  unsafe {
+    *p = if (tag == 1) {
+      with_arena(64) { defer { k = 1 }; { h: { v: b } } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 5) { return 103; }
+  if (dst.h.v[3] != 8) { return 104; }
+  if (k != 1) { return 105; }
+
+  // MATCH field-bind dest-from-region dest-region-body defer leftover 106..108
+  k = 0;
+  unsafe { *ph = match w { Wrap { h } => { with_arena(64) { defer { k = 1 }; h } }; } }
+  if (dsth.v[0] != 1) { return 106; }
+  if (dsth.v[3] != 4) { return 107; }
+  if (k != 1) { return 108; }
+
+  // no-semi MATCH dest-from-region dest-region-body defer leftover 109..111
+  k = 0;
+  unsafe {
+    *p = match tag {
+      1 => {
+        with_arena(64) { defer { k = 1 }; { h: { v: a } } }
+      };
+      _ => y;
+    }
+  }
+  if (dst.h.v[0] != 1) { return 109; }
+  if (dst.h.v[3] != 4) { return 110; }
+  if (k != 1) { return 111; }
   return 0;
 }
