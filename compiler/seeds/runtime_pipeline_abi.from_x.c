@@ -9848,11 +9848,22 @@ void glue_wa_emit_begin_func_c(void *ctx, void *arena, int32_t body_ref) {
 }
 
 int32_t glue_wa_scope_alloc_off_c(void *ctx) {
+  /* dest extra-arm dest-in-rbx dest_spill vs reserved wa window.
+   * Same body as runtime_pipeline_abi.x (G.7 twin).
+   * PLATFORM: SHARED dest extra-arm with_arena · LINUX gold. */
   int32_t off = wave122_wa_temp_base + wave122_wa_temp_next;
   int32_t end;
-  int32_t cur;
+  int32_t cur = 0;
   uint8_t *b;
-  wave122_wa_temp_next += 24;
+  if (ctx) {
+    b = (uint8_t *)ctx;
+    cur = (int32_t)b[4] | ((int32_t)b[5] << 8) | ((int32_t)b[6] << 16) | ((int32_t)b[7] << 24);
+    if (off < cur)
+      off = cur;
+  }
+  wave122_wa_temp_next = off + 24 - wave122_wa_temp_base;
+  if (wave122_wa_temp_next < 24)
+    wave122_wa_temp_next = 24;
   if (wave122_wa_temp_next % 8 != 0)
     wave122_wa_temp_next += 8 - (wave122_wa_temp_next % 8);
   if (ctx) {
@@ -9860,7 +9871,6 @@ int32_t glue_wa_scope_alloc_off_c(void *ctx) {
     if (end % 8 != 0)
       end += 8 - (end % 8);
     b = (uint8_t *)ctx;
-    cur = (int32_t)b[4] | ((int32_t)b[5] << 8) | ((int32_t)b[6] << 16) | ((int32_t)b[7] << 24);
     if (end > cur) {
       b[4] = (uint8_t)(end & 255);
       b[5] = (uint8_t)((end >> 8) & 255);

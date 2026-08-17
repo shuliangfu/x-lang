@@ -22451,24 +22451,42 @@ export function glue_wa_emit_begin_func_c(ctx: *u8, arena: *u8, body_ref: i32): 
 /**
  * Allocate stack Arena64 slot offset for this with_arena block (24B step, 8-align;
  * must run after all block-local lets). Advances AsmFuncCtx.next_offset past wa region.
+ * dest extra-arm dest-in-rbx parks dest_spill on next_offset (x86 high-end
+ * home=cur+8). Preceding STRUCT_LIT let-inits already grow next_offset into
+ * the reserved wa window (wa_temp_base = locals+arr_temp+24). Planting
+ * Arena64 at wa_temp_base then smashed dest_spill (Ubuntu SIGSEGV 139;
+ * Darwin dest-shadow accidental green). Function-body with_arena still
+ * has next_offset at locals, so off >= cur and the skip is a no-op.
  * @param ctx *u8 - AsmFuncCtx*; may be null (still returns off; no next_offset bump)
  * @return i32 - allocated wa_off (rbp-negative home base)
  * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
- * PLATFORM: SHARED - 24B Arena64 + 8-align matches C residual compute_frame_size.
+ * PLATFORM: SHARED dest extra-arm with_arena · LINUX gold · MACOS dest-shadow.
  */
 #[no_mangle]
 export function glue_wa_scope_alloc_off_c(ctx: *u8): i32 {
   let off: i32 = g_pipe_wa_temp_base + g_pipe_wa_temp_next;
-  g_pipe_wa_temp_next = g_pipe_wa_temp_next + 24;
+  let cur: i32 = 0;
+  let end: i32 = 0;
+  /* Skip dest-in-rbx emit-time temps already taken on next_offset.
+   * PLATFORM: SHARED — dest extra-arm dest_spill vs reserved wa window. */
+  if (ctx != 0 as *u8) {
+    cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (off < cur) {
+      off = cur;
+    }
+  }
+  g_pipe_wa_temp_next = off + 24 - g_pipe_wa_temp_base;
+  if (g_pipe_wa_temp_next < 24) {
+    g_pipe_wa_temp_next = 24;
+  }
   if (g_pipe_wa_temp_next % 8 != 0) {
     g_pipe_wa_temp_next = g_pipe_wa_temp_next + (8 - (g_pipe_wa_temp_next % 8));
   }
   if (ctx != 0 as *u8) {
-    let end: i32 = off + 24;
+    end = off + 24;
     if (end % 8 != 0) {
       end = end + (8 - (end % 8));
     }
-    let cur: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
     if (end > cur) {
       pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), end);
     }
