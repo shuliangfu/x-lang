@@ -3108,7 +3108,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           }
           (void)((b = ast_ast_arena_block_get(arena, block_ref)));
           (void)((lex_cur = (block_res_unsafe.next_lex)));
-          (void)((stmt_tok_ready = 0));
+          /* Optional `;` after unsafe {…} (compound ASI). Extra-arm dest
+           * `{ unsafe { k = 1 }; { h: e } }` used to P001. No-semi dest_if
+           * extra-arm region stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+           * PLATFORM: SHARED — twin of parser.x parse_block unsafe. */
+          (void)(lexer_next_into(&(r), lex_cur, source));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex_cur), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
       }

@@ -3060,8 +3060,22 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         }
         b = ast.ast_arena_block_get(arena, block_ref);
         lex_cur = block_res_unsafe.next_lex;
-        /* parse_block already returned next stmt head; no second realign. */
-        stmt_tok_ready = false;
+        /**
+         * Optional `;` after `unsafe { ... }` (compound-stmt ASI).
+         * Extra-arm dest `{ unsafe { k = 1 }; { h: e } }` used to see `;` as
+         * an expr and drop the whole function (P001). dest_if extra-arm
+         * region has no `;` and must stay the next stmt head.
+         * G.7: same optional-semi + stmt_tok_ready as wave655 return ASI.
+         * Do not realign here (parse_block already returned the next head).
+         * PLATFORM: SHARED — parse_block unsafe; seed pin same commit.
+         */
+        lexer.lexer_next_into(&r, lex_cur, source);
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_next_into(&lex_cur, r);
+          stmt_tok_ready = false;
+        } else {
+          stmt_tok_ready = true;
+        }
         continue;
       }
     }
