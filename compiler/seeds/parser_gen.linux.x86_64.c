@@ -2979,7 +2979,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)((lex_cur = (block_res_def.next_lex)));
-        (void)((stmt_tok_ready = 0));
+        /* Optional `;` after defer {…} (compound ASI). Extra-arm dest
+         * `{ defer { k = 1 }; { h: e } }` used to P001. No-semi dest
+         * stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+         * PLATFORM: SHARED — twin of parser.x parse_block defer. */
+        (void)(lexer_next_into(&(r), lex_cur, source));
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          (void)((stmt_tok_ready = 0));
+        } else {
+          (void)((stmt_tok_ready = 1));
+        }
         continue;
       }
       if ((((r.tok).kind) ==17)) {
@@ -3031,9 +3041,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)((lex_cur = (block_res_wa.next_lex)));
+        /* Optional `;` after with_arena(cap) {…} (compound ASI). Extra-arm
+         * dest `{ with_arena(n) { k = 1 }; { h: e } }` used to P001.
+         * No-semi dest stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+         * Do not realign (would skip dest). PLATFORM: SHARED. */
         (void)(lexer_next_into(&(r), lex_cur, source));
-        (void)((lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source)));
-        (void)((stmt_tok_ready = 0));
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          (void)((stmt_tok_ready = 0));
+        } else {
+          (void)((stmt_tok_ready = 1));
+        }
         continue;
       }
       if ((((r.tok).kind) ==16)) {
@@ -3073,9 +3091,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)((lex_cur = (block_res_reg.next_lex)));
+        /* Optional `;` after region label {…} (compound ASI). Extra-arm dest
+         * `{ region foo { k = 1 }; { h: e } }` used to P001. No-semi dest
+         * stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+         * Do not realign (would skip dest). PLATFORM: SHARED. */
         (void)(lexer_next_into(&(r), lex_cur, source));
-        (void)((lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source)));
-        (void)((stmt_tok_ready = 0));
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          (void)((stmt_tok_ready = 0));
+        } else {
+          (void)((stmt_tok_ready = 1));
+        }
         continue;
       }
       if (((((r.tok).kind) ==59) && (((r.tok).ident_len) ==6))) {

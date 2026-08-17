@@ -2910,8 +2910,21 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       }
       b = ast.ast_arena_block_get(arena, block_ref);
       lex_cur = block_res_def.next_lex;
-      /* Body already synced the full defer stmt; no compound realign (leaks body expr). */
-      stmt_tok_ready = false;
+      /**
+       * Optional `;` after `defer { ... }` (compound-stmt ASI).
+       * Extra-arm dest `{ defer { k = 1 }; { h: e } }` used to see `;` as
+       * an expr and drop the whole function (P001). No-semi dest stays
+       * the next stmt head. Do not realign (realign leaks the body expr).
+       * G.7: same optional-semi + stmt_tok_ready as IDENT-unsafe / wave655.
+       * PLATFORM: SHARED — parse_block defer; seed pin same commit.
+       */
+      lexer.lexer_next_into(&r, lex_cur, source);
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        lex_from_next_into(&lex_cur, r);
+        stmt_tok_ready = false;
+      } else {
+        stmt_tok_ready = true;
+      }
       continue;
     }
     /**
@@ -2969,9 +2982,22 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       }
       b = ast.ast_arena_block_get(arena, block_ref);
       lex_cur = block_res_wa.next_lex;
+      /**
+       * Optional `;` after `with_arena(cap) { ... }` (compound-stmt ASI).
+       * Extra-arm dest `{ with_arena(n) { k = 1 }; { h: e } }` used to see
+       * `;` as an expr and drop the whole function (P001). No-semi dest
+       * stays the next stmt head.
+       * G.7: same optional-semi + stmt_tok_ready as IDENT-unsafe / wave655.
+       * Do not realign (parse_block already returned the next head).
+       * PLATFORM: SHARED — parse_block with_arena; seed pin same commit.
+       */
       lexer.lexer_next_into(&r, lex_cur, source);
-      lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source);
-      stmt_tok_ready = false;
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        lex_from_next_into(&lex_cur, r);
+        stmt_tok_ready = false;
+      } else {
+        stmt_tok_ready = true;
+      }
       continue;
     }
     /**
@@ -3017,9 +3043,23 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       }
       b = ast.ast_arena_block_get(arena, block_ref);
       lex_cur = block_res_reg.next_lex;
+      /**
+       * Optional `;` after `region label { ... }` (compound-stmt ASI).
+       * Extra-arm dest `{ region foo { k = 1 }; { h: e } }` used to see `;`
+       * as an expr and drop the whole function (P001). No-semi dest must
+       * stay the next stmt head.
+       * G.7: same optional-semi + stmt_tok_ready as IDENT-unsafe / wave655.
+       * Do not realign (parse_block already returned the next head;
+       * realign + refetch would skip dest / re-enter if).
+       * PLATFORM: SHARED — parse_block region; seed pin same commit.
+       */
       lexer.lexer_next_into(&r, lex_cur, source);
-      lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source);
-      stmt_tok_ready = false;
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        lex_from_next_into(&lex_cur, r);
+        stmt_tok_ready = false;
+      } else {
+        stmt_tok_ready = true;
+      }
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
