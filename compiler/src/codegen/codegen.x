@@ -15230,8 +15230,10 @@ export function codegen_callee_var_is_string_new(e: Expr): i32 {
  * One-shot handoff: last dest-from-region dest emit consumes this so
  * wrapping defers already hoisted inner-first are not run again.
  * emit_block copies it into a local and clears it so prefix / sibling
- * emit_block children stay skip=0. Not a second emit path.
- * PLATFORM: SHARED host-C dest-from-region stacked last-wins.
+ * emit_block children stay skip=0. Both stmt_order>0 last-dest and
+ * stmt_order==0 dest-region-body (defer pool + final_expr dest) honor
+ * it. Not a second emit path.
+ * PLATFORM: SHARED host-C dest-from-region dest-region-body last-wins.
  */
 let g_codegen_skip_wrap_dest: i32 = 0;
 
@@ -15906,6 +15908,9 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
  * so dest stays the GNU stmt-expr last value (not `(m=1)`).
  * Stacked dest-from-region wrapping hoists inner first then outer
  * (dest-in-rbx LIFO last-wins), dest still last.
+ * dest-region-body `with_arena { defer; dest }` is often stmt_order==0
+ * (defer pool + final_expr dest); that fallback also honors skip-wrap
+ * so dest-region-body defer is not run again after wrapping.
  */
 export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -17005,8 +17010,15 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       }
       i = i + 1;
     }
-    if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
-      return -1;
+    /* dest-region-body dest is often stmt_order==0 (defer pool +
+     * final_expr dest). Wrapping already hoisted dest-region-body
+     * then wrapping (LIFO last-wins outer). skip-wrap must skip
+     * this second emit_run_defers so dest stays GNU last value.
+     * PLATFORM: SHARED host-C dest-from-region dest-region-body last-wins. */
+    if (skip_wrap_dest == 0) {
+      if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
+        return -1;
+      }
     }
     /* See implementation. */
     let final_ref_plain: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
