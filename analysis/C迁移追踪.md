@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · ARM64 序言存 x19 · param_home 栈参跳过 x19 槽 · sat `try-r1` 已走 `ensure_labi_prefer_one` · L0 `-E` getcwd 已闭 · emit_header `h[88]` 超额初始化已闭（`u8[83]`）· dest leftover 族（含 wrap IF dest／else-if／嵌套 MATCH／while leftover dest／elif3／ifmid／match_in_if／field／ret_if）**已尽** · tip 邻域再扫无新诚实薄红 · 假红：range-for（非语言）／labeled-break（非语言）· 4.2.4 bare 零参泛型诚实 T001（须 turbofish）leave-off · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · ARM64 序言存 x19 · param_home 栈参跳过 x19 槽 · sat `try-r1` 已走 `ensure_labi_prefer_one` · L0 `-E` getcwd 已闭 · emit_header `h[88]` 超额初始化已闭（`u8[83]`）· dest leftover 族（含 wrap IF dest／else-if／嵌套 MATCH／while leftover dest／elif3／ifmid／match_in_if／field／ret_if）**已尽** · tip 邻域再扫无新诚实薄红 · 假红：range-for（非语言）／labeled-break（非语言）· 4.2.4 bare 零参泛型诚实 T001（须 turbofish）leave-off · 两叶 commit `46650e498`／`6640f5758` · tip `403843d9a` Ubuntu L2 金标绿 · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
