@@ -3139,8 +3139,35 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
      * inside `if (pending_cfg_skip)`. Treating `{` as parse_expr + require `;` fails the whole
      * function (parse-skip of parse_into / parse_into_buf). Represent as expr_stmt of EXPR_BLOCK
      * so codegen emits nested `{ ... }` without requiring a semicolon after the closing brace.
+     *
+     * dest extra-arm leftover: `{ let t; { h: { v: a } } }` last `{ fields }` is an
+     * anonymous STRUCT_LIT. This branch used to always nest-block, so host-C emitted
+     * a GNU labeled statement (`h:`) and `(void)(...)` — `void` assigned to the dest
+     * struct. Primary already disambiguates IDENT then `:`/`,`/`}` as STRUCT_LIT
+     * (parser_asm_primary_lbrace_looks_like_block_c). G.7: same peek here; STRUCT_LIT
+     * falls through to parse_expr so a trailing `{ fields }` can become final_expr.
+     * Nested `{ let ... }` / `{ unsafe ... }` / `{ { ... } }` stay this branch.
+     * Do not full-assemble parser.x (tip -E drops generic_bound_scan).
      */
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+      /**
+       * Peek past `{` without consuming `r`. IDENT then COLON/COMMA/RBRACE →
+       * anonymous struct lit (`{ h: e }`, `{ h, x }`, `{ h }`); leave for parse_expr.
+       * PLATFORM: SHARED — G.7 twin of primary lbrace_looks_like_block IDENT arm.
+       */
+      let rpeek_sl: LexerResult = { next_lex: r.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+      let slit_stmt: i32 = 0;
+      lexer.lexer_next_into(&rpeek_sl, r.next_lex, source);
+      if (rpeek_sl.tok.kind == token.TokenKind.TOKEN_IDENT) {
+        let rpeek_sl2: LexerResult = { next_lex: rpeek_sl.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        lexer.lexer_next_into(&rpeek_sl2, rpeek_sl.next_lex, source);
+        if (rpeek_sl2.tok.kind == token.TokenKind.TOKEN_COLON
+            || rpeek_sl2.tok.kind == token.TokenKind.TOKEN_COMMA
+            || rpeek_sl2.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+          slit_stmt = 1;
+        }
+      }
+      if (slit_stmt == 0) {
       /**
        * Hoist-safe bare block: wrap/append only after parse_block_into succeeds.
        * Pin X→C otherwise pushes empty expr_stmt before the nested body is parsed.
@@ -3174,6 +3201,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       lex_cur = block_res_bare.next_lex;
       stmt_tok_ready = false;
       continue;
+      }
+      /* slit_stmt==1: anonymous `{ fields }` — fall through to parse_expr / final_expr. */
     }
     /* expr; — hoist-safe: reset then parse; append only after success (not loop-top let). */
     stmt_start = lex_at_token_from_result(r);

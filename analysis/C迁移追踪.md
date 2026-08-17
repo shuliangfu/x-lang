@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · ARM64 序言存 x19 · param_home 栈参跳过 x19 槽 · sat `try-r1` 已走 `ensure_labi_prefer_one` · L0 `-E` getcwd 已闭 · emit_header `h[88]` 超额初始化已闭（`u8[83]`）· 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · ARM64 序言存 x19 · param_home 栈参跳过 x19 槽 · sat `try-r1` 已走 `ensure_labi_prefer_one` · L0 `-E` getcwd 已闭 · emit_header `h[88]` 超额初始化已闭（`u8[83]`）· dest extra-arm 末尾 `{ fields }` host-C 已闭 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -36,7 +36,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／dest-in-rbx IF of ARRAY_LIT／dest-in-rbx IF extra arm stmts／dest-in-rbx IF extra arm loops／dest-in-rbx IF extra arm region／dest-in-rbx IF dest wrapped in unsafe／dest-in-rbx IF extra arm labeled／dest-in-rbx MATCH／dest-in-rbx IF of MATCH／dest-in-rbx MATCH field-bind／帧 dest 16B MATCH field-bind／大 main 后段 let dest 名空／匿名 match／匿名 enum／裸 enum／nest 17–64（**冻帽 64**）／SIMD dest／METHOD binop2／STRUCT_LIT dest **已闭**。 **开项**：dest extra-arm 末尾 `{ fields }` host-C（parse_block `{` 一律嵌套块；asm 16B 偶绿）；TYPE_DYN 后期；4.2.4–5／4.2.7 leave-off；full12 装产品链须点名＋Ubuntu。L0 `-E` getcwd **已闭**。emit_header `h[88]` 超额初始化 **已闭**（`u8[83]`）。sat 盖 prefer **已开路由**（`try-r1` → `ensure_labi_prefer_one`；sat 形态 427280 Darwin 5/5；mega 318600 活身份）。ARM64 prologue **已存 x19**；param_home **已跳过 x19 槽**。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 65／全量 assemble parser.x |
+| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／dest-in-rbx IF of ARRAY_LIT／dest-in-rbx IF extra arm stmts／dest-in-rbx IF extra arm loops／dest-in-rbx IF extra arm region／dest-in-rbx IF dest wrapped in unsafe／dest-in-rbx IF extra arm labeled／dest-in-rbx MATCH／dest-in-rbx IF of MATCH／dest-in-rbx MATCH field-bind／帧 dest 16B MATCH field-bind／大 main 后段 let dest 名空／匿名 match／匿名 enum／裸 enum／nest 17–64（**冻帽 64**）／SIMD dest／METHOD binop2／STRUCT_LIT dest／dest extra-arm 末尾 `{ fields }` host-C **已闭**。 **开项**：TYPE_DYN 后期；4.2.4–5／4.2.7 leave-off；full12 装产品链须点名＋Ubuntu。dest extra-arm 末尾 `{ fields }` host-C **已闭**。L0 `-E` getcwd **已闭**。emit_header `h[88]` 超额初始化 **已闭**（`u8[83]`）。sat 盖 prefer **已开路由**（`try-r1` → `ensure_labi_prefer_one`；sat 形态 427280 Darwin 5/5；mega 318600 活身份）。ARM64 prologue **已存 x19**；param_home **已跳过 x19 槽**。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 65／全量 assemble parser.x |
 | **产品 L4 放行** | ✅ | 钉盘 **`f7424ae47`**（2026-08-15 升钉 · 前 `e364f4a37` · `d79a368b2`）· Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -1026,7 +1026,7 @@
   - **根修**：`link_abi_asm_ld_argv_has_obj`（string＋realpath）补进 `push_existing`／`append_user_extra` prefer `.x`／sat mega 冷体
   - **禁**改 `run-std-io-context-gate.sh`
   - 证：带 extra／不带 extra／gate 0 · **钉盘双端 L4 io-context 绿**
-  - 残：sat 路由 **已开**（`try-r1` → `ensure_labi_prefer_one`；sat 形态 **427280** Darwin **5/5**）。mega **318600** 活。L0 `-E` `getcwd` **已闭**。emit_header `h[88]` 超额初始化 **已闭**（`u8[83]`）。dest extra-arm 末尾 `{ fields }` host-C 仍红（parse_block `{` 一律嵌套块）。`push_stable` prefer 已调权威 `has_obj`。
+  - 残：sat 路由 **已开**（`try-r1` → `ensure_labi_prefer_one`；sat 形态 **427280** Darwin **5/5**）。mega **318600** 活。L0 `-E` `getcwd` **已闭**。emit_header `h[88]` 超额初始化 **已闭**（`u8[83]`）。dest extra-arm 末尾 `{ fields }` host-C **已闭**。`push_stable` prefer 已调权威 `has_obj`。
 
 ✅ **Darwin `default_alloc` dest 影子 x19（跨 16B CALL）** ✅ @ **`6b42ab1b2`**
 
@@ -1697,12 +1697,12 @@
 
   - 闸：`tests/boundary/vec_field_index_return.x` `dest_match_dest` 96–99（`let rf: Holder`／`let rf2: Wrap`；8-bit leftover）
 
-⬜ **dest extra-arm 末尾 `{ fields }` host-C**（parse_block `{` 一律嵌套块）
+✅ **dest extra-arm 末尾 `{ fields }` host-C**（parse_block `{` 一律嵌套块）
 
-  - 现场：`*p = if (c) { let t: i32 = 1; { h: { v: a } } }`／MATCH 同形。asm **0**（16B Wrap≡i32x4 偶绿：peel 到 `a` memcpy）。host-C `void` 赋 `struct Wrap`（GNU stmt-expr 末句是 `(void)(labeled block)`）
-  - 产生点＝`parser_parse_block_into` `TOKEN_LBRACE` 一律 `parse_block`＋expr_stmt，不用 primary `lbrace_looks_like_block`（IDENT 后 `:` → STRUCT_LIT；末句也不盖 `final_expr`）
-  - **勿**本叶全量 assemble parser.x（tip `-E` 丢 `generic_bound_scan`）。根修须 G.7 补同一 parse_block LBRACE 歧义＋末句 final_expr；seed／`.x` 同 commit
-  - 闸：isolate `if_let_slit`／`match_region_semi` host-C
+  - 现场：`*p = if (c) { let t: i32 = 1; { h: { v: a } } }`／MATCH 同形。asm **0**（16B Wrap≡i32x4 偶绿）。host-C `void` 赋 `struct Wrap`（GNU stmt-expr 末句是 `(void)(labeled block)`／`h:` 标签）
+  - **根修**：`parser_parse_block_into` `TOKEN_LBRACE` 补同一 LBRACE 歧义：IDENT 后 `:`／`,`／`}` → 落入既有 `parse_expr`（primary glue 已认 STRUCT_LIT），末句盖 `final_expr`。`{ let … }`／`{ unsafe … }`／`{ { … } }` 仍嵌套块（mega 无 `;`）
+  - 手术补 last-good `parser_gen.c`＋seed＋`parser.x` 同 commit；**禁**全量 assemble parser.x（tip `-E` 丢 `generic_bound_scan`）
+  - 闸：isolate `if_let_slit`／`match_region_semi` host-C 复合字面量＋run **0**；官方 `dest_if_dest`／`dest_match_dest` asm **0**
 
 ---
 

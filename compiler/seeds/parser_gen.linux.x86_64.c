@@ -3135,6 +3135,20 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         continue;
       }
       if ((((r.tok).kind) ==84)) {
+        /* dest extra-arm `{ fields }`: IDENT then :/,/} is STRUCT_LIT, not nested block.
+         * G.7 twin of parser.x parse_block LBRACE peek + primary lbrace_looks_like_block.
+         * PLATFORM: SHARED. Do not full-assemble parser.x (generic_bound_scan). */
+        struct lexer_LexerResult rpeek_sl = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+        struct lexer_LexerResult rpeek_sl2 = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+        int32_t slit_stmt = 0;
+        (void)(lexer_next_into(&(rpeek_sl), (r.next_lex), source));
+        if ((((rpeek_sl.tok).kind) ==59)) {
+          (void)(lexer_next_into(&(rpeek_sl2), (rpeek_sl.next_lex), source));
+          if ((((((rpeek_sl2.tok).kind) ==91) || (((rpeek_sl2.tok).kind) ==90)) || (((rpeek_sl2.tok).kind) ==85))) {
+            (void)((slit_stmt = 1));
+          }
+        }
+        if ((slit_stmt ==0)) {
         struct parser_ParseBlockResult block_res_bare = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex_cur };
         int32_t bare_expr = 0;
         int32_t bare_ex_i = 0;
@@ -3163,6 +3177,7 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         (void)((lex_cur = (block_res_bare.next_lex)));
         (void)((stmt_tok_ready = 0));
         continue;
+        }
       }
       (void)((stmt_start = parser_lex_at_token_from_result(r)));
       (void)(parser_parse_expr_result_reset(&(expr_stmt_res), stmt_start));
