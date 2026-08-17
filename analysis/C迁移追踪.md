@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · sat 盖 prefer 未开（tip prefer 纯 asm 混链 Darwin SIGSEGV）· 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · ARM64 序言已存 x19（L1 hybrid 5/5）· sat 未开（full12 仍 Darwin 139）· 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -36,7 +36,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／dest-in-rbx IF of ARRAY_LIT／dest-in-rbx IF extra arm stmts／dest-in-rbx IF extra arm loops／dest-in-rbx IF extra arm region／dest-in-rbx IF dest wrapped in unsafe／dest-in-rbx IF extra arm labeled／dest-in-rbx MATCH／dest-in-rbx IF of MATCH／dest-in-rbx MATCH field-bind／帧 dest 16B MATCH field-bind／大 main 后段 let dest 名空／匿名 match／匿名 enum／裸 enum／nest 17–64（**冻帽 64**）／SIMD dest／METHOD binop2／STRUCT_LIT dest **已闭**。 **开项**：TYPE_DYN 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer（**未开**：tip LABI=1 纯 asm 混链 Darwin SIGSEGV；mega 318600 活身份；L0 `-E` getcwd 未声明）；ARM64 prologue 未存 x19（帧／指针 dest 探针已 0）。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 65／sat 改路由到 prefer（prefer 再绿前） |
+| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／dest-in-rbx IF of ARRAY_LIT／dest-in-rbx IF extra arm stmts／dest-in-rbx IF extra arm loops／dest-in-rbx IF extra arm region／dest-in-rbx IF dest wrapped in unsafe／dest-in-rbx IF extra arm labeled／dest-in-rbx MATCH／dest-in-rbx IF of MATCH／dest-in-rbx MATCH field-bind／帧 dest 16B MATCH field-bind／大 main 后段 let dest 名空／匿名 match／匿名 enum／裸 enum／nest 17–64（**冻帽 64**）／SIMD dest／METHOD binop2／STRUCT_LIT dest **已闭**。 **开项**：TYPE_DYN 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer（**未开**：ONLY=L1 已绿；full12 纯 asm 混链仍 Darwin 139；mega 318600 活身份；L0 `-E` getcwd 未声明）；ARM64 prologue **已存 x19**（L1 hybrid 5/5；帧／指针 dest 探针仍 0）。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 65／sat 改路由到 prefer（full12 再绿前） |
 | **产品 L4 放行** | ✅ | 钉盘 **`f7424ae47`**（2026-08-15 升钉 · 前 `e364f4a37` · `d79a368b2`）· Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -1026,7 +1026,7 @@
   - **根修**：`link_abi_asm_ld_argv_has_obj`（string＋realpath）补进 `push_existing`／`append_user_extra` prefer `.x`／sat mega 冷体
   - **禁**改 `run-std-io-context-gate.sh`
   - 证：带 extra／不带 extra／gate 0 · **钉盘双端 L4 io-context 绿**
-  - 残：sat 盖 prefer 另层债。tip 再验：`XLANG_PREFER_ASM_O_LABI=1` FORCE try-labi-prefer 全层纯 asm 混链 **423184** → 产品 `xlang_asm` Darwin SIGSEGV `0xfe`（rv42 亦崩）；mega **318600** 恢复后活。LABI=0 `-E`+cc 混链 **344928** 活，L0 `labi_path_pure.x` `-E` 因 skip-decl `getcwd` 无 `unistd.h` 失败（has_obj 仍 seed）。`push_stable` prefer 已调权威 `has_obj`（unsafe 赋值，禁裸 `if`）。**禁** prefer 再绿前把 sat try-r1 改走 `ensure_labi_prefer_one`。
+  - 残：sat 盖 prefer 另层债。ONLY= 二分 **仅 L1 `labi_diag_pure` RED**（getenv 砸 x19）。ARM64 序言补存 x19 后 ONLY=L1 hybrid **347016** Darwin **5/5**。full12 **427280** 仍 SIGSEGV 139。mega **318600** 活。LABI=0 `-E`+cc **344928** 活，L0 `getcwd` `-E` 仍红。`push_stable` prefer 已调权威 `has_obj`。**禁** full12 再绿前把 sat try-r1 改走 `ensure_labi_prefer_one`。
 
 ✅ **Darwin `default_alloc` dest 影子 x19（跨 16B CALL）** ✅ @ **`6b42ab1b2`**
 

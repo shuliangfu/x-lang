@@ -45,8 +45,59 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
 }
 
 /**
+ * Emit STR/LDR x19, [sp, #off] (AAPCS64 callee-saved dest-shadow).
+ * Unsigned imm12 covers off <= 32760; larger frames use x16 as a scratch base.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param off i32 — byte offset from SP; must be >= 0 and 8-aligned
+ * @param is_ldr i32 — 0 = STR, 1 = LDR
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — G.7 twin of seed arm64_enc_x19_sp_off.
+ */
+function enc_x19_sp_off(ctx: *ElfCodegenCtx, off: i32, is_ldr: i32): i32 {
+  if (off < 0) {
+    return -1;
+  }
+  if ((off & 7) != 0) {
+    return -1;
+  }
+  if (off <= 32760) {
+    let imm12: i32 = off / 8;
+    /* str = 0xF90003F3; ldr = 0xF94003F3 (signed i32, T001-safe). */
+    let base: i32 = 0 - 117439501;
+    if (is_ldr != 0) {
+      base = 0 - 113056781;
+    }
+    return enc_u32_le(ctx, base | (imm12 << 10));
+  }
+  /* add x16, sp, #0  (0x910003F0) */
+  if (enc_u32_le(ctx, 0 - 1862269968) != 0) {
+    return -1;
+  }
+  let left: i32 = off;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) {
+      chunk = 4095;
+    }
+    /* add x16, x16, #chunk  (0x91000210 | chunk<<10) */
+    if (enc_u32_le(ctx, (0 - 1862270448) | (chunk << 10)) != 0) {
+      return -1;
+    }
+    left = left - chunk;
+  }
+  /* str x19,[x16] = 0xF9000213; ldr = 0xF9400213 */
+  if (is_ldr != 0) {
+    return enc_u32_le(ctx, 0 - 113057261);
+  }
+  return enc_u32_le(ctx, 0 - 117439981);
+}
+
+/**
  * wave414: arm64 prologue — allocate whole frame with x29 at bottom so
  * positive [x29,#off] locals (wave402 low-end home) sit inside the frame.
+ * Extra 16B at the high end saves callee-saved x19 (AAPCS64 dest-shadow).
+ * Locals stay at [x29,#0x10 .. #aligned_request) so dest-in-rbx offsets
+ * do not shift. L1 labi_diag_pure hybrid used to smash C x19 (Darwin 0xfe).
  * @param ctx *ElfCodegenCtx — emit context
  * @param frame_size i32 — bytes for save+locals (aligned to 16; min 16)
  * @return i32 — 0 success, -1 failure
@@ -54,8 +105,11 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
  */
 export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   let fs: i32 = frame_size;
+  let x19_off: i32 = 0;
   if (fs < 16) { fs = 16; }
   if ((fs & 15) != 0) { fs = fs + (16 - (fs & 15)); }
+  x19_off = fs;
+  fs = fs + 16;
   ctx.current_frame_size = fs;
   /* sub sp, sp, #fs in 4095 chunks */
   let left: i32 = fs;
@@ -68,11 +122,12 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   /* stp x29, x30, [sp] — 0xA9007BFD as signed i32 */
   if (enc_u32_le(ctx, 0 - 1459553315) != 0) { return -1; }
   /* mov x29, sp */
-  return enc_u32_le(ctx, 2432697341);
+  if (enc_u32_le(ctx, 2432697341) != 0) { return -1; }
+  return enc_x19_sp_off(ctx, x19_off, 0);
 }
 
 /**
- * wave414: match bottom-x29 prologue (ldp [sp] then add sp,#fs).
+ * wave414: match bottom-x29 prologue (restore x19, ldp [sp], then add sp,#fs).
  * @param ctx *ElfCodegenCtx — emit context
  * @return i32 — 0 success, -1 failure
  * PLATFORM: MACOS|ARM64 — G.7 twin of product seed epilogue
@@ -80,6 +135,10 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
   let fs: i32 = ctx.current_frame_size;
   if (fs < 0) { fs = 0; }
+  let x19_off: i32 = fs - 16;
+  if (x19_off >= 16) {
+    if (enc_x19_sp_off(ctx, x19_off, 1) != 0) { return -1; }
+  }
   /* ldp x29, x30, [sp] — 0xA9407BFD as signed i32 */
   if (enc_u32_le(ctx, 0 - 1455367171) != 0) { return -1; }
   let left: i32 = fs;

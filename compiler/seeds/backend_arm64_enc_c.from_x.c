@@ -170,6 +170,39 @@ static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx 
 }
 
 /**
+ * Save/restore callee-saved x19 at [sp,#off] (8-byte aligned).
+ * dest-shadow leftover `mov x19,x0` still writes x19 on every load; AAPCS64
+ * requires the callee to preserve it. Unsigned STR/LDR imm12 covers off<=32760;
+ * larger frames use x16 (intra-procedure scratch) as a temporary base.
+ * @param elf_ctx emit context
+ * @param off byte offset from SP; must be >=0 and 8-aligned
+ * @param is_ldr 0 → STR, 1 → LDR
+ * @return 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — x19 callee-saved; x16 not preserved.
+ */
+static int32_t arm64_enc_x19_sp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off,
+                                    int32_t is_ldr) {
+  uint32_t base;
+  int32_t left;
+  if (!elf_ctx || off < 0 || (off & 7) != 0)
+    return -1;
+  base = is_ldr != 0 ? 0xF94003F3u : 0xF90003F3u;
+  if (off <= 32760)
+    return arm64_enc_u32_le(elf_ctx, base | (((uint32_t)off / 8u) << 10));
+  /* add x16, sp, #0 then add x16, x16, #chunk… then str/ldr x19, [x16]. */
+  if (arm64_enc_u32_le(elf_ctx, 0x910003F0u) != 0)
+    return -1;
+  left = off;
+  while (left > 0) {
+    int32_t chunk = left > 4095 ? 4095 : left;
+    if (arm64_enc_u32_le(elf_ctx, 0x91000210u | ((uint32_t)chunk << 10)) != 0)
+      return -1;
+    left -= chunk;
+  }
+  return arm64_enc_u32_le(elf_ctx, is_ldr != 0 ? 0xF9400213u : 0xF9000213u);
+}
+
+/**
  * wave414 Cap residual pure: arm64 frame must cover positive [x29,#off] locals.
  *
  * Root: wave402 low-end home + product store/lea use [x29,+off] (payload grows up).
@@ -179,14 +212,19 @@ static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx 
  *
  * G.7: single allocation with x29 at the bottom of the frame so [x29+0..frame)
  * is fully owned:
- *   sub sp,sp,#frame ; stp x29,x30,[sp] ; mov x29,sp
- * Epilogue: ldp x29,x30,[sp] ; add sp,sp,#frame ; ret
+ *   sub sp,sp,#frame ; stp x29,x30,[sp] ; mov x29,sp ; str x19,[sp,#locals]
+ * Epilogue: ldr x19,[sp,#locals] ; ldp x29,x30,[sp] ; add sp,sp,#frame ; ret
+ * Extra 16B at the high end holds callee-saved x19 (AAPCS64). Locals stay at
+ * [x29,#0x10 .. #locals) so dest-in-rbx slot offsets do not shift.
+ * Why (2026-08-17): L1 labi_diag_pure pure-asm hybrid smashed C x19
+ * (`link_abi_getenv` `mov x19,x0` with no save) → Darwin SIGSEGV 0xfe.
  * Multi-chunk add/sub when frame > 4095 (imm12 cap).
  * PLATFORM: MACOS|ARM64 product pure-asm — pairs with asm_local_slot_reg_offset
  * low-end home (ast_pool_bootstrap_glue.c wave402).
  */
 int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
   int32_t fs;
+  int32_t x19_off;
   if (!elf_ctx)
     return -1;
   fs = frame_size;
@@ -195,6 +233,9 @@ int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   /* AAPCS64: keep SP 16-byte aligned. */
   if ((fs & 15) != 0)
     fs += 16 - (fs & 15);
+  /* High-end x19 slot: locals occupy [0, fs); grow by 16. */
+  x19_off = fs;
+  fs = fs + 16;
   g_arm64_enc_frame_size = fs;
   /* sub sp, sp, #fs (chunks if fs > 4095) */
   if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 1) != 0)
@@ -203,20 +244,28 @@ int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   if (arm64_enc_u32_le(elf_ctx, 0xA9007BFDu) != 0)
     return -1;
   /* mov x29, sp  (add x29, sp, #0) */
-  return arm64_enc_u32_le(elf_ctx, 2432697341u);
+  if (arm64_enc_u32_le(elf_ctx, 2432697341u) != 0)
+    return -1;
+  /* str x19, [sp, #x19_off] — AAPCS64 callee-saved dest-shadow. */
+  return arm64_enc_x19_sp_off(elf_ctx, x19_off, 0);
 }
 
 /**
- * wave414: match bottom-x29 prologue — restore saves then free whole frame.
+ * wave414: match bottom-x29 prologue — restore x19 then fp/lr, then free frame.
  * PLATFORM: MACOS|ARM64 product pure-asm.
  */
 int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   int32_t fs;
+  int32_t x19_off;
   if (!elf_ctx)
     return -1;
   fs = g_arm64_enc_frame_size;
   if (fs < 0)
     fs = 0;
+  /* x19 lives at the high 16B added by prologue (locals were fs-16). */
+  x19_off = fs - 16;
+  if (x19_off >= 16 && arm64_enc_x19_sp_off(elf_ctx, x19_off, 1) != 0)
+    return -1;
   /* ldp x29, x30, [sp] */
   if (arm64_enc_u32_le(elf_ctx, 0xA9407BFDu) != 0)
     return -1;
