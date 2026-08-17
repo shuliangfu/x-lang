@@ -3200,6 +3200,32 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           (void)(((out->ok) = 0));
           return;
         }
+        /* dest extra-arm extra wrap `{ { let t; dest } }`: last nested
+         * block is the dest value. Used to always append expr_stmt, so
+         * host-C GNU stmt-expr was (void)({...}) assigned to dest.
+         * dest-in-rbx peels BLOCK so asm was accidental green.
+         * Peek: RBRACE or `;` then RBRACE → final_expr (same as STRUCT_LIT).
+         * Mid-block `{ let ... } next_stmt` stays expr_stmt.
+         * PLATFORM: SHARED. Do not assemble parser.x. */
+        (void)((lex_cur = (block_res_bare.next_lex)));
+        (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
+        (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
+        if ((((rpeek_fe.tok).kind) ==85)) {
+          (void)(((b.final_expr_ref) = bare_expr));
+          (void)(ast_ast_arena_block_set(arena, block_ref, b));
+          (void)((r = rpeek_fe));
+          break;
+        }
+        if ((((rpeek_fe.tok).kind) ==95)) {
+          struct lexer_LexerResult rpeek_fe2 = (struct lexer_LexerResult){ .next_lex = (rpeek_fe.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          (void)(lexer_next_into(&(rpeek_fe2), (rpeek_fe.next_lex), source));
+          if ((((rpeek_fe2.tok).kind) ==85)) {
+            (void)(((b.final_expr_ref) = bare_expr));
+            (void)(ast_ast_arena_block_set(arena, block_ref, b));
+            (void)((r = rpeek_fe2));
+            break;
+          }
+        }
         (void)((bare_ex_i = pipeline_block_append_expr_stmt(arena, block_ref, bare_expr)));
         if ((bare_ex_i < 0)) {
           (void)(((out->ok) = 0));
@@ -3210,7 +3236,6 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           return;
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
-        (void)((lex_cur = (block_res_bare.next_lex)));
         (void)((stmt_tok_ready = 0));
         continue;
         }

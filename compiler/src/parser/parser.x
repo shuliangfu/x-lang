@@ -3200,7 +3200,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
      * struct. Primary already disambiguates IDENT then `:`/`,`/`}` as STRUCT_LIT
      * (parser_asm_primary_lbrace_looks_like_block_c). G.7: same peek here; STRUCT_LIT
      * falls through to parse_expr so a trailing `{ fields }` can become final_expr.
-     * Nested `{ let ... }` / `{ unsafe ... }` / `{ { ... } }` stay this branch.
+     * Nested `{ let ... }` / `{ unsafe ... }` / `{ { ... } }` stay this branch when
+     * they are mid-block stmts. A last nested block (`{ { let t; dest } }` extra
+     * wrap) is promoted to final_expr after parse (same dest extra-arm dest face).
      * Do not full-assemble parser.x (tip -E drops generic_bound_scan).
      */
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
@@ -3242,6 +3244,34 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
+      /**
+       * dest extra-arm extra wrap `{ { let t; dest } }`: last nested block is
+       * the dest value. Used to always append expr_stmt, so host-C GNU
+       * stmt-expr was `(void)({...})` assigned to dest. dest-in-rbx peels
+       * BLOCK so asm was accidental green. Peek: RBRACE or `;` then RBRACE
+       * → final_expr (same as trailing STRUCT_LIT). Mid-block
+       * `{ let ... } next_stmt` stays expr_stmt (mega `{ let } next`).
+       * PLATFORM: SHARED. Do not assemble parser.x.
+       */
+      lex_cur = block_res_bare.next_lex;
+      rpeek_fe = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+      lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
+      if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+        b.final_expr_ref = bare_expr;
+        ast.ast_arena_block_set(arena, block_ref, b);
+        r = rpeek_fe;
+        break;
+      }
+      if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        let rpeek_fe2: LexerResult = { next_lex: rpeek_fe.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        lexer.lexer_next_into(&rpeek_fe2, rpeek_fe.next_lex, source);
+        if (rpeek_fe2.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+          b.final_expr_ref = bare_expr;
+          ast.ast_arena_block_set(arena, block_ref, b);
+          r = rpeek_fe2;
+          break;
+        }
+      }
       bare_ex_i = pipeline_block_append_expr_stmt(arena, block_ref, bare_expr);
       if (bare_ex_i < 0) {
         out.ok = false;
@@ -3252,7 +3282,6 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
-      lex_cur = block_res_bare.next_lex;
       stmt_tok_ready = false;
       continue;
       }

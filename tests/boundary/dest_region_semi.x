@@ -5,10 +5,13 @@
 // used to keep dest and drop the defer (asm leftover 71): defer lives
 // only in the defer pool (no stmt_order), dest-in-rbx never ran
 // language defers. Same dest extra-arm dest-in-rbx emit now runs
-// glue_emit_run_language_defers_elf. Gate lives here so dest-park
-// leftover is not this leaf. Leftover codes stay in 1..255.
+// glue_emit_run_language_defers_elf. dest extra-arm extra wrap
+// `{ { let t; dest } }` used to keep dest in dest-in-rbx (peel BLOCK)
+// and drop the value on host-C (`(void)({...})` assigned to dest).
+// parse_block last nested block is now final_expr. Gate lives here
+// so dest-park leftover is not this leaf. Leftover codes stay in 1..255.
 // Expected exit 0.
-// PLATFORM: SHARED dest extra-arm region / defer compound ASI.
+// PLATFORM: SHARED dest extra-arm region / defer / extra-wrap.
 
 allow(padding) struct Holder { v: i32x4 }
 
@@ -16,8 +19,8 @@ allow(padding) struct Wrap { h: Holder }
 
 /**
  * Gate dest extra-arm `region` / `defer` optional compound ASI.
- * Stacks MATCH / IF / field-bind / no-semi (region + defer).
- * @return i32 — 0 ok; 70..91 leftover lanes
+ * Stacks MATCH / IF / field-bind / no-semi (region + defer + extra wrap).
+ * @return i32 — 0 ok; 70..102 leftover lanes
  */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
@@ -114,5 +117,38 @@ function main(): i32 {
   }
   if (dst.h.v[0] != 1) { return 90; }
   if (k != 1) { return 91; }
+
+  // MATCH extra-arm extra wrap `{ { let t; dest } }`
+  unsafe { *p = match tag { 1 => { { let t: i32 = 1; { h: { v: a } } } }; _ => y; } }
+  if (dst.h.v[0] != 1) { return 92; }
+  if (dst.h.v[3] != 4) { return 93; }
+
+  // IF extra-arm extra wrap `{ { let t; dest } }`
+  unsafe {
+    *p = if (tag == 1) {
+      { let t: i32 = 1; { h: { v: b } } }
+    } else {
+      y
+    }
+  }
+  if (dst.h.v[0] != 5) { return 94; }
+  if (dst.h.v[3] != 8) { return 95; }
+
+  // MATCH field-bind extra wrap `{ { let t; dest-field } }`
+  unsafe { *ph = match w { Wrap { h } => { { let t: i32 = 1; h } }; } }
+  if (dsth.v[0] != 1) { return 96; }
+  if (dsth.v[3] != 4) { return 97; }
+
+  // no-semi MATCH extra wrap of STRUCT_LIT `{ { dest } }`
+  unsafe {
+    *p = match tag {
+      1 => {
+        { { h: { v: a } } }
+      };
+      _ => y;
+    }
+  }
+  if (dst.h.v[0] != 1) { return 98; }
+  if (dst.h.v[3] != 4) { return 99; }
   return 0;
 }
