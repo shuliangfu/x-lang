@@ -15851,8 +15851,16 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Emit one Block as host-C statements (GNU stmt-expr when used as a value).
+ * @param arena *ASTArena — AST owner
+ * @param out *CodegenOutBuf — C text sink
+ * @param block_ref i32 — block to emit; null/out-of-range is a no-op
+ * @param indent i32 — spaces of indent for each statement
+ * @param ctx *PipelineDepCtx — current func / module for return and types
+ * @return i32 — 0 ok, -1 emit failure
+ * PLATFORM: SHARED — host-C dest-from-region intermediate last-value:
+ * last so_k==6 with no final_expr is dest; wrapping defers run first
+ * so dest stays the GNU stmt-expr last value (not `(m=1)`).
  */
 export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -15868,6 +15876,23 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       return 0;
     }
     if (ast.ast_block_num_stmt_order(arena, block_ref) > 0) {
+      /* dest-from-region intermediate: last so_k==6 is dest when
+       * the block has no final_expr. Wrapping defers used to run
+       * AFTER that dest, so GNU stmt-expr last value was (m=1)
+       * assigned to Wrap (host-C cc fail). G.7: same
+       * emit_run_defers, before dest, dest stays last.
+       * Prefix region + final_expr dest is unchanged (defers
+       * still run after prefix stmts, before final_expr).
+       * PLATFORM: SHARED host-C dest-from-region intermediate. */
+      let so_n: i32 = ast.ast_block_num_stmt_order(arena, block_ref);
+      let last_dest_region: i32 = 0;
+      let final_now: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+      if (so_n > 0 && ast.ref_is_null(final_now)) {
+        let last_k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
+        if (last_k == 6) {
+          last_dest_region = 1;
+        }
+      }
       /* See implementation. */
       let pre_li: i32 = 0;
       while (pre_li < ast.ast_block_num_lets(arena, block_ref)) {
@@ -15976,6 +16001,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       while (si < ast.ast_block_num_stmt_order(arena, block_ref)) {
         let k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, si);
         let idx: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, si);
+        /* Hoist wrapping defers before dest-from-region dest. */
+        if (last_dest_region != 0 && si == (so_n - 1)) {
+          if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
+            return -1;
+          }
+        }
         if (k == 0) {
           if (idx >= 0 && idx < ast.ast_block_num_consts(arena, block_ref)) {
             let cname_buf: u8[128] = [];
@@ -16558,8 +16589,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
         si = si + 1;
       }
-      if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
-        return -1;
+      if (last_dest_region == 0) {
+        if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
+          return -1;
+        }
       }
       let final_ref: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
       if (emit_block_final_expr(arena, out, block_ref, final_ref, indent, ctx, fn_ret_void) != 0) {
