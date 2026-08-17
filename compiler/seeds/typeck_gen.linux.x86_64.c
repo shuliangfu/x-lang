@@ -1937,6 +1937,9 @@ extern void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col,
 extern void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col, uint8_t * name, int32_t name_len);
 extern void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col, uint8_t * name, int32_t name_len, int32_t expect_n, int32_t got_n);
 extern int32_t xlang_generic_bound_check_type_args_c(uint8_t * fn_name, int32_t fn_name_len, uint8_t * type_args, int32_t * type_arg_lens, int32_t nargs, int32_t line, int32_t col);
+/* 4.2.2 generic-body method via T: Trait — pin seed must match typeck.x (G.7). */
+extern int32_t xlang_generic_bound_method_on_param_c(uint8_t * fn_name, int32_t fn_name_len, uint8_t * tp_name, int32_t tp_name_len, uint8_t * method_name, int32_t method_name_len, int32_t num_args, int32_t * out_ret_kind, uint8_t * out_ret_name, int32_t * out_ret_name_len);
+extern int32_t typeck_method_call_resolve_generic_bound(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx, int32_t base_ty, uint8_t * method_nm, int32_t method_nlen, int32_t num_args);
 extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col);
@@ -11065,6 +11068,93 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
     return 0;
   }
 }
+/**
+ * 4.2.2: free type-param receiver + enclosing generic T: Trait grants method.
+ * Consults skip_tl bound+trait tables; stamps ret (Self/T → receiver).
+ * Leaves func_ix=-1 for codegen C6 impl re-resolve.
+ * G.7: authority mirrors typeck.x typeck_method_call_resolve_generic_bound;
+ * pin seed must include this — pin-first migrate otherwise false-reds bound_method.
+ * PLATFORM: SHARED typeck pin seed.
+ */
+int32_t typeck_method_call_resolve_generic_bound(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx, int32_t base_ty, uint8_t * method_nm, int32_t method_nlen, int32_t num_args) {
+  {
+    int32_t cfi = -1;
+    int32_t fn_len = 0;
+    int32_t tp_len = 0;
+    int32_t ret_kind = -1;
+    int32_t ret_nlen = 0;
+    int32_t ret_ty = 0;
+    int32_t hit = 0;
+    int32_t i = 0;
+    int32_t same = 0;
+    uint8_t fn_nm[128] = {};
+    uint8_t tp_nm[128] = {};
+    uint8_t ret_nm[64] = {};
+    if ((((((((module ==0) || (arena ==0)) || (ctx ==0)) || (expr_ref <=0)) || (base_ty <=0)) || (method_nm ==0)) || (method_nlen <=0))) {
+      return 0;
+    }
+    if ((typeck_type_is_free_type_param(module, arena, base_ty) ==0)) {
+      return 0;
+    }
+    (void)((cfi = pipeline_dep_ctx_current_func_index(ctx)));
+    if ((cfi < 0)) {
+      return 0;
+    }
+    if ((pipeline_module_func_num_generic_params_at(module, cfi) <=0)) {
+      return 0;
+    }
+    (void)((fn_len = pipeline_module_func_name_len_at(module, cfi)));
+    if (((fn_len <=0) || (fn_len > 127))) {
+      return 0;
+    }
+    (void)(pipeline_module_func_name_copy64(module, cfi, &((fn_nm)[0])));
+    (void)((tp_len = pipeline_type_named_name_into(arena, base_ty, &((tp_nm)[0]))));
+    if (((tp_len <=0) || (tp_len > 127))) {
+      return 0;
+    }
+    (void)((ret_kind = -1));
+    (void)((ret_nlen = 0));
+    (void)((hit = xlang_generic_bound_method_on_param_c(&((fn_nm)[0]), fn_len, &((tp_nm)[0]), tp_len, method_nm, method_nlen, num_args, &(ret_kind), &((ret_nm)[0]), &(ret_nlen))));
+    if ((hit ==0)) {
+      return 0;
+    }
+    if (((ret_kind ==8) && (ret_nlen > 0))) {
+      (void)((same = 0));
+      if ((((((ret_nlen ==4) && ((ret_nm)[0] ==83)) && ((ret_nm)[1] ==101)) && ((ret_nm)[2] ==108)) && ((ret_nm)[3] ==102))) {
+        (void)((same = 1));
+      }
+      if (((same ==0) && (ret_nlen ==tp_len))) {
+        (void)((same = 1));
+        (void)((i = 0));
+        while ((i < tp_len)) {
+          if (((ret_nm)[i] !=(tp_nm)[i])) {
+            (void)((same = 0));
+            (void)((i = tp_len));
+          } else {
+            (void)((i = (i + 1)));
+          }
+        }
+      }
+      if ((same !=0)) {
+        (void)((ret_ty = base_ty));
+      } else {
+        (void)((ret_ty = pipeline_type_find_or_alloc_named(arena, &((ret_nm)[0]), ret_nlen)));
+      }
+    } else {
+      if (((((((ret_kind >=0) && (ret_kind !=8)) && (ret_kind !=9)) && (ret_kind !=10)) && (ret_kind !=11)) && (ret_kind !=13))) {
+        (void)((ret_ty = pipeline_type_ensure_by_kind_ord(arena, ret_kind)));
+      } else {
+        (void)((ret_ty = 0));
+      }
+    }
+    (void)(pipeline_expr_apply_call_resolve(arena, expr_ref, -1, -1));
+    if ((ret_ty > 0)) {
+      (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
+    }
+    return 1;
+  }
+}
+
 int32_t typeck_check_expr_method_call_arg(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t arg_i, int32_t num_args) {
   {
     int32_t arg_ref = 0;
@@ -11277,6 +11367,11 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           (void)(typeck_stamp_resolved_args_float_lit(arena, expr_ref, module, uf_best, -1, ctx, 1));
           return 0;
         }
+      }
+    }
+    if (((base_ty > 0) && (method_nlen > 0))) {
+      if ((typeck_method_call_resolve_generic_bound(module, arena, expr_ref, ctx, base_ty, &((method_nm)[0]), method_nlen, num_args) !=0)) {
+        return 0;
       }
     }
     if ((ret_ty > 0)) {

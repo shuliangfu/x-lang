@@ -10,7 +10,7 @@ trait Incrementable {
 
 struct Counter { value: i32, }
 
-impl Incrementable for {
+impl Incrementable for Counter {
   function increment(self: Counter): Counter {
     return { value: self.value + 1 };
   }

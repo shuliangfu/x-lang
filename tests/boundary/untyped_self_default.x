@@ -20,7 +20,7 @@ trait GetX {
   }
 }
 
-impl GetX for {
+impl GetX for Point {
 }
 
 function main(): i32 {

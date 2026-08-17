@@ -43,7 +43,7 @@ trait Firstable {
  * @param self Pair — receiver
  * @return i32 — self.a
  */
-impl Firstable for {
+impl Firstable for Pair {
   function first(self: Pair): i32 {
     return self.a;
   }
@@ -67,7 +67,7 @@ trait Summable {
  * @param self Pair — receiver
  * @return i32 — self.a + self.b
  */
-impl Summable for {
+impl Summable for Pair {
   function pair_sum(self: Pair): i32 {
     return self.a + self.b;
   }

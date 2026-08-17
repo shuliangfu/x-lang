@@ -4,7 +4,7 @@
 
 trait Clone { function clone(self): i32; }
 struct A { n: i32 }
-impl Clone for { function clone(self: A): i32 { return 7; } }
+impl Clone for A { function clone(self: A): i32 { return 7; } }
 function copy<T>(x: T): i32 { return x.clone(); }
 function main(): i32 {
   let a: A = { n: 42 };

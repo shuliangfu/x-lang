@@ -6,7 +6,7 @@
 
 trait Clone { function clone(self): i32; }
 struct A { n: i32 }
-impl Clone for { function clone(self: A): i32 { return self.n; } }
+impl Clone for A { function clone(self: A): i32 { return self.n; } }
 struct B { n: i32 }
 struct Foo<T> { x: T }
 impl<T: Clone> Foo<T> {

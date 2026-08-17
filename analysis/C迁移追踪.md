@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.4 bare ret-only／phantom 推断 闭** · **4.2.4 bound n_tp=0 槽空 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent deep-copy 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -499,7 +499,7 @@
   - parser.x 无条件豁免改为同门（防下次 assemble 假绿 skip）
   - LANG-006 标量 bool→int 保留不动
 
-🟡 **4.2.2 trait bounds / dyn Trait** dyn／impl 类型位 ✅ @ **`7bfff4e6b`**（impl 级 bound ✅ @ **`7e2e9aac9`** · struct 级 ✅ @ **`377bd8d74`** · 体方法 ✅ @ **`10bfd56f4`** · PLUS ✅ @ **`fe000ba3a`**）
+✅ **4.2.2 trait bounds / dyn Trait** dyn／impl 类型位 ✅ @ **`7bfff4e6b`**（impl 级 bound ✅ @ **`7e2e9aac9`** · struct 级 ✅ @ **`377bd8d74`** · 体方法 ✅ @ **`10bfd56f4`** · PLUS ✅ @ **`fe000ba3a`** · **pin-seed 体方法 resolve 闭** 2026-08-17）
 
   - 调用点 `function foo<T: Trait>` 已 T001（既有 scan+check）
   - **`T: Clone + Default` PLUS**：同 pos 多 trait 已硬查（A 缺第二／第三 trait → T001）
@@ -507,6 +507,8 @@
   - **struct 级 `Foo<T: Clone>`**：scan 认 TOKEN_STRUCT；类型位 `Foo<B>` T001；`Foo<T>` 签名跳过；PLUS 同 pos
   - **impl 级 `impl<T: Clone> Foo<T>`**：scan 认 TOKEN_IMPL；peek for-type 后同表（名=for-type）；`impl Foo<T: Clone>`／`impl<T: Clone> Clone for Foo<T>` 同 T001；`skip_one_impl` 跳过尖括号
   - **dyn／impl 类型位**：type_ref 剥 contextual `dyn`／TOKEN_IMPL；`take(x: dyn Clone)`／let／`*dyn`／返／`impl Clone` 函数不再静默丢；消费既有 TYPE_NAMED `Clone`
+  - **pin-seed 双权威闭**（2026-08-17）：4.2.2 体方法只写 `typeck.x` 时 pin-first migrate 假红 LANG-004；seed `typeck_gen.linux` 补 `typeck_method_call_resolve_generic_bound`＋method_call 调用点（≡ typeck.x；G.7）
+  - **impl for Type 探针恢复**（2026-08-17）：`6c9773729` 值位置 named STRUCT_LIT 改写误剥 `impl Trait for A {`→`for {`；33 处 tests 恢复 for-type（**非**放宽值位置 `Type{fields}`）
   - 余（勿并本叶）：TYPE_DYN／vtable（dyn 仍非 KW；对象分发后期）
 
 ✅ **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** 布局 1..16 ✅ @ **`028959695`** · 深 lit ✅ @ **`89e611150`**

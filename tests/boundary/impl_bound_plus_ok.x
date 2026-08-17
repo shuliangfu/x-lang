@@ -5,8 +5,8 @@
 trait Clone { function clone(self): i32; }
 trait Default { function def(self): i32; }
 struct A { n: i32 }
-impl Clone for { function clone(self: A): i32 { return self.n; } }
-impl Default for { function def(self: A): i32 { return 0; } }
+impl Clone for A { function clone(self: A): i32 { return self.n; } }
+impl Default for A { function def(self: A): i32 { return 0; } }
 struct Foo<T> { x: T }
 impl<T: Clone + Default> Foo<T> {
   function get(self: Foo): i32 { return 7; }

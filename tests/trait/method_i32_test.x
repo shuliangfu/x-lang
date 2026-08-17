@@ -8,7 +8,7 @@ trait Getable {
 
 struct Counter { value: i32, }
 
-impl Getable for {
+impl Getable for Counter {
   function get(self: Counter): i32 {
     return self.value;
   }

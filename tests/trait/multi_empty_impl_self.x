@@ -9,13 +9,13 @@ trait Counter {
 struct Dog { val: i32, }
 struct Cat { val: i32, }
 
-impl Counter for {
+impl Counter for Dog {
   function get(self: Dog): Dog {
     return { val: self.val };
   }
 }
 
-impl Counter for {
+impl Counter for Cat {
   function get(self: Cat): Cat {
     return { val: self.val };
   }

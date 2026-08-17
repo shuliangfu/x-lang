@@ -9,7 +9,7 @@ trait Getable {
 
 struct Counter { value: i32, }
 
-impl Getable for {
+impl Getable for Counter {
 }
 
 function main(): i32 {

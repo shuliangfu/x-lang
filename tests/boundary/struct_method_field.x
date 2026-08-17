@@ -16,7 +16,7 @@ trait Incrementable {
  * @param self Pair — receiver
  * @return Pair — { a+1, b+1 }
  */
-impl Incrementable for {
+impl Incrementable for Pair {
   function increment(self: Pair): Pair {
     return { a: self.a + 1, b: self.b + 1 };
   }
@@ -56,7 +56,7 @@ trait Originable {
  * @param self Pair — ignored
  * @return Pair — { 0, 0 }
  */
-impl Originable for {
+impl Originable for Pair {
   function origin(self: Pair): Pair {
     return { a: 0, b: 0 };
   }
@@ -104,7 +104,7 @@ trait Firstable {
  * @param self Pair — receiver whose `.a` is loaded
  * @return i32 — self.a
  */
-impl Firstable for {
+impl Firstable for Pair {
   function first(self: Pair): i32 {
     return self.a;
   }
@@ -128,7 +128,7 @@ trait Summable {
  * @param self Pair — receiver whose `.a` and `.b` are loaded then added
  * @return i32 — self.a + self.b
  */
-impl Summable for {
+impl Summable for Pair {
   function pair_sum(self: Pair): i32 {
     return self.a + self.b;
   }
