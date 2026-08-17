@@ -2925,17 +2925,21 @@ int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn
  * verify every bound declared on that function against the impl registry.
  *
  * wave442: iterates ALL bounds matching the callee (not just the first) so
- * `copy_both<T: Clone, U: Default>` checks both positions. If a bound's
- * position exceeds nargs, that bound is skipped (under-specified call — mono
- * gap, not a bound false-positive).
+ * `copy_both<T: Clone, U: Default>` checks both positions.
+ *
+ * 4.2.4 residual close: under-specified slots (nargs==0 pure-phantom bare, or
+ * bound pos >= nargs, or empty concrete name) used to skip silently → bare
+ * `unit_bound<T: Clone>()` false-green. Fail closed: need turbofish or
+ * value/ret pin that fills every bound position.
  *
  * G.7: turbofish path (parse-time g_call_*) and no-turbofish path (typeck after
  * wave448 infer) both call this helper — no second bound algorithm.
  *
  * @param fn_name       callee function name bytes
  * @param fn_name_len   name length (≤63)
- * @param type_args     type_args[pos][64] concrete type names (e.g. "A")
- * @param type_arg_lens length of each type_args[pos]; 0 → skip that slot
+ * @param type_args     type_args[pos][64] concrete type names (e.g. "A");
+ *                      may be null only when nargs==0
+ * @param type_arg_lens length of each type_args[pos]; 0 → under-specified slot
  * @param nargs         number of type-arg slots (≤ XLANG_GENERIC_CALL_MAX_ARGS)
  * @param line          diagnostic line (1-based)
  * @param col           diagnostic column (1-based)
@@ -2948,7 +2952,7 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
                                                int32_t line, int32_t col) {
   int32_t bi, si;
   int32_t violated = 0;
-  if (!fn_name || fn_name_len <= 0 || !type_args || !type_arg_lens || nargs <= 0)
+  if (!fn_name || fn_name_len <= 0)
     return 0;
   if (fn_name_len > 63)
     fn_name_len = 63;
@@ -2961,12 +2965,23 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
         memcmp(g_fn_bound_name[bi], fn_name, (size_t)fn_name_len) != 0)
       continue;
     pos = g_fn_bound_pos[bi];
-    if (pos < 0 || pos >= nargs)
+    /* Under-specified: no slots at all, missing position, or empty name. */
+    if (nargs <= 0 || !type_args || !type_arg_lens || pos < 0 || pos >= nargs) {
+      lsp_diag_report_typeck((int)line, (int)col,
+                             "generic function '%.*s' requires type arguments to satisfy trait bounds",
+                             (int)fn_name_len, (const char *)fn_name);
+      violated = -1;
       continue;
+    }
     ta_len = type_arg_lens[pos];
     ta = type_args[pos];
-    if (ta_len <= 0)
+    if (ta_len <= 0) {
+      lsp_diag_report_typeck((int)line, (int)col,
+                             "generic function '%.*s' requires type arguments to satisfy trait bounds",
+                             (int)fn_name_len, (const char *)fn_name);
+      violated = -1;
       continue;
+    }
     /* `Foo<T>` in a generic signature uses the callee's own type-param
      * name — not a concrete instantiation. Skip or `impl Clone for T`
      * false-reds every `x: Foo<T>` / `function f<T>(x: Foo<T>)`.

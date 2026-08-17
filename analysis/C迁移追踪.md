@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.4 bare ret-only／phantom 推断 闭**· **4.2.5 multi mono 闭** · **4.2.7 nested reent deep-copy 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.4 bare ret-only／phantom 推断 闭** · **4.2.4 bound n_tp=0 槽空 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent deep-copy 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -530,7 +530,7 @@
   - **pure phantom**：`unit_t()`／`forty_two()` bare（ret 与 formals 无 free T）→ asm **42**；host-C bare `unit_t()`（codegen wave450）
   - **根修（G.7 有则补全）**：`typeck_try_infer_generic_call_from_args` ① ret-only fully concrete expected ② pure-phantom 路径；`typeck_generic_call_fixup_resolved_type` bare stamp。权威 `typeck.x`＋seed `typeck_gen.linux` 同 commit
   - 值参回归：`id(42)` **42**；turbofish **42**；dual phantom＋ambient **42**
-  - soft 预存：bound 仅 phantom 形参且 n_tp=0 时 bound 槽空（非本叶新债）
+  - **bound n_tp=0 槽空 闭**（2026-08-17）：pure-phantom／concrete formals 无 free-T 时 `check_inferred` 仍调 `xlang_generic_bound_check_type_args_c(nargs=0)`；decl 有 `T: Trait` → T001「requires type arguments to satisfy trait bounds」；无 bound 的 `unit_t()` 仍 **42**；`unit_bound<A>()` **42**；`unit_bound<NoClone>()` 仍 not-impl。权威 skip_tl `parser_asm_skip_tl_slice.inc` 同 commit
 
 ✅ **4.2.5 多 T 组合共享 bare link name** **闭**（2026-08-17 诚实复测）
 

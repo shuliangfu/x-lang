@@ -13919,9 +13919,8 @@ int32_t typeck_check_inferred_generic_bounds(struct ast_Module * callee_mod, str
         }
       }
     }
-    if ((n_tp <=0)) {
-      return 0;
-    }
+    /* n_tp==0 still invokes bound authority (nargs=0): pure-phantom bare with
+     * T: Trait must fail closed. No-bound unit_t<T>() stays 0. */
     return xlang_generic_bound_check_type_args_c(fn_name, fn_name_len, &((type_args_flat)[0]), &((type_arg_lens)[0]), n_tp, line, col);
   }
 }

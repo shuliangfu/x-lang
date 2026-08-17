@@ -18063,8 +18063,9 @@ expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
      * carries a free type-param. Example: `unit_t<T>(): i32` / `forty_two<T>()`
      * bare. Codegen wave450 already emits one bare-link mono for zero-param
      * phantom. Soft: `mk_default<T>():T` without ambient still fail-closed
-     * (ret free T). Bounds with phantom-only T and no slots stay pre-existing
-     * (value-path early return when formals are concrete).
+     * (ret free T). Trait bounds on phantom-only T are enforced by
+     * typeck_check_inferred_generic_bounds → xlang_generic_bound_check_type_args_c
+     * with n_tp==0 (fail closed; require turbofish).
      * PLATFORM: SHARED freestanding typeck.
      */
     ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
@@ -18092,6 +18093,8 @@ expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
  * Slots = first-appearance free TYPE_NAMED formals among value params; ret-only
  * free param appends a slot from expected_ret when not already present.
  * type_args rows are contiguous stride-128 (ABI match xlang_generic_bound).
+ * When n_tp==0 (pure phantom / no free-T formals or ret pin), still call the
+ * bound authority with nargs=0 so `T: Trait` decls fail closed (need turbofish).
  * @param callee_mod *Module
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_CALL
@@ -18101,7 +18104,7 @@ expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
  * @param line i32
  * @param col i32
  * @param expected_ret i32 — ambient ret (ret-only slot)
- * @return i32 — 0 ok / no slots; non-zero bound fail
+ * @return i32 — 0 ok / no bounds; non-zero bound fail
  * PLATFORM: SHARED freestanding typeck.
  */
 export function typeck_check_inferred_generic_bounds(callee_mod: *Module, arena: *ASTArena,
@@ -18253,9 +18256,8 @@ expected_ret: i32): i32 {
         }
       }
     }
-    if (n_tp <= 0) {
-      return 0;
-    }
+    /* n_tp==0 still invokes bound authority (nargs=0): pure-phantom bare with
+     * T: Trait must fail closed. No-bound unit_t<T>() stays 0. */
     return xlang_generic_bound_check_type_args_c(fn_name, fn_name_len, &type_args_flat[0],
       &type_arg_lens[0], n_tp, line, col);
   }
