@@ -6090,7 +6090,22 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = block_res_def_fn.next_lex;
-        stmt_tok_ready = false;
+        /**
+         * Optional `;` after `defer { ... }` (function-body compound ASI).
+         * `defer { k = 1 }; return k` used to see `;` as an expr and drop
+         * the whole function (P001). No-semi `defer { 0 } return` stays
+         * the next stmt head.
+         * G.7: same optional-semi + stmt_tok_ready as parse_block TOKEN_DEFER
+         * / IDENT-unsafe / wave655. Do not realign.
+         * PLATFORM: SHARED — parse_into defer; seed pin same commit.
+         */
+        lexer.lexer_next_into(&r, lex, source);
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_next_into(&lex, r);
+          stmt_tok_ready = false;
+        } else {
+          stmt_tok_ready = true;
+        }
         continue;
       }
       /**
@@ -6135,8 +6150,22 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         onefunc_push_src_stmt(out, 6, wa_idx_fn);
         lex = block_res_wa_fn.next_lex;
+        /**
+         * Optional `;` after `with_arena(cap) { ... }` (function-body compound ASI).
+         * `with_arena(64) { let x: i32 = 1; }; return 0` used to see `;` as
+         * an expr and drop the whole function (P001). No-semi dest / return
+         * stays the next stmt head.
+         * G.7: same optional-semi + stmt_tok_ready as parse_block WITH_ARENA
+         * / IDENT-unsafe / wave655. Do not realign.
+         * PLATFORM: SHARED — parse_into with_arena; seed pin same commit.
+         */
         lexer.lexer_next_into(&r, lex, source);
-        stmt_tok_ready = true;
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_next_into(&lex, r);
+          stmt_tok_ready = false;
+        } else {
+          stmt_tok_ready = true;
+        }
         continue;
       }
       /**
@@ -6174,8 +6203,22 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         onefunc_push_src_stmt(out, 6, reg_idx_fn);
         lex = block_res_reg_fn.next_lex;
+        /**
+         * Optional `;` after `region label { ... }` (function-body compound ASI).
+         * `region foo { k = 1 }; return k` used to see `;` as an expr and
+         * drop the whole function (P001). No-semi `region { k = 1 } return`
+         * stays the next stmt head.
+         * G.7: same optional-semi + stmt_tok_ready as parse_block TOKEN_REGION
+         * / IDENT-unsafe / wave655. Do not realign.
+         * PLATFORM: SHARED — parse_into region; seed pin same commit.
+         */
         lexer.lexer_next_into(&r, lex, source);
-        stmt_tok_ready = true;
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_next_into(&lex, r);
+          stmt_tok_ready = false;
+        } else {
+          stmt_tok_ready = true;
+        }
         continue;
       }
       /* See implementation. */

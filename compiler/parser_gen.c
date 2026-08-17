@@ -5136,7 +5136,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             return;
           }
           (void)((lex = (block_res_def_fn.next_lex)));
-          (void)((stmt_tok_ready = 0));
+          /* Optional `;` after defer {…} (function-body compound ASI).
+           * `defer { k = 1 }; return k` used to P001. No-semi stays stmt head.
+           * kind 95 = TOKEN_SEMICOLON. Do not realign. PLATFORM: SHARED. */
+          (void)(lexer_next_into(&(r), lex, source));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
         if ((((r.tok).kind) ==17)) {
@@ -5182,8 +5191,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
           (void)(parser_onefunc_push_src_stmt(out, 6, wa_idx_fn));
           (void)((lex = (block_res_wa_fn.next_lex)));
+          /* Optional `;` after with_arena(cap) {…} (function-body compound ASI).
+           * `with_arena(64) { let x = 1; }; return` used to P001. No-semi stays
+           * stmt head. kind 95 = TOKEN_SEMICOLON. Do not realign. PLATFORM: SHARED. */
           (void)(lexer_next_into(&(r), lex, source));
-          (void)((stmt_tok_ready = 1));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
         if ((((r.tok).kind) ==16)) {
@@ -5219,8 +5236,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
           (void)(parser_onefunc_push_src_stmt(out, 6, reg_idx_fn));
           (void)((lex = (block_res_reg_fn.next_lex)));
+          /* Optional `;` after region label {…} (function-body compound ASI).
+           * `region foo { k = 1 }; return k` used to P001. No-semi stays stmt
+           * head. kind 95 = TOKEN_SEMICOLON. Do not realign. PLATFORM: SHARED. */
           (void)(lexer_next_into(&(r), lex, source));
-          (void)((stmt_tok_ready = 1));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
         if (((((r.tok).kind) ==59) && (((r.tok).ident_len) ==6))) {
