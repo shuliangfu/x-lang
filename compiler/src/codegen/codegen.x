@@ -21317,12 +21317,15 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    /* #include <stdint.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <string.h>\n */
-    let h: u8[88] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
+    /* #include <stdint.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <string.h>\n
+     * Exact 83 bytes (20+20+23+20). Historic u8[88] + 7 trailing zeros was
+     * 90 initializers → Ubuntu gcc "excess elements in array initializer"
+     * when assembling codegen.x. Emit length is 83; no pad.
+     * PLATFORM: SHARED host-C. G.7: same emit_header authority. */
+    let h: u8[83] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10,
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10,
-      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 114, 105, 110, 103, 46, 104, 62, 10,
-      0, 0, 0, 0, 0, 0, 0];
+      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 114, 105, 110, 103, 46, 104, 62, 10];
     if (emit_bytes_from_ptr(out, &h[0], 83) != 0) {
       return -1;
     }
