@@ -261,8 +261,11 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };\n"
         "#endif\n"
         /* §10 向量：codegen 发 i32x4_t / f32x4_t 等；与 emit_vector_c_type_out +
-         * pipeline_codegen_vector_type_cstr 对齐。f32x{4,8,16} 供 Vec4f 等 F32 向量使用。 */
-        "#if defined(__GNUC__) || defined(__clang__)\n"
+         * pipeline_codegen_vector_type_cstr 对齐。f32x{4,8,16} 供 Vec4f 等 F32 向量使用。
+         * PLATFORM: SHARED — XLANG_VECTOR_TYPES shares the set with
+         * codegen_x_ast_emit_header (bare -E). Folded into existing slots;
+         * do not add rows (N=224 skip ranges). */
+        "#ifndef XLANG_VECTOR_TYPES\n#define XLANG_VECTOR_TYPES\n#if defined(__GNUC__) || defined(__clang__)\n"
         "typedef int32_t i32x4_t __attribute__((vector_size(16)));\n"
         "typedef int32_t i32x8_t __attribute__((vector_size(32)));\n"
         "typedef int32_t i32x16_t __attribute__((vector_size(64)));\n"
@@ -282,7 +285,7 @@ const char *const driver_preamble_io_net_lines[] = {
         "typedef struct { float e[4]; } f32x4_t;\n"
         "typedef struct { float e[8]; } f32x8_t;\n"
         "typedef struct { float e[16]; } f32x16_t;\n"
-        "#endif\n"
+        "#endif\n#endif\n"
         "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
