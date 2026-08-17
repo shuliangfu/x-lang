@@ -73242,6 +73242,7 @@ export function glue_store_retval_pair_to_rbp_elf_c(
  * per emit site; large NAMED esz>8 must chunk-copy (not clamp to 4).
  * max_n 1024 twin host `__xlang_sdN`; payload ceiling 8KiB scalar / 64KiB large.
  * wave205 pure: G.7 authority (was Cap residual call_args wave1022 public).
+ * 4.2.7: esz from ty_ref (not peel+elem) so nested [][]T fat stride is 16 not 4.
  * PLATFORM: SHARED freestanding · LINUX x86 high-end dest · MACOS|ARM64 low-end.
  */
 #[no_mangle]
@@ -73249,7 +73250,6 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, home: i32, ty_ref: i32, use_frame: i32): i32 {
   let max_n: i32 = 1024;
   let esz: i32 = 4;
-  let elem_tr: i32 = 0;
   let nbytes: i32 = 0;
   let max_payload: i32 = 0;
   let loop_len: i32 = 0;
@@ -73281,22 +73281,33 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
   if (ta != 0 && ta != 1) {
     return 0 - 1;
   }
-  unsafe {
-    elem_tr = pipeline_type_elem_ref_at(arena, ty_ref);
-  }
-  if (elem_tr > 0) {
-    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
-  }
+  /*
+   * Outer element stride of this TYPE_SLICE = index esz of ty_ref itself.
+   * Peel-then-measure is wrong for [][]T: elem is TYPE_SLICE, and
+   * glue_index_elem_byte_sz_from_type_ref_c peels again → sizeof(i32)=4
+   * instead of fat 16 → deep-copy truncates each inner fat (asm a[0].length
+   * wrong / a[0][1] panic; host-C typed E[] twin already correct).
+   * G.7: reuse index_elem_byte_sz on the SLICE type (nested SLICE → 16).
+   * PLATFORM: SHARED freestanding 4.2.7 nested CALL-return reent.
+   */
+  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, ty_ref);
   if (esz <= 0) {
     esz = 4;
   }
-  // wave632: esz>8 large NAMED kept; weird mid widths 3/5/6/7 fall to 4.
+  // wave632: esz>8 large NAMED / nested fat(16) kept; weird mid widths 3/5/6/7 fall to 4.
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8 && esz <= 8) {
     esz = 4;
   }
-  // Scalar face 8KiB (wave418); large NAMED up to 64KiB (1024×64).
+  // Scalar face 8KiB (wave418); large NAMED COMMON up to 64KiB (1024×64).
+  // Let frame (use_frame=1) must stay ≤8KiB so arm64 prologue/sp imm stays in
+  // the product encode path — nested fat esz=16 × max_n=1024 was 16KiB and
+  // SEGVed on mac (4.2.7). COMMON call-arg path may use the larger ceiling.
   if (esz > 8) {
-    max_payload = 1024 * 64;
+    if (use_frame != 0) {
+      max_payload = 8192;
+    } else {
+      max_payload = 1024 * 64;
+    }
   } else {
     max_payload = 8192;
   }

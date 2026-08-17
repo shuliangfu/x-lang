@@ -3130,6 +3130,11 @@ ensure_pipeline_abi_prefer_one() {
   fi
 
   if [ "$done" = "1" ]; then
+    # 4.2.7: inject nested reent deep-copy esz fix without full mega -E.
+    # Full runtime_pipeline_abi.x prefer -E is multi-minute / hang-prone (92k LOC);
+    # thin leaf re-emits only glue_slice_let_reent_deep_copy_after_dual_gp_elf_c
+    # (same body as mega pure leave) and first-wins ld -r over weak pure.
+    pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     return 0
   fi
 
@@ -3142,6 +3147,7 @@ ensure_pipeline_abi_prefer_one() {
   # shellcheck disable=SC2086
   if [ -s "$o" ]; then
     log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
+    pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     return 0
   fi
   if ! ensure_one "$o" "$seed" $cold_flags; then
@@ -3153,7 +3159,58 @@ ensure_pipeline_abi_prefer_one() {
     echo "ensure_host_cc_seed_o: pipeline_abi ensure finished without $o" >&2
     return 1
   fi
+  pipeline_abi_inject_reent_deep_copy_thin "$o" || true
   return 0
+}
+
+# 4.2.7 nested TYPE_SLICE reent deep-copy inject (PLATFORM: SHARED).
+# Thin .x body MUST match runtime_pipeline_abi.x pure leave (same symbol);
+# regenerate thin when that function changes. First-wins ld -r: thin.o then pabi.o.
+pipeline_abi_inject_reent_deep_copy_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_reent_deep_copy_thin.x"
+  local xlang_bin=""
+  local gen_c thin_o base_o
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  # Always re-inject when thin leaf present: hybrid pure is weak and may lag the
+  # 4.2.7 esz fix until full mega -E prefer is practical. Thin -E is small.
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi reent-thin inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_reent_thin.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_reent_thin.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_reent_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi reent-thin inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi reent-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi reent-thin inject OK (4.2.7 nested esz first-wins over weak pure)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  # restore on merge fail
+  cp -f "$base_o" "$o"
+  log "pipeline_abi reent-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
 }
 
 try_ensure_pipeline_abi_prefer_one() {
