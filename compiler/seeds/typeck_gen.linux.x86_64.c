@@ -13741,25 +13741,38 @@ int32_t typeck_try_infer_generic_call_from_args(struct ast_Module * callee_mod, 
         return 0;
       }
     }
-    /* wave 4.2.4: ret-only bare infer — free type-param ret + any fully concrete
-     * ambient expected (prim i32/… or module NAMED). Prior: module NAMED only. */
+    /* wave 4.2.4: ret-only (concrete ambient + free ret T) then pure-phantom bare. */
     (void)((n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix)));
-    if (((n_gp < 1) || (expected_ret <=0))) {
+    if ((n_gp < 1)) {
       return -1;
     }
-    if ((typeck_type_tree_has_free_type_param(callee_mod, arena, expected_ret, 0) !=0)) {
-      return -1;
+    if (((expected_ret > 0)
+        && (typeck_type_tree_has_free_type_param(callee_mod, arena, expected_ret, 0) ==0))) {
+      (void)((ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix)));
+      if (((ret_ty > 0) && (pipeline_type_kind_ord_at(arena, ret_ty) ==ord_named))) {
+        (void)((ret_nlen = pipeline_type_named_name_into(arena, ret_ty, &((ret_nm)[0]))));
+        if (((ret_nlen > 0)
+            && (typeck_named_is_module_type(callee_mod, arena, &((ret_nm)[0]), ret_nlen) ==0))) {
+          return 0;
+        }
+      }
     }
+    /* Pure phantom: ret and all formals free of free type-params (unit_t<T>():i32). */
     (void)((ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix)));
-    if (((ret_ty <=0) || (pipeline_type_kind_ord_at(arena, ret_ty) !=ord_named))) {
+    if ((ret_ty <=0)) {
       return -1;
     }
-    (void)((ret_nlen = pipeline_type_named_name_into(arena, ret_ty, &((ret_nm)[0]))));
-    if ((ret_nlen <=0)) {
+    if ((typeck_type_tree_has_free_type_param(callee_mod, arena, ret_ty, 0) !=0)) {
       return -1;
     }
-    if ((typeck_named_is_module_type(callee_mod, arena, &((ret_nm)[0]), ret_nlen) !=0)) {
-      return -1;
+    (void)((i = 0));
+    while ((i < np)) {
+      (void)((pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i)));
+      if (((pi_ty > 0)
+          && (typeck_type_tree_has_free_type_param(callee_mod, arena, pi_ty, 0) !=0))) {
+        return -1;
+      }
+      (void)((i = (i + 1)));
     }
     return 0;
   }

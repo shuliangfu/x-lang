@@ -17921,8 +17921,9 @@ depth: i32): i32 {
  * wave 4.2.4: prim ambient (`let a: i32 = mk_default()`) was hard-rejected
  * because expected was forced to module TYPE_NAMED only; fixup then left
  * `found T`. G.7: sole authority typeck_try_infer_generic_call_from_args.
- * Soft leave-off: unconstrained phantom T with non-free ret (`unit_t():i32`)
- * still requires turbofish — no ambient pin for T.
+ * Pure phantom: ret and all formals free of free type-params (`unit_t<T>():i32`
+ * bare) — allowed; codegen wave450 bare-link mono. `mk_default<T>():T` without
+ * ambient still requires expected or turbofish.
  * @param callee_mod *Module — resolved callee module (entry or dep)
  * @param arena *ASTArena — call expr arena
  * @param expr_ref i32 — EXPR_CALL
@@ -18042,22 +18043,45 @@ expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
     // Ret-only path: free type-param ret + fully concrete ambient expected_ret.
     // PLATFORM: SHARED — prim (i32/…) and module NAMED both pin; free-T expected fail-closed.
     n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
-    if (n_gp < 1 || expected_ret <= 0) {
+    if (n_gp < 1) {
       return -1;
     }
-    if (typeck_type_tree_has_free_type_param(callee_mod, arena, expected_ret, 0) != 0) {
-      return -1;
+    if (expected_ret > 0
+    && typeck_type_tree_has_free_type_param(callee_mod, arena, expected_ret, 0) == 0) {
+      ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
+      if (ret_ty > 0 && pipeline_type_kind_ord_at(arena, ret_ty) == ord_named) {
+        ret_nlen = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+        if (ret_nlen > 0
+        && typeck_named_is_module_type(callee_mod, arena, &ret_nm[0], ret_nlen) == 0) {
+          return 0;
+        }
+      }
     }
+    /*
+     * Phantom path (wave 4.2.4 close): all type params unconstrained at this
+     * call — return type has no free type-param tree, and no value formal
+     * carries a free type-param. Example: `unit_t<T>(): i32` / `forty_two<T>()`
+     * bare. Codegen wave450 already emits one bare-link mono for zero-param
+     * phantom. Soft: `mk_default<T>():T` without ambient still fail-closed
+     * (ret free T). Bounds with phantom-only T and no slots stay pre-existing
+     * (value-path early return when formals are concrete).
+     * PLATFORM: SHARED freestanding typeck.
+     */
     ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
-    if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != ord_named) {
+    if (ret_ty <= 0) {
       return -1;
     }
-    ret_nlen = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
-    if (ret_nlen <= 0) {
+    if (typeck_type_tree_has_free_type_param(callee_mod, arena, ret_ty, 0) != 0) {
       return -1;
     }
-    if (typeck_named_is_module_type(callee_mod, arena, &ret_nm[0], ret_nlen) != 0) {
-      return -1;
+    i = 0;
+    while (i < np) {
+      pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+      if (pi_ty > 0
+      && typeck_type_tree_has_free_type_param(callee_mod, arena, pi_ty, 0) != 0) {
+        return -1;
+      }
+      i = i + 1;
     }
     return 0;
   }
