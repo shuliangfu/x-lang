@@ -4745,8 +4745,8 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
                      * Fat tag = "struct xlang_slice_" + type_to_c_repr(concrete)
                      * with optional leading "struct " stripped (ast_pool twin).
                      */
-                    let eb_bt: u8[640] = [];
-                    let n_bt: i32 = type_to_c_repr(arena, &eb_bt[0], 640, c_bt, struct_prefix, struct_prefix_len);
+                    let eb_bt: u8[896] = [];
+                    let n_bt: i32 = type_to_c_repr(arena, &eb_bt[0], 896, c_bt, struct_prefix, struct_prefix_len);
                     if (n_bt > 0) {
                       let sp_bt: i32 = 0;
                       if (n_bt >= 7 && eb_bt[0] == 115 && eb_bt[1] == 116 && eb_bt[2] == 114
@@ -4893,8 +4893,8 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
           pfx_len_use = pl_sl;
         }
       }
-      let slb: u8[640] = [];
-      let nl: i32 = type_to_c_repr(arena, &slb[0], 640, type_ref, pfx_use, pfx_len_use);
+      let slb: u8[896] = [];
+      let nl: i32 = type_to_c_repr(arena, &slb[0], 896, type_ref, pfx_use, pfx_len_use);
       if (nl <= 0) {
         return -1;
       }
@@ -8707,19 +8707,14 @@ function codegen_emit_xlang_slice_prefix_rep(out: *CodegenOutBuf, n: i32): i32 {
  * nest>=2:
  *   struct xlang_slice_×nest_<pfx><elem> {
  *     struct xlang_slice_×(nest-1)_<pfx><elem> *data; size_t length; };
- * Hard cap nest<=52 (4.2.3 1..16 + nest>16 soft 17..41 + nest>41 layer 42
- * + nest>42 layer 43 + nest>43 layer 44 + nest>44 layer 45
- * + nest>45 layer 46 + nest>46 layer 47 + nest>47 layer 48
- * + nest>48 layer 49 + nest>49 layer 50 + nest>50 layer 51
- * + nest>51 layer 52).
+ * Hard cap nest<=64 (4.2.3 1..16 + nest>16 soft 17..52 + nest>52 jump
+ * 53..64). Product freeze at 64 (named stop; not one-nest-per-leaf).
  * Piecewise emit — no u8[256] whole-line buffer. type_to_c_repr scratch is
- * 640; nest 21 i32 tag is 266 bytes; nest 41 is 506; nest 42 is 518;
- * nest 43 is 530; nest 44 is 542; nest 45 is 554; nest 46 is 566;
- * nest 47 is 578; nest 48 is 590; nest 49 is 602; nest 50 is 614;
- * nest 51 is 626; nest 52 is 638 (12*52+14). Do not raise to 53 this leaf
- * (tag=650 overflows 640).
+ * 896; nest 52 i32 tag is 638; nest 53 is 650 (overflows 640);
+ * nest 63 is 770 (overflows 768); nest 64 is 782 (12*64+14). Family
+ * skipped 768 because 64 does not fit. Do not raise to 65 this leaf.
  * @param out *CodegenOutBuf — C text buffer; null rejected
- * @param nest i32 — slice nest depth; must be 1..52
+ * @param nest i32 — slice nest depth; must be 1..64
  * @param pfx *u8 — optional struct-tag prefix; null or pfx_len<=0 means none
  * @param pfx_len i32 — prefix byte count
  * @param elem *u8 — leaf C type name (int32_t) or named tag (Cell)
@@ -8735,7 +8730,7 @@ function codegen_emit_slice_fat_one(out: *CodegenOutBuf, nest: i32, pfx: *u8, pf
   if (nest < 1) {
     return -1;
   }
-  if (nest > 52) {
+  if (nest > 64) {
     return -1;
   }
   /* "struct " */
@@ -8806,8 +8801,8 @@ function codegen_emit_slice_fat_one(out: *CodegenOutBuf, nest: i32, pfx: *u8, pf
  * Elem set matches wave619 / rt_preamble: uint8_t int8_t int16_t uint16_t
  * int int32_t uint32_t int64_t uint64_t size_t ssize_t float double.
  * @param out *CodegenOutBuf — C text buffer; null rejected
- * @param min_nest i32 — inclusive start; must be 1..52
- * @param max_nest i32 — inclusive end; must be min_nest..52
+ * @param min_nest i32 — inclusive start; must be 1..64
+ * @param max_nest i32 — inclusive end; must be min_nest..64
  * @return i32 — 0 on success, -1 on emit failure
  * PLATFORM: SHARED host-C. G.7: same elem set as rt_preamble 1..8.
  */
@@ -8815,7 +8810,7 @@ function codegen_emit_scalar_slice_nests(out: *CodegenOutBuf, min_nest: i32, max
   if (out == 0 as *CodegenOutBuf) {
     return -1;
   }
-  if (min_nest < 1 || max_nest > 52 || min_nest > max_nest) {
+  if (min_nest < 1 || max_nest > 64 || min_nest > max_nest) {
     return -1;
   }
   let e0: u8[16] = [117, 105, 110, 116, 56, 95, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -8879,14 +8874,10 @@ function codegen_emit_scalar_slice_nests(out: *CodegenOutBuf, min_nest: i32, max
 
 /**
  * Emit companion fat-slice layouts for a named struct C tag.
- * After `struct TAG { ... };` emit nest 1..52 companion fat layouts
+ * After `struct TAG { ... };` emit nest 1..64 companion fat layouts
  * (`struct xlang_slice_×k_TAG { struct xlang_slice_×(k-1)_TAG *data; size_t length; }`,
  * nest=1 pointee is `struct TAG`). 4.2.3: loop through codegen_emit_slice_fat_one
- * (wave698 unrolled only to 7; nest>16 soft → 17..41 then nest>41 layer 42
- * then nest>42 layer 43 then nest>43 layer 44 then nest>44 layer 45
- * then nest>45 layer 46 then nest>46 layer 47 then nest>47 layer 48
- * then nest>48 layer 49 then nest>49 layer 50 then nest>50 layer 51
- * then nest>51 layer 52).
+ * (wave698 unrolled only to 7; nest>16 soft 17..52; nest>52 jump 53..64).
  * @param out *CodegenOutBuf — C text buffer
  * @param pfx *u8 — struct tag prefix (empty for entry bare)
  * @param pfx_len i32 — prefix byte count; 0 means bare tag
@@ -8900,12 +8891,12 @@ export function codegen_emit_companion_named_slice_layout(out: *CodegenOutBuf, p
     return -1;
   }
   /*
-   * 4.2.3 + nest>16 soft: loop nest 1..52 through the shared fat emitter.
-   * wave698 unrolled only to 7; 8-layer [][][][][][][][]Named was incomplete.
+   * 4.2.3 + nest>16 soft + nest>52 jump: loop nest 1..64 through the
+   * shared fat emitter. Product freeze at 64.
    * PLATFORM: SHARED host-C. G.7 complete same companion authority.
    */
   let nest: i32 = 1;
-  while (nest <= 52) {
+  while (nest <= 64) {
     if (codegen_emit_slice_fat_one(out, nest, pfx, pfx_len, name, name_len, 1) != 0) {
       return -1;
     }
@@ -9144,8 +9135,8 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
         if (!ast.ref_is_null(elem) && elem > 0 && elem <= nt
             && pipeline_type_kind_ord_at(arena, elem) == (TypeKind.TYPE_ARRAY as i32)) {
           let seen: i32 = 0;
-          let slb: u8[640] = [];
-          let nl: i32 = type_to_c_repr(arena, &slb[0], 640, ti, pfx_use, pfx_len_use);
+          let slb: u8[896] = [];
+          let nl: i32 = type_to_c_repr(arena, &slb[0], 896, ti, pfx_use, pfx_len_use);
           if (nl <= 0) {
             return -1;
           }
@@ -9155,8 +9146,8 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
               let ej: i32 = pipeline_type_elem_ref_at(arena, tj);
               if (!ast.ref_is_null(ej) && ej > 0 && ej <= nt
                   && pipeline_type_kind_ord_at(arena, ej) == (TypeKind.TYPE_ARRAY as i32)) {
-                let slj: u8[640] = [];
-                let nj: i32 = type_to_c_repr(arena, &slj[0], 640, tj, pfx_use, pfx_len_use);
+                let slj: u8[896] = [];
+                let nj: i32 = type_to_c_repr(arena, &slj[0], 896, tj, pfx_use, pfx_len_use);
                 if (nj == nl && nj > 0) {
                   let eq: i32 = 1;
                   let ci: i32 = 0;
@@ -21307,7 +21298,8 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
  * + nest>48 soft `[]×49` under XLANG_SLICE_LAYOUTS_N49
  * + nest>49 soft `[]×50` under XLANG_SLICE_LAYOUTS_N50
  * + nest>50 soft `[]×51` under XLANG_SLICE_LAYOUTS_N51
- * + nest>51 soft `[]×52` under XLANG_SLICE_LAYOUTS_N52). Without layouts,
+ * + nest>51 soft `[]×52` under XLANG_SLICE_LAYOUTS_N52
+ * + nest>52 jump `[]×53..64` under XLANG_SLICE_LAYOUTS_N64). Without layouts,
  * bare `-E` output fails host-cc with incomplete type; full `-o` already injects
  * rt_preamble — both sites use XLANG_SLICE_LAYOUTS so redefinition is safe.
  * @param out *CodegenOutBuf — destination C text buffer
@@ -22272,8 +22264,7 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
      * N16 9..16 + N17..N51) still emits the extra layer. -E runs all
      * thirty-eight blocks. Do not add rows to driver_preamble_io_net_lines
      * (fixed N=224). Do not grow seed emit_header u8[256]. type_to_c_repr
-     * scratch is 640 so nest 52 i32 tag=638 fits. Do not raise to 53 this
-     * leaf (tag=650 overflows 640).
+     * scratch is 640 so nest 52 i32 tag=638 fits.
      * PLATFORM: SHARED host-C. G.7: emit_header is the deep-nest authority.
      */
     /* #ifndef XLANG_SLICE_LAYOUTS_N52\n#define XLANG_SLICE_LAYOUTS_N52\n */
@@ -22288,6 +22279,32 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
       return -1;
     }
     if (codegen_emit_scalar_slice_nests(out, 52, 52) != 0) {
+      return -1;
+    }
+    if (emit_bytes_64(out, &ge[0], 7) != 0) {
+      return -1;
+    }
+    /*
+     * nest>52 jump: layers 53..64 under one thirty-ninth guard so -o
+     * (rt_preamble 1..8 + N16 9..16 + N17..N52) still emits the extra
+     * layers. -E runs all thirty-nine blocks. Do not add rows to
+     * driver_preamble_io_net_lines (fixed N=224). Do not grow seed
+     * emit_header u8[256]. type_to_c_repr scratch is 896 so nest 64
+     * i32 tag=782 fits. Product freeze at 64; do not raise to 65.
+     * PLATFORM: SHARED host-C. G.7: emit_header is the deep-nest authority.
+     */
+    /* #ifndef XLANG_SLICE_LAYOUTS_N64\n#define XLANG_SLICE_LAYOUTS_N64\n */
+    let g64: u8[80] = [
+      35, 105, 102, 110, 100, 101, 102, 32, 88, 76, 65, 78, 71, 95, 83, 76,
+      73, 67, 69, 95, 76, 65, 89, 79, 85, 84, 83, 95, 78, 54, 52, 10,
+      35, 100, 101, 102, 105, 110, 101, 32, 88, 76, 65, 78, 71, 95, 83, 76,
+      73, 67, 69, 95, 76, 65, 89, 79, 85, 84, 83, 95, 78, 54, 52, 10,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ];
+    if (emit_bytes_from_ptr(out, &g64[0], 64) != 0) {
+      return -1;
+    }
+    if (codegen_emit_scalar_slice_nests(out, 53, 64) != 0) {
       return -1;
     }
     if (emit_bytes_64(out, &ge[0], 7) != 0) {
