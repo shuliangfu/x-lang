@@ -24886,6 +24886,14 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * the extra-arm MATCH/IF block (empty defer pool). G.7:
  * same helper on the dest region body (inner) then the
  * extra-arm (outer). Do not body_sync the dest region.
+ * dest-from-region intermediate-region
+ * `unsafe { defer { m = 1 }; with_arena { dest } }` peels
+ * twice: extra-arm → intermediate → dest region. Peel
+ * overwrites br; dest-region + extra-arm pools ran and
+ * the intermediate pool was dropped (asm leftover 54).
+ * G.7: same helper on each dest-from-region body (stack
+ * intermediates; inner first). Do not invent a second
+ * defer walk.
  * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
  * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
  * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
@@ -24932,6 +24940,9 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let dest_fin: i32 = 0;
   let prefix_lim: i32 = 0;
   let defer_br: i32 = 0;
+  let mid_brs: i32[8] = [];
+  let mid_n: i32 = 0;
+  let mid_i: i32 = 0;
   let gt_buf: u8[128] = [];
   let lb_buf: u8[128] = [];
   let gt_len: i32 = 0;
@@ -25252,6 +25263,20 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
             glue_wa_scope_push_c(dest_wa_off);
           }
           glue_asm_ctx_set_scope_block(ctx, reg_body);
+          /* dest-from-region intermediate-region defer.
+           * Second+ peel used to overwrite br; only dest
+           * region + extra-arm defer pools ran.
+           * `unsafe { defer { m = 1 }; with_arena { dest } }`
+           * kept dest and dropped m (asm leftover 54).
+           * First peel old br is extra-arm (already
+           * defer_br). Later peels stack the old dest-
+           * from-region body. G.7: same helper after
+           * peel. PLATFORM: SHARED dest-from-region
+           * intermediate defer · LINUX gold. */
+          if (dest_from_region != 0 && br > 0 && mid_n < 8) {
+            mid_brs[mid_n] = br;
+            mid_n = mid_n + 1;
+          }
           br = reg_body;
           have_br = 1;
           dest_from_region = 1;
@@ -25292,7 +25317,12 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
    * overwrites br with the dest region body; defer_br stays
    * the extra-arm MATCH/IF block. Inner dest-region defers
    * first (body_sync of dest region), then extra-arm.
-   * Restore dest after each defer body (clobbers rbx/x19).
+   * dest-from-region intermediate-region
+   * `unsafe { defer { m = 1 }; with_arena { dest } }`: peel
+   * stacks intermediate dest-from-region bodies (outer
+   * first). Run last-to-first so inner intermediates run
+   * before outer (LIFO). Restore dest after each defer
+   * body (clobbers rbx/x19).
    * PLATFORM: SHARED dest extra-arm / dest-from-region defer
    * · LINUX gold. */
   if (dest_from_region != 0 && br > 0) {
@@ -25314,6 +25344,28 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
         return 0 - 1;
       }
     }
+  }
+  mid_i = mid_n - 1;
+  while (mid_i >= 0) {
+    extra = glue_emit_run_language_defers_elf(arena, elf_ctx, mid_brs[mid_i], ctx, ta);
+    if (extra != 0) {
+      return 0 - 1;
+    }
+    if (dest_spill >= 0 && (ta == 0 || ta == 1)) {
+      unsafe {
+        extra = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+      }
+      if (extra != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        extra = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (extra != 0) {
+        return 0 - 1;
+      }
+    }
+    mid_i = mid_i - 1;
   }
   if (defer_br > 0) {
     extra = glue_emit_run_language_defers_elf(arena, elf_ctx, defer_br, ctx, ta);
