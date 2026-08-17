@@ -13741,18 +13741,13 @@ int32_t typeck_try_infer_generic_call_from_args(struct ast_Module * callee_mod, 
         return 0;
       }
     }
+    /* wave 4.2.4: ret-only bare infer — free type-param ret + any fully concrete
+     * ambient expected (prim i32/… or module NAMED). Prior: module NAMED only. */
     (void)((n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix)));
     if (((n_gp < 1) || (expected_ret <=0))) {
       return -1;
     }
-    if ((pipeline_type_kind_ord_at(arena, expected_ret) !=ord_named)) {
-      return -1;
-    }
-    (void)((exp_nlen = pipeline_type_named_name_into(arena, expected_ret, &((exp_nm)[0]))));
-    if ((exp_nlen <=0)) {
-      return -1;
-    }
-    if ((typeck_named_is_module_type(callee_mod, arena, &((exp_nm)[0]), exp_nlen) ==0)) {
+    if ((typeck_type_tree_has_free_type_param(callee_mod, arena, expected_ret, 0) !=0)) {
       return -1;
     }
     (void)((ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix)));
@@ -14740,12 +14735,12 @@ int32_t typeck_generic_call_fixup_resolved_type(struct ast_Module * module, stru
     if ((ret_is_module_type !=0)) {
       return 0;
     }
-    if (((((n_gp > 0) && (n_ta ==0)) && (expected_ret > 0)) && (pipeline_type_kind_ord_at(arena, expected_ret) ==ord_named))) {
-      (void)((exp_nlen = pipeline_type_named_name_into(arena, expected_ret, &((exp_nm)[0]))));
-      if (((exp_nlen > 0) && (typeck_named_is_module_type(search_mod, search_arena, &((exp_nm)[0]), exp_nlen) !=0))) {
-        (void)(pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret));
-        return 0;
-      }
+    /* wave 4.2.4: bare call + concrete ambient expected stamps free type-param ret
+     * (prim or module NAMED). Prior: module TYPE_NAMED only → found T on i32. */
+    if (((((n_gp > 0) && (n_ta ==0)) && (expected_ret > 0))
+        && (typeck_type_tree_has_free_type_param(search_mod, arena, expected_ret, 0) ==0))) {
+      (void)(pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret));
+      return 0;
     }
     if ((((n_gp <=0) || (n_ta <=0)) || (n_ta !=n_gp))) {
       return 0;

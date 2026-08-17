@@ -17916,7 +17916,13 @@ depth: i32): i32 {
  * Infer bare generic CALL (no turbofish) from value args or ambient expected ret.
  * Value path: every formal has effective mono arg type (wave249 Cap face) and
  * same-named free type-params unify (same(1,true) red). Ret-only path: ret is
- * free type-param and expected_ret is a concrete module TYPE_NAMED.
+ * free type-param and expected_ret is fully concrete (no free type-param tree) —
+ * module TYPE_NAMED **or** primitive/compound (i32, i64, bool, []T, …).
+ * wave 4.2.4: prim ambient (`let a: i32 = mk_default()`) was hard-rejected
+ * because expected was forced to module TYPE_NAMED only; fixup then left
+ * `found T`. G.7: sole authority typeck_try_infer_generic_call_from_args.
+ * Soft leave-off: unconstrained phantom T with non-free ret (`unit_t():i32`)
+ * still requires turbofish — no ambient pin for T.
  * @param callee_mod *Module — resolved callee module (entry or dep)
  * @param arena *ASTArena — call expr arena
  * @param expr_ref i32 — EXPR_CALL
@@ -17951,8 +17957,6 @@ expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
     let pj_nlen: i32 = 0;
     let aj_ty: i32 = 0;
     let same_name: i32 = 0;
-    let exp_nm: u8[128] = [];
-    let exp_nlen: i32 = 0;
     if (callee_mod == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0 || func_ix < 0) {
       return -1;
     }
@@ -18035,19 +18039,13 @@ expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
         return 0;
       }
     }
-    // Ret-only path: free type-param ret + concrete module expected_ret.
+    // Ret-only path: free type-param ret + fully concrete ambient expected_ret.
+    // PLATFORM: SHARED — prim (i32/…) and module NAMED both pin; free-T expected fail-closed.
     n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
     if (n_gp < 1 || expected_ret <= 0) {
       return -1;
     }
-    if (pipeline_type_kind_ord_at(arena, expected_ret) != ord_named) {
-      return -1;
-    }
-    exp_nlen = pipeline_type_named_name_into(arena, expected_ret, &exp_nm[0]);
-    if (exp_nlen <= 0) {
-      return -1;
-    }
-    if (typeck_named_is_module_type(callee_mod, arena, &exp_nm[0], exp_nlen) == 0) {
+    if (typeck_type_tree_has_free_type_param(callee_mod, arena, expected_ret, 0) != 0) {
       return -1;
     }
     ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
@@ -19180,8 +19178,6 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
     let gidx: i32 = 0;
     let found_gi: i32 = 0;
     let is_mod: i32 = 0;
-    let exp_nm: u8[128] = [];
-    let exp_nlen: i32 = 0;
     let max_map: i32 = 8;
     let stride: i32 = 128;
     let base: i32 = 0;
@@ -19339,15 +19335,19 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
     if (ret_is_module_type != 0) {
       return 0;
     }
-    // Bare call + ambient expected module NAMED return.
+    /*
+     * Bare call + ambient expected (wave 4.2.4): free type-param ret not on
+     * value formals (mk_default<T>():T / as_t<T>(i32):T). Stamp any fully
+     * concrete expected — prim i32/i64/bool/… or module TYPE_NAMED — so
+     * assign/return typeck and codegen mono (resolved_type_ref) agree.
+     * Prior gate required module TYPE_NAMED only → `let a: i32 = mk()` left
+     * found T. Soft: expected with free T still fail-closed (no stamp).
+     * PLATFORM: SHARED freestanding typeck fixup.
+     */
     if (n_gp > 0 && n_ta == 0 && expected_ret > 0
-    && pipeline_type_kind_ord_at(arena, expected_ret) == ord_named) {
-      exp_nlen = pipeline_type_named_name_into(arena, expected_ret, &exp_nm[0]);
-      if (exp_nlen > 0
-      && typeck_named_is_module_type(search_mod, search_arena, &exp_nm[0], exp_nlen) != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret);
-        return 0;
-      }
+    && typeck_type_tree_has_free_type_param(search_mod, arena, expected_ret, 0) == 0) {
+      pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret);
+      return 0;
     }
     if (n_gp <= 0 || n_ta <= 0 || n_ta != n_gp) {
       return 0;
