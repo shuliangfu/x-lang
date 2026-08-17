@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **pin-seed `[N]T→[]T` typeck 双权威闭**（ret／asg **42**）· **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **pin-seed `[N]T→[]T` typeck 双权威闭**（ret／asg **42**）· **pin-seed STRUCT_LIT nest dest-stamp 双权威闭**（host-C 无 `(struct )`）· **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -1642,9 +1642,11 @@
 
   - 闸：`tests/boundary/vec_field_index_return.x` `dest_slit_arrlit` 170–181（含 n>1 `{ two: [w, w] }`／ARRAY VAR `{ two: src }`／sret `return { two: [w, w] }`）
 
-✅ **STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT `{ one: [{ h: { v: a } }] }`** ✅ @ **`7cfc6e352`**
+✅ **STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT `{ one: [{ h: { v: a } }] }`** ✅ @ **`7cfc6e352`** · **pin-seed 双权威闭** 2026-08-17 @ **`b59d77fc3`**
 
   - 闸：`tests/boundary/vec_field_index_return.x` `dest_slit_arrlit_nest` 182–197（含 n>1 `{ two: [{…},{…}] }`／frame dest `let bag: Bag = { one: [{…}] }`／sret `return { one: [{…}] }`）
+  - **pin-seed 双权威闭**（2026-08-17）：typeck.x 匿名 dest backfill 后 field_inits 只进 assemble；pin 早 return → host-C `(struct )`。seed 补 `typeck_coerce_array_lit_struct_elems_to_decl`＋`coerce_init_struct_lit` nest＋field_inits 调用点＋`check_expr_struct_lit` 匿名 ensure／field_inits（≡ typeck.x）
+  - 证：isolate nest／slit 双端 asm／host-C **0**；`{ h:{v:a} }` host-C `(struct Holder)`
 
 ✅ **dest-in-rbx CALL `*p = dest_mk_w(a)`／dest-in-rbx ARRAY_LIT of CALL `*p = [dest_mk_w(a)]`** ✅ @ **`ee0c5de29`**
 
