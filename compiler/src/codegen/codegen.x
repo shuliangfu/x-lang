@@ -15226,6 +15226,49 @@ export function codegen_callee_var_is_string_new(e: Expr): i32 {
   return 0;
 }
 
+/*
+ * One-shot handoff: last dest-from-region dest emit consumes this so
+ * wrapping defers already hoisted inner-first are not run again.
+ * emit_block copies it into a local and clears it so prefix / sibling
+ * emit_block children stay skip=0. Not a second emit path.
+ * PLATFORM: SHARED host-C dest-from-region stacked last-wins.
+ */
+let g_codegen_skip_wrap_dest: i32 = 0;
+
+/**
+ * Run wrapping defers of a dest-from-region last so_k==6 dest chain,
+ * inner first then this block (dest-in-rbx LIFO last-wins outer).
+ * host-C GNU stmt-expr still needs dest last, so the caller hoists
+ * this walk then this wrapping, then emits dest with skip-wrap.
+ * @param arena *ASTArena — AST owner
+ * @param out *CodegenOutBuf — C text sink
+ * @param block_ref i32 — dest-from-region last dest body; null is a no-op
+ * @param indent i32 — spaces of indent for each defer body
+ * @param ctx *PipelineDepCtx — current func / module for nested emit
+ * @return i32 — 0 ok, -1 emit failure
+ * PLATFORM: SHARED host-C dest-from-region stacked last-wins.
+ */
+function emit_run_dest_fromreg_wrapping_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
+  if (ast.ref_is_null(block_ref) || block_ref <= 0 || block_ref > arena.num_blocks) {
+    return 0;
+  }
+  let so_n: i32 = ast.ast_block_num_stmt_order(arena, block_ref);
+  let final_now: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+  if (so_n > 0 && ast.ref_is_null(final_now)) {
+    let last_k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
+    if (last_k == 6) {
+      let last_idx: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
+      if (last_idx >= 0 && last_idx < ast.ast_block_num_regions(arena, block_ref)) {
+        let last_body: i32 = ast.ast_block_region_body_ref(arena, block_ref, last_idx);
+        if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body, indent, ctx) != 0) {
+          return -1;
+        }
+      }
+    }
+  }
+  return emit_run_defers(arena, out, block_ref, indent, ctx);
+}
+
 /**
  * See implementation.
  */
@@ -15861,10 +15904,15 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
  * PLATFORM: SHARED — host-C dest-from-region intermediate last-value:
  * last so_k==6 with no final_expr is dest; wrapping defers run first
  * so dest stays the GNU stmt-expr last value (not `(m=1)`).
+ * Stacked dest-from-region wrapping hoists inner first then outer
+ * (dest-in-rbx LIFO last-wins), dest still last.
  */
 export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    /* Consume one-shot skip so prefix / sibling emit_block stay 0. */
+    let skip_wrap_dest: i32 = g_codegen_skip_wrap_dest;
+    g_codegen_skip_wrap_dest = 0;
 
     let blk_prefix: u8[128] = [];
     let blk_prefix_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &blk_prefix[0], 128);
@@ -15881,9 +15929,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
        * AFTER that dest, so GNU stmt-expr last value was (m=1)
        * assigned to Wrap (host-C cc fail). G.7: same
        * emit_run_defers, before dest, dest stays last.
+       * Stacked dest-from-region last dest hoists last dest wrapping
+       * first (inner) then this wrapping (outer) so last-wins matches
+       * dest-in-rbx LIFO; dest emit then skip-wrap so dest stays last.
        * Prefix region + final_expr dest is unchanged (defers
        * still run after prefix stmts, before final_expr).
-       * PLATFORM: SHARED host-C dest-from-region intermediate. */
+       * PLATFORM: SHARED host-C dest-from-region stacked last-wins. */
       let so_n: i32 = ast.ast_block_num_stmt_order(arena, block_ref);
       let last_dest_region: i32 = 0;
       let final_now: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
@@ -16001,8 +16052,16 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       while (si < ast.ast_block_num_stmt_order(arena, block_ref)) {
         let k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, si);
         let idx: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, si);
-        /* Hoist wrapping defers before dest-from-region dest. */
-        if (last_dest_region != 0 && si == (so_n - 1)) {
+        /* Hoist wrapping defers before dest-from-region dest.
+         * skip_wrap_dest: already hoisted inner-first on the caller. */
+        if (skip_wrap_dest == 0 && last_dest_region != 0 && si == (so_n - 1)) {
+          let last_idx_h: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
+          if (last_idx_h >= 0 && last_idx_h < ast.ast_block_num_regions(arena, block_ref)) {
+            let last_body_h: i32 = ast.ast_block_region_body_ref(arena, block_ref, last_idx_h);
+            if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body_h, indent, ctx) != 0) {
+              return -1;
+            }
+          }
           if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
             return -1;
           }
@@ -16510,9 +16569,15 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               if (emit_bytes_2(out, &ob[0], 2) != 0) {
                 return -1;
               }
+              /* Last dest-from-region dest: wrapping already hoisted. */
+              let saved_skip_sc: i32 = g_codegen_skip_wrap_dest;
+              if (last_dest_region != 0 && si == (so_n - 1)) {
+                g_codegen_skip_wrap_dest = 1;
+              }
               if (emit_block(arena, out, reg_body, indent + 2, ctx) != 0) {
                 return -1;
               }
+              g_codegen_skip_wrap_dest = saved_skip_sc;
               if (emit_indent(out, indent) != 0) {
                 return -1;
               }
@@ -16521,9 +16586,14 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
             } else {
+              let saved_skip_ns: i32 = g_codegen_skip_wrap_dest;
+              if (last_dest_region != 0 && si == (so_n - 1)) {
+                g_codegen_skip_wrap_dest = 1;
+              }
               if (emit_block(arena, out, reg_body, indent, ctx) != 0) {
                 return -1;
               }
+              g_codegen_skip_wrap_dest = saved_skip_ns;
             }
           }
         } else if (k == 7) {
@@ -16589,7 +16659,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
         si = si + 1;
       }
-      if (last_dest_region == 0) {
+      if (skip_wrap_dest == 0 && last_dest_region == 0) {
         if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
           return -1;
         }
