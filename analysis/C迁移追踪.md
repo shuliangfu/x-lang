@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · ARM64 序言存 x19 · param_home 栈参跳过 x19 槽 · sat `try-r1` 已走 `ensure_labi_prefer_one` · L0 `-E` getcwd 已闭 · emit_header `h[88]` 超额初始化已闭（`u8[83]`）· dest leftover 族（含 wrap IF dest／else-if／嵌套 MATCH／while leftover dest／elif3／ifmid／match_in_if／field／ret_if）**已尽** · tip 邻域再扫无新诚实薄红 · 假红：range-for（非语言）／labeled-break（非语言）· 4.2.4 bare 零参泛型诚实 T001（须 turbofish）leave-off · 两叶 commit `46650e498`／`6640f5758` · tip `403843d9a` Ubuntu L2 金标绿 · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first**（`XLANG_PARSER_FROM_X` 默认 0；禁缺 o 时 tip assemble）· 4.2.4 leave-off 诚实 T001 · 4.2.5 标量 multi mono 已绿（`id__i32`）；struct T mono typeck 仍 soft · 4.2.7 dual／nest same-call 已绿 · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -524,22 +524,29 @@
   - 证：const／const1／const3／const_arr 三端 **70／42／73／71**
   - 余（已闭 parse＋asm fat＋const whitelist＋asm 聚合 emit＋host-C 多 const＋asm／host-C `[][2]i32`＋host-C `[2][]i32` 行 brace＋asm INDEX）：`[lit] as T` @ **`8f4983405`**／asm INDEX @ **`a403bc41e`**；另层：nslvar host-C
 
-⬜ **4.2.4 bare `unit_t()` 无 turbofish + 零参 T subst** leave-off
+🟡 **4.2.4 bare `unit_t()` 无 turbofish + 零参 T subst** **诚实 leave-off（文档收口）**
 
-  - typeck 仍要求类型参数；零参 body/return T 替换无存储 type-arg refs
+  - 现场（2026-08-17 tip）：`forty_two()` → **T001** `generic function 'forty_two' requires type arguments (e.g. forty_two<Type>(...))`
+  - `forty_two<i32>()`／`id<i32>(42)` asm **42**（须 turbofish）
+  - 零参 body／return `T` 替换无 call-site type-arg 存储；推断整波后期
+  - **非 bug 糊绿**：诚实硬失败；产品须写 `foo<T>(...)`
 
-⬜ **4.2.5 多 T 组合共享 bare link name** leave-off
+🟡 **4.2.5 多 T 组合共享 bare link name** **部分闭／余 soft leave-off**
 
-  - 不同 T 组合（`unit_t<A>()` vs `unit_t<B>()`）共用一个 C 函数
+  - wave444+ mono mangle：`id<i32>`／`id<i64>` 同 main → emit `id__i32` 等；asm／host **42**
+  - 零参 `unit_t<A>()+unit_t<B>()` 同 ret i32 亦 **42**
+  - 余 soft：`id_s<A>`／`id_s<B>` struct 接收 `let a: A = id_s<A>(...)` typeck「expected { fields }, found A」— 非 bare-link 冲突；struct T mono 后期
+  - 原「共用一个 C 函数」标量组合 **已非** leave-off 主因
 
 ✅ **4.2.6 泛型方法 let-binding 接收者推断** 核查闭 ✅ @ **`75119a170`**（wave445 C6 已落地）
 
   - `let y: T = x; return y.clone()` 三端 **7**（非 identity）
   - 权威仍 wave445 `codegen.x` C6 local-let 扫 `current_block_ref`；本波只登记关闭
 
-⬜ **4.2.7 TYPE_SLICE call-arg 真递归 / 无堆重入 last-wins** soft
+🟡 **4.2.7 TYPE_SLICE call-arg 真递归 / 无堆重入 last-wins** **same-call 闭／超限 soft leave-off**
 
-  - wave406 闭 dual same-call；超出范围仍 last-wins 于静态 temp
+  - dual same-call `take2([1,2],[6,7])` asm／host **7**；nest `take([[1,2]])` **3**（同 call 已闭）
+  - 超出 dual／nest 同 call 的静态 temp last-wins 仍 soft；真递归堆物化后期
 
 ⬜ **4.2.8 AST name 槽 128 字节 layout raise** leave-off
 
@@ -1968,18 +1975,21 @@
   - 当前：seeds/parser_asm_thin_c.from_x.c（~21,935 LOC）仍是冷启动 seed
   - 目标：冷启动可从 pthin_*.x 重建
 
-✅ **7.2.2 parser_gen.c 去 pin**
+🟡 **7.2.2 parser_gen.c 去 pin**（wave325 曾关 pin；**残差回退 pin 权威**）
 
-  - 基建：`scripts/assemble_parser_gen_from_x.py`（tip `-E` + bare→`parser_*` + product struct rename + demangle + init_globals scrub + strip main）
-  - `ensure_migrate_gen parser`：默认 **XLANG_PARSER_FROM_X=1**（wave325 关 pin）；prefer tip assemble；**ALLOW_PIN=1** 保留冷启动 egg 回退
-  - 根修 `.x`：rewind T001（u8／kind as i32）；bare `self` P011 豁免（控制流：trait `function read(self)` 通过）
-  - 验收：双端 L2 绿（macOS arm64 + Ubuntu x86_64 gold @ ubuntu-remote-server）；pure-ld 58／60 + `./xbuild l2-matrix` 5/5
-  - 达标：默认 FROM_X=1 且双端 L2 绿；pin 仅考古 egg
+  - 基建仍在：`scripts/assemble_parser_gen_from_x.py`（tip `-E` + bare→`parser_*` + rename + demangle + scrub）
+  - **产品冷权威（2026-08-17）**：`seeds/parser_gen.linux.x86_64.c` **pin-first**
+    - `ensure_migrate_gen` 默认 **`XLANG_PARSER_FROM_X=0`**
+    - g05 缺 `parser_x.o` 时 **强制 cp pin** 再 `cc`；**禁**默认 tip assemble
+    - tip assemble 仅 **`XLANG_PARSER_FROM_X=1`** 显式 opt-in
+  - 根因：tip `-E` parser.x 丢 surgical seed 叶（generic_bound_scan／dest IF last-dest／region ASI…）→ host-C `return (struct ){` 等假绿脚枪
+  - 手术改 parser 仍须 **seed + parser.x 同 commit**；**禁**全量 assemble parser.x 当冷路径
+  - 验收：mac 毒 gen + `rm parser_x.o` → g05 pin-first · 矩阵 5/5 · dest 闸 0；Ubuntu 同测
 
 ✅ **7.2.3 M3 Stage2 / D-03 验证**
 
   - Stage2 行为一致 + SHA256 match（见 7.1.3）
-  - parser 7.2.2 关 pin ✅（wave325 · 默认 FROM_X=1 · pin 仅考古 egg）
+  - parser 7.2.2：wave325 关 pin 后 **残差 pin-first 回退**（见上）
 
 
 ### 7.3 link_abi mega 去 pin

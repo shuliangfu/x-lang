@@ -1255,24 +1255,33 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
-  # parser_x.o cold path (wave324 M4 7.2.2).
-  # PLATFORM: SHARED — prefer ensure_migrate_gen parser (parser.x -E + assemble)
-  # when a product -E binary exists; archaeology seed only if assemble cannot run.
-  # G.7: do not blind-cp pin over a fresher .x assemble.
+  # parser_x.o cold path (wave324 M4 7.2.2 + residual pin authority).
+  # PLATFORM: SHARED — product authority = seeds/parser_gen.linux.x86_64.c.
+  # Full tip -E assemble of parser.x drops surgical seed leaves (generic_bound_scan,
+  # dest IF last-dest, region ASI, …) and has produced host-C `return (struct ){`.
+  # Default (XLANG_PARSER_FROM_X unset/0): when parser_x.o is missing, always restore
+  # the product pin over any local tip-assemble artifact, then cc. Surgical work must
+  # land in the committed seed (same commit as parser.x); gitignored local gen is not
+  # product authority on cold missing-.o. Tip assemble only with XLANG_PARSER_FROM_X=1.
+  # G.7: one cold path; do not auto-assemble parser.x on every missing .o.
   if [ ! -f parser_x.o ]; then
-    if [ -f scripts/ensure_migrate_gen.sh ]; then
-      echo "g05_ensure: ensure_migrate_gen parser (cold: missing parser_x.o; prefer .x assemble)"
+    if [ "${XLANG_PARSER_FROM_X:-0}" = "1" ] && [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen parser (opt-in XLANG_PARSER_FROM_X=1; tip assemble)"
       bash scripts/ensure_migrate_gen.sh parser \
         || echo "g05_ensure: ensure_migrate_gen parser failed (will try pin/local)" >&2
-    fi
-    if [ ! -s parser_gen.c ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then
+      if [ ! -s parser_gen.c ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then
+        cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+        echo "g05_ensure: parser_gen.c ← product pin seed (opt-in assemble empty → pin)"
+      fi
+    elif [ -f seeds/parser_gen.linux.x86_64.c ]; then
+      # Pin-first cold: wipe stale tip-assemble / drifted gitignored gen.
       cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
-      echo "g05_ensure: parser_gen.c ← archaeology seed (cold egg; no assemble)"
+      echo "g05_ensure: parser_gen.c ← product pin seed (cold missing parser_x.o; no tip assemble)"
     fi
   fi
   if [ -f parser_gen.c ]; then
     if [ ! -f parser_x.o ] || [ parser_gen.c -nt parser_x.o ]; then
-      echo "g05_ensure: cc -c parser_gen.c → parser_x.o (assemble / cold)"
+      echo "g05_ensure: cc -c parser_gen.c → parser_x.o (pin/cold)"
       # shellcheck disable=SC2086
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o parser_x.o parser_gen.c
     fi

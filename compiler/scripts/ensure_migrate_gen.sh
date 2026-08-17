@@ -4,7 +4,7 @@
 #
 # Authority (G.7):
 #   Single implementation of product frontend *_gen.c production for:
-#     parser_gen.c   (wave324 M4 7.2.2: prefer parser.x assemble; pin archaeology)
+#     parser_gen.c   (wave324 M4 7.2.2: pin product authority; tip assemble opt-in)
 #     typeck_gen.c   (wave322 M4 7.4.1: prefer typeck.x assemble; pin archaeology)
 #     codegen_gen.c  (wave323 M4 7.4.2: prefer codegen.x assemble; pin archaeology)
 #     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
@@ -28,8 +28,9 @@
 #   XLANG_TYPECK_ALLOW_PIN=1 — allow seed pin restore / refresh (default 1 for true-cold egg)
 #   XLANG_CODEGEN_FROM_X=1  — force codegen.x assemble path (default prefer when -E works)
 #   XLANG_CODEGEN_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
-#   XLANG_PARSER_FROM_X=1   — tip -E assemble path (default 0: pin still product authority
-#                             until tip matrix green — residual P011 trait bare self)
+#   XLANG_PARSER_FROM_X=1   — tip -E assemble path (default 0: seed pin = product authority)
+#                             Full assemble of parser.x drops surgical seed residuals
+#                             (e.g. generic_bound_scan / dest IF last-dest). Opt-in only.
 #   XLANG_PARSER_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
 #   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 180)
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
@@ -44,8 +45,8 @@
 #   (tip -E + companions); pin seed is archaeology / no-binary egg only.
 # wave323 (G.7 M4 7.4.2): codegen cold path prefer assemble_codegen_gen_from_x
 #   (tip -E + Cap residual); pin seed archaeology only.
-# wave324 (G.7 M4 7.2.2): parser cold path prefer assemble_parser_gen_from_x
-#   (tip -E + product renames + init_globals scrub); pin seed archaeology only.
+# wave324 (G.7 M4 7.2.2): parser assemble path exists (assemble_parser_gen_from_x)
+#   but tip -E is incomplete vs surgical seed; product cold uses pin by default.
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
@@ -61,9 +62,11 @@ XLANG_TYPECK_ALLOW_PIN="${XLANG_TYPECK_ALLOW_PIN:-1}"
 # Prefer codegen.x assemble whenever a product -E binary works (wave323 / 7.4.2).
 XLANG_CODEGEN_FROM_X="${XLANG_CODEGEN_FROM_X:-1}"
 XLANG_CODEGEN_ALLOW_PIN="${XLANG_CODEGEN_ALLOW_PIN:-1}"
-# wave325: tip -E assemble matrix green (scripts/assemble_parser_gen_from_x.py).
-# Close parser cold pin: prefer .x assemble by default; pin only archaeology egg.
-XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-1}"
+# wave325 tried tip -E assemble default; residual waves re-assert pin authority:
+# full parser.x -E + assemble loses seed surgical leaves (generic_bound_scan,
+# dest IF last-dest, region ASI, …). Default FROM_X=0; set 1 only for experiments.
+# PLATFORM: SHARED — same pin seeds on Darwin/Linux; Ubuntu gold must not auto-assemble.
+XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-0}"
 XLANG_PARSER_ALLOW_PIN="${XLANG_PARSER_ALLOW_PIN:-1}"
 XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-180}"
 MODE="${1:-all}"
@@ -254,13 +257,12 @@ ensure_parser_gen() {
   local seed="seeds/parser_gen.linux.x86_64.c"
   local need_assemble=0
 
-  # Prefer .x assemble when:
-  #   FORCE, missing gen, sources newer, contract fail, or FROM_X default
-  #   product authority = parser.x assemble
-  #   pin seed = archaeology / true-cold egg only
-  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+  # Product authority = seeds/parser_gen.linux.x86_64.c (surgical pin).
+  # Tip assemble (FROM_X=1) is opt-in only: full parser.x -E drops seed leaves.
+  # PLATFORM: SHARED — pin-first cold; Ubuntu gold must not auto-assemble parser.x.
+  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ] && [ "$XLANG_PARSER_FROM_X" = "1" ]; then
     need_assemble=1
-  elif [ ! -s parser_gen.c ]; then
+  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && [ ! -s parser_gen.c ]; then
     need_assemble=1
   elif [ "$XLANG_PARSER_FROM_X" = "1" ] && parser_x_sources_newer_than_gen; then
     need_assemble=1
@@ -281,27 +283,29 @@ ensure_parser_gen() {
           exit 1
         fi
       else
-        log "parser_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+        log "parser_gen.c: tip assemble unavailable; try local/pin (product pin authority)"
       fi
     fi
   fi
 
+  # Default cold / missing gen: restore product pin (not tip assemble).
   if [ ! -s parser_gen.c ]; then
     if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
       cp -f "$seed" parser_gen.c
-      log "parser_gen.c: restored archaeology seed $seed (no -E binary; true-cold egg)"
+      log "parser_gen.c: restored product pin $seed (FROM_X=${XLANG_PARSER_FROM_X}; pin authority)"
     else
-      log "parser_gen.c: FAIL no assemble and no archaeology seed"
+      log "parser_gen.c: FAIL no assemble and no product pin seed"
       exit 1
     fi
   fi
 
-  # Stale local gen: refresh from seed only when assemble path not authority.
+  # Stale / broken local gen: refresh from seed when pin is authority (default),
+  # or when an assemble artifact fails the product contract.
   if [ "$XLANG_PARSER_FROM_X" != "1" ] || ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
     if ! parser_gen_contract_ok parser_gen.c; then
       if seed_ok "$seed" && parser_gen_contract_ok "$seed"; then
         cp -f "$seed" parser_gen.c
-        log "parser_gen.c: local failed contract → archaeology seed"
+        log "parser_gen.c: local failed contract → product pin seed"
       fi
     fi
   fi
