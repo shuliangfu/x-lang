@@ -13233,10 +13233,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * wave454: do NOT pass field-result ambient (return_type_ref) into base.
      * For CALL/METHOD_CALL bases, reverse-infer unique owner struct from field
      * name so bare ret-only generics get the right expected.
+     * STRUCT_LIT join (pin-seed array→slice lit path): anonymous
+     * `{ xs: [10,32] }.xs` has no type name; reverse-infer unique layout so
+     * base stamps TYPE_NAMED and field type is [N]T for array_to_slice_ok.
+     * EXPR_STRUCT_LIT ord = 45. PLATFORM: SHARED.
      */
     base_expected = 0;
     base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
-    if (base_kind == ord_call || base_kind == ord_method_call) {
+    if (base_kind == ord_call || base_kind == ord_method_call || base_kind == 45) {
       base_expected = typeck_field_reverse_infer_base_type(module, arena, expr_ref,
       return_type_ref);
     }

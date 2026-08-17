@@ -6807,6 +6807,39 @@ int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind) {
   }
   return 0;
 }
+/*
+ * PLATFORM: SHARED — pin-seed twin of typeck.x typeck_array_to_slice_ok (G.7).
+ * True when src is T[N] (TYPE_ARRAY=10) and dest is T[] (TYPE_SLICE=11) with
+ * equal element types. Return / assign / cast accept without stamping SLICE
+ * so emit wrap keys off TYPE_ARRAY. Pin-first migrate must own this; typeck.x
+ * alone left product pin path false-red on ret_array_as_slice / asg_array_as_slice.
+ */
+int32_t typeck_array_to_slice_ok(struct ast_ASTArena * arena, int32_t src_ty, int32_t dest_ty) {
+  int32_t se = 0;
+  int32_t de = 0;
+  if ((ast_ref_is_null(src_ty) || ast_ref_is_null(dest_ty))) {
+    return 0;
+  }
+  if (((src_ty <=0) || (dest_ty <=0))) {
+    return 0;
+  }
+  /* dest must be TYPE_SLICE (11); src must be TYPE_ARRAY (10). */
+  if ((pipeline_type_kind_ord_at(arena, dest_ty) !=11)) {
+    return 0;
+  }
+  if ((pipeline_type_kind_ord_at(arena, src_ty) !=10)) {
+    return 0;
+  }
+  (void)((se = pipeline_type_elem_ref_at(arena, src_ty)));
+  (void)((de = pipeline_type_elem_ref_at(arena, dest_ty)));
+  if ((ast_ref_is_null(se) || ast_ref_is_null(de))) {
+    return 0;
+  }
+  if (!(typeck_type_refs_equal(arena, se, de))) {
+    return 0;
+  }
+  return 1;
+}
 int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
   {
     int32_t got = typeck_expr_type_ref(arena, op_ref);
@@ -6835,6 +6868,13 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
       return 1;
     }
     if (typeck_float_widen_ok(expect_kind, got_kind)) {
+      return 1;
+    }
+    /*
+     * [N]T → []T: accept, do not stamp. emit_return / asm Path B0 wrap the
+     * still-TYPE_ARRAY operand into a fat pair. G.7 ≡ typeck.x. PLATFORM: SHARED.
+     */
+    if ((typeck_array_to_slice_ok(arena, got, expect_ref) !=0)) {
       return 1;
     }
     int32_t ord_linear = 12;
@@ -8364,7 +8404,8 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
       if ((!(typeck_type_refs_equal(arena, lt, rt)) && (ptr_compound_offset_ok ==0))) {
         (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
         int32_t rt_kind_mis = pipeline_type_kind_ord_at(arena, rt);
-        if (!(typeck_float_widen_ok(lt_kind, rt_kind_mis))) {
+        /* [N]T → []T: accept without stamping (emit assign wrap keys off ARRAY). G.7 ≡ typeck.x. */
+        if ((!(typeck_float_widen_ok(lt_kind, rt_kind_mis)) && (typeck_array_to_slice_ok(arena, rt, lt) ==0))) {
           (void)((eb = driver_typeck_diag_scratch_expect()));
           (void)((gb = driver_typeck_diag_scratch_found()));
           (void)((el = typeck_diag_fmt_type_into(arena, lt, eb, 96)));
@@ -10769,7 +10810,14 @@ int32_t typeck_check_expr_field_access(struct ast_Module * module, struct ast_AS
     }
     (void)((base_expected = 0));
     (void)((base_kind = pipeline_expr_kind_ord_at(arena, base_ref)));
-    if (((base_kind ==ord_call) || (base_kind ==ord_method_call))) {
+    /*
+     * CALL/METHOD_CALL and anonymous STRUCT_LIT bases: reverse-infer unique
+     * owner layout from field name so `{ xs: [10,32] }.xs` / bare ret-only
+     * generics stamp the base and field type. G.7 complete same authority
+     * as typeck.x (STRUCT_LIT join for pin-seed array→slice lit path).
+     * EXPR_STRUCT_LIT ord = 45. PLATFORM: SHARED typeck pin seed.
+     */
+    if ((((base_kind ==ord_call) || (base_kind ==ord_method_call)) || (base_kind ==45))) {
       (void)((base_expected = typeck_field_reverse_infer_base_type(module, arena, expr_ref, return_type_ref)));
     }
     if ((pipeline_typeck_check_expr_c(module, arena, base_ref, base_expected, ctx) !=0)) {
@@ -11453,6 +11501,20 @@ int32_t typeck_as_cast_allowed(struct ast_Module * module, struct ast_ASTArena *
     }
     if ((ast_ref_is_null(src_ty) || ast_ref_is_null(tgt_ty))) {
       return 0;
+    }
+    /*
+     * `[N]T as []T` before class_ok rejects aggregates. G.7 ≡ typeck.x
+     * typeck_as_cast_allowed. Do not stamp operand (emit wrap keys off ARRAY).
+     * PLATFORM: SHARED typeck pin seed.
+     */
+    if ((typeck_array_to_slice_ok(arena, src_ty, tgt_ty) !=0)) {
+      return 1;
+    }
+    if (typeck_type_refs_equal(arena, src_ty, tgt_ty)) {
+      int32_t sk0 = pipeline_type_kind_ord_at(arena, src_ty);
+      if (((sk0 ==10) || (sk0 ==11))) {
+        return 1;
+      }
     }
     if (((typeck_as_cast_type_class_ok(module, arena, src_ty) ==0) || (typeck_as_cast_type_class_ok(module, arena, tgt_ty) ==0))) {
       return 0;
