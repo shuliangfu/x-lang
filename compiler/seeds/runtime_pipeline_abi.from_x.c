@@ -14186,6 +14186,9 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
       if (fs > 16)
         stack_pos = fs;
     }
+    /* PLATFORM: MACOS|ARM64 — skip 16B x19 save; incoming stack args at request+16.
+     * Twin of pipeline_abi.x param_home AAPCS64 stack_pos += 16. */
+    stack_pos += 16;
     for (i = 0; i < np; i++) {
       int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
       int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);

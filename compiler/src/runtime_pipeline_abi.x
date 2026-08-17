@@ -33362,6 +33362,12 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       stack_pos = fs;
     }
   }
+  // PLATFORM: MACOS|ARM64 — enc_prologue parks callee-saved x19 at
+  // [sp,#aligned_request] and grows the frame by 16. Incoming stack
+  // arguments sit at [x29,#aligned_request+16], not in the x19 slot.
+  // Pre-grow `fs` (historical) homes the 9th formal from leftover x19
+  // (dest-shadow = 4) → append_std_objs `str w0,[x1]` EXC_BAD_ACCESS.
+  stack_pos = stack_pos + 16;
   i = 0;
   while (i < np) {
     unsafe {
