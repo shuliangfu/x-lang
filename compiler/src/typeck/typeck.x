@@ -9632,9 +9632,6 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (typeck_check_scope_borrow_assign(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
       return - 1;
     }
-    if (typeck_check_allocator_region_assign(module, arena, expr_ref, left_ref, ctx) != 0) {
-      return - 1;
-    }
     let lt: i32 = 0;
     let rt: i32 = 0;
     let rt_after: i32 = 0;
@@ -9669,6 +9666,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * lt as RHS expected (below). PLATFORM: SHARED.
      */
     if (check_expr(module, arena, left_ref, 0, ctx) != 0) {
+      return - 1;
+    }
+    /*
+     * AL-04 assign after LHS is typed so resolved/let type is visible.
+     * Before check_expr(left) the decl type scan was a miss and the
+     * conservative unknown-type reject fired on scalar `k = 1`.
+     * G.7: same authority, just after the stamp. PLATFORM: SHARED.
+     */
+    if (typeck_check_allocator_region_assign(module, arena, expr_ref, left_ref, ctx) != 0) {
       return - 1;
     }
     /*
@@ -12201,8 +12207,11 @@ function typeck_type_is_allocator_struct(arena: *ASTArena, ty_ref: i32): i32 {
 }
 
 /**
- * MEM-C1 AL-04 assign gate: forbid writing arena-region values into outer vars
- * while inside with_arena (allocator region escape).
+ * MEM-C1 AL-04 assign gate: forbid writing Allocator-typed values into outer
+ * vars while inside with_arena (allocator region escape).
+ * Scalar outer writes (`k = 1` dest extra-arm / function-body) are not
+ * allocator-region values — same cut as the return gate, which only rejects
+ * TYPE_NAMED Allocator. Unknown / missing decl type stays conservative.
  * wave237 G.7 pure leave: was Cap residual pipeline_typeck_check_allocator_region_assign_c.
  * @param module *Module
  * @param arena *ASTArena
@@ -12225,6 +12234,13 @@ left_ref: i32, ctx: *PipelineDepCtx): i32 {
     let col: i32 = 0;
     let msg: u8[28] = [];
     let p: i32 = 0;
+    let i: i32 = 0;
+    let nl: i32 = 0;
+    let nlen: i32 = 0;
+    let lhs_ty: i32 = 0;
+    let right_ref: i32 = 0;
+    let rhs_kind: i32 = 0;
+    let nm: u8[64] = [];
     if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || left_ref <= 0) {
       return 0;
     }
@@ -12253,6 +12269,42 @@ left_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     /* LHS must be an outer ancestor of the with_arena body to count as escape. */
     if (typeck_block_is_strict_ancestor(arena, lblock, wa_body) == 0) {
+      return 0;
+    }
+    /*
+     * AL-04 assign = Allocator-typed outer write only (G.7 complete;
+     * same as typeck_check_allocator_region_return). An integer /
+     * bool literal RHS cannot be an Allocator value — dest extra-arm
+     * `k = 1` and function-body `k = 1` take this arm. EXPR_LIT=0.
+     * Then prefer the LHS resolved type; scan decl-block lets if
+     * empty. Known non-Allocator → allow. Missing type keeps the
+     * historical reject (conservative).
+     * PLATFORM: SHARED — with_arena assign; dest extra-arm k=1.
+     */
+    right_ref = pipeline_expr_binop_right_ref_at(arena, site_expr_ref);
+    if (right_ref > 0) {
+      rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
+      if (rhs_kind == 0) {
+        return 0;
+      }
+    }
+    lhs_ty = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (lhs_ty <= 0) {
+      nl = ast.ast_block_num_lets(arena, lblock);
+      i = 0;
+      while (i < nl) {
+        nlen = pipeline_block_let_name_len(arena, lblock, i);
+        if (nlen == llen && nlen > 0 && nlen < 64) {
+          pipeline_block_let_name_copy64(arena, lblock, i, &nm[0]);
+          if (name_equal(&nm[0], nlen, &lname[0], llen)) {
+            lhs_ty = pipeline_block_let_type_ref(arena, lblock, i);
+            i = nl;
+          }
+        }
+        i = i + 1;
+      }
+    }
+    if (lhs_ty > 0 && typeck_type_is_allocator_struct(arena, lhs_ty) == 0) {
       return 0;
     }
     typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
