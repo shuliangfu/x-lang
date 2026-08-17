@@ -1840,6 +1840,22 @@ rt_prefer_try_x_to_o() {
   # Historic product path: -E → prologue → $CC -c.
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
+  # F1-2026-08-18: XLANG_PREGEN_E_C=<path> reuses a pre-generated -E dump instead
+  # of running the (OOM-prone) -E step here. Use case: mega runtime_pipeline_abi.x
+  # -E peaks 22-40GB RSS (fat AST nodes x GrowVec doubling) and dev-box jetsam
+  # kills it ~24GB; a big-RAM host (Ubuntu gold, 61GB) runs the bare -E and the
+  # artifact is transferred back. Downstream post-processing (weak rename,
+  # prologue, cc flags) stays in THIS function — single authority, G.7.
+  # PLATFORM: SHARED harness
+  if [ -n "${XLANG_PREGEN_E_C:-}" ]; then
+    if [ -s "$XLANG_PREGEN_E_C" ]; then
+      cat "$XLANG_PREGEN_E_C" > "$_xtmp"
+    else
+      echo "rt_prefer_try_x_to_o: XLANG_PREGEN_E_C set but empty/missing: $XLANG_PREGEN_E_C" >&2
+      rm -f "$_xtmp"
+      return 1
+    fi
+  else
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。
   # Ubuntu 主机偶发 -E SIGSEGV：最多 5 次重试（对齐 prove harness b12bf000）。
   # PLATFORM: SHARED harness
@@ -1860,6 +1876,7 @@ rt_prefer_try_x_to_o() {
   if [ "$_e_ok" != "1" ]; then
     rm -f "$_xtmp"
     return 1
+  fi
   fi
   if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
     # Named weak only (G.7 有则补全 on rt_prefer harness).

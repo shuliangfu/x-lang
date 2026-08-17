@@ -512,8 +512,11 @@ pure_asm_x_to_o() {
   # PLATFORM: SHARED — pipeline_abi mega product pure-asm skip (Cap residual gap).
   # Opaque U surface closed (WEAK on driver_abi bag); ban is monofile completeness,
   # not hang. Instant skip so ensure never pays pure-asm wall then hybrid.
+  # F1-2026-08-18: XLANG_PABI_ALLOW_PURE_ASM=1 opts in pure-asm THIN only (never
+  # monofile-as-.o): dev-box mega -E OOMs (~22GB jetsam on 64GB); thin+rest merge
+  # stays hybrid-complete (rest owns Cap residual; first-wins keeps .x authority).
   _bn="$(basename "$src")"
-  if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
+  if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
   # Optional single-slice / allow-list gate for hybrid ABI bisect.

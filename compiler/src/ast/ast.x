@@ -39,7 +39,10 @@ export enum TypeKind {
   TYPE_VECTOR,
   TYPE_F32,
   TYPE_F64,
-  TYPE_VOID
+  TYPE_VOID,
+  /* TYPE_DYN: fat trait object {data*, vtable*} (ord 17). Append-only after
+   * TYPE_VOID so existing 0..16 ordinals stay stable. PLATFORM: SHARED. */
+  TYPE_DYN
 }
 
 /* See implementation. */

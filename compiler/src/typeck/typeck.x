@@ -1032,7 +1032,7 @@ export extern function pipeline_module_top_level_let_is_const(module: *Module, i
 export function type_kind_ordinal(k: TypeKind): i32 {
   let o: i32 = k as i32;
   let lo: i32 = TypeKind.TYPE_I32 as i32;
-  let hi: i32 = TypeKind.TYPE_VOID as i32;
+  let hi: i32 = TypeKind.TYPE_DYN as i32;
   if (o < lo) {
     return - 1;
   }
@@ -4842,14 +4842,16 @@ field_name: *u8, field_name_len: i32): i32 {
  * PLATFORM: SHARED — BSS process-local; invalidate when arena pointer changes.
  */
 let g_typeck_prim_arena: *u8 = 0 as *u8;
-let g_typeck_prim_ref: i32[17] = [];
+/* [18]: slots 0..17 — TYPE_DYN (17) accepted since the TYPE_DYN foundation
+ * wave widened the kind_ord gate; keeps the BSS cache in range (no OOB). */
+let g_typeck_prim_ref: i32[18] = [];
 
 /**
  * Ensure a primitive type slot exists for kind_ord in arena; return its ref.
  * Stage12.0.5 wall slim: BSS cache per arena + scan without named_name_into
  * (primitives never carry names; prior scan paid name_into on every kind hit).
  * @param arena *ASTArena — type pool
- * @param kind_ord i32 — TypeKind ordinal in [0,16] (i32=0 … void=16)
+ * @param kind_ord i32 — TypeKind ordinal in [0,17] (i32=0 … dyn=17)
  * @return i32 — type_ref > 0, or 0 on null/alloc/init failure
  * PLATFORM: SHARED freestanding typeck type-pool.
  */
@@ -4862,7 +4864,7 @@ export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: 
     let asz: i32 = 0;
     let a_u8: *u8 = 0 as *u8;
     let ci: i32 = 0;
-    if (arena == 0 as *ASTArena || kind_ord < 0 || kind_ord > 16) {
+    if (arena == 0 as *ASTArena || kind_ord < 0 || kind_ord > 17) {
       return 0;
     }
     a_u8 = arena as *u8;
@@ -4870,7 +4872,7 @@ export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: 
     if (g_typeck_prim_arena != a_u8) {
       g_typeck_prim_arena = a_u8;
       ci = 0;
-      while (ci <= 16) {
+      while (ci <= 17) {
         g_typeck_prim_ref[ci] = 0;
         ci = ci + 1;
       }

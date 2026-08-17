@@ -15340,6 +15340,11 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   if (tk == 12 && elem_ref > 0) {
     return pipeline_codegen_type_to_c_repr(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
   }
+  // TYPE_DYN (17): fat trait object {data*, vtable*} — not incomplete struct Trait.
+  // PLATFORM: SHARED host-C. G.7: same authority; empty-struct Trait paint banned.
+  if (tk == 17) {
+    return cg_ttc_write_bytes(scratch, cap, "struct xlang_dyn_obj", 20);
+  }
   // TYPE_SLICE (11): struct xlang_slice_<elemC> (strip leading "struct ")
   if (tk == 11 && elem_ref > 0) {
     let n: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 896, elem_ref, struct_prefix, struct_prefix_len);

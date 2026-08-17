@@ -153,6 +153,11 @@ const char *const driver_preamble_io_net_lines[] = {
          * { struct xlang_slice×6 + elem *data; size_t length; }.
          * wave698: seven-level nested [][][][][][][][]T → struct xlang_slice×8 + elem
          * { struct xlang_slice×7 + elem *data; size_t length; }. */
+        /* TYPE_DYN fat layout — ≡ codegen emit_header. PLATFORM: SHARED. */
+        "#ifndef XLANG_DYN_OBJ\n"
+        "#define XLANG_DYN_OBJ\n"
+        "struct xlang_dyn_obj { void *data; void *vtable; };\n"
+        "#endif\n"
         "#ifndef XLANG_SLICE_LAYOUTS\n"
         "#define XLANG_SLICE_LAYOUTS\n"
         "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n"

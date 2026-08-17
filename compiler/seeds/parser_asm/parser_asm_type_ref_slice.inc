@@ -77,7 +77,10 @@ enum {
   PARSER_ASM_TYPE_VECTOR = 13,
   PARSER_ASM_TYPE_F32 = 14,
   PARSER_ASM_TYPE_F64 = 15,
-  PARSER_ASM_TYPE_VOID = 16
+  PARSER_ASM_TYPE_VOID = 16,
+  /* TYPE_DYN fat trait object {data*, vtable*} — append after VOID (ord 17).
+   * PLATFORM: SHARED type grammar. G.7 ≡ ast.x TypeKind. */
+  PARSER_ASM_TYPE_DYN = 17
 };
 
 extern int32_t ast_ast_arena_type_alloc(void *arena);
@@ -544,16 +547,54 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
    * dropped main → P001 no functions). Keyword `impl` as a type prefix
    * (`x: impl Clone`) returned 0 the same way (TOKEN_IMPL is not a type).
    *
-   * Peel the prefix and parse the following type. No TOKEN_DYN (docs/01
-   * does not list dyn as a keyword) and no TYPE_DYN / vtable this leaf —
-   * the existing TYPE_NAMED trait path (`x: Clone`) is the consumer.
-   * Bare `dyn` (no following type) stays TYPE_NAMED "dyn".
+   * Peel the prefix and parse the following type. No TOKEN_DYN keyword
+   * (docs/01; same IDENT shape as `mut`).
+   *
+   * TYPE_DYN wave (foundation leaf):
+   *   - `dyn Trait` → TYPE_DYN (ord 17) wrapping the trait type_ref (elem).
+   *     Host-C emits `struct xlang_dyn_obj` fat {data*, vtable*} — not
+   *     incomplete `struct Trait` (empty-struct paint ban).
+   *   - `impl Trait` stays peeled TYPE_NAMED trait (static path; not fat).
+   *   - Bare `dyn` (no following type) stays TYPE_NAMED "dyn".
+   * Vtable dispatch / concrete→dyn coerce = later leaves.
    * PLATFORM: SHARED type grammar.
    */
-  if (parser_asm_type_ref_ident_is_dyn_c(source, &r) || r.tok.kind == (int32_t)TOKEN_IMPL) {
+  if (parser_asm_type_ref_ident_is_dyn_c(source, &r)) {
     struct parser_asm_lexer_result peek_pref;
+    int32_t inner_tr;
+    int32_t dyn_tr;
+    struct ast_Type td;
+    struct ast_Type ti;
+    int32_t ni;
     lexer_next_into(&peek_pref, r.next_lex, source);
-    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind))
+    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind)) {
+      inner_tr = parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
+      if (inner_tr == 0)
+        return 0;
+      dyn_tr = ast_ast_arena_type_alloc(arena);
+      if (dyn_tr == 0)
+        return 0;
+      td = ast_arena_type_get(arena, dyn_tr);
+      td.kind = PARSER_ASM_TYPE_DYN;
+      td.elem_type_ref = inner_tr;
+      td.array_size = 0;
+      td.region_label_len = 0;
+      td.name_len = 0;
+      /* Carry trait name for diagnostics; layout is fat, not the trait body. */
+      ti = ast_arena_type_get(arena, inner_tr);
+      if ((int32_t)ti.kind == PARSER_ASM_TYPE_NAMED && ti.name_len > 0 && ti.name_len < 128) {
+        for (ni = 0; ni < ti.name_len; ni++)
+          td.name[ni] = ti.name[ni];
+        td.name_len = ti.name_len;
+      }
+      ast_arena_type_set(arena, dyn_tr, td);
+      return dyn_tr;
+    }
+  }
+  if (r.tok.kind == (int32_t)TOKEN_IMPL) {
+    struct parser_asm_lexer_result peek_impl;
+    lexer_next_into(&peek_impl, r.next_lex, source);
+    if (parser_asm_type_ref_token_starts_type_c(peek_impl.tok.kind))
       return parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
   }
   if (r.tok.kind == (int32_t)TOKEN_STAR) {

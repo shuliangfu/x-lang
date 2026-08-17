@@ -21633,6 +21633,26 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
     if (codegen_emit_vector_typedefs(out) != 0) {
       return -1;
     }
+    /*
+     * TYPE_DYN fat layout (foundation leaf). Host-C formals/locals of
+     * `dyn Trait` lower as `struct xlang_dyn_obj` — not incomplete
+     * `struct Trait` (empty-struct paint ban). Vtable dispatch later.
+     * 103 bytes total (exact). PLATFORM: SHARED host-C.
+     * G.7: emit_header + type_to_c_repr.
+     */
+    /* #ifndef XLANG_DYN_OBJ\n#define XLANG_DYN_OBJ\nstruct xlang_dyn_obj { void *data; void *vtable; };\n#endif\n */
+    let gd: u8[103] = [
+      35, 105, 102, 110, 100, 101, 102, 32, 88, 76, 65, 78, 71, 95, 68, 89,
+      78, 95, 79, 66, 74, 10, 35, 100, 101, 102, 105, 110, 101, 32, 88, 76,
+      65, 78, 71, 95, 68, 89, 78, 95, 79, 66, 74, 10, 115, 116, 114, 117,
+      99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106,
+      32, 123, 32, 118, 111, 105, 100, 32, 42, 100, 97, 116, 97, 59, 32, 118,
+      111, 105, 100, 32, 42, 118, 116, 97, 98, 108, 101, 59, 32, 125, 59, 10,
+      35, 101, 110, 100, 105, 102, 10
+    ];
+    if (emit_bytes_from_ptr(out, &gd[0], 103) != 0) {
+      return -1;
+    }
     /* #ifndef XLANG_SLICE_LAYOUTS\n#define XLANG_SLICE_LAYOUTS\n */
     let g0: u8[64] = [35, 105, 102, 110, 100, 101, 102, 32, 88, 76, 65, 78, 71, 95, 83, 76, 73, 67, 69, 95, 76, 65, 89, 79, 85, 84, 83, 10,
       35, 100, 101, 102, 105, 110, 101, 32, 88, 76, 65, 78, 71, 95, 83, 76, 73, 67, 69, 95, 76, 65, 89, 79, 85, 84, 83, 10, 0];

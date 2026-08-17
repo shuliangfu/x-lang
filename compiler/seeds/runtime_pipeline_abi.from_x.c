@@ -6128,6 +6128,15 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
   }
   if (tk == 12 && elem_ref > 0)
     return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+  /* TYPE_DYN (17): fat trait object — ≡ runtime_pipeline_abi.x. PLATFORM: SHARED cold twin. */
+  if (tk == 17) {
+    static const uint8_t k_dyn[20] = {'s', 't', 'r', 'u', 'c', 't', ' ', 'x', 'l', 'a', 'n', 'g', '_', 'd', 'y', 'n', '_', 'o', 'b', 'j'};
+    if (cap < 20)
+      return -1;
+    for (j = 0; j < 20; j++)
+      scratch[j] = k_dyn[j];
+    return 20;
+  }
   if (tk == 11 && elem_ref > 0) {
     n = pipeline_codegen_type_to_c_repr_inner(arena, eb, 256, elem_ref, struct_prefix, struct_prefix_len);
     if (n < 0 || n >= 256)
