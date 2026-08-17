@@ -24871,6 +24871,14 @@ export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8
  * is already green via body_sync. G.7: same jmp/label
  * emit as block_body_sync. Do not body_sync the whole
  * arm. Do not change block_body.
+ * dest extra-arm `defer { k = 1 }; dest` used to keep dest
+ * and drop the defer (asm leftover 71). parse_block
+ * TOKEN_DEFER only appends the defer pool (no stmt_order
+ * kind). Prefix so_k 2..7 never sees it. Frame dest extra
+ * defer is already green via body_sync
+ * (`glue_emit_run_language_defers_elf` before final_expr).
+ * G.7: same language-defer emit on the extra-arm block
+ * before dest emit. Do not invent a so_k handler.
  * dest-in-rbx IF of ARRAY_LIT `*p = if (c) { [w] } else { [y] }`
  * peels to ARRAY_LIT (ko==46). dest-in-rbx STRUCT_LIT is ko==45;
  * struct let-init of ARRAY_LIT returns -2 → CG002 `.Lf0_1`.
@@ -24916,6 +24924,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let dest_from_region: i32 = 0;
   let dest_fin: i32 = 0;
   let prefix_lim: i32 = 0;
+  let defer_br: i32 = 0;
   let gt_buf: u8[128] = [];
   let lb_buf: u8[128] = [];
   let gt_len: i32 = 0;
@@ -24948,6 +24957,12 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
       }
       if (br <= 0) {
         return 0 - 1;
+      }
+      /* First extra-arm block owns the defer pool. dest-from-region
+       * later overwrites br with the dest region body.
+       * PLATFORM: SHARED dest extra-arm defer. */
+      if (defer_br == 0) {
+        defer_br = br;
       }
     }
     have_br = 0;
@@ -25262,6 +25277,33 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
     rc = rc + 1;
   }
   rc = 0;
+  /* dest extra-arm `defer { k = 1 }; dest`. Defer lives only
+   * in the extra-arm defer pool (no stmt_order). Frame dest
+   * extra defer already runs this helper via body_sync.
+   * G.7: same helper, before dest emit (body_sync runs
+   * language defers before final_expr). Restore dest after
+   * the defer body (it clobbers rbx/x19).
+   * PLATFORM: SHARED dest extra-arm defer · LINUX gold. */
+  if (defer_br > 0) {
+    extra = glue_emit_run_language_defers_elf(arena, elf_ctx, defer_br, ctx, ta);
+    if (extra != 0) {
+      return 0 - 1;
+    }
+    if (dest_spill >= 0 && (ta == 0 || ta == 1)) {
+      unsafe {
+        extra = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+      }
+      if (extra != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        extra = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (extra != 0) {
+        return 0 - 1;
+      }
+    }
+  }
   /* dest-in-rbx IF of ARRAY_LIT. Peel yields ARRAY_LIT (46);
    * dest-in-rbx STRUCT_LIT (45) does not apply. dest is live in
    * rbx/x19 after dest restore. G.7: dest-in-rbx ARRAY_LIT
