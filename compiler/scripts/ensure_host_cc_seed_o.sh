@@ -1111,6 +1111,16 @@ try_ensure_r1_one() {
     echo "ensure_host_cc_seed_o try-r1: need <out.o>" >&2
     exit 2
   fi
+  # sat -B + XLANG_G05_PREFER_X_O=0 used to cold-cc the mega seed
+  # (seeds/runtime_link_abi.from_x.c `#ifndef FROM_X`) and wipe prefer
+  # labi_*.x slices. Route like pipeline_abi: single body
+  # ensure_labi_prefer_one (FROM_X default 1 still hybrids). Do **not**
+  # gate on G05_PREFER=1. G.7: no second labi builder.
+  # PLATFORM: SHARED — sat try-r1 + g05 try-labi-prefer share one body.
+  if [ "$o" = "src/runtime_link_abi.o" ]; then
+    ensure_labi_prefer_one "$o" || return 1
+    return 0
+  fi
   # wave176 / L4: pipeline_abi always routes through ensure_pipeline_abi_prefer_one
   # (hybrid when egg exists; cold seed last resort). Do **not** gate on PREFER=1 —
   # sat rebuild sets PREFER=0 and would otherwise cold-cc the broken full seed and
@@ -1460,7 +1470,8 @@ ensure_r3_prefer() {
 #   rest = seeds/runtime_link_abi.from_x.c with XLANG_LABI_*_FROM_X for ok layers
 #   merge: $CC -r -nostdlib slices + rest → OUT
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold full seed (same as core-seed).
-# Callers: g05_ensure (wave765) · Makefile src/runtime_link_abi.o (unified).
+# Callers: g05_ensure (wave765) · Makefile src/runtime_link_abi.o (unified)
+#   · sat try-r1 (same body; no mega `#ifndef` wipe).
 # Exit codes:
 #   0 — OUT is runtime_link_abi.o; prefer or cold body produced OUT
 #   3 — OUT is not src/runtime_link_abi.o
