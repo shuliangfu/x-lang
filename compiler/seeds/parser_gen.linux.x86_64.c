@@ -3157,6 +3157,32 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           (void)(((out->ok) = 0));
           return;
         }
+        /* dest wrap IF dest: MATCH extra-arm last dest is IF dest.
+         * TOKEN_MATCH last dest is already final_expr; TOKEN_IF
+         * always appended if-stmt (dest-in-rbx CG002, host-C void).
+         * G.7: last dest (kind 85 RBRACE or 95 `;` then 85) reuses
+         * parse_if_expr_into (same as `*p = if`). Mid-block if-stmt
+         * stays if-stmt. parse_if_expr_into fail falls back.
+         * PLATFORM: SHARED dest wrap IF dest. Do not assemble parser.x. */
+        (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
+        (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
+        if ((((rpeek_fe.tok).kind) ==95)) {
+          struct lexer_LexerResult rpeek_if2 = (struct lexer_LexerResult){ .next_lex = (rpeek_fe.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          (void)(lexer_next_into(&(rpeek_if2), (rpeek_fe.next_lex), source));
+          if ((((rpeek_if2.tok).kind) ==85)) {
+            (void)((rpeek_fe = rpeek_if2));
+          }
+        }
+        if ((((rpeek_fe.tok).kind) ==85)) {
+          struct parser_ParseExprResult if_dest_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = if_start };
+          (void)(parser_parse_if_expr_into(arena, if_start, source, type_ref, &(if_dest_res)));
+          if ((if_dest_res.ok)) {
+            (void)(((b.final_expr_ref) = (if_dest_res.expr_ref)));
+            (void)(ast_ast_arena_block_set(arena, block_ref, b));
+            (void)((r = rpeek_fe));
+            break;
+          }
+        }
         int32_t if_pool_i = pipeline_block_append_if(arena, block_ref, if_cond, if_then, if_else);
         if ((if_pool_i < 0)) {
           (void)(((out->ok) = 0));

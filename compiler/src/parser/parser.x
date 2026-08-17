@@ -3128,6 +3128,36 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
+      /**
+       * dest wrap IF dest: MATCH extra-arm last dest is IF dest
+       * (`{ if (c) { dest } else { y } }`). TOKEN_MATCH last dest is
+       * already final_expr; TOKEN_IF always appended if-stmt, so
+       * dest-in-rbx peel missed dest (CG002 `.Lf0_2`) and host-C GNU
+       * stmt-expr was void assigned to dest. G.7: last dest (RBRACE
+       * or `;` then RBRACE) reuses parse_if_expr_into (same as
+       * `*p = if`). Mid-block `if (c) { k = 1 }; dest` stays if-stmt.
+       * parse_if_expr_into fail (no else) falls back to if-stmt.
+       * PLATFORM: SHARED dest wrap IF dest. Do not assemble parser.x.
+       */
+      rpeek_fe = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+      lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
+      if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        let rpeek_if2: LexerResult = { next_lex: rpeek_fe.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        lexer.lexer_next_into(&rpeek_if2, rpeek_fe.next_lex, source);
+        if (rpeek_if2.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+          rpeek_fe = rpeek_if2;
+        }
+      }
+      if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+        let if_dest_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: if_start };
+        parse_if_expr_into(arena, if_start, source, type_ref, &if_dest_res);
+        if (if_dest_res.ok) {
+          b.final_expr_ref = if_dest_res.expr_ref;
+          ast.ast_arena_block_set(arena, block_ref, b);
+          r = rpeek_fe;
+          break;
+        }
+      }
       let if_pool_i: i32 = pipeline_block_append_if(arena, block_ref, if_cond, if_then, if_else);
       if (if_pool_i < 0) {
         out.ok = false;
@@ -3138,11 +3168,6 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
-      /**
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       */
       stmt_tok_ready = false;
       continue;
     }
