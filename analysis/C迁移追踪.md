@@ -1788,7 +1788,7 @@
 
   - 现场：`*p = match tag { 1 => { unsafe { defer { m = 1 }; with_arena(64) { dest } } } }` asm／xlang-c **0**。host-C `-E`+cc：GNU stmt-expr 末值 `(m=1)` 赋 `struct Wrap`（ternary 与 `y` 类型也不合）
   - **根修（G.7 有则补全）**：产生点＝`codegen.x emit_block`。dest-from-region 最后 so_k==6 是 dest（无 final_expr）；`emit_run_defers` 在 dest 之后跑，末值变成 defer。补同一权威：无 final_expr 且末条 so_k==6 时先跑 wrapping defer，再发 dest。assemble codegen.x；**禁** mega／assemble parser.x
-  - 闸：`tests/boundary/dest_region_semi.x` 补 MATCH＋IF＋field-bind＋无分号 dest-from-region intermediate leftover 112–123 isolate／asm／host-C／xlang-c **0**
+  - 闸：`tests/boundary/dest_fromreg_mid_semi.x` MATCH＋IF＋field-bind＋无分号 leftover 112–123 isolate／asm／host-C／xlang-c **0**。`dest_region_semi` 大 main 叠 112+ Ubuntu dest-park **139**（另文件；70–111 仍 0）
   - 余（勿并本叶）：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
 
 ---
