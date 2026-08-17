@@ -22467,12 +22467,17 @@ export function glue_wa_scope_alloc_off_c(ctx: *u8): i32 {
   let off: i32 = g_pipe_wa_temp_base + g_pipe_wa_temp_next;
   let cur: i32 = 0;
   let end: i32 = 0;
-  /* Skip dest-in-rbx emit-time temps already taken on next_offset.
-   * PLATFORM: SHARED — dest extra-arm dest_spill vs reserved wa window. */
+  /* Skip dest-in-rbx dest_spill already taken on next_offset.
+   * x86 high-end stores the 8B dest pointer at rbp-cur (home=cur).
+   * Arena64 is a low-end lea at rbp-off for 24B. off==cur plants
+   * Arena64 on dest (Ubuntu memcpy dest=NULL 139). Need off>=cur+24.
+   * Function-body with_arena has off=locals+arr_temp+24 >= cur+24.
+   * PLATFORM: SHARED — dest extra-arm dest_spill vs reserved wa window.
+   */
   if (ctx != 0 as *u8) {
     cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
-    if (off < cur) {
-      off = cur;
+    if (off < (cur + 24)) {
+      off = cur + 24;
     }
   }
   g_pipe_wa_temp_next = off + 24 - g_pipe_wa_temp_base;

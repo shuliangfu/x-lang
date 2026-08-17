@@ -9858,8 +9858,11 @@ int32_t glue_wa_scope_alloc_off_c(void *ctx) {
   if (ctx) {
     b = (uint8_t *)ctx;
     cur = (int32_t)b[4] | ((int32_t)b[5] << 8) | ((int32_t)b[6] << 16) | ((int32_t)b[7] << 24);
-    if (off < cur)
-      off = cur;
+    /* x86 high-end dest_spill store is at rbp-cur; wa lea is 24B at
+     * rbp-off. off==cur overlaps dest (Ubuntu memcpy dest=NULL).
+     * PLATFORM: SHARED dest extra-arm dest_spill vs reserved wa. */
+    if (off < (cur + 24))
+      off = cur + 24;
   }
   wave122_wa_temp_next = off + 24 - wave122_wa_temp_base;
   if (wave122_wa_temp_next < 24)

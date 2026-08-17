@@ -1738,7 +1738,7 @@
 ✅ **dest extra-arm SIMD Wrap dest-in-rbx＋with_arena emit**（Ubuntu SIGSEGV 139；Darwin dest-shadow 偶绿）
 
   - 现场：`*p = match tag { 1 => { with_arena(64) { k = 1 }; { h: { v: a } } } }`。region extra-arm dest-in-rbx **已绿**；i32 dest＋with_arena **已绿**。dest_spill（x86 高位）与 reserved wa 槽重叠，`heap_arena_init_c` 砸 dest 指针
-  - **根修（G.7 有则补全）**：产生点＝`glue_wa_scope_alloc_off_c` 无视 dest-in-rbx 已推的 `next_offset`。权威已是同一 alloc。`off < cur` 则从 dest 停靠之后起槽。seed 孪。prefer thin+rest pipeline_abi；**禁** mega assemble
+  - **根修（G.7 有则补全）**：产生点＝`glue_wa_scope_alloc_off_c` 无视 dest-in-rbx 已推的 `next_offset`。权威已是同一 alloc。x86 高位 dest 存在 `rbp-cur`，Arena64 从 `rbp-off` 起 24B；`off==cur` 砸 dest（`memcpy` dest=NULL）。`off < cur+24` 则 `off=cur+24`。seed 孪。prefer thin+rest pipeline_abi；**禁** mega assemble
   - 闸：`tests/boundary/dest_wa_semi.x` SIMD dest isolate／asm／xlang-c **0**
   - 余（勿并本叶）：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；onefunc 多 compound 叠容量
 
