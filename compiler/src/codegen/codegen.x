@@ -18533,8 +18533,10 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
  * alloc (incl. realloc / posix_memalign), string, env, path (unlink/mkstemp/
  * rename/access). g05 sed remains a defense layer for harness helpers and
  * #include strip; libc name authority is this predicate only (G.7).
- * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h
- * (rt_preamble io_net lines). Skipping without those headers → implicit int.
+ * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h +
+ * unistd.h (`codegen_x_ast_emit_header` for bare `-E`, plus rt_preamble
+ * io_net for `-o`). Skipping without those headers → implicit int /
+ * undeclared getcwd (L0 labi_path_pure.x host-cc).
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -21308,6 +21310,8 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
  * Authority: G.7 expand codegen_emit_scalar_slice_nests / this function.
  * Product chain assembles codegen.x → codegen_x.o. Seed emit_header still
  * holds wave698 1..8 only (cold leftover; do not grow the u8[256] table).
+ * Includes: stdint/stddef/sys/types/string + stdlib + unistd so skip-decl
+ * libc names (getcwd/malloc/getenv) have a prototype on bare `-E`.
  */
 export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -21320,6 +21324,20 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 114, 105, 110, 103, 46, 104, 62, 10,
       0, 0, 0, 0, 0, 0, 0];
     if (emit_bytes_from_ptr(out, &h[0], 83) != 0) {
+      return -1;
+    }
+    /* #include <stdlib.h>\n#include <unistd.h>\n
+     * Skip-decl assumes these exist (malloc/getenv in stdlib; getcwd/read/
+     * write/unlink/access in unistd). Historic -E header omitted them →
+     * L0 labi_path_pure.x host-cc: undeclared getcwd + int-to-pointer.
+     * -o already injects the same via rt_preamble io_net.
+     * PLATFORM: SHARED — POSIX uses system unistd.h; WINDOWS host-cc of
+     * -E needs -Iinclude (compiler/include/unistd.h shim). Product L0
+     * already passes -Iinclude. */
+    let h2: u8[48] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 108, 105, 98, 46, 104, 62, 10,
+      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10,
+      0, 0, 0, 0, 0, 0, 0, 0];
+    if (emit_bytes_64(out, &h2[0], 40) != 0) {
       return -1;
     }
     /* #ifndef XLANG_SLICE_LAYOUTS\n#define XLANG_SLICE_LAYOUTS\n */
