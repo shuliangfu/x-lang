@@ -445,6 +445,7 @@ static int32_t g_driver_x_pipeline_skip_typeck_flag[1] = {0};
 static int32_t g_driver_x_pipeline_skip_codegen_flag[1] = {0};
 static int32_t g_driver_skip_codegen_dep_0_flag[1] = {0};
 static int32_t g_driver_on_large_stack_thread_flag[1] = {0};
+static uint8_t g_driver_current_dep_path_buf[128];
 static uint8_t * g_driver_current_dep_path;
 static int64_t g_pipeline_entry_source_len[1] = {0};
 static int64_t g_driver_path_last_preprocess_len[1] = {0};
@@ -452,6 +453,7 @@ static double g_compile_phase_acc_ms[3] = {0.0, 0.0, 0.0};
 static double g_compile_phase_start_sec[3] = {0.0, 0.0, 0.0};
 static int32_t g_compile_phase_active[3] = {0, 0, 0};
 static void init_globals(void) {
+  g_driver_current_dep_path_buf[0] = 0;
   g_driver_current_dep_path = ((uint8_t *)(0));
 }
 /* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
@@ -559,7 +561,22 @@ int32_t * driver_large_stack_thread_flag_slot(void) {
   return &((g_driver_on_large_stack_thread_flag)[0]);
 }
 void driver_current_dep_path_store(uint8_t * path) {
-  (void)((g_driver_current_dep_path = path));
+  int32_t i;
+  if (!path || path[0] == 0) {
+    g_driver_current_dep_path_buf[0] = 0;
+    g_driver_current_dep_path = 0;
+    return;
+  }
+  i = 0;
+  while (i < 127) {
+    uint8_t c = path[i];
+    g_driver_current_dep_path_buf[i] = c;
+    if (c == 0)
+      break;
+    i = i + 1;
+  }
+  g_driver_current_dep_path_buf[127] = 0;
+  g_driver_current_dep_path = &g_driver_current_dep_path_buf[0];
 }
 uint8_t * driver_current_dep_path_load(void) {
   return g_driver_current_dep_path;

@@ -982,7 +982,18 @@ static const char *driver_current_dep_path_for_codegen;
 
 /* G-02f-46: dep path store/load + print_check_ok diag impl */
 void driver_current_dep_path_store_impl(const char *path) {
-    driver_current_dep_path_for_codegen = path;
+    static char buf[128];
+    int i;
+    if (!path || path[0] == 0) {
+        buf[0] = 0;
+        driver_current_dep_path_for_codegen = NULL;
+        return;
+    }
+    for (i = 0; i < 127 && path[i]; i++)
+        buf[i] = path[i];
+    buf[i] = 0;
+    buf[127] = 0;
+    driver_current_dep_path_for_codegen = buf;
 }
 
 void driver_current_dep_path_store(const char *path) {

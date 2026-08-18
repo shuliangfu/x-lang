@@ -232,10 +232,14 @@ let g_driver_skip_codegen_dep_0_flag: i32[1] = [0];
 let g_driver_on_large_stack_thread_flag: i32[1] = [0];
 
 // ---- Wave2 Cap residual pure: path/len BSS (PLATFORM: SHARED) ----
-// dep path: single *u8 cell (import logic path pointer; no owned buffer).
+// dep path: owned 128-byte BSS copy. Callers historically passed stack `dst`
+// (pipeline_prepare_dep_codegen_path_c) and only stored the pointer; after
+// that frame returned, glue_asm_build_dep_export_sym_c prefixed entry `main`
+// with dangling bytes (Ubuntu hello.o `af 02 _main` / undefined main).
 // entry_source_len / path_last_preprocess_len: i64[1] so store/load use [0] without &scalar.
 // Rest path_read_impl writes preprocess len via driver_path_last_preprocess_len_store.
 // Wave13 pure: load_and_maybe_debug emits XLANG_DEBUG_PIPE note via append + diag_report.
+let g_driver_current_dep_path_buf: u8[128] = [];
 let g_driver_current_dep_path: *u8 = 0 as *u8;
 let g_pipeline_entry_source_len: i64[1] = [0];
 let g_driver_path_last_preprocess_len: i64[1] = [0];
@@ -432,11 +436,38 @@ export function driver_large_stack_thread_flag_slot(): *i32 {
   return &g_driver_on_large_stack_thread_flag[0];
 }
 
-/** Store current codegen dep path pointer into thin BSS (no copy; caller owns string).
- * PLATFORM: SHARED — hybrid pure authority; cold seed keeps C static + store_impl. */
+/**
+ * Store the current codegen dep import path into owned BSS (copy, not alias).
+ * Null or empty path clears the slot so entry-module emit uses no C prefix.
+ * @param path *u8 — NUL-terminated import path; null/empty clears
+ * @return void
+ * PLATFORM: SHARED — hybrid pure authority; cold seed store_impl must copy too.
+ */
 #[no_mangle]
 export function driver_current_dep_path_store(path: *u8): void {
-  g_driver_current_dep_path = path;
+  if (path == 0 as *u8) {
+    g_driver_current_dep_path_buf[0] = 0;
+    g_driver_current_dep_path = 0 as *u8;
+    return;
+  }
+  unsafe {
+    if (path[0] == 0) {
+      g_driver_current_dep_path_buf[0] = 0;
+      g_driver_current_dep_path = 0 as *u8;
+      return;
+    }
+    let i: i32 = 0;
+    while (i < 127) {
+      let c: u8 = path[i];
+      g_driver_current_dep_path_buf[i] = c;
+      if (c == 0) {
+        break;
+      }
+      i = i + 1;
+    }
+    g_driver_current_dep_path_buf[127] = 0;
+  }
+  g_driver_current_dep_path = &g_driver_current_dep_path_buf[0];
 }
 
 /** Load current codegen dep path pointer from thin BSS (may be null).
