@@ -38489,7 +38489,12 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           }
           if (rar_elem > 0) {
             unsafe {
-              force_esz = glue_index_elem_byte_sz_from_type_ref_c(arena, rar_elem);
+              /* Same peel-then-measure as dest-ARRAY memcpy: rar_elem of
+               * [K][N]T is TYPE_ARRAY and index-esz peels to leaf 4B.
+               * Durable COMMON then holds one row; dest copy run=3.
+               * G.7: glue_array_lit_force_esz_from_elem_type (sizeof row).
+               * PLATFORM: SHARED freestanding return Path B0. */
+              force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, rar_elem);
             }
           }
           if (force_esz <= 0) {
@@ -41741,7 +41746,21 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   }
   unsafe {
     elem_tr = pipeline_type_elem_ref_at(arena, fty);
-    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+    /* Outer stride of dest TYPE_ARRAY = sizeof(elem). Peel-then-measure
+     * via glue_index_elem_byte_sz(elem) is wrong for [K][N]T: elem is
+     * TYPE_ARRAY and index-esz peels again to sizeof(leaf) (4 for i32),
+     * so VAR/CALL dest memcpy copies only the first row (asm run=3;
+     * named-local `let r = t` same). G.7: reuse
+     * glue_array_lit_force_esz_from_elem_type (TYPE_ARRAY →
+     * glue_fixed_array_total_bytes). Twin of 4.2.7 nested SLICE esz
+     * (pass the compound, do not peel then measure).
+     * PLATFORM: SHARED freestanding dest-ARRAY memcpy · LINUX gold. */
+    esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+  }
+  if (esz <= 0) {
+    unsafe {
+      esz = glue_index_elem_byte_sz_from_type_ref_c(arena, fty);
+    }
   }
   if (esz <= 0) {
     esz = 4;

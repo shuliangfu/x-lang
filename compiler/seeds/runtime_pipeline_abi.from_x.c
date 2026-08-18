@@ -18631,7 +18631,17 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   if (n_arr <= 0)
     return -1;
   elem_tr = pipeline_type_elem_ref_at(arena, fty);
-  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+  /* Outer stride of dest TYPE_ARRAY = sizeof(elem). Peel-then-measure
+   * via glue_index_elem_byte_sz(elem) is wrong for [K][N]T: elem is
+   * TYPE_ARRAY and index-esz peels again to sizeof(leaf) (4 for i32),
+   * so VAR/CALL dest memcpy copies only the first row (asm run=3).
+   * G.7: glue_array_lit_force_esz_from_elem_type (TYPE_ARRAY →
+   * glue_fixed_array_total_bytes). Twin of 4.2.7 nested SLICE esz.
+   * PLATFORM: SHARED freestanding dest-ARRAY memcpy · LINUX gold.
+   * Cold twin of runtime_pipeline_abi.x (inside #ifndef FROM_X). */
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+  if (esz <= 0)
+    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, fty);
   if (esz <= 0)
     esz = 4;
   /*
