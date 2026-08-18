@@ -5592,7 +5592,17 @@ export function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx: *u8,
     if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, &vt_sym[0], vt_sym_nlen, ta) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, slot_off + 8, ta) != 0) {
+    /* Fat is {data @ slot_off, vtable @ +8 in address space}.
+     * ARM64 product stores [x29, #+off] so +8 is a higher address.
+     * x86 stores [rbp, #-off] so a larger off is a LOWER address; the
+     * +8 field is therefore slot_off-8. Dispatch loads [fat+8].
+     * PLATFORM: LINUX x86_64 rbp-down · MACOS|ARM64 x29-up. */
+    let vt_home: i32 = slot_off + 8;
+    if (ta == 0) {
+      if (slot_off <= 8) { return 0 - 1; }
+      vt_home = slot_off - 8;
+    }
+    if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, vt_home, ta) != 0) {
       return 0 - 1;
     }
     return 1;

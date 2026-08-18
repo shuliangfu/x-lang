@@ -4914,7 +4914,16 @@ int32_t pipeline_asm_try_emit_dyn_coerce_let(struct ast_ASTArena *arena,
     vt_sym_nlen = vt_nlen;
   }
   if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, vt_sym, vt_sym_nlen, ta) != 0) return -1;
-  if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, slot_off + 8, ta) != 0) return -1;
+  /* Fat {data,vtable}: ARM64 [x29,#off+8] is +8 in address space.
+   * x86 [rbp,#-off] so +8 field is slot_off-8. PLATFORM: LINUX x86_64 rbp-down. */
+  {
+    int32_t vt_home = slot_off + 8;
+    if (ta == 0) {
+      if (slot_off <= 8) return -1;
+      vt_home = slot_off - 8;
+    }
+    if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, vt_home, ta) != 0) return -1;
+  }
   return 1;
 }
 
