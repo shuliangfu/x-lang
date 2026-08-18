@@ -471,6 +471,8 @@ extern int32_t xlang_skip_trait_method_ret_elem_kind_c(const uint8_t * trait_nm,
         int32_t slot);
 extern int32_t xlang_skip_trait_method_ret_array_size_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_name_into_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t param_ix);
 extern int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
@@ -11486,6 +11488,28 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
             int32_t dyn_ety2 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
             if ((dyn_ety2 > 0)) {
               (void)((dyn_ret_ty = typeck_find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz)));
+            }
+          }
+        }
+        /* NAMED ret (`Pair`): reconstruct via ret_name + find_or_alloc_named.
+         * PTR-to-scalar (`*i32`): ret_elem_kind + find_or_alloc_ptr.
+         * Sit-red host-C void-cast. Pin twin of typeck.x. PLATFORM: SHARED. */
+        if (((dyn_ret_ty == 0) && (dyn_ret_kind == 8))) {
+          uint8_t dyn_rnm[64] = {};
+          int32_t dyn_rnl = xlang_skip_trait_method_ret_name_into_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot, &((dyn_rnm)[0]));
+          if ((dyn_rnl > 0)) {
+            (void)((dyn_ret_ty = typeck_find_or_alloc_named_type_ref(arena, &((dyn_rnm)[0]), dyn_rnl)));
+          }
+        }
+        if (((dyn_ret_ty == 0) && (dyn_ret_kind == 9))) {
+          int32_t dyn_rek3 = xlang_skip_trait_method_ret_elem_kind_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot);
+          if (((((dyn_rek3 >= 0) && (dyn_rek3 != 8)) && (dyn_rek3 != 9))
+                  && ((dyn_rek3 != 10) && ((dyn_rek3 != 11) && (dyn_rek3 != 13))))) {
+            int32_t dyn_ety3 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek3);
+            if ((dyn_ety3 > 0)) {
+              (void)((dyn_ret_ty = typeck_find_or_alloc_ptr_type_ref(arena, dyn_ety3)));
             }
           }
         }

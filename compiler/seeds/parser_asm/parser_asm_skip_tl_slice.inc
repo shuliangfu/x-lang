@@ -1486,6 +1486,42 @@ int32_t xlang_skip_trait_method_ret_array_size_c(const uint8_t *trait_nm, int32_
 }
 
 /**
+ * Copy the TYPE_NAMED spelling of a trait-method return into out64.
+ * Completes the F3 accessor family next to ret_kind / ret_elem_kind.
+ * The scanner already stores method_ret_names for a bare `Pair` return
+ * (and for a NAMED leaf of `*T` / `[]T` / `[N]T`). Typeck dyn dispatch
+ * cannot look up a module-func return type_ref (func_ix is the vtable
+ * slot), so host-C `let r: Pair = x.getp()` reconstructs via this +
+ * find_or_alloc_named (sit-red: void-cast assignment).
+ * Twin of xlang_skip_trait_method_name_into_c.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param out64       output buffer of at least 64 bytes; must be non-null.
+ * @return name length (>0 on success), 0 if trait/slot invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                               int32_t slot, uint8_t *out64) {
+  int32_t ti;
+  int32_t nlen;
+  int32_t i;
+  if (!trait_nm || trait_nlen <= 0 || !out64 || slot < 0)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return 0;
+  nlen = g_xlang_skip_trait_reg[ti].method_ret_name_lens[slot];
+  if (nlen <= 0 || nlen > 64)
+    return 0;
+  for (i = 0; i < nlen; i++)
+    out64[i] = g_xlang_skip_trait_reg[ti].method_ret_names[slot][i];
+  return nlen;
+}
+
+/**
  * Return the TypeKind ordinal of one trait-method formal.
  * Completes the F3 accessor family (slot / count / name / ret_kind).
  * wave426 already stores method_param_kinds at parse; typeck dyn dispatch

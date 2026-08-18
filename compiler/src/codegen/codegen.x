@@ -13642,17 +13642,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         /* Emit the return type from the resolved type_ref.
-         * Scalars / void / dyn stay on emit_type_kind. ARRAY/SLICE
-         * (`[N]T` / `[]T`) use emit_type (kind 10/11 is not a C token;
-         * sit-red host-C XP003). Falls back to "void" when unresolved.
+         * Prefer emit_type whenever a type_ref exists (same as emit_func /
+         * wrapper): NAMED / PTR / ARRAY / SLICE are not C tokens for
+         * emit_type_kind (sit-red `struct Pair r = (void)call` /
+         * `int32_t *p = (void)call`). Scalars also go through emit_type.
+         * Falls back to emit_type_kind("void") when unresolved.
          * G.7 complete this cast; no second emitter. PLATFORM: SHARED. */
         let dyn_ret_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
         let dyn_ret_kind: i32 = (TypeKind.TYPE_VOID as i32);
         if (dyn_ret_ty > 0) {
           dyn_ret_kind = pipeline_type_kind_ord_at(arena, dyn_ret_ty);
         }
-        if (dyn_ret_ty > 0 && (dyn_ret_kind == (TypeKind.TYPE_ARRAY as i32)
-            || dyn_ret_kind == (TypeKind.TYPE_SLICE as i32))) {
+        if (dyn_ret_ty > 0) {
           if (emit_type(arena, out, dyn_ret_ty, 0 as *u8, 0, ctx) != 0) {
             return -1;
           }

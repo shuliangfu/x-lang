@@ -88,6 +88,20 @@ export extern function xlang_skip_trait_method_ret_elem_kind_c(trait_nm: *u8, tr
 export extern function xlang_skip_trait_method_ret_array_size_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32): i32;
 /**
+ * Copy the TYPE_NAMED spelling of a trait-method return into out64.
+ * G.7: completes the skip-trait accessor family next to ret_kind
+ * (registry already stores method_ret_names). Dyn dispatch
+ * reconstructs a `Pair` return type_ref (func_ix is the slot).
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param out64 *u8 — destination of at least 64 bytes; non-null
+ * @return i32 — name length (>0), or 0 if missing
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_name_into_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, out64: *u8): i32;
+/**
  * Formal TypeKind at trait-method param_ix (0 = self). -1 if missing.
  * G.7: completes the skip-trait accessor family; body in parser_asm_skip_tl_slice.inc.
  * PLATFORM: SHARED.
@@ -14031,9 +14045,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * so codegen can emit a typed function-pointer cast. Builtin return kinds
      * (i32/bool/u8/.../void) map directly via pipeline_type_ensure_by_kind_ord.
      * TYPE_ARRAY / TYPE_SLICE (`[N]T` / `[]T`) reconstruct via ret_elem_kind
-     * + find_or_alloc_array/slice (host-C wrapper / call-site need a real
-     * type_ref; sit-red XP003 when emit_type_kind saw kind 10/11). TYPE_NAMED
-     * / PTR / VECTOR still fall back to 0 (void-cast leftover).
+     * + find_or_alloc_array/slice. TYPE_NAMED (`Pair`) reconstructs via
+     * ret_name + find_or_alloc_named. TYPE_PTR-to-scalar (`*i32`) reconstructs
+     * via ret_elem_kind + find_or_alloc_ptr. Sit-red host-C void-cast
+     * (`struct Pair r = (void)call` / `int32_t *p = (void)call`). VECTOR
+     * and PTR-to-NAMED still fall back to 0 (leftover).
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
      * trait formal (f32=14 / f64=15) and ARRAY_LIT extras to dest-SLICE
@@ -14091,6 +14107,36 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             let dyn_ety2: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
             if (dyn_ety2 > 0) {
               dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz);
+            }
+          }
+        }
+        /*
+         * NAMED ret (`Pair`): F3 left dyn_ret_ty=0 so the call-site cast
+         * was void (host-C `struct Pair r = (void)call`). Reconstruct with
+         * registry ret name + existing find_or_alloc_named (G.7 complete
+         * this block; no second resolve). PLATFORM: SHARED.
+         */
+        if (dyn_ret_ty == 0 && dyn_ret_kind == 8) {
+          let dyn_rnm: u8[64] = [];
+          let dyn_rnl: i32 = xlang_skip_trait_method_ret_name_into_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot, &dyn_rnm[0]);
+          if (dyn_rnl > 0) {
+            dyn_ret_ty = find_or_alloc_named_type_ref(arena, &dyn_rnm[0], dyn_rnl);
+          }
+        }
+        /*
+         * PTR-to-scalar ret (`*i32`): same void-cast leftover. Reconstruct
+         * with ret_elem_kind + find_or_alloc_ptr. NAMED/PTR/ARRAY/SLICE/
+         * VECTOR elem leftover (PTR-to-NAMED). PLATFORM: SHARED.
+         */
+        if (dyn_ret_ty == 0 && dyn_ret_kind == 9) {
+          let dyn_rek3: i32 = xlang_skip_trait_method_ret_elem_kind_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot);
+          if (dyn_rek3 >= 0 && dyn_rek3 != 8 && dyn_rek3 != 9 && dyn_rek3 != 10
+              && dyn_rek3 != 11 && dyn_rek3 != 13) {
+            let dyn_ety3: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek3);
+            if (dyn_ety3 > 0) {
+              dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_ety3);
             }
           }
         }

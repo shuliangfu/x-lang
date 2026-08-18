@@ -11264,15 +11264,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((codegen_append_byte(out, 40) !=0)) {
           return -1;
         }
-        /* ARRAY/SLICE ret: emit_type_kind fails (kind 10/11). G.7 complete
-         * this cast to use codegen_emit_type (same as emit_func / wrapper).
-         * Falls back to void when unresolved. Pin twin of codegen.x. */
+        /* Prefer codegen_emit_type whenever a type_ref exists (same as
+         * emit_func / wrapper): NAMED / PTR / ARRAY / SLICE are not C
+         * tokens for emit_type_kind (sit-red void-cast). Pin twin of
+         * codegen.x. PLATFORM: SHARED. */
         int32_t dyn_ret_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
         int32_t dyn_ret_kind = 16;
         if ((dyn_ret_ty > 0)) {
           dyn_ret_kind = pipeline_type_kind_ord_at(arena, dyn_ret_ty);
         }
-        if (((dyn_ret_ty > 0) && ((dyn_ret_kind == 10) || (dyn_ret_kind == 11)))) {
+        if ((dyn_ret_ty > 0)) {
           if ((codegen_emit_type(arena, out, dyn_ret_ty, 0, 0, ctx) !=0)) {
             return -1;
           }
