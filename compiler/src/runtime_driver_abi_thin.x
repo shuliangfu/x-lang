@@ -470,11 +470,17 @@ export function driver_current_dep_path_store(path: *u8): void {
   g_driver_current_dep_path = &g_driver_current_dep_path_buf[0];
 }
 
-/** Load current codegen dep path pointer from thin BSS (may be null).
- * PLATFORM: SHARED — hybrid pure authority. */
+/**
+ * Load the current codegen dep path.
+ * Always returns the owned BSS buffer (empty ⇒ buf[0]==0). Do not return the
+ * pointer cell: host-C -E of `return g_driver_current_dep_path` on Ubuntu
+ * loaded an uninitialized stack slot (hello.o `af 02 _main`).
+ * @return *u8 — BSS path; first byte 0 means no prefix
+ * PLATFORM: SHARED — hybrid pure authority.
+ */
 #[no_mangle]
 export function driver_current_dep_path_load(): *u8 {
-  return g_driver_current_dep_path;
+  return &g_driver_current_dep_path_buf[0];
 }
 
 /** Store pipeline entry source byte length into thin BSS.

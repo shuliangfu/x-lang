@@ -579,7 +579,7 @@ void driver_current_dep_path_store(uint8_t * path) {
   g_driver_current_dep_path = &g_driver_current_dep_path_buf[0];
 }
 uint8_t * driver_current_dep_path_load(void) {
-  return g_driver_current_dep_path;
+  return &g_driver_current_dep_path_buf[0];
 }
 void driver_pipeline_entry_source_len_store(int64_t len) {
   (void)(((g_pipeline_entry_source_len)[0] = len));

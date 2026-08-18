@@ -978,22 +978,22 @@ int32_t driver_skip_codegen_dep_0_get(void) {
 /* wave2 pure：hybrid thin owns dep-path BSS; cold seed keeps static + store/load. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 /** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
+static char driver_current_dep_path_buf[128];
 static const char *driver_current_dep_path_for_codegen;
 
 /* G-02f-46: dep path store/load + print_check_ok diag impl */
 void driver_current_dep_path_store_impl(const char *path) {
-    static char buf[128];
     int i;
     if (!path || path[0] == 0) {
-        buf[0] = 0;
+        driver_current_dep_path_buf[0] = 0;
         driver_current_dep_path_for_codegen = NULL;
         return;
     }
     for (i = 0; i < 127 && path[i]; i++)
-        buf[i] = path[i];
-    buf[i] = 0;
-    buf[127] = 0;
-    driver_current_dep_path_for_codegen = buf;
+        driver_current_dep_path_buf[i] = path[i];
+    driver_current_dep_path_buf[i] = 0;
+    driver_current_dep_path_buf[127] = 0;
+    driver_current_dep_path_for_codegen = driver_current_dep_path_buf;
 }
 
 void driver_current_dep_path_store(const char *path) {
@@ -1001,7 +1001,7 @@ void driver_current_dep_path_store(const char *path) {
 }
 
 const char *driver_current_dep_path_load_impl(void) {
-    return driver_current_dep_path_for_codegen;
+    return driver_current_dep_path_buf[0] ? driver_current_dep_path_buf : NULL;
 }
 
 const char *driver_current_dep_path_load(void) {
