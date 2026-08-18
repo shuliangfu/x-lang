@@ -491,6 +491,11 @@ extern int32_t backend_enc_mov_rdx_to_arg_reg_arch(struct platform_elf_ElfCodege
                                                    int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                 int32_t ta);
+/* Incoming stack formals: [rbp+#off] x86 / [x29,#off] ARM64. G.7 param_home twins. */
+extern int32_t backend_enc_load_rbp_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
+                                                    int32_t ta);
+extern int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
+                                                    int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rdx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                 int32_t ta);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
@@ -3867,8 +3872,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
      *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
      *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
      *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
-     *   5. extras: GP 1..5 and/or xmm0–7 (x86 SysV) — wrapper trampoline
-     *      only touches x0/rdi; SSE extras pass through
+     *   5. extras: GP 1..(reg_max-1) and/or xmm0–7 (x86 SysV); overflow on stack
      *   6. blr x2 (or scratch)   — indirect call through wrapper fn ptr
      * PLATFORM: SHARED — arm64 blr / x86_64 call rN / riscv64 jalr.
      */
@@ -3878,36 +3882,46 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         int32_t slot = r_fn;
         if (slot < 0) { return -1; }
         /*
-         * Extra method args: integer GP 1..5 after self in GP0.
-         * x86 SysV f32/f64 extras go xmm0–7 (impl param_home reads xmm).
+         * Extra method args: integer GP 1..(reg_max-1) after self in GP0.
+         * Overflow extras go on the stack (x86 push / ARM64 [sp+slot]).
+         * x86 SysV f32/f64 extras go xmm0–7 then stack (impl param_home).
          * ARM64 local callee homes GP — do not copy import METHOD s0/d0.
-         * Wrapper is a trampoline (only touches x0/rdi); extras pass through.
+         * Wrapper copies incoming stack extras before call impl (not tail-jmp).
          * Do NOT glue_emit_one_call_arg — resolved_func_index is the vtable slot.
-         * G.7: emit_expr_elf_for_call_args + glue_arg_ref_is_sse_float_c.
+         * G.7: emit_expr_elf_for_call_args + glue_arg_ref_is_sse_float_c
+         * + glue_asm_call_reg_max (not a hardcoded 5).
          * PLATFORM: LINUX x86_64 SysV xmm · MACOS ARM64 extras stay GP.
          */
-        if (nargs > 5)
-          return -1;
         {
-          int32_t extra_off[6];
-          int32_t is_sse_e[6];
-          int32_t is_f64_e[6];
-          int32_t place_e[6];
+          int32_t extra_off[96];
+          int32_t is_sse_e[96];
+          int32_t is_f64_e[96];
+          int32_t place_e[96];
+          int32_t on_stk_e[96];
           int32_t xmm_cur;
           int32_t gp_cur;
+          int32_t n_stk;
+          int32_t reg_max_e;
           int32_t ei;
           int32_t arg_ex;
           int32_t so_ex;
           int32_t data_off;
           int32_t fn_off;
           int32_t cur_fn;
+          int32_t stk_bytes;
+          int32_t stk_slot;
           xmm_cur = 0;
           gp_cur = 1;
+          n_stk = 0;
+          reg_max_e = glue_asm_call_reg_max(ta);
+          if (reg_max_e < 2)
+            reg_max_e = 6;
           for (ei = 0; ei < nargs; ei++) {
             extra_off[ei] = -1;
             is_sse_e[ei] = 0;
             is_f64_e[ei] = 0;
             place_e[ei] = 0;
+            on_stk_e[ei] = 0;
             arg_ex = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
             if (arg_ex == 0)
               return -1;
@@ -3916,15 +3930,23 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, arg_ex, 0);
             }
             if (is_sse_e[ei] != 0) {
-              if (xmm_cur >= 8)
-                return -1;
-              place_e[ei] = xmm_cur;
-              xmm_cur = xmm_cur + 1;
+              if (xmm_cur < 8) {
+                place_e[ei] = xmm_cur;
+                xmm_cur = xmm_cur + 1;
+              } else {
+                on_stk_e[ei] = 1;
+                place_e[ei] = n_stk;
+                n_stk = n_stk + 1;
+              }
             } else {
-              if (gp_cur > 5)
-                return -1;
-              place_e[ei] = gp_cur;
-              gp_cur = gp_cur + 1;
+              if (gp_cur < reg_max_e) {
+                place_e[ei] = gp_cur;
+                gp_cur = gp_cur + 1;
+              } else {
+                on_stk_e[ei] = 1;
+                place_e[ei] = n_stk;
+                n_stk = n_stk + 1;
+              }
             }
             if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ex, ctx, ta) != 0)
               return -1;
@@ -3961,18 +3983,57 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               return -1;
             ly->next_offset = fn_off + 16;
           }
-          for (ei = 0; ei < nargs; ei++) {
-            if (is_sse_e[ei] != 0) {
-              if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
-                return -1;
-              if (is_f64_e[ei] != 0) {
-                if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0)
+          /* Stack extras from spills. PLATFORM: LINUX x86_64 SysV push · MACOS|ARM64 [sp]. */
+          stk_bytes = 0;
+          if (n_stk > 0) {
+            if (ta == 0) {
+              if ((n_stk & 1) != 0) {
+                if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
                   return -1;
-              } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0) {
+                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+                  return -1;
+                stk_bytes = stk_bytes + 8;
+              }
+              for (ei = nargs - 1; ei >= 0; ei--) {
+                if (on_stk_e[ei] != 0) {
+                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                    return -1;
+                  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+                    return -1;
+                  stk_bytes = stk_bytes + 8;
+                }
+              }
+            } else {
+              stk_bytes = n_stk * 8;
+              stk_bytes = (stk_bytes + 15) & -16;
+              if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes, ta) != 0)
+                return -1;
+              stk_slot = 0;
+              for (ei = 0; ei < nargs; ei++) {
+                if (on_stk_e[ei] != 0) {
+                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                    return -1;
+                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+                    return -1;
+                  stk_slot = stk_slot + 1;
+                }
+              }
+            }
+          }
+          for (ei = 0; ei < nargs; ei++) {
+            if (on_stk_e[ei] == 0) {
+              if (is_sse_e[ei] != 0) {
+                if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                  return -1;
+                if (is_f64_e[ei] != 0) {
+                  if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0)
+                    return -1;
+                } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0) {
+                  return -1;
+                }
+              } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], place_e[ei], 1) != 0) {
                 return -1;
               }
-            } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], place_e[ei], 1) != 0) {
-              return -1;
             }
           }
           if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, data_off, 0, 1) != 0)
@@ -3988,9 +4049,13 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 return -1;
               if (backend_enc_blr_arch(elf_ctx, 9, ta) != 0) { return -1; }
             }
-            return 0;
+          } else {
+            if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
           }
-          if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
+          if (stk_bytes > 0) {
+            if (backend_enc_call_stack_cleanup_arch(elf_ctx, stk_bytes, ta) != 0)
+              return -1;
+          }
           return 0;
         }
       }
@@ -4823,6 +4888,7 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
   uint8_t wrap_nm[168]; int32_t wrap_nlen;
   int32_t macho; uint8_t sym_nm[170]; int32_t sym_nlen;
   int32_t entry_off, k;
+  int32_t nparams_w, reg_max_w, n_stk_w, stk_bytes_w, si_w;
   if (!elf_ctx || !module || !arena) { return -1; }
   if (!trait_nm || !for_nm) { return -1; }
   if (trait_nlen <= 0 || for_nlen <= 0 || slot_i < 0) { return -1; }
@@ -4856,7 +4922,47 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
       if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
     }
   }
+  /* Copy incoming stack extras to impl outgoing stack. rdi/x0 stays data.
+   * PLATFORM: LINUX x86_64 SysV [rbp+16] · MACOS|ARM64 [x29,#32] after prologue(16). */
+  nparams_w = pipeline_module_func_num_params_at(module, impl_fi);
+  reg_max_w = glue_asm_call_reg_max(ta);
+  if (reg_max_w < 2)
+    reg_max_w = 6;
+  n_stk_w = 0;
+  if (nparams_w > reg_max_w)
+    n_stk_w = nparams_w - reg_max_w;
+  stk_bytes_w = 0;
+  if (n_stk_w > 0) {
+    if (ta == 0) {
+      if ((n_stk_w & 1) != 0) {
+        if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return -1; }
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
+        stk_bytes_w = stk_bytes_w + 8;
+      }
+      for (si_w = n_stk_w - 1; si_w >= 0; si_w--) {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, 16 + si_w * 8, ta) != 0)
+          return -1;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
+        stk_bytes_w = stk_bytes_w + 8;
+      }
+    } else {
+      stk_bytes_w = n_stk_w * 8;
+      stk_bytes_w = (stk_bytes_w + 15) & -16;
+      if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes_w, ta) != 0)
+        return -1;
+      for (si_w = 0; si_w < n_stk_w; si_w++) {
+        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 32 + si_w * 8, ta) != 0)
+          return -1;
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, si_w * 8, ta) != 0)
+          return -1;
+      }
+    }
+  }
   if (backend_enc_call_arch(elf_ctx, impl_nm, impl_nlen, ta) != 0) { return -1; }
+  if (stk_bytes_w > 0) {
+    if (backend_enc_call_stack_cleanup_arch(elf_ctx, stk_bytes_w, ta) != 0)
+      return -1;
+  }
   if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) { return -1; }
   return 1;
 }
