@@ -14074,13 +14074,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
      * trait formal (f32=14 / f64=15), ARRAY_LIT extras to dest-SLICE
-     * (`[]T`, kind=11), and STRUCT_LIT extras to dest-NAMED (`Pair`, kind=8).
-     * func_ix is the vtable slot — must not call
-     * typeck_stamp_resolved_args_float_lit (that looks up module-func
-     * params). Formal kinds come from xlang_skip_trait_method_param_kind_c
-     * (registry already stored them at parse). Extra i → param i+1 (self=0).
+     * (`[]T`, kind=11) including NAMED leaf (`[]Pair`), and STRUCT_LIT
+     * extras to dest-NAMED (`Pair`, kind=8). func_ix is the vtable slot —
+     * must not call typeck_stamp_resolved_args_float_lit (that looks up
+     * module-func params). Formal kinds come from
+     * xlang_skip_trait_method_param_kind_c (registry already stored them
+     * at parse). Extra i → param i+1 (self=0).
      * G.7 reuse typeck_coerce_init_float_lit_to_decl,
-     * typeck_coerce_init_slice_from_array, and
+     * typeck_coerce_init_slice_from_array,
+     * typeck_coerce_init_expr_to_decl (dest-SLICE-of-NAMED), and
      * typeck_coerce_init_struct_lit_to_decl (no second stamp).
      * PLATFORM: SHARED — mirrors seeds/typeck_gen.linux.x86_64.c.
      */
@@ -14239,8 +14241,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * emit_expr_elf_for_call_args only wrap fat when resolved is
            * TYPE_SLICE (UFCS already stamps via the module-func formal).
            * Sit-red: dyn x.sums([2,4]) asm=1 / host-C=139; named local=7.
-           * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem only
-           * (NAMED/PTR/ARRAY/SLICE/VECTOR leftover). PLATFORM: SHARED.
+           * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem plus
+           * NAMED leaf (`[]Pair`). Remaining leftover: PTR/ARRAY/SLICE/
+           * VECTOR elem. PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 11) {
             let dyn_eek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
@@ -14252,6 +14255,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 let dyn_sty: i32 = find_or_alloc_slice_type_ref(arena, dyn_ety);
                 if (dyn_sty > 0) {
                   typeck_coerce_init_slice_from_array(arena, dyn_arg, dyn_sty, 11);
+                }
+              }
+            }
+            /*
+             * dest-SLICE-of-NAMED extra (`p: []Pair`): ARRAY_LIT
+             * `[{a:2,b:4}]` stays TYPE_ARRAY of nameless STRUCT_LIT.
+             * Scalar dest-SLICE skips elem kind 8. Sit-red asm=139 /
+             * host-C `(uint8_t[]){(struct )}`. Named local extra already 7.
+             * Registry param_name already holds the leaf (`Pair`).
+             * G.7: reconstruct via param_name + find_or_alloc_named then
+             * wrap slice; reuse typeck_coerce_init_expr_to_decl so
+             * dest-SLICE + STRUCT_LIT elems stamp together (no second
+             * dest-SLICE / ARRAY_LIT / STRUCT_LIT stamp). PLATFORM: SHARED.
+             */
+            if (dyn_eek == 8) {
+              let dyn_snm: u8[64] = [];
+              let dyn_snl: i32 = xlang_skip_trait_method_param_name_into_c(&dyn_trait_nm[0],
+                      dyn_trait_nlen, dyn_slot, arg_i + 1, &dyn_snm[0]);
+              if (dyn_snl > 0) {
+                let dyn_snty: i32 = find_or_alloc_named_type_ref(arena, &dyn_snm[0], dyn_snl);
+                if (dyn_snty > 0) {
+                  let dyn_ssty: i32 = find_or_alloc_slice_type_ref(arena, dyn_snty);
+                  if (dyn_ssty > 0) {
+                    typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssty);
+                  }
                 }
               }
             }

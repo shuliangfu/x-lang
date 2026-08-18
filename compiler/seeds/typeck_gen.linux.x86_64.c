@@ -11553,8 +11553,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
         }
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
         /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64,
-         * ARRAY_LIT extras to dest-SLICE ([]T, kind=11), and STRUCT_LIT
-         * extras to dest-NAMED (Pair, kind=8).
+         * ARRAY_LIT extras to dest-SLICE ([]T, kind=11) including NAMED
+         * leaf ([]Pair), and STRUCT_LIT extras to dest-NAMED (Pair, kind=8).
          * func_ix is the vtable slot — cannot typeck_stamp_resolved_args_float_lit.
          * Extra i → param i+1 (self=0). PLATFORM: SHARED. */
         (void)((num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref)));
@@ -11575,7 +11575,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           }
           /* dest-SLICE extra: ARRAY_LIT stays TYPE_ARRAY after check_expr.
            * Host-C / asm wrap fat only when resolved is TYPE_SLICE.
-           * G.7 reuse typeck_coerce_init_slice_from_array. Scalar elem only. */
+           * G.7 reuse typeck_coerce_init_slice_from_array. Scalar elem plus
+           * NAMED leaf (`[]Pair`). Pin twin of typeck.x. PLATFORM: SHARED. */
           if (((dyn_arg > 0) && (dyn_pk == 11))) {
             int32_t dyn_eek = xlang_skip_trait_method_param_elem_kind_c(&((dyn_trait_nm)[0]),
                     dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11586,6 +11587,25 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 int32_t dyn_sty = typeck_find_or_alloc_slice_type_ref(arena, dyn_ety);
                 if ((dyn_sty > 0)) {
                   (void)typeck_coerce_init_slice_from_array(arena, dyn_arg, dyn_sty, 11);
+                }
+              }
+            }
+            /* dest-SLICE-of-NAMED extra (`p: []Pair`): ARRAY_LIT of nameless
+             * STRUCT_LIT. Sit-red asm=139 / host-C `(uint8_t[]){(struct )}`.
+             * G.7: param_name + find_or_alloc_named then wrap slice;
+             * reuse typeck_coerce_init_expr_to_decl (no second dest-SLICE
+             * / ARRAY_LIT / STRUCT_LIT stamp). Pin twin. PLATFORM: SHARED. */
+            if ((dyn_eek == 8)) {
+              uint8_t dyn_snm[64] = {};
+              int32_t dyn_snl = xlang_skip_trait_method_param_name_into_c(&((dyn_trait_nm)[0]),
+                      dyn_trait_nlen, dyn_slot, (arg_i + 1), &((dyn_snm)[0]));
+              if ((dyn_snl > 0)) {
+                int32_t dyn_snty = typeck_find_or_alloc_named_type_ref(arena, &((dyn_snm)[0]), dyn_snl);
+                if ((dyn_snty > 0)) {
+                  int32_t dyn_ssty = typeck_find_or_alloc_slice_type_ref(arena, dyn_snty);
+                  if ((dyn_ssty > 0)) {
+                    (void)typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssty);
+                  }
                 }
               }
             }
