@@ -162,6 +162,36 @@ export extern function xlang_skip_trait_method_param_elem_kind_c(trait_nm: *u8, 
  */
 export extern function xlang_skip_trait_method_param_name_into_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32, param_ix: i32, out64: *u8): i32;
+/**
+ * ndims of a trait-method `[K][N]…T` formal. -1 if missing.
+ * G.7: completes the skip-trait accessor family next to param_name
+ * (registry already stores method_param_array_ndims). Dyn extras
+ * reconstruct dest-ARRAY (`[2]Pair`) by wrapping leaf → inner N →
+ * outer K (func_ix is the slot). Extra i → param_ix = i+1.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param param_ix i32 — formal index including self (0 = self)
+ * @return i32 — ndims (>=1), or 0 / -1 if unset / invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_array_ndims_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32): i32;
+/**
+ * One dim of a trait-method `[K][N]…T` formal. dim_ix 0 = outer K.
+ * G.7: completes the skip-trait accessor family next to param_array_ndims
+ * (registry already stores method_param_array_dims). Cap 8.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param param_ix i32 — formal index including self (0 = self)
+ * @param dim_ix i32 — dimension index (0 = outer)
+ * @return i32 — N > 0, or -1 if invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_array_dim_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32, dim_ix: i32): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -14101,16 +14131,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
      * trait formal (f32=14 / f64=15), ARRAY_LIT extras to dest-SLICE
-     * (`[]T`, kind=11) including NAMED leaf (`[]Pair`), and STRUCT_LIT
-     * extras to dest-NAMED (`Pair`, kind=8). func_ix is the vtable slot —
-     * must not call typeck_stamp_resolved_args_float_lit (that looks up
-     * module-func params). Formal kinds come from
+     * (`[]T`, kind=11) including NAMED leaf (`[]Pair`), ARRAY_LIT extras
+     * to dest-ARRAY (`[N]T`, kind=10) including NAMED leaf (`[2]Pair`),
+     * and STRUCT_LIT extras to dest-NAMED (`Pair`, kind=8). func_ix is
+     * the vtable slot — must not call typeck_stamp_resolved_args_float_lit
+     * (that looks up module-func params). Formal kinds come from
      * xlang_skip_trait_method_param_kind_c (registry already stored them
      * at parse). Extra i → param i+1 (self=0).
      * G.7 reuse typeck_coerce_init_float_lit_to_decl,
      * typeck_coerce_init_slice_from_array,
-     * typeck_coerce_init_expr_to_decl (dest-SLICE-of-NAMED), and
-     * typeck_coerce_init_struct_lit_to_decl (no second stamp).
+     * typeck_coerce_init_expr_to_decl (dest-SLICE-of-NAMED / dest-ARRAY),
+     * and typeck_coerce_init_struct_lit_to_decl (no second stamp).
      * PLATFORM: SHARED — mirrors seeds/typeck_gen.linux.x86_64.c.
      */
     if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_dyn) {
@@ -14352,6 +14383,68 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               let dyn_nty: i32 = find_or_alloc_named_type_ref(arena, &dyn_pnm[0], dyn_pnl);
               if (dyn_nty > 0) {
                 typeck_coerce_init_struct_lit_to_decl(module, arena, dyn_arg, dyn_nty);
+              }
+            }
+          }
+          /*
+           * dest-ARRAY extra (`p: [2]i32` / `[2]Pair`): ARRAY_LIT stays
+           * TYPE_ARRAY of unstamped elems after check_expr. Scalar
+           * `[2]i32` already works (INT_LIT elems). NAMED leaf (`[2]Pair`)
+           * leaves nameless STRUCT_LIT so host-C emits
+           * `(uint8_t[]){(struct )}`. Sit-red dyn host-C compile fail;
+           * named local extra already 7; asm dyn already 7 (field stores
+           * by name). Registry param_elem_kind / param_name /
+           * param_array_ndims+dims already hold the dest. G.7: reconstruct
+           * via elem_kind / param_name + find_or_alloc_* then wrap ARRAY
+           * (ndims inner-first, twin of dyn ret ARRAY); reuse
+           * typeck_coerce_init_expr_to_decl so dest-ARRAY + STRUCT_LIT
+           * elems stamp together (no second ARRAY_LIT / STRUCT_LIT stamp).
+           * Remaining leftover: PTR/SLICE/VECTOR elem of dest-ARRAY;
+           * UFCS extras are a different produce. PLATFORM: SHARED.
+           */
+          if (dyn_arg > 0 && dyn_pk == 10) {
+            let dyn_aek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, arg_i + 1);
+            let dyn_alf: i32 = 0;
+            if (dyn_aek >= 0 && dyn_aek != 8 && dyn_aek != 9 && dyn_aek != 10
+                && dyn_aek != 11 && dyn_aek != 13) {
+              dyn_alf = pipeline_type_ensure_by_kind_ord(arena, dyn_aek);
+            }
+            if (dyn_alf == 0 && dyn_aek == 8) {
+              let dyn_apnm: u8[64] = [];
+              let dyn_apnl: i32 = xlang_skip_trait_method_param_name_into_c(&dyn_trait_nm[0],
+                      dyn_trait_nlen, dyn_slot, arg_i + 1, &dyn_apnm[0]);
+              if (dyn_apnl > 0) {
+                dyn_alf = find_or_alloc_named_type_ref(arena, &dyn_apnm[0], dyn_apnl);
+              }
+            }
+            if (dyn_alf > 0) {
+              let dyn_and: i32 = xlang_skip_trait_method_param_array_ndims_c(&dyn_trait_nm[0],
+                      dyn_trait_nlen, dyn_slot, arg_i + 1);
+              let dyn_aty: i32 = 0;
+              if (dyn_and >= 2) {
+                let dyn_ai: i32 = dyn_and - 1;
+                let dyn_aw: i32 = dyn_alf;
+                while (dyn_ai >= 0 && dyn_aw > 0) {
+                  let dyn_ad: i32 = xlang_skip_trait_method_param_array_dim_c(&dyn_trait_nm[0],
+                          dyn_trait_nlen, dyn_slot, arg_i + 1, dyn_ai);
+                  if (dyn_ad > 0) {
+                    dyn_aw = find_or_alloc_array_type_ref(arena, dyn_aw, dyn_ad);
+                  } else {
+                    dyn_aw = 0;
+                  }
+                  dyn_ai = dyn_ai - 1;
+                }
+                dyn_aty = dyn_aw;
+              } else {
+                let dyn_ad1: i32 = xlang_skip_trait_method_param_array_dim_c(&dyn_trait_nm[0],
+                        dyn_trait_nlen, dyn_slot, arg_i + 1, 0);
+                if (dyn_ad1 > 0) {
+                  dyn_aty = find_or_alloc_array_type_ref(arena, dyn_alf, dyn_ad1);
+                }
+              }
+              if (dyn_aty > 0) {
+                typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_aty);
               }
             }
           }

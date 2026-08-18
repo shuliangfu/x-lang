@@ -483,6 +483,10 @@ extern int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t * trait_n
         int32_t slot, int32_t param_ix);
 extern int32_t xlang_skip_trait_method_param_name_into_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t param_ix, uint8_t * out64);
+extern int32_t xlang_skip_trait_method_param_array_ndims_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix);
+extern int32_t xlang_skip_trait_method_param_array_dim_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix, int32_t dim_ix);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -11575,7 +11579,9 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
         /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64,
          * ARRAY_LIT extras to dest-SLICE ([]T, kind=11) including NAMED
-         * leaf ([]Pair), and STRUCT_LIT extras to dest-NAMED (Pair, kind=8).
+         * leaf ([]Pair), ARRAY_LIT extras to dest-ARRAY ([N]T, kind=10)
+         * including NAMED leaf ([2]Pair), and STRUCT_LIT extras to
+         * dest-NAMED (Pair, kind=8).
          * func_ix is the vtable slot — cannot typeck_stamp_resolved_args_float_lit.
          * Extra i → param i+1 (self=0). PLATFORM: SHARED. */
         (void)((num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref)));
@@ -11643,6 +11649,58 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               int32_t dyn_nty = typeck_find_or_alloc_named_type_ref(arena, &((dyn_pnm)[0]), dyn_pnl);
               if ((dyn_nty > 0)) {
                 (void)typeck_coerce_init_struct_lit_to_decl(module, arena, dyn_arg, dyn_nty);
+              }
+            }
+          }
+          /* dest-ARRAY extra (`p: [2]i32` / `[2]Pair`): ARRAY_LIT of
+           * nameless STRUCT_LIT. Sit-red host-C `(uint8_t[]){(struct )}`.
+           * G.7: param_elem / param_name + find_or_alloc_* then wrap
+           * ARRAY (ndims inner-first); reuse typeck_coerce_init_expr_to_decl
+           * (no second ARRAY_LIT / STRUCT_LIT stamp). Pin twin.
+           * PLATFORM: SHARED. */
+          if (((dyn_arg > 0) && (dyn_pk == 10))) {
+            int32_t dyn_aek = xlang_skip_trait_method_param_elem_kind_c(&((dyn_trait_nm)[0]),
+                    dyn_trait_nlen, dyn_slot, (arg_i + 1));
+            int32_t dyn_alf = 0;
+            if (((((dyn_aek >= 0) && (dyn_aek != 8)) && (dyn_aek != 9))
+                    && ((dyn_aek != 10) && ((dyn_aek != 11) && (dyn_aek != 13))))) {
+              dyn_alf = pipeline_type_ensure_by_kind_ord(arena, dyn_aek);
+            }
+            if (((dyn_alf == 0) && (dyn_aek == 8))) {
+              uint8_t dyn_apnm[64] = {};
+              int32_t dyn_apnl = xlang_skip_trait_method_param_name_into_c(&((dyn_trait_nm)[0]),
+                      dyn_trait_nlen, dyn_slot, (arg_i + 1), &((dyn_apnm)[0]));
+              if ((dyn_apnl > 0)) {
+                dyn_alf = typeck_find_or_alloc_named_type_ref(arena, &((dyn_apnm)[0]), dyn_apnl);
+              }
+            }
+            if ((dyn_alf > 0)) {
+              int32_t dyn_and = xlang_skip_trait_method_param_array_ndims_c(&((dyn_trait_nm)[0]),
+                      dyn_trait_nlen, dyn_slot, (arg_i + 1));
+              int32_t dyn_aty = 0;
+              if ((dyn_and >= 2)) {
+                int32_t dyn_ai = (dyn_and - 1);
+                int32_t dyn_aw = dyn_alf;
+                while (((dyn_ai >= 0) && (dyn_aw > 0))) {
+                  int32_t dyn_ad = xlang_skip_trait_method_param_array_dim_c(&((dyn_trait_nm)[0]),
+                          dyn_trait_nlen, dyn_slot, (arg_i + 1), dyn_ai);
+                  if ((dyn_ad > 0)) {
+                    dyn_aw = typeck_find_or_alloc_array_type_ref(arena, dyn_aw, dyn_ad);
+                  } else {
+                    dyn_aw = 0;
+                  }
+                  dyn_ai = (dyn_ai - 1);
+                }
+                dyn_aty = dyn_aw;
+              } else {
+                int32_t dyn_ad1 = xlang_skip_trait_method_param_array_dim_c(&((dyn_trait_nm)[0]),
+                        dyn_trait_nlen, dyn_slot, (arg_i + 1), 0);
+                if ((dyn_ad1 > 0)) {
+                  dyn_aty = typeck_find_or_alloc_array_type_ref(arena, dyn_alf, dyn_ad1);
+                }
+              }
+              if ((dyn_aty > 0)) {
+                (void)typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_aty);
               }
             }
           }
