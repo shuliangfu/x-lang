@@ -11664,8 +11664,31 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               return -1;
             }
           } else {
-            if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
-              return -1;
+            /*
+             * F6: Builtin by-value RHS — emit "&((<C-type>){" so & has a
+             * valid lvalue (compound literal). codegen_emit_dyn_vtable_close
+             * closes with "}". Non-builtin by-value keeps the F2 "&(" path
+             * (NAMED RHS has storage).
+             * PLATFORM: SHARED host-C; seed codegen_gen.linux.x86_64.c mirrors.
+             */
+            let bnm: u8[16] = [];
+            let blen: i32 = codegen_builtin_type_name_into(rhs_kind_ord, &bnm[0]);
+            if (blen > 0) {
+              /* Emit "(struct xlang_dyn_obj){ .data = " — 32 bytes (dyn_open 0..31). */
+              if (emit_bytes_from_ptr(out, &dyn_open[0], 32) != 0) { return -1; }
+              /* Emit "&((" — 3 bytes. */
+              if (append_byte(out, 38) != 0) { return -1; }
+              if (append_byte(out, 40) != 0) { return -1; }
+              if (append_byte(out, 40) != 0) { return -1; }
+              /* Emit the C type (int32_t/f64/...). */
+              if (emit_type_kind(out, rhs_kind_ord) != 0) { return -1; }
+              /* Emit "){" — 2 bytes (close cast + open compound literal). */
+              if (append_byte(out, 41) != 0) { return -1; }
+              if (append_byte(out, 123) != 0) { return -1; }
+            } else {
+              if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
+                return -1;
+              }
             }
           }
         }
@@ -16311,8 +16334,31 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                     return -1;
                   }
                 } else {
-                  if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
-                    return -1;
+                  /*
+                   * F6: Builtin by-value RHS — emit "&((<C-type>){" so & has
+                   * a valid lvalue (compound literal).
+                   * codegen_emit_dyn_vtable_close closes with "}". Non-builtin
+                   * by-value keeps the F2 "&(" path (NAMED RHS has storage).
+                   * PLATFORM: SHARED host-C; seed codegen_gen.linux.x86_64.c mirrors.
+                   */
+                  let bnm: u8[16] = [];
+                  let blen: i32 = codegen_builtin_type_name_into(rhs_kind_ord, &bnm[0]);
+                  if (blen > 0) {
+                    /* Emit "(struct xlang_dyn_obj){ .data = " — 32 bytes (dyn_open 0..31). */
+                    if (emit_bytes_from_ptr(out, &dyn_open[0], 32) != 0) { return -1; }
+                    /* Emit "&((" — 3 bytes. */
+                    if (append_byte(out, 38) != 0) { return -1; }
+                    if (append_byte(out, 40) != 0) { return -1; }
+                    if (append_byte(out, 40) != 0) { return -1; }
+                    /* Emit the C type (int32_t/f64/...). */
+                    if (emit_type_kind(out, rhs_kind_ord) != 0) { return -1; }
+                    /* Emit "){" — 2 bytes (close cast + open compound literal). */
+                    if (append_byte(out, 41) != 0) { return -1; }
+                    if (append_byte(out, 123) != 0) { return -1; }
+                  } else {
+                    if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
+                      return -1;
+                    }
                   }
                 }
               }
@@ -16689,8 +16735,32 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                           return -1;
                         }
                       } else {
-                        if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
-                          return -1;
+                        /*
+                         * F6: Builtin by-value RHS — emit "&((<C-type>){" so
+                         * & has a valid lvalue (compound literal).
+                         * codegen_emit_dyn_vtable_close closes with "}".
+                         * Non-builtin by-value keeps the F2 "&(" path
+                         * (NAMED RHS has storage).
+                         * PLATFORM: SHARED host-C; seed mirrors.
+                         */
+                        let bnm: u8[16] = [];
+                        let blen: i32 = codegen_builtin_type_name_into(rhs_kind_ord, &bnm[0]);
+                        if (blen > 0) {
+                          /* Emit "(struct xlang_dyn_obj){ .data = " — 32 bytes (dyn_open 0..31). */
+                          if (emit_bytes_from_ptr(out, &dyn_open[0], 32) != 0) { return -1; }
+                          /* Emit "&((" — 3 bytes. */
+                          if (append_byte(out, 38) != 0) { return -1; }
+                          if (append_byte(out, 40) != 0) { return -1; }
+                          if (append_byte(out, 40) != 0) { return -1; }
+                          /* Emit the C type (int32_t/f64/...). */
+                          if (emit_type_kind(out, rhs_kind_ord) != 0) { return -1; }
+                          /* Emit "){" — 2 bytes (close cast + open compound literal). */
+                          if (append_byte(out, 41) != 0) { return -1; }
+                          if (append_byte(out, 123) != 0) { return -1; }
+                        } else {
+                          if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
+                            return -1;
+                          }
                         }
                       }
                     }
@@ -20142,6 +20212,66 @@ export function codegen_emit_vtable_static_name(out: *CodegenOutBuf,
 }
 
 /**
+ * F6: Map a builtin TypeKind ordinal to its X source name bytes (e.g.
+ * TYPE_I32 -> "i32", TYPE_F64 -> "f64", TYPE_VOID -> "void"). Returns the
+ * name length (>0) for builtin scalar/void kinds; returns 0 for non-builtin
+ * kinds (NAMED/PTR/ARRAY/SLICE/LINEAR/VECTOR/DYN).
+ *
+ * Root cause: the impl registry stores `impl Trait for <builtin>` blocks with
+ * an EMPTY for-type name (only the kind ordinal survives — see
+ * xlang_skip_impl_for_type_into_c out_name64 docblock). The vtable static +
+ * wrapper naming helpers take a for-type name, so a builtin for-type has no
+ * name to feed them. This helper synthesizes the canonical X name from the
+ * kind ordinal so builtin for-types can share the F4/F5 static-vtable path.
+ *
+ * Single authority for the builtin kind->name map; called by
+ * codegen_emit_module_vtable_statics (synthesize for_nm before emitting the
+ * static + wrapper) and usable from coerce sites to reference the same static.
+ * Mirrored in seed codegen_gen.linux.x86_64.c.
+ * PLATFORM: SHARED.
+ */
+export function codegen_builtin_type_name_into(kind_ord: i32, out: *u8): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *u8) { return 0; }
+    if (kind_ord == (TypeKind.TYPE_I32 as i32)) {
+      out[0] = 105; out[1] = 51; out[2] = 50; return 3;
+    }
+    if (kind_ord == (TypeKind.TYPE_BOOL as i32)) {
+      out[0] = 98; out[1] = 111; out[2] = 111; out[3] = 108; return 4;
+    }
+    if (kind_ord == (TypeKind.TYPE_U8 as i32)) {
+      out[0] = 117; out[1] = 56; return 2;
+    }
+    if (kind_ord == (TypeKind.TYPE_U32 as i32)) {
+      out[0] = 117; out[1] = 51; out[2] = 50; return 3;
+    }
+    if (kind_ord == (TypeKind.TYPE_U64 as i32)) {
+      out[0] = 117; out[1] = 54; out[2] = 52; return 3;
+    }
+    if (kind_ord == (TypeKind.TYPE_I64 as i32)) {
+      out[0] = 105; out[1] = 54; out[2] = 52; return 3;
+    }
+    if (kind_ord == (TypeKind.TYPE_USIZE as i32)) {
+      out[0] = 117; out[1] = 115; out[2] = 105; out[3] = 122; out[4] = 101; return 5;
+    }
+    if (kind_ord == (TypeKind.TYPE_ISIZE as i32)) {
+      out[0] = 105; out[1] = 115; out[2] = 105; out[3] = 122; out[4] = 101; return 5;
+    }
+    if (kind_ord == (TypeKind.TYPE_F32 as i32)) {
+      out[0] = 102; out[1] = 51; out[2] = 50; return 3;
+    }
+    if (kind_ord == (TypeKind.TYPE_F64 as i32)) {
+      out[0] = 102; out[1] = 54; out[2] = 52; return 3;
+    }
+    if (kind_ord == (TypeKind.TYPE_VOID as i32)) {
+      out[0] = 118; out[1] = 111; out[2] = 105; out[3] = 100; return 4;
+    }
+    return 0;
+  }
+}
+
+/**
  * F5+: Emit the canonical vtable wrapper name
  * `xlang_vtable_wrap_<Trait>_for_[Ptr_]<Type>_<slot>`. Follows the same
  * sanitization as codegen_emit_vtable_static_name (G.7 single naming
@@ -20315,10 +20445,29 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
     if (append_byte(out, 40) != 0) { return -1; }
     /*
      * Adapt void* data to the method's self type:
-     * - by-value self (for_ptr=0): dereference — *(struct <Type>*)data
-     * - pointer self (for_ptr=1): cast — (struct <Type>*)data
+     * - by-value self (for_ptr=0): dereference
+     *   - NAMED: *(struct <Type>*)data
+     *   - builtin (F6): *(<C-type>*)data  (no "struct" — i32/f64 are scalars)
+     * - pointer self (for_ptr=1): cast
+     *   - NAMED: (struct <Type>*)data
+     *   - builtin (F6): (<C-type>*)data
+     * F6: builtin for-types reach here via codegen_emit_module_vtable_statics
+     * (recv_rt is the builtin kind's type_ref). Detect via recv_rt's kind ord;
+     * emit the C type (int32_t/f64/...) instead of "struct <name>". The shared
+     * close_body below ("*)data); }\n") closes the cast for both variants.
      */
-    if (for_ptr == 0) {
+    let recv_kind: i32 = pipeline_type_kind_ord_at(arena, recv_rt);
+    let builtin_nm: u8[16] = [];
+    let is_builtin: i32 = codegen_builtin_type_name_into(recv_kind, &builtin_nm[0]);
+    if (is_builtin != 0) {
+      /* by-value: "*" deref prefix; pointer: omit. Then "(" opens the cast. */
+      if (for_ptr == 0) {
+        if (append_byte(out, 42) != 0) { return -1; }
+      }
+      if (append_byte(out, 40) != 0) { return -1; }
+      /* Emit the builtin C type (int32_t/f64/...). */
+      if (emit_type_kind(out, recv_kind) != 0) { return -1; }
+    } else if (for_ptr == 0) {
       /* "*(struct " — 9 bytes (deref + cast open). */
       let deref_cast: u8[9] = [42, 40, 115, 116, 114, 117, 99, 116, 32];
       if (emit_bytes_from_ptr(out, &deref_cast[0], 9) != 0) {
@@ -20331,18 +20480,21 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
         return -1;
       }
     }
-    /* Emit the for-type name (sanitized: copy only alnum/_, cap 64). */
-    let fi2: i32 = 0;
-    while (fi2 < for_nlen && fi2 < 64) {
-      let b: u8 = for_nm[fi2];
-      let is_alnum_: i32 = 0;
-      if (b == 95) { is_alnum_ = 1; }
-      if (b >= 48 && b <= 57) { is_alnum_ = 1; }
-      if (b >= 65 && b <= 90) { is_alnum_ = 1; }
-      if (b >= 97 && b <= 122) { is_alnum_ = 1; }
-      if (is_alnum_ == 0) { b = 95; }
-      if (append_byte(out, b) != 0) { return -1; }
-      fi2 = fi2 + 1;
+    /* Emit the for-type name (sanitized: copy only alnum/_, cap 64).
+     * Skipped for builtin: the C type was already emitted above. */
+    if (is_builtin == 0) {
+      let fi2: i32 = 0;
+      while (fi2 < for_nlen && fi2 < 64) {
+        let b: u8 = for_nm[fi2];
+        let is_alnum_: i32 = 0;
+        if (b == 95) { is_alnum_ = 1; }
+        if (b >= 48 && b <= 57) { is_alnum_ = 1; }
+        if (b >= 65 && b <= 90) { is_alnum_ = 1; }
+        if (b >= 97 && b <= 122) { is_alnum_ = 1; }
+        if (is_alnum_ == 0) { b = 95; }
+        if (append_byte(out, b) != 0) { return -1; }
+        fi2 = fi2 + 1;
+      }
     }
     /* "*)data); }\n" — 11 bytes (close cast + data + close call + stmt + body). */
     let close_body: u8[11] = [42, 41, 100, 97, 116, 97, 41, 59, 32, 125, 10];
@@ -20362,8 +20514,8 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
  * `codegen_emit_module_vtable_statics` (`.vtable = xlang_vtable_<T>_for_<U>`)
  * instead of an inline compound literal. This shares the vtable across all
  * coerce sites for the same (Trait, Type) pair and enables multiple impls of
- * the same trait to coexist. Builtin for-types fall through to the F3 inline
- * path (no static was emitted for them).
+ * the same trait to coexist. F6: builtin for-types also reference the
+ * static vtable (codegen_emit_module_vtable_statics now emits builtins).
  *
  * F3 inline fallback: resolves the trait name from `lt_dyn`, enumerates the
  * trait's methods via `xlang_skip_trait_method_count_c` +
@@ -20414,7 +20566,7 @@ export function codegen_emit_dyn_vtable_close(arena: *ASTArena, out: *CodegenOut
      * instead of building an inline compound literal. This shares the vtable
      * across all coerce sites for the same (Trait, Type) pair and enables
      * multiple impls of the same trait to coexist (the static has a stable
-     * name). Builtin for-types fall through to the F3 inline path below.
+     * name). F6: builtin for-types also reference the static vtable.
      * PLATFORM: SHARED — the static is emitted by the same .x/seed pin.
      */
     let NAMED_KIND: i32 = 8;
@@ -20433,7 +20585,36 @@ export function codegen_emit_dyn_vtable_close(arena: *ASTArena, out: *CodegenOut
         name_rt = 0;
       }
     } else if (recv_kind != NAMED_KIND) {
-      /* Builtin receiver: inline path handles it below. */
+      /*
+       * F6: Builtin receiver — reference the module-level static vtable
+       * emitted by codegen_emit_module_vtable_statics (which now handles
+       * builtin for-types). The coerce site emits "&((<C-type>){RHS" for
+       * by-value builtin RHS (compound literal, since & needs an lvalue);
+       * this close must prepend "}" to close the compound literal before
+       * the normal "), .vtable = <static> }" close. If name synthesis
+       * fails (unrecognized kind), fall through to the F3 inline path.
+       * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c mirrors.
+       */
+      let bnm: u8[16] = [];
+      let blen: i32 = codegen_builtin_type_name_into(recv_kind, &bnm[0]);
+      if (blen > 0) {
+        /* "}" — 1 byte: close the compound literal "{RHS". */
+        if (append_byte(out, 125) != 0) { return -1; }
+        /* "), .vtable = " — 13 bytes (close outer paren + field + assign). */
+        let vt_ref_prefix: u8[13] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32];
+        if (emit_bytes_from_ptr(out, &vt_ref_prefix[0], 13) != 0) {
+          return -1;
+        }
+        /* Emit the canonical static name (G.7 single authority for naming). */
+        if (codegen_emit_vtable_static_name(out, &trait_nm[0], trait_nlen,
+                &bnm[0], blen, 0) != 0) {
+          return -1;
+        }
+        /* " }" — 2 bytes (compound literal close). */
+        let vt_ref_close: u8[2] = [32, 125];
+        return emit_bytes_from_ptr(out, &vt_ref_close[0], 2);
+      }
+      /* Not a recognized builtin: inline path handles it below. */
       name_rt = 0;
     }
     if (name_rt > 0) {
@@ -20458,8 +20639,8 @@ export function codegen_emit_dyn_vtable_close(arena: *ASTArena, out: *CodegenOut
     }
     /*
      * F3 inline fallback: emit "), .vtable = ((void*[]){ " — 25 bytes
-     * (vtable array open). Used when rhs_rt is a builtin (no static emitted
-     * by codegen_emit_module_vtable_statics) or for-type name is unresolvable.
+     * (vtable array open). Reached when name synthesis fails (unrecognized
+     * builtin kind) or for-type name is unresolvable.
      */
     let vt_open: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32,
             40, 40, 118, 111, 105, 100, 42, 91, 93, 41, 123, 32];
@@ -20562,19 +20743,32 @@ export function codegen_emit_module_vtable_statics(arena: *ASTArena, out: *Codeg
         continue;
       }
       /*
-       * F4 first cut: NAMED for-type only (incl. PTR-to-NAMED).
-       * Builtin for-types (for_k != NAMED) skip static emission; coerce
-       * site falls back to F3 inline path.
+       * F6: route builtin for-types through the same static-vtable path as
+       * NAMED. The impl registry stores builtin for-types with an EMPTY name
+       * (only for_k survives — see xlang_skip_impl_for_type_into_c), so
+       * synthesize the canonical X name (i32/f64/...) via the single-authority
+       * codegen_builtin_type_name_into before feeding the naming helpers, and
+       * construct recv_rt via find_or_alloc_compound (builtins have no name
+       * to feed find_or_alloc_named). PTR-to-builtin (`impl T for *i32`) is
+       * left to a later wave; only by-value builtin for-types are handled here.
+       * NAMED for-types keep the F4 path (name + optional PTR wrap).
        */
-      if (for_k != NAMED_KIND || for_nlen <= 0) {
-        si = si + 1;
-        continue;
+      let is_builtin: i32 = 0;
+      if (for_nlen <= 0) {
+        let blen: i32 = codegen_builtin_type_name_into(for_k, &for_nm[0]);
+        if (blen <= 0) {
+          si = si + 1;
+          continue;
+        }
+        for_nlen = blen;
+        is_builtin = 1;
       }
-      /*
-       * Construct recv_rt via find_or_alloc (no-op alloc for existing
-       * names — typeck already populated NAMED for-types).
-       */
-      let recv_rt: i32 = pipeline_type_find_or_alloc_named(arena, &for_nm[0], for_nlen);
+      let recv_rt: i32 = 0;
+      if (is_builtin != 0) {
+        recv_rt = pipeline_type_find_or_alloc_compound(arena, for_k, 0, 0);
+      } else {
+        recv_rt = pipeline_type_find_or_alloc_named(arena, &for_nm[0], for_nlen);
+      }
       if (recv_rt <= 0) {
         si = si + 1;
         continue;
