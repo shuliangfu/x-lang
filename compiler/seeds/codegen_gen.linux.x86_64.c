@@ -1595,6 +1595,8 @@ extern int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena * arena, 
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena * arena, int32_t a, int32_t b);
+/* F2: TYPE_DYN null-sentinel test reused from typeck.x (G.7 single authority). */
+extern int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref);
 extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena * arena, int32_t expr_ref);
@@ -9427,8 +9429,29 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       if ((codegen_emit_bytes_4(out, &((op)[0]), 3) !=0)) {
         return -1;
       }
+      /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS assign -> wrap
+       * RHS in fat-ptr compound literal. Twin of let-emit dyn_wrap.
+       * vtable NULL until F3. PLATFORM: SHARED host-C. */
+      int32_t dyn_wrap = 0;
+      int32_t lt_dyn = pipeline_typeck_resolve_type_alias_ref_c(arena, lt_ref);
+      if (((lt_dyn > 0) && (pipeline_type_kind_ord_at(arena, lt_dyn) ==17))) {
+        int32_t rhs_rt = pipeline_expr_resolved_type_ref(arena, ((e).binop_right_ref));
+        if ((typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, ((e).binop_right_ref)) ==0)) {
+          (void)((dyn_wrap = 1));
+          uint8_t dyn_open[34] = {40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40};
+          if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
+            return -1;
+          }
+        }
+      }
       if ((codegen_emit_expr(arena, out, ((e).binop_right_ref), ctx) !=0)) {
         return -1;
+      }
+      if ((dyn_wrap !=0)) {
+        uint8_t dyn_close[25] = {41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125};
+        if ((codegen_emit_bytes_from_ptr(out, &((dyn_close)[0]), 25) !=0)) {
+          return -1;
+        }
       }
       return codegen_append_byte(out, 41);
     }
@@ -13196,8 +13219,29 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
             if ((codegen_emit_bytes_4(out, &((eq_pre)[0]), 3) !=0)) {
               return -1;
             }
+            /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS -> wrap in
+             * fat-ptr compound literal. vtable NULL until F3.
+             * PLATFORM: SHARED host-C. */
+            int32_t dyn_wrap = 0;
+            int32_t lt_dyn = pipeline_typeck_resolve_type_alias_ref_c(arena, let_type_pre);
+            if (((!ast_ref_is_null(lt_dyn)) && (pipeline_type_kind_ord_at(arena, lt_dyn) ==17))) {
+              int32_t rhs_rt = pipeline_expr_resolved_type_ref(arena, linit_pre);
+              if ((typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, linit_pre) ==0)) {
+                (void)((dyn_wrap = 1));
+                uint8_t dyn_open[34] = {40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40};
+                if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
+                  return -1;
+                }
+              }
+            }
             if ((codegen_emit_expr(arena, out, linit_pre, ctx) !=0)) {
               return -1;
+            }
+            if ((dyn_wrap !=0)) {
+              uint8_t dyn_close[25] = {41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125};
+              if ((codegen_emit_bytes_from_ptr(out, &((dyn_close)[0]), 25) !=0)) {
+                return -1;
+              }
             }
             uint8_t sc_pre[3] = {59, 10, 0};
             if ((codegen_emit_bytes_3(out, &((sc_pre)[0]), 2) !=0)) {
@@ -13470,8 +13514,29 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                               return -1;
                             }
                           } else {
+                            /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS -> wrap
+                             * in fat-ptr compound literal. vtable NULL until F3.
+                             * PLATFORM: SHARED host-C. */
+                            int32_t dyn_wrap = 0;
+                            int32_t lt_dyn = pipeline_typeck_resolve_type_alias_ref_c(arena, let_type_ref);
+                            if (((lt_dyn > 0) && (pipeline_type_kind_ord_at(arena, lt_dyn) ==17))) {
+                              int32_t rhs_rt = pipeline_expr_resolved_type_ref(arena, linit_ref);
+                              if ((typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, linit_ref) ==0)) {
+                                (void)((dyn_wrap = 1));
+                                uint8_t dyn_open[34] = {40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40};
+                                if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
+                                  return -1;
+                                }
+                              }
+                            }
                             if ((codegen_emit_expr(arena, out, linit_ref, ctx) !=0)) {
                               return -1;
+                            }
+                            if ((dyn_wrap !=0)) {
+                              uint8_t dyn_close[25] = {41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125};
+                              if ((codegen_emit_bytes_from_ptr(out, &((dyn_close)[0]), 25) !=0)) {
+                                return -1;
+                              }
                             }
                           }
                         }

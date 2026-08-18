@@ -7547,6 +7547,44 @@ export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
   return false;
 }
 
+/*
+ * F2 TYPE_DYN(17) dyn-coerce null-sentinel predicate.
+ *
+ * `let x: dyn Trait = 0` (literal INT_LIT 0) and the equivalent `null` form
+ * represent the null fat-ptr (data=NULL, vtable=NULL) — not a real concrete
+ * value needing a vtable. The dyn-coerce gate in typeck_check_expr (assign
+ * path) and typeck_check_block_one_let (let-init path) calls this predicate
+ * to bypass impl-lookup for the null form, mirroring the F1 path that
+ * accepted `0` onto any dyn LHS.
+ *
+ * Returns 1 iff expr_ref is a bare INT_LIT with value 0 (the canonical null
+ * representation for a fat pointer); 0 otherwise. Mirrors the existing
+ * `kop == ord_lit && pipeline_expr_int_val_at(...) == 0` pattern at L7622
+ * (single G.7 rule, both sites). PLATFORM: SHARED.
+ *
+ * @param arena *ASTArena — expr pool
+ * @param rhs_type_ref i32 — resolved type_ref of RHS (reserved for future
+ *        TYPE_PTR-null forms; current implementation is expr-driven)
+ * @param rhs_expr_ref i32 — RHS expr_ref (the value being assigned)
+ * @return i32 — 1 if null sentinel; 0 otherwise
+ */
+export function typeck_dyn_rhs_is_null_sentinel(arena: *ASTArena, rhs_type_ref: i32,
+        rhs_expr_ref: i32): i32 {
+  unsafe {
+  let ord_lit: i32 = 0;
+  if (ast.ref_is_null(rhs_expr_ref)) {
+    return 0;
+  }
+  if (pipeline_expr_kind_ord_at(arena, rhs_expr_ref) != ord_lit) {
+    return 0;
+  }
+  if (pipeline_expr_int_val_at(arena, rhs_expr_ref) != 0) {
+    return 0;
+  }
+  return 1;
+  }
+}
+
 /**
  * True when src is T[N] and dest is T[] with equal element types.
  * Let coerce stamps after this check; return / assign / call-arg score
@@ -9891,15 +9929,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt)) {
       /*
-       * F1 TYPE_DYN(17): dyn LHS accepts any concrete RHS. Foundation-wave
-       * dyn is shape-only (concrete->dyn coerce + vtable dispatch are F2+),
-       * so `x = 0` onto a dyn-declared LHS must not fire the equal-ref gate.
+       * F2 TYPE_DYN(17): dyn LHS accepts a concrete RHS only when either
+       * (a) the RHS is the null-dyn sentinel (literal INT_LIT 0 — null
+       * fat-ptr representation, no vtable needed) OR (b) a registered
+       * `impl Trait for RHS_type` block exists in the impl table. Concrete
+       * RHS without impl leaves dyn_assign_ok = 0 so the downstream
+       * type_refs_equal mismatch gate fires with the standard
+       * "expected dyn Trait, found T" diagnostic.
+       *
+       * F1 history: blanket `dyn_assign_ok = 1` accepted any RHS (dyn was
+       * shape-only). F2 closes that hole with real impl-lookup; null-dyn
+       * sentinel preserves the F1 path for `let x: dyn Trait = 0`.
        * Mirrors the let-init gate in typeck_check_block_one_let (single
-       * G.7 rule; same semantic authority, both sides in this commit).
-       * PLATFORM: SHARED.
+       * G.7 rule; same semantic authority, both sides). PLATFORM: SHARED.
        */
       if (pipeline_type_kind_ord_at(arena, lt) == TypeKind.TYPE_DYN as i32) {
-        dyn_assign_ok = 1;
+        if (typeck_dyn_rhs_is_null_sentinel(arena, rt, right_ref) != 0) {
+          dyn_assign_ok = 1;
+        } else {
+          let trait_nm_asg: u8[64] = [];
+          let tnl_asg: i32 = pipeline_type_named_name_into(arena, lt, &trait_nm_asg[0]);
+          if (tnl_asg > 0 && xlang_skip_impl_concrete_implements_trait_c(
+                  arena as *void, rt, &trait_nm_asg[0], tnl_asg) != 0) {
+            dyn_assign_ok = 1;
+          }
+        }
       }
       if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0 && dyn_assign_ok == 0) {
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
@@ -15565,13 +15619,32 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         let decl_k2: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
         let init_k2: i32 = pipeline_type_kind_ord_at(arena, init_ty);
         /*
-         * F1 TYPE_DYN(17): dyn decl accepts any concrete init. Foundation
-         * dyn is shape-only (concrete->dyn coerce + vtable dispatch are
-         * F2+), so `let x: dyn T = 0` must not fire the mismatch gate.
-         * Mirrors the assign-path dyn_assign_ok rule (single G.7 rule;
-         * both sides live in this commit). PLATFORM: SHARED.
+         * F2 TYPE_DYN(17): dyn decl accepts a concrete init only when either
+         * (a) the init is the null-dyn sentinel (literal INT_LIT 0 — null
+         * fat-ptr representation, no vtable) OR (b) a registered
+         * `impl Trait for init_ty` block exists. Concrete init without impl
+         * rejects here with the standard mismatch diagnostic.
+         *
+         * F1 history: blanket skip when decl_k2 == TYPE_DYN accepted any
+         * init (dyn was shape-only). F2 closes that hole with real
+         * impl-lookup; null-dyn sentinel preserves the F1 path for
+         * `let x: dyn Trait = 0`. Mirrors the assign-path dyn_assign_ok
+         * rule (single G.7 rule; both sides live in this commit).
+         * PLATFORM: SHARED.
          */
-        if (decl_k2 != TypeKind.TYPE_DYN as i32 && !typeck_float_widen_ok(decl_k2, init_k2)) {
+        let dyn_init_reject: i32 = 0;
+        if (decl_k2 == TypeKind.TYPE_DYN as i32) {
+          if (typeck_dyn_rhs_is_null_sentinel(arena, init_ty, ld_ir) == 0) {
+            let trait_nm_let: u8[64] = [];
+            let tnl_let: i32 = pipeline_type_named_name_into(arena, ld_tr, &trait_nm_let[0]);
+            if (tnl_let == 0 || xlang_skip_impl_concrete_implements_trait_c(
+                    arena as *void, init_ty, &trait_nm_let[0], tnl_let) == 0) {
+              dyn_init_reject = 1;
+            }
+          }
+        }
+        if (dyn_init_reject != 0
+            || (decl_k2 != TypeKind.TYPE_DYN as i32 && !typeck_float_widen_ok(decl_k2, init_k2))) {
           eb = driver_typeck_diag_scratch_expect();
           gb = driver_typeck_diag_scratch_found();
           el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96);
@@ -16306,6 +16379,20 @@ export function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTA
  * PLATFORM: SHARED typeck
  */
 export extern function xlang_trait_check_impls_complete_c(module: *Module): i32;
+
+/*
+ * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body lives
+ * in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
+ * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
+ * g_xlang_skip_impl_* globals directly).
+ *
+ * Returns 1 iff some registered `impl Trait for T` block has trait_name == trait_nm
+ * AND for-type matches concrete_ty_ref. Called from the assign + let-init dyn-coerce
+ * gates (search for `xlang_skip_impl_concrete_implements_trait_c` call sites).
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
+        concrete_ty_ref: i32, trait_nm: *u8, trait_nlen: i32): i32;
 
 /**
  * Typecheck one module top-level let/const initializer.

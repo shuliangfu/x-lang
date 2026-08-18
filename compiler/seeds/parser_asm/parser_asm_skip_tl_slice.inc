@@ -1173,6 +1173,47 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
 }
 
 /**
+ * F2: Returns 1 iff some registered impl block has trait_name == trait_nm AND
+ * for-type matches concrete_ty_ref (reuses xlang_skip_impl_self_matches_for_c
+ * for the for-type shape comparison). 0 otherwise.
+ *
+ * Called from typeck dyn-coerce gate (src/typeck/typeck.x assign + let-init
+ * paths) to verify `let x: dyn Trait = concrete_T_val` requires an impl block.
+ * G.7 single authority: this function (twin of xlang_skip_impl_self_matches_for_c);
+ * typeck must NOT iterate g_xlang_skip_impl_* globals directly.
+ * PLATFORM: SHARED.
+ *
+ * @param arena           ASTArena (void*) for kind/name access; same instance
+ *                       the parser populated impl entries into.
+ * @param concrete_ty_ref type_ref of the RHS concrete type (e.g. struct A);
+ *                       must be non-zero.
+ * @param trait_nm       trait name bytes (e.g. "Clone"); must be non-null.
+ * @param trait_nlen     trait name length; must be > 0.
+ * @return 1 if any impl block matches; 0 otherwise.
+ */
+int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
+        int32_t concrete_ty_ref, const uint8_t *trait_nm, int32_t trait_nlen) {
+  int32_t si;
+  if (!trait_nm || trait_nlen <= 0 || concrete_ty_ref == 0)
+    return 0;
+  for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
+    int32_t tlen = g_xlang_skip_impl_trait_len[si];
+    const uint8_t *tname = g_xlang_skip_impl_trait[si];
+    if (tlen != trait_nlen || tlen <= 0)
+      continue;
+    if (memcmp(tname, trait_nm, (size_t)tlen) != 0)
+      continue;
+    if (xlang_skip_impl_self_matches_for_c(arena, concrete_ty_ref,
+            g_xlang_skip_impl_for_kinds[si],
+            g_xlang_skip_impl_for_is_ptr[si],
+            g_xlang_skip_impl_for_names[si],
+            g_xlang_skip_impl_for_name_lens[si]))
+      return 1;
+  }
+  return 0;
+}
+
+/**
  * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
  * `for` type name when matching method param/ret signatures.
  *

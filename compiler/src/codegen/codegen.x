@@ -115,6 +115,11 @@ export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, exp
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
+/** F2: TYPE_DYN null-sentinel test reused from typeck.x (G.7 single authority).
+ * Returns 1 iff rhs_expr_ref is the literal 0 (null fat-ptr representation),
+ * bypassing the concrete→dyn impl-lookup gate. @param rhs_type_ref reserved
+ * (unused; kept for API symmetry with typeck). PLATFORM: SHARED. */
+export extern function typeck_dyn_rhs_is_null_sentinel(arena: *ASTArena, rhs_type_ref: i32, rhs_expr_ref: i32): i32;
 /** wave452: CALL turbofish type-arg type_ref (sidecar); 0 if count-only / missing. */
 export extern function pipeline_expr_call_type_arg_ref_at(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -11589,8 +11594,31 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (emit_bytes_4(out, &op[0], 3) != 0) {
         return -1;
       }
+      /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS assign -> wrap
+       * RHS in fat-ptr compound literal. Twin of let-emit dyn_wrap path.
+       * vtable NULL until F3. PLATFORM: SHARED host-C. */
+      let dyn_wrap: i32 = 0;
+      let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, lt_ref);
+      if (lt_dyn > 0 && pipeline_type_kind_ord_at(arena, lt_dyn) == (TypeKind.TYPE_DYN as i32)) {
+        let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, e.binop_right_ref);
+        if (typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, e.binop_right_ref) == 0) {
+          dyn_wrap = 1;
+          /* "(struct xlang_dyn_obj){ .data = &(" — 34 bytes */
+          let dyn_open: u8[34] = [40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40];
+          if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
+            return -1;
+          }
+        }
+      }
       if (emit_expr(arena, out, e.binop_right_ref, ctx) != 0) {
         return -1;
+      }
+      if (dyn_wrap != 0) {
+        /* "), .vtable = ((void*)0) }" — 25 bytes */
+        let dyn_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
+        if (emit_bytes_from_ptr(out, &dyn_close[0], 25) != 0) {
+          return -1;
+        }
       }
       return append_byte(out, 41);
     }
@@ -16065,8 +16093,35 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (emit_bytes_4(out, &eq_pre[0], 3) != 0) {
               return -1;
             }
+            /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS -> wrap in
+             * fat-ptr compound literal so host-C sees
+             * `struct xlang_dyn_obj x = (struct xlang_dyn_obj){...};` and not
+             * `struct xlang_dyn_obj x = a;` (type mismatch). Null-dyn sentinel
+             * (literal 0) keeps the F1 bare-init path. vtable stays NULL
+             * until F3 (method dispatch). PLATFORM: SHARED host-C. */
+            let dyn_wrap: i32 = 0;
+            let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, let_type_pre);
+            if (!ast.ref_is_null(lt_dyn)
+                && pipeline_type_kind_ord_at(arena, lt_dyn) == (TypeKind.TYPE_DYN as i32)) {
+              let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, linit_pre);
+              if (typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, linit_pre) == 0) {
+                dyn_wrap = 1;
+                /* "(struct xlang_dyn_obj){ .data = &(" — 34 bytes */
+                let dyn_open: u8[34] = [40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40];
+                if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
+                  return -1;
+                }
+              }
+            }
             if (emit_expr(arena, out, linit_pre, ctx) != 0) {
               return -1;
+            }
+            if (dyn_wrap != 0) {
+              /* "), .vtable = ((void*)0) }" — 25 bytes */
+              let dyn_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
+              if (emit_bytes_from_ptr(out, &dyn_close[0], 25) != 0) {
+                return -1;
+              }
             }
             let sc_pre: u8[3] = [59, 10, 0];
             if (emit_bytes_3(out, &sc_pre[0], 2) != 0) {
@@ -16400,8 +16455,33 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                   if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
                     return -1;
                   }
-                } else if (emit_expr(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
+                } else {
+                  /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS -> wrap
+                   * in fat-ptr compound literal. vtable NULL until F3.
+                   * PLATFORM: SHARED host-C. */
+                  let dyn_wrap: i32 = 0;
+                  let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, let_type_ref);
+                  if (lt_dyn > 0 && pipeline_type_kind_ord_at(arena, lt_dyn) == (TypeKind.TYPE_DYN as i32)) {
+                    let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, linit_ref);
+                    if (typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, linit_ref) == 0) {
+                      dyn_wrap = 1;
+                      /* "(struct xlang_dyn_obj){ .data = &(" — 34 bytes */
+                      let dyn_open: u8[34] = [40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40];
+                      if (emit_bytes_from_ptr(out, &dyn_open[0], 34) != 0) {
+                        return -1;
+                      }
+                    }
+                  }
+                  if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+                    return -1;
+                  }
+                  if (dyn_wrap != 0) {
+                    /* "), .vtable = ((void*)0) }" — 25 bytes */
+                    let dyn_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
+                    if (emit_bytes_from_ptr(out, &dyn_close[0], 25) != 0) {
+                      return -1;
+                    }
+                  }
                 }
               }
               let sc: u8[3] = [59, 10, 0];

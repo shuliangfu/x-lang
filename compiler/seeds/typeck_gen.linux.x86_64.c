@@ -455,6 +455,10 @@ extern int32_t xlang_io_complete_write_async(void);
 extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
 extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
 extern int32_t xlang_io_uring_is_available_c(void);
+/* F2: forward decl — full docblock at the call-site cluster (search below).
+ * Body lives in seeds/parser_asm/parser_asm_skip_tl_slice.inc. */
+extern int32_t xlang_skip_impl_concrete_implements_trait_c(void * arena,
+        int32_t concrete_ty_ref, const uint8_t * trait_nm, int32_t trait_nlen);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -6811,6 +6815,38 @@ int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind) {
   return 0;
 }
 /*
+ * F2 TYPE_DYN(17) dyn-coerce null-sentinel predicate (pin-seed twin of
+ * typeck.x typeck_dyn_rhs_is_null_sentinel; G.7 single rule, both sides).
+ *
+ * `let x: dyn Trait = 0` (literal INT_LIT 0) represents the null fat-ptr
+ * (data=NULL, vtable=NULL) — not a concrete value needing a vtable. The
+ * dyn-coerce gate in the assign + let-init paths calls this predicate to
+ * bypass impl-lookup for the null form, mirroring the F1 path that accepted
+ * `0` onto any dyn LHS. Returns 1 iff rhs_expr_ref is a bare INT_LIT with
+ * value 0; 0 otherwise. PLATFORM: SHARED.
+ *
+ * @param arena         *ASTArena — expr pool
+ * @param rhs_type_ref  i32 — resolved type_ref of RHS (reserved for future
+ *                      TYPE_PTR-null forms; current implementation is expr-driven)
+ * @param rhs_expr_ref  i32 — RHS expr_ref (the value being assigned)
+ * @return 1 if null sentinel; 0 otherwise
+ */
+int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref,
+                                        int32_t rhs_expr_ref) {
+  int32_t ord_lit = 0;
+  (void)rhs_type_ref;
+  if ((rhs_expr_ref ==0)) {
+    return 0;
+  }
+  if ((pipeline_expr_kind_ord_at(arena, rhs_expr_ref) !=ord_lit)) {
+    return 0;
+  }
+  if ((pipeline_expr_int_val_at(arena, rhs_expr_ref) !=0)) {
+    return 0;
+  }
+  return 1;
+}
+/*
  * PLATFORM: SHARED — pin-seed twin of typeck.x typeck_array_to_slice_ok (G.7).
  * True when src is T[N] (TYPE_ARRAY=10) and dest is T[] (TYPE_SLICE=11) with
  * equal element types. Return / assign / cast accept without stamping SLICE
@@ -8509,9 +8545,27 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
       }
     }
     if ((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt)))) {
-      /* F1 TYPE_DYN(17): dyn LHS accepts any concrete RHS (shape-only). */
+      /*
+       * F2 TYPE_DYN(17): dyn LHS accepts a concrete RHS only when either
+       * (a) the RHS is the null-dyn sentinel (literal INT_LIT 0 — null
+       * fat-ptr representation, no vtable needed) OR (b) a registered
+       * `impl Trait for RHS_type` block exists. Concrete RHS without impl
+       * leaves dyn_assign_ok = 0 so the downstream type_refs_equal mismatch
+       * gate fires with the standard "expected dyn Trait, found T" diagnostic.
+       * F1 history: blanket accept was shape-only (concrete->dyn coerce +
+       * vtable dispatch deferred). F2 closes that hole with real impl-lookup.
+       * G.7 single rule; mirrors the let-init path. PLATFORM: SHARED.
+       */
       if ((pipeline_type_kind_ord_at(arena, lt) ==17)) {
-        (void)((dyn_assign_ok = 1));
+        if ((typeck_dyn_rhs_is_null_sentinel(arena, rt, right_ref) !=0)) {
+          (void)((dyn_assign_ok = 1));
+        } else {
+          uint8_t trait_nm_asg[64];
+          int32_t tnl_asg = pipeline_type_named_name_into(arena, lt, &trait_nm_asg[0]);
+          if (((tnl_asg >0) && (xlang_skip_impl_concrete_implements_trait_c((void *)arena, rt, &trait_nm_asg[0], tnl_asg) !=0))) {
+            (void)((dyn_assign_ok = 1));
+          }
+        }
       }
       if (((!(typeck_type_refs_equal(arena, lt, rt)) && ((ptr_compound_offset_ok ==0) && (dyn_assign_ok ==0))))) {
         (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
@@ -12519,11 +12573,28 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
         int32_t decl_k2 = pipeline_type_kind_ord_at(arena, ld_tr);
         int32_t init_k2 = pipeline_type_kind_ord_at(arena, init_ty);
         /*
-         * F1 TYPE_DYN(17): dyn decl accepts any concrete init (shape-only).
-         * Mirrors the assign-path dyn_assign_ok rule (single G.7 rule).
+         * F2 TYPE_DYN(17): dyn decl accepts a concrete init only when either
+         * (a) the init is the null-dyn sentinel (literal INT_LIT 0 — null
+         * fat-ptr representation, no vtable) OR (b) a registered
+         * `impl Trait for init_ty` block exists. Concrete init without impl
+         * rejects here with the standard mismatch diagnostic. F1 history:
+         * blanket skip when decl_k2 == TYPE_DYN accepted any init (dyn was
+         * shape-only). F2 closes that hole with real impl-lookup; null-dyn
+         * sentinel preserves the F1 path for `let x: dyn Trait = 0`. Mirrors
+         * the assign-path dyn_assign_ok rule (single G.7 rule, both sides).
          * PLATFORM: SHARED.
          */
-        if (((decl_k2 !=17) && !(typeck_float_widen_ok(decl_k2, init_k2)))) {
+        int32_t dyn_init_reject = 0;
+        if ((decl_k2 ==17)) {
+          if ((typeck_dyn_rhs_is_null_sentinel(arena, init_ty, ld_ir) ==0)) {
+            uint8_t trait_nm_let[64];
+            int32_t tnl_let = pipeline_type_named_name_into(arena, ld_tr, &trait_nm_let[0]);
+            if (((tnl_let ==0) || (xlang_skip_impl_concrete_implements_trait_c((void *)arena, init_ty, &trait_nm_let[0], tnl_let) ==0))) {
+              (void)((dyn_init_reject = 1));
+            }
+          }
+        }
+        if (((dyn_init_reject !=0) || ((decl_k2 !=17) && !(typeck_float_widen_ok(decl_k2, init_k2))))) {
           (void)((eb = driver_typeck_diag_scratch_expect()));
           (void)((gb = driver_typeck_diag_scratch_found()));
           (void)((el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96)));
@@ -13061,6 +13132,17 @@ void typeck_patch_all_body_parent_links(struct ast_Module * module, struct ast_A
   }
 }
 extern int32_t xlang_trait_check_impls_complete_c(struct ast_Module * module);
+/*
+ * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body
+ * lives in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
+ * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
+ * g_xlang_skip_impl_* globals directly). Returns 1 iff some registered
+ * `impl Trait for T` block has trait_name == trait_nm AND for-type matches
+ * concrete_ty_ref. Called from the assign + let-init dyn-coerce gates.
+ * PLATFORM: SHARED.
+ */
+extern int32_t xlang_skip_impl_concrete_implements_trait_c(void * arena,
+        int32_t concrete_ty_ref, const uint8_t * trait_nm, int32_t trait_nlen);
 int32_t typeck_x_ast_impl(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t mi = 0;
