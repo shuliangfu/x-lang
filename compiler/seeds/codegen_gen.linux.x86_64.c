@@ -700,6 +700,7 @@ struct ast_ASTArena {
 #define codegen_codegen_emit_dyn_vtable_close codegen_emit_dyn_vtable_close
 #define codegen_codegen_emit_vtable_slot_payload codegen_emit_vtable_slot_payload
 #define codegen_codegen_emit_module_vtable_statics codegen_emit_module_vtable_statics
+#define codegen_codegen_emit_vtable_static_name codegen_emit_vtable_static_name
 #define codegen_codegen_try_emit_generic_identity_mono codegen_try_emit_generic_identity_mono
 #define codegen_codegen_try_emit_generic_impl_method_mono codegen_try_emit_generic_impl_method_mono
 #define codegen_codegen_try_emit_generic_impl_method_extern_mono codegen_try_emit_generic_impl_method_extern_mono
@@ -16453,6 +16454,109 @@ int32_t codegen_emit_vtable_slot_payload(struct codegen_CodegenOutBuf * out, str
   }
 }
 /*
+ * F4: Emit the canonical vtable static name `xlang_vtable_<Trait>_for_[Ptr_]<Type>`
+ * with no prefix or suffix. Shared G.7 single authority for vtable naming,
+ * called by:
+ *   - codegen_emit_module_vtable_statics (static definition:
+ *     `static void* <name>[] = { ... };`)
+ *   - codegen_emit_dyn_vtable_close fast path (coerce reference:
+ *     `.vtable = <name>`)
+ *
+ * Both sites must emit identical names so the coerce reference resolves to the
+ * module-level static. Trait and for-type names are sanitized to valid C
+ * identifiers (non-alnum -> '_'); X lexemes are already valid in practice, so
+ * sanitize is a safety net.
+ *
+ * @param out codegen output buffer.
+ * @param trait_nm trait name bytes.
+ * @param trait_nlen trait name length (must be > 0).
+ * @param for_nm for-type name bytes.
+ * @param for_nlen for-type name length (must be > 0).
+ * @param is_ptr 1 if PTR-to-NAMED (emits "Ptr_" before for-type name), 0 else.
+ * @return 0 on success, -1 on emit failure or invalid args.
+ * PLATFORM: SHARED — mirrors codegen.x.
+ */
+int32_t codegen_emit_vtable_static_name(struct codegen_CodegenOutBuf * out,
+        uint8_t * trait_nm, int32_t trait_nlen,
+        uint8_t * for_nm, int32_t for_nlen, int32_t is_ptr) {
+  {
+    if (((out ==0) || ((trait_nm ==0) || (for_nm ==0)))) {
+      return -1;
+    }
+    if (((trait_nlen <=0) || (for_nlen <=0))) {
+      return -1;
+    }
+    /* "xlang_vtable_" — 13 bytes. */
+    uint8_t vt_stem[13] = {120, 108, 97, 110, 103, 95, 118, 116, 97, 98, 108, 101, 95};
+    if ((codegen_emit_bytes_from_ptr(out, &((vt_stem)[0]), 13) !=0)) {
+      return -1;
+    }
+    /* Sanitize + emit trait name (non-[A-Za-z0-9_] -> '_'). */
+    int32_t ti = 0;
+    while (((ti < trait_nlen) && (ti < 64))) {
+      uint8_t b = trait_nm[ti];
+      int32_t is_alnum_ = 0;
+      if ((b == 95)) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 48) && (b <= 57))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 65) && (b <= 90))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 97) && (b <= 122))) {
+        is_alnum_ = 1;
+      }
+      if ((is_alnum_ ==0)) {
+        b = 95;
+      }
+      if ((codegen_append_byte(out, b) !=0)) {
+        return -1;
+      }
+      ti = (ti + 1);
+    }
+    /* "_for_" — 5 bytes. */
+    uint8_t for_kw[5] = {95, 102, 111, 114, 95};
+    if ((codegen_emit_bytes_from_ptr(out, &((for_kw)[0]), 5) !=0)) {
+      return -1;
+    }
+    /* "Ptr_" — 4 bytes, only when PTR-to-NAMED. */
+    if ((is_ptr !=0)) {
+      uint8_t ptr_kw[4] = {80, 116, 114, 95};
+      if ((codegen_emit_bytes_from_ptr(out, &((ptr_kw)[0]), 4) !=0)) {
+        return -1;
+      }
+    }
+    /* Sanitize + emit for-type name (same logic as trait name). */
+    int32_t fi = 0;
+    while (((fi < for_nlen) && (fi < 64))) {
+      uint8_t b = for_nm[fi];
+      int32_t is_alnum_ = 0;
+      if ((b == 95)) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 48) && (b <= 57))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 65) && (b <= 90))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 97) && (b <= 122))) {
+        is_alnum_ = 1;
+      }
+      if ((is_alnum_ ==0)) {
+        b = 95;
+      }
+      if ((codegen_append_byte(out, b) !=0)) {
+        return -1;
+      }
+      fi = (fi + 1);
+    }
+    return 0;
+  }
+}
+/*
  * F4: Emit module-level static vtable variables for every `impl Trait for Type`
  * with a NAMED for-type (incl. PTR-to-NAMED). Each static is named
  * `xlang_vtable_<Trait>_for_[Ptr_]<Type>[N]` and contains a function-pointer
@@ -16492,14 +16596,10 @@ int32_t codegen_emit_module_vtable_statics(struct ast_ASTArena * arena, struct c
     /* Kind ordinals (align XLANG_TRAIT_TY_* in parser_asm_skip_tl_slice.inc). */
     int32_t NAMED_KIND = 8;
     int32_t PTR_KIND = 9;
+    /* Byte literals for static vtable framing (name payload emitted by
+     * codegen_emit_vtable_static_name — G.7 single authority). */
     /* "static void* " — 13 bytes. */
     uint8_t static_kw[13] = {115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 42, 32};
-    /* "xlang_vtable_" — 13 bytes. */
-    uint8_t vt_stem[13] = {120, 108, 97, 110, 103, 95, 118, 116, 97, 98, 108, 101, 95};
-    /* "_for_" — 5 bytes. */
-    uint8_t for_kw[5] = {95, 102, 111, 114, 95};
-    /* "Ptr_" — 4 bytes. */
-    uint8_t ptr_kw[4] = {80, 116, 114, 95};
     /* "[] = { " — 7 bytes. */
     uint8_t arr_open[7] = {91, 93, 32, 61, 32, 123, 32};
     /* " };\n" — 4 bytes. */
@@ -16557,72 +16657,14 @@ int32_t codegen_emit_module_vtable_statics(struct ast_ASTArena * arena, struct c
       if ((codegen_emit_bytes_from_ptr(out, &((static_kw)[0]), 13) !=0)) {
         return -1;
       }
-      /* Emit "xlang_vtable_" + sanitize(trait_nm). */
-      if ((codegen_emit_bytes_from_ptr(out, &((vt_stem)[0]), 13) !=0)) {
-        return -1;
-      }
       /*
-       * Sanitize trait name: non-[A-Za-z0-9_] -> '_'. X language lexemes
-       * are already valid C identifiers in practice; sanitize is a safety net.
+       * Emit the canonical vtable static name via the shared helper (G.7
+       * single authority for vtable naming — coerce sites reference the
+       * same name). Sanitize is owned by the helper, not duplicated here.
        */
-      int32_t ti = 0;
-      while (((ti < trait_nlen) && (ti < 64))) {
-        uint8_t b = trait_nm[ti];
-        int32_t is_alnum_ = 0;
-        if ((b == 95)) {
-          is_alnum_ = 1;
-        }
-        if (((b >= 48) && (b <= 57))) {
-          is_alnum_ = 1;
-        }
-        if (((b >= 65) && (b <= 90))) {
-          is_alnum_ = 1;
-        }
-        if (((b >= 97) && (b <= 122))) {
-          is_alnum_ = 1;
-        }
-        if ((is_alnum_ ==0)) {
-          b = 95;
-        }
-        if ((codegen_append_byte(out, b) !=0)) {
-          return -1;
-        }
-        ti = (ti + 1);
-      }
-      /* Emit "_for_". */
-      if ((codegen_emit_bytes_from_ptr(out, &((for_kw)[0]), 5) !=0)) {
+      if ((codegen_emit_vtable_static_name(out, &((trait_nm)[0]), trait_nlen,
+              &((for_nm)[0]), for_nlen, for_ptr) !=0)) {
         return -1;
-      }
-      /* Emit "Ptr_" if PTR-to-NAMED. */
-      if ((for_ptr !=0)) {
-        if ((codegen_emit_bytes_from_ptr(out, &((ptr_kw)[0]), 4) !=0)) {
-          return -1;
-        }
-      }
-      /* Sanitize for-type name (same logic as trait name). */
-      int32_t fi2 = 0;
-      while (((fi2 < for_nlen) && (fi2 < 64))) {
-        uint8_t b2 = for_nm[fi2];
-        int32_t is_alnum2 = 0;
-        if ((b2 == 95)) {
-          is_alnum2 = 1;
-        }
-        if (((b2 >= 48) && (b2 <= 57))) {
-          is_alnum2 = 1;
-        }
-        if (((b2 >= 65) && (b2 <= 90))) {
-          is_alnum2 = 1;
-        }
-        if (((b2 >= 97) && (b2 <= 122))) {
-          is_alnum2 = 1;
-        }
-        if ((is_alnum2 ==0)) {
-          b2 = 95;
-        }
-        if ((codegen_append_byte(out, b2) !=0)) {
-          return -1;
-        }
-        fi2 = (fi2 + 1);
       }
       /* Emit "[] = { ". */
       if ((codegen_emit_bytes_from_ptr(out, &((arr_open)[0]), 7) !=0)) {
@@ -16652,16 +16694,24 @@ int32_t codegen_emit_module_vtable_statics(struct ast_ASTArena * arena, struct c
   }
 }
 /*
- * F3: Build the vtable for a concrete->dyn Trait coerce and emit it as the
+ * F3/F4: Build the vtable for a concrete->dyn Trait coerce and emit it as the
  * `.vtable = ...` field of the `(struct xlang_dyn_obj){...}` compound literal.
  *
- * Resolves the trait name from `lt_dyn`, enumerates the trait's methods via
- * `xlang_skip_trait_method_count_c` + `xlang_skip_trait_method_name_into_c`,
- * and for each method looks up the impl function via
- * `codegen_find_impl_method_for_type` (single resolution authority, G.7).
- * Emits `((void*[]){ (void*)&<prefix><link>, ... })` when methods exist, or
- * `((void*)0)` when the trait has 0 methods (degenerate). Each slot uses
- * `(void*)0` if no impl is found for that method (default method — F4 fills).
+ * F4 fast path: when rhs_rt is NAMED (or PTR-to-NAMED), the vtable is
+ * referenced from the module-level static emitted by
+ * `codegen_emit_module_vtable_statics` (`.vtable = xlang_vtable_<T>_for_<U>`)
+ * instead of an inline compound literal. This shares the vtable across all
+ * coerce sites for the same (Trait, Type) pair and enables multiple impls of
+ * the same trait to coexist. Builtin for-types fall through to the F3 inline
+ * path (no static was emitted for them).
+ *
+ * F3 inline fallback: resolves the trait name from `lt_dyn`, enumerates the
+ * trait's methods via `xlang_skip_trait_method_count_c` +
+ * `xlang_skip_trait_method_name_into_c`, and for each method looks up the impl
+ * function via `codegen_find_impl_method_for_type` (single resolution
+ * authority, G.7). Emits `((void*[]){ (void*)&<prefix><link>, ... })` when
+ * methods exist, or `((void*)0)` when the trait has 0 methods (degenerate).
+ * Each slot uses `(void*)0` if no impl is found for that method.
  *
  * Single authority for vtable close emit: the 3 coerce sites (assign, pre-let,
  * stmt-order let) all call this helper to avoid triplicating the build logic
@@ -16696,7 +16746,59 @@ int32_t codegen_emit_dyn_vtable_close(struct ast_ASTArena * arena, struct codege
     if ((((meth_count <=0) || (ctx ==0)) || (((ctx)->current_codegen_module) ==0)) || (rhs_rt <=0)) {
       return codegen_emit_bytes_from_ptr(out, &((dyn_null_close)[0]), 25);
     }
-    /* Emit "), .vtable = ((void*[]){ " — 25 bytes (vtable array open). */
+    /*
+     * F4 fast path: if rhs_rt is NAMED (or PTR-to-NAMED), reference the
+     * module-level static vtable emitted by codegen_emit_module_vtable_statics
+     * instead of building an inline compound literal. This shares the vtable
+     * across all coerce sites for the same (Trait, Type) pair and enables
+     * multiple impls of the same trait to coexist (the static has a stable
+     * name). Builtin for-types fall through to the F3 inline path below.
+     * PLATFORM: SHARED — the static is emitted by the same .x/seed pin.
+     */
+    int32_t NAMED_KIND = 8;
+    int32_t PTR_KIND = 9;
+    int32_t recv_kind = pipeline_type_kind_ord_at(arena, rhs_rt);
+    int32_t name_rt = rhs_rt;
+    int32_t is_ptr = 0;
+    if ((recv_kind == PTR_KIND)) {
+      /* PTR-to-?: unwrap elem and check it is NAMED. */
+      int32_t elem_rt = pipeline_type_elem_ref_at(arena, rhs_rt);
+      if (((elem_rt > 0) && (pipeline_type_kind_ord_at(arena, elem_rt) == NAMED_KIND))) {
+        is_ptr = 1;
+        name_rt = elem_rt;
+      } else {
+        /* PTR-to-builtin: inline path handles it below. */
+        name_rt = 0;
+      }
+    } else if ((recv_kind != NAMED_KIND)) {
+      /* Builtin receiver: inline path handles it below. */
+      name_rt = 0;
+    }
+    if ((name_rt > 0)) {
+      /* Resolve for-type name from the NAMED type_ref. */
+      uint8_t for_nm[64] = {};
+      int32_t for_nlen = pipeline_type_named_name_into(arena, name_rt, &((for_nm)[0]));
+      if ((for_nlen > 0)) {
+        /* Emit "), .vtable = " — 13 bytes (compound literal field + assign). */
+        uint8_t vt_ref_prefix[13] = {41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32};
+        if ((codegen_emit_bytes_from_ptr(out, &((vt_ref_prefix)[0]), 13) !=0)) {
+          return -1;
+        }
+        /* Emit the canonical static name (G.7 single authority for naming). */
+        if ((codegen_emit_vtable_static_name(out, &((trait_nm)[0]), trait_nlen,
+                &((for_nm)[0]), for_nlen, is_ptr) !=0)) {
+          return -1;
+        }
+        /* Emit " }" — 2 bytes (compound literal close). */
+        uint8_t vt_ref_close[2] = {32, 125};
+        return codegen_emit_bytes_from_ptr(out, &((vt_ref_close)[0]), 2);
+      }
+    }
+    /*
+     * F3 inline fallback: emit "), .vtable = ((void*[]){ " — 25 bytes
+     * (vtable array open). Used when rhs_rt is a builtin (no static emitted
+     * by codegen_emit_module_vtable_statics) or for-type name is unresolvable.
+     */
     uint8_t vt_open[25] = {41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32,
             40, 40, 118, 111, 105, 100, 42, 91, 93, 41, 123, 32};
     if ((codegen_emit_bytes_from_ptr(out, &((vt_open)[0]), 25) !=0)) {
