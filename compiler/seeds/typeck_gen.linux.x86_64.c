@@ -471,6 +471,10 @@ extern int32_t xlang_skip_trait_method_ret_elem_kind_c(const uint8_t * trait_nm,
         int32_t slot);
 extern int32_t xlang_skip_trait_method_ret_array_size_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_array_ndims_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_array_dim_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t dim_ix);
 extern int32_t xlang_skip_trait_method_ret_name_into_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
@@ -11497,23 +11501,40 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                   dyn_trait_nlen, dyn_slot);
           int32_t dyn_rsz = xlang_skip_trait_method_ret_array_size_c(&((dyn_trait_nm)[0]),
                   dyn_trait_nlen, dyn_slot);
-          if (((((dyn_rek2 >= 0) && (dyn_rsz > 0)) && (dyn_rek2 != 8)) && (dyn_rek2 != 9)
-                  && ((dyn_rek2 != 10) && ((dyn_rek2 != 11) && (dyn_rek2 != 13))))) {
-            int32_t dyn_ety2 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
-            if ((dyn_ety2 > 0)) {
-              (void)((dyn_ret_ty = typeck_find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz)));
-            }
+          int32_t dyn_rnd = xlang_skip_trait_method_ret_array_ndims_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot);
+          int32_t dyn_leaf = 0;
+          if (((((dyn_rek2 >= 0) && (dyn_rek2 != 8)) && (dyn_rek2 != 9)
+                  && (dyn_rek2 != 10)) && ((dyn_rek2 != 11) && (dyn_rek2 != 13)))) {
+            (void)((dyn_leaf = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2)));
           }
-          /* ARRAY-of-NAMED (`[2]Pair`): ret_elem=8 + ret_name + outer N. Pin twin. */
-          if ((((dyn_ret_ty == 0) && (dyn_rek2 == 8)) && (dyn_rsz > 0))) {
+          /* ARRAY-of-NAMED (`[2]Pair`): ret_elem=8 + ret_name. Pin twin. */
+          if (((dyn_leaf == 0) && (dyn_rek2 == 8))) {
             uint8_t dyn_aname[64] = {};
             int32_t dyn_alen = xlang_skip_trait_method_ret_name_into_c(&((dyn_trait_nm)[0]),
                     dyn_trait_nlen, dyn_slot, &((dyn_aname)[0]));
             if ((dyn_alen > 0)) {
-              int32_t dyn_anty = typeck_find_or_alloc_named_type_ref(arena, &((dyn_aname)[0]), dyn_alen);
-              if ((dyn_anty > 0)) {
-                (void)((dyn_ret_ty = typeck_find_or_alloc_array_type_ref(arena, dyn_anty, dyn_rsz)));
+              (void)((dyn_leaf = typeck_find_or_alloc_named_type_ref(arena, &((dyn_aname)[0]), dyn_alen)));
+            }
+          }
+          if ((dyn_leaf > 0)) {
+            /* `[K][N]T` ret: wrap innermost dim first. Pin twin of typeck.x. */
+            if ((dyn_rnd >= 2)) {
+              int32_t dyn_di = dyn_rnd - 1;
+              int32_t dyn_cur = dyn_leaf;
+              while (((dyn_di >= 0) && (dyn_cur > 0))) {
+                int32_t dyn_dsz = xlang_skip_trait_method_ret_array_dim_c(&((dyn_trait_nm)[0]),
+                        dyn_trait_nlen, dyn_slot, dyn_di);
+                if ((dyn_dsz > 0)) {
+                  (void)((dyn_cur = typeck_find_or_alloc_array_type_ref(arena, dyn_cur, dyn_dsz)));
+                } else {
+                  (void)((dyn_cur = 0));
+                }
+                (void)((dyn_di = dyn_di - 1));
               }
+              (void)((dyn_ret_ty = dyn_cur));
+            } else if ((dyn_rsz > 0)) {
+              (void)((dyn_ret_ty = typeck_find_or_alloc_array_type_ref(arena, dyn_leaf, dyn_rsz)));
             }
           }
         }

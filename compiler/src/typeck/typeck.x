@@ -88,6 +88,32 @@ export extern function xlang_skip_trait_method_ret_elem_kind_c(trait_nm: *u8, tr
 export extern function xlang_skip_trait_method_ret_array_size_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32): i32;
 /**
+ * ndims of a trait-method `[K][N]…T` return. -1 if missing.
+ * G.7: completes the skip-trait accessor family next to ret_array_size
+ * (registry already stores method_ret_array_ndims). Dyn ret reconstructs
+ * `[K][N]T` by wrapping leaf → inner N → outer K (func_ix is the slot).
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @return i32 — ndims (>=1), or 0 / -1 if unset / invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_array_ndims_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
+/**
+ * One dim of a trait-method `[K][N]…T` return. dim_ix 0 = outer K.
+ * G.7: completes the skip-trait accessor family next to ret_array_ndims
+ * (registry already stores method_ret_array_dims). Cap 8.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param dim_ix i32 — dimension index (0 = outer)
+ * @return i32 — N > 0, or -1 if invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_array_dim_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, dim_ix: i32): i32;
+/**
  * Copy the TYPE_NAMED spelling of a trait-method return into out64.
  * G.7: completes the skip-trait accessor family next to ret_kind
  * (registry already stores method_ret_names). Dyn dispatch
@@ -14070,7 +14096,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * `[N]T` (`*Pair` / `[]Pair` / `[2]Pair`) reuses ret_name +
      * find_or_alloc_named then wrap ptr/slice/array. Sit-red host-C void-cast
      * (`struct Pair *p = (void)call` / `struct xlang_slice_Pair = (void)call`).
-     * VECTOR kind 13 and `[K][N]T` ndims still fall back (leftover).
+     * VECTOR kind 13 still falls back (leftover). `[K][N]T` ret wraps
+     * leaf → inner dims → outer K via ret_array_ndims / ret_array_dim.
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
      * trait formal (f32=14 / f64=15), ARRAY_LIT extras to dest-SLICE
@@ -14108,8 +14135,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
          * ARRAY/SLICE ret: F3 left dyn_ret_ty=0 so emit_type_kind(10/11)
          * failed (host-C XP003). Reconstruct with registry elem + existing
          * find_or_alloc_* (G.7 complete this block; no second resolve).
-         * Scalar elem plus NAMED leaf (`[]Pair` / `[2]Pair`). Remaining
-         * leftover: PTR/ARRAY/SLICE/VECTOR elem and `[K][N]T` ndims.
+         * Scalar elem plus NAMED leaf (`[]Pair` / `[2]Pair`) plus
+         * `[K][N]T` ndims. Remaining leftover: PTR/ARRAY/SLICE/VECTOR
+         * elem of compounds.
          * PLATFORM: SHARED.
          */
         if (dyn_ret_ty == 0 && dyn_ret_kind == 11) {
@@ -14145,27 +14173,49 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   dyn_trait_nlen, dyn_slot);
           let dyn_rsz: i32 = xlang_skip_trait_method_ret_array_size_c(&dyn_trait_nm[0],
                   dyn_trait_nlen, dyn_slot);
-          if (dyn_rek2 >= 0 && dyn_rsz > 0 && dyn_rek2 != 8 && dyn_rek2 != 9
+          let dyn_rnd: i32 = xlang_skip_trait_method_ret_array_ndims_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot);
+          let dyn_leaf: i32 = 0;
+          if (dyn_rek2 >= 0 && dyn_rek2 != 8 && dyn_rek2 != 9
               && dyn_rek2 != 10 && dyn_rek2 != 11 && dyn_rek2 != 13) {
-            let dyn_ety2: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
-            if (dyn_ety2 > 0) {
-              dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz);
-            }
+            dyn_leaf = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
           }
           /*
-           * ARRAY-of-NAMED (`[2]Pair`): same NAMED-leaf leftover. Outer N
-           * from ret_array_size; `[K][N]T` ndims still leftover.
+           * ARRAY-of-NAMED (`[2]Pair`): registry ret_elem_kind=8 and
+           * ret_name holds the leaf. Reconstruct named then wrap array.
            * Sit-red host-C memcpy of `(void)call`. PLATFORM: SHARED.
            */
-          if (dyn_ret_ty == 0 && dyn_rek2 == 8 && dyn_rsz > 0) {
+          if (dyn_leaf == 0 && dyn_rek2 == 8) {
             let dyn_aname: u8[64] = [];
             let dyn_alen: i32 = xlang_skip_trait_method_ret_name_into_c(&dyn_trait_nm[0],
                     dyn_trait_nlen, dyn_slot, &dyn_aname[0]);
             if (dyn_alen > 0) {
-              let dyn_anty: i32 = find_or_alloc_named_type_ref(arena, &dyn_aname[0], dyn_alen);
-              if (dyn_anty > 0) {
-                dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_anty, dyn_rsz);
+              dyn_leaf = find_or_alloc_named_type_ref(arena, &dyn_aname[0], dyn_alen);
+            }
+          }
+          if (dyn_leaf > 0) {
+            /*
+             * `[K][N]T` ret: scanner stores ndims>=2 + dims[0]=outer K.
+             * Sit-red XT001 expected [2][2]i32 found [2]i32 (outer-only).
+             * Wrap innermost dim first. G.7 complete this block; no
+             * second resolve. PLATFORM: SHARED.
+             */
+            if (dyn_rnd >= 2) {
+              let dyn_di: i32 = dyn_rnd - 1;
+              let dyn_cur: i32 = dyn_leaf;
+              while (dyn_di >= 0 && dyn_cur > 0) {
+                let dyn_dsz: i32 = xlang_skip_trait_method_ret_array_dim_c(&dyn_trait_nm[0],
+                        dyn_trait_nlen, dyn_slot, dyn_di);
+                if (dyn_dsz > 0) {
+                  dyn_cur = find_or_alloc_array_type_ref(arena, dyn_cur, dyn_dsz);
+                } else {
+                  dyn_cur = 0;
+                }
+                dyn_di = dyn_di - 1;
               }
+              dyn_ret_ty = dyn_cur;
+            } else if (dyn_rsz > 0) {
+              dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_leaf, dyn_rsz);
             }
           }
         }
