@@ -5558,12 +5558,46 @@ export function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx: *u8,
     if (trait_nlen <= 0) { return 0 - 1; }
     let for_nm: u8[64] = [];
     let for_nlen: i32 = pipeline_type_named_name_into(arena, name_rt, &for_nm[0]);
-    if (for_nlen <= 0) { return 0 - 1; }
-    /* Emit RHS. PTR RHS is the data pointer itself; by-value needs &RHS.
-     * Probe (impl for *T) is PTR — emit_expr of the pointer local is correct. */
+    /* F7 neighborhood / F6 twin: impl Trait for builtin (i32/i64/f32/…).
+     * The impl registry keeps an empty for-type name (kind ordinal only).
+     * Synthesize the canonical X name via the G.7 authority
+     * codegen_builtin_type_name_into so this coerce LEAs the same static
+     * that pipeline_asm_emit_module_vtable_statics already emits.
+     * Do not open a second kind→name map. PLATFORM: SHARED. */
+    let is_builtin: i32 = 0;
+    if (for_nlen <= 0) {
+      let bk: i32 = pipeline_type_kind_ord_at(arena, name_rt);
+      for_nlen = codegen_builtin_type_name_into(bk, &for_nm[0]);
+      if (for_nlen <= 0) { return 0 - 1; }
+      is_builtin = 1;
+    }
+    /* Emit data pointer into rax.
+     * PTR RHS: the value IS the data pointer (impl for *T).
+     * NAMED by-value: LEA the local (existing F7).
+     * Builtin by-value: VAR is an lvalue — LEA it. Rvalue (INT_LIT 7 in
+     * dyn_builtin.x) has no address — emit to rax, spill to a fresh frame
+     * slot (G.7 reuse glue_sysv_spill_rax_rdx_to_frame_c), then LEA that
+     * slot. Wrapper first arg stays rdi/x0 = data; do not change that ABI.
+     * EXPR_VAR ordinal is 3 (ast.x ExprKind). PLATFORM: SHARED. */
     if (is_ptr != 0) {
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
         return 0 - 1;
+      }
+    } else if (is_builtin != 0) {
+      let ek: i32 = pipeline_expr_kind_ord_at(arena, init_ref);
+      if (ek == 3) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      } else {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+          return 0 - 1;
+        }
+        let spill: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (spill < 0) { return 0 - 1; }
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, spill, ta) != 0) {
+          return 0 - 1;
+        }
       }
     } else {
       if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {

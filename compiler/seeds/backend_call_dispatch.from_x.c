@@ -4895,11 +4895,36 @@ int32_t pipeline_asm_try_emit_dyn_coerce_let(struct ast_ASTArena *arena,
   trait_nlen = pipeline_type_named_name_into(arena, lt_dyn, trait_nm);
   if (trait_nlen <= 0) return -1;
   for_nlen = pipeline_type_named_name_into(arena, name_rt, for_nm);
-  if (for_nlen <= 0) return -1;
-  if (is_ptr != 0) {
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
-  } else {
-    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+  /* F7 neighborhood / F6 twin: impl Trait for builtin.
+   * G.7: codegen_builtin_type_name_into is the sole kind→name map.
+   * PLATFORM: SHARED. */
+  {
+    int32_t is_builtin = 0;
+    if (for_nlen <= 0) {
+      int32_t bk = pipeline_type_kind_ord_at(arena, name_rt);
+      for_nlen = codegen_builtin_type_name_into(bk, for_nm);
+      if (for_nlen <= 0) return -1;
+      is_builtin = 1;
+    }
+    /* PTR: data IS the pointer. NAMED: LEA local. Builtin rvalue (INT_LIT):
+     * emit+spill+LEA. Wrapper rdi/x0 = data — do not change that ABI.
+     * EXPR_VAR ordinal is 3. PLATFORM: SHARED. */
+    if (is_ptr != 0) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+    } else if (is_builtin != 0) {
+      int32_t ek = pipeline_expr_kind_ord_at(arena, init_ref);
+      if (ek == 3) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+      } else {
+        int32_t spill;
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+        spill = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (spill < 0) return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, spill, ta) != 0) return -1;
+      }
+    } else {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+    }
   }
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0) return -1;
   vt_nlen = pipeline_asm_emit_vtable_static_name_into(trait_nm, trait_nlen, for_nm, for_nlen, is_ptr, vt_nm);
