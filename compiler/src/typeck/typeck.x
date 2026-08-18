@@ -35,6 +35,19 @@ const ast = import("ast");
 */
 export extern function typeck_float64_bits_lo(d: f64): i32;
 export extern function typeck_float64_bits_hi(d: f64): i32;
+/*
+ * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body lives
+ * in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
+ * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
+ * g_xlang_skip_impl_* globals directly).
+ *
+ * Returns 1 iff some registered `impl Trait for T` block has trait_name == trait_nm
+ * AND for-type matches concrete_ty_ref. Called from the assign + let-init dyn-coerce
+ * gates (search for `xlang_skip_impl_concrete_implements_trait_c` call sites).
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
+        concrete_ty_ref: i32, trait_nm: *u8, trait_nlen: i32): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -16379,20 +16392,6 @@ export function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTA
  * PLATFORM: SHARED typeck
  */
 export extern function xlang_trait_check_impls_complete_c(module: *Module): i32;
-
-/*
- * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body lives
- * in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
- * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
- * g_xlang_skip_impl_* globals directly).
- *
- * Returns 1 iff some registered `impl Trait for T` block has trait_name == trait_nm
- * AND for-type matches concrete_ty_ref. Called from the assign + let-init dyn-coerce
- * gates (search for `xlang_skip_impl_concrete_implements_trait_c` call sites).
- * PLATFORM: SHARED.
- */
-export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
-        concrete_ty_ref: i32, trait_nm: *u8, trait_nlen: i32): i32;
 
 /**
  * Typecheck one module top-level let/const initializer.

@@ -13132,17 +13132,6 @@ void typeck_patch_all_body_parent_links(struct ast_Module * module, struct ast_A
   }
 }
 extern int32_t xlang_trait_check_impls_complete_c(struct ast_Module * module);
-/*
- * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body
- * lives in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
- * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
- * g_xlang_skip_impl_* globals directly). Returns 1 iff some registered
- * `impl Trait for T` block has trait_name == trait_nm AND for-type matches
- * concrete_ty_ref. Called from the assign + let-init dyn-coerce gates.
- * PLATFORM: SHARED.
- */
-extern int32_t xlang_skip_impl_concrete_implements_trait_c(void * arena,
-        int32_t concrete_ty_ref, const uint8_t * trait_nm, int32_t trait_nlen);
 int32_t typeck_x_ast_impl(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t mi = 0;
