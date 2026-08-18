@@ -467,6 +467,10 @@ extern int32_t xlang_skip_trait_method_name_into_c(const uint8_t * trait_nm, int
         int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_elem_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_array_size_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot);
 extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t param_ix);
 extern int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
@@ -11456,6 +11460,34 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
         int32_t dyn_ret_ty = 0;
         if ((((dyn_ret_kind >= 0) && (dyn_ret_kind != 8)) && ((dyn_ret_kind != 9) && ((dyn_ret_kind != 10) && ((dyn_ret_kind != 11) && (dyn_ret_kind != 13)))))) {
           (void)((dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind)));
+        }
+        /* ARRAY/SLICE ret: F3 left dyn_ret_ty=0 so emit_type_kind(10/11)
+         * failed (host-C XP003). Reconstruct with registry elem + existing
+         * find_or_alloc_* (G.7 complete this block). Scalar elem only.
+         * PLATFORM: SHARED. Pin twin of typeck.x. */
+        if (((dyn_ret_ty == 0) && (dyn_ret_kind == 11))) {
+          int32_t dyn_rek = xlang_skip_trait_method_ret_elem_kind_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot);
+          if (((((dyn_rek >= 0) && (dyn_rek != 8)) && (dyn_rek != 9))
+                  && ((dyn_rek != 10) && ((dyn_rek != 11) && (dyn_rek != 13))))) {
+            int32_t dyn_ety = pipeline_type_ensure_by_kind_ord(arena, dyn_rek);
+            if ((dyn_ety > 0)) {
+              (void)((dyn_ret_ty = typeck_find_or_alloc_slice_type_ref(arena, dyn_ety)));
+            }
+          }
+        }
+        if (((dyn_ret_ty == 0) && (dyn_ret_kind == 10))) {
+          int32_t dyn_rek2 = xlang_skip_trait_method_ret_elem_kind_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot);
+          int32_t dyn_rsz = xlang_skip_trait_method_ret_array_size_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot);
+          if (((((dyn_rek2 >= 0) && (dyn_rsz > 0)) && (dyn_rek2 != 8)) && (dyn_rek2 != 9)
+                  && ((dyn_rek2 != 10) && ((dyn_rek2 != 11) && (dyn_rek2 != 13))))) {
+            int32_t dyn_ety2 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
+            if ((dyn_ety2 > 0)) {
+              (void)((dyn_ret_ty = typeck_find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz)));
+            }
+          }
         }
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
         /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64

@@ -72,6 +72,22 @@ export extern function xlang_skip_trait_method_name_into_c(trait_nm: *u8, trait_
 export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32): i32;
 /**
+ * Return-element TypeKind at trait-method slot. -1 if missing.
+ * G.7: completes the skip-trait accessor family next to ret_kind
+ * (registry already stores method_ret_elem_kinds). Dyn dispatch
+ * reconstructs `[]T` / `[N]T` return type_refs (func_ix is the slot).
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_elem_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
+/**
+ * Outer N of a trait-method `[N]T` return. -1 if missing / `[]T`.
+ * G.7: completes the skip-trait accessor family next to ret_elem_kind.
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_array_size_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
+/**
  * Formal TypeKind at trait-method param_ix (0 = self). -1 if missing.
  * G.7: completes the skip-trait accessor family; body in parser_asm_skip_tl_slice.inc.
  * PLATFORM: SHARED.
@@ -14013,9 +14029,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      *
      * Return type is resolved from the trait registry's method_ret_kinds[slot]
      * so codegen can emit a typed function-pointer cast. Builtin return kinds
-     * (i32/bool/u8/.../void) map directly via pipeline_type_ensure_by_kind_ord;
-     * TYPE_NAMED returns fall back to 0 (void) for the F3 minimal proof — the
-     * call still dispatches correctly, only the cast is loose (F4 tightens).
+     * (i32/bool/u8/.../void) map directly via pipeline_type_ensure_by_kind_ord.
+     * TYPE_ARRAY / TYPE_SLICE (`[N]T` / `[]T`) reconstruct via ret_elem_kind
+     * + find_or_alloc_array/slice (host-C wrapper / call-site need a real
+     * type_ref; sit-red XP003 when emit_type_kind saw kind 10/11). TYPE_NAMED
+     * / PTR / VECTOR still fall back to 0 (void-cast leftover).
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
      * trait formal (f32=14 / f64=15) and ARRAY_LIT extras to dest-SLICE
@@ -14044,6 +14062,37 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         if (dyn_ret_kind >= 0 && dyn_ret_kind != 8 && dyn_ret_kind != 9
             && dyn_ret_kind != 10 && dyn_ret_kind != 11 && dyn_ret_kind != 13) {
           dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind);
+        }
+        /*
+         * ARRAY/SLICE ret: F3 left dyn_ret_ty=0 so emit_type_kind(10/11)
+         * failed (host-C XP003). Reconstruct with registry elem + existing
+         * find_or_alloc_* (G.7 complete this block; no second resolve).
+         * Scalar elem only (NAMED/PTR/ARRAY/SLICE/VECTOR leftover).
+         * PLATFORM: SHARED.
+         */
+        if (dyn_ret_ty == 0 && dyn_ret_kind == 11) {
+          let dyn_rek: i32 = xlang_skip_trait_method_ret_elem_kind_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot);
+          if (dyn_rek >= 0 && dyn_rek != 8 && dyn_rek != 9 && dyn_rek != 10
+              && dyn_rek != 11 && dyn_rek != 13) {
+            let dyn_ety: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek);
+            if (dyn_ety > 0) {
+              dyn_ret_ty = find_or_alloc_slice_type_ref(arena, dyn_ety);
+            }
+          }
+        }
+        if (dyn_ret_ty == 0 && dyn_ret_kind == 10) {
+          let dyn_rek2: i32 = xlang_skip_trait_method_ret_elem_kind_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot);
+          let dyn_rsz: i32 = xlang_skip_trait_method_ret_array_size_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot);
+          if (dyn_rek2 >= 0 && dyn_rsz > 0 && dyn_rek2 != 8 && dyn_rek2 != 9
+              && dyn_rek2 != 10 && dyn_rek2 != 11 && dyn_rek2 != 13) {
+            let dyn_ety2: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
+            if (dyn_ety2 > 0) {
+              dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz);
+            }
+          }
         }
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty);
         num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);

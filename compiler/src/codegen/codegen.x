@@ -13641,14 +13641,22 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (append_byte(out, 40) != 0) {
           return -1;
         }
-        /* Emit the return type (e.g. "int32_t") from the resolved type_ref.
-         * Falls back to "void" when ret_ty is unresolved (F3 minimal proof). */
+        /* Emit the return type from the resolved type_ref.
+         * Scalars / void / dyn stay on emit_type_kind. ARRAY/SLICE
+         * (`[N]T` / `[]T`) use emit_type (kind 10/11 is not a C token;
+         * sit-red host-C XP003). Falls back to "void" when unresolved.
+         * G.7 complete this cast; no second emitter. PLATFORM: SHARED. */
         let dyn_ret_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
         let dyn_ret_kind: i32 = (TypeKind.TYPE_VOID as i32);
         if (dyn_ret_ty > 0) {
           dyn_ret_kind = pipeline_type_kind_ord_at(arena, dyn_ret_ty);
         }
-        if (emit_type_kind(out, dyn_ret_kind) != 0) {
+        if (dyn_ret_ty > 0 && (dyn_ret_kind == (TypeKind.TYPE_ARRAY as i32)
+            || dyn_ret_kind == (TypeKind.TYPE_SLICE as i32))) {
+          if (emit_type(arena, out, dyn_ret_ty, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+        } else if (emit_type_kind(out, dyn_ret_kind) != 0) {
           return -1;
         }
         /* Fn-ptr suffix: typed extras matching the wrapper (not variadic). */
@@ -20575,8 +20583,28 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
     if (emit_bytes_from_ptr(out, &static_kw[0], 7) != 0) {
       return -1;
     }
-    /* Emit return type (e.g. "int32_t") from the trait method's return kind. */
-    if (emit_type_kind(out, ret_kind) != 0) {
+    /*
+     * Return type: emit_func uses emit_type(ret_ty_ref). emit_type_kind
+     * only covers scalars + void + dyn — ARRAY/SLICE (10/11) returned -1
+     * (dyn_ret_arr / dyn_ret_slice host-C XP003). G.7 complete this
+     * wrapper (no second wrapper): prefer impl return type_ref.
+     * PLATFORM: SHARED host-C emit; Ubuntu gold.
+     */
+    let pref: *u8 = 0 as *u8;
+    let pref_len: i32 = 0;
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_prefix_len > 0) {
+      pref = &ctx.current_codegen_prefix_mirror[0];
+      pref_len = ctx.current_codegen_prefix_len;
+    }
+    let impl_ret: i32 = 0;
+    if (cur_mod != 0 as *Module) {
+      impl_ret = pipeline_module_func_return_type_at(cur_mod, impl_fi);
+    }
+    if (impl_ret > 0) {
+      if (emit_type(arena, out, impl_ret, pref, pref_len, ctx) != 0) {
+        return -1;
+      }
+    } else if (emit_type_kind(out, ret_kind) != 0) {
       return -1;
     }
     /* " " — 1 byte space before wrapper name. */
@@ -20604,12 +20632,6 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
     }
     if (nparams > 96) {
       return -1;
-    }
-    let pref: *u8 = 0 as *u8;
-    let pref_len: i32 = 0;
-    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_prefix_len > 0) {
-      pref = &ctx.current_codegen_prefix_mirror[0];
-      pref_len = ctx.current_codegen_prefix_len;
     }
     let extra_i: i32 = 1;
     while (extra_i < nparams) {

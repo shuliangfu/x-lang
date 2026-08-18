@@ -11264,14 +11264,19 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((codegen_append_byte(out, 40) !=0)) {
           return -1;
         }
-        /* Emit the return type (e.g. "int32_t") from the resolved type_ref.
-         * Falls back to "void" when ret_ty is unresolved (F3 minimal proof). */
+        /* ARRAY/SLICE ret: emit_type_kind fails (kind 10/11). G.7 complete
+         * this cast to use codegen_emit_type (same as emit_func / wrapper).
+         * Falls back to void when unresolved. Pin twin of codegen.x. */
         int32_t dyn_ret_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
         int32_t dyn_ret_kind = 16;
         if ((dyn_ret_ty > 0)) {
           dyn_ret_kind = pipeline_type_kind_ord_at(arena, dyn_ret_ty);
         }
-        if ((codegen_emit_type_kind(out, dyn_ret_kind) !=0)) {
+        if (((dyn_ret_ty > 0) && ((dyn_ret_kind == 10) || (dyn_ret_kind == 11)))) {
+          if ((codegen_emit_type(arena, out, dyn_ret_ty, 0, 0, ctx) !=0)) {
+            return -1;
+          }
+        } else if ((codegen_emit_type_kind(out, dyn_ret_kind) !=0)) {
           return -1;
         }
         /* Fn-ptr suffix: typed extras matching the wrapper (not variadic). */
@@ -17046,8 +17051,25 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
     if ((codegen_emit_bytes_from_ptr(out, &((static_kw)[0]), 7) !=0)) {
       return -1;
     }
-    /* Emit return type (e.g. "int32_t") from the trait method's return kind. */
-    if ((codegen_emit_type_kind(out, ret_kind) !=0)) {
+    /* Return type: emit_func uses emit_type(ret_ty_ref). emit_type_kind
+     * only covers scalars — ARRAY/SLICE (10/11) returned -1 (host-C XP003).
+     * G.7 complete this wrapper: prefer impl return type_ref.
+     * PLATFORM: SHARED. Pin twin of codegen.x. */
+    uint8_t * pref = 0;
+    int32_t pref_len = 0;
+    if (((ctx !=0) && ((ctx)->current_codegen_prefix_len > 0))) {
+      pref = &(((ctx)->current_codegen_prefix_mirror)[0]);
+      pref_len = (ctx)->current_codegen_prefix_len;
+    }
+    int32_t impl_ret = 0;
+    if ((cur_mod !=0)) {
+      impl_ret = pipeline_module_func_return_type_at(cur_mod, impl_fi);
+    }
+    if ((impl_ret > 0)) {
+      if ((codegen_emit_type(arena, out, impl_ret, pref, pref_len, ctx) !=0)) {
+        return -1;
+      }
+    } else if ((codegen_emit_type_kind(out, ret_kind) !=0)) {
       return -1;
     }
     /* " " — 1 byte space before wrapper name. */
@@ -17077,12 +17099,6 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
     }
     if ((nparams > 96)) {
       return -1;
-    }
-    uint8_t * pref = 0;
-    int32_t pref_len = 0;
-    if (((ctx !=0) && ((ctx)->current_codegen_prefix_len > 0))) {
-      pref = &(((ctx)->current_codegen_prefix_mirror)[0]);
-      pref_len = (ctx)->current_codegen_prefix_len;
     }
     int32_t extra_i = 1;
     while ((extra_i < nparams)) {

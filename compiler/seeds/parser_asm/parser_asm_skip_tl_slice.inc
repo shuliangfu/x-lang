@@ -1437,6 +1437,55 @@ int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t *trait_nm, int32_t trai
 }
 
 /**
+ * Return the TypeKind ordinal of a trait-method return's element type.
+ * Completes the F3 accessor family next to ret_kind. The scanner already
+ * stores method_ret_elem_kinds (leaf of `[]T` / `[N]T`). Typeck dyn
+ * dispatch cannot look up a module-func return type_ref (func_ix is the
+ * vtable slot), so host-C ret `[2]i32` / `[]i32` reconstructs the type
+ * via this + find_or_alloc_array/slice (sit-red XP003).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                               int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_kinds[slot];
+}
+
+/**
+ * Return the outer N of a trait-method `[N]T` return (method_ret_array_sizes).
+ * Completes the F3 accessor family next to ret_kind / ret_elem_kind.
+ * `[]T` stores -1. Used with ret_elem_kind to find_or_alloc_array.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return N > 0, or -1 if trait/slot invalid / not a sized array.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_array_size_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_array_sizes[slot];
+}
+
+/**
  * Return the TypeKind ordinal of one trait-method formal.
  * Completes the F3 accessor family (slot / count / name / ret_kind).
  * wave426 already stores method_param_kinds at parse; typeck dyn dispatch
