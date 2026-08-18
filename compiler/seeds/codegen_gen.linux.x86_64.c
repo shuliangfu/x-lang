@@ -701,6 +701,8 @@ struct ast_ASTArena {
 #define codegen_codegen_emit_vtable_slot_payload codegen_emit_vtable_slot_payload
 #define codegen_codegen_emit_module_vtable_statics codegen_emit_module_vtable_statics
 #define codegen_codegen_emit_vtable_static_name codegen_emit_vtable_static_name
+#define codegen_codegen_emit_vtable_wrapper_name codegen_emit_vtable_wrapper_name
+#define codegen_codegen_emit_vtable_wrapper_def codegen_emit_vtable_wrapper_def
 #define codegen_codegen_try_emit_generic_identity_mono codegen_try_emit_generic_identity_mono
 #define codegen_codegen_try_emit_generic_impl_method_mono codegen_try_emit_generic_impl_method_mono
 #define codegen_codegen_try_emit_generic_impl_method_extern_mono codegen_try_emit_generic_impl_method_extern_mono
@@ -9474,9 +9476,28 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         int32_t rhs_rt = pipeline_expr_resolved_type_ref(arena, ((e).binop_right_ref));
         if ((typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, ((e).binop_right_ref)) ==0)) {
           (void)((dyn_wrap = 1));
+          /*
+           * F5 PTR-to-NAMED for-type: when RHS is itself a pointer (TYPE_PTR=9),
+           * do NOT take address-of — data IS the pointer (matches impl self: *T
+           * for impl Trait for *T). For by-value RHS, keep & so data becomes a
+           * pointer to the value. Byte layout: "(struct xlang_dyn_obj){ .data = "
+           * (32 bytes) + "&(" (2 bytes) for by-value, or "(" (1 byte) for ptr.
+           * PLATFORM: SHARED host-C; mirrors compiler/src/codegen/codegen.x.
+           */
           uint8_t dyn_open[34] = {40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40};
-          if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
-            return -1;
+          int32_t rhs_kind_ord = pipeline_type_kind_ord_at(arena, rhs_rt);
+          if ((rhs_kind_ord == 9)) {
+            /* Skip byte 32 (the &); emit bytes 0..31 + byte 33 (the open paren). */
+            if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 32) !=0)) {
+              return -1;
+            }
+            if ((codegen_append_byte(out, (int32_t)(dyn_open[33])) !=0)) {
+              return -1;
+            }
+          } else {
+            if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
+              return -1;
+            }
           }
         }
       }
@@ -13389,9 +13410,27 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
               int32_t rhs_rt = pipeline_expr_resolved_type_ref(arena, linit_pre);
               if ((typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, linit_pre) ==0)) {
                 (void)((dyn_wrap = 1));
+                /*
+                 * F5 PTR-to-NAMED for-type: when RHS is itself a pointer
+                 * (TYPE_PTR=9), do NOT take address-of — data IS the pointer
+                 * (matches impl self: *T for impl Trait for *T). For by-value
+                 * RHS, keep & so data becomes a pointer to the value.
+                 * PLATFORM: SHARED host-C; mirrors compiler/src/codegen/codegen.x.
+                 */
                 uint8_t dyn_open[34] = {40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40};
-                if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
-                  return -1;
+                int32_t rhs_kind_ord = pipeline_type_kind_ord_at(arena, rhs_rt);
+                if ((rhs_kind_ord == 9)) {
+                  /* Skip byte 32 (the &); emit bytes 0..31 + byte 33 (the open paren). */
+                  if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 32) !=0)) {
+                    return -1;
+                  }
+                  if ((codegen_append_byte(out, (int32_t)(dyn_open[33])) !=0)) {
+                    return -1;
+                  }
+                } else {
+                  if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
+                    return -1;
+                  }
                 }
               }
             }
@@ -13685,9 +13724,28 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                               int32_t rhs_rt = pipeline_expr_resolved_type_ref(arena, linit_ref);
                               if ((typeck_dyn_rhs_is_null_sentinel(arena, rhs_rt, linit_ref) ==0)) {
                                 (void)((dyn_wrap = 1));
+                                /*
+                                 * F5 PTR-to-NAMED for-type: when RHS is itself a
+                                 * pointer (TYPE_PTR=9), do NOT take address-of —
+                                 * data IS the pointer (matches impl self: *T for
+                                 * impl Trait for *T). For by-value RHS, keep & so
+                                 * data becomes a pointer to the value.
+                                 * PLATFORM: SHARED host-C; mirrors compiler/src/codegen/codegen.x.
+                                 */
                                 uint8_t dyn_open[34] = {40, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 38, 40};
-                                if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
-                                  return -1;
+                                int32_t rhs_kind_ord = pipeline_type_kind_ord_at(arena, rhs_rt);
+                                if ((rhs_kind_ord == 9)) {
+                                  /* Skip byte 32 (the &); emit bytes 0..31 + byte 33 (the open paren). */
+                                  if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 32) !=0)) {
+                                    return -1;
+                                  }
+                                  if ((codegen_append_byte(out, (int32_t)(dyn_open[33])) !=0)) {
+                                    return -1;
+                                  }
+                                } else {
+                                  if ((codegen_emit_bytes_from_ptr(out, &((dyn_open)[0]), 34) !=0)) {
+                                    return -1;
+                                  }
                                 }
                               }
                             }
@@ -16557,6 +16615,241 @@ int32_t codegen_emit_vtable_static_name(struct codegen_CodegenOutBuf * out,
   }
 }
 /*
+ * F5+: Emit the canonical vtable wrapper name
+ * `xlang_vtable_wrap_<Trait>_for_[Ptr_]<Type>_<slot>`. Follows the same
+ * sanitization as codegen_emit_vtable_static_name (G.7 single naming
+ * authority) with the `_wrap_` infix and `_<slot>` suffix appended.
+ *
+ * The wrapper bridges the type mismatch between the dyn dispatch (which
+ * always passes `void* data` = a pointer) and the impl method's self
+ * parameter (by-value struct or pointer). Without wrappers, by-value
+ * self methods receive a pointer where they expect a value, producing
+ * garbage return values (root cause of F3 false-green).
+ *
+ * PLATFORM: SHARED — mirrors compiler/src/codegen/codegen.x.
+ */
+int32_t codegen_emit_vtable_wrapper_name(struct codegen_CodegenOutBuf * out,
+        uint8_t * trait_nm, int32_t trait_nlen,
+        uint8_t * for_nm, int32_t for_nlen, int32_t is_ptr, int32_t slot_i) {
+  {
+    if (((out ==0) || ((trait_nm ==0) || (for_nm ==0)))) {
+      return -1;
+    }
+    if (((trait_nlen <=0) || (for_nlen <=0))) {
+      return -1;
+    }
+    /* "xlang_vtable_wrap_" — 18 bytes. */
+    uint8_t wrap_stem[18] = {120, 108, 97, 110, 103, 95, 118, 116, 97, 98, 108, 101, 95, 119, 114, 97, 112, 95};
+    if ((codegen_emit_bytes_from_ptr(out, &((wrap_stem)[0]), 18) !=0)) {
+      return -1;
+    }
+    /* Sanitize + emit trait name (non-[A-Za-z0-9_] -> '_'). */
+    int32_t ti = 0;
+    while (((ti < trait_nlen) && (ti < 64))) {
+      uint8_t b = trait_nm[ti];
+      int32_t is_alnum_ = 0;
+      if ((b == 95)) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 48) && (b <= 57))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 65) && (b <= 90))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 97) && (b <= 122))) {
+        is_alnum_ = 1;
+      }
+      if ((is_alnum_ ==0)) {
+        b = 95;
+      }
+      if ((codegen_append_byte(out, b) !=0)) {
+        return -1;
+      }
+      ti = (ti + 1);
+    }
+    /* "_for_" — 5 bytes. */
+    uint8_t for_kw[5] = {95, 102, 111, 114, 95};
+    if ((codegen_emit_bytes_from_ptr(out, &((for_kw)[0]), 5) !=0)) {
+      return -1;
+    }
+    /* "Ptr_" — 4 bytes, only when PTR-to-NAMED. */
+    if ((is_ptr !=0)) {
+      uint8_t ptr_kw[4] = {80, 116, 114, 95};
+      if ((codegen_emit_bytes_from_ptr(out, &((ptr_kw)[0]), 4) !=0)) {
+        return -1;
+      }
+    }
+    /* Sanitize + emit for-type name. */
+    int32_t fi = 0;
+    while (((fi < for_nlen) && (fi < 64))) {
+      uint8_t b = for_nm[fi];
+      int32_t is_alnum_ = 0;
+      if ((b == 95)) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 48) && (b <= 57))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 65) && (b <= 90))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 97) && (b <= 122))) {
+        is_alnum_ = 1;
+      }
+      if ((is_alnum_ ==0)) {
+        b = 95;
+      }
+      if ((codegen_append_byte(out, b) !=0)) {
+        return -1;
+      }
+      fi = (fi + 1);
+    }
+    /* "_" — 1 byte separator before slot number. */
+    if ((codegen_append_byte(out, 95) !=0)) {
+      return -1;
+    }
+    return codegen_format_uint(out, slot_i);
+  }
+}
+/*
+ * F5+: Emit a vtable wrapper function definition that adapts the uniform
+ * `void* data` dispatch argument to the impl method's expected self type.
+ *
+ * Root cause fix for F3 by-value dispatch: the dyn dispatch always passes
+ * `recv.data` (a void* pointer) as arg 0, but by-value self methods
+ * (e.g. `clone(self: A)`) expect the struct value, not a pointer. The
+ * wrapper bridges this:
+ *
+ *   By-value self (impl Trait for A, self: A):
+ *     static <ret> <wrap>(void* data) { return <func>(*(struct A*)data); }
+ *   Pointer self (impl Trait for *A, self: *A):
+ *     static <ret> <wrap>(void* data) { return <func>((struct A*)data); }
+ *
+ * The vtable static then stores `(void*)&<wrap>` instead of
+ * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
+ * correctly regardless of self passing convention.
+ *
+ * @return 1 if wrapper emitted, 0 if no impl method (null slot), -1 on error.
+ * PLATFORM: SHARED — mirrors compiler/src/codegen/codegen.x.
+ */
+int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena,
+        struct ast_Module * cur_mod, struct ast_PipelineDepCtx * ctx,
+        uint8_t * trait_nm, int32_t trait_nlen,
+        uint8_t * for_nm, int32_t for_nlen, int32_t for_ptr,
+        int32_t slot_i, int32_t recv_rt) {
+  {
+    if (((out ==0) || (arena ==0))) {
+      return -1;
+    }
+    /* Resolve method name at slot_i from the trait registry. */
+    uint8_t meth_nm[64] = {};
+    int32_t meth_nlen = xlang_skip_trait_method_name_into_c(trait_nm, trait_nlen,
+            slot_i, &((meth_nm)[0]));
+    if ((meth_nlen <=0)) {
+      return 0;
+    }
+    /* Look up the impl function for this method on the concrete type. */
+    int32_t impl_fi = codegen_find_impl_method_for_type(cur_mod, arena,
+            &((meth_nm)[0]), meth_nlen, recv_rt);
+    if ((impl_fi < 0)) {
+      return 0;
+    }
+    /* Get method return kind from the trait registry. */
+    int32_t ret_kind = xlang_skip_trait_method_ret_kind_c(trait_nm, trait_nlen, slot_i);
+    if ((ret_kind < 0)) {
+      ret_kind = ast_TypeKind_TYPE_VOID;
+    }
+    /* "static " — 7 bytes. */
+    uint8_t static_kw[7] = {115, 116, 97, 116, 105, 99, 32};
+    if ((codegen_emit_bytes_from_ptr(out, &((static_kw)[0]), 7) !=0)) {
+      return -1;
+    }
+    /* Emit return type (e.g. "int32_t") from the trait method's return kind. */
+    if ((codegen_emit_type_kind(out, ret_kind) !=0)) {
+      return -1;
+    }
+    /* " " — 1 byte space before wrapper name. */
+    if ((codegen_append_byte(out, 32) !=0)) {
+      return -1;
+    }
+    /* Emit wrapper name via codegen_emit_vtable_wrapper_name (G.7 authority). */
+    if ((codegen_emit_vtable_wrapper_name(out, trait_nm, trait_nlen,
+            for_nm, for_nlen, for_ptr, slot_i) !=0)) {
+      return -1;
+    }
+    /* "(void* data) { return " — 22 bytes. */
+    uint8_t wrap_sig[22] = {40, 118, 111, 105, 100, 42, 32, 100, 97, 116, 97, 41, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32};
+    if ((codegen_emit_bytes_from_ptr(out, &((wrap_sig)[0]), 22) !=0)) {
+      return -1;
+    }
+    /* Emit module prefix (if any) before the function link name. */
+    if (((ctx !=0) && ((ctx)->current_codegen_prefix_len > 0))) {
+      if ((codegen_emit_bytes_from_ptr(out, &(((ctx)->current_codegen_prefix_mirror)[0]),
+              ((ctx)->current_codegen_prefix_len)) !=0)) {
+        return -1;
+      }
+    }
+    /* Emit the impl function link name (G.7 single authority for link names). */
+    if ((codegen_emit_func_link_name(out, arena, cur_mod, impl_fi) !=0)) {
+      return -1;
+    }
+    /* "(" — 1 byte, open call args. */
+    if ((codegen_append_byte(out, 40) !=0)) {
+      return -1;
+    }
+    /*
+     * Adapt void* data to the method's self type:
+     * - by-value self (for_ptr=0): dereference — *(struct <Type>*)data
+     * - pointer self (for_ptr=1): cast — (struct <Type>*)data
+     */
+    if ((for_ptr ==0)) {
+      /* "*(struct " — 9 bytes (deref + cast open). */
+      uint8_t deref_cast[9] = {42, 40, 115, 116, 114, 117, 99, 116, 32};
+      if ((codegen_emit_bytes_from_ptr(out, &((deref_cast)[0]), 9) !=0)) {
+        return -1;
+      }
+    } else {
+      /* "(struct " — 8 bytes (cast open, no deref). */
+      uint8_t ptr_cast[8] = {40, 115, 116, 114, 117, 99, 116, 32};
+      if ((codegen_emit_bytes_from_ptr(out, &((ptr_cast)[0]), 8) !=0)) {
+        return -1;
+      }
+    }
+    /* Emit the for-type name (sanitized: copy only alnum/_, cap 64). */
+    int32_t fi2 = 0;
+    while (((fi2 < for_nlen) && (fi2 < 64))) {
+      uint8_t b = for_nm[fi2];
+      int32_t is_alnum_ = 0;
+      if ((b == 95)) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 48) && (b <= 57))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 65) && (b <= 90))) {
+        is_alnum_ = 1;
+      }
+      if (((b >= 97) && (b <= 122))) {
+        is_alnum_ = 1;
+      }
+      if ((is_alnum_ ==0)) {
+        b = 95;
+      }
+      if ((codegen_append_byte(out, b) !=0)) {
+        return -1;
+      }
+      fi2 = (fi2 + 1);
+    }
+    /* "*)data); }\n" — 11 bytes (close cast + data + close call + stmt + body). */
+    uint8_t close_body[11] = {42, 41, 100, 97, 116, 97, 41, 59, 32, 125, 10};
+    if ((codegen_emit_bytes_from_ptr(out, &((close_body)[0]), 11) !=0)) {
+      return -1;
+    }
+    return 1;
+  }
+}
+/*
  * F4: Emit module-level static vtable variables for every `impl Trait for Type`
  * with a NAMED for-type (incl. PTR-to-NAMED). Each static is named
  * `xlang_vtable_<Trait>_for_[Ptr_]<Type>[N]` and contains a function-pointer
@@ -16653,6 +16946,25 @@ int32_t codegen_emit_module_vtable_statics(struct ast_ASTArena * arena, struct c
         si = (si + 1);
         continue;
       }
+      /*
+       * F5+: Emit wrapper function definitions before the vtable static.
+       * Wrappers adapt the uniform void* data dispatch arg to the impl
+       * method's self type (deref for by-value, cast for pointer).
+       * Without wrappers, by-value self methods receive a pointer where
+       * they expect a value (root cause of F3 false-green).
+       */
+      int32_t has_impl[64] = {};
+      int32_t wi = 0;
+      while (((wi < meth_count) && (wi < 64))) {
+        int32_t rc = codegen_emit_vtable_wrapper_def(out, arena, cur_mod, ctx,
+                &((trait_nm)[0]), trait_nlen, &((for_nm)[0]), for_nlen, for_ptr,
+                wi, recv_rt);
+        if ((rc < 0)) {
+          return -1;
+        }
+        has_impl[wi] = rc;
+        wi = (wi + 1);
+      }
       /* Emit "static void* ". */
       if ((codegen_emit_bytes_from_ptr(out, &((static_kw)[0]), 13) !=0)) {
         return -1;
@@ -16670,17 +16982,34 @@ int32_t codegen_emit_module_vtable_statics(struct ast_ASTArena * arena, struct c
       if ((codegen_emit_bytes_from_ptr(out, &((arr_open)[0]), 7) !=0)) {
         return -1;
       }
-      /* For each slot, call the shared slot payload helper (G.7 authority). */
+      /*
+       * F5+: Each slot references the wrapper function (not the direct impl
+       * method), so the void* data dispatch arg is adapted to the method's
+       * self type. Slots without an impl emit (void*)0 (null placeholder).
+       */
       int32_t slot_i = 0;
-      while ((slot_i < meth_count)) {
+      while (((slot_i < meth_count) && (slot_i < 64))) {
         if ((slot_i > 0)) {
           if ((codegen_emit_bytes_from_ptr(out, &((sep)[0]), 2) !=0)) {
             return -1;
           }
         }
-        if ((codegen_emit_vtable_slot_payload(out, arena, cur_mod, ctx,
-                &((trait_nm)[0]), trait_nlen, slot_i, recv_rt) !=0)) {
-          return -1;
+        if ((has_impl[slot_i] !=0)) {
+          /* "(void*)&" — 8 bytes. */
+          uint8_t addr_cast[8] = {40, 118, 111, 105, 100, 42, 41, 38};
+          if ((codegen_emit_bytes_from_ptr(out, &((addr_cast)[0]), 8) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_vtable_wrapper_name(out, &((trait_nm)[0]), trait_nlen,
+                  &((for_nm)[0]), for_nlen, for_ptr, slot_i) !=0)) {
+            return -1;
+          }
+        } else {
+          /* "(void*)0" — 8 bytes, null placeholder. */
+          uint8_t null_slot[8] = {40, 118, 111, 105, 100, 42, 41, 48};
+          if ((codegen_emit_bytes_from_ptr(out, &((null_slot)[0]), 8) !=0)) {
+            return -1;
+          }
         }
         slot_i = (slot_i + 1);
       }
