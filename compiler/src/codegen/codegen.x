@@ -20359,9 +20359,19 @@ export function codegen_emit_vtable_wrapper_name(out: *CodegenOutBuf,
  * wrapper bridges this:
  *
  *   By-value self (impl Trait for A, self: A):
- *     static <ret> <wrap>(void* data) { return <func>(*(struct A*)data); }
+ *     static <ret> <wrap>(void* data, T1 a1, ...) {
+ *       return <func>(*(struct A*)data, a1, ...);
+ *     }
  *   Pointer self (impl Trait for *A, self: *A):
- *     static <ret> <wrap>(void* data) { return <func>((struct A*)data); }
+ *     static <ret> <wrap>(void* data, T1 a1, ...) {
+ *       return <func>((struct A*)data, a1, ...);
+ *     }
+ *
+ * First formal is always `void* data` (rdi/x0 = data ABI; do not change).
+ * Extra formals are impl params 1..N (cap 5 = SysV GP 1..5). Call site
+ * already emits `(recv.data, args...)` through a `(void*, ...)` cast;
+ * without these formals host cc rejects "too few arguments" (dyn_add)
+ * or drops k. SSE/stack extras and named-array declarators remain leftover.
  *
  * The vtable static then stores `(void*)&<wrap>` instead of
  * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
@@ -20425,9 +20435,52 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
             for_nm, for_nlen, for_ptr, slot_i) != 0) {
       return -1;
     }
-    /* "(void* data) { return " — 22 bytes. */
-    let wrap_sig: u8[22] = [40, 118, 111, 105, 100, 42, 32, 100, 97, 116, 97, 41, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32];
-    if (emit_bytes_from_ptr(out, &wrap_sig[0], 22) != 0) {
+    /* "(void* data" — 11 bytes. First arg stays data (rdi/x0 ABI unchanged). */
+    let wrap_open: u8[11] = [40, 118, 111, 105, 100, 42, 32, 100, 97, 116, 97];
+    if (emit_bytes_from_ptr(out, &wrap_open[0], 11) != 0) {
+      return -1;
+    }
+    /*
+     * Forward impl extras after self. G.7: complete this function (no second
+     * wrapper). Cap 5 extras; more is leftover (SSE/stack).
+     * PLATFORM: SHARED — host-C emit; Ubuntu gold.
+     */
+    let nparams: i32 = 0;
+    if (cur_mod != 0 as *Module) {
+      nparams = pipeline_module_func_num_params_at(cur_mod, impl_fi);
+    }
+    if (nparams > 6) {
+      return -1;
+    }
+    let pref: *u8 = 0 as *u8;
+    let pref_len: i32 = 0;
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_prefix_len > 0) {
+      pref = &ctx.current_codegen_prefix_mirror[0];
+      pref_len = ctx.current_codegen_prefix_len;
+    }
+    let extra_i: i32 = 1;
+    while (extra_i < nparams) {
+      let pty: i32 = pipeline_module_func_param_type_ref_at(cur_mod, impl_fi, extra_i);
+      /* ", " */
+      if (append_byte(out, 44) != 0) { return -1; }
+      if (append_byte(out, 32) != 0) { return -1; }
+      if (emit_type(arena, out, pty, pref, pref_len, ctx) != 0) {
+        return -1;
+      }
+      /* TYPE_SLICE extras use the same pointer ABI as emit_func. */
+      if (pipeline_type_kind_ord_at(arena, pty) == (TypeKind.TYPE_SLICE as i32)) {
+        if (append_byte(out, 32) != 0) { return -1; }
+        if (append_byte(out, 42) != 0) { return -1; }
+      }
+      /* Synthetic " aN" — self is adapted from data, not forwarded by name. */
+      if (append_byte(out, 32) != 0) { return -1; }
+      if (append_byte(out, 97) != 0) { return -1; }
+      if (format_uint(out, extra_i) != 0) { return -1; }
+      extra_i = extra_i + 1;
+    }
+    /* ") { return " — 11 bytes. */
+    let wrap_mid: u8[11] = [41, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32];
+    if (emit_bytes_from_ptr(out, &wrap_mid[0], 11) != 0) {
       return -1;
     }
     /* Emit module prefix (if any) before the function link name. */
@@ -20454,7 +20507,7 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
      * F6: builtin for-types reach here via codegen_emit_module_vtable_statics
      * (recv_rt is the builtin kind's type_ref). Detect via recv_rt's kind ord;
      * emit the C type (int32_t/f64/...) instead of "struct <name>". The shared
-     * close_body below ("*)data); }\n") closes the cast for both variants.
+     * close_data below ("*)data") closes the cast; extras are forwarded after.
      */
     let recv_kind: i32 = pipeline_type_kind_ord_at(arena, recv_rt);
     let builtin_nm: u8[16] = [];
@@ -20496,9 +20549,23 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
         fi2 = fi2 + 1;
       }
     }
-    /* "*)data); }\n" — 11 bytes (close cast + data + close call + stmt + body). */
-    let close_body: u8[11] = [42, 41, 100, 97, 116, 97, 41, 59, 32, 125, 10];
-    if (emit_bytes_from_ptr(out, &close_body[0], 11) != 0) {
+    /* "*)data" — 6 bytes (close cast + data). Extras forwarded below. */
+    let close_data: u8[6] = [42, 41, 100, 97, 116, 97];
+    if (emit_bytes_from_ptr(out, &close_data[0], 6) != 0) {
+      return -1;
+    }
+    extra_i = 1;
+    while (extra_i < nparams) {
+      /* ", aN" */
+      if (append_byte(out, 44) != 0) { return -1; }
+      if (append_byte(out, 32) != 0) { return -1; }
+      if (append_byte(out, 97) != 0) { return -1; }
+      if (format_uint(out, extra_i) != 0) { return -1; }
+      extra_i = extra_i + 1;
+    }
+    /* "); }\n" — 5 bytes. */
+    let close_end: u8[5] = [41, 59, 32, 125, 10];
+    if (emit_bytes_from_ptr(out, &close_end[0], 5) != 0) {
       return -1;
     }
     return 1;

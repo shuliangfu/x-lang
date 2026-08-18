@@ -16853,9 +16853,16 @@ int32_t codegen_emit_vtable_wrapper_name(struct codegen_CodegenOutBuf * out,
  * wrapper bridges this:
  *
  *   By-value self (impl Trait for A, self: A):
- *     static <ret> <wrap>(void* data) { return <func>(*(struct A*)data); }
+ *     static <ret> <wrap>(void* data, T1 a1, ...) {
+ *       return <func>(*(struct A*)data, a1, ...);
+ *     }
  *   Pointer self (impl Trait for *A, self: *A):
- *     static <ret> <wrap>(void* data) { return <func>((struct A*)data); }
+ *     static <ret> <wrap>(void* data, T1 a1, ...) {
+ *       return <func>((struct A*)data, a1, ...);
+ *     }
+ *
+ * First formal is always void* data (rdi/x0 = data ABI; do not change).
+ * Extra formals are impl params 1..N (cap 5). SSE/stack leftover.
  *
  * The vtable static then stores `(void*)&<wrap>` instead of
  * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
@@ -16909,9 +16916,49 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
             for_nm, for_nlen, for_ptr, slot_i) !=0)) {
       return -1;
     }
-    /* "(void* data) { return " — 22 bytes. */
-    uint8_t wrap_sig[22] = {40, 118, 111, 105, 100, 42, 32, 100, 97, 116, 97, 41, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32};
-    if ((codegen_emit_bytes_from_ptr(out, &((wrap_sig)[0]), 22) !=0)) {
+    /* "(void* data" — 11 bytes. First arg stays data (rdi/x0 ABI unchanged). */
+    uint8_t wrap_open[11] = {40, 118, 111, 105, 100, 42, 32, 100, 97, 116, 97};
+    if ((codegen_emit_bytes_from_ptr(out, &((wrap_open)[0]), 11) !=0)) {
+      return -1;
+    }
+    /*
+     * Forward impl extras after self. G.7: complete this function (no second
+     * wrapper). Cap 5 extras; more is leftover (SSE/stack).
+     * PLATFORM: SHARED — host-C emit; Ubuntu gold.
+     */
+    int32_t nparams = 0;
+    if ((cur_mod !=0)) {
+      nparams = pipeline_module_func_num_params_at(cur_mod, impl_fi);
+    }
+    if ((nparams > 6)) {
+      return -1;
+    }
+    uint8_t * pref = 0;
+    int32_t pref_len = 0;
+    if (((ctx !=0) && ((ctx)->current_codegen_prefix_len > 0))) {
+      pref = &(((ctx)->current_codegen_prefix_mirror)[0]);
+      pref_len = (ctx)->current_codegen_prefix_len;
+    }
+    int32_t extra_i = 1;
+    while ((extra_i < nparams)) {
+      int32_t pty = pipeline_module_func_param_type_ref_at(cur_mod, impl_fi, extra_i);
+      if ((codegen_append_byte(out, 44) !=0)) { return -1; }
+      if ((codegen_append_byte(out, 32) !=0)) { return -1; }
+      if ((codegen_emit_type(arena, out, pty, pref, pref_len, ctx) !=0)) {
+        return -1;
+      }
+      if ((pipeline_type_kind_ord_at(arena, pty) == ast_TypeKind_TYPE_SLICE)) {
+        if ((codegen_append_byte(out, 32) !=0)) { return -1; }
+        if ((codegen_append_byte(out, 42) !=0)) { return -1; }
+      }
+      if ((codegen_append_byte(out, 32) !=0)) { return -1; }
+      if ((codegen_append_byte(out, 97) !=0)) { return -1; }
+      if ((codegen_format_uint(out, extra_i) !=0)) { return -1; }
+      extra_i = (extra_i + 1);
+    }
+    /* ") { return " — 11 bytes. */
+    uint8_t wrap_mid[11] = {41, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32};
+    if ((codegen_emit_bytes_from_ptr(out, &((wrap_mid)[0]), 11) !=0)) {
       return -1;
     }
     /* Emit module prefix (if any) before the function link name. */
@@ -16940,7 +16987,7 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
      * F6: builtin for-types reach here via codegen_emit_module_vtable_statics
      * (recv_rt is the builtin kind's type_ref). Detect via recv_rt's kind ord;
      * emit the C type (int32_t/f64/...) instead of "struct <name>". The shared
-     * close_body below ("*)data); }\n") closes the cast for both variants.
+     * close_data below ("*)data") closes the cast; extras are forwarded after.
      */
     int32_t recv_kind = pipeline_type_kind_ord_at(arena, recv_rt);
     uint8_t builtin_nm[16] = {};
@@ -16994,9 +17041,22 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
         fi2 = (fi2 + 1);
       }
     }
-    /* "*)data); }\n" — 11 bytes (close cast + data + close call + stmt + body). */
-    uint8_t close_body[11] = {42, 41, 100, 97, 116, 97, 41, 59, 32, 125, 10};
-    if ((codegen_emit_bytes_from_ptr(out, &((close_body)[0]), 11) !=0)) {
+    /* "*)data" — 6 bytes (close cast + data). Extras forwarded below. */
+    uint8_t close_data[6] = {42, 41, 100, 97, 116, 97};
+    if ((codegen_emit_bytes_from_ptr(out, &((close_data)[0]), 6) !=0)) {
+      return -1;
+    }
+    extra_i = 1;
+    while ((extra_i < nparams)) {
+      if ((codegen_append_byte(out, 44) !=0)) { return -1; }
+      if ((codegen_append_byte(out, 32) !=0)) { return -1; }
+      if ((codegen_append_byte(out, 97) !=0)) { return -1; }
+      if ((codegen_format_uint(out, extra_i) !=0)) { return -1; }
+      extra_i = (extra_i + 1);
+    }
+    /* "); }\n" — 5 bytes. */
+    uint8_t close_end[5] = {41, 59, 32, 125, 10};
+    if ((codegen_emit_bytes_from_ptr(out, &((close_end)[0]), 5) !=0)) {
       return -1;
     }
     return 1;
