@@ -15519,7 +15519,48 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         return 0;
       } else {
-        /* See implementation. */
+        /*
+         * [K][N]T ARRAY_LIT: emit_type(elem) is `E *` so this path produced
+         * `(int32_t *[]){(int32_t[]){1,2},…}` = E **. Wrapper/impl want
+         * `E (*)[N]`. Sit-red dyn_add_arr2 host-C 219 after wrapper
+         * named-array. G.7: `(E[][N]){{…}}` via existing
+         * emit_local_fixed_array_elem_type + suffix + braced init
+         * (twin of [][N]T slice path). PLATFORM: SHARED host-C.
+         */
+        let elem_is_arr: i32 = 0;
+        if (!ast.ref_is_null(elem_type_ref) && elem_type_ref > 0 && elem_type_ref <= arena.num_types) {
+          if (pipeline_type_kind_ord_at(arena, elem_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+            elem_is_arr = 1;
+          }
+        }
+        if (elem_is_arr != 0) {
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_elem_type(arena, out, elem_type_ref, ctx) != 0) {
+            let fb_md: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_9(out, &fb_md[0], 7) != 0) {
+              return -1;
+            }
+          }
+          if (append_byte(out, 91) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 93) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_suffix(arena, out, elem_type_ref) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 41) != 0) {
+            return -1;
+          }
+          if (emit_braced_array_lit_init(arena, out, expr_ref, ctx) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+        /* Scalar-elem ARRAY_LIT: `(E[]){ e0, e1, … }`. */
         if (append_byte(out, 40) != 0) {
           return -1;
         }
@@ -20480,7 +20521,8 @@ export function codegen_emit_vtable_wrapper_name(out: *CodegenOutBuf,
  * matches the asm dyn extras bound. Call site emits `(recv.data, args...)`
  * through a typed `(void*, T1, T2)` cast
  * (codegen_emit_dyn_host_c_fn_ptr_suffix) so host cc does not default-
- * promote f32 extras. Named-array declarators remain leftover.
+ * promote f32 extras. `[K][N]T` / `*[N]T` extras use the same
+ * emit_c_ptr_to_fixed_array_decl path as emit_func (`E (*aN)[N]…`).
  *
  * The vtable static then stores `(void*)&<wrap>` instead of
  * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
@@ -20575,18 +20617,43 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
       /* ", " */
       if (append_byte(out, 44) != 0) { return -1; }
       if (append_byte(out, 32) != 0) { return -1; }
-      if (emit_type(arena, out, pty, pref, pref_len, ctx) != 0) {
-        return -1;
-      }
-      /* TYPE_SLICE extras use the same pointer ABI as emit_func. */
-      if (pipeline_type_kind_ord_at(arena, pty) == (TypeKind.TYPE_SLICE as i32)) {
+      /*
+       * [K][N]T / *[N]T extras: emit_type peels ARRAY to `E *` twice
+       * (`int32_t * * a1`) while emit_func already emits
+       * `int32_t (*p)[2]`. Sit-red dyn_add_arr2 host-C run=219.
+       * G.7: same named-array path as emit_func (no second wrapper).
+       * Synthetic name stays aN. extra_i < 96 so two digits suffice.
+       * PLATFORM: SHARED host-C emit; Ubuntu gold.
+       */
+      if (type_uses_named_array_decl(arena, pty) != 0) {
+        let aname: u8[8] = [];
+        aname[0] = 97;
+        let alen: i32 = 1;
+        if (extra_i >= 10) {
+          aname[1] = ((extra_i / 10) + 48) as u8;
+          aname[2] = ((extra_i % 10) + 48) as u8;
+          alen = 3;
+        } else {
+          aname[1] = (extra_i + 48) as u8;
+          alen = 2;
+        }
+        if (emit_c_ptr_to_fixed_array_decl(arena, out, pty, &aname[0], alen, ctx) != 0) {
+          return -1;
+        }
+      } else {
+        if (emit_type(arena, out, pty, pref, pref_len, ctx) != 0) {
+          return -1;
+        }
+        /* TYPE_SLICE extras use the same pointer ABI as emit_func. */
+        if (pipeline_type_kind_ord_at(arena, pty) == (TypeKind.TYPE_SLICE as i32)) {
+          if (append_byte(out, 32) != 0) { return -1; }
+          if (append_byte(out, 42) != 0) { return -1; }
+        }
+        /* Synthetic " aN" — self is adapted from data, not forwarded by name. */
         if (append_byte(out, 32) != 0) { return -1; }
-        if (append_byte(out, 42) != 0) { return -1; }
+        if (append_byte(out, 97) != 0) { return -1; }
+        if (format_uint(out, extra_i) != 0) { return -1; }
       }
-      /* Synthetic " aN" — self is adapted from data, not forwarded by name. */
-      if (append_byte(out, 32) != 0) { return -1; }
-      if (append_byte(out, 97) != 0) { return -1; }
-      if (format_uint(out, extra_i) != 0) { return -1; }
       extra_i = extra_i + 1;
     }
     /* ") { return " — 11 bytes. */

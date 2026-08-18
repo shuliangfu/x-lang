@@ -5423,7 +5423,15 @@ int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_
 int32_t codegen_emit_c(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t ptr_type_ref, uint8_t * name, int32_t name_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t arr_tr = 0;
-    if ((ast_ref_is_null(ptr_type_ref) || (pipeline_type_kind_ord_at(arena, ptr_type_ref) !=9))) {
+    int32_t decl_tk = 0;
+    /* PLATFORM: SHARED — accept TYPE_PTR (*[N]T) and TYPE_ARRAY ([K][N]T).
+     * Twin of living/codegen.x emit_c_ptr_to_fixed_array_decl. Wrapper extras
+     * for [2][2]i32 are TYPE_ARRAY; PTR-only rejected them (XP003). */
+    if (ast_ref_is_null(ptr_type_ref)) {
+      return -1;
+    }
+    decl_tk = pipeline_type_kind_ord_at(arena, ptr_type_ref);
+    if ((decl_tk != 9) && (decl_tk != 10)) {
       return -1;
     }
     (void)((arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref)));
@@ -12864,6 +12872,45 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
         return 0;
       } else {
+        /*
+         * [K][N]T ARRAY_LIT: emit_type(elem) is E * → (int32_t *[]){(int32_t[]){…}}
+         * = E **. Wrapper/impl want E (*)[N]. Sit-red dyn_add_arr2 host-C 219.
+         * G.7: (E[][N]){{…}} via existing peel + braced init.
+         * PLATFORM: SHARED host-C. Pin twin of codegen.x.
+         */
+        int32_t elem_is_arr = 0;
+        if ((!(ast_ref_is_null(elem_type_ref)) && (elem_type_ref > 0) && (elem_type_ref <= ((arena)->num_types)))) {
+          if ((pipeline_type_kind_ord_at(arena, elem_type_ref) == 10)) {
+            elem_is_arr = 1;
+          }
+        }
+        if ((elem_is_arr !=0)) {
+          if ((codegen_append_byte(out, 40) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_local_fixed_array_elem_type(arena, out, elem_type_ref, ctx) !=0)) {
+            uint8_t fb_md[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, &((fb_md)[0]), 7) !=0)) {
+              return -1;
+            }
+          }
+          if ((codegen_append_byte(out, 91) !=0)) {
+            return -1;
+          }
+          if ((codegen_append_byte(out, 93) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_local_fixed_array_suffix(arena, out, elem_type_ref) !=0)) {
+            return -1;
+          }
+          if ((codegen_append_byte(out, 41) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_braced_array_lit_init(arena, out, expr_ref, ctx) !=0)) {
+            return -1;
+          }
+          return 0;
+        }
         if ((codegen_append_byte(out, 40) !=0)) {
           return -1;
         }
@@ -16958,7 +17005,7 @@ int32_t codegen_emit_vtable_wrapper_name(struct codegen_CodegenOutBuf * out,
  * beyond SysV GP 1..5 stay named C formals (a6, a7, ...). Safety cap 96
  * matches the asm dyn extras bound. Call site uses a typed
  * (void*, T1, T2) cast (codegen_emit_dyn_host_c_fn_ptr_suffix).
- * Named-array declarators remain leftover.
+ * [K][N]T / *[N]T extras use codegen_emit_c (`E (*aN)[N]…`).
  *
  * The vtable static then stores `(void*)&<wrap>` instead of
  * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
@@ -17042,16 +17089,51 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
       int32_t pty = pipeline_module_func_param_type_ref_at(cur_mod, impl_fi, extra_i);
       if ((codegen_append_byte(out, 44) !=0)) { return -1; }
       if ((codegen_append_byte(out, 32) !=0)) { return -1; }
-      if ((codegen_emit_type(arena, out, pty, pref, pref_len, ctx) !=0)) {
-        return -1;
+      /*
+       * [K][N]T / *[N]T extras: emit_type peels ARRAY to E * twice
+       * (int32_t * * a1) while emit_func already emits int32_t (*p)[2].
+       * Sit-red dyn_add_arr2 host-C run=219. G.7: same named-array path
+       * as emit_func (codegen_emit_c). extra_i < 96 → two digits.
+       * PLATFORM: SHARED host-C emit; Ubuntu gold. Pin twin of codegen.x.
+       */
+      /* Pin has no type_uses_named_array_decl symbol (archaeology).
+       * Inline the same predicate: PTR→ARRAY or ARRAY-of-ARRAY.
+       * G.7: still call codegen_emit_c (no second emitter). */
+      int32_t use_named = 0;
+      int32_t pk = pipeline_type_kind_ord_at(arena, pty);
+      if ((pk == 9) || (pk == 10)) {
+        int32_t pe = pipeline_type_elem_ref_at(arena, pty);
+        if ((!(ast_ref_is_null(pe))) && (pipeline_type_kind_ord_at(arena, pe) == 10)) {
+          use_named = 1;
+        }
       }
-      if ((pipeline_type_kind_ord_at(arena, pty) == ast_TypeKind_TYPE_SLICE)) {
+      if ((use_named !=0)) {
+        uint8_t aname[8] = {0};
+        int32_t alen = 1;
+        aname[0] = 97;
+        if ((extra_i >= 10)) {
+          aname[1] = (uint8_t)((extra_i / 10) + 48);
+          aname[2] = (uint8_t)((extra_i % 10) + 48);
+          alen = 3;
+        } else {
+          aname[1] = (uint8_t)(extra_i + 48);
+          alen = 2;
+        }
+        if ((codegen_emit_c(arena, out, pty, &((aname)[0]), alen, ctx) !=0)) {
+          return -1;
+        }
+      } else {
+        if ((codegen_emit_type(arena, out, pty, pref, pref_len, ctx) !=0)) {
+          return -1;
+        }
+        if ((pipeline_type_kind_ord_at(arena, pty) == ast_TypeKind_TYPE_SLICE)) {
+          if ((codegen_append_byte(out, 32) !=0)) { return -1; }
+          if ((codegen_append_byte(out, 42) !=0)) { return -1; }
+        }
         if ((codegen_append_byte(out, 32) !=0)) { return -1; }
-        if ((codegen_append_byte(out, 42) !=0)) { return -1; }
+        if ((codegen_append_byte(out, 97) !=0)) { return -1; }
+        if ((codegen_format_uint(out, extra_i) !=0)) { return -1; }
       }
-      if ((codegen_append_byte(out, 32) !=0)) { return -1; }
-      if ((codegen_append_byte(out, 97) !=0)) { return -1; }
-      if ((codegen_format_uint(out, extra_i) !=0)) { return -1; }
       extra_i = (extra_i + 1);
     }
     /* ") { return " — 11 bytes. */
