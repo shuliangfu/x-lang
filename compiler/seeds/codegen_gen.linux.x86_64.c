@@ -5053,7 +5053,22 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       return 0;
     }
+    /* PLATFORM: SHARED host-C — [K][N]T abstract decay is one E*, not E**.
+     * Twin of living/codegen.x emit_type TYPE_ARRAY. Recursive emit_type(elem)
+     * of [N]T is already E*, then another * produced int32_t ** (sit-red
+     * dyn_ret_arr2 / named-local: Ubuntu -Wincompatible-pointer-types).
+     * Peel every ARRAY layer to the leaf, then one star. Named extras stay
+     * codegen_emit_c (`E (*name)[N]`). First-element E* matches [N]T ABI. */
     if (((tk ==10) && !(ast_ref_is_null(elem_ref)))) {
+      if ((pipeline_type_kind_ord_at(arena, elem_ref) ==10)) {
+        if ((codegen_emit_local_fixed_array_elem_type(arena, out, type_ref, ctx) !=0)) {
+          return -1;
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          return -1;
+        }
+        return codegen_append_byte(out, 42);
+      }
       if ((codegen_emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) !=0)) {
         return -1;
       }
@@ -13092,6 +13107,74 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
         int32_t arr_sz_r = pipeline_type_array_size_at(arena, rty);
         int32_t elem_r = pipeline_type_elem_ref_at(arena, rty);
         if (((arr_sz_r > 0) && (arr_sz_r <=512))) {
+          /* PLATFORM: SHARED host-C — [K][N]T return wrap.
+           * Twin of living/codegen.x emit_return_stmt_with_context.
+           * 1D path did static E* __xlang_ar[K]; E** rp = operand (Ubuntu
+           * incompatible-pointer-types). Durable static E ar[K][N] + memcpy
+           * / brace, return (E*)ar to match emit_type decay. 1D unchanged. */
+          if ((!(ast_ref_is_null(elem_r)) && (pipeline_type_kind_ord_at(arena, elem_r) ==10))) {
+            if ((codegen_emit_indent(out, indent) !=0)) {
+              return -1;
+            }
+            uint8_t md_open[20] = {114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((md_open)[0]), 17) !=0)) {
+              return -1;
+            }
+            if ((codegen_emit_local_fixed_array_elem_type(arena, out, rty, ctx) !=0)) {
+              return -1;
+            }
+            uint8_t md_nm[12] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((md_nm)[0]), 11) !=0)) {
+              return -1;
+            }
+            if ((codegen_emit_local_fixed_array_suffix(arena, out, rty) !=0)) {
+              return -1;
+            }
+            if ((pipeline_expr_kind_ord_at(arena, operand_ref) ==46)) {
+              uint8_t md_eq[4] = {32, 61, 32, 0};
+              if ((codegen_emit_bytes_4(out, &((md_eq)[0]), 3) !=0)) {
+                return -1;
+              }
+              if ((codegen_emit_braced_array_lit_init(arena, out, operand_ref, ctx) !=0)) {
+                return -1;
+              }
+              uint8_t md_sc[4] = {59, 32, 0, 0};
+              if ((codegen_emit_bytes_4(out, &((md_sc)[0]), 2) !=0)) {
+                return -1;
+              }
+            } else {
+              uint8_t md_cp1[20] = {59, 32, 109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((md_cp1)[0]), 17) !=0)) {
+                return -1;
+              }
+              uint8_t md_cpn[12] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((md_cpn)[0]), 10) !=0)) {
+                return -1;
+              }
+              uint8_t md_cp2[20] = {41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((md_cp2)[0]), 17) !=0)) {
+                return -1;
+              }
+              if ((codegen_emit_expr(arena, out, operand_ref, ctx) !=0)) {
+                return -1;
+              }
+              uint8_t md_cp3[28] = {41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 41, 41, 59, 32, 0, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((md_cp3)[0]), 24) !=0)) {
+                return -1;
+              }
+            }
+            if ((codegen_append_byte(out, 40) !=0)) {
+              return -1;
+            }
+            if ((codegen_emit_local_fixed_array_elem_type(arena, out, rty, ctx) !=0)) {
+              return -1;
+            }
+            uint8_t md_end[22] = {32, 42, 41, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 59, 32, 125, 41, 59, 10, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((md_end)[0]), 19) !=0)) {
+              return -1;
+            }
+            return 0;
+          }
           if ((codegen_emit_indent(out, indent) !=0)) {
             return -1;
           }

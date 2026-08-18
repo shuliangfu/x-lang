@@ -1,13 +1,14 @@
-// F7 leftover: dyn ret `[2][2]i32` (sit-red XT001 expected [2][2]i32
-// found [2]i32). Produce: typeck TYPE_DYN ret ARRAY reconstructs
-// find_or_alloc_array(elem, ret_array_size) — outer N only.
-// Registry already stores method_ret_array_ndims=2 + dims[0]=2, dims[1]=2.
-// G.7: complete existing dyn ret ARRAY block (ret_array_ndims /
-// ret_array_dim + wrap innermost first). No second resolve.
+// F7 leftover: host-C ret `[2][2]i32` (sit-red Ubuntu
+// -Wincompatible-pointer-types `int32_t ** rp = t`; mac clang
+// false-green run=10 from row-pointer bit patterns).
+// Produce: emit_type peels ARRAY twice → `int32_t **`; return wrap
+// emits `static int32_t * __xlang_ar[2]`. typeck ndims already closed.
+// G.7: complete emit_type decay (one E*) + emit_return wrap
+// (static E ar[K][N] + memcpy, return (E*)ar). No second emitter.
 // Wrapper rdi/x0 = data unchanged.
-// Expected: compile = 0 (XT001 gone). host-C run = 10 (1+2+3+4).
+// Expected: compile = 0. host-C run = 10 (1+2+3+4) both ends.
 // asm dest `[K][N]T` copy leftover is NOT this leaf (named-local
-// non-dyn `[2][2]i32` ret also run=3 on Darwin).
+// non-dyn `[2][2]i32` ret also run=3).
 // Neighborhood: dyn_ret_arr.x ([2]i32) / dyn_add_arr2.x ([2][2]i32 extra).
 // PLATFORM: SHARED — Ubuntu gold.
 

@@ -4816,8 +4816,32 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       return 0;
     }
-    /* See implementation. */
+    /*
+     * TYPE_ARRAY abstract decay is one `E *` (pointer to first element).
+     * `[N]T` peels once: emit_type(elem) + ` *` → `int32_t *`.
+     * `[K][N]T` must not recurse: emit_type(elem=`[N]T`) is already `E *`,
+     * then another ` *` produced `int32_t * *` (sit-red dyn_ret_arr2 /
+     * named-local host-C: `int32_t ** rp = t` Ubuntu -Wincompatible-pointer-types;
+     * mac clang warning + memcpy of two row-pointer bit patterns false-green 10).
+     * G.7: complete this decay — peel every ARRAY layer to the leaf via
+     * emit_local_fixed_array_elem_type, then one star. Named params/extras
+     * still use emit_c_ptr_to_fixed_array_decl (`E (*name)[N]`); this path
+     * is return types, wrapper ret, proto ret, and dyn call-site casts.
+     * C function syntax cannot host abstract `E (*)[N]` before the name
+     * (`int32_t (*)[2] get22()` is invalid); first-element `E *` matches
+     * `[N]T` ABI and memcpy(sizeof dest) consumers.
+     * PLATFORM: SHARED host-C emit; Ubuntu gold.
+     */
     if (tk == TypeKind.TYPE_ARRAY as i32 && !ast.ref_is_null(elem_ref)) {
+      if (pipeline_type_kind_ord_at(arena, elem_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+        if (emit_local_fixed_array_elem_type(arena, out, type_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        return append_byte(out, 42);
+      }
       if (emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
         return -1;
       }
@@ -15858,6 +15882,88 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
         let arr_sz_r: i32 = pipeline_type_array_size_at(arena, rty);
         let elem_r: i32 = pipeline_type_elem_ref_at(arena, rty);
         if (arr_sz_r > 0 && arr_sz_r <= 512) {
+          /*
+           * `[K][N]T` return: emit_type(elem) is `E *`, so the 1D path
+           * emitted `static E * __xlang_ar[K]; E ** rp = operand` — Ubuntu
+           * rejects `int32_t ** rp = int32_t[K][N]`. Sit-red dyn_ret_arr2
+           * / named-local (same produce). G.7: complete this wrap — durable
+           * `static E __xlang_ar[K][N]` (peel+suffix) then memcpy / brace
+           * init, return `(E *)__xlang_ar` so it matches emit_type decay.
+           * 1D `[N]T` keeps the element-copy path below (already green).
+           * PLATFORM: SHARED host-C emit; Ubuntu gold.
+           */
+          if (!ast.ref_is_null(elem_r)
+              && pipeline_type_kind_ord_at(arena, elem_r) == (TypeKind.TYPE_ARRAY as i32)) {
+            if (emit_indent(out, indent) != 0) {
+              return -1;
+            }
+            /* return ({ static  */
+            let md_open: u8[20] = [114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &md_open[0], 17) != 0) {
+              return -1;
+            }
+            if (emit_local_fixed_array_elem_type(arena, out, rty, ctx) != 0) {
+              return -1;
+            }
+            /*  __xlang_ar */
+            let md_nm: u8[12] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 0];
+            if (emit_bytes_from_ptr(out, &md_nm[0], 11) != 0) {
+              return -1;
+            }
+            if (emit_local_fixed_array_suffix(arena, out, rty) != 0) {
+              return -1;
+            }
+            if (pipeline_expr_kind_ord_at(arena, operand_ref) == (ExprKind.EXPR_ARRAY_LIT as i32)) {
+              /*  = {…};  */
+              let md_eq: u8[4] = [32, 61, 32, 0];
+              if (emit_bytes_4(out, &md_eq[0], 3) != 0) {
+                return -1;
+              }
+              if (emit_braced_array_lit_init(arena, out, operand_ref, ctx) != 0) {
+                return -1;
+              }
+              let md_sc: u8[4] = [59, 32, 0, 0];
+              if (emit_bytes_4(out, &md_sc[0], 2) != 0) {
+                return -1;
+              }
+            } else {
+              /* ; memcpy((void*)( */
+              let md_cp1: u8[20] = [59, 32, 109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &md_cp1[0], 17) != 0) {
+                return -1;
+              }
+              let md_cpn: u8[12] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 0, 0];
+              if (emit_bytes_from_ptr(out, &md_cpn[0], 10) != 0) {
+                return -1;
+              }
+              /* ), (const void*)( */
+              let md_cp2: u8[20] = [41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &md_cp2[0], 17) != 0) {
+                return -1;
+              }
+              if (emit_expr(arena, out, operand_ref, ctx) != 0) {
+                return -1;
+              }
+              /* ), sizeof(__xlang_ar));  */
+              let md_cp3: u8[28] = [41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 41, 41, 59, 32, 0, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &md_cp3[0], 24) != 0) {
+                return -1;
+              }
+            }
+            /* ( */
+            if (append_byte(out, 40) != 0) {
+              return -1;
+            }
+            if (emit_local_fixed_array_elem_type(arena, out, rty, ctx) != 0) {
+              return -1;
+            }
+            /*  *)__xlang_ar; });\n */
+            let md_end: u8[22] = [32, 42, 41, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 59, 32, 125, 41, 59, 10, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &md_end[0], 19) != 0) {
+              return -1;
+            }
+            return 0;
+          }
           if (emit_indent(out, indent) != 0) {
             return -1;
           }
