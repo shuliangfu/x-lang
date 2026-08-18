@@ -91,7 +91,8 @@ export extern function xlang_skip_trait_method_ret_array_size_c(trait_nm: *u8, t
  * Copy the TYPE_NAMED spelling of a trait-method return into out64.
  * G.7: completes the skip-trait accessor family next to ret_kind
  * (registry already stores method_ret_names). Dyn dispatch
- * reconstructs a `Pair` return type_ref (func_ix is the slot).
+ * reconstructs a `Pair` return type_ref and the NAMED leaf of
+ * `*Pair` / `[]Pair` / `[N]Pair` (func_ix is the slot).
  * @param trait_nm *u8 — trait name bytes; non-null
  * @param trait_nlen i32 — trait name length; must be > 0
  * @param slot i32 — vtable slot
@@ -14065,9 +14066,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * TYPE_ARRAY / TYPE_SLICE (`[N]T` / `[]T`) reconstruct via ret_elem_kind
      * + find_or_alloc_array/slice. TYPE_NAMED (`Pair`) reconstructs via
      * ret_name + find_or_alloc_named. TYPE_PTR-to-scalar (`*i32`) reconstructs
-     * via ret_elem_kind + find_or_alloc_ptr. Sit-red host-C void-cast
-     * (`struct Pair r = (void)call` / `int32_t *p = (void)call`). VECTOR
-     * and PTR-to-NAMED still fall back to 0 (leftover).
+     * via ret_elem_kind + find_or_alloc_ptr. NAMED leaf of `*T` / `[]T` /
+     * `[N]T` (`*Pair` / `[]Pair` / `[2]Pair`) reuses ret_name +
+     * find_or_alloc_named then wrap ptr/slice/array. Sit-red host-C void-cast
+     * (`struct Pair *p = (void)call` / `struct xlang_slice_Pair = (void)call`).
+     * VECTOR kind 13 and `[K][N]T` ndims still fall back (leftover).
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
      * trait formal (f32=14 / f64=15), ARRAY_LIT extras to dest-SLICE
@@ -14103,7 +14106,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
          * ARRAY/SLICE ret: F3 left dyn_ret_ty=0 so emit_type_kind(10/11)
          * failed (host-C XP003). Reconstruct with registry elem + existing
          * find_or_alloc_* (G.7 complete this block; no second resolve).
-         * Scalar elem only (NAMED/PTR/ARRAY/SLICE/VECTOR leftover).
+         * Scalar elem plus NAMED leaf (`[]Pair` / `[2]Pair`). Remaining
+         * leftover: PTR/ARRAY/SLICE/VECTOR elem and `[K][N]T` ndims.
          * PLATFORM: SHARED.
          */
         if (dyn_ret_ty == 0 && dyn_ret_kind == 11) {
@@ -14114,6 +14118,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             let dyn_ety: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek);
             if (dyn_ety > 0) {
               dyn_ret_ty = find_or_alloc_slice_type_ref(arena, dyn_ety);
+            }
+          }
+          /*
+           * SLICE-of-NAMED (`[]Pair`): registry ret_elem_kind=8 and
+           * ret_name holds the leaf. Reconstruct named then wrap slice.
+           * Sit-red host-C `struct xlang_slice_Pair = (void)call`.
+           * G.7 complete this block; no second resolve. PLATFORM: SHARED.
+           */
+          if (dyn_ret_ty == 0 && dyn_rek == 8) {
+            let dyn_sname: u8[64] = [];
+            let dyn_slen: i32 = xlang_skip_trait_method_ret_name_into_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, &dyn_sname[0]);
+            if (dyn_slen > 0) {
+              let dyn_snty: i32 = find_or_alloc_named_type_ref(arena, &dyn_sname[0], dyn_slen);
+              if (dyn_snty > 0) {
+                dyn_ret_ty = find_or_alloc_slice_type_ref(arena, dyn_snty);
+              }
             }
           }
         }
@@ -14127,6 +14148,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             let dyn_ety2: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek2);
             if (dyn_ety2 > 0) {
               dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_ety2, dyn_rsz);
+            }
+          }
+          /*
+           * ARRAY-of-NAMED (`[2]Pair`): same NAMED-leaf leftover. Outer N
+           * from ret_array_size; `[K][N]T` ndims still leftover.
+           * Sit-red host-C memcpy of `(void)call`. PLATFORM: SHARED.
+           */
+          if (dyn_ret_ty == 0 && dyn_rek2 == 8 && dyn_rsz > 0) {
+            let dyn_aname: u8[64] = [];
+            let dyn_alen: i32 = xlang_skip_trait_method_ret_name_into_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, &dyn_aname[0]);
+            if (dyn_alen > 0) {
+              let dyn_anty: i32 = find_or_alloc_named_type_ref(arena, &dyn_aname[0], dyn_alen);
+              if (dyn_anty > 0) {
+                dyn_ret_ty = find_or_alloc_array_type_ref(arena, dyn_anty, dyn_rsz);
+              }
             }
           }
         }
@@ -14146,8 +14183,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
         /*
          * PTR-to-scalar ret (`*i32`): same void-cast leftover. Reconstruct
-         * with ret_elem_kind + find_or_alloc_ptr. NAMED/PTR/ARRAY/SLICE/
-         * VECTOR elem leftover (PTR-to-NAMED). PLATFORM: SHARED.
+         * with ret_elem_kind + find_or_alloc_ptr. PTR-to-NAMED (`*Pair`)
+         * uses ret_name + find_or_alloc_named then wrap ptr. Remaining
+         * leftover: PTR-to-PTR / ARRAY / SLICE / VECTOR elem.
+         * PLATFORM: SHARED.
          */
         if (dyn_ret_ty == 0 && dyn_ret_kind == 9) {
           let dyn_rek3: i32 = xlang_skip_trait_method_ret_elem_kind_c(&dyn_trait_nm[0],
@@ -14157,6 +14196,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             let dyn_ety3: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_rek3);
             if (dyn_ety3 > 0) {
               dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_ety3);
+            }
+          }
+          /*
+           * PTR-to-NAMED (`*Pair`): registry ret_elem_kind=8; ret_name is
+           * the leaf. Sit-red host-C `struct Pair *p = (void)call`.
+           * G.7 complete this block; no second resolve. PLATFORM: SHARED.
+           */
+          if (dyn_ret_ty == 0 && dyn_rek3 == 8) {
+            let dyn_pname: u8[64] = [];
+            let dyn_plen: i32 = xlang_skip_trait_method_ret_name_into_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, &dyn_pname[0]);
+            if (dyn_plen > 0) {
+              let dyn_pnty: i32 = find_or_alloc_named_type_ref(arena, &dyn_pname[0], dyn_plen);
+              if (dyn_pnty > 0) {
+                dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_pnty);
+              }
             }
           }
         }
