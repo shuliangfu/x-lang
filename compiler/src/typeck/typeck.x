@@ -49,7 +49,7 @@ export extern function typeck_float64_bits_hi(d: f64): i32;
 export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
         concrete_ty_ref: i32, trait_nm: *u8, trait_nlen: i32): i32;
 /*
- * F3 TYPE_DYN(17) vtable-dispatch authority — three G.7 accessors over the
+ * F3 TYPE_DYN(17) vtable-dispatch authority — G.7 accessors over the
  * trait registry `g_xlang_skip_trait_reg[]`. Method declaration order in the
  * trait body defines the vtable slot index (slot 0 = first declared method).
  *
@@ -71,6 +71,13 @@ export extern function xlang_skip_trait_method_name_into_c(trait_nm: *u8, trait_
         slot: i32, out64: *u8): i32;
 export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32): i32;
+/**
+ * Formal TypeKind at trait-method param_ix (0 = self). -1 if missing.
+ * G.7: completes the skip-trait accessor family; body in parser_asm_skip_tl_slice.inc.
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -14000,6 +14007,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * (i32/bool/u8/.../void) map directly via pipeline_type_ensure_by_kind_ord;
      * TYPE_NAMED returns fall back to 0 (void) for the F3 minimal proof — the
      * call still dispatches correctly, only the cast is loose (F4 tightens).
+     *
+     * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
+     * trait formal (f32=14 / f64=15). func_ix is the vtable slot — must not
+     * call typeck_stamp_resolved_args_float_lit (that looks up module-func
+     * params). Formal kinds come from xlang_skip_trait_method_param_kind_c
+     * (registry already stored them at parse). Extra i → param i+1 (self=0).
+     * G.7 reuse typeck_coerce_init_float_lit_to_decl.
      * PLATFORM: SHARED — mirrors seeds/typeck_gen.linux.x86_64.c.
      */
     if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_dyn) {
@@ -14021,6 +14035,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind);
         }
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty);
+        num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+        arg_i = 0;
+        while (arg_i < num_args) {
+          let dyn_arg: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
+          if (check_expr(module, arena, dyn_arg, return_type_ref, ctx) != 0) {
+            return 0 - 1;
+          }
+          /* Extra i maps to formal i+1 (param 0 is self). */
+          let dyn_pk: i32 = xlang_skip_trait_method_param_kind_c(&dyn_trait_nm[0],
+                  dyn_trait_nlen, dyn_slot, arg_i + 1);
+          if (dyn_arg > 0 && (dyn_pk == 14 || dyn_pk == 15)) {
+            let dyn_fty: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_pk);
+            if (dyn_fty > 0) {
+              let dyn_ak: i32 = pipeline_expr_kind_ord_at(arena, dyn_arg);
+              typeck_coerce_init_float_lit_to_decl(arena, dyn_arg, dyn_fty, dyn_pk, dyn_ak);
+            }
+          }
+          arg_i = arg_i + 1;
+        }
         return 0;
       }
     }

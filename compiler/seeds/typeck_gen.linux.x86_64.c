@@ -467,6 +467,8 @@ extern int32_t xlang_skip_trait_method_name_into_c(const uint8_t * trait_nm, int
         int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot);
+extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -11454,6 +11456,27 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           (void)((dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind)));
         }
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
+        /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64.
+         * func_ix is the vtable slot — cannot typeck_stamp_resolved_args_float_lit.
+         * Extra i → param i+1 (self=0). PLATFORM: SHARED. */
+        (void)((num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref)));
+        (void)((arg_i = 0));
+        while ((arg_i < num_args)) {
+          int32_t dyn_arg = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
+          if ((typeck_check_expr(module, arena, dyn_arg, return_type_ref, ctx) != 0)) {
+            return -1;
+          }
+          int32_t dyn_pk = xlang_skip_trait_method_param_kind_c(&((dyn_trait_nm)[0]),
+                  dyn_trait_nlen, dyn_slot, (arg_i + 1));
+          if (((dyn_arg > 0) && ((dyn_pk == 14) || (dyn_pk == 15)))) {
+            int32_t dyn_fty = pipeline_type_ensure_by_kind_ord(arena, dyn_pk);
+            if ((dyn_fty > 0)) {
+              int32_t dyn_ak = pipeline_expr_kind_ord_at(arena, dyn_arg);
+              (void)typeck_coerce_init_float_lit_to_decl(arena, dyn_arg, dyn_fty, dyn_pk, dyn_ak);
+            }
+          }
+          (void)((arg_i = (arg_i + 1)));
+        }
         return 0;
       }
     }

@@ -1296,7 +1296,7 @@ int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
 }
 
 /**
- * F3 vtable dispatch helpers — three G.7 single-authority accessors over the
+ * F3 vtable dispatch helpers — G.7 single-authority accessors over the
  * trait registry `g_xlang_skip_trait_reg[]`. Method declaration order in the
  * trait body defines the vtable slot index (slot 0 = first declared method).
  *
@@ -1434,6 +1434,36 @@ int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t *trait_nm, int32_t trai
   if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
     return -1;
   return g_xlang_skip_trait_reg[ti].method_ret_kinds[slot];
+}
+
+/**
+ * Return the TypeKind ordinal of one trait-method formal.
+ * Completes the F3 accessor family (slot / count / name / ret_kind).
+ * wave426 already stores method_param_kinds at parse; typeck dyn dispatch
+ * cannot call typeck_stamp_resolved_args_float_lit (func_ix is the vtable
+ * slot, not a module func) so it reads formals here and reuses
+ * typeck_coerce_init_float_lit_to_decl.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot/param invalid or untyped.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                            int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_kinds[slot][param_ix];
 }
 
 /**

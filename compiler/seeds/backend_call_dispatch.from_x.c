@@ -620,8 +620,19 @@ static int32_t glue_arg_ref_is_f64_width_c(struct ast_ASTArena *arena, int32_t a
   }
   if (!arena || arg_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1)
-    return 1; /* float lit default f64 */
+  /* FLOAT_LIT: honor typeck stamp (f32=14 / f64=15). Unstamped default f64.
+   * Dyn extras pass pty=0 (slot ≠ func) so formal-kind cannot win above. */
+  if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1) {
+    atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (atr > 0) {
+      ak = pipeline_type_kind_ord_at(arena, atr);
+      if (ak == 15)
+        return 1;
+      if (ak == 14)
+        return 0;
+    }
+    return 1;
+  }
   atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
   if (atr <= 0)
     return 0;
