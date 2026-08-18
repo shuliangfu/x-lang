@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-17 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **pin-seed `[N]T→[]T` typeck 双权威闭**（ret／asg **42**）· **pin-seed STRUCT_LIT nest dest-stamp 双权威闭**（host-C 无 `(struct )`）· **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · TYPE_DYN／vtable 后期 · 只改勾选与事实，无波次流水  
+> **状态刷新**：2026-08-18 · 钉盘 **`f7424ae47`** · nest 64 冻帽 · dest leftover 族 **已尽** · g05／ensure parser 冷路径 **pin-first** · **4.2.2 pin-seed 体方法 resolve 闭** · **impl for Type 探针恢复** · **pin-seed `[N]T→[]T` typeck 双权威闭**（ret／asg **42**）· **pin-seed STRUCT_LIT nest dest-stamp 双权威闭**（host-C 无 `(struct )`）· **4.2.4 bare ret-only／phantom／bound n_tp=0 闭** · **4.2.5 multi mono 闭** · **4.2.7 nested reent 闭** · **TYPE_DYN／vtable ✅（F1–F6 全闭）** · 只改勾选与事实，无波次流水  
 
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
@@ -36,7 +36,7 @@
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
-| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／dest-in-rbx IF of ARRAY_LIT／dest-in-rbx IF extra arm stmts／dest-in-rbx IF extra arm loops／dest-in-rbx IF extra arm region／dest-in-rbx IF dest wrapped in unsafe／dest-in-rbx IF extra arm labeled／dest-in-rbx MATCH／dest-in-rbx IF of MATCH／dest-in-rbx MATCH field-bind／帧 dest 16B MATCH field-bind／大 main 后段 let dest 名空／匿名 match／匿名 enum／裸 enum／nest 17–64（**冻帽 64**）／SIMD dest／METHOD binop2／STRUCT_LIT dest／dest extra-arm 末尾 `{ fields }` host-C **已闭**／dest extra-arm `unsafe {…}; dest` ASI **已闭**／dest extra-arm `region {…}; dest` ASI **已闭**／parse_into 函数体 `region {}; return` 同模式 ASI **已闭**／with_arena extra-arm dest typeck 逃逸 **已闭**／dest extra-arm SIMD Wrap dest-in-rbx＋with_arena emit **已闭**／dest extra-arm SIMD host-C `-E` 头 `i32x4_t` **已闭**／dest extra-arm SIMD 叠 MATCH＋IF＋field-bind＋无分号 `with_arena` dest **已闭**／dest extra-arm `defer { k=1 }; dest` emit **已闭**／dest extra-arm extra wrap `{ { let t; dest } }` host-C **已闭**／dest-from-region dest-region-body defer **已闭**／dest-from-region intermediate-region defer **已闭**（asm leftover 54）／host-C dest-from-region intermediate stmt-expr 末值 **已闭**／host-C dest-from-region 叠中间层 last-wins **已闭**／host-C dest-from-region wrapping＋dest-region-body last-wins **已闭**／dest wrap IF dest **已闭**。 **开项**：TYPE_DYN 后期；**4.2.4 闭**；4.2.5／**4.2.7 已闭**；full12 装产品链须点名＋Ubuntu。dest extra-arm 末尾 `{ fields }` host-C **已闭**。dest extra-arm `unsafe {…}; dest` ASI **已闭**。dest extra-arm `region {…}; dest` ASI **已闭**。L0 `-E` getcwd **已闭**。emit_header `h[88]` 超额初始化 **已闭**（`u8[83]`）。sat 盖 prefer **已开路由**（`try-r1` → `ensure_labi_prefer_one`；sat 形态 427280 Darwin 5/5；mega 318600 活身份）。ARM64 prologue **已存 x19**；param_home **已跳过 x19 槽**。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 65／全量 assemble parser.x |
+| **Cap 能力解锁** | 🟡 | 4.2.1–4.2.3／dest-SLICE 族／dest-in-rbx 族／INDEX dest ARRAY_LIT／runtime-index dest ARRAY_LIT／INDEX dest ARRAY_LIT 非 VAR 基／FIELD dest ARRAY_LIT／dest-in-rbx ARRAY_LIT of ARRAY_LIT／dest-in-rbx ARRAY_LIT n>1／dest-in-rbx STRUCT_LIT 场 ARRAY_LIT／STRUCT_LIT 场 ARRAY_LIT 嵌套 STRUCT_LIT／dest-in-rbx CALL／dest-in-rbx ARRAY_LIT of CALL／dest-in-rbx IF／IF dest 双臂 STRUCT_LIT（帧 dest）／dest-in-rbx IF of STRUCT_LIT／dest-in-rbx IF of ARRAY_LIT／dest-in-rbx IF extra arm stmts／dest-in-rbx IF extra arm loops／dest-in-rbx IF extra arm region／dest-in-rbx IF dest wrapped in unsafe／dest-in-rbx IF extra arm labeled／dest-in-rbx MATCH／dest-in-rbx IF of MATCH／dest-in-rbx MATCH field-bind／帧 dest 16B MATCH field-bind／大 main 后段 let dest 名空／匿名 match／匿名 enum／裸 enum／nest 17–64（**冻帽 64**）／SIMD dest／METHOD binop2／STRUCT_LIT dest／dest extra-arm 末尾 `{ fields }` host-C **已闭**／dest extra-arm `unsafe {…}; dest` ASI **已闭**／dest extra-arm `region {…}; dest` ASI **已闭**／parse_into 函数体 `region {}; return` 同模式 ASI **已闭**／with_arena extra-arm dest typeck 逃逸 **已闭**／dest extra-arm SIMD Wrap dest-in-rbx＋with_arena emit **已闭**／dest extra-arm SIMD host-C `-E` 头 `i32x4_t` **已闭**／dest extra-arm SIMD 叠 MATCH＋IF＋field-bind＋无分号 `with_arena` dest **已闭**／dest extra-arm `defer { k=1 }; dest` emit **已闭**／dest extra-arm extra wrap `{ { let t; dest } }` host-C **已闭**／dest-from-region dest-region-body defer **已闭**／dest-from-region intermediate-region defer **已闭**（asm leftover 54）／host-C dest-from-region intermediate stmt-expr 末值 **已闭**／host-C dest-from-region 叠中间层 last-wins **已闭**／host-C dest-from-region wrapping＋dest-region-body last-wins **已闭**／dest wrap IF dest **已闭**。 **开项**：~~TYPE_DYN 后期~~ → ✅（F1–F6 闭）；**4.2.4 闭**；4.2.5／**4.2.7 已闭**；full12 装产品链须点名＋Ubuntu。dest extra-arm 末尾 `{ fields }` host-C **已闭**。dest extra-arm `unsafe {…}; dest` ASI **已闭**。dest extra-arm `region {…}; dest` ASI **已闭**。L0 `-E` getcwd **已闭**。emit_header `h[88]` 超额初始化 **已闭**（`u8[83]`）。sat 盖 prefer **已开路由**（`try-r1` → `ensure_labi_prefer_one`；sat 形态 427280 Darwin 5/5；mega 318600 活身份）。ARM64 prologue **已存 x19**；param_home **已跳过 x19 槽**。 **禁** try_inline mega／`enc_add_rax_rbx` 64 位／`enc_store_rax_to_rbx_offset` /8／本叶抬 nest 65／全量 assemble parser.x |
 | **产品 L4 放行** | ✅ | 钉盘 **`f7424ae47`**（2026-08-15 升钉 · 前 `e364f4a37` · `d79a368b2`）· Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
@@ -509,7 +509,7 @@
   - **dyn／impl 类型位**：type_ref 剥 contextual `dyn`／TOKEN_IMPL；`take(x: dyn Clone)`／let／`*dyn`／返／`impl Clone` 函数不再静默丢；消费既有 TYPE_NAMED `Clone`
   - **pin-seed 双权威闭**（2026-08-17）：4.2.2 体方法只写 `typeck.x` 时 pin-first migrate 假红 LANG-004；seed `typeck_gen.linux` 补 `typeck_method_call_resolve_generic_bound`＋method_call 调用点（≡ typeck.x；G.7）
   - **impl for Type 探针恢复**（2026-08-17）：`6c9773729` 值位置 named STRUCT_LIT 改写误剥 `impl Trait for A {`→`for {`；33 处 tests 恢复 for-type（**非**放宽值位置 `Type{fields}`）
-  - 余（勿并本叶）：TYPE_DYN／vtable（dyn 仍非 KW；对象分发后期）
+  - ✅ TYPE_DYN／vtable（F1–F6 全闭：TYPE_DYN 基座 → concrete coerce → vtable 间接调用 → per-impl 静态化 → PTR wrapper → builtin for-type 静态化；tip `9b4cba39e`）
 
 ✅ **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** 布局 1..16 ✅ @ **`028959695`** · 深 lit ✅ @ **`89e611150`**
 
@@ -732,7 +732,7 @@
   - **根修（G.7 有则补全）**：产生点＝`emit_braced_array_lit_init`／`try_emit_slice_init_from_array_var`。helper 补 CALL／METHOD_CALL（同模块 callee 返 TYPE_ARRAY 取 N；`.data=mk()`）；`emit_braced` dest-SLICE 行复用 helper。权威 `codegen.x`（FROM_X assemble）
   - **禁**：改 emit_index／glue／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
   - 证：`nested_slice_lit_arr_var` 三端 **71**；`nested_slice_lit_call`／`_method` host **78**；`nested_slice_lit_arr_call` host **71**
-  - 余（已闭 asm dest-SLICE CALL 行）：@ **`454042047`**；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 asm dest-SLICE CALL 行）：@ **`454042047`**；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **asm dest-SLICE CALL 行** ✅ @ **`454042047`**
 
@@ -740,7 +740,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_slice_from_array_let_init` `else return 0`。补 CALL＝48／METHOD_CALL＝49：同模块 callee 返 TYPE_ARRAY 取 N；emit_expr 按 callee ABI 留 rax=E*（ARRAY 返 8B），再 wrap `{data,length=N}`。dep 模块 return type_ref 另层。权威 `runtime_pipeline_abi.x`（prefer thin+rest；禁 mega）
   - **禁**：改 emit_index／host-C wrap／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
   - 证：`nested_slice_lit_call`／`_method` 三端 **78**；`nested_slice_lit_arr_call` 三端 **71**；`let s:[]i32=mk()` **42**
-  - 余（已闭 dep 模块 CALL dest-SLICE）：@ **`baf8bbae2`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dep 模块 CALL dest-SLICE）：@ **`baf8bbae2`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dep 模块 CALL dest-SLICE** ✅ @ **`baf8bbae2`**
 
@@ -748,7 +748,7 @@
   - **根修（G.7 有则补全）**：产生点＝同一 helper。asm：map callee 返 TYPE_ARRAY 进 caller arena，失败则读 dep arena `array_size`（type_ref 属 arena 本地，≡ wave196）。host-C：`pipeline_dep_ctx_module_at`＋`arena_at` 读 N。权威 `runtime_pipeline_abi.x`＋`codegen.x`
   - **禁**：改 emit_index／type_to_c_repr／parser assemble／pipeline_abi mega
   - 证：`nested_slice_lit_call_dep` 三端 **78**（`-E` `.data=dep.mk(),.length=2`）；`_arr_call_dep` 三端 **71**；`let s:[]i32=dep.mk()` 三端 **43**
-  - 余（已闭 dest-SLICE INDEX 行）：@ **`72af1f5a0`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dest-SLICE INDEX 行）：@ **`72af1f5a0`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dest-SLICE INDEX 行** ✅ @ **`72af1f5a0`**（let CALL wrap **`72af1f5a0`**）
 
@@ -756,7 +756,7 @@
   - **根修（G.7 有则补全）**：产生点＝同一 helper。N＋esz 取自基元 TYPE_ARRAY；asm `glue_emit_index_eff_addr_scaled`（禁 emit_index／lvalue）；host-C `.data=a[i]`（C 衰减）。同波 slcdep host-C：wave409 reent 见 CALL dest-SLICE 一律 `__xlang_sp=mk()`；门控 callee 真返 TYPE_SLICE 才 reent，`[N]T` 走 try_emit
   - **禁**：改 emit_index／type_to_c_repr／parser assemble／pipeline_abi mega
   - 证：`nested_slice_let_idx` 三端 **42**（`-E` `.data=(a)[0],.length=2`）；`_lit_idx_row` **82**；`_lit_arr_idx` **78**；`_let_sai_idx` **47**；`_let_call`／`_let_call_dep` **43**（`-E` `.data=dep.mk(),.length=2`；las 真 SLICE 仍 `__xlang_sp=from_let()`）
-  - 余（已闭 INDEX [N]T→[]T call-arg）：@ **`5350f61ac`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 INDEX [N]T→[]T call-arg）：@ **`5350f61ac`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **INDEX [N]T→[]T call-arg** ✅ @ **`5350f61ac`**
 
@@ -764,7 +764,7 @@
   - **根修（G.7 有则补全）**：产生点＝`emit_call_arg_slice_abi`／`pipeline_asm_emit_expr_elf_for_call_args` 只认 VAR／FIELD／CALL／METHOD。补 INDEX＝47：N＋esz 取自 INDEX TYPE_ARRAY 或基元；asm scaled lea（禁 emit_index）；host-C `.data=a[i]`。同波剥 ARRAY／SLICE ascription
   - **禁**：stamp SLICE；改 dest-SLICE let helper／emit_index／type_to_c_repr；全量 assemble parser.x／pipeline_abi mega
   - 证：`take_index_slice` 双端 **42**（`-E` `.data=(a)[0],.length=2`／`take(b as [2]i32)` peel）
-  - 余（已闭 dest-SLICE let 非 VAR FIELD 基）：@ **`94aaf1368`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dest-SLICE let 非 VAR FIELD 基）：@ **`94aaf1368`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dest-SLICE let 非 VAR FIELD 基** ✅ @ **`94aaf1368`**（memcpy C 字节 **`94aaf1368`**）
 
@@ -772,7 +772,7 @@
   - **根修（G.7 有则补全）**：产生点＝同一 dest-SLICE helper。N 取自基 TYPE_NAMED 布局（VAR／STRUCT_LIT／CALL／INDEX／DEREF）。host-C：STRUCT_LIT／INDEX 视图 `((base).field)`（compound 块期）；CALL／METHOD memcpy 进 `__xlang_fbN`。asm lea 已由 `glue_try_index` 物化
   - **禁**：改 emit_index／type_to_c_repr／parser assemble／pipeline_abi mega
   - 证：`nested_slice_let_field` 双端 **42**（`-E` `W{}.xs` 视图／`memcpy(...,(mk()).xs,sizeof(__xlang_fb0)); __xlang_fb0`／`((rows)[1]).xs`）
-  - 余（已闭 dest-SLICE return／assign INDEX）：@ **`e681baf93`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；const INDEX whitelist
+  - 余（已闭 dest-SLICE return／assign INDEX）：@ **`e681baf93`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；const INDEX whitelist
 
 ✅ **dest-SLICE return／assign INDEX** ✅ @ **`e681baf93`**
 
@@ -780,7 +780,7 @@
   - **根修（G.7 有则补全）**：产生点＝Path B0／assign 门补 INDEX＝47（lea `glue_emit_index_eff_addr_scaled`；N 取自 resolved TYPE_ARRAY，不 stamp）；`emit_c_ptr_to_fixed_array_decl` 认 ARRAY-of-ARRAY（`E (*name)[N]`；proto＋def）
   - **禁**：改 emit_index／type_to_c_repr／parser assemble／pipeline_abi mega；const INDEX whitelist（typeck 另层）
   - 证：`ret_index_array_param` 双端 **42**（`-E` `int32_t (*a)[2]`／`memcpy(...,(a)[0])`／`u=(a)[1]`）
-  - 余（已闭 const INDEX whitelist）：@ **`7a6035edb`**；已闭 host-C dest-SLICE const INDEX wrap @ **`da2cc2b90`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 const INDEX whitelist）：@ **`7a6035edb`**；已闭 host-C dest-SLICE const INDEX wrap @ **`da2cc2b90`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **const INDEX whitelist** ✅ @ **`7a6035edb`**
 
@@ -788,7 +788,7 @@
   - **根修（G.7 有则补全）**：产生点＝`typeck_is_const_expr_ref_impl`。INDEX＝47 当且仅当 base＋index 皆 const-expr（let 基仍拒）；fold 递归子树不盖 i32 印；镜像 post_E_fixup 叶 twin
   - **禁**：pin typeck_gen seed；dest-SLICE emit；parser assemble／pipeline_abi mega
   - 证：`const_index_slice` asm／xlang-c **42**
-  - 余（已闭 host-C dest-SLICE const INDEX wrap）：@ **`da2cc2b90`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 host-C dest-SLICE const INDEX wrap）：@ **`da2cc2b90`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **host-C dest-SLICE const INDEX wrap** ✅ @ **`da2cc2b90`**
 
@@ -796,7 +796,7 @@
   - **根修（G.7 有则补全）**：产生点＝同一 `try_emit_slice_init_from_array_var`。const 声明复用（INDEX／VAR／FIELD／CALL；`let_idx=num_lets`）。dest-ARRAY／标量仍 `emit_expr`
   - **禁**：pin codegen_gen seed；parser assemble／pipeline_abi mega；emit_index／type_to_c_repr
   - 证：`const_index_slice` 三端 **42**（`-E` `.data=(a)[1],.length=2`／ARRAY_LIT INDEX／`a[k]`／`v=b`）
-  - 余（已闭 host-C 模块级 dest-SLICE const wrap）：@ **`8e64e35b5`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；asm 模块级 dest-SLICE const CG002
+  - 余（已闭 host-C 模块级 dest-SLICE const wrap）：@ **`8e64e35b5`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；asm 模块级 dest-SLICE const CG002
 
 ✅ **host-C 模块级 dest-SLICE const wrap** ✅ @ **`8e64e35b5`**
 
@@ -804,7 +804,7 @@
   - **根修（G.7 有则补全）**：产生点＝`codegen_x_ast` 顶层 dest-SLICE。INDEX 复用 `try_emit`（N 取基元／行 TYPE_ARRAY）；VAR／init_globals 用模块表回退发 `{.data=B,.length=N}`（禁给 try_emit 加第 8 参，cis host ABI 回退）。权威 `codegen.x`（FROM_X）
   - **禁**：pin codegen_gen seed；parser assemble／pipeline_abi mega；emit_index／type_to_c_repr
   - 证：`const_module_slice` host **42**（`-E` `.data=(A)[1],.length=2`／`v=.data=B`／`m=` 同）；`const_index_slice` host／asm **42**
-  - 余（已闭 asm 模块级 dest-SLICE const hoist）：@ **`4e40dec2a`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 asm 模块级 dest-SLICE const hoist）：@ **`4e40dec2a`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **asm 模块级 dest-SLICE const hoist** ✅ @ **`4e40dec2a`**
 
@@ -812,7 +812,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_module_hoist_top_level_lets_into_main` 只跳过可变 COMMON；const TYPE_ARRAY 进 main 栈槽。dest-SLICE INDEX 从 hoist／模块表回退 N（基 VAR 常无 stamp）。权威 `runtime_pipeline_abi.x`（prefer thin+rest）；seed 冷 twin 同 commit
   - **禁**：pin；parser assemble；pipeline_abi mega 真开；emit_index；host-C try_emit 第 8 参
   - 证：`const_module_slice` 三端 **42**；`const_index_slice` 双端 **42**
-  - 余（已闭 host-C 模块级 dest-SLICE ARRAY_LIT）：@ **`3673b4149`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；dest-SLICE 可变 COMMON LEA
+  - 余（已闭 host-C 模块级 dest-SLICE ARRAY_LIT）：@ **`3673b4149`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；dest-SLICE 可变 COMMON LEA
 
 ✅ **host-C 模块级 dest-SLICE ARRAY_LIT** ✅ @ **`3673b4149`**
 
@@ -820,7 +820,7 @@
   - **根修（G.7 有则补全）**：产生点＝`codegen_x_ast` 顶层 dest-SLICE 回退。const 树发 `{.data=(E[]){…},.length=N}`／`[][N]T` 用 `emit_local_fixed_array_*`（文件作用域 compound 是 address constant）。**禁**把 ARRAY_LIT 塞进 `try_emit`（`init_globals` 也 `block_ref=0`，函数作用域 compound 会悬空）
   - **禁**：pin codegen_gen seed；parser assemble／pipeline_abi mega；try_emit 第 8 参；asm hoist
   - 证：`const_module_slice` 三端 **42**（`-E` `t=.data=(int32_t[]){10, 32},.length=2`）
-  - 余（已闭 host-C 模块 dest-SLICE `[][]T` ARRAY_LIT）：@ **`de5a9bcc4`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；dest-SLICE 可变 COMMON LEA；asm 模块 dest-SLICE `[][]T` INDEX
+  - 余（已闭 host-C 模块 dest-SLICE `[][]T` ARRAY_LIT）：@ **`de5a9bcc4`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；dest-SLICE 可变 COMMON LEA；asm 模块 dest-SLICE `[][]T` INDEX
 
 ✅ **host-C 模块 dest-SLICE `[][]T` ARRAY_LIT** ✅ @ **`de5a9bcc4`**
 
@@ -828,7 +828,7 @@
   - **根修（G.7 有则补全）**：产生点＝同一顶层 dest-SLICE wrap。抽 `emit_file_scope_dest_slice_array_lit`：SLICE 元递归发 `(E){.data=(leaf[]){…},.length=n}`；`[N][]T` 行同模式。**禁** ARRAY_LIT 进 `try_emit`（`init_globals` `block_ref=0` 会悬空）
   - **禁**：pin codegen_gen seed；parser assemble／pipeline_abi mega；try_emit 第 8 参；asm hoist／emit_index
   - 证：`const_module_nested_slice` host-C **42**（`-E` 嵌套 `.data=(int32_t[]){10, 32},.length=2`／`na[2]` 同行 wrap）；`const_module_slice` 三端 **42**
-  - 余（已闭 asm 模块 dest-SLICE `[][]T` INDEX）：@ **`38be061a4`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；dest-SLICE 可变 COMMON LEA
+  - 余（已闭 asm 模块 dest-SLICE `[][]T` INDEX）：@ **`38be061a4`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；dest-SLICE 可变 COMMON LEA
 
 ✅ **asm 模块 dest-SLICE `[][]T` INDEX** ✅ @ **`38be061a4`**
 
@@ -836,7 +836,7 @@
   - **根修（G.7 有则补全）**：产生点＝durable 用 ARRAY_LIT 推断元（模块未经 check_block 盖 dest TYPE_SLICE）把 `[N]T` 行 memcpy 成 16B。`glue_asm_emit_array_lit_durable_ptr_rax` 收 dest 元；TYPE_SLICE 行走既有 fat COMMON。seed 冷 twin 同参。权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - **禁**：pin；parser assemble／pipeline_abi mega 真开；try_emit 第 8 参；ARRAY_LIT 进 try_emit；emit_index
   - 证：`const_module_nested_slice` 三端 **42**；`const_module_slice` 三端 **42**；nslidx **32**；slcidx／nsf **42**
-  - 余（已闭 dest-SLICE 可变 COMMON LEA）：@ **`387d8425b`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；host-C 函数作用域 dest-SLICE 模块 VAR
+  - 余（已闭 dest-SLICE 可变 COMMON LEA）：@ **`387d8425b`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；非 main 读模块 const 数组；host-C 函数作用域 dest-SLICE 模块 VAR
 
 ✅ **dest-SLICE 可变 COMMON LEA** ✅ @ **`387d8425b`**
 
@@ -844,7 +844,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_modlet_seed_nonzero_inits` 只写标量 imm。ARRAY_LIT LIT（含一层 `[K][N]T` 行）写入 COMMON；`glue_emit_slice` VAR 优先 `modlet` LEA（禁误用栈槽）。权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - **禁**：hoist 可变 TYPE_ARRAY；`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；pin；parser assemble／pipeline_abi mega 真开
   - 证：`const_module_mut_slice` 三端 **42**；`const_module_slice`／`const_module_nested_slice`／`const_index_slice` 双端 **42**
-  - 余（已闭 非 main 读模块 const 数组）：@ **`c06f206ef`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；host-C 函数作用域 dest-SLICE 模块 VAR
+  - 余（已闭 非 main 读模块 const 数组）：@ **`c06f206ef`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；host-C 函数作用域 dest-SLICE 模块 VAR
 
 ✅ **非 main 读模块 const 数组** ✅ @ **`c06f206ef`**
 
@@ -852,7 +852,7 @@
   - **根修（G.7 有则补全）**：产生点＝prepare 整表跳 const。const TYPE_ARRAY＋ARRAY_LIT（元非 SLICE）走同一 COMMON；hoist 不再拷；`seed_nonzero` 写 LIT。const `[N][]T`（元 TYPE_SLICE）仍 hoist＋durable（cmns na fat 行）。权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - **禁**：hoist dest-SLICE const；`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；pin；parser assemble／pipeline_abi mega 真开
   - 证：`const_module_nonmain` 三端 **42**；`const_module_slice`／`const_module_nested_slice`／`const_module_mut_slice`／`const_index_slice` 双端 **42**
-  - 余（已闭 host-C 函数作用域 dest-SLICE 模块 VAR）：@ **`ec28e1f0f`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；函数作用域 const dest-SLICE 模块 VAR（typeck T001）
+  - 余（已闭 host-C 函数作用域 dest-SLICE 模块 VAR）：@ **`ec28e1f0f`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；函数作用域 const dest-SLICE 模块 VAR（typeck T001）
 
 ✅ **host-C 函数作用域 dest-SLICE 模块 VAR** ✅ @ **`ec28e1f0f`**
 
@@ -860,7 +860,7 @@
   - **根修（G.7 有则补全）**：产生点＝调用方 try_emit＝0 回退。文件作用域／init_globals 已有同走查抽成 `try_emit_dest_slice_from_module_array_var`；`emit_block` let／const／行 wrap／dep init 转调。**禁**再开 `try_emit` 体／第 8 参／ARRAY_LIT 进 `try_emit`
   - 禁：pin codegen_gen seed；parser assemble／pipeline_abi mega 真开
   - 证：`const_module_fn_slice` 三端 **42**（`-E` `{.data=A,.length=2}`／`[][]T=[A]` 同行 wrap）；cis／cms／cmnm／cmms／cmns 双端 **42**；host nslvar／nslpvar／nslcvar 金丝雀绿
-  - 余（已闭 函数作用域 const dest-SLICE 模块 VAR）：@ **`ff65af43c`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；import 模块 const FIELD emit
+  - 余（已闭 函数作用域 const dest-SLICE 模块 VAR）：@ **`ff65af43c`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；import 模块 const FIELD emit
 
 ✅ **函数作用域 const dest-SLICE 模块 VAR（typeck T001）** ✅ @ **`ff65af43c`**
 
@@ -868,7 +868,7 @@
   - **根修（G.7 有则补全）**：产生点＝`typeck_is_const_expr_ref_impl` VAR 只扫块内名。`const_names!=NULL` 时复用 `pipeline_module_top_level_name_is_const`；C-static-init／pure-lit fold 仍 `NULL` 拒 VAR；可变模块 let 仍拒。镜像 post_E_fixup 叶 twin。权威 `typeck_cap_residual.from_x.c`（FROM_X assemble）
   - **禁**：pin typeck_gen seed；第二套 const-expr 检查；parser assemble／pipeline_abi mega 真开
   - 证：`const_module_fn_slice` wrap_cdecl 三端 **42**（`-E` `{.data=A,.length=2}`）；cis／cms／cmnm／cmms／cmns 双端 **42**；host nslvar／nslpvar／nslcvar 金丝雀绿
-  - 余（已闭 import 模块 const FIELD typeck）：@ **`41bc131c7`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；import 模块 const FIELD emit
+  - 余（已闭 import 模块 const FIELD typeck）：@ **`41bc131c7`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；import 模块 const FIELD emit
 
 ✅ **import 模块 const FIELD（typeck T001＋caller arena 盖印）** ✅ @ **`41bc131c7`**
 
@@ -876,7 +876,7 @@
   - **根修（G.7 有则补全）**：产生点＝白名单 FIELD＋`typeck_field_import_binding` 盖印。`const_names!=NULL` 时复用 Path A／B 只认 const 谓词；typed const 走既有 `get_dep_return_type_in_caller_arena`。C-static-init／fold 仍拒非 enum FIELD。裸 import const 仍拒。镜像 post_E twin。权威 `typeck_cap_residual.from_x.c`＋`typeck.x`（FROM_X assemble）
   - **禁**：pin typeck_gen seed；第二套 const-expr 检查；parser assemble／pipeline_abi mega 真开
   - 证：`const_import_module_slice` `-E` `n=K`；cis／cms／cmnm／cmms／cmns／cmfs 双端 **42**；slcdep／slclet **43**；矩阵 **5/5**
-  - 余（已闭 import 模块 const FIELD emit host-C）：@ **`3b70c5327`**；另层：import 模块 const FIELD asm CG002；pipeline_abi `nf>0` 闸；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 import 模块 const FIELD emit host-C）：@ **`3b70c5327`**；另层：import 模块 const FIELD asm CG002；pipeline_abi `nf>0` 闸；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **import 模块 const FIELD emit（host-C INT_LIT＋dest-SLICE）** ✅ @ **`3b70c5327`**
 
@@ -884,7 +884,7 @@
   - **根修（G.7 有则补全）**：产生点＝`emit_import_module_const_field`。INT_LIT／ARRAY_LIT 走 `pipeline_dep_ctx_arena_at`；ARRAY_LIT 发 durable `__xlang_icN`。try_emit FIELD 缺 N 时 return 0；`try_emit_dest_slice_from_import_const_field` `.data` 转调同一权威。权威 `codegen.x`（FROM_X assemble）
   - **禁**：`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；体内模块走查；pin codegen_gen seed；parser assemble／pipeline_abi mega 真开
   - 证：`const_import_module_slice` host **42**（`-E` `n=10`／`{.data=({static T __xlang_icN[]={10,32};icN;}),.length=2}`）；cis／cms／cmnm／cmms／cmns／cmfs 双端 **42**；nslidx **32**；slcidx 行 **82**；nslvar **78**；矩阵 **5/5**
-  - 余（已闭 import 模块 const FIELD asm）：@ **`ba5581e06`**；另层：pipeline_abi `nf>0` 闸；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 import 模块 const FIELD asm）：@ **`ba5581e06`**；另层：pipeline_abi `nf>0` 闸；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **import 模块 const FIELD asm（dep-arena INT_LIT＋durable ARRAY_LIT）** ✅ @ **`ba5581e06`**
 
@@ -892,7 +892,7 @@
   - **根修（G.7 有则补全）**：产生点＝asm FIELD 三消费端。`glue_emit_import_module_const_field_to_rax` 孪 host-C `emit_import_module_const_field`：import kind=1 绑定＋dep 顶层 const；INT_LIT／ARRAY_LIT 走 `pipeline_dep_ctx_arena_at`；INT_LIT mov imm；ARRAY_LIT durable（consts-only dep 不共编）。权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - **禁**：pipeline_abi mega 真开；`nf>0` 闸本叶；`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；pin codegen_gen seed；parser assemble
   - 证：`const_import_module_slice` 双端 **42**；cis／cms／cmnm／cmms／cmns／cmfs 双端 **42**；nslidx **32**；slcidx 行 **82**；nslvar **78**；矩阵 **5/5**
-  - 余（已闭 pipeline_abi `nf>0` 闸）：@ **`7e028d01a`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 pipeline_abi `nf>0` 闸）：@ **`7e028d01a`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **pipeline_abi `nf>0` 闸（host-C consts-only dep 共编）** ✅ @ **`7e028d01a`**
 
@@ -900,7 +900,7 @@
   - **根修（G.7 有则补全）**：产生点＝同一 driver 闸。host-C：`nf>0` 或 `pipe_mod_get_num_top_level_lets>0` 则共编（file-static `A`／`K`）。asm 仍 `nf>0`：`asm_asm_codegen_ast` hoist 进 main，无函数 dep 无 main。权威 `runtime_pipeline_abi.x`＋seed 同 commit（prefer thin+rest；禁 mega）
   - **禁**：pipeline_abi mega 真开；`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；动 codegen.x／pin
   - 证：`const_import_module_slice` `-E` `#undef K`／`static const int32_t K=10`／`#undef A`／`static const int32_t A[2]={10,32}`；双端 **42**；cis／cms／cmnm／cmms／cmns／cmfs 双端 **42**；nslidx **32**；slcidx 行 **82**；nslvar **78**；矩阵 **5/5**
-  - 余（已闭 typeck 模块顶层 let 走查）：@ **`e9b02797c`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 typeck 模块顶层 let 走查）：@ **`e9b02797c`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **typeck 模块顶层 let／const 初值走查** ✅ @ **`e9b02797c`**
 
@@ -908,7 +908,7 @@
   - **根修（G.7 有则补全）**：产生点＝无模块 let 初值走查。`typeck_x_ast_impl`／`library` 在 check_all_funcs 前走 `typeck_x_ast_check_top_level_lets`；const 复用同一白名单（`typeck_expr_is_const_with_module_consts`＝`const_names!=NULL` 调既有 impl）；check_expr＋coerce。权威 `typeck.x`＋residual（FROM_X assemble）
   - **禁**：第二套 const-expr 检查；fold import FIELD／module VAR 为 i32；pin typeck_gen seed；parser assemble／pipeline_abi mega 真开
   - 证：`module_const_call` **T001** const-expr；`module_const_badty`／`module_let_badty` **T001** expected i32 found `[2]i32`；cms／cmfs／cis／cims／cmnm／cmms／cmns 双端 **42**；host cms／cims／cis／cmfs **42**；矩阵 **5/5**
-  - 余（已闭 asm INDEX-on-METHOD／CALL SIMD）：@ **`1f8560578`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 asm INDEX-on-METHOD／CALL SIMD）：@ **`1f8560578`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **asm INDEX-on-METHOD／CALL SIMD** ✅ @ **`1f8560578`**
 
@@ -916,7 +916,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_try_index_var_or_field_base_to_rax` 只认 VAR／FIELD，CALL／METHOD 回退 `emit_expr` 把 SIMD 值当指针。SIMD CALL／METHOD 复用 `glue_emit_struct_type_let_init` 泄到 next_offset 再 LEA（极性≡ assign STRUCT／CALL rhs）。TYPE_ARRAY／SLICE CALL 仍 -2（rax 已是 E*／fat.data）。权威 `runtime_pipeline_abi.x`（prefer thin+rest；seed stub 仍 -2）
   - **禁**：pipeline_abi mega 真开；`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；动 emit_index／pin／codegen.x
   - 证：`index_on_method` 双端 **0**（const＋non-const METHOD／CALL）；v4i／i32m／i32c **0**；cims／cms／cis 双端 **42**；slcidx **42**；nslidx **32**；nslvar **78**；矩阵 **5/5**
-  - 余（已闭 assign INDEX-on-METHOD rbx 孪）：@ **`492b5a8b1`**；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 assign INDEX-on-METHOD rbx 孪）：@ **`492b5a8b1`**；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **assign INDEX-on-METHOD rbx 孪** ✅ @ **`492b5a8b1`**
 
@@ -924,7 +924,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_try_index_var_or_field_base_to_rbx` 只认 VAR／FIELD。SIMD CALL／METHOD 转调 rax 孪（spill+LEA）再 mov→rbx；push/pop 保 rhs。TYPE_ARRAY／SLICE CALL 仍 -2。权威 `runtime_pipeline_abi.x`（prefer thin+rest；seed stub 仍 -2）
   - **禁**：pipeline_abi mega 真开；`try_emit` 第 8 参；ARRAY_LIT 进 `try_emit`；动 emit_index／pin／codegen.x；写 CALL SIMD 临时量当双端探针
   - 证：`assign_index_on_method` 双端 **0**；iom 双端 **0**；v4i／i32m／i32c **0**；cims／cms／cis 双端 **42**；slcidx **42**；nslidx **32**；nslvar **78**；tidx **42**；sai **47**；mcc **T001**；矩阵 **5/5**
-  - 余（已闭 import METHOD 标量 f32 xmm）：见下；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；AAPCS64 s0–s7
+  - 余（已闭 import METHOD 标量 f32 xmm）：见下；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；AAPCS64 s0–s7
 
 ✅ **import METHOD 标量 f32 xmm extras** ✅
 
@@ -932,7 +932,7 @@
   - **根修（G.7 有则补全）**：产生点＝`.x` import METHOD＋UFCS leave 分类。补 `glue_arg_ref_is_sse_float_c`／`glue_arg_ref_is_f64_width_c`（≡ seed static）；xmm 槽＋movd／movq。ta==0 only（≡ seed）
   - **禁**：pipeline_abi mega；`try_emit` 第 8 参；动 emit_index／pin／classifier；新开第二套 packer
   - 证：`import_method_f32_xmm`／s2 Ubuntu **0**；iom／aiom **0**；矩阵 **5/5**
-  - 余（已闭 AAPCS64 import METHOD f32 s0–s7）：见下；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 AAPCS64 import METHOD f32 s0–s7）：见下；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **AAPCS64 import METHOD 标量 f32 extras（s0–s7）** ✅ @ **`320a81d0c`**
 
@@ -940,7 +940,7 @@
   - **根修（G.7 有则补全）**：产生点＝encoder `mov_eax_to_xmm` ta!=0 回 −1；METHOD `is_sse` 闸 ta==0。补 `fmov sK,w0`／`w0,sK`／`dK,x0`／`x0,dK`；import METHOD extras 开 ta==1；call 后 harvest s0／d0。形参 f32 压过 FLOAT_LIT 默认 f64。**禁**开 UFCS／CALL packer／param home
   - 权威 encoder seed＋`.x`＋`backend_call_dispatch.x`（prefer thin+rest）
   - 证：mac imf32 **0**（`fmov s0–s2`＋`fmov w0,s0`）；Ubuntu imf32／s2 **0**；iom／aiom **0**；矩阵 **5/5**
-  - 余（已闭本地 f32 CALL 形参 4B 槽）：见下；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭本地 f32 CALL 形参 4B 槽）：见下；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **本地 f32 CALL 形参 4B 槽** ✅ @ **`acf69ab57`**
 
@@ -948,7 +948,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_load_f32_var_slot_to_rax_elf_c` 只 ta==0 走 4B。`f32en` 开时 caller 已把原生 f32 位放进 x0（`call_abi_widen_f64=0`）；ta==1 误当 f64 再 `cvtsd2ss`。开 ta==0／1 4B lane。rbx 孪转调。**禁**开 UFCS／CALL packer／param home／s0 harvest
   - 权威 `runtime_pipeline_abi.x`（prefer thin+rest；seed 冷 stub −1）
   - 证：mac lf32／s2／imf32 **0**（`idf` 无 `fcvt`）；Ubuntu lf32／s2／imf32／iom／aiom **0**；矩阵 **5/5**
-  - 余（已闭 Vec4f 逐 lane addss＋AAPCS64 极性）：见下；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 Vec4f 逐 lane addss＋AAPCS64 极性）：见下；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **Vec4f 逐 lane addss＋AAPCS64 极性** ✅
 
@@ -956,7 +956,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_vector_lane_scalar_binop` 整数 ADD＋load `base-lane*esz`。复用 scalar addss／subss／mulss；lane 槽 ta==1 `base+lane*esz`（≡ INDEX assign）。**禁**开 METHOD binop2 名字表。
   - 权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - 证：mac v4a／s2／lf32／iom **0** · Ubuntu v4a／s2／lf32／iom／aiom **0** · 矩阵 **5/5** @ **`c160fb4ae`**
-  - 余（已闭 Vec4f 逐 lane divss）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 Vec4f 逐 lane divss）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **Vec4f 逐 lane divss** ✅ @ **`11bc90275`**
 
@@ -965,7 +965,7 @@
   - 权威 `runtime_pipeline_abi.x`（prefer thin+rest；seed 活孪）
   - 探针 `tests/boundary/vec4f_div.x`
   - 证：mac v4d／v4a／s2／lf32／iom／vadd／imf32 **0** · Ubuntu v4d／v4a／s2／lf32／iom／aiom／vadd／imf32 **0** · 矩阵 **5/5**
-  - 余（已闭 i32x4 `/` 后 lane）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 i32x4 `/` 后 lane）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **i32x4 `/` 后 lane AAPCS64 4B LDRSW** ✅ @ **`4ac03565b`**
 
@@ -974,7 +974,7 @@
   - 权威 `backend_enc_dispatch_thin.x`＋seed 同 commit（prefer thin+rest）
   - 探针 `tests/boundary/i32x4_div.x`
   - 证：mac i32d／v4d／v4a／lf32／iom／imf32／vadd **0** · Ubuntu i32d／v4d／v4a／lf32／iom／aiom／imf32／vadd **0** · 矩阵 **5/5**
-  - 余（已闭 INDEX 负 i32 比宽）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 INDEX 负 i32 比宽）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **INDEX 负 i32 比宽 AAPCS64 LDRSW** ✅ @ **`0e42fa8c5`**
 
@@ -983,7 +983,7 @@
   - 权威 `backend_enc_dispatch_thin.x`＋seed 同 commit（prefer thin+rest）
   - 探针 `tests/boundary/i32_index_neg_cmp.x`
   - 证：mac inc／i32d／v4d／v4a／lf32／iom／aiom／imf32 **0** · Ubuntu inc／i32d／v4d／v4a／lf32／iom／aiom／imf32 **0** · 矩阵 **5/5**
-  - 余（已闭 i64 大字面量比宽）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 i64 大字面量比宽）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **i64 大字面量比宽（2^32 跳 i32-imm）** ✅ @ **`94481923c`**
 
@@ -992,7 +992,7 @@
   - 权威 `runtime_pipeline_abi.x`（prefer thin+rest）
   - 探针 `tests/boundary/i64_lit_cmp.x`
   - 证：mac i64c／incn／i32d／v4d／v4a／lf32／iom／aiom／imf32 **0** · Ubuntu i64c／incn／i32d／v4d／v4a／lf32／iom／aiom／imf32 **0** · 矩阵 **5/5**
-  - 余（已闭 STRUCT_LIT bool／u8 填充）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 STRUCT_LIT bool／u8 填充）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **STRUCT_LIT bool／u8 填充存宽** ✅ @ **`7fcc8a02d`**
 
@@ -1051,56 +1051,56 @@
   - **根修**：小叶 encoder — `mov_rax_to_rbx` 兼 `mov x19,x0`；`store(sz>=16)` 走 `[x19]`＋hi `[x19+8]`。权威 `arch/arm64_enc.x`＋seed
   - **禁**再改 try_inline mega `.x`；INDEX／sz<16 仍走 x1
   - 证：`default_alloc_method` Darwin 0（`mov x19; bl; str [x19]`）· 双端矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（已闭 dest-SLICE INDEX fat ARM64 dual-GP）：见下；另层：METHOD binop2 仍 CALL-only（本地 CALL `add(a,b)` 已 0）；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19（X-to-X dest-across-call 残）
+  - 余（已闭 dest-SLICE INDEX fat ARM64 dual-GP）：见下；另层：METHOD binop2 仍 CALL-only（本地 CALL `add(a,b)` 已 0）；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19（X-to-X dest-across-call 残）
 
 ✅ **asm dest-SLICE INDEX fat ARM64 dual-GP** ✅
 
   - 现场：`let x:[][]i32=[a]`／`[mk()]`／`[w.xs()]` Darwin `x[0][0]` panic（length=0）。`pipeline_asm_emit_index` rtk==11 手写 `arg_reg(2)`：x86 rdx＝dual-GP 高半；ARM64 第 3 参 x2，随后 `store_rdx` 写 x1（hi-guard `length-1`）
   - **根修（G.7 有则补全）**：TYPE_SLICE fat 复用同一 `pipeline_asm_deref_struct16_rax_ptr_elf_c`（`*addr → rax+rdx/x1` ≡ 9–16B named）。权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble／pure-asm mega；**禁**改 `arg_reg(2)` 真 3 参（memcpy x2）
   - 证：nslvar／nslcall／nslmethod／nslcall_dep／nslcvar／nslpvar **78** · nslarr／nslarr_call／nslarr_call_dep **71** · nsllet_call **43** · nslfield／nslidx／tidx **42** · nslidx_row **82** · nslsai **47** · 矩阵 **5/5** · dest 邻域 default_alloc／field_struct16／field_alloc **0／42／0**
-  - 余（已闭 ARM64 >16B INDEX MEMORY consume）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+  - 余（已闭 ARM64 >16B INDEX MEMORY consume）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ✅ **ARM64 >16B INDEX MEMORY consume** ✅
 
   - 现场：`index_method_wide` Darwin CG002 139。`let w=a[1]` 走 `glue_copy_large_struct_from_rax_ptr` `ta!=0` 拒；`a[1].last()`／`take_w(a[1])` prefer `.x` 把 INDEX 指针当 20B（is_mem=2 lea／`str x0,[sp]`），callee `param_home` 读栈三字
   - **根修（G.7 有则补全）**：`glue_copy` 收 ta==1（≡ sret memcpy：src@x1 n@x2 dest@x0 last）；UFCS／`emit_call_args` ARM64 MEMORY 收回 seed wave603／606（`store_memory_by_value_to_sp`）。权威 `runtime_pipeline_abi.x` prefer thin+rest＋`backend_call_dispatch.x`。**禁** emit_index 内 memcpy；**禁**改 import METHOD is_mem=2（host-C AAPCS64 指针）；**禁** try_inline mega
   - 证：mac method／take／let／ret／`index_method_wide` **0** · Ubuntu 金标 `index_method_wide` **0** · 邻域 da／fs16／fa／idx／trip／quad **0／42／0／0／0／0** · 矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ✅ **Darwin import METHOD host-C f32 返回 s0→w0** ✅
 
   - 现场：`simd.hsum([1,2,3,4])` Darwin ≠10。本地同体 `hsum`／`simd.add`／lane INDEX 本绿。host-C `_std_simd_hsum` 把 f32 放 `s0`；Darwin 活 seed 只 `str x0`
   - **根修（G.7 有则补全）**：prefer `.x` import METHOD 已有 `rk==14` `fmov w0,s0`。补进 seed METHOD＋同模式 import-binding／whole-import CALL。权威 `backend_call_dispatch.from_x.c`（Darwin try-heat／r3-prefer 活 seed）。**禁**把 f32 收进共享 `glue_asm_harvest`（本地 X callee 仍 GP）
   - 证：mac hsum lit／let／`array_lit_vec4f_import`／xlang-c **0** · Ubuntu 金标 official **0** · `import_method_f32_xmm` Ubuntu **0**／Darwin 仍 7 · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（已闭 Darwin 活 seed extras s0–s7）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+  - 余（已闭 Darwin 活 seed extras s0–s7）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ✅ **Darwin 活 seed import METHOD f32 extras s0–s7** ✅
 
   - 现场：`import_method_f32_xmm` `select_lane(1.0,3.0,4.0)` Darwin 7。i32 import／本地 f32 本绿。收获 `fmov w0,s0` 已在；caller 把 extras 放 x0／x1／x2，host-C 读 s0–s2
   - **根修（G.7 有则补全）**：prefer `.x` import METHOD 已 `ta==0||ta==1` SSE 分类（@ **`320a81d0c`** encoder＋prefer）。Darwin 活 seed `is_sse=(ta==0)?…:0` 把 ARM64 extras 当 GP。补同一闸 `ta==0||ta==1`。权威 `backend_call_dispatch.from_x.c`（try-heat／r3-prefer 活 seed）。**禁**开 UFCS extras（本地 X callee 仍 GP）；**禁** try_inline mega
   - 证：mac `select_lane` f32／i32／local／official／xlang-c **0**（反汇编 `fmov s2; s1; s0; bl; fmov w0,s0`）· 邻域 vec4f／local_f32／i32x4／da／fs16／fa／imw／idx／nslvar **0／0／0／0／42／0／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 imf／vec4f／lf32／i32x4／da／fs16／fa／imw／nslvar **0／0／0／0／0／42／0／0／78** · 矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（已闭 ARM64 INDEX 非 1/4/8 步长 64 位 scale1）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
+  - 余（已闭 ARM64 INDEX 非 1/4/8 步长 64 位 scale1）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；shuffle 8-lane leftover；ARM64 prologue 未存 x19
 
 ✅ **ARM64 INDEX 非 1/4/8 步长 64 位 scale1** ✅
 
   - 现场：`Particle[8]`（12B AoS）／`f32_soa_sum_*` Darwin 139。展开字面量／`One[8]`（×4 LSL）本绿。`mul w1,w1,#12` 后 `add w0,w1,w0` 截断栈指针
   - **根修（G.7 有则补全）**：`glue_emit_index_rax_plus_rbx_scaled` 非 1/4/8 在 `mul_imm` 后走同一 `rax_plus_rbx_scale1`（≡ Stage 12.0.5 ptr+int／esz==1）。同模式 SoA dyn index。权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**改 `enc_add_rax_rbx`（u32 回绕）；**禁** try_inline／全量 assemble
   - 证：p3／p8／soa8／one8／u32wrap **3／8／8／8／0**（`add x0,x0,x1`）· peel／strip／varn **8／10／12** · `index_struct12_loop` **8** · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 `index_struct12_loop` **8** · peel／strip／varn **8／10／12** · 邻域同上 · 矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（已闭 ARM64 Vec8i shuffle 高半 slot+16）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；Vec4f select 值验；ARM64 prologue 未存 x19
+  - 余（已闭 ARM64 Vec8i shuffle 高半 slot+16）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；Vec4f select 值验；ARM64 prologue 未存 x19
 
 ✅ **ARM64 Vec8i shuffle 高半 slot+16** ✅
 
   - 现场：`shuffle_select_roundtrip` `r8[4]≠7` Darwin／xlang-c 6。identity `r[4]≠4`＝24。high-copy／lane-scalar 本绿。反汇编 half1 `ld1 [x29]`（`slot-16` 被 `lea_rbp` 钳 0）
   - **根修（G.7 有则补全）**：`simd_arm64_rbp_lea_off_128half` 改 `slot+half*16`（≡ ARM64 低端 home／INDEX `[base+lane*esz]`）。权威 `simd_enc.x`／thin／seed 冷孪。**禁**改 mega inliner／try_inline
   - 证：iso／id／hi／`shuffle_vec8i_highhalf` **0**（half1 `add #src+16`）· 4-lane shuffle 仍过 · 邻域 da／fs16／fa／imw／nslvar **0／42／0／0／78** · 矩阵 **5/5** · Ubuntu 金标 `shuffle_vec8i_highhalf` **0** · `shuffle_select_roundtrip` **0** · 邻域同上 · 矩阵 **5/5** · **日常 L2 不升钉**
-  - 余（已闭 ARM64 Vec4f select fcmgt 后 BSL）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 ARM64 Vec4f select fcmgt 后 BSL）：见下；另层：METHOD binop2 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **ARM64 Vec4f select fcmgt 后 BSL** ✅
 
   - 现场：`shuffle_select_roundtrip` Darwin／xlang-c 7（`s4[0]≠2.0`）。`sel4_only`／`sel4_local` 同 7。dump `s4[0]` 既非 2.0／0.5／1.0／0.0（99）。all-a／all-b 亦红。Vec8i select 本绿。反汇编 `fcmgt.4s v3, v0, #0.0` 后 `bit.16b v3, v1, v2`
   - **根修（G.7 有则补全）**：i32 路径已用 `BSL Vd,Vn,Vm`＝`(Vd AND Vn) OR (~Vd AND Vm)`（dest=谓词，n=a，m=b）。f32 误用 `BIT`＝`(Vm AND Vn) OR (~Vm AND Vd)`，把 b 当谓词。权威 `simd_arm64_select_128_rbp` 改发同一 BSL 字 `0x6e621c23`。`simd_enc.x`＋seed／surface 冷孪。**禁**改 mega inliner／try_inline
   - 证：mac iso／dump／all-a／all-b／local／`select_vec4f`／`shuffle_select_roundtrip`／xlang-c **0**（反汇编 `fcmgt; bsl v3,v1,v2`）· 邻域 da／fs16／fa／imw／nslvar／imf／vec4f／is12／sv8 **0／42／0／0／78／0／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `select_vec4f`／`shuffle_select_roundtrip` **0** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；simd_enc prefer thin+rest 68808）· **日常 L2 不升钉**
-  - 余（已闭 METHOD binop2 UFCS let-init）：见下；另层：nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 METHOD binop2 UFCS let-init）：见下；另层：nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **METHOD binop2 UFCS let-init** ✅
 
@@ -1108,7 +1108,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_simd_try_inline_binop2_call_elf_c` 只认 CALL=48。METHOD=49 UFCS `nargs==1`：名走 `method_call_name_*`，arg0=base／arg1=extra[0]，同一 body fold（nparams==2，p0 binop p1）。**禁** add／sub／mul 名字表（会抢 import METHOD／INDEX-on-METHOD）
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble／try_inline mega／改 callee 体／x19 序言
   - 证：mac `vec_add4_method_inline`／xlang-c **0**（反汇编 4×`ldrsw; add w; str` 无 `bl _add4`）· Vec8i METHOD let **0** · CALL／iom／imf／sel4／sv8／da／fs16／fa／imw／nslvar／is12 **0／0／0／0／0／0／42／0／0／78／8** · 矩阵 **5/5** · Ubuntu 金标 `vec_add4_method_inline`／xlang-c **0** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1615104）· **日常 L2 不升钉**
-  - 余（已闭 VAR assign 16B CALL dual-GP）：见下；另层：import `simd.add` METHOD extras=2 仍 CALL emit；METHOD 向量 assign 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 VAR assign 16B CALL dual-GP）：见下；另层：import `simd.add` METHOD extras=2 仍 CALL emit；METHOD 向量 assign 仍 CALL-only；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **VAR assign 16B CALL dual-GP** ✅
 
@@ -1116,7 +1116,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_emit_assign_elf_c` VAR 存：SLICE／f32 有专案，else 只 `store_rax`。权威已是 `glue_store_retval_pair_to_rbp_elf_c`（let-init）。VAR else 改走同一 helper。**禁**改序言／x19／try_inline／METHOD 向量 assign
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 证：mac `struct16_assign_call`／xlang-c **0**（反汇编 `str x0; str x1`）· pair／nested／let **0** · vam／da／fs16／sel4／sv8／is12／nslvar **0／0／42／0／0／8／78** · 矩阵 **5/5** · Ubuntu 金标 `struct16_assign_call`／xlang-c **0** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1615176）· **日常 L2 不升钉**
-  - 余（已闭 METHOD 向量 assign let-init reuse）：见下；另层：import extras=2 CALL emit 值绿；nest>16 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 METHOD 向量 assign let-init reuse）：见下；另层：import extras=2 CALL emit 值绿；nest>16 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **METHOD 向量 assign let-init reuse** ✅ @ **`3f70bd34d`**
 
@@ -1124,7 +1124,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_emit_assign_elf_c` VAR 在 TYPE_ARRAY／SLICE 已复用 let-init，TYPE_VECTOR 跌进 CALL＋dual-GP。权威已是 `glue_emit_vector_type_let_init_elf_c`（splat／select／shuffle／fma3／binop2）。VAR 补同一 sibling。**禁**第二条 inliner／改 callee 体／x19 序言／try_inline
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 证：mac `vec_add4_method_assign`／xlang-c **0**（反汇编 lane `add w` 无 `bl _add4`）· vam／vac／s16／sel4／sv8／iom／imf／da／fs16／is12／nslvar／imw **0／0／0／0／0／0／0／0／42／8／78／0** · 矩阵 **5/5** · Ubuntu 金标 `vec_add4_method_assign`／xlang-c **0** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1615392）· **日常 L2 不升钉**
-  - 余（已闭 host-C nest 17 fat）：见下；另层：import extras=2 CALL emit 值绿；nest>18 soft；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 host-C nest 17 fat）：见下；另层：import extras=2 CALL emit 值绿；nest>18 soft；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **host-C nest 17 fat（nest>16 soft 第一层）**
 
@@ -1132,7 +1132,7 @@
   - **根修（G.7 有则补全）**：同一 `codegen_emit_slice_fat_one`／`codegen_emit_scalar_slice_nests`／companion／`emit_header` 墙 16→17；第三闸 `XLANG_SLICE_LAYOUTS_N17`。**禁**抬到 24（`type_to_c_repr` `u8[256]` 12×24 溢出 XP003）；**禁**改 pipeline_abi／seed emit_header u8[256]／driver_preamble N=224
   - 权威 `codegen.x`（FROM_X assemble → `codegen_x.o`）。pin `codegen_gen.linux.x86_64.c` 不改
   - 证：mac `nested_slice17`／`nested_named17` asm **70／75** · `-E`+host-cc **0** · ALLOW `-backend c` **70／75** · n16／named16／n8／n9／named8／named7／nslvar **60／65／40／50／55／45／78** · 矩阵 **5/5** · Ubuntu 金标 n17／named17 asm **70／75** · `-E`+cc **0** · ALLOW c **70／75** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；codegen_x.o FROM_X 447944）· **日常 L2 不升钉**
-  - 余（已闭 host-C nest 18 fat）：见下；另层：nest>18 soft（19–20 仍进 256；nest 21 溢出）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 host-C nest 18 fat）：见下；另层：nest>18 soft（19–20 仍进 256；nest 21 溢出）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **host-C nest 18 fat（nest>17 soft 下一层）** ✅ @ **`fdcaec69f`**
 
@@ -1140,7 +1140,7 @@
   - **根修（G.7 有则补全）**：同一 emitter／companion／`emit_header` 墙 17→18；第四闸 `XLANG_SLICE_LAYOUTS_N18`。**禁**抬到 21（i32 tag 266 溢出 256）；**禁**改 pipeline_abi／seed emit_header u8[256]／driver_preamble N=224
   - 权威 `codegen.x`（FROM_X assemble → `codegen_x.o`）。pin `codegen_gen.linux.x86_64.c` 不改
   - 证：mac `nested_slice18`／`nested_named18` asm **80／85** · `-E`+host-cc **0** · ALLOW `-backend c` **80／85** · n17／named17／n16／named16／n8／n9／named8／named7／nslvar **70／75／60／65／40／50／55／45／78** · 矩阵 **5/5** · Ubuntu 金标 n18／named18 asm **80／85** · `-E`+cc **0** · ALLOW c **80／85** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；codegen_x.o FROM_X 448616）· **日常 L2 不升钉**
-  - 余（已闭 host-C nest 19 fat）：见下；另层：nest>19 soft（20 仍进 256；nest 21 溢出）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 host-C nest 19 fat）：见下；另层：nest>19 soft（20 仍进 256；nest 21 溢出）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **host-C nest 19 fat（nest>18 soft 下一层）** ✅ @ **`acb0c2b1a`**
 
@@ -1148,7 +1148,7 @@
   - **根修（G.7 有则补全）**：同一 emitter／companion／`emit_header` 墙 18→19；第五闸 `XLANG_SLICE_LAYOUTS_N19`。**禁**抬到 21（i32 tag 266 溢出 256）；**禁**改 pipeline_abi／seed emit_header u8[256]／driver_preamble N=224
   - 权威 `codegen.x`（FROM_X assemble → `codegen_x.o`）。pin `codegen_gen.linux.x86_64.c` 不改
   - 证：mac `nested_slice19`／`nested_named19` asm **90／95** · `-E`+host-cc **0** · ALLOW `-backend c` **90／95** · n18／named18／n17／named17／n16／named16／n8／n9／named8／named7／nslvar **80／85／70／75／60／65／40／50／55／45／78** · 矩阵 **5/5** · Ubuntu 金标 n19／named19 asm **90／95** · `-E`+cc **0** · ALLOW c **90／95** · 邻域同上 · 矩阵 **5/5**（try_inline 仍 seed 57672；codegen_x.o FROM_X 449296）· **日常 L2 不升钉**
-  - 余（已闭 host-C nest 20 fat）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 host-C nest 20 fat）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **host-C nest 20 fat（nest>19 soft 下一层）** ✅ @ **`0797a8a6c`**
 
@@ -1288,7 +1288,7 @@
   - **根修（G.7 有则补全）**：同一 emitter／companion／`emit_header`：墙 52→64；第三十九闸 `XLANG_SLICE_LAYOUTS_N64` 一次发 53..64；scratch 640→896
   - 闸：`tests/boundary/nested_slice64.x` 64／`nested_named64.x` 74（`type_to_c_repr` scratch 896；tag=782；0..255，nest×10+10 会绕 8-bit）
   - **冻帽 64**：勿再一叶一层；邻域 17–52 仍回归
-  - 余：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **VAR assign >16B CALL sret（MEMORY dest-across-call）** ✅ @ **`34fdd01d7`**
 
@@ -1296,7 +1296,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_emit_assign_elf_c` VAR 在 TYPE_ARRAY／VECTOR 已复用 let-init，TYPE_NAMED 跌进 emit rhs＋`store_retval_pair` memcpy。权威已是 `glue_emit_struct_type_let_init_elf_c`（>16B lea slot→x8／rdi 再 CALL）。VAR 补同一 sibling（`ltk_pre==8`）。**禁**第二条 memcpy／x19 序言／try_inline／nest 21
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 证：mac `struct_mem_assign_call`／xlang-c **0**（反汇编 `lea y; mov x8,x0; bl _id32` 无 caller memcpy）· s16／vam／vama／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_assign_call`／xlang-c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1615616）· **日常 L2 不升钉**
-  - 余（已闭 VAR copy >16B）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 VAR copy >16B）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **VAR copy >16B（slot-to-slot memcpy）** ✅ @ **`ea369e2c9`**
 
@@ -1304,7 +1304,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_struct_type_let_init` 只认 STRUCT_LIT／CALL／METHOD，VAR 返 -2，fall-through 只存 rax。权威已是 `glue_copy_large_struct_from_rax_ptr`（CALL／INDEX `*rax`→slot）。VAR 补 `lea src` 再同一 memcpy。**禁**扩 `store_retval_pair` 的 CALL／METHOD／INDEX 闸（VAR `emit_expr` 是值不是指针）；**禁**第二条 memcpy／x19／try_inline／nest 21
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 证：mac `struct_mem_copy`／xlang-c **0**（反汇编 `lea x; mov x2,#32; lea y; bl memcpy`）· smac／s16／vam／vama／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_copy`／xlang-c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1616160）· **日常 L2 不升钉**
-  - 余（已闭 FIELD dest TYPE_NAMED let-init reuse field_off==0）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19；FIELD dest field_off≠0；嵌套 sret
+  - 余（已闭 FIELD dest TYPE_NAMED let-init reuse field_off==0）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19；FIELD dest field_off≠0；嵌套 sret
 
 ✅ **FIELD dest TYPE_NAMED let-init reuse（field_off==0）** ✅ @ **`4b2ee745e`**／typed 极性 **`006117bef`**／闸收口 **`7557ce640`**
 
@@ -1313,7 +1313,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_field_assign.x` 期望 0（16B copy／CALL · 24B copy · 32B copy／CALL · STRUCT_LIT；**field_off==0**）
   - 证：mac `struct_mem_field_assign`／xlang-c **0**（反汇编 `lea dest; mov x8; bl _id32`）· smc／smac／s16／vam／vama／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_field_assign`／ALLOW c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1617160）· **日常 L2 不升钉**
-  - 余（已闭嵌套 MEMORY sret dest 保存／恢复）：见下；另层：FIELD dest field_off≠0（x86 `effective_offset` stored −8，`Prefixed.s` dest=start−8）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭嵌套 MEMORY sret dest 保存／恢复）：见下；另层：FIELD dest field_off≠0（x86 `effective_offset` stored −8，`Prefixed.s` dest=start−8）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **嵌套 MEMORY sret dest 保存／恢复** ✅ @ **`5f11667aa`**
 
@@ -1322,7 +1322,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪（stub）。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_nested_sret.x` 期望 0（24B 嵌套 · 32B assign／let · 32B 三层）
   - 证：mac `struct_mem_nested_sret`／xlang-c **0**（反汇编 `mov x8,x0` 保存再恢复）· smfa／smac／smc／s16／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_nested_sret`／ALLOW c **0** · 邻域同上＋n19 **90** · Prefixed leftover **20**（另层）· 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1617680）· **日常 L2 不升钉**
-  - 余（已闭 FIELD dest field_off≠0 frame-mag）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 FIELD dest field_off≠0 frame-mag）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **FIELD dest field_off≠0 frame-mag** ✅ @ **`364400973`**
 
@@ -1331,7 +1331,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_field_assign.x` 期望 0（含 Prefixed copy／CALL）
   - 证：mac `struct_mem_field_assign`／xlang-c **0** · smns／smac／smc／s16／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_field_assign`／ALLOW c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1617728）· **日常 L2 不升钉**
-  - 余（已闭 FIELD-chain dest 走 VAR 根 let-init）：见下；另层：指针／INDEX FIELD dest；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 FIELD-chain dest 走 VAR 根 let-init）：见下；另层：指针／INDEX FIELD dest；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **FIELD-chain dest 走 VAR 根 let-init** ✅ @ **`892da2d63`**
 
@@ -1340,7 +1340,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_field_chain_assign.x` 期望 0（16B CALL · 32B copy／CALL · Prefixed 链）
   - 证：mac `struct_mem_field_chain_assign`／xlang-c **0** · smfa／smns／smac／smc／s16／da／fs16／n20／nslvar **0／0／0／0／0／0／42／100／78** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_field_chain_assign`／ALLOW c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1618264）· **日常 L2 不升钉**
-  - 余（已闭指针／INDEX FIELD dest dest-in-rbx let-init）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭指针／INDEX FIELD dest dest-in-rbx let-init）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **指针／INDEX FIELD dest dest-in-rbx let-init** ✅ @ **`0191b041f`**
 
@@ -1349,7 +1349,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_ptr_index_field_assign.x` 期望 0（指针 16B CALL／32B copy／CALL／Prefixed／中链 `w.p.s` · INDEX 16B CALL／32B copy／CALL）
   - 证：mac `struct_mem_ptr_index_field_assign`／xlang-c **0** · smfca／smfa／smns／smac／smc／s16／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_ptr_index_field_assign`／ALLOW c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1620904）· **日常 L2 不升钉**
-  - 余（已闭 INDEX dest 16B CALL dest-in-rbx let-init）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 INDEX dest 16B CALL dest-in-rbx let-init）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **INDEX dest 16B CALL dest-in-rbx let-init** ✅ @ **`e6ee90f8d`**
 
@@ -1358,7 +1358,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_index_assign.x` 期望 0（16B CALL／copy · slice 16B CALL · 32B CALL）
   - 证：mac `struct_mem_index_assign`／xlang-c／ALLOW c **0** · dump **201** · smpifa／smfca／smfa／smns／smac／smc／s16／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_index_assign`／ALLOW c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1621712）· **日常 L2 不升钉**
-  - 余（已闭 DEREF dest TYPE_NAMED dest-in-rbx let-init）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 DEREF dest TYPE_NAMED dest-in-rbx let-init）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **DEREF dest TYPE_NAMED dest-in-rbx let-init** ✅ @ **`27dc92146`**
 
@@ -1367,7 +1367,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/struct_mem_deref_assign.x` 期望 0（16B CALL／copy · 24B CALL · 32B CALL／copy／嵌套／STRUCT_LIT）
   - 证：mac `struct_mem_deref_assign`／xlang-c／ALLOW c **0** · smia／smpifa／smfca／smfa／smns／smac／smc／s16／da／fs16／n20／nslvar／imw／is12／sel4 **0／0／0／0／0／0／0／0／0／42／100／78／0／8／0** · 矩阵 **5/5** · Ubuntu 金标 `struct_mem_deref_assign`／ALLOW c **0** · 邻域同上＋n19 **90** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer thin+rest 1622608）· **日常 L2 不升钉**
-  - 余（已闭 DEREF dest SLICE／ARRAY／VECTOR／DEREF rvalue／VECTOR CALL dest）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 DEREF dest SLICE／ARRAY／VECTOR／DEREF rvalue／VECTOR CALL dest）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **DEREF dest SLICE／ARRAY／VECTOR dest-in-rbx** ✅ @ **`457a58c7b`**／x86 SLICE CALL rax+rdx @ **`8696f5916`**
 
@@ -1390,7 +1390,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/vec_add4_deref_assign.x` 期望 0（add4＋sub4 dest-in-rbx CALL）
   - 证：双端 vada／xlang-c／ALLOW c **0** · 反汇编 dest `-0x70`／temp `-0x80` · vam／vama／smdaa／smdrv／smda／smia／smpifa／smfa／da／s16／sel4／fs16／n20／nslvar **0／0／0／0／0／0／0／0／0／0／0／42／100／78** · 矩阵 **5/5**（try_inline 仍 seed 57672；pipeline_abi prefer Darwin 1371680／Ubuntu 1626296）· **日常 L2 不升钉**
-  - 余（已闭 SIMD named size_simple＝lanes*esz）：见下；另层：FIELD／INDEX dest VECTOR CALL；嵌套 `idv(add4)`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 SIMD named size_simple＝lanes*esz）：见下；另层：FIELD／INDEX dest VECTOR CALL；嵌套 `idv(add4)`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **SIMD named `size_simple`＝lanes*esz（idv 16B dual-GP）** ✅ @ **`b76bb2466`**
 
@@ -1399,7 +1399,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/vec_id_call.x` 期望 0（idv 四 lane）
   - 证：双端 vic／xlang-c／ALLOW c **0** · wrap_add／id8 **0** · vam／vama／vada／smdaa／smdrv／smda／smia／smpifa／smfa／da／s16／sel4／fs16／n20／nslvar **0／0／0／0／0／0／0／0／0／0／0／0／42／100／78** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1371888／Ubuntu 1626528）· **日常 L2 不升钉**
-  - 余（已闭 FIELD dest VECTOR CALL）：见下；另层：INDEX dest VECTOR CALL（Darwin 139）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 FIELD dest VECTOR CALL）：见下；另层：INDEX dest VECTOR CALL（Darwin 139）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **FIELD dest VECTOR CALL let-init** ✅ @ **`4c4c82411`**
 
@@ -1408,7 +1408,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/vec_add4_field_assign.x` 期望 0（copy／CALL／METHOD VAR receiver 四 lane）
   - 证：双端 vafa／xlang-c／ALLOW c **0** · vam／vama／vada／vic／smfa／smfca／s16 **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1371976／Ubuntu 1626664）· **日常 L2 不升钉**
-  - 余（已闭 ARRAY_LIT SIMD VAR）：见下；另层：INDEX dest VECTOR CALL（Darwin 139）；嵌套 `arr[0][0]`（Darwin 139）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 ARRAY_LIT SIMD VAR）：见下；另层：INDEX dest VECTOR CALL（Darwin 139）；嵌套 `arr[0][0]`（Darwin 139）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **ARRAY_LIT SIMD VAR let-init** ✅ @ **`7ed90f9e7`**
 
@@ -1417,7 +1417,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/vec_array_lit_var.x` 期望 0（`[z,z]`／`[1]i32x4=[a]`／`[a,b]` 的 `arr[0]` 四 lane；不 INDEX `arr[1]`／不嵌套 `arr[0][0]`）
   - 证：双端 valv／xlang-c／ALLOW c **0** · vafa／vic／vada／vama／s16／smfa／sel4 **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1372328／Ubuntu 1627000）· **日常 L2 不升钉**
-  - 余（勿并本叶）：INDEX dest VECTOR CALL（已闭）；嵌套 `arr[0][0]`（Darwin 174）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：INDEX dest VECTOR CALL（已闭）；嵌套 `arr[0][0]`（Darwin 174）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **INDEX dest VECTOR CALL let-init** ✅ @ **`6141c91e2`**
 
@@ -1426,7 +1426,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest＋seed 冷孪。**禁**全量 assemble
   - 闸：`tests/boundary/vec_add4_index_assign.x` 期望 0（copy／CALL／METHOD VAR+lit `arr[0]` 四 lane；不 INDEX `arr[1]`／不嵌套 `arr[0][0]`／不 slice dest）
   - 证：双端 vaia／xlang-c／ALLOW c **0** · valv／vafa／vic／vada／vama／s16／smfa／sel4 **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1373032／Ubuntu 1627864）· **日常 L2 不升钉**
-  - 余（勿并本叶）：嵌套 `arr[0][0]`（已闭）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；第二份 SIMD ARRAY_LIT 盖 dest（x86）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：嵌套 `arr[0][0]`（已闭）；嵌套 `idv(add4)`（Darwin 20）；FIELD-as-receiver `h.v.sub4`（Darwin 22）；第二份 SIMD ARRAY_LIT 盖 dest（x86）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **嵌套 INDEX rvalue `arr[0][0]`** ✅ @ **`345a51463`**
 
@@ -1435,7 +1435,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest（seed stub 仍 −2，pure leave）。**禁**全量 assemble
   - 闸：`tests/boundary/vec_index_nested.x` 期望 0（dest＋`arr[0][0..3]`＋`a[0]`＋split `let t`；不并第二份 `[1]i32x4` — Ubuntu 盖 dest leftover）
   - 证：双端 vin／xlang-c／ALLOW c **0** · vaia／valv／vafa／vic **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1373272／Ubuntu 1628200）· **日常 L2 不升钉**
-  - 余（勿并本叶）：嵌套 `idv(add4)`（已闭）；FIELD-as-receiver `h.v.sub4`；`return idv(add4)[i]` emit_expr；第二份 SIMD ARRAY_LIT 盖 dest（x86 `t[0]=3`）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：嵌套 `idv(add4)`（已闭）；FIELD-as-receiver `h.v.sub4`；`return idv(add4)[i]` emit_expr；第二份 SIMD ARRAY_LIT 盖 dest（x86 `t[0]=3`）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **嵌套 identity CALL `idv(add4)` let-init** ✅ @ **`24d7d4b2a`**
 
@@ -1444,7 +1444,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_idv_add4_nested.x` 期望 0（嵌套 let＋拆开 let 四 lane）
   - 证：双端 via／xlang-c／ALLOW c **0** · vin／vaia／valv／vafa／vic **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1374600／Ubuntu 1629752）· **日常 L2 不升钉**
-  - 余（勿并本叶）：FIELD-as-receiver `h.v.sub4`（已闭）；`return idv(add4)[i]` emit_expr；第二份 SIMD ARRAY_LIT 盖 dest（x86）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：FIELD-as-receiver `h.v.sub4`（已闭）；`return idv(add4)[i]` emit_expr；第二份 SIMD ARRAY_LIT 盖 dest（x86）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **FIELD-as-receiver `h.v.sub4` lane stack-off** ✅ @ **`617b1f739`**
 
@@ -1453,7 +1453,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_add4_field_recv.x` 期望 0（METHOD add／sub＋CALL `add4(h.v,b)` 四 lane）
   - 证：双端 vafr／xlang-c／ALLOW c **0** · vafa／via／vin／vaia／valv／vama／vami／vic **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1375320／Ubuntu 1630560）· **日常 L2 不升钉**
-  - 余（勿并本叶）：`return idv(add4)[i]` emit_expr（已闭）；第二份 SIMD ARRAY_LIT 盖 dest（x86）；FIELD-chain `w.h.v.sub4`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：`return idv(add4)[i]` emit_expr（已闭）；第二份 SIMD ARRAY_LIT 盖 dest（x86）；FIELD-chain `w.h.v.sub4`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **`return idv(add4)[i]` emit_expr 走 vector let-init** ✅ @ **`66e6e848d`**
 
@@ -1462,7 +1462,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_idv_add4_index.x` 期望 0（idv INDEX／add4 INDEX／return helper 四 lane）
   - 证：双端 vai／xlang-c／ALLOW c **0** · via／vafr／vafa／vin／vaia／valv／vama／vami／vic **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1375408／Ubuntu 1630680）· **日常 L2 不升钉**
-  - 余（勿并本叶）：第二份 SIMD ARRAY_LIT 盖 dest（x86 `t[0]=3`）；FIELD-chain `w.h.v.sub4`（已闭）；prefixed SIMD dest（`tag+Holder`）；FIELD-chain SIMD INDEX `w.h.v[i]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：第二份 SIMD ARRAY_LIT 盖 dest（x86 `t[0]=3`）；FIELD-chain `w.h.v.sub4`（已闭）；prefixed SIMD dest（`tag+Holder`）；FIELD-chain SIMD INDEX `w.h.v[i]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **FIELD-chain `w.h.v.sub4` lane stack-off** ✅ @ **`e6dd1a86b`**
 
@@ -1471,7 +1471,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_add4_field_chain.x` 期望 0（METHOD add／sub＋CALL `add4(w.h.v,b)` 四 lane；观察走 let-init 拷）
   - 证：双端 vafc／xlang-c／ALLOW c **0** · vafr／vafa／vai／via／vin／vaia／valv／vama／vami／smfc **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1376096／Ubuntu 1631904）· **日常 L2 不升钉**
-  - 余（勿并本叶）：第二份 SIMD ARRAY_LIT 盖 dest（已闭）；prefixed SIMD dest（`tag+Holder` field_off≠0）；FIELD-chain SIMD INDEX `w.h.v[i]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：第二份 SIMD ARRAY_LIT 盖 dest（已闭）；prefixed SIMD dest（`tag+Holder` field_off≠0）；FIELD-chain SIMD INDEX `w.h.v[i]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **第二份 SIMD ARRAY_LIT 盖 dest（x86 `[N]i32x4` 槽位）** ✅ @ **`4b0fc890d`**
 
@@ -1480,7 +1480,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_array_lit_after_dest.x` 期望 0（dest＋第二份 ARRAY_LIT 四 lane＋`one[0]`）
   - 证：双端 vald／xlang-c／ALLOW c **0** · n2lit Ubuntu 3→0 · vin／valv／vaia／vafc／vafr／vai／via／vama／vami **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1376616／Ubuntu 1632536）· **日常 L2 不升钉**
-  - 余（勿并本叶）：prefixed SIMD dest（`tag+Holder` field_off≠0）（已闭）；FIELD-chain SIMD INDEX `w.h.v[i]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：prefixed SIMD dest（`tag+Holder` field_off≠0）（已闭）；FIELD-chain SIMD INDEX `w.h.v[i]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **prefixed SIMD dest（`tag+Holder` field_off≠0）** ✅ @ **`149df550f`**
 
@@ -1489,7 +1489,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_prefixed_simd_dest.x` 期望 0（STRUCT_LIT tag＋四 lane＋dest copy／CALL／METHOD＋`tag+Holder` dest）
   - 证：双端 vpsd／xlang-c／ALLOW c **0** · tagonly Darwin 1→7 · vald／vafc／vafr／vai／via／vin／vaia／valv／vama／vami／smfa **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1376928／Ubuntu 1632872）· **日常 L2 不升钉**
-  - 余（勿并本叶）：FIELD-chain SIMD INDEX `w.h.v[i]`（已闭）；dest `w.h.v[i]=`；typeck T001 `return`／`let` INDEX；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：FIELD-chain SIMD INDEX `w.h.v[i]`（已闭）；dest `w.h.v[i]=`；typeck T001 `return`／`let` INDEX；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **FIELD-chain SIMD INDEX `w.h.v[i]`** ✅ @ **`b69a33a51`**
 
@@ -1498,7 +1498,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_field_chain_index.x` 期望 0（`if (w.h.v[i] != …)` 四 lane；不 `return`／`let` INDEX）
   - 证：双端 vfci／xlang-c／ALLOW c **0** · nchain_idx Darwin 10→0 · dump2 99→1 · vafc／vafr／vpsd／vald／vai／via／vin／vaia／valv／vama／vafa **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1377304／Ubuntu 1633352）· **日常 L2 不升钉**
-  - 余（勿并本叶）：dest `w.h.v[i]=`（已绿，rvalue 叶带过）；typeck T001 `return`／`let` INDEX（已闭）；Holder 拷 `let h=w.h`（已闭）；STRUCT_LIT `Wrap { h: inner }` ARM64 16B（已闭）；dest-in-rbx FIELD 源；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：dest `w.h.v[i]=`（已绿，rvalue 叶带过）；typeck T001 `return`／`let` INDEX（已闭）；Holder 拷 `let h=w.h`（已闭）；STRUCT_LIT `Wrap { h: inner }` ARM64 16B（已闭）；dest-in-rbx FIELD 源；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **dest `w.h.v[i]=`** ✅（rvalue 叶 `b69a33a51` 带过；本叶闸 @ **`dbe877df1`**）
 
@@ -1513,7 +1513,7 @@
   - 权威 `typeck.x` assemble → `typeck_x.o`。**禁**改 pin `typeck_gen.linux.x86_64.c`
   - 闸：`tests/boundary/vec_field_index_return.x` 期望 0（dest＋`return w.h.v[i]`＋`let x = w.h.v[i]` 四 lane）
   - 证：双端 vfir／xlang-c／ALLOW c **0** · nret_depth1 2 · `return h.v` 现 T001 错配 · vfci／vafc／vafr／vpsd／vald／vai／via／vin／vaia／valv／vama／vafa **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1377304／Ubuntu 1633352；typeck_x Darwin 317120／Ubuntu 384232）· **日常 L2 不升钉**
-  - 余（勿并本叶）：Holder 拷 `let h=w.h`（已闭）；STRUCT_LIT `Wrap { h: inner }` ARM64 16B（已闭）；dest-in-rbx FIELD 源；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：Holder 拷 `let h=w.h`（已闭）；STRUCT_LIT `Wrap { h: inner }` ARM64 16B（已闭）；dest-in-rbx FIELD 源；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **Holder 拷 `let h=w.h`** ✅ @ **`d1a80c50a`**
 
@@ -1522,7 +1522,7 @@
   - 权威 `runtime_pipeline_abi.x` prefer thin+rest。**禁**全量 assemble
   - 闸：`tests/boundary/vec_field_index_return.x` 期望 0（dest＋return／let INDEX＋`let h=w.h`＋assign＋`ret_depth1` 四 lane）
   - 证：双端 vfir／xlang-c **0** · nhold_afterdest／asg_dest Darwin 30→0 · vfci／vpsd／vald／vafc／vafr／vai／via／vin／vaia／valv／vama／vada **0** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1377848／Ubuntu 1633936）· **日常 L2 不升钉**
-  - 余（勿并本叶）：dest-in-rbx FIELD 源（已闭）；ARRAY_LIT 16B named VAR（已闭）；INDEX 基 FIELD dest-in-rbx（已闭）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（勿并本叶）：dest-in-rbx FIELD 源（已闭）；ARRAY_LIT 16B named VAR（已闭）；INDEX 基 FIELD dest-in-rbx（已闭）；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **dest-in-rbx FIELD 源 `*p = w.h`** ✅ @ **`ed9855203`**
 
@@ -1544,7 +1544,7 @@
   - **根修（G.7 有则补全）**：权威已是 dest-in-rbx FIELD memcpy。复用 binop INDEX-clobber 检测＋VECTOR CALL dest 溢栈极性（ARM64 home=cur，x86 home=cur+8）。先停 dest 再停 src 址，恢复 dest 到 rbx，再 glue_copy dest-in-rbx
   - 闸：`tests/boundary/vec_field_index_return.x` INDEX 基 19／29／39／49
   - 证：双端 vfir／xlang-c／nhold_idx_field2 Ubuntu 139→0 · 邻域绿 · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1378880／Ubuntu 1635264）· **日常 L2 不升钉**
-  - 余（已闭 dest-in-rbx INDEX 整元素）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 dest-in-rbx INDEX 整元素）：见下；另层：nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **dest-in-rbx INDEX 整元素 `*p = arr[i]`** ✅ @ **`b96a7f9bf`**
 
@@ -1552,7 +1552,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_struct_type_let_init` 只认 FIELD(44)，INDEX(47) 返 −2，emit_expr 只装 8B。权威已是同一 dest-in-rbx FIELD 路径。INDEX／INDEX 基 FIELD 共用 lvalue＋park dest（var-index 用 rbx）＋memcpy dest-in-rbx。frame dest 9–16B INDEX 复用 deref_struct16＋store_retval_pair
   - 闸：`tests/boundary/vec_field_index_return.x` dest-in-rbx INDEX 整元素 60／61／62／63
   - 证：双端 vfir／xlang-c／nhold_idx_ptr Darwin 12→0 · 邻域绿 · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1378896／Ubuntu 1635264）· **日常 L2 不升钉**
-  - 余（已闭 dest-in-rbx DEREF 源）：见下；另层：STRUCT_LIT FIELD 源 `Wrap { h: w.h }`；dest-in-rbx ARRAY_LIT `*p = [w]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 dest-in-rbx DEREF 源）：见下；另层：STRUCT_LIT FIELD 源 `Wrap { h: w.h }`；dest-in-rbx ARRAY_LIT `*p = [w]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **dest-in-rbx DEREF 源 `*p = *q`** ✅ @ **`97636e07d`**
 
@@ -1560,7 +1560,7 @@
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_struct_type_let_init` DEREF(52) 9–16B 返 −2，emit_deref dual-GP 后 dest 再 lea 盖 hi。权威已是同一 dest-in-rbx FIELD／INDEX 路径。DEREF 并入 lvalue（操作数指针）＋park dest（DEREF-of-INDEX 用 rbx）＋memcpy dest-in-rbx。clobber 检测补 DEREF 走操作数。删独立 >16B DEREF 块（同路径已覆盖）
   - 闸：`tests/boundary/vec_field_index_return.x` dest-in-rbx DEREF 源 70／71／72／73
   - 证：双端 vfir／xlang-c／nhold_deref_src Darwin 30→0 · smda／smdrv **0** · 邻域绿 · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1378616／Ubuntu 1634952）· **日常 L2 不升钉**
-  - 余（已闭 STRUCT_LIT FIELD 源）：见下；另层：dest-in-rbx ARRAY_LIT `*p = [w]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 STRUCT_LIT FIELD 源）：见下；另层：dest-in-rbx ARRAY_LIT `*p = [w]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **STRUCT_LIT FIELD 源 `Wrap { h: w.h }`** ✅ @ **`e7ad55d98`**
 
@@ -1568,7 +1568,7 @@
   - **根修（G.7 有则补全）**：产生点＝`pipeline_asm_emit_struct_lit_fields` 对 16B 场走 emit_expr；FIELD／INDEX emit_expr 只装 8B，dual-GP spill 的 hi 是垃圾。权威已是同一 `glue_emit_struct_type_let_init`（dest-in-rbx FIELD／INDEX／DEREF）。frame dest 写 nest_slot；sret／dest-in-rbx 写 frame temp 再 chunk-copy 到 dest+foff（嵌套 STRUCT_LIT sret 孪）。**禁**改 FIELD emit_expr／enc_store /8
   - 闸：`tests/boundary/vec_field_index_return.x` STRUCT_LIT FIELD 源 80／81／82／83；dest-in-rbx STRUCT_LIT 84／85／86／87
   - 证：双端 vfir／xlang-c／nhold_slit_field Darwin 30→0 · nhold_slit_ptr_field Darwin 30→0 · 邻域绿 · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1379624／Ubuntu 1635952）· **日常 L2 不升钉**
-  - 余（已闭值位置只认 `{ fields }`）：见下；另层：dest-in-rbx ARRAY_LIT `*p = [w]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭值位置只认 `{ fields }`）：见下；另层：dest-in-rbx ARRAY_LIT `*p = [w]`；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **值位置只认 `{ fields }`（禁 `Type { fields }`）** ✅ @ **`6c9773729`**
 
@@ -1584,7 +1584,7 @@
   - **根修（G.7 有则补全）**：产生点＝DEREF dest TYPE_ARRAY 走 `glue_emit_struct_type_let_init`（ARRAY_LIT → −2）再 `store_rax` 8B。权威已是同一 `glue_emit_fixed_array_type_let_init`。DEST_IN_RBX=-3：`[w]` 逐元素复用 dest-in-rbx struct let-init（`*p = w` 孪）。**禁** emit 时开 array temp（大 main 出红区 139）／lea rbp-3／改 enc_store /8
   - 闸：`tests/boundary/vec_field_index_return.x` dest-in-rbx ARRAY_LIT 90／91／92／93
   - 证：双端 vfir／xlang-c／nhold_arrlit_ptr Darwin 10→0 · smda／smdrv／da／vald **0** · fs16 **42** · 矩阵 **5/5**（try_inline 仍 seed 72264／57672；pipeline_abi prefer Darwin 1381000／Ubuntu 1637456）· **日常 L2 不升钉**
-  - 余（已闭 dest-in-rbx ARRAY_LIT of FIELD）：见下；另层：匿名 match 模式；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
+  - 余（已闭 dest-in-rbx ARRAY_LIT of FIELD）：见下；另层：匿名 match 模式；nest>20（21 须加宽 scratch）；TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；sat 盖 prefer；ARM64 prologue 未存 x19
 
 ✅ **dest-in-rbx ARRAY_LIT of FIELD `*p = [w.h]`** ✅ @ **`fb6ad71f4`**
 
@@ -1759,70 +1759,70 @@
   - 现场：`*p = match tag { 1 => { with_arena(64) { k = 1 }; { h: { v: a } } } }`。region extra-arm dest-in-rbx **已绿**；i32 dest＋with_arena **已绿**。dest_spill（x86 高位）与 reserved wa 槽重叠，`heap_arena_init_c` 砸 dest 指针
   - **根修（G.7 有则补全）**：产生点＝`glue_wa_scope_alloc_off_c` 无视 dest-in-rbx 已推的 `next_offset`。权威已是同一 alloc。x86 高位 dest 存在 `rbp-cur`，Arena64 从 `rbp-off` 起 24B；`off==cur` 砸 dest（`memcpy` dest=NULL）。`off < cur+24` 则 `off=cur+24`。seed 孪。prefer thin+rest pipeline_abi；**禁** mega assemble
   - 闸：`tests/boundary/dest_wa_semi.x` SIMD dest isolate／asm／xlang-c **0**
-  - 余（已闭 dest extra-arm SIMD host-C `-E`）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；dest extra-arm SIMD 叠两条 `with_arena` dest **已闭**
+  - 余（已闭 dest extra-arm SIMD host-C `-E`）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；dest extra-arm SIMD 叠两条 `with_arena` dest **已闭**
 
 ✅ **dest extra-arm SIMD host-C `-E` 头 `i32x4_t`**（裸 `-E`+cc `unknown type name i32x4_t`，级联未声明 `a`）
 
   - 现场：`dest_wa_semi`／`dest_region_semi` 裸 `-E`+cc 红。`xlang-c`／`-o` 已绿（rt_preamble §10 已有 typedef）。`emit_vector_c_type_out` 发 `i32x4_t` 名，头未 typedef
   - **根修（G.7 有则补全）**：产生点＝`codegen_x_ast_emit_header`。补同一权威：`codegen_emit_vector_typedefs`（`XLANG_VECTOR_TYPES`，与 rt_preamble §10 同套 i32／u32／f32 ×4／8／16）。rt_preamble 既有槽折入同一 guard（**不**加 N=224 行）。**禁** seed emit_header u8[256]；**禁** assemble parser／pipeline_abi mega
   - 闸：`dest_wa_semi`／`dest_region_semi`／`dest_match_region_semi`／`dest_if_region_wrap` 裸 `-E`+cc **0**；asm／xlang-c／`-o` **0**
-  - 余（已闭 dest extra-arm SIMD 叠两条 `with_arena` dest）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dest extra-arm SIMD 叠两条 `with_arena` dest）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dest extra-arm SIMD 叠 MATCH＋IF＋field-bind＋无分号 `with_arena` dest**（旧 Darwin 139；官方闸曾收成单条 MATCH）
 
   - 现场：同一 `main` 叠 MATCH＋IF 两条 `with_arena` dest 曾 Darwin 139。单条 MATCH／IF extra-arm 本绿。上波 `glue_wa_scope_alloc_off_c` `off>=cur+24` 后叠两条双端已 0（dest_spill／Arena64，不是 onefunc sidecar 容量）
   - **根修（G.7 有则补全）**：产生点已在同一 alloc。本叶补同一官方闸 `tests/boundary/dest_wa_semi.x`：极性＝`dest_region_semi`／`dest_match_region_semi`（MATCH＋IF＋field-bind＋无分号 twin）。**禁**新建第二闸。**禁** assemble parser／pipeline_abi mega
   - 闸：`dest_wa_semi` isolate／asm／host-C／xlang-c **0**
-  - 余（已闭 dest extra-arm `defer { k=1 }; dest`）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；dest extra-arm extra wrap `{ { let t; dest } }` host-C **已闭**
+  - 余（已闭 dest extra-arm `defer { k=1 }; dest`）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；dest extra-arm extra wrap `{ { let t; dest } }` host-C **已闭**
 
 ✅ **dest extra-arm `defer { k=1 }; dest` emit**（asm leftover 71；host-C 0）
 
   - 现场：`*p = match tag { 1 => { defer { k = 1 }; { dest } } }`／IF 同形。parse 已绿（TOKEN_DEFER 可选 `;`）。host-C **0**。asm／xlang-c dest 对、k 未写
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_if_arm_dest_in_rbx_elf_c`。parse_block TOKEN_DEFER 只 `append_defer`（不进 stmt_order）。前缀 so_k 2..7 看不见。帧 dest extra defer 本绿（body_sync 调 `glue_emit_run_language_defers_elf`）。补同一 helper：剥 extra-arm 后、dest emit 前跑 extra-arm defer 池；再 restore dest（defer 体砸 rbx／x19）。prefer thin+rest pipeline_abi；**禁** mega assemble
   - 闸：`tests/boundary/dest_region_semi.x` 补 MATCH＋IF＋field-bind＋无分号 dest extra-arm defer isolate／asm／host-C／xlang-c **0**
-  - 余（已闭 dest extra-arm extra wrap `{ { let t; dest } }`）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off；dest-from-region dest-region-body defer
+  - 余（已闭 dest extra-arm extra wrap `{ { let t; dest } }`）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off；dest-from-region dest-region-body defer
 
 ✅ **dest extra-arm extra wrap `{ { let t; dest } }` host-C**（asm leftover 偶绿；host-C `void` 赋结构体）
 
   - 现场：`*p = match tag { 1 => { { let t: i32 = 1; { dest } } } }`／IF 同形／`{ { dest } }` extra wrap STRUCT_LIT。`{ let t; dest }` 无 extra wrap 已绿。asm／xlang-c dest-in-rbx 剥 BLOCK 偶绿。host-C GNU stmt-expr 末句 `(void)({...})`
   - **根修（G.7 有则补全）**：产生点＝`parse_block` TOKEN_LBRACE 嵌套块一律 wrap EXPR_BLOCK＋append expr_stmt、不盖 final_expr。补同一权威：嵌套块后 peek `}` 或 `;` 再 `}` → 升 `final_expr`（≡ trailing STRUCT_LIT）。中段 `{ let } next_stmt` 仍 expr_stmt。手术 last-good `parser_gen.c`＋seed＋`parser.x`；**禁** assemble parser.x
   - 闸：`tests/boundary/dest_region_semi.x` 补 MATCH＋IF＋field-bind＋无分号 dest extra-arm extra wrap isolate／asm／host-C／xlang-c **0**
-  - 余（已闭 dest-from-region dest-region-body defer）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dest-from-region dest-region-body defer）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dest-from-region dest-region-body defer**（asm leftover 53；host-C 0）
 
   - 现场：`*p = match tag { 1 => { with_arena(64) { defer { k = 1 }; { dest } } } }`／IF 同形／field-bind 同形。dest extra-arm defer 已绿。host-C 内联 `(k=1)` **0**。asm／xlang-c dest 对、k 未写
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_if_arm_dest_in_rbx_elf_c`。dest-from-region 把 br 换成 dest region body；`defer_br` 仍是 extra-arm MATCH／IF 块（空 defer 池）。补同一 helper：剥后先跑 dest region body 的 `glue_emit_run_language_defers_elf`，再跑 extra-arm，再 restore dest（defer 体砸 rbx／x19）。prefer thin+rest pipeline_abi；**禁** mega assemble
   - 闸：`tests/boundary/dest_region_semi.x` 补 MATCH＋IF＋field-bind＋无分号 dest-from-region dest-region-body defer leftover 100–111 isolate／asm／host-C／xlang-c **0**
-  - 余（已闭 dest-from-region intermediate-region defer asm leftover 54）：见下；已闭 host-C dest-from-region intermediate stmt-expr 末值；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dest-from-region intermediate-region defer asm leftover 54）：见下；已闭 host-C dest-from-region intermediate stmt-expr 末值；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dest-from-region intermediate-region defer**（asm leftover 54；host-C stmt-expr 已闭另叶）
 
   - 现场：`*p = match tag { 1 => { unsafe { defer { m = 1 }; with_arena(64) { dest } } } }` dest 对、m 未写 leftover **54**。dest-from-region dest-region-body defer 已绿。host-C GNU stmt-expr 末值 `(m=1)` 赋 `struct Wrap`（codegen emit_block 先发 dest-from-region 前缀再跑中间层 defer）
   - **根修（G.7 有则补全）**：产生点＝`glue_emit_if_arm_dest_in_rbx_elf_c`。二次及以后 dest-from-region 剥层覆盖 br；只跑 dest region＋extra-arm defer 池。补同一 helper：旧 dest-from-region body 入栈；剥后 dest region → 中间层 LIFO → extra-arm，再 restore dest。prefer thin+rest pipeline_abi；**禁** mega assemble
   - 闸：官方 `dest_region_semi` leftover 112+ 等 host-C 叶（已闭见下）。isolate asm／xlang-c **0**；dest_region／dwa／dms／ifrw 仍 **0**
-  - 余（已闭 host-C dest-from-region intermediate stmt-expr 末值）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 host-C dest-from-region intermediate stmt-expr 末值）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **host-C dest-from-region intermediate stmt-expr 末值**（GNU `(m=1)` 赋 Wrap）
 
   - 现场：`*p = match tag { 1 => { unsafe { defer { m = 1 }; with_arena(64) { dest } } } }` asm／xlang-c **0**。host-C `-E`+cc：GNU stmt-expr 末值 `(m=1)` 赋 `struct Wrap`（ternary 与 `y` 类型也不合）
   - **根修（G.7 有则补全）**：产生点＝`codegen.x emit_block`。dest-from-region 最后 so_k==6 是 dest（无 final_expr）；`emit_run_defers` 在 dest 之后跑，末值变成 defer。补同一权威：无 final_expr 且末条 so_k==6 时先跑 wrapping defer，再发 dest。assemble codegen.x；**禁** mega／assemble parser.x
   - 闸：`tests/boundary/dest_fromreg_mid_semi.x` MATCH＋IF＋field-bind＋无分号 leftover 112–123 isolate／asm／host-C／xlang-c **0**。`dest_region_semi` 大 main 叠 112+ Ubuntu dest-park **139**（另文件；70–111 仍 0）
-  - 余（已闭 host-C dest-from-region 叠中间层 last-wins）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 host-C dest-from-region 叠中间层 last-wins）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **host-C dest-from-region 叠中间层 last-wins**（FIFO k=2 vs dest-in-rbx LIFO k=1）
 
   - 现场：`*p = match tag { 1 => { unsafe { defer { k = 1 }; region { defer { k = 2 }; with_arena dest } } } }` dest 对。host-C leftover **53**（k=2，外层先 hoist）。asm／xlang-c **0**（k=1，dest-region → 中间层 LIFO → extra-arm）
   - **根修（G.7 有则补全）**：产生点＝`codegen.x emit_block`。叠 dest-from-region 末条 so_k==6 先 hoist 本层 wrapping（FIFO）。补同一权威：先 hoist 末 dest wrapping（内层）、再本层 wrapping（外层），dest emit skip-wrap 防二次跑；dest 仍 GNU stmt-expr 末值。assemble codegen.x；**禁** mega／assemble parser.x
   - 闸：`tests/boundary/dest_fromreg_stack_semi.x` MATCH＋IF＋field-bind＋无分号 leftover 124–135 isolate／asm／host-C／xlang-c **0**。勿叠 dest_fromreg_mid／dest_region 大 main
-  - 余（已闭 host-C dest-from-region wrapping＋dest-region-body last-wins）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 host-C dest-from-region wrapping＋dest-region-body last-wins）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **host-C dest-from-region wrapping＋dest-region-body last-wins**（dest-region-body k=2 二次跑）
 
   - 现场：`*p = match tag { 1 => { unsafe { defer { k = 1 }; with_arena { defer { k = 2 }; dest } } } }` dest 对。host-C leftover **138**（k=2；C 为 k=2、k=1、k=2、dest）。asm／xlang-c **0**（k=1 LIFO）。叠中间层 last-wins 已绿；本叶无中间 named region
   - **根修（G.7 有则补全）**：产生点＝`codegen.x emit_block` stmt_order==0 fallback。dest-region-body 常只有 defer 池＋final_expr dest；wrapping 已 hoist dest-region-body 再 wrapping，skip-wrap 只盖 stmt_order>0 末 dest。补同一权威：fallback `emit_run_defers` 也认 skip-wrap，dest 仍 GNU 末值。assemble codegen.x；**禁** mega／assemble parser.x
   - 闸：`tests/boundary/dest_fromreg_body_semi.x` MATCH＋IF＋field-bind＋无分号 leftover 136–147 isolate／asm／host-C／xlang-c **0**。勿叠 dest_fromreg_stack／mid／dest_region 大 main
-  - 余（已闭 dest wrap IF dest）：见下；另层：TYPE_DYN／vtable 后期；4.2.4–5／4.2.7 leave-off
+  - 余（已闭 dest wrap IF dest）：见下；另层：TYPE_DYN／vtable ✅；4.2.4–5／4.2.7 leave-off
 
 ✅ **dest wrap IF dest**（MATCH extra-arm last dest 是 IF dest）
 
@@ -1831,7 +1831,7 @@
   - 闸：`tests/boundary/dest_match_if_semi.x` MATCH＋IF＋field-bind＋无分号 leftover 148–155 isolate／asm／host-C／xlang-c **0**。勿叠 dest_fromreg_*／dest_region 大 main
   - 邻域再探绿：else-if last dest（ifwrapelif／ifwrapelif2／ifwrapeliffb）· 嵌套 MATCH dest（nestmatch）三端 **0**；无 else 的 IF 末 dest 仍语言契约（`parse_if_expr_into` 失败回落 if-stmt）
   - **dest leftover 族已尽**（禁再叠 last-wins／dest-park 139）
-  - 余（勿并本叶）：TYPE_DYN／vtable 后期（dyn 非 KW；类型位已 parse；host-C `struct Clone` incomplete＝fat-ptr／对象分发后期，非薄 emit）；4.2.4–5／4.2.7 leave-off
+  - 余（勿并本叶）：TYPE_DYN／vtable ✅（dyn 非 KW；类型位已 parse；host-C `struct Clone` incomplete＝fat-ptr／对象分发后期，非薄 emit）；4.2.4–5／4.2.7 leave-off
 
 ---
 
