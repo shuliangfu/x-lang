@@ -20475,10 +20475,12 @@ export function codegen_emit_vtable_wrapper_name(out: *CodegenOutBuf,
  *     }
  *
  * First formal is always `void* data` (rdi/x0 = data ABI; do not change).
- * Extra formals are impl params 1..N (cap 5 = SysV GP 1..5). Call site
- * emits `(recv.data, args...)` through a typed `(void*, T1, T2)` cast
+ * Extra formals are impl params 1..N. Host-C has no register file — extras
+ * beyond SysV GP 1..5 stay named C formals (a6, a7, ...). Safety cap 96
+ * matches the asm dyn extras bound. Call site emits `(recv.data, args...)`
+ * through a typed `(void*, T1, T2)` cast
  * (codegen_emit_dyn_host_c_fn_ptr_suffix) so host cc does not default-
- * promote f32 extras. SSE/stack extras and named-array declarators remain leftover.
+ * promote f32 extras. Named-array declarators remain leftover.
  *
  * The vtable static then stores `(void*)&<wrap>` instead of
  * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
@@ -20549,14 +20551,16 @@ export function codegen_emit_vtable_wrapper_def(out: *CodegenOutBuf, arena: *AST
     }
     /*
      * Forward impl extras after self. G.7: complete this function (no second
-     * wrapper). Cap 5 extras; more is leftover (SSE/stack).
+     * wrapper). Loops already emit every extra_i < nparams; the old
+     * nparams>6 hard-fail was leftover (dyn_add_stack host-C XP003).
+     * Safety cap 96 matches asm dyn extras. First formal stays void* data.
      * PLATFORM: SHARED — host-C emit; Ubuntu gold.
      */
     let nparams: i32 = 0;
     if (cur_mod != 0 as *Module) {
       nparams = pipeline_module_func_num_params_at(cur_mod, impl_fi);
     }
-    if (nparams > 6) {
+    if (nparams > 96) {
       return -1;
     }
     let pref: *u8 = 0 as *u8;

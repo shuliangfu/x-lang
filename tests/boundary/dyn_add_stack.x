@@ -3,8 +3,8 @@
 // ARM64 AAPCS64: x0=data + x1..x7 extras so 6 extras stay in GP (no stack).
 // Wrapper is prologue+call+epilogue (not a tail jmp); it must copy incoming
 // stack extras onto the impl outgoing stack. rdi/x0 stays data on entry.
-// Host-C wrapper still caps nparams>6 (codegen leftover).
-// Expected: compile = 0, run = 7 (asm). Host-C not this leaf.
+// Host-C wrapper formals are impl params 1..N (safety cap 96).
+// Expected: compile = 0, run = 7 (asm and host-C).
 // PLATFORM: SHARED — Ubuntu gold (one stack word); Darwin 6 extras in GP.
 
 trait Sum6 {
