@@ -417,7 +417,7 @@ XLANG_LINK_ABI_ALLOW_PIN="${XLANG_LINK_ABI_ALLOW_PIN:-1}"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-x-to-o|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -1896,6 +1896,15 @@ rt_prefer_try_x_to_o() {
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
     perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/XLANG_WEAK $1 $2(/' "$_xtmp" || true
+  fi
+  # F1-2026-08-18 chunked -E: -E renders .x file-level `let g_*` as C `static`
+  # globals. In a monolithic file all functions share one storage; split chunks
+  # would each get a PRIVATE copy (semantic divergence). G05_X_O_GLOBALS_WEAK=1
+  # drops `static` and marks them XLANG_WEAK so ld -r first-wins restores the
+  # single shared storage across merged chunks. Default 0 = zero regression.
+  # PLATFORM: SHARED harness (chunked runtime_pipeline_abi thin builder).
+  if [ "${G05_X_O_GLOBALS_WEAK:-0}" = "1" ]; then
+    perl -i -pe 's/^static ((?:(?:const|volatile)\s+)?\w[\w\s]*?\*?\s*g_\w+)/XLANG_WEAK $1/' "$_xtmp" || true
   fi
   # G-02f-458: 前端 *_gen.c .o 的符号重命名
   # 格式：G05_X_O_SYM_RENAME="old1:new1,old2:new2,..."
@@ -7506,6 +7515,28 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  try-x-to-o|x-to-o)
+    # F1-2026-08-18 chunked -E builder: generic rt_prefer harness entry for
+    # arbitrary (SRC.x, OUT.o) pairs. Purpose: split OOM-prone mega modules
+    # (runtime_pipeline_abi.x -E peaks 22-40GB RSS) into line-balanced chunks,
+    # each small enough for dev-box jetsam limits; caller merges chunk .o's
+    # via pure_ld_partial_merge (first-wins). Env passthrough (single
+    # authority stays rt_prefer_try_x_to_o — no second build path, G.7):
+    #   XLANG_PREFER_ASM_O_RT=0  → historic -E+$CC (chunk path default)
+    #   G05_X_O_WEAK=1           → weakify function defs (first-wins merge)
+    #   G05_X_O_GLOBALS_WEAK=1   → un-static + weakify g_* globals (shared
+    #                              storage across chunks; see weakify block)
+    # PLATFORM: SHARED harness.
+    if [ "$#" -lt 2 ]; then
+      echo "ensure_host_cc_seed_o try-x-to-o: need <src.x> <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    rt_prefer_try_x_to_o "$1" "$2"
+    _xrc=$?
+    set -e
+    exit "$_xrc"
+    ;;
   one)
     if [ "$#" -lt 2 ]; then
       echo "ensure_host_cc_seed_o one: need <out.o> <seed.from_x.c> [extra...]" >&2
@@ -7828,7 +7859,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-heat|try-r2|try-gen-x|try-x-to-o|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

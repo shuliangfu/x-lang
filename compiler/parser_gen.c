@@ -1142,6 +1142,8 @@ extern int parser_append_block_lets_from_res(struct ast_ASTArena * arena, int32_
 extern int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out);
 extern void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out);
 extern int32_t parser_wrap_block_ref_as_expr(struct ast_ASTArena * arena, int32_t block_ref, int32_t type_ref);
+/* Final-if zero-re-parse conversion (defined below; static). PLATFORM: SHARED. */
+static int32_t parser_if_stmt_parts_to_if_expr(struct ast_ASTArena * arena, int32_t cond_ref, int32_t then_blk, int32_t else_blk, int32_t type_ref);
 extern void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
 extern struct parser_ParseResult parser_parse(struct xlang_slice_uint8_t * source);
 extern int32_t parser_first_token_kind(struct xlang_slice_uint8_t * source);
@@ -3174,10 +3176,27 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           }
         }
         if ((((rpeek_fe.tok).kind) ==85)) {
-          struct parser_ParseExprResult if_dest_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = if_start };
-          (void)(parser_parse_if_expr_into(arena, if_start, source, type_ref, &(if_dest_res)));
-          if ((if_dest_res.ok)) {
-            (void)(((b.final_expr_ref) = (if_dest_res.expr_ref)));
+          /*
+           * Final-position if: convert the ALREADY parsed if-STMT triple into
+           * an EXPR_IF (parser_if_stmt_parts_to_if_expr) instead of re-parsing
+           * the whole chain via parser_parse_if_expr_into. The old re-parse
+           * doubled work per nesting level (2^N on deep else-chains; 29-deep
+           * pipeline_asm_emit_expr_elf_rec hit 22-40GB RSS and jetsam). Zero
+           * re-parse keeps block-final-if linear; conversion mirrors the
+           * expr-path shape (G.7 same rule). Fallback to stmt only on
+           * alloc failure. PLATFORM: SHARED.
+           */
+          int32_t if_expr_ref_c = parser_if_stmt_parts_to_if_expr(arena, if_cond, if_then, if_else, type_ref);
+          if ((if_expr_ref_c !=0)) {
+            /* Stale-b rollback guard: mid-body let runs append stmt_order after the
+             * last b refresh; writing the stale snapshot back would rewind
+             * num_stmt_order and drop those entries (host-C pre-let hoist then
+             * uses names before their C declaration). Refresh b so only
+             * final_expr_ref changes on a fresh snapshot. Same class applies to
+             * every break-final writeback in this loop.
+             * PLATFORM: SHARED. */
+            (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+            (void)(((b.final_expr_ref) = (if_expr_ref_c)));
             (void)(ast_ast_arena_block_set(arena, block_ref, b));
             (void)((r = rpeek_fe));
             break;
@@ -3237,6 +3256,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
         (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
         if ((((rpeek_fe.tok).kind) ==85)) {
+          /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+          (void)((b = ast_ast_arena_block_get(arena, block_ref)));
           (void)(((b.final_expr_ref) = bare_expr));
           (void)(ast_ast_arena_block_set(arena, block_ref, b));
           (void)((r = rpeek_fe));
@@ -3246,6 +3267,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           struct lexer_LexerResult rpeek_fe2 = (struct lexer_LexerResult){ .next_lex = (rpeek_fe.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
           (void)(lexer_next_into(&(rpeek_fe2), (rpeek_fe.next_lex), source));
           if ((((rpeek_fe2.tok).kind) ==85)) {
+            /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+            (void)((b = ast_ast_arena_block_get(arena, block_ref)));
             (void)(((b.final_expr_ref) = bare_expr));
             (void)(ast_ast_arena_block_set(arena, block_ref, b));
             (void)((r = rpeek_fe2));
@@ -3277,6 +3300,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
       (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
       (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
       if ((((rpeek_fe.tok).kind) ==85)) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
         (void)(ast_ast_arena_block_set(arena, block_ref, b));
         (void)((r = rpeek_fe));
@@ -3284,6 +3309,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
       }
       if ((parser_advance_past_stmt_semicolon_into(&(r), lex_cur, source) ==0)) {
         if ((((r.tok).kind) ==85)) {
+          /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+          (void)((b = ast_ast_arena_block_get(arena, block_ref)));
           (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
           (void)(ast_ast_arena_block_set(arena, block_ref, b));
           break;
@@ -3292,6 +3319,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         return;
       }
       if ((((r.tok).kind) ==85)) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
         (void)(ast_ast_arena_block_set(arena, block_ref, b));
         break;
@@ -3364,6 +3393,62 @@ int32_t parser_wrap_block_ref_as_expr(struct ast_ASTArena * arena, int32_t block
 extern void parser_parse_if_expr_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
 void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out) {
   (void)(parser_parse_if_expr_into_glue(arena, lex_at_if, source, type_ref, out));
+}
+/*
+ * Convert an already-parsed if-STMT triple (cond expr + then/else block refs,
+ * exactly what parser_parse_if_stmt_into returned) into an EXPR_IF node with
+ * zero re-parsing. ROOT FIX for the exponential block-final-if blowup: the
+ * old final-if path ran the full stmt parse and then a FULL re-parse via
+ * parser_parse_if_expr_into, doubling work and arena garbage per nesting
+ * level (2^N on deep else-chains; 29-deep pipeline_asm_emit_expr_elf_rec hit
+ * 22-40GB RSS and jetsam-killed dev boxes). Mirrors the expr-path shape
+ * (G.7 same rule): then/else wrapped as EXPR_BLOCK; implicit elif wraps
+ * (single if-STMT, final_expr_ref==0) unrolled recursively so the EXPR_IF
+ * chain shape matches the old re-parse output; missing else keeps 0.
+ * Returns EXPR_IF ref or 0 on alloc failure (caller falls back to stmt).
+ * PLATFORM: SHARED.
+ */
+static int32_t parser_if_stmt_parts_to_if_expr(struct ast_ASTArena * arena, int32_t cond_ref, int32_t then_blk, int32_t else_blk, int32_t type_ref) {
+  int32_t then_expr_ref = parser_wrap_block_ref_as_expr(arena, then_blk, type_ref);
+  if ((then_expr_ref ==0)) {
+    return 0;
+  }
+  int32_t else_expr_ref = 0;
+  if ((else_blk !=0)) {
+    struct ast_Block eb = ast_ast_arena_block_get(arena, else_blk);
+    if ((eb.final_expr_ref !=0)) {
+      /* Real else-block whose own parse already converted its inner final if. */
+      else_expr_ref = parser_wrap_block_ref_as_expr(arena, else_blk, type_ref);
+    } else {
+      if (((eb.num_if_stmts ==1) && (eb.num_stmt_order ==1))) {
+        /* Implicit elif wrap: single if-STMT; recurse to a direct EXPR_IF chain. */
+        int32_t ncond = ast_ast_block_if_cond_ref(arena, else_blk, 0);
+        int32_t nthen = ast_ast_block_if_then_body_ref(arena, else_blk, 0);
+        int32_t nelse = ast_ast_block_if_else_body_ref(arena, else_blk, 0);
+        else_expr_ref = parser_if_stmt_parts_to_if_expr(arena, ncond, nthen, nelse, type_ref);
+      } else {
+        else_expr_ref = parser_wrap_block_ref_as_expr(arena, else_blk, type_ref);
+      }
+    }
+    if ((else_expr_ref ==0)) {
+      return 0;
+    }
+  }
+  int32_t if_ref = ast_ast_arena_expr_alloc(arena);
+  if ((if_ref ==0)) {
+    return 0;
+  }
+  struct ast_Expr ie = ast_ast_arena_expr_get(arena, if_ref);
+  (void)(parser_expr_set_common_zeros(&(ie)));
+  (void)(((ie.kind) = 25)); /* EXPR_IF */
+  (void)(((ie.resolved_type_ref) = type_ref));
+  (void)(((ie.line) = 0));
+  (void)(((ie.col) = 0));
+  (void)(((ie.if_cond_ref) = cond_ref));
+  (void)(((ie.if_then_ref) = then_expr_ref));
+  (void)(((ie.if_else_ref) = else_expr_ref));
+  (void)(ast_ast_arena_expr_set(arena, if_ref, ie));
+  return if_ref;
 }
 struct parser_ParseResult parser_parse(struct xlang_slice_uint8_t * source) {
   {

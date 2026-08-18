@@ -9651,6 +9651,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let el: i32 = 0;
     let gl: i32 = 0;
     /*
+     * F1 TYPE_DYN(17): dyn LHS accepts any concrete RHS. Foundation-wave
+     * dyn is shape-only (concrete->dyn coerce + vtable are F2+), so the
+     * equal-ref gate must not fire for `x: dyn T = 0` style stores. Set in
+     * the final gate block; skips mismatch + slice-region checks like the
+     * wave643 compound-offset exemption. Same semantic authority as the
+     * let-init gate in typeck_check_block_one_let (single G.7 rule).
+     * PLATFORM: SHARED.
+     */
+    let dyn_assign_ok: i32 = 0;
+    /*
      * wave643: 1 when compound *T +=/-= integer offset is accepted (C-like ≡ p = p ± n).
      * Do not stamp RHS to *T (emit wave642 scales integer offset by sizeof(*p)).
      */
@@ -9880,7 +9890,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt)) {
-      if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0) {
+      /*
+       * F1 TYPE_DYN(17): dyn LHS accepts any concrete RHS. Foundation-wave
+       * dyn is shape-only (concrete->dyn coerce + vtable dispatch are F2+),
+       * so `x = 0` onto a dyn-declared LHS must not fire the equal-ref gate.
+       * Mirrors the let-init gate in typeck_check_block_one_let (single
+       * G.7 rule; same semantic authority, both sides in this commit).
+       * PLATFORM: SHARED.
+       */
+      if (pipeline_type_kind_ord_at(arena, lt) == TypeKind.TYPE_DYN as i32) {
+        dyn_assign_ok = 1;
+      }
+      if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0 && dyn_assign_ok == 0) {
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
         let rt_kind_mis: i32 = pipeline_type_kind_ord_at(arena, rt);
         /* wave314: f32→f64 is not a mismatch (emit promotes with cvtss2sd). */
@@ -9896,7 +9917,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       /* See implementation. */
-      if (ptr_compound_offset_ok == 0
+      if (ptr_compound_offset_ok == 0 && dyn_assign_ok == 0
       && typeck_check_slice_region_assign(arena, expr_ref, lt, rt) != 0) {
         return - 1;
       }
@@ -15543,7 +15564,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
           && pipeline_typeck_linear_accepts_init_c(arena, ld_tr, init_ty) == 0) {
         let decl_k2: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
         let init_k2: i32 = pipeline_type_kind_ord_at(arena, init_ty);
-        if (!typeck_float_widen_ok(decl_k2, init_k2)) {
+        /*
+         * F1 TYPE_DYN(17): dyn decl accepts any concrete init. Foundation
+         * dyn is shape-only (concrete->dyn coerce + vtable dispatch are
+         * F2+), so `let x: dyn T = 0` must not fire the mismatch gate.
+         * Mirrors the assign-path dyn_assign_ok rule (single G.7 rule;
+         * both sides live in this commit). PLATFORM: SHARED.
+         */
+        if (decl_k2 != TypeKind.TYPE_DYN as i32 && !typeck_float_widen_ok(decl_k2, init_k2)) {
           eb = driver_typeck_diag_scratch_expect();
           gb = driver_typeck_diag_scratch_found();
           el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96);

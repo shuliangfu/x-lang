@@ -3149,10 +3149,34 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         }
       }
       if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
-        let if_dest_res: ParseExprResult = { ok: false, expr_ref: 0, next_lex: if_start };
-        parse_if_expr_into(arena, if_start, source, type_ref, &if_dest_res);
-        if (if_dest_res.ok) {
-          b.final_expr_ref = if_dest_res.expr_ref;
+        /*
+         * Final-position if: convert the ALREADY parsed if-STMT triple into
+         * an EXPR_IF (if_stmt_parts_to_if_expr) instead of re-parsing the
+         * whole chain via parse_if_expr_into. The old re-parse doubled the
+         * work per nesting level (2^N on deep else-chains; 29-deep
+         * pipeline_asm_emit_expr_elf_rec hit 22-40GB RSS and jetsam). Zero
+         * re-parse keeps block-final-if linear and drops no semantic: the
+         * conversion mirrors parser_asm_parse_if_expr_into_c shape (same
+         * G.7 rule). Fallback to if-stmt append only on alloc failure.
+         * PLATFORM: SHARED.
+         */
+        let if_expr_ref_c: i32 = if_stmt_parts_to_if_expr(arena, if_cond, if_then, if_else, type_ref);
+        if (if_expr_ref_c != 0) {
+          /**
+           * Stale-b rollback guard. Mid-body let/const runs append stmt_order
+           * (kind=1) AFTER the last `b = ast_arena_block_get` refresh in the
+           * TOKEN_LET branch, then continue without re-reading. Writing that
+           * stale snapshot back here would rewind b.num_stmt_order and drop
+           * the just-appended order entries, so those lets fall out of
+           * stmt_order and host-C emit_block pre-let loop hoists them to the
+           * block top — initializer uses names before their C declaration.
+           * Refresh b so the writeback only sets final_expr_ref on a fresh
+           * snapshot. Same class applies to every break-final writeback in
+           * this loop (match / bare-block / expr-final).
+           * PLATFORM: SHARED.
+           */
+          b = ast.ast_arena_block_get(arena, block_ref);
+          b.final_expr_ref = if_expr_ref_c;
           ast.ast_arena_block_set(arena, block_ref, b);
           r = rpeek_fe;
           break;
@@ -3194,6 +3218,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         r = after_ms_blk;
       }
       if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        b = ast.ast_arena_block_get(arena, block_ref);
         b.final_expr_ref = match_blk_res.expr_ref;
         ast.ast_arena_block_set(arena, block_ref, b);
         break;
@@ -3282,6 +3308,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       rpeek_fe = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
       lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
       if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        b = ast.ast_arena_block_get(arena, block_ref);
         b.final_expr_ref = bare_expr;
         ast.ast_arena_block_set(arena, block_ref, b);
         r = rpeek_fe;
@@ -3291,6 +3319,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         let rpeek_fe2: LexerResult = { next_lex: rpeek_fe.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&rpeek_fe2, rpeek_fe.next_lex, source);
         if (rpeek_fe2.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+          /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+          b = ast.ast_arena_block_get(arena, block_ref);
           b.final_expr_ref = bare_expr;
           ast.ast_arena_block_set(arena, block_ref, b);
           r = rpeek_fe2;
@@ -3329,6 +3359,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     rpeek_fe = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
     if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+      /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+      b = ast.ast_arena_block_get(arena, block_ref);
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
       /* See implementation. */
@@ -3338,6 +3370,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     /* See implementation. */
     if (advance_past_stmt_semicolon_into(&r, lex_cur, source) == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        b = ast.ast_arena_block_get(arena, block_ref);
         b.final_expr_ref = expr_stmt_res.expr_ref;
         ast.ast_arena_block_set(arena, block_ref, b);
         break;
@@ -3346,6 +3380,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       return;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+      /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+      b = ast.ast_arena_block_get(arena, block_ref);
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
       break;
@@ -3427,6 +3463,78 @@ export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_re
   e.col = 0;
   ast.ast_arena_expr_set(arena, ref, e);
   return ref;
+  }
+}
+
+/**
+ * Convert an already-parsed if-STMT triple (cond expr + then/else block refs,
+ * exactly what parse_if_stmt_into returned) into an EXPR_IF node with zero
+ * re-parsing.
+ *
+ * ROOT FIX for the exponential block-final-if blowup: the old final-if path
+ * ran parse_if_stmt_into (full chain parse) and then parse_if_expr_into
+ * (full chain RE-parse), so every nesting level doubled the work and the
+ * arena garbage — 2^N on deep else-chains. `pipeline_asm_emit_expr_elf_rec`
+ * (29-deep else chain) peaked 22-40GB RSS and jetsam-killed the box; probes
+ * scale 2x per else level (N=15 -> 1.3GB, N=20 -> >2.5GB).
+ *
+ * Semantics mirror parser_asm_parse_if_expr_into_c exactly (G.7 same rule,
+ * single semantic authority):
+ *   - then/else blocks are wrapped via wrap_block_ref_as_expr (EXPR_BLOCK).
+ *   - direct `else if` chains: parse_if_stmt_into wraps each nested elif in
+ *     an implicit block holding ONE if-STMT (final_expr_ref==0); unwrap it
+ *     recursively so the EXPR_IF chain shape stays identical to the old
+ *     re-parse output. A real `else { if ... }` block has final_expr_ref!=0
+ *     (its own parse already converted the inner final if) and wraps as-is.
+ *   - missing else keeps if_else_ref = 0 (same as the C expr path).
+ * Returns the EXPR_IF ref, or 0 on alloc failure (caller falls back to the
+ * if-stmt append path).
+ * PLATFORM: SHARED.
+ */
+function if_stmt_parts_to_if_expr(arena: *ASTArena, cond_ref: i32, then_blk: i32, else_blk: i32, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+  let then_expr_ref: i32 = wrap_block_ref_as_expr(arena, then_blk, type_ref);
+  if (then_expr_ref == 0) {
+    return 0;
+  }
+  let else_expr_ref: i32 = 0;
+  if (else_blk != 0) {
+    let eb: Block = ast.ast_arena_block_get(arena, else_blk);
+    if (eb.final_expr_ref != 0) {
+      /* Real else-block whose own parse already converted its inner final if. */
+      else_expr_ref = wrap_block_ref_as_expr(arena, else_blk, type_ref);
+    } else {
+      if (eb.num_if_stmts == 1 && eb.num_stmt_order == 1) {
+        /* Implicit elif wrap: single if-STMT; recurse to a direct EXPR_IF
+         * chain (same shape the old re-parse produced). */
+        let ncond: i32 = ast.ast_block_if_cond_ref(arena, else_blk, 0);
+        let nthen: i32 = ast.ast_block_if_then_body_ref(arena, else_blk, 0);
+        let nelse: i32 = ast.ast_block_if_else_body_ref(arena, else_blk, 0);
+        else_expr_ref = if_stmt_parts_to_if_expr(arena, ncond, nthen, nelse, type_ref);
+      } else {
+        else_expr_ref = wrap_block_ref_as_expr(arena, else_blk, type_ref);
+      }
+    }
+    if (else_expr_ref == 0) {
+      return 0;
+    }
+  }
+  let if_ref: i32 = ast.ast_arena_expr_alloc(arena);
+  if (if_ref == 0) {
+    return 0;
+  }
+  let ie: Expr = ast.ast_arena_expr_get(arena, if_ref);
+  expr_set_common_zeros(&ie);
+  ie.kind = ExprKind.EXPR_IF;
+  ie.resolved_type_ref = type_ref;
+  ie.line = 0;
+  ie.col = 0;
+  ie.if_cond_ref = cond_ref;
+  ie.if_then_ref = then_expr_ref;
+  ie.if_else_ref = else_expr_ref;
+  ast.ast_arena_expr_set(arena, if_ref, ie);
+  return if_ref;
   }
 }
 

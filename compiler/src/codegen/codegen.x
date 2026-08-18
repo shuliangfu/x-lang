@@ -3981,6 +3981,14 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
       let s: u8[8] = [115, 115, 105, 122, 101, 95, 116, 0];
       return emit_bytes_8(out, &s[0], 7);
     }
+    // TYPE_DYN (17): fat trait object {data*, vtable*} host-C name.
+    // Same string as pipeline_codegen_type_to_c_repr tk==17 branch and as the
+    // XLANG_DYN_OBJ header struct tag. Must stay 20 bytes ("struct xlang_dyn_obj").
+    // PLATFORM: SHARED host-C. G.7 single authority — do NOT duplicate elsewhere.
+    if (kind_ord == (TypeKind.TYPE_DYN as i32)) {
+      let s: u8[22] = [115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0];
+      return emit_bytes_from_ptr(out, &s[0], 20);
+    }
     return -1;
   }
 }
@@ -4128,6 +4136,21 @@ export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind
     let s: u8[8] = [115, 115, 105, 122, 101, 95, 116, 0];
     let i: i32 = 0;
     while (i < 7) {
+      if (w >= cap - 1) {
+        return -1;
+      }
+      scratch[w] = s[i];
+      w = w + 1;
+      i = i + 1;
+    }
+    return w;
+  }
+  // TYPE_DYN (17): fat trait object host-C name. Twin of emit_type_kind
+  // TYPE_DYN branch; must stay 20 bytes. PLATFORM: SHARED host-C.
+  if (kind_ord == (TypeKind.TYPE_DYN as i32)) {
+    let s: u8[22] = [115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0];
+    let i: i32 = 0;
+    while (i < 20) {
       if (w >= cap - 1) {
         return -1;
       }

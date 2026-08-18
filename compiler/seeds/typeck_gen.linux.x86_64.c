@@ -8345,6 +8345,14 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     int32_t el = 0;
     int32_t gl = 0;
     int32_t ptr_compound_offset_ok = 0;
+    /*
+     * F1 TYPE_DYN(17): dyn LHS accepts any concrete RHS. Foundation-wave
+     * dyn is shape-only (concrete->dyn coerce + vtable are F2+), so the
+     * equal-ref gate must not fire for `x: dyn T = 0` style stores. Skips
+     * mismatch + slice-region checks like the wave643 compound-offset
+     * exemption. Mirrors typeck.x (single G.7 rule). PLATFORM: SHARED.
+     */
+    int32_t dyn_assign_ok = 0;
     if ((expr_kind ==ord_assign)) {
       (void)((compound_flag = 0));
     }
@@ -8501,7 +8509,11 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
       }
     }
     if ((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt)))) {
-      if ((!(typeck_type_refs_equal(arena, lt, rt)) && (ptr_compound_offset_ok ==0))) {
+      /* F1 TYPE_DYN(17): dyn LHS accepts any concrete RHS (shape-only). */
+      if ((pipeline_type_kind_ord_at(arena, lt) ==17)) {
+        (void)((dyn_assign_ok = 1));
+      }
+      if (((!(typeck_type_refs_equal(arena, lt, rt)) && ((ptr_compound_offset_ok ==0) && (dyn_assign_ok ==0))))) {
         (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
         int32_t rt_kind_mis = pipeline_type_kind_ord_at(arena, rt);
         /* [N]T → []T: accept without stamping (emit assign wrap keys off ARRAY). G.7 ≡ typeck.x. */
@@ -8514,7 +8526,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
           return -1;
         }
       }
-      if (((ptr_compound_offset_ok ==0) && (typeck_check_slice_region_assign(arena, expr_ref, lt, rt) !=0))) {
+      if (((((ptr_compound_offset_ok ==0) && (dyn_assign_ok ==0)) && (typeck_check_slice_region_assign(arena, expr_ref, lt, rt) !=0)))) {
         return -1;
       }
     }
@@ -12506,7 +12518,12 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
       if (((!(ast_ref_is_null(init_ty)) && !(typeck_type_refs_equal(arena, ld_tr, init_ty))) && (pipeline_typeck_linear_accepts_init_c_ASTArena_ptr_i32_i32_reti32(arena, ld_tr, init_ty) ==0))) {
         int32_t decl_k2 = pipeline_type_kind_ord_at(arena, ld_tr);
         int32_t init_k2 = pipeline_type_kind_ord_at(arena, init_ty);
-        if (!(typeck_float_widen_ok(decl_k2, init_k2))) {
+        /*
+         * F1 TYPE_DYN(17): dyn decl accepts any concrete init (shape-only).
+         * Mirrors the assign-path dyn_assign_ok rule (single G.7 rule).
+         * PLATFORM: SHARED.
+         */
+        if (((decl_k2 !=17) && !(typeck_float_widen_ok(decl_k2, init_k2)))) {
           (void)((eb = driver_typeck_diag_scratch_expect()));
           (void)((gb = driver_typeck_diag_scratch_found()));
           (void)((el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96)));

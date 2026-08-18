@@ -4490,6 +4490,14 @@ int32_t codegen_emit_type_kind(struct codegen_CodegenOutBuf * out, int32_t kind_
     uint8_t s[8] = {115, 115, 105, 122, 101, 95, 116, 0};
     return codegen_emit_bytes_8(out, &((s)[0]), 7);
   }
+  /* TYPE_DYN (17): fat trait object {data*, vtable*} host-C name.
+   * Twin of pipeline_codegen_type_to_c_repr tk==17 branch and XLANG_DYN_OBJ
+   * header struct tag. Must stay 20 bytes ("struct xlang_dyn_obj").
+   * PLATFORM: SHARED host-C. G.7 single authority — do NOT duplicate. */
+  if ((kind_ord ==17)) {
+    uint8_t s[22] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0};
+    return codegen_emit_bytes_from_ptr(out, &((s)[0]), 20);
+  }
   return -1;
 }
 int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int32_t w, int32_t kind_ord) {
@@ -4627,6 +4635,21 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
     uint8_t s[8] = {115, 115, 105, 122, 101, 95, 116, 0};
     int32_t i = 0;
     while ((i < 7)) {
+      if ((w >=(cap - 1))) {
+        return -1;
+      }
+      (void)(((scratch)[w] = (s)[i]));
+      (void)((w = (w + 1)));
+      (void)((i = (i + 1)));
+    }
+    return w;
+  }
+  /* TYPE_DYN (17): fat trait object host-C name. Twin of emit_type_kind
+   * TYPE_DYN branch; must stay 20 bytes. PLATFORM: SHARED host-C. */
+  if ((kind_ord ==17)) {
+    uint8_t s[22] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0};
+    int32_t i = 0;
+    while ((i < 20)) {
       if ((w >=(cap - 1))) {
         return -1;
       }

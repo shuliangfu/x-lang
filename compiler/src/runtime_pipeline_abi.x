@@ -15342,6 +15342,7 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   }
   // TYPE_DYN (17): fat trait object {data*, vtable*} — not incomplete struct Trait.
   // PLATFORM: SHARED host-C. G.7: same authority; empty-struct Trait paint banned.
+  // 20 bytes = strlen("struct xlang_dyn_obj"); twin of emit_type_kind TYPE_DYN branch.
   if (tk == 17) {
     return cg_ttc_write_bytes(scratch, cap, "struct xlang_dyn_obj", 20);
   }
