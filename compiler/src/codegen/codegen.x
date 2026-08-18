@@ -20088,6 +20088,208 @@ export function codegen_emit_dyn_vtable_close(arena: *ASTArena, out: *CodegenOut
 }
 
 /**
+ * F4: Emit module-level static vtable variables for every `impl Trait for Type`
+ * with a NAMED for-type (incl. PTR-to-NAMED). Each static is named
+ * `xlang_vtable_<Trait>_for_[Ptr_]<Type>` and contains a function-pointer
+ * array indexed by trait method declaration order (slot 0 = first method).
+ *
+ * Called from the codegen main flow after the forward-prototypes wall and
+ * before top_level_lets, so function declarations are visible (link names
+ * resolve) and lets that may reference vtables come after. Only emitted for
+ * the current module (dep_index < 0); dep modules emit their own statics in
+ * their own pass — no cross-module name collision in a co-emitted TU.
+ *
+ * For each impl block, the for-type name is reconstructed into a type_ref via
+ * `pipeline_type_find_or_alloc_named` (+ `pipeline_type_find_or_alloc_compound`
+ * for PTR-to-NAMED) so the existing `codegen_find_impl_method_for_type` can be
+ * reused (single G.7 authority for impl method lookup). Non-NAMED for-types
+ * (builtin) are skipped — coerce sites fall back to the F3 inline path.
+ *
+ * Trait/type names are sanitized to valid C identifiers (non-alnum → '_').
+ *
+ * @param arena AST arena.
+ * @param out codegen output buffer.
+ * @param ctx pipeline dep ctx (for module + prefix).
+ * @return 0 on success, -1 on emit failure.
+ * PLATFORM: SHARED — mirrors seeds/codegen_gen.linux.x86_64.c.
+ */
+export function codegen_emit_module_vtable_statics(arena: *ASTArena, out: *CodegenOutBuf,
+        ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+      return 0;
+    }
+    let cur_mod: *Module = ctx.current_codegen_module;
+    let n_impl: i32 = xlang_skip_impl_seen_count_c();
+    if (n_impl <= 0) {
+      return 0;
+    }
+    /* Kind ordinals (align XLANG_TRAIT_TY_* in parser_asm_skip_tl_slice.inc). */
+    let NAMED_KIND: i32 = 8;
+    let PTR_KIND: i32 = 9;
+    /* Byte literals for static vtable emission. */
+    /* "static void* " — 13 bytes. */
+    let static_kw: u8[13] = [115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 42, 32];
+    /* "xlang_vtable_" — 13 bytes. */
+    let vt_stem: u8[13] = [120, 108, 97, 110, 103, 95, 118, 116, 97, 98, 108, 101, 95];
+    /* "_for_" — 5 bytes. */
+    let for_kw: u8[5] = [95, 102, 111, 114, 95];
+    /* "Ptr_" — 4 bytes. */
+    let ptr_kw: u8[4] = [80, 116, 114, 95];
+    /* "[] = { " — 7 bytes. */
+    let arr_open: u8[7] = [91, 93, 32, 61, 32, 123, 32];
+    /* " };\n" — 4 bytes. */
+    let arr_close: u8[4] = [32, 125, 59, 10];
+    /* ", " — 2 bytes separator. */
+    let sep: u8[2] = [44, 32];
+    let si: i32 = 0;
+    while (si < n_impl) {
+      /* Read impl block's trait name + for-type info. */
+      let trait_nm: u8[64] = [];
+      let trait_nlen: i32 = xlang_skip_impl_trait_name_into_c(si, &trait_nm[0]);
+      if (trait_nlen <= 0) {
+        si = si + 1;
+        continue;
+      }
+      let for_k: i32 = 0;
+      let for_ptr: i32 = 0;
+      let for_nm: u8[64] = [];
+      let for_nlen: i32 = 0;
+      if (xlang_skip_impl_for_type_into_c(si, &for_k, &for_ptr, &for_nm[0], &for_nlen) == 0) {
+        si = si + 1;
+        continue;
+      }
+      /*
+       * F4 first cut: NAMED for-type only (incl. PTR-to-NAMED).
+       * Builtin for-types (for_k != NAMED) skip static emission; coerce
+       * site falls back to F3 inline path.
+       */
+      if (for_k != NAMED_KIND || for_nlen <= 0) {
+        si = si + 1;
+        continue;
+      }
+      /*
+       * Construct recv_rt via find_or_alloc (no-op alloc for existing
+       * names — typeck already populated NAMED for-types).
+       */
+      let recv_rt: i32 = pipeline_type_find_or_alloc_named(arena, &for_nm[0], for_nlen);
+      if (recv_rt <= 0) {
+        si = si + 1;
+        continue;
+      }
+      if (for_ptr != 0) {
+        recv_rt = pipeline_type_find_or_alloc_compound(arena, PTR_KIND, recv_rt, 0);
+        if (recv_rt <= 0) {
+          si = si + 1;
+          continue;
+        }
+      }
+      let meth_count: i32 = xlang_skip_trait_method_count_c(&trait_nm[0], trait_nlen);
+      if (meth_count <= 0) {
+        si = si + 1;
+        continue;
+      }
+      /* Emit "static void* ". */
+      if (emit_bytes_from_ptr(out, &static_kw[0], 13) != 0) {
+        return -1;
+      }
+      /* Emit "xlang_vtable_" + sanitize(trait_nm). */
+      if (emit_bytes_from_ptr(out, &vt_stem[0], 13) != 0) {
+        return -1;
+      }
+      /*
+       * Sanitize trait name: non-[A-Za-z0-9_] -> '_'. X language lexemes
+       * are already valid C identifiers in practice; sanitize is a safety net.
+       */
+      let ti: i32 = 0;
+      while (ti < trait_nlen && ti < 64) {
+        let b: u8 = trait_nm[ti];
+        let is_alnum_: i32 = 0;
+        if (b == 95) {
+          is_alnum_ = 1;
+        }
+        if (b >= 48 && b <= 57) {
+          is_alnum_ = 1;
+        }
+        if (b >= 65 && b <= 90) {
+          is_alnum_ = 1;
+        }
+        if (b >= 97 && b <= 122) {
+          is_alnum_ = 1;
+        }
+        if (is_alnum_ == 0) {
+          b = 95;
+        }
+        if (append_byte(out, b) != 0) {
+          return -1;
+        }
+        ti = ti + 1;
+      }
+      /* Emit "_for_". */
+      if (emit_bytes_from_ptr(out, &for_kw[0], 5) != 0) {
+        return -1;
+      }
+      /* Emit "Ptr_" if PTR-to-NAMED. */
+      if (for_ptr != 0) {
+        if (emit_bytes_from_ptr(out, &ptr_kw[0], 4) != 0) {
+          return -1;
+        }
+      }
+      /* Sanitize for-type name (same logic as trait name). */
+      let fi2: i32 = 0;
+      while (fi2 < for_nlen && fi2 < 64) {
+        let b2: u8 = for_nm[fi2];
+        let is_alnum2: i32 = 0;
+        if (b2 == 95) {
+          is_alnum2 = 1;
+        }
+        if (b2 >= 48 && b2 <= 57) {
+          is_alnum2 = 1;
+        }
+        if (b2 >= 65 && b2 <= 90) {
+          is_alnum2 = 1;
+        }
+        if (b2 >= 97 && b2 <= 122) {
+          is_alnum2 = 1;
+        }
+        if (is_alnum2 == 0) {
+          b2 = 95;
+        }
+        if (append_byte(out, b2) != 0) {
+          return -1;
+        }
+        fi2 = fi2 + 1;
+      }
+      /* Emit "[] = { ". */
+      if (emit_bytes_from_ptr(out, &arr_open[0], 7) != 0) {
+        return -1;
+      }
+      /* For each slot, call the shared slot payload helper (G.7 authority). */
+      let slot_i: i32 = 0;
+      while (slot_i < meth_count) {
+        if (slot_i > 0) {
+          if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+            return -1;
+          }
+        }
+        if (codegen_emit_vtable_slot_payload(out, arena, cur_mod, ctx,
+                &trait_nm[0], trait_nlen, slot_i, recv_rt) != 0) {
+          return -1;
+        }
+        slot_i = slot_i + 1;
+      }
+      /* Emit " };\n". */
+      if (emit_bytes_from_ptr(out, &arr_close[0], 4) != 0) {
+        return -1;
+      }
+      si = si + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * Emit monomorphized C instances for a generic function (wave443–450).
  *
  * wave443–444: multi-arg + mangled combos for identity shape `fn(x: T): T`.
@@ -23234,6 +23436,30 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             }
           }
           fwd_fi = fwd_fi + 1;
+        }
+        /*
+         * F4: per-impl vtable statics.
+         * Purpose: hoist F3 inline coerce-site vtable to module-level static
+         *   `xlang_vtable_<Trait>_for_[Ptr_]<Type>[N]` so multiple impls of the
+         *   same trait can coexist (F3 inline had no stable name and could not
+         *   be shared across coerce sites). Emitted only for the entry module
+         *   pass (dep_index < 0) because the impl registry is global across the
+         *   co-emitted TU; emitting per-module pass would duplicate definitions.
+         *   Statics are visible to all function bodies that follow (forward
+         *   prototypes wall above already declared impl method link names).
+         * Authority: codegen_emit_module_vtable_statics (G.7 single path) +
+         *   codegen_emit_vtable_slot_payload (shared per-slot payload).
+         * PLATFORM: SHARED — mirrors seeds/codegen_gen.linux.x86_64.c; verify
+         *   mac + Ubuntu option force-regen.
+         * First cut: NAMED for-type only; builtin for-types fall back to F3
+         *   inline path. Dep-module impls resolve to null slots here because
+         *   codegen_find_impl_method_for_type is module-scoped; multi-module
+         *   impls are a follow-up.
+         */
+        if (dep_index < 0) {
+          if (codegen_emit_module_vtable_statics(arena, out, ctx) != 0) {
+            return -1;
+          }
         }
         /* See implementation. */
         if (module.num_top_level_lets > 0) {
