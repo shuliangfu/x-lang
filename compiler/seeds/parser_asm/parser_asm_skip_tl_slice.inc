@@ -1467,6 +1467,36 @@ int32_t xlang_skip_trait_method_param_kind_c(const uint8_t *trait_nm, int32_t tr
 }
 
 /**
+ * Return the TypeKind ordinal of one trait-method formal's element type.
+ * Completes the F3 accessor family next to param_kind. wave426 already
+ * stores method_param_elem_kinds (leaf of `[]T` / `[N]T` / `*[N]T`).
+ * Typeck dyn extras cannot look up a module-func formal type_ref
+ * (func_ix is the vtable slot), so dest-SLICE ARRAY_LIT reuse
+ * typeck_coerce_init_slice_from_array after this + find_or_alloc_slice.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot/param invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                 int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_kinds[slot][param_ix];
+}
+
+/**
  * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
  * `for` type name when matching method param/ret signatures.
  *

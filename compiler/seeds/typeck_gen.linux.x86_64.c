@@ -469,6 +469,8 @@ extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int3
         int32_t slot);
 extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t param_ix);
+extern int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -11456,7 +11458,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           (void)((dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind)));
         }
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
-        /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64.
+        /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64
+         * and ARRAY_LIT extras to dest-SLICE ([]T, kind=11).
          * func_ix is the vtable slot — cannot typeck_stamp_resolved_args_float_lit.
          * Extra i → param i+1 (self=0). PLATFORM: SHARED. */
         (void)((num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref)));
@@ -11473,6 +11476,23 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
             if ((dyn_fty > 0)) {
               int32_t dyn_ak = pipeline_expr_kind_ord_at(arena, dyn_arg);
               (void)typeck_coerce_init_float_lit_to_decl(arena, dyn_arg, dyn_fty, dyn_pk, dyn_ak);
+            }
+          }
+          /* dest-SLICE extra: ARRAY_LIT stays TYPE_ARRAY after check_expr.
+           * Host-C / asm wrap fat only when resolved is TYPE_SLICE.
+           * G.7 reuse typeck_coerce_init_slice_from_array. Scalar elem only. */
+          if (((dyn_arg > 0) && (dyn_pk == 11))) {
+            int32_t dyn_eek = xlang_skip_trait_method_param_elem_kind_c(&((dyn_trait_nm)[0]),
+                    dyn_trait_nlen, dyn_slot, (arg_i + 1));
+            if (((((dyn_eek >= 0) && (dyn_eek != 8)) && (dyn_eek != 9))
+                    && ((dyn_eek != 10) && ((dyn_eek != 11) && (dyn_eek != 13))))) {
+              int32_t dyn_ety = pipeline_type_ensure_by_kind_ord(arena, dyn_eek);
+              if ((dyn_ety > 0)) {
+                int32_t dyn_sty = typeck_find_or_alloc_slice_type_ref(arena, dyn_ety);
+                if ((dyn_sty > 0)) {
+                  (void)typeck_coerce_init_slice_from_array(arena, dyn_arg, dyn_sty, 11);
+                }
+              }
             }
           }
           (void)((arg_i = (arg_i + 1)));

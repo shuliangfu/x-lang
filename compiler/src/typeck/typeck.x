@@ -78,6 +78,15 @@ export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_n
  */
 export extern function xlang_skip_trait_method_param_kind_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32, param_ix: i32): i32;
+/**
+ * Formal element TypeKind at trait-method param_ix (0 = self). -1 if missing.
+ * G.7: completes the skip-trait accessor family next to param_kind
+ * (registry already stores method_param_elem_kinds). Used so dyn extras
+ * can dest-stamp ARRAY_LIT as []T without a module-func type_ref.
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_elem_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -14009,11 +14018,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * call still dispatches correctly, only the cast is loose (F4 tightens).
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
-     * trait formal (f32=14 / f64=15). func_ix is the vtable slot — must not
-     * call typeck_stamp_resolved_args_float_lit (that looks up module-func
+     * trait formal (f32=14 / f64=15) and ARRAY_LIT extras to dest-SLICE
+     * (`[]T`, kind=11). func_ix is the vtable slot — must not call
+     * typeck_stamp_resolved_args_float_lit (that looks up module-func
      * params). Formal kinds come from xlang_skip_trait_method_param_kind_c
      * (registry already stored them at parse). Extra i → param i+1 (self=0).
-     * G.7 reuse typeck_coerce_init_float_lit_to_decl.
+     * G.7 reuse typeck_coerce_init_float_lit_to_decl and
+     * typeck_coerce_init_slice_from_array (no second stamp).
      * PLATFORM: SHARED — mirrors seeds/typeck_gen.linux.x86_64.c.
      */
     if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_dyn) {
@@ -14050,6 +14061,29 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             if (dyn_fty > 0) {
               let dyn_ak: i32 = pipeline_expr_kind_ord_at(arena, dyn_arg);
               typeck_coerce_init_float_lit_to_decl(arena, dyn_arg, dyn_fty, dyn_pk, dyn_ak);
+            }
+          }
+          /*
+           * dest-SLICE extra (`p: []i32`): ARRAY_LIT `[2, 4]` stays TYPE_ARRAY
+           * after check_expr. Host-C emit_call_arg_slice_abi and asm
+           * emit_expr_elf_for_call_args only wrap fat when resolved is
+           * TYPE_SLICE (UFCS already stamps via the module-func formal).
+           * Sit-red: dyn x.sums([2,4]) asm=1 / host-C=139; named local=7.
+           * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem only
+           * (NAMED/PTR/ARRAY/SLICE/VECTOR leftover). PLATFORM: SHARED.
+           */
+          if (dyn_arg > 0 && dyn_pk == 11) {
+            let dyn_eek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, arg_i + 1);
+            if (dyn_eek >= 0 && dyn_eek != 8 && dyn_eek != 9 && dyn_eek != 10
+                && dyn_eek != 11 && dyn_eek != 13) {
+              let dyn_ety: i32 = pipeline_type_ensure_by_kind_ord(arena, dyn_eek);
+              if (dyn_ety > 0) {
+                let dyn_sty: i32 = find_or_alloc_slice_type_ref(arena, dyn_ety);
+                if (dyn_sty > 0) {
+                  typeck_coerce_init_slice_from_array(arena, dyn_arg, dyn_sty, 11);
+                }
+              }
             }
           }
           arg_i = arg_i + 1;
