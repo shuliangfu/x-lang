@@ -3856,7 +3856,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
      *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
      *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
      *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
-     *   5. blr x2                — indirect call through wrapper fn ptr
+     *   5. extras → GP 1..5      — wrapper trampoline only touches x0/rdi
+     *   6. blr x2 (or scratch)   — indirect call through wrapper fn ptr
      * PLATFORM: SHARED — arm64 blr / x86_64 call rN / riscv64 jalr.
      */
     {
@@ -3864,18 +3865,84 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       if (dep_idx == -2) {
         int32_t slot = r_fn;
         if (slot < 0) { return -1; }
-        /* F7: &dyn_obj via lvalue LEA, not emit_expr (which loads .data). */
-        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        /*
+         * Extra method args occupy GP 1..5 after self in GP0.
+         * Wrapper is a trampoline (only touches x0/rdi); extras pass through.
+         * Do NOT glue_emit_one_call_arg — resolved_func_index is the vtable slot.
+         * G.7: emit_expr_elf_for_call_args. PLATFORM: SHARED.
+         */
+        if (nargs > 5)
           return -1;
+        {
+          int32_t extra_off[6];
+          int32_t ei;
+          int32_t arg_ex;
+          int32_t so_ex;
+          int32_t data_off;
+          int32_t fn_off;
+          int32_t cur_fn;
+          for (ei = 0; ei < nargs; ei++) {
+            extra_off[ei] = -1;
+            arg_ex = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
+            if (arg_ex == 0)
+              return -1;
+            if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ex, ctx, ta) != 0)
+              return -1;
+            so_ex = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+            if (so_ex < 0)
+              return -1;
+            extra_off[ei] = so_ex;
+          }
+          /* F7: &dyn_obj via lvalue LEA, not emit_expr (which loads .data). */
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            return -1;
+          }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 1, 0, 8, ta) != 0) { return -1; }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return -1; }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+          /* SysV first arg is rdi. Do not change wrapper rdi=data. */
+          if (ta == 0) {
+            if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
+          }
+          if (nargs <= 0) {
+            if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
+            return 0;
+          }
+          data_off = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+          if (data_off < 0)
+            return -1;
+          fn_off = -1;
+          if (nargs >= 2) {
+            cur_fn = ly->next_offset + 16;
+            if (cur_fn < 16)
+              cur_fn = 16;
+            fn_off = cur_fn;
+            if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 2, fn_off, ta) != 0)
+              return -1;
+            ly->next_offset = fn_off + 16;
+          }
+          for (ei = 0; ei < nargs; ei++) {
+            if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], ei + 1, 1) != 0)
+              return -1;
+          }
+          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, data_off, 0, 1) != 0)
+            return -1;
+          if (nargs >= 2) {
+            /* Non-arg scratch: x86 r11 / ARM64 x9. PLATFORM: LINUX x86 · MACOS ARM64. */
+            if (ta == 0) {
+              if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 11, 5, 0 - fn_off, ta) != 0)
+                return -1;
+              if (backend_enc_blr_arch(elf_ctx, 11, ta) != 0) { return -1; }
+            } else {
+              if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 9, 29, fn_off, ta) != 0)
+                return -1;
+              if (backend_enc_blr_arch(elf_ctx, 9, ta) != 0) { return -1; }
+            }
+            return 0;
+          }
+          if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
+          return 0;
         }
-        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 1, 0, 8, ta) != 0) { return -1; }
-        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return -1; }
-        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
-        if (ta == 0) {
-          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
-        }
-        if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
-        return 0;
       }
     }
     if (r_fn < 0 && nargs == 0 && name_len == 6 && base_ref != 0 && name[0] == (uint8_t)'d' &&

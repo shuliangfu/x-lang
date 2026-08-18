@@ -2078,6 +2078,8 @@ export function pipeline_asm_emit_call_args_text_c(
  * 1-GP `for_call_args` + `mov rax→rdi` dropped rdx. Same classify/spill/load as
  * import METHOD (wave214) and seed wave602. Export-sym mangle ≡ seed wave683.
  * f32/f64 extras: x86 SysV xmm0–7 (seed _impl already; .x was GP-only).
+ * F7 dyn (dep_idx==-2): extra method args pack into GP 1..5 after data in GP0.
+ * Wrapper rdi/x0=data is unchanged (trampoline only touches self).
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen context
  * @param expr_ref i32 — METHOD_CALL expr ref
@@ -2115,7 +2117,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
      *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
      *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
      *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
-     *   5. blr x2                — indirect call through wrapper fn ptr
+     *   5. extras → GP 1..5      — wrapper is a trampoline (only touches x0/rdi)
+     *   6. blr x2 (or scratch)   — indirect call through wrapper fn ptr
+     * Extra args must be packed after data: `x.add(3)` is wrapper(data, 3).
+     * Do NOT use glue_emit_one_call_arg here — resolved_func_index is the
+     * vtable slot, not an impl func, so formal lookup would alias func[slot].
+     * G.7: emit_expr_elf_for_call_args (same rvalue path as other extras).
      * Without this branch, dyn calls fall into try_inline_param0_single_field_call_elf
      * which reads dyn_obj.data low 4 bytes as a value → SIGBUS on later blr.
      */
@@ -2123,6 +2130,26 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (dep_idx == -2) {
       let slot: i32 = r_fn;
       if (slot < 0) { return 0 - 1; }
+      /* Remaining integer GPs after self (rdi/x0). SSE/stack extras leftover. */
+      if (nargs > 5) { return 0 - 1; }
+      /*
+       * Emit extras first (x0 not live yet), spill each to the frame.
+       * PLATFORM: SHARED — same spill/load as UFCS METHOD extras.
+       */
+      let extra_off: i32[6] = [];
+      let ei: i32 = 0;
+      while (ei < nargs) {
+        extra_off[ei] = 0 - 1;
+        let arg_ex: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
+        if (arg_ex == 0) { return 0 - 1; }
+        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ex, ctx, ta) != 0) {
+          return 0 - 1;
+        }
+        let so_ex: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (so_ex < 0) { return 0 - 1; }
+        extra_off[ei] = so_ex;
+        ei = ei + 1;
+      }
       /* F7: x0 must be &dyn_obj, not the loaded .data word. VAR/lvalue
        * receivers use the existing lvalue-LEA authority (G.7). emit_expr
        * would load the first 8 bytes (data ptr) and [x0,#8] would then
@@ -2136,11 +2163,54 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return 0 - 1; }
       /* x2 = wrapper fn ptr; load data ptr from dyn_obj+0 into x0 (self arg). */
       if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return 0 - 1; }
-      /* SysV first arg is rdi, not rax. ARM64 x0 is already arg0. */
+      /* SysV first arg is rdi, not rax. ARM64 x0 is already arg0. Do not change. */
       if (ta == 0) {
         if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
       }
-      /* blr x2 — indirect call through wrapper fn ptr. */
+      if (nargs <= 0) {
+        if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return 0 - 1; }
+        return 0;
+      }
+      /* Spill data (rax/x0 still holds the pointer). Extra loads go through rax. */
+      let data_off: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+      if (data_off < 0) { return 0 - 1; }
+      /* nargs>=2 extras occupy rdx/x2; park the fn ptr first. */
+      let fn_off: i32 = 0 - 1;
+      if (nargs >= 2) {
+        let cur_fn: i32 = call_dispatch_load_i32_le(ctx, 4);
+        fn_off = cur_fn + 16;
+        if (fn_off < 16) { fn_off = 16; }
+        if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 2, fn_off, ta) != 0) {
+          return 0 - 1;
+        }
+        call_dispatch_store_i32_le(ctx, 4, fn_off + 16);
+      }
+      ei = 0;
+      while (ei < nargs) {
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], ei + 1, 1) != 0) {
+          return 0 - 1;
+        }
+        ei = ei + 1;
+      }
+      if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, data_off, 0, 1) != 0) {
+        return 0 - 1;
+      }
+      if (nargs >= 2) {
+        /* Non-arg scratch: x86 r11 (hw 11) / ARM64 x9. PLATFORM: LINUX x86 · MACOS ARM64. */
+        if (ta == 0) {
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 11, 5, 0 - fn_off, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_blr_arch(elf_ctx, 11, ta) != 0) { return 0 - 1; }
+        } else {
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 9, 29, fn_off, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_blr_arch(elf_ctx, 9, ta) != 0) { return 0 - 1; }
+        }
+        return 0;
+      }
+      /* nargs==1: extra in rsi/x1; fn still in rdx/x2. */
       if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return 0 - 1; }
       return 0;
     }
