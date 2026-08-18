@@ -1582,6 +1582,48 @@ int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t *trait_nm, int32
 }
 
 /**
+ * Copy the TYPE_NAMED spelling of one trait-method formal into out64.
+ * Completes the F3 accessor family next to param_kind / param_elem_kind.
+ * The scanner already stores method_param_names for a bare `Pair` formal
+ * (and for a NAMED leaf of `*T` / `[]T` / `[N]T`). Typeck dyn extras
+ * cannot look up a module-func formal type_ref (func_ix is the vtable
+ * slot), so STRUCT_LIT dest-stamp reconstructs via this +
+ * find_or_alloc_named + typeck_coerce_init_struct_lit_to_decl
+ * (sit-red: host-C `(struct )` / asm run=162). Twin of
+ * xlang_skip_trait_method_ret_name_into_c. Extra i of a METHOD_CALL
+ * maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @param out64       output buffer of at least 64 bytes; must be non-null.
+ * @return name length (>0 on success), 0 if trait/slot/param invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                 int32_t slot, int32_t param_ix,
+                                                 uint8_t *out64) {
+  int32_t ti;
+  int32_t nlen;
+  int32_t i;
+  if (!trait_nm || trait_nlen <= 0 || !out64 || slot < 0 || param_ix < 0)
+    return 0;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return 0;
+  nlen = g_xlang_skip_trait_reg[ti].method_param_name_lens[slot][param_ix];
+  if (nlen <= 0 || nlen > 64)
+    return 0;
+  for (i = 0; i < nlen; i++)
+    out64[i] = g_xlang_skip_trait_reg[ti].method_param_names[slot][param_ix][i];
+  return nlen;
+}
+
+/**
  * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
  * `for` type name when matching method param/ret signatures.
  *

@@ -117,6 +117,24 @@ export extern function xlang_skip_trait_method_param_kind_c(trait_nm: *u8, trait
  */
 export extern function xlang_skip_trait_method_param_elem_kind_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32, param_ix: i32): i32;
+/**
+ * Copy the TYPE_NAMED spelling of one trait-method formal into out64.
+ * G.7: completes the skip-trait accessor family next to param_elem_kind
+ * (registry already stores method_param_names for a bare `Pair` formal).
+ * Dyn extras cannot look up a module-func formal type_ref (func_ix is
+ * the vtable slot), so STRUCT_LIT dest-stamp reconstructs via this +
+ * find_or_alloc_named + typeck_coerce_init_struct_lit_to_decl.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm *u8 — trait name bytes; must be non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot (0..num_methods-1)
+ * @param param_ix i32 — formal index including self (0 = self)
+ * @param out64 *u8 — destination buffer; caller owns; capacity >= 64
+ * @return i32 — name length (>0 on success), 0 if invalid or unset
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_name_into_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32, out64: *u8): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -14052,13 +14070,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * and PTR-to-NAMED still fall back to 0 (leftover).
      *
      * Extras: visit with check_expr, then stamp FLOAT_LIT / `-float` to the
-     * trait formal (f32=14 / f64=15) and ARRAY_LIT extras to dest-SLICE
-     * (`[]T`, kind=11). func_ix is the vtable slot — must not call
+     * trait formal (f32=14 / f64=15), ARRAY_LIT extras to dest-SLICE
+     * (`[]T`, kind=11), and STRUCT_LIT extras to dest-NAMED (`Pair`, kind=8).
+     * func_ix is the vtable slot — must not call
      * typeck_stamp_resolved_args_float_lit (that looks up module-func
      * params). Formal kinds come from xlang_skip_trait_method_param_kind_c
      * (registry already stored them at parse). Extra i → param i+1 (self=0).
-     * G.7 reuse typeck_coerce_init_float_lit_to_decl and
-     * typeck_coerce_init_slice_from_array (no second stamp).
+     * G.7 reuse typeck_coerce_init_float_lit_to_decl,
+     * typeck_coerce_init_slice_from_array, and
+     * typeck_coerce_init_struct_lit_to_decl (no second stamp).
      * PLATFORM: SHARED — mirrors seeds/typeck_gen.linux.x86_64.c.
      */
     if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_dyn) {
@@ -14178,6 +14198,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 if (dyn_sty > 0) {
                   typeck_coerce_init_slice_from_array(arena, dyn_arg, dyn_sty, 11);
                 }
+              }
+            }
+          }
+          /*
+           * dest-NAMED extra (`p: Pair`): anonymous STRUCT_LIT `{a:2,b:4}`
+           * stays nameless after check_expr. Host-C STRUCT_LIT emit uses
+           * struct_lit_struct_name → `(struct ){…}` (compile fail). Asm
+           * field stores miss the dest layout (sit-red run=162). Named
+           * local extra already 7; UFCS stamps via the module-func formal.
+           * G.7: reconstruct via param_name + find_or_alloc_named, then
+           * reuse typeck_coerce_init_struct_lit_to_decl (no second stamp).
+           * PLATFORM: SHARED.
+           */
+          if (dyn_arg > 0 && dyn_pk == 8) {
+            let dyn_pnm: u8[64] = [];
+            let dyn_pnl: i32 = xlang_skip_trait_method_param_name_into_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, arg_i + 1, &dyn_pnm[0]);
+            if (dyn_pnl > 0) {
+              let dyn_nty: i32 = find_or_alloc_named_type_ref(arena, &dyn_pnm[0], dyn_pnl);
+              if (dyn_nty > 0) {
+                typeck_coerce_init_struct_lit_to_decl(module, arena, dyn_arg, dyn_nty);
               }
             }
           }

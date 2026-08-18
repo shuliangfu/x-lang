@@ -477,6 +477,8 @@ extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, in
         int32_t slot, int32_t param_ix);
 extern int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t param_ix);
+extern int32_t xlang_skip_trait_method_param_name_into_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix, uint8_t * out64);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -11514,8 +11516,9 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           }
         }
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
-        /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64
-         * and ARRAY_LIT extras to dest-SLICE ([]T, kind=11).
+        /* G.7: visit extras then stamp FLOAT_LIT to trait formal f32/f64,
+         * ARRAY_LIT extras to dest-SLICE ([]T, kind=11), and STRUCT_LIT
+         * extras to dest-NAMED (Pair, kind=8).
          * func_ix is the vtable slot — cannot typeck_stamp_resolved_args_float_lit.
          * Extra i → param i+1 (self=0). PLATFORM: SHARED. */
         (void)((num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref)));
@@ -11548,6 +11551,21 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 if ((dyn_sty > 0)) {
                   (void)typeck_coerce_init_slice_from_array(arena, dyn_arg, dyn_sty, 11);
                 }
+              }
+            }
+          }
+          /* dest-NAMED extra (`p: Pair`): anonymous STRUCT_LIT stays nameless.
+           * Sit-red host-C `(struct )` / asm run=162. Named local already 7.
+           * G.7: param_name + find_or_alloc_named + coerce_init_struct_lit.
+           * Pin twin of typeck.x. PLATFORM: SHARED. */
+          if (((dyn_arg > 0) && (dyn_pk == 8))) {
+            uint8_t dyn_pnm[64] = {};
+            int32_t dyn_pnl = xlang_skip_trait_method_param_name_into_c(&((dyn_trait_nm)[0]),
+                    dyn_trait_nlen, dyn_slot, (arg_i + 1), &((dyn_pnm)[0]));
+            if ((dyn_pnl > 0)) {
+              int32_t dyn_nty = typeck_find_or_alloc_named_type_ref(arena, &((dyn_pnm)[0]), dyn_pnl);
+              if ((dyn_nty > 0)) {
+                (void)typeck_coerce_init_struct_lit_to_decl(module, arena, dyn_arg, dyn_nty);
               }
             }
           }
