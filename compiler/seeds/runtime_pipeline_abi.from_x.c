@@ -7084,6 +7084,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   int32_t rc;
   if (!m || !a || !elf_ctx || !pipeline_ctx)
     return -1;
+  /* F7: reset data section buffer at module start (single-threaded; vtable statics emit here). */
+  pipeline_elf_ctx_reset_data((uint8_t *)elf_ctx);
   pipeline_debug_trace_named_func_bodies("backend_pre_hoist_top_level_lets", m, a);
   if (m->num_top_level_lets > 0)
     pipeline_module_hoist_top_level_lets_into_main(m, a);
@@ -32321,6 +32323,9 @@ static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void 
   if (type_ref > nt)
     return 8;
   ko = pipeline_type_kind_ord_at(arena, type_ref);
+  /* F7: TYPE_DYN (17) fat {data, vtable} is 16 bytes. */
+  if (ko == 17)
+    return 16;
   if (ko == 8) {
     if (!mod)
       mod = pipeline_asm_glue_emit_module_ref();
@@ -34119,19 +34124,88 @@ int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes) {
 enum {
   PIPELINE_ELF_SHNX_TEXT = 1,
   PIPELINE_ELF_SHNX_TEXT_HOT = 2,
-  PIPELINE_ELF_SHNX_TEXT_UNLIKELY = 3
+  PIPELINE_ELF_SHNX_TEXT_UNLIKELY = 3,
+  /* F7: read-only data section for vtable static data with absolute pointer
+   * relocations. Maps to __DATA,__const on Mach-O. */
+  PIPELINE_ELF_SHNX_DATA = 4
 };
 
-/** 当前 emit 的 ELF 段索引：hot→2，PGO 冷路径→3，否则→1。 */
+/** 当前 emit 的 ELF 段索引：hot→2，PGO 冷路径→3，否则→1。
+ * F7: respects the shndx override (when non-zero, returns it so new
+ * relocs/syms/labels are tagged as data-section). */
 static int32_t pipeline_elf_ctx_current_shndx(PipelineElfCtxAccess *ctx) {
   if (!ctx)
     return PIPELINE_ELF_SHNX_TEXT;
+  if (g_pipeline_elf_shndx_override != 0)
+    return g_pipeline_elf_shndx_override;
   if (pipeline_elf_pgo_hot_enabled()) {
     if (ctx->emit_hot != 0)
       return PIPELINE_ELF_SHNX_TEXT_HOT;
     return PIPELINE_ELF_SHNX_TEXT_UNLIKELY;
   }
   return PIPELINE_ELF_SHNX_TEXT;
+}
+
+/**
+ * F7: Reset the data section buffer at module start.
+ * Must be called once per module BEFORE emitting any vtable statics.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+void pipeline_elf_ctx_reset_data(uint8_t *ctx_bytes) {
+  g_pipeline_elf_data_len = 0;
+  g_pipeline_elf_data_owner = ctx_bytes;
+}
+
+/**
+ * F7: Current data section length (bytes already emitted to data buf).
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return 0;
+  return g_pipeline_elf_data_len;
+}
+
+/**
+ * F7: Pointer to data section buffer start.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+uint8_t *pipeline_elf_ctx_data_data_ptr(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return 0;
+  return &g_pipeline_elf_data_buf[0];
+}
+
+/**
+ * F7: Append 4 bytes (little-endian u32) to the data section buffer.
+ * Returns 0 ok, -1 overflow/null.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx_bytes, uint32_t word) {
+  int32_t off;
+  if (!ctx_bytes)
+    return -1;
+  if (g_pipeline_elf_data_len < 0)
+    g_pipeline_elf_data_len = 0;
+  if (g_pipeline_elf_data_len + 4 > 65536)
+    return -1;
+  off = g_pipeline_elf_data_len;
+  g_pipeline_elf_data_buf[off] = (uint8_t)(word & 255);
+  g_pipeline_elf_data_buf[off + 1] = (uint8_t)((word >> 8) & 255);
+  g_pipeline_elf_data_buf[off + 2] = (uint8_t)((word >> 16) & 255);
+  g_pipeline_elf_data_buf[off + 3] = (uint8_t)((word >> 24) & 255);
+  g_pipeline_elf_data_len = off + 4;
+  return 0;
+}
+
+/**
+ * F7: Set/clear shndx override. When set to 4 (data section), subsequent
+ * relocs/syms/labels are tagged as data-section. Set to 0 to restore default.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx_bytes, int32_t shndx) {
+  (void)ctx_bytes;
+  g_pipeline_elf_shndx_override = shndx;
 }
 
 /** 按段索引取 code 缓冲指针（unlikely 与 legacy .text 共用 code_data）。 */
@@ -34206,6 +34280,17 @@ static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
  */
 static int32_t g_pipeline_elf_reloc_r_type[PIPELINE_ELF_CTX_TABLE_CAP];
 static int8_t g_pipeline_elf_reloc_r_pcrel[PIPELINE_ELF_CTX_TABLE_CAP];
+
+/* F7: data section buffer for vtable static data (read-only data with absolute
+ * pointer relocations; cannot live in __TEXT,__text which is pure_instructions).
+ * Single-threaded compile; reset per-module via pipeline_elf_ctx_reset_data. */
+static uint8_t g_pipeline_elf_data_buf[65536];
+static int32_t g_pipeline_elf_data_len;
+static uint8_t *g_pipeline_elf_data_owner;
+/* F7: shndx override (0 = no override; 4 = data section). When non-zero,
+ * pipeline_elf_ctx_current_shndx returns this value, so new relocs/syms/labels
+ * are tagged as data-section. Single-threaded compile; safe as a global mutable. */
+static int32_t g_pipeline_elf_shndx_override;
 
 static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
   g_pipeline_elf_common_owner = ctx_bytes;
@@ -34886,6 +34971,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   int32_t cpusubtype;
   uint8_t hdr[32];
   uint8_t seg[152];
+  uint8_t seg2[152]; /* F7: second LC_SEGMENT_64 for __DATA,__const */
   uint8_t lc_bv[24];
   uint8_t lc_sym[24];
   uint8_t nlist0[16];
@@ -34896,6 +34982,25 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   int32_t str_off;
   int32_t uu;
   int32_t r;
+  /* F7: data section (vtable statics with absolute pointer relocs). */
+  int32_t data_len;
+  uint8_t *data_buf;
+  int32_t off_data;
+  int32_t nr_text;
+  int32_t nr_data;
+  int32_t rc_i;
+  int32_t off_reloc_text;
+  int32_t off_reloc_data;
+  int32_t pad_data;
+  int32_t pd;
+  int32_t pass;
+  int32_t want_data;
+  int32_t is_data;
+  int32_t r_sd;
+  int32_t sym_shndx;
+  int32_t n_sect;
+  int32_t data_vmaddr;
+  int32_t n_val;
   int32_t rel_type;
   int32_t rel_len;
   extern void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx);
@@ -34974,11 +35079,33 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   symtab_size = symtab_ents * 16;
   reloc_size = ctx->num_relocs * 8;
   lc_build_size = 24;
-  sizeofcmds = 152 + lc_build_size + 24;
+  /* F7: sizeofcmds now includes a second LC_SEGMENT_64 for __DATA,__const. */
+  sizeofcmds = 152 + 152 + lc_build_size + 24;
   off_text = 32 + sizeofcmds;
-  off_sym = (off_text + code_len + 3) & (int32_t)0xFFFFFFFCu;
+  /* F7: data section (vtable statics with absolute pointer relocs). */
+  data_len = g_pipeline_elf_data_len;
+  if (data_len < 0)
+    data_len = 0;
+  data_buf = &g_pipeline_elf_data_buf[0];
+  off_data = (off_text + code_len + 3) & (int32_t)0xFFFFFFFCu;
+  off_sym = (off_data + data_len + 3) & (int32_t)0xFFFFFFFCu;
   off_str = off_sym + symtab_size;
-  off_reloc = off_str + strtab_size;
+  /* F7: split reloc table — text relocs first, then data relocs. Count by
+   * shndx sidecar so each section header points to its own reloc range. */
+  nr_text = 0;
+  nr_data = 0;
+  rc_i = 0;
+  while (rc_i < ctx->num_relocs) {
+    int32_t sd = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, rc_i);
+    if (sd == PIPELINE_ELF_SHNX_DATA)
+      nr_data = nr_data + 1;
+    else
+      nr_text = nr_text + 1;
+    rc_i = rc_i + 1;
+  }
+  off_reloc_text = off_str + strtab_size;
+  off_reloc_data = off_reloc_text + nr_text * 8;
+  off_reloc = off_reloc_text; /* keep for backward compat (text relocs) */
   (void)reloc_size;
 
   codegen_out_buf_set_len(out, 0);
@@ -35007,8 +35134,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   hdr[11] = (uint8_t)((cpusubtype >> 24) & 255);
   /* MH_OBJECT = 1 */
   hdr[12] = 1;
-  /* ncmds = 3: LC_SEGMENT_64 + LC_BUILD_VERSION + LC_SYMTAB */
-  hdr[16] = 3;
+  /* ncmds = 4: LC_SEGMENT_64(__TEXT) + LC_SEGMENT_64(__DATA) + LC_BUILD_VERSION + LC_SYMTAB */
+  hdr[16] = 4;
   hdr[20] = (uint8_t)(sizeofcmds & 255);
   hdr[21] = (uint8_t)((sizeofcmds >> 8) & 255);
   hdr[22] = (uint8_t)((sizeofcmds >> 16) & 255);
@@ -35068,18 +35195,92 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   seg[121] = (uint8_t)((off_text >> 8) & 255);
   seg[122] = (uint8_t)((off_text >> 16) & 255);
   seg[123] = (uint8_t)((off_text >> 24) & 255);
-  seg[128] = (uint8_t)(off_reloc & 255);
-  seg[129] = (uint8_t)((off_reloc >> 8) & 255);
-  seg[130] = (uint8_t)((off_reloc >> 16) & 255);
-  seg[131] = (uint8_t)((off_reloc >> 24) & 255);
-  seg[132] = (uint8_t)(ctx->num_relocs & 255);
-  seg[133] = (uint8_t)((ctx->num_relocs >> 8) & 255);
+  /* F7: __TEXT,__text reloc table now only covers text-section relocs. */
+  seg[128] = (uint8_t)(off_reloc_text & 255);
+  seg[129] = (uint8_t)((off_reloc_text >> 8) & 255);
+  seg[130] = (uint8_t)((off_reloc_text >> 16) & 255);
+  seg[131] = (uint8_t)((off_reloc_text >> 24) & 255);
+  seg[132] = (uint8_t)(nr_text & 255);
+  seg[133] = (uint8_t)((nr_text >> 8) & 255);
   /* S_ATTR_SOME_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS */
   seg[136] = 0;
   seg[137] = 0;
   seg[138] = 4;
   seg[139] = 128;
   if (pipeline_elf_out_append(out, seg, 152) != 0)
+    return -1;
+
+  /* F7: emit second LC_SEGMENT_64 for __DATA,__const (vtable static data).
+   * This segment is writable at link time (initprot=rw-) so absolute 64-bit
+   * pointer relocations (ARM64_RELOC_UNSIGNED) can be applied; ld rejects
+   * these in __TEXT,__text which is pure_instructions.
+   * Layout: segment_command_64 (72 bytes) + section_64 (80 bytes) = 152.
+   * MH_OBJECT: __DATA.vmaddr MUST NOT overlap __TEXT.vmaddr+[0,vmsize).
+   * Both at 0 with nonzero vmsize → ld "vm range overlaps". Place __DATA at
+   * code_len (section addrs sequential, clang MH_OBJECT style). */
+  data_vmaddr = code_len;
+  if (data_vmaddr < 0)
+    data_vmaddr = 0;
+  /* Pointer slots require 8-byte alignment (ld: "pointer not aligned"). */
+  data_vmaddr = (data_vmaddr + 7) & ~7;
+  memset(seg2, 0, sizeof(seg2));
+  seg2[0] = 25;  /* LC_SEGMENT_64 */
+  seg2[4] = 152; /* cmdsize */
+  seg2[8] = 95; seg2[9] = 95; seg2[10] = 68; seg2[11] = 65; seg2[12] = 84; seg2[13] = 65;  /* "__DATA" */
+  /* vmaddr = data_vmaddr (non-overlapping with __TEXT at 0) */
+  seg2[24] = (uint8_t)(data_vmaddr & 255);
+  seg2[25] = (uint8_t)((data_vmaddr >> 8) & 255);
+  seg2[26] = (uint8_t)((data_vmaddr >> 16) & 255);
+  seg2[27] = (uint8_t)((data_vmaddr >> 24) & 255);
+  /* vmsize / filesize = data_len; fileoff = off_data */
+  seg2[32] = (uint8_t)(data_len & 255);
+  seg2[33] = (uint8_t)((data_len >> 8) & 255);
+  seg2[34] = (uint8_t)((data_len >> 16) & 255);
+  seg2[35] = (uint8_t)((data_len >> 24) & 255);
+  seg2[40] = (uint8_t)(off_data & 255);
+  seg2[41] = (uint8_t)((off_data >> 8) & 255);
+  seg2[42] = (uint8_t)((off_data >> 16) & 255);
+  seg2[43] = (uint8_t)((off_data >> 24) & 255);
+  seg2[48] = (uint8_t)(data_len & 255);
+  seg2[49] = (uint8_t)((data_len >> 8) & 255);
+  seg2[50] = (uint8_t)((data_len >> 16) & 255);
+  seg2[51] = (uint8_t)((data_len >> 24) & 255);
+  /* maxprot=rwx(7), initprot=rw-(3) */
+  seg2[56] = 7;
+  seg2[60] = 3;
+  seg2[64] = 1;  /* nsects = 1 */
+  /* section_64.sectname = "__const" at seg2+72 */
+  seg2[72] = 95; seg2[73] = 95; seg2[74] = 99; seg2[75] = 111; seg2[76] = 110; seg2[77] = 115; seg2[78] = 116;
+  /* section_64.segname = "__DATA" at seg2+88 */
+  seg2[88] = 95; seg2[89] = 95; seg2[90] = 68; seg2[91] = 65; seg2[92] = 84; seg2[93] = 65;
+  /* section_64.addr = data_vmaddr (match segment vmaddr) */
+  seg2[104] = (uint8_t)(data_vmaddr & 255);
+  seg2[105] = (uint8_t)((data_vmaddr >> 8) & 255);
+  seg2[106] = (uint8_t)((data_vmaddr >> 16) & 255);
+  seg2[107] = (uint8_t)((data_vmaddr >> 24) & 255);
+  /* section_64.size = data_len */
+  seg2[112] = (uint8_t)(data_len & 255);
+  seg2[113] = (uint8_t)((data_len >> 8) & 255);
+  seg2[114] = (uint8_t)((data_len >> 16) & 255);
+  seg2[115] = (uint8_t)((data_len >> 24) & 255);
+  /* section_64.offset = off_data */
+  seg2[120] = (uint8_t)(off_data & 255);
+  seg2[121] = (uint8_t)((off_data >> 8) & 255);
+  seg2[122] = (uint8_t)((off_data >> 16) & 255);
+  seg2[123] = (uint8_t)((off_data >> 24) & 255);
+  /* section_64.reloff = off_reloc_data */
+  seg2[128] = (uint8_t)(off_reloc_data & 255);
+  seg2[129] = (uint8_t)((off_reloc_data >> 8) & 255);
+  seg2[130] = (uint8_t)((off_reloc_data >> 16) & 255);
+  seg2[131] = (uint8_t)((off_reloc_data >> 24) & 255);
+  /* section_64.align = 2^3 (8-byte pointers) */
+  seg2[124] = 3;
+  /* section_64.nreloc = nr_data */
+  seg2[132] = (uint8_t)(nr_data & 255);
+  seg2[133] = (uint8_t)((nr_data >> 8) & 255);
+  /* section_64.flags = 0 (S_REGULAR) */
+  seg2[136] = 0; seg2[137] = 0; seg2[138] = 0; seg2[139] = 0;
+  if (pipeline_elf_out_append(out, seg2, 152) != 0)
     return -1;
 
   /* LC_BUILD_VERSION: platform=macOS(1), minos/sdk=11.0.0 */
@@ -35123,8 +35324,21 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
 
   if (code_len > 0 && code && pipeline_elf_out_append(out, code, code_len) != 0)
     return -1;
-  pad = off_sym - off_text - code_len;
   z0[0] = 0;
+  /* F7: padding between text and data (alignment 4); always emit so the file
+   * position lands at off_data regardless of whether the data section is used. */
+  pad_data = off_data - off_text - code_len;
+  pd = 0;
+  while (pd < pad_data) {
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    pd = pd + 1;
+  }
+  /* F7: emit data section bytes (__DATA,__const). */
+  if (data_len > 0 && data_buf && pipeline_elf_out_append(out, data_buf, data_len) != 0)
+    return -1;
+  /* F7: pad now spans from end of data to start of symtab (was: text to symtab). */
+  pad = off_sym - off_data - data_len;
   z = 0;
   while (z < pad) {
     if (pipeline_elf_out_append(out, z0, 1) != 0)
@@ -35167,13 +35381,22 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       ent[10] = (uint8_t)((csize >> 16) & 255);
       ent[11] = (uint8_t)((csize >> 24) & 255);
     } else {
-      /* N_SECT|N_EXT = 0x0f, n_sect = 1 */
+      /* N_SECT|N_EXT = 0x0f; F7: n_sect based on symbol's shndx
+       * (1 = __TEXT,__text; 2 = __DATA,__const).
+       * n_value = section addr + offset-in-section (data section addr = data_vmaddr). */
+      sym_shndx = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+      n_sect = 1;
+      n_val = sym_va;
+      if (sym_shndx == PIPELINE_ELF_SHNX_DATA) {
+        n_sect = 2;
+        n_val = data_vmaddr + sym_va;
+      }
       ent[4] = 15;
-      ent[5] = 1;
-      ent[8] = (uint8_t)(sym_va & 255);
-      ent[9] = (uint8_t)((sym_va >> 8) & 255);
-      ent[10] = (uint8_t)((sym_va >> 16) & 255);
-      ent[11] = (uint8_t)((sym_va >> 24) & 255);
+      ent[5] = (uint8_t)n_sect;
+      ent[8] = (uint8_t)(n_val & 255);
+      ent[9] = (uint8_t)((n_val >> 8) & 255);
+      ent[10] = (uint8_t)((n_val >> 16) & 255);
+      ent[11] = (uint8_t)((n_val >> 24) & 255);
     }
     if (pipeline_elf_out_append(out, ent, 16) != 0)
       return -1;
@@ -35240,70 +35463,94 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     rel_type = 2;
     rel_len = 2;
   }
-  r = 0;
-  while (r < ctx->num_relocs) {
-    uint8_t ri[8];
-    int32_t sym_idx = 0;
-    int32_t found_def = 0;
-    int32_t m = 0;
-    uint8_t r_sym_buf[128];
-    int32_t rlen;
-    int32_t r_sym;
-    int32_t word2;
-    int32_t roff;
-    int32_t use_type;
-    int32_t use_pcrel;
-    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
-    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
-    while (m < ctx->num_syms) {
-      int32_t off = pipeline_elf_sym_name_off(ctx, m);
-      if (pipeline_macho_name_eq(r_sym_buf, rlen, sym_pool + off, ctx->syms[m].name_len) != 0) {
-        sym_idx = m;
-        found_def = 1;
-        break;
+  /* F7: two-pass reloc emission — text-section relocs first (shndx != 4),
+   * then data-section relocs (shndx == 4). Sequential append matches the file
+   * layout: off_reloc_text then off_reloc_data. */
+  pass = 0;
+  while (pass < 2) {
+    want_data = (pass == 1) ? 1 : 0;
+    r = 0;
+    while (r < ctx->num_relocs) {
+      uint8_t ri[8];
+      int32_t sym_idx = 0;
+      int32_t found_def = 0;
+      int32_t m = 0;
+      uint8_t r_sym_buf[128];
+      int32_t rlen;
+      int32_t r_sym;
+      int32_t word2;
+      int32_t roff;
+      int32_t use_type;
+      int32_t use_pcrel;
+      int32_t eff_len;
+      r_sd = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
+      is_data = (r_sd == PIPELINE_ELF_SHNX_DATA) ? 1 : 0;
+      if (is_data != want_data) {
+        r = r + 1;
+        continue;
       }
-      m = m + 1;
-    }
-    if (found_def == 0) {
-      int32_t uslot = -1;
-      int32_t us2 = 0;
-      while (us2 < nu) {
-        uint8_t sr2_buf[128];
-        int32_t sr2 = und_src_reloc[us2];
-        pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr2, sr2_buf);
-        if (pipeline_macho_name_eq(r_sym_buf, rlen, sr2_buf, und_lens[us2]) != 0) {
-          uslot = us2;
+      pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+      rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+      while (m < ctx->num_syms) {
+        int32_t off = pipeline_elf_sym_name_off(ctx, m);
+        if (pipeline_macho_name_eq(r_sym_buf, rlen, sym_pool + off, ctx->syms[m].name_len) != 0) {
+          sym_idx = m;
+          found_def = 1;
           break;
         }
-        us2 = us2 + 1;
+        m = m + 1;
       }
-      if (uslot < 0) {
-        driver_diagnostic_asm_macho_missing_und_reloc(r);
+      if (found_def == 0) {
+        int32_t uslot = -1;
+        int32_t us2 = 0;
+        while (us2 < nu) {
+          uint8_t sr2_buf[128];
+          int32_t sr2 = und_src_reloc[us2];
+          pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr2, sr2_buf);
+          if (pipeline_macho_name_eq(r_sym_buf, rlen, sr2_buf, und_lens[us2]) != 0) {
+            uslot = us2;
+            break;
+          }
+          us2 = us2 + 1;
+        }
+        if (uslot < 0) {
+          driver_diagnostic_asm_macho_missing_und_reloc(r);
+          return -1;
+        }
+        sym_idx = ctx->num_syms + uslot;
+      }
+      use_type = rel_type;
+      use_pcrel = 1;
+      if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[r] != 0)
+        use_type = g_pipeline_elf_reloc_r_type[r];
+      if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_pcrel[r] >= 0)
+        use_pcrel = (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
+      /* F7 absolute64: sentinel r_type=200 → ARM64_RELOC_UNSIGNED (type=0, pcrel=0,
+       * length=3 quad-word). Without this vtable data slots fall to default
+       * BRANCH26 and ld rejects ("relocation on non-b/bl instruction"). */
+      eff_len = rel_len;
+      if (use_type == 200) {
+        use_type = 0;
+        use_pcrel = 0;
+        eff_len = 3;
+      }
+      /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel; r_length; r_extern=1; r_type */
+      r_sym = sym_idx + 1;
+      word2 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (eff_len << 25) | (1 << 27) | (use_type << 28);
+      roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+      ri[0] = (uint8_t)(roff & 255);
+      ri[1] = (uint8_t)((roff >> 8) & 255);
+      ri[2] = (uint8_t)((roff >> 16) & 255);
+      ri[3] = (uint8_t)((roff >> 24) & 255);
+      ri[4] = (uint8_t)(word2 & 255);
+      ri[5] = (uint8_t)((word2 >> 8) & 255);
+      ri[6] = (uint8_t)((word2 >> 16) & 255);
+      ri[7] = (uint8_t)((word2 >> 24) & 255);
+      if (pipeline_elf_out_append(out, ri, 8) != 0)
         return -1;
-      }
-      sym_idx = ctx->num_syms + uslot;
+      r = r + 1;
     }
-    use_type = rel_type;
-    use_pcrel = 1;
-    if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[r] != 0)
-      use_type = g_pipeline_elf_reloc_r_type[r];
-    if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_pcrel[r] >= 0)
-      use_pcrel = (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
-    /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel; r_length; r_extern=1; r_type */
-    r_sym = sym_idx + 1;
-    word2 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (rel_len << 25) | (1 << 27) | (use_type << 28);
-    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
-    ri[0] = (uint8_t)(roff & 255);
-    ri[1] = (uint8_t)((roff >> 8) & 255);
-    ri[2] = (uint8_t)((roff >> 16) & 255);
-    ri[3] = (uint8_t)((roff >> 24) & 255);
-    ri[4] = (uint8_t)(word2 & 255);
-    ri[5] = (uint8_t)((word2 >> 8) & 255);
-    ri[6] = (uint8_t)((word2 >> 16) & 255);
-    ri[7] = (uint8_t)((word2 >> 24) & 255);
-    if (pipeline_elf_out_append(out, ri, 8) != 0)
-      return -1;
-    r = r + 1;
+    pass = pass + 1;
   }
   return codegen_out_buf_len(out);
 }
@@ -36093,7 +36340,10 @@ int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name
   ctx->sym_name_len = ctx->sym_name_len + copy_len;
   ctx->syms[ctx->num_syms].name_len = copy_len;
   ctx->syms[ctx->num_syms].offset = offset;
-  if (pipeline_elf_pgo_hot_enabled() != 0 && ctx->emit_hot != 0)
+  /* F7: respect shndx override (data section for vtable statics). */
+  if (g_pipeline_elf_shndx_override != 0)
+    shndx = g_pipeline_elf_shndx_override;
+  else if (pipeline_elf_pgo_hot_enabled() != 0 && ctx->emit_hot != 0)
     shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
   else if (pipeline_elf_pgo_hot_enabled() != 0)
     shndx = PIPELINE_ELF_SHNX_TEXT_UNLIKELY;
@@ -36457,6 +36707,18 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
       g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)(r_pcrel != 0 ? 1 : 0);
   }
   return 0;
+}
+
+/* F7: Append an absolute 64-bit pointer relocation (data slot holding a symbol
+ * address). Mirrors .x pipeline_elf_ctx_append_reloc_absolute64. Sentinel
+ * r_type=200 (mapped by writers to ARM64_RELOC_UNSIGNED / R_X86_64_64 /
+ * R_AARCH64_ABS64 / R_RISCV_64) with r_pcrel=0. The untyped append_reloc
+ * defaults to a pc-relative branch reloc (Mach-O BRANCH26) which ld rejects on
+ * non-b/bl bytes; vtable static data slots need this absolute64 form instead.
+ * PLATFORM: SHARED — G.7 single authority for absolute64. */
+int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx_bytes, int32_t offset,
+                                                 uint8_t *name, int32_t name_len) {
+  return pipeline_elf_ctx_append_reloc_typed(ctx_bytes, offset, name, name_len, 200, 0);
 }
 
 /** 返回 reloc_sym_names[idx] 首地址；越界返回 NULL（含 heap sidecar）。 */
@@ -38066,6 +38328,9 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
   struct ast_Func *f;
   int32_t id;
   if (!g_asm_wpo.valid)
+    return 1;
+  /* F7: impl methods marked used by vtable wrapper emit (no WPO call edge). */
+  if (m && fi >= 0 && pipeline_module_func_is_used_at(m, fi) != 0)
     return 1;
   f = module_func_at(m, fi);
   if (!f || f->is_extern)

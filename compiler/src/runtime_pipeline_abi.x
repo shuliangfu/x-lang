@@ -17071,6 +17071,12 @@ export function pipeline_backend_asm_codegen_ast_c(m: *u8, a: *u8, out: *u8, pip
 // PLATFORM: SHARED — G.7 twin of codegen_emit_module_vtable_statics.
 export extern function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32,
         module: *u8, arena: *u8): i32;
+/**
+ * F7: TYPE_DYN let-init fat-pointer materialize. Returns 1 handled / 0 skip / -1 fail.
+ * Authority: backend_call_dispatch.x. PLATFORM: SHARED.
+ */
+export extern function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx: *u8,
+        block_ref: i32, idx: i32, init_ref: i32, slot_off: i32, ctx: *u8, ta: i32): i32;
 
 /**
  * M8-tail thin face for backend.x asm_codegen_ast_to_elf:
@@ -17088,6 +17094,8 @@ export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ct
   if (m == 0 as *u8 || a == 0 as *u8 || elf_ctx == 0 as *u8 || pipeline_ctx == 0 as *u8) {
     return 0 - 1;
   }
+  // F7: reset data section buffer at module start (single-threaded; vtable statics emit here).
+  pipeline_elf_ctx_reset_data(elf_ctx);
   unsafe {
     pipeline_debug_trace_named_func_bodies("backend_pre_hoist_top_level_lets", m, a);
   }
@@ -54487,6 +54495,19 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
   }
 
+  /* F7: TYPE_DYN let-init → 16-byte fat {data, vtable}. Authority lives in
+   * backend_call_dispatch (rebuildable seed); this is the single call site.
+   * PLATFORM: SHARED freestanding emit. */
+  unsafe {
+    rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);
+  }
+  if (rc == 1) {
+    return 0;
+  }
+  if (rc < 0) {
+    return 0 - 1;
+  }
+
   unsafe {
     if (glue_init_is_empty_array_lit(arena, init_ref) != 0) {
       tref_empty = pipeline_block_let_type_ref(arena, block_ref, idx);
@@ -83269,6 +83290,12 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   unsafe {
     ko = pipeline_type_kind_ord_at(arena, type_ref);
   }
+  /* F7: TYPE_DYN (17) fat {void* data; void* vtable;} is 16 bytes.
+   * Default 8-byte fallback stored only the data word and left .vtable
+   * unallocated — dispatch ldr [x0,#8] then SIGSEGV. PLATFORM: SHARED. */
+  if (ko == 17) {
+    return 16;
+  }
   // TYPE_NAMED = 8: layout metrics + dep walk.
   if (ko == 8) {
     if (mod == 0 as *u8) {
@@ -86905,6 +86932,13 @@ function pipe_elf_code_hot_cap(): i32 { return 1048576; }
 function pipe_elf_shnx_text(): i32 { return 1; }
 function pipe_elf_shnx_hot(): i32 { return 2; }
 function pipe_elf_shnx_unlikely(): i32 { return 3; }
+/**
+ * F7: section index for the read-only data section (__DATA,__const on Mach-O).
+ * Vtable static data with absolute pointer relocations lives here, separate
+ * from __TEXT,__text which is pure_instructions and rejects such relocations.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+function pipe_elf_shnx_data(): i32 { return 4; }
 function pipe_elf_undef_cap(): i32 { return 256; }
 function pipe_elf_macho_undef_cap(): i32 { return 256; }
 function pipe_elf_pgo_undef_cap(): i32 { return 32; }
@@ -87006,6 +87040,20 @@ let g_pipe_elf_ws_rela: u8[24] = [];
 let g_pipe_elf_ws_shstr_std: u8[46] = [];
 let g_pipe_elf_ws_shstr_pgo: u8[107] = [];
 let g_pipe_elf_ws_shstr_ready: i32 = 0;
+/* F7: Mach-O writer workspace for the second LC_SEGMENT_64 (__DATA,__const).
+ * Single-threaded compile; reused per module. */
+let g_pipe_elf_ws_seg2: u8[152] = [];
+/* F7: data section buffer for vtable static data (read-only data with absolute
+ * pointer relocations; cannot live in __TEXT,__text which is pure_instructions).
+ * Single-threaded compile; reset per-module via pipeline_elf_ctx_reset_data. */
+let g_pipe_elf_data_buf: u8[65536] = [];
+let g_pipe_elf_data_len: i32 = 0;
+let g_pipe_elf_data_owner: *u8 = 0 as *u8;
+/* F7: shndx override (0 = no override; 4 = data section). When non-zero,
+ * pipe_elf_current_shndx returns this value, so new relocs/syms/labels are
+ * tagged as data-section. Set before emitting vtable statics; clear after.
+ * Single-threaded compile; safe as a global mutable. */
+let g_pipe_elf_shndx_override: i32 = 0;
 
 /**
  * Byte equality for name rows.
@@ -87212,11 +87260,89 @@ export function pipeline_elf_ctx_emit_code_len(ctx_bytes: *u8): i32 {
 }
 
 /**
+ * F7: Reset the data section buffer at module start.
+ * Must be called once per module BEFORE emitting any vtable statics.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_reset_data(ctx_bytes: *u8): void {
+  g_pipe_elf_data_len = 0;
+  g_pipe_elf_data_owner = ctx_bytes;
+}
+
+/**
+ * F7: Current data section length (bytes already emitted to data buf).
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_emit_data_len(ctx_bytes: *u8): i32 {
+  if (ctx_bytes == 0 as *u8) {
+    return 0;
+  }
+  return g_pipe_elf_data_len;
+}
+
+/**
+ * F7: Pointer to data section buffer start.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_data_data_ptr(ctx_bytes: *u8): *u8 {
+  if (ctx_bytes == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return &g_pipe_elf_data_buf[0];
+}
+
+/**
+ * F7: Append 4 bytes (little-endian u32) to the data section buffer.
+ * Returns 0 ok, -1 overflow/null.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_append_data_u32_le(ctx_bytes: *u8, word: u32): i32 {
+  if (ctx_bytes == 0 as *u8) {
+    return -1;
+  }
+  if (g_pipe_elf_data_len < 0) {
+    g_pipe_elf_data_len = 0;
+  }
+  if (g_pipe_elf_data_len + 4 > 65536) {
+    return -1;
+  }
+  let off: i32 = g_pipe_elf_data_len;
+  unsafe {
+    g_pipe_elf_data_buf[off] = ((word & 255) as u32) as u8;
+    g_pipe_elf_data_buf[off + 1] = (((word / 256) & 255) as u32) as u8;
+    g_pipe_elf_data_buf[off + 2] = (((word / 65536) & 255) as u32) as u8;
+    g_pipe_elf_data_buf[off + 3] = (((word / 16777216) & 255) as u32) as u8;
+  }
+  g_pipe_elf_data_len = off + 4;
+  return 0;
+}
+
+/**
+ * F7: Set/clear shndx override. When set to 4 (data section), subsequent
+ * relocs/syms/labels are tagged as data-section. Set to 0 to restore default
+ * (text section). Single-threaded compile; safe as a global mutable.
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_set_shndx_override(ctx_bytes: *u8, shndx: i32): void {
+  g_pipe_elf_shndx_override = shndx;
+}
+
+/**
  * Current emit ELF section index.
+ * F7: respects the shndx override (when non-zero, returns it so new
+ * relocs/syms/labels are tagged as data-section).
  */
 function pipe_elf_current_shndx(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return pipe_elf_shnx_text();
+  }
+  if (g_pipe_elf_shndx_override != 0) {
+    return g_pipe_elf_shndx_override;
   }
   if (pipeline_elf_pgo_hot_enabled() != 0) {
     if (pipe_load_i32_le(ctx, pipe_elf_off_emit_hot()) != 0) {
@@ -87698,7 +87824,9 @@ export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i3
   pipe_store_i32_le(se, pipe_elf_sym_off_name_len(), copy_len);
   pipe_store_i32_le(se, pipe_elf_sym_off_offset(), offset);
   let shndx: i32 = pipe_elf_shnx_text();
-  if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
+  if (g_pipe_elf_shndx_override != 0) {
+    shndx = g_pipe_elf_shndx_override;
+  } else if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
     shndx = pipe_elf_shnx_hot();
   } else if (pipeline_elf_pgo_hot_enabled() != 0) {
     shndx = pipe_elf_shnx_unlikely();
@@ -88100,6 +88228,40 @@ export function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32,
     }
   }
   return 0;
+}
+
+/**
+ * Append an absolute 64-bit pointer relocation (data slot holding a symbol address).
+ *
+ * F7 vtable statics store function pointers in a read-only data array, mirroring
+ * the -E codegen path's `static void* vtable[] = { &wrapper_fn };`. Such a slot
+ * requires an ABSOLUTE pointer reloc — NOT the default pc-relative branch reloc
+ * that the untyped `pipeline_elf_ctx_append_reloc` produces (which on Mach-O
+ * defaults to ARM64_RELOC_BRANCH26 and is rejected by ld on non-b/bl bytes).
+ *
+ * Sentinels:
+ *   - r_type  = 200 (sentinel "absolute64"; both writers map to platform type)
+ *   - r_pcrel = 0   (absolute, not pc-relative)
+ *
+ * The writers (Mach-O @ pipeline_macho_write_o_to_buf_c, ELF @
+ * pipeline_elf_write_o_standard_to_buf_c) recognize r_type==200 and emit:
+ *   - Mach-O arm64: r_type=0 (ARM64_RELOC_UNSIGNED), r_pcrel=0, r_length=3
+ *   - ELF x86_64:   R_X86_64_64 (=1) with r_addend=0
+ *   - ELF arm64:    R_AARCH64_ABS64 (=257) with r_addend=0
+ *   - ELF riscv64:  R_RISCV_64 (=2) with r_addend=0
+ *
+ * @param ctx_bytes *u8  ElfCodegenCtx
+ * @param offset    i32  byte offset within the section where the 8-byte slot lives
+ * @param name      *u8  symbol name bytes (the wrapper function / target symbol)
+ * @param name_len  i32  length of name
+ * @return i32 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding ELF leave — G.7 single authority for absolute64.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_append_reloc_absolute64(
+  ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32 {
+  /* r_type=200 sentinel; r_pcrel=0 (absolute). Writers map 200 → platform type. */
+  return pipeline_elf_ctx_append_reloc_typed(ctx_bytes, offset, name, name_len, 200, 0);
 }
 
 /**
@@ -89074,6 +89236,23 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
     pipe_elf_store_i32_bytes(rela, 0, roff);
     let rtype: i32 = pipe_elf_call_reloc_type(ctx_bytes, ctx_bytes, r, &g_pipe_elf_ws_name[0], rlen2);
+    // F7 absolute64: sentinel r_type=200 → platform absolute 64-bit reloc with
+    // ZERO addend (the default -4 is for 32-bit pc-relative CALL disp). Map:
+    //   x86_64 (em=62)  → R_X86_64_64 = 1
+    //   arm64  (em=183) → R_AARCH64_ABS64 = 257
+    //   riscv64(em=243) → R_RISCV_64 = 2
+    if (rtype == 200) {
+      pipe_elf_rela_set_addend64(rela, 0, 0);
+      if (e_machine == 62) {
+        rtype = 1;
+      } else if (e_machine == 183) {
+        rtype = 257;
+      } else if (e_machine == 243) {
+        rtype = 2;
+      } else {
+        rtype = 1;
+      }
+    }
     pipe_elf_store_i32_bytes(rela, 8, rtype);
     pipe_elf_store_i32_bytes(rela, 12, sym_idx);
     if (pipe_elf_out_append(out, rela, 24) != 0) {
@@ -89234,11 +89413,35 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   let symtab_ents: i32 = ns + nu + 1;
   let symtab_size: i32 = symtab_ents * 16;
   let lc_build_size: i32 = 24;
-  let sizeofcmds: i32 = 152 + lc_build_size + 24;
+  /* F7: sizeofcmds now includes a second LC_SEGMENT_64 for __DATA,__const. */
+  let sizeofcmds: i32 = 152 + 152 + lc_build_size + 24;
   let off_text: i32 = 32 + sizeofcmds;
-  let off_sym: i32 = pipe_elf_align4(off_text + code_len);
+  /* F7: data section (vtable statics with absolute pointer relocs). */
+  let data_len: i32 = g_pipe_elf_data_len;
+  if (data_len < 0) {
+    data_len = 0;
+  }
+  let data_buf: *u8 = &g_pipe_elf_data_buf[0];
+  let off_data: i32 = pipe_elf_align4(off_text + code_len);
+  let off_sym: i32 = pipe_elf_align4(off_data + data_len);
   let off_str: i32 = off_sym + symtab_size;
-  let off_reloc: i32 = off_str + strtab_size;
+  /* F7: split reloc table — text relocs first, then data relocs. Count by
+   * shndx sidecar so each section header points to its own reloc range. */
+  let nr_text: i32 = 0;
+  let nr_data: i32 = 0;
+  let rc_i: i32 = 0;
+  while (rc_i < nr) {
+    let sd: i32 = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, rc_i);
+    if (sd == pipe_elf_shnx_data()) {
+      nr_data = nr_data + 1;
+    } else {
+      nr_text = nr_text + 1;
+    }
+    rc_i = rc_i + 1;
+  }
+  let off_reloc_text: i32 = off_str + strtab_size;
+  let off_reloc_data: i32 = off_reloc_text + nr_text * 8;
+  let off_reloc: i32 = off_reloc_text;  /* keep for backward compat (text relocs) */
   codegen_out_buf_set_len(out, 0);
   let cputype: i32 = 16777223;
   let cpusubtype: i32 = 3;
@@ -89255,7 +89458,7 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   pipe_elf_store_i32_bytes(hdr, 4, cputype);
   pipe_elf_store_i32_bytes(hdr, 8, cpusubtype);
   unsafe {
-    hdr[12] = 1; hdr[16] = 3;
+    hdr[12] = 1; hdr[16] = 4;  /* ncmds = 4 (was 3): added __DATA,__const segment */
   }
   pipe_elf_store_i32_bytes(hdr, 20, sizeofcmds);
   if (pipe_elf_out_append(out, hdr, 32) != 0) {
@@ -89277,13 +89480,59 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   }
   pipe_elf_store_i32_bytes(seg, 112, code_len);
   pipe_elf_store_i32_bytes(seg, 120, off_text);
-  pipe_elf_store_i32_bytes(seg, 128, off_reloc);
+  /* F7: __TEXT,__text reloc table now only covers text-section relocs. */
+  pipe_elf_store_i32_bytes(seg, 128, off_reloc_text);
   unsafe {
-    seg[132] = ((nr as u32) & 255) as u8;
-    seg[133] = (((nr as u32) / 256) & 255) as u8;
+    seg[132] = ((nr_text as u32) & 255) as u8;
+    seg[133] = (((nr_text as u32) / 256) & 255) as u8;
     seg[136] = 0; seg[137] = 0; seg[138] = 4; seg[139] = 128;
   }
   if (pipe_elf_out_append(out, seg, 152) != 0) {
+    return -1;
+  }
+  /* F7: emit second LC_SEGMENT_64 for __DATA,__const (vtable static data).
+   * This segment is writable at link time (initprot=rw-) so absolute 64-bit
+   * pointer relocations (ARM64_RELOC_UNSIGNED) can be applied; ld rejects
+   * these in __TEXT,__text which is pure_instructions.
+   * Layout: segment_command_64 (72 bytes) + section_64 (80 bytes) = 152.
+   * MH_OBJECT: __DATA.vmaddr MUST NOT overlap __TEXT.vmaddr+[0,vmsize).
+   * Both at 0 with nonzero vmsize → ld "vm range overlaps". Place __DATA at
+   * code_len (section addrs sequential, clang MH_OBJECT style). */
+  let data_vmaddr: i32 = code_len;
+  if (data_vmaddr < 0) {
+    data_vmaddr = 0;
+  }
+  /* Pointer slots require 8-byte alignment (ld: "pointer not aligned"). */
+  data_vmaddr = (data_vmaddr + 7) & (0 - 8);
+  let seg2: *u8 = &g_pipe_elf_ws_seg2[0];
+  unsafe {
+    memset(seg2, 0, 152 as usize);
+    seg2[0] = 25; seg2[4] = 152;  /* LC_SEGMENT_64, cmdsize=152 */
+    seg2[8] = 95; seg2[9] = 95; seg2[10] = 68; seg2[11] = 65; seg2[12] = 84; seg2[13] = 65;  /* "__DATA" */
+  }
+  pipe_elf_store_i32_bytes(seg2, 24, data_vmaddr); /* vmaddr (low 4 bytes); hi zeroed */
+  pipe_elf_store_i32_bytes(seg2, 32, data_len);   /* vmsize (low 4 bytes) */
+  pipe_elf_store_i32_bytes(seg2, 40, off_data);    /* fileoff (low 4 bytes) */
+  pipe_elf_store_i32_bytes(seg2, 48, data_len);    /* filesize (low 4 bytes) */
+  unsafe {
+    seg2[56] = 7; seg2[60] = 3;  /* maxprot=rwx, initprot=rw- */
+    seg2[64] = 1;  /* nsects = 1 */
+    /* section_64.sectname = "__const" at seg2+72 */
+    seg2[72] = 95; seg2[73] = 95; seg2[74] = 99; seg2[75] = 111; seg2[76] = 110; seg2[77] = 115; seg2[78] = 116;
+    /* section_64.segname = "__DATA" at seg2+88 */
+    seg2[88] = 95; seg2[89] = 95; seg2[90] = 68; seg2[91] = 65; seg2[92] = 84; seg2[93] = 65;
+  }
+  pipe_elf_store_i32_bytes(seg2, 104, data_vmaddr); /* section_64.addr (match segment vmaddr) */
+  pipe_elf_store_i32_bytes(seg2, 112, data_len);   /* section_64.size */
+  pipe_elf_store_i32_bytes(seg2, 120, off_data);    /* section_64.offset */
+  pipe_elf_store_i32_bytes(seg2, 128, off_reloc_data);  /* section_64.reloff */
+  unsafe {
+    seg2[124] = 3;  /* section_64.align = 2^3 (8-byte pointers) */
+    seg2[132] = ((nr_data as u32) & 255) as u8;    /* section_64.nreloc (low 2 bytes) */
+    seg2[133] = (((nr_data as u32) / 256) & 255) as u8;
+    seg2[136] = 0; seg2[137] = 0; seg2[138] = 0; seg2[139] = 0;  /* section_64.flags = 0 (S_REGULAR) */
+  }
+  if (pipe_elf_out_append(out, seg2, 152) != 0) {
     return -1;
   }
   let lc_bv: *u8 = &g_pipe_elf_ws_lc[0];
@@ -89318,8 +89567,25 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
       return -1;
     }
   }
-  let pad: i32 = off_sym - off_text - code_len;
   let z0: u8[1] = [0];
+  /* F7: padding between text and data (alignment 4); always emit so the file
+   * position lands at off_data regardless of whether the data section is used. */
+  let pad_data: i32 = off_data - off_text - code_len;
+  let pd: i32 = 0;
+  while (pd < pad_data) {
+    if (pipe_elf_out_append(out, &z0[0], 1) != 0) {
+      return -1;
+    }
+    pd = pd + 1;
+  }
+  /* F7: emit data section bytes (__DATA,__const). */
+  if (data_len > 0 && data_buf != 0 as *u8) {
+    if (pipe_elf_out_append(out, data_buf, data_len) != 0) {
+      return -1;
+    }
+  }
+  /* F7: pad now spans from end of data to start of symtab (was: text to symtab). */
+  let pad: i32 = off_sym - off_data - data_len;
   let z: i32 = 0;
   while (z < pad) {
     if (pipe_elf_out_append(out, &z0[0], 1) != 0) {
@@ -89363,9 +89629,23 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
       pipe_elf_store_i32_bytes(ent, 8, csize);
     } else {
       unsafe {
-        ent[4] = 15; ent[5] = 1;
+        ent[4] = 15;  /* N_SECT */
       }
-      pipe_elf_store_i32_bytes(ent, 8, sym_va);
+      /* F7: set n_sect based on symbol's shndx. 1 = __TEXT,__text; 2 = __DATA,__const.
+       * n_value for N_SECT is the address in the file's address space = section
+       * addr + offset-in-section. Text section addr is 0; data section addr is
+       * data_vmaddr (= code_len). */
+      let sym_shndx: i32 = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+      let n_sect: i32 = 1;
+      let n_val: i32 = sym_va;
+      if (sym_shndx == pipe_elf_shnx_data()) {
+        n_sect = 2;
+        n_val = data_vmaddr + sym_va;
+      }
+      unsafe {
+        ent[5] = n_sect as u8;
+      }
+      pipe_elf_store_i32_bytes(ent, 8, n_val);
     }
     if (pipe_elf_out_append(out, ent, 16) != 0) {
       return -1;
@@ -89437,70 +89717,100 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   }
   let rel_type: i32 = 2;
   let rel_len: i32 = 2;
-  let r: i32 = 0;
-  while (r < nr) {
-    let ri: *u8 = &g_pipe_elf_ws_ent[0];
-    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, &g_pipe_elf_ws_name[0]);
-    let rlen2: i32 = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
-    let sym_idx: i32 = 0;
-    let found_def: i32 = 0;
-    let m: i32 = 0;
-    while (m < ns) {
-      let offm: i32 = pipe_elf_sym_name_off(ctx_bytes, m);
-      let se4: *u8 = pipe_elf_sym_at(ctx_bytes, m);
-      let slen: i32 = pipe_load_i32_le(se4, pipe_elf_sym_off_name_len());
-      if (pipe_elf_name_eq(&g_pipe_elf_ws_name[0], rlen2, sym_pool + (offm as usize), slen) != 0) {
-        sym_idx = m;
-        found_def = 1;
-        break;
-      }
-      m = m + 1;
+  /* F7: two-pass reloc emission — text-section relocs first (shndx != 4),
+   * then data-section relocs (shndx == 4). Sequential append matches the file
+   * layout: off_reloc_text then off_reloc_data. */
+  let pass: i32 = 0;
+  while (pass < 2) {
+    let want_data: i32 = 0;
+    if (pass == 1) {
+      want_data = 1;
     }
-    if (found_def == 0) {
-      let uslot: i32 = -1;
-      let us2: i32 = 0;
-      while (us2 < nu) {
-        let sr5: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_ws_und_src[0], us2);
-        pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr5, &g_pipe_elf_ws_name2[0]);
-        let ul3: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_ws_und_lens[0], us2);
-        if (pipe_elf_name_eq(&g_pipe_elf_ws_name[0], rlen2, &g_pipe_elf_ws_name2[0], ul3) != 0) {
-          uslot = us2;
+    let r: i32 = 0;
+    while (r < nr) {
+      let r_sd: i32 = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
+      let is_data: i32 = 0;
+      if (r_sd == pipe_elf_shnx_data()) {
+        is_data = 1;
+      }
+      if (is_data != want_data) {
+        r = r + 1;
+        continue;
+      }
+      let ri: *u8 = &g_pipe_elf_ws_ent[0];
+      pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, &g_pipe_elf_ws_name[0]);
+      let rlen2: i32 = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+      let sym_idx: i32 = 0;
+      let found_def: i32 = 0;
+      let m: i32 = 0;
+      while (m < ns) {
+        let offm: i32 = pipe_elf_sym_name_off(ctx_bytes, m);
+        let se4: *u8 = pipe_elf_sym_at(ctx_bytes, m);
+        let slen: i32 = pipe_load_i32_le(se4, pipe_elf_sym_off_name_len());
+        if (pipe_elf_name_eq(&g_pipe_elf_ws_name[0], rlen2, sym_pool + (offm as usize), slen) != 0) {
+          sym_idx = m;
+          found_def = 1;
           break;
         }
-        us2 = us2 + 1;
+        m = m + 1;
       }
-      if (uslot < 0) {
-        unsafe {
-          driver_diagnostic_asm_macho_missing_und_reloc(r);
+      if (found_def == 0) {
+        let uslot: i32 = -1;
+        let us2: i32 = 0;
+        while (us2 < nu) {
+          let sr5: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_ws_und_src[0], us2);
+          pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr5, &g_pipe_elf_ws_name2[0]);
+          let ul3: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_ws_und_lens[0], us2);
+          if (pipe_elf_name_eq(&g_pipe_elf_ws_name[0], rlen2, &g_pipe_elf_ws_name2[0], ul3) != 0) {
+            uslot = us2;
+            break;
+          }
+          us2 = us2 + 1;
         }
+        if (uslot < 0) {
+          unsafe {
+            driver_diagnostic_asm_macho_missing_und_reloc(r);
+          }
+          return -1;
+        }
+        sym_idx = ns + uslot;
+      }
+      let use_type: i32 = rel_type;
+      let use_pcrel: i32 = 1;
+      if (r < pipe_elf_table_cap()) {
+        let rt: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_reloc_r_type[0], r);
+        if (rt != 0) {
+          use_type = rt;
+        }
+        unsafe {
+          let rpb: u8 = g_pipe_elf_reloc_r_pcrel[r];
+          // stored as i8; 255 means -1 default
+          if (rpb != 255) {
+            use_pcrel = rpb as i32;
+          }
+        }
+      }
+      // F7 absolute64: map sentinel r_type=200 → ARM64_RELOC_UNSIGNED (type=0,
+      // pcrel=0, length=3 for a quad-word pointer). Without this, vtable data
+      // slots fall through to the default BRANCH26 branch reloc and ld rejects
+      // ("ARM64_RELOC_BRANCH26 relocation on non-b/bl instruction").
+      let eff_len: i32 = rel_len;
+      if (use_type == 200) {
+        use_type = 0;
+        use_pcrel = 0;
+        eff_len = 3;
+      }
+      let r_sym: i32 = sym_idx + 1;
+      let word2: i32 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (eff_len << 25) | (1 << 27) | (use_type << 28);
+      let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+      pipe_elf_store_i32_bytes(ri, 0, roff);
+      pipe_elf_store_i32_bytes(ri, 4, word2);
+      if (pipe_elf_out_append(out, ri, 8) != 0) {
         return -1;
       }
-      sym_idx = ns + uslot;
+      r = r + 1;
     }
-    let use_type: i32 = rel_type;
-    let use_pcrel: i32 = 1;
-    if (r < pipe_elf_table_cap()) {
-      let rt: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_reloc_r_type[0], r);
-      if (rt != 0) {
-        use_type = rt;
-      }
-      unsafe {
-        let rpb: u8 = g_pipe_elf_reloc_r_pcrel[r];
-        // stored as i8; 255 means -1 default
-        if (rpb != 255) {
-          use_pcrel = rpb as i32;
-        }
-      }
-    }
-    let r_sym: i32 = sym_idx + 1;
-    let word2: i32 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (rel_len << 25) | (1 << 27) | (use_type << 28);
-    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
-    pipe_elf_store_i32_bytes(ri, 0, roff);
-    pipe_elf_store_i32_bytes(ri, 4, word2);
-    if (pipe_elf_out_append(out, ri, 8) != 0) {
-      return -1;
-    }
-    r = r + 1;
+    pass = pass + 1;
   }
   return codegen_out_buf_len(out);
 }
@@ -91092,6 +91402,11 @@ function asm_wpo_pipeline_strict_preserve_emit(m: *u8, fi: i32): i32 {
 export function pipeline_asm_wpo_should_emit_func(m: *u8, fi: i32): i32 {
   unsafe {
     if (g_aw_valid == 0) {
+      return 1;
+    }
+    /* F7: impl methods referenced only from vtable wrappers are marked used
+     * in pipeline_asm_emit_vtable_wrapper_def. WPO call-graph has no edge. */
+    if (m != 0 as *u8 && fi >= 0 && pipeline_module_func_is_used_at(m, fi) != 0) {
       return 1;
     }
     if (m == 0 as *u8 || fi < 0) {

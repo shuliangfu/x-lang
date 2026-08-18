@@ -112,6 +112,17 @@ export extern function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta:
 export extern function backend_enc_store_x_reg_to_rbp_arch(elf: *u8, reg: i32, off: i32, ta: i32): i32;
 export extern function backend_enc_load_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
+/**
+ * F7: materialize a symbol address into a GP register (adrp+add / movabs).
+ * PLATFORM: SHARED — vtable static address for dyn coerce store.
+ */
+export extern function backend_enc_lea_sym_to_reg_arch(elf: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
+export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, idx: i32): i32;
+export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, tr: i32): i32;
+export extern function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot: i32): i32;
+export extern function pipeline_expr_int_val_at(arena: *u8, er: i32): i32;
+export extern function pipeline_module_func_set_is_used(module: *u8, fi: i32, is_used: i32): void;
 export extern function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
 export extern function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
 export extern function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
@@ -2112,8 +2123,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (dep_idx == -2) {
       let slot: i32 = r_fn;
       if (slot < 0) { return 0 - 1; }
-      /* Emit receiver address into x0 (base_ref is the dyn-typed variable expr). */
-      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+      /* F7: x0 must be &dyn_obj, not the loaded .data word. VAR/lvalue
+       * receivers use the existing lvalue-LEA authority (G.7). emit_expr
+       * would load the first 8 bytes (data ptr) and [x0,#8] would then
+       * read past the concrete payload — SIGSEGV / exit=112 false-green. */
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
         return 0 - 1;
       }
       /* x0 = &dyn_obj; load vtable ptr from dyn_obj+8 into x1. */
@@ -2122,6 +2136,10 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return 0 - 1; }
       /* x2 = wrapper fn ptr; load data ptr from dyn_obj+0 into x0 (self arg). */
       if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return 0 - 1; }
+      /* SysV first arg is rdi, not rax. ARM64 x0 is already arg0. */
+      if (ta == 0) {
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+      }
       /* blr x2 — indirect call through wrapper fn ptr. */
       if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return 0 - 1; }
       return 0;
@@ -5163,7 +5181,12 @@ export extern function pipeline_type_find_or_alloc_compound(arena: *u8, kind_ord
 export extern function pipeline_elf_ctx_add_label(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
 export extern function pipeline_elf_ctx_add_sym(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
 export extern function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
+export extern function pipeline_elf_ctx_append_reloc_absolute64(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
 export extern function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
+/* F7: data section helpers for vtable static data (__DATA,__const). */
+export extern function pipeline_elf_ctx_emit_data_len(ctx: *u8): i32;
+export extern function pipeline_elf_ctx_append_data_u32_le(ctx: *u8, word: u32): i32;
+export extern function pipeline_elf_ctx_set_shndx_override(ctx: *u8, shndx: i32): void;
 export extern function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
 export extern function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
@@ -5300,10 +5323,12 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
     let impl_fi: i32 = codegen_find_impl_method_for_type(module, arena,
             &meth_nm[0], meth_nlen, recv_rt);
     if (impl_fi < 0) { return 0; }
+    /* Keep the impl in WPO emit-order: dyn wrappers are not call-graph edges. */
+    pipeline_module_func_set_is_used(module, impl_fi, 1);
+    /* Link name (overload suffix clone_A / clone_B), not the source name. */
     let impl_nm: u8[128] = [];
-    let impl_nlen: i32 = pipeline_asm_module_func_name_len_at(module, impl_fi);
-    if (impl_nlen <= 0 || impl_nlen > 127) { return 0 - 1; }
-    pipeline_asm_module_func_name_copy64(module, impl_fi, &impl_nm[0]);
+    let impl_nlen: i32 = glue_asm_build_func_export_sym_c(module, arena, impl_fi, &impl_nm[0], 128);
+    if (impl_nlen <= 0) { return 0 - 1; }
     let wrap_nm: u8[168] = [];
     let wrap_nlen: i32 = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
             for_nm, for_nlen, for_ptr, slot_i, &wrap_nm[0]);
@@ -5332,6 +5357,10 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
     if (for_ptr == 0) {
       if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) {
         return 0 - 1;
+      }
+      /* By-value deref left the payload in rax; SysV impl expects rdi. */
+      if (ta == 0) {
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
       }
     }
     if (backend_enc_call_arch(elf_ctx, &impl_nm[0], impl_nlen, ta) != 0) {
@@ -5413,25 +5442,47 @@ export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, m
         let k: i32 = 0;
         while (k < vt_nlen && k < 151) { vt_sym[k] = vt_nm[k]; k = k + 1; }
       }
-      let vt_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
-      if (vt_off < 0) { return 0 - 1; }
+      /* F7: vtable static data goes to __DATA,__const section (separate from
+       * __TEXT,__text which rejects absolute pointer relocations). Override the
+       * current shndx so all new labels/syms/relocs are tagged as data section.
+       * Single-threaded compile; restore to 0 before returning. */
+      pipeline_elf_ctx_set_shndx_override(elf_ctx, 4);
+      let vt_off: i32 = pipeline_elf_ctx_emit_data_len(elf_ctx);
+      if (vt_off < 0) {
+        pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        return 0 - 1;
+      }
       if (pipeline_elf_ctx_add_label(elf_ctx, &vt_sym[0], vt_sym_nlen, vt_off) != 0) {
+        pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
         return 0 - 1;
       }
       if (pipeline_elf_ctx_add_sym(elf_ctx, &vt_sym[0], vt_sym_nlen, vt_off) != 0) {
+        pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
         return 0 - 1;
       }
       let slot_i: i32 = 0;
       while (slot_i < meth_count && slot_i < 64) {
-        let slot_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
-        if (slot_off < 0) { return 0 - 1; }
-        if (backend_enc_append_u32_le_c(elf_ctx, (0 as u32)) != 0) { return 0 - 1; }
-        if (backend_enc_append_u32_le_c(elf_ctx, (0 as u32)) != 0) { return 0 - 1; }
+        let slot_off: i32 = pipeline_elf_ctx_emit_data_len(elf_ctx);
+        if (slot_off < 0) {
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          return 0 - 1;
+        }
+        if (pipeline_elf_ctx_append_data_u32_le(elf_ctx, (0 as u32)) != 0) {
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          return 0 - 1;
+        }
+        if (pipeline_elf_ctx_append_data_u32_le(elf_ctx, (0 as u32)) != 0) {
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          return 0 - 1;
+        }
         if (has_impl[slot_i] != 0) {
           let wrap_nm: u8[168] = [];
           let wrap_nlen: i32 = pipeline_asm_emit_vtable_wrapper_name_into(&trait_nm[0],
                   trait_nlen, &for_nm[0], for_nlen, for_ptr, slot_i, &wrap_nm[0]);
-          if (wrap_nlen <= 0) { return 0 - 1; }
+          if (wrap_nlen <= 0) {
+            pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+            return 0 - 1;
+          }
           let wrap_sym: u8[170] = [];
           let wrap_sym_nlen: i32 = wrap_nlen;
           if (macho != 0) {
@@ -5443,15 +5494,107 @@ export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, m
             let k: i32 = 0;
             while (k < wrap_nlen && k < 169) { wrap_sym[k] = wrap_nm[k]; k = k + 1; }
           }
-          if (pipeline_elf_ctx_append_reloc(elf_ctx, slot_off,
+          if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off,
                   &wrap_sym[0], wrap_sym_nlen) != 0) {
+            pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
             return 0 - 1;
           }
         }
         slot_i = slot_i + 1;
       }
+      /* F7: restore shndx override to 0 (text section) after vtable static emit. */
+      pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
       si = si + 1;
     }
     return 0;
+  }
+}
+
+/**
+ * F7: materialize a TYPE_DYN let-init coerce as a 16-byte fat pointer.
+ *   [rbp+slot]   = data  (RHS value if RHS is TYPE_PTR; else &RHS)
+ *   [rbp+slot+8] = &xlang_vtable_<Trait>_for_[Ptr_]<Type>
+ * Called from glue_block_body_emit_let_init when the let type is TYPE_DYN.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — emit context
+ * @param block_ref i32 — enclosing block
+ * @param idx i32 — let index in the block
+ * @param init_ref i32 — RHS expr
+ * @param slot_off i32 — rbp-relative home of the dyn local
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — target arch
+ * @return i32 — 1 handled, 0 not a dyn coerce (caller continues), -1 fail
+ * PLATFORM: SHARED — G.7 twin of codegen_emit_dyn_vtable_close store shape.
+ */
+#[no_mangle]
+export function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx: *u8,
+        block_ref: i32, idx: i32, init_ref: i32, slot_off: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8) { return 0 - 1; }
+  if (block_ref <= 0 || idx < 0 || init_ref <= 0) { return 0; }
+  unsafe {
+    let let_ty: i32 = pipeline_block_let_type_ref(arena, block_ref, idx);
+    if (let_ty <= 0) { return 0; }
+    let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, let_ty);
+    if (lt_dyn <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, lt_dyn) != 17) { return 0; }
+    /* F1 null-dyn sentinel: `let x: dyn T = 0` — no vtable, keep default store. */
+    if (pipeline_expr_kind_ord_at(arena, init_ref) == 0) {
+      if (pipeline_expr_int_val_at(arena, init_ref) == 0) { return 0; }
+    }
+    let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (rhs_rt <= 0) { return 0 - 1; }
+    let recv_kind: i32 = pipeline_type_kind_ord_at(arena, rhs_rt);
+    let is_ptr: i32 = 0;
+    let name_rt: i32 = rhs_rt;
+    if (recv_kind == 9) {
+      let elem_rt: i32 = pipeline_type_elem_ref_at(arena, rhs_rt);
+      if (elem_rt > 0 && pipeline_type_kind_ord_at(arena, elem_rt) == 8) {
+        is_ptr = 1;
+        name_rt = elem_rt;
+      }
+    }
+    let trait_nm: u8[64] = [];
+    let trait_nlen: i32 = pipeline_type_named_name_into(arena, lt_dyn, &trait_nm[0]);
+    if (trait_nlen <= 0) { return 0 - 1; }
+    let for_nm: u8[64] = [];
+    let for_nlen: i32 = pipeline_type_named_name_into(arena, name_rt, &for_nm[0]);
+    if (for_nlen <= 0) { return 0 - 1; }
+    /* Emit RHS. PTR RHS is the data pointer itself; by-value needs &RHS.
+     * Probe (impl for *T) is PTR — emit_expr of the pointer local is correct. */
+    if (is_ptr != 0) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+    } else {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0) {
+      return 0 - 1;
+    }
+    let vt_nm: u8[160] = [];
+    let vt_nlen: i32 = pipeline_asm_emit_vtable_static_name_into(&trait_nm[0],
+            trait_nlen, &for_nm[0], for_nlen, is_ptr, &vt_nm[0]);
+    if (vt_nlen <= 0) { return 0 - 1; }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    let vt_sym: u8[162] = [];
+    let vt_sym_nlen: i32 = vt_nlen;
+    if (macho != 0) {
+      vt_sym[0] = 95;
+      let k: i32 = 0;
+      while (k < vt_nlen && k < 160) { vt_sym[k + 1] = vt_nm[k]; k = k + 1; }
+      vt_sym_nlen = vt_nlen + 1;
+    } else {
+      let k: i32 = 0;
+      while (k < vt_nlen && k < 161) { vt_sym[k] = vt_nm[k]; k = k + 1; }
+    }
+    if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, &vt_sym[0], vt_sym_nlen, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, slot_off + 8, ta) != 0) {
+      return 0 - 1;
+    }
+    return 1;
   }
 }

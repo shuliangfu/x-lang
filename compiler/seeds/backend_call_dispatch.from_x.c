@@ -425,6 +425,19 @@ extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
 extern int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta);
 extern int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg,
                                                    int32_t base_reg, int32_t offset, int32_t ta);
+extern int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                               uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t pipeline_block_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
+extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out);
+extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx);
+extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t er);
+extern int32_t pipeline_expr_int_val_at(struct ast_ASTArena *arena, int32_t er);
+extern void pipeline_module_func_set_is_used(void *module, int32_t fi, int32_t is_used);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
@@ -3851,12 +3864,16 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       if (dep_idx == -2) {
         int32_t slot = r_fn;
         if (slot < 0) { return -1; }
-        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        /* F7: &dyn_obj via lvalue LEA, not emit_expr (which loads .data). */
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
           return -1;
         }
         if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 1, 0, 8, ta) != 0) { return -1; }
         if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return -1; }
         if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+        if (ta == 0) {
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
+        }
         if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
         return 0;
       }
@@ -4604,7 +4621,17 @@ extern int32_t pipeline_type_find_or_alloc_named(struct ast_ASTArena *arena, uin
 extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t offset, uint8_t *name, int32_t name_len);
+/* F7: absolute 64-bit pointer reloc for vtable static data slots. Mirrors .x
+ * backend_call_dispatch.x — sent through _typed with r_type=200 sentinel so
+ * Mach-O/ELF writers map to ARM64_RELOC_UNSIGNED / R_X86_64_64 / R_AARCH64_ABS64.
+ * Without this the default BRANCH26 is applied to data bytes and ld rejects
+ * ("relocation on non-b/bl instruction"). G.7 single authority. */
+extern int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx, int32_t offset, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
+/* F7: data section helpers for vtable static data (__DATA,__const). */
+extern int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx);
+extern int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx, uint32_t word);
+extern void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx, int32_t shndx);
 extern int32_t backend_enc_prologue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_sz, int32_t ta);
 extern int32_t backend_enc_epilogue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
@@ -4686,9 +4713,9 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
   if (meth_nlen <= 0) { return 0; }
   impl_fi = codegen_find_impl_method_for_type(module, arena, meth_nm, meth_nlen, recv_rt);
   if (impl_fi < 0) { return 0; }
-  impl_nlen = pipeline_asm_module_func_name_len_at(module, impl_fi);
-  if (impl_nlen <= 0 || impl_nlen > 127) { return -1; }
-  pipeline_asm_module_func_name_copy64(module, impl_fi, impl_nm);
+  pipeline_module_func_set_is_used(module, impl_fi, 1);
+  impl_nlen = glue_asm_build_func_export_sym_c(module, arena, impl_fi, impl_nm, 128);
+  if (impl_nlen <= 0) { return -1; }
   wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
           for_nm, for_nlen, for_ptr, slot_i, wrap_nm);
   if (wrap_nlen <= 0) { return -1; }
@@ -4708,6 +4735,9 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
   if (backend_enc_prologue_arch(elf_ctx, 16, ta) != 0) { return -1; }
   if (for_ptr == 0) {
     if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+    if (ta == 0) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
+    }
   }
   if (backend_enc_call_arch(elf_ctx, impl_nm, impl_nlen, ta) != 0) { return -1; }
   if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) { return -1; }
@@ -4771,19 +4801,45 @@ int32_t pipeline_asm_emit_module_vtable_statics(struct platform_elf_ElfCodegenCt
     } else {
       for (k = 0; k < vt_nlen && k < 151; k++) { vt_sym[k] = vt_nm[k]; }
     }
-    vt_off = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx);
-    if (vt_off < 0) { return -1; }
-    if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) { return -1; }
-    if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) { return -1; }
+    /* F7: vtable static data goes to __DATA,__const section (separate from
+     * __TEXT,__text which rejects absolute pointer relocations). Override the
+     * current shndx so all new labels/syms/relocs are tagged as data section.
+     * Single-threaded compile; restore to 0 before returning. */
+    pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 4);
+    vt_off = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+    if (vt_off < 0) {
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      return -1;
+    }
+    if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) {
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      return -1;
+    }
+    if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) {
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      return -1;
+    }
     for (slot_i = 0; slot_i < meth_count && slot_i < 64; slot_i++) {
-      slot_off = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx);
-      if (slot_off < 0) { return -1; }
-      if (backend_enc_append_u32_le_c(elf_ctx, 0) != 0) { return -1; }
-      if (backend_enc_append_u32_le_c(elf_ctx, 0) != 0) { return -1; }
+      slot_off = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+      if (slot_off < 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_append_data_u32_le((uint8_t *)elf_ctx, 0) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_append_data_u32_le((uint8_t *)elf_ctx, 0) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
       if (has_impl[slot_i]) {
         wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
                 for_nm, for_nlen, for_ptr, slot_i, wrap_nm);
-        if (wrap_nlen <= 0) { return -1; }
+        if (wrap_nlen <= 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        }
         wrap_sym_nlen = wrap_nlen;
         if (macho) {
           wrap_sym[0] = '_';
@@ -4792,13 +4848,74 @@ int32_t pipeline_asm_emit_module_vtable_statics(struct platform_elf_ElfCodegenCt
         } else {
           for (k = 0; k < wrap_nlen && k < 169; k++) { wrap_sym[k] = wrap_nm[k]; }
         }
-        if (pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, slot_off, wrap_sym, wrap_sym_nlen) != 0) {
+        if (pipeline_elf_ctx_append_reloc_absolute64((uint8_t *)elf_ctx, slot_off, wrap_sym, wrap_sym_nlen) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
           return -1;
         }
       }
     }
+    /* F7: restore shndx override to 0 (text section) after vtable static emit. */
+    pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
   }
   return 0;
+}
+
+/* F7: TYPE_DYN let-init fat-pointer materialize. Twin of .x. */
+int32_t pipeline_asm_try_emit_dyn_coerce_let(struct ast_ASTArena *arena,
+        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref, int32_t idx,
+        int32_t init_ref, int32_t slot_off, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t let_ty, lt_dyn, rhs_rt, recv_kind, is_ptr, name_rt, trait_nlen, for_nlen;
+  int32_t vt_nlen, macho, vt_sym_nlen, k, elem_rt;
+  uint8_t trait_nm[64];
+  uint8_t for_nm[64];
+  uint8_t vt_nm[160];
+  uint8_t vt_sym[162];
+  if (arena == 0 || elf_ctx == 0 || ctx == 0) return -1;
+  if (block_ref <= 0 || idx < 0 || init_ref <= 0) return 0;
+  let_ty = pipeline_block_let_type_ref(arena, block_ref, idx);
+  if (let_ty <= 0) return 0;
+  lt_dyn = pipeline_typeck_resolve_type_alias_ref_c(arena, let_ty);
+  if (lt_dyn <= 0) return 0;
+  if (pipeline_type_kind_ord_at(arena, lt_dyn) != 17) return 0;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) == 0 &&
+      pipeline_expr_int_val_at(arena, init_ref) == 0)
+    return 0;
+  rhs_rt = pipeline_expr_resolved_type_ref(arena, init_ref);
+  if (rhs_rt <= 0) return -1;
+  recv_kind = pipeline_type_kind_ord_at(arena, rhs_rt);
+  is_ptr = 0;
+  name_rt = rhs_rt;
+  if (recv_kind == 9) {
+    elem_rt = pipeline_type_elem_ref_at(arena, rhs_rt);
+    if (elem_rt > 0 && pipeline_type_kind_ord_at(arena, elem_rt) == 8) {
+      is_ptr = 1;
+      name_rt = elem_rt;
+    }
+  }
+  trait_nlen = pipeline_type_named_name_into(arena, lt_dyn, trait_nm);
+  if (trait_nlen <= 0) return -1;
+  for_nlen = pipeline_type_named_name_into(arena, name_rt, for_nm);
+  if (for_nlen <= 0) return -1;
+  if (is_ptr != 0) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+  } else {
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+  }
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0) return -1;
+  vt_nlen = pipeline_asm_emit_vtable_static_name_into(trait_nm, trait_nlen, for_nm, for_nlen, is_ptr, vt_nm);
+  if (vt_nlen <= 0) return -1;
+  macho = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+  if (macho != 0) {
+    vt_sym[0] = 95;
+    for (k = 0; k < vt_nlen && k < 160; k++) vt_sym[k + 1] = vt_nm[k];
+    vt_sym_nlen = vt_nlen + 1;
+  } else {
+    for (k = 0; k < vt_nlen && k < 161; k++) vt_sym[k] = vt_nm[k];
+    vt_sym_nlen = vt_nlen;
+  }
+  if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, vt_sym, vt_sym_nlen, ta) != 0) return -1;
+  if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, slot_off + 8, ta) != 0) return -1;
+  return 1;
 }
 
 #else /* XLANG_BACKEND_CALL_DISPATCH_FROM_X：产品 rest 业务 H=0 */

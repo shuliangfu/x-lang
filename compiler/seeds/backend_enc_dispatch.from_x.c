@@ -190,10 +190,13 @@ int32_t arch_riscv64_enc_enc_jalr_reg(struct platform_elf_ElfCodegenCtx *elf_ctx
 int32_t arch_riscv64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
 int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta);
 int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset, int32_t ta);
+int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, uint8_t *name, int32_t name_len, int32_t ta);
 #endif
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes);
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t at, uint8_t *name, int32_t name_len, int32_t r_type, int32_t r_pcrel);
+extern int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx_bytes, int32_t at, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len,
                                               int32_t imm_bits);
@@ -3161,15 +3164,26 @@ int32_t backend_enc_x86_64_call_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx
 }
 /* x86_64 mov rax,[rbx+disp32]: 48 8B 83 disp32_le. dst/base ignored (fixed pair). */
 int32_t backend_enc_x86_64_load_rax_rbx_disp32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
-  (void)dst_reg; (void)base_reg;
+  int32_t rex;
+  int32_t modrm;
+  uint8_t b0, b1, b2, b3;
   if (!elf_ctx) { return -1; }
-  if (backend_enc_append_u8_c(elf_ctx, 0x48) != 0) { return -1; }
+  if (dst_reg < 0 || dst_reg > 15) { return -1; }
+  if (base_reg < 0 || base_reg > 15) { return -1; }
+  rex = 0x48;
+  if (dst_reg >= 8) rex += 4;
+  if (base_reg >= 8) rex += 1;
+  if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return -1; }
   if (backend_enc_append_u8_c(elf_ctx, 0x8B) != 0) { return -1; }
-  if (backend_enc_append_u8_c(elf_ctx, 0x83) != 0) { return -1; }
-  uint8_t b0 = (uint8_t)(offset & 0xFF);
-  uint8_t b1 = (uint8_t)((offset >> 8) & 0xFF);
-  uint8_t b2 = (uint8_t)((offset >> 16) & 0xFF);
-  uint8_t b3 = (uint8_t)((offset >> 24) & 0xFF);
+  modrm = 0x80 + ((dst_reg & 7) * 8) + (base_reg & 7);
+  if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return -1; }
+  if ((base_reg & 7) == 4) {
+    if (backend_enc_append_u8_c(elf_ctx, 0x24) != 0) { return -1; }
+  }
+  b0 = (uint8_t)(offset & 0xFF);
+  b1 = (uint8_t)((offset >> 8) & 0xFF);
+  b2 = (uint8_t)((offset >> 16) & 0xFF);
+  b3 = (uint8_t)((offset >> 24) & 0xFF);
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b0, 1) != 0) { return -1; }
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b1, 1) != 0) { return -1; }
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b2, 1) != 0) { return -1; }
@@ -3222,6 +3236,41 @@ int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *el
   if (ta == 1) { return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
   return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
+}
+
+/* F7: materialize symbol address. ARM64 adrp+add PAGE21/12; x86_64 movabs ABS64. */
+int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, uint8_t *name, int32_t name_len, int32_t ta) {
+  if (elf_ctx == 0 || name == 0 || name_len <= 0) return -1;
+  if (ta == 1) {
+    if (reg < 0 || reg > 30) return -1;
+    if (backend_enc_append_u32_le_c(elf_ctx, (uint32_t)2415919104u | (uint32_t)reg) != 0) return -1;
+    {
+      int32_t adrp_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+      if (pipeline_elf_ctx_append_reloc_typed((uint8_t *)elf_ctx, adrp_at, name, name_len, 3, 1) != 0) return -1;
+    }
+    if (backend_enc_append_u32_le_c(elf_ctx, (uint32_t)2432696320u | ((uint32_t)reg * 32u) | (uint32_t)reg) != 0) return -1;
+    {
+      int32_t add_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+      return pipeline_elf_ctx_append_reloc_typed((uint8_t *)elf_ctx, add_at, name, name_len, 4, 0);
+    }
+  }
+  if (ta == 0) {
+    int32_t k;
+    uint8_t z = 0;
+    uint8_t rex = 72;
+    if (reg < 0 || reg > 15) return -1;
+    if (reg >= 8) rex = 73;
+    if (backend_enc_append_u8_c(elf_ctx, rex) != 0) return -1;
+    if (backend_enc_append_u8_c(elf_ctx, (int32_t)(184 + (reg & 7))) != 0) return -1;
+    for (k = 0; k < 8; k++) {
+      if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &z, 1) != 0) return -1;
+    }
+    {
+      int32_t imm_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 8;
+      return pipeline_elf_ctx_append_reloc_absolute64((uint8_t *)elf_ctx, imm_at, name, name_len);
+    }
+  }
+  return -1;
 }
 
 int backend_enc_dispatch_slice_marker(void) {

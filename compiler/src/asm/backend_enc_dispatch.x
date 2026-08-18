@@ -41,6 +41,13 @@ export extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, na
 export extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
 export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, at: i32, name: *u8, name_len: i32): i32;
 /**
+ * Typed reloc append (PAGE21 / PAGEOFF12 / absolute64 sentinels).
+ * Authority: pipeline_elf_ctx_append_reloc_typed in runtime_pipeline_abi.x.
+ * PLATFORM: SHARED — F7 lea-of-symbol for vtable statics.
+ */
+export extern "C" function pipeline_elf_ctx_append_reloc_typed(ctx: *u8, at: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_reloc_absolute64(ctx: *u8, at: i32, name: *u8, name_len: i32): i32;
+/**
  * Read ElfCodegenCtx.macho_leading_underscore via offsetof (ast_pool).
  * wave580 Cap: forbids hardcoding field offset (pre-Cap 598052 is stale after name[128]).
  * @param ctx *u8 — ElfCodegenCtx bytes
@@ -226,30 +233,35 @@ export function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32 {
 }
 
 /**
- * Emit `mov rax, [rbx + off]` for x86_64 64-bit load with register base + disp32.
- * Used by F7 dyn Trait vtable dispatch on Linux/Ubuntu.
- * Note: caller passes dst=rax(0), base=rbx(3) conventionally; this emitter is
- * specialized to that fixed register pair to keep encoding simple (no ModRM gymnastics).
+ * Emit `mov r64_dst, [r64_base + disp32]` for x86_64 64-bit load.
+ * Used by F7 dyn Trait vtable dispatch on Linux/Ubuntu. Register numbers
+ * are the hardware encoding (0=rax … 15=r15) so the arm64-style sequence
+ * dst=1/base=0, dst=2/base=1, dst=0/base=0 maps to rcx/rax, rdx/rcx, rax/rax.
  * @param elf_ctx *u8 — emit context
- * @param dst_reg i32 — destination register 0..15 (ignored, always rax for simplicity)
- * @param base_reg i32 — base register 0..15 (ignored, always rbx)
- * @param offset i32 — byte offset (uses disp32 form for full range)
+ * @param dst_reg i32 — destination register 0..15
+ * @param base_reg i32 — base register 0..15 (rsp/r12 get a SIB byte)
+ * @param offset i32 — byte offset (disp32 form)
  * @return i32 — 0 success, -1 failure
  * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin product seed.
- * Encoding: REX.W (0x48) + 8B /r (ModRM=10000011 = 0x83 for rax,[rbx+disp32]) +
- *   disp32 little-endian.
+ * Encoding: REX.W[+R][+B] + 8B /r (mod=10 disp32) [+SIB if base&7==4] + disp32.
  */
 #[no_mangle]
 export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
+  if (dst_reg < 0 || dst_reg > 15) { return 0 - 1; }
+  if (base_reg < 0 || base_reg > 15) { return 0 - 1; }
   unsafe {
-    // REX.W = 0x48
-    if (backend_enc_append_u8_c(elf_ctx, 72) != 0) { return 0 - 1; }
-    // opcode 8B = mov r, r/m
+    let rex: i32 = 72;
+    if (dst_reg >= 8) { rex = rex + 4; }
+    if (base_reg >= 8) { rex = rex + 1; }
+    if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
     if (backend_enc_append_u8_c(elf_ctx, 139) != 0) { return 0 - 1; }
-    // ModRM = 10_000_011 = 0x83 (mod=10 disp32, reg=000 rax, rm=011 rbx)
-    if (backend_enc_append_u8_c(elf_ctx, 131) != 0) { return 0 - 1; }
-    // disp32 little-endian
+    let modrm: i32 = 128 + ((dst_reg & 7) * 8) + (base_reg & 7);
+    if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return 0 - 1; }
+    /* SIB required when r/m is rsp/r12 (encoding 4). */
+    if ((base_reg & 7) == 4) {
+      if (backend_enc_append_u8_c(elf_ctx, 36) != 0) { return 0 - 1; }
+    }
     let b0: u8 = (offset & 255) as u8;
     let b1: u8 = ((offset / 256) & 255) as u8;
     let b2: u8 = ((offset / 65536) & 255) as u8;
@@ -3229,6 +3241,60 @@ export function backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx: *u8, dst_reg: i32, b
   if (ta == 2) { return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
   return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
   }
+}
+
+/**
+ * Materialize a symbol address into a GP register.
+ * ARM64: `adrp xN, sym@PAGE` + `add xN, xN, sym@PAGEOFF` (PAGE21 + PAGEOFF12).
+ * x86_64: `mov r64, imm64` with absolute64 reloc (r_type sentinel 200).
+ * Used by F7 dyn coerce to store `.vtable = &xlang_vtable_<Trait>_for_<Type>`.
+ * @param elf_ctx *u8 — emit context
+ * @param reg i32 — destination register (arm64 0..30 / x86 0..15)
+ * @param name *u8 — link symbol bytes (already Mach-O-underscored when needed)
+ * @param name_len i32 — length of name
+ * @param ta i32 — 0=x86_64, 1=arm64, 2=riscv64 (riscv unsupported → -1)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — MACOS|ARM64 PAGE21/12 · LINUX x86_64 ABS64.
+ */
+#[no_mangle]
+export function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32 {
+  if (elf_ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) { return 0 - 1; }
+  unsafe {
+    if (ta == 1) {
+      if (reg < 0 || reg > 30) { return 0 - 1; }
+      /* adrp xN, #0 — reloc PAGE21 (r_type=3, pcrel=1) fills the page immediate. */
+      if (backend_enc_append_u32_le_c(elf_ctx, (2415919104 as u32) | (reg as u32)) != 0) {
+        return 0 - 1;
+      }
+      let adrp_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+      if (pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, name, name_len, 3, 1) != 0) {
+        return 0 - 1;
+      }
+      /* add xN, xN, #0 — reloc PAGEOFF12 (r_type=4, pcrel=0). */
+      if (backend_enc_append_u32_le_c(elf_ctx, (2432696320 as u32) | ((reg as u32) * 32) | (reg as u32)) != 0) {
+        return 0 - 1;
+      }
+      let add_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+      return pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, name, name_len, 4, 0);
+    }
+    if (ta == 0) {
+      if (reg < 0 || reg > 15) { return 0 - 1; }
+      /* REX.W + B8+rd + imm64; reloc covers the 8-byte immediate. */
+      let rex: u8 = 72;
+      if (reg >= 8) { rex = 73; }
+      if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, (184 + (reg & 7)) as u8) != 0) { return 0 - 1; }
+      let z: u8 = 0;
+      let k: i32 = 0;
+      while (k < 8) {
+        if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+        k = k + 1;
+      }
+      let imm_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 8;
+      return pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, imm_at, name, name_len);
+    }
+  }
+  return 0 - 1;
 }
 
 // arch_riscv64_enc_enc_call: see function docblock below.
