@@ -98,6 +98,13 @@ int32_t glue_f32_xmm_flag_get_body(void);
 /* wave231 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure).
  * Cap residual host getenv stays only link_abi_getenv_impl. Cold twin of backend_call_dispatch.x. */
 extern char *link_abi_getenv(const char *name);
+/**
+ * Returns 1 if the ELF codegen ctx targets Mach-O (Darwin) so symbol names need
+ * a leading underscore prefix; 0 otherwise. Authority: pipeline_elf_ctx_macho_leading_underscore
+ * in runtime_pipeline_abi.x. Used by vtable static emit to decide whether to prepend
+ * `_` to wrapper/vtable symbol names. PLATFORM: SHARED.
+ */
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx);
 
 static void backend_call_debugf(const char *fmt, ...) {
   char buf[256];
@@ -414,6 +421,10 @@ extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx
 extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
+/* F7 dyn Trait vtable dispatch — indirect call + 64-bit load cross-arch encoders. */
+extern int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta);
+extern int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg,
+                                                   int32_t base_reg, int32_t offset, int32_t ta);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
@@ -3822,6 +3833,34 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
    */
   {
     int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    /*
+     * F7: dyn Trait dispatch via vtable indirect call.
+     * typeck sets call_resolved_dep_index = DYN_DISPATCH_DEP_SENTINEL (-2) when
+     * the receiver is TYPE_DYN (kind=17), and stores the trait method slot
+     * index in call_resolved_func_index (r_fn here). The dyn_obj layout is
+     * { void* data; void* vtable; } (16 bytes), so:
+     *   1. receiver addr in x0 (base_ref expression emit)
+     *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
+     *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
+     *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
+     *   5. blr x2                — indirect call through wrapper fn ptr
+     * PLATFORM: SHARED — arm64 blr / x86_64 call rN / riscv64 jalr.
+     */
+    {
+      int32_t dep_idx = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (dep_idx == -2) {
+        int32_t slot = r_fn;
+        if (slot < 0) { return -1; }
+        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+          return -1;
+        }
+        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 1, 0, 8, ta) != 0) { return -1; }
+        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return -1; }
+        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+        if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
+        return 0;
+      }
+    }
     if (r_fn < 0 && nargs == 0 && name_len == 6 && base_ref != 0 && name[0] == (uint8_t)'d' &&
         name[1] == (uint8_t)'o' && name[2] == (uint8_t)'u' && name[3] == (uint8_t)'b' &&
         name[4] == (uint8_t)'l' && name[5] == (uint8_t)'e') {
@@ -4547,6 +4586,220 @@ int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct p
 }
 #endif
 
+/* F7: asm backend native vtable statics + wrapper function emission.
+ * Logic source: src/asm/backend_call_dispatch.x (G.7 twin product seed).
+ * PLATFORM: SHARED — mirrors codegen.x vtable naming (G.7 single authority).
+ */
+extern int32_t xlang_skip_impl_seen_count_c(void);
+extern int32_t xlang_skip_impl_trait_name_into_c(int32_t si, uint8_t *out64);
+extern int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
+        int32_t *out_is_ptr, uint8_t *out_name64, int32_t *out_nlen_ptr);
+extern int32_t xlang_skip_trait_method_count_c(uint8_t *trait_nm, int32_t trait_nlen);
+extern int32_t xlang_skip_trait_method_name_into_c(uint8_t *trait_nm, int32_t trait_nlen,
+        int32_t slot_i, uint8_t *out);
+extern int32_t codegen_find_impl_method_for_type(struct ast_Module *module, struct ast_ASTArena *arena,
+        uint8_t *method_name, int32_t method_name_len, int32_t receiver_type_ref);
+extern int32_t codegen_builtin_type_name_into(int32_t kind_ord, uint8_t *out);
+extern int32_t pipeline_type_find_or_alloc_named(struct ast_ASTArena *arena, uint8_t *name, int32_t nlen);
+extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t offset, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
+extern int32_t backend_enc_prologue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_sz, int32_t ta);
+extern int32_t backend_enc_epilogue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
+
+/* F7: outside #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X so thin hybrid path also
+ * compiles vtable statics + wrapper functions (must be present in all build profiles). */
+int32_t pipeline_asm_emit_vtable_static_name_into(uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *for_nm, int32_t for_nlen, int32_t is_ptr, uint8_t *out) {
+  int32_t w, k, ti, fi;
+  uint8_t b;
+  static const uint8_t stem[13] = {0x78,0x6c,0x61,0x6e,0x67,0x5f,0x76,0x74,0x61,0x62,0x6c,0x65,0x5f};
+  static const uint8_t fk[5] = {0x5f,0x66,0x6f,0x72,0x5f};
+  static const uint8_t pk[4] = {0x50,0x74,0x72,0x5f};
+  if (!trait_nm || !for_nm || !out) { return -1; }
+  if (trait_nlen <= 0 || for_nlen <= 0) { return -1; }
+  if (trait_nlen > 64 || for_nlen > 64) { return -1; }
+  w = 0;
+  for (k = 0; k < 13; k++) { out[w++] = stem[k]; }
+  for (ti = 0; ti < trait_nlen; ti++) {
+    b = trait_nm[ti];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  for (k = 0; k < 5; k++) { out[w++] = fk[k]; }
+  if (is_ptr) { for (k = 0; k < 4; k++) { out[w++] = pk[k]; } }
+  for (fi = 0; fi < for_nlen; fi++) {
+    b = for_nm[fi];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  return w;
+}
+
+int32_t pipeline_asm_emit_vtable_wrapper_name_into(uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *for_nm, int32_t for_nlen, int32_t is_ptr, int32_t slot_i, uint8_t *out) {
+  int32_t w, k, ti, fi, n, v, j;
+  uint8_t b;
+  uint8_t tmp[10];
+  static const uint8_t stem[18] = {0x78,0x6c,0x61,0x6e,0x67,0x5f,0x76,0x74,0x61,0x62,0x6c,0x65,0x5f,0x77,0x72,0x61,0x70,0x5f};
+  static const uint8_t fk[5] = {0x5f,0x66,0x6f,0x72,0x5f};
+  static const uint8_t pk[4] = {0x50,0x74,0x72,0x5f};
+  if (!trait_nm || !for_nm || !out) { return -1; }
+  if (trait_nlen <= 0 || for_nlen <= 0) { return -1; }
+  if (trait_nlen > 64 || for_nlen > 64) { return -1; }
+  if (slot_i < 0) { return -1; }
+  w = 0;
+  for (k = 0; k < 18; k++) { out[w++] = stem[k]; }
+  for (ti = 0; ti < trait_nlen; ti++) {
+    b = trait_nm[ti];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  for (k = 0; k < 5; k++) { out[w++] = fk[k]; }
+  if (is_ptr) { for (k = 0; k < 4; k++) { out[w++] = pk[k]; } }
+  for (fi = 0; fi < for_nlen; fi++) {
+    b = for_nm[fi];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  out[w++] = '_';
+  if (slot_i == 0) { out[w++] = '0'; }
+  else {
+    n = 0; v = slot_i;
+    while (v > 0 && n < 10) { tmp[n++] = '0' + (uint8_t)(v % 10); v /= 10; }
+    for (j = n - 1; j >= 0; j--) { out[w++] = tmp[j]; }
+  }
+  return w;
+}
+
+int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+        struct ast_Module *module, struct ast_ASTArena *arena,
+        uint8_t *trait_nm, int32_t trait_nlen, uint8_t *for_nm, int32_t for_nlen,
+        int32_t for_ptr, int32_t slot_i, int32_t recv_rt) {
+  uint8_t meth_nm[64]; int32_t meth_nlen;
+  int32_t impl_fi; uint8_t impl_nm[128]; int32_t impl_nlen;
+  uint8_t wrap_nm[168]; int32_t wrap_nlen;
+  int32_t macho; uint8_t sym_nm[170]; int32_t sym_nlen;
+  int32_t entry_off, k;
+  if (!elf_ctx || !module || !arena) { return -1; }
+  if (!trait_nm || !for_nm) { return -1; }
+  if (trait_nlen <= 0 || for_nlen <= 0 || slot_i < 0) { return -1; }
+  meth_nlen = xlang_skip_trait_method_name_into_c(trait_nm, trait_nlen, slot_i, meth_nm);
+  if (meth_nlen <= 0) { return 0; }
+  impl_fi = codegen_find_impl_method_for_type(module, arena, meth_nm, meth_nlen, recv_rt);
+  if (impl_fi < 0) { return 0; }
+  impl_nlen = pipeline_asm_module_func_name_len_at(module, impl_fi);
+  if (impl_nlen <= 0 || impl_nlen > 127) { return -1; }
+  pipeline_asm_module_func_name_copy64(module, impl_fi, impl_nm);
+  wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
+          for_nm, for_nlen, for_ptr, slot_i, wrap_nm);
+  if (wrap_nlen <= 0) { return -1; }
+  macho = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+  sym_nlen = wrap_nlen;
+  if (macho) {
+    sym_nm[0] = '_';
+    for (k = 0; k < wrap_nlen && k < 168; k++) { sym_nm[k + 1] = wrap_nm[k]; }
+    sym_nlen = wrap_nlen + 1;
+  } else {
+    for (k = 0; k < wrap_nlen && k < 169; k++) { sym_nm[k] = wrap_nm[k]; }
+  }
+  entry_off = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx);
+  if (entry_off < 0) { return -1; }
+  if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, sym_nm, sym_nlen, entry_off) != 0) { return -1; }
+  if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, sym_nm, sym_nlen, entry_off) != 0) { return -1; }
+  if (backend_enc_prologue_arch(elf_ctx, 16, ta) != 0) { return -1; }
+  if (for_ptr == 0) {
+    if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+  }
+  if (backend_enc_call_arch(elf_ctx, impl_nm, impl_nlen, ta) != 0) { return -1; }
+  if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) { return -1; }
+  return 1;
+}
+
+int32_t pipeline_asm_emit_module_vtable_statics(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+        struct ast_Module *module, struct ast_ASTArena *arena) {
+  int32_t n_impl, si, for_k, for_ptr, for_nlen, is_builtin;
+  int32_t recv_rt, meth_count, wi, rc, macho, vt_nlen, vt_sym_nlen;
+  int32_t vt_off, slot_i, slot_off, wrap_nlen, wrap_sym_nlen, k;
+  uint8_t trait_nm[64]; int32_t trait_nlen;
+  uint8_t for_nm[64];
+  uint8_t vt_nm[150]; uint8_t vt_sym[152];
+  uint8_t wrap_nm[168]; uint8_t wrap_sym[170];
+  int32_t has_impl[64];
+  const int32_t PTR_KIND = 9;
+  if (!elf_ctx || !module || !arena) { return -1; }
+  n_impl = xlang_skip_impl_seen_count_c();
+  if (n_impl <= 0) { return 0; }
+  for (si = 0; si < n_impl; si++) {
+    trait_nlen = xlang_skip_impl_trait_name_into_c(si, trait_nm);
+    if (trait_nlen <= 0) { continue; }
+    for_k = 0; for_ptr = 0; for_nlen = 0;
+    if (xlang_skip_impl_for_type_into_c(si, &for_k, &for_ptr, for_nm, &for_nlen) == 0) { continue; }
+    is_builtin = 0;
+    if (for_nlen <= 0) {
+      int32_t blen = codegen_builtin_type_name_into(for_k, for_nm);
+      if (blen <= 0) { continue; }
+      for_nlen = blen; is_builtin = 1;
+    }
+    recv_rt = 0;
+    if (is_builtin) {
+      recv_rt = pipeline_type_find_or_alloc_compound(arena, for_k, 0, 0);
+    } else {
+      recv_rt = pipeline_type_find_or_alloc_named(arena, for_nm, for_nlen);
+    }
+    if (recv_rt <= 0) { continue; }
+    if (for_ptr) {
+      recv_rt = pipeline_type_find_or_alloc_compound(arena, PTR_KIND, recv_rt, 0);
+      if (recv_rt <= 0) { continue; }
+    }
+    meth_count = xlang_skip_trait_method_count_c(trait_nm, trait_nlen);
+    if (meth_count <= 0) { continue; }
+    for (wi = 0; wi < meth_count && wi < 64; wi++) { has_impl[wi] = 0; }
+    for (wi = 0; wi < meth_count && wi < 64; wi++) {
+      rc = pipeline_asm_emit_vtable_wrapper_def(elf_ctx, ta, module, arena,
+              trait_nm, trait_nlen, for_nm, for_nlen, for_ptr, wi, recv_rt);
+      if (rc < 0) { return -1; }
+      has_impl[wi] = rc;
+    }
+    vt_nlen = pipeline_asm_emit_vtable_static_name_into(trait_nm, trait_nlen,
+            for_nm, for_nlen, for_ptr, vt_nm);
+    if (vt_nlen <= 0) { continue; }
+    macho = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+    vt_sym_nlen = vt_nlen;
+    if (macho) {
+      vt_sym[0] = '_';
+      for (k = 0; k < vt_nlen && k < 150; k++) { vt_sym[k + 1] = vt_nm[k]; }
+      vt_sym_nlen = vt_nlen + 1;
+    } else {
+      for (k = 0; k < vt_nlen && k < 151; k++) { vt_sym[k] = vt_nm[k]; }
+    }
+    vt_off = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx);
+    if (vt_off < 0) { return -1; }
+    if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) { return -1; }
+    if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) { return -1; }
+    for (slot_i = 0; slot_i < meth_count && slot_i < 64; slot_i++) {
+      slot_off = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx);
+      if (slot_off < 0) { return -1; }
+      if (backend_enc_append_u32_le_c(elf_ctx, 0) != 0) { return -1; }
+      if (backend_enc_append_u32_le_c(elf_ctx, 0) != 0) { return -1; }
+      if (has_impl[slot_i]) {
+        wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
+                for_nm, for_nlen, for_ptr, slot_i, wrap_nm);
+        if (wrap_nlen <= 0) { return -1; }
+        wrap_sym_nlen = wrap_nlen;
+        if (macho) {
+          wrap_sym[0] = '_';
+          for (k = 0; k < wrap_nlen && k < 168; k++) { wrap_sym[k + 1] = wrap_nm[k]; }
+          wrap_sym_nlen = wrap_nlen + 1;
+        } else {
+          for (k = 0; k < wrap_nlen && k < 169; k++) { wrap_sym[k] = wrap_nm[k]; }
+        }
+        if (pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, slot_off, wrap_sym, wrap_sym_nlen) != 0) {
+          return -1;
+        }
+      }
+    }
+  }
+  return 0;
+}
 
 #else /* XLANG_BACKEND_CALL_DISPATCH_FROM_X：产品 rest 业务 H=0 */
 int backend_call_dispatch_slice_marker(void) {

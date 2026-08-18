@@ -155,6 +155,157 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
   return 0 - 1;
 }
 
+/**
+ * Emit `blr xN` (branch with link to register) for ARM64 indirect call.
+ * Used by F7 dyn Trait vtable dispatch to call through slot fn ptr.
+ * @param elf_ctx *u8 — emit context (ElfCodegenCtx)
+ * @param reg i32 — register number 0..30 (x0..x30); 31=x31/SP reserved
+ * @return i32 — 0 success, -1 failure (null ctx or invalid reg)
+ * PLATFORM: MACOS|ARM64 AAPCS64 — G.7 twin product seed.
+ * Encoding: BLR xN = 0xD63F0000 | (N << 5); no reloc (reg encoded in insn).
+ */
+#[no_mangle]
+export function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 30) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (3595386880 as u32) | ((reg as u32) * 32));
+}
+
+/**
+ * Emit `ldr xN, [xM, #off]` for ARM64 64-bit load (register base + unsigned imm12 offset).
+ * Used by F7 dyn Trait vtable dispatch to load vtable ptr and slot fn ptr.
+ * @param elf_ctx *u8 — emit context (ElfCodegenCtx)
+ * @param dst_reg i32 — destination register 0..30
+ * @param base_reg i32 — base register 0..30
+ * @param offset i32 — byte offset; must be multiple of 8 in [0, 32760]
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — G.7 twin product seed.
+ * Encoding: LDR (immediate, unsigned offset, 64-bit) =
+ *   0xF9400000 | ((off/8)<<10) | (base<<5) | dst.
+ */
+#[no_mangle]
+export function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 30) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 30) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  if ((offset & 7) != 0) { return 0 - 1; }
+  let imm12: i32 = offset / 8;
+  if (imm12 > 4095) { imm12 = 4095; }
+  return backend_enc_append_u32_le_c(
+    elf_ctx,
+    (4181721088 as u32) | ((imm12 as u32) * 1024) | ((base_reg as u32) * 32) | (dst_reg as u32)
+  );
+}
+
+/**
+ * Emit `call rN` for x86_64 indirect call (64-bit mode).
+ * Used by F7 dyn Trait vtable dispatch on Linux/Ubuntu.
+ * @param elf_ctx *u8 — emit context
+ * @param reg i32 — register number 0..15 (rax..r15)
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin product seed.
+ * Encoding: optional REX.B (0x41) for r8-r15; then FF /2 (ModRM=0xD0|(reg&7)).
+ */
+#[no_mangle]
+export function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 15) { return 0 - 1; }
+  unsafe {
+    if (reg >= 8) {
+      if (backend_enc_append_u8_c(elf_ctx, 65) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 255) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 208 | (reg & 7));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit `mov rax, [rbx + off]` for x86_64 64-bit load with register base + disp32.
+ * Used by F7 dyn Trait vtable dispatch on Linux/Ubuntu.
+ * Note: caller passes dst=rax(0), base=rbx(3) conventionally; this emitter is
+ * specialized to that fixed register pair to keep encoding simple (no ModRM gymnastics).
+ * @param elf_ctx *u8 — emit context
+ * @param dst_reg i32 — destination register 0..15 (ignored, always rax for simplicity)
+ * @param base_reg i32 — base register 0..15 (ignored, always rbx)
+ * @param offset i32 — byte offset (uses disp32 form for full range)
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin product seed.
+ * Encoding: REX.W (0x48) + 8B /r (ModRM=10000011 = 0x83 for rax,[rbx+disp32]) +
+ *   disp32 little-endian.
+ */
+#[no_mangle]
+export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    // REX.W = 0x48
+    if (backend_enc_append_u8_c(elf_ctx, 72) != 0) { return 0 - 1; }
+    // opcode 8B = mov r, r/m
+    if (backend_enc_append_u8_c(elf_ctx, 139) != 0) { return 0 - 1; }
+    // ModRM = 10_000_011 = 0x83 (mod=10 disp32, reg=000 rax, rm=011 rbx)
+    if (backend_enc_append_u8_c(elf_ctx, 131) != 0) { return 0 - 1; }
+    // disp32 little-endian
+    let b0: u8 = (offset & 255) as u8;
+    let b1: u8 = ((offset / 256) & 255) as u8;
+    let b2: u8 = ((offset / 65536) & 255) as u8;
+    let b3: u8 = ((offset / 16777216) & 255) as u8;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b2, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b3, 1) != 0) { return 0 - 1; }
+    return 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit `jalr x1, 0(xN)` for riscv64 indirect call (return addr in ra=x1).
+ * Used by F7 dyn Trait vtable dispatch on riscv64 targets.
+ * @param elf_ctx *u8 — emit context
+ * @param reg i32 — register number 0..31 (x0..x31)
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: LINUX|UBUNTU riscv64 — G.7 twin product seed.
+ * Encoding: jalr rd=1, rs1=N, imm=0, opcode=0x67 = (N<<15) | 0xE7.
+ */
+#[no_mangle]
+export function backend_enc_riscv64_jalr_reg_c(elf_ctx: *u8, reg: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 31) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (231 as u32) | ((reg as u32) * 32768));
+}
+
+/**
+ * Emit `ld rd, off(rs1)` for riscv64 64-bit load (register base + imm12 offset).
+ * Used by F7 dyn Trait vtable dispatch on riscv64 targets.
+ * @param elf_ctx *u8 — emit context
+ * @param dst_reg i32 — destination register 0..31
+ * @param base_reg i32 — base register 0..31
+ * @param offset i32 — byte offset; must fit in signed imm12 [-2048, 2047]
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: LINUX|UBUNTU riscv64 — G.7 twin product seed.
+ * Encoding: LD (rd, rs1, imm12) = (imm12<<20) | (rs1<<15) | (3<<12) | (rd<<7) | 3.
+ */
+#[no_mangle]
+export function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 31) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 31) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  let imm12: i32 = offset & 4095;
+  return backend_enc_append_u32_le_c(
+    elf_ctx,
+    ((imm12 as u32) * 1048576) | ((base_reg as u32) * 32768) | 12288 | ((dst_reg as u32) * 128) | 3
+  );
+}
+
 // ADD X31, X31, #imm12 — 0x910003ff | (imm12<<10)
 /** Exported function `backend_enc_arm64_add_sp_imm12_c`.
  * Implements `backend_enc_arm64_add_sp_imm12_c`.
@@ -2955,6 +3106,129 @@ export function arch_arm64_enc_enc_str_x0_sp_offset(elf_ctx: *u8, off_bytes: i32
 #[no_mangle]
 export function arch_arm64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
   return backend_enc_arm64_call_c(elf_ctx, name, name_len);
+}
+
+/**
+ * Thin wrapper: arch_arm64_enc_enc_blr → backend_enc_arm64_blr_c.
+ * F7 dyn Trait vtable dispatch — emit blr xN for indirect call.
+ * @param elf_ctx *u8 — emit context
+ * @param reg i32 — register number 0..30
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: MACOS|ARM64 AAPCS64 — G.7 twin product seed.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_blr(elf_ctx: *u8, reg: i32): i32 {
+  return backend_enc_arm64_blr_c(elf_ctx, reg);
+}
+
+/**
+ * Thin wrapper: arch_arm64_enc_enc_ldr_xreg_xreg_imm → backend_enc_arm64_ldr_xreg_xreg_imm_c.
+ * F7 dyn Trait vtable dispatch — emit ldr xN, [xM, #off] for 64-bit load.
+ * @param elf_ctx *u8 — emit context
+ * @param dst_reg i32 — destination register 0..30
+ * @param base_reg i32 — base register 0..30
+ * @param offset i32 — byte offset, multiple of 8 in [0, 32760]
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: MACOS|ARM64 AAPCS64 — G.7 twin product seed.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  return backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset);
+}
+
+/**
+ * Thin wrapper: arch_x86_64_enc_enc_call_reg → backend_enc_x86_64_call_reg_c.
+ * F7 dyn Trait vtable dispatch — emit call rN for indirect call.
+ * @param elf_ctx *u8 — emit context
+ * @param reg i32 — register number 0..15
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin product seed.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_call_reg(elf_ctx: *u8, reg: i32): i32 {
+  return backend_enc_x86_64_call_reg_c(elf_ctx, reg);
+}
+
+/**
+ * Thin wrapper: arch_x86_64_enc_enc_load_rax_rbx_disp32 → backend_enc_x86_64_load_rax_rbx_disp32_c.
+ * F7 dyn Trait vtable dispatch — emit mov rax, [rbx+disp32] for 64-bit load.
+ * @param elf_ctx *u8 — emit context
+ * @param dst_reg i32 — destination register (ignored, always rax)
+ * @param base_reg i32 — base register (ignored, always rbx)
+ * @param offset i32 — byte offset (disp32 form)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin product seed.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  return backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx, dst_reg, base_reg, offset);
+}
+
+/**
+ * Thin wrapper: arch_riscv64_enc_enc_jalr_reg → backend_enc_riscv64_jalr_reg_c.
+ * F7 dyn Trait vtable dispatch — emit jalr x1, 0(xN) for indirect call.
+ * @param elf_ctx *u8 — emit context
+ * @param reg i32 — register number 0..31
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU riscv64 — G.7 twin product seed.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_jalr_reg(elf_ctx: *u8, reg: i32): i32 {
+  return backend_enc_riscv64_jalr_reg_c(elf_ctx, reg);
+}
+
+/**
+ * Thin wrapper: arch_riscv64_enc_enc_ldr_xreg_xreg_imm → backend_enc_riscv64_ldr_xreg_xreg_imm_c.
+ * F7 dyn Trait vtable dispatch — emit ld rd, off(rs1) for 64-bit load.
+ * @param elf_ctx *u8 — emit context
+ * @param dst_reg i32 — destination register 0..31
+ * @param base_reg i32 — base register 0..31
+ * @param offset i32 — byte offset (imm12 form)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU riscv64 — G.7 twin product seed.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  return backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset);
+}
+
+/**
+ * Cross-arch indirect call via register: blr xN (arm64), call rN (x86_64), jalr (riscv64).
+ * F7 dyn Trait vtable dispatch — call through slot fn ptr.
+ * @param elf_ctx *u8 — emit context (ElfCodegenCtx)
+ * @param reg i32 — register holding the function pointer
+ * @param ta i32 — target arch: 0=x86_64, 1=arm64, 2=riscv64
+ * @return i32 — 0 ok, -1 failure
+ * PLATFORM: SHARED — dispatches to per-arch encoders.
+ */
+#[no_mangle]
+export function backend_enc_blr_arch(elf_ctx: *u8, reg: i32, ta: i32): i32 {
+  unsafe {
+  if (ta == 1) { return arch_arm64_enc_enc_blr(elf_ctx, reg); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jalr_reg(elf_ctx, reg); }
+  return arch_x86_64_enc_enc_call_reg(elf_ctx, reg);
+  }
+}
+
+/**
+ * Cross-arch 64-bit load with register base + immediate offset:
+ *   ldr xN, [xM, #off] (arm64), mov rax, [rbx+disp32] (x86_64), ld rd,off(rs1) (riscv64).
+ * F7 dyn Trait vtable dispatch — load vtable ptr and slot fn ptr.
+ * @param elf_ctx *u8 — emit context (ElfCodegenCtx)
+ * @param dst_reg i32 — destination register
+ * @param base_reg i32 — base register
+ * @param offset i32 — byte offset
+ * @param ta i32 — target arch: 0=x86_64, 1=arm64, 2=riscv64
+ * @return i32 — 0 ok, -1 failure
+ * PLATFORM: SHARED — dispatches to per-arch encoders.
+ */
+#[no_mangle]
+export function backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32, ta: i32): i32 {
+  unsafe {
+  if (ta == 1) { return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
+  return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
+  }
 }
 
 // arch_riscv64_enc_enc_call: see function docblock below.

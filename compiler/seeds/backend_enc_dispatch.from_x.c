@@ -175,6 +175,21 @@ int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
 int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
+/* F7 dyn Trait vtable dispatch — indirect call + 64-bit load per-arch encoders. */
+int32_t backend_enc_arm64_blr_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg);
+int32_t backend_enc_arm64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
+int32_t backend_enc_x86_64_call_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg);
+int32_t backend_enc_x86_64_load_rax_rbx_disp32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
+int32_t backend_enc_riscv64_jalr_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg);
+int32_t backend_enc_riscv64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
+int32_t arch_arm64_enc_enc_blr(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg);
+int32_t arch_arm64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
+int32_t arch_x86_64_enc_enc_call_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg);
+int32_t arch_x86_64_enc_enc_load_rax_rbx_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
+int32_t arch_riscv64_enc_enc_jalr_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg);
+int32_t arch_riscv64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset);
+int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta);
+int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset, int32_t ta);
 #endif
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
@@ -3110,6 +3125,104 @@ int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx)
   return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
 }
 #endif
+
+/* F7 dyn Trait vtable dispatch: per-arch indirect call + 64-bit load encoders.
+ * Logic source: src/asm/backend_enc_dispatch.x (G.7 twin product seed).
+ * PLATFORM: SHARED — dispatched by backend_enc_blr_arch / backend_enc_ldr_xreg_xreg_imm_arch.
+ * F7: outside #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X so thin hybrid path also
+ * compiles these symbols (vtable dispatch must be present in all build profiles).
+ */
+/* arm64 BLR xN = 0xD63F0000 | (N<<5); no reloc (reg encoded in insn). */
+int32_t backend_enc_arm64_blr_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
+  if (!elf_ctx) { return -1; }
+  if (reg < 0 || reg > 30) { return -1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (uint32_t)0xD63F0000u | ((uint32_t)reg << 5));
+}
+/* arm64 LDR xN,[xM,#off] = 0xF9400000 | ((off/8)<<10) | (base<<5) | dst. */
+int32_t backend_enc_arm64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
+  if (!elf_ctx) { return -1; }
+  if (dst_reg < 0 || dst_reg > 30) { return -1; }
+  if (base_reg < 0 || base_reg > 30) { return -1; }
+  if (offset < 0 || (offset & 7) != 0) { return -1; }
+  int32_t imm12 = offset / 8;
+  if (imm12 > 4095) { imm12 = 4095; }
+  return backend_enc_append_u32_le_c(elf_ctx,
+    (uint32_t)0xF9400000u | ((uint32_t)imm12 << 10) | ((uint32_t)base_reg << 5) | (uint32_t)dst_reg);
+}
+/* x86_64 call rN: optional REX.B (0x41) for r8-r15; FF /2 (ModRM=0xD0|(reg&7)). */
+int32_t backend_enc_x86_64_call_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
+  if (!elf_ctx) { return -1; }
+  if (reg < 0 || reg > 15) { return -1; }
+  if (reg >= 8) {
+    if (backend_enc_append_u8_c(elf_ctx, 0x41) != 0) { return -1; }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 0xFF) != 0) { return -1; }
+  return backend_enc_append_u8_c(elf_ctx, 0xD0 | (reg & 7));
+}
+/* x86_64 mov rax,[rbx+disp32]: 48 8B 83 disp32_le. dst/base ignored (fixed pair). */
+int32_t backend_enc_x86_64_load_rax_rbx_disp32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
+  (void)dst_reg; (void)base_reg;
+  if (!elf_ctx) { return -1; }
+  if (backend_enc_append_u8_c(elf_ctx, 0x48) != 0) { return -1; }
+  if (backend_enc_append_u8_c(elf_ctx, 0x8B) != 0) { return -1; }
+  if (backend_enc_append_u8_c(elf_ctx, 0x83) != 0) { return -1; }
+  uint8_t b0 = (uint8_t)(offset & 0xFF);
+  uint8_t b1 = (uint8_t)((offset >> 8) & 0xFF);
+  uint8_t b2 = (uint8_t)((offset >> 16) & 0xFF);
+  uint8_t b3 = (uint8_t)((offset >> 24) & 0xFF);
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b0, 1) != 0) { return -1; }
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b1, 1) != 0) { return -1; }
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b2, 1) != 0) { return -1; }
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b3, 1) != 0) { return -1; }
+  return 0;
+}
+/* riscv64 jalr x1,0(xN) = (N<<15) | 0xE7. */
+int32_t backend_enc_riscv64_jalr_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
+  if (!elf_ctx) { return -1; }
+  if (reg < 0 || reg > 31) { return -1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (uint32_t)0xE7u | ((uint32_t)reg << 15));
+}
+/* riscv64 ld rd,off(rs1) = (imm12<<20)|(rs1<<15)|(3<<12)|(rd<<7)|3. */
+int32_t backend_enc_riscv64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
+  if (!elf_ctx) { return -1; }
+  if (dst_reg < 0 || dst_reg > 31) { return -1; }
+  if (base_reg < 0 || base_reg > 31) { return -1; }
+  if (offset < 0) { return -1; }
+  int32_t imm12 = offset & 4095;
+  return backend_enc_append_u32_le_c(elf_ctx,
+    ((uint32_t)imm12 << 20) | ((uint32_t)base_reg << 15) | (3u << 12) | ((uint32_t)dst_reg << 7) | 3u);
+}
+/* Thin wrappers: arch_*_enc_enc_* → backend_enc_*_c. */
+int32_t arch_arm64_enc_enc_blr(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
+  return backend_enc_arm64_blr_c(elf_ctx, reg);
+}
+int32_t arch_arm64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
+  return backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset);
+}
+int32_t arch_x86_64_enc_enc_call_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
+  return backend_enc_x86_64_call_reg_c(elf_ctx, reg);
+}
+int32_t arch_x86_64_enc_enc_load_rax_rbx_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
+  return backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx, dst_reg, base_reg, offset);
+}
+int32_t arch_riscv64_enc_enc_jalr_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
+  return backend_enc_riscv64_jalr_reg_c(elf_ctx, reg);
+}
+int32_t arch_riscv64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
+  return backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset);
+}
+/* Cross-arch indirect call dispatch: ta=1 arm64, ta=2 riscv64, else x86_64. */
+int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta) {
+  if (ta == 1) { return arch_arm64_enc_enc_blr(elf_ctx, reg); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jalr_reg(elf_ctx, reg); }
+  return arch_x86_64_enc_enc_call_reg(elf_ctx, reg);
+}
+/* Cross-arch 64-bit load dispatch: ta=1 arm64, ta=2 riscv64, else x86_64. */
+int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset, int32_t ta) {
+  if (ta == 1) { return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
+  return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
+}
 
 int backend_enc_dispatch_slice_marker(void) {
     return 1;

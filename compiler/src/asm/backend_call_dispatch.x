@@ -59,6 +59,13 @@ export extern function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: 
 export extern function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
 export extern function pipeline_asm_emit_call_arg_begin_c(): void;
 export extern function pipeline_asm_emit_call_arg_end_c(): void;
+/**
+ * Returns 1 if the ELF codegen ctx targets Mach-O (Darwin) so symbol names need
+ * a leading underscore prefix; 0 otherwise. Authority: pipeline_elf_ctx_macho_leading_underscore
+ * in runtime_pipeline_abi.x. Used by vtable static emit to decide whether to prepend
+ * `_` to wrapper/vtable symbol names. PLATFORM: SHARED.
+ */
+export extern function pipeline_elf_ctx_macho_leading_underscore(ctx: *u8): i32;
 export extern function pipeline_asm_emit_expr_elf_for_call_args(arena: *u8, elf: *u8, ar: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call: i32): i32;
 export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i32): i32;
@@ -2087,6 +2094,38 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
     // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
     let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    /*
+     * F7: dyn Trait dispatch via vtable indirect call.
+     * typeck sets call_resolved_dep_index = DYN_DISPATCH_DEP_SENTINEL (-2) when
+     * the receiver is TYPE_DYN (kind=17), and stores the trait method slot
+     * index in call_resolved_func_index (r_fn here). The dyn_obj layout is
+     * { void* data; void* vtable; } (16 bytes), so:
+     *   1. receiver addr in x0 (base_ref expression emit)
+     *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
+     *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
+     *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
+     *   5. blr x2                — indirect call through wrapper fn ptr
+     * Without this branch, dyn calls fall into try_inline_param0_single_field_call_elf
+     * which reads dyn_obj.data low 4 bytes as a value → SIGBUS on later blr.
+     */
+    let dep_idx: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+    if (dep_idx == -2) {
+      let slot: i32 = r_fn;
+      if (slot < 0) { return 0 - 1; }
+      /* Emit receiver address into x0 (base_ref is the dyn-typed variable expr). */
+      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      /* x0 = &dyn_obj; load vtable ptr from dyn_obj+8 into x1. */
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 1, 0, 8, ta) != 0) { return 0 - 1; }
+      /* x1 = vtable; load method slot fn ptr from vtable+slot*8 into x2. */
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return 0 - 1; }
+      /* x2 = wrapper fn ptr; load data ptr from dyn_obj+0 into x0 (self arg). */
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return 0 - 1; }
+      /* blr x2 — indirect call through wrapper fn ptr. */
+      if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
     if (r_fn < 0) {
       if (nargs == 0) {
         if (name_len == 6) {
@@ -5100,4 +5139,319 @@ export function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: 
     }
   }
   return 0;
+}
+
+// ===========================================================================
+// F7: asm backend native vtable statics + wrapper function emission.
+// Moved from backend_vtable_emit.x (merged here to reuse existing seed/build).
+// PLATFORM: SHARED — mirrors codegen.x vtable naming (G.7 single authority).
+// ===========================================================================
+
+export extern function xlang_skip_impl_seen_count_c(): i32;
+export extern function xlang_skip_impl_trait_name_into_c(si: i32, out64: *u8): i32;
+export extern function xlang_skip_impl_for_type_into_c(si: i32, out_kind: *i32,
+        out_is_ptr: *i32, out_name64: *u8, out_nlen_ptr: *i32): i32;
+export extern function xlang_skip_trait_method_count_c(trait_nm: *u8, trait_nlen: i32): i32;
+export extern function xlang_skip_trait_method_name_into_c(trait_nm: *u8, trait_nlen: i32,
+        slot_i: i32, out: *u8): i32;
+export extern function codegen_find_impl_method_for_type(module: *u8, arena: *u8,
+        method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32;
+export extern function codegen_builtin_type_name_into(kind_ord: i32, out: *u8): i32;
+export extern function pipeline_type_find_or_alloc_named(arena: *u8, name: *u8, nlen: i32): i32;
+export extern function pipeline_type_find_or_alloc_compound(arena: *u8, kind_ord: i32,
+        elem_ref: i32, asz: i32): i32;
+export extern function pipeline_elf_ctx_add_label(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern function pipeline_elf_ctx_add_sym(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
+export extern function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
+export extern function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
+export extern function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
+
+/**
+ * Build the canonical vtable static name `xlang_vtable_<Trait>_for_[Ptr_]<Type>`.
+ * G.7 single authority — byte sequence MUST match codegen_emit_vtable_static_name.
+ * PLATFORM: SHARED — G.7 naming authority twin.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_vtable_static_name_into(trait_nm: *u8, trait_nlen: i32,
+        for_nm: *u8, for_nlen: i32, is_ptr: i32, out: *u8): i32 {
+  if (trait_nm == 0 as *u8 || for_nm == 0 as *u8 || out == 0 as *u8) { return 0 - 1; }
+  if (trait_nlen <= 0 || for_nlen <= 0) { return 0 - 1; }
+  if (trait_nlen > 64 || for_nlen > 64) { return 0 - 1; }
+  unsafe {
+    let w: i32 = 0;
+    let stem: u8[13] = [120, 108, 97, 110, 103, 95, 118, 116, 97, 98, 108, 101, 95];
+    let k: i32 = 0;
+    while (k < 13) { out[w] = stem[k]; w = w + 1; k = k + 1; }
+    let ti: i32 = 0;
+    while (ti < trait_nlen) {
+      let b: u8 = trait_nm[ti];
+      if (b == 95) { out[w] = b; }
+      else if (b >= 48 && b <= 57) { out[w] = b; }
+      else if (b >= 65 && b <= 90) { out[w] = b; }
+      else if (b >= 97 && b <= 122) { out[w] = b; }
+      else { out[w] = 95; }
+      w = w + 1; ti = ti + 1;
+    }
+    let fk: u8[5] = [95, 102, 111, 114, 95];
+    k = 0;
+    while (k < 5) { out[w] = fk[k]; w = w + 1; k = k + 1; }
+    if (is_ptr != 0) {
+      let pk: u8[4] = [80, 116, 114, 95];
+      k = 0;
+      while (k < 4) { out[w] = pk[k]; w = w + 1; k = k + 1; }
+    }
+    let fi: i32 = 0;
+    while (fi < for_nlen) {
+      let b: u8 = for_nm[fi];
+      if (b == 95) { out[w] = b; }
+      else if (b >= 48 && b <= 57) { out[w] = b; }
+      else if (b >= 65 && b <= 90) { out[w] = b; }
+      else if (b >= 97 && b <= 122) { out[w] = b; }
+      else { out[w] = 95; }
+      w = w + 1; fi = fi + 1;
+    }
+    return w;
+  }
+}
+
+/**
+ * Build the canonical wrapper name `xlang_vtable_wrap_<Trait>_for_[Ptr_]<Type>_<slot>`.
+ * G.7 single authority — byte sequence MUST match codegen_emit_vtable_wrapper_name.
+ * PLATFORM: SHARED — G.7 naming authority twin.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_vtable_wrapper_name_into(trait_nm: *u8, trait_nlen: i32,
+        for_nm: *u8, for_nlen: i32, is_ptr: i32, slot_i: i32, out: *u8): i32 {
+  if (trait_nm == 0 as *u8 || for_nm == 0 as *u8 || out == 0 as *u8) { return 0 - 1; }
+  if (trait_nlen <= 0 || for_nlen <= 0) { return 0 - 1; }
+  if (trait_nlen > 64 || for_nlen > 64) { return 0 - 1; }
+  if (slot_i < 0) { return 0 - 1; }
+  unsafe {
+    let w: i32 = 0;
+    let stem: u8[18] = [120, 108, 97, 110, 103, 95, 118, 116, 97, 98, 108, 101, 95, 119, 114, 97, 112, 95];
+    let k: i32 = 0;
+    while (k < 18) { out[w] = stem[k]; w = w + 1; k = k + 1; }
+    let ti: i32 = 0;
+    while (ti < trait_nlen) {
+      let b: u8 = trait_nm[ti];
+      if (b == 95) { out[w] = b; }
+      else if (b >= 48 && b <= 57) { out[w] = b; }
+      else if (b >= 65 && b <= 90) { out[w] = b; }
+      else if (b >= 97 && b <= 122) { out[w] = b; }
+      else { out[w] = 95; }
+      w = w + 1; ti = ti + 1;
+    }
+    let fk: u8[5] = [95, 102, 111, 114, 95];
+    k = 0;
+    while (k < 5) { out[w] = fk[k]; w = w + 1; k = k + 1; }
+    if (is_ptr != 0) {
+      let pk: u8[4] = [80, 116, 114, 95];
+      k = 0;
+      while (k < 4) { out[w] = pk[k]; w = w + 1; k = k + 1; }
+    }
+    let fi: i32 = 0;
+    while (fi < for_nlen) {
+      let b: u8 = for_nm[fi];
+      if (b == 95) { out[w] = b; }
+      else if (b >= 48 && b <= 57) { out[w] = b; }
+      else if (b >= 65 && b <= 90) { out[w] = b; }
+      else if (b >= 97 && b <= 122) { out[w] = b; }
+      else { out[w] = 95; }
+      w = w + 1; fi = fi + 1;
+    }
+    out[w] = 95; w = w + 1;
+    if (slot_i == 0) {
+      out[w] = 48; w = w + 1;
+    } else {
+      let tmp: u8[10] = [];
+      let n: i32 = 0;
+      let v: i32 = slot_i;
+      while (v > 0 && n < 10) {
+        tmp[n] = (48 as u8) + ((v % 10) as u8);
+        v = v / 10;
+        n = n + 1;
+      }
+      let j: i32 = n - 1;
+      while (j >= 0) { out[w] = tmp[j]; w = w + 1; j = j - 1; }
+    }
+    return w;
+  }
+}
+
+/**
+ * Emit a single wrapper function for (impl Trait for Type, method slot).
+ * Wrapper body: prologue(16) + optional ldr x0,[x0] (by-value deref) + bl <impl> + epilogue.
+ * PLATFORM: SHARED — G.7 twin of codegen_emit_vtable_wrapper_def.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, module: *u8,
+        arena: *u8, trait_nm: *u8, trait_nlen: i32, for_nm: *u8, for_nlen: i32,
+        for_ptr: i32, slot_i: i32, recv_rt: i32): i32 {
+  if (elf_ctx == 0 as *u8 || module == 0 as *u8 || arena == 0 as *u8) { return 0 - 1; }
+  if (trait_nm == 0 as *u8 || for_nm == 0 as *u8) { return 0 - 1; }
+  if (trait_nlen <= 0 || for_nlen <= 0 || slot_i < 0) { return 0 - 1; }
+  unsafe {
+    let meth_nm: u8[64] = [];
+    let meth_nlen: i32 = xlang_skip_trait_method_name_into_c(trait_nm, trait_nlen,
+            slot_i, &meth_nm[0]);
+    if (meth_nlen <= 0) { return 0; }
+    let impl_fi: i32 = codegen_find_impl_method_for_type(module, arena,
+            &meth_nm[0], meth_nlen, recv_rt);
+    if (impl_fi < 0) { return 0; }
+    let impl_nm: u8[128] = [];
+    let impl_nlen: i32 = pipeline_asm_module_func_name_len_at(module, impl_fi);
+    if (impl_nlen <= 0 || impl_nlen > 127) { return 0 - 1; }
+    pipeline_asm_module_func_name_copy64(module, impl_fi, &impl_nm[0]);
+    let wrap_nm: u8[168] = [];
+    let wrap_nlen: i32 = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
+            for_nm, for_nlen, for_ptr, slot_i, &wrap_nm[0]);
+    if (wrap_nlen <= 0) { return 0 - 1; }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    let sym_nm: u8[170] = [];
+    let sym_nlen: i32 = wrap_nlen;
+    if (macho != 0) {
+      sym_nm[0] = 95;
+      let k: i32 = 0;
+      while (k < wrap_nlen && k < 168) { sym_nm[k + 1] = wrap_nm[k]; k = k + 1; }
+      sym_nlen = wrap_nlen + 1;
+    } else {
+      let k: i32 = 0;
+      while (k < wrap_nlen && k < 169) { sym_nm[k] = wrap_nm[k]; k = k + 1; }
+    }
+    let entry_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    if (entry_off < 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_add_label(elf_ctx, &sym_nm[0], sym_nlen, entry_off) != 0) {
+      return 0 - 1;
+    }
+    if (pipeline_elf_ctx_add_sym(elf_ctx, &sym_nm[0], sym_nlen, entry_off) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_prologue_arch(elf_ctx, 16, ta) != 0) { return 0 - 1; }
+    if (for_ptr == 0) {
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    if (backend_enc_call_arch(elf_ctx, &impl_nm[0], impl_nlen, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+}
+
+/**
+ * Emit all vtable statics + wrapper functions for the current module.
+ * Called from asm_compile module entry after dep SoA merge, before funcs.
+ * PLATFORM: SHARED — G.7 twin of codegen_emit_module_vtable_statics.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32, module: *u8,
+        arena: *u8): i32 {
+  if (elf_ctx == 0 as *u8 || module == 0 as *u8 || arena == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    let n_impl: i32 = xlang_skip_impl_seen_count_c();
+    if (n_impl <= 0) { return 0; }
+    let NAMED_KIND: i32 = 8;
+    let PTR_KIND: i32 = 9;
+    let si: i32 = 0;
+    while (si < n_impl) {
+      let trait_nm: u8[64] = [];
+      let trait_nlen: i32 = xlang_skip_impl_trait_name_into_c(si, &trait_nm[0]);
+      if (trait_nlen <= 0) { si = si + 1; continue; }
+      let for_k: i32 = 0;
+      let for_ptr: i32 = 0;
+      let for_nm: u8[64] = [];
+      let for_nlen: i32 = 0;
+      if (xlang_skip_impl_for_type_into_c(si, &for_k, &for_ptr, &for_nm[0], &for_nlen) == 0) {
+        si = si + 1; continue;
+      }
+      let is_builtin: i32 = 0;
+      if (for_nlen <= 0) {
+        let blen: i32 = codegen_builtin_type_name_into(for_k, &for_nm[0]);
+        if (blen <= 0) { si = si + 1; continue; }
+        for_nlen = blen;
+        is_builtin = 1;
+      }
+      let recv_rt: i32 = 0;
+      if (is_builtin != 0) {
+        recv_rt = pipeline_type_find_or_alloc_compound(arena, for_k, 0, 0);
+      } else {
+        recv_rt = pipeline_type_find_or_alloc_named(arena, &for_nm[0], for_nlen);
+      }
+      if (recv_rt <= 0) { si = si + 1; continue; }
+      if (for_ptr != 0) {
+        recv_rt = pipeline_type_find_or_alloc_compound(arena, PTR_KIND, recv_rt, 0);
+        if (recv_rt <= 0) { si = si + 1; continue; }
+      }
+      let meth_count: i32 = xlang_skip_trait_method_count_c(&trait_nm[0], trait_nlen);
+      if (meth_count <= 0) { si = si + 1; continue; }
+      let has_impl: i32[64] = [];
+      let wi: i32 = 0;
+      while (wi < meth_count && wi < 64) {
+        let rc: i32 = pipeline_asm_emit_vtable_wrapper_def(elf_ctx, ta, module, arena,
+                &trait_nm[0], trait_nlen, &for_nm[0], for_nlen, for_ptr, wi, recv_rt);
+        if (rc < 0) { return 0 - 1; }
+        has_impl[wi] = rc;
+        wi = wi + 1;
+      }
+      let vt_nm: u8[150] = [];
+      let vt_nlen: i32 = pipeline_asm_emit_vtable_static_name_into(&trait_nm[0],
+              trait_nlen, &for_nm[0], for_nlen, for_ptr, &vt_nm[0]);
+      if (vt_nlen <= 0) { si = si + 1; continue; }
+      let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+      let vt_sym: u8[152] = [];
+      let vt_sym_nlen: i32 = vt_nlen;
+      if (macho != 0) {
+        vt_sym[0] = 95;
+        let k: i32 = 0;
+        while (k < vt_nlen && k < 150) { vt_sym[k + 1] = vt_nm[k]; k = k + 1; }
+        vt_sym_nlen = vt_nlen + 1;
+      } else {
+        let k: i32 = 0;
+        while (k < vt_nlen && k < 151) { vt_sym[k] = vt_nm[k]; k = k + 1; }
+      }
+      let vt_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      if (vt_off < 0) { return 0 - 1; }
+      if (pipeline_elf_ctx_add_label(elf_ctx, &vt_sym[0], vt_sym_nlen, vt_off) != 0) {
+        return 0 - 1;
+      }
+      if (pipeline_elf_ctx_add_sym(elf_ctx, &vt_sym[0], vt_sym_nlen, vt_off) != 0) {
+        return 0 - 1;
+      }
+      let slot_i: i32 = 0;
+      while (slot_i < meth_count && slot_i < 64) {
+        let slot_off: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+        if (slot_off < 0) { return 0 - 1; }
+        if (backend_enc_append_u32_le_c(elf_ctx, (0 as u32)) != 0) { return 0 - 1; }
+        if (backend_enc_append_u32_le_c(elf_ctx, (0 as u32)) != 0) { return 0 - 1; }
+        if (has_impl[slot_i] != 0) {
+          let wrap_nm: u8[168] = [];
+          let wrap_nlen: i32 = pipeline_asm_emit_vtable_wrapper_name_into(&trait_nm[0],
+                  trait_nlen, &for_nm[0], for_nlen, for_ptr, slot_i, &wrap_nm[0]);
+          if (wrap_nlen <= 0) { return 0 - 1; }
+          let wrap_sym: u8[170] = [];
+          let wrap_sym_nlen: i32 = wrap_nlen;
+          if (macho != 0) {
+            wrap_sym[0] = 95;
+            let k: i32 = 0;
+            while (k < wrap_nlen && k < 168) { wrap_sym[k + 1] = wrap_nm[k]; k = k + 1; }
+            wrap_sym_nlen = wrap_nlen + 1;
+          } else {
+            let k: i32 = 0;
+            while (k < wrap_nlen && k < 169) { wrap_sym[k] = wrap_nm[k]; k = k + 1; }
+          }
+          if (pipeline_elf_ctx_append_reloc(elf_ctx, slot_off,
+                  &wrap_sym[0], wrap_sym_nlen) != 0) {
+            return 0 - 1;
+          }
+        }
+        slot_i = slot_i + 1;
+      }
+      si = si + 1;
+    }
+    return 0;
+  }
 }

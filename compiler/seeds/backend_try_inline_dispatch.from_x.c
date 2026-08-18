@@ -1326,6 +1326,22 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
   } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
     return 0;
   }
+  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
+  {
+    int32_t recv_ref_guard = 0;
+    if (ko == GLUE_EXPR_METHOD_CALL) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
+  }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
   /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
@@ -1671,6 +1687,22 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
   } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
     return 0;
   }
+  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
+  {
+    int32_t recv_ref_guard = 0;
+    if (ko == GLUE_EXPR_METHOD_CALL) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
+  }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
   /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
@@ -1786,6 +1818,22 @@ int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct pla
       return 0;
   } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
     return 0;
+  }
+  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
+  {
+    int32_t recv_ref_guard = 0;
+    if (ko == GLUE_EXPR_METHOD_CALL) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
   }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
@@ -2000,6 +2048,22 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf_impl(struct ast_ASTAr
   } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
     return 0;
   }
+  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
+  {
+    int32_t recv_ref_guard = 0;
+    if (ko == GLUE_EXPR_METHOD_CALL) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
+  }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &outer_arena, &outer_mod, &outer_fi) == 0)
     return 0;
   /* Why: CALL path of glue_call_lookup prefers resolved_func_index
@@ -2086,6 +2150,22 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf_impl(struct ast_ASTArena *are
       return 0;
   } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) {
     return 0;
+  }
+  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
+  {
+    int32_t recv_ref_guard = 0;
+    if (ko == GLUE_EXPR_METHOD_CALL) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
   }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;

@@ -1584,6 +1584,24 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     } else {
       if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
     }
+    /*
+     * F7: dyn Trait receiver must NOT be inlined (see guard in
+     * try_inline_param0_single_field_call_elf for full rationale).
+     * TYPE_DYN kind = 17.
+     */
+    let recv_ref_guard: i32 = 0;
+    if (ko == 49) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
     let fi: i32 = 0;
@@ -1664,6 +1682,28 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
     } else {
       if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    }
+    /*
+     * F7: dyn Trait receiver must NOT be inlined as a struct field load.
+     * dyn_obj layout is { void* data; void* vtable; } (16 bytes), so a
+     * field-access inline reads dyn_obj.data low 4 bytes as the value
+     * (or dyn_obj.vtable low 4 bytes if off==8), which is a pointer
+     * truncated to i32 → later blr on that value → SIGBUS (exit=112).
+     * TYPE_DYN kind = 17 (typeck.x). Skip inline; let
+     * pipeline_asm_emit_method_call_elf_c handle dyn dispatch via blr.
+     */
+    let recv_ref_guard: i32 = 0;
+    if (ko == 49) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
     }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
@@ -1760,6 +1800,24 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
       if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
     } else {
       if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    }
+    /*
+     * F7: dyn Trait receiver must NOT be inlined (see guard in
+     * try_inline_param0_single_field_call_elf for full rationale).
+     * TYPE_DYN kind = 17.
+     */
+    let recv_ref_guard: i32 = 0;
+    if (ko == 49) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
     }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
@@ -1961,6 +2019,24 @@ export function try_inline_wpo_const_scalar_binop_call_elf(
     } else {
       if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
     }
+    /*
+     * F7: dyn Trait receiver must NOT be inlined (see guard in
+     * try_inline_param0_single_field_call_elf for full rationale).
+     * TYPE_DYN kind = 17.
+     */
+    let recv_ref_guard: i32 = 0;
+    if (ko == 49) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
+    }
     let ca_slot: u8[8] = [];
     let cm_slot: u8[8] = [];
     let fi: i32 = 0;
@@ -2029,6 +2105,24 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
       if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
     } else {
       if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    }
+    /*
+     * F7: dyn Trait receiver must NOT be inlined (see guard in
+     * try_inline_param0_single_field_call_elf for full rationale).
+     * TYPE_DYN kind = 17.
+     */
+    let recv_ref_guard: i32 = 0;
+    if (ko == 49) {
+      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    } else {
+      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (recv_ref_guard > 0) {
+      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
+      if (recv_ty_guard > 0) {
+        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
+        if (recv_kind_guard == 17) { return 0; }
+      }
     }
     let oca_slot: u8[8] = [];
     let ocm_slot: u8[8] = [];

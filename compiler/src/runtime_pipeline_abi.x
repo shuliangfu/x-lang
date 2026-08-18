@@ -17067,6 +17067,11 @@ export function pipeline_backend_asm_codegen_ast_c(m: *u8, a: *u8, out: *u8, pip
   return rc;
 }
 
+// F7: emit per-impl vtable statics + wrapper functions (backend_vtable_emit.x).
+// PLATFORM: SHARED — G.7 twin of codegen_emit_module_vtable_statics.
+export extern function pipeline_asm_emit_module_vtable_statics(elf_ctx: *u8, ta: i32,
+        module: *u8, arena: *u8): i32;
+
 /**
  * M8-tail thin face for backend.x asm_codegen_ast_to_elf:
  * hoist, merge dep SoA, unify WPO, fill ARRAY_LIT/FIELD_ACCESS, mega_body + WPO thunks.
@@ -17104,6 +17109,14 @@ export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ct
     pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   }
   pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
+  // F7: emit per-impl vtable statics + wrapper functions before regular funcs.
+  // Must run after SoA merge (layout ready) and before mega_body (func emit).
+  // PLATFORM: SHARED — G.7 twin of codegen_emit_module_vtable_statics.
+  {
+    let ta_vtable: i32 = pipeline_dep_ctx_target_arch(pipeline_ctx);
+    let vt_rc: i32 = pipeline_asm_emit_module_vtable_statics(elf_ctx, ta_vtable, m, a);
+    if (vt_rc != 0) { return vt_rc; }
+  }
   unsafe {
     typeck_soa_fill_field_access_for_asm_emit(m, a);
     glue_wpo_mono_reset_pending();

@@ -7063,6 +7063,12 @@ extern int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *m, str
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
 extern void typeck_soa_fill_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
 extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
+/**
+ * F7: emit per-impl vtable statics + wrapper functions (backend_call_dispatch.x).
+ * PLATFORM: SHARED — G.7 twin of codegen_emit_module_vtable_statics.
+ */
+extern int32_t pipeline_asm_emit_module_vtable_statics(void *elf_ctx, int32_t ta,
+                                                       void *module, void *arena);
 
 int32_t pipeline_backend_asm_codegen_ast_c(struct ast_Module *m, struct ast_ASTArena *a, void *out,
                                             struct ast_PipelineDepCtx *pipeline_ctx) {
@@ -7089,6 +7095,15 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_debug_trace_named_func_bodies("backend_post_unify_soa_layouts", m, a);
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
+  /* F7: emit per-impl vtable statics + wrapper functions before regular funcs.
+   * Must run after SoA merge (layout ready) and before mega_body (func emit).
+   * PLATFORM: SHARED — G.7 twin of codegen_emit_module_vtable_statics. */
+  {
+    int32_t ta_vtable = pipeline_dep_ctx_target_arch(pipeline_ctx);
+    int32_t vt_rc = pipeline_asm_emit_module_vtable_statics(elf_ctx, ta_vtable, m, a);
+    if (vt_rc != 0)
+      return vt_rc;
+  }
   typeck_soa_fill_field_access_for_asm_emit(m, a);
   glue_wpo_mono_reset_pending();
   pipeline_elf_label_mod_scope_begin_module();
