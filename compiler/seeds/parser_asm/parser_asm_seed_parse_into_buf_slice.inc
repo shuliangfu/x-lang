@@ -1130,6 +1130,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         int32_t want_ret = 0;
         int32_t ret_elem_pending = 0;
         int32_t ret_slice_need_rb = 0;
+        /* Prefix `[N]T` / `[N][M]T` ret — twin of skip_tl / wave436 *[N]T. */
+        int32_t ret_prefix_arr_need_rb = 0;
+        int32_t ret_prefix_arr_need_size = 0;
+        int32_t ret_prefix_arr_elem_pending = 0;
         int32_t ret_suffix_pending = 0;
         int32_t ret_arr_need_size = 0;
         int32_t ret_arr_need_rb = 0;
@@ -1152,6 +1156,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         int32_t want_param_ty = 0;
         int32_t param_elem_pending = 0;   /* wave432: saw STAR, awaiting elem type */
         int32_t param_slice_need_rb = 0; /* wave432: saw LBRACKET, awaiting RBRACKET */
+        /* Prefix `[N]T` / `[N][M]T` param — twin of skip_tl / wave436 *[N]T. */
+        int32_t param_prefix_arr_need_rb = 0;
+        int32_t param_prefix_arr_need_size = 0;
+        int32_t param_prefix_arr_elem_pending = 0;
         /* wave433: twin of wave431 ret multi-dim suffix state machine. */
         int32_t param_suffix_pending = 0; /* base set; may still see [N] or [] */
         int32_t param_arr_need_size = 0;  /* saw `[` after base; want INT or `]` */
@@ -1210,6 +1218,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
               }
               param_elem_suffix_pending = 0;
               param_elem_dim_n = 0;
+              param_prefix_arr_need_rb = 0;
+              param_prefix_arr_need_size = 0;
+              param_prefix_arr_elem_pending = 0;
               if (saw_param_tok)
                 param_count++;
               if (mi_reg >= 0)
@@ -1249,6 +1260,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
               }
               param_elem_suffix_pending = 0;
               param_elem_dim_n = 0;
+              param_prefix_arr_need_rb = 0;
+              param_prefix_arr_need_size = 0;
+              param_prefix_arr_elem_pending = 0;
               if (saw_param_tok)
                 param_count++;
               saw_param_tok = 0;
@@ -1310,12 +1324,77 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                   want_param_ty = 0;
                 }
               } else if (param_slice_need_rb) {
+                /*
+                 * Prefix `[...]T` after the opening `[` (kind tentatively SLICE).
+                 * Twin of skip_tl param_slice_need_rb / wave436 *[N]T:
+                 *   `]`     → `[]T`  = SLICE of T (existing)
+                 *   INT N   → `[N]T` = ARRAY of N T (was bail → impl T001)
+                 * PLATFORM: SHARED parse. G.7: complete this scanner.
+                 */
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   param_slice_need_rb = 0;
                   param_elem_pending = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  ent->method_param_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_ARRAY;
+                  param_dim_n = 0;
+                  if (param_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_slice_need_rb = 0;
+                  param_prefix_arr_need_rb = 1;
                 } else {
                   want_param_ty = 0;
                   param_slice_need_rb = 0;
+                }
+              } else if (param_prefix_arr_need_rb) {
+                /* Prefix `[N` — want `]` then leaf T or another `[`. */
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  int32_t di;
+                  ent->method_param_array_ndims[mi_reg][param_count] = param_dim_n;
+                  for (di = 0; di < param_dim_n; di++)
+                    ent->method_param_array_dims[mi_reg][param_count][di] = param_dims[di];
+                  param_prefix_arr_need_rb = 0;
+                  param_prefix_arr_elem_pending = 1;
+                } else {
+                  param_prefix_arr_need_rb = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_prefix_arr_need_size) {
+                /* Prefix `[N][` — want next dim INT. */
+                if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  if (param_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_prefix_arr_need_size = 0;
+                  param_prefix_arr_need_rb = 1;
+                } else {
+                  param_prefix_arr_need_size = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_prefix_arr_elem_pending) {
+                /* After `[N]` / `[N][M]…` — capture leaf T, or another `[`. */
+                if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                  param_prefix_arr_elem_pending = 0;
+                  param_prefix_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_NAMED;
+                  xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len,
+                                               ent->method_param_names[mi_reg][param_count],
+                                               &ent->method_param_name_lens[mi_reg][param_count]);
+                  param_dim_n = 0;
+                  param_prefix_arr_elem_pending = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else {
+                  int32_t bk = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
+                  if (bk >= 0) {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = bk;
+                    param_dim_n = 0;
+                    param_prefix_arr_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  } else {
+                    param_prefix_arr_elem_pending = 0;
+                    want_param_ty = 0;
+                  }
                 }
               } else if (param_elem_slice_need_rb) {
                 /*
@@ -1539,6 +1618,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
             ret_elem_prefix_arr_need_rb = 0;
             ret_elem_prefix_arr_more = 0;
             ret_elem_dim_n = 0;
+            ret_prefix_arr_need_rb = 0;
+            ret_prefix_arr_need_size = 0;
+            ret_prefix_arr_elem_pending = 0;
           } else if (want_ret && mi_reg >= 0) {
             /* wave427/430/431: twin of skip_tl ret capture (suffix T[N]/T[]/T[N][M]). */
             if (ret_arr_need_rb) {
@@ -1587,12 +1669,76 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 want_ret = 0;
               }
             } else if (ret_slice_need_rb) {
+              /*
+               * Prefix `[...]T` ret after the opening `[` (kind tentatively SLICE).
+               * Twin of skip_tl ret_slice_need_rb / wave436 *[N]T:
+               *   `]`     → `[]T`  = SLICE of T (existing)
+               *   INT N   → `[N]T` = ARRAY of N T (was bail)
+               * PLATFORM: SHARED parse. G.7: complete this scanner.
+               */
               if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                 ret_slice_need_rb = 0;
                 ret_elem_pending = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                ent->method_ret_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_ARRAY;
+                ret_dim_n = 0;
+                if (ret_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
+                ret_slice_need_rb = 0;
+                ret_prefix_arr_need_rb = 1;
               } else {
                 want_ret = 0;
                 ret_slice_need_rb = 0;
+              }
+            } else if (ret_prefix_arr_need_rb) {
+              /* Prefix `[N` ret — want `]` then leaf T or another `[`. */
+              if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                int32_t di;
+                ent->method_ret_array_ndims[mi_reg] = ret_dim_n;
+                ent->method_ret_array_sizes[mi_reg] = (ret_dim_n > 0) ? ret_dims[0] : -1;
+                for (di = 0; di < ret_dim_n; di++)
+                  ent->method_ret_array_dims[mi_reg][di] = ret_dims[di];
+                ret_prefix_arr_need_rb = 0;
+                ret_prefix_arr_elem_pending = 1;
+              } else {
+                ret_prefix_arr_need_rb = 0;
+                want_ret = 0;
+              }
+            } else if (ret_prefix_arr_need_size) {
+              /* Prefix `[N][` ret — want next dim INT. */
+              if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                if (ret_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
+                ret_prefix_arr_need_size = 0;
+                ret_prefix_arr_need_rb = 1;
+              } else {
+                ret_prefix_arr_need_size = 0;
+                want_ret = 0;
+              }
+            } else if (ret_prefix_arr_elem_pending) {
+              /* After `[N]` / `[N][M]…` ret — capture leaf T, or another `[`. */
+              if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                ret_prefix_arr_elem_pending = 0;
+                ret_prefix_arr_need_size = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                ent->method_ret_elem_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_NAMED;
+                xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len,
+                                             ent->method_ret_names[mi_reg],
+                                             &ent->method_ret_name_lens[mi_reg]);
+                ret_dim_n = 0;
+                ret_prefix_arr_elem_pending = 0;
+                want_ret = 0;
+              } else {
+                int32_t bk = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
+                if (bk >= 0) {
+                  ent->method_ret_elem_kinds[mi_reg] = bk;
+                  ret_dim_n = 0;
+                  ret_prefix_arr_elem_pending = 0;
+                  want_ret = 0;
+                } else {
+                  ret_prefix_arr_elem_pending = 0;
+                  want_ret = 0;
+                }
               }
             } else if (ret_elem_pending) {
               if (r.tok.kind == (int32_t)TOKEN_IDENT) {
