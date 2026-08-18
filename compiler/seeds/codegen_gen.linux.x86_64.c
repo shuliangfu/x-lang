@@ -1619,6 +1619,16 @@ extern int32_t xlang_skip_trait_method_name_into_c(const uint8_t * trait_nm, int
         int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot);
+/* F4 per-impl vtable statics: impl-registry iterators + type alloc helpers.
+ * PLATFORM: SHARED. */
+extern int32_t xlang_skip_impl_seen_count_c(void);
+extern int32_t xlang_skip_impl_trait_name_into_c(int32_t si, uint8_t * out64);
+extern int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t * out_kind,
+        int32_t * out_is_ptr, uint8_t * out_name64, int32_t * out_nlen_ptr);
+extern int32_t pipeline_type_find_or_alloc_named(struct ast_ASTArena * arena,
+        uint8_t * name, int32_t nlen);
+extern int32_t pipeline_type_find_or_alloc_compound(struct ast_ASTArena * arena,
+        int32_t kind_ord, int32_t elem_ref, int32_t asz);
 extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena * arena, int32_t expr_ref);

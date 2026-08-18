@@ -141,6 +141,25 @@ export extern function xlang_skip_trait_method_name_into_c(trait_nm: *u8, trait_
         slot: i32, out64: *u8): i32;
 export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32): i32;
+/*
+ * F4 per-impl vtable statics: impl-registry iterator accessors + type alloc
+ * helpers. Iterators (bodies in seeds/parser_asm/parser_asm_skip_tl_slice.inc)
+ * let codegen enumerate every `impl Trait for Type` to emit a module-level
+ * static vtable per impl. Type alloc helpers (bodies in
+ * src/asm/pipeline_glue_strict_minimal.x) reconstruct a type_ref from a
+ * for-type name so codegen can reuse `codegen_find_impl_method_for_type`
+ * (single G.7 authority for impl method lookup). codegen must NOT touch the
+ * g_xlang_skip_impl_* globals directly.
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_impl_seen_count_c(): i32;
+export extern function xlang_skip_impl_trait_name_into_c(si: i32, out64: *u8): i32;
+export extern function xlang_skip_impl_for_type_into_c(si: i32, out_kind: *i32,
+        out_is_ptr: *i32, out_name64: *u8, out_nlen_ptr: *i32): i32;
+export extern function pipeline_type_find_or_alloc_named(arena: *ASTArena,
+        name: *u8, nlen: i32): i32;
+export extern function pipeline_type_find_or_alloc_compound(arena: *ASTArena,
+        kind_ord: i32, elem_ref: i32, asz: i32): i32;
 /** wave452: CALL turbofish type-arg type_ref (sidecar); 0 if count-only / missing. */
 export extern function pipeline_expr_call_type_arg_ref_at(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;

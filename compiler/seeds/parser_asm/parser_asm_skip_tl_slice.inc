@@ -1214,6 +1214,88 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
 }
 
 /**
+ * F4 per-impl vtable statics: iterator accessors over the impl registry
+ * `g_xlang_skip_impl_*`. These complement the F2 query accessor
+ * `xlang_skip_impl_concrete_implements_trait_c` (which answers "does Type X
+ * implement Trait Y") by exposing the list of registered impl blocks so that
+ * codegen can iterate every `impl Trait for Type` and emit a module-level
+ * static vtable per impl.
+ *
+ * G.7 "有则补全": the query authority (concrete_implements_trait_c) already
+ * iterates internally; these three new iterators expose iteration to codegen
+ * without duplicating the for-type shape-matching logic (shape matching stays
+ * in xlang_skip_impl_self_matches_for_c). codegen must NOT touch the globals
+ * directly — same rule as typeck (see L1183 comment).
+ *
+ * PLATFORM: SHARED parse + codegen.
+ */
+
+/**
+ * Return the count of registered impl blocks in the current module's impl
+ * registry. Safe to call with empty registry (returns 0).
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_impl_seen_count_c(void) {
+  return g_xlang_skip_impl_seen_n;
+}
+
+/**
+ * Copy the trait name of impl block at index `si` into `out64` (must be
+ * >= 64 bytes). Returns the trait name length (0 if si out of range or name
+ * is empty). The copied bytes are exactly `min(name_len, 64)` long; if the
+ * stored name is longer than 64 it is truncated but the returned length is
+ * the true stored length (caller can detect truncation).
+ *
+ * @param si    impl block index, 0..xlang_skip_impl_seen_count_c()-1.
+ * @param out64 output buffer for the trait name bytes (capacity >= 64).
+ * @return trait name length, or 0 on invalid si / empty name.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_impl_trait_name_into_c(int32_t si, uint8_t *out64) {
+  int32_t nlen;
+  int32_t ci;
+  if (si < 0 || si >= g_xlang_skip_impl_seen_n || !out64)
+    return 0;
+  nlen = g_xlang_skip_impl_trait_len[si];
+  if (nlen <= 0)
+    return 0;
+  for (ci = 0; ci < nlen && ci < 64; ci++)
+    out64[ci] = g_xlang_skip_impl_trait[si][ci];
+  return nlen;
+}
+
+/**
+ * Read the for-type info of impl block at index `si`. All out-params are
+ * written on success (returns 1) and left untouched on failure (returns 0).
+ *
+ * @param si          impl block index.
+ * @param out_kind    receives for-type kind ord (XLANG_TRAIT_TY_NAMED=8 etc.),
+ *                    or -1 if unknown (matches g_xlang_skip_impl_for_kinds init).
+ * @param out_is_ptr  receives 1 if for-type is *T, 0 otherwise.
+ * @param out_name64  receives for-type name bytes (capacity >= 64; empty for
+ *                    builtin for-types).
+ * @param out_nlen_ptr receives for-type name length (0 for builtin / unknown).
+ * @return 1 on success, 0 if si out of range.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
+        int32_t *out_is_ptr, uint8_t *out_name64, int32_t *out_nlen_ptr) {
+  int32_t nlen;
+  int32_t ci;
+  if (si < 0 || si >= g_xlang_skip_impl_seen_n)
+    return 0;
+  if (!out_kind || !out_is_ptr || !out_name64 || !out_nlen_ptr)
+    return 0;
+  *out_kind = g_xlang_skip_impl_for_kinds[si];
+  *out_is_ptr = g_xlang_skip_impl_for_is_ptr[si];
+  nlen = g_xlang_skip_impl_for_name_lens[si];
+  *out_nlen_ptr = nlen;
+  for (ci = 0; ci < nlen && ci < 64; ci++)
+    out_name64[ci] = g_xlang_skip_impl_for_names[si][ci];
+  return 1;
+}
+
+/**
  * F3 vtable dispatch helpers — three G.7 single-authority accessors over the
  * trait registry `g_xlang_skip_trait_reg[]`. Method declaration order in the
  * trait body defines the vtable slot index (slot 0 = first declared method).
