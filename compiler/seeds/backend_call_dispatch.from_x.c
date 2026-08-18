@@ -3856,7 +3856,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
      *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
      *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
      *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
-     *   5. extras → GP 1..5      — wrapper trampoline only touches x0/rdi
+     *   5. extras: GP 1..5 and/or xmm0–7 (x86 SysV) — wrapper trampoline
+     *      only touches x0/rdi; SSE extras pass through
      *   6. blr x2 (or scratch)   — indirect call through wrapper fn ptr
      * PLATFORM: SHARED — arm64 blr / x86_64 call rN / riscv64 jalr.
      */
@@ -3866,26 +3867,54 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         int32_t slot = r_fn;
         if (slot < 0) { return -1; }
         /*
-         * Extra method args occupy GP 1..5 after self in GP0.
+         * Extra method args: integer GP 1..5 after self in GP0.
+         * x86 SysV f32/f64 extras go xmm0–7 (impl param_home reads xmm).
+         * ARM64 local callee homes GP — do not copy import METHOD s0/d0.
          * Wrapper is a trampoline (only touches x0/rdi); extras pass through.
          * Do NOT glue_emit_one_call_arg — resolved_func_index is the vtable slot.
-         * G.7: emit_expr_elf_for_call_args. PLATFORM: SHARED.
+         * G.7: emit_expr_elf_for_call_args + glue_arg_ref_is_sse_float_c.
+         * PLATFORM: LINUX x86_64 SysV xmm · MACOS ARM64 extras stay GP.
          */
         if (nargs > 5)
           return -1;
         {
           int32_t extra_off[6];
+          int32_t is_sse_e[6];
+          int32_t is_f64_e[6];
+          int32_t place_e[6];
+          int32_t xmm_cur;
+          int32_t gp_cur;
           int32_t ei;
           int32_t arg_ex;
           int32_t so_ex;
           int32_t data_off;
           int32_t fn_off;
           int32_t cur_fn;
+          xmm_cur = 0;
+          gp_cur = 1;
           for (ei = 0; ei < nargs; ei++) {
             extra_off[ei] = -1;
+            is_sse_e[ei] = 0;
+            is_f64_e[ei] = 0;
+            place_e[ei] = 0;
             arg_ex = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
             if (arg_ex == 0)
               return -1;
+            if (ta == 0) {
+              is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
+              is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, arg_ex, 0);
+            }
+            if (is_sse_e[ei] != 0) {
+              if (xmm_cur >= 8)
+                return -1;
+              place_e[ei] = xmm_cur;
+              xmm_cur = xmm_cur + 1;
+            } else {
+              if (gp_cur > 5)
+                return -1;
+              place_e[ei] = gp_cur;
+              gp_cur = gp_cur + 1;
+            }
             if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ex, ctx, ta) != 0)
               return -1;
             so_ex = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
@@ -3922,8 +3951,18 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             ly->next_offset = fn_off + 16;
           }
           for (ei = 0; ei < nargs; ei++) {
-            if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], ei + 1, 1) != 0)
+            if (is_sse_e[ei] != 0) {
+              if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                return -1;
+              if (is_f64_e[ei] != 0) {
+                if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0)
+                  return -1;
+              } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0) {
+                return -1;
+              }
+            } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], place_e[ei], 1) != 0) {
               return -1;
+            }
           }
           if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, data_off, 0, 1) != 0)
             return -1;

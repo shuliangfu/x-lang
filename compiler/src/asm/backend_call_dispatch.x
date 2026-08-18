@@ -2078,7 +2078,9 @@ export function pipeline_asm_emit_call_args_text_c(
  * 1-GP `for_call_args` + `mov rax→rdi` dropped rdx. Same classify/spill/load as
  * import METHOD (wave214) and seed wave602. Export-sym mangle ≡ seed wave683.
  * f32/f64 extras: x86 SysV xmm0–7 (seed _impl already; .x was GP-only).
- * F7 dyn (dep_idx==-2): extra method args pack into GP 1..5 after data in GP0.
+ * F7 dyn (dep_idx==-2): extras after data in GP0.
+ * Integer extras → GP 1..5. x86 SysV f32/f64 extras → xmm0–7 (impl
+ * param_home reads xmm; ARM64 local callee stays GP-in).
  * Wrapper rdi/x0=data is unchanged (trampoline only touches self).
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen context
@@ -2117,12 +2119,15 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
      *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
      *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
      *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
-     *   5. extras → GP 1..5      — wrapper is a trampoline (only touches x0/rdi)
+     *   5. extras: GP 1..5 and/or xmm0–7 (x86 SysV) — wrapper trampoline
+     *      only touches x0/rdi; SSE extras pass through
      *   6. blr x2 (or scratch)   — indirect call through wrapper fn ptr
-     * Extra args must be packed after data: `x.add(3)` is wrapper(data, 3).
-     * Do NOT use glue_emit_one_call_arg here — resolved_func_index is the
-     * vtable slot, not an impl func, so formal lookup would alias func[slot].
-     * G.7: emit_expr_elf_for_call_args (same rvalue path as other extras).
+     * Extra args must be packed after data: `x.add(3)` is wrapper(data, 3);
+     * `x.add(3.0)` f64 is wrapper(data) + xmm0 (SysV). Do NOT use
+     * glue_emit_one_call_arg here — resolved_func_index is the vtable slot,
+     * not an impl func, so formal lookup would alias func[slot].
+     * G.7: emit_expr_elf_for_call_args + glue_arg_ref_is_sse_float_c
+     * (same classifier as UFCS leave; xmm only when ta==0 — local callee).
      * Without this branch, dyn calls fall into try_inline_param0_single_field_call_elf
      * which reads dyn_obj.data low 4 bytes as a value → SIGBUS on later blr.
      */
@@ -2130,18 +2135,43 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (dep_idx == -2) {
       let slot: i32 = r_fn;
       if (slot < 0) { return 0 - 1; }
-      /* Remaining integer GPs after self (rdi/x0). SSE/stack extras leftover. */
+      /* Remaining integer GPs after self (rdi/x0). Stack extras leftover. */
       if (nargs > 5) { return 0 - 1; }
       /*
        * Emit extras first (x0 not live yet), spill each to the frame.
-       * PLATFORM: SHARED — same spill/load as UFCS METHOD extras.
+       * Classify SSE from the extra expr (FLOAT_LIT / resolved f32/f64).
+       * Cannot look up impl formals: r_fn is the vtable slot.
+       * PLATFORM: LINUX x86_64 SysV xmm · MACOS ARM64 extras stay GP.
        */
       let extra_off: i32[6] = [];
+      let is_sse_e: i32[6] = [];
+      let is_f64_e: i32[6] = [];
+      let place_e: i32[6] = [];
+      let xmm_cur: i32 = 0;
+      let gp_cur: i32 = 1;
       let ei: i32 = 0;
       while (ei < nargs) {
         extra_off[ei] = 0 - 1;
+        is_sse_e[ei] = 0;
+        is_f64_e[ei] = 0;
+        place_e[ei] = 0;
         let arg_ex: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
         if (arg_ex == 0) { return 0 - 1; }
+        /* PLATFORM: LINUX|x86_64 SysV — f32/f64 extras go xmm0–7.
+         * PLATFORM: MACOS|ARM64 — local impl homes GP (do not copy import METHOD). */
+        if (ta == 0) {
+          is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
+          is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, arg_ex, 0);
+        }
+        if (is_sse_e[ei] != 0) {
+          if (xmm_cur >= 8) { return 0 - 1; }
+          place_e[ei] = xmm_cur;
+          xmm_cur = xmm_cur + 1;
+        } else {
+          if (gp_cur > 5) { return 0 - 1; }
+          place_e[ei] = gp_cur;
+          gp_cur = gp_cur + 1;
+        }
         if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ex, ctx, ta) != 0) {
           return 0 - 1;
         }
@@ -2187,7 +2217,19 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       }
       ei = 0;
       while (ei < nargs) {
-        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], ei + 1, 1) != 0) {
+        if (is_sse_e[ei] != 0) {
+          /* Reload bits then movd/movq into xmm[k] (≡ UFCS leave / seed _impl). */
+          if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0) {
+            return 0 - 1;
+          }
+          if (is_f64_e[ei] != 0) {
+            if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0) {
+              return 0 - 1;
+            }
+          } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0) {
+            return 0 - 1;
+          }
+        } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], place_e[ei], 1) != 0) {
           return 0 - 1;
         }
         ei = ei + 1;
