@@ -5511,6 +5511,10 @@ export function pipeline_asm_emit_vtable_wrapper_name_into(trait_nm: *u8, trait_
  * + copy incoming stack extras onto the impl outgoing stack + bl <impl> + epilogue.
  * First incoming arg stays data (rdi/x0). Stack extras do not pass through a
  * nested `call` unless copied (prologue+ret shift [rbp+16]).
+ * ARM64 leftover: load_x29_pos writes x0 (rax and arg0). Save remapped self
+ * at [x29,#24] (prologue(16) pad after x19 at #16) before the copy, restore
+ * after. x86 rdi is not rax — no save. Do not use mov_rax_to_rbx (also
+ * writes x1 = extra a).
  * PLATFORM: SHARED — G.7 twin of codegen_emit_vtable_wrapper_def.
  */
 #[no_mangle]
@@ -5598,6 +5602,15 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
           si_w = si_w - 1;
         }
       } else {
+        /*
+         * PLATFORM: MACOS|ARM64 — x0 is both the load temp and impl arg0.
+         * store [sp,#24] before reserve (sp==x29); restore via [x29,#24]
+         * after copy. Slot 24 is the unused half of the x19 16B pad.
+         * G.7: complete this wrapper (no second dispatcher / no x1 scratch).
+         */
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, 24, ta) != 0) {
+          return 0 - 1;
+        }
         stk_bytes_w = n_stk_w * 8;
         stk_bytes_w = (stk_bytes_w + 15) & (0 - 16);
         if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes_w, ta) != 0) {
@@ -5613,6 +5626,9 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
             return 0 - 1;
           }
           si_a = si_a + 1;
+        }
+        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 24, ta) != 0) {
+          return 0 - 1;
         }
       }
     }

@@ -4946,6 +4946,12 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
         stk_bytes_w = stk_bytes_w + 8;
       }
     } else {
+      /* PLATFORM: MACOS|ARM64 — load_x29_pos writes x0 (arg0). Save remapped
+       * self at [sp,#24]==[x29,#24] before reserve; restore after copy.
+       * Slot 24 is prologue(16) pad after x19. Do not use mov_rax_to_rbx
+       * (also writes x1). G.7 complete this wrapper. */
+      if (backend_enc_store_x0_sp_offset_arch(elf_ctx, 24, ta) != 0)
+        return -1;
       stk_bytes_w = n_stk_w * 8;
       stk_bytes_w = (stk_bytes_w + 15) & -16;
       if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes_w, ta) != 0)
@@ -4956,6 +4962,8 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
         if (backend_enc_store_x0_sp_offset_arch(elf_ctx, si_w * 8, ta) != 0)
           return -1;
       }
+      if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 24, ta) != 0)
+        return -1;
     }
   }
   if (backend_enc_call_arch(elf_ctx, impl_nm, impl_nlen, ta) != 0) { return -1; }
