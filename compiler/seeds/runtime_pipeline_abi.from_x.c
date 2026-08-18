@@ -13301,6 +13301,52 @@ extern int32_t pipeline_type_kind_ord_at(void *a, int32_t type_ref);
 extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
 extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
 
+/* PLATFORM: SHARED — SHN_COMMON / Mach-O __common merge by name.
+ * Historic Lxlang_ml_<idx> aliased every TU's N-th module let (Ubuntu
+ * driver_check_only_flag_slot → 512B Lxlang_ml_0 = entry source len).
+ * Twin of runtime_pipeline_abi.x pipe_modlet_assign_unique_label. */
+static uint32_t pipe_modlet_fnv32_mix_cold(uint32_t h, uint8_t b) {
+  return (h ^ (uint32_t)b) * 16777619u;
+}
+
+static void pipe_modlet_write_hex8_cold(uint8_t *dst, uint32_t v) {
+  static const char hex[] = "0123456789abcdef";
+  int i;
+  for (i = 0; i < 8; i++)
+    dst[i] = (uint8_t)hex[(v >> (28 - i * 4)) & 15];
+}
+
+static uint32_t pipe_modlet_module_fp_cold(void) {
+  uint32_t h = 2166136261u;
+  int i, k;
+  for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    int32_t nl = g_pipeline_asm_modlet_cold.name_len[i];
+    h = pipe_modlet_fnv32_mix_cold(h, (uint8_t)(nl & 255));
+    for (k = 0; k < nl; k++)
+      h = pipe_modlet_fnv32_mix_cold(h, g_pipeline_asm_modlet_cold.name[i][k]);
+    h = pipe_modlet_fnv32_mix_cold(h, 0);
+  }
+  return h;
+}
+
+static void pipe_modlet_assign_unique_label_cold(int idx, uint32_t module_fp) {
+  uint32_t h = 2166136261u;
+  int k;
+  int32_t nl = g_pipeline_asm_modlet_cold.name_len[idx];
+  uint8_t *lab = g_pipeline_asm_modlet_cold.label[idx];
+  for (k = 0; k < nl; k++)
+    h = pipe_modlet_fnv32_mix_cold(h, g_pipeline_asm_modlet_cold.name[idx][k]);
+  h = pipe_modlet_fnv32_mix_cold(h, (uint8_t)(idx & 255));
+  lab[0] = (uint8_t)'L';
+  lab[1] = (uint8_t)'x';
+  lab[2] = (uint8_t)'m';
+  lab[3] = (uint8_t)'l';
+  lab[4] = (uint8_t)'_';
+  pipe_modlet_write_hex8_cold(&lab[5], h);
+  pipe_modlet_write_hex8_cold(&lab[13], module_fp);
+  g_pipeline_asm_modlet_cold.label_len[idx] = 21;
+}
+
 int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
   int32_t tl, n, i;
   pipeline_asm_modlet_reset_cold();
@@ -13358,30 +13404,12 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
       g_pipeline_asm_modlet_cold.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
     g_pipeline_asm_modlet_cold.init_imm[idx] = imm;
     g_pipeline_asm_modlet_cold.cell_size[idx] = cell_sz;
-    {
-      int32_t llen = 0;
-      const char *pfx = "Lxlang_ml_";
-      int32_t di, v = idx;
-      uint8_t digs[8];
-      int32_t nd = 0;
-      while (pfx[llen] != 0 && llen < 16) {
-        g_pipeline_asm_modlet_cold.label[idx][llen] = (uint8_t)pfx[llen];
-        llen++;
-      }
-      if (v == 0) {
-        digs[0] = (uint8_t)'0';
-        nd = 1;
-      } else {
-        while (v > 0 && nd < 8) {
-          digs[nd++] = (uint8_t)('0' + (v % 10));
-          v /= 10;
-        }
-      }
-      for (di = nd - 1; di >= 0 && llen < 23; di--)
-        g_pipeline_asm_modlet_cold.label[idx][llen++] = digs[di];
-      g_pipeline_asm_modlet_cold.label_len[idx] = llen;
-    }
     g_pipeline_asm_modlet_cold.n = idx + 1;
+  }
+  {
+    uint32_t module_fp = pipe_modlet_module_fp_cold();
+    for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++)
+      pipe_modlet_assign_unique_label_cold(i, module_fp);
   }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
     int32_t csz = pipeline_asm_modlet_cell_payload_cold(g_pipeline_asm_modlet_cold.cell_size[i]);

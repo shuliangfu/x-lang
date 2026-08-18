@@ -31406,6 +31406,113 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
 }
 
 /**
+ * FNV-1a 32-bit mix of one byte (unsigned 32-bit wrap).
+ * Same basis/prime as asm_empty_text_stub_label (G.7: no second hash family).
+ * @param h i64 — hash in 0..2^32-1
+ * @param b i32 — byte 0..255
+ * @return i64 — mixed hash in 0..2^32-1
+ * PLATFORM: SHARED — COMMON label identity only.
+ */
+function pipe_modlet_fnv32_mix(h: i64, b: i32): i64 {
+  let x: i64 = (h ^ (b as i64)) * 16777619;
+  return x & 4294967295;
+}
+
+/**
+ * Write 8 lowercase hex digits of a 32-bit value into the modlet label slot.
+ * @param lbase i32 — byte offset of label[idx] in g_pipeline_asm_modlet
+ * @param off i32 — write offset 0..15 within that 24-byte label
+ * @param v i64 — value; only low 32 bits are written
+ * @return void
+ * PLATFORM: SHARED — label field is 24 bytes (Stage 12.0.5 layout).
+ */
+function pipe_modlet_write_hex8(lbase: i32, off: i32, v: i64): void {
+  let i: i32 = 0;
+  while (i < 8) {
+    let shift: i32 = (7 - i) * 4;
+    let nib: i32 = ((v >> shift) & 15) as i32;
+    let ch: u8 = 48 as u8;
+    if (nib >= 10) {
+      ch = (87 + nib) as u8;
+    } else {
+      ch = (48 + nib) as u8;
+    }
+    unsafe {
+      g_pipeline_asm_modlet[lbase + off + i] = ch;
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Fingerprint of every registered modlet name (order-sensitive).
+ * Two TUs with different let sets get different COMMON prefixes.
+ * @return i64 — FNV-1a 32-bit in 0..2^32-1
+ * PLATFORM: SHARED — SHN_COMMON / Mach-O __common merge by symbol name.
+ */
+function pipe_modlet_module_fp(): i64 {
+  let h: i64 = 2166136261;
+  let n: i32 = pipe_modlet_get_n();
+  let i: i32 = 0;
+  while (i < n) {
+    let nl: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i));
+    let base: i32 = pipe_modlet_off_name(i);
+    h = pipe_modlet_fnv32_mix(h, nl & 255);
+    let k: i32 = 0;
+    while (k < nl) {
+      let b: i32 = 0;
+      unsafe {
+        b = g_pipeline_asm_modlet[base + k] as i32;
+      }
+      h = pipe_modlet_fnv32_mix(h, b);
+      k = k + 1;
+    }
+    h = pipe_modlet_fnv32_mix(h, 0);
+    i = i + 1;
+  }
+  return h;
+}
+
+/**
+ * Assign a TU-unique COMMON symbol into label[idx].
+ * Format (21 bytes): Lxml_<hex8(fnv32(name||idx))><hex8(module_fp)>
+ * Historic Lxlang_ml_<idx> collided across every assembled TU (SHN_COMMON
+ * takes the largest size). Ubuntu then aliased driver_check_only_flag_slot
+ * to a 512-byte Lxlang_ml_0 whose first word was entry source len (0xa7),
+ * so -o ran under parse_strict / check_only.
+ * @param idx i32 — table index 0..n-1
+ * @param module_fp i64 — pipe_modlet_module_fp()
+ * @return void
+ * PLATFORM: SHARED — ELF SHN_COMMON + Mach-O __DATA,__common.
+ */
+function pipe_modlet_assign_unique_label(idx: i32, module_fp: i64): void {
+  let nl: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(idx));
+  let nbase: i32 = pipe_modlet_off_name(idx);
+  let h: i64 = 2166136261;
+  let k: i32 = 0;
+  while (k < nl) {
+    let b: i32 = 0;
+    unsafe {
+      b = g_pipeline_asm_modlet[nbase + k] as i32;
+    }
+    h = pipe_modlet_fnv32_mix(h, b);
+    k = k + 1;
+  }
+  h = pipe_modlet_fnv32_mix(h, idx & 255);
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  unsafe {
+    g_pipeline_asm_modlet[lbase] = 76 as u8;
+    g_pipeline_asm_modlet[lbase + 1] = 120 as u8;
+    g_pipeline_asm_modlet[lbase + 2] = 109 as u8;
+    g_pipeline_asm_modlet[lbase + 3] = 108 as u8;
+    g_pipeline_asm_modlet[lbase + 4] = 95 as u8;
+  }
+  pipe_modlet_write_hex8(lbase, 5, h);
+  pipe_modlet_write_hex8(lbase, 13, module_fp);
+  pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx), 21);
+}
+
+/**
  * Build the modlet table and emit SHN_COMMON symbols for module lets.
  * Accepts:
  *   (1) mutable scalar LIT/BOOL init (kind 0/2) → 8-byte COMMON (historic wave139)
@@ -31419,6 +31526,9 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
  * when the elem is not TYPE_SLICE; seed_nonzero writes ARRAY_LIT elems.
  * Const `[N][]T` (elem SLICE) still skips — fat rows hoist + durable.
  * Other const (scalars, dest-SLICE) still skip — those hoist / use text cells.
+ * COMMON names are Lxml_<name-hash><module-fp> (not Lxlang_ml_<idx>):
+ * SHN_COMMON / Mach-O __common merge by name, so per-index labels aliased
+ * every TU's N-th module let (check_only 512B leftover).
  * @param m *u8 - Module*
  * @param a *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -31555,56 +31665,17 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     }
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(idx), imm);
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx), cell_sz);
-    // Symbol: Lxlang_ml_<idx>
-    let llen: i32 = 0;
-    let lbase: i32 = pipe_modlet_off_label(idx);
-    let pfx: u8[10] = [];
-    pfx[0] = 76 as u8;
-    pfx[1] = 120 as u8;
-    pfx[2] = 108 as u8;
-    pfx[3] = 97 as u8;
-    pfx[4] = 110 as u8;
-    pfx[5] = 103 as u8;
-    pfx[6] = 95 as u8;
-    pfx[7] = 109 as u8;
-    pfx[8] = 108 as u8;
-    pfx[9] = 95 as u8;
-    let pi: i32 = 0;
-    while (pi < 10 && llen < 16) {
-      unsafe {
-        g_pipeline_asm_modlet[lbase + llen] = pfx[pi];
-      }
-      llen = llen + 1;
-      pi = pi + 1;
-    }
-    let digs: u8[8] = [];
-    let nd: i32 = 0;
-    let v: i32 = idx;
-    if (v == 0) {
-      digs[0] = 48 as u8;
-      nd = 1;
-    } else {
-      while (v > 0 && nd < 8) {
-        let dig: i32 = v % 10;
-        digs[nd] = (48 + dig) as u8;
-        nd = nd + 1;
-        v = v / 10;
-      }
-    }
-    let di: i32 = nd - 1;
-    while (di >= 0 && llen < 23) {
-      unsafe {
-        g_pipeline_asm_modlet[lbase + llen] = digs[di];
-      }
-      llen = llen + 1;
-      di = di - 1;
-    }
-    pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx), llen);
     pipe_modlet_set_n(idx + 1);
     tl = tl + 1;
   }
   let i: i32 = 0;
   let nn: i32 = pipe_modlet_get_n();
+  let module_fp: i64 = pipe_modlet_module_fp();
+  while (i < nn) {
+    pipe_modlet_assign_unique_label(i, module_fp);
+    i = i + 1;
+  }
+  i = 0;
   while (i < nn) {
     let llen2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(i));
     let lbase2: i32 = pipe_modlet_off_label(i);
