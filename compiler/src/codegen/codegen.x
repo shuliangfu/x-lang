@@ -120,6 +120,27 @@ export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i3
  * bypassing the concrete→dyn impl-lookup gate. @param rhs_type_ref reserved
  * (unused; kept for API symmetry with typeck). PLATFORM: SHARED. */
 export extern function typeck_dyn_rhs_is_null_sentinel(arena: *ASTArena, rhs_type_ref: i32, rhs_expr_ref: i32): i32;
+/*
+ * F3 TYPE_DYN(17) vtable-dispatch authority — G.7 accessors over the trait
+ * registry `g_xlang_skip_trait_reg[]`. Method declaration order in the trait
+ * body defines the vtable slot index (slot 0 = first declared method).
+ *
+ * `xlang_skip_trait_method_count_c` + `xlang_skip_trait_method_name_into_c`
+ * are used by codegen to enumerate trait methods when building the per-impl
+ * function-pointer array at the concrete->dyn coerce site (Step 4).
+ * `xlang_skip_trait_method_ret_kind_c` gives the builtin return kind for the
+ * function-pointer cast (only needed if the cast tightens past `void`).
+ *
+ * Bodies live in seeds/parser_asm/parser_asm_skip_tl_slice.inc (twins of
+ * xlang_skip_impl_self_matches_for_c). codegen must NOT iterate
+ * g_xlang_skip_trait_reg_* globals directly.
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_count_c(trait_nm: *u8, trait_nlen: i32): i32;
+export extern function xlang_skip_trait_method_name_into_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, out64: *u8): i32;
+export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
 /** wave452: CALL turbofish type-arg type_ref (sidecar); 0 if count-only / missing. */
 export extern function pipeline_expr_call_type_arg_ref_at(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -11596,7 +11617,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS assign -> wrap
        * RHS in fat-ptr compound literal. Twin of let-emit dyn_wrap path.
-       * vtable NULL until F3. PLATFORM: SHARED host-C. */
+       * F3: vtable now built from trait methods via codegen_emit_dyn_vtable_close.
+       * PLATFORM: SHARED host-C. */
       let dyn_wrap: i32 = 0;
       let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, lt_ref);
       if (lt_dyn > 0 && pipeline_type_kind_ord_at(arena, lt_dyn) == (TypeKind.TYPE_DYN as i32)) {
@@ -11614,9 +11636,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return -1;
       }
       if (dyn_wrap != 0) {
-        /* "), .vtable = ((void*)0) }" — 25 bytes */
-        let dyn_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
-        if (emit_bytes_from_ptr(out, &dyn_close[0], 25) != 0) {
+        let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, e.binop_right_ref);
+        if (codegen_emit_dyn_vtable_close(arena, out, ctx, lt_dyn, rhs_rt) != 0) {
           return -1;
         }
       }
@@ -13421,6 +13442,131 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (fmt_mc_rc > 0) {
           return 0;
         }
+      }
+      /*
+       * F3 TYPE_DYN(17) vtable indirect-dispatch call-site emit.
+       *
+       * Typeck stamped call_resolved_dep_index = -2 (DYN_DISPATCH_DEP_SENTINEL)
+       * with call_resolved_func_index = slot for any `recv.method()` where
+       * recv : dyn Trait. Here we emit a C indirect call through the receiver's
+       * vtable:
+       *   ((void(*)(void*, ...))((void**)recv.vtable)[slot])(recv.data, args...)
+       *
+       * The receiver must be emitted twice: once to fetch .vtable (slot lookup),
+       * once to fetch .data (the self pointer passed as arg 0). The receiver is
+       * a VAR (codegen emits the variable name), so emitting twice is safe and
+       * idempotent. Args 1..N follow the receiver pointer with a ", " separator.
+       *
+       * Return-type cast is `void` for the F3 minimal proof — the call still
+       * dispatches correctly, only the cast is loose (F4 tightens via the trait
+       * registry's method return kind).
+       * PLATFORM: SHARED — mirrors seeds/codegen_gen.linux.x86_64.c.
+       */
+      let dep_ix_dyn: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (dep_ix_dyn == (0 - 2)) {
+        let dyn_slot: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        /* "(" outer group open (groups cast + subscript + call). */
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        /* "(" cast open. */
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        /* Emit the return type (e.g. "int32_t") from the resolved type_ref.
+         * Falls back to "void" when ret_ty is unresolved (F3 minimal proof). */
+        let dyn_ret_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        let dyn_ret_kind: i32 = (TypeKind.TYPE_VOID as i32);
+        if (dyn_ret_ty > 0) {
+          dyn_ret_kind = pipeline_type_kind_ord_at(arena, dyn_ret_ty);
+        }
+        if (emit_type_kind(out, dyn_ret_kind) != 0) {
+          return -1;
+        }
+        /* "(*)(void*, ...)" — 15 bytes, the function-pointer suffix. */
+        let dyn_fn_ptr_suffix: u8[15] = [40, 42, 41, 40, 118, 111, 105, 100, 42, 44, 32, 46, 46, 46, 41];
+        if (emit_bytes_from_ptr(out, &dyn_fn_ptr_suffix[0], 15) != 0) {
+          return -1;
+        }
+        /* ")" cast close. */
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        /* "(" value group open (groups the vtable cast + field access). */
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        /* "(" vtable cast open. */
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        /* "void**" — 6 bytes, the vtable-pointer cast type. */
+        let dyn_v_cast: u8[6] = [118, 111, 105, 100, 42, 42];
+        if (emit_bytes_from_ptr(out, &dyn_v_cast[0], 6) != 0) {
+          return -1;
+        }
+        /* ")" vtable cast close. */
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        /* Emit receiver variable name (e.g. `x`). */
+        if (emit_expr(arena, out, e.method_call_base_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ".vtable)" — 8 bytes: 7 for field access + 1 for value-group close. */
+        let dyn_vtable_close: u8[8] = [46, 118, 116, 97, 98, 108, 101, 41];
+        if (emit_bytes_from_ptr(out, &dyn_vtable_close[0], 8) != 0) {
+          return -1;
+        }
+        /* "[" slot "]" — subscript into the vtable function-pointer array. */
+        if (append_byte(out, 91) != 0) {
+          return -1;
+        }
+        if (format_uint(out, dyn_slot) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 93) != 0) {
+          return -1;
+        }
+        /* ")" outer group close — end of the callable expression. */
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        /* "(" call-args open — begin arg list (receiver.data is arg 0 / self). */
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        /* Emit receiver variable name again (for .data access). */
+        if (emit_expr(arena, out, e.method_call_base_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ".data" — 5 bytes, the data field of the fat-ptr (self pointer). */
+        let dyn_data: u8[5] = [46, 100, 97, 116, 97];
+        if (emit_bytes_from_ptr(out, &dyn_data[0], 5) != 0) {
+          return -1;
+        }
+        /* Emit explicit args 1..N, each preceded by ", ". */
+        let dyn_ai: i32 = 0;
+        while (dyn_ai < e.method_call_num_args) {
+          let dyn_sep: u8[2] = [44, 32];
+          if (emit_bytes_from_ptr(out, &dyn_sep[0], 2) != 0) {
+            return -1;
+          }
+          let dyn_arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, dyn_ai);
+          if (ast.ref_is_null(dyn_arg_ref)) {
+            if (append_byte(out, 48) != 0) {
+              return -1;
+            }
+          } else {
+            /* PLATFORM: SHARED — method args use same slice pointer ABI as CALL. */
+            if (emit_call_arg_slice_abi(arena, out, dyn_arg_ref, ctx) != 0) {
+              return -1;
+            }
+          }
+          dyn_ai = dyn_ai + 1;
+        }
+        /* ")" call-args close. */
+        return append_byte(out, 41);
       }
       /*
        * wave445 C6: per-mono method call re-resolution. When emitting a mono body,
@@ -16097,8 +16243,9 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              * fat-ptr compound literal so host-C sees
              * `struct xlang_dyn_obj x = (struct xlang_dyn_obj){...};` and not
              * `struct xlang_dyn_obj x = a;` (type mismatch). Null-dyn sentinel
-             * (literal 0) keeps the F1 bare-init path. vtable stays NULL
-             * until F3 (method dispatch). PLATFORM: SHARED host-C. */
+             * (literal 0) keeps the F1 bare-init path. F3: vtable now built
+             * from trait methods via codegen_emit_dyn_vtable_close.
+             * PLATFORM: SHARED host-C. */
             let dyn_wrap: i32 = 0;
             let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, let_type_pre);
             if (!ast.ref_is_null(lt_dyn)
@@ -16117,9 +16264,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               return -1;
             }
             if (dyn_wrap != 0) {
-              /* "), .vtable = ((void*)0) }" — 25 bytes */
-              let dyn_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
-              if (emit_bytes_from_ptr(out, &dyn_close[0], 25) != 0) {
+              let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, linit_pre);
+              if (codegen_emit_dyn_vtable_close(arena, out, ctx, lt_dyn, rhs_rt) != 0) {
                 return -1;
               }
             }
@@ -16457,7 +16603,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                   }
                 } else {
                   /* F2: TYPE_DYN LHS + concrete (non-null-sentinel) RHS -> wrap
-                   * in fat-ptr compound literal. vtable NULL until F3.
+                   * in fat-ptr compound literal. F3: vtable now built from
+                   * trait methods via codegen_emit_dyn_vtable_close.
                    * PLATFORM: SHARED host-C. */
                   let dyn_wrap: i32 = 0;
                   let lt_dyn: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, let_type_ref);
@@ -16476,9 +16623,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                     return -1;
                   }
                   if (dyn_wrap != 0) {
-                    /* "), .vtable = ((void*)0) }" — 25 bytes */
-                    let dyn_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32, 40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
-                    if (emit_bytes_from_ptr(out, &dyn_close[0], 25) != 0) {
+                    let rhs_rt: i32 = pipeline_expr_resolved_type_ref(arena, linit_ref);
+                    if (codegen_emit_dyn_vtable_close(arena, out, ctx, lt_dyn, rhs_rt) != 0) {
                       return -1;
                     }
                   }
@@ -19780,6 +19926,115 @@ export function codegen_find_impl_method_for_type(module: *Module, arena: *ASTAr
       fi = fi + 1;
     }
     return -1;
+  }
+}
+
+/**
+ * F3: Build the vtable for a concrete->dyn Trait coerce and emit it as the
+ * `.vtable = ...` field of the `(struct xlang_dyn_obj){...}` compound literal.
+ *
+ * Resolves the trait name from `lt_dyn`, enumerates the trait's methods via
+ * `xlang_skip_trait_method_count_c` + `xlang_skip_trait_method_name_into_c`,
+ * and for each method looks up the impl function via
+ * `codegen_find_impl_method_for_type` (single resolution authority, G.7).
+ * Emits `((void*[]){ (void*)&<prefix><link>, ... })` when methods exist, or
+ * `((void*)0)` when the trait has 0 methods (degenerate). Each slot uses
+ * `(void*)0` if no impl is found for that method (default method — F4 fills).
+ *
+ * Single authority for vtable close emit: the 3 coerce sites (assign, pre-let,
+ * stmt-order let) all call this helper to avoid triplicating the build logic
+ * (G.7 no duplicate implementation).
+ *
+ * @param arena AST arena
+ * @param out codegen output buffer
+ * @param ctx pipeline dep ctx (for module + prefix; if null, falls back to
+ *        NULL vtable since impl lookup needs the module)
+ * @param lt_dyn TYPE_DYN type_ref (trait name source)
+ * @param rhs_rt concrete receiver type_ref (impl lookup target)
+ * @return 0 on success, -1 on emit failure
+ * PLATFORM: SHARED — mirrors seeds/codegen_gen.linux.x86_64.c.
+ */
+export function codegen_emit_dyn_vtable_close(arena: *ASTArena, out: *CodegenOutBuf,
+        ctx: *PipelineDepCtx, lt_dyn: i32, rhs_rt: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    /*
+     * Degenerate close: "), .vtable = ((void*)0) }" — 25 bytes. Emitted when
+     * trait name is unresolvable, method count is 0, or ctx/module is missing
+     * (impl lookup impossible). Preserves the F2 NULL-vtable behavior.
+     */
+    let dyn_null_close: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32,
+            40, 40, 118, 111, 105, 100, 42, 41, 48, 41, 32, 125];
+    /* Resolve trait name from the dyn type. */
+    let trait_nm: u8[64] = [];
+    let trait_nlen: i32 = pipeline_type_named_name_into(arena, lt_dyn, &trait_nm[0]);
+    if (trait_nlen <= 0) {
+      return emit_bytes_from_ptr(out, &dyn_null_close[0], 25);
+    }
+    let meth_count: i32 = xlang_skip_trait_method_count_c(&trait_nm[0], trait_nlen);
+    if (meth_count <= 0 || ctx == 0 as *PipelineDepCtx
+        || ctx.current_codegen_module == 0 as *Module || rhs_rt <= 0) {
+      return emit_bytes_from_ptr(out, &dyn_null_close[0], 25);
+    }
+    /* Emit "), .vtable = ((void*[]){ " — 25 bytes (vtable array open). */
+    let vt_open: u8[25] = [41, 44, 32, 46, 118, 116, 97, 98, 108, 101, 32, 61, 32,
+            40, 40, 118, 111, 105, 100, 42, 91, 93, 41, 123, 32];
+    if (emit_bytes_from_ptr(out, &vt_open[0], 25) != 0) {
+      return -1;
+    }
+    let cur_mod: *Module = ctx.current_codegen_module;
+    /* "(void*)&" — 8 bytes, function-address cast prefix for each slot. */
+    let addr_cast: u8[8] = [40, 118, 111, 105, 100, 42, 41, 38];
+    /* "(void*)0" — 8 bytes, null placeholder for unresolved/default methods. */
+    let null_slot: u8[8] = [40, 118, 111, 105, 100, 42, 41, 48];
+    let slot_i: i32 = 0;
+    while (slot_i < meth_count) {
+      /* Separator: ", " before slot 1..N (slot 0 has no leading separator). */
+      if (slot_i > 0) {
+        let sep: u8[2] = [44, 32];
+        if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+          return -1;
+        }
+      }
+      /* Resolve method name at this slot from the trait registry. */
+      let meth_nm: u8[64] = [];
+      let meth_nlen: i32 = xlang_skip_trait_method_name_into_c(&trait_nm[0], trait_nlen,
+              slot_i, &meth_nm[0]);
+      if (meth_nlen <= 0) {
+        /* Method name unresolvable -> null slot (F4 fills default methods). */
+        if (emit_bytes_from_ptr(out, &null_slot[0], 8) != 0) {
+          return -1;
+        }
+      } else {
+        /* Look up the impl function for this method on the concrete type. */
+        let impl_fi: i32 = codegen_find_impl_method_for_type(cur_mod, arena,
+                &meth_nm[0], meth_nlen, rhs_rt);
+        if (impl_fi < 0) {
+          /* No impl found -> null slot (F4 fills default methods). */
+          if (emit_bytes_from_ptr(out, &null_slot[0], 8) != 0) {
+            return -1;
+          }
+        } else {
+          /* Emit "(void*)&" + module prefix + function link name. */
+          if (emit_bytes_from_ptr(out, &addr_cast[0], 8) != 0) {
+            return -1;
+          }
+          if (ctx.current_codegen_prefix_len > 0) {
+            if (emit_bytes_from_ptr(out, &ctx.current_codegen_prefix_mirror[0],
+                    ctx.current_codegen_prefix_len) != 0) {
+              return -1;
+            }
+          }
+          if (codegen_emit_func_link_name(out, arena, cur_mod, impl_fi) != 0) {
+            return -1;
+          }
+        }
+      }
+      slot_i = slot_i + 1;
+    }
+    /* Emit " }) }" — 5 bytes (vtable array close + compound literal close). */
+    let vt_close: u8[5] = [32, 125, 41, 32, 125];
+    return emit_bytes_from_ptr(out, &vt_close[0], 5);
   }
 }
 

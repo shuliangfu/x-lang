@@ -48,6 +48,29 @@ export extern function typeck_float64_bits_hi(d: f64): i32;
  */
 export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
         concrete_ty_ref: i32, trait_nm: *u8, trait_nlen: i32): i32;
+/*
+ * F3 TYPE_DYN(17) vtable-dispatch authority — three G.7 accessors over the
+ * trait registry `g_xlang_skip_trait_reg[]`. Method declaration order in the
+ * trait body defines the vtable slot index (slot 0 = first declared method).
+ *
+ * `xlang_skip_trait_method_slot_c` resolves a method name to its vtable slot
+ * (used by typeck dyn-dispatch branch to stamp call_resolved_func_index=slot,
+ * call_resolved_dep_index=DYN_DISPATCH_DEP_SENTINEL=-2). The count + name
+ * accessors are used by codegen to enumerate trait methods when building the
+ * per-impl function-pointer array at the concrete->dyn coerce site.
+ *
+ * Bodies live in seeds/parser_asm/parser_asm_skip_tl_slice.inc (twins of
+ * xlang_skip_impl_self_matches_for_c). typeck must NOT iterate
+ * g_xlang_skip_trait_reg_* globals directly.
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_slot_c(trait_nm: *u8, trait_nlen: i32,
+        method_nm: *u8, method_nlen: i32): i32;
+export extern function xlang_skip_trait_method_count_c(trait_nm: *u8, trait_nlen: i32): i32;
+export extern function xlang_skip_trait_method_name_into_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, out64: *u8): i32;
+export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -13915,6 +13938,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let ord_var: i32 = 3;
     let ord_i32: i32 = 0;
     let ord_ptr: i32 = 9;
+    let ord_dyn: i32 = 17;
     let ord_import_binding: i32 = 1;
     let base_ref: i32 = 0;
     let base_rc: i32 = 0;
@@ -13961,6 +13985,44 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         && method_nm[0] == 100 && method_nm[1] == 111 && method_nm[2] == 117
         && method_nm[3] == 98 && method_nm[4] == 108 && method_nm[5] == 101) {
       ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+    }
+
+    /*
+     * F3 TYPE_DYN(17) vtable dispatch: when the receiver is a `dyn Trait`
+     * fat-ptr, resolve the method name to a vtable slot (trait declaration
+     * order) and stamp the call as dyn-dispatch via the sentinel
+     * call_resolved_dep_index = -2 (DYN_DISPATCH_DEP_SENTINEL) with
+     * call_resolved_func_index = slot. Codegen reads this sentinel and emits
+     * an indirect call through ((void**)recv.vtable)[slot].
+     *
+     * Return type is resolved from the trait registry's method_ret_kinds[slot]
+     * so codegen can emit a typed function-pointer cast. Builtin return kinds
+     * (i32/bool/u8/.../void) map directly via pipeline_type_ensure_by_kind_ord;
+     * TYPE_NAMED returns fall back to 0 (void) for the F3 minimal proof — the
+     * call still dispatches correctly, only the cast is loose (F4 tightens).
+     * PLATFORM: SHARED — mirrors seeds/typeck_gen.linux.x86_64.c.
+     */
+    if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_dyn) {
+      let dyn_trait_nm: u8[64] = [];
+      let dyn_trait_nlen: i32 = pipeline_type_named_name_into(arena, base_ty, &dyn_trait_nm[0]);
+      if (dyn_trait_nlen > 0) {
+        let dyn_slot: i32 = xlang_skip_trait_method_slot_c(&dyn_trait_nm[0], dyn_trait_nlen,
+                &method_nm[0], method_nlen);
+        if (dyn_slot < 0) {
+          /* Method not declared in the trait -> typeck reject (compile fail). */
+          return 0 - 1;
+        }
+        pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 2, dyn_slot);
+        let dyn_ret_kind: i32 = xlang_skip_trait_method_ret_kind_c(&dyn_trait_nm[0],
+                dyn_trait_nlen, dyn_slot);
+        let dyn_ret_ty: i32 = 0;
+        if (dyn_ret_kind >= 0 && dyn_ret_kind != 8 && dyn_ret_kind != 9
+            && dyn_ret_kind != 10 && dyn_ret_kind != 11 && dyn_ret_kind != 13) {
+          dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind);
+        }
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty);
+        return 0;
+      }
     }
 
     num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);

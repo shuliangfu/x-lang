@@ -1214,6 +1214,147 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
 }
 
 /**
+ * F3 vtable dispatch helpers — three G.7 single-authority accessors over the
+ * trait registry `g_xlang_skip_trait_reg[]`. Method declaration order in the
+ * trait body defines the vtable slot index (slot 0 = first declared method).
+ *
+ * Used by typeck (resolve method name -> vtable slot for dyn dispatch) and
+ * codegen (enumerate trait methods to build the per-impl function-pointer
+ * array at the concrete->dyn coerce site).
+ *
+ * PLATFORM: SHARED parse + typeck + codegen.
+ */
+
+/**
+ * Find the trait registry index for a trait by name (linear scan).
+ * @param trait_nm   trait name bytes (e.g. "Clone"); must be non-null.
+ * @param trait_nlen trait name length; must be > 0.
+ * @return registry slot 0..g_xlang_skip_trait_reg_n-1, or -1 if not found.
+ * PLATFORM: SHARED.
+ */
+static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0)
+    return -1;
+  for (ti = 0; ti < g_xlang_skip_trait_reg_n; ti++) {
+    int32_t tlen = g_xlang_skip_trait_reg[ti].name_len;
+    const uint8_t *tname = g_xlang_skip_trait_reg[ti].name;
+    if (tlen != trait_nlen || tlen <= 0)
+      continue;
+    if (memcmp(tname, trait_nm, (size_t)tlen) != 0)
+      continue;
+    return ti;
+  }
+  return -1;
+}
+
+/**
+ * Resolve a method name to its vtable slot index within a trait.
+ * Slot = declaration order (0-based) in the trait body.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param method_nm   method name bytes; must be non-null.
+ * @param method_nlen method name length; must be > 0.
+ * @return slot index >= 0, or -1 if trait not registered or method absent.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_slot_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                       const uint8_t *method_nm, int32_t method_nlen) {
+  int32_t ti;
+  int32_t mi;
+  int32_t n;
+  if (!trait_nm || trait_nlen <= 0 || !method_nm || method_nlen <= 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  n = g_xlang_skip_trait_reg[ti].num_methods;
+  if (n < 0)
+    n = 0;
+  for (mi = 0; mi < n; mi++) {
+    int32_t mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
+    const uint8_t *mname = g_xlang_skip_trait_reg[ti].methods[mi];
+    if (mlen != method_nlen || mlen <= 0)
+      continue;
+    if (memcmp(mname, method_nm, (size_t)mlen) != 0)
+      continue;
+    return mi;
+  }
+  return -1;
+}
+
+/**
+ * Return the number of declared methods in a trait (= vtable slot count).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @return method count (0 if trait not registered or empty).
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_count_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  int32_t ti;
+  int32_t n;
+  if (!trait_nm || trait_nlen <= 0)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  n = g_xlang_skip_trait_reg[ti].num_methods;
+  return (n > 0) ? n : 0;
+}
+
+/**
+ * Copy the method name at a given vtable slot into a caller buffer.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param out64       output buffer of at least 64 bytes; must be non-null.
+ * @return method name length (>0 on success), 0 if trait/slot invalid.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                           int32_t slot, uint8_t *out64) {
+  int32_t ti;
+  int32_t mlen;
+  int32_t mi;
+  if (!trait_nm || trait_nlen <= 0 || !out64 || slot < 0)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return 0;
+  mlen = g_xlang_skip_trait_reg[ti].method_lens[slot];
+  if (mlen <= 0 || mlen > 64)
+    return 0;
+  for (mi = 0; mi < mlen; mi++)
+    out64[mi] = g_xlang_skip_trait_reg[ti].methods[slot][mi];
+  return mlen;
+}
+
+/**
+ * Return the TypeKind ordinal of the method's return type at a vtable slot.
+ * Used by typeck to stamp the call's resolved_type_ref for dyn dispatch so
+ * codegen can emit a typed function-pointer cast at the call site.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot invalid or not captured.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                          int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_kinds[slot];
+}
+
+/**
  * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
  * `for` type name when matching method param/ret signatures.
  *

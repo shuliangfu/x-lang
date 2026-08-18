@@ -459,6 +459,14 @@ extern int32_t xlang_io_uring_is_available_c(void);
  * Body lives in seeds/parser_asm/parser_asm_skip_tl_slice.inc. */
 extern int32_t xlang_skip_impl_concrete_implements_trait_c(void * arena,
         int32_t concrete_ty_ref, const uint8_t * trait_nm, int32_t trait_nlen);
+/* F3 vtable dispatch: bodies in seeds/parser_asm/parser_asm_skip_tl_slice.inc. */
+extern int32_t xlang_skip_trait_method_slot_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        const uint8_t * method_nm, int32_t method_nlen);
+extern int32_t xlang_skip_trait_method_count_c(const uint8_t * trait_nm, int32_t trait_nlen);
+extern int32_t xlang_skip_trait_method_name_into_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, uint8_t * out64);
+extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -11387,6 +11395,7 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
     int32_t ord_var = 3;
     int32_t ord_i32 = 0;
     int32_t ord_ptr = 9;
+    int32_t ord_dyn = 17;
     int32_t ord_import_binding = 1;
     int32_t base_ref = 0;
     int32_t base_rc = 0;
@@ -11428,6 +11437,25 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
     (void)((ret_ty = 0));
     if ((((((((((base_ty > 0) && (pipeline_type_kind_ord_at(arena, base_ty) ==ord_i32)) && (method_nlen ==6)) && ((method_nm)[0] ==100)) && ((method_nm)[1] ==111)) && ((method_nm)[2] ==117)) && ((method_nm)[3] ==98)) && ((method_nm)[4] ==108)) && ((method_nm)[5] ==101))) {
       (void)((ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32)));
+    }
+    /* F3 TYPE_DYN(17) vtable dispatch — stamp call_resolved_dep_index=-2 sentinel + func_index=slot. */
+    if (((base_ty > 0) && (pipeline_type_kind_ord_at(arena, base_ty) ==ord_dyn))) {
+      uint8_t dyn_trait_nm[64] = {};
+      int32_t dyn_trait_nlen = pipeline_type_named_name_into(arena, base_ty, &((dyn_trait_nm)[0]));
+      if ((dyn_trait_nlen > 0)) {
+        int32_t dyn_slot = xlang_skip_trait_method_slot_c(&((dyn_trait_nm)[0]), dyn_trait_nlen, &((method_nm)[0]), method_nlen);
+        if ((dyn_slot < 0)) {
+          return -1;
+        }
+        (void)(pipeline_expr_apply_call_resolve(arena, expr_ref, -2, dyn_slot));
+        int32_t dyn_ret_kind = xlang_skip_trait_method_ret_kind_c(&((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
+        int32_t dyn_ret_ty = 0;
+        if ((((dyn_ret_kind >= 0) && (dyn_ret_kind != 8)) && ((dyn_ret_kind != 9) && ((dyn_ret_kind != 10) && ((dyn_ret_kind != 11) && (dyn_ret_kind != 13)))))) {
+          (void)((dyn_ret_ty = pipeline_type_ensure_by_kind_ord(arena, dyn_ret_kind)));
+        }
+        (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, dyn_ret_ty));
+        return 0;
+      }
     }
     (void)((num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref)));
     (void)((arg_i = 0));
