@@ -87037,7 +87037,10 @@ let g_pipe_elf_ws_lc: u8[48] = [];
 let g_pipe_elf_ws_name: u8[128] = [];
 let g_pipe_elf_ws_name2: u8[128] = [];
 let g_pipe_elf_ws_rela: u8[24] = [];
-let g_pipe_elf_ws_shstr_std: u8[46] = [];
+/* F7: shstrtab is 63 bytes once .data + .rela.data are appended after the
+ * historic 46-byte ".text.symtab.strtab.shstrtab.rela.text" blob.
+ * PLATFORM: LINUX ELF writer (buffer shared with the Mach-O path unused). */
+let g_pipe_elf_ws_shstr_std: u8[64] = [];
 let g_pipe_elf_ws_shstr_pgo: u8[107] = [];
 let g_pipe_elf_ws_shstr_ready: i32 = 0;
 /* F7: Mach-O writer workspace for the second LC_SEGMENT_64 (__DATA,__const).
@@ -88968,6 +88971,26 @@ function pipe_elf_align4(n: i32): i32 {
   return (n + 3) & (0 - 4);
 }
 
+/**
+ * 8-byte file/section alignment for ELF .data (vtable pointer slots).
+ * @param n i32 — unaligned size or file offset
+ * @return i32 — n rounded up to a multiple of 8
+ * PLATFORM: LINUX ELF writer — pointer slots need sh_addralign=8.
+ */
+function pipe_elf_align8(n: i32): i32 {
+  // (n + 7) & ~7
+  return (n + 7) & (0 - 8);
+}
+
+/**
+ * Size of the standard (non-PGO) ELF shstrtab including F7 .data / .rela.data.
+ * @return i32 — 63
+ * PLATFORM: LINUX ELF writer.
+ */
+function pipe_elf_shstr_std_size(): i32 {
+  return 63;
+}
+
 function pipe_elf_ws_undef_name_row(i: i32): *u8 {
   return &g_pipe_elf_ws_undef_names[0] + ((i * 128) as usize);
 }
@@ -88981,23 +89004,42 @@ function pipe_elf_ws_undef_len_set(i: i32, v: i32): void {
 }
 
 function pipe_elf_init_shstr_std(): void {
-  // ".text\0.symtab\0.strtab\0.shstrtab\0.rela.text\0" with leading NUL => 46
+  // Historic 46-byte blob (name offsets 1/8/16/24/34 kept) plus F7:
+  //   [45] ".data\0"      [51] ".rela.data\0"   total 63.
+  // Section header index 4 is .data so pipe_elf_shnx_data()==4 is the ELF st_shndx.
   let p: *u8 = &g_pipe_elf_ws_shstr_std[0];
   unsafe {
-    memset(p, 0, 46 as usize);
+    memset(p, 0, 64 as usize);
     p[1] = 46; p[2] = 116; p[3] = 101; p[4] = 120; p[5] = 116;
     p[7] = 46; p[8] = 115; p[9] = 121; p[10] = 109; p[11] = 116; p[12] = 97; p[13] = 98;
     p[15] = 46; p[16] = 115; p[17] = 116; p[18] = 114; p[19] = 116; p[20] = 97; p[21] = 98;
     p[23] = 46; p[24] = 115; p[25] = 104; p[26] = 115; p[27] = 116; p[28] = 114; p[29] = 116; p[30] = 97; p[31] = 98;
     p[33] = 46; p[34] = 114; p[35] = 101; p[36] = 108; p[37] = 97; p[38] = 46; p[39] = 116; p[40] = 101; p[41] = 120; p[42] = 116;
+    /* ".data" at 45 */
+    p[45] = 46; p[46] = 100; p[47] = 97; p[48] = 116; p[49] = 97;
+    /* ".rela.data" at 51 */
+    p[51] = 46; p[52] = 114; p[53] = 101; p[54] = 108; p[55] = 97;
+    p[56] = 46; p[57] = 100; p[58] = 97; p[59] = 116; p[60] = 97;
   }
 }
 
 /**
- * Standard single-.text ELF64 ET_REL .o writer (non-PGO). PGO routes to pgo writer.
- * @return i32 - out length on success, -1 fail
- * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave (ELF primary LINUX; linked SHARED).
+ * Standard ELF64 ET_REL .o writer (non-PGO). PGO routes to the pgo writer.
+ *
+ * F7: always emits .data at ELF section index 4 (matches pipe_elf_shnx_data)
+ * plus .rela.text / .rela.data split by the reloc shndx sidecar. Vtable
+ * statics with absolute64 pointer slots must live in .data — putting them
+ * in .text makes ld report TEXTREL and the linked image SIGSEGV.
+ *
+ * Layout (section header indices):
+ *   0 NULL  1 .text  2 .symtab  3 .strtab  4 .data
+ *   5 .shstrtab  6 .rela.text  7 .rela.data
+ *
+ * @param ctx_bytes *u8 — ElfCodegenCtx
+ * @param out *u8 — CodegenOutBuf
+ * @return i32 — out length on success, -1 fail
+ * PLATFORM: LINUX primary (ELF); linked SHARED. Mach-O twin is
+ * pipeline_macho_write_o_to_buf_c (already splits __DATA,__const).
  */
 #[no_mangle]
 export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
@@ -89010,10 +89052,15 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   let code: *u8 = pipeline_elf_ctx_code_data_ptr(ctx_bytes);
   let code_len: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_len());
   let e_machine: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_e_machine());
-  let reloc_type: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_reloc_type_r_pc32());
   let num_undef: i32 = 0;
   let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
   let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
+  /* F7: data section payload (vtable statics). Always present as shndx 4. */
+  let data_len: i32 = g_pipe_elf_data_len;
+  if (data_len < 0) {
+    data_len = 0;
+  }
+  let data_buf: *u8 = &g_pipe_elf_data_buf[0];
   let r0: i32 = 0;
   while (r0 < nr) {
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, &g_pipe_elf_ws_name[0]);
@@ -89058,14 +89105,30 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   let strtab_size: i32 = strtab_off;
   let symtab_ents: i32 = 1 + ns + num_undef;
   let symtab_size: i32 = symtab_ents * 24;
-  let rela_size: i32 = nr * 24;
-  let align4: i32 = pipe_elf_align4(code_len);
+  /* F7: count text vs data relocs so each SHT_RELA covers one section. */
+  let nr_text: i32 = 0;
+  let nr_data: i32 = 0;
+  let rc_i: i32 = 0;
+  while (rc_i < nr) {
+    let sd: i32 = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, rc_i);
+    if (sd == pipe_elf_shnx_data()) {
+      nr_data = nr_data + 1;
+    } else {
+      nr_text = nr_text + 1;
+    }
+    rc_i = rc_i + 1;
+  }
+  let rela_text_size: i32 = nr_text * 24;
+  let rela_data_size: i32 = nr_data * 24;
+  let shstr_sz: i32 = pipe_elf_shstr_std_size();
   let off_text: i32 = 64;
-  let off_strtab: i32 = off_text + align4;
+  let off_data: i32 = pipe_elf_align8(off_text + code_len);
+  let off_strtab: i32 = off_data + pipe_elf_align8(data_len);
   let off_shstrtab: i32 = off_strtab + strtab_size;
-  let off_symtab: i32 = off_shstrtab + 46;
-  let off_rela: i32 = off_symtab + symtab_size;
-  let off_shdr: i32 = off_rela + rela_size;
+  let off_symtab: i32 = off_shstrtab + shstr_sz;
+  let off_rela_text: i32 = off_symtab + symtab_size;
+  let off_rela_data: i32 = off_rela_text + rela_text_size;
+  let off_shdr: i32 = off_rela_data + rela_data_size;
   let ehdr: *u8 = &g_pipe_elf_ws_ehdr[0];
   unsafe {
     memset(ehdr, 0, 128 as usize);
@@ -89082,8 +89145,9 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     ehdr[19] = (((e_machine as u32) / 256) & 255) as u8;
   }
   pipe_elf_store_i32_bytes(ehdr, 40, off_shdr);
+  /* e_shnum=8, e_shstrndx=5 (.shstrtab). Index 4 is .data. */
   unsafe {
-    ehdr[52] = 64; ehdr[58] = 64; ehdr[60] = 6; ehdr[62] = 4;
+    ehdr[52] = 64; ehdr[58] = 64; ehdr[60] = 8; ehdr[62] = 5;
   }
   codegen_out_buf_set_len(out, 0);
   if (pipe_elf_out_append(out, ehdr, 64) != 0) {
@@ -89095,12 +89159,27 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     }
   }
   let z0: u8[1] = [0];
-  s = code_len;
-  while (s < align4) {
+  /* Pad .text end so .data starts 8-aligned in the file. */
+  let pad_data: i32 = off_data - off_text - code_len;
+  let pd: i32 = 0;
+  while (pd < pad_data) {
     if (pipe_elf_out_append(out, &z0[0], 1) != 0) {
       return -1;
     }
-    s = s + 1;
+    pd = pd + 1;
+  }
+  if (data_len > 0 && data_buf != 0 as *u8) {
+    if (pipe_elf_out_append(out, data_buf, data_len) != 0) {
+      return -1;
+    }
+  }
+  let pad_str: i32 = off_strtab - off_data - data_len;
+  let ps: i32 = 0;
+  while (ps < pad_str) {
+    if (pipe_elf_out_append(out, &z0[0], 1) != 0) {
+      return -1;
+    }
+    ps = ps + 1;
   }
   if (pipe_elf_out_append(out, &z0[0], 1) != 0) {
     return -1;
@@ -89134,10 +89213,11 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     s = s + 1;
   }
   pipe_elf_init_shstr_std();
-  if (pipe_elf_out_append(out, &g_pipe_elf_ws_shstr_std[0], 46) != 0) {
+  if (pipe_elf_out_append(out, &g_pipe_elf_ws_shstr_std[0], shstr_sz) != 0) {
     return -1;
   }
-  // STT_SECTION for .text
+  // STT_SECTION for .text (symbol index 0). Do not add a .data STT_SECTION —
+  // that would shift defined/undef symbol indices used by rela r_sym.
   let ent: *u8 = &g_pipe_elf_ws_ent[0];
   unsafe {
     memset(ent, 0, 24 as usize);
@@ -89178,8 +89258,17 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
       pipe_elf_store_i32_bytes(ent, 8, calign);
       pipe_elf_store_i32_bytes(ent, 16, csize);
     } else {
+      /* F7: st_shndx from the sidecar. 4 = .data (vtable); else .text.
+       * Never emit PGO hot/unlikely indices on this non-PGO path. */
+      let sym_shndx: i32 = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+      let elf_shndx: i32 = 1;
+      if (sym_shndx == pipe_elf_shnx_data()) {
+        elf_shndx = 4;
+      }
       unsafe {
-        ent[4] = 18; ent[6] = 1;
+        ent[4] = 18;
+        ent[6] = (elf_shndx & 255) as u8;
+        ent[7] = ((elf_shndx / 256) & 255) as u8;
       }
       pipe_elf_store_i32_bytes(ent, 8, pipe_load_i32_le(se3, pipe_elf_sym_off_offset()));
     }
@@ -89202,78 +89291,97 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     str_off = str_off + pipe_elf_ws_undef_len_at(s) + 1;
     s = s + 1;
   }
-  let r: i32 = 0;
-  while (r < nr) {
-    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, &g_pipe_elf_ws_name[0]);
-    let rlen2: i32 = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
-    let sym_idx: i32 = 0;
-    let m: i32 = 0;
-    while (m < ns) {
-      let se4: *u8 = pipe_elf_sym_at(ctx_bytes, m);
-      let slen: i32 = pipe_load_i32_le(se4, pipe_elf_sym_off_name_len());
-      let off: i32 = pipe_elf_sym_name_off(ctx_bytes, m);
-      if (pipe_elf_name_eq(sym_pool + (off as usize), slen, &g_pipe_elf_ws_name[0], rlen2) != 0) {
-        sym_idx = m + 1;
-        break;
-      }
-      m = m + 1;
+  /* F7: two-pass rela — text-section first (shndx != 4), then data (shndx == 4).
+   * Sequential append matches off_rela_text then off_rela_data. */
+  let pass: i32 = 0;
+  while (pass < 2) {
+    let want_data: i32 = 0;
+    if (pass == 1) {
+      want_data = 1;
     }
-    if (sym_idx == 0) {
-      let u: i32 = 0;
-      while (u < num_undef) {
-        if (pipe_elf_name_eq(pipe_elf_ws_undef_name_row(u), pipe_elf_ws_undef_len_at(u), &g_pipe_elf_ws_name[0], rlen2) != 0) {
-          sym_idx = ns + 1 + u;
+    let r: i32 = 0;
+    while (r < nr) {
+      let r_sd: i32 = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
+      let is_data: i32 = 0;
+      if (r_sd == pipe_elf_shnx_data()) {
+        is_data = 1;
+      }
+      if (is_data != want_data) {
+        r = r + 1;
+        continue;
+      }
+      pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, &g_pipe_elf_ws_name[0]);
+      let rlen2: i32 = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+      let sym_idx: i32 = 0;
+      let m: i32 = 0;
+      while (m < ns) {
+        let se4: *u8 = pipe_elf_sym_at(ctx_bytes, m);
+        let slen: i32 = pipe_load_i32_le(se4, pipe_elf_sym_off_name_len());
+        let off: i32 = pipe_elf_sym_name_off(ctx_bytes, m);
+        if (pipe_elf_name_eq(sym_pool + (off as usize), slen, &g_pipe_elf_ws_name[0], rlen2) != 0) {
+          sym_idx = m + 1;
           break;
         }
-        u = u + 1;
+        m = m + 1;
       }
-    }
-    let rela: *u8 = &g_pipe_elf_ws_rela[0];
-    unsafe {
-      memset(rela, 0, 24 as usize);
-    }
-    pipe_elf_rela_set_addend64(rela, 0 - 4, 0 - 1);
-    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
-    pipe_elf_store_i32_bytes(rela, 0, roff);
-    let rtype: i32 = pipe_elf_call_reloc_type(ctx_bytes, ctx_bytes, r, &g_pipe_elf_ws_name[0], rlen2);
-    // F7 absolute64: sentinel r_type=200 → platform absolute 64-bit reloc with
-    // ZERO addend (the default -4 is for 32-bit pc-relative CALL disp). Map:
-    //   x86_64 (em=62)  → R_X86_64_64 = 1
-    //   arm64  (em=183) → R_AARCH64_ABS64 = 257
-    //   riscv64(em=243) → R_RISCV_64 = 2
-    if (rtype == 200) {
-      pipe_elf_rela_set_addend64(rela, 0, 0);
-      if (e_machine == 62) {
-        rtype = 1;
-      } else if (e_machine == 183) {
-        rtype = 257;
-      } else if (e_machine == 243) {
-        rtype = 2;
-      } else {
-        rtype = 1;
+      if (sym_idx == 0) {
+        let u: i32 = 0;
+        while (u < num_undef) {
+          if (pipe_elf_name_eq(pipe_elf_ws_undef_name_row(u), pipe_elf_ws_undef_len_at(u), &g_pipe_elf_ws_name[0], rlen2) != 0) {
+            sym_idx = ns + 1 + u;
+            break;
+          }
+          u = u + 1;
+        }
       }
+      let rela: *u8 = &g_pipe_elf_ws_rela[0];
+      unsafe {
+        memset(rela, 0, 24 as usize);
+      }
+      pipe_elf_rela_set_addend64(rela, 0 - 4, 0 - 1);
+      let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+      pipe_elf_store_i32_bytes(rela, 0, roff);
+      let rtype: i32 = pipe_elf_call_reloc_type(ctx_bytes, ctx_bytes, r, &g_pipe_elf_ws_name[0], rlen2);
+      // F7 absolute64: sentinel r_type=200 → platform absolute 64-bit reloc with
+      // ZERO addend (the default -4 is for 32-bit pc-relative CALL disp). Map:
+      //   x86_64 (em=62)  → R_X86_64_64 = 1
+      //   arm64  (em=183) → R_AARCH64_ABS64 = 257
+      //   riscv64(em=243) → R_RISCV_64 = 2
+      if (rtype == 200) {
+        pipe_elf_rela_set_addend64(rela, 0, 0);
+        if (e_machine == 62) {
+          rtype = 1;
+        } else if (e_machine == 183) {
+          rtype = 257;
+        } else if (e_machine == 243) {
+          rtype = 2;
+        } else {
+          rtype = 1;
+        }
+      }
+      pipe_elf_store_i32_bytes(rela, 8, rtype);
+      pipe_elf_store_i32_bytes(rela, 12, sym_idx);
+      if (pipe_elf_out_append(out, rela, 24) != 0) {
+        return -1;
+      }
+      r = r + 1;
     }
-    pipe_elf_store_i32_bytes(rela, 8, rtype);
-    pipe_elf_store_i32_bytes(rela, 12, sym_idx);
-    if (pipe_elf_out_append(out, rela, 24) != 0) {
-      return -1;
-    }
-    r = r + 1;
+    pass = pass + 1;
   }
-  // section headers (6 x 64)
+  // section headers (8 x 64): NULL .text .symtab .strtab .data .shstrtab .rela.text .rela.data
   let sh: *u8 = &g_pipe_elf_ws_shdr[0];
   unsafe {
-    memset(sh, 0, 640 as usize);
+    memset(sh, 0, 512 as usize);
   }
   // shdr0 zero
-  // shdr_text
+  // shdr_text index 1
   let st: *u8 = sh + (64 as usize);
   unsafe {
     st[0] = 1; st[4] = 1; st[8] = 6;
   }
   pipe_elf_store_i32_bytes(st, 24, off_text);
   pipe_elf_store_i32_bytes(st, 32, code_len);
-  // shdr_sym
+  // shdr_sym index 2
   let ss: *u8 = sh + (128 as usize);
   unsafe {
     ss[0] = 8; ss[4] = 2;
@@ -89283,7 +89391,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   unsafe {
     ss[40] = 3; ss[44] = 1; ss[56] = 24;
   }
-  // shdr_str
+  // shdr_str index 3
   let sstr: *u8 = sh + (192 as usize);
   unsafe {
     sstr[0] = 16; sstr[4] = 3;
@@ -89293,27 +89401,44 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   unsafe {
     sstr[48] = 1;
   }
-  // shdr_shstr
-  let ssh: *u8 = sh + (256 as usize);
+  // shdr_data index 4 — PROGBITS, SHF_WRITE|SHF_ALLOC, align 8
+  let sh_data: *u8 = sh + (256 as usize);
+  unsafe {
+    sh_data[0] = 45; sh_data[4] = 1; sh_data[8] = 3; sh_data[48] = 8;
+  }
+  pipe_elf_store_i32_bytes(sh_data, 24, off_data);
+  pipe_elf_store_i32_bytes(sh_data, 32, data_len);
+  // shdr_shstr index 5
+  let ssh: *u8 = sh + (320 as usize);
   unsafe {
     ssh[0] = 24; ssh[4] = 3;
   }
   pipe_elf_store_i32_bytes(ssh, 24, off_shstrtab);
   unsafe {
-    ssh[32] = 46; ssh[48] = 1;
+    ssh[32] = (shstr_sz & 255) as u8; ssh[48] = 1;
   }
-  // shdr_rela
-  let sr: *u8 = sh + (320 as usize);
+  // shdr_rela.text index 6 — sh_info = 1 (.text)
+  let sr: *u8 = sh + (384 as usize);
   unsafe {
     sr[0] = 34; sr[4] = 4; sr[8] = 2; sr[16] = 64;
   }
-  pipe_elf_store_i32_bytes(sr, 24, off_rela);
-  pipe_elf_store_i32_bytes(sr, 32, rela_size);
+  pipe_elf_store_i32_bytes(sr, 24, off_rela_text);
+  pipe_elf_store_i32_bytes(sr, 32, rela_text_size);
   unsafe {
     sr[40] = 2; sr[44] = 1; sr[56] = 24;
   }
+  // shdr_rela.data index 7 — sh_info = 4 (.data); name offset 51
+  let srd: *u8 = sh + (448 as usize);
+  unsafe {
+    srd[0] = 51; srd[4] = 4; srd[8] = 2; srd[16] = 64;
+  }
+  pipe_elf_store_i32_bytes(srd, 24, off_rela_data);
+  pipe_elf_store_i32_bytes(srd, 32, rela_data_size);
+  unsafe {
+    srd[40] = 2; srd[44] = 4; srd[56] = 24;
+  }
   let hi: i32 = 0;
-  while (hi < 6) {
+  while (hi < 8) {
     if (pipe_elf_out_append(out, sh + ((hi * 64) as usize), 64) != 0) {
       return -1;
     }

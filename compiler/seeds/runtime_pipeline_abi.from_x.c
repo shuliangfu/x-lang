@@ -34532,13 +34532,27 @@ static void pipeline_elf_rela_set_addend64(uint8_t *rela_buf, int64_t addend) {
 }
 
 /**
- * 标准单 .text ELF64 ET_REL .o 写出（非 PGO）；从 glue code_data 偏移读机器码。
- * 替代 seed partial 内 write_elf_o_to_buf 对 X code_data[] 的错误偏移读（导致 __text 全零）。
+ * ELF64 ET_REL .o writer (non-PGO). Reads machine code from glue code_data.
+ *
+ * F7: always emits .data at ELF section index 4 (PIPELINE_ELF_SHNX_DATA) plus
+ * .rela.text / .rela.data split by the reloc shndx sidecar. Vtable statics
+ * with absolute64 pointer slots must live in .data — putting them in .text
+ * makes ld report TEXTREL and the linked image SIGSEGV.
+ *
+ * Layout (section header indices):
+ *   0 NULL  1 .text  2 .symtab  3 .strtab  4 .data
+ *   5 .shstrtab  6 .rela.text  7 .rela.data
+ *
+ * G.7: same semantics as runtime_pipeline_abi.x::pipeline_elf_write_o_standard_to_buf_c.
+ * Product hybrid: this seed body is the strong rest; .x is WEAK thin.
+ * PLATFORM: LINUX primary (ELF); linked SHARED.
  */
 int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out) {
   PipelineElfCtxAccess *ctx;
   uint8_t *code;
   int32_t code_len;
+  int32_t data_len;
+  uint8_t *data_buf;
   int32_t strtab_off;
   int32_t num_undef;
   uint8_t undef_names[PIPELINE_ELF_UNDEF_SYM_CAP][128];
@@ -34546,26 +34560,34 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   int32_t strtab_size;
   int32_t symtab_ents;
   int32_t symtab_size;
-  int32_t rela_size;
-  int32_t align4;
+  int32_t nr_text;
+  int32_t nr_data;
+  int32_t rela_text_size;
+  int32_t rela_data_size;
+  int32_t shstr_sz;
   int32_t off_text;
+  int32_t off_data;
   int32_t off_strtab;
   int32_t off_shstrtab;
   int32_t off_symtab;
-  int32_t off_rela;
+  int32_t off_rela_text;
+  int32_t off_rela_data;
   int32_t off_shdr;
-  static const uint8_t shstrtab_std[46] = {
+  /* Historic 46-byte blob (name offsets 1/8/16/24/34 kept) plus F7
+   * [45] ".data\0" [51] ".rela.data\0" → 63 bytes. */
+  static const uint8_t shstrtab_std[63] = {
       0, '.', 't', 'e', 'x', 't', 0, '.', 's', 'y', 'm', 't', 'a', 'b', 0,
       '.', 's', 't', 'r', 't', 'a', 'b', 0, '.', 's', 'h', 's', 't', 'r', 't', 'a', 'b', 0,
-      '.', 'r', 'e', 'l', 'a', '.', 't', 'e', 'x', 't', 0};
+      '.', 'r', 'e', 'l', 'a', '.', 't', 'e', 'x', 't', 0,
+      '.', 'd', 'a', 't', 'a', 0,
+      '.', 'r', 'e', 'l', 'a', '.', 'd', 'a', 't', 'a', 0};
   uint8_t ehdr[128];
   uint8_t z0[1];
   int32_t s;
   int32_t r0;
-  int32_t r;
   int32_t e_machine;
-  int32_t reloc_type;
   uint8_t *sym_pool;
+  int32_t pass;
 
   if (!ctx_bytes || !out)
     return -1;
@@ -34575,7 +34597,10 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   code = pipeline_elf_ctx_code_data_ptr(ctx_bytes);
   code_len = ctx->code_len;
   e_machine = ctx->e_machine;
-  reloc_type = ctx->reloc_type_r_pc32;
+  data_len = g_pipeline_elf_data_len;
+  if (data_len < 0)
+    data_len = 0;
+  data_buf = &g_pipeline_elf_data_buf[0];
   num_undef = 0;
   r0 = 0;
   while (r0 < ctx->num_relocs) {
@@ -34621,14 +34646,28 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   strtab_size = strtab_off;
   symtab_ents = 1 + ctx->num_syms + num_undef;
   symtab_size = symtab_ents * 24;
-  rela_size = ctx->num_relocs * 24;
-  align4 = (code_len + 3) & ~3;
+  nr_text = 0;
+  nr_data = 0;
+  r0 = 0;
+  while (r0 < ctx->num_relocs) {
+    int32_t sd = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r0);
+    if (sd == PIPELINE_ELF_SHNX_DATA)
+      nr_data = nr_data + 1;
+    else
+      nr_text = nr_text + 1;
+    r0 = r0 + 1;
+  }
+  rela_text_size = nr_text * 24;
+  rela_data_size = nr_data * 24;
+  shstr_sz = 63;
   off_text = 64;
-  off_strtab = off_text + align4;
+  off_data = (off_text + code_len + 7) & (int32_t)~7;
+  off_strtab = off_data + ((data_len + 7) & (int32_t)~7);
   off_shstrtab = off_strtab + strtab_size;
-  off_symtab = off_shstrtab + 46;
-  off_rela = off_symtab + symtab_size;
-  off_shdr = off_rela + rela_size;
+  off_symtab = off_shstrtab + shstr_sz;
+  off_rela_text = off_symtab + symtab_size;
+  off_rela_data = off_rela_text + rela_text_size;
+  off_shdr = off_rela_data + rela_data_size;
   memset(ehdr, 0, sizeof(ehdr));
   ehdr[0] = 127;
   ehdr[1] = 69;
@@ -34647,16 +34686,24 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   ehdr[43] = (uint8_t)((off_shdr >> 24) & 255);
   ehdr[52] = 64;
   ehdr[58] = 64;
-  ehdr[60] = 6;
-  ehdr[62] = 4;
+  ehdr[60] = 8; /* e_shnum = 8 */
+  ehdr[62] = 5; /* e_shstrndx = 5 (.shstrtab); index 4 is .data */
   codegen_out_buf_set_len(out, 0);
   if (pipeline_elf_out_append(out, ehdr, 64) != 0)
     return -1;
   if (code_len > 0 && code && pipeline_elf_out_append(out, code, code_len) != 0)
     return -1;
   z0[0] = 0;
-  s = code_len;
-  while (s < align4) {
+  s = off_text + code_len;
+  while (s < off_data) {
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  if (data_len > 0 && data_buf && pipeline_elf_out_append(out, data_buf, data_len) != 0)
+    return -1;
+  s = off_data + data_len;
+  while (s < off_strtab) {
     if (pipeline_elf_out_append(out, z0, 1) != 0)
       return -1;
     s = s + 1;
@@ -34682,7 +34729,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
       return -1;
     s = s + 1;
   }
-  if (pipeline_elf_out_append(out, shstrtab_std, 46) != 0)
+  if (pipeline_elf_out_append(out, shstrtab_std, shstr_sz) != 0)
     return -1;
   {
     uint8_t sym_sect[24];
@@ -34705,6 +34752,8 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
       int32_t is_common;
       int32_t csize;
       int32_t calign;
+      int32_t sym_shndx;
+      int32_t elf_shndx;
       memset(ent, 0, sizeof(ent));
       is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
                    g_pipeline_elf_sym_is_common[s] != 0)
@@ -34734,8 +34783,12 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
         ent[18] = (uint8_t)((csize >> 16) & 255);
         ent[19] = (uint8_t)((csize >> 24) & 255);
       } else {
+        /* F7: st_shndx from sidecar. 4 = .data (vtable); else .text. */
+        sym_shndx = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+        elf_shndx = (sym_shndx == PIPELINE_ELF_SHNX_DATA) ? 4 : 1;
         ent[4] = 18;
-        ent[6] = 1;
+        ent[6] = (uint8_t)(elf_shndx & 255);
+        ent[7] = (uint8_t)((elf_shndx >> 8) & 255);
         ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
         ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
         ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
@@ -34761,68 +34814,96 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
       s = s + 1;
     }
   }
-  r = 0;
-  while (r < ctx->num_relocs) {
-    int32_t sym_idx;
-    int32_t m;
-    int32_t u;
-    uint8_t r_sym_buf[128];
-    int32_t rlen;
-    uint8_t rela_buf[24];
-    int32_t roff;
-    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
-    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
-    sym_idx = 0;
-    m = 0;
-    while (m < ctx->num_syms) {
-      int32_t off;
-      off = pipeline_elf_sym_name_off(ctx, m);
-      if (ctx->syms[m].name_len == rlen && rlen > 0 &&
-          memcmp(sym_pool + off, r_sym_buf, (size_t)rlen) == 0) {
-        sym_idx = m + 1;
-        break;
+  /* F7: two-pass rela — text-section first (shndx != 4), then data (shndx == 4). */
+  pass = 0;
+  while (pass < 2) {
+    int32_t want_data = (pass == 1) ? 1 : 0;
+    int32_t r = 0;
+    while (r < ctx->num_relocs) {
+      int32_t r_sd;
+      int32_t is_data;
+      int32_t sym_idx;
+      int32_t m;
+      int32_t u;
+      uint8_t r_sym_buf[128];
+      int32_t rlen;
+      uint8_t rela_buf[24];
+      int32_t roff;
+      int32_t rtype;
+      r_sd = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
+      is_data = (r_sd == PIPELINE_ELF_SHNX_DATA) ? 1 : 0;
+      if (is_data != want_data) {
+        r = r + 1;
+        continue;
       }
-      m = m + 1;
-    }
-    if (sym_idx == 0) {
-      u = 0;
-      while (u < num_undef) {
-        if (undef_lens[u] == rlen && rlen > 0 && memcmp(undef_names[u], r_sym_buf, (size_t)rlen) == 0) {
-          sym_idx = ctx->num_syms + 1 + u;
+      pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+      rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+      sym_idx = 0;
+      m = 0;
+      while (m < ctx->num_syms) {
+        int32_t off;
+        off = pipeline_elf_sym_name_off(ctx, m);
+        if (ctx->syms[m].name_len == rlen && rlen > 0 &&
+            memcmp(sym_pool + off, r_sym_buf, (size_t)rlen) == 0) {
+          sym_idx = m + 1;
           break;
         }
-        u = u + 1;
+        m = m + 1;
       }
-    }
-    memset(rela_buf, 0, sizeof(rela_buf));
-    pipeline_elf_rela_set_addend64(rela_buf, -4);
-    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
-    rela_buf[0] = (uint8_t)(roff & 255);
-    rela_buf[1] = (uint8_t)((roff >> 8) & 255);
-    rela_buf[2] = (uint8_t)((roff >> 16) & 255);
-    rela_buf[3] = (uint8_t)((roff >> 24) & 255);
-    {
-      int32_t rtype = pipeline_elf_call_reloc_type(ctx, ctx_bytes, r, r_sym_buf, rlen);
+      if (sym_idx == 0) {
+        u = 0;
+        while (u < num_undef) {
+          if (undef_lens[u] == rlen && rlen > 0 && memcmp(undef_names[u], r_sym_buf, (size_t)rlen) == 0) {
+            sym_idx = ctx->num_syms + 1 + u;
+            break;
+          }
+          u = u + 1;
+        }
+      }
+      memset(rela_buf, 0, sizeof(rela_buf));
+      pipeline_elf_rela_set_addend64(rela_buf, -4);
+      roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+      rela_buf[0] = (uint8_t)(roff & 255);
+      rela_buf[1] = (uint8_t)((roff >> 8) & 255);
+      rela_buf[2] = (uint8_t)((roff >> 16) & 255);
+      rela_buf[3] = (uint8_t)((roff >> 24) & 255);
+      rtype = pipeline_elf_call_reloc_type(ctx, ctx_bytes, r, r_sym_buf, rlen);
+      /* F7 absolute64: sentinel r_type=200 → platform ABS64 with ZERO addend.
+       * x86_64 R_X86_64_64=1; arm64 R_AARCH64_ABS64=257; riscv64 R_RISCV_64=2. */
+      if (rtype == 200) {
+        pipeline_elf_rela_set_addend64(rela_buf, 0);
+        if (e_machine == 62)
+          rtype = 1;
+        else if (e_machine == 183)
+          rtype = 257;
+        else if (e_machine == 243)
+          rtype = 2;
+        else
+          rtype = 1;
+      }
       rela_buf[8] = (uint8_t)(rtype & 255);
       rela_buf[9] = (uint8_t)((rtype >> 8) & 255);
       rela_buf[10] = (uint8_t)((rtype >> 16) & 255);
       rela_buf[11] = (uint8_t)((rtype >> 24) & 255);
+      rela_buf[12] = (uint8_t)(sym_idx & 255);
+      rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
+      rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
+      rela_buf[15] = (uint8_t)((sym_idx >> 24) & 255);
+      if (pipeline_elf_out_append(out, rela_buf, 24) != 0)
+        return -1;
+      r = r + 1;
     }
-    rela_buf[12] = (uint8_t)(sym_idx & 255);
-    rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
-    rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
-    rela_buf[15] = (uint8_t)((sym_idx >> 24) & 255);
-    if (pipeline_elf_out_append(out, rela_buf, 24) != 0)
-      return -1;
-    r = r + 1;
+    pass = pass + 1;
   }
   {
-    uint8_t shdr0[128];
-    uint8_t shdr_text[128];
-    uint8_t shdr_sym[128];
-    uint8_t shdr_str[128];
-    uint8_t shdr_shstr[128];
-    uint8_t shdr_rela[128];
+    uint8_t shdr0[64];
+    uint8_t shdr_text[64];
+    uint8_t shdr_sym[64];
+    uint8_t shdr_str[64];
+    uint8_t shdr_data[64];
+    uint8_t shdr_shstr[64];
+    uint8_t shdr_rela[64];
+    uint8_t shdr_rela_data[64];
     memset(shdr0, 0, sizeof(shdr0));
     if (pipeline_elf_out_append(out, shdr0, 64) != 0)
       return -1;
@@ -34870,6 +34951,22 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     shdr_str[48] = 1;
     if (pipeline_elf_out_append(out, shdr_str, 64) != 0)
       return -1;
+    /* index 4 = .data (SHT_PROGBITS, SHF_WRITE|SHF_ALLOC, align 8) */
+    memset(shdr_data, 0, sizeof(shdr_data));
+    shdr_data[0] = 45;
+    shdr_data[4] = 1;
+    shdr_data[8] = 3;
+    shdr_data[24] = (uint8_t)(off_data & 255);
+    shdr_data[25] = (uint8_t)((off_data >> 8) & 255);
+    shdr_data[26] = (uint8_t)((off_data >> 16) & 255);
+    shdr_data[27] = (uint8_t)((off_data >> 24) & 255);
+    shdr_data[32] = (uint8_t)(data_len & 255);
+    shdr_data[33] = (uint8_t)((data_len >> 8) & 255);
+    shdr_data[34] = (uint8_t)((data_len >> 16) & 255);
+    shdr_data[35] = (uint8_t)((data_len >> 24) & 255);
+    shdr_data[48] = 8;
+    if (pipeline_elf_out_append(out, shdr_data, 64) != 0)
+      return -1;
     memset(shdr_shstr, 0, sizeof(shdr_shstr));
     shdr_shstr[0] = 24;
     shdr_shstr[4] = 3;
@@ -34877,7 +34974,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     shdr_shstr[25] = (uint8_t)((off_shstrtab >> 8) & 255);
     shdr_shstr[26] = (uint8_t)((off_shstrtab >> 16) & 255);
     shdr_shstr[27] = (uint8_t)((off_shstrtab >> 24) & 255);
-    shdr_shstr[32] = 46;
+    shdr_shstr[32] = (uint8_t)(shstr_sz & 255);
     shdr_shstr[48] = 1;
     if (pipeline_elf_out_append(out, shdr_shstr, 64) != 0)
       return -1;
@@ -34886,18 +34983,36 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     shdr_rela[4] = 4;
     shdr_rela[8] = 2;
     shdr_rela[16] = 64;
-    shdr_rela[24] = (uint8_t)(off_rela & 255);
-    shdr_rela[25] = (uint8_t)((off_rela >> 8) & 255);
-    shdr_rela[26] = (uint8_t)((off_rela >> 16) & 255);
-    shdr_rela[27] = (uint8_t)((off_rela >> 24) & 255);
-    shdr_rela[32] = (uint8_t)(rela_size & 255);
-    shdr_rela[33] = (uint8_t)((rela_size >> 8) & 255);
-    shdr_rela[34] = (uint8_t)((rela_size >> 16) & 255);
-    shdr_rela[35] = (uint8_t)((rela_size >> 24) & 255);
+    shdr_rela[24] = (uint8_t)(off_rela_text & 255);
+    shdr_rela[25] = (uint8_t)((off_rela_text >> 8) & 255);
+    shdr_rela[26] = (uint8_t)((off_rela_text >> 16) & 255);
+    shdr_rela[27] = (uint8_t)((off_rela_text >> 24) & 255);
+    shdr_rela[32] = (uint8_t)(rela_text_size & 255);
+    shdr_rela[33] = (uint8_t)((rela_text_size >> 8) & 255);
+    shdr_rela[34] = (uint8_t)((rela_text_size >> 16) & 255);
+    shdr_rela[35] = (uint8_t)((rela_text_size >> 24) & 255);
     shdr_rela[40] = 2;
     shdr_rela[44] = 1;
     shdr_rela[56] = 24;
     if (pipeline_elf_out_append(out, shdr_rela, 64) != 0)
+      return -1;
+    memset(shdr_rela_data, 0, sizeof(shdr_rela_data));
+    shdr_rela_data[0] = 51;
+    shdr_rela_data[4] = 4;
+    shdr_rela_data[8] = 2;
+    shdr_rela_data[16] = 64;
+    shdr_rela_data[24] = (uint8_t)(off_rela_data & 255);
+    shdr_rela_data[25] = (uint8_t)((off_rela_data >> 8) & 255);
+    shdr_rela_data[26] = (uint8_t)((off_rela_data >> 16) & 255);
+    shdr_rela_data[27] = (uint8_t)((off_rela_data >> 24) & 255);
+    shdr_rela_data[32] = (uint8_t)(rela_data_size & 255);
+    shdr_rela_data[33] = (uint8_t)((rela_data_size >> 8) & 255);
+    shdr_rela_data[34] = (uint8_t)((rela_data_size >> 16) & 255);
+    shdr_rela_data[35] = (uint8_t)((rela_data_size >> 24) & 255);
+    shdr_rela_data[40] = 2;
+    shdr_rela_data[44] = 4; /* sh_info = 4 (.data) */
+    shdr_rela_data[56] = 24;
+    if (pipeline_elf_out_append(out, shdr_rela_data, 64) != 0)
       return -1;
   }
   return codegen_out_buf_len(out);
