@@ -7170,6 +7170,9 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
+    /* skip_one_impl leaves the lexer inside `{...}`; nest counts those bodies
+     * so the matching `}` is an impl closer, not unexpected junk. */
+    int32_t impl_body_depth = 0;
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
     (void)(parser_collect_imports(lex, source, module, &(import_res)));
     (void)(parser_copy_lex_from_import_into(&(lex), import_res));
@@ -7401,7 +7404,15 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         (void)(parser_skip_one_impl_into(&(lex), iter_start, source));
         if ((((lex.pos) ==(iter_start.pos)) && ((lex.pos) < (source->length)))) {
           (void)((lex = (struct lexer_Lexer){ .pos = ((lex.pos) + 1), .line = (lex.line), .col = ((lex.col) + 1) }));
+        } else {
+          (void)((impl_body_depth = (impl_body_depth + 1)));
         }
+        continue;
+      }
+      /* Impl closer after skip_one_impl parked at first method (wave390 UFCS).
+       * PLATFORM: SHARED — must run before parse_strict unexpected-token. */
+      if (((((r.tok).kind) ==85) && (impl_body_depth > 0))) {
+        (void)((impl_body_depth = (impl_body_depth - 1)));
         continue;
       }
       if ((((r.tok).kind) !=1)) {
@@ -8718,6 +8729,9 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
+    /* skip_one_impl leaves the lexer inside `{...}`; nest counts those bodies
+     * so the matching `}` is an impl closer, not unexpected junk. */
+    int32_t impl_body_depth_buf = 0;
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
     (void)(parser_collect_imports_buf(lex, data, len, module, &(import_res)));
     (void)(parser_copy_lex_from_import_into(&(lex), import_res));
@@ -8940,6 +8954,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         (void)(parser_skip_one_impl_into_buf(&(lex), iter_start_buf, data, len));
         if ((((lex.pos) ==(iter_start_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
           (void)((lex = (struct lexer_Lexer){ .pos = ((lex.pos) + 1), .line = (lex.line), .col = ((lex.col) + 1) }));
+        } else {
+          (void)((impl_body_depth_buf = (impl_body_depth_buf + 1)));
         }
         continue;
       }
@@ -8974,6 +8990,13 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
           (void)((lex = (toplevel_res.next_lex)));
           continue;
         }
+      }
+      /* Impl closer after skip_one_impl parked at first method (wave390 UFCS).
+       * Without this, parse_strict treats the leftover `}` as unexpected → P001.
+       * PLATFORM: SHARED parse. */
+      if (((((r.tok).kind) ==85) && (impl_body_depth_buf > 0))) {
+        (void)((impl_body_depth_buf = (impl_body_depth_buf - 1)));
+        continue;
       }
       if ((((r.tok).kind) !=1)) {
         struct parser_TrySkipAllowResult try_res = (struct parser_TrySkipAllowResult){ .lex = lex, .skipped = 0, ._pad = { 0 } };

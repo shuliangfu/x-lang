@@ -8970,6 +8970,9 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
+  /* skip_one_impl leaves the lexer inside `{...}`; this nest counts those
+   * bodies so the matching `}` is an impl closer, not unexpected junk. */
+  let impl_body_depth: i32 = 0;
   /* See implementation. */
   let import_res: CollectImportsResult = { lex: lex };
   collect_imports(lex, source, module, &import_res);
@@ -9221,8 +9224,19 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       skip_one_impl_into(&lex, iter_start, source);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      } else {
+        impl_body_depth = impl_body_depth + 1;
       }
       continue;
+    }
+    /* Impl closer: skip_one_impl parked the lexer at the first method; after
+     * those functions the leftover `}` closes the nest (wave390 UFCS).
+     * PLATFORM: SHARED — must run before parse_strict unexpected-token. */
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+      if (impl_body_depth > 0) {
+        impl_body_depth = impl_body_depth - 1;
+        continue;
+      }
     }
     if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
       let try_res: TrySkipAllowResult = { lex: lex, skipped: 0, _pad: [] };
@@ -11132,6 +11146,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   xlang_trait_reg_reset_c(arena);
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
+  /* skip_one_impl leaves the lexer inside `{...}`; this nest counts those
+   * bodies so the matching `}` is an impl closer, not unexpected junk. */
+  let impl_body_depth_buf: i32 = 0;
   let import_res: CollectImportsResult = { lex: lex };
   collect_imports_buf(lex, data, len, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
@@ -11346,6 +11363,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       skip_one_impl_into_buf(&lex, iter_start_buf, data, len);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      } else {
+        impl_body_depth_buf = impl_body_depth_buf + 1;
       }
       continue;
     }
@@ -11403,6 +11422,17 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
           pipeline_module_top_level_let_set_is_export(module, module.num_top_level_lets - 1, 1);
         }
         lex = toplevel_res.next_lex;
+        continue;
+      }
+    }
+    /* Impl closer: skip_one_impl parked the lexer at the first method; after
+     * those functions the leftover `}` closes the nest (wave390 UFCS).
+     * Without this, parse_strict (check / XLANG_PARSE_STRICT / Ubuntu
+     * false-true check_only) treats the closer as unexpected → P001 name=?.
+     * PLATFORM: SHARED parse. */
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+      if (impl_body_depth_buf > 0) {
+        impl_body_depth_buf = impl_body_depth_buf - 1;
         continue;
       }
     }
