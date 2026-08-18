@@ -698,6 +698,7 @@ struct ast_ASTArena {
 #define codegen_codegen_mono_subst_type codegen_mono_subst_type
 #define codegen_codegen_find_impl_method_for_type codegen_find_impl_method_for_type
 #define codegen_codegen_emit_dyn_vtable_close codegen_emit_dyn_vtable_close
+#define codegen_codegen_emit_vtable_slot_payload codegen_emit_vtable_slot_payload
 #define codegen_codegen_try_emit_generic_identity_mono codegen_try_emit_generic_identity_mono
 #define codegen_codegen_try_emit_generic_impl_method_mono codegen_try_emit_generic_impl_method_mono
 #define codegen_codegen_try_emit_generic_impl_method_extern_mono codegen_try_emit_generic_impl_method_extern_mono
@@ -16403,6 +16404,54 @@ int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast
   }
 }
 /*
+ * F4: Emit one vtable slot payload — either "(void*)&<prefix><link>" or
+ * "(void*)0" — without separator or framing. Shared G.7 authority for slot
+ * emission; called by both codegen_emit_module_vtable_statics (static decl
+ * wrapping) and the inline fallback path of codegen_emit_dyn_vtable_close
+ * (compound-literal wrapping). The NAMED/PTR-to-NAMED fast path of
+ * codegen_emit_dyn_vtable_close does NOT call this — it emits a reference
+ * to the static, so vtable contents live in exactly one place.
+ *
+ * Resolves the method name at slot_i via xlang_skip_trait_method_name_into_c,
+ * looks up the impl function via codegen_find_impl_method_for_type (single
+ * G.7 authority), and emits the cast function pointer or null placeholder.
+ *
+ * PLATFORM: SHARED — mirrors codegen.x.
+ */
+int32_t codegen_emit_vtable_slot_payload(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena,
+        struct ast_Module * cur_mod, struct ast_PipelineDepCtx * ctx,
+        uint8_t * trait_nm, int32_t trait_nlen, int32_t slot_i, int32_t recv_rt) {
+  {
+    /* Resolve method name at slot_i from the trait registry. */
+    uint8_t meth_nm[64] = {};
+    int32_t meth_nlen = xlang_skip_trait_method_name_into_c(trait_nm, trait_nlen,
+            slot_i, &((meth_nm)[0]));
+    /* "(void*)0" — 8 bytes, null placeholder for unresolved/default methods. */
+    uint8_t null_slot[8] = {40, 118, 111, 105, 100, 42, 41, 48};
+    if ((meth_nlen <=0)) {
+      return codegen_emit_bytes_from_ptr(out, &((null_slot)[0]), 8);
+    }
+    /* Look up the impl function for this method on the concrete type. */
+    int32_t impl_fi = codegen_find_impl_method_for_type(cur_mod, arena,
+            &((meth_nm)[0]), meth_nlen, recv_rt);
+    if ((impl_fi < 0)) {
+      return codegen_emit_bytes_from_ptr(out, &((null_slot)[0]), 8);
+    }
+    /* Emit "(void*)&" + module prefix + function link name. */
+    uint8_t addr_cast[8] = {40, 118, 111, 105, 100, 42, 41, 38};
+    if ((codegen_emit_bytes_from_ptr(out, &((addr_cast)[0]), 8) !=0)) {
+      return -1;
+    }
+    if (((ctx !=0) && (((ctx)->current_codegen_prefix_len) > 0))) {
+      if ((codegen_emit_bytes_from_ptr(out, &((((ctx)->current_codegen_prefix_mirror))[0]),
+              ((ctx)->current_codegen_prefix_len)) !=0)) {
+        return -1;
+      }
+    }
+    return codegen_emit_func_link_name(out, arena, cur_mod, impl_fi);
+  }
+}
+/*
  * F3: Build the vtable for a concrete->dyn Trait coerce and emit it as the
  * `.vtable = ...` field of the `(struct xlang_dyn_obj){...}` compound literal.
  *
@@ -16454,10 +16503,6 @@ int32_t codegen_emit_dyn_vtable_close(struct ast_ASTArena * arena, struct codege
       return -1;
     }
     struct ast_Module * cur_mod = ((ctx)->current_codegen_module);
-    /* "(void*)&" — 8 bytes, function-address cast prefix for each slot. */
-    uint8_t addr_cast[8] = {40, 118, 111, 105, 100, 42, 41, 38};
-    /* "(void*)0" — 8 bytes, null placeholder for unresolved/default methods. */
-    uint8_t null_slot[8] = {40, 118, 111, 105, 100, 42, 41, 48};
     int32_t slot_i = 0;
     while ((slot_i < meth_count)) {
       /* Separator: ", " before slot 1..N (slot 0 has no leading separator). */
@@ -16467,39 +16512,14 @@ int32_t codegen_emit_dyn_vtable_close(struct ast_ASTArena * arena, struct codege
           return -1;
         }
       }
-      /* Resolve method name at this slot from the trait registry. */
-      uint8_t meth_nm[64] = {};
-      int32_t meth_nlen = xlang_skip_trait_method_name_into_c(&((trait_nm)[0]), trait_nlen,
-              slot_i, &((meth_nm)[0]));
-      if ((meth_nlen <=0)) {
-        /* Method name unresolvable -> null slot (F4 fills default methods). */
-        if ((codegen_emit_bytes_from_ptr(out, &((null_slot)[0]), 8) !=0)) {
-          return -1;
-        }
-      } else {
-        /* Look up the impl function for this method on the concrete type. */
-        int32_t impl_fi = codegen_find_impl_method_for_type(cur_mod, arena,
-                &((meth_nm)[0]), meth_nlen, rhs_rt);
-        if ((impl_fi < 0)) {
-          /* No impl found -> null slot (F4 fills default methods). */
-          if ((codegen_emit_bytes_from_ptr(out, &((null_slot)[0]), 8) !=0)) {
-            return -1;
-          }
-        } else {
-          /* Emit "(void*)&" + module prefix + function link name. */
-          if ((codegen_emit_bytes_from_ptr(out, &((addr_cast)[0]), 8) !=0)) {
-            return -1;
-          }
-          if ((((ctx)->current_codegen_prefix_len) > 0)) {
-            if ((codegen_emit_bytes_from_ptr(out, &((((ctx)->current_codegen_prefix_mirror))[0]),
-                    ((ctx)->current_codegen_prefix_len)) !=0)) {
-              return -1;
-            }
-          }
-          if ((codegen_emit_func_link_name(out, arena, cur_mod, impl_fi) !=0)) {
-            return -1;
-          }
-        }
+      /*
+       * F4: per-slot payload delegated to codegen_emit_vtable_slot_payload
+       * (G.7 single authority for slot emission — shared with the static
+       * vtable emitter and the inline fallback path).
+       */
+      if ((codegen_emit_vtable_slot_payload(out, arena, cur_mod, ctx,
+              &((trait_nm)[0]), trait_nlen, slot_i, rhs_rt) !=0)) {
+        return -1;
       }
       slot_i = (slot_i + 1);
     }
