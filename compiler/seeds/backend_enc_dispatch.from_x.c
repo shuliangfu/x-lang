@@ -3241,7 +3241,9 @@ int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *el
   return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
 }
 
-/* F7: materialize symbol address. ARM64 adrp+add PAGE21/12; x86_64 movabs ABS64. */
+/* F7: materialize symbol address. ARM64 adrp+add PAGE21/12;
+ * x86_64 lea r64,[rip+disp32] + untyped PC32 (not movabs ABS64 — TEXTREL on PIE).
+ * G.7: same as backend_enc_dispatch.x. PLATFORM: SHARED / LINUX x86_64 RIP-rel. */
 int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, uint8_t *name, int32_t name_len, int32_t ta) {
   if (elf_ctx == 0 || name == 0 || name_len <= 0) return -1;
   if (ta == 1) {
@@ -3261,16 +3263,20 @@ int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_c
     int32_t k;
     uint8_t z = 0;
     uint8_t rex = 72;
+    uint8_t modrm;
     if (reg < 0 || reg > 15) return -1;
-    if (reg >= 8) rex = 73;
+    /* lea r64, [rip+disp32]: REX.W[+R] 8D ModRM(reg, r/m=101) disp32. */
+    if (reg >= 8) rex = 76;
     if (backend_enc_append_u8_c(elf_ctx, rex) != 0) return -1;
-    if (backend_enc_append_u8_c(elf_ctx, (int32_t)(184 + (reg & 7))) != 0) return -1;
-    for (k = 0; k < 8; k++) {
+    if (backend_enc_append_u8_c(elf_ctx, 141) != 0) return -1;
+    modrm = (uint8_t)(((reg & 7) * 8) + 5);
+    if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) return -1;
+    for (k = 0; k < 4; k++) {
       if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &z, 1) != 0) return -1;
     }
     {
-      int32_t imm_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 8;
-      return pipeline_elf_ctx_append_reloc_absolute64((uint8_t *)elf_ctx, imm_at, name, name_len);
+      int32_t rel32_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+      return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, rel32_at, name, name_len);
     }
   }
   return -1;

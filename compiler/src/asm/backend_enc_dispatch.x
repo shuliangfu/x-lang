@@ -3256,7 +3256,9 @@ export function backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx: *u8, dst_reg: i32, b
 /**
  * Materialize a symbol address into a GP register.
  * ARM64: `adrp xN, sym@PAGE` + `add xN, xN, sym@PAGEOFF` (PAGE21 + PAGEOFF12).
- * x86_64: `mov r64, imm64` with absolute64 reloc (r_type sentinel 200).
+ * x86_64: `lea r64, [rip+disp32]` + untyped PC32 reloc (same contract as
+ * `glue_asm_lea_rax_common_rip_x86`). Do NOT emit `movabs` + absolute64 in
+ * .text — that is TEXTREL on PIE and the dyn vtable pointer stays unrelocated.
  * Used by F7 dyn coerce to store `.vtable = &xlang_vtable_<Trait>_for_<Type>`.
  * @param elf_ctx *u8 — emit context
  * @param reg i32 — destination register (arm64 0..30 / x86 0..15)
@@ -3264,7 +3266,7 @@ export function backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx: *u8, dst_reg: i32, b
  * @param name_len i32 — length of name
  * @param ta i32 — 0=x86_64, 1=arm64, 2=riscv64 (riscv unsupported → -1)
  * @return i32 — 0 ok, -1 fail
- * PLATFORM: SHARED — MACOS|ARM64 PAGE21/12 · LINUX x86_64 ABS64.
+ * PLATFORM: SHARED — MACOS|ARM64 PAGE21/12 · LINUX x86_64 RIP-relative PC32.
  */
 #[no_mangle]
 export function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32 {
@@ -3289,19 +3291,23 @@ export function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u
     }
     if (ta == 0) {
       if (reg < 0 || reg > 15) { return 0 - 1; }
-      /* REX.W + B8+rd + imm64; reloc covers the 8-byte immediate. */
+      /* lea r64, [rip+disp32]: REX.W[+R] 8D ModRM(reg, r/m=101) disp32.
+       * REX.R extends ModRM.reg (dest); r/m is RIP so REX.B stays 0.
+       * Reloc is the same untyped PC32 as glue_asm_lea_rax_common_rip_x86. */
       let rex: u8 = 72;
-      if (reg >= 8) { rex = 73; }
+      if (reg >= 8) { rex = 76; }
       if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
-      if (backend_enc_append_u8_c(elf_ctx, (184 + (reg & 7)) as u8) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 141) != 0) { return 0 - 1; }
+      let modrm: u8 = ((((reg & 7) * 8) + 5) as u8);
+      if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return 0 - 1; }
       let z: u8 = 0;
       let k: i32 = 0;
-      while (k < 8) {
+      while (k < 4) {
         if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
         k = k + 1;
       }
-      let imm_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 8;
-      return pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, imm_at, name, name_len);
+      let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+      return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
     }
   }
   return 0 - 1;
