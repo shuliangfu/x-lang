@@ -703,6 +703,7 @@ struct ast_ASTArena {
 #define codegen_codegen_emit_vtable_static_name codegen_emit_vtable_static_name
 #define codegen_codegen_emit_vtable_wrapper_name codegen_emit_vtable_wrapper_name
 #define codegen_codegen_emit_vtable_wrapper_def codegen_emit_vtable_wrapper_def
+#define codegen_codegen_emit_dyn_host_c_fn_ptr_suffix codegen_emit_dyn_host_c_fn_ptr_suffix
 #define codegen_codegen_try_emit_generic_identity_mono codegen_try_emit_generic_identity_mono
 #define codegen_codegen_try_emit_generic_impl_method_mono codegen_try_emit_generic_impl_method_mono
 #define codegen_codegen_try_emit_generic_impl_method_extern_mono codegen_try_emit_generic_impl_method_extern_mono
@@ -1624,6 +1625,10 @@ extern int32_t xlang_skip_trait_method_name_into_c(const uint8_t * trait_nm, int
         int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot);
+extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix);
+extern int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out,
+        struct ast_ASTArena * arena, int32_t base_ref, int32_t slot, int32_t nargs);
 /* F4 per-impl vtable statics: impl-registry iterators + type alloc helpers.
  * PLATFORM: SHARED. */
 extern int32_t xlang_skip_impl_seen_count_c(void);
@@ -11228,16 +11233,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
        * with call_resolved_func_index = slot for any recv.method() where
        * recv : dyn Trait. Here we emit a C indirect call through the receiver's
        * vtable:
-       *   ((void(*)(void*, ...))((void**)recv.vtable)[slot])(recv.data, args...)
+       *   ((ret(*)(void*, T1, T2))((void**)recv.vtable)[slot])(recv.data, args...)
        *
        * The receiver must be emitted twice: once to fetch .vtable (slot lookup),
        * once to fetch .data (the self pointer passed as arg 0). The receiver is
        * a VAR (codegen emits the variable name), so emitting twice is safe and
        * idempotent. Args 1..N follow the receiver pointer with a ", " separator.
        *
-       * Return-type cast is void for the F3 minimal proof — the call still
-       * dispatches correctly, only the cast is loose (F4 tightens via the
-       * trait registry's method return kind).
+       * Fn-ptr extras are typed (codegen_emit_dyn_host_c_fn_ptr_suffix) so they
+       * match the wrapper formals. A trailing (void*, ...) would default-
+       * promote f32 extras to f64 (host-C dyn_add_f32 leftover).
        * PLATFORM: SHARED — mirrors codegen.x.
        */
       int32_t dep_ix_dyn = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
@@ -11261,9 +11266,9 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((codegen_emit_type_kind(out, dyn_ret_kind) !=0)) {
           return -1;
         }
-        /* "(*)(void*, ...)" — 15 bytes, the function-pointer suffix. */
-        uint8_t dyn_fn_ptr_suffix[15] = {40, 42, 41, 40, 118, 111, 105, 100, 42, 44, 32, 46, 46, 46, 41};
-        if ((codegen_emit_bytes_from_ptr(out, &dyn_fn_ptr_suffix[0], 15) !=0)) {
+        /* Fn-ptr suffix: typed extras matching the wrapper (not variadic). */
+        if ((codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, ((e).method_call_base_ref),
+                dyn_slot, ((e).method_call_num_args)) !=0)) {
           return -1;
         }
         /* ")" cast close. */
@@ -16746,6 +16751,93 @@ int32_t codegen_builtin_type_name_into(int32_t kind_ord, uint8_t * out) {
   }
 }
 /*
+ * Emit the host-C dyn-dispatch function-pointer suffix after the return type.
+ *
+ * Completes the F3 call-site cast so extras match codegen_emit_vtable_wrapper_def.
+ * The old hardcoded (*)(void*, ...) let C default-promote f32 extras to f64,
+ * so wrapper (void* data, float a1) read a 0 low-32 (dyn_add_f32 host-C).
+ *
+ * Shape: (*)(void* + , <C-type> for each extra + ). Extra kinds come from
+ * xlang_skip_trait_method_param_kind_c (extra i -> param i+1). Unemittable
+ * kinds keep , ...) leftover. Zero extras emit (*)(void*).
+ *
+ * @return 0 on success, -1 on emit failure
+ * PLATFORM: SHARED host-C — mirrors compiler/src/codegen/codegen.x.
+ */
+int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out,
+        struct ast_ASTArena * arena, int32_t base_ref, int32_t slot, int32_t nargs) {
+  {
+    uint8_t open_suf[9];
+    uint8_t trait_nm[64];
+    int32_t trait_nlen;
+    int32_t typed;
+    int32_t chk;
+    if (out == 0) {
+      return -1;
+    }
+    /* "(*)(void*" — 9 bytes. Do not emit a trailing NUL into C source. */
+    open_suf[0] = 40; open_suf[1] = 42; open_suf[2] = 41; open_suf[3] = 40;
+    open_suf[4] = 118; open_suf[5] = 111; open_suf[6] = 105; open_suf[7] = 100;
+    open_suf[8] = 42;
+    if ((codegen_emit_bytes_from_ptr(out, &open_suf[0], 9) != 0)) {
+      return -1;
+    }
+    trait_nlen = 0;
+    if ((arena != 0) && (base_ref > 0)) {
+      int32_t base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (base_ty > 0) {
+        trait_nlen = pipeline_type_named_name_into(arena, base_ty, &trait_nm[0]);
+      }
+    }
+    typed = 1;
+    if ((nargs > 0) && (trait_nlen <= 0)) {
+      typed = 0;
+    }
+    chk = 0;
+    while (chk < nargs) {
+      int32_t pk = -1;
+      int32_t pk_ok = 0;
+      if (trait_nlen > 0) {
+        pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, (chk + 1));
+      }
+      if (pk == (ast_TypeKind_TYPE_I32)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_BOOL)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_U8)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_U32)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_U64)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_I64)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_USIZE)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_ISIZE)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_F32)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_F64)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_VOID)) { pk_ok = 1; }
+      if (pk == (ast_TypeKind_TYPE_DYN)) { pk_ok = 1; }
+      if (pk_ok == 0) {
+        typed = 0;
+      }
+      chk = chk + 1;
+    }
+    if (typed == 0) {
+      uint8_t varargs[6];
+      varargs[0] = 44; varargs[1] = 32; varargs[2] = 46;
+      varargs[3] = 46; varargs[4] = 46; varargs[5] = 41;
+      return codegen_emit_bytes_from_ptr(out, &varargs[0], 6);
+    }
+    chk = 0;
+    while (chk < nargs) {
+      int32_t pk2 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
+              slot, (chk + 1));
+      if ((codegen_append_byte(out, 44) != 0)) { return -1; }
+      if ((codegen_append_byte(out, 32) != 0)) { return -1; }
+      if ((codegen_emit_type_kind(out, pk2) != 0)) {
+        return -1;
+      }
+      chk = chk + 1;
+    }
+    return codegen_append_byte(out, 41);
+  }
+}
+/*
  * F5+: Emit the canonical vtable wrapper name
  * `xlang_vtable_wrap_<Trait>_for_[Ptr_]<Type>_<slot>`. Follows the same
  * sanitization as codegen_emit_vtable_static_name (G.7 single naming
@@ -16862,7 +16954,9 @@ int32_t codegen_emit_vtable_wrapper_name(struct codegen_CodegenOutBuf * out,
  *     }
  *
  * First formal is always void* data (rdi/x0 = data ABI; do not change).
- * Extra formals are impl params 1..N (cap 5). SSE/stack leftover.
+ * Extra formals are impl params 1..N (cap 5). Call site uses a typed
+ * (void*, T1, T2) cast (codegen_emit_dyn_host_c_fn_ptr_suffix).
+ * SSE/stack leftover.
  *
  * The vtable static then stores `(void*)&<wrap>` instead of
  * `(void*)&<func>`, so the dispatch's void* data arg is always adapted
