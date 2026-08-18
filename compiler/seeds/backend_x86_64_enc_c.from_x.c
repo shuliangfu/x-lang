@@ -43,6 +43,7 @@ extern int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_c
 extern int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                            uint8_t disp8_modrm, uint8_t disp32_modrm);
 extern int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t x86_enc_store_r64_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t offset);
 extern int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
                                         uint8_t reg_modrm);
 extern int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
@@ -208,6 +209,32 @@ int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx,
 
 }
 
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* movq %r64, -offset(%rbp). F7 dyn coerce vtable store. PLATFORM: LINUX x86_64. */
+int32_t x86_enc_store_r64_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                     int32_t offset) {
+  int32_t disp;
+  uint8_t buf[8];
+  int32_t lo;
+  if (!elf_ctx || reg < 0 || reg > 15)
+    return -1;
+  disp = 0 - offset;
+  lo = reg & 7;
+  buf[0] = (reg >= 8) ? 76 : 72;
+  buf[1] = 0x89;
+  if (disp >= -128 && disp <= -1) {
+    buf[2] = (uint8_t)(0x45 + lo * 8);
+    buf[3] = (uint8_t)disp;
+    return x86_enc_bytes(elf_ctx, buf, 4);
+  }
+  buf[2] = (uint8_t)(0x85 + lo * 8);
+  buf[3] = (uint8_t)(disp & 255);
+  buf[4] = (uint8_t)((disp >> 8) & 255);
+  buf[5] = (uint8_t)((disp >> 16) & 255);
+  buf[6] = (uint8_t)((disp >> 24) & 255);
+  return x86_enc_bytes(elf_ctx, buf, 7);
+}
+#endif
 
 /** add/sub/imul imm32 到 32-bit reg 的通用模板。 */
 /* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -916,6 +943,13 @@ int32_t arch_x86_64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *el
 int32_t arch_x86_64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   if (!elf_ctx) return -1;
   return x86_enc_store_rax_to_rbp_neg(elf_ctx, offset);
+}
+
+/* F7: general r64 → [rbp-off]. Completes store_x_reg_to_rbp_arch on x86_64. */
+int32_t arch_x86_64_enc_enc_store_r64_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                              int32_t offset) {
+  if (!elf_ctx) return -1;
+  return x86_enc_store_r64_to_rbp_neg(elf_ctx, reg, offset);
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 

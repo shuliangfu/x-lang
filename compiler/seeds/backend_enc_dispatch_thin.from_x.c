@@ -933,6 +933,7 @@ extern int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale4(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale8(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_ret_imm32(uint8_t * elf_ctx, int32_t imm32);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbp(uint8_t * elf_ctx, int32_t offset);
+extern int32_t arch_x86_64_enc_enc_store_r64_to_rbp(uint8_t * elf_ctx, int32_t reg, int32_t offset);
 int32_t backend_enc_prologue_arch(uint8_t * elf_ctx, int32_t frame_sz, int32_t ta) {
   if ((ta ==1)) {
     {
@@ -1602,6 +1603,9 @@ int32_t backend_enc_store_x_reg_to_rbp_arch(uint8_t * elf_ctx, int32_t reg, int3
     {
       return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset);
     }
+  }
+  if ((ta ==0)) {
+    return arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx, reg, offset);
   }
   return (0 - 1);
 }

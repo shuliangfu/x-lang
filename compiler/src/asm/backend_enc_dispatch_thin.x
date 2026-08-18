@@ -1350,6 +1350,7 @@ export extern "C" function arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx: *u8, r
 export extern "C" function arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32): i32;
+export extern "C" function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32;
 
 /** Exported function `backend_enc_store_rax_to_rbx_indirect_arch`.
  * Implements `backend_enc_store_rax_to_rbx_indirect_arch`.
@@ -1814,9 +1815,21 @@ export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32
  * @return i32
  */
 #[no_mangle]
+/**
+ * Store GP `reg` to [rbp - offset] (product frame slot).
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param reg i32 — hardware register (arm64 xN / x86 0=rax..15=r15)
+ * @param offset i32 — positive rbp-down slot
+ * @param ta i32 — 0=x86_64, 1=arm64
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — LINUX|x86_64 SysV movq %r64,-off(%rbp); MACOS|ARM64 stur.
+ */
 export function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset); }
+  }
+  if (ta == 0) {
+    unsafe { return arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx, reg, offset); }
   }
   return 0 - 1;
 }

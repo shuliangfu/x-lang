@@ -598,6 +598,7 @@ export extern "C" function arch_x86_64_enc_enc_shl_cl_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32;
+export extern "C" function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32;
@@ -1673,12 +1674,21 @@ export extern "C" function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32;
  * @param ta i32
  * @return i32
  */
+/**
+ * Store GP `reg` to [rbp - offset] (product frame slot).
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param reg i32 — hardware register (arm64 xN / x86 0=rax..15=r15)
+ * @param offset i32 — positive rbp-down slot
+ * @param ta i32 — 0=x86_64, 1=arm64
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — LINUX|x86_64 SysV movq %r64,-off(%rbp); MACOS|ARM64 stur.
+ */
 #[no_mangle]
 export function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32 {
-  // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset); }
-  return 0 - 1;
+    if (ta == 1) { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset); }
+    if (ta == 0) { return arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx, reg, offset); }
+    return 0 - 1;
   }
 }
 

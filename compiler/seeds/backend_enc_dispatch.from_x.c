@@ -590,6 +590,7 @@ extern int32_t arch_x86_64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx 
 extern int32_t arch_x86_64_enc_enc_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_div_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t arch_x86_64_enc_enc_store_r64_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_store_rdx_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -2177,6 +2178,8 @@ int32_t backend_enc_store_x_reg_to_rbp_arch(struct platform_elf_ElfCodegenCtx *e
                                               int32_t offset, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset);
+  if (ta == 0)
+    return arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx, reg, offset);
   return -1;
 }
 #endif

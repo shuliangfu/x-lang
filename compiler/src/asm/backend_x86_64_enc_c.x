@@ -272,6 +272,43 @@ export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
+/**
+ * movq %r64, -offset(%rbp). REX.W[+R] + 89 /r, rbp base (rm=5).
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param reg i32 — 0..15
+ * @param offset i32 — positive rbp-down slot (disp = -offset)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin of store_rax/store_rdx helpers.
+ */
+#[no_mangle]
+export function x86_enc_store_r64_to_rbp_neg(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  if (reg < 0 || reg > 15) { return 0 - 1; }
+  let disp: i32 = 0 - offset;
+  let rex: u8 = 72;
+  if (reg >= 8) { rex = 76; }
+  let op: u8 = 137;
+  let lo: i32 = reg & 7;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    let modrm: u8 = (69 + lo * 8) as u8;
+    let d8: u8 = disp as u8;
+    unsafe {
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &rex, 1) != 0) { return 0 - 1; }
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &modrm, 1) != 0) { return 0 - 1; }
+      return pipeline_elf_ctx_append_bytes(elf_ctx, &d8, 1);
+    }
+    return 0 - 1;
+  }
+  let modrm32: u8 = (133 + lo * 8) as u8;
+  unsafe {
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &rex, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &modrm32, 1) != 0) { return 0 - 1; }
+  }
+  return x86_enc_append_i32_le(elf_ctx, disp);
+}
+
 /** Exported function `x86_enc_store_rdx_to_rbp_neg`.
  * Implements `x86_enc_store_rdx_to_rbp_neg`.
  * @param elf_ctx *u8
@@ -1227,6 +1264,24 @@ export function arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 
 export function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   return x86_enc_store_rax_to_rbp_neg(elf_ctx, offset);
+}
+
+/**
+ * movq %r64, -offset(%rbp) for any GP 0..15 (rax..r15).
+ * Completes backend_enc_store_x_reg_to_rbp_arch on Linux x86_64 (F7 dyn
+ * coerce stores the vtable pointer from rcx=1). Same disp convention as
+ * store_rax_to_rbp_neg: offset is the frame slot below %rbp.
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param reg i32 — hardware register 0..15
+ * @param offset i32 — positive rbp-down slot
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  if (reg < 0 || reg > 15) { return 0 - 1; }
+  return x86_enc_store_r64_to_rbp_neg(elf_ctx, reg, offset);
 }
 
 /** movq -offset(%rbp), %rax. Cap residual pure R2 wave2. PLATFORM: SHARED */
