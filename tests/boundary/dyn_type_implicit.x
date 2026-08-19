@@ -1,11 +1,8 @@
-// Type-position trait name is TYPE_DYN without writing `dyn`.
-// Sit-red `let x: Clone = a` was assignment mismatch (TYPE_NAMED Clone vs A).
-// Produce: type_ref IDENT of a registered trait stayed TYPE_NAMED.
-// Store: type_ref kind / trait name. Consume: F2 coerce + F3 dispatch
-// require TYPE_DYN. G.7: complete type_ref IDENT (registered trait →
-// same TYPE_DYN wrap as `dyn Trait` peel). `dyn Trait` still works
-// (peel sees already-DYN inner, no nested fat). Wrapper rdi/x0 = data
-// unchanged.
+// Type-position trait name is the only TYPE_DYN producer (`let x: Clone = a`).
+// Sit-red was assignment mismatch (TYPE_NAMED Clone vs A). Produce: type_ref
+// IDENT wrap of a registered trait. Store: TYPE_DYN kind / trait name.
+// Consume: F2 coerce + F3 dispatch. Do not write `dyn Clone` (P013).
+// Wrapper rdi/x0 = data unchanged.
 // Expected: compile = 0, run = 7 (x.clone() of A{v:7}).
 // Neighborhood: dyn_type_let.x / dyn_type.x / dyn_add.x.
 // PLATFORM: SHARED — Ubuntu gold.

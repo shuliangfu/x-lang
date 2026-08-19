@@ -28,7 +28,7 @@ impl GetPAP for A {
 }
 function main(): i32 {
   let a: A = { p: [{ a: 2, b: 4 }, { a: 0, b: 0 }] };
-  let x: dyn GetPAP = a;
+  let x: GetPAP = a;
   let p: *[2]Pair = x.getpap();
   return 7;
 }

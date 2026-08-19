@@ -18,7 +18,7 @@ impl GetI for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn GetI = a;
+  let x: GetI = a;
   let p: *i32 = x.geti();
   return 7;
 }

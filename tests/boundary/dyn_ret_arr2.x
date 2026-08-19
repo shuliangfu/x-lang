@@ -22,7 +22,7 @@ impl Get22 for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn Get22 = a;
+  let x: Get22 = a;
   let r: [2][2]i32 = x.get22();
   return r[0][0] + r[0][1] + r[1][0] + r[1][1];
 }

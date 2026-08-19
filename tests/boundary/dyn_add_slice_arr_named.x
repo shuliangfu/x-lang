@@ -32,6 +32,6 @@ impl SumSAP for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumSAP = a;
+  let x: SumSAP = a;
   return x.sumsaps([[{ a: 2, b: 4 }]]);
 }

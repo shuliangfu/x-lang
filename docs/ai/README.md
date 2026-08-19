@@ -9,7 +9,7 @@
 |------|------|------|
 | [cheat-sheet.md](./cheat-sheet.md) | 写代码前 30 秒 | 标准形、关键字、import、类型、坑 |
 | [canonical-shape.md](./canonical-shape.md) | 生成代码模板 | 官方 Canonical X Shape（可抄模板） |
-| [anti-patterns.md](./anti-patterns.md) | 修幻觉 / 审 diff | H01–H15：错 → 对 |
+| [anti-patterns.md](./anti-patterns.md) | 修幻觉 / 审 diff | H01–H16：错 → 对 |
 | [skills-entry.md](./skills-entry.md) | 将来官方 Skills | 占位入口；现指向本目录短文 |
 
 ### 工作流（Agent 默认）

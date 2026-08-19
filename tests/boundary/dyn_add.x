@@ -14,6 +14,6 @@ impl Add for A {
 }
 function main(): i32 {
   let a: A = { v: 4 };
-  let x: dyn Add = a;
+  let x: Add = a;
   return x.add(3);
 }

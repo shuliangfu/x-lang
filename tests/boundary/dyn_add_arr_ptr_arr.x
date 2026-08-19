@@ -23,7 +23,7 @@ impl SumAPA for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumAPA = a;
+  let x: SumAPA = a;
   let r0: [2]i32 = [2, 4];
   let r1: [2]i32 = [3, 5];
   return x.sumapa([&r0, &r1]);

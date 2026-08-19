@@ -20,7 +20,7 @@ impl GetP for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn GetP = a;
+  let x: GetP = a;
   let r: Pair = x.getp();
   return r.a + r.b;
 }

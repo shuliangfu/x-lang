@@ -30,7 +30,7 @@ impl SumSPP for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumSPP = a;
+  let x: SumSPP = a;
   let n: Pair = { a: 2, b: 4 };
   return x.sumspp([&n]);
 }

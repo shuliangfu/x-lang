@@ -22,7 +22,7 @@ impl GetAP for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn GetAP = a;
+  let x: GetAP = a;
   let r: [2]Pair = x.getap();
   return r[0].a + r[1].b;
 }

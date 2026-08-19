@@ -29,7 +29,7 @@ impl SumSPSS for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumSPSS = a;
+  let x: SumSPSS = a;
   let row: []i32 = [2, 4];
   return x.sumsps([&row]);
 }

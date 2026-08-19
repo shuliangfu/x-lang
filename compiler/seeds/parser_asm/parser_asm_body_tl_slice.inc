@@ -109,6 +109,25 @@ void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind
   }
 }
 
+/*
+ * One type-position path for trait objects: write the trait name
+ * (`let x: Clone = a`). `dyn Trait` is not a second producer (AI /
+ * users had two spellings). Sticky reuses g_parser_sig_type_hard so
+ * parse_into_buf aborts (ok=-2) instead of silently dropping the
+ * function (P001 false green when main remains).
+ * @param line 1-based source line of the `dyn` token
+ * @param col  1-based column
+ * PLATFORM: SHARED parse.
+ */
+void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col) {
+  extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
+                                    const char *code, const char *msg, const char *detail);
+  g_parser_sig_type_hard = 1;
+  diag_report_with_code(NULL, line, col, "parse error", "P013",
+                        "do not write 'dyn Trait'; write the trait name (e.g. let x: Clone = a)",
+                        NULL);
+}
+
 /**
  * wave679: return 1 if `name` already appears among params [0, nparams).
  * @param pool OneFunc sidecar pool (pipeline_onefunc_*)

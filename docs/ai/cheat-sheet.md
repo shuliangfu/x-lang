@@ -39,7 +39,7 @@ function main(): void {
 | 属性 | `#[cfg(...)]` · `#[no_mangle]` · `#[repr(C)]` … |
 | 注释 | `//` · `/* */` · 公开 API 用英文 `/** … */`（JSDoc：`@param` / `@return`） |
 
-**没有**：`fn` · `func` · `use` · `package` · `crate::` · `obj->field` · 无类型 `let x = 1`。
+**没有**：`fn` · `func` · `use` · `package` · `crate::` · `obj->field` · 无类型 `let x = 1` · `dyn Trait`（写 trait 名）。
 
 ---
 
@@ -51,6 +51,7 @@ function main(): void {
 | 浮点 / 布尔 | `f32` `f64` · `bool` |
 | 指针 | `*T` · `*u8`（C 字符串常见） |
 | 数组 / 切片 | `T[N]` · `T[]`（带长度；**不是** `[]T` / Rust `&[u8]`） |
+| trait 对象 | `let x: Clone = a;`（写 trait 名；**不要** `dyn Clone`） |
 | 文本现状 | 字面量常当 `*u8`；拥有串走库 **`std.string`**（`String` / `StrView`），**非**语言关键字 `string`（语言级 string 自举后另议） |
 
 ---

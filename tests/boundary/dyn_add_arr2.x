@@ -18,6 +18,6 @@ impl Sum2 for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn Sum2 = a;
+  let x: Sum2 = a;
   return x.sum2([[1, 2], [3, 4]]);
 }

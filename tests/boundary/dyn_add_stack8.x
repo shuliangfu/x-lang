@@ -17,6 +17,6 @@ impl Sum8 for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn Sum8 = a;
+  let x: Sum8 = a;
   return x.add8(1, 1, 1, 1, 1, 1, 1, 0 - 1);
 }

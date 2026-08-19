@@ -13,6 +13,6 @@ impl Clone for *A { function clone(self: *A): i32 { return self.v; } }
 function main(): i32 {
   let a: A = { v: 7 };
   let p: *A = &a;
-  let x: dyn Clone = p;
+  let x: Clone = p;
   return x.clone();
 }

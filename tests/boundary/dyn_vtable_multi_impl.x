@@ -16,7 +16,7 @@ impl Clone for B { function clone(self: B): i32 { return self.w; } }
 function main(): i32 {
   let a: A = { v: 4 };
   let b: B = { w: 5 };
-  let x: dyn Clone = a;
-  let y: dyn Clone = b;
+  let x: Clone = a;
+  let y: Clone = b;
   return x.clone() + y.clone();
 }

@@ -1,4 +1,4 @@
-// F7 leftover: dyn Trait f64 extra is SysV xmm0, not rsi.
+// F7 leftover: Trait f64 extra is SysV xmm0, not rsi.
 // FLOAT_LIT defaults to f64 — no typeck stamp needed for this leaf.
 // x86 impl param_home reads xmm; ARM64 local impl stays GP-in (unchanged).
 // Mix: integer extra stays rsi/x1, f64 extra is xmm0 (x86).
@@ -22,9 +22,9 @@ impl Mix for A {
 }
 function main(): i32 {
   let a: A = { v: 4 };
-  let x: dyn AddF = a;
+  let x: AddF = a;
   if (x.add(3.0) != 7) { return 1; }
-  let y: dyn Mix = a;
+  let y: Mix = a;
   if (y.mix(1, 2.0) != 7) { return 2; }
   return 7;
 }

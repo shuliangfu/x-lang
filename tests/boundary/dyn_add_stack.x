@@ -1,4 +1,4 @@
-// F7 leftover: dyn Trait extras beyond the GP file must go on the stack.
+// F7 leftover: Trait extras beyond the GP file must go on the stack.
 // x86 SysV: rdi=data + GP1..5 extras; 6th extra is [rsp] at the wrapper call.
 // ARM64 AAPCS64: x0=data + x1..x7 extras so 6 extras stay in GP (no stack).
 // Wrapper is prologue+call+epilogue (not a tail jmp); it must copy incoming
@@ -18,6 +18,6 @@ impl Sum6 for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn Sum6 = a;
+  let x: Sum6 = a;
   return x.add6(1, 1, 1, 1, 1, 1);
 }

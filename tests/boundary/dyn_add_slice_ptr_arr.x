@@ -29,7 +29,7 @@ impl SumSPA for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumSPA = a;
+  let x: SumSPA = a;
   let row: [2]i32 = [2, 4];
   return x.sumspa([&row]);
 }

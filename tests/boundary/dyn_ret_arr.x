@@ -20,7 +20,7 @@ impl Get2 for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn Get2 = a;
+  let x: Get2 = a;
   let r: [2]i32 = x.get2();
   return r[0] + r[1];
 }

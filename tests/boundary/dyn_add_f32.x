@@ -1,4 +1,4 @@
-// F7 leftover: dyn Trait f32 extra must honor typeck FLOAT_LIT stamp.
+// F7 leftover: Trait f32 extra must honor typeck FLOAT_LIT stamp.
 // Unstamped 3.0 is f64; impl param_home / ARM64 GP-in read the low 32 bits → 0.
 // After stamp, emit packs IEEE f32 bits (glue_emit_float_lit_to_rax_elf_c).
 // Host-C: call-site cast must be typed (void*, float), not (void*, ...),
@@ -24,9 +24,9 @@ impl MixF32 for A {
 }
 function main(): i32 {
   let a: A = { v: 4 };
-  let x: dyn AddF32 = a;
+  let x: AddF32 = a;
   if (x.add(3.0) != 7) { return 1; }
-  let y: dyn MixF32 = a;
+  let y: MixF32 = a;
   if (y.mix(1, 2.0) != 7) { return 2; }
   return 7;
 }

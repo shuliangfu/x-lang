@@ -23,7 +23,7 @@ impl GetPA for A {
 }
 function main(): i32 {
   let a: A = { v: 1, p: [2, 4] };
-  let x: dyn GetPA = a;
+  let x: GetPA = a;
   let p: *[2]i32 = x.getpa();
   return 7;
 }

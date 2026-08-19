@@ -21,7 +21,7 @@ impl GetPP for A {
 }
 function main(): i32 {
   let a: A = { p: { a: 1, b: 6 } };
-  let x: dyn GetPP = a;
+  let x: GetPP = a;
   let p: *Pair = x.getpp();
   return 7;
 }

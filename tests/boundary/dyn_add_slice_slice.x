@@ -23,6 +23,6 @@ impl SumSS for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumSS = a;
+  let x: SumSS = a;
   return x.sumss([[2, 4]]);
 }

@@ -1,7 +1,7 @@
 # X language · Anti-patterns（AI 幻觉对照表）
 
 > **用途**：生成前自检 / 修编译错误 / 审 diff。  
-> **编号**：与 [`analysis/AI友好特性分析.md`](../../analysis/AI友好特性分析.md) **H01–H15** 对齐。  
+> **编号**：与 [`analysis/AI友好特性分析.md`](../../analysis/AI友好特性分析.md) **H01–H16** 对齐。  
 > **真源**：正确语法以 [`docs/`](../README.md) 为准；本表只给**最短**错→对。  
 > **维护**：增删 H 编号时同步 AI 友好分析文 §1.2。
 
@@ -191,6 +191,18 @@
 
 ---
 
+## H16 · 类型位写了 `dyn Trait`
+
+```text
+✗  let x: dyn Clone = a;
+✗  function take(x: dyn Clone): i32 { … }
+✓  let x: Clone = a;
+✓  function take(x: Clone): i32 { … }
+→  类型位只写 trait 名；`dyn` 前缀是 P013。Rust `dyn Trait` 语感不要带进 X。
+```
+
+---
+
 ## 快速自检（贴代码前 15 秒）
 
 | # | 问 |
@@ -202,6 +214,7 @@
 | 5 | std 函数名是查过的还是编的？ |
 | 6 | 跨文件符号 export 了吗？ |
 | 7 | 准备跑真 check/build 了吗？ |
+| 8 | trait 对象是不是写了 `dyn Trait`？（应写 trait 名） |
 
 ---
 

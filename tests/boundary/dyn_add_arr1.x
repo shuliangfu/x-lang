@@ -14,6 +14,6 @@ impl Sum1 for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn Sum1 = a;
+  let x: Sum1 = a;
   return x.sum1([2, 4]);
 }

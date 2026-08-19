@@ -26,6 +26,6 @@ impl SumASN for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumASN = a;
+  let x: SumASN = a;
   return x.sumasn([[{ a: 2, b: 3 }], [{ a: 4, b: 4 }]]);
 }

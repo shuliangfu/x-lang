@@ -1,4 +1,4 @@
-// F7 leftover: dyn NAMED extra via STRUCT_LIT (sit-red host-C `(struct )`
+// F7 leftover: NAMED extra via STRUCT_LIT (sit-red host-C `(struct )`
 // compile fail / asm run=162). Produce: typeck TYPE_DYN extras stamped
 // FLOAT_LIT + dest-SLICE only; `{a:2,b:4}` stayed nameless so host-C
 // emit used empty struct tag. Wrapper already `struct Pair a1`. Named
@@ -19,6 +19,6 @@ impl SumP for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumP = a;
+  let x: SumP = a;
   return x.sump({ a: 2, b: 4 });
 }

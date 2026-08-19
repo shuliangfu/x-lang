@@ -25,6 +25,6 @@ impl SumSSP for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn SumSSP = a;
+  let x: SumSSP = a;
   return x.sumssp([[{ a: 2, b: 4 }]]);
 }

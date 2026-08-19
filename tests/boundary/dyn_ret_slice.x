@@ -19,7 +19,7 @@ impl GetSl for A {
 }
 function main(): i32 {
   let a: A = { v: 1 };
-  let x: dyn GetSl = a;
+  let x: GetSl = a;
   let r: []i32 = x.getsl();
   return r[0] + r[1];
 }

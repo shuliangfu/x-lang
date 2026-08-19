@@ -86,6 +86,7 @@ AI 友好 = **降低先验冲突** + **加快纠错闭环** + **把意图写在�
 | H13 | 中文注释当正式 API 说明 | G.9：**英文** docblock | 中 | 对 Agent few-shot 与 `xlang doc` |
 | H14 | 一次生成 200 行不 check | 小步 + 必验 | 极高 | Skill 强制；MCP 默认工作流 |
 | H15 | 编造错误码 / 忽视 XP\*\*\* | `explain CODE` | 高 | 结构化 diag + 稳定 code |
+| H16 | `dyn Trait` / `dyn Clone` | `let x: Clone = a`（写 trait 名） | 高 | 单路径 TYPE_DYN；P013 硬拒 `dyn` 前缀 |
 
 ### 1.3 三类失败模式
 

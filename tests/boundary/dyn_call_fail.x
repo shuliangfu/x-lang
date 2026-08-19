@@ -11,6 +11,6 @@ struct A { v: i32 }
 impl Clone for A { function clone(self: A): i32 { return self.v; } }
 function main(): i32 {
   let a: A = { v: 7 };
-  let x: dyn Clone = a;
+  let x: Clone = a;
   return x.bogus();
 }
