@@ -9480,8 +9480,11 @@ function emit_file_scope_dest_slice_array_lit(
  * PTR: `struct xlang_slice_<elem>_p { E **data; size_t length; }` so the
  * sanitized type_to_c_repr tag (`*` → `_p`) has a matching complete type.
  * Sit-red `[]*i32`: tag was `struct xlang_slice_int32_t *` (pointer, not a
- * tag) and no `{ E **data }` companion. G.7: complete this walker (do not
- * invent a second slice-of-PTR emitter). Tag matches type_to_c_repr.
+ * tag) and no `{ E **data }` companion. Sit-red `[][2]Pair`: NAMED leaf
+ * needs `struct Pair` complete before `E (*data)[N]` (`sizeof(Pair)`);
+ * caller emits this walker after module struct defs (not at prologue).
+ * G.7: complete this walker (do not invent a second slice-of-PTR /
+ * slice-of-ARRAY-of-NAMED emitter). Tag matches type_to_c_repr.
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
  * @param ctx *PipelineDepCtx — optional prefix for NAMED leaves
@@ -24407,10 +24410,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           if (codegen_x_ast_emit_header(out) != 0) {
             return -1;
           }
-          /* [][N]T fat layouts (not in rt_preamble N=224). After header so -E and -o see them. */
-          if (codegen_emit_slice_of_fixed_array_layouts(arena, out, ctx) != 0) {
-            return -1;
-          }
           if (codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {
             return -1;
           }
@@ -24442,6 +24441,18 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             return -1;
           }
           if (codegen_emit_module_struct_definitions(module, arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
+            return -1;
+          }
+          /*
+           * [][N]T / []*T fat layouts (not in rt_preamble N=224). After
+           * skipped-dep + entry struct defs so NAMED leaves (`[][2]Pair`)
+           * are complete: `struct Pair (*data)[2]` needs sizeof(Pair).
+           * Sit-red host-C BLD001: walker ran at prologue (before
+           * `struct Pair`). Scalar `[][2]i32` does not need a NAMED tag.
+           * G.7: same emitter, later call site (no second layout walker).
+           * PLATFORM: SHARED host-C.
+           */
+          if (codegen_emit_slice_of_fixed_array_layouts(arena, out, ctx) != 0) {
             return -1;
           }
         }
