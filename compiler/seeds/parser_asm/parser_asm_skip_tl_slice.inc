@@ -2023,10 +2023,13 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
     if (!(nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
       return -1;
     if (dim_ix == nd) {
-      /* dest extras dest-SLICE-of-ARRAY extra `[][2][]T` and dest
-       * extras dest-SLICE-of-PTR extra `[]*[2][]T`: unused slot
-       * dims[ndims]. extra>0 returns the count; 0 / missing → -1
-       * so `[][2]i32` / `[]*[2]i32` stay wrap-once. PLATFORM: SHARED. */
+      /* dest extras dest-SLICE-of-ARRAY extra `[][2][]T`, dest
+       * extras dest-SLICE-of-PTR extra `[]*[2][]T`, and dest extras
+       * dest-ARRAY-of-SLICE extra PTR `[2][][2]*T` (elem=SLICE,
+       * unused slot dims[ndims]; discriminant vs extra SLICE of
+       * `[][2][]T` is elem_kind). extra>0 returns the count;
+       * 0 / missing → -1 so `[][2]i32` / `[]*[2]i32` / `[2][][2]i32`
+       * stay wrap-once / extra-ARRAY-only. PLATFORM: SHARED. */
       extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd];
       if (extra <= 0)
         return -1;
@@ -4733,17 +4736,41 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                    * reuse). Keep SLICE; extra PTR wrap COUNT lives in
                    * unused slot dims[1] (1 = `[][][]*T` / `[2][][]*T`;
                    * 0 = no extra PTR = `[][][]T` / `[2][][]T`).
-                   * Discriminant is param kind (SLICE vs ARRAY
-                   * outer). Capture leaf T by staying pending.
-                   * Store-only of `[][][]*T` without impl-match extra
-                   * PTR peel is T001 (pelem still PTR vs eeek=leaf).
-                   * Store-only of `[2][][]*T` is not T001 (ARRAY
-                   * leftover SLICE vs eek=SLICE). PLATFORM: SHARED
-                   * parse. G.7: complete this scanner.
+                   * dest extras dest-ARRAY of SLICE extra `[2][][2]*T`
+                   * and dest extras dest-SLICE of SLICE extra
+                   * `[][][2]*T`: extra STAR when ndims>=1 used to set
+                   * elem_kind=-1 (dest extras skipped → nested
+                   * ARRAY_LIT 139 / T001). After `[N][]` then `[M]`
+                   * the inner ARRAY dims live in the local buffer
+                   * (wave437 pending LBRACKET) until IDENT commit —
+                   * extra STAR must commit them first or ndims stays 0
+                   * and the inner ARRAY is lost. Keep SLICE; extra PTR
+                   * wrap COUNT lives in unused slot dims[ndims]
+                   * (1 = `[2][][2]*T` / `[][][2]*T`; 0 = no extra PTR
+                   * = `[2][][2]T` / `[][][2]T`). Discriminant vs dest
+                   * extras dest-SLICE of ARRAY extra `[][2][]T` (same
+                   * unused slot) is elem_kind SLICE vs ARRAY.
+                   * Discriminant ARRAY vs SLICE outer is param kind.
+                   * Capture leaf T by staying pending. Store-only of
+                   * `[][][2]*T` without impl-match extra PTR peel is
+                   * T001 (leftover PTR vs eeek=leaf after extra ARRAY
+                   * peels). Store-only of `[2][][2]*T` is not T001
+                   * (ARRAY leftover SLICE vs eek=SLICE). PLATFORM:
+                   * SHARED parse. G.7: complete this scanner.
                    */
                   int32_t nd;
                   int32_t extra;
-                  nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                  int32_t di;
+                  if (param_elem_dim_n > 0) {
+                    nd = param_elem_dim_n;
+                    ent->method_param_elem_array_ndims[mi_reg][param_count] = nd;
+                    for (di = 0; di < nd; di++)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][di] =
+                          param_elem_dims[di];
+                    param_elem_dim_n = 0;
+                  } else {
+                    nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                  }
                   if (nd == 0) {
                     extra = ent->method_param_elem_array_dims[mi_reg][param_count][0];
                     if (extra < 0)
@@ -4760,6 +4787,15 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                     extra = extra + 1;
                     if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                       ent->method_param_elem_array_dims[mi_reg][param_count][1] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else if (nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][nd];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][nd] =
                           extra;
                     /* stay param_elem_elem_pending to capture leaf T */
                   } else {
