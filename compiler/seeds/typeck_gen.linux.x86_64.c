@@ -11654,8 +11654,9 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           /* dest-SLICE extra: ARRAY_LIT stays TYPE_ARRAY after check_expr.
            * Host-C / asm wrap fat only when resolved is TYPE_SLICE.
            * G.7 reuse typeck_coerce_init_slice_from_array. Scalar elem plus
-           * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`). Pin twin
-           * of typeck.x. PLATFORM: SHARED. */
+           * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`) plus PTR
+           * elem (`[]*i32`). Remaining leftover: SLICE/VECTOR elem.
+           * Pin twin of typeck.x. PLATFORM: SHARED. */
           if (((dyn_arg > 0) && (dyn_pk == 11))) {
             int32_t dyn_eek = xlang_skip_trait_method_param_elem_kind_c(&((dyn_trait_nm)[0]),
                     dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11726,6 +11727,31 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                   int32_t dyn_sasty = typeck_find_or_alloc_slice_type_ref(arena, dyn_saw);
                   if ((dyn_sasty > 0)) {
                     (void)typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_sasty);
+                  }
+                }
+              }
+            }
+            /* dest-SLICE-of-PTR extra (`p: []*i32`): ARRAY_LIT of PTR
+             * stays TYPE_ARRAY. Scalar dest-SLICE skips elem kind 9.
+             * Sit-red host-C run=133 (`(int32_t *[])` into a fat slice*).
+             * Skip-trait stores elem_kind=PTR + elem_elem after `[]*`.
+             * G.7: wrap ptr of leaf then wrap slice; reuse
+             * typeck_coerce_init_expr_to_decl (no second dest-SLICE stamp).
+             * Pin twin. PLATFORM: SHARED. */
+            if ((dyn_eek == 9)) {
+              int32_t dyn_spek = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
+              int32_t dyn_splf = 0;
+              if (((((dyn_spek >= 0) && (dyn_spek != 8)) && (dyn_spek != 9))
+                      && ((dyn_spek != 10) && ((dyn_spek != 11) && (dyn_spek != 13))))) {
+                dyn_splf = pipeline_type_ensure_by_kind_ord(arena, dyn_spek);
+              }
+              if ((dyn_splf > 0)) {
+                int32_t dyn_spty = typeck_find_or_alloc_ptr_type_ref(arena, dyn_splf);
+                if ((dyn_spty > 0)) {
+                  int32_t dyn_spsty = typeck_find_or_alloc_slice_type_ref(arena, dyn_spty);
+                  if ((dyn_spsty > 0)) {
+                    (void)typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_spsty);
                   }
                 }
               }

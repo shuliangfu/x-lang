@@ -1384,6 +1384,18 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
                   param_prefix_arr_elem_pending = 0;
                   param_prefix_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * Prefix `[N]*T` — STAR is a PTR elem, not a scalar
+                   * token_to_type_kind. Store elem=PTR; capture pointee T
+                   * via param_elem_elem_pending. dest-ARRAY extras still
+                   * skip kind 9 (separate leftover).
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_PTR;
+                  param_prefix_arr_elem_pending = 0;
+                  param_elem_elem_pending = 1;
+                  saw_param_tok = 1;
                 } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
                   ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_NAMED;
                   xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len,
@@ -1574,6 +1586,17 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                    * state which inspects the next token (`]` vs INT). PLATFORM: SHARED.
                    */
                   param_elem_slice_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * After `[]` (or after top-level `*` for `**T`): STAR is a
+                   * PTR elem. token_to_type_kind does not handle STAR so the
+                   * prior else stored elem_kind=-1. Store elem=PTR; capture
+                   * pointee T via param_elem_elem_pending. dest-SLICE extra
+                   * `[]*i32` reconstructs PTR then wrap slice.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_PTR;
+                  param_elem_elem_pending = 1;
                 } else {
                   ent->method_param_elem_kinds[mi_reg][param_count] =
                       parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);

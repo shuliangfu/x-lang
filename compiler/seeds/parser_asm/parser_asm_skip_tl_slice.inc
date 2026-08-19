@@ -4200,6 +4200,19 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
                   param_prefix_arr_elem_pending = 0;
                   param_prefix_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * Prefix `[N]*T` — STAR is a PTR elem, not a scalar
+                   * token_to_type_kind. Store elem=PTR; capture pointee T
+                   * via param_elem_elem_pending (already used by *[]T /
+                   * *[N]T / [N][]T). dest-ARRAY extras still skip kind 9
+                   * (separate leftover; host-C `[2]*i32` extra already 7).
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_PTR;
+                  param_prefix_arr_elem_pending = 0;
+                  param_elem_elem_pending = 1;
+                  saw_param_tok = 1;
                 } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
                   ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_NAMED;
                   xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
@@ -4392,6 +4405,18 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                    * state which inspects the next token (`]` vs INT). PLATFORM: SHARED.
                    */
                   param_elem_slice_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * After `[]` (or after top-level `*` for `**T`): STAR is a
+                   * PTR elem. token_to_type_kind does not handle STAR so the
+                   * prior else stored elem_kind=-1 and dest extras skipped
+                   * kind 9. Store elem=PTR; capture pointee T via
+                   * param_elem_elem_pending. dest-SLICE extra `[]*i32`
+                   * reconstructs PTR then wrap slice.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_PTR;
+                  param_elem_elem_pending = 1;
                 } else {
                   ent->method_param_elem_kinds[mi_reg][param_count] =
                       xlang_trait_token_to_type_kind_c(r.tok.kind);

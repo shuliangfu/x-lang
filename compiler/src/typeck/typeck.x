@@ -14462,8 +14462,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * TYPE_SLICE (UFCS already stamps via the module-func formal).
            * Sit-red: dyn x.sums([2,4]) asm=1 / host-C=139; named local=7.
            * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem plus
-           * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`). Remaining
-           * leftover: PTR/SLICE/VECTOR elem. PLATFORM: SHARED.
+           * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`) plus PTR
+           * elem (`[]*i32`). Remaining leftover: SLICE/VECTOR elem.
+           * PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 11) {
             let dyn_eek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
@@ -14547,6 +14548,35 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let dyn_sasty: i32 = find_or_alloc_slice_type_ref(arena, dyn_saw);
                   if (dyn_sasty > 0) {
                     typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_sasty);
+                  }
+                }
+              }
+            }
+            /*
+             * dest-SLICE-of-PTR extra (`p: []*i32`): ARRAY_LIT `[&n, &m]`
+             * stays TYPE_ARRAY of PTR. Scalar dest-SLICE skips elem kind 9.
+             * Sit-red host-C run=133 (`(int32_t *[]){&n,&m}` into a fat
+             * slice*); UFCS / named local already dest-stamp (host-C 7).
+             * Skip-trait now stores elem_kind=PTR + elem_elem_kind=leaf
+             * after `[]` then STAR. G.7: wrap ptr of leaf then wrap slice;
+             * reuse typeck_coerce_init_expr_to_decl (no second dest-SLICE
+             * stamp). NAMED leaf of `[]*Pair` leftover. asm INDEX of
+             * slice-of-ptr remains CG002. PLATFORM: SHARED.
+             */
+            if (dyn_eek == 9) {
+              let dyn_spek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+              let dyn_splf: i32 = 0;
+              if (dyn_spek >= 0 && dyn_spek != 8 && dyn_spek != 9 && dyn_spek != 10
+                  && dyn_spek != 11 && dyn_spek != 13) {
+                dyn_splf = pipeline_type_ensure_by_kind_ord(arena, dyn_spek);
+              }
+              if (dyn_splf > 0) {
+                let dyn_spty: i32 = find_or_alloc_ptr_type_ref(arena, dyn_splf);
+                if (dyn_spty > 0) {
+                  let dyn_spsty: i32 = find_or_alloc_slice_type_ref(arena, dyn_spty);
+                  if (dyn_spsty > 0) {
+                    typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_spsty);
                   }
                 }
               }
