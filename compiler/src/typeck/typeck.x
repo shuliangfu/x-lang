@@ -14691,16 +14691,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 }
               }
               /*
-               * dest-SLICE-of-PTR ARRAY leaf (`p: []*[2]i32`): skip-trait
-               * after `[]*` then `[` stores eek=leaf + elem_array_ndims
-               * (elem_kind stays PTR). Scalar dest-SLICE-of-PTR wrapped
-               * ptr-of-leaf so dest was `[]*i32` (typeck expected *i32,
-               * found *[2]i32). Named extra dest-stamps via the formal;
-               * host-C BLD001 of `int32_t *` / `xlang_arr2_int32_t` is
-               * the emit twin (layout + ARRAY_LIT). G.7: wrap ARRAY via
-               * elem_array_ndims then the existing wrap ptr + wrap slice
-               * (no second dest-SLICE stamp). ndims==0 keeps ptr-of-leaf
-               * (`[]*i32`).
+               * dest-SLICE-of-PTR ARRAY leaf (`p: []*[2]i32` /
+               * `[]*[2][]i32`): skip-trait after `[]*` then `[` stores
+               * eek=leaf + elem_array_ndims (elem_kind stays PTR).
+               * Scalar dest-SLICE-of-PTR wrapped ptr-of-leaf so dest
+               * was `[]*i32` (typeck expected *i32, found *[2]i32).
+               * Extra empty `[]` after `[]*[N]` used to set
+               * elem_kind=-1 (dest extras skipped → ADDR_OF of
+               * `[2][]i32` run=1 panic). Extra SLICE wrap COUNT lives
+               * in unused slot dims[ndims] (1 = `[]*[2][]T`; 0 = no
+               * extra wrap = `[]*[2]i32`; ban -3). Named extra dest-
+               * stamps via the formal; host-C BLD001 of `int32_t *` /
+               * `xlang_arr2_int32_t` is the emit twin (layout +
+               * ARRAY_LIT). G.7: wrap extra SLICE of leaf then ARRAY
+               * via elem_array_ndims then the existing wrap ptr + wrap
+               * slice (no second dest-SLICE stamp). ndims==0 keeps
+               * ptr-of-leaf (`[]*i32`).
                * dest-SLICE-of-PTR SLICE leaf (`p: []*[]i32` /
                * `[]*[][]i32`): skip-trait after `[]*` then `[` then `]`
                * used to set elem_kind=-1 (wave434 3-layer defer). Scanner
@@ -14729,6 +14735,28 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                     dyn_spi = dyn_spi + 1;
                   }
                 } else if (dyn_spand >= 1) {
+                  /*
+                   * dest extras dest-SLICE-of-PTR extra wraps
+                   * (`[]*[2][]T` / `[]*[2][][]T`): dim accessor
+                   * returns extra SLICE wrap count at dim_ix==ndims
+                   * when unused slot >0. Wrap SLICE of leaf extra
+                   * times THEN ARRAY wrap then wrap PTR then outer
+                   * SLICE. `[]*[2]i32` (spex<=0) stays wrap-once.
+                   * Discriminant vs dest extras dest-SLICE-of-ARRAY
+                   * extra `[][2][]T` is elem_kind (PTR vs ARRAY);
+                   * same unused slot. Do not invent -3.
+                   * PLATFORM: SHARED.
+                   */
+                  let dyn_spex2: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_spand);
+                  if (dyn_spex2 > 0) {
+                    let dyn_spi2: i32 = 0;
+                    while (dyn_spi2 < dyn_spex2 && dyn_spaw > 0) {
+                      dyn_spaw = find_or_alloc_slice_type_ref(arena, dyn_spaw);
+                      dyn_spi2 = dyn_spi2 + 1;
+                    }
+                  }
                   let dyn_spai: i32 = dyn_spand - 1;
                   while (dyn_spai >= 0 && dyn_spaw > 0) {
                     let dyn_spad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(

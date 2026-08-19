@@ -11812,28 +11812,46 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                           &((dyn_spnm)[0]), dyn_spnl);
                 }
               }
-              /* dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) / SLICE leaf
-               * (`[]*[]T` / `[]*[][]T`, ndims==-2 extra wrap count in
-               * dims[0]). ndims==0 keeps ptr-of-leaf. Pin twin.
-               * PLATFORM: SHARED. */
+              /* dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T` / `[]*[N][]T`)
+               * / SLICE leaf (`[]*[]T` / `[]*[][]T`, ndims==-2 extra
+               * wrap count in dims[0]). Extra SLICE after ARRAY
+               * (`[]*[2][]T`) is unused slot dims[ndims]. ndims==0
+               * keeps ptr-of-leaf. Pin twin. PLATFORM: SHARED. */
               if ((dyn_splf > 0)) {
                 int32_t dyn_spand = xlang_skip_trait_method_param_elem_array_ndims_c(
                         &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
                 int32_t dyn_spaw = dyn_splf;
+                int32_t dyn_spex;
+                int32_t dyn_spi;
+                int32_t dyn_spai;
                 if ((dyn_spand == -2)) {
-                  int32_t dyn_spex = xlang_skip_trait_method_param_elem_array_dim_c(
+                  dyn_spex = xlang_skip_trait_method_param_elem_array_dim_c(
                           &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
                           (arg_i + 1), 0);
                   if ((dyn_spex < 1)) {
                     dyn_spex = 1;
                   }
-                  int32_t dyn_spi = 0;
+                  dyn_spi = 0;
                   while (((dyn_spi < dyn_spex) && (dyn_spaw > 0))) {
                     dyn_spaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_spaw);
                     dyn_spi = (dyn_spi + 1);
                   }
                 } else if ((dyn_spand >= 1)) {
-                  int32_t dyn_spai = (dyn_spand - 1);
+                  /* dest extras dest-SLICE-of-PTR extra wraps
+                   * (`[]*[2][]T`): dim_ix==ndims extra SLICE.
+                   * Wrap SLICE of leaf extra times THEN ARRAY wrap.
+                   * Pin twin. PLATFORM: SHARED. */
+                  dyn_spex = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                          (arg_i + 1), dyn_spand);
+                  if ((dyn_spex > 0)) {
+                    dyn_spi = 0;
+                    while (((dyn_spi < dyn_spex) && (dyn_spaw > 0))) {
+                      dyn_spaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_spaw);
+                      dyn_spi = (dyn_spi + 1);
+                    }
+                  }
+                  dyn_spai = (dyn_spand - 1);
                   while (((dyn_spai >= 0) && (dyn_spaw > 0))) {
                     int32_t dyn_spad = xlang_skip_trait_method_param_elem_array_dim_c(
                             &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,

@@ -1942,10 +1942,14 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * dim_ix 0). Outer SLICE so `[2][][]*T` stays deferred.
  * When ndims>0, dim_ix==ndims returns dest extras dest-SLICE-of-ARRAY
  * extra SLICE wrap count in the unused slot (`[][2][]T` = 1;
- * `[][2][][]T` = 2; 0 / missing means no extra wrap = `[][2]i32`).
- * dim_ix==ndims+1 returns extra PTR wrap count (`[][2]*T` = 1;
- * 0 / missing means no extra PTR). Do not invent -3: ARRAY dims
- * occupy 0..ndims-1 so extra wrap cannot reuse ndims=-2.
+ * `[][2][][]T` = 2; 0 / missing means no extra wrap = `[][2]i32`)
+ * AND dest extras dest-SLICE-of-PTR extra SLICE wrap count
+ * (`[]*[2][]T` = 1; `[]*[2][][]T` = 2; 0 / missing means no extra
+ * wrap = `[]*[2]i32`). Discriminant is elem_kind (ARRAY vs PTR),
+ * not a second slot. dim_ix==ndims+1 returns extra PTR wrap count
+ * (`[][2]*T` = 1; 0 / missing means no extra PTR). Do not invent
+ * -3: ARRAY dims occupy 0..ndims-1 so extra wrap cannot reuse
+ * ndims=-2.
  * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
@@ -2014,6 +2018,10 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
     if (!(nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
       return -1;
     if (dim_ix == nd) {
+      /* dest extras dest-SLICE-of-ARRAY extra `[][2][]T` and dest
+       * extras dest-SLICE-of-PTR extra `[]*[2][]T`: unused slot
+       * dims[ndims]. extra>0 returns the count; 0 / missing → -1
+       * so `[][2]i32` / `[]*[2]i32` stay wrap-once. PLATFORM: SHARED. */
       extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd];
       if (extra <= 0)
         return -1;
@@ -4811,11 +4819,22 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                    * elem_kind); capture leaf T as eek via
                    * param_elem_elem_pending. `*[N][]T` (dim_n>0) stays
                    * the deferred path.
-                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   * dest extras dest-SLICE of PTR extra wrap `[]*[2][][]T`:
+                   * after `[]*[N][]` ndims>0 already holds [N]; a further
+                   * empty `[]` used to hit this branch (dim_n==0) and set
+                   * ndims=-2, wiping [N] (dyn extra wrap run=1 panic).
+                   * Only take the ndims=-2 sentinel when ndims is still
+                   * 0 / unset or already -2. ndims>0 falls through to
+                   * unused-slot extra wrap COUNT. PLATFORM: SHARED
+                   * parse. G.7: complete this scanner.
                    */
                   if ((ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_PTR
                        || ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_SLICE)
-                      && param_elem_dim_n == 0) {
+                      && param_elem_dim_n == 0
+                      && (ent->method_param_elem_array_ndims[mi_reg][param_count]
+                              == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS
+                          || ent->method_param_elem_array_ndims[mi_reg][param_count]
+                              <= 0)) {
                     if (ent->method_param_elem_array_ndims[mi_reg][param_count]
                         == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
                       int32_t extra =
@@ -4833,23 +4852,32 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                     param_elem_prefix_arr_more = 0;
                     param_elem_dim_n = 0;
                     param_elem_elem_pending = 1;
-                  } else if (ent->method_param_elem_kinds[mi_reg][param_count]
-                                 == XLANG_TRAIT_TY_ARRAY
+                  } else if ((ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_ARRAY
+                              || ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_PTR)
                              && ent->method_param_kinds[mi_reg][param_count]
                                  == XLANG_TRAIT_TY_SLICE) {
                     /*
-                     * dest extras dest-SLICE of ARRAY extra `[][2][]T`:
-                     * after `[]` then `[N]` elem is ARRAY and ndims holds
-                     * the [N] dim(s). Extra empty `[]` used to set
-                     * elem_kind=-1 (wave434 3-layer defer) so dest extras
-                     * skipped (dyn extra nested ARRAY_LIT 139). ndims=-2
-                     * would lose [N] (ban -3 / new field). Keep ARRAY;
-                     * extra wrap COUNT lives in the first unused dim slot
-                     * dims[ndims] (1 = `[][2][]T`; 2 = `[][2][][]T`; 0
-                     * means no extra wrap = `[][2]i32`). Outer must be
-                     * SLICE so `*[N][]T` stays deferred. Capture leaf T
-                     * via param_elem_elem_pending.
-                     * PLATFORM: SHARED parse. G.7: complete this scanner.
+                     * dest extras dest-SLICE of ARRAY extra `[][2][]T` and
+                     * dest extras dest-SLICE of PTR extra `[]*[2][]T`:
+                     * after `[]` then `[N]` elem is ARRAY, or after `[]*`
+                     * then `[N]` elem is PTR; ndims holds the [N] dim(s).
+                     * Extra empty `[]` used to set elem_kind=-1 (wave434
+                     * 3-layer defer) so dest extras skipped (dyn extra
+                     * nested ARRAY_LIT 139 / ADDR_OF of `[2][]i32`
+                     * run=1 panic). ndims=-2 would lose [N] (ban -3 /
+                     * new field). Keep ARRAY or PTR; extra wrap COUNT
+                     * lives in the first unused dim slot dims[ndims]
+                     * (1 = `[][2][]T` / `[]*[2][]T`; 2 = `[][2][][]T`
+                     * / `[]*[2][][]T`; 0 means no extra wrap =
+                     * `[][2]i32` / `[]*[2]i32`). Discriminant is
+                     * elem_kind (ARRAY vs PTR), not a second slot.
+                     * Outer must be SLICE so `*[N][]T` stays deferred.
+                     * Capture leaf T via param_elem_elem_pending.
+                     * SLICE-outer PTR-elem impl-match does not walk
+                     * leftover SLICE (not T001). PLATFORM: SHARED
+                     * parse. G.7: complete this scanner.
                      */
                     int32_t nd;
                     int32_t extra;
