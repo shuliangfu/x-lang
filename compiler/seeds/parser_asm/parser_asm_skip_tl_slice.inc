@@ -1931,8 +1931,12 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * all read this for ndims==-2.
  * When ndims==0, dim_ix 0 returns dest extras dest-ARRAY-of-SLICE
  * extra PTR wrap count in unused slot dims[0] (`[2][]*T` = 1;
- * 0 / missing means no extra PTR = `[2][]i32`). ndims==-2 already
- * uses dims[0] for extra SLICE so extra PTR cannot reuse -2.
+ * 0 / missing means no extra PTR = `[2][]i32`) AND dest extras
+ * dest-SLICE-of-SLICE extra PTR wrap count (`[][]*T` = 1;
+ * 0 / missing means no extra PTR = `[][]i32`). Discriminant is
+ * the dest extras consumer (ARRAY outer vs SLICE outer), not a
+ * second slot. ndims==-2 already uses dims[0] for extra SLICE
+ * so extra PTR cannot reuse -2 (`[][][]*T` stays deferred).
  * When ndims>0, dim_ix==ndims returns dest extras dest-SLICE-of-ARRAY
  * extra SLICE wrap count in the unused slot (`[][2][]T` = 1;
  * `[][2][][]T` = 2; 0 / missing means no extra wrap = `[][2]i32`).
@@ -1968,11 +1972,12 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
     return extra;
   }
   /*
-   * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][]*T`): unused
+   * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][]*T`) and
+   * dest extras dest-SLICE-of-SLICE extra PTR (`[][]*T`): unused
    * slot dims[0] when ndims==0. dim_ix>=nd would treat dim_ix=0 as
    * an extra-wrap probe and reject because nd is not >0. extra>0
-   * returns the count; 0 / missing → -1 so `[2][]i32` stays
-   * wrap-once. Do not invent -3. PLATFORM: SHARED.
+   * returns the count; 0 / missing → -1 so `[2][]i32` / `[][]i32`
+   * stay wrap-once. Do not invent -3. PLATFORM: SHARED.
    */
   if (nd == 0 && dim_ix == 0) {
     int32_t extra;
@@ -2669,8 +2674,18 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                      * SLICE). Extra wrap count is dims[0] (0 means 1).
                      * Pipeline pelem is then still SLICE — peel extra times
                      * when ndims==-2 or T001 if layers run out. `[][]T`
-                     * (ndims=0) keeps the one-peel. Do not invent -3.
-                     * PLATFORM: SHARED parse. G.7: complete this walk.
+                     * (ndims=0) keeps the one-peel. dest extras dest-SLICE
+                     * of SLICE extra `[][]*T`: extra PTR wrap COUNT is
+                     * unused slot dims[0] with ndims staying 0 (1 =
+                     * `[][]*T`; 0 = no extra PTR = `[][]i32`). After the
+                     * leftover-SLICE peel, pelem is still PTR vs eeek=leaf
+                     * — peel leftover PTR extra times or T001. Store-only
+                     * without this peel is T001 (named / UFCS dest-stamp
+                     * via the formal; dyn extra nested ARRAY_LIT 139).
+                     * ndims==-2 already uses dims[0] for extra SLICE so
+                     * extra PTR cannot reuse -2 (`[][][]*T` deferred).
+                     * Do not invent -3. PLATFORM: SHARED parse. G.7:
+                     * complete this walk.
                      */
                     int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
                     int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
@@ -2694,6 +2709,24 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                           }
                           pgek = pipeline_type_kind_ord_at(arena, pelem);
                           extra = extra - 1;
+                        }
+                      } else if (eand == 0) {
+                        int32_t extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
                         }
                       }
                       if (pgek >= 0 && pgek != eeek) {
@@ -4576,22 +4609,30 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 } else if (r.tok.kind == (int32_t)TOKEN_STAR
                            && ent->method_param_elem_kinds[mi_reg][param_count]
                                   == XLANG_TRAIT_TY_SLICE
-                           && ent->method_param_kinds[mi_reg][param_count]
-                                  == XLANG_TRAIT_TY_ARRAY) {
+                           && (ent->method_param_kinds[mi_reg][param_count]
+                                   == XLANG_TRAIT_TY_ARRAY
+                               || ent->method_param_kinds[mi_reg][param_count]
+                                      == XLANG_TRAIT_TY_SLICE)) {
                   /*
-                   * dest extras dest-ARRAY of SLICE extra `[2][]*T`:
-                   * after `[N][]` we are in param_elem_elem_pending
-                   * (elem=SLICE, ndims=0). Extra STAR used to hit
-                   * token_to_type_kind=-1 then want_param_ty=0 so eek
-                   * never captured; dest extras dest-ARRAY-of-SLICE
-                   * wrap-once dest-stamps `[2][]i32` (nested ARRAY_LIT
-                   * 139). ndims=-2 is extra SLICE wrap (`[2][][]T`).
-                   * Keep SLICE; extra PTR wrap COUNT lives in unused
-                   * slot dims[0] with ndims staying 0 (1 = `[2][]*T`;
-                   * 0 = no extra PTR = `[2][]i32`). Outer must be ARRAY
-                   * so `[][]*T` dest-SLICE-of-SLICE extra PTR stays
-                   * deferred. Capture leaf T by staying pending.
-                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   * dest extras dest-ARRAY of SLICE extra `[2][]*T` and
+                   * dest extras dest-SLICE of SLICE extra `[][]*T`:
+                   * after `[N][]` / `[][]` we are in
+                   * param_elem_elem_pending (elem=SLICE, ndims=0). Extra
+                   * STAR used to hit token_to_type_kind=-1 then
+                   * want_param_ty=0 so eek never captured; dest extras
+                   * wrap-once dest-stamps `[2][]i32` / `[][]i32`
+                   * (nested ARRAY_LIT 139). ndims=-2 is extra SLICE
+                   * wrap (`[2][][]T` / `[][][]T`). Keep SLICE; extra
+                   * PTR wrap COUNT lives in unused slot dims[0] with
+                   * ndims staying 0 (1 = `[2][]*T` / `[][]*T`; 0 = no
+                   * extra PTR = `[2][]i32` / `[][]i32`). Discriminant
+                   * is param kind (ARRAY vs SLICE outer), not a second
+                   * slot. ndims==-2 extra STAR stays elem_kind=-1
+                   * (`[2][][]*T` / `[][][]*T` deferred). Capture leaf
+                   * T by staying pending. Store-only of `[][]*T`
+                   * without impl-match extra PTR peel is T001 (pelem
+                   * still PTR vs eeek=leaf). PLATFORM: SHARED parse.
+                   * G.7: complete this scanner.
                    */
                   int32_t nd;
                   int32_t extra;

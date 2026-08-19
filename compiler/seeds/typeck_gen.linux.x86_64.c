@@ -11889,22 +11889,46 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 }
               }
               if ((dyn_sslf > 0)) {
-                int32_t dyn_ssity = typeck_find_or_alloc_slice_type_ref(arena, dyn_sslf);
+                int32_t dyn_ssaw = dyn_sslf;
+                int32_t dyn_ssand = 0;
+                int32_t dyn_sspx = 0;
+                int32_t dyn_sspi = 0;
+                int32_t dyn_ssity = 0;
+                int32_t dyn_ssoty = 0;
+                int32_t dyn_ssdest = 0;
+                int32_t dyn_ssex = 0;
+                int32_t dyn_ssi = 0;
+                dyn_ssand = xlang_skip_trait_method_param_elem_array_ndims_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                        (arg_i + 1));
+                /* dest extras dest-SLICE-of-SLICE extra PTR wraps
+                 * (`[][]*T`). Pin twin of typeck.x. Do not invent -3.
+                 * PLATFORM: SHARED. */
+                if ((dyn_ssand == 0)) {
+                  dyn_sspx = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                          (arg_i + 1), 0);
+                  if ((dyn_sspx > 0)) {
+                    dyn_sspi = 0;
+                    while (((dyn_sspi < dyn_sspx) && (dyn_ssaw > 0))) {
+                      dyn_ssaw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_ssaw);
+                      dyn_sspi = (dyn_sspi + 1);
+                    }
+                  }
+                }
+                dyn_ssity = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssaw);
                 if ((dyn_ssity > 0)) {
-                  int32_t dyn_ssoty = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssity);
+                  dyn_ssoty = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssity);
                   if ((dyn_ssoty > 0)) {
-                    int32_t dyn_ssand = xlang_skip_trait_method_param_elem_array_ndims_c(
-                            &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
-                            (arg_i + 1));
-                    int32_t dyn_ssdest = dyn_ssoty;
+                    dyn_ssdest = dyn_ssoty;
                     if ((dyn_ssand == -2)) {
-                      int32_t dyn_ssex = xlang_skip_trait_method_param_elem_array_dim_c(
+                      dyn_ssex = xlang_skip_trait_method_param_elem_array_dim_c(
                               &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
                               (arg_i + 1), 0);
                       if ((dyn_ssex < 1)) {
                         dyn_ssex = 1;
                       }
-                      int32_t dyn_ssi = 0;
+                      dyn_ssi = 0;
                       while (((dyn_ssi < dyn_ssex) && (dyn_ssdest > 0))) {
                         dyn_ssdest = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssdest);
                         dyn_ssi = (dyn_ssi + 1);
