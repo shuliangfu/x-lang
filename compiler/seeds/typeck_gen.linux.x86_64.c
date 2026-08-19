@@ -12016,6 +12016,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 int32_t dyn_aspi = 0;
                 int32_t dyn_asex = 0;
                 int32_t dyn_asi = 0;
+                int32_t dyn_asai = 0;
+                int32_t dyn_asad = 0;
                 dyn_asand = xlang_skip_trait_method_param_elem_array_ndims_c(
                         &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
                 /* dest extras dest-ARRAY-of-SLICE extra PTR wraps
@@ -12031,6 +12033,25 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                       dyn_asaw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_asaw);
                       dyn_aspi = (dyn_aspi + 1);
                     }
+                  }
+                }
+                /* dest extras dest-ARRAY-of-SLICE extra ARRAY wraps
+                 * (`[2][][2]T`). Pin twin of typeck.x. Wrap ARRAY of
+                 * leaf inner-first when ndims>=1 then wrap SLICE.
+                 * Do not invent -3. PLATFORM: SHARED. */
+                if ((dyn_asand >= 1)) {
+                  dyn_asai = (dyn_asand - 1);
+                  while (((dyn_asai >= 0) && (dyn_asaw > 0))) {
+                    dyn_asad = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                            (arg_i + 1), dyn_asai);
+                    if ((dyn_asad > 0)) {
+                      dyn_asaw = typeck_find_or_alloc_array_type_ref(arena, dyn_asaw,
+                              dyn_asad);
+                    } else {
+                      dyn_asaw = 0;
+                    }
+                    dyn_asai = (dyn_asai - 1);
                   }
                 }
                 dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_asaw);
