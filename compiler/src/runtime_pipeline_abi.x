@@ -48218,6 +48218,90 @@ export function glue_binop_as_needs_full_emit_elf_c(arena: *u8, expr_ref: i32): 
 }
 
 /**
+ * Transparent EXPR_BLOCK value for binop dual-slot.
+ * `unsafe { e }` / `{ e }` parse as EXPR_BLOCK (26). Load_operand used to
+ * return -2, so `x + unsafe { *q }` / `self.v + unsafe { *p[0] }` fell
+ * through to emit_expr(BLOCK) after ARM64 rax frame-spill and CG002.
+ * Only peel a single value expr with no lets/loops (no extra emit).
+ * G.7: one peel helper, same role as await/AS unwrap. Walkers recurse.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param expr_ref i32 — candidate expr; <=0 → 0
+ * @return i32 — inner value expr ref, or 0 if not a transparent block
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 exposes CG002
+ */
+#[no_mangle]
+export function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let br: i32 = 0;
+  let nlet: i32 = 0;
+  let nloop: i32 = 0;
+  let nexpr: i32 = 0;
+  let nso: i32 = 0;
+  let so_k: i32 = 0;
+  let so_idx: i32 = 0;
+  let inner: i32 = 0;
+  let fin: i32 = 0;
+  if ((arena == (0 as *u8)) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  /* EXPR_BLOCK = 26 */
+  if (ko != 26) {
+    return 0;
+  }
+  unsafe {
+    br = pipeline_expr_block_ref_at(arena, expr_ref);
+  }
+  if (br <= 0) {
+    return 0;
+  }
+  unsafe {
+    nlet = ast_ast_block_num_lets(arena, br);
+    nloop = ast_ast_block_num_loops(arena, br);
+    nexpr = ast_ast_block_num_expr_stmts(arena, br);
+    nso = ast_ast_block_num_stmt_order(arena, br);
+    fin = ast_ast_block_final_expr_ref(arena, br);
+  }
+  /* Extra lets/loops need body_sync — not a dual-slot peel. */
+  if (nlet != 0 || nloop != 0) {
+    return 0;
+  }
+  /* `unsafe { e }` primary: wrapper block, stmt_order kind 6 (region
+   * pool; with_arena_cap=-1). Value is the inner body's final_expr.
+   * Same region walk as dest-in-rbx BLOCK peel / typeck_block_expr_value_ref.
+   * PLATFORM: SHARED — parser_asm_primary_parse_unsafe_expr_c. */
+  if (nso == 1 && nexpr == 0 && fin <= 0) {
+    unsafe {
+      so_k = ast_ast_block_stmt_order_kind(arena, br, 0);
+      so_idx = ast_ast_block_stmt_order_idx(arena, br, 0);
+    }
+    if (so_k == 6 && so_idx >= 0) {
+      unsafe {
+        inner = pipeline_block_region_body_ref(arena, br, so_idx);
+      }
+      if (inner > 0) {
+        unsafe {
+          nlet = ast_ast_block_num_lets(arena, inner);
+          nloop = ast_ast_block_num_loops(arena, inner);
+          fin = ast_ast_block_final_expr_ref(arena, inner);
+        }
+        if (nlet == 0 && nloop == 0 && fin > 0) {
+          return fin;
+        }
+      }
+    }
+    return 0;
+  }
+  /* Bare `{ e }` block-expr: final_expr is the value. */
+  if (nexpr <= 1 && fin > 0) {
+    return fin;
+  }
+  return 0;
+}
+
+/**
  * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_try_binop_load_operand_elf_c).
  * @param arena *u8 - parameter
  * @param elf_ctx *u8 - parameter
@@ -48232,11 +48316,17 @@ export function glue_binop_as_needs_full_emit_elf_c(arena: *u8, expr_ref: i32): 
 export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
   unsafe {
     let ko: i32 = 0;
+    let blk_inner: i32 = 0;
     let off: i32 = 0;
     let vr: i32 = 0;
     let base_ref: i32 = 0;
     if ((arena == (0 as *u8)) || (elf_ctx == (0 as *u8)) || (ctx == (0 as *u8)) || expr_ref <= 0) {
       return -2;
+    }
+    /* Peel unsafe { e } / { e } so DEREF/INDEX load as themselves (not BLOCK). */
+    blk_inner = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+    if (blk_inner > 0) {
+      return glue_try_binop_load_operand_elf_c(arena, elf_ctx, blk_inner, ctx, ta, to_rbx);
     }
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 3) {
@@ -48462,6 +48552,10 @@ export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, exp
     if ((arena == (0 as *u8)) || expr_ref <= 0) {
       return 0;
     }
+    op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+    if (op_ref > 0) {
+      return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
+    }
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if ((glue_expr_is_await_at_c(arena, expr_ref)) != 0) {
       op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -48563,6 +48657,10 @@ export function glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena: *u8, ex
     if ((arena == (0 as *u8)) || expr_ref <= 0) {
       return 1;
     }
+    op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+    if (op_ref > 0) {
+      return glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, op_ref);
+    }
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 3) {
       return 0;
@@ -48613,6 +48711,10 @@ export function glue_expr_emit_may_clobber_rbx_elf_c(arena: *u8, expr_ref: i32):
     let op_ref: i32 = 0;
     if ((arena == (0 as *u8)) || expr_ref <= 0) {
       return 1;
+    }
+    op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+    if (op_ref > 0) {
+      return glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref);
     }
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 3 || ko == 0 || ko == 2) {

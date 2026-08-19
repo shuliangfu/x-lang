@@ -22203,14 +22203,127 @@ int32_t glue_binop_as_needs_full_emit_elf_c(void *arena, int32_t expr_ref) {
   return 0;
 }
 
+/* XLANG_PABI_BINOP_BLOCK_PEEL_THIN_BEGIN */
+#include <stdint.h>
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_block_ref_at(void *arena, int32_t expr_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
+extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t ri);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t asm_module_top_level_const_lit_i32(void *mod, void *arena, uint8_t *name, int32_t nlen, int32_t *out);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern void glue_asm73_evict_cache_if_live_pressure_elf_c(int32_t ta, void *elf_ctx);
+extern int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off);
+extern int32_t glue_binop_try_reload_spill_off_elf_c(void *elf_ctx, void *ctx, int32_t off, int32_t ta, int32_t to_rbx);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t glue_load_f32_var_slot_to_rbx_elf_c(void *elf_ctx, void *arena, void *ctx, int32_t expr_ref, int32_t off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf_ctx, int32_t off, int32_t ta);
+extern int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
+extern int32_t glue_binop_stack_spill_push_elf_c(void *elf_ctx, int32_t ta, int32_t off, int32_t which);
+extern void glue_binop_var_slot_cache_set_ctx_key(void *ctx);
+extern void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off);
+extern int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off);
+extern int32_t glue_load_f32_var_slot_to_rax_elf_c(void *elf_ctx, void *arena, void *ctx, int32_t expr_ref, int32_t off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t off, int32_t ta);
+extern void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off);
+extern int32_t pipeline_expr_field_access_is_enum_variant(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern void glue_binop_var_slot_cache_clear(void);
+extern int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_expr_is_await_at_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t glue_expr_is_x_as_cast_at_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t glue_binop_as_needs_full_emit_elf_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_expr_index_base_is_slice_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out);
+
+/* Transparent EXPR_BLOCK value for binop dual-slot.
+ * `unsafe { e }` / `{ e }` is EXPR_BLOCK (26). Load_operand used to return
+ * -2, so `x + unsafe { *q }` fell to emit_expr(BLOCK) after ARM64 rax
+ * frame-spill → CG002. Peel a single value expr with no lets/loops.
+ * G.7: one peel helper (same role as await/AS). Walkers recurse.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 exposes CG002. */
+int32_t glue_expr_block_transparent_value_ref_at(void *arena, int32_t expr_ref) {
+  int32_t ko;
+  int32_t br;
+  int32_t nlet;
+  int32_t nloop;
+  int32_t nexpr;
+  int32_t nso;
+  int32_t so_k;
+  int32_t so_idx;
+  int32_t inner;
+  int32_t fin;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  /* EXPR_BLOCK = 26 */
+  if (ko != 26)
+    return 0;
+  br = pipeline_expr_block_ref_at(arena, expr_ref);
+  if (br <= 0)
+    return 0;
+  nlet = ast_ast_block_num_lets(arena, br);
+  nloop = ast_ast_block_num_loops(arena, br);
+  nexpr = ast_ast_block_num_expr_stmts(arena, br);
+  nso = ast_ast_block_num_stmt_order(arena, br);
+  fin = ast_ast_block_final_expr_ref(arena, br);
+  if (nlet != 0 || nloop != 0)
+    return 0;
+  /* `unsafe { e }` primary: wrapper + stmt_order kind 6 (region pool). */
+  if (nso == 1 && nexpr == 0 && fin <= 0) {
+    so_k = ast_ast_block_stmt_order_kind(arena, br, 0);
+    so_idx = ast_ast_block_stmt_order_idx(arena, br, 0);
+    if (so_k == 6 && so_idx >= 0) {
+      inner = pipeline_block_region_body_ref(arena, br, so_idx);
+      if (inner > 0) {
+        nlet = ast_ast_block_num_lets(arena, inner);
+        nloop = ast_ast_block_num_loops(arena, inner);
+        fin = ast_ast_block_final_expr_ref(arena, inner);
+        if (nlet == 0 && nloop == 0 && fin > 0)
+          return fin;
+      }
+    }
+    return 0;
+  }
+  if (nexpr <= 1 && fin > 0)
+    return fin;
+  return 0;
+}
+
 /* wave149 cold twin glue_try_binop_load_operand_elf_c. PLATFORM: SHARED. */
 int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta, int32_t to_rbx) {
   int32_t ko;
   int32_t off;
   int32_t vr;
   int32_t base_ref;
+  int32_t blk_inner;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return -2;
+  /* Peel unsafe { e } / { e } so DEREF/INDEX load as themselves (not BLOCK). */
+  blk_inner = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+  if (blk_inner > 0)
+    return glue_try_binop_load_operand_elf_c(arena, elf_ctx, blk_inner, ctx, ta, to_rbx);
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   if (ko == 3) {
     off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
@@ -22393,6 +22506,9 @@ int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(void *arena, int32_t ex
   int32_t op_ref;
   if (!arena || expr_ref <= 0)
     return 0;
+  op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+  if (op_ref > 0)
+    return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   if (glue_expr_is_await_at_c(arena, expr_ref)) {
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -22405,6 +22521,14 @@ int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(void *arena, int32_t ex
   /* wave625: FIELD of INDEX still runs INDEX bounds/addr in rbx (a[i].x dual-slot). */
   if (ko == 44) {
     op_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    return op_ref > 0 ? glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref) : 0;
+  }
+  /* DEREF of INDEX / slice: lvalue emits the operand pointer; INDEX
+   * / slice operand uses rbx. Walk the operand (same as FIELD).
+   * DEREF of VAR is rax-only. Same-commit twin of mega .x.
+   * PLATFORM: SHARED — park dest before DEREF-of-INDEX lvalue. */
+  if (ko == 52) {
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref) : 0;
   }
   if (ko == 47) {
@@ -22457,6 +22581,9 @@ int32_t glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(void *arena, int32_t e
   int32_t op_ref;
   if (!arena || expr_ref <= 0)
     return 1;
+  op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+  if (op_ref > 0)
+    return glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, op_ref);
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   if (ko == 3)
     return 0;
@@ -22488,6 +22615,9 @@ int32_t glue_expr_emit_may_clobber_rbx_elf_c(void *arena, int32_t expr_ref) {
   int32_t op_ref;
   if (!arena || expr_ref <= 0)
     return 1;
+  op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
+  if (op_ref > 0)
+    return glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref);
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   if (ko == 3 || ko == 0 || ko == 2)
     return 0;
@@ -22508,6 +22638,7 @@ int32_t glue_expr_emit_may_clobber_rbx_elf_c(void *arena, int32_t expr_ref) {
   }
   return 1;
 }
+/* XLANG_PABI_BINOP_BLOCK_PEEL_THIN_END */
 
 /* wave149 cold twin glue_binop_preserve_rbx_for_index_elf_c. PLATFORM: SHARED. */
 int32_t glue_binop_preserve_rbx_for_index_elf_c(void *elf_ctx, int32_t ta) {
