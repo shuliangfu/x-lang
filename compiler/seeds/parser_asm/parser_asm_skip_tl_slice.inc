@@ -2704,6 +2704,29 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                       int32_t pelem = pipeline_type_elem_ref_at(arena, leaf_tr);
                       if (eeek >= 0 && pelem != 0) {
                         int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        /*
+                         * wave774: PTR pointee may be ARRAY/SLICE (e.g.
+                         * *[2]i32 or *[]i32). eeek holds the LEAF kind
+                         * (i32=0), not the direct pointee kind (ARRAY=10 /
+                         * SLICE=11). Walk elem_array_ndims dims (or -2 for
+                         * SLICE) to reach the leaf, then compare. Without
+                         * this, [2]*[2]i32 and [2]*[]i32 trait/impl params
+                         * mismatch (eeek=0 vs pgek=10/11). PLATFORM: SHARED.
+                         */
+                        if (pgek == XLANG_TRAIT_TY_ARRAY || pgek == XLANG_TRAIT_TY_SLICE) {
+                          int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                          if (eand > 0) {
+                            int32_t ed;
+                            for (ed = 0; ed < eand && pelem != 0; ed++) {
+                              pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            }
+                          } else if (eand == -2) {
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          }
+                          if (pelem != 0) {
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          }
+                        }
                         if (pgek >= 0 && pgek != eeek) {
                           mm = 1;
                         } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {

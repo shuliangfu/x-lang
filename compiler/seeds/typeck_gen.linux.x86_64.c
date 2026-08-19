@@ -11922,6 +11922,61 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_aslf);
               }
             }
+            /*
+             * dest-ARRAY-of-PTR extra (`p: [2]*[2]i32`): ARRAY_LIT
+             * `[&r0, &r1]` stays TYPE_ARRAY of PTR. Scalar dest-ARRAY
+             * skips elem kind 9. Sit-red trait/impl param type mismatch
+             * (typeck rebuilt [2]*[2]i32 as [2]*i32 — inner ARRAY dim
+             * lost). Skip-trait stores elem_kind=PTR + eek=leaf +
+             * elem_array_ndims/dims after `[N]*` then `[`. G.7: wrap
+             * ARRAY via elem_array_ndims then wrap ptr into dyn_alf;
+             * the existing ARRAY wrap below handles the outer [N]. No
+             * second dest-ARRAY stamp. ndims==0 keeps ptr-of-leaf
+             * (`[2]*i32` / `[2]*Pair` already 7 via ADDR_OF elems).
+             * Twin of dest-SLICE-of-PTR. PLATFORM: SHARED.
+             */
+            if (((dyn_alf == 0) && (dyn_aek == 9))) {
+              int32_t dyn_aeek = xlang_skip_trait_method_param_elem_elem_kind_c(&((dyn_trait_nm)[0]),
+                      dyn_trait_nlen, dyn_slot, (arg_i + 1));
+              int32_t dyn_aplf = 0;
+              if (((dyn_aeek >= 0) && (dyn_aeek != 8) && (dyn_aeek != 9) && (dyn_aeek != 10)
+                      && (dyn_aeek != 11) && (dyn_aeek != 13))) {
+                dyn_aplf = pipeline_type_ensure_by_kind_ord(arena, dyn_aeek);
+              }
+              if (((dyn_aplf == 0) && (dyn_aeek == 8))) {
+                uint8_t dyn_apnm[64] = {0};
+                int32_t dyn_apnl = xlang_skip_trait_method_param_name_into_c(&((dyn_trait_nm)[0]),
+                        dyn_trait_nlen, dyn_slot, (arg_i + 1), &((dyn_apnm)[0]));
+                if ((dyn_apnl > 0)) {
+                  dyn_aplf = typeck_find_or_alloc_named_type_ref(arena, &((dyn_apnm)[0]), dyn_apnl);
+                }
+              }
+              if ((dyn_aplf > 0)) {
+                int32_t dyn_aand = xlang_skip_trait_method_param_elem_array_ndims_c(&((dyn_trait_nm)[0]),
+                        dyn_trait_nlen, dyn_slot, (arg_i + 1));
+                if ((dyn_aand != 0)) {
+                  int32_t dyn_apaw = dyn_aplf;
+                  if ((dyn_aand == -2)) {
+                    dyn_apaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_aplf);
+                  } else if ((dyn_aand >= 1)) {
+                    int32_t dyn_apai = (dyn_aand - 1);
+                    while (((dyn_apai >= 0) && (dyn_apaw > 0))) {
+                      int32_t dyn_apad = xlang_skip_trait_method_param_elem_array_dim_c(&((dyn_trait_nm)[0]),
+                              dyn_trait_nlen, dyn_slot, (arg_i + 1), dyn_apai);
+                      if ((dyn_apad > 0)) {
+                        dyn_apaw = typeck_find_or_alloc_array_type_ref(arena, dyn_apaw, dyn_apad);
+                      } else {
+                        dyn_apaw = 0;
+                      }
+                      dyn_apai = (dyn_apai - 1);
+                    }
+                  }
+                  if ((dyn_apaw > 0)) {
+                    dyn_alf = typeck_find_or_alloc_ptr_type_ref(arena, dyn_apaw);
+                  }
+                }
+              }
+            }
             if ((dyn_alf > 0)) {
               int32_t dyn_and = xlang_skip_trait_method_param_array_ndims_c(&((dyn_trait_nm)[0]),
                       dyn_trait_nlen, dyn_slot, (arg_i + 1));
