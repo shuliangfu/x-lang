@@ -1923,10 +1923,11 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
  * @return N > 0, or -1 if trait/slot/param/dim invalid.
  * When ndims==-2, dim_ix 0 returns the extra SLICE wrap count
- * (`[]*[]T` / `[][][]T` / `[2]*[]T` = 1, `[]*[][]T` /
- * `[][][][]T` / `[2]*[][]T` = 2). dims[0]==0 means 1
- * (`[]*[]T` / `[2]*[]T` / 3-layer compat). dest extras
- * dest-SLICE-of-PTR, dest-SLICE-of-SLICE, and dest-ARRAY-of-PTR
+ * (`[]*[]T` / `[][][]T` / `[2]*[]T` / `[2][][]T` = 1,
+ * `[]*[][]T` / `[][][][]T` / `[2]*[][]T` / `[2][][][]T`
+ * = 2). dims[0]==0 means 1 (`[]*[]T` / `[2]*[]T` /
+ * `[2][][]T` / 3-layer compat). dest extras dest-SLICE-of-PTR,
+ * dest-SLICE-of-SLICE, dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE
  * all read this for ndims==-2. Do not invent a second sentinel.
  * PLATFORM: SHARED parse + typeck.
  */

@@ -270,9 +270,11 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * @param param_ix i32 — formal index including self (0 = self)
  * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
  * @return i32 — N > 0, or -1 if invalid. When ndims==-2, dim_ix 0 is
- * the extra SLICE wrap count (`[]*[]T` / `[][][]T` = 1, `[]*[][]T` /
- * `[][][][]T` = 2; 0 stored means 1). dest extras dest-SLICE-of-PTR
- * and dest-SLICE-of-SLICE both read this for ndims==-2.
+ * the extra SLICE wrap count (`[]*[]T` / `[][][]T` / `[2][][]T` = 1,
+ * `[]*[][]T` / `[][][][]T` / `[2][][][]T` = 2; 0 stored means 1).
+ * dest extras dest-SLICE-of-PTR, dest-SLICE-of-SLICE,
+ * dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE all read this for
+ * ndims==-2.
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14847,17 +14849,26 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
             }
             /*
-             * dest-ARRAY-of-SLICE extra (`p: [2][]i32`): ARRAY_LIT
-             * `[[2, 3], [1, 4]]` stays TYPE_ARRAY of ARRAY. Scalar
-             * dest-ARRAY skips elem kind 11. Sit-red asm=139 / host-C=133
-             * (`(int32_t[][2])` into a slice* wrapper). Named local /
-             * UFCS already dest-stamp. Skip-trait now stores
-             * elem_kind=SLICE + elem_elem_kind=leaf after `[N][]`.
-             * G.7: wrap slice of leaf into dyn_alf then the existing
-             * ARRAY wrap below (no second dest-ARRAY stamp). NAMED
+             * dest-ARRAY-of-SLICE extra (`p: [2][]i32` / `[2][][]i32`):
+             * ARRAY_LIT `[[2, 3], [1, 4]]` stays TYPE_ARRAY of ARRAY.
+             * Scalar dest-ARRAY skips elem kind 11. Sit-red `[2][]i32`
+             * was asm=139 / host-C=133 (`(int32_t[][2])` into a slice*
+             * wrapper). Sit-red `[2][][]i32` nested ARRAY_LIT
+             * `[[[2, 4]], [[3, 5]]]` is 139 (`(int32_t[][1][2])`)
+             * because wrap-once dest-stamps `[2][]i32`. Named / UFCS
+             * with typed lets already dest-stamp via the formal (6).
+             * Skip-trait stores elem_kind=SLICE + eek=leaf after
+             * `[N][]`; extra inner SLICE uses ndims=-2 with wrap
+             * count in dims[0] (0 means 1 = `[2][][]T`; 2 =
+             * `[2][][][]T`). G.7: wrap slice of leaf into dyn_alf
+             * then extra wraps when ndims==-2 then the existing
+             * ARRAY wrap below (no second dest-ARRAY stamp; do not
+             * invent -3). Twin of dest extras dest-SLICE-of-SLICE
+             * extra wraps and dest-ARRAY-of-PTR extra wraps. NAMED
              * leaf of `[N][]Pair` is handled below via param_name.
-             * dest-SLICE extra `[][N]Pair` dest-stamp is handled in
-             * dest extras dest-SLICE-of-ARRAY NAMED leaf. PLATFORM: SHARED.
+             * dest extras dest-SLICE-of-ARRAY extra `[][2][]T` is a
+             * different leftover (ARRAY dims occupy elem_array_ndims).
+             * PLATFORM: SHARED.
              */
             if (dyn_alf == 0 && dyn_aek == 11) {
               let dyn_aseek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -14889,6 +14900,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
               if (dyn_aslf > 0) {
                 dyn_alf = find_or_alloc_slice_type_ref(arena, dyn_aslf);
+                /*
+                 * dest extras dest-ARRAY-of-SLICE extra wraps
+                 * (`[2][][]T` / `[2][][][]T`): dim accessor returns
+                 * extra wrap count at dim_ix=0 when ndims==-2.
+                 * One wrap dest-stamps `[2][]i32`; wrap extra times
+                 * then the existing ARRAY wrap. Do not invent -3.
+                 * PLATFORM: SHARED.
+                 */
+                if (dyn_alf > 0) {
+                  let dyn_asand: i32 = xlang_skip_trait_method_param_elem_array_ndims_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+                  if (dyn_asand == -2) {
+                    let dyn_asex: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1, 0);
+                    if (dyn_asex < 1) {
+                      dyn_asex = 1;
+                    }
+                    let dyn_asi: i32 = 0;
+                    while (dyn_asi < dyn_asex && dyn_alf > 0) {
+                      dyn_alf = find_or_alloc_slice_type_ref(arena, dyn_alf);
+                      dyn_asi = dyn_asi + 1;
+                    }
+                  }
+                }
               }
             }
             /*
