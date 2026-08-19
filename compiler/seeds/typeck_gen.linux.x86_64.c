@@ -11893,6 +11893,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 int32_t dyn_ssand = 0;
                 int32_t dyn_sspx = 0;
                 int32_t dyn_sspi = 0;
+                int32_t dyn_ssai = 0;
+                int32_t dyn_ssad = 0;
                 int32_t dyn_ssity = 0;
                 int32_t dyn_ssoty = 0;
                 int32_t dyn_ssdest = 0;
@@ -11914,6 +11916,25 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                       dyn_ssaw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_ssaw);
                       dyn_sspi = (dyn_sspi + 1);
                     }
+                  }
+                }
+                /* dest extras dest-SLICE-of-SLICE extra ARRAY wraps
+                 * (`[][][2]T`). Pin twin of typeck.x. Hoist
+                 * dyn_ssai/dyn_ssad to avoid mixed-decl-after-
+                 * statement. Do not invent -3. PLATFORM: SHARED. */
+                if ((dyn_ssand >= 1)) {
+                  dyn_ssai = (dyn_ssand - 1);
+                  while (((dyn_ssai >= 0) && (dyn_ssaw > 0))) {
+                    dyn_ssad = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                            (arg_i + 1), dyn_ssai);
+                    if ((dyn_ssad > 0)) {
+                      dyn_ssaw = typeck_find_or_alloc_array_type_ref(arena,
+                              dyn_ssaw, dyn_ssad);
+                    } else {
+                      dyn_ssaw = 0;
+                    }
+                    dyn_ssai = (dyn_ssai - 1);
                   }
                 }
                 dyn_ssity = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssaw);

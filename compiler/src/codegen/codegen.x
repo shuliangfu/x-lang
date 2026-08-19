@@ -9476,15 +9476,26 @@ function emit_file_scope_dest_slice_array_lit(
 
 /**
  * Host-C: emit fat layouts for TYPE_SLICE whose element is TYPE_ARRAY or
- * TYPE_PTR. ARRAY: `struct xlang_slice_xlang_arrN_<elem> { E (*data)[N]…; }`.
- * PTR: `struct xlang_slice_<elem>_p { E **data; size_t length; }` so the
- * sanitized type_to_c_repr tag (`*` → `_p`) has a matching complete type.
- * Sit-red `[]*i32`: tag was `struct xlang_slice_int32_t *` (pointer, not a
- * tag) and no `{ E **data }` companion. Sit-red `[][2]Pair`: NAMED leaf
- * needs `struct Pair` complete before `E (*data)[N]` (`sizeof(Pair)`);
+ * TYPE_PTR, and for dest extras dest-SLICE-of-SLICE extra ARRAY / PTR
+ * (`[][][2]T` / `[][]*T`) whose elem is TYPE_SLICE whose chain hits
+ * ARRAY or PTR. ARRAY: `struct xlang_slice_xlang_arrN_<elem>
+ * { E (*data)[N]…; }`. PTR: `struct xlang_slice_<elem>_p
+ * { E **data; size_t length; }` so the sanitized type_to_c_repr tag
+ * (`*` → `_p`) has a matching complete type. SLICE-of-(SLICE-of-
+ * ARRAY/PTR): inner fat is already emitted (smaller type-ref); outer
+ * is `{ <inner-tag> *data; size_t length; }`. Scalar `[][]T` stays
+ * the nest table (chain hits neither ARRAY nor PTR — do not
+ * re-emit). Sit-red `[][][2]i32`: dest extras dest-stamps dest-SLICE
+ * of dest-SLICE of ARRAY but walker skipped elem=SLICE → incomplete
+ * `xlang_slice_xlang_slice_xlang_arr2_int32_t`. Sit-red `[]*i32`:
+ * tag was `struct xlang_slice_int32_t *` (pointer, not a tag) and no
+ * `{ E **data }` companion. Sit-red `[][2]Pair`: NAMED leaf needs
+ * `struct Pair` complete before `E (*data)[N]` (`sizeof(Pair)`);
  * caller emits this walker after module struct defs (not at prologue).
  * G.7: complete this walker (do not invent a second slice-of-PTR /
- * slice-of-ARRAY-of-NAMED emitter). Tag matches type_to_c_repr.
+ * slice-of-ARRAY-of-NAMED / slice-of-slice-of-ARRAY emitter).
+ * Tag matches type_to_c_repr. Do not invent -3 / a second dest-SLICE
+ * stamp. nest walk cap 64.
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
  * @param ctx *PipelineDepCtx — optional prefix for NAMED leaves
@@ -9516,7 +9527,39 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
         if (!ast.ref_is_null(elem) && elem > 0 && elem <= nt) {
           elem_k = pipeline_type_kind_ord_at(arena, elem);
         }
+        /*
+         * dest extras dest-SLICE-of-SLICE extra ARRAY / PTR
+         * (`[][][2]T` / `[][]*T`): elem is SLICE whose chain hits
+         * ARRAY or PTR. Scalar `[][]T` chain hits a leaf — skip so
+         * the nest table stays the unique emitter. Walk cap 64
+         * (nest freeze). PLATFORM: SHARED host-C. G.7: complete
+         * this walker.
+         */
+        let hit_ap: i32 = 0;
         if (elem_k == (TypeKind.TYPE_ARRAY as i32) || elem_k == (TypeKind.TYPE_PTR as i32)) {
+          hit_ap = 1;
+        } else if (elem_k == (TypeKind.TYPE_SLICE as i32)) {
+          let walk: i32 = elem;
+          let guard: i32 = 0;
+          while (guard < 64 && walk > 0 && walk <= nt) {
+            let wk: i32 = pipeline_type_kind_ord_at(arena, walk);
+            if (wk == (TypeKind.TYPE_ARRAY as i32) || wk == (TypeKind.TYPE_PTR as i32)) {
+              hit_ap = 1;
+              walk = 0;
+            } else if (wk == (TypeKind.TYPE_SLICE as i32)) {
+              let next: i32 = pipeline_type_elem_ref_at(arena, walk);
+              if (ast.ref_is_null(next) || next <= 0 || next == walk) {
+                walk = 0;
+              } else {
+                walk = next;
+                guard = guard + 1;
+              }
+            } else {
+              walk = 0;
+            }
+          }
+        }
+        if (hit_ap != 0) {
           let seen: i32 = 0;
           let slb: u8[896] = [];
           let nl: i32 = type_to_c_repr(arena, &slb[0], 896, ti, pfx_use, pfx_len_use);
@@ -9526,29 +9569,22 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
           let tj: i32 = 1;
           while (tj < ti) {
             if (pipeline_type_kind_ord_at(arena, tj) == (TypeKind.TYPE_SLICE as i32)) {
-              let ej: i32 = pipeline_type_elem_ref_at(arena, tj);
-              let ej_k: i32 = 0;
-              if (!ast.ref_is_null(ej) && ej > 0 && ej <= nt) {
-                ej_k = pipeline_type_kind_ord_at(arena, ej);
-              }
-              if (ej_k == (TypeKind.TYPE_ARRAY as i32) || ej_k == (TypeKind.TYPE_PTR as i32)) {
-                let slj: u8[896] = [];
-                let nj: i32 = type_to_c_repr(arena, &slj[0], 896, tj, pfx_use, pfx_len_use);
-                if (nj == nl && nj > 0) {
-                  let eq: i32 = 1;
-                  let ci: i32 = 0;
-                  while (ci < nl) {
-                    if (slb[ci] != slj[ci]) {
-                      eq = 0;
-                      ci = nl;
-                    } else {
-                      ci = ci + 1;
-                    }
+              let slj: u8[896] = [];
+              let nj: i32 = type_to_c_repr(arena, &slj[0], 896, tj, pfx_use, pfx_len_use);
+              if (nj == nl && nj > 0) {
+                let eq: i32 = 1;
+                let ci: i32 = 0;
+                while (ci < nl) {
+                  if (slb[ci] != slj[ci]) {
+                    eq = 0;
+                    ci = nl;
+                  } else {
+                    ci = ci + 1;
                   }
-                  if (eq != 0) {
-                    seen = 1;
-                    tj = ti;
-                  }
+                }
+                if (eq != 0) {
+                  seen = 1;
+                  tj = ti;
                 }
               }
             }
@@ -9577,6 +9613,30 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
                 return -1;
               }
               if (emit_local_fixed_array_suffix(arena, out, elem) != 0) {
+                return -1;
+              }
+            } else if (elem_k == (TypeKind.TYPE_SLICE as i32)) {
+              /*
+               * Outer dest-SLICE of dest-SLICE of ARRAY/PTR: data is
+               * a pointer to the inner fat (already complete at a
+               * smaller type-ref). type_to_c_repr(elem) is
+               * `struct xlang_slice_…`. PLATFORM: SHARED host-C.
+               */
+              let inner_eb: u8[896] = [];
+              let inner_nl: i32 = type_to_c_repr(arena, &inner_eb[0], 896, elem, pfx_use, pfx_len_use);
+              if (inner_nl <= 0) {
+                return -1;
+              }
+              let inner_i: i32 = 0;
+              while (inner_i < inner_nl) {
+                if (append_byte_u8(out, inner_eb[inner_i]) != 0) {
+                  return -1;
+                }
+                inner_i = inner_i + 1;
+              }
+              /* " *data" */
+              let sl_dcl: u8[8] = [32, 42, 100, 97, 116, 97, 0, 0];
+              if (emit_bytes_from_ptr(out, &sl_dcl[0], 6) != 0) {
                 return -1;
               }
             } else {

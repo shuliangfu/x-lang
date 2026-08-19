@@ -14829,6 +14829,33 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                     }
                   }
                 }
+                /*
+                 * dest extras dest-SLICE-of-SLICE extra ARRAY wraps
+                 * (`[][][2]T`): dim accessor returns inner ARRAY
+                 * dims at 0..ndims-1 when ndims>=1 (wave437 store
+                 * after `[][]` then `[M]`). Wrap ARRAY of leaf
+                 * inner-first then wrap SLICE twice. `[][]i32`
+                 * (ndims==0) stays wrap-once. Twin of dest extras
+                 * dest-ARRAY-of-SLICE extra ARRAY wraps. Store
+                 * already has ndims>=1 (named / UFCS dest-stamp
+                 * via the formal 7). Impl-match leftover ARRAY
+                 * vs eeek=leaf is T001 until extra ARRAY peels.
+                 * Do not invent -3. PLATFORM: SHARED.
+                 */
+                if (dyn_ssand >= 1) {
+                  let dyn_ssai: i32 = dyn_ssand - 1;
+                  while (dyn_ssai >= 0 && dyn_ssaw > 0) {
+                    let dyn_ssad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                            dyn_ssai);
+                    if (dyn_ssad > 0) {
+                      dyn_ssaw = find_or_alloc_array_type_ref(arena, dyn_ssaw, dyn_ssad);
+                    } else {
+                      dyn_ssaw = 0;
+                    }
+                    dyn_ssai = dyn_ssai - 1;
+                  }
+                }
                 let dyn_ssity: i32 = find_or_alloc_slice_type_ref(arena, dyn_ssaw);
                 if (dyn_ssity > 0) {
                   let dyn_ssoty: i32 = find_or_alloc_slice_type_ref(arena, dyn_ssity);

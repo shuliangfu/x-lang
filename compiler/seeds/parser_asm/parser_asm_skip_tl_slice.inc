@@ -2679,13 +2679,16 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                      * unused slot dims[0] with ndims staying 0 (1 =
                      * `[][]*T`; 0 = no extra PTR = `[][]i32`). After the
                      * leftover-SLICE peel, pelem is still PTR vs eeek=leaf
-                     * — peel leftover PTR extra times or T001. Store-only
-                     * without this peel is T001 (named / UFCS dest-stamp
-                     * via the formal; dyn extra nested ARRAY_LIT 139).
-                     * ndims==-2 already uses dims[0] for extra SLICE so
-                     * extra PTR cannot reuse -2 (`[][][]*T` deferred).
-                     * Do not invent -3. PLATFORM: SHARED parse. G.7:
-                     * complete this walk.
+                     * — peel leftover PTR extra times or T001. dest extras
+                     * dest-SLICE of SLICE extra ARRAY `[][][2]T`: leftover
+                     * after leftover-SLICE peel is ARRAY vs eeek=leaf
+                     * (ndims>=1, dims[0..ndims-1] from wave437 pending
+                     * LBRACKET after `[][]` then `[M]`). Peel leftover
+                     * ARRAY or T001. Store already has ndims>=1 (named /
+                     * UFCS dest-stamp via the formal). Discriminant:
+                     * ndims==-2 extra SLICE; ndims==0 extra PTR;
+                     * ndims>=1 inner ARRAY. Do not invent -3.
+                     * PLATFORM: SHARED parse. G.7: complete this walk.
                      */
                     int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
                     int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
@@ -2727,6 +2730,41 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                             pgek = pipeline_type_kind_ord_at(arena, pelem);
                             extra_ptr = extra_ptr - 1;
                           }
+                        }
+                      } else if (eand >= 1) {
+                        /*
+                         * dest extras dest-SLICE of SLICE extra ARRAY
+                         * `[][][2]T`: leftover after leftover-SLICE
+                         * peel is ARRAY vs eeek=leaf. Inner ARRAY
+                         * dims are dims[0..ndims-1] (wave437 pending
+                         * LBRACKET after `[][]` then `[M]`). Peel
+                         * ARRAY outer-first or T001 if layers run
+                         * out. `[][]i32` (ndims==0) keeps leftover
+                         * vs eeek=leaf. Discriminant vs extra PTR:
+                         * ndims==0 dims[0]; vs extra SLICE:
+                         * ndims==-2. Store already has ndims>=1
+                         * (named / UFCS dest-stamp via the formal).
+                         * Do not invent -3. PLATFORM: SHARED.
+                         * G.7: complete this walk.
+                         */
+                        int32_t d;
+                        for (d = 0; d < eand; d++) {
+                          int32_t gsz;
+                          if (pgek != XLANG_TRAIT_TY_ARRAY || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          gsz = pipeline_type_array_size_at(arena, pelem);
+                          if (gsz != g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][d]) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
                         }
                       }
                       if (pgek >= 0 && pgek != eeek) {
