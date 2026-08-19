@@ -18373,6 +18373,17 @@ int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
   int32_t ai;
   int32_t elem_ref;
   int32_t store_sz;
+  int32_t dest_elem;
+  int32_t dest_ek;
+  int32_t inner;
+  int32_t inner_k;
+  int32_t row_esz;
+  int32_t row_home;
+  int32_t cell_home;
+  int32_t n_inner;
+  int32_t ji;
+  int32_t cell_ref;
+  int32_t row_st;
   if (!arena || !elf_ctx || !ctx || !flat_i || init_ref <= 0 || leaf_esz <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
@@ -18380,6 +18391,68 @@ int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
   n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
+  /*
+   * dest extras dest-ARRAY of ARRAY extra `[K][N][]T`: dest elem is
+   * TYPE_ARRAY of SLICE. Flatten used to write i32 leaves (asg run=1 /
+   * extra SIGSEGV 139). Walk ARRAY-of-ARRAY until SLICE; emit each
+   * nested ARRAY_LIT row via dest-ARRAY let-init. `[K][N]i32` dest
+   * elem is ARRAY of scalar — keep flatten. Do not invent -3.
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+   */
+  dest_elem = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+  if (dest_elem > 0) {
+    dest_ek = pipeline_type_kind_ord_at(arena, dest_elem);
+    if (dest_ek == 10) {
+      inner = pipeline_type_elem_ref_at(arena, dest_elem);
+      inner_k = 0;
+      if (inner > 0)
+        inner_k = pipeline_type_kind_ord_at(arena, inner);
+      /*
+       * Direct elem is TYPE_SLICE (`[N][]T` row of `[K][N][]T`). Do
+       * not call glue_emit_fixed_array here: this seed's vector_let_init
+       * still flattens nested ARRAY_LIT. Reuse
+       * glue_emit_slice_from_array_let_init per cell — same writer as
+       * dest-ARRAY extra `[2][]i32`. PLATFORM: SHARED.
+       */
+      if (inner_k == 11) {
+        row_esz = glue_array_lit_force_esz_from_elem_type_c(arena, dest_elem);
+        if (row_esz <= 0)
+          return -1;
+        for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+          if (elem_ref <= 0)
+            continue;
+          row_home = (ta == 1) ? (stack_slot_off + ai * row_esz)
+                               : (stack_slot_off - ai * row_esz);
+          if (row_home < 0)
+            return -1;
+          if (pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+            n_inner = pipeline_expr_array_lit_num_elems_at(arena, elem_ref);
+            for (ji = 0; ji < n_inner && ji < GLUE_ARRAY_LIT_MAX_ELEMS; ji++) {
+              cell_ref = pipeline_expr_array_lit_elem_ref(arena, elem_ref, ji);
+              if (cell_ref <= 0)
+                continue;
+              cell_home = (ta == 1) ? (row_home + ji * 16)
+                                    : (row_home - ji * 16);
+              if (cell_home < 0)
+                return -1;
+              row_st = glue_emit_slice_from_array_let_init_elf_c(
+                  arena, elf_ctx, 0, 0, cell_ref, inner, ctx, ta, cell_home);
+              if (row_st != 1)
+                return -1;
+            }
+          } else {
+            row_st = glue_emit_fixed_array_type_let_init_elf_c(
+                arena, elf_ctx, elem_ref, ctx, ta, dest_elem, row_home);
+            if (row_st != 0)
+              return -1;
+          }
+        }
+        *flat_i = *flat_i + n_arr;
+        return 0;
+      }
+    }
+  }
   store_sz = leaf_esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
     store_sz = 4;

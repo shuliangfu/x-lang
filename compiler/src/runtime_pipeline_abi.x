@@ -41273,6 +41273,12 @@ export function pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena: *u8, init_ref:
 /**
  * Flatten nested ARRAY_LIT to row-major scalar/struct stores at base+flat_i*leaf_esz.
  * STRUCT_LIT / >8B leaves use in-place glue_emit_struct_type_let_init at arch home.
+ * dest extras dest-ARRAY of ARRAY extra `[K][N][]T`: dest elem is TYPE_ARRAY
+ * of SLICE. Flatten used to write i32 leaves (asg run=1 / extra SIGSEGV 139)
+ * while host-C dest-stamp was already `[2][2][]i32`. Walk dest elem ARRAY
+ * until SLICE; then emit each nested ARRAY_LIT row via dest-ARRAY let-init
+ * (`[N][]T` then hits the etk==11 slice path). `[K][N]i32` dest elem is
+ * ARRAY of scalar — keep flatten. Do not invent -3.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param init_ref i32 - ARRAY_LIT expr ref
@@ -41297,6 +41303,17 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
   let may_clobber: i32 = 0;
   let rc: i32 = 0;
   let fi: i32 = 0;
+  let dest_elem: i32 = 0;
+  let dest_ek: i32 = 0;
+  let inner: i32 = 0;
+  let inner_k: i32 = 0;
+  let row_esz: i32 = 0;
+  let row_home: i32 = 0;
+  let cell_home: i32 = 0;
+  let n_inner: i32 = 0;
+  let ji: i32 = 0;
+  let cell_ref: i32 = 0;
+  let row_st: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || flat_i == (0 as *i32) || init_ref <= 0 || leaf_esz <= 0) {
     return 0 - 1;
   }
@@ -41311,6 +41328,102 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
   }
   if (n_arr < 0 || n_arr > 1024) {
     return 0 - 1;
+  }
+  /*
+   * dest extras dest-ARRAY of ARRAY extra `[2][2][]T`: dest elem of
+   * this ARRAY_LIT is `[2][]i32` (TYPE_ARRAY of SLICE). Flatten would
+   * peel to i32 leaves. Per-row dest-ARRAY let-init writes slice fat.
+   * Walk ARRAY-of-ARRAY until SLICE so `[2][2][2][]T` is the same
+   * produce. `[2][2]i32` dest elem is ARRAY of i32 — skip.
+   * PLATFORM: SHARED freestanding.
+   */
+  dest_elem = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+  if (dest_elem > 0) {
+    unsafe {
+      dest_ek = pipeline_type_kind_ord_at(arena, dest_elem);
+    }
+    if (dest_ek == 10) {
+      unsafe {
+        inner = pipeline_type_elem_ref_at(arena, dest_elem);
+      }
+      if (inner > 0) {
+        unsafe {
+          inner_k = pipeline_type_kind_ord_at(arena, inner);
+        }
+      }
+      /*
+       * Direct elem is TYPE_SLICE (`[N][]T` row of `[K][N][]T`). Do
+       * not call glue_emit_fixed_array here: seed vector_let_init
+       * still flattens nested ARRAY_LIT (etk!=11 lives only in the
+       * .x twin). Reuse glue_emit_slice_from_array_let_init per
+       * cell — same writer as dest-ARRAY extra `[2][]i32`.
+       * PLATFORM: SHARED freestanding.
+       */
+      if (inner_k == 11) {
+        row_esz = glue_array_lit_force_esz_from_elem_type_c(arena, dest_elem);
+        if (row_esz <= 0) {
+          return 0 - 1;
+        }
+        ai = 0;
+        while (ai < n_arr && ai < 1024) {
+          unsafe {
+            elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+            ko = pipeline_expr_kind_ord_at(arena, elem_ref);
+          }
+          if (elem_ref > 0) {
+            if (ta == 1) {
+              row_home = stack_slot_off + ai * row_esz;
+            } else {
+              row_home = stack_slot_off - ai * row_esz;
+            }
+            if (row_home < 0) {
+              return 0 - 1;
+            }
+            if (ko == 46) {
+              unsafe {
+                n_inner = pipeline_expr_array_lit_num_elems_at(arena, elem_ref);
+              }
+              ji = 0;
+              while (ji < n_inner && ji < 1024) {
+                unsafe {
+                  cell_ref = pipeline_expr_array_lit_elem_ref(arena, elem_ref, ji);
+                }
+                if (cell_ref > 0) {
+                  if (ta == 1) {
+                    cell_home = row_home + ji * 16;
+                  } else {
+                    cell_home = row_home - ji * 16;
+                  }
+                  if (cell_home < 0) {
+                    return 0 - 1;
+                  }
+                  row_st = glue_emit_slice_from_array_let_init_elf_c(
+                      arena, elf_ctx, 0, 0, cell_ref, inner, ctx, ta, cell_home);
+                  if (row_st != 1) {
+                    return 0 - 1;
+                  }
+                }
+                ji = ji + 1;
+              }
+            } else {
+              unsafe {
+                row_st = glue_emit_fixed_array_type_let_init_elf_c(
+                    arena, elf_ctx, elem_ref, ctx, ta, dest_elem, row_home);
+              }
+              if (row_st != 0) {
+                return 0 - 1;
+              }
+            }
+          }
+          ai = ai + 1;
+        }
+        unsafe {
+          fi = flat_i[0];
+          flat_i[0] = fi + n_arr;
+        }
+        return 0;
+      }
+    }
   }
   store_sz = leaf_esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {
