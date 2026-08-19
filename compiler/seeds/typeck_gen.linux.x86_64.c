@@ -11593,7 +11593,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           }
           /* PTR-to-ARRAY (`*[2]i32`): ret_elem=10 + elem_elem + elem_array
            * wrap then wrap ptr. Sit-red host-C void-cast. Pin twin of
-           * typeck.x. PLATFORM: SHARED. */
+           * typeck.x. NAMED leaf of `*[N]Pair` below via ret_name.
+           * PLATFORM: SHARED. */
           if (((dyn_ret_ty == 0) && (dyn_rek3 == 10))) {
             int32_t dyn_reek = xlang_skip_trait_method_ret_elem_elem_kind_c(
                     &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
@@ -11601,6 +11602,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
             if (((((dyn_reek >= 0) && (dyn_reek != 8)) && (dyn_reek != 9))
                     && ((dyn_reek != 10) && ((dyn_reek != 11) && (dyn_reek != 13))))) {
               (void)((dyn_ralf = pipeline_type_ensure_by_kind_ord(arena, dyn_reek)));
+            }
+            /* dest ret PTR-to-ARRAY NAMED leaf (`*[2]Pair`). Pin twin. */
+            if (((dyn_ralf == 0) && (dyn_reek == 8))) {
+              uint8_t dyn_ranm[64] = {};
+              int32_t dyn_ranl = xlang_skip_trait_method_ret_name_into_c(
+                      &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                      &((dyn_ranm)[0]));
+              if ((dyn_ranl > 0)) {
+                dyn_ralf = typeck_find_or_alloc_named_type_ref(arena,
+                        &((dyn_ranm)[0]), dyn_ranl);
+              }
             }
             if ((dyn_ralf > 0)) {
               int32_t dyn_rend = xlang_skip_trait_method_ret_elem_array_ndims_c(

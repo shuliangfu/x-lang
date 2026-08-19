@@ -14401,8 +14401,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * (void)call`). Registry ret_elem_elem_kind + ret_elem_array
            * ndims/dims already hold the ARRAY leaf (`[2]i32`). G.7: wrap
            * ARRAY inner-first then wrap ptr (no second resolve). emit_type
-           * already emits abstract `E (*)[N]` for PTR-to-ARRAY. NAMED leaf
-           * of `*[N]Pair` leftover. PLATFORM: SHARED.
+           * peels PTR-to-ARRAY to first-element `E *` before a function
+           * name; dest let still uses `E (*name)[N]`. NAMED leaf of
+           * `*[N]Pair` is handled below via ret_name. PLATFORM: SHARED.
            */
           if (dyn_ret_ty == 0 && dyn_rek3 == 10) {
             let dyn_reek: i32 = xlang_skip_trait_method_ret_elem_elem_kind_c(
@@ -14411,6 +14412,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             if (dyn_reek >= 0 && dyn_reek != 8 && dyn_reek != 9 && dyn_reek != 10
                 && dyn_reek != 11 && dyn_reek != 13) {
               dyn_ralf = pipeline_type_ensure_by_kind_ord(arena, dyn_reek);
+            }
+            /*
+             * dest ret PTR-to-ARRAY NAMED leaf (`*[2]Pair`): scalar
+             * PTR-to-ARRAY skips elem_elem kind 8 so dyn_ret_ty stays 0
+             * and the call-site is `(void(*)(void*))`. Ubuntu gcc then
+             * rejects dest-cast of a void expression; mac clang
+             * false-greens run=7. Registry ret_name already holds the
+             * leaf (`Pair`) + ret_elem_array ndims/dims. G.7: wrap named
+             * into dyn_ralf then the existing ARRAY wrap + wrap ptr (no
+             * second dest-ret resolve). PLATFORM: SHARED.
+             */
+            if (dyn_ralf == 0 && dyn_reek == 8) {
+              let dyn_ranm: u8[64] = [];
+              let dyn_ranl: i32 = xlang_skip_trait_method_ret_name_into_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, &dyn_ranm[0]);
+              if (dyn_ranl > 0) {
+                dyn_ralf = find_or_alloc_named_type_ref(arena, &dyn_ranm[0], dyn_ranl);
+              }
             }
             if (dyn_ralf > 0) {
               let dyn_rend: i32 = xlang_skip_trait_method_ret_elem_array_ndims_c(
