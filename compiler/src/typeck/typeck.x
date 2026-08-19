@@ -14482,9 +14482,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * Sit-red: dyn x.sums([2,4]) asm=1 / host-C=139; named local=7.
            * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem plus
            * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`) plus PTR
-           * elem (`[]*i32`) plus SLICE elem (`[][]i32`). Remaining leftover:
-           * VECTOR / dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) / dest-SLICE
-           * of SLICE-of-SLICE (`[][][]T`).
+           * elem (`[]*i32`) plus PTR-to-ARRAY elem (`[]*[N]T`) plus SLICE
+           * elem (`[][]i32`). Remaining leftover: VECTOR / dest-SLICE-of-PTR
+           * SLICE leaf (`[]*[]T`) / dest-SLICE of SLICE-of-SLICE (`[][][]T`).
            * PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 11) {
@@ -14638,12 +14638,43 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   dyn_splf = find_or_alloc_named_type_ref(arena, &dyn_spnm[0], dyn_spnl);
                 }
               }
+              /*
+               * dest-SLICE-of-PTR ARRAY leaf (`p: []*[2]i32`): skip-trait
+               * after `[]*` then `[` stores eek=leaf + elem_array_ndims
+               * (elem_kind stays PTR). Scalar dest-SLICE-of-PTR wrapped
+               * ptr-of-leaf so dest was `[]*i32` (typeck expected *i32,
+               * found *[2]i32). Named extra dest-stamps via the formal;
+               * host-C BLD001 of `int32_t *` / `xlang_arr2_int32_t` is
+               * the emit twin (layout + ARRAY_LIT). G.7: wrap ARRAY via
+               * elem_array_ndims then the existing wrap ptr + wrap slice
+               * (no second dest-SLICE stamp). ndims==0 keeps ptr-of-leaf
+               * (`[]*i32`). PLATFORM: SHARED.
+               */
               if (dyn_splf > 0) {
-                let dyn_spty: i32 = find_or_alloc_ptr_type_ref(arena, dyn_splf);
-                if (dyn_spty > 0) {
-                  let dyn_spsty: i32 = find_or_alloc_slice_type_ref(arena, dyn_spty);
-                  if (dyn_spsty > 0) {
-                    typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_spsty);
+                let dyn_spand: i32 = xlang_skip_trait_method_param_elem_array_ndims_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+                let dyn_spaw: i32 = dyn_splf;
+                if (dyn_spand >= 1) {
+                  let dyn_spai: i32 = dyn_spand - 1;
+                  while (dyn_spai >= 0 && dyn_spaw > 0) {
+                    let dyn_spad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                            dyn_spai);
+                    if (dyn_spad > 0) {
+                      dyn_spaw = find_or_alloc_array_type_ref(arena, dyn_spaw, dyn_spad);
+                    } else {
+                      dyn_spaw = 0;
+                    }
+                    dyn_spai = dyn_spai - 1;
+                  }
+                }
+                if (dyn_spaw > 0) {
+                  let dyn_spty: i32 = find_or_alloc_ptr_type_ref(arena, dyn_spaw);
+                  if (dyn_spty > 0) {
+                    let dyn_spsty: i32 = find_or_alloc_slice_type_ref(arena, dyn_spty);
+                    if (dyn_spsty > 0) {
+                      typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_spsty);
+                    }
                   }
                 }
               }
@@ -14658,8 +14689,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * reuse typeck_coerce_init_expr_to_decl so dest-SLICE + nested
              * ARRAY_LIT elems stamp together (no second dest-SLICE stamp).
              * NAMED leaf of `[][]Pair` is handled below via param_name.
-             * dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) is a different
-             * leftover (dyn_spek==10 still skipped). PLATFORM: SHARED.
+             * dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) is handled above
+             * via elem_array_ndims (eek is the leaf, not 10).
+             * PLATFORM: SHARED.
              */
             if (dyn_eek == 11) {
               let dyn_ssek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(

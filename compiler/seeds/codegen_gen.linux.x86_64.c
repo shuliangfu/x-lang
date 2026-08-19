@@ -12842,6 +12842,34 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((codegen_emit_bytes_from_ptr(out, &((nc_open)[0]), 10) !=0)) {
           return -1;
         }
+        /* dest-SLICE of PTR-to-ARRAY: `E (*__xlang_al[n])[N]`. Pin twin. */
+        if ((!(ast_ref_is_null(elem_type_ref)) && (codegen_type_is(arena, elem_type_ref) !=0))) {
+          int32_t pal_arr = pipeline_type_elem_ref_at(arena, elem_type_ref);
+          if ((codegen_emit_local_fixed_array_elem_type(arena, out, pal_arr, ctx) !=0)) {
+            uint8_t fb_pal[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, &((fb_pal)[0]), 7) !=0)) {
+              return -1;
+            }
+          }
+          uint8_t pal_h[16] = {32, 40, 42, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((pal_h)[0]), 14) !=0)) {
+            return -1;
+          }
+          if ((codegen_format_int(out, n) !=0)) {
+            return -1;
+          }
+          uint8_t pal_t[4] = {93, 41, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((pal_t)[0]), 2) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_local_fixed_array_suffix(arena, out, pal_arr) !=0)) {
+            return -1;
+          }
+          uint8_t pal_sc[4] = {59, 32, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((pal_sc)[0]), 2) !=0)) {
+            return -1;
+          }
+        } else {
         if ((!(ast_ref_is_null(elem_type_ref)) && (codegen_emit_type(arena, out, elem_type_ref, 0, 0, ctx) !=0))) {
           uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
           if ((codegen_emit_bytes_9(out, &((fallback)[0]), 7) !=0)) {
@@ -12858,6 +12886,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         uint8_t nc_sz_end[4] = {93, 59, 32, 0};
         if ((codegen_emit_bytes_from_ptr(out, &((nc_sz_end)[0]), 3) !=0)) {
           return -1;
+        }
         }
         int32_t ai_nc = 0;
         while ((ai_nc < n)) {

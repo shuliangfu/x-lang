@@ -9580,23 +9580,38 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
                 return -1;
               }
             } else {
-              /* PTR elem: type_to_c_repr(*T) is `E *`; plus ` *data` → `E **data`. */
-              let ptr_eb: u8[896] = [];
-              let ptr_nl: i32 = type_to_c_repr(arena, &ptr_eb[0], 896, elem, pfx_use, pfx_len_use);
-              if (ptr_nl <= 0) {
-                return -1;
-              }
-              let ptr_i: i32 = 0;
-              while (ptr_i < ptr_nl) {
-                if (append_byte_u8(out, ptr_eb[ptr_i]) != 0) {
+              /*
+               * PTR elem: type_to_c_repr(*T) is `E *`; plus ` *data` → `E **data`.
+               * PTR-to-ARRAY (`[]*[N]T`): type_to_c_repr(*[N]T) is the ARRAY
+               * tag (`xlang_arrN_E *`) which is not a C type (sit-red
+               * `unknown type name 'xlang_arr2_int32_t'`). G.7: reuse
+               * emit_c_ptr_to_fixed_array_decl with name `(*data)` →
+               * `E (*(*data))[N]`. Scalar `[]*T` stays `E **data`.
+               * PLATFORM: SHARED host-C.
+               */
+              if (type_is_ptr_to_fixed_array(arena, elem) != 0) {
+                let ptr_arr_nm: u8[10] = [40, 42, 100, 97, 116, 97, 41, 0, 0, 0];
+                if (emit_c_ptr_to_fixed_array_decl(arena, out, elem, &ptr_arr_nm[0], 7, ctx) != 0) {
                   return -1;
                 }
-                ptr_i = ptr_i + 1;
-              }
-              /* " *data" */
-              let ptr_dcl: u8[8] = [32, 42, 100, 97, 116, 97, 0, 0];
-              if (emit_bytes_from_ptr(out, &ptr_dcl[0], 6) != 0) {
-                return -1;
+              } else {
+                let ptr_eb: u8[896] = [];
+                let ptr_nl: i32 = type_to_c_repr(arena, &ptr_eb[0], 896, elem, pfx_use, pfx_len_use);
+                if (ptr_nl <= 0) {
+                  return -1;
+                }
+                let ptr_i: i32 = 0;
+                while (ptr_i < ptr_nl) {
+                  if (append_byte_u8(out, ptr_eb[ptr_i]) != 0) {
+                    return -1;
+                  }
+                  ptr_i = ptr_i + 1;
+                }
+                /* " *data" */
+                let ptr_dcl: u8[8] = [32, 42, 100, 97, 116, 97, 0, 0];
+                if (emit_bytes_from_ptr(out, &ptr_dcl[0], 6) != 0) {
+                  return -1;
+                }
               }
             }
             /* "; size_t length; };\n" */
@@ -15497,24 +15512,64 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (emit_bytes_from_ptr(out, &nc_open[0], 10) != 0) {
           return -1;
         }
-        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
-          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
-          if (emit_bytes_9(out, &fallback[0], 7) != 0) {
+        /*
+         * dest-SLICE of PTR-to-ARRAY (`[]*[N]T`): emit_type peels
+         * `*[N]T` to first-element `E *` so the buffer was
+         * `static int32_t * __xlang_al[1]; al[0]=&(row)` (sit-red
+         * incompatible-pointer-types vs `int32_t (*)[2]`). G.7: same
+         * declarator as emit_c_ptr_to_fixed_array_decl —
+         * `E (*__xlang_al[n])[N]`. Scalar `[]*T` stays `E * al[n]`.
+         * PLATFORM: SHARED host-C.
+         */
+        if (!ast.ref_is_null(elem_type_ref) && type_is_ptr_to_fixed_array(arena, elem_type_ref) != 0) {
+          let pal_arr: i32 = pipeline_type_elem_ref_at(arena, elem_type_ref);
+          if (emit_local_fixed_array_elem_type(arena, out, pal_arr, ctx) != 0) {
+            let fb_pal: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, &fb_pal[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  (*__xlang_al[ */
+          let pal_h: u8[16] = [32, 40, 42, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0];
+          if (emit_bytes_from_ptr(out, &pal_h[0], 14) != 0) {
             return -1;
           }
-        }
-        /*  __xlang_al[ */
-        let nc_al_br: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0];
-        if (emit_bytes_from_ptr(out, &nc_al_br[0], 12) != 0) {
-          return -1;
-        }
-        if (format_int(out, n) != 0) {
-          return -1;
-        }
-        /* ];  */
-        let nc_sz_end: u8[4] = [93, 59, 32, 0];
-        if (emit_bytes_from_ptr(out, &nc_sz_end[0], 3) != 0) {
-          return -1;
+          if (format_int(out, n) != 0) {
+            return -1;
+          }
+          /* ]) */
+          let pal_t: u8[4] = [93, 41, 0, 0];
+          if (emit_bytes_from_ptr(out, &pal_t[0], 2) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_suffix(arena, out, pal_arr) != 0) {
+            return -1;
+          }
+          /* ;  */
+          let pal_sc: u8[4] = [59, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &pal_sc[0], 2) != 0) {
+            return -1;
+          }
+        } else {
+          if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, &fallback[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  __xlang_al[ */
+          let nc_al_br: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_al_br[0], 12) != 0) {
+            return -1;
+          }
+          if (format_int(out, n) != 0) {
+            return -1;
+          }
+          /* ];  */
+          let nc_sz_end: u8[4] = [93, 59, 32, 0];
+          if (emit_bytes_from_ptr(out, &nc_sz_end[0], 3) != 0) {
+            return -1;
+          }
         }
         let ai_nc: i32 = 0;
         while (ai_nc < n) {
