@@ -171,6 +171,72 @@ static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *so
   return n[0] == 100 && n[1] == 121 && n[2] == 110; /* d y n */
 }
 
+/*
+ * Skip-trait registry: defined in parser_asm_skip_tl_slice.inc (same product
+ * TU, later include). pthin_type_ref hybrid resolves it from skip_tl glue.
+ * PLATFORM: SHARED parse.
+ */
+extern int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen);
+
+/**
+ * Allocate TYPE_DYN wrapping `inner_tr`. If inner is already TYPE_DYN,
+ * return it (so `dyn Trait` after implicit trait-name wrap is not a
+ * nested fat). Copies the trait name from a TYPE_NAMED inner for
+ * diagnostics / F2 impl lookup. G.7: single TYPE_DYN allocator for the
+ * `dyn` prefix peel and implicit trait-name wrap.
+ * @param arena void* — AST arena
+ * @param inner_tr i32 — inner type_ref (trait NAMED, or already DYN)
+ * @return i32 — TYPE_DYN type_ref, or inner_tr on alloc failure
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_alloc_dyn_type_ref_c(void *arena, int32_t inner_tr) {
+  struct ast_Type td;
+  struct ast_Type ti;
+  int32_t dyn_tr;
+  int32_t ni;
+  if (!arena || inner_tr <= 0)
+    return inner_tr;
+  ti = ast_arena_type_get(arena, inner_tr);
+  if ((int32_t)ti.kind == PARSER_ASM_TYPE_DYN)
+    return inner_tr;
+  dyn_tr = ast_ast_arena_type_alloc(arena);
+  if (dyn_tr == 0)
+    return inner_tr;
+  td = ast_arena_type_get(arena, dyn_tr);
+  td.kind = PARSER_ASM_TYPE_DYN;
+  td.elem_type_ref = inner_tr;
+  td.array_size = 0;
+  td.region_label_len = 0;
+  td.name_len = 0;
+  if ((int32_t)ti.kind == PARSER_ASM_TYPE_NAMED && ti.name_len > 0 && ti.name_len < 128) {
+    for (ni = 0; ni < ti.name_len; ni++)
+      td.name[ni] = ti.name[ni];
+    td.name_len = ti.name_len;
+  }
+  ast_arena_type_set(arena, dyn_tr, td);
+  return dyn_tr;
+}
+
+/**
+ * If `named_tr` is TYPE_NAMED of a registered trait, wrap TYPE_DYN
+ * (same fat as `dyn Trait`). Struct/alias names stay TYPE_NAMED.
+ * @param arena void* — AST arena
+ * @param named_tr i32 — candidate type_ref
+ * @return i32 — TYPE_DYN or the original ref
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_wrap_registered_trait_as_dyn_c(void *arena, int32_t named_tr) {
+  struct ast_Type ti;
+  if (!arena || named_tr <= 0)
+    return named_tr;
+  ti = ast_arena_type_get(arena, named_tr);
+  if ((int32_t)ti.kind != PARSER_ASM_TYPE_NAMED || ti.name_len <= 0)
+    return named_tr;
+  if (xlang_skip_trait_is_registered_c(ti.name, ti.name_len) == 0)
+    return named_tr;
+  return parser_asm_alloc_dyn_type_ref_c(arena, named_tr);
+}
+
 /**
  * Token that may start a type after a peeled `dyn` / `impl` prefix.
  * PLATFORM: SHARED type grammar.
@@ -554,7 +620,13 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
    *   - `dyn Trait` → TYPE_DYN (ord 17) wrapping the trait type_ref (elem).
    *     Host-C emits `struct xlang_dyn_obj` fat {data*, vtable*} — not
    *     incomplete `struct Trait` (empty-struct paint ban).
-   *   - `impl Trait` stays peeled TYPE_NAMED trait (static path; not fat).
+   *   - Bare trait name `Trait` in type position is the same TYPE_DYN
+   *     (implicit wrap; skip-trait registry). `dyn Trait` stays valid:
+   *     IDENT wrap runs first, peel sees already-DYN inner and returns it
+   *     (no nested fat). G.7 complete this type_ref (no second dyn kind).
+   *   - `impl Trait` stays peeled TYPE_NAMED trait (static path; not fat)
+   *     unless the inner IDENT is a registered trait (then implicit DYN,
+   *     same as bare `Trait`).
    *   - Bare `dyn` (no following type) stays TYPE_NAMED "dyn".
    * Vtable dispatch / concrete→dyn coerce = later leaves.
    * PLATFORM: SHARED type grammar.
@@ -562,33 +634,14 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   if (parser_asm_type_ref_ident_is_dyn_c(source, &r)) {
     struct parser_asm_lexer_result peek_pref;
     int32_t inner_tr;
-    int32_t dyn_tr;
-    struct ast_Type td;
-    struct ast_Type ti;
-    int32_t ni;
     lexer_next_into(&peek_pref, r.next_lex, source);
     if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind)) {
       inner_tr = parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
       if (inner_tr == 0)
         return 0;
-      dyn_tr = ast_ast_arena_type_alloc(arena);
-      if (dyn_tr == 0)
-        return 0;
-      td = ast_arena_type_get(arena, dyn_tr);
-      td.kind = PARSER_ASM_TYPE_DYN;
-      td.elem_type_ref = inner_tr;
-      td.array_size = 0;
-      td.region_label_len = 0;
-      td.name_len = 0;
-      /* Carry trait name for diagnostics; layout is fat, not the trait body. */
-      ti = ast_arena_type_get(arena, inner_tr);
-      if ((int32_t)ti.kind == PARSER_ASM_TYPE_NAMED && ti.name_len > 0 && ti.name_len < 128) {
-        for (ni = 0; ni < ti.name_len; ni++)
-          td.name[ni] = ti.name[ni];
-        td.name_len = ti.name_len;
-      }
-      ast_arena_type_set(arena, dyn_tr, td);
-      return dyn_tr;
+      /* G.7: single TYPE_DYN allocator (implicit trait-name wrap may
+       * already have produced DYN; do not nest). PLATFORM: SHARED. */
+      return parser_asm_alloc_dyn_type_ref_c(arena, inner_tr);
     }
   }
   if (r.tok.kind == (int32_t)TOKEN_IMPL) {
@@ -884,6 +937,14 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       }
       /* If next was not `<`, leave lex unadvanced so postfix sees `[` / end. */
     }
+    /*
+     * Bare trait name in type position (`let x: Clone = a`) is TYPE_DYN
+     * without writing `dyn`. Registered skip-trait names wrap the same
+     * fat as `dyn Trait`. Struct / alias IDENT stays TYPE_NAMED.
+     * Wrap after `<T>` so generic `Wrap<i32>` is not treated as a trait.
+     * PLATFORM: SHARED type grammar. G.7 complete this IDENT path.
+     */
+    type_ref_param = parser_asm_wrap_registered_trait_as_dyn_c(arena, type_ref_param);
     return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_param, lex, source, out_lex);
   }
   parser_asm_write_out_lex_c(out_lex, lex);

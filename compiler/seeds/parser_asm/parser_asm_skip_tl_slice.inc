@@ -1336,6 +1336,23 @@ static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trai
 }
 
 /**
+ * True when `trait_nm` is a registered trait (skip-trait table).
+ * G.7: thin public wrapper over xlang_skip_trait_find_reg_c so type_ref
+ * can treat a bare trait name as TYPE_DYN without a second lookup table.
+ * `xlang_skip_trait_method_count_c` returns 0 for both "missing" and
+ * "empty trait", so it cannot be this predicate.
+ * @param trait_nm *u8 — trait name bytes; null rejected
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @return i32 — 1 if registered, 0 otherwise
+ * PLATFORM: SHARED parse.
+ */
+int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  if (xlang_skip_trait_find_reg_c(trait_nm, trait_nlen) >= 0)
+    return 1;
+  return 0;
+}
+
+/**
  * Resolve a method name to its vtable slot index within a trait.
  * Slot = declaration order (0-based) in the trait body.
  * @param trait_nm    trait name bytes; must be non-null.
