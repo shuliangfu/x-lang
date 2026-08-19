@@ -3122,6 +3122,8 @@ ensure_pipeline_abi_prefer_one() {
       # Still inject thin leaves (small -E) when present.
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
+      # on every up-to-date g05 stacks static inner copies.
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
@@ -3132,7 +3134,8 @@ ensure_pipeline_abi_prefer_one() {
       || [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; }; then
       log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
-      pipeline_abi_inject_fixed_array_copy_thin "$o" || return 1
+      pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_type_to_c_repr_thin "$o" || return 1
       return 0
     fi
   fi
@@ -3176,6 +3179,7 @@ ensure_pipeline_abi_prefer_one() {
     # (same body as mega pure leave) and first-wins ld -r over weak pure.
     pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     return 0
   fi
 
@@ -3190,6 +3194,7 @@ ensure_pipeline_abi_prefer_one() {
     log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
     pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     return 0
   fi
   if ! ensure_one "$o" "$seed" $cold_flags; then
@@ -3203,6 +3208,7 @@ ensure_pipeline_abi_prefer_one() {
   fi
   pipeline_abi_inject_reent_deep_copy_thin "$o" || true
   pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+  pipeline_abi_inject_type_to_c_repr_thin "$o" || true
   return 0
 }
 
@@ -3263,6 +3269,62 @@ pipeline_abi_inject_reent_deep_copy_thin() {
 # dest-ARRAY [K][N]T memcpy / return Path B0 row stride inject.
 pipeline_abi_inject_fixed_array_copy_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fixed_array_copy_thin.x" "arrcopy-thin"
+}
+
+# host-C type_to_c_repr SLICE `*`→`_p` sanitizer. Product hybrid keeps this
+# symbol in the mega leftover (seed body is #ifndef FROM_X). inject-only
+# skips full mega -E, so extract the marked seed body, weaken the existing
+# strong symbol, first-wins ld -r. G.7: one C body (markers in from_x.c).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_type_to_c_repr_thin() {
+  local o="$1"
+  local seed="seeds/runtime_pipeline_abi.from_x.c"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$seed" ]; then
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_ttc.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ttc.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ttc_base.XXXXXX.o")"
+  if ! awk '
+    /XLANG_PABI_TYPE_TO_C_REPR_THIN_BEGIN/ {p=1; next}
+    /XLANG_PABI_TYPE_TO_C_REPR_THIN_END/ {p=0; next}
+    p {print}
+  ' "$seed" >"$gen_c" || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi ttc-thin inject: extract failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--Wall -I. -Iinclude -Isrc} -Wno-unused -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi ttc-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    "$oc" --weaken-symbol=_pipeline_codegen_type_to_c_repr "$base_o" 2>/dev/null \
+      || "$oc" --weaken-symbol=pipeline_codegen_type_to_c_repr "$base_o" 2>/dev/null \
+      || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi ttc-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi ttc-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
 }
 
 try_ensure_pipeline_abi_prefer_one() {

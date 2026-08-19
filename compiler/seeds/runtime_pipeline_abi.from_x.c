@@ -5990,11 +5990,17 @@ int32_t pipeline_codegen_type_kind_append(uint8_t *scratch, int32_t cap, int32_t
   return w;
 }
 
+/* Product hybrid injects this body (seed is under FROM_X exclude).
+ * G.7: single C body; do not fork a second type_to_c_repr. */
+/* XLANG_PABI_TYPE_TO_C_REPR_THIN_BEGIN */
+#include <stdint.h>
 extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_arena_num_types(void *arena);
+extern int32_t pipeline_codegen_vector_type_copy(uint8_t *scratch, int32_t cap, int32_t elem_kind, int32_t arr_sz);
+extern int32_t pipeline_codegen_type_kind_copy(uint8_t *scratch, int32_t cap, int32_t tk);
 
 static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scratch, int32_t cap, int32_t type_ref,
                                                      uint8_t *struct_prefix, int32_t struct_prefix_len) {
@@ -6149,18 +6155,46 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
         sp++;
     }
     plen = n - sp;
-    if (plen <= 0 || 19 + plen >= cap)
+    if (plen <= 0 || 19 + plen + plen >= cap)
       return -1;
     {
       static const uint8_t hdr[19] = {'s', 't', 'r', 'u', 'c', 't', ' ', 'x', 'l', 'a', 'n', 'g', '_', 's', 'l', 'i', 'c', 'e', '_'};
-      if (19 + plen >= cap)
+      if (19 + plen + plen >= cap)
         return -1;
       for (hi = 0; hi < 19; hi++)
         scratch[hi] = hdr[hi];
     }
-    for (pi = 0; pi < plen; pi++)
-      scratch[19 + pi] = eb[sp + pi];
-    return 19 + plen;
+    /* Sanitize like TYPE_ARRAY: `*` → `_p`; keep alnum/_; skip space/brackets.
+     * Prior raw copy made []*i32 → `struct xlang_slice_int32_t *` (pointer,
+     * not a tag). PLATFORM: SHARED host-C cold twin. */
+    w = 19;
+    for (pi = 0; pi < plen; pi++) {
+      uint8_t ch = eb[sp + pi];
+      if (ch == (uint8_t)'*') {
+        if (w + 2 >= cap)
+          return -1;
+        scratch[w++] = (uint8_t)'_';
+        scratch[w++] = (uint8_t)'p';
+      } else {
+        int32_t keep = 0;
+        if (ch >= (uint8_t)'0' && ch <= (uint8_t)'9')
+          keep = 1;
+        if (ch >= (uint8_t)'A' && ch <= (uint8_t)'Z')
+          keep = 1;
+        if (ch >= (uint8_t)'a' && ch <= (uint8_t)'z')
+          keep = 1;
+        if (ch == (uint8_t)'_')
+          keep = 1;
+        if (keep) {
+          if (w >= cap)
+            return -1;
+          scratch[w++] = ch;
+        }
+      }
+    }
+    if (w <= 19)
+      return -1;
+    return w;
   }
   name_len = pipeline_type_named_name_into(arena, type_ref, nm);
   if (tk == 8 && name_len > 0) {
@@ -6221,6 +6255,7 @@ int32_t pipeline_codegen_type_to_c_repr(void *arena, uint8_t *scratch, int32_t c
                                         uint8_t *struct_prefix, int32_t struct_prefix_len) {
   return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, type_ref, struct_prefix, struct_prefix_len);
 }
+/* XLANG_PABI_TYPE_TO_C_REPR_THIN_END */
 
 
 

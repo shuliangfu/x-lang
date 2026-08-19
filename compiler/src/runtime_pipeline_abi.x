@@ -15346,7 +15346,14 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   if (tk == 17) {
     return cg_ttc_write_bytes(scratch, cap, "struct xlang_dyn_obj", 20);
   }
-  // TYPE_SLICE (11): struct xlang_slice_<elemC> (strip leading "struct ")
+  // TYPE_SLICE (11): `struct xlang_slice_<elemTag>`.
+  // Strip leading "struct " then sanitize like TYPE_ARRAY: keep [A-Za-z0-9_],
+  // map `*` → `_p`, skip spaces / brackets. Prior raw copy made `[]*i32` →
+  // `struct xlang_slice_int32_t *` (a pointer type, not a tag) so locals
+  // `T * p = { .data, .length }` and params `(p)->data` failed host-C.
+  // Named local / UFCS / dyn extra all sit-red on this tag. ARRAY already
+  // sanitizes; complete the same authority. Layout companion for PTR elems
+  // is codegen_emit_slice_of_fixed_array_layouts. PLATFORM: SHARED host-C.
   if (tk == 11 && elem_ref > 0) {
     let n: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 896, elem_ref, struct_prefix, struct_prefix_len);
     if (n < 0 || n >= 896) {
@@ -15375,7 +15382,8 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
       }
     }
     let plen: i32 = n - sp;
-    if (plen <= 0 || 19 + plen >= cap) {
+    // `*` → `_p` can grow; 19 + 2*plen is a conservative cap.
+    if (plen <= 0 || 19 + plen + plen >= cap) {
       return -1;
     }
     // "struct xlang_slice_" = 19 bytes
@@ -15387,14 +15395,52 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
       }
       hi = hi + 1;
     }
-    let pi: i32 = 0;
-    while (pi < plen) {
+    let w_sl: i32 = 19;
+    let pi_sl: i32 = 0;
+    while (pi_sl < plen) {
+      let ch_sl: u8 = 0;
       unsafe {
-        scratch[19 + pi] = eb[sp + pi];
+        ch_sl = eb[sp + pi_sl];
       }
-      pi = pi + 1;
+      if (ch_sl == 42) {
+        if (w_sl + 2 >= cap) {
+          return -1;
+        }
+        unsafe {
+          scratch[w_sl] = 95;
+          scratch[w_sl + 1] = 112;
+        }
+        w_sl = w_sl + 2;
+      } else {
+        let keep_sl: i32 = 0;
+        if (ch_sl >= 48 && ch_sl <= 57) {
+          keep_sl = 1;
+        }
+        if (ch_sl >= 65 && ch_sl <= 90) {
+          keep_sl = 1;
+        }
+        if (ch_sl >= 97 && ch_sl <= 122) {
+          keep_sl = 1;
+        }
+        if (ch_sl == 95) {
+          keep_sl = 1;
+        }
+        if (keep_sl != 0) {
+          if (w_sl >= cap) {
+            return -1;
+          }
+          unsafe {
+            scratch[w_sl] = ch_sl;
+          }
+          w_sl = w_sl + 1;
+        }
+      }
+      pi_sl = pi_sl + 1;
     }
-    return 19 + plen;
+    if (w_sl <= 19) {
+      return -1;
+    }
+    return w_sl;
   }
   // TYPE_NAMED (8) or named short ints / struct tags
   let name_len: i32 = 0;

@@ -9475,10 +9475,13 @@ function emit_file_scope_dest_slice_array_lit(
 }
 
 /**
- * Host-C: emit `struct xlang_slice_xlang_arrN_<elem> { E (*data)[N]…; size_t length; }`
- * for every TYPE_SLICE whose element is TYPE_ARRAY. Tag matches
- * pipeline_codegen_type_to_c_repr (no decay). Reuses emit_local_fixed_array_*
- * so `data` is `E (*)[N]` and INDEX `(x).data[i][j]` needs no consume patch.
+ * Host-C: emit fat layouts for TYPE_SLICE whose element is TYPE_ARRAY or
+ * TYPE_PTR. ARRAY: `struct xlang_slice_xlang_arrN_<elem> { E (*data)[N]…; }`.
+ * PTR: `struct xlang_slice_<elem>_p { E **data; size_t length; }` so the
+ * sanitized type_to_c_repr tag (`*` → `_p`) has a matching complete type.
+ * Sit-red `[]*i32`: tag was `struct xlang_slice_int32_t *` (pointer, not a
+ * tag) and no `{ E **data }` companion. G.7: complete this walker (do not
+ * invent a second slice-of-PTR emitter). Tag matches type_to_c_repr.
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
  * @param ctx *PipelineDepCtx — optional prefix for NAMED leaves
@@ -9506,8 +9509,11 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
     while (ti <= nt) {
       if (pipeline_type_kind_ord_at(arena, ti) == (TypeKind.TYPE_SLICE as i32)) {
         let elem: i32 = pipeline_type_elem_ref_at(arena, ti);
-        if (!ast.ref_is_null(elem) && elem > 0 && elem <= nt
-            && pipeline_type_kind_ord_at(arena, elem) == (TypeKind.TYPE_ARRAY as i32)) {
+        let elem_k: i32 = 0;
+        if (!ast.ref_is_null(elem) && elem > 0 && elem <= nt) {
+          elem_k = pipeline_type_kind_ord_at(arena, elem);
+        }
+        if (elem_k == (TypeKind.TYPE_ARRAY as i32) || elem_k == (TypeKind.TYPE_PTR as i32)) {
           let seen: i32 = 0;
           let slb: u8[896] = [];
           let nl: i32 = type_to_c_repr(arena, &slb[0], 896, ti, pfx_use, pfx_len_use);
@@ -9518,8 +9524,11 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
           while (tj < ti) {
             if (pipeline_type_kind_ord_at(arena, tj) == (TypeKind.TYPE_SLICE as i32)) {
               let ej: i32 = pipeline_type_elem_ref_at(arena, tj);
-              if (!ast.ref_is_null(ej) && ej > 0 && ej <= nt
-                  && pipeline_type_kind_ord_at(arena, ej) == (TypeKind.TYPE_ARRAY as i32)) {
+              let ej_k: i32 = 0;
+              if (!ast.ref_is_null(ej) && ej > 0 && ej <= nt) {
+                ej_k = pipeline_type_kind_ord_at(arena, ej);
+              }
+              if (ej_k == (TypeKind.TYPE_ARRAY as i32) || ej_k == (TypeKind.TYPE_PTR as i32)) {
                 let slj: u8[896] = [];
                 let nj: i32 = type_to_c_repr(arena, &slj[0], 896, tj, pfx_use, pfx_len_use);
                 if (nj == nl && nj > 0) {
@@ -9555,16 +9564,37 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
             if (emit_bytes_from_ptr(out, &mid0[0], 3) != 0) {
               return -1;
             }
-            if (emit_local_fixed_array_elem_type(arena, out, elem, ctx) != 0) {
-              return -1;
-            }
-            /* " (*data)" */
-            let dcl: u8[10] = [32, 40, 42, 100, 97, 116, 97, 41, 0, 0];
-            if (emit_bytes_from_ptr(out, &dcl[0], 8) != 0) {
-              return -1;
-            }
-            if (emit_local_fixed_array_suffix(arena, out, elem) != 0) {
-              return -1;
+            if (elem_k == (TypeKind.TYPE_ARRAY as i32)) {
+              if (emit_local_fixed_array_elem_type(arena, out, elem, ctx) != 0) {
+                return -1;
+              }
+              /* " (*data)" */
+              let dcl: u8[10] = [32, 40, 42, 100, 97, 116, 97, 41, 0, 0];
+              if (emit_bytes_from_ptr(out, &dcl[0], 8) != 0) {
+                return -1;
+              }
+              if (emit_local_fixed_array_suffix(arena, out, elem) != 0) {
+                return -1;
+              }
+            } else {
+              /* PTR elem: type_to_c_repr(*T) is `E *`; plus ` *data` → `E **data`. */
+              let ptr_eb: u8[896] = [];
+              let ptr_nl: i32 = type_to_c_repr(arena, &ptr_eb[0], 896, elem, pfx_use, pfx_len_use);
+              if (ptr_nl <= 0) {
+                return -1;
+              }
+              let ptr_i: i32 = 0;
+              while (ptr_i < ptr_nl) {
+                if (append_byte_u8(out, ptr_eb[ptr_i]) != 0) {
+                  return -1;
+                }
+                ptr_i = ptr_i + 1;
+              }
+              /* " *data" */
+              let ptr_dcl: u8[8] = [32, 42, 100, 97, 116, 97, 0, 0];
+              if (emit_bytes_from_ptr(out, &ptr_dcl[0], 6) != 0) {
+                return -1;
+              }
             }
             /* "; size_t length; };\n" */
             let tail: u8[24] = [
