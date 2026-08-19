@@ -274,7 +274,9 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * `[]*[][]T` / `[][][][]T` / `[2][][][]T` = 2; 0 stored means 1).
  * dest extras dest-SLICE-of-PTR, dest-SLICE-of-SLICE,
  * dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE all read this for
- * ndims==-2.
+ * ndims==-2. When ndims>0, dim_ix==ndims is dest extras
+ * dest-SLICE-of-ARRAY extra wrap count (`[][2][]T` = 1;
+ * `[][2][][]T` = 2; 0 / missing means no extra wrap).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14531,16 +14533,20 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
             }
             /*
-             * dest-SLICE-of-ARRAY extra (`p: [][2]i32`): ARRAY_LIT
-             * `[[2, 4]]` stays TYPE_ARRAY of ARRAY. Scalar dest-SLICE
-             * skips elem kind 10. Sit-red asm=1 / host-C=139. Named
-             * local extra already dest-stamps via let dest. Registry
-             * param_elem_elem_kind + param_elem_array_ndims/dims already
-             * hold the ARRAY leaf (`[2]i32`). G.7: reconstruct via
-             * elem_elem_kind + elem_array wrap inner-first then wrap
-             * slice; reuse typeck_coerce_init_expr_to_decl so dest-SLICE
-             * + nested ARRAY_LIT elems stamp together (no second
-             * dest-SLICE / ARRAY_LIT stamp). NAMED leaf of `[][N]Pair`
+             * dest-SLICE-of-ARRAY extra (`p: [][2]i32` / `[][2][]i32`):
+             * ARRAY_LIT `[[2, 4]]` / `[[[2], [4]]]` stays TYPE_ARRAY of
+             * ARRAY. Scalar dest-SLICE skips elem kind 10. Sit-red
+             * `[][2]i32` was asm=1 / host-C=139. Sit-red `[][2][]i32`
+             * nested ARRAY_LIT is 139 because wrap-once dest-stamps
+             * `[][2]i32` (or dest extras skip when store set
+             * elem_kind=-1). Named / UFCS / module-func already
+             * dest-stamp via the formal (6). Skip-trait stores
+             * elem=ARRAY + eek=leaf + ndims=[N] after `[]` then `[N]`;
+             * extra inner SLICE uses unused dim slot dims[ndims]
+             * (1 = `[][2][]T`; 2 = `[][2][][]T`; ban -3). G.7: wrap
+             * slice of leaf extra times then ARRAY wrap inner-first
+             * then wrap slice; reuse typeck_coerce_init_expr_to_decl
+             * (no second dest-SLICE stamp). NAMED leaf of `[][N]Pair`
              * is handled below via param_name. PLATFORM: SHARED.
              */
             if (dyn_eek == 10) {
@@ -14579,6 +14585,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                         &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
                 let dyn_saw: i32 = dyn_salf;
                 if (dyn_sand >= 1) {
+                  /*
+                   * dest extras dest-SLICE-of-ARRAY extra wraps
+                   * (`[][2][]T` / `[][2][][]T`): dim accessor returns
+                   * extra wrap count at dim_ix==ndims when unused slot
+                   * >0. Wrap SLICE of leaf extra times then ARRAY wrap
+                   * then outer SLICE. `[][2]i32` (missing / 0) stays
+                   * wrap-once. Do not invent -3. PLATFORM: SHARED.
+                   */
+                  let dyn_saex: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_sand);
+                  if (dyn_saex > 0) {
+                    let dyn_saxi: i32 = 0;
+                    while (dyn_saxi < dyn_saex && dyn_saw > 0) {
+                      dyn_saw = find_or_alloc_slice_type_ref(arena, dyn_saw);
+                      dyn_saxi = dyn_saxi + 1;
+                    }
+                  }
                   let dyn_sai: i32 = dyn_sand - 1;
                   while (dyn_sai >= 0 && dyn_saw > 0) {
                     let dyn_sad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
@@ -14866,8 +14890,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * invent -3). Twin of dest extras dest-SLICE-of-SLICE
              * extra wraps and dest-ARRAY-of-PTR extra wraps. NAMED
              * leaf of `[N][]Pair` is handled below via param_name.
-             * dest extras dest-SLICE-of-ARRAY extra `[][2][]T` is a
-             * different leftover (ARRAY dims occupy elem_array_ndims).
+             * dest extras dest-SLICE-of-ARRAY extra `[][2][]T` uses
+             * unused dim slot dims[ndims] (not ndims=-2).
              * PLATFORM: SHARED.
              */
             if (dyn_alf == 0 && dyn_aek == 11) {
