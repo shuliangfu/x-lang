@@ -275,8 +275,10 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * dest extras dest-SLICE-of-PTR, dest-SLICE-of-SLICE,
  * dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE all read this for
  * ndims==-2. When ndims>0, dim_ix==ndims is dest extras
- * dest-SLICE-of-ARRAY extra wrap count (`[][2][]T` = 1;
+ * dest-SLICE-of-ARRAY extra SLICE wrap count (`[][2][]T` = 1;
  * `[][2][][]T` = 2; 0 / missing means no extra wrap).
+ * dim_ix==ndims+1 is extra PTR wrap count (`[][2]*T` = 1;
+ * 0 / missing means no extra PTR).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14533,21 +14535,26 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
             }
             /*
-             * dest-SLICE-of-ARRAY extra (`p: [][2]i32` / `[][2][]i32`):
-             * ARRAY_LIT `[[2, 4]]` / `[[[2], [4]]]` stays TYPE_ARRAY of
-             * ARRAY. Scalar dest-SLICE skips elem kind 10. Sit-red
-             * `[][2]i32` was asm=1 / host-C=139. Sit-red `[][2][]i32`
-             * nested ARRAY_LIT is 139 because wrap-once dest-stamps
-             * `[][2]i32` (or dest extras skip when store set
-             * elem_kind=-1). Named / UFCS / module-func already
-             * dest-stamp via the formal (6). Skip-trait stores
-             * elem=ARRAY + eek=leaf + ndims=[N] after `[]` then `[N]`;
-             * extra inner SLICE uses unused dim slot dims[ndims]
-             * (1 = `[][2][]T`; 2 = `[][2][][]T`; ban -3). G.7: wrap
-             * slice of leaf extra times then ARRAY wrap inner-first
-             * then wrap slice; reuse typeck_coerce_init_expr_to_decl
-             * (no second dest-SLICE stamp). NAMED leaf of `[][N]Pair`
-             * is handled below via param_name. PLATFORM: SHARED.
+             * dest-SLICE-of-ARRAY extra (`p: [][2]i32` / `[][2][]i32` /
+             * `[][2]*i32`): ARRAY_LIT `[[2, 4]]` / `[[[2], [4]]]` /
+             * `[[&n, &m]]` stays TYPE_ARRAY of ARRAY or PTR. Scalar
+             * dest-SLICE skips elem kind 10. Sit-red `[][2]i32` was
+             * asm=1 / host-C=139. Sit-red `[][2][]i32` nested
+             * ARRAY_LIT is 139 because wrap-once dest-stamps
+             * `[][2]i32`. Sit-red `[][2]*i32` is T001 because extra
+             * STAR after ARRAY never stored (eek unset; leftover PTR
+             * vs eeek=-1). Named / UFCS / module-func of `[][2][]T`
+             * already dest-stamp via the formal (6); named / UFCS of
+             * `[][2]*T` share the T001 until store + extra PTR peel.
+             * Skip-trait stores elem=ARRAY + eek=leaf + ndims=[N]
+             * after `[]` then `[N]`; extra inner SLICE uses unused
+             * dim slot dims[ndims] (1 = `[][2][]T`); extra inner PTR
+             * uses unused slot dims[ndims+1] (1 = `[][2]*T`; ban -3).
+             * G.7: wrap PTR of leaf extra times then extra SLICE
+             * wraps then ARRAY wrap inner-first then wrap slice;
+             * reuse typeck_coerce_init_expr_to_decl (no second
+             * dest-SLICE stamp). NAMED leaf of `[][N]Pair` is handled
+             * below via param_name. PLATFORM: SHARED.
              */
             if (dyn_eek == 10) {
               let dyn_saek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -14587,12 +14594,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 if (dyn_sand >= 1) {
                   /*
                    * dest extras dest-SLICE-of-ARRAY extra wraps
-                   * (`[][2][]T` / `[][2][][]T`): dim accessor returns
-                   * extra wrap count at dim_ix==ndims when unused slot
-                   * >0. Wrap SLICE of leaf extra times then ARRAY wrap
-                   * then outer SLICE. `[][2]i32` (missing / 0) stays
-                   * wrap-once. Do not invent -3. PLATFORM: SHARED.
+                   * (`[][2]*T` / `[][2][]T` / `[][2][][]T`): dim
+                   * accessor returns extra PTR wrap count at
+                   * dim_ix==ndims+1 and extra SLICE wrap count at
+                   * dim_ix==ndims when unused slots >0. Wrap PTR of
+                   * leaf extra times then extra SLICE wraps then
+                   * ARRAY wrap then outer SLICE. `[][2]i32`
+                   * (sapx/saex<=0) stays wrap-once. Do not invent
+                   * -3. PLATFORM: SHARED.
                    */
+                  let dyn_sapx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_sand + 1);
+                  if (dyn_sapx > 0) {
+                    let dyn_sapi: i32 = 0;
+                    while (dyn_sapi < dyn_sapx && dyn_saw > 0) {
+                      dyn_saw = find_or_alloc_ptr_type_ref(arena, dyn_saw);
+                      dyn_sapi = dyn_sapi + 1;
+                    }
+                  }
                   let dyn_saex: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
                           &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
                           dyn_sand);

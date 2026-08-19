@@ -11701,12 +11701,13 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 }
               }
             }
-            /* dest-SLICE-of-ARRAY extra (`p: [][2]i32` / `[][2][]i32`):
-             * ARRAY_LIT of ARRAY stays TYPE_ARRAY. Scalar dest-SLICE skips
-             * elem kind 10. Sit-red `[][2][]i32` nested ARRAY_LIT 139
-             * (wrap-once dest-stamps `[][2]i32`; store used to set
-             * elem_kind=-1). Extra wrap count is unused slot
-             * dims[ndims]. Pin twin. PLATFORM: SHARED. */
+            /* dest-SLICE-of-ARRAY extra (`p: [][2]i32` / `[][2][]i32` /
+             * `[][2]*i32`): ARRAY_LIT of ARRAY or PTR stays TYPE_ARRAY.
+             * Scalar dest-SLICE skips elem kind 10. Sit-red `[][2]*i32`
+             * T001 extra STAR after ARRAY never stored. Extra SLICE
+             * wrap count is unused slot dims[ndims]; extra PTR wrap
+             * count is unused slot dims[ndims+1]. Pin twin.
+             * PLATFORM: SHARED. */
             if ((dyn_eek == 10)) {
               int32_t dyn_saek = xlang_skip_trait_method_param_elem_elem_kind_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11732,12 +11733,25 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 int32_t dyn_saw = dyn_salf;
                 if ((dyn_sand >= 1)) {
                   /* dest extras dest-SLICE-of-ARRAY extra wraps
-                   * (`[][2][]T`): dim_ix==ndims unused slot. Wrap SLICE
-                   * of leaf extra times then ARRAY wrap. Pin twin.
-                   * PLATFORM: SHARED. */
+                   * (`[][2]*T` / `[][2][]T`): dim_ix==ndims+1 extra
+                   * PTR; dim_ix==ndims extra SLICE. Wrap PTR of leaf
+                   * extra times then extra SLICE wraps then ARRAY wrap.
+                   * Pin twin. PLATFORM: SHARED. */
+                  int32_t dyn_sapx;
+                  int32_t dyn_sapi;
                   int32_t dyn_saex;
                   int32_t dyn_saxi;
                   int32_t dyn_sai;
+                  dyn_sapx = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                          (arg_i + 1), (dyn_sand + 1));
+                  if ((dyn_sapx > 0)) {
+                    dyn_sapi = 0;
+                    while (((dyn_sapi < dyn_sapx) && (dyn_saw > 0))) {
+                      dyn_saw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_saw);
+                      dyn_sapi = (dyn_sapi + 1);
+                    }
+                  }
                   dyn_saex = xlang_skip_trait_method_param_elem_array_dim_c(
                           &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
                           (arg_i + 1), dyn_sand);

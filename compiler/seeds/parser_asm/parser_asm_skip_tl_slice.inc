@@ -1930,10 +1930,12 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * dest-SLICE-of-SLICE, dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE
  * all read this for ndims==-2.
  * When ndims>0, dim_ix==ndims returns dest extras dest-SLICE-of-ARRAY
- * extra wrap count in the unused slot (`[][2][]T` = 1; `[][2][][]T`
- * = 2; 0 / missing means no extra wrap = `[][2]i32`). Do not invent
- * -3: ARRAY dims occupy 0..ndims-1 so extra wrap cannot reuse
- * ndims=-2. PLATFORM: SHARED parse + typeck.
+ * extra SLICE wrap count in the unused slot (`[][2][]T` = 1;
+ * `[][2][][]T` = 2; 0 / missing means no extra wrap = `[][2]i32`).
+ * dim_ix==ndims+1 returns extra PTR wrap count (`[][2]*T` = 1;
+ * 0 / missing means no extra PTR). Do not invent -3: ARRAY dims
+ * occupy 0..ndims-1 so extra wrap cannot reuse ndims=-2.
+ * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
                                                       int32_t slot, int32_t param_ix, int32_t dim_ix) {
@@ -1963,18 +1965,28 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
   }
   if (dim_ix >= nd) {
     /*
-     * dest extras dest-SLICE-of-ARRAY extra wrap (`[][2][]T`): unused
-     * slot dims[ndims] holds extra SLICE wraps inside the ARRAY.
-     * dim_ix==ndims and extra>0 → return the count. 0 / missing → -1
-     * so `[][2]i32` (no extra wrap) stays wrap-once. PLATFORM: SHARED.
+     * dest extras dest-SLICE-of-ARRAY extra wraps: unused slot
+     * dims[ndims] holds extra SLICE wraps (`[][2][]T`); unused slot
+     * dims[ndims+1] holds extra PTR wraps (`[][2]*T`). dim_ix==ndims
+     * or ndims+1 and extra>0 → return the count. 0 / missing → -1 so
+     * `[][2]i32` (no extra wrap) stays wrap-once. PLATFORM: SHARED.
      */
     int32_t extra;
-    if (!(nd > 0 && dim_ix == nd && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
+    if (!(nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
       return -1;
-    extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd];
-    if (extra <= 0)
-      return -1;
-    return extra;
+    if (dim_ix == nd) {
+      extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
+    if (dim_ix == nd + 1 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+      extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd + 1];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
+    return -1;
   }
   return g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][dim_ix];
 }
@@ -2717,16 +2729,36 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     if (!mm && eeek >= 0 && leaf_tr != 0) {
                       int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
                       /*
-                       * dest extras dest-SLICE of ARRAY extra `[][2][]T`:
-                       * after walking ARRAY dims leftover is still SLICE
-                       * (inner `[]` of i32) vs eeek=leaf. Extra wrap count
-                       * is the unused slot dims[ndims] (1 = `[][2][]T`).
-                       * Peel extra times or T001 if layers run out.
-                       * `[][2]i32` (slot 0) keeps the ARRAY-then-leaf
-                       * compare. Do not invent -3. PLATFORM: SHARED.
-                       * G.7: complete this walk.
+                       * dest extras dest-SLICE of ARRAY extra `[][2]*T` /
+                       * `[][2][]T`: after walking ARRAY dims leftover is
+                       * still PTR (inner `*` of i32) or SLICE (inner `[]`
+                       * of i32) vs eeek=leaf. Extra PTR wrap count is
+                       * unused slot dims[ndims+1] (1 = `[][2]*T`); extra
+                       * SLICE wrap count is unused slot dims[ndims]
+                       * (1 = `[][2][]T`). Peel PTR first then SLICE or
+                       * T001 if layers run out. `[][2]i32` (both slots 0)
+                       * keeps the ARRAY-then-leaf compare. Do not invent
+                       * -3. PLATFORM: SHARED. G.7: complete this walk.
                        */
+                      int32_t extra_ptr = 0;
                       int32_t extra = 0;
+                      if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend + 1];
+                      if (extra_ptr > 0) {
+                        while (extra_ptr > 0) {
+                          if (pgek != XLANG_TRAIT_TY_PTR || leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                          if (leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                          extra_ptr = extra_ptr - 1;
+                        }
+                      }
                       if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                         extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend];
                       if (extra > 0) {
@@ -4476,6 +4508,53 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   param_elem_elem_pending = 0;
                   param_elem_prefix_arr_more = 1;
                   param_elem_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR
+                           && ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_ARRAY
+                           && ent->method_param_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_SLICE) {
+                  /*
+                   * dest extras dest-SLICE of ARRAY extra `[][2]*T`:
+                   * after `[]` then `[N]` we are in param_elem_elem_pending
+                   * (elem=ARRAY, dims in the local buffer). Extra STAR
+                   * used to hit token_to_type_kind=-1 then want_param_ty=0
+                   * so eek never captured (impl T001 leftover PTR vs
+                   * eeek=-1). ndims=-2 would lose [N] (ban -3 / new
+                   * field). Keep ARRAY; extra PTR wrap COUNT lives in
+                   * unused slot dims[ndims+1] (1 = `[][2]*T`; 0 = no
+                   * extra PTR = `[][2]i32`). Extra SLICE stays
+                   * dims[ndims]. Outer must be SLICE so `*[N]*T` stays
+                   * deferred. Capture leaf T by staying pending.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  int32_t nd;
+                  int32_t extra;
+                  if (param_elem_dim_n > 0) {
+                    int32_t di;
+                    nd = param_elem_dim_n;
+                    ent->method_param_elem_array_ndims[mi_reg][param_count] = nd;
+                    for (di = 0; di < nd; di++)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][di] =
+                          param_elem_dims[di];
+                    param_elem_dim_n = 0;
+                  } else {
+                    nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                  }
+                  if (nd > 0 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
                 } else {
                   int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
                   if (bk >= 0) {
