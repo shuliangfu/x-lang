@@ -43390,7 +43390,11 @@ export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8,
     base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
   }
   // CALL=48 METHOD_CALL=49 INDEX=47 nested rows[i][j]
-  if (base_ko != 48 && base_ko != 49 && base_ko != 47) {
+  // DEREF=52: `(*p[i])[j]` where p[i] is *[]T — DEREF yields TYPE_SLICE
+  // (16B dual-GP rax:rdx). Without this, base falls through to
+  // glue_emit_slice_length_to_rbx_elf_c non-VAR path which does add 8; load 64
+  // on slice.ptr (data pointer), reading *(data+8) = OOB → panic 134 on x86.
+  if (base_ko != 48 && base_ko != 49 && base_ko != 47 && base_ko != 52) {
     return 0 - 2;
   }
   unsafe {
@@ -43406,7 +43410,9 @@ export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8,
     return 0 - 2;
   }
   dual_gp = 0;
-  if (base_ko == 49 || base_ko == 47) {
+  // DEREF(52) of *[]T yields TYPE_SLICE 16B dual-GP (rax=data, rdx=length),
+  // same as METHOD_CALL(49)/INDEX(47) — emit once, store both halves.
+  if (base_ko == 49 || base_ko == 47 || base_ko == 52) {
     dual_gp = 1;
   } else {
     if (base_ko == 48) {

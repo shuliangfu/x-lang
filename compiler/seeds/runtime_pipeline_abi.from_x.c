@@ -19596,11 +19596,16 @@ int32_t glue_try_index_rvalue_slice_once_elf_c(void *arena,
   /*
    * CALL=48 METHOD_CALL=49 — rvalues that re-emit full base for length+data.
    * wave692: INDEX=47 base with TYPE_SLICE result (nested `rows[i][j]`) also
-   * materializes dual-GP once — outer INDEX loads fat→data@rax length@rdx
+   * materializes dual-GP once — outer INDEX loads fat->data@rax length@rdx
    * (emit_index TYPE_SLICE arm); re-emitting for length path would double-eval
    * and the non-CALL length path assumes fat* not dual-GP.
+   * wave773: DEREF=52 of *[]T yields TYPE_SLICE 16B dual-GP (rax=data,
+   * rdx=length). Without this, base falls through to
+   * glue_emit_slice_length_to_rbx_elf_c non-VAR path which does add 8;
+   * load 64 on slice.ptr (data pointer), reading *(data+8) = OOB -> panic
+   * 134 on x86. macOS ARM64 hides it (OOB read happens to not panic).
    */
-  if (base_ko != 48 && base_ko != 49 && base_ko != 47)
+  if (base_ko != 48 && base_ko != 49 && base_ko != 47 && base_ko != 52)
     return -2;
   bty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (bty <= 0 || pipeline_type_kind_ord_at(arena, bty) != 11)
@@ -19609,10 +19614,11 @@ int32_t glue_try_index_rvalue_slice_once_elf_c(void *arena,
    * dual-GP: freestanding TYPE_SLICE return (wave333/335); CALL only when
    * needs_rax_deref==0. METHOD_CALL TYPE_SLICE treated as dual-GP (wave336).
    * wave692: INDEX of nested outer yields dual-GP (emit_index TYPE_SLICE load).
+   * wave773: DEREF of *[]T yields dual-GP (DEREF loads fat 16B rax:rdx).
    * Else fat* in rax (length at [rax+8], data at [rax]).
    */
   dual_gp = 0;
-  if (base_ko == 49 || base_ko == 47)
+  if (base_ko == 49 || base_ko == 47 || base_ko == 52)
     dual_gp = 1;
   else if (base_ko == 48 && pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)
     dual_gp = 1;
