@@ -11727,6 +11727,23 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 dyn_alf = typeck_find_or_alloc_named_type_ref(arena, &((dyn_apnm)[0]), dyn_apnl);
               }
             }
+            /* dest-ARRAY-of-SLICE extra (`p: [2][]i32`). Pin twin of
+             * typeck.x. Skip-trait stores elem_kind=SLICE + elem_elem
+             * after `[N][]`. Wrap slice of leaf into dyn_alf then
+             * existing ARRAY wrap. G.7 no second dest-ARRAY stamp.
+             * PLATFORM: SHARED. */
+            if (((dyn_alf == 0) && (dyn_aek == 11))) {
+              int32_t dyn_aseek = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
+              int32_t dyn_aslf = 0;
+              if (((((dyn_aseek >= 0) && (dyn_aseek != 8)) && (dyn_aseek != 9))
+                      && ((dyn_aseek != 10) && ((dyn_aseek != 11) && (dyn_aseek != 13))))) {
+                dyn_aslf = pipeline_type_ensure_by_kind_ord(arena, dyn_aseek);
+              }
+              if ((dyn_aslf > 0)) {
+                dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_aslf);
+              }
+            }
             if ((dyn_alf > 0)) {
               int32_t dyn_and = xlang_skip_trait_method_param_array_ndims_c(&((dyn_trait_nm)[0]),
                       dyn_trait_nlen, dyn_slot, (arg_i + 1));

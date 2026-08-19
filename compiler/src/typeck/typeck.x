@@ -14504,7 +14504,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * (ndims inner-first, twin of dyn ret ARRAY); reuse
            * typeck_coerce_init_expr_to_decl so dest-ARRAY + STRUCT_LIT
            * elems stamp together (no second ARRAY_LIT / STRUCT_LIT stamp).
-           * Remaining leftover: PTR/SLICE/VECTOR elem of dest-ARRAY.
+           * Remaining leftover: PTR/VECTOR elem of dest-ARRAY (SLICE
+           * elem `[2][]i32` closed with scanner + this reconstruct).
            * UFCS extras dest-stamp STRUCT_LIT elems in the same-module
            * extras loop (twin typeck_check_call_arg_types). PLATFORM: SHARED.
            */
@@ -14522,6 +14523,29 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                       dyn_trait_nlen, dyn_slot, arg_i + 1, &dyn_apnm[0]);
               if (dyn_apnl > 0) {
                 dyn_alf = find_or_alloc_named_type_ref(arena, &dyn_apnm[0], dyn_apnl);
+              }
+            }
+            /*
+             * dest-ARRAY-of-SLICE extra (`p: [2][]i32`): ARRAY_LIT
+             * `[[2, 3], [1, 4]]` stays TYPE_ARRAY of ARRAY. Scalar
+             * dest-ARRAY skips elem kind 11. Sit-red asm=139 / host-C=133
+             * (`(int32_t[][2])` into a slice* wrapper). Named local /
+             * UFCS already dest-stamp. Skip-trait now stores
+             * elem_kind=SLICE + elem_elem_kind=leaf after `[N][]`.
+             * G.7: wrap slice of leaf into dyn_alf then the existing
+             * ARRAY wrap below (no second dest-ARRAY stamp). NAMED
+             * leaf of `[N][]Pair` leftover. PLATFORM: SHARED.
+             */
+            if (dyn_alf == 0 && dyn_aek == 11) {
+              let dyn_aseek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+              let dyn_aslf: i32 = 0;
+              if (dyn_aseek >= 0 && dyn_aseek != 8 && dyn_aseek != 9 && dyn_aseek != 10
+                  && dyn_aseek != 11 && dyn_aseek != 13) {
+                dyn_aslf = pipeline_type_ensure_by_kind_ord(arena, dyn_aseek);
+              }
+              if (dyn_aslf > 0) {
+                dyn_alf = find_or_alloc_slice_type_ref(arena, dyn_aslf);
               }
             }
             if (dyn_alf > 0) {

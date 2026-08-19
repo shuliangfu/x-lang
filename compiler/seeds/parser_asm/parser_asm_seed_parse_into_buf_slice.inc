@@ -1359,12 +1359,22 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                   want_param_ty = 0;
                 }
               } else if (param_prefix_arr_need_size) {
-                /* Prefix `[N][` — want next dim INT. */
+                /*
+                 * Prefix `[N][` — next dim INT (`[N][M]T`) or `]` (`[N][]T`
+                 * = ARRAY of SLICE of T). Twin of skip_tl. G.7: complete
+                 * this scanner (no second trait-type parser).
+                 * PLATFORM: SHARED parse.
+                 */
                 if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
                   if (param_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
                     param_dims[param_dim_n++] = r.tok.int_val;
                   param_prefix_arr_need_size = 0;
                   param_prefix_arr_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_SLICE;
+                  param_dim_n = 0;
+                  param_prefix_arr_need_size = 0;
+                  param_elem_elem_pending = 1;
                 } else {
                   param_prefix_arr_need_size = 0;
                   want_param_ty = 0;

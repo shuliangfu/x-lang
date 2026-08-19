@@ -3883,7 +3883,7 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t param_slice_need_rb = 0;
         /* Prefix `[N]T` / `[N][M]T` param — twin of wave436 *[N]T (INT was bail). */
         int32_t param_prefix_arr_need_rb = 0;   /* saw `[N`, want `]` */
-        int32_t param_prefix_arr_need_size = 0; /* saw `[N][`, want next INT */
+        int32_t param_prefix_arr_need_size = 0; /* saw `[N][`, want next INT or `]` (`[N][]T`) */
         int32_t param_prefix_arr_elem_pending = 0; /* after `[N]`, want T or `[` */
         /* wave433: twin of wave431 ret multi-dim suffix state machine. */
         int32_t param_suffix_pending = 0; /* base set; may still see [N] or [] */
@@ -4089,12 +4089,26 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   want_param_ty = 0;
                 }
               } else if (param_prefix_arr_need_size) {
-                /* Prefix `[N][` — want next dim INT. */
+                /*
+                 * Prefix `[N][` — next dim INT (`[N][M]T`) or `]` (`[N][]T`
+                 * = ARRAY of SLICE of T). Sit-red dest-ARRAY extra `[2][]i32`
+                 * bailed here (want INT only) so registry never stored
+                 * elem_kind=SLICE; dyn extras then stamped ARRAY-of-ARRAY
+                 * `(int32_t[][2])` into a slice* wrapper (asm=139 / host-C=133).
+                 * G.7: complete this scanner (twin of param_slice_need_rb
+                 * `]` vs INT). Capture leaf T via param_elem_elem_pending
+                 * (already used by *[]T). PLATFORM: SHARED parse.
+                 */
                 if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
                   if (param_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                     param_dims[param_dim_n++] = r.tok.int_val;
                   param_prefix_arr_need_size = 0;
                   param_prefix_arr_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_SLICE;
+                  param_dim_n = 0;
+                  param_prefix_arr_need_size = 0;
+                  param_elem_elem_pending = 1;
                 } else {
                   param_prefix_arr_need_size = 0;
                   want_param_ty = 0;
