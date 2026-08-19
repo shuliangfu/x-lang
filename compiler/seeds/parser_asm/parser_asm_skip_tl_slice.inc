@@ -1741,6 +1741,98 @@ int32_t xlang_skip_trait_method_param_array_dim_c(const uint8_t *trait_nm, int32
 }
 
 /**
+ * Return the TypeKind ordinal of a trait-method formal's ARRAY/SLICE
+ * element leaf (method_param_elem_elem_kinds). Completes the F3
+ * accessor family next to param_elem_kind. The scanner already stores
+ * the leaf of `[][N]T` / `*[N]T` (elem=ARRAY, elem_elem=T). Typeck
+ * dest-SLICE extras cannot look up a module-func formal type_ref
+ * (func_ix is the vtable slot), so `[][2]i32` reconstructs via this +
+ * elem_array ndims/dims + find_or_alloc_array then wrap slice
+ * (sit-red: dyn extra `[[2,4]]` asm=1 / host-C=139). Extra i of a
+ * METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot/param invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[slot][param_ix];
+}
+
+/**
+ * Return ndims of a trait-method formal's ARRAY elem (`[][K][N]T`).
+ * Completes the F3 accessor family next to param_elem_elem_kind.
+ * The scanner already stores method_param_elem_array_ndims (not the
+ * top-level param_array_ndims used by dest-ARRAY extras). Extra i
+ * maps to param_ix = i+1.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return ndims (>=1), or 0 / -1 if unset / invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                        int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[slot][param_ix];
+}
+
+/**
+ * Return one dim of a trait-method formal's ARRAY elem (`[][K][N]T`).
+ * dim_ix 0 is the outer K of the ARRAY elem; last dim is innermost N.
+ * Cap is XLANG_SKIP_TRAIT_ARRAY_DIM_MAX (8). Extra i maps to param_ix = i+1.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
+ * @return N > 0, or -1 if trait/slot/param/dim invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot, int32_t param_ix, int32_t dim_ix) {
+  int32_t ti;
+  int32_t nd;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0 || dim_ix < 0
+      || dim_ix >= XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  nd = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[slot][param_ix];
+  if (dim_ix >= nd)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][dim_ix];
+}
+
+/**
  * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
  * `for` type name when matching method param/ret signatures.
  *

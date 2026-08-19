@@ -192,6 +192,49 @@ export extern function xlang_skip_trait_method_param_array_ndims_c(trait_nm: *u8
  */
 export extern function xlang_skip_trait_method_param_array_dim_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32, param_ix: i32, dim_ix: i32): i32;
+/**
+ * Leaf TypeKind of a trait-method formal's ARRAY/SLICE elem (`[][N]T`).
+ * G.7: completes the skip-trait accessor family next to param_elem_kind
+ * (registry already stores method_param_elem_elem_kinds). Dyn dest-SLICE
+ * extras reconstruct `[][2]i32` via this + elem_array ndims/dims
+ * (func_ix is the slot). Extra i → param_ix = i+1.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param param_ix i32 — formal index including self (0 = self)
+ * @return i32 — TypeKind ord (>=0), or -1 if unset / invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_elem_elem_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32): i32;
+/**
+ * ndims of a trait-method formal's ARRAY elem (`[][K][N]T`).
+ * G.7: completes the skip-trait accessor family next to elem_elem_kind
+ * (registry already stores method_param_elem_array_ndims; not the
+ * top-level param_array_ndims used by dest-ARRAY extras). Extra i →
+ * param_ix = i+1.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param param_ix i32 — formal index including self (0 = self)
+ * @return i32 — ndims (>=1), or 0 / -1 if unset / invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32): i32;
+/**
+ * One dim of a trait-method formal's ARRAY elem (`[][K][N]T`).
+ * dim_ix 0 = outer K of the ARRAY elem. Cap 8. Extra i → param_ix = i+1.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param param_ix i32 — formal index including self (0 = self)
+ * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
+ * @return i32 — N > 0, or -1 if invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, param_ix: i32, dim_ix: i32): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
@@ -14337,8 +14380,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * TYPE_SLICE (UFCS already stamps via the module-func formal).
            * Sit-red: dyn x.sums([2,4]) asm=1 / host-C=139; named local=7.
            * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem plus
-           * NAMED leaf (`[]Pair`). Remaining leftover: PTR/ARRAY/SLICE/
-           * VECTOR elem. PLATFORM: SHARED.
+           * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`). Remaining
+           * leftover: PTR/SLICE/VECTOR elem. PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 11) {
             let dyn_eek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
@@ -14374,6 +14417,54 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let dyn_ssty: i32 = find_or_alloc_slice_type_ref(arena, dyn_snty);
                   if (dyn_ssty > 0) {
                     typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssty);
+                  }
+                }
+              }
+            }
+            /*
+             * dest-SLICE-of-ARRAY extra (`p: [][2]i32`): ARRAY_LIT
+             * `[[2, 4]]` stays TYPE_ARRAY of ARRAY. Scalar dest-SLICE
+             * skips elem kind 10. Sit-red asm=1 / host-C=139. Named
+             * local extra already dest-stamps via let dest. Registry
+             * param_elem_elem_kind + param_elem_array_ndims/dims already
+             * hold the ARRAY leaf (`[2]i32`). G.7: reconstruct via
+             * elem_elem_kind + elem_array wrap inner-first then wrap
+             * slice; reuse typeck_coerce_init_expr_to_decl so dest-SLICE
+             * + nested ARRAY_LIT elems stamp together (no second
+             * dest-SLICE / ARRAY_LIT stamp). NAMED leaf of `[][N]Pair`
+             * leftover. PLATFORM: SHARED.
+             */
+            if (dyn_eek == 10) {
+              let dyn_saek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+              let dyn_salf: i32 = 0;
+              if (dyn_saek >= 0 && dyn_saek != 8 && dyn_saek != 9 && dyn_saek != 10
+                  && dyn_saek != 11 && dyn_saek != 13) {
+                dyn_salf = pipeline_type_ensure_by_kind_ord(arena, dyn_saek);
+              }
+              if (dyn_salf > 0) {
+                let dyn_sand: i32 = xlang_skip_trait_method_param_elem_array_ndims_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+                let dyn_saw: i32 = dyn_salf;
+                if (dyn_sand >= 1) {
+                  let dyn_sai: i32 = dyn_sand - 1;
+                  while (dyn_sai >= 0 && dyn_saw > 0) {
+                    let dyn_sad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1, dyn_sai);
+                    if (dyn_sad > 0) {
+                      dyn_saw = find_or_alloc_array_type_ref(arena, dyn_saw, dyn_sad);
+                    } else {
+                      dyn_saw = 0;
+                    }
+                    dyn_sai = dyn_sai - 1;
+                  }
+                } else {
+                  dyn_saw = 0;
+                }
+                if (dyn_saw > 0) {
+                  let dyn_sasty: i32 = find_or_alloc_slice_type_ref(arena, dyn_saw);
+                  if (dyn_sasty > 0) {
+                    typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_sasty);
                   }
                 }
               }
