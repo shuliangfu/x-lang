@@ -14583,8 +14583,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * Skip-trait now stores elem_kind=PTR + elem_elem_kind=leaf
              * after `[]` then STAR. G.7: wrap ptr of leaf then wrap slice;
              * reuse typeck_coerce_init_expr_to_decl (no second dest-SLICE
-             * stamp). NAMED leaf of `[]*Pair` leftover. asm INDEX of
-             * slice-of-ptr remains CG002. PLATFORM: SHARED.
+             * stamp). NAMED leaf of `[]*Pair` is handled below via
+             * param_name. dest-ARRAY extra `[2]*Pair` already dest-stamps
+             * via ADDR_OF elems (host-C/asm 7 without kind-9 reconstruct).
+             * PLATFORM: SHARED.
              */
             if (dyn_eek == 9) {
               let dyn_spek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -14593,6 +14595,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               if (dyn_spek >= 0 && dyn_spek != 8 && dyn_spek != 9 && dyn_spek != 10
                   && dyn_spek != 11 && dyn_spek != 13) {
                 dyn_splf = pipeline_type_ensure_by_kind_ord(arena, dyn_spek);
+              }
+              /*
+               * dest-SLICE-of-PTR NAMED leaf (`p: []*Pair`): ARRAY_LIT
+               * `[&n]` stays TYPE_ARRAY of PTR (no dest-SLICE stamp).
+               * Scalar dest-SLICE-of-PTR skips elem_elem kind 8. Sit-red
+               * dyn extra asm=139 / host-C `(struct Pair *[]){&n}` into
+               * wrapper `struct xlang_slice_Pair_p *` (panic: 0). Named
+               * local / UFCS already dest-stamp (7). Registry param_name
+               * already holds the leaf (`Pair`). G.7: wrap named into
+               * dyn_splf then the existing wrap ptr + wrap slice; reuse
+               * typeck_coerce_init_expr_to_decl (no second dest-SLICE /
+               * PTR stamp). PLATFORM: SHARED.
+               */
+              if (dyn_splf == 0 && dyn_spek == 8) {
+                let dyn_spnm: u8[64] = [];
+                let dyn_spnl: i32 = xlang_skip_trait_method_param_name_into_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                        &dyn_spnm[0]);
+                if (dyn_spnl > 0) {
+                  dyn_splf = find_or_alloc_named_type_ref(arena, &dyn_spnm[0], dyn_spnl);
+                }
               }
               if (dyn_splf > 0) {
                 let dyn_spty: i32 = find_or_alloc_ptr_type_ref(arena, dyn_splf);

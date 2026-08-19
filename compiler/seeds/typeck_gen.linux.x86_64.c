@@ -11749,7 +11749,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
              * Skip-trait stores elem_kind=PTR + elem_elem after `[]*`.
              * G.7: wrap ptr of leaf then wrap slice; reuse
              * typeck_coerce_init_expr_to_decl (no second dest-SLICE stamp).
-             * Pin twin. PLATFORM: SHARED. */
+             * NAMED leaf of `[]*Pair` below via param_name. Pin twin.
+             * PLATFORM: SHARED. */
             if ((dyn_eek == 9)) {
               int32_t dyn_spek = xlang_skip_trait_method_param_elem_elem_kind_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11757,6 +11758,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               if (((((dyn_spek >= 0) && (dyn_spek != 8)) && (dyn_spek != 9))
                       && ((dyn_spek != 10) && ((dyn_spek != 11) && (dyn_spek != 13))))) {
                 dyn_splf = pipeline_type_ensure_by_kind_ord(arena, dyn_spek);
+              }
+              /* dest-SLICE-of-PTR NAMED leaf (`p: []*Pair`). Pin twin. */
+              if (((dyn_splf == 0) && (dyn_spek == 8))) {
+                uint8_t dyn_spnm[64] = {};
+                int32_t dyn_spnl = xlang_skip_trait_method_param_name_into_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                        (arg_i + 1), &((dyn_spnm)[0]));
+                if ((dyn_spnl > 0)) {
+                  dyn_splf = typeck_find_or_alloc_named_type_ref(arena,
+                          &((dyn_spnm)[0]), dyn_spnl);
+                }
               }
               if ((dyn_splf > 0)) {
                 int32_t dyn_spty = typeck_find_or_alloc_ptr_type_ref(arena, dyn_splf);
