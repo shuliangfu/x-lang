@@ -14755,21 +14755,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             }
             /*
              * dest-SLICE-of-SLICE extra (`p: [][]i32` / `[][][]i32` /
-             * `[][][][]i32` / `[][]*i32`): ARRAY_LIT stays TYPE_ARRAY
-             * of ARRAY. Scalar dest-SLICE skips elem kind 11. Sit-red
-             * 4-layer dyn/named T001 (impl-match extra peel once while
-             * pipeline still has a SLICE); 3-layer dyn extra was INDEX
-             * 139. Sit-red `[][]*i32` nested ARRAY_LIT `[[&n, &m]]`
-             * is 139 because wrap-once dest-stamps `[][]i32` not
-             * `[][]*i32` (extra STAR after `[][]` was ARRAY-outer only
-             * so eek unset; named / UFCS dest-stamp via the formal 7;
-             * store-only capturing leaf is T001 until extra PTR peel).
-             * Skip-trait stores elem_kind=SLICE + elem_elem_kind=leaf
-             * after `[]` then `[]`; extra inner SLICE uses ndims=-2
-             * with wrap count in dims[0] (0 means 1 = 3-layer; 2 =
-             * 4-layer); extra inner PTR uses unused slot dims[0] with
-             * ndims staying 0 (1 = `[][]*T`; 0 = no extra PTR =
-             * `[][]i32`; ban -3). G.7: wrap PTR of leaf extra times
+             * `[][][][]i32` / `[][]*i32` / `[][][]*i32`): ARRAY_LIT
+             * stays TYPE_ARRAY of ARRAY. Scalar dest-SLICE skips elem
+             * kind 11. Sit-red 4-layer dyn/named T001 (impl-match extra
+             * peel once while pipeline still has a SLICE); 3-layer dyn
+             * extra was INDEX 139. Sit-red `[][]*i32` nested ARRAY_LIT
+             * `[[&n, &m]]` is 139 because wrap-once dest-stamps
+             * `[][]i32` not `[][]*i32`. Sit-red `[][][]*i32` nested
+             * `[[[&n, &m]]]` is 139 because extra STAR after
+             * `[][][]` set elem_kind=-1 (dest extras skipped; named /
+             * UFCS dest-stamp via the formal 7; store-only capturing
+             * leaf is T001 leftover PTR vs eeek=leaf). Skip-trait
+             * stores elem_kind=SLICE + elem_elem_kind=leaf after `[]`
+             * then `[]`; extra inner SLICE uses ndims=-2 with wrap
+             * count in dims[0] (0 means 1 = 3-layer; 2 = 4-layer);
+             * extra inner PTR uses unused slot dims[0] with ndims
+             * staying 0 (1 = `[][]*T`) or unused slot dims[1] when
+             * ndims==-2 (1 = `[][][]*T`; 0 = no extra PTR =
+             * `[][][]T`; ban -3). G.7: wrap PTR of leaf extra times
              * then wrap slice of that then wrap slice; ndims==-2 wraps
              * extra times; reuse typeck_coerce_init_expr_to_decl (no
              * second dest-SLICE stamp). NAMED leaf of `[][]Pair` is
@@ -14821,6 +14824,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 if (dyn_ssand == 0) {
                   let dyn_sspx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
                           &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1, 0);
+                  if (dyn_sspx > 0) {
+                    let dyn_sspi: i32 = 0;
+                    while (dyn_sspi < dyn_sspx && dyn_ssaw > 0) {
+                      dyn_ssaw = find_or_alloc_ptr_type_ref(arena, dyn_ssaw);
+                      dyn_sspi = dyn_sspi + 1;
+                    }
+                  }
+                }
+                /*
+                 * dest extras dest-SLICE-of-SLICE extra PTR wraps
+                 * (`[][][]*T`): dim accessor returns extra PTR wrap
+                 * count at dim_ix=1 when ndims==-2 (dims[0] is extra
+                 * SLICE). Wrap PTR of leaf extra times then wrap
+                 * SLICE twice then extra SLICE wraps. `[][][]i32`
+                 * (sspx<=0) stays extra-SLICE-only. Outer SLICE so
+                 * `[2][][]*T` stays deferred. Do not invent -3.
+                 * PLATFORM: SHARED.
+                 */
+                if (dyn_ssand == -2) {
+                  let dyn_sspx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1, 1);
                   if (dyn_sspx > 0) {
                     let dyn_sspi: i32 = 0;
                     while (dyn_sspi < dyn_sspx && dyn_ssaw > 0) {
