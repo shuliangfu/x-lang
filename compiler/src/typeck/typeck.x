@@ -14463,7 +14463,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * Sit-red: dyn x.sums([2,4]) asm=1 / host-C=139; named local=7.
            * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem plus
            * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`) plus PTR
-           * elem (`[]*i32`). Remaining leftover: SLICE/VECTOR elem.
+           * elem (`[]*i32`) plus SLICE elem (`[][]i32`). Remaining leftover:
+           * VECTOR / dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) / dest-SLICE
+           * of SLICE-of-SLICE (`[][][]T`).
            * PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 11) {
@@ -14623,6 +14625,56 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let dyn_spsty: i32 = find_or_alloc_slice_type_ref(arena, dyn_spty);
                   if (dyn_spsty > 0) {
                     typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_spsty);
+                  }
+                }
+              }
+            }
+            /*
+             * dest-SLICE-of-SLICE extra (`p: [][]i32`): ARRAY_LIT `[[2, 4]]`
+             * stays TYPE_ARRAY of ARRAY. Scalar dest-SLICE skips elem
+             * kind 11. Sit-red dyn extra asm=139 / host-C=139 (named local
+             * already dest-stamps via the module-func formal, run=7).
+             * Skip-trait stores elem_kind=SLICE + elem_elem_kind=leaf after
+             * `[]` then `[]`. G.7: wrap slice of leaf then wrap slice;
+             * reuse typeck_coerce_init_expr_to_decl so dest-SLICE + nested
+             * ARRAY_LIT elems stamp together (no second dest-SLICE stamp).
+             * NAMED leaf of `[][]Pair` is handled below via param_name.
+             * dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) is a different
+             * leftover (dyn_spek==10 still skipped). PLATFORM: SHARED.
+             */
+            if (dyn_eek == 11) {
+              let dyn_ssek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+              let dyn_sslf: i32 = 0;
+              if (dyn_ssek >= 0 && dyn_ssek != 8 && dyn_ssek != 9 && dyn_ssek != 10
+                  && dyn_ssek != 11 && dyn_ssek != 13) {
+                dyn_sslf = pipeline_type_ensure_by_kind_ord(arena, dyn_ssek);
+              }
+              /*
+               * dest-SLICE-of-SLICE NAMED leaf (`p: [][]Pair`): ARRAY_LIT
+               * `[[{a:2,b:4}]]` stays TYPE_ARRAY of nameless STRUCT_LIT.
+               * Scalar dest-SLICE-of-SLICE skips elem_elem kind 8. Sit-red
+               * dyn extra asm=139 / host-C `(uint8_t[]){(uint8_t[]){(struct )}}`.
+               * Registry param_name already holds the leaf (`Pair`). G.7:
+               * wrap named into dyn_sslf then the existing wrap slice +
+               * wrap slice; reuse typeck_coerce_init_expr_to_decl (no
+               * second dest-SLICE / STRUCT_LIT stamp). PLATFORM: SHARED.
+               */
+              if (dyn_sslf == 0 && dyn_ssek == 8) {
+                let dyn_ssnm: u8[64] = [];
+                let dyn_ssnl: i32 = xlang_skip_trait_method_param_name_into_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                        &dyn_ssnm[0]);
+                if (dyn_ssnl > 0) {
+                  dyn_sslf = find_or_alloc_named_type_ref(arena, &dyn_ssnm[0], dyn_ssnl);
+                }
+              }
+              if (dyn_sslf > 0) {
+                let dyn_ssity: i32 = find_or_alloc_slice_type_ref(arena, dyn_sslf);
+                if (dyn_ssity > 0) {
+                  let dyn_ssoty: i32 = find_or_alloc_slice_type_ref(arena, dyn_ssity);
+                  if (dyn_ssoty > 0) {
+                    typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssoty);
                   }
                 }
               }

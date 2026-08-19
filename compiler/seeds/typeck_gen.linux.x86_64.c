@@ -11780,6 +11780,43 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 }
               }
             }
+            /* dest-SLICE-of-SLICE extra (`p: [][]i32`): ARRAY_LIT of ARRAY
+             * stays TYPE_ARRAY. Scalar dest-SLICE skips elem kind 11.
+             * Sit-red dyn extra asm=139 / host-C=139. Named local already 7.
+             * Skip-trait stores elem_kind=SLICE + elem_elem after `[][]`.
+             * G.7: wrap slice of leaf then wrap slice; reuse
+             * typeck_coerce_init_expr_to_decl (no second dest-SLICE stamp).
+             * NAMED leaf of `[][]Pair` below via param_name. Pin twin.
+             * PLATFORM: SHARED. */
+            if ((dyn_eek == 11)) {
+              int32_t dyn_ssek = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
+              int32_t dyn_sslf = 0;
+              if (((((dyn_ssek >= 0) && (dyn_ssek != 8)) && (dyn_ssek != 9))
+                      && ((dyn_ssek != 10) && ((dyn_ssek != 11) && (dyn_ssek != 13))))) {
+                dyn_sslf = pipeline_type_ensure_by_kind_ord(arena, dyn_ssek);
+              }
+              /* dest-SLICE-of-SLICE NAMED leaf (`p: [][]Pair`). Pin twin. */
+              if (((dyn_sslf == 0) && (dyn_ssek == 8))) {
+                uint8_t dyn_ssnm[64] = {};
+                int32_t dyn_ssnl = xlang_skip_trait_method_param_name_into_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                        (arg_i + 1), &((dyn_ssnm)[0]));
+                if ((dyn_ssnl > 0)) {
+                  dyn_sslf = typeck_find_or_alloc_named_type_ref(arena,
+                          &((dyn_ssnm)[0]), dyn_ssnl);
+                }
+              }
+              if ((dyn_sslf > 0)) {
+                int32_t dyn_ssity = typeck_find_or_alloc_slice_type_ref(arena, dyn_sslf);
+                if ((dyn_ssity > 0)) {
+                  int32_t dyn_ssoty = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssity);
+                  if ((dyn_ssoty > 0)) {
+                    (void)typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssoty);
+                  }
+                }
+              }
+            }
           }
           /* dest-NAMED extra (`p: Pair`): anonymous STRUCT_LIT stays nameless.
            * Sit-red host-C `(struct )` / asm run=162. Named local already 7.
