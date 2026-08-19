@@ -14646,7 +14646,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * elem_kind=SLICE + elem_elem_kind=leaf after `[N][]`.
              * G.7: wrap slice of leaf into dyn_alf then the existing
              * ARRAY wrap below (no second dest-ARRAY stamp). NAMED
-             * leaf of `[N][]Pair` leftover. PLATFORM: SHARED.
+             * leaf of `[N][]Pair` is handled below via param_name.
+             * dest-SLICE extra `[][N]Pair` leftover (host-C layout
+             * order of `struct xlang_slice_xlang_arr2_Pair` before
+             * `struct Pair` is a different produce). PLATFORM: SHARED.
              */
             if (dyn_alf == 0 && dyn_aek == 11) {
               let dyn_aseek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -14655,6 +14658,26 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               if (dyn_aseek >= 0 && dyn_aseek != 8 && dyn_aseek != 9 && dyn_aseek != 10
                   && dyn_aseek != 11 && dyn_aseek != 13) {
                 dyn_aslf = pipeline_type_ensure_by_kind_ord(arena, dyn_aseek);
+              }
+              /*
+               * dest-ARRAY-of-SLICE NAMED leaf (`p: [2][]Pair`):
+               * ARRAY_LIT `[[{a:2,b:3}],[{a:4,b:4}]]` stays TYPE_ARRAY
+               * of nameless STRUCT_LIT. Scalar dest-ARRAY-of-SLICE
+               * skips elem_elem kind 8. Sit-red dyn extra asm/host-C=139
+               * (`(uint8_t[]){(struct )}`); named local / UFCS already 7.
+               * Registry param_name already holds the leaf (`Pair`).
+               * G.7: wrap named then wrap slice into dyn_alf; reuse
+               * typeck_coerce_init_expr_to_decl (no second dest-ARRAY
+               * / dest-SLICE / STRUCT_LIT stamp). PLATFORM: SHARED.
+               */
+              if (dyn_aslf == 0 && dyn_aseek == 8) {
+                let dyn_asnm: u8[64] = [];
+                let dyn_asnl: i32 = xlang_skip_trait_method_param_name_into_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                        &dyn_asnm[0]);
+                if (dyn_asnl > 0) {
+                  dyn_aslf = find_or_alloc_named_type_ref(arena, &dyn_asnm[0], dyn_asnl);
+                }
               }
               if (dyn_aslf > 0) {
                 dyn_alf = find_or_alloc_slice_type_ref(arena, dyn_aslf);

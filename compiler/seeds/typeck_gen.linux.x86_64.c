@@ -11807,6 +11807,19 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                       && ((dyn_aseek != 10) && ((dyn_aseek != 11) && (dyn_aseek != 13))))) {
                 dyn_aslf = pipeline_type_ensure_by_kind_ord(arena, dyn_aseek);
               }
+              /* dest-ARRAY-of-SLICE NAMED leaf (`p: [2][]Pair`). Pin twin
+               * of typeck.x. Registry param_name already holds Pair.
+               * G.7: wrap named then wrap slice. PLATFORM: SHARED. */
+              if (((dyn_aslf == 0) && (dyn_aseek == 8))) {
+                uint8_t dyn_asnm[64] = {};
+                int32_t dyn_asnl = xlang_skip_trait_method_param_name_into_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1),
+                        &((dyn_asnm)[0]));
+                if ((dyn_asnl > 0)) {
+                  dyn_aslf = typeck_find_or_alloc_named_type_ref(arena, &((dyn_asnm)[0]),
+                          dyn_asnl);
+                }
+              }
               if ((dyn_aslf > 0)) {
                 dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_aslf);
               }
