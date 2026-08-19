@@ -987,6 +987,11 @@ static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
 #define XLANG_TRAIT_TY_PTR 9
 #define XLANG_TRAIT_TY_ARRAY 10
 #define XLANG_TRAIT_TY_SLICE 11
+/* dest-SLICE-of-PTR SLICE pointee (`[]*[]T`): method_param_elem_array_ndims
+ * discriminant. 0 = scalar/NAMED pointee (`[]*i32`); >=1 = ARRAY pointee
+ * (`[]*[N]T`); -2 = SLICE pointee (`[]*[]T`). Accessor invalid is -1 so
+ * this sentinel must not collide. PLATFORM: SHARED parse. */
+#define XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS (-2)
 
 /* wave455: prototype — body after g_fn_gp_* tables. */
 void xlang_generic_func_reg_reset_c(void);
@@ -1864,7 +1869,8 @@ int32_t xlang_skip_trait_method_param_elem_elem_kind_c(const uint8_t *trait_nm, 
  * @param trait_nlen  trait name length; must be > 0.
  * @param slot        vtable slot index (0..num_methods-1).
  * @param param_ix    formal index including self (0..PARAM_MAX-1).
- * @return ndims (>=1), or 0 / -1 if unset / invalid.
+ * @return ndims (>=1 ARRAY pointee), 0 scalar, -2 SLICE pointee (`[]*[]T`),
+ *         or -1 if unset / invalid.
  * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
@@ -4351,15 +4357,36 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 }
               } else if (param_elem_arr_need_size) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-                  /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred to soft).
-                   * Mark elem uncaptured so check skips; avoids parse failure.
-                   * wave437: also clears prefix_arr_more if came from *[N][]T. */
-                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
-                  param_elem_arr_need_size = 0;
-                  param_elem_prefix_arr_more = 0;
-                  param_elem_dim_n = 0;
-                  want_param_ty = 0;
-                  saw_param_tok = 1;
+                  /*
+                   * After `[]*` then `[` then `]` (`[]*[]T`): dest-SLICE of
+                   * PTR-to-SLICE. Prior wave434 deferred 3-layer by setting
+                   * elem_kind=-1 (never captured the leaf; dest extras
+                   * dest-SLICE-of-PTR never ran → dyn INDEX 139). Named /
+                   * UFCS already dest-stamp via the formal (7). Keep
+                   * elem=PTR; mark SLICE pointee via ndims=-2 (0 = scalar
+                   * pointee, >=1 = ARRAY pointee, accessor invalid = -1);
+                   * capture leaf T as eek via param_elem_elem_pending.
+                   * `*[N][]T` (dim_n>0) stays the deferred path.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  if (ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_PTR
+                      && param_elem_dim_n == 0) {
+                    ent->method_param_elem_array_ndims[mi_reg][param_count] =
+                        XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    param_elem_arr_need_size = 0;
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_dim_n = 0;
+                    param_elem_elem_pending = 1;
+                  } else {
+                    /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred).
+                     * wave437: also clears prefix_arr_more if came from *[N][]T. */
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_arr_need_size = 0;
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_dim_n = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
                 } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
                   /* Collect one elem dim; finalize on non-`[` after closing `]`. */
                   if (param_elem_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)

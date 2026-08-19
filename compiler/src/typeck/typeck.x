@@ -256,7 +256,7 @@ export extern function xlang_skip_trait_method_param_elem_elem_kind_c(trait_nm: 
  * @param trait_nlen i32 — trait name length; must be > 0
  * @param slot i32 — vtable slot
  * @param param_ix i32 — formal index including self (0 = self)
- * @return i32 — ndims (>=1), or 0 / -1 if unset / invalid
+ * @return i32 — ndims (>=1 ARRAY pointee), 0 scalar, -2 SLICE pointee (`[]*[]T`), or -1 invalid
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm: *u8, trait_nlen: i32,
@@ -14483,8 +14483,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * G.7: reuse typeck_coerce_init_slice_from_array. Scalar elem plus
            * NAMED leaf (`[]Pair`) plus ARRAY elem (`[][2]i32`) plus PTR
            * elem (`[]*i32`) plus PTR-to-ARRAY elem (`[]*[N]T`) plus SLICE
-           * elem (`[][]i32`). Remaining leftover: VECTOR / dest-SLICE-of-PTR
-           * SLICE leaf (`[]*[]T`) / dest-SLICE of SLICE-of-SLICE (`[][][]T`).
+           * elem (`[][]i32`) plus PTR-to-SLICE elem (`[]*[]T`). Remaining
+           * leftover: VECTOR / dest-SLICE of SLICE-of-SLICE (`[][][]T`).
            * PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 11) {
@@ -14648,13 +14648,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                * the emit twin (layout + ARRAY_LIT). G.7: wrap ARRAY via
                * elem_array_ndims then the existing wrap ptr + wrap slice
                * (no second dest-SLICE stamp). ndims==0 keeps ptr-of-leaf
-               * (`[]*i32`). PLATFORM: SHARED.
+               * (`[]*i32`).
+               * dest-SLICE-of-PTR SLICE leaf (`p: []*[]i32`): skip-trait
+               * after `[]*` then `[` then `]` used to set elem_kind=-1
+               * (wave434 3-layer defer). Scanner now keeps elem=PTR +
+               * eek=leaf + ndims=-2 (SLICE pointee; accessor invalid is
+               * -1). Named / UFCS already dest-stamp via the formal (7);
+               * dyn INDEX sit-red 139. G.7: wrap SLICE of leaf then the
+               * existing wrap ptr + wrap slice (no second dest-SLICE
+               * stamp). PLATFORM: SHARED.
                */
               if (dyn_splf > 0) {
                 let dyn_spand: i32 = xlang_skip_trait_method_param_elem_array_ndims_c(
                         &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
                 let dyn_spaw: i32 = dyn_splf;
-                if (dyn_spand >= 1) {
+                if (dyn_spand == -2) {
+                  dyn_spaw = find_or_alloc_slice_type_ref(arena, dyn_splf);
+                } else if (dyn_spand >= 1) {
                   let dyn_spai: i32 = dyn_spand - 1;
                   while (dyn_spai >= 0 && dyn_spaw > 0) {
                     let dyn_spad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
@@ -14689,8 +14699,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * reuse typeck_coerce_init_expr_to_decl so dest-SLICE + nested
              * ARRAY_LIT elems stamp together (no second dest-SLICE stamp).
              * NAMED leaf of `[][]Pair` is handled below via param_name.
-             * dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) is handled above
-             * via elem_array_ndims (eek is the leaf, not 10).
+             * dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) and SLICE leaf
+             * (`[]*[]T`, ndims=-2) are handled above via elem_array_ndims
+             * (eek is the leaf, not 10 / 11).
              * PLATFORM: SHARED.
              */
             if (dyn_eek == 11) {
