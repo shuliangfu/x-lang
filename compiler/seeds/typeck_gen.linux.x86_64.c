@@ -11694,7 +11694,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
              * Sit-red asm=1 / host-C=139. G.7: elem_elem_kind + elem_array
              * wrap inner-first then wrap slice; reuse
              * typeck_coerce_init_expr_to_decl (no second dest-SLICE /
-             * ARRAY_LIT stamp). Pin twin. PLATFORM: SHARED. */
+             * ARRAY_LIT stamp). NAMED leaf of `[][N]Pair` below via
+             * param_name. Pin twin. PLATFORM: SHARED. */
             if ((dyn_eek == 10)) {
               int32_t dyn_saek = xlang_skip_trait_method_param_elem_elem_kind_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11702,6 +11703,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               if (((((dyn_saek >= 0) && (dyn_saek != 8)) && (dyn_saek != 9))
                       && ((dyn_saek != 10) && ((dyn_saek != 11) && (dyn_saek != 13))))) {
                 dyn_salf = pipeline_type_ensure_by_kind_ord(arena, dyn_saek);
+              }
+              /* dest-SLICE-of-ARRAY NAMED leaf (`p: [][2]Pair`). Pin twin. */
+              if (((dyn_salf == 0) && (dyn_saek == 8))) {
+                uint8_t dyn_sanm[64] = {};
+                int32_t dyn_sanl = xlang_skip_trait_method_param_name_into_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                        (arg_i + 1), &((dyn_sanm)[0]));
+                if ((dyn_sanl > 0)) {
+                  dyn_salf = typeck_find_or_alloc_named_type_ref(arena,
+                          &((dyn_sanm)[0]), dyn_sanl);
+                }
               }
               if ((dyn_salf > 0)) {
                 int32_t dyn_sand = xlang_skip_trait_method_param_elem_array_ndims_c(

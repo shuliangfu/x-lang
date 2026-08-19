@@ -14515,7 +14515,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * slice; reuse typeck_coerce_init_expr_to_decl so dest-SLICE
              * + nested ARRAY_LIT elems stamp together (no second
              * dest-SLICE / ARRAY_LIT stamp). NAMED leaf of `[][N]Pair`
-             * leftover. PLATFORM: SHARED.
+             * is handled below via param_name. PLATFORM: SHARED.
              */
             if (dyn_eek == 10) {
               let dyn_saek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -14524,6 +14524,29 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               if (dyn_saek >= 0 && dyn_saek != 8 && dyn_saek != 9 && dyn_saek != 10
                   && dyn_saek != 11 && dyn_saek != 13) {
                 dyn_salf = pipeline_type_ensure_by_kind_ord(arena, dyn_saek);
+              }
+              /*
+               * dest-SLICE-of-ARRAY NAMED leaf (`p: [][2]Pair`):
+               * ARRAY_LIT `[[{a:2,b:4}]]` stays TYPE_ARRAY of nameless
+               * STRUCT_LIT. Scalar dest-SLICE-of-ARRAY skips elem_elem
+               * kind 8. Sit-red dyn extra asm=139 / host-C `(struct )`;
+               * named local / UFCS already dest-stamp (asm 7). Registry
+               * param_name already holds the leaf (`Pair`). G.7: wrap
+               * named into dyn_salf then the existing ARRAY wrap + wrap
+               * slice; reuse typeck_coerce_init_expr_to_decl (no second
+               * dest-SLICE / ARRAY_LIT / STRUCT_LIT stamp). Host-C
+               * BLD001 of `struct Pair (*data)[2]` before `struct Pair`
+               * is a different produce (layout emit order).
+               * PLATFORM: SHARED.
+               */
+              if (dyn_salf == 0 && dyn_saek == 8) {
+                let dyn_sanm: u8[64] = [];
+                let dyn_sanl: i32 = xlang_skip_trait_method_param_name_into_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                        &dyn_sanm[0]);
+                if (dyn_sanl > 0) {
+                  dyn_salf = find_or_alloc_named_type_ref(arena, &dyn_sanm[0], dyn_sanl);
+                }
               }
               if (dyn_salf > 0) {
                 let dyn_sand: i32 = xlang_skip_trait_method_param_elem_array_ndims_c(
@@ -14647,9 +14670,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * G.7: wrap slice of leaf into dyn_alf then the existing
              * ARRAY wrap below (no second dest-ARRAY stamp). NAMED
              * leaf of `[N][]Pair` is handled below via param_name.
-             * dest-SLICE extra `[][N]Pair` leftover (host-C layout
-             * order of `struct xlang_slice_xlang_arr2_Pair` before
-             * `struct Pair` is a different produce). PLATFORM: SHARED.
+             * dest-SLICE extra `[][N]Pair` dest-stamp is handled in
+             * dest extras dest-SLICE-of-ARRAY NAMED leaf. PLATFORM: SHARED.
              */
             if (dyn_alf == 0 && dyn_aek == 11) {
               let dyn_aseek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
