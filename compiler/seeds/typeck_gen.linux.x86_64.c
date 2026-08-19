@@ -9466,10 +9466,14 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
           }
         }
         if (arg_ref > 0) {
-          /* G.7 ≡ typeck.x: ARRAY_LIT → SIMD/array/slice formal before score. */
+          /* G.7 ≡ typeck.x: ARRAY_LIT → SIMD/array/slice formal before score.
+           * STRUCT_LIT extras + ARRAY_LIT-of-NAMED elems dest-stamp here
+           * (twin typeck_check_call_arg_types in typeck.x). PLATFORM: SHARED. */
           (void)typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_raw,
             pipeline_type_kind_ord_at(arena, param_raw),
             pipeline_expr_kind_ord_at(arena, arg_ref));
+          (void)typeck_coerce_init_struct_lit_to_decl(module, arena, arg_ref, param_raw);
+          (void)typeck_coerce_array_lit_struct_elems_to_decl(module, arena, arg_ref, param_raw);
         }
         (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
         if ((sc < 0)) {
@@ -11834,6 +11838,15 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 int32_t param_raw = pipeline_module_func_param_type_ref_at(module, uj, (ai + 1));
                 int32_t arg_ref2 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
                 int32_t arg_ty = 0;
+                if (((arg_ref2 > 0) && (param_raw > 0))) {
+                  /* G.7 ≡ typeck.x UFCS extras dest-stamp: ARRAY dest +
+                   * STRUCT_LIT elems + dest-NAMED `{ fields }`. */
+                  (void)typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref2, param_raw,
+                    pipeline_type_kind_ord_at(arena, param_raw),
+                    pipeline_expr_kind_ord_at(arena, arg_ref2));
+                  (void)typeck_coerce_array_lit_struct_elems_to_decl(module, arena, arg_ref2, param_raw);
+                  (void)typeck_coerce_init_struct_lit_to_decl(module, arena, arg_ref2, param_raw);
+                }
                 if ((arg_ref2 > 0)) {
                   (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref2)));
                 }

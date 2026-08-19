@@ -11319,6 +11319,16 @@ ctx: *PipelineDepCtx): i32 {
            * Named `Type { fields }` is rejected in struct_lit check.
            * PLATFORM: SHARED — classify({ x: 0, y: 0 }) needs formal Point. */
           typeck_coerce_init_struct_lit_to_decl(module, arena, arg_ref, pty_c);
+          /*
+           * ARRAY_LIT extras of NAMED elems (`[{a:2,b:3},{a:4,b:4}]` →
+           * `[2]Pair` / `[]Pair`): array_vector stamps the outer ARRAY/
+           * SLICE dest so host-C emits `struct Pair[]` / dest-SLICE wrap,
+           * but STRUCT_LIT elems stay nameless → `(struct )` and asm
+           * stores only the first field. G.7: same struct-elem dest as
+           * typeck_coerce_init_expr_to_decl (let dest already green).
+           * PLATFORM: SHARED extras dest-stamp.
+           */
+          typeck_coerce_array_lit_struct_elems_to_decl(module, arena, arg_ref, pty_c);
         }
         /*
          * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring
@@ -14033,6 +14043,10 @@ num_args: i32): i32 {
  *    ARRAY_LIT receiver / extra args coerce to SIMD/VECTOR formals via
  *    typeck_coerce_init_array_vector_lit_to_decl before type_refs_equal
  *    (same stamp as CALL-arg / let `a: i32x4 = [1,2,3,4]`).
+ *    ARRAY_LIT extras of NAMED elems (`[2]Pair` / `[]Pair`) also dest-stamp
+ *    STRUCT_LIT elems via typeck_coerce_array_lit_struct_elems_to_decl;
+ *    nameless `{ fields }` extras dest-stamp via
+ *    typeck_coerce_init_struct_lit_to_decl (twin typeck_check_call_arg_types).
  *    Coerce 0 on ARRAY_LIT + SIMD formal (n_elems != lanes or elem type)
  *    refuses that candidate — same hard miss as CALL score T001, not
  *    LANG-004 "no impl" and not type_refs_equal fallback.
@@ -14399,8 +14413,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * (ndims inner-first, twin of dyn ret ARRAY); reuse
            * typeck_coerce_init_expr_to_decl so dest-ARRAY + STRUCT_LIT
            * elems stamp together (no second ARRAY_LIT / STRUCT_LIT stamp).
-           * Remaining leftover: PTR/SLICE/VECTOR elem of dest-ARRAY;
-           * UFCS extras are a different produce. PLATFORM: SHARED.
+           * Remaining leftover: PTR/SLICE/VECTOR elem of dest-ARRAY.
+           * UFCS extras dest-stamp STRUCT_LIT elems in the same-module
+           * extras loop (twin typeck_check_call_arg_types). PLATFORM: SHARED.
            */
           if (dyn_arg > 0 && dyn_pk == 10) {
             let dyn_aek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
@@ -14654,6 +14669,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                     matched = 0;
                     break;
                   }
+                  /*
+                   * UFCS extras dest-stamp: ARRAY dest already stamped so
+                   * host-C emits `struct Pair[]` / dest-SLICE wrap, but
+                   * STRUCT_LIT elems stayed nameless (`(struct )`; asm
+                   * run=3 first field only). Nameless `{a:2,b:4}` extras
+                   * also need dest-NAMED or type_refs_equal fails T001.
+                   * G.7: reuse typeck_check_call_arg_types dest helpers
+                   * (no second STRUCT_LIT stamp). PLATFORM: SHARED.
+                   */
+                  typeck_coerce_array_lit_struct_elems_to_decl(module, arena, arg_ref2, param_raw);
+                  typeck_coerce_init_struct_lit_to_decl(module, arena, arg_ref2, param_raw);
                 }
                 if (arg_ref2 > 0) {
                   arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref2);
