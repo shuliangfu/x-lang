@@ -12090,6 +12090,23 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                     }
                   }
                 }
+                /* dest extras dest-ARRAY-of-SLICE extra PTR wraps
+                 * (`[2][][]*T`). Pin twin of typeck.x. dim_ix=1 when
+                 * ndims==-2. Reuse hoisted dyn_aspx/dyn_aspi (no
+                 * mixed-decl-after-statement). Do not invent -3.
+                 * PLATFORM: SHARED. */
+                if ((dyn_asand == -2)) {
+                  dyn_aspx = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                          (arg_i + 1), 1);
+                  if ((dyn_aspx > 0)) {
+                    dyn_aspi = 0;
+                    while (((dyn_aspi < dyn_aspx) && (dyn_asaw > 0))) {
+                      dyn_asaw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_asaw);
+                      dyn_aspi = (dyn_aspi + 1);
+                    }
+                  }
+                }
                 /* dest extras dest-ARRAY-of-SLICE extra ARRAY wraps
                  * (`[2][][2]T`). Pin twin of typeck.x. Wrap ARRAY of
                  * leaf inner-first when ndims>=1 then wrap SLICE.

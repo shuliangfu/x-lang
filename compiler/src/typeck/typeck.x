@@ -15004,7 +15004,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             }
             /*
              * dest-ARRAY-of-SLICE extra (`p: [2][]i32` / `[2][][]i32` /
-             * `[2][]*i32` / `[2][][2]i32`): ARRAY_LIT
+             * `[2][]*i32` / `[2][][2]i32` / `[2][][]*i32`): ARRAY_LIT
              * `[[2, 3], [1, 4]]` stays TYPE_ARRAY of ARRAY. Scalar
              * dest-ARRAY skips elem kind 11. Sit-red `[2][]i32` was
              * asm=139 / host-C=133 (`(int32_t[][2])` into a slice*
@@ -15028,7 +15028,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * PTR uses unused slot dims[0] with ndims staying 0
              * (1 = `[2][]*T`; 0 = no extra PTR = `[2][]i32`); extra
              * inner ARRAY uses ndims>=1 dims[0..ndims-1]
-             * (`[2][][2]T`; ban -3). G.7: wrap PTR of leaf extra
+             * (`[2][][2]T`); extra PTR when ndims==-2 lives in unused
+             * slot dims[1] (1 = `[2][][]*T`; 0 = no extra PTR =
+             * `[2][][]T`; ban -3). G.7: wrap PTR of leaf extra
              * times then wrap ARRAY of leaf inner-first when
              * ndims>=1 then wrap slice into dyn_alf then extra
              * SLICE wraps when ndims==-2 then the existing ARRAY
@@ -15091,6 +15093,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                     while (dyn_aspi < dyn_aspx && dyn_asaw > 0) {
                       dyn_asaw = find_or_alloc_ptr_type_ref(arena, dyn_asaw);
                       dyn_aspi = dyn_aspi + 1;
+                    }
+                  }
+                }
+                /*
+                 * dest extras dest-ARRAY-of-SLICE extra PTR wraps
+                 * (`[2][][]*T`): dim accessor returns extra PTR wrap
+                 * count at dim_ix=1 when ndims==-2 (dims[0] is extra
+                 * SLICE). Wrap PTR of leaf extra times then wrap
+                 * SLICE then extra SLICE wraps. `[2][][]i32`
+                 * (aspx2<=0) stays extra-SLICE-only. Twin of dest
+                 * extras dest-SLICE-of-SLICE extra PTR wraps
+                 * (`[][][]*T`; same unused-slot encoding;
+                 * discriminant is ARRAY vs SLICE outer). ARRAY
+                 * leftover impl-match matches at leftover SLICE
+                 * (not T001). Do not invent -3. PLATFORM: SHARED.
+                 */
+                if (dyn_asand == -2) {
+                  let dyn_aspx2: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1, 1);
+                  if (dyn_aspx2 > 0) {
+                    let dyn_aspi2: i32 = 0;
+                    while (dyn_aspi2 < dyn_aspx2 && dyn_asaw > 0) {
+                      dyn_asaw = find_or_alloc_ptr_type_ref(arena, dyn_asaw);
+                      dyn_aspi2 = dyn_aspi2 + 1;
                     }
                   }
                 }
