@@ -16353,6 +16353,30 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
     if (emit_bytes_8(out, &ret[0], 7) != 0) {
       return -1;
     }
+    /*
+     * PTR-to-ARRAY return (`*[N]T`): emit_type peels to `E *` so
+     * `return &self.p` (`E (*)[N]`) is Ubuntu -Wincompatible-pointer-types.
+     * Cast to the peeled return type. G.7 complete this return emit
+     * (no second return path). PLATFORM: SHARED host-C; Ubuntu gold.
+     */
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
+        && ctx.current_func_index >= 0
+        && ctx.current_func_index < ctx.current_codegen_module.num_funcs
+        && !ast.ref_is_null(operand_ref)) {
+      let parr_rty: i32 = pipeline_module_func_return_type_at(ctx.current_codegen_module,
+              ctx.current_func_index);
+      if (type_is_ptr_to_fixed_array(arena, parr_rty) != 0) {
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, parr_rty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+      }
+    }
     if (!ast.ref_is_null(operand_ref) && emit_expr(arena, out, operand_ref, ctx) != 0) {
       return -1;
     }

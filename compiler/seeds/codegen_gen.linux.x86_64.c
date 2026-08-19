@@ -13423,6 +13423,27 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
     if ((codegen_emit_bytes_8(out, &((ret)[0]), 7) !=0)) {
       return -1;
     }
+    /* PTR-to-ARRAY ret: peel is E*; cast &arr so Ubuntu gcc accepts.
+     * Pin twin of codegen.x emit_return_stmt_with_context. */
+    if ((((((ctx !=0) && (((ctx)->current_codegen_module) !=0))
+            && (((ctx)->current_func_index) >=0))
+            && (((ctx)->current_func_index) < ((((ctx)->current_codegen_module))->num_funcs)))
+            && !(ast_ref_is_null(operand_ref)))) {
+      int32_t parr_rty = pipeline_module_func_return_type_at(((ctx)->current_codegen_module),
+              ((ctx)->current_func_index));
+      if (((pipeline_type_kind_ord_at(arena, parr_rty) ==9)
+              && (pipeline_type_kind_ord_at(arena, pipeline_type_elem_ref_at(arena, parr_rty)) ==10))) {
+        if ((codegen_append_byte(out, 40) !=0)) {
+          return -1;
+        }
+        if ((codegen_emit_type(arena, out, parr_rty, 0, 0, ctx) !=0)) {
+          return -1;
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
+          return -1;
+        }
+      }
+    }
     if ((!(ast_ref_is_null(operand_ref)) && (codegen_emit_expr(arena, out, operand_ref, ctx) !=0))) {
       return -1;
     }
