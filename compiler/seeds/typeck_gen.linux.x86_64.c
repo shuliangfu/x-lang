@@ -11955,13 +11955,15 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 dyn_alf = typeck_find_or_alloc_named_type_ref(arena, &((dyn_apnm)[0]), dyn_apnl);
               }
             }
-            /* dest-ARRAY-of-SLICE extra (`p: [2][]i32` / `[2][][]i32`).
-             * Pin twin of typeck.x. Skip-trait stores elem_kind=SLICE
-             * + eek=leaf after `[N][]`; extra inner SLICE uses
-             * ndims=-2 wrap count in dims[0] (0 means 1 = `[2][][]T`).
-             * Wrap slice of leaf then extra wraps when ndims==-2 then
-             * existing ARRAY wrap. G.7 no second dest-ARRAY stamp;
-             * do not invent -3. PLATFORM: SHARED. */
+            /* dest-ARRAY-of-SLICE extra (`p: [2][]i32` / `[2][][]i32` /
+             * `[2][]*i32`). Pin twin of typeck.x. Skip-trait stores
+             * elem_kind=SLICE + eek=leaf after `[N][]`; extra inner
+             * SLICE uses ndims=-2 wrap count in dims[0] (0 means 1 =
+             * `[2][][]T`); extra inner PTR uses unused slot dims[0]
+             * with ndims staying 0 (1 = `[2][]*T`). Wrap PTR of leaf
+             * extra times then wrap slice then extra SLICE wraps when
+             * ndims==-2 then existing ARRAY wrap. G.7 no second
+             * dest-ARRAY stamp; do not invent -3. PLATFORM: SHARED. */
             if (((dyn_alf == 0) && (dyn_aek == 11))) {
               int32_t dyn_aseek = xlang_skip_trait_method_param_elem_elem_kind_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11984,21 +11986,42 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 }
               }
               if ((dyn_aslf > 0)) {
-                dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_aslf);
+                int32_t dyn_asaw = dyn_aslf;
+                int32_t dyn_asand = 0;
+                int32_t dyn_aspx = 0;
+                int32_t dyn_aspi = 0;
+                int32_t dyn_asex = 0;
+                int32_t dyn_asi = 0;
+                dyn_asand = xlang_skip_trait_method_param_elem_array_ndims_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
+                /* dest extras dest-ARRAY-of-SLICE extra PTR wraps
+                 * (`[2][]*T`). Pin twin of typeck.x. Do not invent -3.
+                 * PLATFORM: SHARED. */
+                if ((dyn_asand == 0)) {
+                  dyn_aspx = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                          (arg_i + 1), 0);
+                  if ((dyn_aspx > 0)) {
+                    dyn_aspi = 0;
+                    while (((dyn_aspi < dyn_aspx) && (dyn_asaw > 0))) {
+                      dyn_asaw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_asaw);
+                      dyn_aspi = (dyn_aspi + 1);
+                    }
+                  }
+                }
+                dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_asaw);
                 /* dest extras dest-ARRAY-of-SLICE extra wraps
                  * (`[2][][]T`). Pin twin of typeck.x. Do not invent -3.
                  * PLATFORM: SHARED. */
                 if ((dyn_alf > 0)) {
-                  int32_t dyn_asand = xlang_skip_trait_method_param_elem_array_ndims_c(
-                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
                   if ((dyn_asand == -2)) {
-                    int32_t dyn_asex = xlang_skip_trait_method_param_elem_array_dim_c(
+                    dyn_asex = xlang_skip_trait_method_param_elem_array_dim_c(
                             &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
                             (arg_i + 1), 0);
                     if ((dyn_asex < 1)) {
                       dyn_asex = 1;
                     }
-                    int32_t dyn_asi = 0;
+                    dyn_asi = 0;
                     while (((dyn_asi < dyn_asex) && (dyn_alf > 0))) {
                       dyn_alf = typeck_find_or_alloc_slice_type_ref(arena, dyn_alf);
                       dyn_asi = (dyn_asi + 1);

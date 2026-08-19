@@ -1929,6 +1929,10 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * `[2][][]T` / 3-layer compat). dest extras dest-SLICE-of-PTR,
  * dest-SLICE-of-SLICE, dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE
  * all read this for ndims==-2.
+ * When ndims==0, dim_ix 0 returns dest extras dest-ARRAY-of-SLICE
+ * extra PTR wrap count in unused slot dims[0] (`[2][]*T` = 1;
+ * 0 / missing means no extra PTR = `[2][]i32`). ndims==-2 already
+ * uses dims[0] for extra SLICE so extra PTR cannot reuse -2.
  * When ndims>0, dim_ix==ndims returns dest extras dest-SLICE-of-ARRAY
  * extra SLICE wrap count in the unused slot (`[][2][]T` = 1;
  * `[][2][][]T` = 2; 0 / missing means no extra wrap = `[][2]i32`).
@@ -1961,6 +1965,20 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
     extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][0];
     if (extra <= 0)
       extra = 1;
+    return extra;
+  }
+  /*
+   * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][]*T`): unused
+   * slot dims[0] when ndims==0. dim_ix>=nd would treat dim_ix=0 as
+   * an extra-wrap probe and reject because nd is not >0. extra>0
+   * returns the count; 0 / missing → -1 so `[2][]i32` stays
+   * wrap-once. Do not invent -3. PLATFORM: SHARED.
+   */
+  if (nd == 0 && dim_ix == 0) {
+    int32_t extra;
+    extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][0];
+    if (extra <= 0)
+      return -1;
     return extra;
   }
   if (dim_ix >= nd) {
@@ -4547,6 +4565,44 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                     extra = extra + 1;
                     if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                       ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR
+                           && ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_SLICE
+                           && ent->method_param_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_ARRAY) {
+                  /*
+                   * dest extras dest-ARRAY of SLICE extra `[2][]*T`:
+                   * after `[N][]` we are in param_elem_elem_pending
+                   * (elem=SLICE, ndims=0). Extra STAR used to hit
+                   * token_to_type_kind=-1 then want_param_ty=0 so eek
+                   * never captured; dest extras dest-ARRAY-of-SLICE
+                   * wrap-once dest-stamps `[2][]i32` (nested ARRAY_LIT
+                   * 139). ndims=-2 is extra SLICE wrap (`[2][][]T`).
+                   * Keep SLICE; extra PTR wrap COUNT lives in unused
+                   * slot dims[0] with ndims staying 0 (1 = `[2][]*T`;
+                   * 0 = no extra PTR = `[2][]i32`). Outer must be ARRAY
+                   * so `[][]*T` dest-SLICE-of-SLICE extra PTR stays
+                   * deferred. Capture leaf T by staying pending.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  int32_t nd;
+                  int32_t extra;
+                  nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                  if (nd == 0) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][0];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][0] =
                           extra;
                     /* stay param_elem_elem_pending to capture leaf T */
                   } else {
