@@ -4822,8 +4822,18 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
     (void)((elem_ref = pipeline_type_elem_ref_at(arena, type_ref)));
     (void)((arr_sz = pipeline_type_array_size_at(arena, type_ref)));
     if (((tk ==9) && !(ast_ref_is_null(elem_ref)))) {
+      /* PTR-to-ARRAY: peel to first-element E* (function-return ABI).
+       * Abstract E (*)[N] before a name is invalid C. Named locals still
+       * codegen_emit_c (`E (*name)[N]`). Pin twin of codegen.x.
+       * PLATFORM: SHARED host-C. */
       if ((pipeline_type_kind_ord_at(arena, elem_ref) ==10)) {
-        return codegen_emit_c(arena, out, type_ref, 0, 0, ctx);
+        if ((codegen_emit_local_fixed_array_elem_type(arena, out, elem_ref, ctx) !=0)) {
+          return -1;
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          return -1;
+        }
+        return codegen_append_byte(out, 42);
       }
       if ((codegen_emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) !=0)) {
         return -1;
@@ -13841,6 +13851,18 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                   uint8_t eq[4] = {32, 61, 32, 0};
                   if ((codegen_emit_bytes_4(out, &((eq)[0]), 3) !=0)) {
                     return -1;
+                  }
+                  /* dest *[N]T: named E (*p)[N] = (E (*)[N])rhs. Pin twin. */
+                  if (((use !=0) && !(ast_ref_is_null(linit_ref)))) {
+                    if ((codegen_append_byte(out, 40) !=0)) {
+                      return -1;
+                    }
+                    if ((codegen_emit_c(arena, out, let_type_ref, 0, 0, ctx) !=0)) {
+                      return -1;
+                    }
+                    if ((codegen_append_byte(out, 41) !=0)) {
+                      return -1;
+                    }
                   }
                   int32_t slice_init = 0;
                   if (!(ast_ref_is_null(linit_ref))) {

@@ -1539,6 +1539,88 @@ int32_t xlang_skip_trait_method_ret_array_dim_c(const uint8_t *trait_nm, int32_t
 }
 
 /**
+ * Return the TypeKind ordinal of a trait-method return's ARRAY/SLICE
+ * element leaf (method_ret_elem_elem_kinds). Completes the F3 accessor
+ * family next to ret_elem_kind. The scanner already stores the leaf of
+ * `*[N]T` / `*[]T` (elem=ARRAY/SLICE, elem_elem=T). Typeck dyn ret
+ * cannot look up a module-func return type_ref (func_ix is the slot),
+ * so `*[2]i32` reconstructs via this + elem_array ndims/dims +
+ * find_or_alloc_array then wrap ptr (sit-red: host-C
+ * `int32_t (*p)[2] = (void)call`). Twin of param_elem_elem_kind.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                    int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[slot];
+}
+
+/**
+ * Return ndims of a trait-method return's ARRAY elem (`*[K][N]T`).
+ * Completes the F3 accessor family next to ret_elem_elem_kind. The
+ * scanner already stores method_ret_elem_array_ndims (not the
+ * top-level ret_array_ndims used by `[K][N]T` ret). Twin of
+ * param_elem_array_ndims.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return ndims (>=1), or 0 / -1 if unset / invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[slot];
+}
+
+/**
+ * Return one dim of a trait-method return's ARRAY elem (`*[K][N]T`).
+ * dim_ix 0 is the outer K of the ARRAY elem; last dim is innermost N.
+ * Cap is XLANG_SKIP_TRAIT_ARRAY_DIM_MAX (8). Twin of param_elem_array_dim.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
+ * @return N > 0, or -1 if trait/slot/dim invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                    int32_t slot, int32_t dim_ix) {
+  int32_t ti;
+  int32_t nd;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || dim_ix < 0
+      || dim_ix >= XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  nd = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[slot];
+  if (dim_ix >= nd)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][dim_ix];
+}
+
+/**
  * Copy the TYPE_NAMED spelling of a trait-method return into out64.
  * Completes the F3 accessor family next to ret_kind / ret_elem_kind.
  * The scanner already stores method_ret_names for a bare `Pair` return

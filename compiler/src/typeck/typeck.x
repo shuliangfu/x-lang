@@ -114,6 +114,45 @@ export extern function xlang_skip_trait_method_ret_array_ndims_c(trait_nm: *u8, 
 export extern function xlang_skip_trait_method_ret_array_dim_c(trait_nm: *u8, trait_nlen: i32,
         slot: i32, dim_ix: i32): i32;
 /**
+ * Leaf TypeKind of a trait-method return's ARRAY/SLICE elem (`*[N]T`).
+ * G.7: completes the skip-trait accessor family next to ret_elem_kind
+ * (registry already stores method_ret_elem_elem_kinds). Dyn ret
+ * reconstructs `*[2]i32` via this + ret_elem_array ndims/dims
+ * (func_ix is the slot). Twin of param_elem_elem_kind.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @return i32 — TypeKind ord (>=0), or -1 if unset / invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_elem_elem_kind_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
+/**
+ * ndims of a trait-method return's ARRAY elem (`*[K][N]T`).
+ * G.7: completes the skip-trait accessor family next to ret_elem_elem_kind
+ * (registry already stores method_ret_elem_array_ndims; not the
+ * top-level ret_array_ndims used by `[K][N]T` ret).
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @return i32 — ndims (>=1), or 0 / -1 if unset / invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_elem_array_ndims_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32): i32;
+/**
+ * One dim of a trait-method return's ARRAY elem (`*[K][N]T`).
+ * dim_ix 0 = outer K of the ARRAY elem. Cap 8.
+ * @param trait_nm *u8 — trait name bytes; non-null
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot
+ * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
+ * @return i32 — N > 0, or -1 if invalid
+ * PLATFORM: SHARED.
+ */
+export extern function xlang_skip_trait_method_ret_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
+        slot: i32, dim_ix: i32): i32;
+/**
  * Copy the TYPE_NAMED spelling of a trait-method return into out64.
  * G.7: completes the skip-trait accessor family next to ret_kind
  * (registry already stores method_ret_names). Dyn dispatch
@@ -14324,8 +14363,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         /*
          * PTR-to-scalar ret (`*i32`): same void-cast leftover. Reconstruct
          * with ret_elem_kind + find_or_alloc_ptr. PTR-to-NAMED (`*Pair`)
-         * uses ret_name + find_or_alloc_named then wrap ptr. Remaining
-         * leftover: PTR-to-PTR / ARRAY / SLICE / VECTOR elem.
+         * uses ret_name + find_or_alloc_named then wrap ptr. PTR-to-ARRAY
+         * (`*[2]i32`) reconstructs via ret_elem_elem_kind + elem_array
+         * wrap then wrap ptr. Remaining leftover: PTR-to-PTR / SLICE /
+         * VECTOR elem.
          * PLATFORM: SHARED.
          */
         if (dyn_ret_ty == 0 && dyn_ret_kind == 9) {
@@ -14351,6 +14392,47 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               let dyn_pnty: i32 = find_or_alloc_named_type_ref(arena, &dyn_pname[0], dyn_plen);
               if (dyn_pnty > 0) {
                 dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_pnty);
+              }
+            }
+          }
+          /*
+           * PTR-to-ARRAY ret (`*[2]i32`): scalar PTR skips elem kind 10 so
+           * the call-site cast was void (host-C `int32_t (*p)[2] =
+           * (void)call`). Registry ret_elem_elem_kind + ret_elem_array
+           * ndims/dims already hold the ARRAY leaf (`[2]i32`). G.7: wrap
+           * ARRAY inner-first then wrap ptr (no second resolve). emit_type
+           * already emits abstract `E (*)[N]` for PTR-to-ARRAY. NAMED leaf
+           * of `*[N]Pair` leftover. PLATFORM: SHARED.
+           */
+          if (dyn_ret_ty == 0 && dyn_rek3 == 10) {
+            let dyn_reek: i32 = xlang_skip_trait_method_ret_elem_elem_kind_c(
+                    &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
+            let dyn_ralf: i32 = 0;
+            if (dyn_reek >= 0 && dyn_reek != 8 && dyn_reek != 9 && dyn_reek != 10
+                && dyn_reek != 11 && dyn_reek != 13) {
+              dyn_ralf = pipeline_type_ensure_by_kind_ord(arena, dyn_reek);
+            }
+            if (dyn_ralf > 0) {
+              let dyn_rend: i32 = xlang_skip_trait_method_ret_elem_array_ndims_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
+              let dyn_rew: i32 = dyn_ralf;
+              if (dyn_rend >= 1) {
+                let dyn_rei: i32 = dyn_rend - 1;
+                while (dyn_rei >= 0 && dyn_rew > 0) {
+                  let dyn_red: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_rei);
+                  if (dyn_red > 0) {
+                    dyn_rew = find_or_alloc_array_type_ref(arena, dyn_rew, dyn_red);
+                  } else {
+                    dyn_rew = 0;
+                  }
+                  dyn_rei = dyn_rei - 1;
+                }
+              } else {
+                dyn_rew = 0;
+              }
+              if (dyn_rew > 0) {
+                dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_rew);
               }
             }
           }

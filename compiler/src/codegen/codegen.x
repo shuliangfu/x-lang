@@ -4520,13 +4520,23 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     arr_sz = pipeline_type_array_size_at(arena, type_ref);
     if (tk == TypeKind.TYPE_PTR as i32 && !ast.ref_is_null(elem_ref)) {
       /*
-       * wave636 Cap residual pure: PTR → TYPE_ARRAY must be C `E (*)[N]…`, not
-       * emit_type(ARRAY)→`E *` then another ` *` (`E * *`). Abstract form only;
-       * named locals/params use emit_c_ptr_to_fixed_array_decl with the name.
+       * PTR → TYPE_ARRAY (`*[N]T`). C cannot host abstract `E (*)[N]` before
+       * a function name (`int32_t (*)[2] getpa()` is invalid). Return /
+       * fn-ptr ABI peels to first-element `E *`, matching `[N]T` return.
+       * Named locals/params still use emit_c_ptr_to_fixed_array_decl
+       * (`E (*name)[N]`). Sit-red dyn_ret_ptr_arr host-C void-cast then
+       * `int32_t (*)[2] getpa` after dest-stamp.
+       * G.7 complete this emit_type branch (no second return emitter).
        * PLATFORM: SHARED host-C.
        */
       if (pipeline_type_kind_ord_at(arena, elem_ref) == (TypeKind.TYPE_ARRAY as i32)) {
-        return emit_c_ptr_to_fixed_array_decl(arena, out, type_ref, 0 as *u8, 0, ctx);
+        if (emit_local_fixed_array_elem_type(arena, out, elem_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        return append_byte(out, 42);
       }
       if (emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
         return -1;
@@ -16910,6 +16920,24 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               let eq: u8[4] = [32, 61, 32, 0];
               if (emit_bytes_4(out, &eq[0], 3) != 0) {
                 return -1;
+              }
+              /*
+               * dest `*[N]T` local is `E (*name)[N]`; emit_type peels
+               * PTR-to-ARRAY function returns to `E *`. Explicit cast so
+               * Ubuntu gcc accepts `int32_t (*p)[2] = getpa()`.
+               * G.7 complete this let-init (reuse abstract
+               * emit_c_ptr_to_fixed_array_decl). PLATFORM: SHARED host-C.
+               */
+              if (use_ptr_to_array != 0 && !ast.ref_is_null(linit_ref)) {
+                if (append_byte(out, 40) != 0) {
+                  return -1;
+                }
+                if (emit_c_ptr_to_fixed_array_decl(arena, out, let_type_ref, 0 as *u8, 0, ctx) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 41) != 0) {
+                  return -1;
+                }
               }
               let slice_init: i32 = 0;
               if (!ast.ref_is_null(linit_ref)) {

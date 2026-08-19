@@ -475,6 +475,12 @@ extern int32_t xlang_skip_trait_method_ret_array_ndims_c(const uint8_t * trait_n
         int32_t slot);
 extern int32_t xlang_skip_trait_method_ret_array_dim_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t dim_ix);
+extern int32_t xlang_skip_trait_method_ret_elem_elem_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_elem_array_ndims_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot);
+extern int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t * trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t dim_ix);
 extern int32_t xlang_skip_trait_method_ret_name_into_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, uint8_t * out64);
 extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
@@ -11582,6 +11588,41 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               int32_t dyn_pnty = typeck_find_or_alloc_named_type_ref(arena, &((dyn_pname)[0]), dyn_plen);
               if ((dyn_pnty > 0)) {
                 (void)((dyn_ret_ty = typeck_find_or_alloc_ptr_type_ref(arena, dyn_pnty)));
+              }
+            }
+          }
+          /* PTR-to-ARRAY (`*[2]i32`): ret_elem=10 + elem_elem + elem_array
+           * wrap then wrap ptr. Sit-red host-C void-cast. Pin twin of
+           * typeck.x. PLATFORM: SHARED. */
+          if (((dyn_ret_ty == 0) && (dyn_rek3 == 10))) {
+            int32_t dyn_reek = xlang_skip_trait_method_ret_elem_elem_kind_c(
+                    &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
+            int32_t dyn_ralf = 0;
+            if (((((dyn_reek >= 0) && (dyn_reek != 8)) && (dyn_reek != 9))
+                    && ((dyn_reek != 10) && ((dyn_reek != 11) && (dyn_reek != 13))))) {
+              (void)((dyn_ralf = pipeline_type_ensure_by_kind_ord(arena, dyn_reek)));
+            }
+            if ((dyn_ralf > 0)) {
+              int32_t dyn_rend = xlang_skip_trait_method_ret_elem_array_ndims_c(
+                      &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
+              int32_t dyn_rew = dyn_ralf;
+              if ((dyn_rend >= 1)) {
+                int32_t dyn_rei = (dyn_rend - 1);
+                while (((dyn_rei >= 0) && (dyn_rew > 0))) {
+                  int32_t dyn_red = xlang_skip_trait_method_ret_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, dyn_rei);
+                  if ((dyn_red > 0)) {
+                    (void)((dyn_rew = typeck_find_or_alloc_array_type_ref(arena, dyn_rew, dyn_red)));
+                  } else {
+                    (void)((dyn_rew = 0));
+                  }
+                  (void)((dyn_rei = (dyn_rei - 1)));
+                }
+              } else {
+                (void)((dyn_rew = 0));
+              }
+              if ((dyn_rew > 0)) {
+                (void)((dyn_ret_ty = typeck_find_or_alloc_ptr_type_ref(arena, dyn_rew)));
               }
             }
           }
