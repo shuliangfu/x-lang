@@ -11956,17 +11956,12 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               }
             }
             /*
-             * dest-ARRAY-of-PTR extra (`p: [2]*[2]i32`): ARRAY_LIT
-             * `[&r0, &r1]` stays TYPE_ARRAY of PTR. Scalar dest-ARRAY
-             * skips elem kind 9. Sit-red trait/impl param type mismatch
-             * (typeck rebuilt [2]*[2]i32 as [2]*i32 — inner ARRAY dim
-             * lost). Skip-trait stores elem_kind=PTR + eek=leaf +
-             * elem_array_ndims/dims after `[N]*` then `[`. G.7: wrap
-             * ARRAY via elem_array_ndims then wrap ptr into dyn_alf;
-             * the existing ARRAY wrap below handles the outer [N]. No
-             * second dest-ARRAY stamp. ndims==0 keeps ptr-of-leaf
-             * (`[2]*i32` / `[2]*Pair` already 7 via ADDR_OF elems).
-             * Twin of dest-SLICE-of-PTR. PLATFORM: SHARED.
+             * dest-ARRAY-of-PTR extra (`p: [2]*[2]i32` / `[2]*[]i32` /
+             * `[2]*[][]i32`). Pin twin of typeck.x. ndims==-2 extra
+             * wrap count in dims[0] (0 means 1 = `[2]*[]T`; 2 =
+             * `[2]*[][]T`). Wrap SLICE extra times then wrap ptr.
+             * G.7 no second dest-ARRAY stamp; do not invent -3.
+             * PLATFORM: SHARED.
              */
             if (((dyn_alf == 0) && (dyn_aek == 9))) {
               int32_t dyn_aeek = xlang_skip_trait_method_param_elem_elem_kind_c(&((dyn_trait_nm)[0]),
@@ -11990,7 +11985,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 if ((dyn_aand != 0)) {
                   int32_t dyn_apaw = dyn_aplf;
                   if ((dyn_aand == -2)) {
-                    dyn_apaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_aplf);
+                    int32_t dyn_apex = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1), 0);
+                    int32_t dyn_api;
+                    if ((dyn_apex < 1)) {
+                      dyn_apex = 1;
+                    }
+                    dyn_api = 0;
+                    while (((dyn_api < dyn_apex) && (dyn_apaw > 0))) {
+                      dyn_apaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_apaw);
+                      dyn_api = (dyn_api + 1);
+                    }
                   } else if ((dyn_aand >= 1)) {
                     int32_t dyn_apai = (dyn_aand - 1);
                     while (((dyn_apai >= 0) && (dyn_apaw > 0))) {

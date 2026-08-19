@@ -1892,9 +1892,9 @@ int32_t xlang_skip_trait_method_param_elem_elem_kind_c(const uint8_t *trait_nm, 
  * @param slot        vtable slot index (0..num_methods-1).
  * @param param_ix    formal index including self (0..PARAM_MAX-1).
  * @return ndims (>=1 ARRAY pointee), 0 scalar, -2 extra SLICE wrap
- *         (`[]*[]T` / `[]*[][]T` PTR pointee or `[][][]T` /
- *         `[][][][]T` SLICE-of-SLICE; extra wrap count in dims[0]),
- *         or -1 if unset / invalid.
+ *         (`[]*[]T` / `[]*[][]T` / `[2]*[]T` / `[2]*[][]T` PTR
+ *         pointee or `[][][]T` / `[][][][]T` SLICE-of-SLICE; extra
+ *         wrap count in dims[0]), or -1 if unset / invalid.
  * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
@@ -1923,10 +1923,11 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
  * @return N > 0, or -1 if trait/slot/param/dim invalid.
  * When ndims==-2, dim_ix 0 returns the extra SLICE wrap count
- * (`[]*[]T` / `[][][]T` = 1, `[]*[][]T` / `[][][][]T` = 2).
- * dims[0]==0 means 1 (`[]*[]T` / 3-layer compat). dest extras
- * dest-SLICE-of-PTR and dest-SLICE-of-SLICE both read this for
- * ndims==-2. Do not invent a second sentinel.
+ * (`[]*[]T` / `[][][]T` / `[2]*[]T` = 1, `[]*[][]T` /
+ * `[][][][]T` / `[2]*[][]T` = 2). dims[0]==0 means 1
+ * (`[]*[]T` / `[2]*[]T` / 3-layer compat). dest extras
+ * dest-SLICE-of-PTR, dest-SLICE-of-SLICE, and dest-ARRAY-of-PTR
+ * all read this for ndims==-2. Do not invent a second sentinel.
  * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
@@ -2777,7 +2778,14 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                          * SLICE=11). Walk elem_array_ndims dims (or -2 for
                          * SLICE) to reach the leaf, then compare. Without
                          * this, [2]*[2]i32 and [2]*[]i32 trait/impl params
-                         * mismatch (eeek=0 vs pgek=10/11). PLATFORM: SHARED.
+                         * mismatch (eeek=0 vs pgek=10/11).
+                         * dest extras dest-ARRAY of PTR `[2]*[][]T`: extra
+                         * wrap count is dims[0] (0 means 1 = `[2]*[]T`;
+                         * 2 = `[2]*[][]T`). Peel extra times when
+                         * ndims==-2 or T001 if layers run out. Peel-once
+                         * left pelem still SLICE vs eeek=leaf. Twin of
+                         * SLICE-of-SLICE extra peel above. Do not invent
+                         * -3. PLATFORM: SHARED. G.7: complete this walk.
                          */
                         if (pgek == XLANG_TRAIT_TY_ARRAY || pgek == XLANG_TRAIT_TY_SLICE) {
                           int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
@@ -2786,10 +2794,28 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                             for (ed = 0; ed < eand && pelem != 0; ed++) {
                               pelem = pipeline_type_elem_ref_at(arena, pelem);
                             }
-                          } else if (eand == -2) {
-                            pelem = pipeline_type_elem_ref_at(arena, pelem);
-                          }
-                          if (pelem != 0) {
+                            if (pelem != 0) {
+                              pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            }
+                          } else if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                            int32_t extra =
+                                g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                            if (extra <= 0)
+                              extra = 1;
+                            while (extra > 0) {
+                              if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                                mm = 1;
+                                break;
+                              }
+                              pelem = pipeline_type_elem_ref_at(arena, pelem);
+                              if (pelem == 0) {
+                                mm = 1;
+                                break;
+                              }
+                              pgek = pipeline_type_kind_ord_at(arena, pelem);
+                              extra = extra - 1;
+                            }
+                          } else if (pelem != 0) {
                             pgek = pipeline_type_kind_ord_at(arena, pelem);
                           }
                         }
