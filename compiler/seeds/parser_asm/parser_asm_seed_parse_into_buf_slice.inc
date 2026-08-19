@@ -735,8 +735,9 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
 #define XLANG_SEED_TRAIT_TY_SLICE 11
 /* dest-SLICE extra inner SLICE ndims discriminant.
  * 0 = scalar/NAMED; >=1 = ARRAY; -2 = extra SLICE wrap (`[]*[]T` /
- * `[][][]T` / `[][][][]T`). Extra wrap COUNT lives in dims[0]
- * (0 means 1 extra wrap = 3-layer; 2 = 4-layer). Do not invent -3.
+ * `[]*[][]T` / `[][][]T` / `[][][][]T`). Extra wrap COUNT lives
+ * in dims[0] (0 means 1 extra wrap = `[]*[]T` or 3-layer; 2 =
+ * `[]*[][]T` or 4-layer). Do not invent -3.
  * Twin of XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS.
  * PLATFORM: SHARED. */
 #define XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS (-2)
@@ -1543,19 +1544,18 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                    * After `[]*` then `[` then `]` (`[]*[]T`): dest-SLICE of
                    * PTR-to-SLICE. After `[][]` then `[` then `]` (`[][][]T`):
                    * dest-SLICE of SLICE of SLICE. After a further empty
-                   * `[]` (`[][][][]T`): ndims is already -2; count extra
-                   * wraps in dims[0] (0 means 1 = 3-layer; 2 = 4-layer).
-                   * Do not invent -3. Keep elem (PTR or SLICE); mark extra
-                   * SLICE via ndims=-2; capture leaf T as eek. Twin of
-                   * skip_tl. PTR `[]*[][]T` remains leftover.
+                   * `[]` (`[]*[][]T` / `[][][][]T`): ndims is already -2;
+                   * count extra wraps in dims[0] (0 means 1 = `[]*[]T` or
+                   * 3-layer; 2 = `[]*[][]T` or 4-layer). Do not invent -3.
+                   * Keep elem (PTR or SLICE); mark extra SLICE via
+                   * ndims=-2; capture leaf T as eek. Twin of skip_tl.
                    * PLATFORM: SHARED parse. G.7: complete this scanner.
                    */
                   if ((ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_PTR
                        || ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_SLICE)
                       && param_elem_dim_n == 0) {
-                    if (ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_SLICE
-                        && ent->method_param_elem_array_ndims[mi_reg][param_count]
-                           == XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                    if (ent->method_param_elem_array_ndims[mi_reg][param_count]
+                        == XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
                       int32_t extra =
                           ent->method_param_elem_array_dims[mi_reg][param_count][0];
                       if (extra <= 0)

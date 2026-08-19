@@ -11783,14 +11783,25 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 }
               }
               /* dest-SLICE-of-PTR ARRAY leaf (`[]*[N]T`) / SLICE leaf
-               * (`[]*[]T`, ndims==-2). ndims==0 keeps ptr-of-leaf.
-               * Pin twin. PLATFORM: SHARED. */
+               * (`[]*[]T` / `[]*[][]T`, ndims==-2 extra wrap count in
+               * dims[0]). ndims==0 keeps ptr-of-leaf. Pin twin.
+               * PLATFORM: SHARED. */
               if ((dyn_splf > 0)) {
                 int32_t dyn_spand = xlang_skip_trait_method_param_elem_array_ndims_c(
                         &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
                 int32_t dyn_spaw = dyn_splf;
                 if ((dyn_spand == -2)) {
-                  dyn_spaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_splf);
+                  int32_t dyn_spex = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                          (arg_i + 1), 0);
+                  if ((dyn_spex < 1)) {
+                    dyn_spex = 1;
+                  }
+                  int32_t dyn_spi = 0;
+                  while (((dyn_spi < dyn_spex) && (dyn_spaw > 0))) {
+                    dyn_spaw = typeck_find_or_alloc_slice_type_ref(arena, dyn_spaw);
+                    dyn_spi = (dyn_spi + 1);
+                  }
                 } else if ((dyn_spand >= 1)) {
                   int32_t dyn_spai = (dyn_spand - 1);
                   while (((dyn_spai >= 0) && (dyn_spaw > 0))) {
