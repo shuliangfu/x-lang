@@ -733,9 +733,10 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
 #define XLANG_SEED_TRAIT_TY_PTR 9
 #define XLANG_SEED_TRAIT_TY_ARRAY 10
 #define XLANG_SEED_TRAIT_TY_SLICE 11
-/* dest-SLICE-of-PTR SLICE pointee (`[]*[]T`): ndims discriminant.
- * 0 = scalar/NAMED; >=1 = ARRAY; -2 = SLICE (accessor invalid is -1).
- * Twin of XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS. PLATFORM: SHARED. */
+/* dest-SLICE extra inner SLICE ndims discriminant.
+ * 0 = scalar/NAMED; >=1 = ARRAY; -2 = extra SLICE wrap (`[]*[]T` /
+ * `[][][]T`). Twin of XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS.
+ * PLATFORM: SHARED. */
 #define XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS (-2)
 typedef struct {
   uint8_t name[64];
@@ -1538,12 +1539,16 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   /*
                    * After `[]*` then `[` then `]` (`[]*[]T`): dest-SLICE of
-                   * PTR-to-SLICE. Prior wave434 deferred 3-layer by setting
-                   * elem_kind=-1. Keep elem=PTR; mark SLICE pointee via
-                   * ndims=-2; capture leaf T as eek. Twin of skip_tl.
-                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   * PTR-to-SLICE. After `[][]` then `[` then `]` (`[][][]T`):
+                   * dest-SLICE of SLICE of SLICE. Prior wave434 deferred
+                   * 3-layer by setting elem_kind=-1. Keep elem (PTR or
+                   * SLICE); mark extra SLICE via ndims=-2 (same sentinel;
+                   * discriminant is elem_kind); capture leaf T as eek.
+                   * Twin of skip_tl. PLATFORM: SHARED parse. G.7: complete
+                   * this scanner.
                    */
-                  if (ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_PTR
+                  if ((ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_PTR
+                       || ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_SLICE)
                       && param_elem_dim_n == 0) {
                     ent->method_param_elem_array_ndims[mi_reg][param_count] =
                         XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
@@ -2311,12 +2316,21 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                   /*
                    * wave435: *[]T → PTR to SLICE of T. Walk pipeline SLICE
                    * leaf → its elem → compare elem_elem (the slice base T).
-                   * PLATFORM: SHARED parse.
+                   * dest-SLICE extra `[][][]T`: eek=SLICE + eeek=leaf +
+                   * ndims=-2; peel pelem once when ndims==-2. Twin of
+                   * skip_tl. PLATFORM: SHARED parse. G.7: complete this walk.
                    */
                   int32_t eeek = g_xlang_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
                   int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
                   if (eeek >= 0 && pelem != 0) {
                     int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    int32_t eand = g_xlang_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                    if (eand == XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS
+                        && pgek == XLANG_SEED_TRAIT_TY_SLICE) {
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem != 0)
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    }
                     if (pgek >= 0 && pgek != eeek) {
                       mm = 1;
                     } else if (pgek == eeek && eeek == XLANG_SEED_TRAIT_TY_NAMED) {
