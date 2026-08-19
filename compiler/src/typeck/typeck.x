@@ -256,7 +256,7 @@ export extern function xlang_skip_trait_method_param_elem_elem_kind_c(trait_nm: 
  * @param trait_nlen i32 — trait name length; must be > 0
  * @param slot i32 — vtable slot
  * @param param_ix i32 — formal index including self (0 = self)
- * @return i32 — ndims (>=1 ARRAY pointee), 0 scalar, -2 extra SLICE wrap (`[]*[]T` / `[][][]T`), or -1 invalid
+ * @return i32 — ndims (>=1 ARRAY pointee), 0 scalar, -2 extra SLICE wrap (`[]*[]T` / `[][][]T` / `[][][][]T`), or -1 invalid
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm: *u8, trait_nlen: i32,
@@ -269,7 +269,9 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * @param slot i32 — vtable slot
  * @param param_ix i32 — formal index including self (0 = self)
  * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
- * @return i32 — N > 0, or -1 if invalid
+ * @return i32 — N > 0, or -1 if invalid. When ndims==-2, dim_ix 0 is
+ * the extra SLICE wrap count (`[][][]T` = 1, `[][][][]T` = 2; 0 stored
+ * means 1). dest extras dest-SLICE-of-PTR does not call this for ndims==-2.
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14690,20 +14692,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
             }
             /*
-             * dest-SLICE-of-SLICE extra (`p: [][]i32` / `[][][]i32`):
-             * ARRAY_LIT stays TYPE_ARRAY of ARRAY. Scalar dest-SLICE
-             * skips elem kind 11. Sit-red dyn extra asm=139 / host-C=139
-             * (named local already dest-stamps via the module-func
-             * formal, run=7). Skip-trait stores elem_kind=SLICE +
-             * elem_elem_kind=leaf after `[]` then `[]`; `[][][]T` also
-             * stores ndims=-2 (extra inner SLICE). G.7: wrap slice of
-             * leaf then wrap slice; ndims==-2 wraps once more; reuse
+             * dest-SLICE-of-SLICE extra (`p: [][]i32` / `[][][]i32` /
+             * `[][][][]i32`): ARRAY_LIT stays TYPE_ARRAY of ARRAY.
+             * Scalar dest-SLICE skips elem kind 11. Sit-red 4-layer
+             * dyn/named T001 (impl-match extra peel once while pipeline
+             * still has a SLICE); 3-layer dyn extra was INDEX 139.
+             * Skip-trait stores elem_kind=SLICE + elem_elem_kind=leaf
+             * after `[]` then `[]`; extra inner SLICE uses ndims=-2
+             * with wrap count in dims[0] (0 means 1 = 3-layer; 2 =
+             * 4-layer). G.7: wrap slice of leaf then wrap slice;
+             * ndims==-2 wraps extra times; reuse
              * typeck_coerce_init_expr_to_decl (no second dest-SLICE
              * stamp). NAMED leaf of `[][]Pair` is handled below via
              * param_name. dest-SLICE-of-PTR ARRAY / SLICE leaf
              * (`[]*[N]T` / `[]*[]T`) are handled above via
              * elem_array_ndims (eek is the leaf, not 10 / 11).
-             * 4-layer `[][][][]T` remains leftover. PLATFORM: SHARED.
+             * Do not invent -3. PLATFORM: SHARED.
              */
             if (dyn_eek == 11) {
               let dyn_ssek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -14738,14 +14742,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let dyn_ssoty: i32 = find_or_alloc_slice_type_ref(arena, dyn_ssity);
                   if (dyn_ssoty > 0) {
                     /*
-                     * dest-SLICE extra `[][][]T`: skip-trait after `[][]`
-                     * then `[` then `]` used to set elem_kind=-1 (wave434
-                     * 3-layer defer). Scanner now keeps elem=SLICE +
-                     * eek=leaf + ndims=-2 (extra inner SLICE; same
-                     * sentinel as `[]*[]T` — discriminant is elem_kind).
-                     * Two wraps dest-stamp `[][]T`; ndims==-2 wraps once
-                     * more. Named / UFCS already dest-stamp via the
-                     * formal (7); dyn INDEX sit-red 139. G.7: complete
+                     * dest-SLICE extra `[][][]T` / `[][][][]T`: skip-trait
+                     * after `[][]` then `[` then `]` used to set
+                     * elem_kind=-1 (wave434 3-layer defer). Scanner now
+                     * keeps elem=SLICE + eek=leaf + ndims=-2 (extra inner
+                     * SLICE; same sentinel as `[]*[]T` — discriminant is
+                     * elem_kind). Extra wrap count is dims[0] (0 means 1
+                     * = 3-layer; 2 = 4-layer). Two wraps dest-stamp
+                     * `[][]T`; ndims==-2 wraps extra times. Named /
+                     * UFCS dest-stamp via the formal once impl-match
+                     * walks extra peels. Do not invent -3. G.7: complete
                      * dest-SLICE-of-SLICE reconstruct (no second
                      * dest-SLICE stamp). PLATFORM: SHARED.
                      */
@@ -14753,7 +14759,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                             &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
                     let dyn_ssdest: i32 = dyn_ssoty;
                     if (dyn_ssand == -2) {
-                      dyn_ssdest = find_or_alloc_slice_type_ref(arena, dyn_ssoty);
+                      let dyn_ssex: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                              &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1, 0);
+                      if (dyn_ssex < 1) {
+                        dyn_ssex = 1;
+                      }
+                      let dyn_ssi: i32 = 0;
+                      while (dyn_ssi < dyn_ssex && dyn_ssdest > 0) {
+                        dyn_ssdest = find_or_alloc_slice_type_ref(arena, dyn_ssdest);
+                        dyn_ssi = dyn_ssi + 1;
+                      }
                     }
                     if (dyn_ssdest > 0) {
                       typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssdest);

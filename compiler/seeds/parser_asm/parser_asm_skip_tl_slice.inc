@@ -989,9 +989,11 @@ static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
 #define XLANG_TRAIT_TY_SLICE 11
 /* dest-SLICE extra inner SLICE on method_param_elem_array_ndims.
  * 0 = scalar/NAMED (`[]*i32` / two-wrap `[][]i32`); >=1 = ARRAY pointee
- * (`[]*[N]T`); -2 = extra SLICE wrap (`[]*[]T` PTR pointee, or `[][][]T`
- * SLICE-of-SLICE). Accessor invalid is -1 so this sentinel must not
- * collide. PTR vs SLICE is elem_kind, not a second sentinel.
+ * (`[]*[N]T`); -2 = extra SLICE wrap (`[]*[]T` PTR pointee, or
+ * `[][][]T` / `[][][][]T` SLICE-of-SLICE). Extra wrap COUNT lives in
+ * dims[0] (0 means 1 extra wrap = 3-layer; 2 = 4-layer). Accessor
+ * invalid is -1 so this sentinel must not collide. Do not invent -3.
+ * PTR vs SLICE is elem_kind, not a second sentinel.
  * PLATFORM: SHARED parse. */
 #define XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS (-2)
 
@@ -1889,7 +1891,8 @@ int32_t xlang_skip_trait_method_param_elem_elem_kind_c(const uint8_t *trait_nm, 
  * @param slot        vtable slot index (0..num_methods-1).
  * @param param_ix    formal index including self (0..PARAM_MAX-1).
  * @return ndims (>=1 ARRAY pointee), 0 scalar, -2 extra SLICE wrap
- *         (`[]*[]T` PTR pointee or `[][][]T` SLICE-of-SLICE),
+ *         (`[]*[]T` PTR pointee or `[][][]T` / `[][][][]T`
+ *         SLICE-of-SLICE; extra wrap count in dims[0]),
  *         or -1 if unset / invalid.
  * PLATFORM: SHARED parse + typeck.
  */
@@ -1918,6 +1921,10 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * @param param_ix    formal index including self (0..PARAM_MAX-1).
  * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
  * @return N > 0, or -1 if trait/slot/param/dim invalid.
+ * When ndims==-2, dim_ix 0 returns the extra SLICE wrap count
+ * (`[][][]T` = 1, `[][][][]T` = 2). dims[0]==0 means 1 (3-layer
+ * compat). dest extras dest-SLICE-of-PTR does not call this for
+ * ndims==-2. Do not invent a second sentinel.
  * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
@@ -1935,6 +1942,17 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
   if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
     return -1;
   nd = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[slot][param_ix];
+  /* ndims==-2: extra SLICE wrap count in dims[0]. dim_ix>=nd would
+   * reject every dim_ix>=0 because -2 is negative. PLATFORM: SHARED. */
+  if (nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+    int32_t extra;
+    if (dim_ix != 0)
+      return -1;
+    extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][0];
+    if (extra <= 0)
+      extra = 1;
+    return extra;
+  }
   if (dim_ix >= nd)
     return -1;
   return g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][dim_ix];
@@ -2595,10 +2613,12 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     /*
                      * wave435: *[]T → PTR to SLICE of T. Walk pipeline SLICE
                      * leaf → its elem → compare elem_elem (the slice base T).
-                     * dest-SLICE extra `[][][]T`: skip-trait stores eek=SLICE
-                     * + eeek=leaf + ndims=-2 (extra inner SLICE). Pipeline
-                     * pelem is then SLICE, not the leaf — peel once when
-                     * ndims==-2. `[][]T` (ndims=0) keeps the one-peel.
+                     * dest-SLICE extra `[][][]T` / `[][][][]T`: skip-trait
+                     * stores eek=SLICE + eeek=leaf + ndims=-2 (extra inner
+                     * SLICE). Extra wrap count is dims[0] (0 means 1).
+                     * Pipeline pelem is then still SLICE — peel extra times
+                     * when ndims==-2 or T001 if layers run out. `[][]T`
+                     * (ndims=0) keeps the one-peel. Do not invent -3.
                      * PLATFORM: SHARED parse. G.7: complete this walk.
                      */
                     int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
@@ -2606,11 +2626,24 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     if (eeek >= 0 && pelem != 0) {
                       int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
                       int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
-                      if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS
-                          && pgek == XLANG_TRAIT_TY_SLICE) {
-                        pelem = pipeline_type_elem_ref_at(arena, pelem);
-                        if (pelem != 0)
+                      if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                        int32_t extra =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra <= 0)
+                          extra = 1;
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
                           pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          extra = extra - 1;
+                        }
                       }
                       if (pgek >= 0 && pgek != eeek) {
                         mm = 1;
@@ -4414,23 +4447,38 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   /*
                    * After `[]*` then `[` then `]` (`[]*[]T`): dest-SLICE of
                    * PTR-to-SLICE. After `[][]` then `[` then `]` (`[][][]T`):
-                   * dest-SLICE of SLICE of SLICE. Prior wave434 deferred
-                   * 3-layer by setting elem_kind=-1 (never captured the
-                   * leaf; dest extras never ran → dyn INDEX 139). Store-only
-                   * without impl-match extra peel is T001 (pipeline pelem
-                   * is SLICE, registry eek is the leaf). Named / UFCS
-                   * already dest-stamp via the formal (7). Keep elem
-                   * (PTR or SLICE); mark extra SLICE via ndims=-2 (same
-                   * sentinel; discriminant is elem_kind); capture leaf T
-                   * as eek via param_elem_elem_pending. `*[N][]T`
-                   * (dim_n>0) stays the deferred path.
+                   * dest-SLICE of SLICE of SLICE. After a further empty
+                   * `[]` (`[][][][]T`): ndims is already -2; count extra
+                   * wraps in dims[0] (0 means 1 = 3-layer; 2 = 4-layer).
+                   * Do not invent -3. Prior wave434 deferred 3-layer by
+                   * setting elem_kind=-1 (dest extras never ran → dyn
+                   * INDEX 139). Store-only without impl-match extra peel
+                   * is T001. Named / UFCS 4-layer already dest-stamp via
+                   * the formal (UFCS 7); skip-trait impl-match T001 until
+                   * extra wrap count is stored. Keep elem (PTR or SLICE);
+                   * mark extra SLICE via ndims=-2 (same sentinel;
+                   * discriminant is elem_kind); capture leaf T as eek via
+                   * param_elem_elem_pending. PTR `[]*[][]T` remains leftover.
+                   * `*[N][]T` (dim_n>0) stays the deferred path.
                    * PLATFORM: SHARED parse. G.7: complete this scanner.
                    */
                   if ((ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_PTR
                        || ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_SLICE)
                       && param_elem_dim_n == 0) {
-                    ent->method_param_elem_array_ndims[mi_reg][param_count] =
-                        XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    if (ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_SLICE
+                        && ent->method_param_elem_array_ndims[mi_reg][param_count]
+                           == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                      int32_t extra =
+                          ent->method_param_elem_array_dims[mi_reg][param_count][0];
+                      if (extra <= 0)
+                        extra = 1;
+                      extra = extra + 1;
+                      if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][0] = extra;
+                    } else {
+                      ent->method_param_elem_array_ndims[mi_reg][param_count] =
+                          XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    }
                     param_elem_arr_need_size = 0;
                     param_elem_prefix_arr_more = 0;
                     param_elem_dim_n = 0;

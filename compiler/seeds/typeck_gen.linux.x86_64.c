@@ -11817,15 +11817,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 }
               }
             }
-            /* dest-SLICE-of-SLICE extra (`p: [][]i32` / `[][][]i32`):
-             * ARRAY_LIT of ARRAY stays TYPE_ARRAY. Scalar dest-SLICE
-             * skips elem kind 11. Sit-red dyn extra asm=139 / host-C=139.
-             * Named local already 7. Skip-trait stores elem_kind=SLICE +
-             * elem_elem after `[][]`; `[][][]T` also stores ndims=-2.
-             * G.7: wrap slice of leaf then wrap slice; ndims==-2 wraps
-             * once more; reuse typeck_coerce_init_expr_to_decl (no
-             * second dest-SLICE stamp). NAMED leaf of `[][]Pair` below
-             * via param_name. Pin twin. PLATFORM: SHARED. */
+            /* dest-SLICE-of-SLICE extra (`p: [][]i32` / `[][][]i32` /
+             * `[][][][]i32`): ARRAY_LIT of ARRAY stays TYPE_ARRAY.
+             * Scalar dest-SLICE skips elem kind 11. Sit-red 4-layer
+             * dyn/named T001. Skip-trait stores elem_kind=SLICE +
+             * elem_elem after `[][]`; extra inner SLICE uses ndims=-2
+             * with wrap count in dims[0] (0 means 1 = 3-layer; 2 =
+             * 4-layer). G.7: wrap slice of leaf then wrap slice;
+             * ndims==-2 wraps extra times; reuse
+             * typeck_coerce_init_expr_to_decl (no second dest-SLICE
+             * stamp). NAMED leaf of `[][]Pair` below via param_name.
+             * Do not invent -3. Pin twin. PLATFORM: SHARED. */
             if ((dyn_eek == 11)) {
               int32_t dyn_ssek = xlang_skip_trait_method_param_elem_elem_kind_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, (arg_i + 1));
@@ -11855,7 +11857,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                             (arg_i + 1));
                     int32_t dyn_ssdest = dyn_ssoty;
                     if ((dyn_ssand == -2)) {
-                      dyn_ssdest = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssoty);
+                      int32_t dyn_ssex = xlang_skip_trait_method_param_elem_array_dim_c(
+                              &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                              (arg_i + 1), 0);
+                      if ((dyn_ssex < 1)) {
+                        dyn_ssex = 1;
+                      }
+                      int32_t dyn_ssi = 0;
+                      while (((dyn_ssi < dyn_ssex) && (dyn_ssdest > 0))) {
+                        dyn_ssdest = typeck_find_or_alloc_slice_type_ref(arena, dyn_ssdest);
+                        dyn_ssi = (dyn_ssi + 1);
+                      }
                     }
                     if ((dyn_ssdest > 0)) {
                       (void)typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_ssdest);
