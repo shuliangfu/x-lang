@@ -3135,7 +3135,9 @@ ensure_pipeline_abi_prefer_one() {
       log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
-      pipeline_abi_inject_type_to_c_repr_thin "$o" || return 1
+      # ttc-thin merge-fail is pre-existing (already-strong dup); do not
+      # abort before blkpeel (same as arrcopy || true before ttc).
+      pipeline_abi_inject_type_to_c_repr_thin "$o" || true
       pipeline_abi_inject_binop_block_peel_thin "$o" || return 1
       return 0
     fi
