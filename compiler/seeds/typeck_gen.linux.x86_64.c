@@ -11751,7 +11751,36 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               int32_t dyn_srend = xlang_skip_trait_method_ret_elem_array_ndims_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
               int32_t dyn_srew = dyn_sralf;
-              if ((dyn_srend == 0)) {
+              if ((dyn_srend == -2)) {
+                /*
+                 * dest extras dest-RET extra STAR SLICE-elem
+                 * ndims=-2 `*[][]*T`: unused slot dims[1] extra PTR
+                 * wrap COUNT. Extra SLICE wrap COUNT is dims[0]
+                 * (0 means 1). Wrap extra PTR of leaf extra times
+                 * then extra SLICE then wrap SLICE then wrap outer
+                 * ptr. Pin twin of typeck.x. PLATFORM: SHARED.
+                 * G.7: complete this wrap.
+                 */
+                int32_t dyn_srpxm2 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 1);
+                if ((dyn_srpxm2 > 0)) {
+                  int32_t dyn_srpim2 = 0;
+                  while (((dyn_srpim2 < dyn_srpxm2) && (dyn_srew > 0))) {
+                    (void)((dyn_srew = typeck_find_or_alloc_ptr_type_ref(arena, dyn_srew)));
+                    (void)((dyn_srpim2 = (dyn_srpim2 + 1)));
+                  }
+                }
+                int32_t dyn_srexm2 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 0);
+                if ((dyn_srexm2 < 1)) {
+                  (void)((dyn_srexm2 = 1));
+                }
+                int32_t dyn_srxim2 = 0;
+                while (((dyn_srxim2 < dyn_srexm2) && (dyn_srew > 0))) {
+                  (void)((dyn_srew = typeck_find_or_alloc_slice_type_ref(arena, dyn_srew)));
+                  (void)((dyn_srxim2 = (dyn_srxim2 + 1)));
+                }
+              } else if ((dyn_srend == 0)) {
                 int32_t dyn_srpx0 = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 0);
                 if ((dyn_srpx0 > 0)) {

@@ -14644,7 +14644,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * wrap outer ptr (wrap rek3==11 previously skipped extra
            * PTR when ndims=0 so dest-stamped `*[]i32` — typed let
            * `*[]*i32` T001; dest-stamp via the local of typed dest =
-           * false green even Ubuntu). `*[]T` (ndims=0 extra PTR=0)
+           * false green even Ubuntu). dest extras dest-RET extra STAR
+           * SLICE-elem ndims=-2 `*[][]*T`: unused slot dims[1] extra
+           * PTR wrap COUNT (1 = `*[][]*T`; 2 = `*[][]**T`; 0 = no
+           * extra PTR = `*[][]T`). Extra SLICE wrap COUNT is dims[0]
+           * (0 means 1 = `*[][]T`; 2 = `*[][][]T`). Wrap extra PTR
+           * of leaf extra times then extra SLICE then wrap SLICE then
+           * wrap outer ptr (wrap rek3==11 previously skipped extra
+           * PTR/SLICE when ndims=-2 so dest-stamped `*[]i32` — typed
+           * let `*[][]*i32` T001). `*[]T` (ndims=0 extra PTR=0)
            * wraps SLICE of leaf then wrap outer ptr. Twin of dest
            * extras dest-RET extra STAR PTR-elem wrap (wrap PTR of
            * elem then wrap outer ptr; this wrap SLICE of elem then
@@ -14675,7 +14683,41 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               let dyn_srend: i32 = xlang_skip_trait_method_ret_elem_array_ndims_c(
                       &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
               let dyn_srew: i32 = dyn_sralf;
-              if (dyn_srend == 0) {
+              if (dyn_srend == -2) {
+                /*
+                 * dest extras dest-RET extra STAR SLICE-elem
+                 * ndims=-2 `*[][]*T`: unused slot dims[1] extra PTR
+                 * wrap COUNT (1 = `*[][]*T`; 2 = `*[][]**T`; 0 =
+                 * no extra PTR = `*[][]T`). Extra SLICE wrap COUNT
+                 * is dims[0] (0 means 1 = `*[][]T`; 2 = `*[][][]T`).
+                 * Wrap extra PTR of leaf extra times then extra
+                 * SLICE then wrap SLICE then wrap outer ptr. Twin of
+                 * param extra STAR `*[][]*T` wrap (param already
+                 * closed). Wrap rek3==11 previously skipped extra
+                 * PTR/SLICE when ndims=-2 so dest-stamped `*[]i32`.
+                 * Do not invent -3. PLATFORM: SHARED. G.7: complete
+                 * this wrap.
+                 */
+                let dyn_srpxm2: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, 1);
+                if (dyn_srpxm2 > 0) {
+                  let dyn_srpim2: i32 = 0;
+                  while (dyn_srpim2 < dyn_srpxm2 && dyn_srew > 0) {
+                    dyn_srew = find_or_alloc_ptr_type_ref(arena, dyn_srew);
+                    dyn_srpim2 = dyn_srpim2 + 1;
+                  }
+                }
+                let dyn_srexm2: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, 0);
+                if (dyn_srexm2 < 1) {
+                  dyn_srexm2 = 1;
+                }
+                let dyn_srxim2: i32 = 0;
+                while (dyn_srxim2 < dyn_srexm2 && dyn_srew > 0) {
+                  dyn_srew = find_or_alloc_slice_type_ref(arena, dyn_srew);
+                  dyn_srxim2 = dyn_srxim2 + 1;
+                }
+              } else if (dyn_srend == 0) {
                 let dyn_srpx0: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, 0);
                 if (dyn_srpx0 > 0) {

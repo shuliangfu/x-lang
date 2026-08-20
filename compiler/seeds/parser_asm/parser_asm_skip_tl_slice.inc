@@ -1643,6 +1643,35 @@ int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t *trait_nm, in
     return -1;
   nd = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[slot];
   /*
+   * dest extras dest-RET extra STAR SLICE-elem ndims=-2 `*[][]*T`:
+   * extra SLICE wrap COUNT in dims[0] (0 means 1 = `*[][]T`;
+   * 2 = `*[][][]T`). Unused slot dims[1] extra PTR wrap COUNT
+   * (1 = `*[][]*T`; 2 = `*[][]**T`; 0 / missing → -1 so
+   * `*[][]T` stays extra-SLICE-only). dim_ix>=nd would reject
+   * every dim_ix>=0 because -2 is negative. Twin of param extra
+   * STAR `*[][]*T` unused slot dims[1]. Discriminant vs dest
+   * extras dest-RET extra STAR SLICE-elem ndims=0 `*[]*T`
+   * (extra PTR in dims[0]) / ndims>=1 `*[][2]*T` (extra PTR in
+   * dims[ndims]) is ndims=-2 vs ndims=0 vs ndims>=1. Do not
+   * invent -3. PLATFORM: SHARED.
+   */
+  if (nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+    int32_t extra;
+    if (dim_ix == 0) {
+      extra = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][0];
+      if (extra <= 0)
+        extra = 1;
+      return extra;
+    }
+    if (dim_ix == 1) {
+      extra = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][1];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
+    return -1;
+  }
+  /*
    * dest extras dest-RET extra STAR SLICE-elem ndims=0 `*[]*T`:
    * unused slot dims[0] when ndims==0. dim_ix>=nd would treat
    * dim_ix=0 as an extra-wrap probe and reject because nd is not
@@ -3684,6 +3713,57 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                   int32_t extra_ptr;
                   extra_ptr =
                       g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                } else if (eend == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                  /*
+                   * dest extras dest-RET extra STAR SLICE-elem
+                   * ndims=-2 `*[][]*T`: leftover after leftover-
+                   * SLICE peel is still SLICE vs eeek=leaf. Extra
+                   * SLICE wrap COUNT is dims[0] (0 means 1 =
+                   * `*[][]T`; 2 = `*[][][]T`). Extra PTR wrap
+                   * COUNT is unused slot dims[1] (1 = `*[][]*T`;
+                   * 2 = `*[][]**T`; 0 = no extra PTR = `*[][]T`).
+                   * Peel leftover SLICE extra times then leftover
+                   * PTR extra times or T001. Twin of param leftover
+                   * eand==-2 extra SLICE then extra PTR peels
+                   * (`*[][]*T` param already closed). Do not invent
+                   * -3. PLATFORM: SHARED. G.7: complete this walk.
+                   */
+                  int32_t extra;
+                  int32_t extra_ptr;
+                  extra =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra <= 0)
+                    extra = 1;
+                  while (extra > 0) {
+                    if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    if (pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    extra = extra - 1;
+                  }
+                  extra_ptr =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][1];
                   if (extra_ptr > 0) {
                     while (extra_ptr > 0) {
                       if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
@@ -6257,34 +6337,40 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                                 == XLANG_TRAIT_TY_PTR) {
                 /*
                  * dest extras dest-RET extra STAR SLICE-elem
-                 * `*[][2]*T` / `*[]*T`: after `*` then `[]` then
-                 * `[N]`, or after `*` then `[]` (ndims=0), we are
-                 * in ret_elem_elem_pending (elem=SLICE, dims in the
-                 * local buffer or registry). Extra STAR used to hit
+                 * `*[][2]*T` / `*[]*T` / `*[][]*T`: after `*` then
+                 * `[]` then `[N]`, or after `*` then `[]` (ndims=0),
+                 * or after `*` then `[]` then extra empty `[]`
+                 * (ndims=-2), we are in ret_elem_elem_pending
+                 * (elem=SLICE, dims in the local buffer or
+                 * registry). Extra STAR used to hit
                  * token_to_type_kind=-1 then want_ret=0 (leaf T never
                  * committed; leftover skip eek=-1 — dest-stamp via
                  * the local of typed dest = false green even Ubuntu;
                  * dest extras dest-RET wrap rek3==11 dest-stamps
-                 * `*[][2]i32` / `*[]i32` so typed let `*[][2]*i32` /
-                 * `*[]*i32` T001; impl `*[][2]i32` / `*[]i32` vs
-                 * trait `*[][2]*i32` / `*[]*i32` compile=0).
-                 * ndims=-2 would lose [N] (ban -3 / new field). Extra
-                 * SLICE of `*[][2][]T` already lives in unused slot
-                 * dims[ndims+1] — do not reopen that encoding. Keep
-                 * SLICE; extra PTR wrap COUNT lives in unused slot
-                 * dims[ndims] when ndims>=1 (1 = `*[][2]*T`; 2 =
+                 * `*[][2]i32` / `*[]i32` / `*[][]i32` so typed let
+                 * `*[][2]*i32` / `*[]*i32` / `*[][]*i32` T001; impl
+                 * `*[][2]i32` / `*[]i32` / `*[][]i32` vs trait
+                 * `*[][2]*i32` / `*[]*i32` / `*[][]*i32` compile=0).
+                 * Extra SLICE of `*[][2][]T` already lives in unused
+                 * slot dims[ndims+1] — do not reopen that encoding.
+                 * Keep SLICE; extra PTR wrap COUNT lives in unused
+                 * slot dims[ndims] when ndims>=1 (1 = `*[][2]*T`; 2 =
                  * `*[][2]**T`; 0 = no extra PTR = `*[][2]i32` /
                  * `*[][2][]T`; extra SLICE stays dims[ndims+1]; both
-                 * slots = `*[][2][]*T`) and unused slot dims[0] with
+                 * slots = `*[][2][]*T`), unused slot dims[0] with
                  * ndims staying 0 (1 = `*[]*T`; 2 = `*[]**T`; 0 =
-                 * no extra PTR = `*[]i32`). Twin of param extra STAR
-                 * SLICE-elem + PTR outer (`*[][2]*T` / `*[]*T` param
-                 * already closed). Discriminant vs dest extras dest-
-                 * RET extra STAR ARRAY-elem `*[2]*T` / PTR-elem
-                 * `**[2]*T` (same unused-slot family; ARRAY/PTR extra
-                 * PTR lives in dims[ndims+1]) is SLICE vs ARRAY vs
-                 * PTR elem. Discriminant ndims>=1 vs ndims=0 is the
-                 * unused slot (dims[ndims] vs dims[0]). Capture leaf
+                 * no extra PTR = `*[]i32`), and unused slot dims[1]
+                 * with ndims staying -2 (1 = `*[][]*T`; 2 =
+                 * `*[][]**T`; 0 = no extra PTR = `*[][]T`; extra
+                 * SLICE stays dims[0]). Twin of param extra STAR
+                 * SLICE-elem + PTR outer (`*[][2]*T` / `*[]*T` /
+                 * `*[][]*T` param already closed). Discriminant vs
+                 * dest extras dest-RET extra STAR ARRAY-elem `*[2]*T`
+                 * / PTR-elem `**[2]*T` (same unused-slot family;
+                 * ARRAY/PTR extra PTR lives in dims[ndims+1]) is
+                 * SLICE vs ARRAY vs PTR elem. Discriminant ndims>=1
+                 * vs ndims=0 vs ndims=-2 is the unused slot
+                 * (dims[ndims] vs dims[0] vs dims[1]). Capture leaf
                  * T by staying pending (zeros ret_elem_dim_n so
                  * wave434 does not lift). PLATFORM: SHARED parse.
                  * G.7: complete this scanner.
@@ -6308,6 +6394,14 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   extra = extra + 1;
                   if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                     ent->method_ret_elem_array_dims[mi_reg][0] = extra;
+                  /* stay ret_elem_elem_pending to capture leaf T */
+                } else if (nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                  extra = ent->method_ret_elem_array_dims[mi_reg][1];
+                  if (extra < 0)
+                    extra = 0;
+                  extra = extra + 1;
+                  if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    ent->method_ret_elem_array_dims[mi_reg][1] = extra;
                   /* stay ret_elem_elem_pending to capture leaf T */
                 } else if (nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
                   extra = ent->method_ret_elem_array_dims[mi_reg][nd];
@@ -6461,7 +6555,40 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   } else {
                     nd = ent->method_ret_elem_array_ndims[mi_reg];
                   }
-                  if (nd > 0 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                  /*
+                   * dest extras dest-RET extra empty `[]` SLICE-elem
+                   * ndims=-2 `*[][]T` / extra STAR sibling `*[][]*T`:
+                   * after `*` then `[]` (ndims=0) extra empty `[]`
+                   * used to hit nd>0 fail then elem_kind=-1 leftover
+                   * skip eek=-1. Twin of param extra empty `[]`
+                   * SLICE-elem ndims<=0 (`*[][]T` param already
+                   * closed): first extra `[]` sets ndims=-2; further
+                   * extra `[]` increments dims[0] (0 means 1 =
+                   * `*[][]T`; 2 = `*[][][]T`). Extra STAR unused
+                   * slot dims[1] is the sibling unused-slot scanner
+                   * (TOKEN_STAR in ret_elem_elem_pending). Do not
+                   * invent -3. PLATFORM: SHARED parse. G.7: complete
+                   * this scanner.
+                   */
+                  if ((nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS
+                       || nd <= 0)
+                      && ret_elem_dim_n == 0) {
+                    if (nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                      extra = ent->method_ret_elem_array_dims[mi_reg][0];
+                      if (extra <= 0)
+                        extra = 1;
+                      extra = extra + 1;
+                      if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        ent->method_ret_elem_array_dims[mi_reg][0] = extra;
+                    } else {
+                      ent->method_ret_elem_array_ndims[mi_reg] =
+                          XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    }
+                    ret_elem_arr_need_size = 0;
+                    ret_elem_prefix_arr_more = 0;
+                    ret_elem_dim_n = 0;
+                    ret_elem_elem_pending = 1;
+                  } else if (nd > 0 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
                     extra = ent->method_ret_elem_array_dims[mi_reg][nd + 1];
                     if (extra < 0)
                       extra = 0;
