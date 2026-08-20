@@ -288,8 +288,12 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * SLICE vs ARRAY; discriminant ARRAY vs SLICE outer is param
  * kind). dim_ix==ndims+1 is extra PTR wrap count
  * (`[][2]*T` = 1; `[][2][]*T` = 1 with extra SLICE also in
- * dims[ndims]; 0 / missing means no extra PTR). Both unused
- * slots may be set (`[][2][]*T`).
+ * dims[ndims]; `[]*[2]*T` = 1; `[]*[2][]*T` = 1 with extra
+ * SLICE also in dims[ndims]; 0 / missing means no extra PTR).
+ * Discriminant dest extras dest-SLICE of ARRAY extra `[][2]*T`
+ * vs dest extras dest-SLICE of PTR extra `[]*[2]*T` is
+ * elem_kind ARRAY vs PTR. Both unused slots may be set
+ * (`[][2][]*T` / `[]*[2][]*T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14708,11 +14712,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                * elem_kind=-1 (dest extras skipped → ADDR_OF of
                * `[2][]i32` run=1 panic). Extra SLICE wrap COUNT lives
                * in unused slot dims[ndims] (1 = `[]*[2][]T`; 0 = no
-               * extra wrap = `[]*[2]i32`; ban -3). Named extra dest-
-               * stamps via the formal; host-C BLD001 of `int32_t *` /
+               * extra wrap = `[]*[2]i32`; ban -3). Extra PTR wrap
+               * COUNT lives in unused slot dims[ndims+1]
+               * (1 = `[]*[2]*T` / `[]*[2][]*T`; 0 = no extra PTR =
+               * `[]*[2]i32` / `[]*[2][]T`). Extra STAR after
+               * `[]*[N]` used to want_param_ty=0 then wave434 lift
+               * kind=ARRAY (named / extra T001 leftover SLICE vs
+               * ARRAY). Named extra dest-stamps via the formal once
+               * store keeps PTR; host-C BLD001 of `int32_t *` /
                * `xlang_arr2_int32_t` is the emit twin (layout +
-               * ARRAY_LIT). G.7: wrap extra SLICE of leaf then ARRAY
-               * via elem_array_ndims then the existing wrap ptr + wrap
+               * ARRAY_LIT). G.7: wrap extra PTR of leaf extra times
+               * then extra SLICE of leaf then ARRAY via
+               * elem_array_ndims then the existing wrap ptr + wrap
                * slice (no second dest-SLICE stamp). ndims==0 keeps
                * ptr-of-leaf (`[]*i32`).
                * dest-SLICE-of-PTR SLICE leaf (`p: []*[]i32` /
@@ -14745,16 +14756,29 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 } else if (dyn_spand >= 1) {
                   /*
                    * dest extras dest-SLICE-of-PTR extra wraps
-                   * (`[]*[2][]T` / `[]*[2][][]T`): dim accessor
-                   * returns extra SLICE wrap count at dim_ix==ndims
-                   * when unused slot >0. Wrap SLICE of leaf extra
-                   * times THEN ARRAY wrap then wrap PTR then outer
-                   * SLICE. `[]*[2]i32` (spex<=0) stays wrap-once.
+                   * (`[]*[2][]T` / `[]*[2][][]T` / `[]*[2]*T` /
+                   * `[]*[2][]*T`): dim accessor returns extra PTR
+                   * wrap count at dim_ix==ndims+1 and extra SLICE
+                   * wrap count at dim_ix==ndims when unused slots
+                   * >0. Wrap PTR of leaf extra times then extra
+                   * SLICE wraps THEN ARRAY wrap then wrap PTR then
+                   * outer SLICE (`[]*[2][]*T` is wrap-both).
+                   * `[]*[2]i32` (sppx/spex<=0) stays wrap-once.
                    * Discriminant vs dest extras dest-SLICE-of-ARRAY
-                   * extra `[][2][]T` is elem_kind (PTR vs ARRAY);
-                   * same unused slot. Do not invent -3.
-                   * PLATFORM: SHARED.
+                   * extra `[][2]*T` / `[][2][]T` is elem_kind
+                   * (PTR vs ARRAY); same unused slots. Do not
+                   * invent -3. PLATFORM: SHARED.
                    */
+                  let dyn_sppx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_spand + 1);
+                  if (dyn_sppx > 0) {
+                    let dyn_sppi: i32 = 0;
+                    while (dyn_sppi < dyn_sppx && dyn_spaw > 0) {
+                      dyn_spaw = find_or_alloc_ptr_type_ref(arena, dyn_spaw);
+                      dyn_sppi = dyn_sppi + 1;
+                    }
+                  }
                   let dyn_spex2: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
                           &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
                           dyn_spand);

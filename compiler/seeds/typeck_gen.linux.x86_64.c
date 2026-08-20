@@ -11839,9 +11839,23 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                   }
                 } else if ((dyn_spand >= 1)) {
                   /* dest extras dest-SLICE-of-PTR extra wraps
-                   * (`[]*[2][]T`): dim_ix==ndims extra SLICE.
-                   * Wrap SLICE of leaf extra times THEN ARRAY wrap.
+                   * (`[]*[2][]T` / `[]*[2]*T`): dim_ix==ndims+1 extra
+                   * PTR then dim_ix==ndims extra SLICE. Wrap PTR of
+                   * leaf extra times then extra SLICE THEN ARRAY wrap.
                    * Pin twin. PLATFORM: SHARED. */
+                  {
+                    int32_t dyn_sppx = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
+                            (arg_i + 1), (dyn_spand + 1));
+                    int32_t dyn_sppi;
+                    if ((dyn_sppx > 0)) {
+                      dyn_sppi = 0;
+                      while (((dyn_sppi < dyn_sppx) && (dyn_spaw > 0))) {
+                        dyn_spaw = typeck_find_or_alloc_ptr_type_ref(arena, dyn_spaw);
+                        dyn_sppi = (dyn_sppi + 1);
+                      }
+                    }
+                  }
                   dyn_spex = xlang_skip_trait_method_param_elem_array_dim_c(
                           &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
                           (arg_i + 1), dyn_spand);
