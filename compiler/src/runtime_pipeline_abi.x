@@ -70112,14 +70112,21 @@ export function glue_emit_module_from_ctx(ctx: *u8): *u8 {
 }
 
 /**
- * Whether stack_off maps to a *T formal param home (fp-relative 8,16,...).
+ * Whether stack_off maps to a *T formal param home.
+ * Homes match pipeline_asm_fill_param_slots: param 0 starts at 16, then
+ * +8 (or +width when width>8; x86 high-end for wide homes). The old
+ * `(stack_off-8)/8` mapped the by-value NAMED self at 16 onto param
+ * index 1 — when that extra is TYPE_PTR, `self.v` pointer-loaded the
+ * value (dyn extra `*i32` / PTR-outer `*[N][]T` sit-red 139). SLICE
+ * extras stay kind 11 so they never hit this helper (dest-SLICE +
+ * `self.v` already 7).
  * @param arena *u8 — ASTArena*
  * @param mod *u8 — Module*
  * @param func_index i32 — emit function index
  * @param stack_off i32 — frame magnitude (>=8, 8-aligned)
- * @return i32 — 1 if param slot is TYPE_PTR (kind 9); else 0
- * wave189 pure private helper (was Cap residual static).
+ * @return i32 — 1 if this home is a TYPE_PTR (kind 9) formal; else 0
  * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
+ * G.7: complete this walk (same homes as fill_param_slots; no second mapper).
  */
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   let pi: i32 = 0;
@@ -70127,6 +70134,10 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
   let pty: i32 = 0;
   let nf: i32 = 0;
   let tk: i32 = 0;
+  let off: i32 = 16;
+  let is_arm: i32 = 0;
+  let width: i32 = 0;
+  let slot_off: i32 = 0;
   if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || stack_off < 8) {
     return 0;
   }
@@ -70139,25 +70150,51 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
   if ((stack_off & 7) != 0) {
     return 0;
   }
-  pi = (stack_off - 8) / 8;
   unsafe {
+    is_arm = pipeline_asm_host_is_arm64_c();
     np = pipeline_module_func_num_params_at(mod, func_index);
   }
-  if (pi < 0 || pi >= np) {
-    return 0;
-  }
-  unsafe {
-    pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
-  }
-  if (pty <= 0) {
-    return 0;
-  }
-  unsafe {
-    tk = pipeline_type_kind_ord_at(arena, pty);
-  }
-  // TYPE_PTR == 9
-  if (tk == 9) {
-    return 1;
+  pi = 0;
+  while (pi < np) {
+    unsafe {
+      width = glue_func_param_home_width_c(arena, mod, func_index, pi);
+    }
+    if (width <= 0) {
+      width = 8;
+    }
+    if (is_arm != 0) {
+      slot_off = off;
+      if (width > 8) {
+        off = off + width;
+      } else {
+        off = off + 8;
+      }
+    } else {
+      if (width > 8) {
+        slot_off = off + width;
+        off = slot_off + 8;
+      } else {
+        slot_off = off;
+        off = off + 8;
+      }
+    }
+    if (slot_off == stack_off) {
+      unsafe {
+        pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+      }
+      if (pty <= 0) {
+        return 0;
+      }
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, pty);
+      }
+      /* TYPE_PTR == 9 */
+      if (tk == 9) {
+        return 1;
+      }
+      return 0;
+    }
+    pi = pi + 1;
   }
   return 0;
 }

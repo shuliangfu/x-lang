@@ -3109,6 +3109,10 @@ ensure_pipeline_abi_prefer_one() {
     if [ -f src/runtime_pipeline_abi.h ] && [ src/runtime_pipeline_abi.h -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_param_ptr_slot_thin.x ] \
+      && [ src/runtime_pipeline_abi_param_ptr_slot_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3139,6 +3143,7 @@ ensure_pipeline_abi_prefer_one() {
       # abort before blkpeel (same as arrcopy || true before ttc).
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
       pipeline_abi_inject_binop_block_peel_thin "$o" || return 1
+      pipeline_abi_inject_param_ptr_slot_thin "$o" || return 1
       return 0
     fi
   fi
@@ -3184,6 +3189,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
+    pipeline_abi_inject_param_ptr_slot_thin "$o" || true
     return 0
   fi
 
@@ -3200,6 +3206,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
+    pipeline_abi_inject_param_ptr_slot_thin "$o" || true
     return 0
   fi
   if ! ensure_one "$o" "$seed" $cold_flags; then
@@ -3215,6 +3222,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_fixed_array_copy_thin "$o" || true
   pipeline_abi_inject_type_to_c_repr_thin "$o" || true
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
+  pipeline_abi_inject_param_ptr_slot_thin "$o" || true
   return 0
 }
 
@@ -3275,6 +3283,68 @@ pipeline_abi_inject_reent_deep_copy_thin() {
 # dest-ARRAY [K][N]T memcpy / return Path B0 row stride inject.
 pipeline_abi_inject_fixed_array_copy_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fixed_array_copy_thin.x" "arrcopy-thin"
+}
+
+# *T formal home vs by-value NAMED self (w189 fill_param_slots walk).
+# Mega leftover may hold a strong/weak glue_local_var_slot_needs_ptr_load_elf_c
+# (hybrid thin+rest). Weaken then first-wins ld -r of the small .x thin so
+# product need not full mega -E (Darwin 22-40GB RSS). G.7: thin body matches
+# runtime_pipeline_abi.x. PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_param_ptr_slot_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_param_ptr_slot_thin.x"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi ptrslot-thin inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi ptrslot-thin inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi ptrslot-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    "$oc" --weaken-symbol=_glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null \
+      || "$oc" --weaken-symbol=glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null \
+      || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi ptrslot-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi ptrslot-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
 }
 
 # host-C type_to_c_repr SLICE `*`→`_p` sanitizer. Product hybrid keeps this
