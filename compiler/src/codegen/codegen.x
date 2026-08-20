@@ -4056,19 +4056,26 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
  * Emit the host-C dyn-dispatch function-pointer suffix after the return type.
  *
  * Completes the F3 call-site cast so extras match codegen_emit_vtable_wrapper_def.
- * The old hardcoded `(*)(void*, ...)` let C default-promote f32 extras to f64,
- * so wrapper `(void* data, float a1)` read a 0 low-32 (dyn_add_f32 host-C).
+ * Scalar extras already used emit_type_kind (f32 leftover). NAMED / PTR / SLICE
+ * / ARRAY extras used to keep `, ...)` — Darwin AAPCS64 then stacks the extra
+ * while the wrapper reads it from x1 (sit-red dyn_add_named/ptr/slice true
+ * host-C 98/153/95; i32 extras already 7). Ubuntu SysV GP extras often fake-
+ * green through the same registers as variadic.
  *
- * Shape: `(*)(void*` + `, <C-type>` for each extra + `)`. Extra kinds come from
- * xlang_skip_trait_method_param_kind_c (extra i → param i+1; self is data).
- * Unemittable kinds (NAMED/PTR/SLICE/...) keep `, ...)` so those leftovers stay
- * on the old variadic path. Zero extras emit `(*)(void*)`.
+ * Shape: `(*)(void*` + `, <C-type>` for each extra + `)`. Prefer dest-stamped
+ * extra arg type_ref + the same emit_type / named-array / SLICE-pointer ABI as
+ * the wrapper (G.7 complete this function; no second suffix). Registry
+ * param_kind remains the scalar fallback when the extra has no type_ref.
+ * LINEAR / VECTOR extras still `, ...)` (not this leaf). Zero extras emit
+ * `(*)(void*)`. First formal stays void* data.
  *
  * Extracted from emit_expr so the METHOD_CALL nest does not rise (nest freeze 64).
  * Not a second dispatch path: emit_expr still owns the call site.
  *
  * @param out *CodegenOutBuf — destination buffer
- * @param arena *ASTArena — receiver type + trait-name lookup
+ * @param arena *ASTArena — extra arg type_ref + receiver trait-name lookup
+ * @param ctx *PipelineDepCtx — prefix for emit_type; may be null
+ * @param expr_ref i32 — METHOD_CALL expr (extra i → method_call arg i)
  * @param base_ref i32 — receiver expr_ref (TYPE_DYN; trait name source)
  * @param slot i32 — vtable slot (call_resolved_func_index)
  * @param nargs i32 — explicit extra count (not including data)
@@ -4076,7 +4083,7 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
  * PLATFORM: SHARED host-C; Ubuntu gold. First formal stays void* data.
  */
 export function codegen_emit_dyn_host_c_fn_ptr_suffix(out: *CodegenOutBuf, arena: *ASTArena,
-        base_ref: i32, slot: i32, nargs: i32): i32 {
+        ctx: *PipelineDepCtx, expr_ref: i32, base_ref: i32, slot: i32, nargs: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (out == 0 as *CodegenOutBuf) {
@@ -4095,47 +4102,93 @@ export function codegen_emit_dyn_host_c_fn_ptr_suffix(out: *CodegenOutBuf, arena
         trait_nlen = pipeline_type_named_name_into(arena, base_ty, &trait_nm[0]);
       }
     }
+    let pref: *u8 = 0 as *u8;
+    let pref_len: i32 = 0;
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_prefix_len > 0) {
+      pref = &ctx.current_codegen_prefix_mirror[0];
+      pref_len = ctx.current_codegen_prefix_len;
+    }
     let typed: i32 = 1;
-    if (nargs > 0 && trait_nlen <= 0) {
+    if (nargs > 0 && trait_nlen <= 0 && expr_ref <= 0) {
       typed = 0;
     }
     let chk: i32 = 0;
     while (chk < nargs) {
-      let pk: i32 = -1;
-      if (trait_nlen > 0) {
-        pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, chk + 1);
+      let can: i32 = 0;
+      let ty: i32 = 0;
+      if (arena != 0 as *ASTArena && expr_ref > 0) {
+        let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, chk);
+        if (arg_ref > 0 && !ast.ref_is_null(arg_ref)) {
+          ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
       }
-      let pk_ok: i32 = 0;
-      if (pk == (TypeKind.TYPE_I32 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_BOOL as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_U8 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_U32 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_U64 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_I64 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_USIZE as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_ISIZE as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_F32 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_F64 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_VOID as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_DYN as i32)) { pk_ok = 1; }
-      if (pk_ok == 0) {
+      if (ty > 0) {
+        let tk: i32 = pipeline_type_kind_ord_at(arena, ty);
+        /* LINEAR / VECTOR stay the variadic leftover (not this leaf). */
+        if (tk != (TypeKind.TYPE_LINEAR as i32) && tk != (TypeKind.TYPE_VECTOR as i32)) {
+          can = 1;
+        }
+      }
+      if (can == 0) {
+        let pk: i32 = -1;
+        if (trait_nlen > 0) {
+          pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, chk + 1);
+        }
+        if (pk == (TypeKind.TYPE_I32 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_BOOL as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_U8 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_U32 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_U64 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_I64 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_USIZE as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_ISIZE as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_F32 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_F64 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_VOID as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_DYN as i32)) { can = 1; }
+      }
+      if (can == 0) {
         typed = 0;
       }
       chk = chk + 1;
     }
     if (typed == 0) {
-      /* ", ...)" — 6 bytes. Leftover for NAMED/PTR/SLICE extras. */
+      /* ", ...)" — 6 bytes. Leftover only when an extra still cannot emit. */
       let varargs: u8[6] = [44, 32, 46, 46, 46, 41];
       return emit_bytes_from_ptr(out, &varargs[0], 6);
     }
     chk = 0;
     while (chk < nargs) {
-      let pk2: i32 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
-              slot, chk + 1);
       if (append_byte(out, 44) != 0) { return -1; }
       if (append_byte(out, 32) != 0) { return -1; }
-      if (emit_type_kind(out, pk2) != 0) {
-        return -1;
+      let ty2: i32 = 0;
+      if (arena != 0 as *ASTArena && expr_ref > 0) {
+        let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, chk);
+        if (arg_ref2 > 0 && !ast.ref_is_null(arg_ref2)) {
+          ty2 = pipeline_expr_resolved_type_ref(arena, arg_ref2);
+        }
+      }
+      if (ty2 > 0) {
+        /* Same C form as wrapper extras: named-array / emit_type / SLICE *. */
+        if (type_uses_named_array_decl(arena, ty2) != 0) {
+          if (emit_c_ptr_to_fixed_array_decl(arena, out, ty2, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+        } else {
+          if (emit_type(arena, out, ty2, pref, pref_len, ctx) != 0) {
+            return -1;
+          }
+          if (pipeline_type_kind_ord_at(arena, ty2) == (TypeKind.TYPE_SLICE as i32)) {
+            if (append_byte(out, 32) != 0) { return -1; }
+            if (append_byte(out, 42) != 0) { return -1; }
+          }
+        }
+      } else {
+        let pk2: i32 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
+                slot, chk + 1);
+        if (emit_type_kind(out, pk2) != 0) {
+          return -1;
+        }
       }
       chk = chk + 1;
     }
@@ -13803,8 +13856,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         /* Fn-ptr suffix: typed extras matching the wrapper (not variadic). */
-        if (codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, e.method_call_base_ref,
-                dyn_slot, e.method_call_num_args) != 0) {
+        if (codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, ctx, expr_ref,
+                e.method_call_base_ref, dyn_slot, e.method_call_num_args) != 0) {
           return -1;
         }
         /* ")" cast close. */

@@ -1628,7 +1628,8 @@ extern int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t * trait_nm, int3
 extern int32_t xlang_skip_trait_method_param_kind_c(const uint8_t * trait_nm, int32_t trait_nlen,
         int32_t slot, int32_t param_ix);
 extern int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out,
-        struct ast_ASTArena * arena, int32_t base_ref, int32_t slot, int32_t nargs);
+        struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref,
+        int32_t base_ref, int32_t slot, int32_t nargs);
 /* F4 per-impl vtable statics: impl-registry iterators + type alloc helpers.
  * PLATFORM: SHARED. */
 extern int32_t xlang_skip_impl_seen_count_c(void);
@@ -11306,8 +11307,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -1;
         }
         /* Fn-ptr suffix: typed extras matching the wrapper (not variadic). */
-        if ((codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, ((e).method_call_base_ref),
-                dyn_slot, ((e).method_call_num_args)) !=0)) {
+        if ((codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, ctx, expr_ref,
+                ((e).method_call_base_ref), dyn_slot, ((e).method_call_num_args)) !=0)) {
           return -1;
         }
         /* ")" cast close. */
@@ -16962,22 +16963,28 @@ int32_t codegen_builtin_type_name_into(int32_t kind_ord, uint8_t * out) {
  * Emit the host-C dyn-dispatch function-pointer suffix after the return type.
  *
  * Completes the F3 call-site cast so extras match codegen_emit_vtable_wrapper_def.
- * The old hardcoded (*)(void*, ...) let C default-promote f32 extras to f64,
- * so wrapper (void* data, float a1) read a 0 low-32 (dyn_add_f32 host-C).
- *
- * Shape: (*)(void* + , <C-type> for each extra + ). Extra kinds come from
- * xlang_skip_trait_method_param_kind_c (extra i -> param i+1). Unemittable
- * kinds keep , ...) leftover. Zero extras emit (*)(void*).
+ * Scalar extras already used emit_type_kind (f32 leftover). NAMED / PTR / SLICE
+ * / ARRAY extras used to keep , ...) — Darwin AAPCS64 then stacks the extra
+ * while the wrapper reads it from x1 (sit-red dyn_add_named/ptr/slice true
+ * host-C). Prefer dest-stamped extra arg type_ref + the same emit_type /
+ * named-array / SLICE-pointer ABI as the wrapper (G.7 complete this function).
+ * Pin has no type_uses_named_array_decl symbol: inline PTR→ARRAY or
+ * ARRAY-of-ARRAY then codegen_emit_c (same as wrapper extras).
+ * LINEAR / VECTOR extras still , ...) (not this leaf). Zero extras emit
+ * (*)(void*). First formal stays void* data.
  *
  * @return 0 on success, -1 on emit failure
  * PLATFORM: SHARED host-C — mirrors compiler/src/codegen/codegen.x.
  */
 int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out,
-        struct ast_ASTArena * arena, int32_t base_ref, int32_t slot, int32_t nargs) {
+        struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref,
+        int32_t base_ref, int32_t slot, int32_t nargs) {
   {
     uint8_t open_suf[9];
     uint8_t trait_nm[64];
     int32_t trait_nlen;
+    uint8_t * pref;
+    int32_t pref_len;
     int32_t typed;
     int32_t chk;
     if (out == 0) {
@@ -16997,30 +17004,51 @@ int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out
         trait_nlen = pipeline_type_named_name_into(arena, base_ty, &trait_nm[0]);
       }
     }
+    pref = 0;
+    pref_len = 0;
+    if ((ctx != 0) && (ctx->current_codegen_prefix_len > 0)) {
+      pref = &ctx->current_codegen_prefix_mirror[0];
+      pref_len = ctx->current_codegen_prefix_len;
+    }
     typed = 1;
-    if ((nargs > 0) && (trait_nlen <= 0)) {
+    if ((nargs > 0) && (trait_nlen <= 0) && (expr_ref <= 0)) {
       typed = 0;
     }
     chk = 0;
     while (chk < nargs) {
-      int32_t pk = -1;
-      int32_t pk_ok = 0;
-      if (trait_nlen > 0) {
-        pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, (chk + 1));
+      int32_t can = 0;
+      int32_t ty = 0;
+      if ((arena != 0) && (expr_ref > 0)) {
+        int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, chk);
+        if ((arg_ref > 0) && (!ast_ref_is_null(arg_ref))) {
+          ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
       }
-      if (pk == (ast_TypeKind_TYPE_I32)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_BOOL)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_U8)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_U32)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_U64)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_I64)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_USIZE)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_ISIZE)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_F32)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_F64)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_VOID)) { pk_ok = 1; }
-      if (pk == (ast_TypeKind_TYPE_DYN)) { pk_ok = 1; }
-      if (pk_ok == 0) {
+      if (ty > 0) {
+        int32_t tk = pipeline_type_kind_ord_at(arena, ty);
+        if ((tk != ast_TypeKind_TYPE_LINEAR) && (tk != ast_TypeKind_TYPE_VECTOR)) {
+          can = 1;
+        }
+      }
+      if (can == 0) {
+        int32_t pk = -1;
+        if (trait_nlen > 0) {
+          pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, (chk + 1));
+        }
+        if (pk == (ast_TypeKind_TYPE_I32)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_BOOL)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_U8)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_U32)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_U64)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_I64)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_USIZE)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_ISIZE)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_F32)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_F64)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_VOID)) { can = 1; }
+        if (pk == (ast_TypeKind_TYPE_DYN)) { can = 1; }
+      }
+      if (can == 0) {
         typed = 0;
       }
       chk = chk + 1;
@@ -17033,12 +17061,43 @@ int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out
     }
     chk = 0;
     while (chk < nargs) {
-      int32_t pk2 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
-              slot, (chk + 1));
+      int32_t ty2 = 0;
       if ((codegen_append_byte(out, 44) != 0)) { return -1; }
       if ((codegen_append_byte(out, 32) != 0)) { return -1; }
-      if ((codegen_emit_type_kind(out, pk2) != 0)) {
-        return -1;
+      if ((arena != 0) && (expr_ref > 0)) {
+        int32_t arg_ref2 = pipeline_expr_method_call_arg_ref(arena, expr_ref, chk);
+        if ((arg_ref2 > 0) && (!ast_ref_is_null(arg_ref2))) {
+          ty2 = pipeline_expr_resolved_type_ref(arena, arg_ref2);
+        }
+      }
+      if (ty2 > 0) {
+        int32_t use_named = 0;
+        int32_t pk = pipeline_type_kind_ord_at(arena, ty2);
+        if ((pk == 9) || (pk == 10)) {
+          int32_t pe = pipeline_type_elem_ref_at(arena, ty2);
+          if ((!(ast_ref_is_null(pe))) && (pipeline_type_kind_ord_at(arena, pe) == 10)) {
+            use_named = 1;
+          }
+        }
+        if (use_named != 0) {
+          if ((codegen_emit_c(arena, out, ty2, 0, 0, ctx) != 0)) {
+            return -1;
+          }
+        } else {
+          if ((codegen_emit_type(arena, out, ty2, pref, pref_len, ctx) != 0)) {
+            return -1;
+          }
+          if (pipeline_type_kind_ord_at(arena, ty2) == ast_TypeKind_TYPE_SLICE) {
+            if ((codegen_append_byte(out, 32) != 0)) { return -1; }
+            if ((codegen_append_byte(out, 42) != 0)) { return -1; }
+          }
+        }
+      } else {
+        int32_t pk2 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
+                slot, (chk + 1));
+        if ((codegen_emit_type_kind(out, pk2) != 0)) {
+          return -1;
+        }
       }
       chk = chk + 1;
     }
