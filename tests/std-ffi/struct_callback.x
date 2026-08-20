@@ -8,7 +8,7 @@ const ffi = import("std.ffi");
 function main(): i32 {
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   if (point_pack(&buf[0], 8, 3, 4) != 0) { return 1; }
-  let pt: FfiPoint = FfiPoint { x: 0, y: 0 };
+  let pt: FfiPoint = { x: 0, y: 0 };
   if (point_unpack(&buf[0], 8, &pt) != 0) { return 2; }
   if (pt.x != 3 || pt.y != 4) { return 3; }
   if (point_pack(&buf[0], 4, 0, 0) != (0 - 4)) { return 4; }

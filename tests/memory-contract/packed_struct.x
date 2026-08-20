@@ -9,6 +9,6 @@ struct Header packed {
  * @return i32
  */
 function main(): i32 {
-  let h: Header = Header { tag: 1, length: 42 };
+  let h: Header = { tag: 1, length: 42 };
   return 0;
 }

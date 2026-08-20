@@ -38,6 +38,9 @@ fi
 SMOKE_BACKEND_ARGS=""
 if [ "$SMOKE_RUN_BACKEND" = "c" ]; then
   SMOKE_BACKEND_ARGS="-backend c"
+  # Stage 12.2.3: product host-cc spawn is experimental; require ALLOW opt-in.
+  # PLATFORM: SHARED — only for -backend c path; asm smoke never hits invoke_cc.
+  export XLANG_ALLOW_HOST_CC=1
 elif [ "$SMOKE_RUN_BACKEND" = "asm" ]; then
   SMOKE_BACKEND_ARGS="-backend asm"
 fi

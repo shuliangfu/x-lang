@@ -27,6 +27,6 @@ function add_one(v: i32): i32 {
  * @return i32
  */
 function main(): i32 {
-  let p: Point = Point { x: 1, y: 2 };
+  let p: Point = { x: 1, y: 2 };
   return add_one(p.x);
 }

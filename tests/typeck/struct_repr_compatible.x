@@ -19,7 +19,7 @@ function take_b(_p: *PairB): i32 {
  * @return i32
  */
 function main(): i32 {
-  let x: PairA = PairA { a: 3, b: 4 };
+  let x: PairA = { a: 3, b: 4 };
   take_b(&x);
   return 0;
 }

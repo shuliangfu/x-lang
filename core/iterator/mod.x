@@ -36,12 +36,12 @@ export struct SliceIter_u8 {
 
 /** `iter_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function iter_i32(s: i32[]): SliceIter_i32 {
-  return SliceIter_i32 { ptr: s.data, length: s.length, index: 0 as usize };
+  return { ptr: s.data, length: s.length, index: 0 as usize };
 }
 
 /** `iter_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function iter_u8(s: u8[]): SliceIter_u8 {
-  return SliceIter_u8 { ptr: s.data, length: s.length, index: 0 as usize };
+  return { ptr: s.data, length: s.length, index: 0 as usize };
 }
 
 /** `next_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
@@ -88,7 +88,7 @@ export function iterator_protocol_version(): i32 { return 1; }
 
 /** `iter_u64_from_buf`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function iter_u64_from_buf(ptr: *u64, len: usize): SliceIter_u64 {
-  return SliceIter_u64 { ptr: ptr, length: len, index: 0 as usize };
+  return { ptr: ptr, length: len, index: 0 as usize };
 }
 
 /** `next_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */

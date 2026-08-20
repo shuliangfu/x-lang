@@ -11,7 +11,7 @@ struct Pair {
  * @return Pair
  */
 function mk(a: i32, b: i32): Pair {
-  return Pair { a: a, b: b };
+  return { a: a, b: b };
 }
 
 /** Internal function `add_pair`.

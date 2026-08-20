@@ -268,6 +268,9 @@ void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag
     argv[(*ia)++] = (char *)flag;
 }
 
+/* Stage 12.2.3: full ALLOW path skips freestanding random/time/runtime here
+ * (ensure-push front need_flags[8/7/4] is G.7 authority). MINIMAL keeps them
+ * because ensure-push is skipped entirely under XLANG_MINIMAL_CC_LINK. */
 void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root,
     const char *random_o, const char *time_o, const char *runtime_o, const char *runtime_panic_o) {
@@ -275,9 +278,15 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
   int needs_db_kv = 0, needs_db_arrow = 0, needs_fs = 0;
   int needs_random = 0, needs_time = 0, needs_runtime = 0;
   int needs_win32 = 0, needs_win32_wsa = 0, needs_libc_heap = 0;
+  int minimal_cc = 0;
   int j;
   if (!argv || !ia || *ia < 0)
     return;
+  {
+    const char *menv = link_abi_getenv("XLANG_MINIMAL_CC_LINK");
+    if (menv && menv[0])
+      minimal_cc = 1;
+  }
   if (c_paths && n > 0) {
     for (j = 0; j < n; j++) {
       const char *cp = c_paths[j];
@@ -295,12 +304,15 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
         needs_db_arrow = 1;
       if (link_abi_generated_c_needs_fs(cp))
         needs_fs = 1;
-      if (link_abi_generated_c_needs_random(cp))
-        needs_random = 1;
-      if (link_abi_generated_c_needs_time(cp))
-        needs_time = 1;
-      if (link_abi_generated_c_needs_runtime(cp))
-        needs_runtime = 1;
+      /* MINIMAL-only freestanding rtr; full path → ensure-push front. */
+      if (minimal_cc) {
+        if (link_abi_generated_c_needs_random(cp))
+          needs_random = 1;
+        if (link_abi_generated_c_needs_time(cp))
+          needs_time = 1;
+        if (link_abi_generated_c_needs_runtime(cp))
+          needs_runtime = 1;
+      }
       if (link_abi_generated_c_needs_win32(cp))
         needs_win32 = 1;
       if (link_abi_generated_c_needs_win32_wsa(cp))
@@ -839,8 +851,10 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
     }
   }
 
-  if (heap_o && heap_o[0])
-    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+  /* Stage 12.2.3 ALLOW ensure slim: heap.o need-gated by invoke_cc_append_heap_f06_ondemand
+   * (nm argv + use_line + provides). Do not always-push when path non-empty (rv/hello waste).
+   * heap_o remains in signature for G.7 mega call-site ABI. PLATFORM: SHARED. */
+  (void)heap_o;
   if (need_path)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, path_o);
   if (need_runtime)
@@ -1352,8 +1366,22 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, tar_o);
   if (need_simd)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, simd_o);
-  if (need_context)
+  /* PLATFORM: SHARED — context.o U atomic_*_c + time_now_*; ensure companions. */
+  if (need_context) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
+    (void)xlang_ensure_runtime_atomic_glue_o(NULL);
+    {
+      const char *rag = xlang_runtime_atomic_glue_o_path(NULL);
+      if (rag && rag[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
+    }
+    (void)xlang_ensure_runtime_time_os_o(NULL);
+    {
+      const char *rto = xlang_runtime_time_os_o_path(NULL);
+      if (rto && rto[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+    }
+  }
   if (need_error)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
         xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
@@ -1377,12 +1405,28 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     task_linked = invoke_cc_argv_push_existing(argv, ia, argv_cap, task_o);
   if (need_schema)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, schema_o);
-  if (need_test && invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o)) {
+  if (need_test) {
+    /* PLATFORM: SHARED — do not gate companions on first-time test.o push.
+     * Dedup of already-pushed test.o used to skip test_fn_invoke / env_os /
+     * time_os (mac L4 run-stdtest UNDEF). G.7 ≡ labi_od_push_test_monofile_companions. */
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
     (void)xlang_ensure_runtime_test_fn_invoke_o(NULL);
     {
       const char *rtfi = xlang_runtime_test_fn_invoke_o_path(NULL);
       if (rtfi && rtfi[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
+    }
+    (void)xlang_ensure_runtime_env_os_o(NULL);
+    {
+      const char *reo = xlang_runtime_env_os_o_path(NULL);
+      if (reo && reo[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
+    }
+    (void)xlang_ensure_runtime_time_os_o(NULL);
+    {
+      const char *rto = xlang_runtime_time_os_o_path(NULL);
+      if (rto && rto[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
     }
   }
   if (!(sched_link && sched_link[0])) {
@@ -1422,10 +1466,16 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
   // process_argv complement after std/*.o pushes
   // (C seed: // form — gcc is non-nested and -Wcomment on /* inside /* */;
   //  Xlang .x accepts the same prose as a nested path-safe block comment.)
+  // PLATFORM: SHARED — also complement runtime_panic.o when any argv .o has
+  // U xlang_panic_ (error.o co-emits core_result_expect_*_or_panic; mid=51 is
+  // gen-C use_line only). export_dynamic (backtrace) freezes those T symbols.
+  // G.7: peer of .x heavy_b end scan; seed twin must stay same-commit.
   {
     int need_pav = 0;
     int have_process_o = 0;
     int have_pav = 0;
+    int need_panic_u = 0;
+    int have_panic_o = 0;
     int ai;
     for (ai = 0; ai < *ia && argv[ai]; ai++) {
       const char *e = argv[ai];
@@ -1438,6 +1488,10 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
       if (xlang_link_obj_needs_undef_sym(e, "process_xlang_argc_get") ||
           xlang_link_obj_needs_undef_sym(e, "process_xlang_argv_get"))
         need_pav = 1;
+      if (strstr(e, "runtime_panic.o"))
+        have_panic_o = 1;
+      if (xlang_link_obj_needs_undef_sym(e, "xlang_panic_"))
+        need_panic_u = 1;
     }
     if (need_pav && !have_process_o && !have_pav) {
       (void)xlang_ensure_runtime_process_argv_o(NULL);
@@ -1445,6 +1499,20 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
         const char *rpa = xlang_runtime_process_argv_o_path(NULL);
         if (rpa && rpa[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+      }
+    }
+    if (need_panic_u && !have_panic_o) {
+      (void)xlang_ensure_runtime_panic_o(NULL);
+      {
+        const char *rp = xlang_runtime_panic_o_path(NULL);
+        if (rp && rp[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+      }
+      (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+      {
+        const char *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+        if (rue && rue[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
       }
     }
   }
@@ -1702,7 +1770,36 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
   }
 }
 
+/* Stage 12.2.3: G.7 single env-gate authority (cold twin ≡ .x).
+ * FORBID exact "1" hard-deny unless LOG_ONLY; ALLOW exact "1" required.
+ * Callers: xlang_invoke_cc early entry, xlang_invoke_cc_impl top (ensure/argv
+ * isolation), invoke_cc_run_cc_argv spawn shell.
+ * PLATFORM: SHARED — dual-end ALLOW/FORBID. */
+int invoke_cc_host_cc_spawn_gate(void) {
+  const char *forbid;
+  const char *log_only;
+  const char *allow;
+  /* PLATFORM: SHARED — product FORBID gate (exact "1"; LOG_ONLY fallthrough). */
+  forbid = link_abi_getenv("XLANG_FORBID_HOST_CC");
+  if (forbid && forbid[0] == '1' && forbid[1] == '\0') {
+    log_only = link_abi_getenv("XLANG_FORBID_HOST_CC_LOG_ONLY");
+    if (!(log_only && log_only[0] == '1' && log_only[1] == '\0')) {
+      link_diag_tool_status("forbid-host-cc", -1);
+      return 0;
+    }
+    /* LOG_ONLY=1: discovery — fall through to ALLOW then spawn (no diag noise). */
+  }
+  /* PLATFORM: SHARED — Stage 12.2.3 experimental ALLOW (exact "1" required). */
+  allow = link_abi_getenv("XLANG_ALLOW_HOST_CC");
+  if (!(allow && allow[0] == '1' && allow[1] == '\0')) {
+    link_diag_tool_status("host-cc-requires-allow", -1);
+    return 0;
+  }
+  return 1;
+}
+
 /* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x).
+ * Host-cc env gates: invoke_cc_host_cc_spawn_gate (G.7).
  * PLATFORM: WINDOWS — never clobber PATH with /usr/local/bin:/usr/bin:/bin before
  * _spawnvp("gcc"); that Unix PATH hides MinGW and yields BLD001 exit 255.
  * POSIX freestanding may still need the setenv when PATH is empty. */
@@ -1711,6 +1808,8 @@ int invoke_cc_run_cc_argv(char **argv) {
   int is_linux;
   int rc;
   if (!argv)
+    return -1;
+  if (!invoke_cc_host_cc_spawn_gate())
     return -1;
   is_win = link_abi_host_is_windows();
   if (!is_win)

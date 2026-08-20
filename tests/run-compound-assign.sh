@@ -8,18 +8,19 @@ xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-LINK_XLANG="$RUN_XLANG"
-LINK_BACKEND_ARGS="${XLANG_LINK_BACKEND_ARGS:-}"
-
-# compound assign 语义经 pipeline_glue TokenKind 映射已修（C emit 正确）。
-# 当前 asm 路径在「复合赋值 → if → 再复合赋值」模式仍不稳定；门禁先固定到稳定 C backend，
-# 避免把已知 asm 债误算成脚本链路回归。
-case "$(basename "$LINK_XLANG")" in
-  xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
-    LINK_XLANG=./compiler/xlang
-    LINK_BACKEND_ARGS="-backend c"
+# Product pure-asm default (no forced -backend c). Prefer product XLANG over wrap.
+# PLATFORM: SHARED pure-asm product; C/host-cc only with XLANG_ALLOW_HOST_CC /
+# XLANG_FORCE_LINK_BACKEND.
+LINK_XLANG="${XLANG:-${RUN_XLANG}}"
+case "$(basename "${LINK_XLANG:-}")" in
+  xlang-backend-wrap.sh|xlang-min-link.sh)
+    LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-${XLANG:-./compiler/xlang}}}"
     ;;
 esac
+LINK_BACKEND_ARGS=""
+if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+  LINK_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
+fi
 
 set +e
 # shellcheck disable=SC2086
@@ -27,17 +28,21 @@ $LINK_XLANG build $LINK_BACKEND_ARGS tests/compound-assign/main.x -o /tmp/xlang_
 _compile_ec=$?
 set -e
 set +e
-if [ "$_compile_ec" -ne 0 ] && [ "$LINK_XLANG" != "./compiler/xlang" ]; then
+# Optional host-cc / seed-c fallback only when explicitly allowed.
+if [ "$_compile_ec" -ne 0 ] && [ -n "${XLANG_ALLOW_HOST_CC:-}" ]; then
   ./compiler/xlang build -backend c tests/compound-assign/main.x -o /tmp/xlang_compound_assign 2>&1
   _compile_ec=$?
 fi
-# xlang-c -E + cc 回退（无 asm/c backend 时）
-if [ "$_compile_ec" -ne 0 ] && [ -x ./compiler/xlang-c ]; then
+if [ "$_compile_ec" -ne 0 ] && [ -n "${XLANG_ALLOW_HOST_CC:-}" ] && [ -x ./compiler/xlang-c ]; then
   ./compiler/xlang-c -E tests/compound-assign/main.x > /tmp/xlang_ca_fallback.c 2>&1
   ${CC:-cc} -O2 -o /tmp/xlang_compound_assign /tmp/xlang_ca_fallback.c 2>&1
   _compile_ec=$?
 fi
 set -e
+if [ "$_compile_ec" -ne 0 ]; then
+  echo "compound-assign: product pure-asm -o failed (exit $_compile_ec)" >&2
+  exit "$_compile_ec"
+fi
 
 exitcode=0
 /tmp/xlang_compound_assign >/dev/null 2>&1 || exitcode=$?

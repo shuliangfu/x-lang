@@ -110,7 +110,7 @@ function main(): i32 {
   let mixed_conns: i32 = 256;
   let mixed_rounds: i32 = 16;
   let payload: i32 = 512;
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let lat_buf: i64[4096] = 0;
   let lat: *i64 = lat_buf;
   let n_samples: i32 = 0;

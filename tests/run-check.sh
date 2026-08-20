@@ -15,7 +15,8 @@ export XLANG
 ./tests/run-comment-prefix.sh
 chmod +x tests/run-fmt-wrap.sh 2>/dev/null || true
 ./tests/run-fmt-wrap.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+# MG: no Makefile — skip make (would hang after physical delete).
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ] && [ -f compiler/Makefile ]; then
   xlang_compiler_make -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
 fi
 ROOT=$(pwd)
@@ -24,10 +25,21 @@ case "$XLANG" in
   *) XLANG_EXE="$ROOT/$XLANG" ;;
 esac
 
-# 无参：在子目录内递归 check（与 fmt 一致，不应要求显式路径）
+# PLATFORM: SHARED — product fmt/check builtin-ignore includes "/tests/" so bare
+# `xlang check` skips intentional negative fixtures (995291a1b). Explicit paths
+# under tests/ are also swallowed today → CHK002/FMT001. Stage copies outside
+# tests/ for harness probes (root product fix: explicit collect bypass ignore).
+_CHK_TMP="${TMPDIR:-/tmp}/xlang_run_check_$$"
+mkdir -p "$_CHK_TMP"
+trap 'rm -rf "$_CHK_TMP"' EXIT
+cp tests/return-value/main.x "$_CHK_TMP/return_value_main.x"
+cp tests/stdlib-import/main.x "$_CHK_TMP/stdlib_import_main.x"
+cp tests/typeck/return_operand_type_mismatch.x "$_CHK_TMP/return_operand_type_mismatch.x"
+
+# 无参：在临时目录内 check 单文件（cwd 相对路径，无 /tests/ 段）
 (
-  cd tests/return-value
-  chk_cwd=$("$XLANG_EXE" check main.x 2>&1)
+  cd "$_CHK_TMP"
+  chk_cwd=$("$XLANG_EXE" check return_value_main.x 2>&1)
   if [ -n "$chk_cwd" ]; then
     echo "expected silent check on main.x, got: $chk_cwd"
     exit 1
@@ -36,7 +48,7 @@ esac
 echo "check OK: cwd (no path arg)"
 
 # 合法：成功时无输出（deno check）
-chk_out=$($XLANG check tests/return-value/main.x 2>&1)
+chk_out=$($XLANG check "$_CHK_TMP/return_value_main.x" 2>&1)
 if [ -n "$chk_out" ]; then
   echo "expected silent check success, got: $chk_out"
   exit 1
@@ -44,7 +56,7 @@ fi
 echo "check OK: return-value (silent)"
 
 # 合法：含 import
-chk_out2=$($XLANG check -L . tests/stdlib-import/main.x 2>&1)
+chk_out2=$($XLANG check -L . "$_CHK_TMP/stdlib_import_main.x" 2>&1)
 if [ -n "$chk_out2" ]; then
   echo "expected silent check success with import, got: $chk_out2"
   exit 1
@@ -52,7 +64,7 @@ fi
 echo "check OK: import (silent)"
 
 # 非法：typeck 应失败并带诊断行
-neg_out=$($XLANG check tests/typeck/return_operand_type_mismatch.x 2>&1) && {
+neg_out=$($XLANG check "$_CHK_TMP/return_operand_type_mismatch.x" 2>&1) && {
   echo "expected check to fail on type mismatch"
   exit 1
 }

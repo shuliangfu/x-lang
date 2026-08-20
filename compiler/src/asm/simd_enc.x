@@ -42,19 +42,23 @@ export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
 
 // simd_arm64_rbp_lea_off_128half: see function docblock below.
 
-/** Exported function `simd_arm64_rbp_lea_off_128half`.
- * Implements `simd_arm64_rbp_lea_off_128half`.
- * @param slot i32
- * @param half i32
- * @param esz i32
- * @return i32
+/**
+ * ARM64 128-bit half-frame offset for ld1/st1 {v.4s}.
+ * @param slot i32 — lane0 home (ARM64 vector let-init low-end = base_off)
+ * @param half i32 — 0 = lanes 0..3, 1 = lanes 4..7
+ * @param esz i32 — lane bytes (4 for i32/f32)
+ * @return i32 — lea_rbp offset of that 16B half; unchanged if slot/half/esz invalid
+ * PLATFORM: MACOS|ARM64 — product home is low-end (lane0 at slot, INDEX
+ *   [base+lane*esz]). half1 = slot+16. Historic slot-16 assumed high-end
+ *   home; lea_rbp clamps negative to 0 so half1 loaded [x29] (r8[4] leftover).
+ * G.7: same +16 direction as x86 `ds+16` address space / C-order lanes.
  */
 #[no_mangle]
 export function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
   if (slot < 0) { return slot; }
   if (esz <= 0) { return slot; }
   if (half < 0) { return slot; }
-  return slot - half * 4 * esz;
+  return slot + half * 4 * esz;
 }
 
 // simd_append_disp32: see function docblock below.
@@ -307,18 +311,21 @@ export function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vfmadd231ps_xmm0_xmm1_xmm2`.
- * Implements `simd_x86_vfmadd231ps_xmm0_xmm1_xmm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode vfmadd231ps xmm0, xmm1, xmm2 (xmm0 = xmm1 * xmm2 + xmm0).
+ * VEX.128.66.0F38.W0 B8 /r — opcode B8 is packed 231PS; ModRM C2 is rm=xmm2.
+ * Do not emit A9/C1: A9 is vfmadd213ss (scalar) and C1 is rm=xmm1.
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 ok, -1 append fail
+ * PLATFORM: LINUX+MACOS x86 FMA3 encoding (SysV xmm).
  */
 #[no_mangle]
 export function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
   let b2: u8 = 113;
-  let b3: u8 = 169;
-  let b4: u8 = 193;
+  let b3: u8 = 184;
+  let b4: u8 = 194;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -388,17 +395,20 @@ export function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_movups_xmm1_from_rbx_rax4`.
- * Implements `simd_x86_movups_xmm1_from_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups xmm1, [rbx+rax*4]` (VEX.128.0F.WIG 10 /r).
+ * Dest is ModRM.reg=xmm1 (`0C`), not VEX.vvvv — vmovups is 2-operand so vvvv must be 1111
+ * (`C5 F8`). Old `C5 F0 10 04 83` put dest in vvvv and SIGILL'd the integer strip remainder.
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 — AVX VEX form of SSE movups; lanes==4 strip path.
  */
 #[no_mangle]
 export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
-  let b1: u8 = 240;
+  let b1: u8 = 248;
   let b2: u8 = 16;
-  let b3: u8 = 4;
+  let b3: u8 = 12;
   let b4: u8 = 131;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
@@ -415,16 +425,18 @@ export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vmovups_ymm0_from_rbx_rax4`.
- * Implements `simd_x86_vmovups_ymm0_from_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups ymm0, [rbx+rax*4]` (VEX.256.0F.WIG 10 /r = `C4 E1 7C 10 04 83`).
+ * Map must be 0F (not 0F38). Same-pattern twin of the xmm1 dest-in-ModRM fix.
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX2 — lanes==8 indexed strip/peel.
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
-  let b1: u8 = 226;
-  let b2: u8 = 125;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
   let b3: u8 = 16;
   let b4: u8 = 4;
   let b5: u8 = 131;
@@ -445,18 +457,20 @@ export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vmovups_ymm1_from_rbx_rax4`.
- * Implements `simd_x86_vmovups_ymm1_from_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups ymm1, [rbx+rax*4]` (VEX.256.0F.WIG 10 /r = `C4 E1 7C 10 0C 83`).
+ * Dest is ModRM.reg=ymm1; vvvv=1111; map=0F. Old `C4 E2 75 10 04 83` was 0F38+vvvv dest.
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX2 — lanes==8 indexed strip/peel.
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
-  let b1: u8 = 226;
-  let b2: u8 = 117;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
   let b3: u8 = 16;
-  let b4: u8 = 4;
+  let b4: u8 = 12;
   let b5: u8 = 131;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
@@ -475,16 +489,17 @@ export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vmovups_ymm0_to_rbx_rax4`.
- * Implements `simd_x86_vmovups_ymm0_to_rbx_rax4`.
- * @param elf *u8
- * @return i32
+/**
+ * Encode `vmovups [rbx+rax*4], ymm0` (VEX.256.0F.WIG 11 /r = `C4 E1 7C 11 04 83`).
+ * @param elf *u8 — ELF codegen ctx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX2 — lanes==8 indexed strip/peel store.
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
-  let b1: u8 = 226;
-  let b2: u8 = 125;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
   let b3: u8 = 17;
   let b4: u8 = 4;
   let b5: u8 = 131;
@@ -897,15 +912,19 @@ export function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
  */
 #[no_mangle]
 export function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
+  /* cmpps xmm2, xmm3, 6 (GT) = 0F C2 D3 06. Not 0F 55 (andnps). */
   let b0: u8 = 15;
-  let b1: u8 = 85;
+  let b1: u8 = 194;
   let b2: u8 = 211;
+  let b3: u8 = 6;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b1, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
@@ -1300,6 +1319,27 @@ export function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i
       if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
       return 0;
     }
+    /* Vec8i without AVX2: two SSE2 128-bit paddd/psubd (s4 pshufd pattern).
+     * Pending feats are often SSE2-only so detect_host is skipped. */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (is_sub != 0) {
+        if (simd_x86_psubd_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      } else {
+        if (simd_x86_paddd_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (is_sub != 0) {
+        if (simd_x86_psubd_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      } else {
+        if (simd_x86_paddd_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
+      return 0;
+    }
   }
   // SSE2 = 1
   if (lanes == 4) {
@@ -1381,6 +1421,19 @@ export function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, s
       if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
       if (simd_x86_vpmulld_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
       if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      return 0;
+    }
+    /* Vec8i without AVX2: two 128-bit pmulld (SSE4.1 opcode).
+     * Pending is often SSE2-only; gold x86_64 has SSE4.1. PLATFORM: LINUX gold. */
+    if ((cpu_features & 1) != 0 || (cpu_features & 2) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_pmulld_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (simd_x86_pmulld_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
       return 0;
     }
   }
@@ -1684,8 +1737,12 @@ export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i3
   if (re7 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1279293442) != 0) { return 0 - 1; } // ld1 v2
   if (is_f32 != 0) {
-    if (simd_append_u32_le(elf_ctx, 1319159811) != 0) { return 0 - 1; } // fcmgt
-    if (simd_append_u32_le(elf_ctx, 1856117795) != 0) { return 0 - 1; } // bit
+    if (simd_append_u32_le(elf_ctx, 1319159811) != 0) { return 0 - 1; } // fcmgt v3.4s, v0.4s, #0.0
+    /* PLATFORM: MACOS|ARM64 — same BSL as i32. BIT Vd,Vn,Vm uses Vm as the
+     * predicate, so BIT v3,v1,v2 treated b (v2=0.5 bits) as the mask and
+     * mixed a with leftover compare bits (sel4[0] neither 2.0 nor 0.5).
+     * BSL Vd,Vn,Vm = (Vd AND Vn) OR (~Vd AND Vm): dest=fcmgt, n=a, m=b. */
+    if (simd_append_u32_le(elf_ctx, 1851923491) != 0) { return 0 - 1; } // bsl v3.16b, v1.16b, v2.16b
   } else {
     if (simd_append_u32_le(elf_ctx, 1319143427) != 0) { return 0 - 1; } // cmgt
     if (simd_append_u32_le(elf_ctx, 1851923491) != 0) { return 0 - 1; } // bsl
@@ -1784,9 +1841,12 @@ export function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32
   if (array_n <= 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
-  let elem0_a: i32 = off_a - (array_n - 1) * esz;
-  let elem0_b: i32 = off_b - (array_n - 1) * esz;
-  let elem0_d: i32 = off_d - (array_n - 1) * esz;
+  // Slot off_* is elem0 (array base), same convention as glue_emit_full_const_peel_c
+  // (`off - start*esz`). Subtracting (n-1)*esz pointed at the last element so i=0
+  // loaded padding and dst[0] stayed 0 (strip n=20 returned 0, not 6).
+  let elem0_a: i32 = off_a;
+  let elem0_b: i32 = off_b;
+  let elem0_d: i32 = off_d;
   let re9: i32 = 0;
   unsafe { re9 = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
   if (re9 != 0) { return 0 - 1; }
@@ -1885,6 +1945,16 @@ export function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_of
       if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
       return 0;
     }
+    /* Symmetric Vec8i: two SSE2 pshufd (mask[i+4]==mask[i]+4). SSE2=1 */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, ds) != 0) { return 0 - 1; }
+      if (simd_x86_pshufd_xmm0_imm8(elf_ctx, imm8) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, ds + 16) != 0) { return 0 - 1; }
+      if (simd_x86_pshufd_xmm0_imm8(elf_ctx, imm8) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
+      return 0;
+    }
   }
   if (lanes == 4) {
     if ((cpu_features & 1) != 0) {
@@ -1954,6 +2024,28 @@ export function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, slot_off_mask: i
         if (simd_enc_emit_i32_select_ymm_seq(elf_ctx) != 0) { return 0 - 1; }
       }
       if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      return 0;
+    }
+    /* Vec8i without AVX2: two SSE2 128-bit select seqs. */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm2_from_rbp(elf_ctx, dm) != 0) { return 0 - 1; }
+      if (is_f32 != 0) {
+        if (simd_enc_emit_f32_select_xmm_seq(elf_ctx) != 0) { return 0 - 1; }
+      } else {
+        if (simd_enc_emit_i32_select_xmm_seq(elf_ctx) != 0) { return 0 - 1; }
+      }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm2_from_rbp(elf_ctx, dm + 16) != 0) { return 0 - 1; }
+      if (is_f32 != 0) {
+        if (simd_enc_emit_f32_select_xmm_seq(elf_ctx) != 0) { return 0 - 1; }
+      } else {
+        if (simd_enc_emit_i32_select_xmm_seq(elf_ctx) != 0) { return 0 - 1; }
+      }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
       return 0;
     }
   }

@@ -11,7 +11,7 @@ type IntPtr = *i32;
  * @return i32
  */
 function main(): i32 {
-  let p: P = Point { x: 1, y: 2 };
+  let p: P = { x: 1, y: 2 };
   let p2: PP = { x: 3, y: 4 };
   let c: Coord = 42;
   let ip: IntPtr = 0 as *i32;

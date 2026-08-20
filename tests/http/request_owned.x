@@ -12,16 +12,16 @@ function main(): i32 {
     111, 109, 47, 112, 111, 115, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  let owned: HttpRequestOwned = HttpRequestOwned {
+  let owned: HttpRequestOwned = {
     method: Method.POST,
-    url: HttpUrlOwned { ptr: 0, length: 0 },
-    body: HttpBodyOwned { ptr: 0, length: 0 },
+    url: { ptr: 0, length: 0 },
+    body: { ptr: 0, length: 0 },
     timeout_ms: 0
   };
   if (http.url_owned_from_slice(&url_buf[0], 24, &owned.url) != 24) { return 2; }
   if (owned.url.length != 24) { return 3; }
 
-  let view: HttpRequest = HttpRequest {
+  let view: HttpRequest = {
     method: owned.method,
     url: owned.url.ptr,
     url_len: owned.url.length,

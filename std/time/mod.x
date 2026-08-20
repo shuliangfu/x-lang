@@ -189,7 +189,7 @@ export struct Timer {
  * @return Timer
  */
 export function start(): Timer {
-    return Timer { start_ns: now_monotonic_ns() };
+    return { start_ns: now_monotonic_ns() };
 }
 
 /** Exported function `reset`.

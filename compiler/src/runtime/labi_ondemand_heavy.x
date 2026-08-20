@@ -54,13 +54,19 @@ export extern function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32;
 export extern function link_abi_user_o_needs_std_test(user_o: *u8): i32;
 export extern function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
 export extern function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
+export extern function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void;
+export extern function labi_std_append_test_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void;
 export extern function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
 export extern function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 export extern function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -75,7 +81,11 @@ export extern function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_env_os_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 export extern function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
 
@@ -279,12 +289,15 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 16
- * PLATFORM: SHARED
+ * @return i32 — 18 (was 16; +tar +unicode pure-asm batch residual 2026-08-13)
+ * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
+ * be the sole user UNDEF must appear here or the gate never opens (run-tar /
+ * run-unicode history: formal .o existed, plan step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  return 16;
+  // PLATFORM: SHARED — was 18 (+tar/+unicode); +k18 std/runtime class-batch 2.
+  return 19;
 }
 
 /**
@@ -360,6 +373,25 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/fs/fs.o";
     return p;
   }
+  // PLATFORM: SHARED — std/tar/tar.o was OP_STD flag_kind=0 but missing from fk0
+  // → labi_std_fk0_user_needs_rel always 0 → never push formal tar.o (run-tar UNDEF
+  // std_tar_read_header / write_header even when formal rebuild produced T surface).
+  if (k == 16) {
+    let p: *u8 = "std/tar/tar.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std/unicode/unicode.o same class as tar (flag_kind=0, no fk0).
+  if (k == 17) {
+    let p: *u8 = "std/unicode/unicode.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std/runtime/runtime.o is OP_STD flag_kind=0 but was missing from
+  // fk0 table → never push formal runtime.o; stale marker .o lacked std_runtime_ready
+  // (run-runtime residual). G.7 complete: add rel×sym like tar/unicode.
+  if (k == 18) {
+    let p: *u8 = "std/runtime/runtime.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -385,14 +417,22 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 3) {
     return 3;
   }
+  // PLATFORM: SHARED — json.o gate was incomplete (only parse + dead stringify).
+  // Sole callers of parse_null/number/string never opened the gate → UNDEF at ld
+  // (boundary json_invalid; run-json OK only because main also UNDEFs std_json_parse).
+  // G.7 complete surface: exact needles for public parse/skip family (nm exact match).
   if (k == 4) {
-    return 2;
+    return 6;
   }
   if (k == 5) {
     return 2;
   }
+  // PLATFORM: SHARED — path.o fk0 was incomplete (only join/dirname/empty_len/basename).
+  // Sole callers of sep/extension/stem/clean/resolve/is_absolute never opened the gate
+  // → UNDEF at ld (run-path extension_stem_abs_clean / resolve / extreme).
+  // G.7 complete surface: every public std_path_* export that can be sole user UNDEF.
   if (k == 6) {
-    return 4;
+    return 12;
   }
   if (k == 7) {
     return 7;
@@ -418,8 +458,23 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 14) {
     return 15;
   }
+  // PLATFORM: SHARED — fs fk0 was incomplete (only invalid/open/…/last_error).
+  // Sole callers of readv_buf/writev_buf never opened the gate → UNDEF at ld
+  // (run-fs readv_writev_buf). G.7 complete surface: public readv/writev faces.
   if (k == 15) {
-    return 9;
+    return 11;
+  }
+  // PLATFORM: SHARED — tar formal public surface (std_tar_*).
+  if (k == 16) {
+    return 7;
+  }
+  // PLATFORM: SHARED — unicode formal public surface (std_unicode_*).
+  if (k == 17) {
+    return 6;
+  }
+  // PLATFORM: SHARED — runtime formal public surface (std_runtime_*).
+  if (k == 18) {
+    return 5;
   }
   return 0;
 }
@@ -526,13 +581,32 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — fk0 k==4 std/json/json.o exact UNDEF needles.
+    // Must list every public export that can appear as the sole UNDEF in user.o;
+    // matcher is exact (rest==len), so std_json_parse does NOT cover parse_null.
     if (k == 4) {
       if (i == 0) {
         let p: *u8 = "std_json_parse";
         return p;
       }
       if (i == 1) {
-        let p: *u8 = "std_json_stringify";
+        let p: *u8 = "std_json_parse_null";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_json_parse_number";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_json_parse_string";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_json_parse_string_view";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_json_skip_value";
         return p;
       }
       return 0 as *u8;
@@ -548,6 +622,8 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6).
+    // Exact match only; join/basename do not cover clean/sep/extension/stem/resolve.
     if (k == 6) {
       if (i == 0) {
         let p: *u8 = "std_path_join";
@@ -563,6 +639,38 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 3) {
         let p: *u8 = "std_path_basename";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_path_sep";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_path_is_absolute";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_path_is_sep";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_path_extension";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_path_stem";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_path_extension_and_stem";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_path_clean";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_path_resolve";
         return p;
       }
       return 0 as *u8;
@@ -912,6 +1020,102 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
         let p: *u8 = "std_fs_last_error";
         return p;
       }
+      // PLATFORM: SHARED — complete fk0: readv/writev product faces (run-fs residual).
+      if (i == 9) {
+        let p: *u8 = "std_fs_readv_buf";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_fs_writev_buf";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/tar/tar.o exact UNDEF needles (fk0 k==16).
+    // Exact match only; sole callers of read_header/write_header never opened gate.
+    if (k == 16) {
+      if (i == 0) {
+        let p: *u8 = "std_tar_read_header";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_tar_write_header";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_tar_append_entry";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_tar_next_entry";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_tar_read_entry_data";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_tar_path_max";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "tar_read_header_c";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/unicode/unicode.o exact UNDEF needles (fk0 k==17).
+    // Pure-asm import METHOD → std_unicode_*; formal_mod must export same surface.
+    if (k == 17) {
+      if (i == 0) {
+        let p: *u8 = "std_unicode_category";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_unicode_to_lower";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_unicode_to_upper";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_unicode_is_whitespace";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_unicode_is_ascii";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_unicode_case_fold_rune";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/runtime/runtime.o exact UNDEF needles (fk0 k==18).
+    // Pure-asm import METHOD → std_runtime_ready (sole caller in tests/runtime/main.x).
+    if (k == 18) {
+      if (i == 0) {
+        let p: *u8 = "std_runtime_ready";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_runtime_panic";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_runtime_abort";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_runtime_diag_enabled";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_runtime_crash_evidence_collect";
+        return p;
+      }
       return 0 as *u8;
     }
     return 0 as *u8;
@@ -1001,8 +1205,10 @@ export function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32 {
  */
 #[no_mangle]
 export function labi_std_fk_gate_sym_count(fk: i32): i32 {
+  // PLATFORM: SHARED — process product face complete (pure-asm std_process_*).
+  // Exact match only (Darwin nm -u); cover full mod.x / import_alias surface.
   if (fk == 1) {
-    return 4;
+    return 28;
   }
   if (fk == 2) {
     return 4;
@@ -1019,8 +1225,11 @@ export function labi_std_fk_gate_sym_count(fk: i32): i32 {
   if (fk == 6) {
     return 5;
   }
+  // PLATFORM: SHARED — channel product face complete (pure-asm std_channel_*).
+  // Was only send/recv + bare channel_send/recv; sole callers of bounded/close/
+  // free/try_* never opened fk7 → never push channel.o + channel_glue.
   if (fk == 7) {
-    return 4;
+    return 10;
   }
   if (fk == 8) {
     return 2;
@@ -1060,23 +1269,37 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
     if (i < 0) {
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — exact UNDEF needles for std/process/process.o (fk==1).
+    // Full std_process_* import surface + bare process_*_c (run-process sole callers).
     if (fk == 1) {
-      if (i == 0) {
-        let p: *u8 = "process_xlang_argv_get";
-        return p;
-      }
-      if (i == 1) {
-        let p: *u8 = "process_arg_c";
-        return p;
-      }
-      if (i == 2) {
-        let p: *u8 = "std_process_exit";
-        return p;
-      }
-      if (i == 3) {
-        let p: *u8 = "std_process_args";
-        return p;
-      }
+      if (i == 0) { let p: *u8 = "process_xlang_argv_get"; return p; }
+      if (i == 1) { let p: *u8 = "process_arg_c"; return p; }
+      if (i == 2) { let p: *u8 = "process_args_count_c"; return p; }
+      if (i == 3) { let p: *u8 = "std_process_exit"; return p; }
+      if (i == 4) { let p: *u8 = "std_process_args_count"; return p; }
+      if (i == 5) { let p: *u8 = "std_process_arg"; return p; }
+      if (i == 6) { let p: *u8 = "std_process_getenv"; return p; }
+      if (i == 7) { let p: *u8 = "std_process_setenv"; return p; }
+      if (i == 8) { let p: *u8 = "std_process_unsetenv"; return p; }
+      if (i == 9) { let p: *u8 = "std_process_getpid"; return p; }
+      if (i == 10) { let p: *u8 = "std_process_getppid"; return p; }
+      if (i == 11) { let p: *u8 = "std_process_getcwd"; return p; }
+      if (i == 12) { let p: *u8 = "std_process_getcwd_ptr"; return p; }
+      if (i == 13) { let p: *u8 = "std_process_getcwd_cached_len"; return p; }
+      if (i == 14) { let p: *u8 = "std_process_chdir"; return p; }
+      if (i == 15) { let p: *u8 = "std_process_self_exe_path"; return p; }
+      if (i == 16) { let p: *u8 = "std_process_self_exe_path_ptr"; return p; }
+      if (i == 17) { let p: *u8 = "std_process_self_exe_path_cached_len"; return p; }
+      if (i == 18) { let p: *u8 = "std_process_spawn"; return p; }
+      if (i == 19) { let p: *u8 = "std_process_spawn_io"; return p; }
+      if (i == 20) { let p: *u8 = "std_process_spawn_simple"; return p; }
+      if (i == 21) { let p: *u8 = "std_process_exec"; return p; }
+      if (i == 22) { let p: *u8 = "std_process_exec_simple"; return p; }
+      if (i == 23) { let p: *u8 = "std_process_waitpid"; return p; }
+      if (i == 24) { let p: *u8 = "std_process_pipe"; return p; }
+      if (i == 25) { let p: *u8 = "process_getenv_c"; return p; }
+      if (i == 26) { let p: *u8 = "process_spawn_c"; return p; }
+      if (i == 27) { let p: *u8 = "process_waitpid_c"; return p; }
       return 0 as *u8;
     }
     if (fk == 2) {
@@ -1182,6 +1405,8 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — fk==7 std/channel complete surface (exact match).
+    // Pure-asm import METHOD → std_channel_*; glue provides channel_i32_*_c.
     if (fk == 7) {
       if (i == 0) {
         let p: *u8 = "std_channel_send";
@@ -1192,11 +1417,35 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
         return p;
       }
       if (i == 2) {
-        let p: *u8 = "channel_send";
+        let p: *u8 = "std_channel_bounded";
         return p;
       }
       if (i == 3) {
-        let p: *u8 = "channel_recv";
+        let p: *u8 = "std_channel_close";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_channel_free";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_channel_try_send";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_channel_try_recv";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_channel_unbounded";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "channel_i32_send_c";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "channel_i32_bounded_c";
         return p;
       }
       return 0 as *u8;
@@ -1460,6 +1709,84 @@ export function labi_od_rel_net(): *u8 {
   return p;
 }
 
+/**
+ * Relative path of formal std/error/error.o (net.o transitive U std_error_*).
+ * @return *u8 — static C string "std/error/error.o"
+ * PLATFORM: SHARED — co-pushed with net; user.o often has no error needles.
+ */
+#[no_mangle]
+export function labi_od_rel_error(): *u8 {
+  let p: *u8 = "std/error/error.o";
+  return p;
+}
+
+/**
+ * Relative path of formal std/context/context.o (net.o transitive U std_context_*).
+ * @return *u8 — static C string "std/context/context.o"
+ * PLATFORM: SHARED — co-pushed with net; pairs with atomic_glue + time_os.
+ */
+#[no_mangle]
+export function labi_od_rel_context(): *u8 {
+  let p: *u8 = "std/context/context.o";
+  return p;
+}
+
+/**
+ * Relative path of runtime_atomic_glue.o (context.o U atomic_load/store_i32_c).
+ * @return *u8 — static C string "compiler/runtime_atomic_glue.o"
+ * PLATFORM: SHARED — ≡ C-path need_context companions (invoke_cc_list).
+ */
+#[no_mangle]
+export function labi_od_rel_atomic_glue(): *u8 {
+  let p: *u8 = "compiler/runtime_atomic_glue.o";
+  return p;
+}
+
+/**
+ * Relative path of formal std/sync/sync.o (queue.o monofile U std_sync_*).
+ * @return *u8 — static C string "std/sync/sync.o"
+ * PLATFORM: SHARED — co-pushed with queue; user.o often has no sync needles
+ *   (SyncQueue lives inside formal queue.o, invisible to user-only fk scan).
+ */
+#[no_mangle]
+export function labi_od_rel_sync(): *u8 {
+  let p: *u8 = "std/sync/sync.o";
+  return p;
+}
+
+/**
+ * Relative path of formal std/atomic/atomic.o (queue SyncQueue U std_atomic_*).
+ * @return *u8 — static C string "std/atomic/atomic.o"
+ * PLATFORM: SHARED — co-pushed with queue monofile SyncQueue path.
+ */
+#[no_mangle]
+export function labi_od_rel_atomic(): *u8 {
+  let p: *u8 = "std/atomic/atomic.o";
+  return p;
+}
+
+/**
+ * Relative path of runtime_sync_os.o (sync.o U sync_mutex_*_c / condvar / rwlock).
+ * @return *u8 — static C string "compiler/runtime_sync_os.o"
+ * PLATFORM: SHARED — ≡ plan OP_GLUE SYNC_PAIR second half.
+ */
+#[no_mangle]
+export function labi_od_rel_sync_os(): *u8 {
+  let p: *u8 = "compiler/runtime_sync_os.o";
+  return p;
+}
+
+/**
+ * Relative path of runtime_sync_lock_diag_tls.o (sync.o U lock_diag_*_c).
+ * @return *u8 — static C string "compiler/runtime_sync_lock_diag_tls.o"
+ * PLATFORM: SHARED — ≡ plan OP_GLUE SYNC_PAIR first half.
+ */
+#[no_mangle]
+export function labi_od_rel_sync_lock_diag(): *u8 {
+  let p: *u8 = "compiler/runtime_sync_lock_diag_tls.o";
+  return p;
+}
+
 /** Exported function `labi_od_rel_thread`.
  * Read path helper `labi_od_rel_thread`.
  * @return *u8
@@ -1631,6 +1958,17 @@ export function labi_od_rel_net_workers(): *u8 {
 #[no_mangle]
 export function labi_od_rel_test_fn_invoke(): *u8 {
   let p: *u8 = "compiler/runtime_test_fn_invoke.o";
+  return p;
+}
+
+/**
+ * Relative path for runtime_env_os.o (std.env OS face: env_getenv_c*).
+ * @return *u8 — static C string "compiler/runtime_env_os.o"
+ * PLATFORM: SHARED — monofile test.o C dual U env_getenv_c (fuzz_seed).
+ */
+#[no_mangle]
+export function labi_od_rel_env_os(): *u8 {
+  let p: *u8 = "compiler/runtime_env_os.o";
   return p;
 }
 
@@ -2059,6 +2397,98 @@ function labi_od_glue_push_if(er: i32, primary: *u8, link_argv0: *u8, glue_rel: 
 }
 
 /**
+ * Thin trampoline: push std.test monofile companions via the invoke_ld authority.
+ * Body lives in labi_std_append_test_monofile_companions (L6 / seed-phase1 TU).
+ * Call sites (need_test + g12) keep this name so mega-frame spill stays thin.
+ * @param link_argv0 *u8 — product host argv0
+ * @param lib_roots **u8 — -L roots
+ * @param n_lib_roots i32
+ * @param bank *u8 — path bank (may be null)
+ * @param argv **u8 — ld argv
+ * @param la *i32 — argv length
+ * @param max_la i32
+ * PLATFORM: SHARED — zero-logic wrapper; G.7 single companion body in invoke_ld.
+ */
+#[no_mangle]
+export function labi_od_push_test_monofile_companions(
+  link_argv0: *u8,
+  lib_roots: **u8,
+  n_lib_roots: i32,
+  bank: *u8,
+  argv: **u8,
+  la: *i32,
+  max_la: i32
+): void {
+  labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+}
+
+/**
+ * Formal-ensure + push std/time/time.o and runtime_time_os.o.
+ *
+ * Thin helper: mega append_on_demand large-frame pure-asm spill mis-loads the
+ * `rel` argument to push_obj (trel stored at low slot, call setup reloads a high
+ * garbage slot → rel=0x100000000 → SEGV in push_obj ldrb). Small frame keeps
+ * spill correct. Callers gate on user time needles (labi_od_time_sym_*).
+ *
+ * @param link_argv0 *u8 — product host argv0
+ * @param lib_roots **u8 — -L roots
+ * @param n_lib_roots i32
+ * @param bank *u8 — path bank (may be null)
+ * @param argv **u8 — ld argv
+ * @param la *i32 — argv length
+ * @param max_la i32
+ * PLATFORM: SHARED pure thin — pure-asm run-time residual class.
+ */
+#[no_mangle]
+export function labi_od_push_time_formal_and_os(
+  link_argv0: *u8,
+  lib_roots: **u8,
+  n_lib_roots: i32,
+  bank: *u8,
+  argv: **u8,
+  la: *i32,
+  max_la: i32
+): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (la == 0 as *i32) {
+      return;
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab == 0 as *u8) {
+      return;
+    }
+    let rtt: *u8 = 0 as *u8;
+    unsafe {
+      rtt = xlang_repo_root_from_argv0(link_argv0);
+    }
+    if (rtt != 0 as *u8) {
+      if (rtt[0] != 0) {
+        unsafe {
+          let _te: i32 = xlang_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
+        }
+      }
+    }
+    let er_to: i32 = 0;
+    let top: *u8 = 0 as *u8;
+    let torel: *u8 = labi_od_time_os_rel();
+    unsafe {
+      er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+      top = xlang_runtime_time_os_o_path(link_argv0);
+    }
+    if (er_to == 0) {
+      unsafe {
+        let _to: i32 = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    let trel: *u8 = labi_od_time_rel();
+    unsafe {
+      let _tm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
+}
+
+/**
  * Resolve path: skip_missing(primary) else try_under(rel).
  * @return *u8 — path or null
  */
@@ -2131,6 +2561,10 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     }
 
     // --- net + thread companions ---
+    // PLATFORM: SHARED — net.o carries U std_error_* / std_context_* (timeout/ctx IO).
+    // User.o typically only U net_tcp_* so fk0 error/context user needles miss.
+    // G.7 companions ≡ C-path need_context (error formal + context formal +
+    // atomic_glue + time_os) plus existing thread/udp/workers glue.
     let need_net: i32 = link_abi_user_o_needs_std_net(user_o);
     if (need_net != 0) {
       let have_net: i32 = 0;
@@ -2143,6 +2577,42 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           let f: *i32 = flags as *i32;
           f[1] = 1;
         }
+        // error.o + context.o formal ensure (L4 wipe drops gitignored .o) then push.
+        let root_net: *u8 = 0 as *u8;
+        unsafe {
+          root_net = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_net != 0 as *u8) {
+          if (root_net[0] != 0) {
+            unsafe {
+              let _fe_err: i32 = xlang_ensure_formal_std_make_o(root_net, "std/error/error.o", "../std/error/error.o");
+              let _fe_ctx: i32 = xlang_ensure_formal_std_make_o(root_net, "std/context/context.o", "../std/context/context.o");
+            }
+          }
+        }
+        let rel_err: *u8 = labi_od_rel_error();
+        let rel_ctx: *u8 = labi_od_rel_context();
+        unsafe {
+          let _pe: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_err, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          let _pc: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_ctx, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        // context.o U atomic_*_i32_c + time_now_monotonic_ns_c (≡ invoke_cc need_context).
+        let er_ag: i32 = 0;
+        let agp: *u8 = 0 as *u8;
+        let agrel: *u8 = labi_od_rel_atomic_glue();
+        unsafe {
+          er_ag = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er_ag, agp, link_argv0, agrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+        let er_to: i32 = 0;
+        let top: *u8 = 0 as *u8;
+        let torel: *u8 = labi_od_time_os_rel();
+        unsafe {
+          er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+          top = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la);
         let rel_th: *u8 = labi_od_rel_thread();
         let have_th: i32 = 0;
         unsafe {
@@ -2183,9 +2653,24 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     }
 
     // --- heap import (skip if user provides) ---
+    // Aggregate already scans user_o + argv .o (append_std pushed http.o first).
+    // L4 wipe deletes heap.o: push_obj skip-missing is not enough — ensure first
+    // (≡ set/map companions). PLATFORM: SHARED — Darwin hard UNDEF if heap.o absent.
     let la_n: i32 = la[0];
     let need_hi: i32 = link_abi_link_needs_std_heap_import(user_o, argv, la_n);
     if (need_hi != 0) {
+      let root_h: *u8 = 0 as *u8;
+      unsafe {
+        root_h = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_h != 0 as *u8) {
+        if (root_h[0] != 0) {
+          unsafe {
+            let _eh: i32 = xlang_ensure_formal_std_make_o(root_h, "std/heap/heap.o", "../std/heap/heap.o");
+            let _em: i32 = xlang_ensure_formal_std_make_o(root_h, "core/mem/mem.o", "../core/mem/mem.o");
+          }
+        }
+      }
       let prov_m: i32 = link_abi_user_o_provides_core_mem(user_o);
       if (prov_m == 0) {
         let rm: *u8 = labi_od_rel_core_mem();
@@ -2454,23 +2939,32 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       }
     }
 
-    // --- test + fn_invoke glue ---
+    // --- test + monofile companions (fn_invoke / env_os / time_os) ---
+    // PLATFORM: SHARED — pure-asm run-stdtest residual: always formal-ensure test.o
+    // before push (L4 wipe / stale marker .o lack std_test_* T surface).
+    // Monofile C dual U test_call_i32_void_c / env_getenv_c / time_now_monotonic_ns_c
+    // even when user.o only names std_test_expect* (≡ queue/net companion class).
+    // Companions always after need_test (not only have_test): mega-frame spill can
+    // leave have_test=0 while g12 still lands test.o; thin helper is idempotent.
     let need_test: i32 = link_abi_user_o_needs_std_test(user_o);
     if (need_test != 0) {
-      let have_test: i32 = 0;
+      let rt_test: *u8 = 0 as *u8;
+      unsafe {
+        rt_test = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (rt_test != 0 as *u8) {
+        if (rt_test[0] != 0) {
+          unsafe {
+            let _fe_t: i32 = xlang_ensure_formal_std_make_o(rt_test, "std/test/test.o", "../std/test/test.o");
+          }
+        }
+      }
       let trel: *u8 = labi_od_rel_test();
       unsafe {
-        let _tt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
+        let _tt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
-      if (have_test != 0) {
-        let er_t: i32 = 0;
-        let tp: *u8 = 0 as *u8;
-        let tfrel: *u8 = labi_od_rel_test_fn_invoke();
-        unsafe {
-          er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
-          tp = xlang_runtime_test_fn_invoke_o_path(link_argv0);
-        }
-        labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      unsafe {
+        labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
       }
     }
 
@@ -2580,8 +3074,240 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 }
               }
             }
+            // PLATFORM: SHARED — g10 core.builtin formal (pure-asm run-builtin residual).
+            // L4 wipe drops gitignored core/builtin/builtin.o; ensure via formal_mod catalog.
+            if (sg == 10) {
+              let rt10: *u8 = 0 as *u8;
+              unsafe {
+                rt10 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt10 != 0 as *u8) {
+                if (rt10[0] != 0) {
+                  unsafe {
+                    let _fe10: i32 = xlang_ensure_formal_std_make_o(rt10, "core/builtin/builtin.o", "../core/builtin/builtin.o");
+                  }
+                  pushed_core_formal = 1;
+                }
+              }
+            }
+            // PLATFORM: SHARED — g11 std.ffi formal (pure-asm run-ffi residual).
+            // L4 wipe drops gitignored std/ffi/ffi.o; ensure via formal_mod catalog.
+            if (sg == 11) {
+              let rt11: *u8 = 0 as *u8;
+              unsafe {
+                rt11 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt11 != 0 as *u8) {
+                if (rt11[0] != 0) {
+                  unsafe {
+                    let _fe11: i32 = xlang_ensure_formal_std_make_o(rt11, "std/ffi/ffi.o", "../std/ffi/ffi.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g12 std.test formal (pure-asm run-stdtest residual).
+            // Formal ensure here; companions after the shared push_obj below (≡ g2).
+            if (sg == 12) {
+              let rt12: *u8 = 0 as *u8;
+              unsafe {
+                rt12 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt12 != 0 as *u8) {
+                if (rt12[0] != 0) {
+                  unsafe {
+                    let _fe12: i32 = xlang_ensure_formal_std_make_o(rt12, "std/test/test.o", "../std/test/test.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g13 core.assert formal (run-debug core-assert residual).
+            if (sg == 13) {
+              let rt13: *u8 = 0 as *u8;
+              unsafe {
+                rt13 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt13 != 0 as *u8) {
+                if (rt13[0] != 0) {
+                  unsafe {
+                    let _fe13: i32 = xlang_ensure_formal_std_make_o(rt13, "core/assert/assert.o", "../core/assert/assert.o");
+                  }
+                  pushed_core_formal = 1;
+                }
+              }
+            }
+            // PLATFORM: SHARED — g14 std.fmt formal (run-fmt residual).
+            if (sg == 14) {
+              let rt14: *u8 = 0 as *u8;
+              unsafe {
+                rt14 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt14 != 0 as *u8) {
+                if (rt14[0] != 0) {
+                  unsafe {
+                    let _fe14: i32 = xlang_ensure_formal_std_make_o(rt14, "std/fmt/fmt.o", "../std/fmt/fmt.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g15 std.compress formal (run-compress residual).
+            if (sg == 15) {
+              let rt15: *u8 = 0 as *u8;
+              unsafe {
+                rt15 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt15 != 0 as *u8) {
+                if (rt15[0] != 0) {
+                  unsafe {
+                    let _fe15: i32 = xlang_ensure_formal_std_make_o(rt15, "std/compress/compress.o", "../std/compress/compress.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g16 std.io.driver formal (run-io-driver residual).
+            if (sg == 16) {
+              let rt16: *u8 = 0 as *u8;
+              unsafe {
+                rt16 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt16 != 0 as *u8) {
+                if (rt16[0] != 0) {
+                  unsafe {
+                    let _fe16: i32 = xlang_ensure_formal_std_make_o(rt16, "std/io/driver.o", "../std/io/driver.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g17 std.debug formal (run-debug residual).
+            if (sg == 17) {
+              let rt17: *u8 = 0 as *u8;
+              unsafe {
+                rt17 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt17 != 0 as *u8) {
+                if (rt17[0] != 0) {
+                  unsafe {
+                    let _fe17: i32 = xlang_ensure_formal_std_make_o(rt17, "std/debug/debug.o", "../std/debug/debug.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g18 std.simd formal (run-perf-simd residual).
+            // VECTOR mid faces from formal_surface; L4 wipe drops gitignored simd.o.
+            if (sg == 18) {
+              let rt18: *u8 = 0 as *u8;
+              unsafe {
+                rt18 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt18 != 0 as *u8) {
+                if (rt18[0] != 0) {
+                  unsafe {
+                    let _fe18: i32 = xlang_ensure_formal_std_make_o(rt18, "std/simd/simd.o", "../std/simd/simd.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g19 std.io context-timeout formal (STD-091 residual).
+            // L4 wipe drops gitignored io.o; ensure via formal_mod catalog.
+            if (sg == 19) {
+              let rt19: *u8 = 0 as *u8;
+              unsafe {
+                rt19 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt19 != 0 as *u8) {
+                if (rt19[0] != 0) {
+                  unsafe {
+                    let _fe19: i32 = xlang_ensure_formal_std_make_o(rt19, "std/io/io.o", "../std/io/io.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g2 encoding formal may be gitignored after L4 wipe.
+            // encode_hex/base64 wrappers U string + base64; ensure primary before push.
+            if (sg == 2) {
+              let rt2: *u8 = 0 as *u8;
+              unsafe {
+                rt2 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt2 != 0 as *u8) {
+                if (rt2[0] != 0) {
+                  unsafe {
+                    let _fe2: i32 = xlang_ensure_formal_std_make_o(rt2, "std/encoding/encoding.o", "../std/encoding/encoding.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — ensure formal by rel for every simple group (seed/pure
+            // index skew: seed g12=simd while pure g12=test / g18=simd). G.7: one
+            // ensure authority = formal_mod catalog key = rel path.
+            {
+              let rta: *u8 = 0 as *u8;
+              unsafe {
+                rta = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rta != 0 as *u8) {
+                if (rta[0] != 0) {
+                  // make_target = "../" + rel (compiler/ cwd convention).
+                  let mt: u8[160] = [];
+                  let mi: i32 = 0;
+                  mt[0] = 46; mt[1] = 46; mt[2] = 47; // ../
+                  mi = 3;
+                  let ri: i32 = 0;
+                  while (ri < 140) {
+                    let c: u8 = rel[ri];
+                    if (c == 0) { break; }
+                    mt[mi] = c;
+                    mi = mi + 1;
+                    ri = ri + 1;
+                  }
+                  mt[mi] = 0;
+                  unsafe {
+                    let _fea: i32 = xlang_ensure_formal_std_make_o(rta, rel, &mt[0]);
+                  }
+                }
+              }
+            }
             unsafe {
               let _sg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+            }
+            // PLATFORM: SHARED — g12 std.test monofile C dual companions
+            // (fn_invoke / env_os / time_os). ≡ need_test path; dedup-safe.
+            if (sg == 12) {
+              unsafe {
+                labi_od_push_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+              }
+            }
+            // PLATFORM: SHARED — g2 encoding.o carries U std_base64_* + std_string_string_*
+            // (encode_hex/base64/base32 helpers). User.o only U encoding_* so g0/g3 alone miss.
+            // Companion co-push ≡ g9 slice glue pattern (transitive formal deps).
+            if (sg == 2) {
+              let rt2c: *u8 = 0 as *u8;
+              unsafe {
+                rt2c = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt2c != 0 as *u8) {
+                if (rt2c[0] != 0) {
+                  unsafe {
+                    let _fes: i32 = xlang_ensure_formal_std_make_o(rt2c, "std/string/string.o", "../std/string/string.o");
+                    let _feb: i32 = xlang_ensure_formal_std_make_o(rt2c, "std/base64/base64.o", "../std/base64/base64.o");
+                  }
+                }
+              }
+              let srel: *u8 = labi_od_simple_group_rel(0);
+              let brel: *u8 = labi_od_simple_group_rel(3);
+              if (srel != 0 as *u8) {
+                if (srel[0] != 0) {
+                  unsafe {
+                    let _ps: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, srel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                  }
+                }
+              }
+              if (brel != 0 as *u8) {
+                if (brel[0] != 0) {
+                  unsafe {
+                    let _pb: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, brel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                  }
+                }
+              }
             }
             // g9: co-push glue slice.o after formal mod.o
             if (sg == 9) {
@@ -2665,39 +3391,24 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       }
     }
 
-    // --- time formal + time_os ---
+    // --- time formal + time_os (thin helper: mega-frame spill SEGV residual) ---
+    // PLATFORM: SHARED — pure-asm run-time: large-frame push_obj rel arg mis-load
+    // → SEGV under ASLR. Gate stays here; body in labi_od_push_time_formal_and_os.
     let n_tm: i32 = labi_od_time_sym_count();
     if (labi_od_user_needs_table_which(user_o, n_tm, 2) != 0) {
-      let rtt: *u8 = 0 as *u8;
       unsafe {
-        rtt = xlang_repo_root_from_argv0(link_argv0);
-      }
-      if (rtt != 0 as *u8) {
-        if (rtt[0] != 0) {
-          unsafe {
-            let _te: i32 = xlang_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
-          }
-        }
-      }
-      let er_to: i32 = 0;
-      let top: *u8 = 0 as *u8;
-      let torel: *u8 = labi_od_time_os_rel();
-      unsafe {
-        er_to = xlang_ensure_runtime_time_os_o(link_argv0);
-        top = xlang_runtime_time_os_o_path(link_argv0);
-      }
-      if (er_to == 0) {
-        unsafe {
-          let _to: i32 = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        }
-      }
-      let trel: *u8 = labi_od_time_rel();
-      unsafe {
-        let _tm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        labi_od_push_time_formal_and_os(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
       }
     }
 
-    // --- queue product + contention ---
+    // --- queue product + monofile companions (sync/atomic/contention) ---
+    // G.7 root (pure-asm run-queue): formal queue.o monofile co-defines SyncQueue
+    // locals (sync_new/push/try_pop/smoke) that U std_sync_* / std_atomic_* /
+    // sync_queue_contention_smoke_c. User.o only has std_queue_* needles → fk3
+    // sync / fk6 atomic never fire; need_qc only covers contention smoke symbols
+    // on user.o (tests/queue/main.x never names them). Whole .o link (not archive)
+    // pulls monofile U even for plain Queue_i32 API. Companions ≡ net→error/context
+    // pattern + C-path SYNC_PAIR / ATOMIC glue when have_sync.
     let need_qp: i32 = link_abi_user_o_needs_std_queue(user_o);
     let n_qc: i32 = labi_od_queue_sym_count();
     let need_qc: i32 = labi_od_user_needs_table_which(user_o, n_qc, 3);
@@ -2715,15 +3426,6 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           }
         }
       }
-      if (need_qc != 0) {
-        let qcp: *u8 = 0 as *u8;
-        let qcrel: *u8 = labi_od_queue_contention_rel();
-        unsafe {
-          let _eq: i32 = xlang_ensure_runtime_queue_contention_o(link_argv0);
-          qcp = xlang_runtime_queue_contention_o_path(link_argv0);
-          let _qc: i32 = link_abi_asm_ld_push_obj(qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        }
-      }
       let qrel: *u8 = labi_od_queue_rel();
       let qh: *u8 = labi_od_rel_heap();
       let qm: *u8 = labi_od_rel_core_mem();
@@ -2731,6 +3433,7 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         let _qq: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _qh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qh, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _qm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
       }
     }
   }

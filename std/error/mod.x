@@ -62,7 +62,7 @@ export struct Error {
  * @return Error
  */
 export function ok_value(): Error {
-  return Error { code: 0 };
+  return { code: 0 };
 }
 
 /** Exported function `from_code`.
@@ -71,7 +71,7 @@ export function ok_value(): Error {
  * @return Error
  */
 export function from_code(code: i32): Error {
-  return Error { code: code };
+  return { code: code };
 }
 
 /** Exported function `code`.
@@ -426,7 +426,7 @@ export struct ErrorChain {
  * @return ErrorChain
  */
 export function chain_empty(): ErrorChain {
-  return ErrorChain { depth: 0, c0: 0, c1: 0, c2: 0, c3: 0 };
+  return { depth: 0, c0: 0, c1: 0, c2: 0, c3: 0 };
 }
 
 /** Exported function `chain_from_code`.
@@ -435,7 +435,7 @@ export function chain_empty(): ErrorChain {
  * @return ErrorChain
  */
 export function chain_from_code(code: i32): ErrorChain {
-  return ErrorChain { depth: 1, c0: code, c1: 0, c2: 0, c3: 0 };
+  return { depth: 1, c0: code, c1: 0, c2: 0, c3: 0 };
 }
 
 /** Exported function `chain_from_result`.
@@ -505,7 +505,7 @@ export function chain_wrap(chain: ErrorChain, wrapper: i32): ErrorChain {
     return chain_from_code(wrapper);
   }
   if (d >= max_d) {
-    return ErrorChain {
+    return {
       depth: max_d,
       c0: wrapper,
       c1: chain.c0,
@@ -514,12 +514,12 @@ export function chain_wrap(chain: ErrorChain, wrapper: i32): ErrorChain {
     };
   }
   if (d == 1) {
-    return ErrorChain { depth: 2, c0: wrapper, c1: chain.c0, c2: 0, c3: 0 };
+    return { depth: 2, c0: wrapper, c1: chain.c0, c2: 0, c3: 0 };
   }
   if (d == 2) {
-    return ErrorChain { depth: 3, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: 0 };
+    return { depth: 3, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: 0 };
   }
-  return ErrorChain { depth: 4, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: chain.c2 };
+  return { depth: 4, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: chain.c2 };
 }
 
 /** Exported function `error_module_anchor`.

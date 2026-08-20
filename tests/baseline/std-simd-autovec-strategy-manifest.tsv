@@ -2,11 +2,11 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	2
 read_path	section	## 1. 阅读路径	15min
-strategy	section	## 2. 策略表	recommend_simd_path
+strategy	section	## 2. 策略表	recommend_path
 perf	section	## 3. 跨平台性能验收	dot
 verify	section	## 4. Gate	gate
 api_hw_available	api	hw_available	std/simd/mod.x	HW 探测
-api_recommend	api	recommend_simd_path	std/simd/mod.x	策略推荐
+api_recommend	api	recommend_path	std/simd/mod.x	策略推荐
 symbol_hw_c	symbol	simd_hw_available_c	std/simd/simd.x	HW 探测
 symbol_path_c	symbol	simd_recommend_path_c	std/simd/simd.x	策略
 symbol_smoke_c	symbol	simd_autovec_smoke_c	std/simd/simd.x	烟测

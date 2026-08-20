@@ -34,17 +34,17 @@ export const ORD_GREATER: i32 = 1;
 
 /** `ordering_less`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_less(): Ordering {
-  return Ordering { code: ORD_LESS };
+  return { code: ORD_LESS };
 }
 
 /** `ordering_equal`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_equal(): Ordering {
-  return Ordering { code: ORD_EQUAL };
+  return { code: ORD_EQUAL };
 }
 
 /** `ordering_greater`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_greater(): Ordering {
-  return Ordering { code: ORD_GREATER };
+  return { code: ORD_GREATER };
 }
 
 /** `is_lt`: purpose/params/returns per signature; panics or error codes follow local contracts. */

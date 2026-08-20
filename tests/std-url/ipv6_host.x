@@ -25,7 +25,7 @@ function test_parse_loopback(): i32 {
     104, 116, 116, 112, 58, 47, 47, 91, 58, 58, 49, 93, 58, 56, 48, 56,
     48, 47, 112, 97, 116, 104, 0, 0
   ];
-  let u: Url = Url {
+  let u: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };
@@ -50,7 +50,7 @@ function test_build_brackets(): i32 {
     104, 116, 116, 112, 58, 47, 47, 91, 50, 48, 48, 49, 58, 100, 98, 56,
     58, 58, 49, 93, 58, 52, 52, 51, 47, 0, 0, 0
   ];
-  let u: Url = Url {
+  let u: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };

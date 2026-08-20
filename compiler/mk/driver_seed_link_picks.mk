@@ -44,9 +44,12 @@ AST_POOL_L5_BRIDGE_O = src/runtime_driver_strict_glue_stubs.o
 
 # Glue suffix at link END (real impls first; stubs fill missing C frontend).
 # ASM_GLUE_STANDALONE_O comes from mk/driver_seed_r_lists.mk (include earlier).
-RELINK_XLANG_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+# wave304 G.7 8.3.6: strict_minimal seed shell retired (0 T; product unlinked).
+# PLATFORM: SHARED freestanding 8.3.6 shell retire.
+RELINK_XLANG_GLUE_SUFFIX = src/runtime_driver_strict_glue_stubs.o
 DRIVER_SEED_GLUE_PREFIX =
-DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
+# wave304/309: stubs only (strict_minimal + standalone shells retired).
+DRIVER_SEED_GLUE_SUFFIX = src/runtime_driver_strict_glue_stubs.o
 
 # LSP_DIAG_LINK_O: fmt needs real xlang_format_x_document (not stubs_no_c).
 LSP_DIAG_LINK_O = src/lsp/lsp_diag.o
@@ -75,8 +78,16 @@ MAIN_LINK_FLAGS =
 else
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
-MAIN_LINK_O = src/asm/crt0_x86_64.o
-MAIN_LINK_REBUILD = src/asm/crt0_x86_64.o
+# PLATFORM: LINUX x86_64 — freestanding pure-ld seed/product face.
+# crt0 provides _start; freestanding_io provides xlang_sys_* (write/read/open/mmap/…).
+# driver_x (std.sys leaf) UNDEFs those symbols; pure-ld with only -lc cannot resolve
+# them (libc has write, not xlang_sys_write). L4 wipe + cold bootstrap-driver-seed
+# phase1 pure-ld fails without freestanding in the bag; soft L2 can hide this when
+# old product bins survive. G.7: companion lives on MAIN_LINK (same face as crt0),
+# so DRIVER_SEED_OBJS / PREREQS / PHASE1 / FINAL expand it once — not a second bag.
+# freestanding_io_x86_64.o is also in DRIVER_SEED_CRT0_OBJS (try-r2 rebuild).
+MAIN_LINK_O = src/asm/crt0_x86_64.o src/asm/freestanding_io_x86_64.o
+MAIN_LINK_REBUILD = src/asm/crt0_x86_64.o src/asm/freestanding_io_x86_64.o
 # Match build_xlang_asm.sh bootstrap_entry_ldflags: -no-pie required with crt0.
 MAIN_LINK_FLAGS = -no-pie -e _start -nostartfiles
 else

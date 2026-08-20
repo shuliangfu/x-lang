@@ -26,12 +26,12 @@ allow(padding) struct BytesView {
 
 /** `bytes_view`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view(ptr: *u8, len: i32): BytesView {
-  return BytesView { ptr: ptr, length: len };
+  return { ptr: ptr, length: len };
 }
 
 /** `bytes_view_from_slice`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_from_slice(s: u8[]): BytesView {
-  return BytesView { ptr: s.data, length: s.length as i32 };
+  return { ptr: s.data, length: s.length as i32 };
 }
 
 /** `bytes_view_len`: purpose/params/returns per signature; panics or error codes follow local contracts. */

@@ -57,7 +57,7 @@ export function driver_stack_esc_gate_thread_fn(arg: *u8): *u8 {
  */
 #[no_mangle]
 export function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
-  let args: DriverStackEscGateArgs = DriverStackEscGateArgs {
+  let args: DriverStackEscGateArgs = {
     src: src,
     src_len: src_len,
     result: -99,

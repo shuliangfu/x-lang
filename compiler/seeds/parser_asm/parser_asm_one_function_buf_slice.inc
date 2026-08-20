@@ -953,11 +953,33 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
        * wave676 Cap residual: do not accept bare `name)` as untyped formal.
        * Prior soft residual: RPAREN without `: Type` → param_type_ref left 0 →
        * `function bad(x): i32` compiled green. Require `: Type` always.
-       * wave493 untyped self remains non-product (skip) — still needs `: Type`
-       * or fails here with P011 (clearer than typeck `found ?`).
+       * 4.2.1: free / inherent `function m(self)` stays P011 (wave493).
+       * Trait-default hoist sets parser_allow_bare_self so `get(self)` can
+       * parse; commit stamps the impl for-type (wave477). Twin of parser.x.
        * PLATFORM: SHARED parse.
        */
       if (r.tok.kind != (int32_t)TOKEN_COLON) {
+        extern int32_t parser_allow_bare_self_pending_c(void);
+        int32_t is_self_param = 0;
+        if (param_name_len == 4 && pname_buf[0] == (uint8_t)'s' && pname_buf[1] == (uint8_t)'e'
+            && pname_buf[2] == (uint8_t)'l' && pname_buf[3] == (uint8_t)'f')
+          is_self_param = 1;
+        if (is_self_param && parser_allow_bare_self_pending_c() != 0
+            && (r.tok.kind == (int32_t)TOKEN_RPAREN || r.tok.kind == (int32_t)TOKEN_COMMA)) {
+          /* Hoist only: leave type_ref 0; commit supplies the for-type. */
+          pipeline_onefunc_set_param_type_ref(out_pool, param_idx, 0);
+          if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+            parser_lex_from_next_into_glue(&lex, r);
+            break;
+          }
+          parser_lex_from_next_into_glue(&lex, r);
+          r = lexer_next_buf(lex, data, len);
+          if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+            parser_lex_from_next_into_glue(&lex, r);
+            break;
+          }
+          continue;
+        }
         extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
         parser_report_untyped_formal_p011_c((int32_t)r.tok.line, (int32_t)r.tok.col, 0);
         parser_asm_set_onefunc_fail_c(out, lex);

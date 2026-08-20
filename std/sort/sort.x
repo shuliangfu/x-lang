@@ -474,10 +474,10 @@ export function sort_stable_smoke_c(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
   let b: i32[4] = [3, 1, 4, 2];
   let items: SortKeyTag[4] = [
-    SortKeyTag { key: 3, tag: 0 },
-    SortKeyTag { key: 1, tag: 1 },
-    SortKeyTag { key: 3, tag: 2 },
-    SortKeyTag { key: 2, tag: 3 },
+    { key: 3, tag: 0 },
+    { key: 1, tag: 1 },
+    { key: 3, tag: 2 },
+    { key: 2, tag: 3 },
   ];
   stable(&a[0], 4);
   if (a[0] != 1 || a[1] != 2 || a[2] != 3 || a[3] != 4) { return 1; }
@@ -496,10 +496,10 @@ export function sort_stable_smoke_c(): i32 {
  */
 export function sort_key_cmp_smoke_c(): i32 {
   let items: SortKeyTag[4] = [
-    SortKeyTag { key: 3, tag: 0 },
-    SortKeyTag { key: 1, tag: 1 },
-    SortKeyTag { key: 3, tag: 2 },
-    SortKeyTag { key: 2, tag: 3 },
+    { key: 3, tag: 0 },
+    { key: 1, tag: 1 },
+    { key: 3, tag: 2 },
+    { key: 2, tag: 3 },
   ];
   stable_key_tag(&items[0], 4);
   if (items[0].key != 1) { return 1; }

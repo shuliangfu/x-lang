@@ -36,11 +36,17 @@ uint8_t * xlang_asm_ld_bank_push(uint8_t * b, uint8_t * path) {
   }
   return ((uint8_t *)(0));
 }
+/* Stage 12.2.3 early host-cc gate (G.7 ≡ labi_invoke_cc_list / .x). */
+extern int32_t invoke_cc_host_cc_spawn_gate(void);
 int32_t xlang_invoke_cc(uint8_t * c_paths, int32_t n, uint8_t * out_path, uint8_t * target, uint8_t * opt_level, int32_t use_lto, uint8_t * io_o, uint8_t * fs_o, uint8_t * process_o, uint8_t * string_o, uint8_t * heap_o, uint8_t * path_o, uint8_t * runtime_o, uint8_t * runtime_panic_o, uint8_t * net_o, uint8_t * thread_o, uint8_t * time_o, uint8_t * random_o, uint8_t * env_o, uint8_t * sync_o, uint8_t * encoding_o, uint8_t * base64_o, uint8_t * crypto_o, uint8_t * log_o, uint8_t * atomic_o, uint8_t * channel_o, uint8_t * backtrace_o, uint8_t * hash_o, uint8_t * math_o, uint8_t * sort_o, uint8_t * ffi_o, uint8_t * db_o, uint8_t * elf_o, uint8_t * json_o, uint8_t * csv_o, uint8_t * regex_o, uint8_t * compress_o, uint8_t * unicode_o, uint8_t * dynlib_o, uint8_t * http_o, uint8_t * tar_o, uint8_t * simd_o, uint8_t * context_o, uint8_t * datetime_o, uint8_t * uuid_o, uint8_t * url_o, uint8_t * cli_o, uint8_t * security_o, uint8_t * config_o, uint8_t * cache_o, uint8_t * trace_o, uint8_t * task_o, uint8_t * schema_o, uint8_t * test_o, uint8_t * include_root, uint8_t * async_scheduler_o) {
   if ((c_paths ==((uint8_t *)(0)))) {
     return (0 - 1);
   }
   if ((out_path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in. */
+  if ((invoke_cc_host_cc_spawn_gate() == 0)) {
     return (0 - 1);
   }
   {

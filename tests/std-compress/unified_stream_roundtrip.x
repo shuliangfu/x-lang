@@ -12,8 +12,8 @@ function main(): i32 {
   if (sb <= 0 || sb > 256) { return 99; }
   let st_c: u8[256] = [];
   let st_d: u8[256] = [];
-  let sc: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
-  let sd: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
+  let sc: StreamCompress = { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
+  let sd: StreamCompress = { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
   if (compress.compress_init(&sc, &st_c[0], sb, compress.format_gzip(), compress.mode_compress()) != 0) {
     return 0;
   }

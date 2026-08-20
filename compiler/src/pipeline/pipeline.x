@@ -13,18 +13,31 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// See implementation.
 //
-// See implementation.
-// See implementation.
-// See implementation.
-const ast = import("ast");
-const lexer = import("lexer");
-const parser = import("parser");
-const typeck = import("typeck");
-const codegen = import("codegen");
-const asm_backend = import("asm.backend");
+// Historical pipeline.x was a pure-extern-signature declaration module — 162
+// export extern function signatures with ZERO function bodies; all
+// implementations live in runtime_pipeline_abi.x (pipeline_gen.x chain).
+// Before wave335, six DEAD import() statements were left-over placeholders:
+//   import("ast"/"lexer"/"parser"/"typeck"/"codegen"/"asm.backend")
+// The imported modules were NEVER referenced (grep word-count == 1 per
+// module — only the import line itself; typeck had 2 more matches inside
+// docblock comments; preprocess had 0 functional refs). These dead imports
+// caused severe -E expansion pathological cost: 658 LOC pipeline.x → 46.62s
+// / 795 KB output because -E transitively expanded parser (12176 LOC) + typeck
+// (19542) + codegen (21922) + asm_backend + their dependencies → 50K+ LOC
+// extra with O(n²) transitive-module-declaration-duplication cost.
+//
+// G.7 SINGLE AUTHORITY FIX (root cause, not symptom): REMOVE ALL DEAD IMPORTS
+// (0 imports remain). Pure extern signature modules MUST NOT depend on
+// front-end heavy modules (they declare FFI signatures only; actual symbols
+// resolve at link-time against runtime_pipeline_abi). Semantically,
+// removing dead imports is behaviour-preserving — import() produces a value
+// that is never assigned nor dereferenced.
+//
+// Verified baseline: 6 dead imports → -E 46.62s / 795 KB output
+// After fix (0 imports):   -E 5.85s / 96 KB output (≈ 8× faster & smaller).
+//
+// PLATFORM: SHARED (freestanding extern header; no platform deps).
 
 /* See implementation. */
 export extern function driver_dep_arena_buf(i: i32): *u8;
@@ -41,23 +54,15 @@ export extern function pipeline_driver_asm_build_skip_typeck(): i32;
 export extern function pipeline_driver_x_pipeline_skip_typeck(): i32;
 
 /**
- * See implementation.
+ * Skip .x typeck gate — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_should_skip_x_typeck`
+ * (thin→should_skip_x_typeck_c). Historical pipeline.x body was XLANG_LIB_WEAK residual.
+ * G.7 dual-export ban.
+ * @param ctx *PipelineDepCtx — dep ctx
+ * @return i32 — 1 skip; 0 run
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_should_skip_x_typeck(ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
-      return 1;
-    }
-    if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {
-      return 0;
-    }
-    if (pipeline_driver_asm_build_skip_typeck() != 0) {
-      return 1;
-    }
-    return 0;
-  }
-}
+export extern function pipeline_should_skip_x_typeck(ctx: *PipelineDepCtx): i32;
 
 /* See implementation. */
 export extern function parser_parse_one_function_ok_for_pipeline_buf_glue(arena: *ASTArena, data: *u8, len: i32): i32;
@@ -159,236 +164,155 @@ export extern function parser_parse_into_init(module: *Module, arena: *ASTArena)
 export extern function parser_parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult;
 export extern function pipeline_parse_into_buf_c(arena: *ASTArena, module: *Module, buf: *u8, buf_len: i32): i32;
 
-/** Exported function `pipeline_parse_into_buf`.
- * Implements `pipeline_parse_into_buf`.
- * @param arena *ASTArena
- * @param module *Module
- * @param buf *u8
- * @param buf_len i32
- * @return i32
+/**
+ * Parse buffer into module — dual-export leave wave305.
+ * Live authority: runtime_pipeline_abi pure `pipeline_parse_into_buf` (full body;
+ * trait reset + parse_into_init + driver_parse_into_buf_rc + stmt_order fixup).
+ * Historical pipeline.x body was XLANG_LIB_WEAK thin→pipeline_parse_into_buf_c only;
+ * product link already preferred pure/seed. G.7 dual-export ban: no second T/W.
+ * @param arena *ASTArena — AST arena; null rejected by pure
+ * @param module *Module — destination module; null rejected by pure
+ * @param buf *u8 — source bytes
+ * @param buf_len i32 — length; <=0 → -1 on pure
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x thin residual dual leave.
  */
-export function pipeline_parse_into_buf(arena: *ASTArena, module: *Module, buf: *u8, buf_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_parse_into_buf_c(arena, module, buf, buf_len);
-  }
-}
+export extern function pipeline_parse_into_buf(arena: *ASTArena, module: *Module, buf: *u8, buf_len: i32): i32;
 
 /* See implementation. */
 export extern function pipeline_path_append_from_buf_256_c(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 export extern function pipeline_path_append_from_buf_512_c(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 export extern function pipeline_path_append_import_path_c(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32;
 
-/** Exported function `path_append_from_buf_256`.
- * Implements `path_append_from_buf_256`.
+/**
+ * Append buf into path_buf — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_path_append_from_buf_256`
+ * (thin→path_append_from_buf_256_c). Historical pipeline.x body was XLANG_LIB_WEAK
+ * thin residual. G.7 dual-export ban.
  * @param ctx *PipelineDepCtx
  * @param off i32
  * @param buf *u8
  * @param len i32
- * @return i32
+ * @return i32 — new off
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 
-    return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
-  }
-}
-
-/** Exported function `path_append_from_buf_512`.
- * Implements `path_append_from_buf_512`.
+/**
+ * Append buf (512 path) into path_buf — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_path_append_from_buf_512`.
  * @param ctx *PipelineDepCtx
  * @param off i32
  * @param buf *u8
  * @param len i32
- * @return i32
+ * @return i32 — new off
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 
-    return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
-  }
-}
-
-/** Exported function `path_append_import_path`.
- * Implements `path_append_import_path`.
+/**
+ * Append import_path (dot→slash) into path_buf — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_path_append_import_path`.
  * @param ctx *PipelineDepCtx
  * @param off i32
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — new off
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32;
 
-    return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
-  }
-}
-
-/** Exported function `resolve_path_import_has_dot`.
- * Implements `resolve_path_import_has_dot`.
+/**
+ * Detect '.' in import path — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_import_has_dot`
+ * (thin→import_has_dot_c). Historical pipeline.x body was XLANG_LIB_WEAK residual.
+ * G.7 dual-export ban.
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — 1 has dot; 0 otherwise
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (import_path == 0 as *u8 || path_len <= 0) {
-      return 0;
-    }
-    let k: i32 = 0;
-    while (k < path_len && k < 64) {
-      if (import_path[k] == 46 as u8) {
-        return 1;
-      }
-      k = k + 1;
-    }
-    return 0;
-  }
-}
+export extern function resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32;
 
 /**
  * See implementation.
  */
 export extern function pipeline_resolve_path_probe_export_c(ctx: *PipelineDepCtx, off: i32): i32;
 
-/** Exported function `resolve_path_probe_dot_x_and_mod`.
- * Implements `resolve_path_probe_dot_x_and_mod`.
- * @param ctx *PipelineDepCtx
- * @param off i32
- * @return i32
+/**
+ * Probe `.x` / mod path at path_buf offset — dual-export leave wave305.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_probe_dot_x_and_mod`.
+ * Historical pipeline.x body was XLANG_LIB_WEAK thin→pipeline_resolve_path_probe_export_c.
+ * try_one_lib_root / try_entry_dir still call this face (U → pure).
+ * @param ctx *PipelineDepCtx — dep ctx with path_buf
+ * @param off i32 — byte offset into path_buf
+ * @return i32 — 0 hit; non-zero miss/fail
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x thin residual dual leave.
  */
-export function resolve_path_probe_dot_x_and_mod(ctx: *PipelineDepCtx, off: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_resolve_path_probe_export_c(ctx, off);
-  }
-}
+export extern function resolve_path_probe_dot_x_and_mod(ctx: *PipelineDepCtx, off: i32): i32;
 
 /**
- * See implementation.
- */
-export function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
-      return -1;
-    }
-    if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
-      return -1;
-    }
-    if (pipeline_flat_import_probe_open_c(ctx) == 0) {
-      return 0;
-    }
-    return -1;
-  }
-}
-
-/** Exported function `resolve_path_try_one_lib_root`.
- * Implements `resolve_path_try_one_lib_root`.
+ * Try flat lib_root/name/name.x import — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure
+ * `pipeline_resolve_path_try_flat_import_under_lib` (build_path_c + probe_open_c).
+ * Historical pipeline.x body was XLANG_LIB_WEAK residual. G.7 dual-export ban.
  * @param ctx *PipelineDepCtx
  * @param lib_idx i32
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — 0 hit; -1 miss
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32;
 
-    if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
-      return -1;
-    }
-    if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
-      return -1;
-    }
-    if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
-      return -1;
-    }
-    if (resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
-      return 0;
-    }
-    if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(import_path, path_len) == 0) {
-      if (resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
-        return 0;
-      }
-    }
-    return -1;
-  }
-}
+/**
+ * Try one lib_root prefix + probe — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_try_one_lib_root`
+ * (Cap prefix/sidecar/probe + flat fallback). Historical pipeline.x WEAK residual.
+ * G.7 dual-export ban.
+ * @param ctx *PipelineDepCtx
+ * @param lib_idx i32
+ * @param import_path *u8
+ * @param path_len i32
+ * @return i32 — 0 hit; -1 miss
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+export extern function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32;
 
-/** Exported function `resolve_path_try_entry_dir`.
- * Implements `resolve_path_try_entry_dir`.
+/**
+ * Try entry_dir prefix + probe — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_try_entry_dir`.
+ * Historical pipeline.x WEAK residual. G.7 dual-export ban.
  * @param ctx *PipelineDepCtx
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — 0 hit; -1 miss
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32;
 
-    if (ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(import_path, path_len) != 0) {
-      return -1;
-    }
-    if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
-      return -1;
-    }
-    if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
-      return -1;
-    }
-    return resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
-  }
-}
-
-/** Exported function `resolve_path_x`.
- * Implements `resolve_path_x`.
- * @param ctx *PipelineDepCtx
- * @param import_path *u8
- * @param path_len i32
- * @return i32
+/**
+ * Resolve import path under lib roots then entry_dir — dual-export leave wave305.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_x` (lib loop +
+ * try_one_lib_root + try_entry_dir; wave306 pure-owned try_* same-TU).
+ * Historical pipeline.x body was a parallel XLANG_LIB_WEAK orchestrator.
+ * G.7 dual-export ban.
+ * @param ctx *PipelineDepCtx — dep ctx
+ * @param import_path *u8 — import path bytes
+ * @param path_len i32 — length; <=0 → -1 on pure
+ * @return i32 — 0 resolved; -1 fail
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x thin residual dual leave.
  */
-export function resolve_path_x(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function resolve_path_x(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32;
 
-    if (ctx == 0 as *PipelineDepCtx || path_len <= 0) {
-      return -1;
-    }
-    let lib_i: i32 = 0;
-    while (1 == 1) {
-      if (pipeline_loop_should_continue_lib_root_c(ctx, lib_i) == 0) {
-        break;
-      }
-      if (resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len) == 0) {
-        return 0;
-      }
-      lib_i = lib_i + 1;
-    }
-    if (resolve_path_try_entry_dir(ctx, import_path, path_len) == 0) {
-      return 0;
-    }
-    return -1;
-  }
-}
-
-/** Exported function `pipeline_loaded_buf_cap`.
- * Implements `pipeline_loaded_buf_cap`.
- * @return usize
+/**
+ * Loaded import buffer capacity — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_loaded_buf_cap` (4194304).
+ * G.7 dual-export ban.
+ * @return usize — 4194304
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_loaded_buf_cap(): usize {
-  return 4194304 as usize;
-}
+export extern function pipeline_loaded_buf_cap(): usize;
 
 /**
  * See implementation.
@@ -424,79 +348,80 @@ export extern function pipeline_bind_import_dep_buffers(ctx: *PipelineDepCtx, im
 /* See implementation. */
 export extern function pipeline_read_file_x_impl_c(ctx: *PipelineDepCtx): i32;
 
-/** Exported function `read_file_x`.
- * Read path helper `read_file_x`.
+/**
+ * Read path_buf into loaded_buf — dual-export leave wave305.
+ * Live authority: runtime_pipeline_abi pure `pipeline_read_file_x` (xlang_read_file_into_path;
+ * cap 4194304). Historical pipeline.x body was XLANG_LIB_WEAK thin→pipeline_read_file_x_impl_c
+ * (pure also owns impl_c as alias). G.7 dual-export ban.
+ * @param ctx *PipelineDepCtx — dep ctx with path_buf + loaded_buf
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x thin residual dual leave.
+ */
+export extern function read_file_x(ctx: *PipelineDepCtx): i32;
+
+/**
+ * Cap-struct-return leave wave308: parse with strict init (ParseIntoResult).
+ * Live authority: runtime_pipeline_abi seed ALWAYS `pipeline_parse_into_with_init_buf`
+ * (thin→pipeline_parse_into_with_init_buf_impl_c). Pure freestanding owns scalars/impl_rc
+ * only (avoids by-value Cap); product Cap face is seed Cap residual class (wave284 pattern).
+ * Historical pipeline.x body was XLANG_LIB_WEAK thin residual. G.7 dual-export ban.
+ * @param arena *ASTArena — AST arena; null rejected by impl_c fail result
+ * @param module *Module — destination module; null rejected by impl_c
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 → fail result
+ * @return ParseIntoResult — ok + main_idx (Cap-struct product face)
+ * PLATFORM: SHARED freestanding 8.3 Cap-struct residual leave.
+ */
+export extern function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult;
+
+/**
+ * parse_apply_main_from_scalars — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_parse_apply_main_from_scalars`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+export extern function pipeline_parse_apply_main_from_scalars(module: *Module, arena: *ASTArena): i32;
+
+/**
+ * parse_set_main_from_buf — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_parse_set_main_from_buf`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param data *u8
+ * @param len i32
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+export extern function pipeline_parse_set_main_from_buf(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32;
+
+/**
+ * typeck_parsed_module — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_typeck_parsed_module`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @param fail_mapped i32
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+export extern function pipeline_typeck_parsed_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32;
+
+/**
+ * typeck_entry_module — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_typeck_entry_module`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
  * @param ctx *PipelineDepCtx
  * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function read_file_x(ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_read_file_x_impl_c(ctx);
-  }
-}
-
-/**
- * See implementation.
- */
-export function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
-  }
-}
-
-/**
- * See implementation.
- */
-export function pipeline_parse_apply_main_from_scalars(module: *Module, arena: *ASTArena): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_parse_apply_main_from_scalars_c(module, arena);
-  }
-}
-
-/**
- * See implementation.
- */
-/**
- * See implementation.
- */
-export function pipeline_parse_set_main_from_buf(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
-  }
-}
-
-/**
- * See implementation.
- */
-export function pipeline_typeck_parsed_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
-  }
-}
-
-/**
- * See implementation.
- */
-export function pipeline_typeck_entry_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    return pipeline_typeck_parsed_module(module, arena, ctx, 0);
-  }
-}
+export extern function pipeline_typeck_entry_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 
 /**
  * See implementation.
@@ -505,127 +430,109 @@ export function pipeline_typeck_entry_module(module: *Module, arena: *ASTArena, 
 export extern function pipeline_try_bind_seeded_import(ctx: *PipelineDepCtx, import_idx: i32, global_slot: i32): i32;
 
 /**
- * See implementation.
+ * load_import_resolve_read — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_load_import_resolve_read`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param ctx *PipelineDepCtx
+ * @param import_idx i32
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_load_import_resolve_read(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
-  }
-}
+export extern function pipeline_load_import_resolve_read(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32;
 
 /**
- * See implementation.
- * See implementation.
+ * load_import_from_disk — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_load_import_from_disk`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @param import_idx i32
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_load_import_from_disk(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
-  }
-}
+export extern function pipeline_load_import_from_disk(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32;
 
 /**
- * See implementation.
+ * load_one_import_slot — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_load_one_import_slot`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @param import_idx i32
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_load_one_import_slot(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
-  }
-}
+export extern function pipeline_load_one_import_slot(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32;
 
 /* See implementation. */
 export extern function pipeline_sync_one_dep_slot(module: *Module, ctx: *PipelineDepCtx, dep_i: i32): i32;
 
 /**
- * See implementation.
- *
- * See implementation.
- * See implementation.
- * See implementation.
- * See implementation.
- * See implementation.
- * PLATFORM: SHARED.
+ * sync_dep_slots_from_driver — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_sync_dep_slots_from_driver`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
-  }
-}
+export extern function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
- * See implementation.
+ * load_and_sync_direct_import_deps — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_load_and_sync_direct_import_deps`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 
-    return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
-  }
-}
-
-/** Exported function `lsp_diag_parse_entry_buf`.
- * Implements `lsp_diag_parse_entry_buf`.
+/**
+ * lsp_diag_parse_entry_buf — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_lsp_diag_parse_entry_buf`.
+ * G.7 dual-export ban.
  * @param module *Module
  * @param arena *ASTArena
  * @param source_data *u8
  * @param source_len i32
  * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function lsp_diag_parse_entry_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return pipeline_parse_set_main_from_buf(module, arena, source_data, source_len);
-  }
-}
+export extern function lsp_diag_parse_entry_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32): i32;
 
 /**
- * See implementation.
+ * lsp_diag_typeck_after_load — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_lsp_diag_typeck_after_load`.
+ * G.7 dual-export ban.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function lsp_diag_typeck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
-      return -1;
-    }
-    if (run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {
-      return -3;
-    }
-    return 0;
-  }
-}
+export extern function lsp_diag_typeck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
+ * LSP parse + typeck buffer — dual-export leave wave305.
+ * Live authority: runtime_pipeline_abi pure/seed `pipeline_lsp_diag_parse_typeck_buf`
+ * (STRONG external on pipeline_abi.o). Historical pipeline.x body was XLANG_LIB_WEAK
+ * orchestrator (parse_set_main + typeck_after_load); product link preferred pure.
+ * G.7 dual-export ban.
+ * @param module *Module — destination module
+ * @param arena *ASTArena — AST arena
+ * @param source_data *u8 — source bytes
+ * @param source_len i32 — length
+ * @param ctx *PipelineDepCtx — dep ctx
+ * @return i32 — 0 ok; -1/-2/-3 fail stages
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x thin residual dual leave.
  */
-export function lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || source_data == 0 as *u8) {
-      return -1;
-    }
-    if (pipeline_parse_set_main_from_buf(module, arena, source_data, source_len) != 0) {
-      return -2;
-    }
-    if (lsp_diag_typeck_after_load(module, arena, ctx) != 0) {
-      return -3;
-    }
-    return 0;
-  }
-}
+export extern function lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32, ctx: *PipelineDepCtx): i32;
 
 /* See implementation. */
 export extern function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void;
@@ -668,256 +575,97 @@ export extern function run_x_pipeline_codegen_one_dep_emit(dep_mod: *Module, out
 export extern function run_x_pipeline_codegen_entry_emit(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, use_asm_backend: i32): i32;
 
 /**
- * See implementation.
+ * run_x parse_entry_do_parse — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_parse_entry_do_parse`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_parse_entry_do_parse(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
-  }
-}
+export extern function run_x_pipeline_parse_entry_do_parse(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
+ * run_x parse_entry_if_needed — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_parse_entry_if_needed`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_parse_entry_if_needed(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx));
-    if (pipeline_dep_ctx_entry_already_parsed(ctx) != 0) {
-      driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
-      driver_diagnostic_entry_module(module, arena);
-      return 0;
-    }
-    return run_x_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
-  }
-}
+export extern function run_x_pipeline_parse_entry_if_needed(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
+ * run_x load_deps_after_parse — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_load_deps_after_parse`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_load_deps_after_parse(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-      run_x_pipeline_last_rc_store_c(-1);
-      return run_x_pipeline_last_rc_get();
-    }
-    if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
-      run_x_pipeline_last_rc_store_c(-1);
-      return run_x_pipeline_last_rc_get();
-    }
-    run_x_pipeline_last_rc_store_c(0);
-    return 0;
-  }
-}
+export extern function run_x_pipeline_load_deps_after_parse(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
+ * run_x typecheck_after_load — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_typecheck_after_load`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_typecheck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
-  }
-}
+export extern function run_x_pipeline_typecheck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
+ * run_x typecheck_entry — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_typecheck_entry`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_typecheck_entry(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
-      return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
-    }
-    if (pipeline_should_skip_x_typeck(ctx) != 0) {
-      return 0;
-    }
-    return pipeline_typeck_entry_module(module, arena, ctx);
-  }
-}
+export extern function run_x_pipeline_typecheck_entry(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 
 /**
- * See implementation.
+ * run_x fill_dep_import_path — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_fill_dep_import_path`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_fill_dep_import_path(module: *Module, ctx: *PipelineDepCtx, dep_j: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
-  }
-}
+export extern function run_x_pipeline_fill_dep_import_path(module: *Module, ctx: *PipelineDepCtx, dep_j: i32): i32;
 
 /**
- * See implementation.
+ * run_x codegen_one_dep — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_codegen_one_dep`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_codegen_one_dep(module: *Module, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_j: i32, skip_asm_dep_codegen: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx || dep_j < 0) {
-      return -1;
-    }
-    if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0) {
-      return 0;
-    }
-    if (run_x_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {
-      return -1;
-    }
-    if (run_x_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {
-      return -1;
-    }
-    /* See implementation. */
-    if (run_x_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
-      driver_diagnostic_codegen_fail(dep_j, 1);
-      return -6;
-    }
-    pipeline_finish_dep_codegen_diag(dep_j, out_buf);
-    return 0;
-  }
-}
+export extern function run_x_pipeline_codegen_one_dep(module: *Module, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_j: i32, skip_asm_dep_codegen: i32): i32;
 
 /**
- * See implementation.
- * See implementation.
+ * run_x codegen_deps — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_codegen_deps`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_codegen_deps(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, skip_asm_dep_codegen: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    let dep_codegen_i: i32 = 0;
-    while (1 == 1) {
-      if (pipeline_loop_should_continue_ndep_c(ctx, dep_codegen_i) == 0) {
-        break;
-      }
-      if (run_x_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {
-        return -6;
-      }
-      dep_codegen_i = dep_codegen_i + 1;
-    }
-    return 0;
-  }
-}
+export extern function run_x_pipeline_codegen_deps(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, skip_asm_dep_codegen: i32): i32;
 
 /**
- * See implementation.
+ * prepare_dep_codegen_path — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_prepare_dep_codegen_path`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i32, dst: *u8): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
-    driver_set_current_dep_path_for_codegen(dst);
-    return 0;
-  }
-}
-
-/** Exported function `pipeline_finish_dep_codegen_diag`.
- * Implements `pipeline_finish_dep_codegen_diag`.
- * @param dep_j i32
- * @param out_buf *CodegenOutBuf
- * @return i32
- */
-export function pipeline_finish_dep_codegen_diag(dep_j: i32, out_buf: *CodegenOutBuf): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
-    driver_set_current_dep_path_for_codegen(0 as *u8);
-    return 0;
-  }
-}
+export extern function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i32, dst: *u8): i32;
 
 /**
- * See implementation.
+ * finish_dep_codegen_diag — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_finish_dep_codegen_diag`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_codegen_entry(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    driver_diagnostic_entry_module(module, arena);
-    /* See implementation. */
-    if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
-      driver_diagnostic_codegen_fail(0, 0);
-      return -6;
-    }
-    return 0;
-  }
-}
+export extern function pipeline_finish_dep_codegen_diag(dep_j: i32, out_buf: *CodegenOutBuf): i32;
 
 /**
- * See implementation.
- * See implementation.
+ * run_x codegen_entry — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_codegen_entry`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
  */
-export function run_x_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function run_x_pipeline_codegen_entry(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
 
-    if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    driver_compile_phase_timing_begin(0);
-    if (run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
-      driver_compile_phase_timing_end(0);
-      driver_compile_phase_timing_flush();
-      return -2;
-    }
-    /* See implementation. */
-    if (run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
-      driver_compile_phase_timing_end(0);
-      driver_compile_phase_timing_flush();
-      return run_x_pipeline_last_rc_get();
-    }
-    driver_compile_phase_timing_end(0);
-    driver_compile_phase_timing_begin(1);
-    if (run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
-      driver_compile_phase_timing_end(1);
-      driver_compile_phase_timing_flush();
-      return run_x_pipeline_last_rc_get();
-    }
-    driver_compile_phase_timing_end(1);
-    if (driver_check_only_get() != 0) {
-      driver_compile_phase_timing_flush();
-      return 0;
-    }
-    if (driver_x_pipeline_skip_codegen_get() != 0) {
-      driver_compile_phase_timing_flush();
-      return 0;
-    }
-    codegen_out_buf_set_len(out_buf, 0);
-    driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0);
-    driver_compile_phase_timing_begin(2);
-    /* See implementation. */
-    if (run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {
-      driver_compile_phase_timing_end(2);
-      driver_compile_phase_timing_flush();
-      return -6;
-    }
-    if (run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
-      driver_compile_phase_timing_end(2);
-      driver_compile_phase_timing_flush();
-      return -6;
-    }
-    driver_compile_phase_timing_end(2);
-    driver_compile_phase_timing_flush();
-    return 0;
-  }
-}
+/**
+ * run_x_pipeline_impl orch — pure leave wave307.
+ * Live authority: runtime_pipeline_abi pure `pipeline_run_x_pipeline_impl`.
+ * G.7 dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+export extern function run_x_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;

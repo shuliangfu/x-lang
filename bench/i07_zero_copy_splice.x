@@ -41,7 +41,7 @@ function main(): i32 {
   }
   let bench_bytes: usize = 16777216 as usize;
   let chunk: usize = 1048576 as usize;
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let file_fd: i32 = fs.open(&path[0]);
   if (file_fd < 0) { return 1; }
   let stream: TcpStream = net.connect_blocking(addr, sink_port, 0);

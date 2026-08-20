@@ -63,7 +63,7 @@ export function find(s: Set_i32, key: i32): i32 {
  */
 export function new(_tag: i32): Set_i32 {
   let _: i32 = _tag;
-  return Set_i32 { keys: 0, occupied: 0, cap: 0, length: 0 };
+  return { keys: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -364,7 +364,7 @@ export function find(s: Set_u64, key: u64): i32 {
  */
 export function new(_tag: i32): Set_u64 {
   let _: i32 = _tag;
-  return Set_u64 { keys: 0, occupied: 0, cap: 0, length: 0 };
+  return { keys: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -547,7 +547,7 @@ allow(padding) struct Set_str {
  * @return Set_str
  */
 export function str_new(): Set_str {
-  return Set_str { keys: 0, lens: 0, occupied: 0, cap: 0, length: 0 };
+  return { keys: 0, lens: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `str_with_capacity`.

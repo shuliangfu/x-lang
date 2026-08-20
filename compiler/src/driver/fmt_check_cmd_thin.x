@@ -196,9 +196,9 @@ let g_fmt_builtin_ignore_5: u8[21] = [47, 99, 111, 109, 112, 105, 108, 101, 114,
 let g_fmt_builtin_ignore_6: u8[17] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 47, 0];
 let g_fmt_builtin_ignore_7: u8[17] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 116, 101, 115, 116, 115, 47, 0];
 // Repo-root tests/ holds intentional negative fixtures (*_fail, typeck bad, parser recovery).
-// Bare `xlang check` must not treat those as product errors; `xlang check tests` still walks
-// via collect_paths_from_arg only when path is not substring-matched — path_should_ignore
-// applies always, so explicit tests/ paths are skipped by design (use harness scripts).
+// Bare recursive walk must not enter the tests/ directory (dir path matches /tests/).
+// Explicit .x files under tests/ (harness + `xlang check tests/foo.x`) must still run:
+// path_should_ignore skips the /tests/ builtin when the path ends with ".x".
 // PLATFORM: SHARED — dual-host.
 let g_fmt_builtin_ignore_8: u8[8] = [47, 116, 101, 115, 116, 115, 47, 0];
 
@@ -1566,10 +1566,15 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
 // ---- pure ignore / file_list orch / walk process_child + walk opendir pure ----
 
 // path_should_ignore: see function docblock below.
-/** Exported function `path_should_ignore`.
- * Implements `path_should_ignore`.
- * @param path *u8
- * @return i32
+/**
+ * Return 1 if path must be skipped by fmt/check collect; 0 if eligible.
+ * Builtin ignores (git/build/node_modules/tests dirs, …) + user --ignore=.
+ * Special case: builtin `/tests/` does NOT apply when path ends with `.x`
+ * so explicit harness files and `xlang check tests/foo.x` still collect;
+ * bare recursive walk never enters the tests/ directory (dir match only).
+ * @param path *u8 — absolute or relative path; null → ignore (1)
+ * @return i32 — 1 ignore, 0 keep
+ * PLATFORM: SHARED — dual-host collect filter.
  */
 #[no_mangle]
 export function path_should_ignore(path: *u8): i32 {
@@ -1577,6 +1582,8 @@ export function path_should_ignore(path: *u8): i32 {
     return 1;
   }
   unsafe {
+    // True when this path is a .x file (explicit collect / walk leaf).
+    let is_dot_x: i32 = fmt_path_ends_with_dot_x(path);
     let i: i32 = 0;
     while (i < 32) {
       let b: *u8 = fmt_builtin_ignore_at(i);
@@ -1584,6 +1591,13 @@ export function path_should_ignore(path: *u8): i32 {
         break;
       }
       if (strstr(path, b) != 0 as *u8) {
+        // Index 8 = g_fmt_builtin_ignore_8 = "/tests/". Allow explicit .x files.
+        if (i == 8) {
+          if (is_dot_x != 0) {
+            i = i + 1;
+            continue;
+          }
+        }
         return 1;
       }
       i = i + 1;

@@ -1356,28 +1356,8 @@ int32_t driver_run_compiler_parsed(uint8_t * p, int32_t argc, uint8_t * argv) {
       (void)((want_asm = 0));
     }
   }
-  if ((want_asm !=0)) {
-    (void)((want_exe = 1));
-    if ((outp !=((uint8_t *)(0)))) {
-      {
-        (void)((want_exe = xlang_output_want_exe(outp)));
-      }
-    }
-    if ((want_exe !=0)) {
-      {
-        (void)((plen = ((int32_t)(strlen(path)))));
-      }
-      if ((plen > 0)) {
-        if ((plen < 512)) {
-          {
-            if ((driver_source_has_generic_syntax(path, plen) !=0)) {
-              (void)((want_asm = 0));
-            }
-          }
-        }
-      }
-    }
-  }
+  /* PLATFORM: SHARED — PC invoke_cc opt-in 2026-08-12: silent generic→C removed
+   * (mirror rt_run_compiler_parsed.x). Product host-cc only via -backend c / check-only / emit-c. */
   if ((want_asm !=0)) {
     {
       (void)((lib = driver_asm_bind_lib_roots(lib, nlib, &(nlib))));

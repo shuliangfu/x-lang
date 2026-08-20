@@ -26,6 +26,8 @@ extern int32_t backend_call_dispatch_x_doc_anchor(void);
 extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 extern void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
 extern int32_t pipeline_asm_emit_get_call_f32_xmm_c(void);
+/* PLATFORM: SHARED — process-local dep_pipe (set by pipeline_asm_emit_set_dep_pipe). */
+extern uint8_t *pipeline_asm_emit_dep_pipe_c(void);
 extern void glue_asm_string_lit_into(uint8_t * arena, int32_t er, uint8_t * out64);
 extern void glue_codegen_import_path_to_c_prefix_into(uint8_t * path, uint8_t * buf, int32_t buf_cap);
 extern int32_t glue_module_func_overload_count_c(uint8_t * m, uint8_t * name, int32_t nlen);
@@ -372,10 +374,11 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t * ctx_bytes, int32_t ta, 
   if ((sbuf ==0)) {
     return (0 - 1);
   }
-  if ((slen <=0)) {
+  /* Stage 12.2.5: allow empty string lit slen==0 (single embedded NUL). */
+  if ((slen < 0)) {
     return (0 - 1);
   }
-  if ((slen > 63)) {
+  if ((slen > 126)) {
     return (0 - 1);
   }
   if ((ta !=0)) {
@@ -1194,10 +1197,11 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(uint8_t * arena, uint8_t * elf_ct
     if ((pipeline_expr_kind_ord_at(arena, str_expr_ref) !=59)) {
       return (0 - 1);
     }
-    if ((slen <=0)) {
+    /* Stage 12.2.5: empty "" is valid *u8 (slen==0). */
+    if ((slen < 0)) {
       return (0 - 1);
     }
-    if ((slen > 63)) {
+    if ((slen > 126)) {
       return (0 - 1);
     }
     (void)(glue_asm_string_lit_into(arena, str_expr_ref, &((sbuf)[0])));
@@ -1205,19 +1209,30 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(uint8_t * arena, uint8_t * elf_ct
   }
   return (0 - 1);
 }
+/* G.7 twin of backend_call_dispatch.x: harvest after cleanup (i32 sxtw). */
+extern int32_t glue_asm_harvest_call_ret_to_gpr_c(uint8_t * arena, uint8_t * elf_ctx, int32_t call_expr_ref, int32_t ta);
 int32_t glue_asm_emit_call_with_cleanup(uint8_t * arena, uint8_t * elf_ctx, int32_t expr_ref, uint8_t * ctx, int32_t ta, int32_t nargs, uint8_t * cname, int32_t clen) {
   {
-    int32_t cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    int32_t cleanup = 0;
+    int32_t hr = 0;
     if ((pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) !=0)) {
       return (0 - 1);
     }
     if ((glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) !=0)) {
       return (0 - 1);
     }
+    cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
     if ((cleanup < 0)) {
       return (0 - 1);
     }
-    return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
+    if ((backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) !=0)) {
+      return (0 - 1);
+    }
+    hr = glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta);
+    if ((hr !=0)) {
+      return (0 - 1);
+    }
+    return 0;
   }
   return (0 - 1);
 }
@@ -1633,7 +1648,10 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
       return (0 - 1);
     }
     uint8_t * mod_ref = call_dispatch_load_ptr_le(ctx, 16);
-    uint8_t * dep_pipe = call_dispatch_load_ptr_le(ctx, 1256);
+    /* PLATFORM: SHARED LP64 — AsmFuncCtx dep_pipe@1384 (pipeline_abi; was stale 1256). */
+    uint8_t * dep_pipe = call_dispatch_load_ptr_le(ctx, 1384);
+    if (!dep_pipe)
+      dep_pipe = pipeline_asm_emit_dep_pipe_c();
     int32_t callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
     if ((callee_ko ==44)) {
       uint8_t pre_fmt[16] = {};

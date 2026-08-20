@@ -20,6 +20,12 @@
 #
 # PLATFORM: SHARED — thin catalog; no compile/link.
 # Wave: 726–728 export · 788 B7B shell-primary · 924 --link-export · 925 --cflags-export · 926 --link-objs/cflags-export (not physical delete).
+#
+# Wall / cache (2026-08-12, G.7 single authority):
+#   XLANG_CATALOG_CACHE_FILE   parent-supplied KEY=VALUE blob (wave940; highest priority)
+#   XLANG_CATALOG_DISK_CACHE   durable path (default /tmp/xlang_catalog_shell_<uid>.<rootcksum>.txt)
+#   XLANG_CATALOG_NO_DISK_CACHE=1  disable durable cache (always full mk parse when no parent file)
+# Durable cache invalidates on this script / mk/*.mk mtime or product-default LEGACY env change.
 
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
@@ -496,8 +502,67 @@ catalog_expand_all_stored() {
   done
 }
 
-catalog_shell_dump() {
-  catalog_shell_parse_all
+# Portable mtime seconds (Darwin stat -f %m / GNU stat -c %Y).
+# PLATFORM: SHARED. Echo 0 when missing (invalidates disk cache).
+_catalog_mtime() {
+  local f="$1"
+  if [ ! -e "$f" ]; then
+    echo 0
+    return 0
+  fi
+  stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0
+}
+
+# Durable on-disk catalog path (per-user + per-repo). Overridable via
+# XLANG_CATALOG_DISK_CACHE. PLATFORM: SHARED — /tmp is fine for local gold.
+catalog_disk_cache_path() {
+  local h
+  h=$(printf '%s' "$ROOT" | cksum 2>/dev/null | awk '{print $1}')
+  [ -n "$h" ] || h=default
+  printf '%s\n' "${XLANG_CATALOG_DISK_CACHE:-${TMPDIR:-/tmp}/xlang_catalog_shell_$(id -u 2>/dev/null || echo 0).${h}.txt}"
+}
+
+# Fingerprint of inputs that change --shell KEY=VALUE product-default dump.
+# Includes this script mtime, all 17 mk parse inputs, and LEGACY env that
+# diverges shell picks (same set as catalog_need_make_escape). PLATFORM: SHARED.
+catalog_disk_cache_fp() {
+  {
+    printf 'v1\n'
+    printf 'ROOT=%s\n' "$ROOT"
+    printf 'LEGACY_C=%s\n' "${XLANG_LEGACY_C_FRONTEND:-}"
+    printf 'NO_C=%s\n' "${XLANG_NO_C_SEED_LINK:-}"
+    printf 'LEGACY_MAIN=%s\n' "${XLANG_LEGACY_MAIN_C:-}"
+    printf 'LEGACY_LEX=%s\n' "${XLANG_LEGACY_SEED_LEXER_AST:-}"
+    printf 'VIA_MAKE=%s\n' "${XLANG_CATALOG_VIA_MAKE:-0}"
+    printf 'script %s\n' "$(_catalog_mtime "$0")"
+    # Parse-order list must match catalog_shell_parse_all (full path).
+    for f in \
+      mk/x_source_deps.mk \
+      mk/x_e_dirs.mk \
+      mk/objs_core.mk \
+      mk/user_asm_seed_objs.mk \
+      mk/pipeline_x_objs.mk \
+      mk/driver_seed_r_lists.mk \
+      mk/driver_leaf_product_objs.mk \
+      mk/driver_subcmd_objs.mk \
+      mk/driver_seed_mode_objs.mk \
+      mk/driver_seed_link_picks.mk \
+      mk/archaeology_experiment_objs.mk \
+      mk/driver_seed_export_lists.mk \
+      mk/driver_seed_composites.mk \
+      mk/formal_mod_product_objs.mk \
+      mk/std_x_product_objs.mk \
+      mk/std_core_hybrid_product_objs.mk \
+      mk/std_and_panic_objs.mk
+    do
+      printf '%s %s\n' "$f" "$(_catalog_mtime "$f")"
+    done
+  } | cksum 2>/dev/null | awk '{print $1}'
+}
+
+# Emit KEY=VALUE from the in-process store (no re-parse). Shared by
+# catalog_shell_dump and durable disk-cache write. PLATFORM: SHARED.
+catalog_shell_emit_from_store() {
   # wave940: dump ALL stored keys, not just REQUIRED_KEYS. The cache file
   # (XLANG_CATALOG_CACHE_FILE) is produced by `--shell` and must contain
   # every key that --link-export / --cflags-export / --link-objs-export
@@ -507,30 +572,35 @@ catalog_shell_dump() {
   # REQUIRED_KEYS. Dumping only REQUIRED_KEYS would starve the cache and
   # break --link-export when it reuses a parent-warmed cache.
   # --check still validates only REQUIRED_KEYS (parity + presence).
-  # PLATFORM: SHARED — same KEY=VALUE store on Darwin/Linux/Windows MSYS2.
+  # Dedup: newline-safe membership (old space-joined _seen broke on \n keys
+  # and re-emitted REQUIRED after loading a durable dump). PLATFORM: SHARED.
   local k v
-  # First emit REQUIRED_KEYS (stable order for --check parity consumers).
   for k in "${REQUIRED_KEYS[@]}"; do
     v=$(catalog_get "$k")
     v=$(catalog_norm_ws "$v")
     printf '%s=%s\n' "$k" "$v"
   done
-  # Then emit all other keys from the store (dedup against REQUIRED_KEYS).
   if [ -n "${_CAT_FILE:-}" ] && [ -f "$_CAT_FILE" ]; then
-    # Extract unique key names from the store, skip REQUIRED_KEYS.
-    local _seen _key _line
-    _seen=" $(printf '%s\n' "${REQUIRED_KEYS[@]}") "
+    local _seen_nl _key
+    # Leading/trailing newline so "\nKEY\n" substring match is exact.
+    _seen_nl=$(printf '\n%s' "${REQUIRED_KEYS[@]}")
+    _seen_nl="${_seen_nl}"$'\n'
     while IFS='=' read -r _key _; do
       [ -z "$_key" ] && continue
-      case "$_seen" in
-        *" $_key "*) continue ;;
+      case "${_seen_nl}" in
+        *$'\n'"${_key}"$'\n'*) continue ;;
       esac
-      _seen="$_seen$_key "
+      _seen_nl="${_seen_nl}${_key}"$'\n'
       v=$(catalog_get "$_key")
       v=$(catalog_norm_ws "$v")
       printf '%s=%s\n' "$_key" "$v"
     done < "$_CAT_FILE"
   fi
+}
+
+catalog_shell_dump() {
+  catalog_shell_parse_all
+  catalog_shell_emit_from_store
 }
 
 # wave924: Parse all mk files + host defaults into the store (shared by
@@ -558,6 +628,28 @@ catalog_shell_parse_all() {
     catalog_seed_host_defaults
     return 0
   fi
+
+  # 2026-08-12 wall: durable cross-process disk cache when parent did not
+  # supply XLANG_CATALOG_CACHE_FILE. Bare g05_prepare / ensure_host try-* each
+  # re-entered --shell → ~16s Ubuntu catalog re-parse (L2 multi-g05 wall).
+  # Fingerprint = this script + 17 mk mtimes + product-default LEGACY env.
+  # Opt-out: XLANG_CATALOG_NO_DISK_CACHE=1. Override path: XLANG_CATALOG_DISK_CACHE.
+  # PLATFORM: SHARED — /tmp disk cache is local gold only (not product binary).
+  _catalog_disk=""
+  _catalog_fp=""
+  if [ "${XLANG_CATALOG_NO_DISK_CACHE:-0}" != "1" ]; then
+    _catalog_disk=$(catalog_disk_cache_path)
+    _catalog_fp=$(catalog_disk_cache_fp)
+    if [ -n "$_catalog_disk" ] && [ -s "$_catalog_disk" ] \
+      && [ -f "${_catalog_disk}.fp" ] \
+      && [ "$(cat "${_catalog_disk}.fp" 2>/dev/null || true)" = "$_catalog_fp" ]; then
+      export XLANG_CATALOG_CACHE_FILE="$_catalog_disk"
+      cat "$_catalog_disk" >> "$_CAT_FILE"
+      catalog_seed_host_defaults
+      return 0
+    fi
+  fi
+
   catalog_seed_host_defaults
   # Include order matches make dependency of lists
   # (user_asm → pipeline_x → r_lists → subcmd → mode → link_picks → export → composites).
@@ -600,6 +692,21 @@ catalog_shell_parse_all() {
   catalog_parse_mk "mk/std_core_hybrid_product_objs.mk"
   catalog_parse_mk "mk/std_and_panic_objs.mk"
   catalog_expand_all_stored
+
+  # Persist durable disk cache after a full mk parse so the next process hits
+  # the fast path (no parent XLANG_CATALOG_CACHE_FILE required).
+  if [ -n "${_catalog_disk:-}" ] && [ -n "${_catalog_fp:-}" ] \
+    && [ "${XLANG_CATALOG_NO_DISK_CACHE:-0}" != "1" ]; then
+    _catalog_tmp="${_catalog_disk}.tmp.$$"
+    if catalog_shell_emit_from_store >"$_catalog_tmp" 2>/dev/null \
+      && [ -s "$_catalog_tmp" ]; then
+      mv -f "$_catalog_tmp" "$_catalog_disk"
+      printf '%s\n' "$_catalog_fp" >"${_catalog_disk}.fp"
+      export XLANG_CATALOG_CACHE_FILE="$_catalog_disk"
+    else
+      rm -f "$_catalog_tmp"
+    fi
+  fi
 }
 
 # wave924: --link-export phase1|final — shell-primary SEED_LINK_* dump.

@@ -40,6 +40,8 @@ void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *u
 void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 /* wave151: CLI extra .o append (path_pure L0 pure orch; Cap residual table+access). */
 void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+/* wave146: argv dedup used by extra append (mega #ifndef body; proto before first call). */
+int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
@@ -2369,6 +2371,10 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
 void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root);
 int invoke_cc_run_cc_argv(char **argv);
+/* Stage 12.2.3 G.7 single host-cc gate (FORBID+ALLOW); pure body in labi_invoke_cc_list.
+ * Decl here so xlang_invoke_cc_impl can isolate ensure/argv before any heavy work.
+ * PLATFORM: SHARED — product default deny; experimental ALLOW=1 only. */
+int invoke_cc_host_cc_spawn_gate(void);
 void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
 void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root);
@@ -2485,8 +2491,15 @@ const char *invoke_cc_argv_resolve_existing_path_impl(const char *path) {
     if (!path || !path[0])
         return NULL;
 #if !defined(_WIN32) && !defined(_WIN64)
+    /* PLATFORM: SHARED — never recycle slots still referenced by argv.
+     * `% SZ` wrap made two argv entries alias one slot: CLI extra
+     * `compiler/runtime_atomic_glue.o` + auto-pushed companion became
+     * Darwin ld "duplicate symbol in the same .o twice". Ubuntu GNU ld
+     * hid the hole. Full pool: keep caller's durable pointer. */
+    if (abs_pool_i >= INVOKE_CC_ABS_POOL_SZ)
+        return path;
     {
-        char *slot = abs_pool[abs_pool_i % INVOKE_CC_ABS_POOL_SZ];
+        char *slot = abs_pool[abs_pool_i];
         abs_pool_i++;
         /* wave261: face (gates + _impl), not raw realpath. */
         if (link_abi_realpath_cap(path, slot) != NULL)
@@ -2914,18 +2927,40 @@ int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, con
          * is the function call (std_net_listen), not the struct name (Foo). The legacy check
          * "line-startswith struct/typedef" falsely skipped such lines → need_net=0 → net.o not
          * pushed → BLD001 undefined _std_net_listen.
-         * Root cause fix (2026-07-19): distinguish struct/typedef DEFINITION (needle is the
-         * type name, preceded by "struct "/"typedef ") from variable decl (needle is the
-         * function call, preceded by "= "/"("/"," etc.). Only skip the former.
+         * Root (2026-07-19): distinguish tag name vs call-site needle.
+         * Bug (2026-08-10 L4 Mac run-backtrace): walking whitespace then checking
+         * memcmp(p-7,"struct ") FAILED for the common form `struct std_string_String`
+         * because the single space of "struct " was consumed by the walk-back, leaving
+         * p on the last letter of "struct" (p-7 no longer points at "struct "). Result:
+         * need_string/map/error=1 from preamble alone → formals co-emitting core_mem_*
+         * linked together with -Wl,-export_dynamic (backtrace) → 33 duplicate symbols
+         * (dead_strip cannot drop them). G.7: walk back ws then match keyword *without*
+         * trailing space; require p < off (at least one ws between keyword and needle).
          */
         {
             size_t p = off;
             while (p > line_start && (data[p - 1] == ' ' || data[p - 1] == '\t'))
                 p--;
-            if (p >= line_start + 7 && memcmp(data + p - 7, "struct ", 7) == 0)
-                is_extern = 1; /* needle is the struct name in a definition or variable decl */
-            if (p >= line_start + 8 && memcmp(data + p - 8, "typedef ", 8) == 0)
-                is_extern = 1; /* needle is the typedef name */
+            /* Tag form: "struct" + ws + needle  or  "typedef" + ws + needle. */
+            if (p < off) {
+                if (p >= line_start + 6 && memcmp(data + p - 6, "struct", 6) == 0) {
+                    /* Boundary: start-of-line or non-ident before "struct". */
+                    if (p == line_start + 6 ||
+                        !((data[p - 7] >= 'A' && data[p - 7] <= 'Z') ||
+                          (data[p - 7] >= 'a' && data[p - 7] <= 'z') ||
+                          (data[p - 7] >= '0' && data[p - 7] <= '9') ||
+                          data[p - 7] == '_'))
+                        is_extern = 1;
+                }
+                if (p >= line_start + 7 && memcmp(data + p - 7, "typedef", 7) == 0) {
+                    if (p == line_start + 7 ||
+                        !((data[p - 8] >= 'A' && data[p - 8] <= 'Z') ||
+                          (data[p - 8] >= 'a' && data[p - 8] <= 'z') ||
+                          (data[p - 8] >= '0' && data[p - 8] <= '9') ||
+                          data[p - 8] == '_'))
+                        is_extern = 1;
+                }
+            }
         }
         /* Skip weak placeholder bodies only when this line contains "placeholder". */
         {
@@ -3371,6 +3406,13 @@ void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_
             break;
         if (!link_abi_path_readable(p))
             continue;
+        /* G.7: skip extra .o already on argv (auto companion / earlier extra).
+         * has_obj is realpath-equal so relative CLI spelling matches
+         * `{compiler_dir}/runtime_*.o`. Cold sat try-r1 compiles this mega
+         * TU without FROM_X and overwrites prefer .x; L4 product is this body.
+         * PLATFORM: SHARED — Darwin ld rejects the same .o twice; Ubuntu GNU ld hid it. */
+        if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
+            continue;
         argv[(*la)++] = p;
     }
 }
@@ -3452,6 +3494,22 @@ void xlang_invoke_cc_clear_user_o_files(void);
  * wave207: argv 尾 flags 迁 pure（invoke_cc_append_argv_tail_flags：pthread/-lc/allow-multiple/user_extra+NULL）；
  * wave208: MINIMAL_CC_LINK 尾迁 pure（invoke_cc_append_minimal_cc_link_tail：Win process_argv + POSIX -lc + NULL）；
  *   Cap residual xlang_spawn_sync_impl / invoke_cc_strip_out_x_impl / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
+ *
+ * Stage 12.2.3 defense-in-depth (G.7): invoke_cc_host_cc_spawn_gate runs at the top of
+ * this residual *before* argv head / early_needs / ensure-push / need-gated TLS ensure.
+ * Entry wrappers (labi_gates / monofile twin / surface) already early-gate; this isolates
+ * the Cap residual body so a direct call to xlang_invoke_cc_impl cannot ensure or build
+ * host-cc argv without ALLOW. spawn shell still re-checks the same gate authority.
+ * PLATFORM: SHARED — product default deny; experimental XLANG_ALLOW_HOST_CC=1 only.
+ *
+ * Stage 12.2.3 ALLOW-path ensure slim (G.7 need gate):
+ *   · ensure_std_net_o_auto_tls: NOT at entry; only after need scan when need_flags[5] (net).
+ *     MINIMAL_CC_LINK skips std ensure-push and never runs TLS ensure.
+ *   · heap.o: NOT always-push in ensure-push front when path non-empty; authority is
+ *     invoke_cc_append_heap_f06_ondemand (nm argv + use_line + provides + page_mmap).
+ *   · early_needs random/time/runtime: only under MINIMAL_CC_LINK (freestanding scan).
+ *     Full ALLOW path: ensure-push front need_flags[8/7/4] is sole authority (use_line).
+ * Mirrors time_os policy (ensure only under need_*, never warm-tree pre-ensure).
  */
 int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
@@ -3463,14 +3521,23 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     /* #endregion */
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
-    if (include_root && include_root[0])
-        ensure_std_net_o_auto_tls(include_root);
+    /*
+     * PLATFORM: SHARED — isolate ensure/argv behind G.7 host-cc spawn gate.
+     * Must precede argv / early_needs / ensure-push / need-gated TLS ensure work.
+     * Same authority as entry wrappers and invoke_cc_run_cc_argv;
+     * deny emits host-cc-requires-allow | forbid-host-cc.
+     */
+    if (!invoke_cc_host_cc_spawn_gate())
+        return -1;
     /*
      * PLATFORM: SHARED — do NOT pre-ensure runtime_time_os.o merely because
      * std/time/time.o exists on a warm tree. That forced every pure rv/hello
      * C link (and Darwin paths that still hit invoke_cc) to rebuild time_os.
      * Authority: ensure only under need_time (below) + ASM PRIMARY/on_demand
      * gated by labi_user_needs_runtime_time_os. G.7 complete existing need path.
+     *
+     * Same policy for ensure_std_net_o_auto_tls: never pre-ensure at ALLOW entry;
+     * only after need scan when need_net (see below). MINIMAL skips entirely.
      *
      * wave205: build argv in parent, then pure invoke_cc_run_cc_argv (spawn_sync
      * candidates) + invoke_cc_maybe_strip_out. No fork-first child argv build.
@@ -3496,7 +3563,8 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
      * runtime_process_argv.o 提供 xlang_process_argc/argv 定义，否则链接报 undefined reference。
      * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。
      * wave208 pure: MINIMAL tail (process_argv / -lc / NULL).
-     * wave225 G.7: MINIMAL gate via link_abi_getenv (not raw getenv); host residual = _impl. */
+     * wave225 G.7: MINIMAL gate via link_abi_getenv (not raw getenv); host residual = _impl.
+     * Stage 12.2.3: MINIMAL skips std need scan + ensure-push + ensure_std_net (no net TLS make). */
     if (link_abi_getenv("XLANG_MINIMAL_CC_LINK")) {
         invoke_cc_append_minimal_cc_link_tail(argv, &i, argv_cap);
         /* wave205 pure: spawn cc candidates + strip (no child exec). */
@@ -3525,6 +3593,14 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
          * wave200–204 ensure-push/heap pure; wave205 fork-exec pure. */
         int need_flags[52];
         invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
+        /*
+         * PLATFORM: SHARED — need-gated TLS auto ensure (ALLOW path only; post-scan).
+         * need_flags[5] == net. Skip when include_root empty. G.7 single ensure authority
+         * remains ensure_std_net_o_auto_tls; call site moved off entry for on-demand slim.
+         * ensure-push front still appends net_tls ld flags when need_net + net.o present.
+         */
+        if (need_flags[5] && include_root && include_root[0])
+            ensure_std_net_o_auto_tls(include_root);
         /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
          * May set need_flags[6]=1 when net.o links (workers → thread). */
         invoke_cc_append_std_ensure_push_front(argv, &i, argv_cap, need_flags, 52, include_root,
@@ -3560,7 +3636,11 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     return 0;
 }
 
-/* G-02f-277 L9 gates */
+/* G-02f-277 L9 gates
+ * Stage 12.2.3 / 13.2.4: cold monofile twin must match labi_gates.x early host-cc gate
+ * (G.7 single deny path). Without this, LABI=0 cold seed still enters impl; impl now
+ * also gates before ensure/argv (defense-in-depth), and invoke_cc_run_cc_argv re-checks.
+ * PLATFORM: SHARED — product hybrid uses L9 pure (FROM_X); this body is cold residual. */
 #ifndef XLANG_LABI_GATES_FROM_X
 int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
   if (c_paths == NULL) {
@@ -3569,6 +3649,10 @@ int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const cha
   if (out_path == NULL) {
     return -1;
   }
+  /* Early deny: skip entering impl (and its ensure/argv) when host-cc is not opt-in (≡ labi_gates).
+   * impl re-checks the same gate as defense-in-depth for direct residual calls. */
+  if (!invoke_cc_host_cc_spawn_gate())
+    return -1;
   {
     return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
   }

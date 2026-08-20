@@ -239,44 +239,42 @@ int32_t glue_type_ref_is_named_struct_layout(uint8_t * arena, uint8_t * mod, int
   }
   return 0;
 }
+/* PLATFORM: SHARED — shift/or only (no *256 ladder); matches .x authority. */
 uint8_t * g02f_load_ptr_at(uint8_t * p, int32_t off) {
-  if ((p ==0)) {
-    return ((uint8_t *)(0));
-  }
-  size_t m = 256;
-  size_t m2 = (m * m);
-  size_t m4 = (m2 * m2);
-  size_t a = ((size_t)((p)[off]));
-  (void)((a = (a + (((size_t)((p)[(off + 1)])) * m))));
-  (void)((a = (a + (((size_t)((p)[(off + 2)])) * m2))));
-  (void)((a = (a + (((size_t)((p)[(off + 3)])) * (m2 * m)))));
-  (void)((a = (a + (((size_t)((p)[(off + 4)])) * m4))));
-  (void)((a = (a + (((size_t)((p)[(off + 5)])) * (m4 * m)))));
-  (void)((a = (a + (((size_t)((p)[(off + 6)])) * (m4 * m2)))));
-  (void)((a = (a + (((size_t)((p)[(off + 7)])) * ((m4 * m2) * m)))));
-  return ((uint8_t *)(a));
+  size_t a;
+  if (p == 0)
+    return (uint8_t *)0;
+  a = (size_t)p[off];
+  a |= ((size_t)p[off + 1]) << 8;
+  a |= ((size_t)p[off + 2]) << 16;
+  a |= ((size_t)p[off + 3]) << 24;
+  a |= ((size_t)p[off + 4]) << 32;
+  a |= ((size_t)p[off + 5]) << 40;
+  a |= ((size_t)p[off + 6]) << 48;
+  a |= ((size_t)p[off + 7]) << 56;
+  return (uint8_t *)a;
 }
+/* PLATFORM: SHARED — shift/mask only (no / %); pure-asm miscompiled %256 path. */
 void g02f_store_ptr_at(uint8_t * p, int32_t off, uint8_t * val) {
-  if ((p ==0)) {
+  size_t a;
+  if (p == 0)
     return;
-  }
-  size_t a = ((size_t)(val));
-  size_t m = 256;
-  (void)(((p)[(off + 0)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 1)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 2)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 3)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 4)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 5)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 6)] = ((uint8_t)((a % m)))));
-  (void)((a = (a / m)));
-  (void)(((p)[(off + 7)] = ((uint8_t)((a % m)))));
+  a = (size_t)val;
+  p[off + 0] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 1] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 2] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 3] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 4] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 5] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 6] = (uint8_t)(a & 255);
+  a >>= 8;
+  p[off + 7] = (uint8_t)(a & 255);
 }
 int32_t asm_local_var_slot_holds_indirect_ptr(uint8_t * arena, int32_t expr_ref, uint8_t * mod, uint8_t * asm_ctx) {
   if ((arena ==0)) {
@@ -540,7 +538,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
     if ((func_ix >=0)) {
       (void)(((out_fi)[0] = func_ix));
       if ((dep_ix >=0)) {
-        uint8_t * pctx = g02f_load_ptr_at(ctx, 1256);
+        uint8_t * pctx = g02f_load_ptr_at(ctx, 1384);
         if ((pctx ==0)) {
           (void)((pctx = pipeline_asm_emit_dep_pipe_c_retu8_ptr()));
         }
@@ -572,7 +570,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
         if ((field_len <=63)) {
           uint8_t field_name[128] = {};
           (void)(pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(caller_arena, callee_ref, &((field_name)[0])));
-          uint8_t * pctx2 = g02f_load_ptr_at(ctx, 1256);
+          uint8_t * pctx2 = g02f_load_ptr_at(ctx, 1384);
           if ((pctx2 ==0)) {
             (void)((pctx2 = pipeline_asm_emit_dep_pipe_c_retu8_ptr()));
           }
@@ -617,7 +615,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
       (void)(((out_fi)[0] = fi3));
       return 1;
     }
-    uint8_t * pctx3 = g02f_load_ptr_at(ctx, 1256);
+    uint8_t * pctx3 = g02f_load_ptr_at(ctx, 1384);
     if ((pctx3 ==0)) {
       (void)((pctx3 = pipeline_asm_emit_dep_pipe_c_retu8_ptr()));
     }
@@ -1552,7 +1550,8 @@ int32_t try_inline_param0_single_field_call_elf(uint8_t * arena, uint8_t * elf_c
     if ((callee_mod ==0)) {
       return 0;
     }
-    if ((backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) ==0)) {
+    /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
+    if ((backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0)) {
       return 0;
     }
     if ((ret_ref <=0)) {
@@ -1634,7 +1633,8 @@ int32_t try_inline_param0_field_sum_call_elf(uint8_t * arena, uint8_t * elf_ctx,
     if ((callee_mod ==0)) {
       return 0;
     }
-    if ((backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) ==0)) {
+    /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
+    if ((backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) <= 0)) {
       return 0;
     }
     if ((ret_ref <=0)) {
@@ -1732,7 +1732,7 @@ int32_t try_inline_var_field_sum_binop_elf(uint8_t * arena, uint8_t * elf_ctx, i
   {
     int32_t base_l = pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(arena, left_ref);
     int32_t base_r = pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(arena, right_ref);
-    uint8_t * pctx = g02f_load_ptr_at(ctx, 1256);
+    uint8_t * pctx = g02f_load_ptr_at(ctx, 1384);
     int32_t off_a = (0 - 1);
     int32_t off_b = (0 - 1);
     int32_t nd = pipeline_dep_ctx_ndep_u8_ptr_reti32(pctx);
@@ -2501,9 +2501,7 @@ int32_t asm_array_lit_elem_byte_sz(uint8_t * arena, int32_t array_lit_ref) {
   }
   return 8;
 }
-int32_t pipeline_asm_array_lit_elem_byte_sz_c(uint8_t * arena, int32_t array_lit_ref) {
-  return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
-}
+/* wave143: Cap residual pure — definition in runtime_pipeline_abi */
 int32_t asm_array_lit_reserve_stack_bytes(uint8_t * arena, int32_t init_ref) {
   if ((arena ==0)) {
     return 0;

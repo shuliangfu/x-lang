@@ -22,27 +22,51 @@
 // See implementation.
 // See implementation.
 
-const mem = import("core.mem");
-
 /**
- * See implementation.
+ * Fill ptr[0..n) with byte. Local loop — do not call imported core.mem.mem_set
+ * from this nested heap file: typeck of import("std.heap") re-checks ops.x and
+ * treats `mem.mem_set` as METHOD on an unbound import (T001). Same bytes as
+ * core/mem/mod.x mem_set.
+ * @param ptr *u8 — destination; null + n>0 is caller error
+ * @param byte u8 — fill value
+ * @param n i32 — byte count; n<=0 is no-op
+ * @return void
+ * PLATFORM: SHARED — unblocks formal_mod compile of std/vec via import heap.
  */
 export function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
   if (n <= 0) {
     return;
   }
-  /* See implementation. */
-  mem.mem_set(ptr, byte, n as usize);
+  let i: i32 = 0;
+  while (i < n) {
+    ptr[i] = byte;
+    i = i + 1;
+  }
 }
 
 /**
- * See implementation.
+ * Compare a[0..n) vs b[0..n); -1/0/1. Local loop (same reason as heap_mem_set_c).
+ * @param a *u8 — left bytes
+ * @param b *u8 — right bytes
+ * @param n i32 — byte count; n<=0 → 0
+ * @return i32 — memcmp-style
+ * PLATFORM: SHARED
  */
 export function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
   if (n <= 0) {
     return 0;
   }
-  return mem.mem_compare(a, b, n as usize);
+  let i: i32 = 0;
+  while (i < n) {
+    if (a[i] < b[i]) {
+      return -1;
+    }
+    if (a[i] > b[i]) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
 }
 
 /**

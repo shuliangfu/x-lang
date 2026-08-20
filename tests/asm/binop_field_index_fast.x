@@ -9,7 +9,7 @@ struct Point {
  * @return i32
  */
 function main(): i32 {
-  let p: Point = Point { x: 3, y: 4 };
+  let p: Point = { x: 3, y: 4 };
   let arr: u8[3] = [10, 20, 30];
   let i: i32 = 1;
   let j: i32 = 2;

@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# SAFE-004：FFI 边界内存契约 manifest 门禁
+# SAFE-004: FFI boundary memory-contract manifest gate
 #
 # 1) safe-ffi-contract-v1.md + matrix
-# 2) 每个 case .x 存在且文档引用
-# 3) native xlang：逐条编译运行 + run-ffi.sh hook
+# 2) each case .x present and referenced by the doc
+# 3) native product XLANG: compile+run each case + run-ffi.sh hook
 #
-# 用法：./tests/run-safe-ffi-contract-gate.sh
+# Product path: pure-asm `$XLANG -o` via safe_ffi_run_case (host-cc only with
+# XLANG_ALLOW_HOST_CC). PLATFORM: SHARED — dual-end pure-asm product gate.
+#
+# Usage: ./tests/run-safe-ffi-contract-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
@@ -122,9 +125,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "safe-ffi-contract manifest OK (cases=${CASE_N})"
 
+# Prefer product pure-asm binary (xlang_asm) before host-cc twins.
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang ./compiler/xlang-c; do
     if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
@@ -134,56 +138,27 @@ fi
 
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== SAFE-004: contract cases (XLANG=$XLANG_BIN) ==="
-  if [ ! -x ./compiler/xlang-c ] && [ ! -x ./compiler/xlang ]; then
-    xlang_compiler_make xlang-c
-  fi
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  FFI_O_OK=1
-  if ! ensure_std_c_o ../std/ffi/ffi.o; then
-    echo "safe-ffi-contract WARN: ffi.o build failed — skip -o cases (manifest OK)" >&2
-    FFI_O_OK=0
-  fi
+  # Pure-asm product -o ensures std/ffi/ffi.o via labi (g11); no host-cc prebuild
+  # required. Optional ALLOW path may still use C-built ffi.o via ensure.
   FAIL=0
-  if [ "$FFI_O_OK" -eq 1 ]; then
-    while IFS=$'\t' read -r case_id _rule _api src expect_rc _tier _notes; do
-      [ -z "${case_id:-}" ] && continue
-      case "$case_id" in
-        case_*)
-          if safe_ffi_run_case "$XLANG_BIN" "$src" "$expect_rc" "$case_id"; then
-            echo "safe-ffi-contract OK $case_id"
-          else
-            FAIL=$((FAIL + 1))
-          fi
-          ;;
-      esac
-    done < "$MANIFEST"
-    if [ "$FAIL" -gt 0 ]; then
-      echo "safe-ffi-contract gate FAIL: cases=${FAIL}" >&2
-      exit 1
-    fi
-    chmod +x tests/run-ffi.sh
-    ./tests/run-ffi.sh
-  else
-    echo "=== SAFE-004: contract typeck-only (no ffi.o) ==="
-    while IFS=$'\t' read -r case_id _rule _api src expect_rc _tier _notes; do
-      [ -z "${case_id:-}" ] && continue
-      case "$case_id" in
-        case_*)
-          if "$XLANG_BIN" check -backend c -L . "$src" >/dev/null 2>&1; then
-            echo "safe-ffi-contract check OK $case_id"
-          else
-            echo "safe-ffi-contract FAIL check $case_id ($src)" >&2
-            FAIL=$((FAIL + 1))
-          fi
-          ;;
-      esac
-    done < "$MANIFEST"
-    if [ "$FAIL" -gt 0 ]; then
-      echo "safe-ffi-contract gate FAIL: typeck=${FAIL}" >&2
-      exit 1
-    fi
+  while IFS=$'\t' read -r case_id _rule _api src expect_rc _tier _notes; do
+    [ -z "${case_id:-}" ] && continue
+    case "$case_id" in
+      case_*)
+        if safe_ffi_run_case "$XLANG_BIN" "$src" "$expect_rc" "$case_id"; then
+          echo "safe-ffi-contract OK $case_id"
+        else
+          FAIL=$((FAIL + 1))
+        fi
+        ;;
+    esac
+  done < "$MANIFEST"
+  if [ "$FAIL" -gt 0 ]; then
+    echo "safe-ffi-contract gate FAIL: cases=${FAIL}" >&2
+    exit 1
   fi
+  chmod +x tests/run-ffi.sh
+  ./tests/run-ffi.sh
 else
   echo "safe-ffi-contract gate SKIP cases (no native xlang)" >&2
 fi

@@ -129,7 +129,7 @@ extern "C" function db_pool_idle_c(pool: i64): i32;
  */
 export function open(path: *u8): DbConn {
   let _rc: DbConn = 0;
-  unsafe { _rc = DbConn { handle: db_open_c(path) }; }
+  unsafe { _rc = { handle: db_open_c(path) }; }
   return _rc;
 }
 
@@ -173,7 +173,7 @@ export function rows(conn: DbConn, sql: *u8): i32 {
  */
 export function begin(conn: DbConn, sql: *u8): DbRowCursor {
   let _rc: DbRowCursor = 0;
-  unsafe { _rc = DbRowCursor { cursor: db_query_begin_c(conn.handle, sql) }; }
+  unsafe { _rc = { cursor: db_query_begin_c(conn.handle, sql) }; }
   return _rc;
 }
 
@@ -295,7 +295,7 @@ export function rollback(conn: DbConn): i32 {
  */
 export function last_error(): DbError {
   let _rc: DbError = 0;
-  unsafe { _rc = DbError {
+  unsafe { _rc = {
       code: db_last_code_c(),
       msg: db_last_error_msg_c(),
     }; }
@@ -329,7 +329,7 @@ export function changes(conn: DbConn): i32 {
  */
 export function prepare(conn: DbConn, sql: *u8): DbStmt {
   let _rc: DbStmt = 0;
-  unsafe { _rc = DbStmt { handle: db_prepare_c(conn.handle, sql) }; }
+  unsafe { _rc = { handle: db_prepare_c(conn.handle, sql) }; }
   return _rc;
 }
 
@@ -341,7 +341,7 @@ export function prepare(conn: DbConn, sql: *u8): DbStmt {
  */
 export function prepare_cached(conn: DbConn, sql: *u8): DbStmt {
   let _rc: DbStmt = 0;
-  unsafe { _rc = DbStmt { handle: db_prepare_cached_c(conn.handle, sql) }; }
+  unsafe { _rc = { handle: db_prepare_cached_c(conn.handle, sql) }; }
   return _rc;
 }
 
@@ -466,7 +466,7 @@ export function col_blob_read(stmt: DbStmt, col: i32, offset: i32, out: *u8, cap
  */
 export function open(path: *u8, max_conns: i32): DbPool {
   let _rc: DbPool = 0;
-  unsafe { _rc = DbPool { handle: db_pool_open_c(path, max_conns) }; }
+  unsafe { _rc = { handle: db_pool_open_c(path, max_conns) }; }
   return _rc;
 }
 
@@ -487,7 +487,7 @@ export function close(pool: DbPool): i32 {
  */
 export function acquire(pool: DbPool): DbConn {
   let _rc: DbConn = 0;
-  unsafe { _rc = DbConn { handle: db_pool_acquire_c(pool.handle) }; }
+  unsafe { _rc = { handle: db_pool_acquire_c(pool.handle) }; }
   return _rc;
 }
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# SIMD-S2 门禁：std.simd Vec4f/Vec8i 编译 + 可选运行 smoke。
+# SIMD-S2 门禁：std.simd Vec4f/Vec8i 真链 + 运行 smoke。
+# 必须 -o exe（非 .o）：compile-to-.o 不走 ld，会把 UNDEF std_simd_* 假绿。
+# PLATFORM: SHARED harness — Ubuntu x86_64 gold; Darwin 同路径真链。
 # 用法：
 #   ./tests/run-simd-s2-gate.sh
 #   XLANG=./compiler/xlang_asm ./tests/run-simd-s2-gate.sh
@@ -36,7 +38,7 @@ if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
   done
 fi
 
-echo "=== SIMD-S2: Vec4f / Vec8i compile smoke ==="
+echo "=== SIMD-S2: Vec4f / Vec8i true-link smoke ==="
 
 if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
   echo "simd-s2 gate SKIP (no native xlang/xlang_asm)"
@@ -44,33 +46,44 @@ if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
 fi
 
 SMOKE_SRC="tests/simd/vec4f_vec8i_smoke.x"
-SMOKE_O="/tmp/xlang_simd_s2_smoke.o"
-rm -f "$SMOKE_O"
+SMOKE_EXE="/tmp/xlang_simd_s2_smoke"
+rm -f "$SMOKE_EXE"
 
-if ! XLANG="$XLANG_ABS" "$XLANG_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
-  echo "simd-s2 FAIL: compile $SMOKE_SRC" >&2
+# Product CLI: -L . so import("std.simd") resolves; -o exe so ld sees UNDEF.
+if ! XLANG="$XLANG_ABS" "$XLANG_ABS" -L . "$SMOKE_SRC" -o "$SMOKE_EXE"; then
+  echo "simd-s2 FAIL: compile/link $SMOKE_SRC" >&2
   exit 1
 fi
 
-if [ ! -f "$SMOKE_O" ]; then
-  echo "simd-s2 FAIL: missing $SMOKE_O" >&2
+if [ ! -x "$SMOKE_EXE" ]; then
+  echo "simd-s2 FAIL: missing exe $SMOKE_EXE" >&2
   exit 1
 fi
 
 if command -v readelf >/dev/null 2>&1; then
   # readelf -S 双行格式：`.text` 在第 1 行，Size 在下一行第 1 列（勿用 $2==".text"）。
-  if ! readelf -S "$SMOKE_O" 2>/dev/null | grep -qE '[[:space:]]\.text[[:space:]]'; then
-    echo "simd-s2 FAIL: no .text in $SMOKE_O" >&2
+  if ! readelf -S "$SMOKE_EXE" 2>/dev/null | grep -qE '[[:space:]]\.text[[:space:]]'; then
+    echo "simd-s2 FAIL: no .text in $SMOKE_EXE" >&2
     exit 1
   fi
-  TEXT_SIZE="$(readelf -S "$SMOKE_O" 2>/dev/null | awk '
+  TEXT_SIZE="$(readelf -S "$SMOKE_EXE" 2>/dev/null | awk '
     /[[:space:]]\.text[[:space:]]/ { getline; print $1; exit }
   ')"
   if [ -z "$TEXT_SIZE" ] || [ "$TEXT_SIZE" = "000000" ]; then
-    echo "simd-s2 FAIL: .text size zero in $SMOKE_O" >&2
+    echo "simd-s2 FAIL: .text size zero in $SMOKE_EXE" >&2
     exit 1
   fi
   echo "simd-s2: .text present (size=$TEXT_SIZE)"
 fi
+
+set +e
+"$SMOKE_EXE"
+SMOKE_RC=$?
+set -e
+if [ "$SMOKE_RC" -ne 0 ]; then
+  echo "simd-s2 FAIL: run exit $SMOKE_RC (expected 0)" >&2
+  exit 1
+fi
+echo "simd-s2: run=0"
 
 echo "simd-s2 gate OK"

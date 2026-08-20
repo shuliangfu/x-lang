@@ -74,15 +74,21 @@ run_filter() {
     exit 1
   fi
   # PLATFORM: SHARED — bash required (arrays); Ubuntu dash rejects OMITS=().
+  # wave304: omit strict_minimal only when residual .o still on disk (seed retired).
+  local -a _omits=(
+    --omit "$OMIT_TYPECK"
+    --omit "$OMIT_CODEGEN"
+    --omit "$PARTIAL"
+  )
+  if [ -f "$STRICT" ]; then
+    _omits+=(--omit "$STRICT")
+  fi
   exec bash scripts/filter_o_export_against_deps.sh \
     --src "$src" \
     --out "$out" \
     --stem "$STEM" \
     --require-keep \
-    --omit "$OMIT_TYPECK" \
-    --omit "$OMIT_CODEGEN" \
-    --omit "$PARTIAL" \
-    --omit "$STRICT"
+    "${_omits[@]}"
 }
 
 ensure_try_heat() {
@@ -127,7 +133,10 @@ do_ensure() {
   if [ ! -f "$src" ]; then
     ensure_try_heat "$src"
   fi
-  if [ ! -f "$STRICT" ]; then
+  # wave304 G.7 8.3.6: strict_minimal seed shell retired — do not try-heat a
+  # deleted seed. Omit only when residual .o still exists on disk.
+  # PLATFORM: SHARED freestanding shell retire.
+  if [ -f seeds/pipeline_glue_strict_minimal.from_x.c ] && [ ! -f "$STRICT" ]; then
     ensure_try_heat "$STRICT"
   fi
   if [ ! -f "$src" ]; then
@@ -138,15 +147,20 @@ do_ensure() {
     echo "$TAG: skip up-to-date $out"
     exit 0
   fi
+  _filter_omit=(
+    --omit "$OMIT_TYPECK"
+    --omit "$OMIT_CODEGEN"
+    --omit "$PARTIAL"
+  )
+  if [ -f "$STRICT" ]; then
+    _filter_omit+=(--omit "$STRICT")
+  fi
   bash scripts/filter_o_export_against_deps.sh \
     --src "$src" \
     --out "$out" \
     --stem "$STEM" \
     --require-keep \
-    --omit "$OMIT_TYPECK" \
-    --omit "$OMIT_CODEGEN" \
-    --omit "$PARTIAL" \
-    --omit "$STRICT"
+    "${_filter_omit[@]}"
 }
 
 do_check() {

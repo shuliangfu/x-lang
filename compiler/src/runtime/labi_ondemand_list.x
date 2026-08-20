@@ -51,9 +51,10 @@
 //   (wave210–213 pure own has_undef + exports_marker + needs_undef + has_defined public gates).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
-// core_option=6 core_result=7 core_debug=8 core_slice=9.
+// core_option=6 core_result=7 core_debug=8 core_slice=9 core_builtin=10 std_ffi=11.
 // Formal core/*/*.o; g1 rel is core/types/types.o; g9 rel is core/slice/mod.o (API, not glue).
 // g9: length.x needs core_slice_len_i32/get_* from mod.x; glue remains core/slice/slice.o.
+// g11: pure-asm import METHOD mangle → std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x).
 
 /**
  * Cap residual (wave212): host nm/popen exact UNDEF probe body (+ LINUX ELF freestanding).
@@ -262,13 +263,24 @@ export extern "C" function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
 
-/** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
+/**
+ * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
+ * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
+ * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
+ * @return i32 — 20 (was 19; +g19 std.io ctx-timeout formal faces STD-091)
+ * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
+ */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 10;
+  return 20;
 }
 
-/** Return symbol probe count for simple group g. */
+/**
+ * Return symbol probe count for simple group g.
+ * @param g i32 — group index in [0, labi_od_simple_group_count())
+ * @return i32 — exact UNDEF needle count for that group; 0 if out of range
+ * PLATFORM: SHARED — must match formal export surface for each rel .o
+ */
 #[no_mangle]
 export function labi_od_simple_group_sym_count(g: i32): i32 {
   if (g < 0) {
@@ -304,6 +316,58 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // core.slice formal API surface (tests/slice/length.x, subslice_split_chunks.x).
   if (g == 9) {
     return 10;
+  }
+  // PLATFORM: SHARED — core.builtin formal (tests/builtin/main.x pure-asm UNDEF residual).
+  // G-01: C-path still never hard-links builtin.o (bitops → __builtin_*); pure-asm emits
+  // external core_builtin_* and needs formal core/builtin/builtin.o via this group.
+  if (g == 10) {
+    return 14;
+  }
+  // PLATFORM: SHARED — std.ffi formal (tests/ffi/main.x pure-asm UNDEF residual).
+  // Pure-asm import METHOD → std_ffi_*; also probe leaf ffi_*_c faces from ffi.x.
+  if (g == 11) {
+    return 8;
+  }
+  // PLATFORM: SHARED — std.test formal (tests/stdtest pure-asm residual).
+  // need_test special path can miss when monofile dual lags; simple-group is
+  // the same authority path as g10/g11 (ensure formal + push).
+  if (g == 12) {
+    return 5;
+  }
+  // PLATFORM: SHARED — core.assert formal (run-debug core-assert residual).
+  // Distinct from g8 core.debug (core_debug_*); pure-asm mangles core.assert → core_assert_*.
+  if (g == 13) {
+    return 6;
+  }
+  // PLATFORM: SHARED — std.fmt formal (run-fmt / run-fmt-std residual).
+  // Not on default OP_STD plan; simple-group is sole pure-asm push path.
+  if (g == 14) {
+    return 8;
+  }
+  // PLATFORM: SHARED — std.compress formal facade (run-compress residual).
+  // Product path previously retired compress.o for C co-emit; pure-asm needs formal T.
+  if (g == 15) {
+    return 6;
+  }
+  // PLATFORM: SHARED — std.io.driver formal (run-io-driver residual).
+  if (g == 16) {
+    return 4;
+  }
+  // PLATFORM: SHARED — std.debug formal (run-debug std-debug residual).
+  if (g == 17) {
+    return 3;
+  }
+  // PLATFORM: SHARED — std.simd formal (run-perf-simd + STD-SIMD-INTRINSIC).
+  // VECTOR mid faces: shuffle/select/splat + add/sub/mul/hsum/dot/fma/madd
+  // + scalar placeholder/hw_available/recommend_path/SIMD_PATH_* (s2/autovec)
+  // + select_lane i32/f32 (product helper; sole-call UNDEF without these needles).
+  if (g == 18) {
+    return 23;
+  }
+  // PLATFORM: SHARED — std.io context-timeout formal (run-std-io-context residual).
+  // timeout_from_ctx / read_ctx / write_ctx (mod.x; monofile skip std.io emit).
+  if (g == 19) {
+    return 3;
   }
   return 0;
 }
@@ -558,10 +622,378 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — core.builtin formal export surface (core/builtin/mod.x).
+  // Pure-asm import METHOD/CALL mangle → core_builtin_<name>; must match formal_mod.
+  if (g == 10) {
+    if (i == 0) {
+      let p: *u8 = "core_builtin_placeholder";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_builtin_copy";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_builtin_min_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_builtin_max_i32";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_builtin_min_u32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_builtin_max_u32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_builtin_clz_u32";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_builtin_ctz_u32";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_builtin_popcount_u32";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_builtin_bswap_u32";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "core_builtin_rotl_u32";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "core_builtin_rotr_u32";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "core_builtin_unreachable";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "core_builtin_abort";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.ffi formal export surface (std/ffi/mod.x + ffi.x).
+  // Pure-asm import METHOD/CALL mangle → std_ffi_<name>; leaf faces ffi_*_c.
+  if (g == 11) {
+    if (i == 0) {
+      let p: *u8 = "std_ffi_cstr_len";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_ffi_cstring_new";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_ffi_cstring_free";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_ffi_cstring_try_new";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_ffi_cstring_destroy";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "ffi_cstr_len_c";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "ffi_cstring_new_c";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "ffi_cstring_free_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.test formal export surface (std/test/mod.x + test.x).
+  if (g == 12) {
+    if (i == 0) {
+      let p: *u8 = "std_test_expect";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_test_expect_eq_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_test_expect_ne_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_test_assert";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_test_runner_case";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — core.assert formal export surface (core/assert/mod.x).
+  if (g == 13) {
+    if (i == 0) {
+      let p: *u8 = "core_assert_assert";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_assert_assert_eq_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_assert_assert_ne_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_assert_debug_assert";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_assert_assert_eq_u32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_assert_assert_eq_bool";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.fmt formal export surface (std/fmt/mod.x).
+  // Exact needles cover sole-caller overload faces used by tests/fmt/main.x.
+  if (g == 14) {
+    if (i == 0) {
+      let p: *u8 = "std_fmt_format_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_u32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_i64";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_fmt_to_buf_u8_ptr_i32_u64";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_fmt_hex_to_buf_u8_ptr_i32_u32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_fmt_append_to_buf_u8_ptr_i32_i32_i32";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_fmt_format_u8_ptr_i32_i32_i32";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.compress formal facade (std/compress/mod.x).
+  if (g == 15) {
+    if (i == 0) {
+      let p: *u8 = "std_compress_gzip_compress";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_compress_gzip_decompress";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_compress_brotli_compress";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_compress_brotli_decompress";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_compress_zstd_compress";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_compress_zstd_decompress";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.io.driver formal (std/io/driver.x).
+  if (g == 16) {
+    if (i == 0) {
+      let p: *u8 = "std_io_driver_register";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_io_driver_submit_read";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_io_driver_submit_write";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_io_driver_submit_register_fixed_buffers_buf";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.debug formal (std/debug formal_surface).
+  if (g == 17) {
+    if (i == 0) {
+      let p: *u8 = "std_debug_assert";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_debug_println_u8_ptr_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_debug_print_u8_ptr_i32";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.simd formal (shuffle/select/splat + binop/dot/fma + scalar faces).
+  if (g == 18) {
+    if (i == 0) {
+      let p: *u8 = "std_simd_shuffle_f32x4_i32_a4";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_simd_shuffle_i32x8_i32_a8";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_simd_select_f32x4_f32x4_f32x4";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_simd_select_i32x8_i32x8_i32x8";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_simd_splat_i32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_simd_splat_f32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_simd_mul_f32x4_f32x4";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_simd_mul_i32x8_i32x8";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_simd_sub_i32x8_i32x8";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_simd_sub_f32x4_f32x4";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "std_simd_add_f32x4_f32x4";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_simd_add_i32x8_i32x8";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "std_simd_dot";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "std_simd_madd";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "std_simd_fma";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "std_simd_hsum";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "std_simd_placeholder";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "std_simd_hw_available";
+      return p;
+    }
+    if (i == 18) {
+      let p: *u8 = "std_simd_recommend_path";
+      return p;
+    }
+    if (i == 19) {
+      let p: *u8 = "std_simd_SIMD_PATH_SCALAR";
+      return p;
+    }
+    if (i == 20) {
+      let p: *u8 = "std_simd_SIMD_PATH_HW";
+      return p;
+    }
+    if (i == 21) {
+      let p: *u8 = "std_simd_select_lane_i32_i32_i32";
+      return p;
+    }
+    if (i == 22) {
+      let p: *u8 = "std_simd_select_lane_f32_f32_f32";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  // PLATFORM: SHARED — std.io context-timeout formal (formal_surface STD-091).
+  if (g == 19) {
+    if (i == 0) {
+      let p: *u8 = "std_io_timeout_from_ctx";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_io_read_ctx";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_io_write_ctx";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
-/** Return relative .o path for simple group g (repo-relative). */
+/**
+ * Return relative .o path for simple group g (repo-relative).
+ * @param g i32 — group index in [0, labi_od_simple_group_count())
+ * @return *u8 — static path string, or null if out of range
+ * PLATFORM: SHARED — ensure via xlang_ensure_formal_std_make_o before push
+ */
 #[no_mangle]
 export function labi_od_simple_group_rel(g: i32): *u8 {
   if (g < 0) {
@@ -605,6 +1037,56 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   }
   if (g == 9) {
     let p: *u8 = "core/slice/mod.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.builtin formal product .o (G-01 pure-asm only; C stays __builtin_*).
+  if (g == 10) {
+    let p: *u8 = "core/builtin/builtin.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.ffi formal product .o (pure-asm run-ffi residual).
+  if (g == 11) {
+    let p: *u8 = "std/ffi/ffi.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.test formal product .o (pure-asm run-stdtest residual).
+  if (g == 12) {
+    let p: *u8 = "std/test/test.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.assert formal product .o (run-debug core-assert residual).
+  if (g == 13) {
+    let p: *u8 = "core/assert/assert.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.fmt formal product .o (run-fmt residual).
+  if (g == 14) {
+    let p: *u8 = "std/fmt/fmt.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.compress formal product .o (run-compress residual).
+  if (g == 15) {
+    let p: *u8 = "std/compress/compress.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.io.driver formal product .o (run-io-driver residual).
+  if (g == 16) {
+    let p: *u8 = "std/io/driver.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.debug formal product .o (run-debug residual).
+  if (g == 17) {
+    let p: *u8 = "std/debug/debug.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.simd formal product .o (run-perf-simd residual).
+  if (g == 18) {
+    let p: *u8 = "std/simd/simd.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.io context-timeout formal product .o (STD-091 residual).
+  if (g == 19) {
+    let p: *u8 = "std/io/io.o";
     return p;
   }
   return 0 as *u8;
@@ -1297,14 +1779,20 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
  */
 #[no_mangle]
 export function labi_od_test_sym_count(): i32 {
-  return 7;
+  // PLATFORM: SHARED — 7 bare/prefix + 5 pure-asm std_test_* exact faces.
+  return 12;
 }
 
 /**
  * Product test on_demand UNDEF symbol or prefix at index (needs_std_test probe table).
- * @param i i32 — index in [0, 7)
+ * @param i i32 — index in [0, labi_od_test_sym_count())
  * @return *u8 — static C string symbol/prefix, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_test authority (no second hard-coded list)
+ *
+ * Pure-asm import METHOD mangle emits std_test_* (not bare test_*). Historical
+ * table only had bare prefixes; exact-match UNDEF scan never hit std_test_expect
+ * → need_test=0 → never push formal test.o (run-stdtest residual).
+ * Complete: keep bare prefixes for C-path co-emit + add exact std_test_* faces.
  */
 #[no_mangle]
 export function labi_od_test_sym_at(i: i32): *u8 {
@@ -1337,6 +1825,27 @@ export function labi_od_test_sym_at(i: i32): *u8 {
   }
   if (i == 6) {
     let p: *u8 = "test_fuzz_";
+    return p;
+  }
+  // PLATFORM: SHARED — pure-asm product faces (exact match; Darwin nm -u).
+  if (i == 7) {
+    let p: *u8 = "std_test_expect";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_test_expect_eq_i32";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_test_expect_ne_i32";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_test_assert";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_test_runner_case";
     return p;
   }
   return 0 as *u8;
@@ -2958,20 +3467,22 @@ export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
 
 /**
  * Count of runtime process_argv UNDEF needles for labi_user_needs_runtime_process_argv.
- * Product complete (G.7): process_*_c + process_xlang_* + std_process_* + std_env_args_iter.
- * @return i32 — 9
+ * G.7: process_argv only for bare argv glue + env args_iter (not product std_process_*).
+ * Product import METHOD std_process_* opens std/process/process.o via fk==1 (OP_STD).
+ * Pushing process_argv for std_process_* dual-linked with process.o (multidef args_c).
+ * @return i32 — 5
  * PLATFORM: SHARED
  */
 #[no_mangle]
 export function labi_od_runtime_process_argv_sym_count(): i32 {
-  return 9;
+  return 5;
 }
 
 /**
  * runtime process_argv UNDEF needle at index (exact symbols only).
- * @param i i32 — index in [0, 9)
+ * @param i i32 — index in [0, 5)
  * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — exact match (Darwin nm -u has no type letter U)
  */
 #[no_mangle]
 export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
@@ -2995,22 +3506,6 @@ export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
     return p;
   }
   if (i == 4) {
-    let p: *u8 = "std_process_args";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "std_process_arg";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "std_process_argc";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "std_process_argv";
-    return p;
-  }
-  if (i == 8) {
     let p: *u8 = "std_env_args_iter";
     return p;
   }

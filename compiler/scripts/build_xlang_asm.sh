@@ -128,17 +128,70 @@ build_xlang_asm_info "using XLANG=$XLANG (list from $BUILD_LIST_X)"
 CC="${CC:-cc}"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/forbid_host_cc.sh"
+
+# Stage 12.2.3: pure-ld/as helpers (zero-CC when XLANG_ZERO_CC_LD/AS=1).
+# Sourced at top so all functions (including ensure_asm_link_objs fallback
+# and emit_asm_text_stub_o) can use pure_as_compile / pure_ld_partial_merge.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/pure_ld_shared.sh"
+
 # backend.x 等大模块 asm 编译 abort 时，用最小 .s/.c 占位保证 __text 非空（质检 24/24）。
+# wave297: host scripts/asm_text_stub.c left; seed authority seeds/asm_text_stub.from_x.c
 emit_asm_text_stub_o() {
   local out="$1"
-  local stub_c="scripts/asm_text_stub.c"
+  local stub_c="seeds/asm_text_stub.from_x.c"
   local stub_s="scripts/asm_text_stub.s"
+  local _stub_sym="xlang_asm_ci_text_stub"
+  # Stage 12.2.3: Generate platform-specific weak .s stub as PRIMARY path
+  # (zero-CC via pure_as_compile). Defines xlang_asm_ci_text_stub as weak —
+  # identical symbol to .c stub (verified: nm -m shows "weak external" on both
+  # Darwin and Linux). On Linux plain nm shows W (weak) vs T (strong); on Darwin
+  # plain nm shows T for both — refresh_build_asm_ci_text_stubs_for_strict_link
+  # regenerates all ≤64-byte text stubs on Darwin regardless, which is safe
+  # because this function always emits a weak stub.
+  # PLATFORM: SHARED — Darwin (.weak_definition + _prefix) / Linux (.weak).
+  local _stub_s_tmp=""
+  _stub_s_tmp="$(mktemp "${TMPDIR:-/tmp}/xlang_stub_XXXXXX.s" 2>/dev/null)" || _stub_s_tmp=""
+  if [ -n "$_stub_s_tmp" ]; then
+    case "$(uname -s 2>/dev/null)" in
+      Darwin)
+        # macOS Mach-O: underscore prefix + .weak_definition.
+        printf '.text\n.globl _%s\n.weak_definition _%s\n_%s:\n  ret\n' \
+          "$_stub_sym" "$_stub_sym" "$_stub_sym" > "$_stub_s_tmp"
+        ;;
+      Linux)
+        # ELF: no prefix + .weak.
+        printf '.text\n.globl %s\n.weak %s\n%s:\n  ret\n' \
+          "$_stub_sym" "$_stub_sym" "$_stub_sym" > "$_stub_s_tmp"
+        ;;
+      *)
+        rm -f "$_stub_s_tmp"
+        _stub_s_tmp=""
+        ;;
+    esac
+  fi
+  if [ -n "$_stub_s_tmp" ] && [ -s "$_stub_s_tmp" ]; then
+    # pure_as_compile: as when XLANG_ZERO_CC_AS=1, else $CC -c (zero regression).
+    if pure_as_compile "$out" "$_stub_s_tmp" 2>/dev/null; then
+      rm -f "$_stub_s_tmp"
+      return 0
+    fi
+    rm -f "$_stub_s_tmp"
+  fi
+  # Fallback: .c stub via $CC (zero regression when .s generation unavailable
+  # or unsupported platform, e.g. Windows/MSYS).
   if [ -f "$stub_c" ]; then
   "$CC" $CFLAGS -c -o "$out" "$stub_c" 2>/dev/null && return 0
   fi
+  # Last resort: static .s stub (different symbol __xlang_asm_mod_stub, non-weak).
   [ -f "$stub_s" ] || return 1
-  echo " fallback: $CC -c $stub_s -> $out (asm compile abort recovery)"
-  "$CC" -c -o "$out" "$stub_s" 2>/dev/null
+  echo " fallback: $stub_s -> $out (asm compile abort recovery)"
+  pure_as_compile "$out" "$stub_s" 2>/dev/null
 }
 
 # strict 链前：首遍 stub .o 若仍含强符号 xlang_asm_ci_text_stub，用 weak 版重编（并列链 multiple definition）。
@@ -2169,11 +2222,19 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
 }
 
 # B-strict：最小 glue（无 ast_pool）；编排真机在 ast_pool.c glue_standalone。
+# wave304 G.7 8.3.6: seed shell retired (0 residual T after wave303). Product
+# g05 no longer host-cc or links this .o. Soft no-op when seed absent so
+# experimental strict paths do not hard-fail; they must resolve via typeck_x /
+# pipeline_x / pipeline_abi. PLATFORM: SHARED freestanding shell retire.
 ensure_asm_pipeline_glue_strict_minimal_obj() {
   local GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
-  if [ ! -f "$GLUE_OBJ" ] || [ "seeds/pipeline_glue_strict_minimal.from_x.c" -nt "$GLUE_OBJ" ]; then
-  echo " cc -c seeds/pipeline_glue_strict_minimal.from_x.c -> $GLUE_OBJ (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o "$GLUE_OBJ"
+  local SEED="seeds/pipeline_glue_strict_minimal.from_x.c"
+  if [ ! -f "$SEED" ]; then
+    return 0
+  fi
+  if [ ! -f "$GLUE_OBJ" ] || [ "$SEED" -nt "$GLUE_OBJ" ]; then
+    echo " cc -c $SEED -> $GLUE_OBJ (G-02f-11)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c "$SEED" -o "$GLUE_OBJ"
   fi
 }
 
@@ -2212,12 +2273,17 @@ EOF
 # build_asm pipeline.o 第二遍：path/resolve/load + run_x_pipeline_impl 均 X 真 emit。
 # 当前 seed 二遍实测 __text≈6843B（低于历史 S3a 11588B 目标，但符号齐全即可 strict）。
 # nm：ELF 无 leading _，Mach-O 有 _；resolve 符号名为 resolve_path_probe_dot_x_and_mod 等。
+# G.7 authority: runtime_pipeline_abi.o is the pipeline implementation (890KB+ text,
+# 739 T symbols, run_x_pipeline_impl / path_append / resolve_path). pipeline.x is a
+# pure-extern declaration module (0 function bodies); pipeline_x.o / pipeline.o are
+# stubs (driver_leaf, 1688B text, 0 T symbols). Check the authority, not the stub.
+# PLATFORM: SHARED — runtime_pipeline_abi.o is in LD argv on both Darwin and Linux.
 asm_strict_pipeline_selfhosted() {
   local t
-  t=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
+  t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
   [ "$t" -ge 6144 ] 2>/dev/null || return 1
-  nm -g "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
-  nm -g "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
+  nm -g src/runtime_pipeline_abi.o 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
+  nm -g src/runtime_pipeline_abi.o 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
   return 0
 }
 
@@ -2699,7 +2765,12 @@ ensure_typeck_x_no_layout_partial_obj() {
   fi
   if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ]; then
   # ELF 符号无 leading _；统一 sed 去/加 _ 供 macOS exported_symbols_list 与 Linux objcopy。
-  nm "$SUO" 2>/dev/null | awk '/ T _?typeck_/ {print $3}' | sed 's/^_//' | \
+  # Keep ALL T symbols (not just typeck_* prefix): typeck.x also defines pipeline_typeck_*,
+  # pipeline_expr_is_c_*, pipeline_dep_ctx_*, glue_typeck_* etc. The old awk '/ T _?typeck_/'
+  # only matched symbols starting with typeck_ right after the T column, silently dropping
+  # pipeline_typeck_* (which have pipeline_ prefix) → undefined references in strict link.
+  # The 7 grep -v below still exclude layout symbols owned by typeck_asm_layout_partial.o.
+  nm "$SUO" 2>/dev/null | awk '/ T / {print $3}' | sed 's/^_//' | \
   grep -v '^typeck_struct_layout_metrics$' | \
   grep -v '^typeck_validate_struct_layouts_zero_padding$' | \
   grep -v '^typeck_merge_dep_struct_layouts_into_entry$' | \
@@ -2817,7 +2888,7 @@ filter_experimental_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|\
+  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o)
   continue
   ;;
@@ -2945,7 +3016,7 @@ filter_strict_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|\
+  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o|\
   parser_asm_minimal_partial.o|\
   \
@@ -3099,19 +3170,34 @@ ensure_asm_pipeline_glue_standalone_obj() {
 
 # preprocess_if_stack_* 6 个符号的独立 provider。
 # 【Why】strict re-link 不链入 pipeline_x.o（by design），ST_GLUE_OBJ=pipeline_glue_strict_minimal.o
-#        不含 ast_pool.c 的 preprocess_if_stack_* 定义；preprocess_x.o 引用这些符号会 undefined。
-#        直接链入 pipeline_glue_standalone.o 会引入 1314 个 T 符号，与 strict_minimal 的 24 个 T 符号
-#        在 --allow-multiple-definition 下冲突，strict_minimal 的不完整实现被选中导致运行时 SIGSEGV。
+#        不含 preprocess_if_stack_*；preprocess_x.o 引用这些符号会 undefined。
+# 【Authority · 2026-08-05 pure-owned WEAK cold leave】G.7 live face is
+#        runtime_pipeline_abi.o (runtime_pipeline_abi.x fixed i32[32] BSS). Host-cc
+#        pipeline_preprocess_if.c GrowVec XLANG_WEAK twin deleted from pipeline_x.
+#        Historical provider src was pipeline_glue_standalone.o (embedded ast_pool);
+#        after leave, partial-export from pure runtime_pipeline_abi.o only.
 # 【Invariant】只导出 preprocess_if_stack_* 6 个 global 符号，避免符号冲突。
 # PLATFORM: SHARED — prefer ld_partial_export (Darwin ld -exported_symbols_list / Linux
 # objcopy path inside ld_partial_export). Never hard-require host objcopy for the provider
 # path: missing .o breaks strict re-link argv (clang: no such file).
 ensure_preprocess_if_stack_provider_obj() {
-  ensure_asm_pipeline_glue_standalone_obj
-  local src_o out_o keep_list
-  src_o="$BUILD_DIR/pipeline_glue_standalone.o"
+  local src_o out_o keep_list pure_o
+  # Prefer product pure authority (cwd=compiler when invoked from build_xlang_asm).
+  pure_o="src/runtime_pipeline_abi.o"
+  if [ ! -f "$pure_o" ] && [ -f "../compiler/src/runtime_pipeline_abi.o" ]; then
+    pure_o="../compiler/src/runtime_pipeline_abi.o"
+  fi
+  if [ ! -f "$pure_o" ] && [ -f "compiler/src/runtime_pipeline_abi.o" ]; then
+    pure_o="compiler/src/runtime_pipeline_abi.o"
+  fi
+  src_o="$pure_o"
   out_o="$BUILD_DIR/preprocess_if_stack_only.o"
   keep_list="$BUILD_DIR/.preprocess_if_stack_only_keep.txt"
+  if [ ! -f "$src_o" ]; then
+    # Fallback: rebuild standalone only if pure .o missing (dev tree half-clean).
+    ensure_asm_pipeline_glue_standalone_obj
+    src_o="$BUILD_DIR/pipeline_glue_standalone.o"
+  fi
   [ -f "$src_o" ] || return 0
   # PLATFORM: DARWIN — exported_symbols_list requires Mach-O leading '_'.
   # PLATFORM: LINUX — ld_partial_export strips '_' for objcopy keep list.
@@ -3854,7 +3940,10 @@ ensure_asm_bootstrap_x_companion_objs() {
 # 与 Makefile USER_ASM_SEED_OBJS 对齐：pipeline_glue / partial 引用的 enc/call 分派 TU。
 # backend_x86_64_enc_c.o 须链入，否则 asm_full_link_stubs weak enc_label 恒 -1（用户 asm -o 全挂）。
 BSTRICT_PIPELINE_LINK_O="pipeline_x.o"
-BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+# wave309: pipeline_glue_standalone seed retired; pure runtime_pipeline_abi.o (already in
+# LD argv) is G.7 authority. Default empty; refresh_bstrict_link_variants populates only
+# when .o physically exists (end-of-function guard). PLATFORM: SHARED.
+BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
 BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
 BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
 BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
@@ -3900,6 +3989,12 @@ refresh_bstrict_link_variants() {
   BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
   # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
   GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  # wave309/wave304: glue seed shells retired; pure runtime_pipeline_abi.o (already in
+  # LD argv) is G.7 authority. Drop BSTRICT_EXPERIMENTAL_GLUE_OBJ path when .o physically
+  # absent so LD argv does not reference non-existent file (ld.bfd "cannot find").
+  # Covers Linux standalone default + Darwin complement/fallback assignments above.
+  # PLATFORM: SHARED — same authority as L4 g05 pure-ld path.
+  [ -z "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] || [ -f "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] || BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
 }
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
@@ -4566,8 +4661,9 @@ ensure_lsp_diag_pipeline_sizes_obj() {
 }
 
 # B-hybrid 链 lsp_x.o 需要 lsp_build_diagnostics_response 等；typeck_lsp_io 见 seeds/typeck_lsp_io_stub.from_x.c。
+# wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
 ensure_asm_xlang_lsp_diag_stub_obj() {
-  STUB_C="scripts/asm_xlang_lsp_diag_stub.c"
+  STUB_C="seeds/asm_xlang_lsp_diag_stub.from_x.c"
   STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
@@ -4606,12 +4702,13 @@ ensure_runtime_cc_stubs() {
   if [ -f src/runtime_driver.o ] && [ -s src/runtime_driver.o ]; then
     echo " ensure: src/runtime_driver.o exists (make/g05 authority); skip fallback rebuild"
   else
-    echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS)"
-    local rt_flags="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS"
-    if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-      rt_flags="$rt_flags -DXLANG_LEGACY_PREPROCESS_C"
+    # wave321 7.1.1: monofile seeds/runtime.from_x.c retired — multi-slice no_c + alias.
+    # PLATFORM: SHARED freestanding; archaeology fallback uses product authority.
+    echo " ensure: src/runtime_driver.o via try-rt-prefer multi-slice (wave321 monofile retired)"
+    if ! bash scripts/ensure_host_cc_seed_o.sh try-r1 src/runtime_driver.o; then
+      build_xlang_asm_error "runtime_driver.o multi-slice fallback failed (wave321)"
+      return 1
     fi
-    $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
   fi
 }
 
@@ -4705,15 +4802,18 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_driver_diagnostic_obj
   ensure_rt_seed_slice_objs
   local o="src/runtime_driver_asm_bstrict.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ "scripts/build_xlang_asm.sh" -nt "$o" ]; then
-  echo " cc -c $o <- seeds/runtime.from_x.c (-DXLANG_ASM_USE_COMPILER_IMPL_C -DXLANG_NO_C_FRONTEND + RT_*_FROM_X)"
-  local rt_flags="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_ASM_USE_COMPILER_IMPL_C -DXLANG_NO_C_FRONTEND"
-  # 与 Makefile RUNTIME_DRIVER_RT_SLICE_CFLAGS 一致：数据在 rt_* 切片，runtime 仅声明。
-  rt_flags="$rt_flags -DXLANG_RT_ARENA_BUF_FROM_X -DXLANG_RT_EMIT_STATE_FROM_X -DXLANG_RT_PREAMBLE_FROM_X -DXLANG_RT_STACK_FROM_X -DXLANG_RT_PARSE_DIAG_FROM_X"
-  if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-  rt_flags="$rt_flags -DXLANG_LEGACY_PREPROCESS_C"
-  fi
-  $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o "$o"
+  # wave321 7.1.1: monofile retired — product multi-slice no_c is authority;
+  # bstrict archaeology .o is an alias of runtime_driver_no_c (same surface).
+  # PLATFORM: SHARED freestanding; mtime gate = content layer seed + script.
+  if [ ! -f "$o" ] \
+    || { [ -f seeds/rt_content.from_x.c ] && [ seeds/rt_content.from_x.c -nt "$o" ]; } \
+    || [ "scripts/build_xlang_asm.sh" -nt "$o" ]; then
+    echo " ensure: $o ← multi-slice no_c alias (wave321 monofile retired)"
+    if ! bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o; then
+      build_xlang_asm_error "runtime_driver_no_c multi-slice failed for bstrict alias (wave321)"
+      return 1
+    fi
+    cp -f src/runtime_driver_no_c.o "$o" || return 1
   fi
   # 兼容旧链脚本/规则仍引用 runtime_driver_asm_strict.o
   cp -f "$o" src/runtime_driver_asm_strict.o 2>/dev/null || true
@@ -4779,7 +4879,7 @@ ensure_typeck_f64_bits_obj() {
     if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
       _f64s=src/typeck/typeck_f64_bits_x86_64_mingw.s
       echo " win: cc -c $_f64s → $_f64o (no try-r2)"
-      "$CC" -c -o "$_f64o" "$_f64s" \
+      pure_as_compile "$_f64o" "$_f64s" \
         || { echo "ensure_typeck_f64_bits_obj: win cc failed" >&2; return 1; }
       return 0
     fi
@@ -4796,32 +4896,39 @@ ensure_typeck_f64_bits_obj() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   UNAME_M=$(uname -m 2>/dev/null || echo Unknown)
   if [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   elif [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "aarch64" ] && [ -f src/typeck/typeck_f64_bits_aarch64_elf.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_aarch64_elf.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_aarch64_elf.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "arm64" ] && [ -f src/typeck/typeck_f64_bits_arm64.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_arm64.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_arm64.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   else
     echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
     return 1
   fi
 }
 
-# typeck 整链 build_asm/typeck.o：裸符号 → typeck_ 前缀 glue 名（见 typeck_asm_bare_link_alias.c）。
+# typeck 整链 build_asm/typeck.o：裸符号 → typeck_ 前缀 glue 名。
+# wave296: authority = seeds/typeck_asm_bare_link_alias.from_x.c (host leaf left).
+# PLATFORM: SHARED — B-hybrid/strict_glue only; G05 does not link this .o.
 ensure_typeck_asm_bare_link_alias_obj() {
   local OBJ="$BUILD_DIR/typeck_asm_bare_link_alias.o"
+  local SEED="seeds/typeck_asm_bare_link_alias.from_x.c"
   local GEN="scripts/gen_typeck_asm_bare_link_alias.py"
   if [ -f "$GEN" ] && [ -f "$BUILD_DIR/typeck.o" ] && [ -f typeck_x.o ]; then
-  if [ ! -f typeck_asm_bare_link_alias.c ] || [ src/typeck/typeck.x -nt typeck_asm_bare_link_alias.c ] \
-  || [ "$BUILD_DIR/typeck.o" -nt typeck_asm_bare_link_alias.c ]; then
+  if [ ! -f "$SEED" ] || [ src/typeck/typeck.x -nt "$SEED" ] \
+  || [ "$BUILD_DIR/typeck.o" -nt "$SEED" ]; then
   python3 "$GEN" 2>/dev/null || true
   fi
   fi
-  if [ ! -f "$OBJ" ] || [ "typeck_asm_bare_link_alias.c" -nt "$OBJ" ]; then
-  echo " cc -c typeck_asm_bare_link_alias.c -> $OBJ"
-  "$CC" $CFLAGS -c -o "$OBJ" typeck_asm_bare_link_alias.c
+  if [ ! -f "$SEED" ]; then
+  echo "ensure_typeck_asm_bare_link_alias_obj: missing $SEED" >&2
+  return 1
+  fi
+  if [ ! -f "$OBJ" ] || [ "$SEED" -nt "$OBJ" ]; then
+  echo " cc -c $SEED -> $OBJ"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$OBJ" "$SEED"
   fi
 }
 
@@ -4871,7 +4978,7 @@ ensure_asm_link_objs() {
     # Fallback only if ensure script missing (should not happen on product tree).
     if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
       echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
-      "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
+      pure_as_compile runtime_panic.o src/asm/runtime_panic_x86_64.s
     elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
       echo " cc -c runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
       $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
@@ -4881,7 +4988,7 @@ ensure_asm_link_objs() {
     fi
     if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
       echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
-      "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
+      pure_as_compile src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
     fi
   fi
   ensure_typeck_f64_bits_obj
@@ -4943,6 +5050,11 @@ fi
 # shellcheck disable=SC1091
 . "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/bootstrap_nostdlib_shared.sh"
 
+# Stage 12.2.2: G.7 pure-ld helpers — single authority for direct ld link paths
+# (shared with g05 product chain). Sourced for XLANG_ZERO_CC_LD crt0 link path.
+# shellcheck disable=SC1091
+. "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/pure_ld_shared.sh"
+
 # crt0 链尾参数（无 PIPELINE_LIBS）。
 # PLATFORM: LINUX — nostdlib tail is Linux x86_64 bootstrap only.
 # PLATFORM: WINDOWS | MINGW | MSYS — never emit bare -lc/-lm: MinGW has no
@@ -4956,6 +5068,26 @@ bootstrap_link_tail_crt0() {
   ensure_freestanding_io_x86_64_obj
   ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
+  elif build_xlang_asm_is_msys; then
+  echo ""
+  else
+  echo "-lc -lm"
+  fi
+}
+
+# Stage 12.2.2: ld-compatible crt0 tail — objects only, no CC-driver flags.
+# Returns object files / libs for the crt0 link tail (zero-CC ld path).
+# PLATFORM: LINUX — nostdlib freestanding crt0 only (this block is Linux-guarded).
+# Translation from bootstrap_link_tail_crt0:
+#   -nostdlib (CC-driver only) → dropped (ld never adds default libs/startup)
+#   -static / --gc-sections    → emitted by caller as direct ld flags
+#   object files               → identical (G.7 single authority with CC path)
+# Callers capture stdout: BOOT_CRT0_LD_TAIL=$(bootstrap_link_tail_crt0_ld).
+bootstrap_link_tail_crt0_ld() {
+  if bootstrap_wants_nostdlib; then
+  ensure_freestanding_io_x86_64_obj
+  ensure_bootstrap_nostdlib_stubs_obj
+  echo "src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
   elif build_xlang_asm_is_msys; then
   echo ""
   else
@@ -5078,6 +5210,10 @@ xlang_asm_bstrict_relink_runtime_only() {
   if asm_strict_typeck_x_glue_via_pipeline_x; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   fi
+  # wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o physically missing.
+  # Pure runtime_pipeline_abi.o (in LD argv) + runtime_driver_strict_glue_stubs.o provide
+  # same symbols (G.7, same as L4 pure-ld). PLATFORM: SHARED.
+  [ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
   ST_WPO_ALIAS=""
   ST_PARSER_LINK=""
   ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
@@ -5132,7 +5268,9 @@ xlang_asm_bstrict_relink_runtime_only() {
   ST_LAYOUT_PARTIAL=""
   ST_PIPELINE_ALIAS=""
   ST_STRICT_FB_X_TAIL=""
-  if [ -f runtime_panic.o ]; then
+  if [ -f runtime_panic.o ] && [ "$(uname -s 2>/dev/null)" != "Darwin" ]; then
+  # PLATFORM: DARWIN — skip runtime_panic.o (link_abi_getenv dual-defs with
+  # src/runtime_link_abi.o G.7 authority; host link resolves panic/crash via static locals).
   ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
   fi
   refresh_build_asm_ci_text_stubs_for_strict_link || true
@@ -5161,7 +5299,7 @@ xlang_asm_bstrict_relink_runtime_only() {
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   $ST_PARSER_LINK \
@@ -5269,6 +5407,39 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   fi
   CRT_RC=1
+  # Stage 12.2.2: zero-CC crt0 link — direct ld invocation (no host-CC driver).
+  # PLATFORM: LINUX — crt0_x86_64 _start entry; nostdlib freestanding.
+  # Opt-in: XLANG_ZERO_CC_LD=1. Flag unset = $CC path (zero regression).
+  # ld flag translation from $CC driver:
+  #   -nostdlib (CC-only) → dropped (ld never adds default libs/startup)
+  #   -static              → -static (ld accepts)
+  #   -Wl,--gc-sections    → --gc-sections
+  #   entry: -e _start (crt0_x86_64.o defines _start; ld default but explicit)
+  # Object order mirrors the $CC path (crt0 → typeck_f64 → panic → atoi →
+  # CRT0_ASM → backend companions → freestanding_io → nostdlib_stubs).
+  if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
+  # Stage 12.2.2: zero-CC crt0 link via pure_ld_try_link (G.7 single authority).
+  # Reuses the same pure-ld helpers as g05 product chain (wave773/774):
+  #   · pure_ld_multidef_flags → --allow-multiple-definition (Linux)
+  #   · pure_ld_platform_prefix → syslibroot (Darwin) / empty (Linux)
+  #   · pure_ld_default_entry → -e _start
+  # This fixes the multidef issue that breaks the $CC crt0 path (both $CC and
+  # bare ld fail without --allow-multiple-definition; pure_ld_try_link adds it).
+  # PLATFORM: LINUX — nostdlib freestanding crt0.
+  BOOT_CRT0_LD_OBJS="$(bootstrap_link_tail_crt0_ld)"
+  CRT0_LD_OBJS="src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ATOI_LINK $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_LD_OBJS"
+  build_xlang_asm_info "Stage 12.2.2: zero-CC crt0 link via pure-ld (XLANG_ZERO_CC_LD=1)"
+  if pure_ld_try_link xlang_asm "$CRT0_LD_OBJS" "$(pure_ld_default_entry)" "" "-static --gc-sections" "" 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"; then
+    CRT_RC=0
+    build_xlang_asm_info "zero-CC crt0 link OK via pure-ld (no host-CC, no libc)"
+  else
+    CRT_RC=1
+    build_xlang_asm_error "zero-CC crt0 link failed — no $CC fallback (XLANG_ZERO_CC_LD=1)"
+    if [ -f "$BUILD_DIR/.bootstrap_nostdlib_link_err" ]; then
+      head -15 "$BUILD_DIR/.bootstrap_nostdlib_link_err" 2>/dev/null || true
+    fi
+  fi
+  else
   if bootstrap_wants_nostdlib; then
   BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
   build_xlang_asm_info "trying bootstrap nostdlib crt0 link (XLANG_BOOTSTRAP_NOSTDLIB=1)"
@@ -5294,6 +5465,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   CRT_RC=$?
   fi
   # F-no-libc NL-07 END
+  fi
   set -e
   if [ "$CRT_RC" -eq 0 ]; then
   build_xlang_asm_info "xlang_asm built (no C runtime driver)"
@@ -5429,7 +5601,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   BSTRICT_MINIMAL_GLUE_COMPANION=""
   if [ "$(uname -s 2>/dev/null)" != "Darwin" ] \
     && [ -n "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] \
-    && [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+    && [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] \
+    && [ -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
   BSTRICT_MINIMAL_GLUE_COMPANION="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   fi
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
@@ -5522,6 +5695,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_pipeline_glue_standalone_obj
   ensure_asm_pipeline_glue_strict_minimal_obj
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+  # wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o missing.
+  [ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
   ST_WPO_ALIAS=""
   ST_PARSER_LINK=""
   ST_RUNTIME_PARTIAL=""
@@ -5563,6 +5738,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   else
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   fi
+  # wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o missing.
+  [ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
   ST_RUNTIME_EXTRA=""
   if asm_strict_typeck_selfhosted; then
   ensure_typeck_asm_layout_partial_obj && ST_LAYOUT_PARTIAL="$BUILD_DIR/typeck_asm_layout_partial.o" || ST_LAYOUT_PARTIAL=""
@@ -5651,7 +5828,16 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # (PLATFORM: DARWIN rejects the same .o twice as duplicate symbols).
   ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   ensure_asm_link_objs
+  # PLATFORM: DARWIN — runtime_panic.o is a user-domain cold twin (STD_AND_PANIC
+  # bag) that defines link_abi_getenv/_impl, dual-defining with src/runtime_link_abi.o
+  # (G.7 host authority hard-coded above). Darwin ld rejects the duplicate; Linux ld
+  # tolerates it (last-def wins). The host compiler link does not need runtime_panic.o:
+  # xlang_panic_ and crash_evidence are resolved as static locals in other .o; atoi via
+  # libc. Skip on Darwin to match experimental bootstrap (which never links it).
   ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    ST_RUNTIME_PANIC=""
+  fi
   ST_BRIDGE_OBJ=""
   ST_SEED_PARSER_TCK=""
   ST_SEED_PREPROCESS_LINK=""
@@ -5838,7 +6024,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
   "$BUILD_DIR/preprocess_if_stack_only.o" \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   $ST_PARSER_LINK \
@@ -5901,7 +6087,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
   "$BUILD_DIR/preprocess_if_stack_only.o" \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   "$ST_PARSER_LINK" \
@@ -6098,7 +6284,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
   # Glue suffix at END only (once): mirrors DRIVER_SEED_GLUE_SUFFIX / g05 _GLUE_SUFFIX.
-  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
+  # wave304: strict_minimal shell retired — stubs only at link END.
+  GEN_DRIVER_GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
@@ -6175,7 +6362,8 @@ else
   BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|[[:space:]]*src/runtime_driver_strict_glue_stubs\.o||g')
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
-  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
+  # wave304: strict_minimal shell retired — stubs only at link END.
+  GEN_DRIVER_GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \

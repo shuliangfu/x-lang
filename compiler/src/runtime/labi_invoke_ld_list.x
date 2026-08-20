@@ -94,6 +94,10 @@ export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 // PLATFORM: SHARED residual; Windows skips realpath (returns validated path as-is).
 export extern "C" function invoke_cc_argv_resolve_existing_path_impl(path: *u8): *u8;
 
+// Peer pure (labi_path_pure L0): realpath-equal argv scan. G.7 single dedup authority
+// for CLI extra .o vs auto-pushed companions (relative vs compiler-dir absolute).
+export extern "C" function link_abi_asm_ld_argv_has_obj(argv: **u8, la: i32, path: *u8): i32;
+
 /**
  * Resolve an existing .o path for invoke_cc argv: skip missing + durable realpath pool.
  * null/empty → null without residual. Product push_existing and compress/net_tls pure
@@ -173,6 +177,9 @@ export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 // wave191 companions + wave192 glue leaves call this after ensure.
 // Note: single-line signature (multi-line export decls can drop the symbol).
 export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;
+// Peer pure (ondemand L8b): formal .o UNDEF table for std.heap API (heap.o gate).
+// wave191 companions probe the just-ensured rel, not only user.o / vec-set-map whitelist.
+export extern "C" function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32;
 
 // Cap residual / peer pure (ensure_list L4 + path_pure L0): OP_GLUE_* runtime glue
 // ensure + path for append_std plan leaves (wave192).
@@ -223,6 +230,15 @@ export extern "C" function xlang_ensure_runtime_link_abi_user_env_o(argv0: *u8):
 // PLATFORM: SHARED — constructor-bound argc/argv glue; never dual-link with process.o.
 export extern "C" function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
 export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
+// Queue monofile U sync_queue_contention_smoke_c (formal_ensure + on_demand).
+export extern "C" function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
+// Test monofile U test_call_i32_void_c / env_getenv_c / time_now_monotonic_ns_c.
+// Body is labi_std_append_test_monofile_companions in this TU (≡ queue helper).
+// Do not extern labi_od_push_test_monofile_companions (L8c): seed-phase1 links
+// runtime_link_abi.o without L8c → UNDEF (c02468dbf Darwin bootstrap).
+export extern "C" function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
 
 // Peer pure / Cap residual for wave194 TASK_SPECIAL (task.o + scheduler.o + scheduler_glue).
 // PLATFORM: SHARED — append_std plan leaf 30; gate + formal ensure + path ladder + push.
@@ -258,7 +274,10 @@ export extern "C" function labi_std_plan_step_at(i: i32, op_out: *i32, rel_out: 
  * Cap residual: invoke_cc_argv_resolve_existing_path public → _impl (wave215/255 pure
  *   null/empty + skip_missing; residual multi-slot realpath pool stays mega always).
  * Why (wave179): hybrid still had always-mega C body for push_existing (pool + dedup + append).
- * Dedup matches mega strcmp on the resolved-or-original use pointer (EXC-002 ld duplicate).
+ * Dedup: link_abi_asm_ld_argv_has_obj (string + realpath-equal). strcmp-only on
+ * `use` missed CLI extra `compiler/runtime_atomic_glue.o` vs auto-pushed
+ * `{compiler_dir}/runtime_atomic_glue.o` — Darwin ld duplicate-symbol (Ubuntu
+ * GNU ld hid the same .o twice). G.7 complete of the existing has_obj authority.
  * Note: null-check argv via cast to *u8 (do not write argv == 0 as **u8).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED — hybrid L6 pure; mega cold twin under #ifndef INVOKE_LD_LIST_FROM_X.
@@ -293,30 +312,20 @@ export function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, 
   if (use == 0 as *u8) {
     return 0;
   }
-  // Pure dedup: skip if any argv[k] is cstr-equal to use (≡ mega strcmp).
-  let k: i32 = 0;
-  while (k < cur) {
-    let exist: *u8 = argv[k];
-    if (exist != 0 as *u8) {
-      let eq: i32 = 1;
-      let i0: i32 = 0;
-      while (i0 < 1048576) {
-        let ca: u8 = exist[i0];
-        let cb: u8 = use[i0];
-        if (ca != cb) {
-          eq = 0;
-          break;
-        }
-        if (ca == 0) {
-          break;
-        }
-        i0 = i0 + 1;
-      }
-      if (eq != 0) {
-        return 0;
-      }
-    }
-    k = k + 1;
+  // G.7: reuse L0 has_obj (string + realpath). Check resolved `use` and the
+  // original `path` so CLI relative extra .o matches an already-absolute companion.
+  let hit: i32 = 0;
+  unsafe {
+    hit = link_abi_asm_ld_argv_has_obj(argv, cur, use);
+  }
+  if (hit != 0) {
+    return 0;
+  }
+  unsafe {
+    hit = link_abi_asm_ld_argv_has_obj(argv, cur, path);
+  }
+  if (hit != 0) {
+    return 0;
   }
   // Append durable path pointer (no copy; pool / skip path lifetime covers spawn).
   argv[cur] = use;
@@ -2101,6 +2110,118 @@ export function labi_std_rel_is_std_or_core(rel: *u8): i32 {
 }
 
 /**
+ * Push monofile companions for std/queue/queue.o (sync/atomic/contention/process_argv + glue).
+ * Formal queue.o co-defines SyncQueue locals that U std_sync_* / std_atomic_* /
+ * sync_queue_contention_smoke_c / process_xlang_*. User.o only U std_queue_* so
+ * fk3/fk6 miss. G.7 single body: formal_ensure (exact rel) and on_demand (need_qp)
+ * both call this — do not copy the push list a second time.
+ * Always push_obj the rel even if ensure != 0 (skip-missing); do not gate on
+ * ensure==0 (existing .o after L4 sibling tests must still enter argv).
+ * @param link_argv0 *u8 — compiler argv0 / link root; null → no-op
+ * @param lib_roots **u8 — -L roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*; may be null
+ * @param argv **u8 — ld argv table; null → no-op
+ * @param la *i32 — in/out argv length; null → no-op
+ * @param max_la i32 — argv capacity
+ * @param flags *u8 — ShuAsmLdStdLinkFlags*; may be null; have_sync written if sync.o pushed
+ * @return void
+ * PLATFORM: SHARED — Darwin ld hard UNDEF; Linux ELF may look green without these.
+ * Track-L: #[no_mangle] product short name (on_demand + formal_ensure).
+ */
+#[no_mangle]
+export function labi_std_append_queue_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  let include_root: *u8 = 0 as *u8;
+  unsafe {
+    include_root = xlang_repo_root_from_argv0(link_argv0);
+  }
+  if (include_root != 0 as *u8) {
+    if (include_root[0] != 0) {
+      unsafe {
+        let _qs: i32 = xlang_ensure_formal_std_make_o(include_root, "std/sync/sync.o", "../std/sync/sync.o");
+        let _qa: i32 = xlang_ensure_formal_std_make_o(include_root, "std/atomic/atomic.o", "../std/atomic/atomic.o");
+      }
+    }
+  }
+  let have_sq: i32 = 0;
+  unsafe {
+    let _ps: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/sync/sync.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_sq);
+    let _pa: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/atomic/atomic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    let _eqc: i32 = xlang_ensure_runtime_queue_contention_o(link_argv0);
+    let _pqc: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_queue_contention.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    let _epv: i32 = xlang_ensure_runtime_process_argv_o(link_argv0);
+    let _ppv: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+  if (have_sq != 0) {
+    if (flags != 0 as *u8) {
+      let fsq: *i32 = flags as *i32;
+      fsq[3] = 1;
+    }
+    unsafe {
+      let _esd: i32 = xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+      let _psd: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _eso: i32 = xlang_ensure_runtime_sync_os_o(link_argv0);
+      let _pso: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
+  unsafe {
+    let _eag: i32 = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+    let _pag: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+}
+
+/**
+ * Push std.test monofile C-dual companions onto the ld argv.
+ * Formal test.o UNDEFs test_call_i32_void_c / env_getenv_c / time_now_monotonic_ns_c
+ * even when user.o only names std_test_expect* (≡ queue monofile class).
+ * Authority lives in this TU so seed-phase1 mega runtime_link_abi.o (includes
+ * this file) defines the symbol. L8c labi_od_push_test_monofile_companions is
+ * a zero-logic trampoline to this helper.
+ * Always push_obj after ensure (queue contract); skip_missing no-ops a miss.
+ * @param link_argv0 *u8 — compiler argv0 / link root; null → no-op
+ * @param lib_roots **u8 — -L roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*; may be null
+ * @param argv **u8 — ld argv table; null → no-op
+ * @param la *i32 — in/out argv length; null → no-op
+ * @param max_la i32 — argv capacity
+ * @return void
+ * PLATFORM: SHARED — Darwin ld hard UNDEF; Linux ELF may look green without these.
+ * Track-L: #[no_mangle] product short name (on_demand + formal_ensure).
+ */
+#[no_mangle]
+export function labi_std_append_test_monofile_companions(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    let _et: i32 = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
+    let _pt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_test_fn_invoke.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    let _ee: i32 = xlang_ensure_runtime_env_os_o(link_argv0);
+    let _pe: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    let _eto: i32 = xlang_ensure_runtime_time_os_o(link_argv0);
+    let _pto: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+}
+
+/**
  * After OP_STD gate opens and user_o is set: ensure formal std|core .o exists
  * (L4 wipe restores via Makefile) and push companion .o when rel needs them.
  * Pure orch:
@@ -2108,10 +2229,11 @@ export function labi_std_rel_is_std_or_core(rel: *u8): i32 {
  *   2) Cap residual xlang_repo_root_from_argv0 → pure make_tgt="../"+rel
  *   3) peer pure xlang_ensure_formal_std_make_o(root, rel, make_tgt)
  *   4) companions (exact rel match ≡ mega strstr on plan exact paths):
- *        vec/set/map → ensure+push heap.o + core/mem/mem.o
+ *        vec/set/map OR just-ensured rel U std_heap_* → ensure+push heap.o + core/mem/mem.o
  *        env.o → ensure+push runtime_env_os.o
  *        random.o → ensure+push runtime_random_fill.o
  *        time.o → ensure+push runtime_time_os.o
+ *        test.o → labi_std_append_test_monofile_companions (fn_invoke / env_os / time_os)
  * Does NOT push `rel` itself (caller still does link_abi_asm_ld_push_obj for the plan step).
  * @param link_argv0 *u8 — effective compiler argv0 / link root
  * @param rel *u8 — plan OP_STD rel (std/... or core/...)
@@ -2176,6 +2298,12 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   let lb: *u8 = lib_roots as *u8;
   // Companion: formal vec/set/map .o carry U std_heap_* / core_mem_*.
   // Exact path match (plan rels are exact; mega used strstr on those exact strings).
+  // Also probe the just-ensured formal .o: http.o (and any later std) U
+  // std_heap_alloc_usize / std_heap_free_u8_ptr while user.o only U std_http_*.
+  // On-demand heap scan of user.o therefore misses; Darwin ld is hard UNDEF
+  // (Linux ELF may look green without heap.o). G.7 complete the existing
+  // needs_std_heap_api consumer — do not grow a second http-only heap path.
+  // PLATFORM: SHARED — L4 wipe + mac run-http residual.
   let need_heap_mem: i32 = 0;
   let eq_vec: i32 = 0;
   let eq_set: i32 = 0;
@@ -2193,6 +2321,19 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   }
   if (eq_map == 0) {
     need_heap_mem = 1;
+  }
+  if (need_heap_mem == 0) {
+    let abs_rel: u8[4096] = [];
+    let joined: i32 = labi_net_tls_join_repo_rel(&abs_rel[0], 4096, include_root, rel);
+    if (joined != 0) {
+      let need_rel_heap: i32 = 0;
+      unsafe {
+        need_rel_heap = link_abi_user_o_needs_std_heap_api(&abs_rel[0]);
+      }
+      if (need_rel_heap != 0) {
+        need_heap_mem = 1;
+      }
+    }
   }
   if (need_heap_mem != 0) {
     let _h: i32 = 0;
@@ -2282,6 +2423,160 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
           let _pt: i32 = 0;
           unsafe {
             _pt = link_abi_asm_ld_push_obj(tm_p, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  // Companion: formal fs.o carries U std_error_* / std_context_* (timeout/ctx IO).
+  // User.o typically only U std_fs_* so fk0 error/context user needles miss.
+  // context.o then U atomic_*_i32_c + time_now_monotonic_ns_c.
+  // G.7 complete authority ≡ net have_net companions + C need_context + vec/heap pattern.
+  // PLATFORM: SHARED — pure-asm run-fs residual; dual-end L2.
+  // Same companion class for http.o (run-http UNDEF std_error_http_err_* /
+  // std_context_*): monofile co-compiles timeout/ctx faces; user only U std_http_*.
+  let eq_fs: i32 = 0;
+  let eq_http: i32 = 0;
+  unsafe {
+    eq_fs = strcmp(rel, "std/fs/fs.o");
+    eq_http = strcmp(rel, "std/http/http.o");
+  }
+  if (eq_fs == 0) {
+    let _fe: i32 = 0;
+    let _fc: i32 = 0;
+    unsafe {
+      _fe = xlang_ensure_formal_std_make_o(include_root, "std/error/error.o", "../std/error/error.o");
+      _fc = xlang_ensure_formal_std_make_o(include_root, "std/context/context.o", "../std/context/context.o");
+    }
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _pe: i32 = 0;
+        let _pc: i32 = 0;
+        unsafe {
+          _pe = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/error/error.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          _pc = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/context/context.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        let er_ag: i32 = 0;
+        let agp: *u8 = 0 as *u8;
+        unsafe {
+          er_ag = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        if (er_ag == 0) {
+          let _pag: i32 = 0;
+          unsafe {
+            _pag = link_abi_asm_ld_push_obj(agp, link_argv0, "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+        let er_to: i32 = 0;
+        let top: *u8 = 0 as *u8;
+        unsafe {
+          er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+          top = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        if (er_to == 0) {
+          let _pto: i32 = 0;
+          unsafe {
+            _pto = link_abi_asm_ld_push_obj(top, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  if (eq_http == 0) {
+    // PLATFORM: SHARED — pure-asm run-http residual (≡ fs/net error/context companions).
+    let _fe_h: i32 = 0;
+    let _fc_h: i32 = 0;
+    unsafe {
+      _fe_h = xlang_ensure_formal_std_make_o(include_root, "std/error/error.o", "../std/error/error.o");
+      _fc_h = xlang_ensure_formal_std_make_o(include_root, "std/context/context.o", "../std/context/context.o");
+    }
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _pe_h: i32 = 0;
+        let _pc_h: i32 = 0;
+        unsafe {
+          _pe_h = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/error/error.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          _pc_h = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/context/context.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        let er_ag_h: i32 = 0;
+        let agp_h: *u8 = 0 as *u8;
+        unsafe {
+          er_ag_h = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp_h = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        if (er_ag_h == 0) {
+          let _pag_h: i32 = 0;
+          unsafe {
+            _pag_h = link_abi_asm_ld_push_obj(agp_h, link_argv0, "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+        let er_to_h: i32 = 0;
+        let top_h: *u8 = 0 as *u8;
+        unsafe {
+          er_to_h = xlang_ensure_runtime_time_os_o(link_argv0);
+          top_h = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        if (er_to_h == 0) {
+          let _pto_h: i32 = 0;
+          unsafe {
+            _pto_h = link_abi_asm_ld_push_obj(top_h, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  // PLATFORM: SHARED — queue.o monofile companions (G.7 single helper).
+  let eq_queue: i32 = 0;
+  unsafe {
+    eq_queue = strcmp(rel, "std/queue/queue.o");
+  }
+  if (eq_queue == 0) {
+    labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *u8);
+  }
+  // PLATFORM: SHARED — test.o monofile companions (G.7 single helper in this TU).
+  // User.o only U std_test_*; formal test.o U test_call / env_getenv / time_now.
+  // C path need_test used to skip companions when test.o was already on argv.
+  let eq_test: i32 = 0;
+  unsafe {
+    eq_test = strcmp(rel, "std/test/test.o");
+  }
+  if (eq_test == 0) {
+    labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  }
+  // PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
+  // context.o U atomic_*_i32_c + time_now_monotonic_ns_c. C path need_context already
+  // pairs them; pure-asm plan only pushed context.o until companions added here.
+  // G.7 complete authority ≡ invoke_cc need_context companions (atomic_glue + time_os).
+  let eq_ctx: i32 = 0;
+  unsafe {
+    eq_ctx = strcmp(rel, "std/context/context.o");
+  }
+  if (eq_ctx == 0) {
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let er_ag_c: i32 = 0;
+        let agp_c: *u8 = 0 as *u8;
+        unsafe {
+          er_ag_c = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp_c = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        if (er_ag_c == 0) {
+          let _pag_c: i32 = 0;
+          unsafe {
+            _pag_c = link_abi_asm_ld_push_obj(agp_c, link_argv0, "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+        let er_to_c: i32 = 0;
+        let top_c: *u8 = 0 as *u8;
+        unsafe {
+          er_to_c = xlang_ensure_runtime_time_os_o(link_argv0);
+          top_c = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        if (er_to_c == 0) {
+          let _pto_c: i32 = 0;
+          unsafe {
+            _pto_c = link_abi_asm_ld_push_obj(top_c, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
           }
         }
       }

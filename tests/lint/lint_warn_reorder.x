@@ -11,6 +11,6 @@ allow(padding) struct HotLate {
  * @return i32
  */
 function main(): i32 {
-  let s: HotLate = HotLate { big: 1.0, hot: 2 };
+  let s: HotLate = { big: 1.0, hot: 2 };
   return s.hot;
 }

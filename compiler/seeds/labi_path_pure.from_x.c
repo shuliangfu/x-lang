@@ -434,6 +434,9 @@ void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_
       continue;
     if (!link_abi_path_readable(p))
       continue;
+    /* G.7: skip extra .o already on argv (auto companion / earlier extra). */
+    if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
+      continue;
     argv[(*la)++] = p;
   }
 }

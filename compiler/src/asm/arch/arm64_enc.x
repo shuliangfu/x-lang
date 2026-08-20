@@ -45,8 +45,59 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
 }
 
 /**
+ * Emit STR/LDR x19, [sp, #off] (AAPCS64 callee-saved dest-shadow).
+ * Unsigned imm12 covers off <= 32760; larger frames use x16 as a scratch base.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param off i32 — byte offset from SP; must be >= 0 and 8-aligned
+ * @param is_ldr i32 — 0 = STR, 1 = LDR
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — G.7 twin of seed arm64_enc_x19_sp_off.
+ */
+function enc_x19_sp_off(ctx: *ElfCodegenCtx, off: i32, is_ldr: i32): i32 {
+  if (off < 0) {
+    return -1;
+  }
+  if ((off & 7) != 0) {
+    return -1;
+  }
+  if (off <= 32760) {
+    let imm12: i32 = off / 8;
+    /* str = 0xF90003F3; ldr = 0xF94003F3 (signed i32, T001-safe). */
+    let base: i32 = 0 - 117439501;
+    if (is_ldr != 0) {
+      base = 0 - 113056781;
+    }
+    return enc_u32_le(ctx, base | (imm12 << 10));
+  }
+  /* add x16, sp, #0  (0x910003F0) */
+  if (enc_u32_le(ctx, 0 - 1862269968) != 0) {
+    return -1;
+  }
+  let left: i32 = off;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) {
+      chunk = 4095;
+    }
+    /* add x16, x16, #chunk  (0x91000210 | chunk<<10) */
+    if (enc_u32_le(ctx, (0 - 1862270448) | (chunk << 10)) != 0) {
+      return -1;
+    }
+    left = left - chunk;
+  }
+  /* str x19,[x16] = 0xF9000213; ldr = 0xF9400213 */
+  if (is_ldr != 0) {
+    return enc_u32_le(ctx, 0 - 113057261);
+  }
+  return enc_u32_le(ctx, 0 - 117439981);
+}
+
+/**
  * wave414: arm64 prologue — allocate whole frame with x29 at bottom so
  * positive [x29,#off] locals (wave402 low-end home) sit inside the frame.
+ * Extra 16B at the high end saves callee-saved x19 (AAPCS64 dest-shadow).
+ * Locals stay at [x29,#0x10 .. #aligned_request) so dest-in-rbx offsets
+ * do not shift. L1 labi_diag_pure hybrid used to smash C x19 (Darwin 0xfe).
  * @param ctx *ElfCodegenCtx — emit context
  * @param frame_size i32 — bytes for save+locals (aligned to 16; min 16)
  * @return i32 — 0 success, -1 failure
@@ -54,8 +105,11 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
  */
 export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   let fs: i32 = frame_size;
+  let x19_off: i32 = 0;
   if (fs < 16) { fs = 16; }
   if ((fs & 15) != 0) { fs = fs + (16 - (fs & 15)); }
+  x19_off = fs;
+  fs = fs + 16;
   ctx.current_frame_size = fs;
   /* sub sp, sp, #fs in 4095 chunks */
   let left: i32 = fs;
@@ -68,11 +122,12 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   /* stp x29, x30, [sp] — 0xA9007BFD as signed i32 */
   if (enc_u32_le(ctx, 0 - 1459553315) != 0) { return -1; }
   /* mov x29, sp */
-  return enc_u32_le(ctx, 2432697341);
+  if (enc_u32_le(ctx, 2432697341) != 0) { return -1; }
+  return enc_x19_sp_off(ctx, x19_off, 0);
 }
 
 /**
- * wave414: match bottom-x29 prologue (ldp [sp] then add sp,#fs).
+ * wave414: match bottom-x29 prologue (restore x19, ldp [sp], then add sp,#fs).
  * @param ctx *ElfCodegenCtx — emit context
  * @return i32 — 0 success, -1 failure
  * PLATFORM: MACOS|ARM64 — G.7 twin of product seed epilogue
@@ -80,6 +135,10 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
   let fs: i32 = ctx.current_frame_size;
   if (fs < 0) { fs = 0; }
+  let x19_off: i32 = fs - 16;
+  if (x19_off >= 16) {
+    if (enc_x19_sp_off(ctx, x19_off, 1) != 0) { return -1; }
+  }
   /* ldp x29, x30, [sp] — 0xA9407BFD as signed i32 */
   if (enc_u32_le(ctx, 0 - 1455367171) != 0) { return -1; }
   let left: i32 = fs;
@@ -293,7 +352,10 @@ export function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
  * @return i32
  */
 export function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  /** 0x4B000001 — SUB W0, W0, W1。 */
+  /* 0x4B010000 — SUB W0, W0, W1 (32-bit, Rm=1=rbx). SUB is NOT commutative so
+   * Rm must be 1. G.7 authority: seed arch_arm64_enc_enc_sub_rax_rbx must emit
+   * the same 0x4B010000 (prior seed 0x4B000001 was SUB W1,W0,W0 = 0, wrong).
+   * PLATFORM: MACOS|ARM64. */
   return enc_u32_le(ctx, 1258356736);
 }
 
@@ -302,13 +364,20 @@ export function enc_imul_rbx_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 453082112);
 }
 
-/** Exported function `enc_mov_rax_to_rbx`.
- * Implements `enc_mov_rax_to_rbx`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Copy rax/x0 into the ARM64 rbx mapping (x1) and a callee-saved dest shadow (x19).
+ * x86 rbx is callee-saved so dest-in-rbx survives a CALL. ARM64 maps rbx to x1,
+ * which a 16B AAPCS64 return overwrites (hi in x1). x19 keeps the dest pointer
+ * for store_size>=16 (enc_store_rax_to_rbx_offset). sz<8/8 stores still use x1.
+ * @param ctx *ElfCodegenCtx — pure-asm emit context; null rejected by enc_u32_le
+ * @return i32 — 0 ok, -1 emit failure
+ * PLATFORM: MACOS|ARM64 — G.7 twin of seeds/backend_arm64_enc_c.from_x.c
  */
 export function enc_mov_rax_to_rbx(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2852127713);
+  /* mov x1, x0 — 0xAA0003E1; keep INDEX / sz<=8 dest-in-x1 */
+  if (enc_u32_le(ctx, 2852127713) != 0) { return 0 - 1; }
+  /* mov x19, x0 — 0xAA0003F3; dest survives 16B CALL (C callee saves x19) */
+  return enc_u32_le(ctx, 2852127731);
 }
 
 /** mov x0, x1。 */
@@ -910,47 +979,120 @@ export function enc_load_zext8_from_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 960495616);
 }
 
-/** Exported function `enc_add_imm_to_rax`.
- * Implements `enc_add_imm_to_rax`.
- * @param ctx *ElfCodegenCtx
- * @param imm i32
- * @return i32
+/**
+ * ADD/SUB X0, X0, #imm12 (unshifted). Negative imm emits SUB.
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param imm i32 — signed addend; 0 is no-op; |imm|>4095 clamps to 4095
+ * @return i32 — 0 success
+ * G.7 twin of seeds/backend_arm64_enc_c.from_x.c add_rd_rn_imm_chunks (rd=rn=0).
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_add_imm_to_rax(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
+  if (imm < 0) {
+    let n: i32 = 0 - imm;
+    if (n < 0) { return 0 - 1; }
+    if (n > 4095) { n = 4095; }
+    /* sub x0, x0, #n — 0xD1000000 | (n<<10) */
+    return enc_u32_le(ctx, 3506438144 | (n << 10));
+  }
   let imm12: i32 = imm;
   if (imm12 > 4095) { imm12 = 4095; }
   return enc_u32_le(ctx, 2432696320 | (imm12 << 10));
 }
 
-/** Exported function `enc_add_imm_to_rbx`.
- * Implements `enc_add_imm_to_rbx`.
- * @param ctx *ElfCodegenCtx
- * @param imm i32
- * @return i32
+/**
+ * ADD/SUB X1, X1, #imm12 (unshifted). Negative imm emits SUB.
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param imm i32 — signed addend; 0 is no-op; |imm|>4095 clamps to 4095
+ * @return i32 — 0 success
+ * G.7 twin of seeds/backend_arm64_enc_c.from_x.c add_rd_rn_imm_chunks (rd=rn=1).
+ * Used by slice INDEX hi-guard length-1. Prior positive-only encoding
+ * (or silent 0) treated index==length as in-bounds on Darwin.
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_add_imm_to_rbx(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
+  if (imm < 0) {
+    let n: i32 = 0 - imm;
+    if (n < 0) { return 0 - 1; }
+    if (n > 4095) { n = 4095; }
+    /* sub x1, x1, #n — 0xD1000000 | (n<<10) | Rd=1 | Rn=1 */
+    return enc_u32_le(ctx, 3506438144 | (n << 10) | 1 | (1 << 5));
+  }
   let imm12: i32 = imm;
   if (imm12 > 4095) { imm12 = 4095; }
-  /* See implementation. */
   return enc_u32_le(ctx, 2432696320 | (imm12 << 10) | 1 | (1 << 5));
 }
 
-/** Exported function `enc_load_rbp_to_x2`.
- * Implements `enc_load_rbp_to_x2`.
- * @param ctx *ElfCodegenCtx
- * @param offset i32
- * @return i32
+/**
+ * Load INDEX primary scratch x2 from frame home [x29, #offset] (positive).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param offset i32 — non-negative frame home bytes (product convention:
+ *   positive [x29,#off] with wave414 bottom-x29 prologue)
+ * @return i32 — 0 success, -1 failure (offset < 0)
+ * wave617: positive-offset LDR X2, [X29, #imm12] (scaled /8) — G.7 twin of
+ *   seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_load_rbp_to_x2.
+ * Root: prior negated offset (LDUR [x29,-off]) while product frame homes live
+ *   at positive [x29,+off] → loaded garbage below the frame for INDEX scratch.
+ * Invariant: offset >= 0; scaled imm12 = offset/8 (<= 4095) fast path, else
+ *   lea x2,[x29+#off] (multi-chunk ADD) then ldr x2,[x2].
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_load_rbp_to_x2(ctx: *ElfCodegenCtx, offset: i32): i32 {
-  let simm9: i32 = 0 - offset;
-  if (simm9 < -256) { simm9 = -256; }
-  let u9: i32 = simm9 & 511;
-  /* See implementation. */
-  let base64: i32 = 0 - 130023424;
-  let base: i32 = base64 - 1073741824;
-  return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | 2);
+  if (offset < 0) { return 0 - 1; }
+  if ((offset % 8) == 0 && (offset / 8) <= 4095) {
+    /* 0xF94003A2 = LDR X2, [X29, #imm12] (Rt=2, Rn=29) */
+    return enc_u32_le(ctx, 4181722018 | ((offset / 8) << 10));
+  }
+  /* mov x2, x29 ≡ orr x2, xzr, x29 — 0xAA1D03E2 */
+  if (enc_u32_le(ctx, 2854028258) != 0) { return 0 - 1; }
+  let left: i32 = offset;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x2, x2, #chunk — 0x91000042 + (chunk<<10) */
+    if (enc_u32_le(ctx, 2432696386 | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  /* ldr x2, [x2] — 0xF9400042 */
+  return enc_u32_le(ctx, 4181721154);
+}
+
+/**
+ * Load INDEX secondary scratch x3 from frame home [x29, #offset] (positive).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param offset i32 — non-negative frame home bytes (product convention:
+ *   positive [x29,#off] with wave414 bottom-x29 prologue)
+ * @return i32 — 0 success, -1 failure (offset < 0)
+ * wave617: G.7 twin of enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ *   scratch). Positive-offset LDR X3, [X29, #imm12] (scaled /8) — matches
+ *   seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_load_rbp_to_x3.
+ * Root: INDEX secondary scratch loader inline-negated offset (LDUR W3,
+ *   [x29,-off]) while primary loader used positive LDR X2, [x29,+off] →
+ *   secondary loaded garbage below the frame for arr[i+j] right operand
+ *   (i+j computed wrong, e.g. got 10 not 99).
+ * Invariant: secondary loader offset convention MUST match primary loader.
+ * PLATFORM: MACOS|ARM64.
+ */
+export function enc_load_rbp_to_x3(ctx: *ElfCodegenCtx, offset: i32): i32 {
+  if (offset < 0) { return 0 - 1; }
+  if ((offset % 8) == 0 && (offset / 8) <= 4095) {
+    /* 0xF94003A3 = LDR X3, [X29, #imm12] (Rt=3, Rn=29) */
+    return enc_u32_le(ctx, 4181722019 | ((offset / 8) << 10));
+  }
+  /* mov x3, x29 ≡ orr x3, xzr, x29 — 0xAA1D03E3 */
+  if (enc_u32_le(ctx, 2854028259) != 0) { return 0 - 1; }
+  let left: i32 = offset;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x3, x3, #chunk — 0x91000043 + (chunk<<10) */
+    if (enc_u32_le(ctx, 2432696387 | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  /* ldr x3, [x3] — 0xF9400063 */
+  return enc_u32_le(ctx, 4181721187);
 }
 
 /**
@@ -995,10 +1137,13 @@ export function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
 }
 
 /**
- * Store value@x0 into [x1 + offset] with ARM64 scaled-imm width matching store_size.
+ * Store value@x0 into [rbx + offset] with ARM64 scaled-imm width matching store_size.
+ * sz<16 uses dest in x1 (INDEX / byte-wise lit). sz>=16 uses dest shadow x19
+ * (enc_mov_rax_to_rbx) so a prior 16B CALL that wrote hi into x1 cannot clobber
+ * dest; also stores hi from x1 to [x19+offset+8] (AAPCS64 dual-GP).
  * @param ctx *ElfCodegenCtx — pure-asm emit context
- * @param offset i32 — byte offset from base in x1; negative clamped to 0
- * @param store_size i32 — 1=STRB, 2=STRH, 4=STR W, else STR X (scale 1/2/4/8)
+ * @param offset i32 — byte offset from dest base; negative clamped to 0
+ * @param store_size i32 — 1=STRB, 2=STRH, 4=STR W, >=16 dual-GP via x19, else STR X via x1
  * @return i32 — 0 ok, non-zero on emit failure
  * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: seeds/backend_arm64_enc_c.from_x.c
  * wave391: product seed previously ignored store_size (always STR X /8) → multi-field STRUCT_LIT wrong.
@@ -1006,6 +1151,21 @@ export function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
 export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size: i32): i32 {
   if (offset < 0) {
     offset = 0;
+  }
+  /* dest-in-x19 + lo@x0 + hi@x1 after 16B CALL / 16B emit (glue_emit default_alloc). */
+  if (store_size >= 16) {
+    let imm12: i32 = offset / 8;
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    /* str x0, [x19, #offset] — Rn=19 */
+    if (enc_u32_le(ctx, 4177526784 | (imm12 << 10) | (19 << 5)) != 0) { return 0 - 1; }
+    let imm12h: i32 = (offset + 8) / 8;
+    if (imm12h > 4095) {
+      imm12h = 4095;
+    }
+    /* str x1, [x19, #offset+8] — Rt=1 Rn=19 */
+    return enc_u32_le(ctx, 4177526784 | (imm12h << 10) | (19 << 5) | 1);
   }
   if (store_size == 1) {
     /* strb w0, [x1, #offset] — imm12 bytes 0..4095 (u8[] array-lit byte-wise init). */
@@ -1171,11 +1331,13 @@ export function enc_call(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   * See implementation.
   * See implementation.
   */
-  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names.
+  // Must not skip when name[0]=='_' (__error → ___error). Stage 12.0.5 ABI.
+  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 127) {
     let rn: u8[128] = [];
     rn[0] = 95;
     let k: i32 = 0;
-    while (k < name_len && k < 63) {
+    while (k < name_len && k < 127) {
       rn[k + 1] = name[k];
       k = k + 1;
     }

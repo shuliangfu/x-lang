@@ -6,10 +6,15 @@ cd "$(dirname "$0")/.."
 . tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  # F-string v1：string.o 由 asm 编译 string.x（ensure_std_c_o 对纯 .x 模块为 no-op）。
-  xlang_compiler_make -q ../std/string/string.o 2>/dev/null || xlang_compiler_make ../std/string/string.o
+# MG: Makefile 已删。产品编排 = ./xbuild；叶 .o 走 compiler-make hub（0× make）
+# → formal_mod / std_x / try-heat shell 体（tests/lib/compiler-make.sh wave944）。
+# L4：本波从源编出 string.o；禁止 string.o.bak / 旧 .o 入链。
+# PLATFORM: SHARED
+if [ ! -f std/string/string.o ]; then
+  xlang_compiler_make ../std/string/string.o || {
+    echo "run-string FAIL: xlang_compiler_make ../std/string/string.o (product path, no bak)" >&2
+    exit 1
+  }
 fi
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh

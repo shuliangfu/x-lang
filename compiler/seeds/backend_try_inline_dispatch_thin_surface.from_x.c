@@ -240,10 +240,7 @@ int32_t asm_array_lit_reserve_stack_bytes(uint8_t * arena, int32_t init_ref) {
   return asm_array_lit_reserve_stack_bytes_impl(arena, init_ref);
   return 0;
 }
-int32_t pipeline_asm_array_lit_elem_byte_sz_c(uint8_t * arena, int32_t array_lit_ref) {
-  return asm_array_lit_elem_byte_sz_impl(arena, array_lit_ref);
-  return 4;
-}
+/* wave143: Cap residual pure — definition in runtime_pipeline_abi */
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(uint8_t * arena, int32_t init_ref) {
   return asm_array_lit_reserve_stack_bytes_impl(arena, init_ref);
   return 0;

@@ -50,7 +50,8 @@ echo "=== 5. Compile support files ==="
 cc $CFLAGS_DRIVER -c src/runtime.c -o runtime_driver.o
 cc $CFLAGS -c src/std_fs_shim.c -o std_fs_shim.o
 cc $CFLAGS -c src/asm/runtime_panic.c -o runtime_panic.o
-cc $CFLAGS -c xlang_x_stubs.c -o xlang_x_stubs.o
+# wave294: host xlang_x_stubs.c / _stubs.c left; seed-only cold stubs authority.
+cc $CFLAGS -c seeds/x_stubs.from_x.c -o x_stubs.o
 
 echo "=== 6. Compile C fallback object files ==="
 cc $CFLAGS -c src/asm/runtime_lexer_glue.c -o src/lexer/lexer.o
@@ -65,7 +66,7 @@ cc $CFLAGS_DRIVER -o xlang_x \
   driver_x.o pipeline_x.o runtime_panic.o \
   src/lexer/lexer.o src/ast/ast.o \
   src/lsp/lsp_diag.o \
-  xlang_x_stubs.o
+  x_stubs.o
 
 echo "=== 8. Quick smoke test ==="
 ./xlang_x -x -E ../tests/x-pipeline/hello.x 2>&1 || true

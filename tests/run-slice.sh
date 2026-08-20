@@ -36,14 +36,17 @@ if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
     LINK_XLANG=./compiler/xlang_asm
   fi
 fi
-# 产品 xlang_asm -o：Linux 默认 asm 对 slice 不完整；无显式 backend 时走 -backend c（与 Darwin 矩阵一致）。
+# Product pure-asm default. Host-cc -backend c only with FORCE/ALLOW (≡ void-main / hello).
+# PLATFORM: SHARED — silent -backend c hits host-cc-requires-allow after ALLOW gate.
 case "$(basename "$LINK_XLANG")" in
   xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
     if [ -z "$SLICE_LINK_BACKEND_ARGS" ]; then
       if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
         SLICE_LINK_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
-      else
+      elif [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ]; then
         SLICE_LINK_BACKEND_ARGS="-backend c"
+      else
+        SLICE_LINK_BACKEND_ARGS=""
       fi
     fi
     ;;
@@ -70,20 +73,21 @@ slice_simple_link_o() {
       return 0
     fi
   fi
-  # 禁止：手写 struct + -E 截断拼装（20KiB 截断 / int64_t vs size_t 双定义）。
-  # 回退仅允许产品 -backend c -o（完整 KEEP_C 链）；失败则硬红。
-  set +e
-  $LINK_XLANG build -backend c "$x" -o "$out" 2>&1
-  ec=$?
-  set -e
-  if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
-    exitcode=0
-    "$out" >/dev/null 2>&1 || exitcode=$?
-    if [ "$exitcode" -ne 134 ] && [ "$exitcode" -eq "$want_exit" ]; then
-      return 0
+  # Optional host-cc fallback only when ALLOW (no silent -backend c).
+  if [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ] || [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+    set +e
+    $LINK_XLANG build -backend c "$x" -o "$out" 2>&1
+    ec=$?
+    set -e
+    if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
+      exitcode=0
+      "$out" >/dev/null 2>&1 || exitcode=$?
+      if [ "$exitcode" -ne 134 ] && [ "$exitcode" -eq "$want_exit" ]; then
+        return 0
+      fi
     fi
   fi
-  echo "slice_simple_link_o FAIL: $x (product -backend c -o; no -E splice fallback)" >&2
+  echo "slice_simple_link_o FAIL: $x (pure-asm product -o; host-cc only with ALLOW/FORCE)" >&2
   return 1
 }
 
@@ -107,7 +111,7 @@ slice_dep_link_or_check() {
     return 1
   fi
   set +e
-  # 与 simple 路径一致：产品 -o 带 backend（默认 c），禁止静默 SKIP 假绿
+  # Product pure-asm -o (SLICE_LINK_BACKEND_ARGS empty by default); no silent host-cc.
   $LINK_XLANG build $SLICE_LINK_BACKEND_ARGS -L . "$x" -o "$out" 2>/tmp/xlang_slice_dep_link.log
   local ec=$?
   set -e

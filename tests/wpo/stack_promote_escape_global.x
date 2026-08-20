@@ -28,7 +28,7 @@ function stash_pair_ptr(slot: *Slot, p: *Pair): void {
  * @return i32
  */
 function fill_and_stash(slot: *Slot): i32 {
-  let p: Pair = Pair { a: 3, b: 4 };
+  let p: Pair = { a: 3, b: 4 };
   slot.ptr = &p;
   let pp: *Pair = slot.ptr;
   return pp.a + pp.b;
@@ -39,6 +39,6 @@ function fill_and_stash(slot: *Slot): i32 {
  * @return i32
  */
 function main(): i32 {
-  let slot: Slot = Slot { ptr: 0 as *Pair };
+  let slot: Slot = { ptr: 0 as *Pair };
   return fill_and_stash(&slot);
 }

@@ -13,7 +13,7 @@
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
 #       preprocess_x.o ← preprocess_gen.c
-#       _x_stubs2.o    ← _x_stubs2.c (stage2 hybrid stubs)
+#     wave295 B′: _x_stubs2.o host left (dead dual; not product g05 / stage2 link)
 #   Membership for rebuild_leaves try-gen-x is catalog-owned:
 #     DRIVER_SEED_LSP_X_OBJS · DRIVER_SEED_PIPELINE_X_OBJS
 #   B4 membership = try-gen-c-to-o table (ensure_host_cc_seed_o.sh); body here.
@@ -28,7 +28,7 @@
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_gen_x_o.sh one <out.o>
 #   bash scripts/ensure_gen_x_o.sh lsp-io|lsp|lsp-diag|pipeline
-#   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x|x-stubs2
+#   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x
 #   bash scripts/ensure_gen_x_o.sh lsp-all     # three LSP gen objs
 #   bash scripts/ensure_gen_x_o.sh residual-all  # lsp trio + pipeline_x (not B4)
 #
@@ -151,7 +151,7 @@ ensure_gen_file() {
   fi
   log "missing $gen → ensure_lsp_pipeline_gen $mode"
   MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-    sh scripts/ensure_lsp_pipeline_gen.sh "$mode"
+    bash scripts/ensure_lsp_pipeline_gen.sh "$mode"
 }
 
 build_lsp_io_x() {
@@ -181,6 +181,15 @@ build_lsp_io_x() {
 }
 
 build_lsp_x() {
+  # wave327: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to lsp_gen.c (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure lsp_x.o 2>/dev/null; then
+      log "lsp_x.o ← Track L (.x → -E → .o; wave327)"
+      return 0
+    fi
+    log "Track L failed for lsp_x.o; falling back to lsp_gen.c (archaeology)"
+  fi
   ensure_gen_file lsp_gen
   if ! need_rebuild_gen_o lsp_x.o lsp_gen.c; then
     log "skip lsp_x.o (up-to-date vs lsp_gen.c)"
@@ -192,6 +201,15 @@ build_lsp_x() {
 }
 
 build_lsp_diag_x() {
+  # wave327: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to lsp_diag_gen.c (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure lsp_diag_x.o 2>/dev/null; then
+      log "lsp_diag_x.o ← Track L (.x → -E → .o; wave327)"
+      return 0
+    fi
+    log "Track L failed for lsp_diag_x.o; falling back to lsp_diag_gen.c (archaeology)"
+  fi
   ensure_gen_file lsp_diag
   if ! need_rebuild_gen_o lsp_diag_x.o lsp_diag_gen.c; then
     log "skip lsp_diag_x.o (up-to-date vs lsp_diag_gen.c)"
@@ -206,6 +224,15 @@ build_pipeline_x() {
   # Makefile parity: token enum sync + gen_driver cache + FORCE/STALE deps.
   # PIPELINE_X_DEPS: wave886 shell-loads mk when env unset; explicit empty →
   # STALE only from gen + force flags (rebuild_leaves escape).
+  # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to pipeline_gen.c + gen_driver cache (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure pipeline_x.o 2>/dev/null; then
+      log "pipeline_x.o ← Track L (.x → -E → .o; wave328)"
+      return 0
+    fi
+    log "Track L failed for pipeline_x.o; falling back to pipeline_gen.c (archaeology)"
+  fi
   ensure_gen_file pipeline
   if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
     perl scripts/sync_lexer_gen_token_enum.pl pipeline_gen.c
@@ -276,9 +303,40 @@ build_lexer_x() {
   # symbol contract (Windows dual-boot stale pin) while .o is still "up-to-date"
   # vs that pin — phase1 then UNDEF lexer_*_reset. G.7: migrate owns gen body.
   # PLATFORM: SHARED.
+  # wave328: Track L retirement — prefer cold-seed archaeology via driver_leaf
+  # catalog. lexer_gen.c historically has implicit-decl issues (lexer_next undeclared
+  # C99); .x → -E also duplicates token_is_eof when parser_x.o re-exports lexer/token.x.
+  # Cold seed (seeds/lexer_gen.linux.x86_64.c) contains no token_is_eof definition
+  # (only extern decl), so it is the only Track L rung that avoids both bugs.
+  # Fall back to lexer_gen.c (ARCHAEOLOGY) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ] && [ -f "seeds/lexer_gen.linux.x86_64.c" ]; then
+    # Manual cold-seed rung (skip PREFER_X_O to avoid token_is_eof duplicate).
+    BASE_CFLAGS="${BASE_CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+    _leaf_tmp="$(mktemp "${TMPDIR:-/tmp}/lexer_cold_seed.XXXXXX.c")"
+    sed -e '/^extern uint8_t \* malloc(/d' \
+        -e '/^extern void free(/d' \
+        -e '/^extern uint8_t \* calloc(/d' \
+        "seeds/lexer_gen.linux.x86_64.c" > "$_leaf_tmp"
+    # shellcheck disable=SC2086
+    if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then
+      rm -f "$_leaf_tmp"
+      log "lexer_x.o ← Track L cold seed (seeds/lexer_gen.linux.x86_64.c; wave328; no token_is_eof dup)"
+      return 0
+    fi
+    # Fallback: unstripped
+    cp -f "seeds/lexer_gen.linux.x86_64.c" "$_leaf_tmp"
+    # shellcheck disable=SC2086
+    if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then
+      rm -f "$_leaf_tmp"
+      log "lexer_x.o ← Track L cold seed (unstripped; wave328)"
+      return 0
+    fi
+    rm -f "$_leaf_tmp"
+    log "Track L cold seed failed for lexer_x.o; falling back to lexer_gen.c (archaeology)"
+  fi
   if [ -f scripts/ensure_migrate_gen.sh ]; then
     MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-      sh scripts/ensure_migrate_gen.sh lexer || return 1
+      bash scripts/ensure_migrate_gen.sh lexer || return 1
   elif [ ! -f lexer_gen.c ]; then
     log "missing lexer_gen.c (run ensure_migrate_gen lexer / make lexer_gen.c first)"
     return 1
@@ -297,6 +355,17 @@ build_lexer_x() {
 }
 
 build_ast_gen2() {
+  # wave329: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # ast_gen2 has no archaeology cold seed pin (yet); PREFER_X_O will timeout
+  # (src/ast/ast.x large -E) and fail → fallback ast_gen2.c HALF below.
+  # Adding catalog enables automated tracking + future cold-seed pin.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure ast_gen2.o 2>/dev/null; then
+      log "ast_gen2.o ← Track L (.x → -E → .o; wave329)"
+      return 0
+    fi
+    log "Track L failed for ast_gen2.o; falling back to ast_gen2.c (archaeology)"
+  fi
   if [ ! -f ast_gen2.c ]; then
     log "missing ast_gen2.c"
     return 1
@@ -312,6 +381,15 @@ build_ast_gen2() {
 
 build_driver_x() {
   # Makefile: -include x_stubs.h + fs_* → fs_posix_* renames (MAIN_X_DEPS stale).
+  # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to driver_gen.c + x_stubs renames (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure driver_x.o 2>/dev/null; then
+      log "driver_x.o ← Track L (.x → -E → .o; wave328)"
+      return 0
+    fi
+    log "Track L failed for driver_x.o; falling back to driver_gen.c (archaeology)"
+  fi
   if [ ! -f driver_gen.c ]; then
     log "missing driver_gen.c (run ensure_driver_gen driver / make driver_gen.c first)"
     return 1
@@ -336,6 +414,15 @@ build_driver_x() {
 
 build_preprocess_x() {
   # Makefile: plain CFLAGS -c (no PIPELINE_GEN_CFLAGS on this leaf).
+  # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to preprocess_gen.c (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure preprocess_x.o 2>/dev/null; then
+      log "preprocess_x.o ← Track L (.x → -E → .o; wave328)"
+      return 0
+    fi
+    log "Track L failed for preprocess_x.o; falling back to preprocess_gen.c (archaeology)"
+  fi
   if [ ! -f preprocess_gen.c ]; then
     log "missing preprocess_gen.c (run ensure_driver_gen preprocess first)"
     return 1
@@ -350,21 +437,6 @@ build_preprocess_x() {
   $CC $CFLAGS -c preprocess_gen.c -o preprocess_x.o
 }
 
-build_x_stubs2() {
-  # Stage2 hybrid link stubs (verify-selfhost-stage2); plain host-cc.
-  if [ ! -f _x_stubs2.c ]; then
-    log "missing _x_stubs2.c"
-    return 1
-  fi
-  if ! need_rebuild_gen_o _x_stubs2.o _x_stubs2.c; then
-    log "skip _x_stubs2.o (up-to-date vs _x_stubs2.c)"
-    return 0
-  fi
-  log "cc -c _x_stubs2.c → _x_stubs2.o"
-  # shellcheck disable=SC2086
-  $CC $CFLAGS -c _x_stubs2.c -o _x_stubs2.o
-}
-
 ensure_one_out() {
   local o="$1"
   case "$o" in
@@ -376,9 +448,8 @@ ensure_one_out() {
     ast_gen2.o) build_ast_gen2 ;;
     driver_x.o) build_driver_x ;;
     preprocess_x.o) build_preprocess_x ;;
-    _x_stubs2.o) build_x_stubs2 ;;
     *)
-      log "no gen map for $o (lsp_io_x|lsp_x|lsp_diag_x|pipeline_x|lexer_x|ast_gen2|driver_x|preprocess_x|_x_stubs2)"
+      log "no gen map for $o (lsp_io_x|lsp_x|lsp_diag_x|pipeline_x|lexer_x|ast_gen2|driver_x|preprocess_x)"
       return 3
       ;;
   esac
@@ -417,9 +488,6 @@ case "$MODE" in
   preprocess-x|preprocess_x|preprocess_x.o)
     build_preprocess_x
     ;;
-  x-stubs2|_x_stubs2|_x_stubs2.o|stubs2)
-    build_x_stubs2
-    ;;
   lsp-all|lsp_all)
     build_lsp_io_x
     build_lsp_x
@@ -438,7 +506,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|x-stubs2|lsp-all|residual-all)" >&2
+    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|lsp-all|residual-all)" >&2
     exit 2
     ;;
 esac

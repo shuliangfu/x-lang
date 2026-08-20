@@ -87,7 +87,7 @@ function main(): i32 {
   if (io.register_provided(8, 16384) != 1) { return 10; }
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let stream: TcpStream = net.connect_blocking(addr, echo_port, 0);
   if (stream.fd < 0) { return 1; }
   let b0: u8[4096] = [];

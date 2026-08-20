@@ -10,16 +10,16 @@ function main(): i32 {
   if (http.conn_reuse_is_available() == false) { return 2; }
   if (http.err_conn_not_ready() != -1237) { return 3; }
 
-  let conn: Http2Conn = Http2Conn {
+  let conn: Http2Conn = {
     fd: 0,
     tls_ctx: 0,
     ready: 0,
     goaway_seen: 0,
     is_https: 0,
-    ms: Http2MultistreamClient {
-      registry: Http2StreamRegistry { slots_blob: [], count: 0, next_id: 0 },
-      peer: Http2PeerSettings { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 },
-      flow: Http2FlowState { conn_window: 0, stream_window: 0 },
+    ms: {
+      registry: { slots_blob: [], count: 0, next_id: 0 },
+      peer: { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 },
+      flow: { conn_window: 0, stream_window: 0 },
       open_count: 0
     }
   };

@@ -123,7 +123,7 @@ export function step(r: *Rng): u64 {
  * @return Rng
  */
 export function seed(seed_val: u64): Rng {
-  return Rng { state: seed_val };
+  return { state: seed_val };
 }
 
 /** Exported function `fill`.

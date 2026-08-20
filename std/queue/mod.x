@@ -39,7 +39,7 @@ allow(padding) struct Queue_i32 {
  * @return Queue_i32
  */
 export function new(): Queue_i32 {
-  return Queue_i32 { data: 0, cap: 0, length: 0, head: 0 };
+  return { data: 0, cap: 0, length: 0, head: 0 };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -235,8 +235,8 @@ extern function sync_queue_contention_smoke_c(): i32;
  */
 export function sync_new(): SyncQueue_i32 {
   let lock: *u8 = sync.new_mutex();
-  let q: Queue_i32 = Queue_i32 { data: 0, cap: 0, length: 0, head: 0 };
-  return SyncQueue_i32 { q: q, lock: lock };
+  let q: Queue_i32 = { data: 0, cap: 0, length: 0, head: 0 };
+  return { q: q, lock: lock };
 }
 
 /** Exported function `sync_deinit`.
@@ -336,7 +336,7 @@ allow(padding) struct Queue_u8 {
  * @return Queue_u8
  */
 export function new(): Queue_u8 {
-  return Queue_u8 { data: 0, cap: 0, length: 0, head: 0 };
+  return { data: 0, cap: 0, length: 0, head: 0 };
 }
 
 /** Exported function `at`.

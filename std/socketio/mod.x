@@ -568,7 +568,7 @@ export function ws_finish_eio_upgrade(stream: SioWsStream, timeout_ms: u32): i32
 /* See implementation. */
 export function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_buf: *u8, url_cap: i32,
   timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   let fd: i32 = -1;
   let tls: i64 = 0;
   let n: i32 = 0;
@@ -581,11 +581,11 @@ export function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32
   unsafe { ws_rc = net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls); }
   if (ws_rc != 0) { return bad; }
   /* See implementation. */
-  if (ws_finish_eio_upgrade(SioWsStream { fd: fd, tls_ctx: tls }, timeout_ms) != 0) {
+  if (ws_finish_eio_upgrade({ fd: fd, tls_ctx: tls }, timeout_ms) != 0) {
     let probe_skip: i32 = 0;
     probe_skip = probe_skip + 0;
   }
-  return SioWsStream { fd: fd, tls_ctx: tls };
+  return { fd: fd, tls_ctx: tls };
 }
 
 /** Exported function `send_connect_packet`.
@@ -621,7 +621,7 @@ export function send_connect_ns_packet(stream: SioWsStream, ns: *u8, ns_len: i32
 /* See implementation. */
 export function connect_ws_ns(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
   url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
   let pre: u8[256] = [];
   let plen: i32 = 0;
@@ -678,7 +678,7 @@ export function ws_close_stream(stream: SioWsStream): i32 {
 export function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
   event: *u8, event_len: i32, data: *u8, data_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8,
   reply_event_cap: i32, reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
-  let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
   let frame: u8[256] = [];
   let payload: u8[128] = [];
   let flen: i32 = 0;
@@ -745,7 +745,7 @@ export function build_ws_eio_url_fresh(http_base: *u8, base_len: i32, out: *u8, 
  * @return SioWsStream
  */
 export function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   let fd: i32 = -1;
   let tls: i64 = 0;
   let n: i32 = 0;
@@ -775,7 +775,7 @@ export function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, ur
 /* See implementation. */
 export function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, url_buf: *u8, url_cap: i32,
   timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
   let ack: u8[256] = [];
   let alen: i32 = 0;
@@ -796,7 +796,7 @@ export function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_l
 export function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, event: *u8,
   event_len: i32, data: *u8, data_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8, reply_event_cap: i32,
   reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
-  let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
   let frame: u8[256] = [];
   let payload: u8[128] = [];
   let flen: i32 = 0;
@@ -839,7 +839,7 @@ export function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32
 export function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, auth_tok: *u8,
   auth_tok_len: i32, ping_event: *u8, ping_event_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8,
   reply_event_cap: i32, reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
-  let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
   let frame: u8[256] = [];
   let payload: u8[128] = [];
   let flen: i32 = 0;
@@ -904,7 +904,7 @@ export function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, n
  */
 export function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8, url_cap: i32,
   timeout_ms: u32, prefer_ws: i32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
   if (c == 0 || base_url == 0 || sid_out == 0 || url_buf == 0) { return bad; }
   if (connect_handshake(c, base_url, base_len, sid_out, sid_cap, timeout_ms) <= 0) { return bad; }
@@ -929,7 +929,7 @@ export function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u
  */
 export function connect_ns(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, ns: *u8, ns_len: i32,
   url_buf: *u8, url_cap: i32, timeout_ms: u32, prefer_ws: i32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
   if (c == 0 || base_url == 0 || sid_out == 0 || url_buf == 0) { return bad; }
   if (connect_handshake(c, base_url, base_len, sid_out, sid_cap, timeout_ms) <= 0) { return bad; }
@@ -986,7 +986,7 @@ export function reconnect_reset(c: *SioClient): void {
  */
 export function reconnect_once(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8,
   url_cap: i32, timeout_ms: u32, prefer_ws: i32): SioWsStream {
-  let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
+  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
   if (c == 0) { return bad; }
   if (!can_reconnect(c)) { return bad; }
   c.sid_len = 0;

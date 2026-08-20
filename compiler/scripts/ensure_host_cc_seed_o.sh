@@ -23,10 +23,11 @@
 #            rebuild_leaves residual uses this before make.
 #   wave763: R3 PREFER thin+rest product path — `try-r3-prefer OUT` (same catalog
 #            R3_COLD_SEED_OBJS; G.7 有则补全, no new list). When
-#            XLANG_G05_PREFER_X_O=1 and xlang-c works: thin.x|-E → thin.o +
-#            seed rest (-D FROM_X) → ld -r. Else / fail → ensure_one cold seed
-#            (same body as try-r3-cold). Makefile nine leaves thin-call this
-#            helper (no inline thin+rest recipe). simd_enc/loop keep nm symbol
+#            XLANG_G05_PREFER_X_O=1 and xlang-c works: thin.x via
+#            rt_prefer_try_x_to_o (wave190: single -E prologue; no bare -E|cc)
+#            + seed rest (-D FROM_X) → ld -r. Else / fail → ensure_one cold seed
+#            (same body as try-r3-cold). Product leaves thin-call this helper
+#            via try-heat / g05 r3-prefer-family. simd_enc/loop keep nm symbol
 #            gates.
 #   wave764: G.7 g05 dual-hybrid swallow — same try-r3-prefer body owns product
 #            daily path for R3_COLD nine (g05_ensure thin-calls r3-prefer-family).
@@ -38,6 +39,27 @@
 #   wave766: G.7 g05 rt multi-slice swallow — `try-rt-prefer OUT` for
 #            src/runtime_driver_no_c.o (content..dispatch + rest FROM_X → cc -r;
 #            RT_SEED_SLICE external). g05_ensure + Makefile thin-call.
+#   wave318: G.7 runtime mega full seed host-cc leave (prefer path) —
+#            when all hybrid non-default RT_* slices are ok, monofile rest under
+#            full XLANG_RT_*_FROM_X is T=0 (empty mega). Omit host-cc of
+#            seeds/runtime.from_x.c and merge slices only (parser f-330 analogue).
+#   wave319: G.7 runtime cold multi-slice leave (PREFER=0) —
+#            multi-slice path no longer gated on PREFER=1; PREFER=0 uses cold
+#            layer seeds only (no .x try). When full non-default set ok → same
+#            omit empty mega rest as wave318 (no monofile host-cc). Monofile
+#            seeds/runtime.from_x.c remains last-resort only (partial/fail).
+#            Not M4 pin-off (7.1 still ⬜ — monofile seed still in tree).
+#   wave320: G.7 product no_c refuse monofile (7.1.2 step) —
+#            multi-slice gated on content layer seed (not monofile presence);
+#            partial rest + last-resort monofile host-cc **refused** by default
+#            (fail hard). Escape: XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1
+#            (archaeology only; requires monofile file if still present).
+#   wave321: G.7 R1 monofile physical retire (7.1.1) —
+#            seeds/runtime.from_x.c **removed**. R1 main-runtime runtime*.o
+#            cold maps → multi-slice product object (content layer seeds only).
+#            runtime.o / runtime_x.o / runtime_driver.o become aliases of
+#            multi-slice no_c (monofile flag variants retired; LEGACY monofile
+#            host-cc gone). Escape monofile last-resort fails without seed.
 #   wave767: G.7 g05 pipeline_abi + ldpc PREFER swallow —
 #            `try-pipeline-abi-prefer OUT` (full .x WEAK + rest FROM_X → cc -r)
 #            · `try-ldpc-prefer OUT` (thin .x WEAK + rest L2_LSP_CTX → cc -r).
@@ -84,7 +106,8 @@
 #            thin-call only (NOT physical delete). Residual: B4–B5 · physical delete.
 #   wave782: G.7 B4 gen.c → .o bootstrap → `try-gen-c-to-o OUT`
 #            (有则补全; body = ensure_gen_x_o.sh maps for lexer_x / ast_gen2 /
-#            driver_x / preprocess_x / _x_stubs2 — outside try-gen-x catalog).
+#            driver_x / preprocess_x — outside try-gen-x catalog).
+#            wave295 B′: _x_stubs2 host left (dead dual; not g05/stage2 link).
 #            Makefile thin-call only (NOT physical delete). Residual: B5 · physical delete.
 #   wave783: G.7 B5 cfg_eval multi-ladder → `try-cfg-eval-ladder OUT`
 #            (有则补全; single leaf src/lexer/cfg_eval.o; rungs: -E-extern±L →
@@ -294,6 +317,22 @@ cd "$_ENSURE_HOST_CC_DIR/.."
 # CC=cc — MinGW ships gcc without a `cc` alias (Windows hybrid min-gate).
 # shellcheck source=resolve_host_cc.sh
 . "$_ENSURE_HOST_CC_DIR/resolve_host_cc.sh"
+
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$_ENSURE_HOST_CC_DIR/forbid_host_cc.sh"
+
+# Stage 12.2.3: pure-ld partial-merge helper (replaces $CC -r -nostdlib in
+# prefer hybrid merges; zero-CC when XLANG_ZERO_CC_LD=1, else $CC -r zero
+# regression). PLATFORM: SHARED.
+. "$_ENSURE_HOST_CC_DIR/pure_ld_shared.sh"
+
+# Stage 12.0.5: strip ambient tree PREFER_ASM_O unless ALLOW_TREE (G.7).
+# Prefer families re-scope PREFER inside pure_asm subshells. PLATFORM: SHARED.
+xlang_strip_tree_prefer_asm_unless_allowed
+
 MAKE="${MAKE:-make}"
 FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 
@@ -364,9 +403,21 @@ _DEFAULT_PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 # PLATFORM: SHARED — aligned with Makefile PARSER_ASM_THIN_GLUE_CFLAGS + -I paths.
 _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm"
 
+# wave326: M4 7.3.1 link_abi mega pin close — prefer 12× labi_*.x slices by default.
+# Product authority: L0..L9 + L8b + L8c labi_*.x prefer → per-slice .o →
+#   $CC -r -nostdlib merge → src/runtime_link_abi.o; -D XLANG_LABI_*_FROM_X only
+#   on slices that preferred .x (rest compiled from mega seed with those gates).
+# Pin seed (seeds/runtime_link_abi.from_x.c + seeds/labi_*.from_x.c) is
+#   archaeology egg only (true cold / no product xlang binary).
+# PLATFORM: SHARED — cold start (R1_CORE_SEED direct call) + g05 daily path
+#   now aligned (no more "g05 PREFER=1 vs direct call PREFER=0" dual policy).
+# Aligned with wave322 typeck / wave323 codegen / wave325 parser FROM_X defaults.
+XLANG_LINK_ABI_FROM_X="${XLANG_LINK_ABI_FROM_X:-1}"
+XLANG_LINK_ABI_ALLOW_PIN="${XLANG_LINK_ABI_ALLOW_PIN:-1}"
+
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-x-to-o|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -583,7 +634,10 @@ ensure_one() {
 
   log "cc -c $seed → $out"
   # shellcheck disable=SC2086
-  $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS "${extras[@]+"${extras[@]}"}" -c -o "$out" "$seed"
+  if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS "${extras[@]+"${extras[@]}"}" -c -o "$out" "$seed"; then
+    echo "ensure_host_cc_seed_o: cc failed for $out (seed=$seed)" >&2
+    return 1
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -662,6 +716,8 @@ seed_for_frontend_glue() {
 
 # seed convention (main-runtime multi-out from shared seeds).
 # PLATFORM: SHARED — map is path convention only; list authority = catalog KEY.
+# wave321: runtime* monofile retired — map reports content layer gate seed
+# (check / inventory); body builds via ensure_runtime_multi_slice_leaf.
 seed_for_main_runtime() {
   local o="$1"
   case "$o" in
@@ -669,13 +725,55 @@ seed_for_main_runtime() {
       printf 'seeds/main.from_x.c\n'
       ;;
     src/runtime.o|src/runtime_x.o|src/runtime_driver.o|src/runtime_driver_no_c.o)
-      printf 'seeds/runtime.from_x.c\n'
+      # wave321 7.1.1: monofile seeds/runtime.from_x.c physically retired.
+      # Content layer seed is the product multi-slice gate (wave320).
+      printf 'seeds/rt_content.from_x.c\n'
       ;;
     *)
       echo "ensure_host_cc_seed_o: no main-runtime seed map for $o" >&2
       exit 1
       ;;
   esac
+}
+
+# wave321: R1 runtime*.o leaves — multi-slice only (no monofile host-cc).
+# PLATFORM: SHARED freestanding product no_c multi-slice is the sole authority.
+is_runtime_multi_slice_leaf() {
+  case "$1" in
+    src/runtime.o|src/runtime_x.o|src/runtime_driver.o|src/runtime_driver_no_c.o)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Build product multi-slice into runtime_driver_no_c.o; optional alias copy for
+# archaeology catalog members that historically used monofile + different -D.
+# G.7: single body = ensure_rt_prefer_one; no second monofile compile path.
+ensure_runtime_multi_slice_leaf() {
+  local o="$1"
+  local no_c="src/runtime_driver_no_c.o"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o: ensure_runtime_multi_slice_leaf needs <out.o>" >&2
+    return 2
+  fi
+  if ! is_runtime_multi_slice_leaf "$o"; then
+    echo "ensure_host_cc_seed_o: $o is not a runtime multi-slice leaf" >&2
+    return 1
+  fi
+  # Product authority always lands on no_c first.
+  ensure_rt_prefer_one "$no_c" || return 1
+  if [ "$o" != "$no_c" ]; then
+    # wave321: monofile flag variants (plain / USE_X_PIPELINE / DRIVER_CFLAGS)
+    # retired with physical monofile rm. Catalog still lists these .o for R1
+    # inventory; content = multi-slice no_c product object (alias copy).
+    mkdir -p "$(dirname "$o")"
+    cp -f "$no_c" "$o" || return 1
+    log "main-runtime: $o ← multi-slice no_c alias (wave321 monofile retired)"
+  fi
+  return 0
 }
 
 # Extra -D flags for main-runtime family (stdout, space-separated; may be empty).
@@ -844,6 +942,12 @@ ensure_catalog_family() {
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
+    # wave321: runtime* R1 leaves never host-cc monofile (multi-slice only).
+    if [ "$seed_mode" = "main-runtime" ] && is_runtime_multi_slice_leaf "$o"; then
+      ensure_runtime_multi_slice_leaf "$o" || exit 1
+      n=$((n + 1))
+      continue
+    fi
     case "$seed_mode" in
       basename) seed="$(seed_for_o "$o")" ;;
       frontend-glue) seed="$(seed_for_frontend_glue "$o")" ;;
@@ -1007,6 +1111,30 @@ try_ensure_r1_one() {
     echo "ensure_host_cc_seed_o try-r1: need <out.o>" >&2
     exit 2
   fi
+  # sat -B + XLANG_G05_PREFER_X_O=0 used to cold-cc the mega seed
+  # (seeds/runtime_link_abi.from_x.c `#ifndef FROM_X`) and wipe prefer
+  # labi_*.x slices. Route like pipeline_abi: single body
+  # ensure_labi_prefer_one (FROM_X default 1 still hybrids). Do **not**
+  # gate on G05_PREFER=1. G.7: no second labi builder.
+  # PLATFORM: SHARED — sat try-r1 + g05 try-labi-prefer share one body.
+  if [ "$o" = "src/runtime_link_abi.o" ]; then
+    ensure_labi_prefer_one "$o" || return 1
+    return 0
+  fi
+  # wave176 / L4: pipeline_abi always routes through ensure_pipeline_abi_prefer_one
+  # (hybrid when egg exists; cold seed last resort). Do **not** gate on PREFER=1 —
+  # sat rebuild sets PREFER=0 and would otherwise cold-cc the broken full seed and
+  # wipe a good hybrid .o. G.7: single body wave767.
+  # PLATFORM: SHARED · pin egg required for true-cold hybrid.
+  if [ "$o" = "src/runtime_pipeline_abi.o" ]; then
+    ensure_pipeline_abi_prefer_one "$o" || return 1
+    return 0
+  fi
+  # wave321 7.1.1: runtime monofile retired — multi-slice product body only.
+  if is_runtime_multi_slice_leaf "$o"; then
+    ensure_runtime_multi_slice_leaf "$o" || return 1
+    return 0
+  fi
   if ! seed_mode="$(r1_seed_mode_for_o "$o")"; then
     # Not pure R1 — honest residual for R2/R3/gen/etc.
     return 3
@@ -1070,6 +1198,12 @@ ensure_r3_cold_seed() {
 
 # ---------------------------------------------------------------------------
 # wave763/764: try-r3-prefer OUT — R3 PREFER thin+rest product path (single body).
+# Stage 12.0.5 pure-asm hybrid (opt-in PREFER_ASM_O; not product-default):
+#   thin via rt_prefer_try_x_to_o → pure_asm_x_to_o first. Freestanding reject
+#   covers U xlang_driver_*_opaque (rdabi fallthrough -E). ptr+int ADD uses
+#   scale1 64-bit (glue_try_emit_ptr_arith_scaled) — closes pure-asm rio IO001.
+#   Dual-end R3 hybrid 9/9 pure-ld + matrix 5/5 @ tip after fix.
+
 #
 # Membership = catalog R3_COLD_SEED_OBJS only (lists = mk; same KEY as cold).
 # When XLANG_G05_PREFER_X_O=1 and ./xlang-c is executable:
@@ -1114,7 +1248,11 @@ r3_prefer_leaf_spec() {
       printf '%s\n' "src/asm/simd_loop_thin.x|XLANG_L2_SIMD_LOOP_THIN_FROM_X|glue_simd_loop_pick_lanes_c|src/asm/simd_loop.x|XLANG_SIMD_LOOP_FROM_X"
       ;;
     src/asm/backend_enc_dispatch.o)
-      printf '%s\n' "src/asm/backend_enc_dispatch_thin.x|XLANG_L2_ENC_DISPATCH_THIN_FROM_X|-|src/asm/backend_enc_dispatch.x|XLANG_BACKEND_ENC_DISPATCH_FROM_X"
+      # nm gate: full.x / thin.x still miss Cap residual f64 enc (addsd/divsd/…);
+      # hybrid under FROM_X empties rest bodies → L4 pure-ld UNDEF from
+      # runtime_pipeline_abi. Gate fails prefer → cold full seed (has symbols).
+      # PLATFORM: SHARED · remove gate when .x exports backend_enc_addsd_rax_rbx_arch.
+      printf '%s\n' "src/asm/backend_enc_dispatch_thin.x|XLANG_L2_ENC_DISPATCH_THIN_FROM_X|backend_enc_addsd_rax_rbx_arch|src/asm/backend_enc_dispatch.x|XLANG_BACKEND_ENC_DISPATCH_FROM_X"
       ;;
     src/asm/backend_arch_emit_dispatch.o)
       printf '%s\n' "src/asm/backend_arch_emit_dispatch_thin.x|XLANG_L2_ARCH_EMIT_THIN_FROM_X|-|src/asm/backend_arch_emit_dispatch.x|XLANG_BACKEND_ARCH_EMIT_DISPATCH_FROM_X"
@@ -1158,30 +1296,29 @@ r3_prefer_nm_has_sym() {
   '
 }
 
-# Try one prefer step: xlang -E x_src → cc thin → cc seed rest -D → ld -r OUT.
+# Try one prefer step: thin.x → .o (rt_prefer prologue) + seed rest -D → ld -r OUT.
 # $1=out.o $2=x_src $3=rest_csv $4=nm_sym $5=seed $6=xlang_bin
 # Returns 0 on success (OUT written + nm ok).
+#
+# G.7 / wave190: thin compile MUST reuse rt_prefer_try_x_to_o (single -E prologue
+# authority). Bare `xlang -E | cc` left U xlang_driver_* on pure
+# runtime_driver_abi_thin (stdout_ptr / fputs_opaque / … are static inline only
+# inside that harness). PLATFORM: SHARED.
 r3_prefer_try_step() {
   local o="$1" x_src="$2" rest_csv="$3" nm_sym="$4" seed="$5" xlang_bin="$6"
-  local tmp_c thin_o rest_o ld_flags d_args=() d
+  local thin_o rest_o ld_flags d_args=() d
   local label="${x_src##*/}"
 
   [ -n "$x_src" ] && [ "$x_src" != "-" ] && [ -f "$x_src" ] || return 1
   [ -f "$seed" ] || return 1
   [ -x "$xlang_bin" ] || return 1
 
-  tmp_c="$(mktemp "${TMPDIR:-/tmp}/r3pref.XXXXXX")"
   thin_o="${o%.o}_prefer_step.o"
   rest_o="${o%.o}_prefer_rest.o"
   mkdir -p "$(dirname "$o")"
-  # shellcheck disable=SC2086
-  if ! "$xlang_bin" \
-    -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck \
-    -L src/preprocess -L src/codegen -L src/pipeline \
-    -E "$x_src" >"$tmp_c" 2>/dev/null \
-    || [ ! -s "$tmp_c" ] \
-    || ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -x c -c "$tmp_c" -o "$thin_o" 2>/dev/null; then
-    rm -f "$tmp_c" "$thin_o" "$rest_o"
+  # Thin surface: same prologue as try-pipeline-abi / g05 (xlang_driver_* inlines).
+  if ! rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+    rm -f "$thin_o" "$rest_o"
     return 1
   fi
   d_args=()
@@ -1194,7 +1331,7 @@ r3_prefer_try_step() {
   # shellcheck disable=SC2086
   if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
     "${d_args[@]}" -c "$seed" -o "$rest_o" 2>/dev/null; then
-    rm -f "$tmp_c" "$thin_o" "$rest_o"
+    rm -f "$thin_o" "$rest_o"
     return 1
   fi
   ld_flags="$(r3_prefer_ld_r_flags)"
@@ -1202,10 +1339,10 @@ r3_prefer_try_step() {
   if ld $ld_flags -o "$o" "$thin_o" "$rest_o" 2>/dev/null \
     && r3_prefer_nm_has_sym "$o" "$nm_sym"; then
     log "prefer thin+rest $o <- $x_src + $seed ($label; try-r3-prefer)"
-    rm -f "$tmp_c" "$thin_o" "$rest_o"
+    rm -f "$thin_o" "$rest_o"
     return 0
   fi
-  rm -f "$tmp_c" "$thin_o" "$rest_o"
+  rm -f "$thin_o" "$rest_o"
   return 1
 }
 
@@ -1333,7 +1470,8 @@ ensure_r3_prefer() {
 #   rest = seeds/runtime_link_abi.from_x.c with XLANG_LABI_*_FROM_X for ok layers
 #   merge: $CC -r -nostdlib slices + rest → OUT
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold full seed (same as core-seed).
-# Callers: g05_ensure (wave765) · Makefile src/runtime_link_abi.o (unified).
+# Callers: g05_ensure (wave765) · Makefile src/runtime_link_abi.o (unified)
+#   · sat try-r1 (same body; no mega `#ifndef` wipe).
 # Exit codes:
 #   0 — OUT is runtime_link_abi.o; prefer or cold body produced OUT
 #   3 — OUT is not src/runtime_link_abi.o
@@ -1357,12 +1495,38 @@ labi_prefer_pick_xlang() {
 
 # Prefer one layer .x → .o (simple -E harness; fail → caller seed).
 # $1=x_src $2=out.o  Returns 0 on success.
+# Stage 12.0.5 labi-only pure-asm product default (authorized 2026-08-12):
+#   · XLANG_PREFER_ASM_O_LABI defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
+#     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
+#   · pure_asm reject (panic/__error/CG002/ONLY miss) → fall through -E+$CC.
+#   · Escape hatch: XLANG_PREFER_ASM_O_LABI=0 → historic -E+$CC. Ambient tree
+#     PREFER_ASM_O does NOT re-enable pure-asm unless
+#     XLANG_ALLOW_TREE_PREFER_ASM=1 (product entry also strips tree PREFER).
+# Peer defaults (same-day auth wave): XLANG_PREFER_ASM_O_RT (rt_prefer harness
+# families: rt/async/R3/l2-asm/B1–B3/…) and XLANG_PREFER_ASM_O_G05 (g05_try).
+#   · pipeline_abi mega pure-asm: product open (opaque WEAK on driver_abi bag;
+#     hang wall closed typeck slim dual-end <90s emit).
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
+# G.7: single pure_asm_x_to_o authority; no second pure-asm helper.
 labi_prefer_try_x_to_o() {
   local x_src="$1" x_out="$2" xlang_bin tmp e_ok e_try
   [ -f "$x_src" ] || return 1
-  xlang_bin="$(labi_prefer_pick_xlang)" || return 1
   mkdir -p "$(dirname "$x_out")"
+  # Labi-only pure-asm default: scope PREFER_ASM_O=1 inside subshell so
+  # pure_asm_x_to_o (G.7) runs without flipping tree-level product defaults.
+  # When LABI=0: unset ambient PREFER unless ALLOW_TREE (close tree leak).
+  # PLATFORM: SHARED.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_LABI:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    pure_asm_x_to_o "$x_out" "$x_src"
+  ); then
+    return 0
+  fi
+  xlang_bin="$(labi_prefer_pick_xlang)" || return 1
   tmp="$(mktemp "${TMPDIR:-/tmp}/labipref.XXXXXX")"
   e_ok=0
   for e_try in 1 2 3 4 5; do
@@ -1394,7 +1558,9 @@ labi_prefer_try_x_to_o() {
 # $1=label $2=x $3=seed $4=out_tmp  → 0 if layer .o ready.
 labi_prefer_layer() {
   local label="$1" x_src="$2" seed="$3" out_tmp="$4"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  # wave326: XLANG_LINK_ABI_FROM_X is the new pin-close default;
+  # XLANG_G05_PREFER_X_O remains as legacy g05-wide escape hatch.
+  local prefer="${XLANG_LINK_ABI_FROM_X:-${XLANG_G05_PREFER_X_O:-0}}"
   if [ "$prefer" = "1" ] && [ -f "$x_src" ]; then
     if labi_prefer_try_x_to_o "$x_src" "$out_tmp"; then
       log "labi $label ← $x_src (prefer .x)"
@@ -1415,7 +1581,10 @@ ensure_labi_prefer_one() {
   # Prefer multi-slice or cold full seed for src/runtime_link_abi.o (no membership check).
   local o="$1"
   local seed="seeds/runtime_link_abi.from_x.c"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  # wave326: XLANG_LINK_ABI_FROM_X is the pin-close default (1 = labi_*.x authoritative);
+  # XLANG_G05_PREFER_X_O remains as legacy g05-wide escape. ALLOW_PIN=1 keeps
+  # true-cold egg path: if no xlang binary → compile full seed as archaeology fallback.
+  local prefer="${XLANG_LINK_ABI_FROM_X:-${XLANG_G05_PREFER_X_O:-0}}"
   local stale=0 done=0
   local l0_o l1_o l2_o l3_o l4_o l5_o l6_o l7_o l8_o l8b_o l8c_o l9_o rest_o
   local l0_ok=0 l1_ok=0 l2_ok=0 l3_ok=0 l4_ok=0 l5_ok=0 l6_ok=0 l7_ok=0
@@ -1549,7 +1718,7 @@ ensure_labi_prefer_one() {
         [ "$l9_ok" = "1" ] && link_objs="$link_objs $l9_o"
         # shellcheck disable=SC2086
         # PLATFORM: SHARED — historic g05 used $CC -r -nostdlib (not ld Darwin flags).
-        if $CC -r -nostdlib -o "$o" $link_objs "$rest_o" 2>/dev/null; then
+        if pure_ld_partial_merge "$o" $link_objs "$rest_o" 2>/dev/null; then
           log "prefer multi-slice $o <- L0..L9+L8b+L8c + link_abi rest (try-labi-prefer)"
           done=1
         fi
@@ -1603,15 +1772,18 @@ try_ensure_labi_prefer_one() {
 # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE permanent .o into no_c
 #   (arena/emit_state/preamble/stack/parse_diag stay external; FROM_X on rest
 #   leaves them U in no_c — historic Darwin 22× multidef fix).
-# Prefer fail / PREFER≠1 / no xlang → ensure_one cold full seed + NO_C flags.
-# Callers: g05_ensure (wave766) · Makefile src/runtime_driver_no_c.o (unified).
+# Prefer fail / partial slices → **refuse** monofile by default (wave320);
+#   set XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1 to restore monofile + NO_C last resort.
+# wave319: PREFER=0 still multi-slices from cold layer seeds; omit empty mega when full.
+# wave320: gate on content layer seed; product path never host-cc monofile unless escape.
+# Callers: g05_ensure (wave766) · heat / try-rt-prefer product leaf.
 # Exit codes:
-#   0 — OUT is runtime_driver_no_c.o; prefer or cold body produced OUT
+#   0 — OUT is runtime_driver_no_c.o; multi-slice (or allow-escape monofile) produced OUT
 #   3 — OUT is not src/runtime_driver_no_c.o
-#   1 — cold seed missing / compile failed
-# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+#   1 — multi-slice incomplete / monofile refused / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0 multi-slice.
 # G.7: no second .o list; layer table is seed-path convention (not product inventory).
-# Residual after: ~~pipeline_abi/ldpc~~(wave767) · target_cpu · pure-ld · physical delete.
+# Residual after wave321 monofile rm: typeck 7.4.1 · LEGACY monofile flag variants.
 # ---------------------------------------------------------------------------
 
 rt_prefer_no_c_cflags() {
@@ -1641,8 +1813,49 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
+  # Stage 12.0.5 prefer-family pure-asm product default (authorized 2026-08-12):
+  #   · XLANG_PREFER_ASM_O_RT defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
+  #     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
+  #   · Covers every prefer family that reuses this harness: try-rt-prefer,
+  #     try-r3-prefer, try-async-prefer, try-l2-asm-prefer, try-target-cpu /
+  #     try-ldpc / try-other-l2, B1 runtime-os / B2 std-core / B3 lsp-sat, etc.
+  #   · pure_asm reject (panic/__error/CG002/ONLY miss/WEAK polish fail) →
+  #     fall through -E+$CC (same as labi default path).
+  #   · Escape hatch: XLANG_PREFER_ASM_O_RT=0 → historic -E+$CC. Ambient tree
+  #     PREFER does NOT re-enable pure-asm unless XLANG_ALLOW_TREE_PREFER_ASM=1.
+  #   · Ban: tree-level PREFER_ASM_O=1 as product default (hard strip + family=0).
+  #     pipeline_abi mega product pure-asm skip (Cap residual; opaque WEAK closed).
+  # PLATFORM: SHARED harness · G.7 single pure_asm_x_to_o authority.
+  # Labi keeps its own XLANG_PREFER_ASM_O_LABI gate in labi_prefer_try_x_to_o.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    pure_asm_x_to_o "$_xout" "$_xsrc"
+  ); then
+    return 0
+  fi
+  # Historic product path: -E → prologue → $CC -c.
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
+  # F1-2026-08-18: XLANG_PREGEN_E_C=<path> reuses a pre-generated -E dump instead
+  # of running the (OOM-prone) -E step here. Use case: mega runtime_pipeline_abi.x
+  # -E peaks 22-40GB RSS (fat AST nodes x GrowVec doubling) and dev-box jetsam
+  # kills it ~24GB; a big-RAM host (Ubuntu gold, 61GB) runs the bare -E and the
+  # artifact is transferred back. Downstream post-processing (weak rename,
+  # prologue, cc flags) stays in THIS function — single authority, G.7.
+  # PLATFORM: SHARED harness
+  if [ -n "${XLANG_PREGEN_E_C:-}" ]; then
+    if [ -s "$XLANG_PREGEN_E_C" ]; then
+      cat "$XLANG_PREGEN_E_C" > "$_xtmp"
+    else
+      echo "rt_prefer_try_x_to_o: XLANG_PREGEN_E_C set but empty/missing: $XLANG_PREGEN_E_C" >&2
+      rm -f "$_xtmp"
+      return 1
+    fi
+  else
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。
   # Ubuntu 主机偶发 -E SIGSEGV：最多 5 次重试（对齐 prove harness b12bf000）。
   # PLATFORM: SHARED harness
@@ -1664,6 +1877,7 @@ rt_prefer_try_x_to_o() {
     rm -f "$_xtmp"
     return 1
   fi
+  fi
   if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
     # Named weak only (G.7 有则补全 on rt_prefer harness).
     # wave771 seed_link_compat: 6 stubs must stay weak so lsp_diag_x /
@@ -1682,6 +1896,15 @@ rt_prefer_try_x_to_o() {
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
     perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/XLANG_WEAK $1 $2(/' "$_xtmp" || true
+  fi
+  # F1-2026-08-18 chunked -E: -E renders .x file-level `let g_*` as C `static`
+  # globals. In a monolithic file all functions share one storage; split chunks
+  # would each get a PRIVATE copy (semantic divergence). G05_X_O_GLOBALS_WEAK=1
+  # drops `static` and marks them XLANG_WEAK so ld -r first-wins restores the
+  # single shared storage across merged chunks. Default 0 = zero regression.
+  # PLATFORM: SHARED harness (chunked runtime_pipeline_abi thin builder).
+  if [ "${G05_X_O_GLOBALS_WEAK:-0}" = "1" ]; then
+    perl -i -pe 's/^static ((?:(?:const|volatile)\s+)?\w[\w\s]*?\*?\s*g_\w+)/XLANG_WEAK $1/' "$_xtmp" || true
   fi
   # G-02f-458: 前端 *_gen.c .o 的符号重命名
   # 格式：G05_X_O_SYM_RENAME="old1:new1,old2:new2,..."
@@ -1902,14 +2125,18 @@ rt_prefer_try_x_to_o() {
 }
 
 ensure_rt_prefer_one() {
-  # Prefer multi-slice or cold full seed for src/runtime_driver_no_c.o.
+  # Prefer multi-slice (or cold multi-slice); monofile last-resort only with escape.
+  # PLATFORM: SHARED freestanding — wave318/319 omit empty mega; wave320 refuse monofile.
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local allow_monofile="${XLANG_RT_ALLOW_MONOFILE_LAST_RESORT:-0}"
   local RUNTIME_DRIVER_NO_C_CFLAGS
   RUNTIME_DRIVER_NO_C_CFLAGS="$(rt_prefer_no_c_cflags)"
   export RUNTIME_DRIVER_NO_C_CFLAGS
-  # Historic g05 block (paths + hybrid + cold) — leaf OUT is $1.
-    # G-02f-14 / G-02f-261～265 / G-02f-291～297：runtime_driver_no_c.o ← seeds/runtime.from_x.c + NO_C flags
-    # PREFER_X_O=1：R2/R0/R1/R5-lite/R3/R6/R7-lite 切片 hybrid → rest（XLANG_RT_*_FROM_X）
+  # Historic g05 block (paths + hybrid/cold multi-slice; monofile opt-in only).
+    # G-02f-14 / G-02f-261～265 / G-02f-291～297：runtime_driver_no_c.o
+    # PREFER_X_O=1：R2..parsed 切片 hybrid（.x+seed）→ omit empty mega rest (wave318)
+    # PREFER_X_O=0：同层 cold seed 切片 only → omit empty mega rest (wave319)
+    # wave320：默认 **拒** monofile last-resort（7.1.2）；escape=XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1
     # 注：RFC R4 DCE 在 !XLANG_USE_X_DRIVER 下，不进产品 .o；R7 spawn 仍 rest
     _rt=seeds/runtime.from_x.c
     _rt_content_x=src/runtime/rt_content.x
@@ -1959,8 +2186,12 @@ ensure_rt_prefer_one() {
     _rt_stack_seed=seeds/rt_stack.from_x.c
     _rt_stack_x=src/runtime/rt_stack.x
     _rt_o="$1"
-    if [ -f "$_rt" ]; then
-      if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
+    # wave320: product multi-slice gated on content layer seed (not monofile presence).
+    # Monofile may be absent after future 7.1.1 physical retire; escape still uses _rt.
+    # PLATFORM: SHARED freestanding runtime product no_c.
+    if [ -f "$_rt_content_seed" ] || [ -f "$_rt" ]; then
+      if [ ! -f "$_rt_o" ] \
+        || { [ -f "$_rt" ] && [ "$_rt" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_util_x" ] && [ "$_rt_util_x" -nt "$_rt_o" ]; } \
@@ -2008,7 +2239,10 @@ ensure_rt_prefer_one() {
         || { [ -f "$_rt_stack_x" ] && [ "$_rt_stack_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
         _rt_done=0
-        if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_content_seed" ]; then
+        # wave319: multi-slice whenever content cold seed exists (not only PREFER=1).
+        # Per-slice still tries .x only when PREFER=1; PREFER=0 uses cold seed bodies.
+        # PLATFORM: SHARED freestanding runtime mega cold multi-slice omit empty rest.
+        if [ -f "$_rt_content_seed" ]; then
           _rt_c_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_content.XXXXXX") || true
           _rt_u_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_util.XXXXXX") || true
           _rt_a_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv.XXXXXX") || true
@@ -2065,7 +2299,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_content_x" "$_rt_content_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_CONTENT_FROM_X \
                      -c -o "$_rt_content_rest_o" "$_rt_content_seed" \
-                && $CC -r -nostdlib -o "$_rt_c_o" "$_rt_content_thin_o" "$_rt_content_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_c_o" "$_rt_content_thin_o" "$_rt_content_rest_o" 2>/dev/null; then
                 _rt_content_ok=1
                 echo "rt-prefer: R2 content ← full .x + rest H=0 (path wrappers in .x)"
               fi
@@ -2088,7 +2322,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_util_x" "$_rt_util_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_UTIL_FROM_X \
                      -c -o "$_rt_util_rest_o" "$_rt_util_seed" \
-                && $CC -r -nostdlib -o "$_rt_u_o" "$_rt_util_thin_o" "$_rt_util_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_u_o" "$_rt_util_thin_o" "$_rt_util_rest_o" 2>/dev/null; then
                 _rt_util_ok=1
                 echo "rt-prefer: R0 util ← thin .x + rest (G-02f-435 L2 prefer .x)"
               fi
@@ -2111,7 +2345,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_argv_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARGV_FROM_X \
                      -c -o "$_rt_argv_rest_o" "$_rt_argv_seed" \
-                && $CC -r -nostdlib -o "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
                 _rt_argv_ok=1
                 echo "rt-prefer: R1 argv ← full .x + rest (R2 full H=0; G-02f-431 PREFER_X_O)"
               fi
@@ -2134,7 +2368,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_ef_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_FLAGS_FROM_X \
                      -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
-                && $CC -r -nostdlib -o "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
                 _rt_ef_ok=1
                 echo "rt-prefer: R2 emit_flags ← full .x + rest (G-02f R2 prefer .x; FROM_X rest H=0)"
               fi
@@ -2157,7 +2391,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_pre_x" "$_rt_p_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PREAMBLE_FROM_X \
                      -c -o "$_rt_p_rest_o" "$_rt_pre_seed" \
-                && $CC -r -nostdlib -o "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
                 _rt_pre_ok=1
                 echo "rt-prefer: R3 preamble ← full .x + rest tables/marker (R2 full H=0)"
               fi
@@ -2182,7 +2416,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_COMPILE_FROM_X \
                      -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
-                && $CC -r -nostdlib -o "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
+                && pure_ld_partial_merge "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_state_alloc_c$" \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_deps_are_std_core_closure_only$" \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_parse_argv_impl_c$"; then
@@ -2211,7 +2445,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_exec_x" "$_rt_run_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_EXEC_FROM_X \
                      -c -o "$_rt_run_rest_o" "$_rt_run_seed" \
-                && $CC -r -nostdlib -o "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
+                && pure_ld_partial_merge "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
                 && nm "$_rt_run_o" 2>/dev/null | grep -q " T driver_run_test$"; then
                 _rt_run_ok=1
                 echo "rt-prefer: R7 run/exec ← full .x + rest marker (R2 full H=0)"
@@ -2237,7 +2471,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_asm_stub_x" "$_rt_asm_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ASM_STUB_FROM_X \
                      -c -o "$_rt_asm_rest_o" "$_rt_asm_seed" \
-                && $CC -r -nostdlib -o "$_rt_asm_o" "$_rt_asm_thin_o" "$_rt_asm_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_asm_o" "$_rt_asm_thin_o" "$_rt_asm_rest_o" 2>/dev/null; then
                 _rt_asm_ok=1
                 echo "rt-prefer: R9 asm stub ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2260,7 +2494,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ENTRY_FROM_X \
                      -c -o "$_rt_ent_rest_o" "$_rt_entry_seed" \
-                && $CC -r -nostdlib -o "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
                 _rt_entry_ok=1
                 echo "rt-prefer: R10 entry ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2283,7 +2517,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DIAG_ERRNO_FROM_X \
                      -c -o "$_rt_diag_rest_o" "$_rt_diag_seed" \
-                && $CC -r -nostdlib -o "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
                 _rt_diag_ok=1
                 echo "rt-prefer: rest diag_errno ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2306,7 +2540,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_emit_st_x" "$_rt_est_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_STATE_FROM_X \
                      -c -o "$_rt_est_rest_o" "$_rt_emit_st_seed" \
-                && $CC -r -nostdlib -o "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
                 _rt_est_ok=1
                 echo "rt-prefer: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
               fi
@@ -2329,7 +2563,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_elf_diag_x" "$_rt_elfd_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PIPELINE_ELF_DIAG_FROM_X \
                      -c -o "$_rt_elfd_rest_o" "$_rt_elf_diag_seed" \
-                && $CC -r -nostdlib -o "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
                 _rt_elfd_ok=1
                 echo "rt-prefer: rest pipeline elf diag ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2352,7 +2586,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_lib_root_x" "$_rt_lr_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_LIB_ROOT_FROM_X \
                      -c -o "$_rt_lr_rest_o" "$_rt_lib_root_seed" \
-                && $CC -r -nostdlib -o "$_rt_lr_o" "$_rt_lr_thin_o" "$_rt_lr_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_lr_o" "$_rt_lr_thin_o" "$_rt_lr_rest_o" 2>/dev/null; then
                 _rt_lr_ok=1
                 echo "rt-prefer: rest lib_root ← thin .x + rest (G-02f-432 L2 prefer .x)"
               fi
@@ -2376,7 +2610,7 @@ ensure_rt_prefer_one() {
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
                      -DXLANG_RT_PARSE_DIAG_FROM_X -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE \
                      -c -o "$_rt_pd_rest_o" "$_rt_parse_diag_seed" \
-                && $CC -r -nostdlib -o "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
                 _rt_pd_ok=1
                 echo "rt-prefer: rest parse_diag ← thin .x + rest (R2 full H=0; G-02f-448 PREFER_X_O)"
               fi
@@ -2399,7 +2633,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_fs_open_x" "$_rt_fs_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FS_OPEN_FROM_X \
                      -c -o "$_rt_fs_rest_o" "$_rt_fs_open_seed" \
-                && $CC -r -nostdlib -o "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
                 _rt_fs_ok=1
                 echo "rt-prefer: rest fs open ← thin .x + rest (R2 full H=0; G-02f-452 PREFER_X_O)"
               fi
@@ -2422,7 +2656,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_arena_buf_x" "$_rt_ab_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARENA_BUF_FROM_X \
                      -c -o "$_rt_ab_rest_o" "$_rt_arena_buf_seed" \
-                && $CC -r -nostdlib -o "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
                 _rt_ab_ok=1
                 echo "rt-prefer: rest arena_buf ← full .x + rest BSS+marker (R2 full H=0)"
               fi
@@ -2445,7 +2679,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FMT_ONE_FROM_X \
                      -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" \
-                && $CC -r -nostdlib -o "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
                 _rt_fo_ok=1
                 echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2468,7 +2702,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_THIN_FROM_X \
                      -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
-                && $CC -r -nostdlib -o "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
                 _rt_dt_ok=1
                 echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0)"
               fi
@@ -2492,7 +2726,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_IMPL_FROM_X \
                      -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
-                && $CC -r -nostdlib -o "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
                 _rt_di_ok=1
                 echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0)"
               fi
@@ -2516,7 +2750,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_x_emit_x" "$_rt_xe_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_X_EMIT_FROM_X \
                      -c -o "$_rt_xe_rest_o" "$_rt_run_x_emit_seed" \
-                && $CC -r -nostdlib -o "$_rt_xe_o" "$_rt_xe_thin_o" "$_rt_xe_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_xe_o" "$_rt_xe_thin_o" "$_rt_xe_rest_o" 2>/dev/null; then
                 _rt_xe_ok=1
                 echo "rt-prefer: R2 run_x_emit ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2539,7 +2773,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_asm_backend_x" "$_rt_abk_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_ASM_BACKEND_FROM_X \
                      -c -o "$_rt_abk_rest_o" "$_rt_run_asm_backend_seed" \
-                && $CC -r -nostdlib -o "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
                 _rt_abk_ok=1
                 echo "rt-prefer: R2 run_asm_backend ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2562,7 +2796,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
                      -c -o "$_rt_rcp_rest_o" "$_rt_run_compiler_parsed_seed" \
-                && $CC -r -nostdlib -o "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2585,7 +2819,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_stack_x" "$_rt_st_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_STACK_FROM_X \
                      -c -o "$_rt_st_rest_o" "$_rt_stack_seed" \
-                && $CC -r -nostdlib -o "$_rt_st_o" "$_rt_st_thin_o" "$_rt_st_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_st_o" "$_rt_st_thin_o" "$_rt_st_rest_o" 2>/dev/null; then
                 _rt_st_ok=1
                 echo "rt-prefer: rest stack esc ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2666,10 +2900,23 @@ ensure_rt_prefer_one() {
           if [ "$_rt_st_ok" = "1" ]; then
             _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_STACK_FROM_X"
           fi
-          # shellcheck disable=SC2086
-          if [ "$_rt_content_ok" = "1" ] && [ -n "$_rt_rest_o" ] \
-            && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
-                 $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt"; then
+          # wave318: full non-default hybrid set ⇒ monofile rest T=0 under all
+          # XLANG_RT_*_FROM_X (NO_C already carries 5 RT_SEED_SLICE FROM_X).
+          # PLATFORM: SHARED freestanding — omit empty mega rest host-cc.
+          _rt_full_slices_ok=0
+          if [ "$_rt_content_ok" = "1" ] \
+            && [ "$_rt_util_ok" = "1" ] && [ "$_rt_argv_ok" = "1" ] \
+            && [ "$_rt_ef_ok" = "1" ] && [ "$_rt_compile_ok" = "1" ] \
+            && [ "$_rt_run_ok" = "1" ] && [ "$_rt_asm_ok" = "1" ] \
+            && [ "$_rt_entry_ok" = "1" ] && [ "$_rt_diag_ok" = "1" ] \
+            && [ "$_rt_elfd_ok" = "1" ] && [ "$_rt_lr_ok" = "1" ] \
+            && [ "$_rt_fs_ok" = "1" ] && [ "$_rt_fo_ok" = "1" ] \
+            && [ "$_rt_dt_ok" = "1" ] && [ "$_rt_di_ok" = "1" ] \
+            && [ "$_rt_xe_ok" = "1" ] && [ "$_rt_abk_ok" = "1" ] \
+            && [ "$_rt_rcp_ok" = "1" ]; then
+            _rt_full_slices_ok=1
+          fi
+          if [ "$_rt_content_ok" = "1" ]; then
             _rt_link_objs="$_rt_c_o"
             if [ "$_rt_util_ok" = "1" ]; then
               _rt_link_objs="$_rt_link_objs $_rt_u_o"
@@ -2733,25 +2980,56 @@ ensure_rt_prefer_one() {
             # path owns those). Hybrid thin+rest can be incomplete and would
             # poison product asm codegen (CG002 code_len=0 on Darwin).
             # shellcheck disable=SC2086
-            if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-              echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + rest (G-02f-317 hybrid; slices external)"
+            if [ "$_rt_full_slices_ok" = "1" ]; then
+              # wave318/319: all non-default slices present → empty mega rest;
+              # no host-cc of seeds/runtime.from_x.c (prefer hybrid or cold seeds).
+              if pure_ld_partial_merge "$_rt_o" $_rt_link_objs 2>/dev/null; then
+                if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ]; then
+                  echo "rt-prefer: $_rt_o ← hybrid slices only; omit empty mega rest (wave318)"
+                else
+                  echo "rt-prefer: $_rt_o ← cold slices only; omit empty mega rest (wave319)"
+                fi
+                _rt_done=1
+              fi
+            elif [ "$allow_monofile" = "1" ] && [ -f "$_rt" ] && [ -n "$_rt_rest_o" ] \
+              && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
+                   $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt" \
+              && pure_ld_partial_merge "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
+              # wave320: partial monofile rest only with explicit archaeology escape.
+              echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + monofile rest (ALLOW_MONOFILE_LAST_RESORT=1)"
               _rt_done=1
+            elif [ "$_rt_full_slices_ok" != "1" ]; then
+              echo "rt-prefer: partial multi-slice; refuse monofile rest (wave320; set XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1)" >&2
             fi
           fi
           if [ "$_rt_done" = "0" ]; then
-            echo "rt-prefer: L2 hybrid runtime slices failed; fallback full seed" >&2
+            echo "rt-prefer: L2 multi-slice runtime incomplete (wave320)" >&2
           fi
           rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_ent_o" "$_rt_diag_o" "$_rt_est_o" "$_rt_elfd_o" "$_rt_lr_o" "$_rt_pd_o" "$_rt_fs_o" "$_rt_ab_o" "$_rt_fo_o" "$_rt_dt_o" "$_rt_di_o" "$_rt_xe_o" "$_rt_abk_o" "$_rt_rcp_o" "$_rt_st_o" "$_rt_rest_o"
         fi
         if [ "$_rt_done" = "0" ]; then
-          # PREFER_X_O=0 / hybrid 失败回退：runtime.from_x.c 单 TU。
+          # wave320: product default refuses monofile full-seed last-resort (7.1.2).
           # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c → 单独链 rt_parse_diag.o
           # （g05_relink_env RT_SEED_SLICE）；NO_C 已带 XLANG_RT_PARSE_DIAG_FROM_X，禁止再 merge。
-          echo "rt-prefer: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"
-          # shellcheck disable=SC2086
-          $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"
+          if [ "$allow_monofile" = "1" ] && [ -f "$_rt" ]; then
+            # wave321: monofile seed physically retired; this branch only if a
+            # local archaeology copy is reintroduced outside the tree.
+            echo "rt-prefer: runtime_driver_no_c.o ← monofile seed + NO_C (ALLOW_MONOFILE_LAST_RESORT=1)"
+            # shellcheck disable=SC2086
+            if ! $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"; then
+              echo "rt-prefer: monofile host-cc failed" >&2
+              return 1
+            fi
+            _rt_done=1
+          else
+            echo "rt-prefer: refuse monofile last-resort for $_rt_o (wave321 monofile retired; need full multi-slice)" >&2
+            return 1
+          fi
         fi
       fi
+    else
+      echo "rt-prefer: missing content layer seed ($_rt_content_seed) (wave321 monofile retired)" >&2
+      return 1
     fi
   return 0
 }
@@ -2765,8 +3043,8 @@ try_ensure_rt_prefer_one() {
   if [ "$o" != "src/runtime_driver_no_c.o" ]; then
     return 3
   fi
+  # wave320: propagate multi-slice fail / monofile refuse (exit 1).
   ensure_rt_prefer_one "$o"
-  return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -2774,20 +3052,28 @@ try_ensure_rt_prefer_one() {
 #
 # Single leaf: src/runtime_pipeline_abi.o (R1_EXTRA_CFLAGS; cold twin = ensure_one
 # with RUNTIME_PIPELINE_ABI_CFLAGS / -DXLANG_USE_X_PIPELINE).
-# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+# When an xlang binary works (always hybrid for this leaf; not gated on PREFER=1):
 #   full .x → .o via rt_prefer_try_x_to_o with G05_X_O_WEAK=1 (Darwin ld -r
 #     pure-dup tolerance; same harness as wave766 — Cap residual realpath /
 #     thread_fn_ptr prologue required by runtime_pipeline_abi.x)
 #   rest = seeds/runtime_pipeline_abi.from_x.c under
 #     -DXLANG_USE_X_PIPELINE -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X
-#   merge: $CC -r -nostdlib thin + rest → OUT (g05 historic; not ld Darwin flags)
-# Prefer fail / PREFER≠1 / no xlang → ensure_one cold + pipeline ABI cflags.
-# Callers: g05_ensure (wave767) · Makefile src/runtime_pipeline_abi.o (unified).
+#   merge: pure_ld_partial_merge thin + rest → OUT
+# Prefer fail / no xlang → ensure_one cold + pipeline ABI cflags (or keep OUT).
+#
+# Stage 12.0.5 COMPILE residual (pipeline_abi mega pure-asm product skip):
+#   · typeck wall slim ✅ dual-end emit mac ~45–60s / Ubuntu ~75s (hang closed).
+#   · opaque freestanding surface ✅ XLANG_WEAK in runtime_driver_abi.from_x.c
+#     (pure-asm may U those faces; pure-ld resolves vs driver_abi bag).
+#   · product pure-asm install residual: Cap residual only in seed rest
+#     (pure monofile incomplete; basename skip + call-site PREFER_ASM_O_RT=0).
+#
+# Callers: g05_ensure (wave767) · product ensure_one route for pipeline_abi.
 # Exit codes:
 #   0 — OUT is runtime_pipeline_abi.o; prefer or cold body produced OUT
 #   3 — OUT is not src/runtime_pipeline_abi.o
 #   1 — cold seed missing / compile failed
-# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# PLATFORM: SHARED shell body · product cold path = egg hybrid (not cold full seed).
 # G.7: reuses rt_prefer_try_x_to_o harness (有则补全; no second -E prologue).
 # Residual after: ~~target_cpu~~(wave768) · other L2 · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
@@ -2833,47 +3119,282 @@ ensure_pipeline_abi_prefer_one() {
     fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (pipeline-abi-prefer)"
+      # Still inject thin leaves (small -E) when present.
+      pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+      pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
+      # on every up-to-date g05 stacks static inner copies.
+      return 0
+    fi
+    # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
+    # OUT already exists, inject-only instead of full hybrid rebuild.
+    # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer.
+    # PLATFORM: SHARED shell · LINUX gold + MACOS.
+    if [ -s "$o" ] && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
+      || [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; }; then
+      log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
+      pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+      pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      # ttc-thin merge-fail is pre-existing (already-strong dup); do not
+      # abort before blkpeel (same as arrcopy || true before ttc).
+      pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+      pipeline_abi_inject_binop_block_peel_thin "$o" || return 1
       return 0
     fi
   fi
 
   mkdir -p "$(dirname "$o")"
 
-  # PREFER thin+rest only when PREFER=1 (Darwin cold-chain safety twin of R3/labi/rt).
-  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+  # Hybrid thin+rest whenever a pin/product egg exists.
+  # PLATFORM: SHARED — L4 root fix: sat rebuild forces XLANG_G05_PREFER_X_O=0
+  # (-B). Historical gate only hybrid-ed when PREFER=1, so sat re-entered cold
+  # full seed (void*/struct* dual decls) and **wiped** a good hybrid .o from
+  # ensure_prereqs → pure-ld phase1 missing src/runtime_pipeline_abi.o.
+  # Cold full seed is not a viable identity path until seed dual-decls are
+  # cleaned; egg hybrid is the single working product cold path for this leaf.
+  if [ -f "$x_src" ] \
     && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
     # WEAK pure thin: Darwin ld -r tolerates residual pure-dup still in rest.
+    # Stage 12.0.5: force XLANG_PREFER_ASM_O_RT=0 — opaque freestanding surface
+    # closed (WEAK on driver_abi bag) but mega pure monofile still incomplete
+    # (Cap residual only in seed rest). Basename ban + RT=0 keep product -E hybrid.
+    # PLATFORM: SHARED · G.7 call-site + pure_asm_x_to_o basename skip.
     # shellcheck disable=SC2086
-    if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+    if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer)"
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm skip Cap-residual RT=0)"
       done=1
     else
-      log "pipeline_abi hybrid failed; fallback full seed"
+      log "pipeline_abi hybrid failed; fallback full seed (prefer=${prefer})"
     fi
     rm -f "$thin_o" "$rest_o"
   fi
 
   if [ "$done" = "1" ]; then
+    # 4.2.7: inject nested reent deep-copy esz fix without full mega -E.
+    # Full runtime_pipeline_abi.x prefer -E is multi-minute / hang-prone (92k LOC);
+    # thin leaf re-emits only glue_slice_let_reent_deep_copy_after_dual_gp_elf_c
+    # (same body as mega pure leave) and first-wins ld -r over weak pure.
+    pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+    pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+    pipeline_abi_inject_binop_block_peel_thin "$o" || true
     return 0
   fi
 
-  # Cold full seed (ensure_one twin / PREFER=0) with XLANG_USE_X_PIPELINE.
+  # Cold full seed (ensure_one twin) with XLANG_USE_X_PIPELINE — last resort only.
+  # wave176: cold full seed currently fails type conflicts (void* vs struct*
+  # dual decls in from_x). If hybrid failed but OUT still exists, keep it.
+  # PLATFORM: SHARED freestanding product / sat rebuild safety.
+  # Hard-fail when OUT is still missing — never return 0 with no leaf (L4 pure-ld).
   cold_flags="$(pipeline_abi_prefer_cflags)"
   # shellcheck disable=SC2086
-  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
-    FORCE=1
-    ensure_one "$o" "$seed" $cold_flags
-    FORCE=0
-  else
-    ensure_one "$o" "$seed" $cold_flags
+  if [ -s "$o" ]; then
+    log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
+    pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+    pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+    pipeline_abi_inject_binop_block_peel_thin "$o" || true
+    return 0
   fi
+  if ! ensure_one "$o" "$seed" $cold_flags; then
+    echo "ensure_host_cc_seed_o: pipeline_abi cold seed failed and no hybrid $o" >&2
+    echo "  need: pin egg (./xbuild bootstrap-driver-seed installs select_bootstrap)" >&2
+    return 1
+  fi
+  if [ ! -s "$o" ]; then
+    echo "ensure_host_cc_seed_o: pipeline_abi ensure finished without $o" >&2
+    return 1
+  fi
+  pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+  pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+  pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+  pipeline_abi_inject_binop_block_peel_thin "$o" || true
   return 0
+}
+
+# Generic first-wins thin inject into src/runtime_pipeline_abi.o (PLATFORM: SHARED).
+# Thin .x body MUST match the same-named export in runtime_pipeline_abi.x;
+# regenerate the thin when that function changes. First-wins ld -r: thin.o then pabi.o.
+# G.7: one helper; 4.2.7 nested SLICE esz + dest-ARRAY [K][N]T memcpy both reuse it.
+pipeline_abi_inject_thin_leaf() {
+  local o="$1"
+  local thin_x="$2"
+  local tag="$3"
+  local xlang_bin=""
+  local gen_c thin_o base_o
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi ${tag} inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi ${tag} inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi ${tag} inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi ${tag} inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
+}
+
+# 4.2.7 nested TYPE_SLICE reent deep-copy inject.
+pipeline_abi_inject_reent_deep_copy_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_reent_deep_copy_thin.x" "reent-thin"
+}
+
+# dest-ARRAY [K][N]T memcpy / return Path B0 row stride inject.
+pipeline_abi_inject_fixed_array_copy_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fixed_array_copy_thin.x" "arrcopy-thin"
+}
+
+# host-C type_to_c_repr SLICE `*`→`_p` sanitizer. Product hybrid keeps this
+# symbol in the mega leftover (seed body is #ifndef FROM_X). inject-only
+# skips full mega -E, so extract the marked seed body, weaken the existing
+# strong symbol, first-wins ld -r. G.7: one C body (markers in from_x.c).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_type_to_c_repr_thin() {
+  local o="$1"
+  local seed="seeds/runtime_pipeline_abi.from_x.c"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$seed" ]; then
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_ttc.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ttc.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ttc_base.XXXXXX.o")"
+  if ! awk '
+    /XLANG_PABI_TYPE_TO_C_REPR_THIN_BEGIN/ {p=1; next}
+    /XLANG_PABI_TYPE_TO_C_REPR_THIN_END/ {p=0; next}
+    p {print}
+  ' "$seed" >"$gen_c" || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi ttc-thin inject: extract failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--Wall -I. -Iinclude -Isrc} -Wno-unused -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi ttc-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    "$oc" --weaken-symbol=_pipeline_codegen_type_to_c_repr "$base_o" 2>/dev/null \
+      || "$oc" --weaken-symbol=pipeline_codegen_type_to_c_repr "$base_o" 2>/dev/null \
+      || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi ttc-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi ttc-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
+}
+
+# binop dual-slot peel of transparent EXPR_BLOCK (`unsafe { e }`).
+# Product hybrid keeps load_operand in the leftover (seed body is
+# #ifndef FROM_X). inject-only skips full mega -E, so extract the
+# marked seed bodies, weaken the existing strong symbols, first-wins
+# ld -r. G.7: one C body (markers in from_x.c).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_binop_block_peel_thin() {
+  local o="$1"
+  local seed="seeds/runtime_pipeline_abi.from_x.c"
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$seed" ]; then
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_blkpeel.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_blkpeel.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_blkpeel_base.XXXXXX.o")"
+  if ! awk '
+    /XLANG_PABI_BINOP_BLOCK_PEEL_THIN_BEGIN/ {p=1; next}
+    /XLANG_PABI_BINOP_BLOCK_PEEL_THIN_END/ {p=0; next}
+    p {print}
+  ' "$seed" >"$gen_c" || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi blkpeel-thin inject: extract failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--Wall -I. -Iinclude -Isrc} -Wno-unused -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi blkpeel-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    for s in \
+      glue_try_binop_load_operand_elf_c \
+      glue_binop_operand_index_addr_clobbers_rbx_elf_c \
+      glue_binop_operand_load_to_rbx_clobbers_rax_elf_c \
+      glue_expr_emit_may_clobber_rbx_elf_c \
+      glue_expr_block_transparent_value_ref_at
+    do
+      "$oc" --weaken-symbol="_$s" "$base_o" 2>/dev/null \
+        || "$oc" --weaken-symbol="$s" "$base_o" 2>/dev/null \
+        || true
+    done
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi blkpeel-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi blkpeel-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
 }
 
 try_ensure_pipeline_abi_prefer_one() {
@@ -2885,7 +3406,7 @@ try_ensure_pipeline_abi_prefer_one() {
   if [ "$o" != "src/runtime_pipeline_abi.o" ]; then
     return 3
   fi
-  ensure_pipeline_abi_prefer_one "$o"
+  ensure_pipeline_abi_prefer_one "$o" || return 1
   return 0
 }
 
@@ -2901,6 +3422,11 @@ try_ensure_pipeline_abi_prefer_one() {
 #     -DXLANG_L2_LSP_CTX_THIN_FROM_X
 #   merge: $CC -r -nostdlib thin + rest → OUT
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Stage 12.0.5 pure-asm hybrid (opt-in PREFER_ASM_O; not product-default):
+#   G05_X_O_WEAK=1 still required vs lsp_diag_x strong defs of
+#   lsp_diag_{hover,definition,references}_at. pure_asm_x_to_o now applies
+#   objcopy --weaken polish after freestanding emit (G.7 有则补全; nmedit
+#   cannot weak pure-asm objects). Missing objcopy → fall through -E+$CC.
 # Callers: g05_ensure (wave767) · Makefile src/lsp/lsp_diag_pipeline_ctx.o.
 # Exit codes:
 #   0 — OUT is lsp_diag_pipeline_ctx.o; prefer or cold body produced OUT
@@ -2955,7 +3481,7 @@ ensure_ldpc_prefer_one() {
     if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_CTX_THIN_FROM_X \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $x_src + seed-rest (try-ldpc-prefer)"
       done=1
     else
@@ -3065,7 +3591,7 @@ ensure_target_cpu_prefer_one() {
     if rt_prefer_try_x_to_o "$flags_x" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $flags_x + seed-rest (try-target-cpu-prefer)"
       done=1
     else
@@ -3210,7 +3736,7 @@ ensure_l2_asm_prefer_one() {
     if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $x_src + seed-rest (try-l2-asm-prefer)"
       done=1
     else
@@ -3269,6 +3795,10 @@ try_ensure_l2_asm_prefer_one() {
 #   rest = seed under FROM_X -D (slice_marker only)
 #   merge: $CC -r -nostdlib thin + rest → OUT
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Stage 12.0.5 pure-asm hybrid (opt-in PREFER_ASM_O; not product-default):
+#   pure_asm standalone 3/3 (div0 FAIL_ABI residual closed) · FORCE try-async-prefer
+#   pure-asm thin+rest · soft g05 pure-ld · matrix 5/5 · restore -E 5/5
+#   dual-end @ tip 190ab4eb3 (mac + Ubuntu gold). No WEAK polish needed.
 # Callers: g05_ensure (wave770) · Makefile three leaves (was dual hybrid).
 # Exit codes:
 #   0 — OUT is a table member; prefer or cold body produced OUT
@@ -3349,7 +3879,7 @@ ensure_async_prefer_one() {
     if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer full.x+rest $o <- $x_src + seed-rest (try-async-prefer)"
       done=1
     else
@@ -3450,7 +3980,11 @@ other_l2_prefer_spec_for_out() {
 }
 
 # Historic G-02f-440: six weak stubs overridden by lsp_diag_x / pipeline_ctx.
-_OTHER_L2_SLC_WEAK_FUNCS="lsp_diag_lsp_build_diagnostics_response,lsp_diag_lsp_build_semantic_tokens_response,lsp_diag_hover_at,lsp_diag_references_at,lsp_diag_definition_at,typeck_lsp_main_impl"
+# slc6 historic lsp/typeck stubs + std_sys_read_file_into (seed from_x.c already
+# XLANG_WEAK; prefer thin .x must match). Without weak, strong dual vs driver_x
+# monomorphized std.sys fails Darwin pure-ld (ld64 multidef obsolete).
+# PLATFORM: SHARED — G.7 seed face weak; product mono in driver_x wins.
+_OTHER_L2_SLC_WEAK_FUNCS="lsp_diag_lsp_build_diagnostics_response,lsp_diag_lsp_build_semantic_tokens_response,lsp_diag_hover_at,lsp_diag_references_at,lsp_diag_definition_at,typeck_lsp_main_impl,std_sys_read_file_into"
 
 ensure_other_l2_prefer_one() {
   local o="$1"
@@ -3552,7 +4086,7 @@ ensure_other_l2_prefer_one() {
     if [ "$_thin_ok" = "1" ] \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin.x+rest $o <- $x_src + seed-rest (try-other-l2-prefer/$leaf_kind)"
       done=1
     else
@@ -3797,7 +4331,7 @@ ensure_runtime_os_prefer_one() {
     rest_o="$(mktemp "${TMPDIR:-/tmp}/rtos_rest.XXXXXX")"
     if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && _runtime_os_cc_seed "$rest_o" "$seed" "$from_x_def" "$leaf_kind" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin.x+rest $o <- $x_src + seed-rest (try-runtime-os-prefer/$leaf_kind)"
       done=1
     else
@@ -3959,6 +4493,72 @@ _std_core_ld_r() {
   fi
 }
 
+# PLATFORM: SHARED — after ld -r product .o, keep only export faces as global T.
+# formal_mod co-emits foreign std_io_*/core_result_*/xlang_io_*/ctx_*/process_*
+# bodies as global T; product monofile also emits them → multi-def (L4
+# run-std-net-context-gate: 221 dups). Localize non-export T so monofile owns
+# foreign faces; this .o only exports its API. G.7 single post-merge authority.
+# $1=out.o  remaining args = bare prefixes without leading _ (e.g. std_net_ net_)
+# Darwin: nmedit -s keep_list. Linux: objcopy/llvm-objcopy --localize-symbol.
+_std_core_keep_global_prefixes() {
+  local out="$1"
+  shift
+  [ -f "$out" ] || return 0
+  command -v nm >/dev/null 2>&1 || return 0
+  local uname_s keep_re keep_list sym bare p
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  keep_re=""
+  for p in "$@"; do
+    [ -n "$p" ] || continue
+    if [ -n "$keep_re" ]; then
+      keep_re="${keep_re}|${p}"
+    else
+      keep_re="${p}"
+    fi
+  done
+  [ -n "$keep_re" ] || return 0
+  keep_list=$(mktemp "${TMPDIR:-/tmp}/xlang_keep_glob.XXXXXX") || return 0
+  # nm -gU: defined global only. Match bare name against keep prefixes (optional _).
+  nm -gU "$out" 2>/dev/null | awk '{print $NF}' | while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    bare="$sym"
+    case "$sym" in
+      _*) bare="${sym#_}" ;;
+    esac
+    if printf '%s' "$bare" | grep -Eq "^(${keep_re})"; then
+      printf '%s\n' "$sym"
+    fi
+  done >"$keep_list" 2>/dev/null || true
+  if [ ! -s "$keep_list" ]; then
+    rm -f "$keep_list"
+    return 0
+  fi
+  if [ "$uname_s" = "Darwin" ] && command -v nmedit >/dev/null 2>&1; then
+    # nmedit: globals NOT in list become local. Export list = keep.
+    nmedit -s "$keep_list" "$out" 2>/dev/null || true
+  else
+    # Linux / objcopy path: localize every global T not in keep_list.
+    local oc=""
+    if command -v objcopy >/dev/null 2>&1; then
+      oc=objcopy
+    elif command -v llvm-objcopy >/dev/null 2>&1; then
+      oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    fi
+    if [ -n "$oc" ]; then
+      nm -gU "$out" 2>/dev/null | awk '{print $NF}' | while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
+        if ! grep -Fxq "$sym" "$keep_list" 2>/dev/null; then
+          "$oc" --localize-symbol="$sym" "$out" 2>/dev/null || true
+        fi
+      done
+    fi
+  fi
+  rm -f "$keep_list"
+  return 0
+}
+
 # One net_*_fast PREFER or cold seed piece.
 # $1=fast_o $2=seed $3=x_src $4=from_x_def $5=mode (thin_rest|direct) $6=xlang_bin
 _std_core_net_fast_one() {
@@ -4025,6 +4625,11 @@ ensure_std_core_prefer_one() {
         stale=1
       fi
       if [ -f runtime_process_os_glue.o ] && [ runtime_process_os_glue.o -nt "$o" ]; then
+        stale=1
+      fi
+      # PLATFORM: SHARED — import_alias carries std_process_* product face.
+      if [ -f seeds/runtime_process_import_alias.from_x.c ] &&
+         [ seeds/runtime_process_import_alias.from_x.c -nt "$o" ]; then
         stale=1
       fi
     fi
@@ -4094,6 +4699,9 @@ ensure_std_core_prefer_one() {
       ;;
 
     process_merge)
+      # PLATFORM: SHARED — process.o = args_thin + argv + os_glue + import_alias.
+      # import_alias exports std_process_* for pure-asm import METHOD (G.7 complete
+      # process_merge; C-path co-emit of mod.x is not used on pure-asm product).
       if [ ! -f "$seed" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
         return 1
@@ -4108,18 +4716,29 @@ ensure_std_core_prefer_one() {
           || ensure_one runtime_process_os_glue.o seeds/runtime_process_os_glue.from_x.c \
           || return 1
       fi
+      _proc_alias_c="seeds/runtime_process_import_alias.from_x.c"
+      if [ ! -f "$_proc_alias_c" ]; then
+        echo "ensure_host_cc_seed_o try-std-core-prefer: missing $_proc_alias_c for $o" >&2
+        return 1
+      fi
       tmp_args="$(mktemp "${TMPDIR:-/tmp}/proc_args.XXXXXX")"
+      tmp_alias="$(mktemp "${TMPDIR:-/tmp}/proc_alias.XXXXXX")"
       # shellcheck disable=SC2086
       if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$tmp_args"; then
-        rm -f "$tmp_args"
+        rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
-      if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o; then
-        rm -f "$tmp_args"
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$_proc_alias_c" -o "$tmp_alias"; then
+        rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
-      rm -f "$tmp_args"
-      log "process_merge $o <- $seed + argv + os_glue (try-std-core-prefer)"
+      if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+        rm -f "$tmp_args" "$tmp_alias"
+        return 1
+      fi
+      rm -f "$tmp_args" "$tmp_alias"
+      log "process_merge $o <- $seed + argv + os_glue + import_alias (try-std-core-prefer)"
       return 0
       ;;
 
@@ -4148,10 +4767,89 @@ ensure_std_core_prefer_one() {
           ;;
       esac
       objs=""
-      for x in alpn udp tcp udp_batch workers; do
+      # PLATFORM: SHARED — include tls_stub (mod.x import std.net.tls_stub).
+      # OpenSSL/mbedTLS variants remain separate product overlays.
+      for x in alpn udp tcp udp_batch workers tls_stub; do
         sh scripts/xlang_compile_std_x.sh "$net_sub_xlang" "../std/net/$x.x" "../std/net/$x.o" || return 1
         objs="$objs ../std/net/$x.o"
       done
+      # Import-binding face: bare net_tls_*_c → std_net_tls_stub_net_tls_*_c.
+      # xlang_compile_std_x emits bare C symbols; mod.x import path prefixes both
+      # leaf and name. G.7: single alias .o after stub compile (no second TLS body).
+      if [ -f ../std/net/tls_stub.o ]; then
+        # Keep alias .o under std/net/ (not TMPDIR) so ld -r sees a stable path.
+        _tls_alias_c="../std/net/tls_stub_import_alias.c"
+        _tls_alias_o="../std/net/tls_stub_import_alias.o"
+        {
+          echo '/* net_merge: import-binding aliases for std.net.tls_stub */'
+          echo '#include <stdint.h>'
+          echo '#include <stddef.h>'
+          cat <<'TEOF'
+extern int32_t net_tls_is_available_c(void);
+extern uint8_t *net_tls_backend_name_c(void);
+extern int32_t net_tls_connect_client_c(int32_t fd, uint8_t *sni);
+extern int32_t net_tls_connect_client_alpn_c(int32_t fd, uint8_t *sni, uint8_t *alpn, int32_t alpn_len);
+extern int32_t net_tls_close_c(int64_t h);
+extern int32_t net_tls_read_c(int64_t h, uint8_t *buf, int32_t cap);
+extern int32_t net_tls_write_c(int64_t h, uint8_t *buf, int32_t len);
+extern int32_t net_tls_last_error_c(void);
+extern int32_t net_tls_alpn_selected_c(int64_t h, uint8_t *out, int32_t out_cap);
+extern int32_t net_tls_alpn_is_h2_c(int64_t h);
+int32_t std_net_tls_stub_net_tls_is_available_c(void) { return net_tls_is_available_c(); }
+uint8_t *std_net_tls_stub_net_tls_backend_name_c(void) { return net_tls_backend_name_c(); }
+int32_t std_net_tls_stub_net_tls_connect_client_c(int32_t fd, uint8_t *sni) { return net_tls_connect_client_c(fd, sni); }
+int32_t std_net_tls_stub_net_tls_connect_client_alpn_c(int32_t fd, uint8_t *sni, uint8_t *alpn, int32_t alpn_len) { return net_tls_connect_client_alpn_c(fd, sni, alpn, alpn_len); }
+int32_t std_net_tls_stub_net_tls_close_c(int64_t h) { return net_tls_close_c(h); }
+int32_t std_net_tls_stub_net_tls_read_c(int64_t h, uint8_t *buf, int32_t cap) { return net_tls_read_c(h, buf, cap); }
+int32_t std_net_tls_stub_net_tls_write_c(int64_t h, uint8_t *buf, int32_t len) { return net_tls_write_c(h, buf, len); }
+int32_t std_net_tls_stub_net_tls_last_error_c(void) { return net_tls_last_error_c(); }
+int32_t std_net_tls_stub_net_tls_alpn_selected_c(int64_t h, uint8_t *out, int32_t out_cap) { return net_tls_alpn_selected_c(h, out, out_cap); }
+int32_t std_net_tls_stub_net_tls_alpn_is_h2_c(int64_t h) { return net_tls_alpn_is_h2_c(h); }
+/* Residual faces pulled by alpn/pool co-emit when product only needs connect_ctx.
+ * Weak so real io/tcp_pool .o can override when linked. PLATFORM: SHARED. */
+__attribute__((weak)) int32_t std_io_read_fixed_fd(int32_t a, uint32_t b, size_t c, size_t d, uint32_t e) {
+  (void)a;(void)b;(void)c;(void)d;(void)e; return -1;
+}
+__attribute__((weak)) int32_t std_io_write_fixed_fd(int32_t a, uint32_t b, size_t c, size_t d, uint32_t e) {
+  (void)a;(void)b;(void)c;(void)d;(void)e; return -1;
+}
+__attribute__((weak)) uint8_t *xlang_io_read_ptr_len(size_t h, size_t *out_len) {
+  (void)h; if (out_len) *out_len = 0; return (uint8_t *)0;
+}
+__attribute__((weak)) int64_t std_net_tcp_pool_net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c) {
+  (void)a;(void)b;(void)c; return 0;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_acquire_c(int64_t h, uint32_t t) {
+  (void)h;(void)t; return -1;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_release_c(int64_t h, int32_t fd) {
+  (void)h;(void)fd; return -1;
+}
+__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_drain_c(int64_t h) { (void)h; }
+__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_destroy_c(int64_t h) { (void)h; }
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_connect_count_c(int64_t h) {
+  (void)h; return 0;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_idle_count_c(int64_t h) {
+  (void)h; return 0;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_smoke_c(void) { return 0; }
+/* Fast-path addr helpers sometimes only on asm leaves; weak for pure host-C net.o. */
+__attribute__((weak)) int64_t net_tcp_local_addr_c(int32_t fd) { (void)fd; return 0; }
+__attribute__((weak)) int64_t net_tcp_peer_addr_c(int32_t fd) { (void)fd; return 0; }
+__attribute__((weak)) void net_tcp_set_addr_port_buf_c(uint8_t *b, uint32_t a, uint32_t p) {
+  (void)b;(void)a;(void)p;
+}
+__attribute__((weak)) void net_udp_set_addr_port_buf_c(uint8_t *b, uint32_t a, uint32_t p) {
+  (void)b;(void)a;(void)p;
+}
+TEOF
+        } >"$_tls_alias_c"
+        if cc -std=c11 -c -o "$_tls_alias_o" "$_tls_alias_c" 2>/dev/null; then
+          objs="$objs $_tls_alias_o"
+        fi
+        rm -f "$_tls_alias_c"
+      fi
       sh scripts/xlang_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || return 1
       objs="$objs ../std/net/mod.o"
       _std_core_net_fast_one ../std/net/net_dns_fast.o \
@@ -4178,6 +4876,10 @@ ensure_std_core_prefer_one() {
       fi
       rm -f ../std/net/mod.o ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o \
         ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o
+      # Keep only net product faces global. formal_mod co-emits std_io_*/core_result_*
+      # etc. as T; monofile also defines them → multi-def on product -o (L4 STD-092).
+      # PLATFORM: SHARED — nmedit (Darwin) / objcopy localize (Linux).
+      _std_core_keep_global_prefixes "$o" "std_net_" "net_"
       log "net_merge $o <- sub.x + mod + five fast (try-std-core-prefer)"
       return 0
       ;;
@@ -4387,15 +5089,16 @@ try_ensure_lsp_sat_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
-# wave782: try-gen-c-to-o OUT — B4 gen.c → .o bootstrap / stage stubs.
+# wave782: try-gen-c-to-o OUT — B4 gen.c → .o bootstrap.
 #
-# Table-driven membership (G.7 有则补全). Five Makefile pure host-cc leaves
-# outside try-gen-x catalog (lsp trio + pipeline_x). Body = ensure_gen_x_o.sh
-# one OUT (same authority as wave761 gen maps; extended for B4).
+# Table-driven membership (G.7 有则补全). Four Makefile pure host-cc leaves
+# outside try-gen-x catalog (lsp trio + pipeline_x are try-gen-x). Body =
+# ensure_gen_x_o.sh one OUT (same authority as wave761 gen maps; extended for B4).
 #
-# Leaves: lexer_x.o · ast_gen2.o · driver_x.o · preprocess_x.o · _x_stubs2.o
-# Prefer fail N/A — cold gen.c / _x_stubs2.c only (historic Makefile).
-# Callers: Makefile 5 leaves (wave782). NOT physical delete.
+# Leaves: lexer_x.o · ast_gen2.o · driver_x.o · preprocess_x.o
+# wave295 B′: _x_stubs2.o host left (dead dual; product g05 / stage2 never linked).
+# Prefer fail N/A — cold gen.c only (historic Makefile).
+# Callers: Makefile 4 leaves (wave782/295). NOT physical delete.
 # Exit codes:
 #   0 — OUT is a B4 table member; body produced OUT (or skip up-to-date)
 #   3 — OUT is not in the gen-c-to-o table
@@ -4411,7 +5114,6 @@ gen_c_to_o_spec_for_out() {
     ast_gen2.o) printf '%s' "ast_gen2.c" ;;
     driver_x.o) printf '%s' "driver_gen.c" ;;
     preprocess_x.o) printf '%s' "preprocess_gen.c" ;;
-    _x_stubs2.o) printf '%s' "_x_stubs2.c" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -4705,8 +5407,8 @@ ensure_r2_panic_one() {
         return 0
       fi
       log "cc -c $src → $o"
-      # shellcheck disable=SC2086
-      $CC -c -o "$o" "$src"
+      # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+      pure_as_compile "$o" "$src"
       ;;
     *)
       echo "ensure_host_cc_seed_o r2-panic: unknown kind $kind" >&2
@@ -5000,8 +5702,8 @@ ensure_r2_typeck_f64_one() {
     return 0
   fi
   log "cc -c $src → $o"
-  # shellcheck disable=SC2086
-  $CC -c -o "$o" "$src"
+  # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+  pure_as_compile "$o" "$src"
 }
 
 ensure_r2_typeck_f64() {
@@ -5071,8 +5773,8 @@ ensure_r2_crt0_one() {
         return 0
       fi
       log "cc -c $src → $o"
-      # shellcheck disable=SC2086
-      $CC -c -o "$o" "$src"
+      # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+      pure_as_compile "$o" "$src"
       ;;
     cc_inc_tu)
       # PLATFORM: WINDOWS — WIN32_O_CFLAGS from env when set by caller (wave866:
@@ -5479,17 +6181,17 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       note "gen-c-to-o table present (wave964 post_ship)"
     fi
     _b4_n=0
-    for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
+    for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o; do
       if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf" 2>/dev/null || true)" ]; then
         _b4_n=$((_b4_n + 1))
       else
-        bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/964)"
+        bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/964/295)"
       fi
     done
-    if [ "$_b4_n" -ne 5 ]; then
-      bad "gen-c-to-o table size $_b4_n != 5 (wave782/964 B4 heat)"
+    if [ "$_b4_n" -ne 4 ]; then
+      bad "gen-c-to-o table size $_b4_n != 4 (wave782/964/295 B4 heat)"
     else
-      note "gen-c-to-o table has 5 members (wave964 post_ship)"
+      note "gen-c-to-o table has 4 members (wave295 post_ship; stubs2 left)"
     fi
     # B5 cfg-eval ladder table.
     if ! grep -q 'cfg_eval_ladder_spec_for_out\|ensure_cfg_eval_ladder_one\|try-cfg-eval-ladder' "$0"; then
@@ -6584,8 +7286,8 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     note "ensure_gen_x_o B4 maps present (wave782)"
   fi
   _b4_n=0
-  # wave910: multi-target $(GEN_C_TO_O_SEED_OBJS): FORCE try-heat covers all five
-  # (no per-leaf dual). Accept multi-target OR historical per-leaf.
+  # wave910/295: multi-target $(GEN_C_TO_O_SEED_OBJS): FORCE try-heat covers all four
+  # (no per-leaf dual; stubs2 left). Accept multi-target OR historical per-leaf.
   if grep -qE '\$\(GEN_C_TO_O_SEED_OBJS\):[[:space:]]*FORCE' Makefile \
     && awk '
       /\$\(GEN_C_TO_O_SEED_OBJS\):/ { hit=1; next }
@@ -6593,18 +7295,18 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
       END { exit found ? 0 : 1 }
     ' Makefile; then
-    note "Makefile GEN_C_TO_O multi-target FORCE thin try-heat (wave910; covers five)"
+    note "Makefile GEN_C_TO_O multi-target FORCE thin try-heat (wave910/295; covers four)"
   fi
-  for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
+  for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o; do
     if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf")" ]; then
       _b4_n=$((_b4_n + 1))
     else
-      bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782)"
+      bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/295)"
     fi
     if makefile_leaf_try_heat_ok "$_b4_leaf" 'try-heat|try-gen-c-to-o'; then
-      note "Makefile $_b4_leaf thin-calls try-heat|try-gen-c-to-o (wave782/796/910)"
+      note "Makefile $_b4_leaf thin-calls try-heat|try-gen-c-to-o (wave782/796/910/295)"
     else
-      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782/910)"
+      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782/910/295)"
     fi
     # Ban re-opened inline $(CC) -c body on recipe lines (comments OK).
     # wave910: multi-target has no per-leaf recipe — only check if per-leaf line exists.
@@ -6624,10 +7326,10 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       fi
     fi
   done
-  if [ "$_b4_n" -ne 5 ]; then
-    bad "gen-c-to-o table size $_b4_n != 5 (wave782 B4 heat)"
+  if [ "$_b4_n" -ne 4 ]; then
+    bad "gen-c-to-o table size $_b4_n != 4 (wave782/295 B4 heat)"
   else
-    note "gen-c-to-o table has 5 members (wave782 B4)"
+    note "gen-c-to-o table has 4 members (wave295 B4; stubs2 left)"
   fi
   # wave783: try-cfg-eval-ladder B5 multi-ladder (1 leaf)
   if ! grep -q 'try_ensure_cfg_eval_ladder_one\|try-cfg-eval-ladder' "$0"; then
@@ -6960,6 +7662,28 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  try-x-to-o|x-to-o)
+    # F1-2026-08-18 chunked -E builder: generic rt_prefer harness entry for
+    # arbitrary (SRC.x, OUT.o) pairs. Purpose: split OOM-prone mega modules
+    # (runtime_pipeline_abi.x -E peaks 22-40GB RSS) into line-balanced chunks,
+    # each small enough for dev-box jetsam limits; caller merges chunk .o's
+    # via pure_ld_partial_merge (first-wins). Env passthrough (single
+    # authority stays rt_prefer_try_x_to_o — no second build path, G.7):
+    #   XLANG_PREFER_ASM_O_RT=0  → historic -E+$CC (chunk path default)
+    #   G05_X_O_WEAK=1           → weakify function defs (first-wins merge)
+    #   G05_X_O_GLOBALS_WEAK=1   → un-static + weakify g_* globals (shared
+    #                              storage across chunks; see weakify block)
+    # PLATFORM: SHARED harness.
+    if [ "$#" -lt 2 ]; then
+      echo "ensure_host_cc_seed_o try-x-to-o: need <src.x> <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    rt_prefer_try_x_to_o "$1" "$2"
+    _xrc=$?
+    set -e
+    exit "$_xrc"
+    ;;
   one)
     if [ "$#" -lt 2 ]; then
       echo "ensure_host_cc_seed_o one: need <out.o> <seed.from_x.c> [extra...]" >&2
@@ -7282,7 +8006,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-heat|try-r2|try-gen-x|try-x-to-o|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

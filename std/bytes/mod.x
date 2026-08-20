@@ -63,7 +63,7 @@ allow(padding) struct BytesWriter {
  * @return Bytes
  */
 export function new(): Bytes {
-  return Bytes { ptr: 0, length: 0, cap: 0, owned: BYTES_OWN_HEAP };
+  return { ptr: 0, length: 0, cap: 0, owned: BYTES_OWN_HEAP };
 }
 
 /**
@@ -71,7 +71,7 @@ export function new(): Bytes {
  * See implementation.
  */
 export function from_external(ptr: *u8, len: i32, cap: i32): Bytes {
-  return Bytes { ptr: ptr, length: len, cap: cap, owned: BYTES_OWN_EXTERNAL };
+  return { ptr: ptr, length: len, cap: cap, owned: BYTES_OWN_EXTERNAL };
 }
 
 /** Exported function `is_owned`.
@@ -234,7 +234,7 @@ export function from_slice(ptr: *u8, n: i32): Bytes {
   let b: Bytes = new();
   if (n <= 0) { return b; }
   if (with_capacity(&b, n) != 0) {
-    return Bytes { ptr: 0, length: -1, cap: 0, owned: BYTES_OWN_HEAP };
+    return { ptr: 0, length: -1, cap: 0, owned: BYTES_OWN_HEAP };
   }
   heap.copy(b.ptr, 0, ptr, n);
   if (0 == 0) {
@@ -304,14 +304,14 @@ export function from_view(v: StrView): Bytes {
  * @return Buffer
  */
 export function as_buffer(b: Bytes): Buffer {
-  return Buffer { ptr: b.ptr, length: b.length, handle: 0 };
+  return { ptr: b.ptr, length: b.length, handle: 0 };
 }
 
 /**
  * See implementation.
  */
 export function reader(b: *Bytes): BytesReader {
-  return BytesReader { buf: b, pos: 0 };
+  return { buf: b, pos: 0 };
 }
 
 /** Exported function `read`.
@@ -375,7 +375,7 @@ export function seek(r: *BytesReader, pos: i32): i32 {
  * See implementation.
  */
 export function writer(b: *Bytes): BytesWriter {
-  return BytesWriter { buf: b };
+  return { buf: b };
 }
 
 /** Exported function `write`.

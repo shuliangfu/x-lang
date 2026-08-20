@@ -57,7 +57,8 @@ R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime
 # Basename → seeds/<leaf>.from_x.c.
 # wave904: also make-graph multi-target FORCE thin try-heat inventory (COUNT=9).
 # Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
-R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runtime_scheduler_glue.o runtime_kv_mmap_glue.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/lsp/lsp_diag_pipeline_ctx.o build_asm/pipeline_glue_strict_minimal.o src/asm/runtime_asm_build.o
+# wave304: dropped build_asm/pipeline_glue_strict_minimal.o (seed shell retired).
+R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runtime_scheduler_glue.o runtime_kv_mmap_glue.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/lsp/lsp_diag_pipeline_ctx.o src/asm/runtime_asm_build.o
 
 # wave755 R1 eighth family: basename-mismatch + bootstrap orch extras.
 # List authority for ensure_host_cc_seed_o.sh seed-map mode; body = same script.
@@ -66,7 +67,8 @@ R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runti
 # wave759: pipeline_glue_standalone joined seed-map.
 # wave905: also make-graph multi-target FORCE thin try-heat inventory (COUNT=5).
 # Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
-R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o build_asm/pipeline_glue_standalone.o
+# wave309: drop pipeline_glue_standalone (structure floor leave; product pure-ld no mega).
+R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path is pure host-cc.
 # List authority for ensure try-r3-cold / try-r3-prefer / r3-cold-seed (G.7).
@@ -96,12 +98,13 @@ B1_RUNTIME_OS_SEED_OBJS = runtime_test_fn_invoke.o runtime_random_fill.o runtime
 GEN_X_SEED_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o pipeline_x.o
 
 # wave782 B4 gen.c → .o bootstrap family (try-gen-c-to-o table in ensure).
-# List authority for multi-target FORCE thin try-heat (wave910 COUNT=5).
+# List authority for multi-target FORCE thin try-heat (wave910 COUNT=5 → wave295 COUNT=4).
 # Body = ensure try-heat → try-gen-c-to-o → ensure_gen_x_o.sh one OUT (G.7 single body).
 # Membership for rebuild stays gen_c_to_o_spec_for_out table (outside try-gen-x catalog).
-# Leaves: lexer_x · ast_gen2 · driver_x · preprocess_x · _x_stubs2 (top-level product .o).
+# Leaves: lexer_x · ast_gen2 · driver_x · preprocess_x (top-level product .o).
+# wave295 B′: _x_stubs2.o host left — dead dual (not G05_OBJS; stage2 does not link it).
 # Do not re-list in Makefile or residual shells (G.7).
-GEN_C_TO_O_SEED_OBJS = lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o
+GEN_C_TO_O_SEED_OBJS = lexer_x.o ast_gen2.o driver_x.o preprocess_x.o
 
 # wave781 B3 LSP satellite hybrid family (try-lsp-sat-prefer table in ensure).
 # List authority for multi-target FORCE thin try-heat (wave911 COUNT=2).
@@ -255,5 +258,5 @@ FILTER_AGAINST_PARTIAL_OBJS = \
 # Do not re-list in Makefile or residual shells (G.7).
 FILTER_PIPELINE_OBJS = build_asm/bootstrap_seed_pipeline_filtered.o
 
-# pipeline_glue_standalone product leaf (also referenced by composites / export lists).
-ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
+# wave309: standalone seed deleted (8.3 structure floor leave). Empty token.
+ASM_GLUE_STANDALONE_O =

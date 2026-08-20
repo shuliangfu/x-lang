@@ -169,7 +169,7 @@ export function unbind_ctx(): void {
  */
 export function current_ctx(): Context {
   let _rc: Context = 0;
-  unsafe { _rc = Context { handle: xlang_async_current_context_c() }; }
+  unsafe { _rc = { handle: xlang_async_current_context_c() }; }
   return _rc;
 }
 
@@ -179,7 +179,7 @@ export function current_ctx(): Context {
  * @return AsyncRuntime
  */
 export function runtime(ctx: Context): AsyncRuntime {
-  return AsyncRuntime { ctx_handle: ctx.handle };
+  return { ctx_handle: ctx.handle };
 }
 
 /** Exported function `runtime_reset`.
@@ -584,7 +584,7 @@ extern "C" function xlang_async_future_smoke_c(): i32;
  */
 export function future_new(): Future {
   let _rc: Future = 0;
-  unsafe { _rc = Future { handle: xlang_async_future_create_c() }; }
+  unsafe { _rc = { handle: xlang_async_future_create_c() }; }
   return _rc;
 }
 

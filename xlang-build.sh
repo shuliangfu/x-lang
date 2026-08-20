@@ -77,25 +77,25 @@ run_migrate_x_objs() {
 # product frontend *_gen.c pin/seed/-E (wave736 migrate trio · wave737 +lexer).
 # G.7 body = scripts/ensure_migrate_gen.sh (parser/typeck/codegen; lexer via mode).
 run_ensure_migrate_gen() {
-  (cd compiler && sh scripts/ensure_migrate_gen.sh all)
+  (cd compiler && bash scripts/ensure_migrate_gen.sh all)
 }
 run_ensure_lexer_gen() {
-  (cd compiler && sh scripts/ensure_migrate_gen.sh lexer)
+  (cd compiler && bash scripts/ensure_migrate_gen.sh lexer)
 }
 # product driver/preprocess *_gen.c pin/seed/-E (wave738).
 # G.7 body = scripts/ensure_driver_gen.sh
 run_ensure_driver_gen() {
-  (cd compiler && sh scripts/ensure_driver_gen.sh all)
+  (cd compiler && bash scripts/ensure_driver_gen.sh all)
 }
 # product LSP + pipeline *_gen.c pin/seed/-E (wave739).
 # G.7 body = scripts/ensure_lsp_pipeline_gen.sh
 run_ensure_lsp_pipeline_gen() {
-  (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh all)
+  (cd compiler && bash scripts/ensure_lsp_pipeline_gen.sh all)
 }
 # Track L archaeology *_gen.c pin/seed/-E (wave740; product link does not use).
 # G.7 body = scripts/ensure_archaeology_gen.sh
 run_ensure_archaeology_gen() {
-  (cd compiler && sh scripts/ensure_archaeology_gen.sh all)
+  (cd compiler && bash scripts/ensure_archaeology_gen.sh all)
 }
 case "$TARGET" in
   # === 编译器（G-05 日常）===
@@ -170,7 +170,7 @@ case "$TARGET" in
       codegen-gen) _gen_mode=codegen ;;
       lexer-gen|ensure-lexer-gen) _gen_mode=lexer ;;
     esac
-    (cd compiler && sh scripts/ensure_migrate_gen.sh "$_gen_mode")
+    (cd compiler && bash scripts/ensure_migrate_gen.sh "$_gen_mode")
     ;;
   driver-gen|ensure-driver-gen|preprocess-gen|ensure-preprocess-gen)
     # Wave738 · 11.1.6: driver_gen.c + preprocess_gen.c via ensure_driver_gen.sh
@@ -185,7 +185,7 @@ case "$TARGET" in
         if [ -z "${2:-}" ]; then _dgen_mode=all; fi
         ;;
     esac
-    (cd compiler && sh scripts/ensure_driver_gen.sh "$_dgen_mode")
+    (cd compiler && bash scripts/ensure_driver_gen.sh "$_dgen_mode")
     ;;
   lsp-gen|ensure-lsp-gen|pipeline-gen|ensure-pipeline-gen|lsp-pipeline-gen|ensure-lsp-pipeline-gen)
     # Wave739 · 11.1.6: lsp_*_gen.c + pipeline_gen.c via ensure_lsp_pipeline_gen.sh
@@ -205,7 +205,7 @@ case "$TARGET" in
         if [ -z "${2:-}" ]; then _lp_mode=all; fi
         ;;
     esac
-    (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh "$_lp_mode")
+    (cd compiler && bash scripts/ensure_lsp_pipeline_gen.sh "$_lp_mode")
     ;;
   archaeology-gen|ensure-archaeology-gen|driver-subcmd-gen|ensure-driver-subcmd-gen)
     # Wave740 · 11.1.6: Track L archaeology driver_*_gen + lsp_io_std_heap_gen
@@ -224,7 +224,7 @@ case "$TARGET" in
         if [ -z "${2:-}" ]; then _arch_mode=driver-all; fi
         ;;
     esac
-    (cd compiler && sh scripts/ensure_archaeology_gen.sh "$_arch_mode")
+    (cd compiler && bash scripts/ensure_archaeology_gen.sh "$_arch_mode")
     ;;
 
   # === 11.1.1 inventory + 11.1.2 schedule (wave742/743 · not full .x import graph) ===
@@ -343,6 +343,34 @@ case "$TARGET" in
       _bc_mode="dump"
     fi
     bash compiler/scripts/bc_host_cc_product_inventory.sh "$_bc_mode"
+    ;;
+
+  # === wave299 · G.7 daily L2 product matrix (root fix: set -e + rv exit 42) ===
+  l2-matrix|product-matrix|product-l2-matrix|matrix-l2)
+    # G.7 single body: compiler/scripts/product_l2_matrix.sh
+    # Captures expected non-zero run codes (rv=42, opt=102) without aborting mid-matrix.
+    # Usage:
+    #   ./xbuild l2-matrix
+    #   XLANG=./compiler/xlang_asm ./xbuild product-matrix
+    #   ./xbuild l2-matrix --xlang ./compiler/xlang_asm
+    # PLATFORM: SHARED — dual-end for SHARED product work.
+    shift
+    bash compiler/scripts/product_l2_matrix.sh "$@"
+    ;;
+
+  # === wave341 · G.7 L4 true-cold product gate (single entry next to l2-matrix) ===
+  l4|l4-cold|true-cold|true-cold-l4|product-l4|l4-true-cold)
+    # G.7 single body: compiler/scripts/product_l4_true_cold.sh
+    # Full wipe .o + product binaries → seed pin → bootstrap-driver-seed → g05
+    # → product_l2_matrix → run-all-bstrict (SKIP_BUILD=1). Does NOT run check.
+    # Usage:
+    #   ./xbuild l4
+    #   ./xbuild l4-cold
+    #   ./xbuild l4 --no-bstrict      # rebuild + matrix only
+    #   ./xbuild l4 --rebuild-only    # purge + seed + g05 only
+    # PLATFORM: SHARED — dual-end for SHARED / bootstrap cut-over (Ubuntu gold).
+    shift
+    bash compiler/scripts/product_l4_true_cold.sh "$@"
     ;;
 
   # === wave799 · 11.3.1 · physical-delete execute gate (NOT delete; NOT Windows green) ===
@@ -714,6 +742,15 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   bc-inventory --check                 冻结 glue/ast_pool/桩面；8.3.9 孤儿须 absent
                                        体 = bc_host_cc_product_inventory.sh
                                        图 = analysis/C迁移追踪.md §8.3
+  l2-matrix / product-matrix           日常 L2 产品矩阵（wave299 · G.7 单权威）
+                                       rv42／opt102／hello0／si0／f32；**捕获**预期非 0
+                                       （return-value=42 是绿，禁 set -e 中途打断）
+                                       体 = product_l2_matrix.sh
+  l4 / l4-cold / true-cold             L4 真冷全测（wave341 · G.7 单权威）
+                                       全擦 .o + 重链 seed/g05 + L2 矩阵 + 全量 bstrict
+                                       （SKIP_BUILD=1；**不跑** xlang check）
+                                       ./xbuild l4 --no-bstrict | --rebuild-only
+                                       体 = product_l4_true_cold.sh
   phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799–810；非物理删）
   phys-del-gate --check                硬拒删 + preflight 诚实 + proof + flip + endgame + delete-body-preview + commit-honesty
   phys-del-gate --dry-run-delete       仅列将删面

@@ -57,6 +57,7 @@
  * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 /* ShuAsmLdStdLinkFlags for wave156/157 cold twin (standalone seed cc + mega include). */
 #include "runtime_link_abi.h"
@@ -78,6 +79,7 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path);
 const char *asm_link_obj_skip_missing(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
+int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
 /* Cap residual (wave187/188 ensure shell make): skip_missing (+ shell via link_abi_system).
  * wave221: X_OK via public pure thin link_abi_path_executable.
@@ -98,6 +100,16 @@ const char *xlang_runtime_time_os_o_path(const char *argv0);
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out);
+/* Peer pure (ondemand L8b): probe just-ensured formal .o for std.heap API UNDEFs. */
+int link_abi_user_o_needs_std_heap_api(const char *user_o);
+int xlang_ensure_runtime_queue_contention_o(const char *argv0);
+const char *xlang_runtime_queue_contention_o_path(const char *argv0);
+void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags);
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0);
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
+void labi_std_append_test_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 /* Peer pure / Cap residual (wave194 TASK_SPECIAL). */
 int labi_user_needs_std_task(const char *user_o);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
@@ -173,7 +185,6 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path) {
  */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
   const char *use;
-  int k;
   int cur;
   if (!argv || !ia || !path || !path[0])
     return 0;
@@ -183,10 +194,12 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
   use = invoke_cc_argv_resolve_existing_path(path);
   if (!use)
     return 0;
-  for (k = 0; k < cur; k++) {
-    if (argv[k] && strcmp(argv[k], use) == 0)
-      return 0;
-  }
+  /* G.7: has_obj (string + realpath) — strcmp-only missed CLI relative extra
+   * vs auto-pushed compiler-dir absolute. Darwin ld duplicate-symbol. */
+  if (link_abi_asm_ld_argv_has_obj((const char **)argv, cur, use))
+    return 0;
+  if (link_abi_asm_ld_argv_has_obj((const char **)argv, cur, path))
+    return 0;
   argv[(*ia)++] = (char *)use;
   return 1;
 }
@@ -723,6 +736,64 @@ int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_r
   return asm_link_obj_skip_missing(abs) ? 1 : 0;
 }
 
+/* G.7 single queue monofile companion body (cold twin ≡ .x). */
+void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, void *flags) {
+  const char *include_root;
+  int have_sq = 0;
+  if (!link_argv0 || !argv || !la)
+    return;
+  include_root = xlang_repo_root_from_argv0(link_argv0);
+  if (include_root && include_root[0]) {
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/sync/sync.o", "../std/sync/sync.o");
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/atomic/atomic.o", "../std/atomic/atomic.o");
+  }
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sync/sync.o", lib_roots, n_lib_roots,
+                                 bank, argv, la, max_la, &have_sq);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/atomic/atomic.o", lib_roots, n_lib_roots,
+                                 bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_queue_contention_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_queue_contention.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_process_argv_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_process_argv.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  if (have_sq) {
+    int *f;
+    if (flags) {
+      f = (int *)flags;
+      f[3] = 1;
+    }
+    (void)xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+    (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_sync_lock_diag_tls.o",
+                                   lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    (void)xlang_ensure_runtime_sync_os_o(link_argv0);
+    (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_sync_os.o",
+                                   lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  }
+  (void)xlang_ensure_runtime_atomic_glue_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_atomic_glue.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+}
+
+/* G.7 single test monofile companion body (cold twin ≡ .x).
+ * PLATFORM: SHARED — defined here so seed-phase1 runtime_link_abi.o has the T.
+ * Do not call L8c labi_od_push_test_monofile_companions from this TU. */
+void labi_std_append_test_monofile_companions(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
+  if (!link_argv0 || !argv || !la)
+    return;
+  (void)xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_test_fn_invoke.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_env_os_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_env_os.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)xlang_ensure_runtime_time_os_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/runtime_time_os.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+}
+
 /* wave191: labi_std_append_formal_ensure_for_rel pure orch (cold twin ≡ .x).
  * Cap residual: repo_root + ensure_runtime_* + path; peer formal_std_make + push_obj.
  * PLATFORM: SHARED — append_std OP_STD formal ensure+companions.
@@ -758,15 +829,26 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
   if (pos < 0)
     return;
   (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
-  if (strcmp(rel, "std/vec/vec.o") == 0 || strcmp(rel, "std/set/set.o") == 0
-      || strcmp(rel, "std/map/map.o") == 0) {
-    (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-    (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
-    if (argv && la) {
-      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots,
-                                     bank, argv, la, max_la, NULL);
-      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots,
-                                     bank, argv, la, max_la, NULL);
+  /* PLATFORM: SHARED — vec/set/map whitelist OR probe the just-ensured formal
+   * .o (http.o U std_heap_*). User.o typically only U std_http_*; Darwin ld
+   * hard-fails if heap.o is not ensured+pushed after L4 wipe. */
+  {
+    char abs_rel[4096];
+    int need_heap_mem = (strcmp(rel, "std/vec/vec.o") == 0
+        || strcmp(rel, "std/set/set.o") == 0
+        || strcmp(rel, "std/map/map.o") == 0);
+    if (!need_heap_mem && labi_net_tls_join_repo_rel(abs_rel, 4096, include_root, rel)
+        && link_abi_user_o_needs_std_heap_api(abs_rel))
+      need_heap_mem = 1;
+    if (need_heap_mem) {
+      (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+      if (argv && la) {
+        (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+        (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
     }
   }
   if (strcmp(rel, "std/env/env.o") == 0) {
@@ -788,6 +870,71 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
       (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
                                      "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
                                      bank, argv, la, max_la, NULL);
+    }
+  }
+  /* PLATFORM: SHARED — formal fs.o U error/context (+ atomic/time_os via context).
+   * User needles only std_fs_*; fk0 error/context miss. G.7 ≡ net companions + C need_context. */
+  if (strcmp(rel, "std/fs/fs.o") == 0) {
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/error/error.o", "../std/error/error.o");
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/context/context.o", "../std/context/context.o");
+    if (argv && la) {
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/context/context.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      if (xlang_ensure_runtime_atomic_glue_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+      if (xlang_ensure_runtime_time_os_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+    }
+  }
+  /* PLATFORM: SHARED — pure-asm run-http companion ≡ fs/net error/context */
+  if (strcmp(rel, "std/http/http.o") == 0) {
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/error/error.o", "../std/error/error.o");
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/context/context.o", "../std/context/context.o");
+    if (argv && la) {
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/context/context.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      if (xlang_ensure_runtime_atomic_glue_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+      if (xlang_ensure_runtime_time_os_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+    }
+  }
+  /* PLATFORM: SHARED — queue.o monofile companions (G.7 single helper). */
+  if (strcmp(rel, "std/queue/queue.o") == 0)
+    labi_std_append_queue_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  /* PLATFORM: SHARED — test.o monofile companions (G.7 single helper in this TU). */
+  if (strcmp(rel, "std/test/test.o") == 0)
+    labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  /* PLATFORM: SHARED — direct OP_STD context.o (user U std_context_* / STD-091).
+   * context.o U atomic_*_i32_c + time_now_monotonic_ns_c. G.7 ≡ C need_context. */
+  if (strcmp(rel, "std/context/context.o") == 0) {
+    if (argv && la) {
+      if (xlang_ensure_runtime_atomic_glue_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+      if (xlang_ensure_runtime_time_os_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
     }
   }
   (void)lib_roots;

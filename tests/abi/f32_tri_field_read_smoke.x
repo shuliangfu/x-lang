@@ -13,7 +13,7 @@ struct F32Tri {
  * @return i32
  */
 function main(): i32 {
-  let t: F32Tri = F32Tri { x: 1.0, y: 2.0, z: 3.0 };
+  let t: F32Tri = { x: 1.0, y: 2.0, z: 3.0 };
   let s: f32 = t.x + t.y + t.z;
   return s as i32;
 }

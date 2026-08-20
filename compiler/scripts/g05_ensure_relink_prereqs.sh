@@ -54,6 +54,13 @@ fi
 #      "cc: command not found" on Windows.
 CC="${G05_CC:-${CC:-cc}}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
+
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/forbid_host_cc.sh"
+
 # 与 Makefile RUNTIME_DRIVER_NO_C_CFLAGS 一致（runtime.c → runtime_driver_no_c.o）
 # Cap residual 数据在 RT_SEED_SLICE_OBJS（g05_relink_env）；runtime 开 XLANG_RT_*_FROM_X。
 # 须含 PARSE_DIAG_FROM_X：parse_diag 只在 src/runtime/rt_parse_diag.o，禁止再 merge 进 no_c（否则 Darwin 双符号）。
@@ -64,6 +71,15 @@ if [ ! -f "${G05_BOOTSTRAP:-bootstrap_xlangc}" ] && [ ! -f xlang ] && [ ! -f xla
   echo "  cold-start: ./xbuild bootstrap-driver-seed   # preferred (shell; Makefile deleted wave941)" >&2
   exit 1
 fi
+
+# Stage 12.2.3: pure-ld partial-merge helper (replaces $CC -r -nostdlib in
+# prefer hybrid merges; zero-CC when XLANG_ZERO_CC_LD=1, else $CC -r zero
+# regression). PLATFORM: SHARED.
+. scripts/pure_ld_shared.sh
+
+# Stage 12.0.5: strip ambient tree PREFER_ASM_O unless ALLOW_TREE (G.7).
+# Prefer families re-scope PREFER inside pure_asm subshells. PLATFORM: SHARED.
+xlang_strip_tree_prefer_asm_unless_allowed
 
 # --- 热路径：直接 cc -c（不经 make）；G-02e-22：.inc 走 cc_inc_tu ---
 g05_cc_c() {
@@ -91,6 +107,17 @@ g05_cc_c() {
 }
 
 # G-02f-256/257/258 / L2：.x → xlang -backend c -E → cc -c → .o
+# Stage 12.0.5：pure_asm_x_to_o is G.7 authority for freestanding .x→.o.
+# Prefer-family pure-asm product default (authorized 2026-08-12, peer of
+# PREFER_ASM_O_RT / PREFER_ASM_O_LABI):
+#   · XLANG_PREFER_ASM_O_G05 defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
+#     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
+#   · reject panic/__error/weak polish fail/rename → fall through -E+$CC.
+#   · Escape: XLANG_PREFER_ASM_O_G05=0 → historic -E+$CC. Ambient tree PREFER
+#     does NOT re-enable pure-asm unless XLANG_ALLOW_TREE_PREFER_ASM=1.
+#   · Ban: tree PREFER_ASM_O=1 product default (hard strip + family=0);
+#     pipeline_abi mega pure-asm product skip (Cap residual gap; opaque WEAK
+#     surface closed in runtime_driver_abi.from_x.c; hang wall closed 2026-08-12).
 # 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
@@ -113,6 +140,20 @@ g05_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
+  # Prefer-family pure-asm default via XLANG_PREFER_ASM_O_G05 (default 1).
+  # When G05=0: unset ambient PREFER unless ALLOW_TREE (close tree leak).
+  # PLATFORM: SHARED · G.7 pure_asm_x_to_o sole authority.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_G05:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    pure_asm_x_to_o "$_xout" "$_xsrc"
+  ); then
+    return 0
+  fi
+  # Historic: -E → prologue → $CC -c
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x.XXXXXX") || return 1
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。
@@ -530,16 +571,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; other-l2 prefer residual" >&2
   fi
-  # G-02f-11：pipeline_glue_strict_minimal 产品 seed
-  _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
-  if [ -f "$_pglue" ]; then
-    if [ ! -f build_asm/pipeline_glue_strict_minimal.o ] || [ "$_pglue" -nt build_asm/pipeline_glue_strict_minimal.o ]; then
-      echo "g05_ensure: pipeline_glue_strict_minimal.o ← seed (G-02f-11)"
-      mkdir -p build_asm
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o build_asm/pipeline_glue_strict_minimal.o "$_pglue"
-    fi
-  fi
+  # wave304 G.7 8.3.6: pipeline_glue_strict_minimal seed shell retired
+  # (0 residual T after wave303; product g05 no longer host-cc or links it).
+  # PLATFORM: SHARED freestanding 8.3.6 shell retire.
+
   # G-02e / wave762 G.7: typeck_f64_bits pure .s via try-r2 (single R2 body).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: try-r2 src/typeck/typeck_f64_bits.o (wave762)"
@@ -557,7 +592,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ -n "$_f64s" ] && [ -f "$_f64s" ]; then
       if [ ! -f src/typeck/typeck_f64_bits.o ] || [ "$_f64s" -nt src/typeck/typeck_f64_bits.o ]; then
         echo "g05_ensure: cc -c $_f64s → src/typeck/typeck_f64_bits.o"
-        $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
+        pure_as_compile src/typeck/typeck_f64_bits.o "$_f64s"
       fi
     fi
   fi
@@ -569,53 +604,25 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     "sizes_nostub"
   # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
   # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
-  # Unbundle hygiene：pipeline_glue.c 变更后，旧 pipeline_x / filtered / standalone
-  # 仍可能内嵌 pool T → Darwin 与 pool.o 双定义红。产品 g05 无 make 时在此重建。
-  # 8.3.1+8.3.2: #include slices (ctfe/.../soa/ast_pool*/module_import/struct_layout/top_level/type_alias/expr_sidecar/module_enum) also force STALE —
-  # editing a slice alone must rebuild pipeline_x.o (G.7; was a silent gap).
-  # PLATFORM: SHARED — Linux 允许多定义时也应以无内嵌为真值。
+  # wave309 G.7 8.3 structure floor leave: product pure-ld no longer links
+  # pipeline_x / filtered / standalone mega. Glue shell sources deleted; do not
+  # host-cc empty mega for product. Soft no-op when residual files still on disk
+  # (archaeology). PLATFORM: SHARED freestanding pipeline mega shell retire.
   if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
-    _glue_slice_stale=0
-    for _gs in pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_asm_emit_as.c pipeline_asm_emit_return.c pipeline_asm_emit_logand.c pipeline_asm_emit_block_body.c pipeline_asm_emit_block_if_stmt.c pipeline_asm_emit_block_inits.c pipeline_asm_emit_assign.c pipeline_asm_emit_array_lit.c pipeline_asm_emit_index.c pipeline_asm_emit_match.c pipeline_asm_emit_panic.c pipeline_asm_emit_field_access.c pipeline_asm_emit_binop.c pipeline_asm_emit_cmp.c pipeline_asm_emit_call_args.c pipeline_asm_emit_struct_lit.c pipeline_asm_emit_vector_let.c pipeline_asm_emit_vector_simd.c pipeline_asm_emit_struct_let.c pipeline_asm_emit_index_helpers.c pipeline_asm_emit_spill.c pipeline_asm_emit_index_eff_addr.c pipeline_asm_emit_expr_rec.c pipeline_typeck_field_access.c pipeline_typeck_soa.c pipeline_elf_write_o.c pipeline_elf_ctx.c pipeline_codegen_type_to_c.c pipeline_codegen_struct_emit.c pipeline_codegen_skip_force.c pipeline_codegen_residual.c pipeline_asm_ctx_layout.c pipeline_glue_early_fwd.c pipeline_glue_statics.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c pipeline_glue_emit_lea_fwd.c pipeline_glue_emit_mid_fwd.c pipeline_asm_locals.c pipeline_asm_slot_bytes.c pipeline_asm_block_tree.c pipeline_asm_ctx_loop.c pipeline_asm_wpo.c pipeline_asm_selfhost.c pipeline_asm_emit_heavy_safe_helper.c pipeline_asm_thin_delegate.c pipeline_asm_parser_emit_heavy.c pipeline_asm_diag.c pipeline_asm_skip_dispatch.c pipeline_resolve_path.c pipeline_import_bind.c pipeline_parse_typeck_dispatch.c pipeline_run_x_pipeline.c pipeline_codegen_dep.c pipeline_loop_glue.c pipeline_lsp_diag.c pipeline_emit_sidecar.c pipeline_preprocess_if.c pipeline_typeck_slots.c \
-      pipeline_grow_vec.c ast_pool_typedefs.c ast_pool_sidecar_pool.c ast_pool_ptr_at.c pipeline_backend_asm_wrapper.c pipeline_scratch_bufs.c pipeline_asm_emit_heavy_env.c ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_expr_sidecar.c ast_pool_module_enum.c ast_pool_onefunc.c ast_pool_dep_ctx.c ast_pool_module_func.c ast_pool_arena.c ast_pool_block.c ast_pool_lifecycle.c pipeline_lint_meta.c ast_pool_bootstrap_glue.c; do
-      if [ -f "$_gs" ] && [ "$_gs" -nt pipeline_x.o ]; then
-        _glue_slice_stale=1
-        break
-      fi
-    done
-    if [ ! -f pipeline_x.o ] || [ pipeline_glue.c -nt pipeline_x.o ] \
-      || [ pipeline_gen.c -nt pipeline_x.o ] || [ "$_glue_slice_stale" = 1 ]; then
-      echo "g05_ensure: pipeline_x.o ← pipeline_gen.c (glue unbundle / stale vs pipeline_glue.c+slices)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Wno-error -c -o pipeline_x.o pipeline_gen.c
-      if [ -d build_asm/gen_driver ]; then
-        cp -f pipeline_x.o build_asm/gen_driver/pipeline_x.o 2>/dev/null || true
-      fi
-    fi
+    echo "g05_ensure: skip pipeline_x.o host-cc (wave309 product mega retired)"
   fi
-  if [ -f seeds/pipeline_glue_standalone.from_x.c ] && [ -f pipeline_glue.c ]; then
-    _pgs_o=build_asm/pipeline_glue_standalone.o
-    if [ ! -f "$_pgs_o" ] || [ pipeline_glue.c -nt "$_pgs_o" ] \
-      || [ seeds/pipeline_glue_standalone.from_x.c -nt "$_pgs_o" ]; then
-      echo "g05_ensure: $_pgs_o ← pipeline_glue_standalone (glue unbundle; no pool embed)"
-      mkdir -p build_asm
-      # shellcheck disable=SC2086
-      sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$_pgs_o" \
-        -Wno-error=return-type -Ibuild_asm
-    fi
+  if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
+    echo "g05_ensure: skip pipeline_glue_standalone (wave309 product shell retire)"
   fi
-  # Darwin product link uses filtered pipeline + filtered USER_ASM trio; drop
-  # stale TDS after unbundle / partial refresh. Pure shell (no make).
-  # wave835: G.7 有则补全 — mtime + ensure live in filter_* scripts (same as Makefile
-  # FORCE thin). g05 thin-calls ensure only (no dual mtime if-ladder here).
-  # Authority: filter_bootstrap_seed_*_o.sh → filter_o_export_against_deps.sh (G.7).
-  # PLATFORM: SHARED hygiene; PLATFORM: MACOS product link consumes these (g05_relink_env).
-  _filt=build_asm/bootstrap_seed_pipeline_filtered.o
-  if [ -f pipeline_x.o ]; then
-    echo "g05_ensure: $_filt ← filter_bootstrap_seed_pipeline_o.sh ensure (no make)"
+  # wave309: Darwin product no longer consumes bootstrap_seed_pipeline_filtered.o.
+  if [ -f pipeline_x.o ] && [ "${XLANG_FILTER_PIPELINE_FORCE:-0}" = "1" ]; then
+    _filt=build_asm/bootstrap_seed_pipeline_filtered.o
+    echo "g05_ensure: $_filt ← filter (FORCE only; product link empty wave309)"
     if ! bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure "$_filt"; then
-      echo "g05_ensure: WARN filter $_filt failed (Darwin may dual-def pool)" >&2
+      echo "g05_ensure: WARN filter $_filt failed (product does not link it)" >&2
     fi
+  else
+    echo "g05_ensure: skip pipeline filtered (wave309 product mega retired)"
   fi
   # Class-G trio: filter against seed_host partial only (catalog in filter script).
   _partial=build_asm/seed_host/asm_backend_partial.o
@@ -661,7 +668,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_pel_x" "$_pel_thin_o" \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \
                -DXLANG_L2_PEL_THIN_FROM_X -c -o "$_pel_rest_o" "$_pel" \
-          && $CC -r -nostdlib -o "$_pel_o" "$_pel_thin_o" "$_pel_rest_o" 2>/dev/null; then
+          && pure_ld_partial_merge "$_pel_o" "$_pel_thin_o" "$_pel_rest_o" 2>/dev/null; then
           echo "g05_ensure: $_pel_o ← $_pel_x + seed-rest (G-02f-333 L2 hybrid parse_expr_link thin)"
           _pel_done=1
         else
@@ -743,7 +750,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f seeds/parser_asm/parser_asm_diag_pipeline_slice.inc ] && [ seeds/parser_asm/parser_asm_diag_pipeline_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_diag_late_slice.inc ] && [ seeds/parser_asm/parser_asm_diag_late_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_try_skip_allow_slice.inc ] && [ seeds/parser_asm/parser_asm_try_skip_allow_slice.inc -nt parser_asm_thin_glue.o ]; } \
-      || { [ -f seeds/parser_asm/parser_asm_skip_if_slice.inc ] && [ seeds/parser_asm/parser_asm_skip_if_slice.inc -nt parser_asm_thin_glue.o ]; }; then
+      || { [ -f seeds/parser_asm/parser_asm_skip_if_slice.inc ] && [ seeds/parser_asm/parser_asm_skip_if_slice.inc -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f seeds/parser_asm/parser_asm_match_subject_slice.inc ] && [ seeds/parser_asm/parser_asm_match_subject_slice.inc -nt parser_asm_thin_glue.o ]; } \
+      || { [ -n "$(find seeds/parser_asm/ -name '*.inc' -newer parser_asm_thin_glue.o -print -quit 2>/dev/null)" ]; }; then
       # PLATFORM: SHARED — monothin #includes the .inc files above; hybrid pthin_*
       # .c mtimes alone miss glue_tail/library_wrap edits (Ubuntu UNDEF after M2 re-pin).
       _pthin_done=0
@@ -1103,7 +1112,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_pthin_full" = "1" ]; then
           # shellcheck disable=SC2086
-          if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+          if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
             echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20 only (G-02f-330 omit empty rest; P8 smoke-only)"
             _pthin_done=1
           fi
@@ -1115,11 +1124,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             _pthin_rest_t=$(nm -gU "$_pthin_rest_o" 2>/dev/null | awk '$2=="T"{c++} END{print c+0}')
             # shellcheck disable=SC2086
             if [ "${_pthin_rest_t:-1}" = "0" ]; then
-              if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+              if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices only (rest T=0 omit; G-02f-330)"
                 _pthin_done=1
               fi
-            elif $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
+            elif pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
               echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices + thin rest (G-02f-330 partial; rest T=$_pthin_rest_t)"
               _pthin_done=1
             fi
@@ -1156,7 +1165,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o" \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
-          && $CC -r -nostdlib -o "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
+          && pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
           echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
           _diag_done=1
         else
@@ -1183,7 +1192,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _xsb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_thin.XXXXXX") || true
         _xsb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_rest.XXXXXX") || true
         # shellcheck disable=SC2086
-        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && G05_X_O_WEAK=1 g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_X_SEED_BRIDGE_THIN_FROM_X                -c -o "$_xsb_rest_o" "$_xsb"           && $CC -r -nostdlib -o "$_xsb_o" "$_xsb_thin_o" "$_xsb_rest_o" 2>/dev/null; then
+        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && G05_X_O_WEAK=1 g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_X_SEED_BRIDGE_THIN_FROM_X                -c -o "$_xsb_rest_o" "$_xsb"           && pure_ld_partial_merge "$_xsb_o" "$_xsb_thin_o" "$_xsb_rest_o" 2>/dev/null; then
           echo "g05_ensure: $_xsb_o ← $_xsb_x + seed-rest (G-02f-332 L2 hybrid x_seed_bridge thin)"
           _xsb_done=1
         else
@@ -1247,23 +1256,83 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
-  # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
-  # PLATFORM: SHARED — true cold deletes typeck_x.o but often leaves a stale host-local
-  # typeck_gen.c (gitignored). That stale file can predate product contracts (e.g. void main
-  # ret_kind allows ord_void=16). Always re-pin seed when typeck_x.o is missing so L4 does
-  # not compile an old gen that still returns -4 on `function main(): void`.
-  if [ ! -f typeck_x.o ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then
-    cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
-    echo "g05_ensure: typeck_gen.c ← seeds/typeck_gen.linux.x86_64.c (cold: missing typeck_x.o)"
+  # parser_x.o cold path (wave324 M4 7.2.2 + residual pin authority).
+  # PLATFORM: SHARED — product authority = seeds/parser_gen.linux.x86_64.c.
+  # Full tip -E assemble of parser.x drops surgical seed leaves (generic_bound_scan,
+  # dest IF last-dest, region ASI, …) and has produced host-C `return (struct ){`.
+  # Default (XLANG_PARSER_FROM_X unset/0): when parser_x.o is missing, always restore
+  # the product pin over any local tip-assemble artifact, then cc. Surgical work must
+  # land in the committed seed (same commit as parser.x); gitignored local gen is not
+  # product authority on cold missing-.o. Tip assemble only with XLANG_PARSER_FROM_X=1.
+  # G.7: one cold path; do not auto-assemble parser.x on every missing .o.
+  if [ ! -f parser_x.o ]; then
+    if [ "${XLANG_PARSER_FROM_X:-0}" = "1" ] && [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen parser (opt-in XLANG_PARSER_FROM_X=1; tip assemble)"
+      bash scripts/ensure_migrate_gen.sh parser \
+        || echo "g05_ensure: ensure_migrate_gen parser failed (will try pin/local)" >&2
+      if [ ! -s parser_gen.c ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then
+        cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+        echo "g05_ensure: parser_gen.c ← product pin seed (opt-in assemble empty → pin)"
+      fi
+    elif [ -f seeds/parser_gen.linux.x86_64.c ]; then
+      # Pin-first cold: wipe stale tip-assemble / drifted gitignored gen.
+      cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+      echo "g05_ensure: parser_gen.c ← product pin seed (cold missing parser_x.o; no tip assemble)"
+    fi
+  fi
+  if [ -f parser_gen.c ]; then
+    if [ ! -f parser_x.o ] || [ parser_gen.c -nt parser_x.o ]; then
+      echo "g05_ensure: cc -c parser_gen.c → parser_x.o (pin/cold)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o parser_x.o parser_gen.c
+    fi
+  fi
+  # LANG-007 + typeck_x.o cold path (wave322 M4 7.4.1).
+  # PLATFORM: SHARED — true cold deletes typeck_x.o; host-local typeck_gen.c is gitignored
+  # and may be stale. Prefer ensure_migrate_gen typeck (typeck.x -E + companions assemble)
+  # when a product -E binary exists; archaeology seed only if assemble cannot run.
+  # G.7: do not blind-cp pin over a fresher .x assemble.
+  if [ ! -f typeck_x.o ]; then
+    if [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen typeck (cold: missing typeck_x.o; prefer .x assemble)"
+      bash scripts/ensure_migrate_gen.sh typeck \
+        || echo "g05_ensure: ensure_migrate_gen typeck failed (will try pin/local)" >&2
+    fi
+    if [ ! -s typeck_gen.c ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then
+      cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
+      echo "g05_ensure: typeck_gen.c ← archaeology seed (cold egg; no assemble)"
+    fi
   fi
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
     python3 scripts/patch_typeck_gen_lang007.py || true
     _tg_after=$(wc -c < typeck_gen.c | tr -d ' ')
     if [ "$_tg_before" != "$_tg_after" ] || [ ! -f typeck_x.o ] || [ typeck_gen.c -nt typeck_x.o ]; then
-      echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 patch)"
+      echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 / assemble)"
       # shellcheck disable=SC2086
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
+    fi
+  fi
+  # codegen_x.o cold path (wave323 M4 7.4.2).
+  # PLATFORM: SHARED — prefer ensure_migrate_gen codegen (codegen.x -E + Cap residual)
+  # when a product -E binary exists; archaeology seed only if assemble cannot run.
+  # G.7: do not blind-cp pin over a fresher .x assemble.
+  if [ ! -f codegen_x.o ]; then
+    if [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen codegen (cold: missing codegen_x.o; prefer .x assemble)"
+      bash scripts/ensure_migrate_gen.sh codegen \
+        || echo "g05_ensure: ensure_migrate_gen codegen failed (will try pin/local)" >&2
+    fi
+    if [ ! -s codegen_gen.c ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then
+      cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
+      echo "g05_ensure: codegen_gen.c ← archaeology seed (cold egg; no assemble)"
+    fi
+  fi
+  if [ -f codegen_gen.c ]; then
+    if [ ! -f codegen_x.o ] || [ codegen_gen.c -nt codegen_x.o ]; then
+      echo "g05_ensure: cc -c codegen_gen.c → codegen_x.o (assemble / cold)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o codegen_x.o codegen_gen.c
     fi
   fi
   # G-02e：产品链 C 源缺失或比 .o 新时强制重编（并入/删 TU 后跨机 git pull 必走此路径）

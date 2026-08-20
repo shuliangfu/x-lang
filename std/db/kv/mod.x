@@ -77,7 +77,7 @@ export function mmap_available(): i32 {
  */
 export function open(path: *u8, capacity_bytes: u64): KvStore {
   let _rc: KvStore = 0;
-  unsafe { _rc = KvStore { handle: db_kv_open_c(path, capacity_bytes) }; }
+  unsafe { _rc = { handle: db_kv_open_c(path, capacity_bytes) }; }
   return _rc;
 }
 

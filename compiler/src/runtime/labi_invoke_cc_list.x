@@ -558,6 +558,12 @@ export function labi_icc_argv_try_push_flag(argv: **u8, ia: *i32, cap: i32, flag
  * Cap residual: generated_c_needs_* (file view peers) + ensure_runtime_* + host_is_windows
  *   + peer push_existing resolve pool; host_is_linux / host_is_apple for -lc POSIX gate.
  * Why (wave198): hybrid still had early needs scan+push always-mega inside invoke_cc_impl.
+ * Stage 12.2.3 ALLOW ensure slim (align early_needs with need authority):
+ *   · Full ALLOW path (no XLANG_MINIMAL_CC_LINK): do NOT scan/push random.o / time.o /
+ *     runtime.o here. G.7 single authority = ensure-push front via need_flags[8/7/4]
+ *     (use_line needles) + companions. Avoid dual freestanding substr scan + double ensure.
+ *   · MINIMAL_CC_LINK only: keep freestanding needs_random/time/runtime push+ensure here
+ *     (ensure-push is skipped entirely on MINIMAL).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * Callers: mega xlang_invoke_cc_impl child argv build (SHARED product C link path).
  * PLATFORM: SHARED orch / POSIX -lc (linux|apple) / WINDOWS -lbcrypt -lkernel32 -lws2_32.
@@ -576,6 +582,16 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (ia[0] < 0) {
     return;
   }
+  // PLATFORM: SHARED — MINIMAL-only owns freestanding rtr push; full path → need_flags front.
+  let minimal_cc: i32 = 0;
+  unsafe {
+    let menv: *u8 = link_abi_getenv("XLANG_MINIMAL_CC_LINK");
+    if (menv != 0 as *u8) {
+      if (menv[0] != 0) {
+        minimal_cc = 1;
+      }
+    }
+  }
   let needs_core_builtin: i32 = 0;
   let needs_core_mem: i32 = 0;
   let needs_core_slice: i32 = 0;
@@ -589,6 +605,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   let needs_win32_wsa: i32 = 0;
   let needs_libc_heap: i32 = 0;
   // Scan all generated C paths (peer pure needs_* use_line / marker gates).
+  // Skip random/time/runtime freestanding scan when not MINIMAL (front owns those).
   if (n > 0) {
     let cpb: *u8 = c_paths as *u8;
     if (cpb != 0 as *u8) {
@@ -618,14 +635,16 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
           if (link_abi_generated_c_needs_fs(cp) != 0) {
             needs_fs = 1;
           }
-          if (link_abi_generated_c_needs_random(cp) != 0) {
-            needs_random = 1;
-          }
-          if (link_abi_generated_c_needs_time(cp) != 0) {
-            needs_time = 1;
-          }
-          if (link_abi_generated_c_needs_runtime(cp) != 0) {
-            needs_runtime = 1;
+          if (minimal_cc != 0) {
+            if (link_abi_generated_c_needs_random(cp) != 0) {
+              needs_random = 1;
+            }
+            if (link_abi_generated_c_needs_time(cp) != 0) {
+              needs_time = 1;
+            }
+            if (link_abi_generated_c_needs_runtime(cp) != 0) {
+              needs_runtime = 1;
+            }
           }
           if (link_abi_generated_c_needs_win32(cp) != 0) {
             needs_win32 = 1;
@@ -717,6 +736,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
     }
   }
+  // MINIMAL-only: random/time/runtime + ensure companions (full path → ensure-push front).
   // random.o + ensure random_fill before push (L4 cold tree; G.7 ensure-then-push).
   if (needs_random != 0) {
     unsafe {
@@ -1881,7 +1901,7 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
 }
 
 /**
- * invoke_cc ensure-push front: string → process → heap → path → runtime → panic →
+ * invoke_cc ensure-push front: string → process → path → runtime → panic →
  * net → thread → time → random → env (contiguous prefix; preserves link argv order).
  * Composes Cap residual ensure/path/push peers + pure labi_icc_argv_try_push_flag.
  * Mutates need_flags[6] (thread) when net.o is linked (workers → thread_create_c).
@@ -1893,7 +1913,7 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
  * @param include_root *u8 — repo/include root for formal time ensure + rel paths (nullable)
  * @param process_o *u8 — product process.o path (nullable)
  * @param string_o *u8 — product string.o path (nullable)
- * @param heap_o *u8 — product heap.o path (nullable; push if non-empty)
+ * @param heap_o *u8 — product heap.o path (nullable; unused here — F-06 owns heap push)
  * @param path_o *u8 — product path.o path (nullable)
  * @param runtime_o *u8 — product runtime.o path (nullable)
  * @param runtime_panic_o *u8 — product runtime_panic.o path (nullable)
@@ -1906,7 +1926,9 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
  * Pure orch: ≡ mega ensure-push front inside xlang_invoke_cc_impl (after std need scan).
  * Cap residual: ensure_runtime_* + push_existing resolve pool + formal_std_make + net_tls_ld.
  * Why (wave200): hybrid still had ensure-push front always-mega after wave199 flags bank.
- * Tail residual (sync…process_argv complement) + heap F-06 + fork/exec remain mega.
+ * Stage 12.2.3 ALLOW ensure slim: do NOT always-push heap.o when path non-empty.
+ * Authority: invoke_cc_append_heap_f06_ondemand (nm argv + use_line needles + provides).
+ * heap_o remains in the surface signature for G.7 call-site ABI (mega still passes it).
  * Callers: mega xlang_invoke_cc_impl after invoke_cc_scan_std_module_needs.
  * PLATFORM: SHARED orch / LINUX -pthread + asm_io_stubs with net / WINDOWS -lws2_32 -lbcrypt.
  * Track-L: #[no_mangle] surface short name for mega call sites.
@@ -1982,14 +2004,10 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
     }
   }
 
-  // heap.o always candidate when path non-empty (F-06 on-demand complement is still mega).
-  if (heap_o != 0 as *u8) {
-    if (heap_o[0] != 0) {
-      unsafe {
-        let _ph: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
-      }
-    }
-  }
+  // Stage 12.2.3: heap.o need-gated by invoke_cc_append_heap_f06_ondemand (G.7 single
+  // authority after ensure-push heavy_b). Do not always-push when path non-empty — that
+  // forced heap+page_mmap companions onto every ALLOW C link (rv/hello) that never
+  // references std_heap_*. heap_o param kept for surface ABI only (unused here).
   if (need_path != 0) {
     unsafe {
       let _pp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, path_o);
@@ -2931,7 +2949,7 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
  * @param trace_o *u8 — product trace.o path (nullable)
  * @param task_o *u8 — product task.o path (nullable; pulls scheduler + glue + LINUX -pthread)
  * @param schema_o *u8 — product schema.o path (nullable)
- * @param test_o *u8 — product test.o path (nullable; + test_fn_invoke glue)
+ * @param test_o *u8 — product test.o path (nullable; + test_fn_invoke / env_os / time_os)
  * @param async_scheduler_o *u8 — explicit async_scheduler.o path (nullable; else scan C needs)
  * @return void — appends .o paths and platform ld flags; mutates *ia only
  * Pure orch: ≡ mega ensure-push heavy slice unicode…process_argv inside xlang_invoke_cc_impl.
@@ -3102,9 +3120,27 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       let _ps: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, simd_o);
     }
   }
+  // PLATFORM: SHARED — context.o KEEP_C / glue U-imports atomic_*_c and
+  // time_now_monotonic_ns_c. mid scan only sees gen-C std_context_*; without
+  // companions L4 io-context gate UNDEF atomic_load_i32_c / time_now_*.
+  // G.7: pair context formal with atomic glue + time_os (same class as panic U).
   if (need_context != 0) {
     unsafe {
       let _pcx: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
+      let _eag: i32 = xlang_ensure_runtime_atomic_glue_o(0 as *u8);
+      let rag: *u8 = xlang_runtime_atomic_glue_o_path(0 as *u8);
+      if (rag != 0 as *u8) {
+        if (rag[0] != 0) {
+          let _pag: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
+        }
+      }
+      let _eto: i32 = xlang_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = xlang_runtime_time_os_o_path(0 as *u8);
+      if (rto != 0 as *u8) {
+        if (rto[0] != 0) {
+          let _pto: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+        }
+      }
     }
   }
   if (need_error != 0) {
@@ -3167,18 +3203,33 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     }
   }
   if (need_test != 0) {
-    let pte: i32 = 0;
+    // PLATFORM: SHARED — formal test.o monofile U test_call_i32_void_c /
+    // env_getenv_c / time_now_monotonic_ns_c even when user only names
+    // std_test_expect* (≡ labi_od_push_test_monofile_companions).
+    // Do not gate companions on push_existing(test_o): append_std / prior
+    // scan may already have test.o on argv (dedup → 0) and Darwin ld then
+    // hard-UNDEF the three faces. G.7 complete the existing need_test block.
     unsafe {
-      pte = invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
-    }
-    if (pte != 0) {
-      unsafe {
-        let _etfi: i32 = xlang_ensure_runtime_test_fn_invoke_o(0 as *u8);
-        let rtfi: *u8 = xlang_runtime_test_fn_invoke_o_path(0 as *u8);
-        if (rtfi != 0 as *u8) {
-          if (rtfi[0] != 0) {
-            let _ptfi: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
-          }
+      let _pte: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
+      let _etfi: i32 = xlang_ensure_runtime_test_fn_invoke_o(0 as *u8);
+      let rtfi: *u8 = xlang_runtime_test_fn_invoke_o_path(0 as *u8);
+      if (rtfi != 0 as *u8) {
+        if (rtfi[0] != 0) {
+          let _ptfi: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
+        }
+      }
+      let _eeo: i32 = xlang_ensure_runtime_env_os_o(0 as *u8);
+      let reo: *u8 = xlang_runtime_env_os_o_path(0 as *u8);
+      if (reo != 0 as *u8) {
+        if (reo[0] != 0) {
+          let _peo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
+        }
+      }
+      let _eto: i32 = xlang_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = xlang_runtime_time_os_o_path(0 as *u8);
+      if (rto != 0 as *u8) {
+        if (rto[0] != 0) {
+          let _pto: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
         }
       }
     }
@@ -3281,6 +3332,16 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
   let need_pav: i32 = 0;
   let have_process_o: i32 = 0;
   let have_pav: i32 = 0;
+  // PLATFORM: SHARED — transitive U xlang_panic_ from formal KEEP_C co-emits.
+  // Root (L4 Mac run-backtrace @1bbce7ddc): error.o defines core_result_expect_*_or_panic
+  // which U xlang_panic_, but mid=51 only scans gen-C use_line (skips preamble
+  // `extern void xlang_panic_(…)`). need_error pushes error.o without need_panic.
+  // -Wl,-export_dynamic (need_backtrace) freezes those T symbols so -dead_strip cannot
+  // drop them → BLD001 UNDEF _xlang_panic_. Same class: unicode/http/option/debug.o.
+  // G.7: single argv nm scan authority (peer process_argv complement + heap F-06);
+  // do not special-case only error.o or only backtrace.
+  let need_panic_u: i32 = 0;
+  let have_panic_o: i32 = 0;
   let ai: i32 = 0;
   let nargv: i32 = ia[0];
   while (ai < nargv) {
@@ -3311,6 +3372,15 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       if (u1 != 0 || u2 != 0) {
         need_pav = 1;
       }
+      // Panic face: detect provider vs consumer of xlang_panic_ on argv.
+      let hit_panic_o: *u8 = strstr(e, "runtime_panic.o");
+      if (hit_panic_o != 0 as *u8) {
+        have_panic_o = 1;
+      }
+      let u_panic: i32 = xlang_link_obj_needs_undef_sym(e, "xlang_panic_");
+      if (u_panic != 0) {
+        need_panic_u = 1;
+      }
     }
   }
   if (need_pav != 0) {
@@ -3323,6 +3393,28 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
             if (rpa[0] != 0) {
               let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
             }
+          }
+        }
+      }
+    }
+  }
+  // PLATFORM: SHARED — ensure+push runtime_panic.o when any formal on argv U-imports it.
+  // Also pull user_env companion (wave288: panic/process residual U link_abi_getenv).
+  if (need_panic_u != 0) {
+    if (have_panic_o == 0) {
+      unsafe {
+        let _ep: i32 = xlang_ensure_runtime_panic_o(0 as *u8);
+        let rp: *u8 = xlang_runtime_panic_o_path(0 as *u8);
+        if (rp != 0 as *u8) {
+          if (rp[0] != 0) {
+            let _ppn: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+          }
+        }
+        let _eue: i32 = xlang_ensure_runtime_link_abi_user_env_o(0 as *u8);
+        let rue: *u8 = xlang_runtime_link_abi_user_env_o_path(0 as *u8);
+        if (rue != 0 as *u8) {
+          if (rue[0] != 0) {
+            let _pue: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
           }
         }
       }
@@ -3892,10 +3984,10 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
 /**
  * Spawn system cc/gcc with a finished NULL-terminated argv (parent-side, no fork-first).
  * @param argv **u8 — full cc argv ending with null; argv[0] rewritten per candidate; null → -1
- * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed (diag emitted)
+ * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed or FORBID gate
  * Pure orch: ≡ mega post-argv fork/exec/wait shell (wave205).
  * Cap residual: setenv(PATH) on POSIX only + host_is_* + xlang_spawn_sync
- * (public pure thin wave219 → _impl mega) + link_diag_tool_status.
+ * (public pure thin wave219 → _impl mega) + link_diag_tool_status + link_abi_getenv.
  * Candidate order ≡ historical mega child exec chain:
  *   WINDOWS: gcc only (MinGW; no bare `cc`); **never** clobber PATH
  *   LINUX: gcc, cc, /usr/bin/gcc, /usr/bin/cc, /usr/local/bin/gcc, /usr/local/bin/cc
@@ -3906,16 +3998,85 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
  *
+ * Host-cc product gates live in invoke_cc_host_cc_spawn_gate (G.7 single authority):
+ * Stage 12.2.1 FORBID + Stage 12.2.3 ALLOW. Callers: this spawn shell,
+ * xlang_invoke_cc early entry, and xlang_invoke_cc_impl top (ensure/argv isolation;
+ * skip ensure_std / argv / ensure-push when denied — defense-in-depth for residual).
+ *
  * PLATFORM: WINDOWS | MINGW | MSYS — do NOT setenv PATH to /usr/local/bin:/usr/bin:/bin.
  *   That string is Linux freestanding isolation only. On PE, `_spawnvp("gcc")` searches
  *   the Windows PATH; overwriting it with Unix dirs makes gcc unfindable → BLD001
  *   exit 255 and "系统找不到指定的路径" from path probes that never reach real gcc.
  *   MinGW gcc lives under e.g. C:\Users\...\mingw64\bin (user/shell PATH).
  */
+/**
+ * Product host-cc spawn permission (Stage 12.2.1 FORBID + 12.2.3 ALLOW).
+ * FORBID exact "1" hard-denies unless LOG_ONLY exact "1" (discovery fallthrough).
+ * ALLOW exact "1" required for any spawn (default deny; experimental opt-in).
+ * Emits link_diag_tool_status on deny (forbid-host-cc | host-cc-requires-allow).
+ * @return i32 — 1 allowed to spawn, 0 denied (diag already set)
+ * G.7 single authority for env gates; callers:
+ *   - xlang_invoke_cc (entry early deny; skip calling impl)
+ *   - xlang_invoke_cc_impl (residual top; isolate ensure/argv before any heavy work)
+ *   - invoke_cc_run_cc_argv (spawn shell re-check before host-cc exec)
+ * PLATFORM: SHARED — dual-end ALLOW on/off + FORBID; product default never spawns.
+ */
+#[no_mangle]
+export function invoke_cc_host_cc_spawn_gate(): i32 {
+  /*
+   * PLATFORM: SHARED — Stage 12.2.1 FORBID + Stage 12.2.3 experimental ALLOW.
+   * Shell forbid_host_cc.sh only gates $CC in ensure/g05. Product -backend c still
+   * reaches invoke_cc. FORBID exact "1" hard-blocks (LOG_ONLY falls through to ALLOW).
+   * ALLOW exact "1" required for any spawn (default deny).
+   */
+  let forbid: *u8 = 0 as *u8;
+  unsafe {
+    forbid = link_abi_getenv("XLANG_FORBID_HOST_CC");
+  }
+  if (forbid != 0 as *u8 && forbid[0] == 49 && forbid[1] == 0) {
+    let log_only: *u8 = 0 as *u8;
+    unsafe {
+      log_only = link_abi_getenv("XLANG_FORBID_HOST_CC_LOG_ONLY");
+    }
+    let is_log_only: i32 = 0;
+    if (log_only != 0 as *u8 && log_only[0] == 49 && log_only[1] == 0) {
+      is_log_only = 1;
+    }
+    if (is_log_only == 0) {
+      unsafe {
+        link_diag_tool_status("forbid-host-cc", 0 - 1);
+      }
+      return 0;
+    }
+    /* LOG_ONLY=1: discovery mode — fall through to ALLOW then spawn. */
+  }
+
+  /*
+   * PLATFORM: SHARED — Stage 12.2.3 experimental: host-cc spawn is opt-in.
+   * Explicit `-backend c` alone is not enough; set XLANG_ALLOW_HOST_CC=1.
+   */
+  let allow: *u8 = 0 as *u8;
+  unsafe {
+    allow = link_abi_getenv("XLANG_ALLOW_HOST_CC");
+  }
+  if (allow == 0 as *u8 || allow[0] != 49 || allow[1] != 0) {
+    unsafe {
+      link_diag_tool_status("host-cc-requires-allow", 0 - 1);
+    }
+    return 0;
+  }
+  return 1;
+}
+
 #[no_mangle]
 export function invoke_cc_run_cc_argv(argv: **u8): i32 {
   let ab: *u8 = argv as *u8;
   if (ab == 0 as *u8) {
+    return 0 - 1;
+  }
+
+  /* G.7: single env-gate authority (early xlang_invoke_cc uses the same). */
+  if (invoke_cc_host_cc_spawn_gate() == 0) {
     return 0 - 1;
   }
 

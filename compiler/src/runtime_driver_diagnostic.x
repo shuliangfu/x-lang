@@ -465,13 +465,18 @@ export function driver_diagnostic_entry_already(v: i32): void {
 export function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void {
 }
 
-/** Exported function `driver_parse_strict_enabled`.
- * Implements `driver_parse_strict_enabled`.
- * @return i32
+/**
+ * Parse-strict gate: XLANG_PARSE_STRICT env or active `xlang check` (check_only).
+ * See runtime_driver_diagnostic_thin.x for full contract (check false-green root).
+ * @return i32 — 1 strict, 0 soft-skip allowed
+ * PLATFORM: SHARED
  */
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
   unsafe {
+    if (driver_check_only_get() != 0) {
+      return 1;
+    }
     let e: *u8 = link_abi_getenv("XLANG_PARSE_STRICT");
     if (e == 0 as *u8) {
       return 0;

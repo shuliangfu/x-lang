@@ -18,7 +18,7 @@ function main(): i32 {
   if (linux.linux_syscall_invoke_available() != 1) {
     return 2;
   }
-  let h: heap.PageMmapHeap = heap.PageMmapHeap {
+  let h: heap.PageMmapHeap = {
     base: 0 as *u8,
     cap: 0 as usize,
     off: 0 as usize,

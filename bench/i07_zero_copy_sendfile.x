@@ -44,7 +44,7 @@ function main(): i32 {
   /* See implementation. */
   let bench_bytes: usize = 16777216;
   let chunk: usize = 1048576;
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let file_fd: i32 = fs.open(&path[0]);
   if (file_fd < 0) { return 1; }
   /* See implementation. */

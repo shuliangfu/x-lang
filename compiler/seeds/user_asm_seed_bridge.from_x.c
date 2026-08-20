@@ -33,12 +33,20 @@ struct codegen_CodegenOutBuf {
  *     - 4 functions renamed to *_impl via macros (real C implementations stay).
  *     - debug/emit_trace cold twins only under #ifndef FROM_X (pure owns hybrid).
  *     - seed_elf_ctx_code_len guarded out (real .x in thin).
- *   Forward declaration for seed_elf_ctx_code_len (always visible; from thin in rest mode). */
+ *   Forward decls always visible: rest mode resolves from pure thin; cold defines
+ *   bodies below. Missing extern under FROM_X → ISO C99 implicit-decl hard fail
+ *   on rest -c (hybrid residual 2026-08-11; pure_asm thin already OK).
+ * PLATFORM: SHARED — hybrid thin+rest face must match cold monofile.
+ */
 extern int32_t seed_elf_ctx_code_len(const void *elf_ctx);
 /* wave236 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED — cold seed twins use same face as product hybrid pure .x. */
 extern char *link_abi_getenv(const char *name);
+/* Always-visible face decls (mirror seed_elf_ctx_code_len). Under FROM_X the
+ * bodies live in pure thin .x; rest only calls. Cold monofile defines below. */
+extern int seed_asm_debug_enabled(void);
+extern int seed_asm_emit_trace_enabled(void);
 #ifdef XLANG_USER_ASM_SEED_BRIDGE_FROM_X
 /* wave236: debug/emit_trace pure orch in .x (no rest *_impl rename). */
 #define seed_elf_ctx_set_macho_leading_underscore  seed_elf_ctx_set_macho_leading_underscore_impl

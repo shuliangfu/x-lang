@@ -1887,24 +1887,40 @@ int32_t typeck_field_access_lexer_wrapper_fallback(struct ast_ASTArena * arena, 
   }
   return 0;
 }
+/* Stage12.0.5 typeck wall slim — twin of typeck.x g_typeck_prim_* BSS cache. */
+static uint8_t *g_typeck_prim_arena = 0;
+static int32_t g_typeck_prim_ref[17];
+
 int32_t typeck_ensure_primitive_by_kind_ord(struct ast_ASTArena * arena, int32_t kind_ord) {
   int32_t k = 0;
   int32_t ko = 0;
-  int32_t nlen = 0;
   int32_t er = 0;
   int32_t asz = 0;
-  uint8_t * nm_scr = typeck_scratch64_slot(11);
+  uint8_t * a_u8 = 0;
+  int32_t ci = 0;
   if ((((arena ==((struct ast_ASTArena *)(0))) || (kind_ord < 0)) || (kind_ord > 16))) {
     return 0;
+  }
+  a_u8 = (uint8_t *)arena;
+  if (g_typeck_prim_arena != a_u8) {
+    g_typeck_prim_arena = a_u8;
+    ci = 0;
+    while (ci <= 16) {
+      g_typeck_prim_ref[ci] = 0;
+      ci = ci + 1;
+    }
+  }
+  if (g_typeck_prim_ref[kind_ord] > 0) {
+    return g_typeck_prim_ref[kind_ord];
   }
   (void)((k = 1));
   while ((k <=(arena->num_types))) {
     (void)((ko = pipeline_type_kind_ord_at(arena, k)));
     if ((ko ==kind_ord)) {
-      (void)((nlen = pipeline_type_named_name_into(arena, k, nm_scr)));
       (void)((er = pipeline_type_elem_ref_at(arena, k)));
       (void)((asz = pipeline_type_array_size_at(arena, k)));
-      if ((((nlen ==0) && (er ==0)) && (asz ==0))) {
+      if (((er ==0) && (asz ==0))) {
+        g_typeck_prim_ref[kind_ord] = k;
         return k;
       }
     }
@@ -1917,6 +1933,7 @@ int32_t typeck_ensure_primitive_by_kind_ord(struct ast_ASTArena * arena, int32_t
   if ((pipeline_type_init_primitive_kind_at(arena, k, kind_ord) ==0)) {
     return 0;
   }
+  g_typeck_prim_ref[kind_ord] = k;
   return k;
 }
 int32_t ensure_i32_type_ref(struct ast_ASTArena * arena) {
@@ -1948,39 +1965,12 @@ int32_t get_dep_return_type_in_caller_arena(int32_t from_dep_index, int32_t dep_
 int32_t ensure_i64_type_ref(struct ast_ASTArena * caller_arena) {
   return typeck_ensure_primitive_by_kind_ord(caller_arena, 5);
 }
+/* Stage12.0.5: G.7 thin → pipeline_type_find_or_alloc_compound (typeck.x twin). */
 int32_t typeck_find_or_alloc_compound_type_ref(struct ast_ASTArena * a, int32_t kind_ord, int32_t elem_ref, int32_t array_size) {
-  int32_t k = 0;
-  int32_t ko = 0;
-  int32_t er = 0;
-  int32_t asz = 0;
-  int32_t nlen = 0;
-  int32_t rlen = 0;
-  uint8_t * nm_scr = typeck_scratch64_slot(13);
-  if ((((a ==((struct ast_ASTArena *)(0))) || (kind_ord < 0)) || (kind_ord > 16))) {
+  if ((((a ==((struct ast_ASTArena *)(0))) || (kind_ord < 0)) || (kind_ord > 15))) {
     return 0;
   }
-  (void)((k = 1));
-  while ((k <=(a->num_types))) {
-    (void)((ko = pipeline_type_kind_ord_at(a, k)));
-    if ((ko ==kind_ord)) {
-      (void)((er = pipeline_type_elem_ref_at(a, k)));
-      (void)((asz = pipeline_type_array_size_at(a, k)));
-      (void)((nlen = pipeline_type_named_name_into(a, k, nm_scr)));
-      (void)((rlen = pipeline_type_region_label_len_at(a, k)));
-      if (((((er ==elem_ref) && (asz ==array_size)) && (nlen ==0)) && (rlen ==0))) {
-        return k;
-      }
-    }
-    (void)((k = (k + 1)));
-  }
-  (void)((k = pipeline_arena_type_alloc(a)));
-  if ((k <=0)) {
-    return 0;
-  }
-  if ((pipeline_type_init_compound_kind_at(a, k, kind_ord, elem_ref, array_size) ==0)) {
-    return 0;
-  }
-  return k;
+  return pipeline_type_find_or_alloc_compound(a, kind_ord, elem_ref, array_size);
 }
 int32_t find_or_alloc_array_type_ref(struct ast_ASTArena * a, int32_t elem_ref, int32_t array_size) {
   if ((elem_ref ==0)) {
@@ -2666,6 +2656,22 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
     /* wave668 Cap residual: bare EXPR_LIT 0 → TYPE_PTR. G.7 ≡ typeck.x. */
     if (((pk_lit ==9) && (pipeline_expr_int_val_at(caller_arena, arg_ref) ==0))) {
       return 100;
+    }
+  }
+  /* G.7 ≡ typeck.x: bare FLOAT_LIT / NEG(FLOAT_LIT) weak-match f32/f64. */
+  {
+    int32_t arg_ko_fl = pipeline_expr_kind_ord_at(caller_arena, arg_ref);
+    int32_t fl_inner = arg_ref;
+    if (arg_ko_fl == 22) {
+      fl_inner = pipeline_expr_unary_operand_ref_at(caller_arena, arg_ref);
+      if (fl_inner > 0)
+        arg_ko_fl = pipeline_expr_kind_ord_at(caller_arena, fl_inner);
+    }
+    if (arg_ko_fl == 1) {
+      int32_t pk_fl = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      if (pk_fl == 14 || pk_fl == 15)
+        return 100;
+      return -1;
     }
   }
   if ((arg_ty > 0)) {
@@ -3895,19 +3901,51 @@ int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t type_re
 }
 int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   int32_t ord_type_array = 10;
+  int32_t ord_type_slice = 11;
   int32_t ord_type_vector = 13;
   int32_t ord_expr_array_lit = 46;
   int32_t lanes = 0;
-  if (((decl_kind ==ord_type_array) && (init_kind ==ord_expr_array_lit))) {
+  int32_t n_elems = 0;
+  int32_t elem_decl = 0;
+  int32_t elem_decl_kind = 0;
+  int32_t i = 0;
+  int32_t elem_ref = 0;
+  int32_t ek = 0;
+  if ((((decl_kind ==ord_type_array) || (decl_kind ==ord_type_slice)) && (init_kind ==ord_expr_array_lit))) {
     return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
   }
   if ((init_kind ==ord_expr_array_lit)) {
-    (void)((lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref)));
-    if (((lanes > 0) && (pipeline_expr_array_lit_num_elems_at(arena, init_ref) ==lanes))) {
-      (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-      return 1;
-    }
-    if (((decl_kind ==ord_type_vector) && (pipeline_expr_array_lit_num_elems_at(arena, init_ref) ==pipeline_type_array_size_at(arena, decl_ty_ref)))) {
+    n_elems = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref);
+    if (lanes <= 0 && decl_kind == ord_type_vector)
+      lanes = pipeline_type_array_size_at(arena, decl_ty_ref);
+    if (lanes > 0 && n_elems == lanes) {
+      elem_decl = typeck_vector_elem_type_ref(arena, decl_ty_ref);
+      if (elem_decl > 0) {
+        elem_decl_kind = pipeline_type_kind_ord_at(arena, elem_decl);
+        for (i = 0; i < n_elems; i++) {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
+          if (elem_ref > 0) {
+            int32_t elem_ty = 0;
+            int32_t got_kind = 0;
+            ek = pipeline_expr_kind_ord_at(arena, elem_ref);
+            (void)typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+            (void)typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl, elem_decl_kind, ek);
+            /* G.7 ≡ typeck.x: refuse outer SIMD stamp on known elem mismatch. */
+            elem_ty = pipeline_expr_resolved_type_ref(arena, elem_ref);
+            if (elem_ty > 0) {
+              got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
+              if (type_refs_equal(arena, elem_ty, elem_decl)
+                  || typeck_integer_widen_ok_refs(arena, elem_decl, elem_ty)
+                  || typeck_float_widen_ok(elem_decl_kind, got_kind)) {
+                (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl));
+              } else {
+                return 0;
+              }
+            }
+          }
+        }
+      }
       (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
       return 1;
     }
@@ -5526,6 +5564,12 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
           continue;
         }
       }
+      /* G.7 ≡ typeck.x: ARRAY_LIT → SIMD/array/slice formal before score. */
+      if (arg_ref > 0) {
+        (void)typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_raw,
+          pipeline_type_kind_ord_at(arena, param_raw),
+          pipeline_expr_kind_ord_at(arena, arg_ref));
+      }
       /* wave673: any score miss with known formal → T001 (unknown arg_ty no longer soft-skipped). */
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
       if ((sc < 0)) {
@@ -7082,76 +7126,66 @@ int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena
 int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx) {
   return pipeline_typeck_check_block_one_region_c(module, arena, block_ref, idx, return_type_ref, ctx);
 }
+/* Stage12.0.5: iterative stmt_order (typeck.x twin; no tail recursion). */
 int32_t typeck_check_block_stmt_order_one(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t si, int32_t nso, int32_t nc, int32_t nl, int32_t nes, int32_t nlp, int32_t nfp, int32_t nif, int32_t nreg) {
+  int32_t i = si;
   uint8_t sk = ((uint8_t)(0));
   int32_t idx = 0;
   int32_t es_ref = 0;
-  if (((si >=nso) || (si >=96))) {
-    return 0;
-  }
-  (void)(pipeline_typeck_block_impl_touch_ctx_block_c(ctx, block_ref));
-  (void)((sk = ast_ast_block_stmt_order_kind(arena, block_ref, si)));
-  (void)((idx = ast_ast_block_stmt_order_idx(arena, block_ref, si)));
-  if ((sk ==((uint8_t)(0)))) {
-    if ((((idx >=0) && (idx < nc)) && (idx < 128))) {
-      if ((typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
-        return -(1);
+  while (((i < nso) && (i < 96))) {
+    (void)(pipeline_typeck_block_impl_touch_ctx_block_c(ctx, block_ref));
+    (void)((sk = ast_ast_block_stmt_order_kind(arena, block_ref, i)));
+    (void)((idx = ast_ast_block_stmt_order_idx(arena, block_ref, i)));
+    if ((sk ==((uint8_t)(0)))) {
+      if ((((idx >=0) && (idx < nc)) && (idx < 128))) {
+        if ((typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
+          return -(1);
+        }
       }
-    }
-  } else {
-    if ((sk ==((uint8_t)(1)))) {
+    } else if ((sk ==((uint8_t)(1)))) {
       if ((((idx >=0) && (idx < nl)) && (idx < 128))) {
         if ((typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
           return -(1);
         }
       }
-    } else {
-      if ((sk ==((uint8_t)(2)))) {
-        if (((idx >=0) && (idx < nes))) {
-          (void)((es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, idx)));
-          if ((check_expr(module, arena, es_ref, return_type_ref, ctx) !=0)) {
-            return -(1);
-          }
-          if ((typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0)) {
-            return -(1);
-          }
+    } else if ((sk ==((uint8_t)(2)))) {
+      if (((idx >=0) && (idx < nes))) {
+        (void)((es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, idx)));
+        if ((check_expr(module, arena, es_ref, return_type_ref, ctx) !=0)) {
+          return -(1);
         }
-      } else {
-        if ((sk ==((uint8_t)(3)))) {
-          if (((idx >=0) && (idx < nlp))) {
-            if ((typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
-              return -(1);
-            }
-          }
-        } else {
-          if ((sk ==((uint8_t)(4)))) {
-            if (((idx >=0) && (idx < nfp))) {
-              if ((typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
-                return -(1);
-              }
-            }
-          } else {
-            if ((sk ==((uint8_t)(5)))) {
-              if (((idx >=0) && (idx < nif))) {
-                if ((typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
-                  return -(1);
-                }
-              }
-            } else {
-              if ((sk ==((uint8_t)(6)))) {
-                if (((idx >=0) && (idx < nreg))) {
-                  if ((typeck_check_block_one_region(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
-                    return -(1);
-                  }
-                }
-              }
-            }
-          }
+        if ((typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0)) {
+          return -(1);
+        }
+      }
+    } else if ((sk ==((uint8_t)(3)))) {
+      if (((idx >=0) && (idx < nlp))) {
+        if ((typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
+          return -(1);
+        }
+      }
+    } else if ((sk ==((uint8_t)(4)))) {
+      if (((idx >=0) && (idx < nfp))) {
+        if ((typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
+          return -(1);
+        }
+      }
+    } else if ((sk ==((uint8_t)(5)))) {
+      if (((idx >=0) && (idx < nif))) {
+        if ((typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
+          return -(1);
+        }
+      }
+    } else if ((sk ==((uint8_t)(6)))) {
+      if (((idx >=0) && (idx < nreg))) {
+        if ((typeck_check_block_one_region(module, arena, block_ref, return_type_ref, ctx, idx) !=0)) {
+          return -(1);
         }
       }
     }
+    i = i + 1;
   }
-  return typeck_check_block_stmt_order_one(module, arena, block_ref, return_type_ref, ctx, (si + 1), nso, nc, nl, nes, nlp, nfp, nif, nreg);
+  return 0;
 }
 int32_t typeck_check_block_legacy_consts(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nc) {
   if ((i >=nc)) {
@@ -7330,57 +7364,60 @@ int32_t typeck_x_ast_check_one_func(struct ast_Module * module, struct ast_ASTAr
   }
   return 0;
 }
+/* PLATFORM: SHARED — iterative all-funcs typeck (mega-safe; align typeck.x). */
 int32_t typeck_x_ast_check_all_funcs_loop(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t func_i, int32_t num_funcs) {
+  int32_t i = 0;
   int32_t body_ref = 0;
   int32_t ret_ty_ref = 0;
   int32_t fn_name_len = 0;
   int32_t num_generic_params = 0;
   int32_t ord_void = 16;
   int32_t rt_kind = 0;
-  int32_t rc = 0;
-  int32_t err_check_block = 5;
-  int32_t err_implicit_tail = 6;
   int32_t no_func_ix = -(1);
-  if ((func_i >=num_funcs)) {
+  int32_t fail_kind_cb = -(5);
+  int32_t fail_kind_tail = -(6);
+  (void)((i = func_i));
+  if ((i >= num_funcs)) {
     (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
     return 0;
   }
-  if ((func_i ==0)) {
+  if ((i == 0)) {
     (void)(pipeline_typeck_set_entry_module_for_dep_map_c(module));
   }
-  (void)(pipeline_dep_ctx_set_current_func_index(ctx, func_i));
-  (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
-  (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
-  (void)(driver_diagnostic_typeck_fn_enter(func_i, typeck_scratch64_slot(0), fn_name_len));
-  /* wave684: do not skip generic bodies. */
-  (void)((num_generic_params = pipeline_module_func_num_generic_params_at(module, func_i)));
-  (void)num_generic_params;
-  (void)((body_ref = pipeline_module_func_body_ref_at(module, func_i)));
-  if ((!(ast_ref_is_null(body_ref)) && (pipeline_module_func_is_extern_at(module, func_i) ==0))) {
-    (void)((ret_ty_ref = pipeline_module_func_return_type_at(module, func_i)));
-    if ((check_block(module, arena, body_ref, ret_ty_ref, ctx) !=0)) {
-      int32_t fail_kind_cb = -(5);
-      (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
-      (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
-      (void)(driver_diagnostic_typeck_func_fail(func_i, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb));
-      (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-      return fail_kind_cb;
-    }
-    if (!(ast_ref_is_null(ret_ty_ref))) {
-      (void)((rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref)));
-      if (((rt_kind !=ord_void) && func_body_has_implicit_return_tail(arena, body_ref))) {
-        int32_t fail_kind_tail = -(6);
-        (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
-        (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
-        (void)(driver_diagnostic_typeck_func_fail(func_i, typeck_scratch64_slot(0), fn_name_len, fail_kind_tail));
+  while ((i < num_funcs)) {
+    (void)(pipeline_dep_ctx_set_current_func_index(ctx, i));
+    (void)((fn_name_len = pipeline_module_func_name_len_at(module, i)));
+    (void)(pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0)));
+    (void)(driver_diagnostic_typeck_fn_enter(i, typeck_scratch64_slot(0), fn_name_len));
+    /* wave684: do not skip generic bodies. */
+    (void)((num_generic_params = pipeline_module_func_num_generic_params_at(module, i)));
+    (void)num_generic_params;
+    (void)((body_ref = pipeline_module_func_body_ref_at(module, i)));
+    if ((!(ast_ref_is_null(body_ref)) && (pipeline_module_func_is_extern_at(module, i) == 0))) {
+      (void)((ret_ty_ref = pipeline_module_func_return_type_at(module, i)));
+      if ((check_block(module, arena, body_ref, ret_ty_ref, ctx) != 0)) {
+        (void)((fn_name_len = pipeline_module_func_name_len_at(module, i)));
+        (void)(pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0)));
+        (void)(driver_diagnostic_typeck_func_fail(i, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb));
         (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-        return fail_kind_tail;
+        return fail_kind_cb;
+      }
+      if (!(ast_ref_is_null(ret_ty_ref))) {
+        (void)((rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref)));
+        if (((rt_kind != ord_void) && func_body_has_implicit_return_tail(arena, body_ref))) {
+          (void)((fn_name_len = pipeline_module_func_name_len_at(module, i)));
+          (void)(pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0)));
+          (void)(driver_diagnostic_typeck_func_fail(i, typeck_scratch64_slot(0), fn_name_len, fail_kind_tail));
+          (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
+          return fail_kind_tail;
+        }
       }
     }
+    (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
+    (void)((i = (i + 1)));
   }
   (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-  (void)((rc = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, (func_i + 1), num_funcs)));
-  return rc;
+  return 0;
 }
 void typeck_patch_all_body_parent_links(struct ast_Module * module, struct ast_ASTArena * arena) {
   int32_t i = 0;

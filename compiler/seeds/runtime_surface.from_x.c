@@ -1,6 +1,6 @@
 /* seeds/runtime_surface.from_x.c
  * G-02f runtime R2 mixed surface - isomorphic with src/runtime.x
- * Product PREFER_X_O: xlang-c -E(.x) -> thin.o + ld -r with rest (seeds/runtime.from_x.c)
+ * Product: multi-slice layer seeds (wave321 monofile retired; was runtime.from_x.c rest)
  * Prove: full.x vs this surface -> nm IDENTICAL (110 symbols)
  * Mode: mixed - 30 DIRECT compute + 80 thin+rest forwards to _impl
  * Cap residual: 95 _impl bridges + 7 helper externs (link_abi_getenv,

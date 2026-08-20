@@ -53,7 +53,7 @@ function main(): i32 {
   let chunk: u8[32] = [];
   let acc: u8[96] = [];
   let c: DbConn = sqlite.open(&mem[0]);
-  let cur: DbRowCursor = DbRowCursor { cursor: 0 };
+  let cur: DbRowCursor = { cursor: 0 };
   let total: i32 = 0;
   let off: i32 = 0;
   let got: i32 = 0;

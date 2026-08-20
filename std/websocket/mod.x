@@ -304,11 +304,11 @@ export function ws_client_handshake_ctx(fd: i32, host: *u8, path: *u8, key: *u8,
  * See implementation.
  */
 export function ws_connect(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32, timeout_ms: u32): WsStream {
-  let bad: WsStream = WsStream { fd: -1, tls_ctx: 0 };
+  let bad: WsStream = { fd: -1, tls_ctx: 0 };
   let zero: i64 = 0;
   if (host == 0 || path == 0) { return bad; }
   let fd: i32 = ws_io.net_ws_connect_c(host, port, path, key, key_len, timeout_ms);
-  return WsStream { fd: fd, tls_ctx: zero };
+  return { fd: fd, tls_ctx: zero };
 }
 
 /**
@@ -338,7 +338,7 @@ export function ws_connect_ctx_fd(host: *u8, port: u32, path: *u8, key: *u8, key
 export function ws_connect_ctx(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32, ctx: Context): WsStream {
   let zero: i64 = 0;
   let fd: i32 = ws_connect_ctx_fd(host, port, path, key, key_len, ctx);
-  return WsStream { fd: fd, tls_ctx: zero };
+  return { fd: fd, tls_ctx: zero };
 }
 
 /**
@@ -346,13 +346,13 @@ export function ws_connect_ctx(host: *u8, port: u32, path: *u8, key: *u8, key_le
  * See implementation.
  */
 export function ws_connect_tls(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32, timeout_ms: u32): WsStream {
-  let bad: WsStream = WsStream { fd: -1, tls_ctx: 0 };
+  let bad: WsStream = { fd: -1, tls_ctx: 0 };
   let tls: i64 = 0;
   let fd: i32 = 0;
   if (host == 0 || path == 0) { return bad; }
   fd = ws_io.net_ws_connect_tls_c(host, port, path, key, key_len, timeout_ms, &tls);
   if (fd < 0) { return bad; }
-  return WsStream { fd: fd, tls_ctx: tls };
+  return { fd: fd, tls_ctx: tls };
 }
 
 /** Exported function `ws_connect_tls_ctx_fd`.
@@ -391,9 +391,9 @@ export function ws_connect_tls_ctx(host: *u8, port: u32, path: *u8, key: *u8, ke
   let tls: i64 = 0;
   let fd: i32 = ws_connect_tls_ctx_fd(host, port, path, key, key_len, ctx, &tls);
   if (fd < 0) {
-    return WsStream { fd: fd, tls_ctx: 0 };
+    return { fd: fd, tls_ctx: 0 };
   }
-  return WsStream { fd: fd, tls_ctx: tls };
+  return { fd: fd, tls_ctx: tls };
 }
 
 /**
@@ -401,14 +401,14 @@ export function ws_connect_tls_ctx(host: *u8, port: u32, path: *u8, key: *u8, ke
  * See implementation.
  */
 export function ws_connect_url(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32): WsStream {
-  let bad: WsStream = WsStream { fd: -1, tls_ctx: 0 };
+  let bad: WsStream = { fd: -1, tls_ctx: 0 };
   let fd: i32 = -1;
   let tls: i64 = 0;
   if (url == 0) { return bad; }
   if (ws_io.net_ws_connect_url_c(url, url_len, key, key_len, timeout_ms, &fd, &tls) != ws_err_ok()) {
     return bad;
   }
-  return WsStream { fd: fd, tls_ctx: tls };
+  return { fd: fd, tls_ctx: tls };
 }
 
 /**
@@ -436,16 +436,16 @@ export function ws_connect_url_ctx(url: *u8, url_len: i32, key: *u8, key_len: i3
  * @return WsStream
  */
 export function ws_connect_url_ctx_stream(url: *u8, url_len: i32, key: *u8, key_len: i32, ctx: Context): WsStream {
-  let bad: WsStream = WsStream { fd: -1, tls_ctx: 0 };
+  let bad: WsStream = { fd: -1, tls_ctx: 0 };
   let fd: i32 = -1;
   let tls: i64 = 0;
   if (ws_connect_url_ctx(url, url_len, key, key_len, ctx, &fd, &tls) != ws_err_ok()) {
     if (fd < 0) {
-      return WsStream { fd: fd, tls_ctx: 0 };
+      return { fd: fd, tls_ctx: 0 };
     }
     return bad;
   }
-  return WsStream { fd: fd, tls_ctx: tls };
+  return { fd: fd, tls_ctx: tls };
 }
 
 /** Exported function `ws_write_text`.

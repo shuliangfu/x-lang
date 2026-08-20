@@ -81,13 +81,26 @@ export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
 }
 
 // x86_enc_jcc_rel32: see function docblock below.
-/** Exported function `x86_enc_jcc_rel32`.
- * Implements `x86_enc_jcc_rel32`.
- * @param elf_ctx *u8
- * @param opcode2 u8
- * @param label *u8
- * @param label_len i32
- * @return i32
+/**
+ * Emit x86_64 near jcc: `0F <opcode2> rel32` and register a patch to `label`.
+ *
+ * Encoding: 6 bytes (`0F` + opcode2 + 4 zero displ). Patch slot is the displ
+ * at `emit_code_len() - 4` **after** the 6 bytes are appended.
+ *
+ * **Ordering contract (Stage12.0.5 product root):** pass0 may hoist
+ * `let rel32_at = emit_code_len() - 4` (BINOP with nested CALL) to the top of
+ * its enclosing block. If that let shares a block with the append side effects,
+ * rel32_at is computed **before** the jcc bytes exist → patch overwrites the
+ * prior insn stream (and/test/setz) → Ubuntu option SIGILL / stdlib-import SEGV.
+ * Mitigation: append in one block, then compute rel32_at + patch in a **later**
+ * block (same shape as `arch_x86_64_enc_enc_jmp` / `enc_call`). Do not merge.
+ *
+ * @param elf_ctx opaque ElfCodegenCtx*
+ * @param opcode2 second opcode byte (e.g. 0x84 jz, 0x85 jnz)
+ * @param label patch target name bytes
+ * @param label_len name length; must be > 0
+ * @return 0 on success, -1 on null/encode/patch failure
+ * PLATFORM: SHARED — x86_64 SysV product asm (LINUX gold for jcc stream).
  */
 #[no_mangle]
 export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
@@ -97,6 +110,7 @@ export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_l
   let b0: u8 = 15; // 0x0F
   let b1: u8 = opcode2;
   let z: u8 = 0;
+  // Block 1: append only. Must complete before any emit_code_len()-4 let.
   unsafe {
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
@@ -104,6 +118,9 @@ export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_l
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+  }
+  // Block 2: rel32_at after appends (hoist stays inside this block only).
+  unsafe {
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) { return 0 - 1; }
     return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
@@ -255,6 +272,43 @@ export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
+/**
+ * movq %r64, -offset(%rbp). REX.W[+R] + 89 /r, rbp base (rm=5).
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param reg i32 — 0..15
+ * @param offset i32 — positive rbp-down slot (disp = -offset)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV — G.7 twin of store_rax/store_rdx helpers.
+ */
+#[no_mangle]
+export function x86_enc_store_r64_to_rbp_neg(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  if (reg < 0 || reg > 15) { return 0 - 1; }
+  let disp: i32 = 0 - offset;
+  let rex: u8 = 72;
+  if (reg >= 8) { rex = 76; }
+  let op: u8 = 137;
+  let lo: i32 = reg & 7;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    let modrm: u8 = (69 + lo * 8) as u8;
+    let d8: u8 = disp as u8;
+    unsafe {
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &rex, 1) != 0) { return 0 - 1; }
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &modrm, 1) != 0) { return 0 - 1; }
+      return pipeline_elf_ctx_append_bytes(elf_ctx, &d8, 1);
+    }
+    return 0 - 1;
+  }
+  let modrm32: u8 = (133 + lo * 8) as u8;
+  unsafe {
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &rex, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &op, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &modrm32, 1) != 0) { return 0 - 1; }
+  }
+  return x86_enc_append_i32_le(elf_ctx, disp);
+}
+
 /** Exported function `x86_enc_store_rdx_to_rbp_neg`.
  * Implements `x86_enc_store_rdx_to_rbp_neg`.
  * @param elf_ctx *u8
@@ -321,9 +375,20 @@ export function x86_enc_alu_imm32_to_reg(elf_ctx: *u8, imm: i32, op_prefix: u8, 
 
 /** Emit x86_64 function prologue: push rbp; mov rbp,rsp; push rbx; sub rsp,frame.
  * Saves rbx (callee-saved) because body may use it as array/const base (SysV).
- * PLATFORM: SHARED — x86_64 SysV. Cap residual pure R2 wave1.
+ *
+ * SysV AMD64 stack alignment (G.7 authority for pure-asm CALL sites):
+ *   At function entry RSP ≡ 8 (mod 16). After `push rbp` + `push rbx`, RSP ≡ 8.
+ *   ABI requires RSP ≡ 0 (mod 16) immediately before every CALL. Therefore the
+ *   `sub rsp, imm` amount must be ≡ 8 (mod 16). compute_frame_size rounds to a
+ *   multiple of 16 (≡ 0), which alone leaves CALL sites misaligned and crashes
+ *   glibc paths that use SSE/movaps (e.g. mktime/tzset → sscanf → SEGV in
+ *   format_timezone / wall_local_offset_min). Locals stay rbp-relative; padding
+ *   only grows the sub amount. Epilogue lea rsp,[rbp-8]; pop rbx; pop rbp is
+ *   independent of the padded size.
+ *
+ * PLATFORM: SHARED — x86_64 SysV (LINUX gold + Darwin x86_64). Cap residual pure R2 wave1.
  * @param elf_ctx opaque ElfCodegenCtx*
- * @param frame_size stack frame bytes (LE encoded into sub imm32)
+ * @param frame_size stack frame bytes (LE encoded into sub imm32); padded to ≡8 mod 16
  * @return 0 on success, -1 on failure
  */
 #[no_mangle]
@@ -333,8 +398,20 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_size: i32): i32
   let mov: u8[3] = [72, 137, 229];
   if (x86_enc_bytes(elf_ctx, mov, 3) != 0) { return 0 - 1; }
   if (x86_enc_u8(elf_ctx, 83) != 0) { return 0 - 1; }
+  // Pad frame so after push rbp+push rbx, RSP ≡ 0 before body CALLs (SysV 16B).
+  let fs_i: i32 = frame_size;
+  if (fs_i < 0) { fs_i = 0; }
+  let rem: i32 = fs_i % 16;
+  if (rem != 8) {
+    // rem in 0..15; add (8-rem) mod 16, with positive remainder.
+    if (rem < 8) {
+      fs_i = fs_i + (8 - rem);
+    } else {
+      fs_i = fs_i + (16 - rem + 8);
+    }
+  }
   let sub: u8[7] = [72, 129, 236, 0, 0, 0, 0];
-  let fs: u32 = frame_size as u32;
+  let fs: u32 = fs_i as u32;
   sub[3] = (fs & 255) as u8;
   sub[4] = ((fs / 256) & 255) as u8;
   sub[5] = ((fs / 65536) & 255) as u8;
@@ -917,7 +994,10 @@ export function arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins, 2);
 }
 
-/** Emit fixed x86_64 insn `imul_ecx_edx` (3 bytes).
+/**
+ * Emit `imul %edx, %ecx` — index_scratch primary *= secondary (ecx = ecx * edx).
+ * Opcode: 0F AF /r IMUL r32,r/m32; reg=ecx(001), rm=edx(010) → ModRM 0xCA.
+ * Wave184 root-fix: was 0xD1 (IMUL edx,ecx) leaving product in edx; primary is ecx.
  * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
  * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
  * @param elf_ctx opaque ElfCodegenCtx*
@@ -926,11 +1006,14 @@ export function arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[3] = [15, 175, 209];
+  let ins: u8[3] = [15, 175, 202];
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `imul_ebx_edx` (3 bytes).
+/**
+ * Emit `imul %edx, %ebx` — INDEX read path primary rbx *= secondary (ebx = ebx * edx).
+ * Opcode: 0F AF /r IMUL r32,r/m32; reg=ebx(011), rm=edx(010) → ModRM 0xDA.
+ * Wave184 root-fix: was 0xD3 (IMUL edx,ebx) leaving product in edx; scale uses rbx.
  * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
  * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
  * @param elf_ctx opaque ElfCodegenCtx*
@@ -939,7 +1022,7 @@ export function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[3] = [15, 175, 211];
+  let ins: u8[3] = [15, 175, 218];
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
@@ -1045,32 +1128,51 @@ export function arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32 {
 // ---- Cap residual pure R2 wave2: label/imm/jcc/rbp/arg/call (product C ABI) ----
 // G.7: same authority as wave1 — this TU + seed FROM_X rest.
 
-/** Define a code label; pad+export sym when is_func!=0 (Mach-O leading underscore).
- * Cap residual pure R2 wave2. PLATFORM: SHARED — ELF/Mach-O product asm encode.
+/**
+ * Define a code label; when is_func!=0, pad text to 4-byte alignment then
+ * export the function symbol (Mach-O may add a leading underscore).
+ *
+ * **Ordering contract (Stage12 pure-asm product root):** pass0 may hoist
+ * `let code_len = emit_code_len()` (and code_len2/3) to the top of their
+ * enclosing block. If those lets share a block with `pad_code_to_4` side
+ * effects, code_len is captured **before** padding zeros are appended →
+ * exported sym/label points at the zero pad, not the real prologue →
+ * multi-function pure-asm SEGV (Ubuntu `tests/types/overload.x`: pick_i64/main
+ * start with `00 00 00` then `55 48 89 e5`). Mitigation: pad in one block,
+ * then capture emit_code_len + add_label/add_sym in a **later** block
+ * (same shape as `x86_enc_jcc_rel32` / enc_jmp / enc_call). Do not merge.
+ *
  * @param elf_ctx opaque ElfCodegenCtx*
  * @param name label/symbol bytes (not necessarily NUL-terminated; use name_len)
- * @param name_len byte length of name
+ * @param name_len byte length of name; Mach-O underscore path requires 1..127
  * @param is_func non-zero: pad code to 4 and add exported symbol
  * @return 0 on success, -1 on failure
+ * PLATFORM: SHARED — ELF/Mach-O product asm encode (LINUX gold for multi-func).
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
   if (name_len < 0) { return 0 - 1; }
-  unsafe {
-    if (is_func != 0) {
+  // Block 1: pad only. Must complete before any emit_code_len() let.
+  if (is_func != 0) {
+    unsafe {
       if (pipeline_elf_ctx_pad_code_to_4(elf_ctx) != 0) { return 0 - 1; }
     }
+  }
+  // Block 2: capture code_len after pad; register label + optional export sym.
+  // Hoist of emit_code_len stays inside this block only (pad already done).
+  unsafe {
     let code_len: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
     if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) { return 0 - 1; }
     if (is_func == 0) { return 0; }
     // Mach-O: export with leading underscore when host requests it.
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+    // wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
       let mn: u8[128] = [0];
       mn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 63) {
+      while (k < name_len && k < 127) {
         mn[k + 1] = name[k];
         k = k + 1;
       }
@@ -1162,6 +1264,24 @@ export function arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 
 export function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   return x86_enc_store_rax_to_rbp_neg(elf_ctx, offset);
+}
+
+/**
+ * movq %r64, -offset(%rbp) for any GP 0..15 (rax..r15).
+ * Completes backend_enc_store_x_reg_to_rbp_arch on Linux x86_64 (F7 dyn
+ * coerce stores the vtable pointer from rcx=1). Same disp convention as
+ * store_rax_to_rbp_neg: offset is the frame slot below %rbp.
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param reg i32 — hardware register 0..15
+ * @param offset i32 — positive rbp-down slot
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|UBUNTU x86_64 SysV
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  if (reg < 0 || reg > 15) { return 0 - 1; }
+  return x86_enc_store_r64_to_rbp_neg(elf_ctx, reg, offset);
 }
 
 /** movq -offset(%rbp), %rax. Cap residual pure R2 wave2. PLATFORM: SHARED */
@@ -1424,11 +1544,13 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
   if (x86_enc_u32_le(elf_ctx, 0) != 0) { return 0 - 1; }
   unsafe {
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+    // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names (even if the
+    // C name itself starts with '_', e.g. __error → ___error). Stage 12.0.5.
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127) {
       let rn: u8[128] = [0];
       rn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 63) {
+      while (k < name_len && k < 127) {
         rn[k + 1] = name[k];
         k = k + 1;
       }

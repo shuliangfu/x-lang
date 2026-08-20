@@ -22,8 +22,8 @@ function main(): i32 {
   let a_c: u8[3] = [47, 99, 0];
   let a_exit: u8[5] = [101, 120, 105, 116, 0];
   let a_zero: u8[2] = [48, 0];
-  let argv: Argv4 = Argv4 { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8, s3: 0 as *u8, s4: 0 as *u8 };
-  let io: process.SpawnIo = process.SpawnIo { stdin_fd: -1, stdout_fd: -1, stderr_fd: -1 };
+  let argv: Argv4 = { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8, s3: 0 as *u8, s4: 0 as *u8 };
+  let io: process.SpawnIo = { stdin_fd: -1, stdout_fd: -1, stderr_fd: -1 };
   let pid: i32 = 0;
   let code: i32 = 0;
   argv.s0 = &cmd[0];

@@ -15,6 +15,6 @@ impl Getable for Counter {
 }
 
 function main(): i32 {
-  let c: Counter = Counter { value: 42 };
+  let c: Counter = { value: 42 };
   return c.get();
 }

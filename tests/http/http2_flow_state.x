@@ -9,7 +9,7 @@ function main(): i32 {
   if (http.flow_state_smoke() != 0) { return 1; }
   if (http.err_flow_blocked() != -1232) { return 2; }
 
-  let st: Http2FlowState = Http2FlowState { conn_window: 0, stream_window: 0 };
+  let st: Http2FlowState = { conn_window: 0, stream_window: 0 };
   http.flow_state_init(&st);
   if (st.conn_window != 65535 || st.stream_window != 65535) { return 3; }
 

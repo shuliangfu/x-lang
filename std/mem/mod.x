@@ -130,7 +130,7 @@ export function compare_bounded(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
  * @return Buffer
  */
 export function buffer_from(ptr: *u8, len: usize): Buffer {
-  return Buffer { ptr: ptr, length: len, handle: 0 };
+  return { ptr: ptr, length: len, handle: 0 };
 }
 
 /** Exported function `module_anchor`.

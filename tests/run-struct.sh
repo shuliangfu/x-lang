@@ -11,56 +11,54 @@ fi
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-# Prefer explicit XLANG with C backend (G-02a: xlang-c often broken/missing).
+# Product pure-asm default. Prefer CALLER/product XLANG; no forced -backend c
+# (host-cc-requires-allow). Opt-in: XLANG_FORCE_LINK_BACKEND / XLANG_ALLOW_HOST_CC.
+# PLATFORM: SHARED pure-asm product path.
 if [ -n "$CALLER_XLANG" ] && [ -x "$CALLER_XLANG" ]; then
   XLANG="$CALLER_XLANG"
   LINK_XLANG="$CALLER_XLANG"
   RUN_XLANG="$CALLER_XLANG"
-  XLANG_LINK_BACKEND_ARGS="-backend c"
 else
-  LINK_XLANG="$RUN_XLANG"
+  LINK_XLANG="${XLANG:-${RUN_XLANG}}"
 fi
-# 【Why 根源】xlang-c (XLANG_LEGACY_C_FRONTEND=1) 不支持 -backend 参数；
-#   XLANG_LINK_BACKEND_ARGS 由 bootstrap-link-xlang.sh 设置：xlang-c → ""，xlang_asm* → "-backend asm"。
-#   沿用 XLANG_LINK_BACKEND_ARGS（空默认值），不再硬编码 -backend asm，避免 xlang-c 报错。
-STRUCT_LINK_BACKEND_ARGS="${XLANG_LINK_BACKEND_ARGS:-}"
-# codegen 后端参数：xlang_asm* 支持 -backend c 走 C 后端；xlang-c 不支持 -backend，留空。
-STRUCT_CODEGEN_BACKEND_ARGS=""
-case "$(basename "$LINK_XLANG")" in
-  xlang_asm|xlang_asm2|xlang_asm_stage1) STRUCT_CODEGEN_BACKEND_ARGS="-backend c" ;;
+case "$(basename "${LINK_XLANG:-}")" in
+  xlang-backend-wrap.sh|xlang-min-link.sh)
+    LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-${XLANG:-./compiler/xlang}}}"
+    ;;
 esac
+STRUCT_LINK_BACKEND_ARGS=""
+STRUCT_CODEGEN_BACKEND_ARGS=""
+if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+  STRUCT_CODEGEN_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
+fi
 
 # struct -o：bstrict product path uses this-SHA xlang_asm (not leftover Stage2).
 # PLATFORM: SHARED — XLANG_BSTRICT_USE_ASM2=1 only for intentional gen2.
-# bootstrap-min：保留 RUN_XLANG（xlang-min-link gcc 回退），勿覆盖为裸 xlang_asm。
 if [ -z "${XLANG_BOOTSTRAP_MIN:-}" ]; then
   if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ] &&
       ci_native_xlang ./compiler/xlang_asm2; then
     LINK_XLANG=./compiler/xlang_asm2
-    STRUCT_LINK_BACKEND_ARGS=""
-    STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
   elif [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm; then
     LINK_XLANG=./compiler/xlang_asm
-    STRUCT_LINK_BACKEND_ARGS=""
-    STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
   fi
 fi
 
-# 封装 -o 链接：xlang_asm2 失败时回退 xlang-c（无 asm 时）。
+# Pure-asm -o; optional host-cc / xlang-c only when XLANG_ALLOW_HOST_CC is set.
 struct_link_o() {
   local x="$1" out="$2"
   set +e
+  # shellcheck disable=SC2086
   $LINK_XLANG build $STRUCT_LINK_BACKEND_ARGS $STRUCT_CODEGEN_BACKEND_ARGS -L . "$x" -o "$out" 2>&1
   local ec=$?
   set -e
-  if [ "$ec" -ne 0 ] && [ -z "${XLANG_BOOTSTRAP_MIN:-}" ] \
+  if [ "$ec" -ne 0 ] && [ -n "${XLANG_ALLOW_HOST_CC:-}" ] \
+      && [ -z "${XLANG_BOOTSTRAP_MIN:-}" ] \
       && [ "$LINK_XLANG" != "./compiler/xlang-c" ] \
       && [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c; then
     ./compiler/xlang-c -L . "$x" -o "$out" 2>&1
     ec=$?
   fi
-  # xlang-c -E + cc 回退（无 -o 能力时）
-  if [ "$ec" -ne 0 ] && [ -x ./compiler/xlang-c ]; then
+  if [ "$ec" -ne 0 ] && [ -n "${XLANG_ALLOW_HOST_CC:-}" ] && [ -x ./compiler/xlang-c ]; then
     ./compiler/xlang-c -E -L . "$x" > /tmp/xlang_struct_fallback.c 2>&1
     ${CC:-cc} -O2 -o "$out" /tmp/xlang_struct_fallback.c 2>&1
     ec=$?

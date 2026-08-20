@@ -31,10 +31,10 @@ function sum_xy(p: Point): i32 {
  * @return i32
  */
 function main(): i32 {
-  if (classify(Point { x: 0, y: 0 }) != 0) {
+  if (classify({ x: 0, y: 0 }) != 0) {
     return 1;
   }
-  if (sum_xy(Point { x: 10, y: 20 }) != 30) {
+  if (sum_xy({ x: 10, y: 20 }) != 30) {
     return 5;
   }
   return 0;

@@ -6,7 +6,7 @@ const datetime = import("std.datetime");
  * @return i32
  */
 function test_ny_dst(): i32 {
-  let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };
+  let tz: TimeZone = { offset_min: 0, iana_id: -1 };
   let name: u8[16] = [
     65, 109, 101, 114, 105, 99, 97, 47, 78, 101, 119, 95, 89, 111, 114, 107
   ];

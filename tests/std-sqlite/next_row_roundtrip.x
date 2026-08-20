@@ -24,7 +24,7 @@ function main(): i32 {
     79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0
   ];
   let c: DbConn = sqlite.open(&mem[0]);
-  let cur: DbRowCursor = DbRowCursor { cursor: 0 };
+  let cur: DbRowCursor = { cursor: 0 };
   let st: i32 = 0;
   let v: i32 = 0;
   if (c.handle == 0) {

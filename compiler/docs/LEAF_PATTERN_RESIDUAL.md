@@ -623,19 +623,20 @@ Family: R1_MAIN_RUNTIME_OBJS (Makefile list authority)
   src/main.o              ← seeds/main.from_x.c          (no extra -D)
   src/main_x.o            ← seeds/main.from_x.c          (-DXLANG_USE_X_PIPELINE)
   src/main_driver.o       ← seeds/main.from_x.c          (-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE)
-  src/runtime.o           ← seeds/runtime.from_x.c       (no extra -D)
-  src/runtime_x.o         ← seeds/runtime.from_x.c       (-DXLANG_USE_X_PIPELINE)
-  src/runtime_driver.o    ← seeds/runtime.from_x.c       ($(RUNTIME_DRIVER_CFLAGS))
-  src/runtime_driver_no_c.o ← seeds/runtime.from_x.c     ($(RUNTIME_DRIVER_NO_C_CFLAGS))
+  src/runtime.o           ← multi-slice no_c alias (wave321; monofile retired)
+  src/runtime_x.o         ← multi-slice no_c alias (wave321; monofile retired)
+  src/runtime_driver.o    ← multi-slice no_c alias (wave321; monofile retired)
+  src/runtime_driver_no_c.o ← multi-slice (content..dispatch layer seeds; wave318–321)
 
 Body (G.7 same ensure_host_cc_seed_o.sh):
-  scripts/ensure_host_cc_seed_o.sh one OUT SEED [extras...]
-  scripts/ensure_host_cc_seed_o.sh main-runtime  # catalog list + o→seed + o→flag map
-  scripts/ensure_host_cc_seed_o.sh all           # four families
+  scripts/ensure_host_cc_seed_o.sh one OUT SEED [extras...]   # main_* only
+  scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o
+  scripts/ensure_host_cc_seed_o.sh main-runtime  # runtime* → multi-slice; main_* → seed
+  scripts/ensure_host_cc_seed_o.sh all
 
+wave321 7.1.1: seeds/runtime.from_x.c physically removed. Map gate seed for
+runtime* inventory/check = seeds/rt_content.from_x.c (not host-cc monofile).
 Seed/flag maps = path *convention* only (not a second .o inventory).
-Thin Makefile leaves pass make-expanded RUNTIME_DRIVER_*_CFLAGS as extras.
-Family mode uses env or defaults aligned with Makefile base (no LEGACY_PREPROCESS).
 Unknown catalog members fail closed.
 Catalog: R1_MAIN_RUNTIME_OBJS exported via bootstrap-driver-seed-export-obj-catalog.
 ```

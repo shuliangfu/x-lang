@@ -39,7 +39,7 @@ function main(): i32 {
     return 8;
   }
   let batch: ArrowBatch = dbarrow.batch(4);
-  let fetched: ArrowColumn = ArrowColumn { handle: 0 };
+  let fetched: ArrowColumn = { handle: 0 };
   if (batch.handle == 0) {
     dbarrow.free(adopted);
     return 9;

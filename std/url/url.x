@@ -500,7 +500,7 @@ export function url_merge_paths(base_path: *u8, base_len: i32, ref_path: *u8, re
  * @return i32
  */
 export function url_resolve_c(base: *Url, ref: *u8, ref_len: i32, out: *Url): i32 {
-  let rel: Url = Url {
+  let rel: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };
@@ -597,7 +597,7 @@ export function url_host_is_ipv6_c(host: *u8, host_len: i32): i32 {
  * @return i32
  */
 export function url_ipv6_host_smoke_c(): i32 {
-  let u: Url = Url {
+  let u: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };
@@ -628,11 +628,11 @@ export function url_ipv6_host_smoke_c(): i32 {
  * @return i32
  */
 export function url_smoke_c(): i32 {
-  let u: Url = Url {
+  let u: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };
-  let out: Url = Url {
+  let out: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };

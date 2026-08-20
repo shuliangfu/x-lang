@@ -43,12 +43,12 @@ function main(): i32 {
     0, 46, 115, 116, 114, 116, 97, 98, 0, 46, 114, 101, 108, 97, 46, 116,
     101, 120, 116, 0, 46, 115, 104, 115, 116, 114, 116, 97, 98, 0,
   ];
-  let hdr: Elf64Hdr = Elf64Hdr {
+  let hdr: Elf64Hdr = {
     e_type: 0, machine: 0, entry: 0, phoff: 0, phnum: 0, shnum: 0, shoff: 0, shstrndx: 0,
   };
-  let sec: Elf64Sec = Elf64Sec { name_off: 0, sh_type: 0, addr: 0, offset: 0, size: 0 };
-  let sym: Elf64Sym = Elf64Sym { name_off: 0, bind: 0, sym_type: 0, shndx: 0, value: 0, size: 0 };
-  let rela: Elf64Rela = Elf64Rela { offset: 0, sym_idx: 0, reloc_type: 0, addend: 0 };
+  let sec: Elf64Sec = { name_off: 0, sh_type: 0, addr: 0, offset: 0, size: 0 };
+  let sym: Elf64Sym = { name_off: 0, bind: 0, sym_type: 0, shndx: 0, value: 0, size: 0 };
+  let rela: Elf64Rela = { offset: 0, sym_idx: 0, reloc_type: 0, addend: 0 };
   let idx: i32 = 0;
   let name: u8[8] = [];
   let name_symtab: u8[8] = [46, 115, 121, 109, 116, 97, 98, 0];

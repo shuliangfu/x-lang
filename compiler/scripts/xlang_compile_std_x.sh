@@ -365,6 +365,39 @@ std_x_compile_one() {
     } >"$_gen.errno" && mv "$_gen.errno" "$_gen"
   }
 
+  # PLATFORM: POSIX — std/net/udp.x (and peers) call fcntl via extern "C" but
+  # -E host-C may omit fcntl.h / prototype. Clang (Darwin) then fails
+  # "call to undeclared function 'fcntl'" → udp.o never built → net_merge fails
+  # soft-empty → L4 run-std-net-context-gate UNDEF std_net_*. G.7: inject header
+  # when body uses fcntl and include is missing (same splice authority as errno).
+  xlang_inject_fcntl_header() {
+    _gen="$1"
+    [ -f "$_gen" ] || return 0
+    if ! grep -qE '\bfcntl\s*\(' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -qE '#include\s*[<"]fcntl\.h[>"]' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -q '^#include' "$_gen" 2>/dev/null; then
+      last_inc_line=$(grep -n '^#include' "$_gen" | tail -1 | cut -d: -f1)
+    else
+      last_inc_line=0
+    fi
+    {
+      if [ "$last_inc_line" -gt 0 ]; then
+        head -n "$last_inc_line" "$_gen"
+      fi
+      echo '/* PLATFORM: POSIX injected by xlang_compile_std_x — fcntl for net nonblock */'
+      echo '#include <fcntl.h>'
+      if [ "$last_inc_line" -gt 0 ]; then
+        tail -n +"$((last_inc_line + 1))" "$_gen"
+      else
+        cat "$_gen"
+      fi
+    } >"$_gen.fcntl" && mv "$_gen.fcntl" "$_gen"
+  }
+
   case "$(basename "$xlang_bin")" in
     xlang-c)
       # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
@@ -384,7 +417,10 @@ std_x_compile_one() {
       fi
       xlang_strip_conflicting_weak_args_iter "$gen_c"
       xlang_inject_errno_externs "$gen_c"
-      cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
+      xlang_inject_fcntl_header "$gen_c"
+      # PLATFORM: SHARED — function/data sections so product -dead_strip/--gc-sections
+      # can drop unused net/tls/pool residual U (net.o is one ld -r unit).
+      cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
       rm -f "$gen_c"
       ;;
     *)
@@ -411,7 +447,8 @@ std_x_compile_one() {
           fi
           xlang_strip_conflicting_weak_args_iter "$gen_c"
           xlang_inject_errno_externs "$gen_c"
-          cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
+          xlang_inject_fcntl_header "$gen_c"
+          cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
           rm -f "$gen_c"
         else
           return 1

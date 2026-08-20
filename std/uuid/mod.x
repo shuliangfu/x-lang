@@ -39,9 +39,9 @@ extern function uuid_version_c(u: *u8): i32;
  * @return Uuid
  */
 export function new_v4(): Uuid {
-  let u: Uuid = Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  let u: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
   unsafe { if (uuid_new_v4_c(&u.bytes[0]) != 0) {
-    return Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+    return { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
   } }
   return u;
 }
@@ -51,10 +51,10 @@ export function new_v4(): Uuid {
  * @return Uuid
  */
 export function new_v7(): Uuid {
-  let u: Uuid = Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  let u: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
   unsafe { 
     if (uuid_new_v7_c(&u.bytes[0]) != 0) {
-      return Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+      return { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
     } 
   }
   return u;

@@ -206,7 +206,7 @@ allow(padding) struct StreamCsvWriter {
  * See implementation.
  */
 export function reader(ptr: *u8, len: i32): StreamCsvReader {
-  return StreamCsvReader { ptr: ptr, length: len, offset: 0 };
+  return { ptr: ptr, length: len, offset: 0 };
 }
 
 /**
@@ -253,7 +253,7 @@ export function eof(r: StreamCsvReader): i32 {
  * See implementation.
  */
 export function writer(out: *u8, out_cap: i32): StreamCsvWriter {
-  return StreamCsvWriter { out: out, out_cap: out_cap, out_len: 0 };
+  return { out: out, out_cap: out_cap, out_len: 0 };
 }
 
 /**

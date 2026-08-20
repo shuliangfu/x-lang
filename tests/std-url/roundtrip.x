@@ -11,11 +11,11 @@ function main(): i32 {
     111, 109, 58, 56, 48, 56, 48, 47, 112, 97, 116, 104, 63, 113, 61, 49,
     35, 102, 114, 97, 103
   ];
-  let u: Url = Url {
+  let u: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };
-  let out: Url = Url {
+  let out: Url = {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };

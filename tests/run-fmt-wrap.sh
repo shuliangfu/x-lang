@@ -74,17 +74,27 @@ run_one_case() {
   return 0
 }
 
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+# MG: no Makefile — skip make leaves (would hang / no-op). Product XLANG is
+# already the L2/L4 binary under test.
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ] && [ -f compiler/Makefile ]; then
   xlang_compiler_make src/lsp/lsp_diag.o -q 2>/dev/null || true
   if [ -f compiler/build_asm/seed_host/asm_backend_partial.o ]; then
     xlang_compiler_make relink-xlang -q 2>/dev/null || true
   fi
 fi
 
+# PLATFORM: SHARED — fmt builtin ignore includes "/tests/" so intentional
+# negative fixtures stay out of bare `xlang check` (wave 995291a1b). Explicit
+# harness paths under tests/ were also swallowed → FMT001. Stage temp copies
+# outside tests/ (e.g. /tmp) so file_list_push does not path_should_ignore.
+_FMT_WRAP_TMP="${TMPDIR:-/tmp}/xlang_fmt_wrap_$$"
+mkdir -p "$_FMT_WRAP_TMP"
+trap 'rm -rf "$_FMT_WRAP_TMP"' EXIT
+
 echo "fmt wrap regression:"
-run_one_case tests/fmt/fmt_wrap_cases.x "$ROOT/tests/fmt/.fmt_wrap_out.x" || exit 1
-run_one_case tests/fmt/fmt_comprehensive.x "$ROOT/tests/fmt/.fmt_comprehensive_out.x" || exit 1
-run_one_case tests/fmt/fmt_semicolon_space.x "$ROOT/tests/fmt/.fmt_semicolon_space_out.x" || exit 1
-run_one_case tests/fmt/fmt_operator_space.x "$ROOT/tests/fmt/.fmt_operator_space_out.x" || exit 1
-run_one_case tests/fmt/fmt_array_comma_space.x "$ROOT/tests/fmt/.fmt_array_comma_space_out.x" || exit 1
+run_one_case tests/fmt/fmt_wrap_cases.x "$_FMT_WRAP_TMP/fmt_wrap_out.x" || exit 1
+run_one_case tests/fmt/fmt_comprehensive.x "$_FMT_WRAP_TMP/fmt_comprehensive_out.x" || exit 1
+run_one_case tests/fmt/fmt_semicolon_space.x "$_FMT_WRAP_TMP/fmt_semicolon_space_out.x" || exit 1
+run_one_case tests/fmt/fmt_operator_space.x "$_FMT_WRAP_TMP/fmt_operator_space_out.x" || exit 1
+run_one_case tests/fmt/fmt_array_comma_space.x "$_FMT_WRAP_TMP/fmt_array_comma_space_out.x" || exit 1
 echo "fmt wrap test OK (all cases)"

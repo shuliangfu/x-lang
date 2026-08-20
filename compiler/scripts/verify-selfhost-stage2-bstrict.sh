@@ -31,8 +31,14 @@ if [ "${XLANG_STAGE2_SKIP_BOOTSTRAP:-0}" = "1" ] && [ -x ./xlang_asm ]; then
 else
   echo ""
   echo "── Step 0: bootstrap-driver-bstrict ──"
-  ${MAKE:-make} bootstrap-driver-seed -q 2>/dev/null || ${MAKE:-make} bootstrap-driver-seed
-  XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 ${MAKE:-make} bootstrap-driver-bstrict
+  # wave941 MG: compiler/Makefile physically deleted; default MAKE=../xbuild
+  # (this script cd's into compiler/ at line 20, so ../xbuild is repo root).
+  # The make-specific -q query gate is dropped: xbuild has no -q equivalent
+  # and always runs the shell-primary bootstrap_driver_seed.sh; running it
+  # unconditionally is the safe choice for a verification gate.
+  # PLATFORM: SHARED.
+  ${MAKE:-../xbuild} bootstrap-driver-seed
+  XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 ${MAKE:-../xbuild} bootstrap-driver-bstrict
   if [ ! -x ./xlang_asm ]; then
     echo "verify-stage2-bstrict: xlang_asm missing" >&2
     exit 1
@@ -278,7 +284,10 @@ STAGE2_COMPILE_BACKEND=""
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
     STAGE2_COMPILE_BACKEND="-backend c"
-    echo "verify-stage2-bstrict: Darwin/ARM64 use -backend c for user compile (asm Mach-O incomplete)"
+    # Stage 12.2.3: experimental host-cc requires XLANG_ALLOW_HOST_CC=1.
+    # PLATFORM: SHARED — only this Darwin/ARM64 fallback path uses -backend c.
+    export XLANG_ALLOW_HOST_CC=1
+    echo "verify-stage2-bstrict: Darwin/ARM64 use -backend c for user compile (asm Mach-O incomplete; ALLOW_HOST_CC=1)"
     ;;
 esac
 
@@ -495,10 +504,13 @@ fi
 echo ""
 echo "── Step 5: refresh xlang_asm gate（P0 asm struct mk 内联）──"
 # 纯 strict gen2（typeck_x_no_layout + 无 pipeline_x.o）常无法 struct mk 内联；门禁用 refresh-xlang-asm-gate。
+# wave941 MG: compiler/Makefile physically deleted; default MAKE=../xbuild
+# (script cd's into compiler/ at line 20, so ../xbuild is repo root).
+# PLATFORM: SHARED.
 if [ "${XLANG_STAGE2_SKIP_REFRESH:-0}" = "1" ]; then
   echo "verify-stage2-bstrict: skip Step 5 refresh (XLANG_STAGE2_SKIP_REFRESH=1)"
 else
-  ${MAKE:-make} refresh-xlang-asm-gate
+  ${MAKE:-../xbuild} refresh-xlang-asm-gate
 fi
 
 echo ""

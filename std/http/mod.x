@@ -845,7 +845,7 @@ export function execute_ctx(req: HttpRequest, buf: *u8, buf_cap: i32, out: *Http
  * @return HttpBodyView
  */
 export function response_body_view(buf: *u8, resp: HttpResponse): HttpBodyView {
-  return HttpBodyView { ptr: http_libc_response_body_ptr_c(buf, resp.header_end), length: resp.body_len };
+  return { ptr: http_libc_response_body_ptr_c(buf, resp.header_end), length: resp.body_len };
 }
 
 /**
@@ -1044,7 +1044,7 @@ export function request_owned_free(req: *HttpRequestOwned): void {
  * See implementation.
  */
 export function execute_owned(req: *HttpRequestOwned, buf: *u8, buf_cap: i32, out: *HttpResponse): i32 {
-  let view: HttpRequest = HttpRequest {
+  let view: HttpRequest = {
     method: req.method,
     url: req.url.ptr,
     url_len: req.url.length,
@@ -1093,7 +1093,7 @@ export function response_owned_from_parse(buf: *u8, resp: HttpResponse, out: *Ht
  */
 export function response_owned_free(resp: *HttpResponseOwned): void {
   body_owned_free(resp.body);
-  resp.body = HttpBodyOwned { ptr: 0, length: 0 };
+  resp.body = { ptr: 0, length: 0 };
 }
 
 /** Exported function `listen_on`.

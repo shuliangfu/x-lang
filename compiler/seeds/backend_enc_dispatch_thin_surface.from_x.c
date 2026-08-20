@@ -1174,6 +1174,11 @@ extern int32_t arch_riscv64_enc_enc_load_32_from_rax(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_load_32_from_rax(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_cdqe_rax_impl(uint8_t * elf_ctx);
 extern int32_t arch_arm64_enc_enc_load_rbp_to_x2(uint8_t * elf_ctx, int32_t offset);
+/* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
+ * positive-offset convention; old inline negated offset (LDUR [x29,-off]) loaded
+ * garbage from below the frame for arr[i+j] right operand. */
+extern int32_t arch_arm64_enc_enc_load_rbp_to_x3(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_riscv64_enc_enc_load_rbp_to_a2(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_ecx(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_arm64_enc_enc_load_64_from_rax(uint8_t * elf_ctx);
@@ -1576,6 +1581,9 @@ int32_t backend_enc_store_x_reg_to_rbp_arch(uint8_t * elf_ctx, int32_t reg, int3
   return (0 - 1);
 }
 int32_t backend_enc_load_qword_from_rbx_to_rax_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta == 1)) {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400020u); /* ldr x0,[x1] */
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -1585,6 +1593,9 @@ int32_t backend_enc_load_qword_from_rbx_to_rax_arch(uint8_t * elf_ctx, int32_t t
   return (0 - 1);
 }
 int32_t backend_enc_load_qword_rbx8_to_rdx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta == 1)) {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400421u); /* ldr x1,[x1,#8] */
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -1642,7 +1653,7 @@ extern int32_t backend_enc_x86_jcc_rel32_c_impl(uint8_t * elf_ctx, int32_t opcod
 int32_t backend_enc_index_scratch_add_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 184680514);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 184746050);
     }
   }
   if ((ta ==2)) {
@@ -1658,7 +1669,7 @@ int32_t backend_enc_index_scratch_add_secondary_arch(uint8_t * elf_ctx, int32_t 
 int32_t backend_enc_index_scratch_sub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258553410);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487874);
     }
   }
   if ((ta ==2)) {
@@ -1674,7 +1685,7 @@ int32_t backend_enc_index_scratch_sub_secondary_arch(uint8_t * elf_ctx, int32_t 
 int32_t backend_enc_index_scratch_rsub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487906);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422370);
     }
   }
   if ((ta ==2)) {
@@ -1690,7 +1701,7 @@ int32_t backend_enc_index_scratch_rsub_secondary_arch(uint8_t * elf_ctx, int32_t
 int32_t backend_enc_rbx_index_rsub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422369);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258356833);
     }
   }
   if ((ta ==2)) {
@@ -1706,7 +1717,7 @@ int32_t backend_enc_rbx_index_rsub_secondary_arch(uint8_t * elf_ctx, int32_t ta)
 int32_t backend_enc_rbx_index_add_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 184680481);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 184746017);
     }
   }
   if ((ta ==2)) {
@@ -1722,7 +1733,7 @@ int32_t backend_enc_rbx_index_add_secondary_arch(uint8_t * elf_ctx, int32_t ta) 
 int32_t backend_enc_rbx_index_sub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258553377);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487841);
     }
   }
   if ((ta ==2)) {
@@ -1969,17 +1980,16 @@ int32_t backend_enc_add_imm_to_index_scratch_arch(uint8_t * elf_ctx, int32_t imm
   return (0 - 1);
 }
 int32_t backend_enc_load_rbp_index_secondary_scratch_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta) {
+  /* wave617: delegate to arch_arm64_enc_enc_load_rbp_to_x3 (positive-offset LDR
+   * X3, [X29, #imm12]) — SAME convention as primary loader load_rbp_to_x2.
+   * Root: old inline negated offset (LDUR W3, [x29,-off]) while primary used
+   *   positive LDR X2, [x29,+off] → secondary loaded garbage below the frame
+   *   for arr[i+j] right operand (i+j computed wrong, e.g. got 10 not 99).
+   * Invariant: secondary loader offset convention MUST match primary loader. */
   if ((ta ==1)) {
-    if ((offset > 256)) {
-      {
-        return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((-1203765248 | (256 * 4096)) | 931))));
-      }
-      return (0 - 1);
-    }
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((-1203765248 | (((uint32_t)(((0 - offset) & 511))) * 4096)) | 931))));
+      return arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx, offset);
     }
-    return (0 - 1);
   }
   if ((ta ==2)) {
     {

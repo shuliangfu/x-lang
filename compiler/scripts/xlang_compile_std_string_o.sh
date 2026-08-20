@@ -1,7 +1,9 @@
 #!/bin/sh
 # xlang_compile_std_string_o.sh — 构建 std/string/string.o
 # 【Why】产品 -x -E 对 string 库模块会截断函数体；-o *.o 路径 emit 完整。
-# Arena64 标签双名（heap_libc_Arena64 vs std_heap_libc_LibcArena64）在 cc 前 #define 对齐。
+# PLATFORM: SHARED — Arena64 short-tag dual-name residual CLOSED (2026-08-12).
+# Historic shell `#define heap_libc_Arena64 std_heap_libc_LibcArena64` removed;
+# tip product -E short count=0 (full tags only). Do not reintroduce.
 # 用法：在 compiler/ 下：sh scripts/xlang_compile_std_string_o.sh
 set -e
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
@@ -27,15 +29,14 @@ if [ ! -s "$tmp/mod.c" ]; then
   exit 1
 fi
 
-# Arena64 + 库 -E 无完整 product preamble 时补 String/StrView（codegen ABI skip 依赖 preamble）
+# 库 -E 无完整 product preamble 时补 String/StrView（codegen ABI skip 依赖 preamble）
+# PLATFORM: SHARED — no Arena64 #define alias (short residual closed; full tags only).
 python3 - "$tmp/mod.c" <<'PY'
 import sys, re
 from pathlib import Path
 p = Path(sys.argv[1])
 s = p.read_text()
 extra = []
-if "std_heap_libc_LibcArena64" in s and "heap_libc_Arena64" in s and "#define heap_libc_Arena64" not in s:
-    extra.append("#define heap_libc_Arena64 std_heap_libc_LibcArena64\n")
 # entry-only 库 -E 跳过 String/StrView 完整体；此处注入权威布局。
 # 注意：codegen 可能发 `struct String`（tag）而非 typedef `String`——二者在 C 中不是同一类型。
 need_bare_string = "struct String" in s and "struct String {" not in s
@@ -43,13 +44,13 @@ need_std_string = "struct std_string_String" in s and "struct std_string_String 
 need_bare_view = "struct StrView" in s and "struct StrView {" not in s
 need_std_view = "struct std_string_StrView" in s and "struct std_string_StrView {" not in s
 if need_bare_string:
-    extra.append("struct String { uint8_t data[256]; int32_t len; };\n")
+    extra.append("struct String { uint8_t data[256]; int32_t length; };\n")
 if need_std_string:
-    extra.append("struct std_string_String { uint8_t data[256]; int32_t len; };\n")
+    extra.append("struct std_string_String { uint8_t data[256]; int32_t length; };\n")
 if need_bare_view:
-    extra.append("struct StrView { uint8_t *ptr; int32_t len; };\n")
+    extra.append("struct StrView { uint8_t *ptr; int32_t length; };\n")
 if need_std_view:
-    extra.append("struct std_string_StrView { uint8_t *ptr; int32_t len; };\n")
+    extra.append("struct std_string_StrView { uint8_t *ptr; int32_t length; };\n")
 # 仅当源用裸标识符 String/StrView（非 struct String）时补 typedef
 if re.search(r"\bString\b", s) and "typedef " not in s.split("String")[0][-40:]:
     if "typedef struct String String" not in s and need_bare_string:
@@ -94,6 +95,82 @@ if ("std_heap_libc_heap_arena64_alloc_c" in s
         "__attribute__((weak)) void std_heap_libc_heap_arena64_deinit_c(struct std_heap_libc_LibcArena64 *a) { (void)a; }\n"
         "#endif\n"
     )
+# Generate namespaced wrapper functions (std_string_*) for every bare function
+# definition in mod.c. macOS lacks objcopy (used by xlang_compile_std_module.sh
+# on Linux to rename bare symbols to std_<module>_*); without wrappers, the test
+# linker fails with "symbol(s) not found" for std_string_* references emitted by
+# the normal `xlang build` codegen path (which applies the module path prefix).
+# Each wrapper delegates to the bare function with the same parameter list.
+# PLATFORM: SHARED — macOS-only workaround; Linux uses the objcopy path in
+# xlang_compile_std_module.sh. G.7 single authority: bare impl stays in mod.c;
+# wrappers are thin delegation only (no logic duplication).
+_func_def_re = re.compile(
+    r'^(?P<ret>(?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*))\s+'
+    r'(?P<name>[a-z_][a-zA-Z_0-9]*)\s*'
+    r'\((?P<args>[^)]*)\)\s*\{',
+    re.M
+)
+
+def _extract_arg_names(args_str):
+    """Extract comma-separated parameter names from a C parameter list string."""
+    args_str = args_str.strip()
+    if args_str == 'void' or args_str == '':
+        return ''
+    names = []
+    for part in args_str.split(','):
+        part = part.strip()
+        if part == '...':
+            names.append('...')
+            continue
+        # Remove array brackets: `uint8_t data[256]` -> `uint8_t data`
+        part_clean = re.sub(r'\[[^\]]*\]', '', part)
+        tokens = part_clean.split()
+        if not tokens:
+            names.append('')
+            continue
+        # Last token is the name; strip leading * (e.g. `*ptr` -> `ptr`)
+        names.append(tokens[-1].lstrip('*'))
+    return ', '.join(names)
+
+_skip_prefixes = ('core_', 'std_', 'xlang_', '__')
+# PLATFORM: MACOS — same root predicate as xlang_compile_std_module.sh:
+# skip wrapper when rt_preamble `#define bare std_string_bare` already owns
+# the namespaced object symbol (bare def expands to it after preprocess).
+_define_re = re.compile(
+    r'^#define\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*$',
+    re.M,
+)
+defines = {m.group(1): m.group(2) for m in _define_re.finditer(s)}
+pref = 'std_string_'
+existing_ns = set()
+for fm in _func_def_re.finditer(s):
+    n = fm.group('name')
+    if n.startswith(pref) or n.startswith(('core_', 'std_', 'xlang_')):
+        existing_ns.add(n)
+wrappers = []
+for fm in _func_def_re.finditer(s):
+    fname = fm.group('name')
+    if fname.startswith(_skip_prefixes) or fname == 'main':
+        continue
+    ns = pref + fname
+    if ns in existing_ns:
+        continue
+    exp = defines.get(fname)
+    if exp is not None:
+        if exp == ns:
+            continue
+        if exp.startswith(('std_', 'core_', 'xlang_')):
+            continue
+    fret = fm.group('ret').strip()
+    fargs = fm.group('args').strip()
+    farg_names = _extract_arg_names(fargs)
+    decl_args = 'void' if (fargs == '' or fargs == 'void') else fargs
+    if fret == 'void':
+        wrappers.append(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}\n')
+    else:
+        wrappers.append(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}\n')
+
+# Insert extra block (struct defs, BSS, weak stubs) after the last #include.
 if extra:
     last = None
     for m in re.finditer(r"^#include[^\n]*\n", s, re.M):
@@ -103,7 +180,13 @@ if extra:
         s = s[: last.end()] + block + s[last.end() :]
     else:
         s = block + s
-    p.write_text(s)
+
+# Append wrappers at end of file (after all bare function definitions) so the
+# compiler has seen the bare definitions/declarations before the wrappers.
+if wrappers:
+    s = s + "\n/* Namespaced wrappers (std_string_*) — macOS objcopy workaround. */\n" + "".join(wrappers)
+
+p.write_text(s)
 PY
 
 CFLAGS="-std=gnu11 -fPIE -ffunction-sections -fdata-sections -I$ROOT -I$COMP -I$COMP/include -I$COMP/src -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare -Wno-incompatible-pointer-types"
