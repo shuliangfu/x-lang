@@ -291,7 +291,8 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * dims[ndims]; `[]*[2]*T` = 1; `[]*[2][]*T` = 1 with extra
  * SLICE also in dims[ndims]; `[2]*[2]*T` = 1;
  * `[2]*[2][]*T` = 1 with extra SLICE also in dims[ndims];
- * 0 / missing means no extra PTR)
+ * `*[2]*T` = 1; `*[2][]*T` = 1 with extra SLICE also in
+ * dims[ndims]; 0 / missing means no extra PTR)
  * AND dest extras dest-ARRAY-of-SLICE extra wrap `[2][][2][]T`
  * extra SLICE wrap count (`[2][][2][]T` = 1;
  * `[2][][2][][]T` = 2; extra PTR of `[2][][2]*T` stays
@@ -303,13 +304,13 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * missing means no extra wrap = `[][][2]T`). Discriminant
  * dest extras dest-SLICE of ARRAY extra `[][2]*T` vs dest
  * extras dest-SLICE of PTR extra `[]*[2]*T` vs dest extras
- * dest-ARRAY of PTR extra `[2]*[2]*T` vs dest extras
- * dest-ARRAY of SLICE extra wrap `[2][][2][]T` vs dest
- * extras dest-SLICE of SLICE extra wrap `[][][2][]T` is
- * elem_kind ARRAY vs PTR vs SLICE (ARRAY vs SLICE outer).
- * Both unused slots may be set
- * (`[][2][]*T` / `[]*[2][]*T` / `[2]*[2][]*T` /
- * `[2][][2][]*T` / `[][][2][]*T`).
+ * dest-ARRAY of PTR extra `[2]*[2]*T` vs PTR-outer
+ * `*[2]*T` vs dest extras dest-ARRAY of SLICE extra wrap
+ * `[2][][2][]T` vs dest extras dest-SLICE of SLICE extra
+ * wrap `[][][2][]T` is elem_kind ARRAY vs PTR vs SLICE
+ * (ARRAY vs SLICE vs PTR outer). Both unused slots may
+ * be set (`[][2][]*T` / `[]*[2][]*T` / `[2]*[2][]*T` /
+ * `[2][][2][]*T` / `[][][2][]*T` / `*[2][]*T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
