@@ -1955,9 +1955,10 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * PTR = `[][][2]T`). Discriminant vs extra SLICE is elem_kind
  * (ARRAY vs SLICE); discriminant ARRAY vs SLICE outer is param
  * kind. dim_ix==ndims+1 returns extra PTR wrap count
- * (`[][2]*T` = 1; 0 / missing means no extra PTR). Do not invent
- * -3: ARRAY dims occupy 0..ndims-1 so extra wrap cannot reuse
- * ndims=-2.
+ * (`[][2]*T` = 1; `[][2][]*T` = 1 with extra SLICE also in
+ * dims[ndims]; 0 / missing means no extra PTR). Both unused
+ * slots may be set (`[][2][]*T`). Do not invent -3: ARRAY dims
+ * occupy 0..ndims-1 so extra wrap cannot reuse ndims=-2.
  * PLATFORM: SHARED parse + typeck.
  */
 int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
@@ -2020,9 +2021,10 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
     /*
      * dest extras dest-SLICE-of-ARRAY extra wraps: unused slot
      * dims[ndims] holds extra SLICE wraps (`[][2][]T`); unused slot
-     * dims[ndims+1] holds extra PTR wraps (`[][2]*T`). dim_ix==ndims
-     * or ndims+1 and extra>0 → return the count. 0 / missing → -1 so
-     * `[][2]i32` (no extra wrap) stays wrap-once. PLATFORM: SHARED.
+     * dims[ndims+1] holds extra PTR wraps (`[][2]*T`). Both slots
+     * may be set (`[][2][]*T`). dim_ix==ndims or ndims+1 and extra>0
+     * → return the count. 0 / missing → -1 so `[][2]i32` (no extra
+     * wrap) stays wrap-once. PLATFORM: SHARED.
      */
     int32_t extra;
     if (!(nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
@@ -2929,35 +2931,24 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                       int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
                       /*
                        * dest extras dest-SLICE of ARRAY extra `[][2]*T` /
-                       * `[][2][]T`: after walking ARRAY dims leftover is
-                       * still PTR (inner `*` of i32) or SLICE (inner `[]`
-                       * of i32) vs eeek=leaf. Extra PTR wrap count is
-                       * unused slot dims[ndims+1] (1 = `[][2]*T`); extra
-                       * SLICE wrap count is unused slot dims[ndims]
-                       * (1 = `[][2][]T`). Peel PTR first then SLICE or
-                       * T001 if layers run out. `[][2]i32` (both slots 0)
-                       * keeps the ARRAY-then-leaf compare. Do not invent
-                       * -3. PLATFORM: SHARED. G.7: complete this walk.
+                       * `[][2][]T` / `[][2][]*T`: after walking ARRAY dims
+                       * leftover is still PTR (inner `*` of i32), SLICE
+                       * (inner `[]` of i32), or SLICE-of-PTR
+                       * (`[][2][]*T`) vs eeek=leaf. Extra PTR wrap count
+                       * is unused slot dims[ndims+1] (1 = `[][2]*T` /
+                       * `[][2][]*T`); extra SLICE wrap count is unused
+                       * slot dims[ndims] (1 = `[][2][]T` / `[][2][]*T`).
+                       * Peel extra SLICE first (outer extra) then extra
+                       * PTR (inner extra) — dest extras wraps PTR of leaf
+                       * then SLICE. Peel PTR first of `[][2][]*T` is T001
+                       * (leftover SLICE vs PTR). `[][2]*T` extra SLICE=0
+                       * still peels PTR; `[][2][]T` extra PTR=0 still
+                       * peels SLICE. `[][2]i32` (both slots 0) keeps the
+                       * ARRAY-then-leaf compare. Do not invent -3.
+                       * PLATFORM: SHARED. G.7: complete this walk.
                        */
                       int32_t extra_ptr = 0;
                       int32_t extra = 0;
-                      if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
-                        extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend + 1];
-                      if (extra_ptr > 0) {
-                        while (extra_ptr > 0) {
-                          if (pgek != XLANG_TRAIT_TY_PTR || leaf_tr == 0) {
-                            mm = 1;
-                            break;
-                          }
-                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
-                          if (leaf_tr == 0) {
-                            mm = 1;
-                            break;
-                          }
-                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
-                          extra_ptr = extra_ptr - 1;
-                        }
-                      }
                       if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                         extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend];
                       if (extra > 0) {
@@ -2973,6 +2964,23 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                           }
                           pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
                           extra = extra - 1;
+                        }
+                      }
+                      if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend + 1];
+                      if (extra_ptr > 0) {
+                        while (extra_ptr > 0) {
+                          if (pgek != XLANG_TRAIT_TY_PTR || leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                          if (leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                          extra_ptr = extra_ptr - 1;
                         }
                       }
                       if (pgek >= 0 && pgek != eeek) {
@@ -4713,16 +4721,22 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                            && ent->method_param_kinds[mi_reg][param_count]
                                   == XLANG_TRAIT_TY_SLICE) {
                   /*
-                   * dest extras dest-SLICE of ARRAY extra `[][2]*T`:
-                   * after `[]` then `[N]` we are in param_elem_elem_pending
-                   * (elem=ARRAY, dims in the local buffer). Extra STAR
-                   * used to hit token_to_type_kind=-1 then want_param_ty=0
-                   * so eek never captured (impl T001 leftover PTR vs
-                   * eeek=-1). ndims=-2 would lose [N] (ban -3 / new
-                   * field). Keep ARRAY; extra PTR wrap COUNT lives in
-                   * unused slot dims[ndims+1] (1 = `[][2]*T`; 0 = no
-                   * extra PTR = `[][2]i32`). Extra SLICE stays
-                   * dims[ndims]. Outer must be SLICE so `*[N]*T` stays
+                   * dest extras dest-SLICE of ARRAY extra `[][2]*T` /
+                   * `[][2][]*T`: after `[]` then `[N]` (and optional extra
+                   * empty `[]`) we are in param_elem_elem_pending
+                   * (elem=ARRAY, dims in the local buffer or registry).
+                   * Extra STAR used to hit token_to_type_kind=-1 then
+                   * want_param_ty=0 so eek never captured (impl T001
+                   * leftover PTR vs eeek=-1). ndims=-2 would lose [N]
+                   * (ban -3 / new field). Keep ARRAY; extra PTR wrap
+                   * COUNT lives in unused slot dims[ndims+1]
+                   * (1 = `[][2]*T` / `[][2][]*T`; 0 = no extra PTR =
+                   * `[][2]i32` / `[][2][]T`). Extra SLICE stays
+                   * dims[ndims] (`[][2][]*T` has both slots set).
+                   * Store-only of `[][2][]*T` without impl-match extra
+                   * SLICE-then-PTR peels is T001 (leftover SLICE-of-PTR
+                   * vs eeek=leaf / peel-PTR-first leftover SLICE vs
+                   * PTR). Outer must be SLICE so `*[N]*T` stays
                    * deferred. Capture leaf T by staying pending.
                    * PLATFORM: SHARED parse. G.7: complete this scanner.
                    */

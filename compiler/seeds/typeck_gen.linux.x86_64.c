@@ -11733,10 +11733,11 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                 int32_t dyn_saw = dyn_salf;
                 if ((dyn_sand >= 1)) {
                   /* dest extras dest-SLICE-of-ARRAY extra wraps
-                   * (`[][2]*T` / `[][2][]T`): dim_ix==ndims+1 extra
-                   * PTR; dim_ix==ndims extra SLICE. Wrap PTR of leaf
-                   * extra times then extra SLICE wraps then ARRAY wrap.
-                   * Pin twin. PLATFORM: SHARED. */
+                   * (`[][2]*T` / `[][2][]T` / `[][2][]*T`):
+                   * dim_ix==ndims+1 extra PTR; dim_ix==ndims extra
+                   * SLICE. Wrap PTR of leaf extra times then extra
+                   * SLICE wraps then ARRAY wrap (`[][2][]*T` is
+                   * wrap-both). Pin twin. PLATFORM: SHARED. */
                   int32_t dyn_sapx;
                   int32_t dyn_sapi;
                   int32_t dyn_saex;

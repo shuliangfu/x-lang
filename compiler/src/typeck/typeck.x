@@ -287,7 +287,9 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * PTR = `[][][2]T`; discriminant vs extra SLICE is elem_kind
  * SLICE vs ARRAY; discriminant ARRAY vs SLICE outer is param
  * kind). dim_ix==ndims+1 is extra PTR wrap count
- * (`[][2]*T` = 1; 0 / missing means no extra PTR).
+ * (`[][2]*T` = 1; `[][2][]*T` = 1 with extra SLICE also in
+ * dims[ndims]; 0 / missing means no extra PTR). Both unused
+ * slots may be set (`[][2][]*T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14603,14 +14605,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 if (dyn_sand >= 1) {
                   /*
                    * dest extras dest-SLICE-of-ARRAY extra wraps
-                   * (`[][2]*T` / `[][2][]T` / `[][2][][]T`): dim
-                   * accessor returns extra PTR wrap count at
-                   * dim_ix==ndims+1 and extra SLICE wrap count at
-                   * dim_ix==ndims when unused slots >0. Wrap PTR of
-                   * leaf extra times then extra SLICE wraps then
-                   * ARRAY wrap then outer SLICE. `[][2]i32`
-                   * (sapx/saex<=0) stays wrap-once. Do not invent
-                   * -3. PLATFORM: SHARED.
+                   * (`[][2]*T` / `[][2][]T` / `[][2][][]T` /
+                   * `[][2][]*T`): dim accessor returns extra PTR wrap
+                   * count at dim_ix==ndims+1 and extra SLICE wrap
+                   * count at dim_ix==ndims when unused slots >0. Wrap
+                   * PTR of leaf extra times then extra SLICE wraps
+                   * then ARRAY wrap then outer SLICE (`[][2][]*T` is
+                   * wrap-both). `[][2]i32` (sapx/saex<=0) stays
+                   * wrap-once. Do not invent -3. PLATFORM: SHARED.
                    */
                   let dyn_sapx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
                           &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
