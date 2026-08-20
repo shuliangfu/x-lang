@@ -182,29 +182,35 @@ pure_ld_try_link() {
 # g05_ensure_relink_prereqs.sh (Stage 12.2.3 zero-CC partial-merge).
 #
 # When XLANG_ZERO_CC_LD=1: uses `ld -r` with multidef flags (zero-CC).
-# When unset (default): uses `$CC -r -nostdlib` (original behavior; zero
-# regression — callers that don't set the flag are unaffected).
+# When unset (default): uses `$CC -r -nostdlib` plus the same host first-wins
+# flags via `-Wl` (G.7 complete: prefer/inject thin+rest is first-wins).
 #
 # Usage: pure_ld_partial_merge OUT OBJS...
 #   OBJS is one or more .o paths (space-separated).
 # Returns 0 on success, non-zero on failure. Caller owns stderr redirect.
 #
-# PLATFORM: SHARED — ld -r + multidef; no syslibroot/dynamic (relocatable
-#           merge, not final executable link). multidef via
+# PLATFORM: SHARED — ld -r + first-wins; no syslibroot/dynamic (relocatable
+#           merge, not final executable link). Flags from
 #           pure_ld_multidef_flags (Darwin: -multiply_defined suppress;
 #           Linux: --allow-multiple-definition).
+# PLATFORM: LINUX — gcc/ld -r without --allow-multiple-definition errors
+#           "multiple definition" when thin inject overlays a strong leftover
+#           (reent/arrcopy/ttc/blkpeel). Product default did not set
+#           XLANG_ZERO_CC_LD, so $CC -r must wrap the same ld flag (`-Wl`).
+#           Sit-red: pipeline_abi inject restore-base; hybrid stay ELF -r.
 # PLATFORM: MACOS — F7 MH_OBJECT emits LC_SEGMENT __TEXT + __DATA (vtable
 #           __DATA,__const). Apple `ld -r` / `cc -r` then fail:
-#           "more than one LC_SEGMENT found in object file". Current product
-#           xlang -c produces those objects, so prefer hybrid cannot wait on
-#           a writer rewrite. Complete this merge: if -r fails, `libtool
-#           -static` concatenates members (Darwin final ld accepts the
-#           archive on the object list). LINUX stays $CC -r / ld -r.
+#           "more than one LC_SEGMENT found in object file". Duplicate
+#           strong defs also fail `ld -r` even with -multiply_defined
+#           suppress. Current product xlang -c produces two-segment
+#           objects, so prefer hybrid cannot wait on a writer rewrite.
+#           Complete this merge: if -r fails, `libtool -static` concatenates
+#           members (Darwin final ld accepts the archive on the object list).
 # ---------------------------------------------------------------------------
 pure_ld_partial_merge() {
   local out="$1"; shift
   local objs="$*"
-  local ld_bin multidef os
+  local ld_bin multidef os cc_md
   if [ -z "$out" ] || [ -z "$objs" ]; then
     echo "pure_ld_shared: pure_ld_partial_merge needs OUT and OBJS" >&2
     return 1
@@ -221,13 +227,22 @@ pure_ld_partial_merge() {
       return 0
     fi
   else
-    # Original path: $CC -r -nostdlib (zero regression when flag unset).
+    # Product default: $CC -r. Prefer/inject first-wins needs the host
+    # multiple-definition flag; ZERO_CC_LD=1 already passed it to ld.
+    # Wrap pure_ld_multidef_flags as one -Wl token (spaces → commas).
+    # PLATFORM: LINUX — required for ELF thin inject. PLATFORM: MACOS —
+    # clang -r still rejects dups / two LC_SEGMENT; libtool below.
+    multidef="$(pure_ld_multidef_flags)"
+    cc_md=""
+    if [ -n "$multidef" ]; then
+      cc_md="-Wl,$(printf '%s' "$multidef" | tr ' ' ',')"
+    fi
     # shellcheck disable=SC2086
-    if ${CC:-cc} -r -nostdlib -o "$out" $objs; then
+    if ${CC:-cc} -r -nostdlib $cc_md -o "$out" $objs; then
       return 0
     fi
   fi
-  # PLATFORM: MACOS — F7 two-segment MH_OBJECT cannot ld -r; libtool -static.
+  # PLATFORM: MACOS — F7 two-segment MH_OBJECT / strong dups cannot ld -r.
   if [ "$os" = "Darwin" ] && command -v libtool >/dev/null 2>&1; then
     # shellcheck disable=SC2086
     libtool -static -o "$out" $objs
