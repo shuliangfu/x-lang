@@ -11,8 +11,8 @@
 | **Compiler binary** | `xlang` / `xlang_asm` (product binary after a proper build) |
 | **Source extension** | `.x` |
 | **Project build** | `build.x` — build strategy written in X (`xlang build` / `build_tool` / `xlang-build.sh`) |
-| **Status (2026-08-18)** | **Product L4 pin `f7424ae47`** (2026-08-15 dual-host true cold + bstrict **129/129**; previous `e364f4a37` 2026-08-11 → `d79a368b2` 2026-08-10 → `36363b90f` …). Tip on `wip/f1-type-dyn-pabi-e` (`353c4cb86`): **F1 TYPE_DYN foundation dual-end L2 green** · `dyn Trait` peel TYPE_DYN(17) · host-C `struct xlang_dyn_obj` · parser block-tail if 2^N explosion fixed · g05 .inc mtime check fixed · **no pin raise** (daily L2 only). MG Makefile **deleted** (0-make hub). **Self-host not finished** — cold start still needs seed / host `cc`; `pipeline_abi` mega **hard-banned** from pure-asm product (host-cc residual remains). |
-| **Live dashboard** | [Progress](analysis/自举进度.md) · [Timeline](analysis/自举时序.md) · [C-migration debt](analysis/C迁移追踪.md) · [Makefile map](analysis/Makefile迁移表.md) · [Leaf residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · [Archive 2026-08-12](analysis/自举进度-归档-2026-08-12.md) · [Archive 2026-08-11](analysis/自举进度-归档-2026-08-11.md) |
+| **Status (2026-08-20)** | **Product L4 pin `f7424ae47`** (2026-08-15 dual-host true cold + bstrict **129/129**; previous `e364f4a37` 2026-08-11 → `d79a368b2` 2026-08-10 → `36363b90f` …). Tip on **`self-hosting`**: TYPE_DYN / vtable **F1–F7 dual-end L2 green** · write `let x: Trait = a` (do **not** write `dyn Trait` — **P013**) · dest extras nested ARRAY/SLICE/PTR dest-stamp family closed through `[][2][]*T` · **no pin raise** (daily L2 only). MG Makefile **deleted** (0-make hub). **Self-host not finished** — cold start still needs seed / host `cc`; `pipeline_abi` mega **hard-banned** from pure-asm product (host-cc residual remains). |
+| **Live dashboard** | [Progress](analysis/自举进度.md) · [Timeline](analysis/自举时序.md) · [C-migration debt](analysis/C迁移追踪.md) · [Makefile map](analysis/Makefile迁移表.md) · [Leaf residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · [Archive 2026-08-19](analysis/自举进度-归档-2026-08-19.md) · [Archive 2026-08-18](analysis/自举进度-归档-2026-08-18.md) |
 | **Chinese** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -25,7 +25,7 @@
 4. [Repository layout](#4-repository-layout)
 5. [Standard library](#5-standard-library)
 6. [Compiler architecture](#6-compiler-architecture)
-7. [Self-host status](#7-self-host-status-snapshot--2026-08-18)
+7. [Self-host status](#7-self-host-status-snapshot--2026-08-20)
 8. [Milestones](#8-milestones)
 9. [Testing and quality](#9-testing-and-quality)
 10. [Performance benchmarks](#10-performance-benchmarks)
@@ -39,8 +39,8 @@
 | You are… | Start here | Then |
 |----------|------------|------|
 | **App / library author** | [§2 Quick start](#2-quick-start) · Hello World | [§3 CLI](#3-compiler-cli) · [§5 std](#5-standard-library) · [docs/](docs/README.md) |
-| **Toolchain / compiler contributor** | [§2](#2-quick-start) · [§4 layout](#4-repository-layout) · [§13](#13-contributing) | [§7 self-host](#7-self-host-status-snapshot--2026-08-18) · live [Progress](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
-| **Release / pin reviewer** | Status table (top) · [§7](#7-self-host-status-snapshot--2026-08-18) | L4 true cold + dual bstrict **129** only; L2 green ≠ re-pin |
+| **Toolchain / compiler contributor** | [§2](#2-quick-start) · [§4 layout](#4-repository-layout) · [§13](#13-contributing) | [§7 self-host](#7-self-host-status-snapshot--2026-08-20) · live [Progress](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
+| **Release / pin reviewer** | Status table (top) · [§7](#7-self-host-status-snapshot--2026-08-20) | L4 true cold + dual bstrict **129** only; L2 green ≠ re-pin |
 | **Need live residual numbers** | **Not this file** — open [Progress](analysis/自举进度.md) or `./xbuild bc-inventory` | This README is a snapshot; dashboards win on conflict |
 
 **Doc roles (do not mix authorities):** root README = product + onboarding landing; `analysis/自举进度.md` = live self-host KPI; `compiler/docs/SELFHOST.md` = operator runbook; `docs/` = language syntax for users; `AGENTS.md` + skill `xlang-selfhost-product-gate` = engineering discipline.
@@ -52,7 +52,7 @@
 ### Types and semantics
 
 - **Primitives** — `i8`/`i16`/`i32`/`i64`, `u8`/`u16`/`u32`/`u64`, `f32`/`f64`, `bool`, `usize`/`isize`
-- **Structs & generics** — monomorphized generics; trait / impl
+- **Structs & generics** — monomorphized generics; trait / impl; a type-position trait name is a dyn object (`let x: Clone = a`; do **not** write `dyn Trait`)
 - **Nullability / errors** — `Option<T>`, `Result<T, E>` (prefer over raw nullable C pointers)
 - **Slices** — `T[]` carries length; region forms `T[]<label>` with escape checks
 - **Modules** — `import("std.io")` / `import("core.mem")`; **directory = module**, entry `mod.x`
@@ -143,7 +143,7 @@ Linux host care is **kernel era + arch + object/link format (ELF)** and **which 
 | Windows 11 / 10 | ARM64 | **2** | Experimental / best effort; not CI-primary |
 | MSVC-only pure PE product path | * | **2** | Hybrid MinGW path is what gates exercise today |
 
-Windows status today is **hybrid / min-gate green on the product path**, not “full self-host L4 gold.” See [self-host status](#7-self-host-status-snapshot--2026-08-18) and [Windows limits guide](analysis/Windows平台限制与测试指南.md) when present.
+Windows status today is **hybrid / min-gate green on the product path**, not “full self-host L4 gold.” See [self-host status](#7-self-host-status-snapshot--2026-08-20) and [Windows limits guide](analysis/Windows平台限制与测试指南.md) when present.
 
 #### Explicitly unsupported (Tier 3 — do not expect fixes)
 
@@ -253,7 +253,7 @@ Details: [self-host method](analysis/自举方法.md) · [SELFHOST.md](compiler/
 
 > **Daily L2 green on tip ≠ L4 pin raise.**  
 > **Current product L4 pin = `f7424ae47`** (dual true cold + **129/129**, 2026-08-15). Residual tip may advance with **L2 only** and **does not** re-pin.  
-> **`xlang check` syntax gates are paused** on the default L2/L4 product rhythm until self-host close-out; run check only when explicitly dogfooding that surface (see [§7](#7-self-host-status-snapshot--2026-08-18)).
+> **`xlang check` syntax gates are paused** on the default L2/L4 product rhythm until self-host close-out; run check only when explicitly dogfooding that surface (see [§7](#7-self-host-status-snapshot--2026-08-20)).
 
 ---
 
@@ -418,7 +418,7 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 
 ---
 
-## 7. Self-host status (snapshot · 2026-08-18)
+## 7. Self-host status (snapshot · 2026-08-20)
 
 > **Authoritative live numbers:** [Progress](analysis/自举进度.md) · [C-migration](analysis/C迁移追踪.md) · [LEAF residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · inventory `./xbuild bc-inventory`.  
 > This README only summarizes. **Do not** treat Stage2 / prove / WPO / daily L2 green as an L4 re-pin or as “self-host done”.  
@@ -433,7 +433,7 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 | Product bstrict suite | **129** scripts (`tests/run-all-bstrict.sh`; log must show `OK (129 scripts…)`) |
 | Ubuntu L4 + full bstrict (pin) | ✅ **129/129** @ **`f7424ae47`** (gold lab · wall ~24m45s) |
 | macOS L4 + full bstrict (pin) | ✅ **129/129** @ **`f7424ae47`** (wall ~63m38s) |
-| Residual tip (≠ pin) | inventory **present 0** · **prefer pure-asm product default** · soft pure-asm std residual ladder through **run-queue green** (mac L2 · tip ~`e88958b86`) · **no pin raise** on daily soft leaves |
+| Residual tip (≠ pin) | inventory **present 0** · **prefer pure-asm product default** · TYPE_DYN/vtable **F1–F7** dual-end L2 green on `self-hosting` · dest extras nested dest-stamp closed through `[][2][]*T` · **no pin raise** on daily L2 leaves |
 | Windows hybrid / phys-del min-gate | ✅ re-proved green (wave922 lineage); tip drift still requires re-proof |
 | Gold host | **Ubuntu x86_64** (SSH lab often `ubuntu-remote-server`; LAN `ubuntu-server` may be off-site unreachable) |
 | Product binary under test | This-wave `compiler/xlang_asm` (g05 / pure-ld relink) — **never** leftover Stage2 `xlang_asm2` or old `stage1` |
@@ -458,7 +458,7 @@ On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates)
 
 ### Residual inventory (order of magnitude)
 
-| Signal | Value (2026-08-13) |
+| Signal | Value (2026-08-20) |
 |--------|---------------------|
 | `./xbuild bc-inventory` present rows | **0** (catalog closed; mega / seed cold residual is **not** counted as present leaves) |
 | Soft pure-asm std residual ladder (mac L2) | **Green through** string／builtin／encoding／ffi／safe-ffi／io／net／heap／fs／path／env／process／**queue** |
@@ -491,9 +491,9 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 
 ### Near-term front row
 
-1. **Soft pure-asm std residual ladder** — class-batch labi／formal_mod (fk0／simple-group／companions); dual-end L2; **no pin raise** by default  
-2. **Keep 0-make honest** — product path stays `./xbuild`; no reintroduce `make -C`; prefer pure-asm default; never pure-asm `pipeline_abi` mega  
-3. **Re-pin** only after explicit decision + dual true cold — **no soft-skip typeck, no dual authority**
+1. **Daily L2 on `self-hosting`** — F7 dest extras nested dest-stamp closed through `[][2][]*T`; next leftover PTR-outer `*[N][]T` (and host-C suffix / INDEX completeness). **No pin raise** by default  
+2. **Keep 0-make honest** — product path stays `./xbuild`; no reintroduce `make -C`; prefer pure-asm default; never pure-asm `pipeline_abi` mega; wrapper first arg stays `rdi`/`x0` = data  
+3. **Re-pin** only after explicit decision + dual true cold — **no soft-skip typeck, no dual authority**; nest cap stays **64**
 
 ---
 
@@ -507,7 +507,7 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, `-O2`/`-Os`, size / perf baseline | ✅ partial |
 | M5 | Bootstrap (compiler rebuilds itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start**; MG **deleted** (0-make); BC catalog **present 0** / Track **30/30 CLOSED**; soft pure-asm std residual **in progress** |
-| **Now** | L4 pin **`f7424ae47`** (dual 129 · 2026-08-15); tip `wip/f1-type-dyn-pabi-e` F1 TYPE_DYN foundation dual-end L2 green; BC／Stage8 **CLOSED** · MG ✅ · prefer pure-asm default | See [dashboard](analysis/自举进度.md) |
+| **Now** | L4 pin **`f7424ae47`** (dual 129 · 2026-08-15); tip `self-hosting` F7 TYPE_DYN/vtable + dest extras dest-stamp through `[][2][]*T`; write `let x: Trait = a`; BC／Stage8 **CLOSED** · MG ✅ · prefer pure-asm default | See [dashboard](analysis/自举进度.md) |
 
 ---
 

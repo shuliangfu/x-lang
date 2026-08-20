@@ -11,8 +11,8 @@
 | **编译器二进制** | `xlang` / `xlang_asm`（完整构建后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **项目构建** | `build.x` — 用 X 语言描述构建策略（`xlang build` / `build_tool` / `xlang-build.sh`） |
-| **现阶段（2026-08-18）** | **产品 L4 钉盘 `f7424ae47`**（2026-08-15 双端真冷 + bstrict **129/129**；前序 `e364f4a37` 2026-08-11 → `d79a368b2` 2026-08-10 → `36363b90f` …）。tip 在 `wip/f1-type-dyn-pabi-e`（`353c4cb86`）：**F1 TYPE_DYN foundation 双端 L2 绿** · `dyn Trait` peel TYPE_DYN(17) · host-C `struct xlang_dyn_obj` · parser 块尾 if 2^N 指数爆炸已修 · g05 .inc mtime 检查已修 · 日常 **不升钉**（仅 L2）。MG Makefile **已删**（0-make hub）。**尚未完全自举** — 冷启动仍需 seed / 宿主 `cc`；`pipeline_abi` mega **硬禁** pure-asm 产品路径（host-cc residual 仍在）。 |
-| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [自举时序](analysis/自举时序.md) · [C 迁移债](analysis/C迁移追踪.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [叶 residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · [8 月 12 日归档](analysis/自举进度-归档-2026-08-12.md) · [8 月 11 日归档](analysis/自举进度-归档-2026-08-11.md) |
+| **现阶段（2026-08-20）** | **产品 L4 钉盘 `f7424ae47`**（2026-08-15 双端真冷 + bstrict **129/129**；前序 `e364f4a37` 2026-08-11 → `d79a368b2` 2026-08-10 → `36363b90f` …）。tip 在 **`self-hosting`**：TYPE_DYN／vtable **F1–F7 双端 L2 绿** · 写 `let x: Trait = a`（**不要**写 `dyn Trait`，**P013**）· dest extras 嵌套 ARRAY／SLICE／PTR dest-stamp 已收到 `[][2][]*T` · 日常 **不升钉**（仅 L2）。MG Makefile **已删**（0-make hub）。**尚未完全自举** — 冷启动仍需 seed / 宿主 `cc`；`pipeline_abi` mega **硬禁** pure-asm 产品路径（host-cc residual 仍在）。 |
+| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [自举时序](analysis/自举时序.md) · [C 迁移债](analysis/C迁移追踪.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [叶 residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · [8 月 19 日归档](analysis/自举进度-归档-2026-08-19.md) · [8 月 18 日归档](analysis/自举进度-归档-2026-08-18.md) |
 | **English** | [README.md](README.md) |
 
 ---
@@ -25,7 +25,7 @@
 4. [仓库结构](#四仓库结构)
 5. [标准库](#五标准库)
 6. [编译器架构](#六编译器架构)
-7. [自举状态](#七自举状态摘要--2026-08-13)
+7. [自举状态](#七自举状态摘要--2026-08-20)
 8. [里程碑](#八里程碑)
 9. [测试与质量](#九测试与质量)
 10. [性能基准测试](#十性能基准测试)
@@ -39,8 +39,8 @@
 | 你是… | 先看 | 再看 |
 |-------|------|------|
 | **应用 / 库作者** | [§二 快速开始](#二快速开始) · Hello World | [§三 CLI](#三编译器用法) · [§五 标准库](#五标准库) · [docs/](docs/README.md) |
-| **工具链 / 编译器贡献者** | [§二](#二快速开始) · [§四 仓库结构](#四仓库结构) · [§十三](#十三贡献) | [§七 自举](#七自举状态摘要--2026-08-13) · 实时 [自举进度](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
-| **放行 / 钉盘审阅** | 文首状态表 · [§七](#七自举状态摘要--2026-08-13) | 仅认 L4 真冷 + 双端 bstrict **129**；L2 绿 ≠ 升钉 |
+| **工具链 / 编译器贡献者** | [§二](#二快速开始) · [§四 仓库结构](#四仓库结构) · [§十三](#十三贡献) | [§七 自举](#七自举状态摘要--2026-08-20) · 实时 [自举进度](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
+| **放行 / 钉盘审阅** | 文首状态表 · [§七](#七自举状态摘要--2026-08-20) | 仅认 L4 真冷 + 双端 bstrict **129**；L2 绿 ≠ 升钉 |
 | **要 residual 实时数字** | **别只看本文** — 打开 [自举进度](analysis/自举进度.md) 或 `./xbuild bc-inventory` | README 是快照；冲突时以仪表盘为准 |
 
 **文档职责（禁止混权威）：** 根 README = 产品与上手着陆页；`analysis/自举进度.md` = 自举实时 KPI；`compiler/docs/SELFHOST.md` = 操作手册；`docs/` = 面向用户的语言语法；`AGENTS.md` + skill `xlang-selfhost-product-gate` = 工程纪律。
@@ -52,7 +52,7 @@
 ### 类型与语义
 
 - **基础类型** — `i8`/`i16`/`i32`/`i64`，`u8`/`u16`/`u32`/`u64`，`f32`/`f64`，`bool`，`usize`/`isize`
-- **结构体与泛型** — 泛型单态化；trait / impl
+- **结构体与泛型** — 泛型单态化；trait / impl；类型位写 trait 名即为 dyn 对象（`let x: Clone = a`；**不要**写 `dyn Trait`）
 - **可空与错误** — `Option<T>`、`Result<T, E>`（优先于 C 式裸可空指针）
 - **切片** — `T[]` 带长度；域标注 `T[]<label>` + 逃逸检查
 - **模块** — `import("std.io")` / `import("core.mem")`；**目录即模块**，入口 `mod.x`
@@ -143,7 +143,7 @@ Linux 宿主更关心 **内核年代 + 架构 + 目标格式（ELF）** 以及**
 | Windows 11 / 10 | ARM64 | **2** | 实验 / 尽力；非 CI 主路径 |
 | 纯 MSVC PE 产品路径 | * | **2** | 当前门禁锻炼的是 MinGW hybrid |
 
-Windows 现状是**产品路径上的 hybrid / min-gate 绿**，不是「完整自举 L4 金标」。详见 [自举状态](#七自举状态摘要--2026-08-13)；有文档时见 [Windows 平台限制与测试指南](analysis/Windows平台限制与测试指南.md)。
+Windows 现状是**产品路径上的 hybrid / min-gate 绿**，不是「完整自举 L4 金标」。详见 [自举状态](#七自举状态摘要--2026-08-20)；有文档时见 [Windows 平台限制与测试指南](analysis/Windows平台限制与测试指南.md)。
 
 #### 明确不支持（Tier 3 — 勿默认会修）
 
@@ -253,7 +253,7 @@ XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 129
 
 > **日常 tip 的 L2 绿 ≠ 升 L4 钉盘。**  
 > **现行产品 L4 钉盘 = `f7424ae47`**（双端真冷 + **129/129**，2026-08-15）。residual tip 可只跑 **L2** 推进，**默认不升钉**。  
-> 自举收口期间默认 L2/L4 产品节奏下 **`xlang check` 语法闸门暂停**；仅在明确 dogfood check 面时再跑（见 [§七](#七自举状态摘要--2026-08-13)）。
+> 自举收口期间默认 L2/L4 产品节奏下 **`xlang check` 语法闸门暂停**；仅在明确 dogfood check 面时再跑（见 [§七](#七自举状态摘要--2026-08-20)）。
 
 ---
 
@@ -418,7 +418,7 @@ xlang/
 
 ---
 
-## 七、自举状态（摘要 · 2026-08-13）
+## 七、自举状态（摘要 · 2026-08-20）
 
 > **实时数字以** [自举进度.md](analysis/自举进度.md) · [C迁移追踪.md](analysis/C迁移追踪.md) · [LEAF_PATTERN_RESIDUAL.md](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · inventory `./xbuild bc-inventory` **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**写成 L4 重钉或「完全自举」。  
@@ -433,7 +433,7 @@ xlang/
 | 产品 bstrict 套件 | **129**（`tests/run-all-bstrict.sh`；日志须 `OK (129 scripts…)`） |
 | Ubuntu L4 + 全量 bstrict（钉盘） | ✅ **129/129** @ **`f7424ae47`**（金标实验室 · wall ~24m45s） |
 | macOS L4 + 全量 bstrict（钉盘） | ✅ **129/129** @ **`f7424ae47`**（wall ~63m38s） |
-| residual tip（≠ 钉盘） | inventory **present 0** · **prefer pure-asm 产品默认** · soft pure-asm std residual 梯至 **run-queue 绿**（mac L2 · tip ~`e88958b86`）· 日常 soft 叶 **不升钉** |
+| residual tip（≠ 钉盘） | inventory **present 0** · **prefer pure-asm 产品默认** · TYPE_DYN／vtable **F1–F7** 双端 L2 绿（`self-hosting`）· dest extras 嵌套 dest-stamp 已收到 `[][2][]*T` · 日常 L2 **不升钉** |
 | Windows hybrid / phys-del min-gate | ✅ 已复证绿（wave922 谱系）；tip 漂移仍须复证 |
 | 金标主机 | **Ubuntu x86_64**（SSH 实验室常用 `ubuntu-remote-server`；局域网 `ubuntu-server` 外地可能不可达） |
 | 验收二进制 | 本波 g05 / pure-ld relink 的 `compiler/xlang_asm` — **禁止**残留 Stage2 `xlang_asm2` 或旧 stage1 |
@@ -458,7 +458,7 @@ xlang/
 
 ### residual inventory（量级）
 
-| 信号 | 值（2026-08-13） |
+| 信号 | 值（2026-08-20） |
 |------|------------------|
 | `./xbuild bc-inventory` present 行 | **0**（catalog 已闭；mega／seed 冷 residual **不**计 present 叶） |
 | soft pure-asm std residual 梯（mac L2） | **已绿至** string／builtin／encoding／ffi／safe-ffi／io／net／heap／fs／path／env／process／**queue** |
@@ -491,9 +491,9 @@ xlang/
 
 ### 近端前排
 
-1. **soft pure-asm std residual 梯** — labi／formal_mod **整类**根修（fk0／simple-group／companion）；双端 L2；**默认不升钉**  
-2. **保持 0-make 诚实** — 产品路径只走 `./xbuild`；禁止再引入 `make -C`；prefer pure-asm 默认；禁止 pure-asm `pipeline_abi` mega  
-3. **升钉** 须显式决定 + 双端真冷 — **禁** soft-skip typeck、**禁**双权威
+1. **日常 L2（`self-hosting`）** — F7 dest extras 嵌套 dest-stamp 已收到 `[][2][]*T`；下波 leftover PTR-outer `*[N][]T`（以及 host-C suffix／INDEX 完备）。**默认不升钉**  
+2. **保持 0-make 诚实** — 产品路径只走 `./xbuild`；禁止再引入 `make -C`；prefer pure-asm 默认；禁止 pure-asm `pipeline_abi` mega；wrapper 首参仍 `rdi`／`x0`＝data  
+3. **升钉** 须显式决定 + 双端真冷 — **禁** soft-skip typeck、**禁**双权威；nest 帽仍 **64**
 
 ---
 
@@ -507,7 +507,7 @@ xlang/
 | M3 | 泛型、trait、模块、std 扩张 | ✅ |
 | M4 | DCE、`-O2`/`-Os`、体积 / 性能基线 | ✅ 部分 |
 | M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**冷启动仍需 seed**；MG **已删**（0-make）；BC catalog **present 0**／Track **30/30 CLOSED**；soft pure-asm std residual **进行中** |
-| **当前** | L4 钉 **`f7424ae47`**（双端 129 · 2026-08-15）；tip `wip/f1-type-dyn-pabi-e` F1 TYPE_DYN foundation 双端 L2 绿；BC／Stage8 **CLOSED** · MG ✅ · prefer pure-asm 默认 | 见 [仪表盘](analysis/自举进度.md) |
+| **当前** | L4 钉 **`f7424ae47`**（双端 129 · 2026-08-15）；tip `self-hosting` F7 TYPE_DYN／vtable + dest extras dest-stamp 至 `[][2][]*T`；写 `let x: Trait = a`；BC／Stage8 **CLOSED** · MG ✅ · prefer pure-asm 默认 | 见 [仪表盘](analysis/自举进度.md) |
 
 ---
 
