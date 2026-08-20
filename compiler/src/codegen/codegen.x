@@ -15472,6 +15472,33 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         if (elem_is_arr != 0) {
           let row_const: i32 = codegen_array_lit_tree_is_const(arena, expr_ref);
+          /*
+           * `[][N][]T`: tree_is_const is 1 (every leaf is LIT) but
+           * emit_braced of ARRAY-of-SLICE injects GNU stmt-expr rows
+           * `({ static E inner[]={…}; (slice){.data=inner,.length=K}; })`.
+           * Those are not C constant expressions, so
+           * `static E al[][N] = {{ stmt-expr, … }}` is BLD001
+           * (initializer element is not a compile-time constant).
+           * Sit-red dyn_add_slice_arr_slice true host-C cc fail
+           * (asm already 7; Darwin `--backend c -o` is often an
+           * asm-sized fake host-C binary).
+           * Do not broaden tree_is_const — file-scope dest-SLICE
+           * ARRAY_LIT still needs "leaf lits" = 1 with
+           * emit_file_scope_dest_slice_array_lit (block-scope
+           * `(E[]){…}` would dangle).
+           * ADDR_OF `[][N]*T` already fails tree_is_const (not LIT).
+           * G.7: same memcpy path as non-const `[][N]T` rows (wave341).
+           * One peel: elem of `[N][]T` is TYPE_SLICE.
+           * PLATFORM: SHARED host-C.
+           */
+          if (row_const != 0 && !ast.ref_is_null(elem_type_ref)
+              && elem_type_ref > 0 && elem_type_ref <= arena.num_types) {
+            let row_e: i32 = pipeline_type_elem_ref_at(arena, elem_type_ref);
+            if (!ast.ref_is_null(row_e) && row_e > 0 && row_e <= arena.num_types
+                && pipeline_type_kind_ord_at(arena, row_e) == (TypeKind.TYPE_SLICE as i32)) {
+              row_const = 0;
+            }
+          }
           /* ({ static  */
           let ar_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
           if (emit_bytes_from_ptr(out, &ar_open[0], 10) != 0) {
