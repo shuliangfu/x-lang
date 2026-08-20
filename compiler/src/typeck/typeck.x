@@ -14545,33 +14545,44 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           /*
            * dest extras dest-RET extra STAR PTR-elem `**[2]*T` /
            * dest extras dest-RET of `**i32` / dest extras dest-RET
-           * extra STAR PTR-elem ndims=0 `***T`: scalar PTR skips
-           * elem kind 9 so dyn_ret_ty stays 0 (typed let `**[2]*i32`
-           * / `***i32` T001; Darwin dest-stamp via the local = false
-           * green). Registry ret_elem_elem_kind + ret_elem_array
-           * ndims/dims already hold the PTR-elem leaf (`[2]*i32`
-           * extras / extra PTR of `***T`). Unused slot dims[ndims]
+           * extra STAR PTR-elem ndims=0 `***T` / dest extras dest-RET
+           * extra empty `[]` PTR-elem ndims=0 `**[]T`: scalar PTR
+           * skips elem kind 9 so dyn_ret_ty stays 0 (typed let
+           * `**[2]*i32` / `***i32` / `**[]i32` T001; Darwin dest-
+           * stamp via the local = false green). Registry
+           * ret_elem_elem_kind + ret_elem_array ndims/dims already
+           * hold the PTR-elem leaf (`[2]*i32` extras / extra PTR of
+           * `***T` / extra SLICE of `**[]T`). Unused slot dims[ndims]
            * extra SLICE wrap COUNT (1 = `**[2][]T`; 0 = no extra
            * wrap = `**[2]i32`). Unused slot dims[ndims+1] extra PTR
            * wrap COUNT (1 = `**[2]*T` / `**[2][]*T`; 0 = no extra
            * PTR = `**[2]i32` / `**[2][]T`; `**[2][]*T` has both
            * slots set). Unused slot dims[1] extra PTR wrap COUNT
            * when ndims=0 (1 = `***T`; 2 = `****T`; 0 = no extra PTR
-           * = `**T`). Wrap extra PTR of leaf extra times then extra
-           * SLICE then ARRAY inner-first then wrap PTR (elem) then
-           * wrap outer ptr. dest extras dest-RET extra STAR PTR-elem
-           * ndims=0 wraps extra PTR of leaf extra times then wrap
-           * PTR then wrap outer ptr (wrap rek3==9 previously skipped
-           * extra PTR when ndims=0 so dest-stamped `**i32` — typed
-           * let `***i32` T001; dest-stamp via the local of typed dest
-           * = false green even Ubuntu). `**i32` (ndims=0 extra PTR=0)
-           * wraps PTR of leaf then wrap outer ptr. Twin of dest
-           * extras dest-RET extra STAR SLICE-elem ndims=0 wrap
-           * (wrap extra PTR then wrap SLICE then wrap outer ptr;
-           * this wrap extra PTR then wrap PTR then wrap outer ptr).
-           * Discriminant vs dest extras dest-RET extra STAR ARRAY-
-           * elem `*[2]*T` is PTR vs ARRAY elem. Do not invent -3.
-           * PLATFORM: SHARED. G.7: complete this wrap.
+           * = `**T`). Unused slot dims[0] extra SLICE wrap COUNT
+           * when ndims=0 (1 = `**[]T`; 2 = `**[][]T`; 0 = no extra
+           * SLICE = `**T` / `***T`; extra PTR stays dims[1]; both
+           * slots = `**[]*T`). Wrap extra PTR of leaf extra times
+           * then extra SLICE then ARRAY inner-first then wrap PTR
+           * (elem) then wrap outer ptr. dest extras dest-RET extra
+           * STAR PTR-elem ndims=0 wraps extra PTR of leaf extra
+           * times then wrap PTR then wrap outer ptr (wrap rek3==9
+           * previously skipped extra PTR when ndims=0 so dest-
+           * stamped `**i32` — typed let `***i32` T001). dest extras
+           * dest-RET extra empty `[]` PTR-elem ndims=0 wraps extra
+           * PTR of leaf extra times then extra SLICE then wrap PTR
+           * then wrap outer ptr (wrap rek3==9 previously skipped
+           * extra SLICE when ndims=0 so dest-stamped `**i32` —
+           * typed let `**[]i32` T001; dest-stamp via the local of
+           * typed dest = false green even Ubuntu). `**i32` (ndims=0
+           * extra PTR=0 extra SLICE=0) wraps PTR of leaf then wrap
+           * outer ptr. Twin of dest extras dest-RET extra STAR
+           * SLICE-elem ndims=0 wrap (wrap extra PTR then wrap SLICE
+           * then wrap outer ptr; this wrap extra PTR then extra
+           * SLICE then wrap PTR then wrap outer ptr). Discriminant
+           * vs dest extras dest-RET extra STAR ARRAY-elem `*[2]*T`
+           * is PTR vs ARRAY elem. Do not invent -3. PLATFORM:
+           * SHARED. G.7: complete this wrap.
            */
           if (dyn_ret_ty == 0 && dyn_rek3 == 9) {
             let dyn_preek: i32 = xlang_skip_trait_method_ret_elem_elem_kind_c(
@@ -14626,14 +14637,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               } else if (dyn_prend == 0) {
                 /*
                  * dest extras dest-RET extra STAR PTR-elem ndims=0
-                 * `***T`: unused slot dims[1] extra PTR wrap COUNT
-                 * (1 = `***T`; 2 = `****T`; 0 = no extra PTR =
-                 * `**T`). Wrap extra PTR of leaf extra times then
-                 * wrap PTR then wrap outer ptr. Wrap rek3==9
-                 * previously skipped extra PTR when ndims=0 so
-                 * dest-stamped `**i32`. Twin of dest extras dest-RET
-                 * extra STAR SLICE-elem ndims=0 wrap. Do not invent
-                 * -3. PLATFORM: SHARED. G.7: complete this wrap.
+                 * `***T` AND dest extras dest-RET extra empty `[]`
+                 * PTR-elem ndims=0 `**[]T`: unused slot dims[1]
+                 * extra PTR wrap COUNT (1 = `***T`; 2 = `****T`;
+                 * 0 = no extra PTR = `**T`). Unused slot dims[0]
+                 * extra SLICE wrap COUNT (1 = `**[]T`; 2 =
+                 * `**[][]T`; 0 = no extra SLICE = `**T` / `***T`;
+                 * both slots = `**[]*T`). Wrap extra PTR of leaf
+                 * extra times then extra SLICE then wrap PTR then
+                 * wrap outer ptr. Wrap rek3==9 previously skipped
+                 * extra PTR/SLICE when ndims=0 so dest-stamped
+                 * `**i32`. Twin of dest extras dest-RET extra STAR
+                 * SLICE-elem ndims=0 wrap. Do not invent -3.
+                 * PLATFORM: SHARED. G.7: complete this wrap.
                  */
                 let dyn_prpx0: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, 1);
@@ -14642,6 +14658,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   while (dyn_prpi0 < dyn_prpx0 && dyn_prew > 0) {
                     dyn_prew = find_or_alloc_ptr_type_ref(arena, dyn_prew);
                     dyn_prpi0 = dyn_prpi0 + 1;
+                  }
+                }
+                let dyn_prex0: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, 0);
+                if (dyn_prex0 > 0) {
+                  let dyn_prxi0: i32 = 0;
+                  while (dyn_prxi0 < dyn_prex0 && dyn_prew > 0) {
+                    dyn_prew = find_or_alloc_slice_type_ref(arena, dyn_prew);
+                    dyn_prxi0 = dyn_prxi0 + 1;
                   }
                 }
               }

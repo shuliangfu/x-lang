@@ -11719,10 +11719,13 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               } else if ((dyn_prend == 0)) {
                 /*
                  * dest extras dest-RET extra STAR PTR-elem ndims=0
-                 * `***T`: unused slot dims[1] extra PTR wrap COUNT.
-                 * Wrap extra PTR of leaf extra times then wrap PTR
-                 * then wrap outer ptr. Pin twin of typeck.x.
-                 * PLATFORM: SHARED. G.7: complete this wrap.
+                 * `***T` AND dest extras dest-RET extra empty `[]`
+                 * PTR-elem ndims=0 `**[]T`: unused slot dims[1]
+                 * extra PTR wrap COUNT; unused slot dims[0] extra
+                 * SLICE wrap COUNT. Wrap extra PTR of leaf extra
+                 * times then extra SLICE then wrap PTR then wrap
+                 * outer ptr. Pin twin of typeck.x. PLATFORM:
+                 * SHARED. G.7: complete this wrap.
                  */
                 int32_t dyn_prpx0 = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 1);
@@ -11731,6 +11734,15 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                   while (((dyn_prpi0 < dyn_prpx0) && (dyn_prew > 0))) {
                     (void)((dyn_prew = typeck_find_or_alloc_ptr_type_ref(arena, dyn_prew)));
                     (void)((dyn_prpi0 = (dyn_prpi0 + 1)));
+                  }
+                }
+                int32_t dyn_prex0 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 0);
+                if ((dyn_prex0 > 0)) {
+                  int32_t dyn_prxi0 = 0;
+                  while (((dyn_prxi0 < dyn_prex0) && (dyn_prew > 0))) {
+                    (void)((dyn_prew = typeck_find_or_alloc_slice_type_ref(arena, dyn_prew)));
+                    (void)((dyn_prxi0 = (dyn_prxi0 + 1)));
                   }
                 }
               }
