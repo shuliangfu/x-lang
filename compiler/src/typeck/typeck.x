@@ -282,8 +282,11 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * wrap count (`[][2][]T` = 1; `[][2][][]T` = 2; 0 / missing
  * means no extra wrap) AND dest extras dest-ARRAY-of-SLICE extra
  * PTR wrap count (`[2][][2]*T` = 1; 0 / missing means no extra
- * PTR = `[2][][2]T`; discriminant vs extra SLICE is elem_kind
- * SLICE vs ARRAY). dim_ix==ndims+1 is extra PTR wrap count
+ * PTR = `[2][][2]T`) AND dest extras dest-SLICE-of-SLICE extra
+ * PTR wrap count (`[][][2]*T` = 1; 0 / missing means no extra
+ * PTR = `[][][2]T`; discriminant vs extra SLICE is elem_kind
+ * SLICE vs ARRAY; discriminant ARRAY vs SLICE outer is param
+ * kind). dim_ix==ndims+1 is extra PTR wrap count
  * (`[][2]*T` = 1; 0 / missing means no extra PTR).
  * PLATFORM: SHARED.
  */
@@ -14885,6 +14888,33 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   }
                 }
                 /*
+                 * dest extras dest-SLICE-of-SLICE extra PTR wraps
+                 * (`[][][2]*T`): dim accessor returns extra PTR wrap
+                 * count at dim_ix==ndims when ndims>=1 (unused slot
+                 * after inner ARRAY dims). Wrap PTR of leaf extra
+                 * times then wrap ARRAY inner-first then wrap SLICE
+                 * twice. `[][][2]i32` (sspx3<=0) stays extra-ARRAY-
+                 * only. Twin of dest extras dest-ARRAY-of-SLICE extra
+                 * PTR wraps (`[2][][2]*T`; same unused-slot encoding;
+                 * discriminant is SLICE vs ARRAY outer). Store extra
+                 * STAR ARRAY-or-SLICE already complete. Impl-match
+                 * leftover PTR vs eeek=leaf after extra ARRAY peels
+                 * is T001 until extra PTR peels. Do not invent -3.
+                 * PLATFORM: SHARED.
+                 */
+                if (dyn_ssand >= 1) {
+                  let dyn_sspx3: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_ssand);
+                  if (dyn_sspx3 > 0) {
+                    let dyn_sspi3: i32 = 0;
+                    while (dyn_sspi3 < dyn_sspx3 && dyn_ssaw > 0) {
+                      dyn_ssaw = find_or_alloc_ptr_type_ref(arena, dyn_ssaw);
+                      dyn_sspi3 = dyn_sspi3 + 1;
+                    }
+                  }
+                }
+                /*
                  * dest extras dest-SLICE-of-SLICE extra ARRAY wraps
                  * (`[][][2]T`): dim accessor returns inner ARRAY
                  * dims at 0..ndims-1 when ndims>=1 (wave437 store
@@ -15143,8 +15173,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * wraps (`[][2]*T`; discriminant is ARRAY vs SLICE
                  * elem). ARRAY leftover impl-match matches at leftover
                  * SLICE (not T001). dest extras dest-SLICE-of-SLICE
-                 * extra ARRAY extra PTR (`[][][2]*T`) stays deferred.
-                 * Do not invent -3. PLATFORM: SHARED.
+                 * extra ARRAY extra PTR (`[][][2]*T`) is handled in
+                 * the dest-SLICE path (same dims[ndims] extra PTR
+                 * encoding; discriminant is SLICE outer vs ARRAY
+                 * outer). Do not invent -3. PLATFORM: SHARED.
                  */
                 if (dyn_asand >= 1) {
                   let dyn_aspx3: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
