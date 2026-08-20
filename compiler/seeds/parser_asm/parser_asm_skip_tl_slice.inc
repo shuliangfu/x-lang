@@ -3297,9 +3297,17 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                      * dest-stamps via the formal (no dest extras
                      * dest-PTR stamp). leftover extra SLICE peels
                      * leftover eek==PTR eand==-2 (`[]*[]T` /
-                     * `[]*[][]T`) stay deferred (leftover PTR vs
-                     * eek=PTR is not T001 — already closed). Do
-                     * not invent -3. PLATFORM: SHARED. G.7:
+                     * `[]*[][]T` PTR-to-SLICE of SLICE outer) peel
+                     * leftover SLICE extra times then leftover PTR
+                     * extra times (eeek compare stays inside the
+                     * eand==-2 branch — leftover after leftover-PTR
+                     * peel is SLICE vs eeek=leaf would T001 matching
+                     * `[]*[]T` if lifted). leftover skip leftover
+                     * extras never compared was false green (impl
+                     * `[]*i32` vs trait `[]*[]i32` compile=0 run=1
+                     * leftover skip). Twin of leftover eek==SLICE
+                     * eand==-2 extra SLICE then extra PTR peels.
+                     * Do not invent -3. PLATFORM: SHARED. G.7:
                      * complete this walk.
                      */
                     int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
@@ -3438,18 +3446,93 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                             }
                           }
                         }
+                      } else if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                        /*
+                         * leftover extra SLICE peels leftover
+                         * eek==PTR eand==-2 `[]*[]T` / `[]*[][]T`
+                         * PTR-to-SLICE of SLICE outer: leftover PTR
+                         * vs eek=PTR is not T001 without leftover
+                         * extra SLICE peels (store-only leftover
+                         * extras never compared leftover skip false
+                         * green; impl `[]*i32` vs trait `[]*[]i32`
+                         * compile=0 run=1 leftover skip). Extra
+                         * SLICE wrap COUNT is dims[0] (0 means 1 =
+                         * `[]*[]T`; 2 = `[]*[][]T`). Extra PTR wrap
+                         * COUNT is unused slot dims[1] (1 =
+                         * `[]*[]*T`; 2 = `[]*[]**T`; 0 = no extra
+                         * PTR = `[]*[]T`). Peel leftover SLICE extra
+                         * times then leftover PTR extra times or
+                         * T001. Twin of leftover eek==SLICE
+                         * eand==-2 extra SLICE then extra PTR peels
+                         * (`[][][]T` / `[][][]*T` already closed)
+                         * AND leftover eek==ARRAY eand==-2 extra
+                         * SLICE peels (`[2]*[]T` already closed)
+                         * AND leftover eek==PTR eend==-2 extra
+                         * SLICE then extra PTR peels (`*[][]T` /
+                         * `*[][]*T` dest extras dest-RET already
+                         * closed). Extra ADDR_OF of typed dest
+                         * dest-stamps via the formal (no dest extras
+                         * dest-PTR stamp). Do not lift eeek compare
+                         * outside this branch — leftover after
+                         * leftover-PTR peel is SLICE vs eeek=leaf
+                         * would T001 matching `[]*[]T`. Do not
+                         * invent -3. PLATFORM: SHARED. G.7:
+                         * complete this walk.
+                         */
+                        int32_t extra;
+                        int32_t extra_ptr;
+                        extra =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra <= 0)
+                          extra = 1;
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          extra = extra - 1;
+                        }
+                        extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][1];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                        if (!mm) {
+                          if (pgek >= 0 && pgek != eeek) {
+                            mm = 1;
+                          } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                            int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                            if (enl > 0) {
+                              uint8_t gnm[64];
+                              int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                              if (!xlang_skip_trait_named_eq_self_c(
+                                    g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                    gnm, gnl,
+                                    g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                    g_xlang_skip_impl_for_is_ptr[si]))
+                                mm = 1;
+                            }
+                          }
+                        }
                       }
-                      /*
-                       * leftover eek==PTR eand==-2 (`[]*[]T` /
-                       * `[]*[][]T` PTR-to-SLICE of SLICE outer)
-                       * leftover extra SLICE peels stay deferred:
-                       * leftover PTR vs eek=PTR is not T001
-                       * (already closed). Do not compare eeek
-                       * here — leftover after leftover-PTR peel
-                       * is SLICE vs eeek=leaf would T001 matching
-                       * `[]*[]T`. Do not invent -3. PLATFORM:
-                       * SHARED. G.7: complete this walk.
-                       */
                     }
                   }
                 }
