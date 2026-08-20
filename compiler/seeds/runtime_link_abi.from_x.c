@@ -924,7 +924,7 @@ void xlang_asm_ld_lib_root_default(char root_buf[512]);
 
 
 #if defined(__linux__)
-/** nostdlib 链 environ 可能无 PATH：链接子进程优先用绝对路径 gcc（含 gcc 官方镜像 /usr/local/bin）。 */
+/** Absolute gcc path for ALLOW invoke_cc only (product -o hosted uses ld, not gcc-as-ld). */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 const char * xlang_linux_host_gcc_path(void) {
     if (access("/usr/bin/gcc", X_OK) == 0)
@@ -4451,74 +4451,219 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
 
 #if defined(__linux__)
 /**
- * nostdlib xlang_asm：自包含 user.o 的 gcc 最小链（user.o + runtime 桩 + -lc）。
+ * Capacity-guarded argv push for Linux hosted ld.
+ * PLATFORM: LINUX — product -o must not spawn gcc as the linker driver.
+ */
+static int labi_linux_ld_push(const char **argv, int *la, int cap, const char *s) {
+    if (argv == NULL || la == NULL || s == NULL || s[0] == 0)
+        return 0;
+    if (*la < 0 || *la >= cap - 1)
+        return 0;
+    argv[(*la)++] = s;
+    return 1;
+}
+
+static const char *labi_linux_first_readable(const char *const *cands) {
+    int i;
+    if (cands == NULL)
+        return 0;
+    for (i = 0; cands[i] != 0; i++) {
+        if (link_abi_path_readable(cands[i]) != 0)
+            return cands[i];
+    }
+    return 0;
+}
+
+/**
+ * Glibc PIE crt + interpreter for hosted product -o (no gcc/cc driver).
+ * Historical SIGSEGV: bare `ld -e main` skipped libc `_start` / `__libc_start_main`.
+ * G.7: complete existing ld; same multiarch candidates as pure_ld_hosted_crt1
+ * (filesystem only — do not spawn gcc -print-file-name / collect2).
+ * PLATFORM: LINUX.
+ */
+static const char *labi_linux_hosted_scrt1(void) {
+    static const char *cands[5];
+    cands[0] = "/usr/lib/x86_64-linux-gnu/Scrt1.o";
+    cands[1] = "/usr/lib/aarch64-linux-gnu/Scrt1.o";
+    cands[2] = "/usr/lib64/Scrt1.o";
+    cands[3] = "/usr/lib/Scrt1.o";
+    cands[4] = 0;
+    return labi_linux_first_readable(cands);
+}
+
+static const char *labi_linux_hosted_crti(void) {
+    static const char *cands[5];
+    cands[0] = "/usr/lib/x86_64-linux-gnu/crti.o";
+    cands[1] = "/usr/lib/aarch64-linux-gnu/crti.o";
+    cands[2] = "/usr/lib64/crti.o";
+    cands[3] = "/usr/lib/crti.o";
+    cands[4] = 0;
+    return labi_linux_first_readable(cands);
+}
+
+static const char *labi_linux_hosted_crtn(void) {
+    static const char *cands[5];
+    cands[0] = "/usr/lib/x86_64-linux-gnu/crtn.o";
+    cands[1] = "/usr/lib/aarch64-linux-gnu/crtn.o";
+    cands[2] = "/usr/lib64/crtn.o";
+    cands[3] = "/usr/lib/crtn.o";
+    cands[4] = 0;
+    return labi_linux_first_readable(cands);
+}
+
+static const char *labi_linux_hosted_dyn_linker(void) {
+    static const char *cands[6];
+    cands[0] = "/lib64/ld-linux-x86-64.so.2";
+    cands[1] = "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2";
+    cands[2] = "/lib/ld-linux-x86-64.so.2";
+    cands[3] = "/lib/ld-linux-aarch64.so.1";
+    cands[4] = "/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1";
+    cands[5] = 0;
+    return labi_linux_first_readable(cands);
+}
+
+/**
+ * Prefix hosted ld argv: driver, PIE/relro/noexecstack/now, --gc-sections,
+ * dynamic linker, -o exe, Scrt1, crti, -L glibc dirs.
+ * Caller then appends user/std objects and -l* (unix tail). Finish adds crtn.
+ * gcc crtbeginS is not required (X emit does not need gcc .ctors wrapper).
+ */
+static int labi_linux_hosted_ld_begin(const char **argv, int *la, int cap, const char *exe_path) {
+    const char *scrt1;
+    const char *crti;
+    const char *dyn;
+    static const char *ldirs[9];
+    static char lbufs[8][96];
+    int i;
+    int nL;
+
+    scrt1 = labi_linux_hosted_scrt1();
+    crti = labi_linux_hosted_crti();
+    dyn = labi_linux_hosted_dyn_linker();
+    if (scrt1 == NULL || crti == NULL || dyn == NULL || exe_path == NULL || exe_path[0] == 0)
+        return -1;
+    if (!labi_linux_ld_push(argv, la, cap, labi_ld_driver_ld()))
+        return -1;
+    (void)labi_linux_ld_push(argv, la, cap, "--eh-frame-hdr");
+#if defined(__aarch64__)
+    (void)labi_linux_ld_push(argv, la, cap, "-m");
+    (void)labi_linux_ld_push(argv, la, cap, "aarch64linux");
+#elif defined(__x86_64__)
+    (void)labi_linux_ld_push(argv, la, cap, "-m");
+    (void)labi_linux_ld_push(argv, la, cap, "elf_x86_64");
+#endif
+    if (!labi_linux_ld_push(argv, la, cap, "-dynamic-linker"))
+        return -1;
+    if (!labi_linux_ld_push(argv, la, cap, dyn))
+        return -1;
+    /* ld-native form of labi_linux_harden_flag_* (drop -fpie / -Wl, prefix). */
+    (void)labi_linux_ld_push(argv, la, cap, "-pie");
+    (void)labi_linux_ld_push(argv, la, cap, "-z");
+    (void)labi_linux_ld_push(argv, la, cap, "noexecstack");
+    (void)labi_linux_ld_push(argv, la, cap, "-z");
+    (void)labi_linux_ld_push(argv, la, cap, "relro");
+    (void)labi_linux_ld_push(argv, la, cap, "-z");
+    (void)labi_linux_ld_push(argv, la, cap, "now");
+    (void)labi_linux_ld_push(argv, la, cap, "--gc-sections");
+    (void)labi_linux_ld_push(argv, la, cap, "--allow-multiple-definition");
+    if (!labi_linux_ld_push(argv, la, cap, labi_ld_flag_o()))
+        return -1;
+    if (!labi_linux_ld_push(argv, la, cap, exe_path))
+        return -1;
+    if (!labi_linux_ld_push(argv, la, cap, scrt1))
+        return -1;
+    if (!labi_linux_ld_push(argv, la, cap, crti))
+        return -1;
+    ldirs[0] = "/usr/lib/x86_64-linux-gnu";
+    ldirs[1] = "/lib/x86_64-linux-gnu";
+    ldirs[2] = "/usr/lib/aarch64-linux-gnu";
+    ldirs[3] = "/lib/aarch64-linux-gnu";
+    ldirs[4] = "/usr/lib64";
+    ldirs[5] = "/lib64";
+    ldirs[6] = "/usr/lib";
+    ldirs[7] = "/lib";
+    ldirs[8] = 0;
+    nL = 0;
+    for (i = 0; ldirs[i] != 0 && nL < 8; i++) {
+        size_t n;
+        if (link_abi_path_readable(ldirs[i]) == 0)
+            continue;
+        n = strlen(ldirs[i]);
+        if (n + 3 >= sizeof lbufs[0])
+            continue;
+        lbufs[nL][0] = '-';
+        lbufs[nL][1] = 'L';
+        memcpy(lbufs[nL] + 2, ldirs[i], n + 1);
+        (void)labi_linux_ld_push(argv, la, cap, lbufs[nL]);
+        nL++;
+    }
+    return 0;
+}
+
+/**
+ * Rewrite gcc-only `-pthread` (unix tail libs) to `-lpthread`, append crtn, spawn ld.
+ * Do not fall back to gcc. PATH: xlang_linux_ld_child_path (nostdlib parent may lack PATH).
+ */
+static int labi_linux_hosted_ld_finish_and_spawn(const char **argv, int *la, int cap, const char *debug_tag) {
+    const char *crtn;
+    int i;
+    int rc;
+
+    if (argv == NULL || la == NULL)
+        return -1;
+    for (i = 0; i < *la; i++) {
+        if (argv[i] != NULL && strcmp(argv[i], "-pthread") == 0)
+            argv[i] = labi_ld_flag_lpthread();
+    }
+    crtn = labi_linux_hosted_crtn();
+    if (crtn == NULL || !labi_linux_ld_push(argv, la, cap, crtn)) {
+        link_diag_tool_status("ld", -1);
+        return -1;
+    }
+    argv[*la] = NULL;
+    if (debug_tag != NULL && link_abi_getenv("XLANG_DEBUG_LD"))
+        link_diag_ld_debug_argv(debug_tag, argv);
+    xlang_linux_ld_child_path();
+    rc = xlang_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
+    if (rc != 0) {
+        link_diag_tool_status("ld", rc);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * nostdlib xlang_asm: self-contained user.o hosted ld (user.o + runtime stubs + -lc).
  * pipeline/elf emit 后主栈已很深，完整 ld argv 构建（realpath 去重、popen nm）易 SIGSEGV；
- * 固定小 argv + static path bank，不扫描 std/*.o。
+ * 固定 argv + static path bank，不扫描 std/*.o。
  * 参数：link_eff 有效 argv0/compiler 目录；lib_roots 与 driver -L 一致。
  * 返回值：0 成功，-1 失败。
+ * PLATFORM: LINUX — G.7 same hosted ld as xlang_asm_invoke_ld_platform (no gcc driver).
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int xlang_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const char *exe_path,
     const char *link_eff, const char **lib_roots, int n_lib_roots) {
     static ShuAsmLdPathBank bank;
-    const char *argv[24];
+    const char *argv[XLANG_LD_ARGV_CAP];
     int la = 0;
-    pid_t pid;
-    int status;
 
     if (!o_path || !exe_path || !link_eff)
         return -1;
     bank.n = 0;
     memset(bank.slots, 0, sizeof bank.slots);
-    argv[la++] = xlang_linux_host_gcc_path();
-    xlang_append_linux_link_harden((char **)argv, &la, (int)(sizeof argv / sizeof argv[0]));
-    argv[la++] = "-o";
-    argv[la++] = exe_path;
-    argv[la++] = o_path;
+    if (labi_linux_hosted_ld_begin(argv, &la, XLANG_LD_ARGV_CAP, exe_path) != 0) {
+        link_diag_tool_status("ld", -1);
+        return -1;
+    }
+    if (la < XLANG_LD_ARGV_CAP - 1)
+        argv[la++] = o_path;
     link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots, n_lib_roots, &bank, argv, &la,
-        (int)(sizeof argv / sizeof argv[0]));
-    if (la < (int)(sizeof argv / sizeof argv[0]) - 1)
-        argv[la++] = "-lc";
+        XLANG_LD_ARGV_CAP);
+    if (la < XLANG_LD_ARGV_CAP - 1)
+        argv[la++] = labi_ld_flag_lc();
     /* G.7: CLI user .o on self-contained minimal asm link too. */
-    xlang_asm_ld_append_user_extra_o_files(argv, &la, (int)(sizeof argv / sizeof argv[0]));
-    argv[la] = NULL;
-    /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-    if (link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_argv("minimal gcc argv", argv);
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    {
-        intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
-        if (rc == -1) {
-            perror("spawnvp (ld nostdlib minimal)");
-            return -1;
-        }
-        if (rc != 0) {
-            link_diag_tool_status("ld", (int)rc);
-            return -1;
-        }
-    }
-#else
-    pid = fork();
-    if (pid < 0) {
-        perror("fork (ld nostdlib minimal)");
-        return -1;
-    }
-    if (pid == 0) {
-        xlang_linux_ld_child_path();
-        execvp(argv[0], (char *const *)argv);
-        execv("/usr/bin/gcc", (char *const *)argv);
-        execv("/usr/local/bin/gcc", (char *const *)argv);
-        perror("gcc (nostdlib minimal user.o)");
-        _exit(127);
-    }
-    if (xlang_waitpid_retry(pid, &status) != 0)
-        return -1;
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        link_diag_tool_status("ld", status);
-        return -1;
-    }
-#endif
-    return 0;
+    xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
+    return labi_linux_hosted_ld_finish_and_spawn(argv, &la, XLANG_LD_ARGV_CAP, "minimal ld argv");
 }
 
 
@@ -4902,7 +5047,7 @@ int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, 
 
 #if defined(__linux__) || defined(__APPLE__)
 /**
- * 用户 .o 是否无任何未定义符号（nm -u 为空）；用于 Linux 最小 gcc 链 user.o+-lc。
+ * 用户 .o 是否无任何未定义符号（nm -u 为空）；用于 Linux 最小 hosted ld 链 user.o+-lc。
  * 参数：o_path 用户对象路径。
  * 返回值：1 有未定义符号或 nm 失败（保守），0 完全自包含。
  */
@@ -5065,6 +5210,7 @@ static const char *labi_darwin_sdk_path(void) {
 /**
  * ASM -o exe：fork 子进程执行 ld 或 lld-link；调用方须先 xlang_asm_ld_prepare_for_exe_link。
  * Darwin product -o uses bare ld + syslibroot (no clang/cc driver).
+ * Linux hosted product -o uses bare ld + glibc Scrt1/crti/crtn (no gcc/cc driver).
  * 参数：driver_freestanding 同 xlang_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。
  */
@@ -5327,8 +5473,8 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
         }
         /* F-no-libc NL-05 END */
         /*
-         * 自包含 .o（nm -u 为空）：gcc 仅链 user.o + libc crt。
-         * nostdlib xlang_asm 无 popen：保守走全量 gcc 链（return-value 等）。
+         * 自包含 .o（nm -u 为空）：hosted ld 仅链 user.o + libc crt。
+         * nostdlib xlang_asm 无 popen：保守走全量 hosted ld 链（return-value 等）。
          */
         if (!xlang_asm_user_o_has_undef_syms(o_path)) {
 #if defined(__linux__)
@@ -5340,11 +5486,12 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
                 return xlang_asm_nostdlib_minimal_selfcontained_exe_link(o_path, exe_path, link_eff,
                     lib_roots_eff, n_lib_roots_eff);
 #endif
-            argv[la++] = xlang_linux_host_gcc_path();
-            xlang_append_linux_link_harden((char **)argv, &la, XLANG_LD_ARGV_CAP);
-            argv[la++] = "-o";
-            argv[la++] = exe_path;
-            argv[la++] = o_path;
+            if (labi_linux_hosted_ld_begin(argv, &la, XLANG_LD_ARGV_CAP, exe_path) != 0) {
+                link_diag_tool_status("ld", -1);
+                return -1;
+            }
+            if (la < XLANG_LD_ARGV_CAP - 1)
+                argv[la++] = o_path;
             link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP);
             /*
              * user.o 无 UNDEF：co-emit 已自洽。勿再硬链 string.o/base64.o/encoding.o
@@ -5352,73 +5499,30 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
              * 有 UNDEF 时走下方 full append_std / on_demand。
              */
             if (la < XLANG_LD_ARGV_CAP - 1)
-                argv[la++] = "-lc";
+                argv[la++] = labi_ld_flag_lc();
             xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
-            argv[la] = NULL;
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-            {
-                intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
-                if (rc == -1) {
-                    perror("spawnvp (ld)");
-                    return -1;
-                }
-                if (rc != 0) {
-                    link_diag_tool_status("ld", (int)rc);
-                    return -1;
-                }
-            }
-#else
-            pid = fork();
-            if (pid < 0) {
-                perror("fork (ld)");
-                return -1;
-            }
-            if (pid == 0) {
-                xlang_linux_ld_child_path();
-                execvp(argv[0], (char *const *)argv);
-#if defined(__linux__)
-                execv("/usr/local/bin/gcc", (char *const *)argv);
-                execv("/usr/local/bin/cc", (char *const *)argv);
-                execv("/usr/bin/gcc", (char *const *)argv);
-                execv("/usr/bin/cc", (char *const *)argv);
-                execvp("gcc", (char *const *)argv);
-                execvp("cc", (char *const *)argv);
-#endif
-                perror("gcc (minimal user.o)");
-                _exit(127);
-            }
-            {
-                int status;
-                if (xlang_waitpid_retry(pid, &status) != 0)
-                    return -1;
-                if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    link_diag_tool_status("ld", status);
-                    return -1;
-                }
-            }
-#endif
-            return 0;
+            return labi_linux_hosted_ld_finish_and_spawn(argv, &la, XLANG_LD_ARGV_CAP, "minimal ld argv");
         }
 #endif
 #if defined(__linux__)
-        /* Linux ELF：gcc 驱动链接（crt _start→main）；裸 ld -e main 缺 crt 初始化易 SIGSEGV。 */
-        argv[la++] = xlang_linux_host_gcc_path();
-        xlang_append_linux_link_harden((char **)argv, &la, XLANG_LD_ARGV_CAP);
         /*
-         * PLATFORM: LINUX hosted asm — same GC invariant as C invoke_cc + freestanding asm ld.
-         * Formal std/*.o are built with -ffunction-sections; without --gc-sections, unused
-         * map/set/queue bodies retain U heap/hash and BLD001 even when user only needs empty_size.
-         * G.7: complete hosted asm link authority (do not invent a second GC path).
+         * PLATFORM: LINUX hosted product -o — G.7 complete existing ld (no gcc
+         * driver). Historical SIGSEGV was `ld -e main` without glibc crt
+         * (_start → __libc_start_main). Prefix Scrt1+crti; suffix crtn; PIE
+         * + -z noexecstack/relro/now + --gc-sections. Same object list as the
+         * old gcc driver (std + on_demand + extra). Do not spawn gcc/cc.
          */
-        if (la < XLANG_LD_ARGV_CAP - 1)
-            argv[la++] = "-Wl,--gc-sections";
+        if (labi_linux_hosted_ld_begin(argv, &la, XLANG_LD_ARGV_CAP, exe_path) != 0) {
+            link_diag_tool_status("ld", -1);
+            return -1;
+        }
 #else
         argv[la++] = "ld";
         argv[la++] = "-e";
         argv[la++] = "_main";
-#endif
         argv[la++] = "-o";
         argv[la++] = exe_path;
+#endif
         argv[la++] = o_path;
         xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
         xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
@@ -5428,10 +5532,13 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
         xlang_asm_ld_append_unix_gcc_tail_libs(compress_o, o_path, &ldflags, need_pt, (const char **)argv, &la, XLANG_LD_ARGV_CAP);
         /* G.7: CLI user .o after std/on_demand/tail libs (mirrors invoke_cc order). */
         xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
+#if defined(__linux__)
+        return labi_linux_hosted_ld_finish_and_spawn(argv, &la, XLANG_LD_ARGV_CAP, "ld argv");
+#endif
         argv[la] = NULL;
         /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
         if (link_abi_getenv("XLANG_DEBUG_LD"))
-            link_diag_ld_debug_argv("gcc argv", argv);
+            link_diag_ld_debug_argv("ld argv", argv);
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
             intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
