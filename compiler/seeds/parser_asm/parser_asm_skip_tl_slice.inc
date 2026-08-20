@@ -1960,7 +1960,8 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
  * SLICE also in dims[ndims]; `[2]*[2]*T` = 1;
  * `[2]*[2][]*T` = 1 with extra SLICE also in dims[ndims];
  * `*[2]*T` = 1; `*[2][]*T` = 1 with extra SLICE also in
- * dims[ndims]; 0 / missing means no extra PTR)
+ * dims[ndims]; `**[2]*T` = 1; `**[2][]*T` = 1 with extra
+ * SLICE also in dims[ndims]; 0 / missing means no extra PTR)
  * AND dest extras dest-ARRAY-of-SLICE extra wrap
  * `[2][][2][]T` extra SLICE wrap count (`[2][][2][]T` = 1;
  * `[2][][2][][]T` = 2) AND dest extras dest-SLICE-of-SLICE
@@ -4862,39 +4863,48 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                            && (ent->method_param_kinds[mi_reg][param_count]
                                    == XLANG_TRAIT_TY_ARRAY
                                || ent->method_param_kinds[mi_reg][param_count]
-                                      == XLANG_TRAIT_TY_SLICE)) {
+                                      == XLANG_TRAIT_TY_SLICE
+                               || ent->method_param_kinds[mi_reg][param_count]
+                                      == XLANG_TRAIT_TY_PTR)) {
                   /*
                    * dest extras dest-SLICE of PTR extra `[]*[2]*T` /
-                   * `[]*[2][]*T` and dest extras dest-ARRAY of PTR
-                   * extra `[2]*[2]*T` / `[2]*[2][]*T`: after `[]*`
-                   * / `[K]*` then `[N]` (and optional extra empty
-                   * `[]`) we are in param_elem_elem_pending
+                   * `[]*[2][]*T`, dest extras dest-ARRAY of PTR extra
+                   * `[2]*[2]*T` / `[2]*[2][]*T`, and PTR-elem +
+                   * PTR-outer extra `**[2]*T` / `**[2][]*T`: after
+                   * `[]*` / `[K]*` / `**` then `[N]` (and optional
+                   * extra empty `[]`) we are in param_elem_elem_pending
                    * (elem=PTR, dims in the local buffer or registry).
-                   * Extra STAR used to hit token_to_type_kind=-1 then
+                   * Extra STAR used to require ARRAY or SLICE outer so
+                   * PTR outer hit token_to_type_kind=-1 then
                    * want_param_ty=0 so leaf T never committed and
                    * param_elem_dim_n stayed live — COMMA/RPAREN
                    * wave434 *T[N] lift overwrote kind=ARRAY (impl T001
-                   * leftover SLICE vs ARRAY / leftover PTR vs
+                   * leftover PTR vs ARRAY / leftover PTR vs
                    * eeek=-1). ndims=-2 would lose [N] (ban -3 / new
                    * field). Keep PTR; extra PTR wrap COUNT lives in
                    * unused slot dims[ndims+1]
-                   * (1 = `[]*[2]*T` / `[2]*[2]*T` / `[]*[2][]*T` /
-                   * `[2]*[2][]*T`; 0 = no extra PTR =
-                   * `[]*[2]i32` / `[2]*[2]i32` / `[]*[2][]T` /
-                   * `[2]*[2][]T`). Extra SLICE stays dims[ndims]
-                   * (`[]*[2][]*T` / `[2]*[2][]*T` have both slots
-                   * set). Discriminant vs dest extras dest-SLICE of
-                   * ARRAY extra `[][2]*T` (same unused slot) is
-                   * elem_kind PTR vs ARRAY. Discriminant dest extras
-                   * dest-SLICE of PTR extra `[]*[2]*T` vs dest extras
-                   * dest-ARRAY of PTR extra `[2]*[2]*T` is SLICE vs
-                   * ARRAY outer. PTR-outer `*[N]*T` is ARRAY elem +
-                   * PTR outer (extra STAR after `*[N]`; same unused
-                   * slot as `[][2]*T`; not this PTR-elem branch).
-                   * Capture leaf T by staying pending. Store-only of
-                   * `[2]*[2]*T` without ARRAY leftover extra PTR
-                   * peels is T001 leftover PTR vs eeek=leaf after
-                   * extra ARRAY peels. PLATFORM: SHARED parse.
+                   * (1 = `[]*[2]*T` / `[2]*[2]*T` / `**[2]*T` /
+                   * `[]*[2][]*T` / `[2]*[2][]*T` / `**[2][]*T`;
+                   * 0 = no extra PTR = `[]*[2]i32` / `[2]*[2]i32` /
+                   * `**[2]i32` / `[]*[2][]T` / `[2]*[2][]T` /
+                   * `**[2][]T`). Extra SLICE stays dims[ndims]
+                   * (`[]*[2][]*T` / `[2]*[2][]*T` / `**[2][]*T`
+                   * have both slots set). Discriminant vs dest extras
+                   * dest-SLICE of ARRAY extra `[][2]*T` (same unused
+                   * slot) is elem_kind PTR vs ARRAY. Discriminant
+                   * dest extras dest-SLICE of PTR extra `[]*[2]*T`
+                   * vs dest extras dest-ARRAY of PTR extra
+                   * `[2]*[2]*T` vs PTR-outer `**[2]*T` is SLICE vs
+                   * ARRAY vs PTR outer. PTR-outer `*[N]*T` is ARRAY
+                   * elem + PTR outer (extra STAR after `*[N]`; same
+                   * unused slot as `[][2]*T`; not this PTR-elem
+                   * branch). Capture leaf T by staying pending.
+                   * Store-only of `[2]*[2]*T` without ARRAY leftover
+                   * extra PTR peels is T001 leftover PTR vs eeek=leaf
+                   * after extra ARRAY peels. PTR-outer leftover PTR
+                   * vs eek=PTR is not T001; extra ADDR_OF of typed
+                   * `*[2]*T` dest-stamps via the formal (no dest
+                   * extras dest-PTR stamp). PLATFORM: SHARED parse.
                    * G.7: complete this scanner.
                    */
                   int32_t nd;
