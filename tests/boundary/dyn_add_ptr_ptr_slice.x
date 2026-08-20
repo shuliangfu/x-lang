@@ -13,7 +13,7 @@
 // extra empty `[]` PTR-elem ndims>=1 `**[2][]T` (extra SLICE
 // in dims[ndims]) is ndims=0 vs ndims>=1. Discriminant vs
 // dest extras dest-PARAM extra STAR PTR-elem ndims=0 `***T`
-// (extra PTR in dims[1]; still deferred) is extra SLICE vs
+// (extra PTR in dims[1]; this leaf) is extra SLICE vs
 // extra PTR. Consume: leftover PTR vs eek=PTR peels leftover
 // PTR then extra SLICE then extra PTR when ndims=0; extra
 // ADDR_OF of typed `*[]i32` dest-stamps via the formal (no
