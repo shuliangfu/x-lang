@@ -2049,12 +2049,17 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
       return extra;
     }
     if (dim_ix == nd + 1 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
-      /* dest extras dest-SLICE-of-ARRAY extra PTR `[][2]*T` and
-       * dest extras dest-SLICE-of-PTR extra PTR `[]*[2]*T`
-       * (elem=PTR, unused slot dims[ndims+1]; discriminant is
-       * elem_kind). extra>0 returns the count; 0 / missing → -1
-       * so `[][2]i32` / `[]*[2]i32` stay wrap-once. PLATFORM:
-       * SHARED. */
+      /* dest extras dest-SLICE-of-ARRAY extra PTR `[][2]*T`,
+       * dest extras dest-SLICE-of-PTR extra PTR `[]*[2]*T`,
+       * and dest extras dest-ARRAY-of-SLICE extra wrap
+       * `[2][][2][]T` (elem=SLICE, unused slot dims[ndims+1];
+       * extra PTR of `[2][][2]*T` stays dims[ndims] — do not
+       * reopen). Discriminant vs dest extras dest-SLICE of
+       * ARRAY extra PTR (same unused slot) is elem_kind SLICE
+       * vs ARRAY AND param kind ARRAY vs SLICE. extra>0
+       * returns the count; 0 / missing → -1 so `[][2]i32` /
+       * `[]*[2]i32` / `[2][][2]i32` stay wrap-once /
+       * extra-ARRAY-only. PLATFORM: SHARED. */
       extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd + 1];
       if (extra <= 0)
         return -1;
@@ -5070,6 +5075,67 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                       extra = extra + 1;
                       if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
                         ent->method_param_elem_array_dims[mi_reg][param_count][nd] =
+                            extra;
+                      param_elem_arr_need_size = 0;
+                      param_elem_prefix_arr_more = 0;
+                      param_elem_elem_pending = 1;
+                    } else {
+                      ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                      param_elem_arr_need_size = 0;
+                      param_elem_prefix_arr_more = 0;
+                      param_elem_dim_n = 0;
+                      want_param_ty = 0;
+                      saw_param_tok = 1;
+                    }
+                  } else if (ent->method_param_elem_kinds[mi_reg][param_count]
+                                 == XLANG_TRAIT_TY_SLICE
+                             && ent->method_param_kinds[mi_reg][param_count]
+                                 == XLANG_TRAIT_TY_ARRAY) {
+                    /*
+                     * dest extras dest-ARRAY of SLICE extra wrap
+                     * `[2][][2][]T`: after `[N][]` then `[M]` elem is
+                     * SLICE, outer is ARRAY; ndims holds the [M]
+                     * dim(s) (often still in the local buffer). Extra
+                     * empty `[]` used to set elem_kind=-1 (wave434
+                     * 3-layer defer) so dest extras skipped (dyn extra
+                     * nested ARRAY_LIT 139; named / UFCS dest-stamp
+                     * via the formal 7). ndims=-2 would lose [M]
+                     * (ban -3 / reuse of dims[0..ndims-1]). Extra PTR
+                     * of `[2][][2]*T` already lives in unused slot
+                     * dims[ndims] — do not reopen that encoding. Keep
+                     * SLICE; extra SLICE wrap COUNT lives in unused
+                     * slot dims[ndims+1] (1 = `[2][][2][]T`; 2 =
+                     * `[2][][2][][]T`; 0 means no extra wrap =
+                     * `[2][][2]T`). Discriminant vs dest extras
+                     * dest-SLICE of ARRAY extra PTR `[][2]*T` (same
+                     * unused slot dims[ndims+1]) is elem_kind SLICE
+                     * vs ARRAY AND param kind ARRAY vs SLICE. Capture
+                     * leaf T via param_elem_elem_pending. ARRAY
+                     * leftover SLICE vs eek=SLICE is not T001. Outer
+                     * must be ARRAY so `[][][2][]T` stays deferred.
+                     * PLATFORM: SHARED parse. G.7: complete this
+                     * scanner.
+                     */
+                    int32_t nd;
+                    int32_t extra;
+                    if (param_elem_dim_n > 0) {
+                      int32_t di;
+                      nd = param_elem_dim_n;
+                      ent->method_param_elem_array_ndims[mi_reg][param_count] = nd;
+                      for (di = 0; di < nd; di++)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][di] =
+                            param_elem_dims[di];
+                      param_elem_dim_n = 0;
+                    } else {
+                      nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                    }
+                    if (nd > 0 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                      extra = ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1];
+                      if (extra < 0)
+                        extra = 0;
+                      extra = extra + 1;
+                      if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1] =
                             extra;
                       param_elem_arr_need_size = 0;
                       param_elem_prefix_arr_more = 0;
