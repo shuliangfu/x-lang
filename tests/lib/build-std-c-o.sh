@@ -176,12 +176,26 @@ ensure_runtime_asm_io_stubs_o() {
   xlang_compiler_make -q runtime_asm_io_stubs.o 2>/dev/null || xlang_compiler_make runtime_asm_io_stubs.o
 }
 
+# Fast-path when leaf already on disk (L4 seed/g05 or prior ensure).
+# Without this, every run-*.sh re-enters try-heat → catalog parse (~8s) in a
+# fresh bash (no in-process cache) and looks hung under bstrict.
+# PLATFORM: SHARED — force rebuild: rm the .o or XLANG_CM_FORCE=1.
+_ensure_compiler_leaf_o() {
+  local leaf="$1"
+  if [ -z "${XLANG_CM_FORCE:-}" ]; then
+    if [ -s "compiler/${leaf}" ] || [ -s "${leaf}" ]; then
+      return 0
+    fi
+  fi
+  xlang_compiler_make -q "${leaf}" 2>/dev/null || xlang_compiler_make "${leaf}"
+}
+
 ensure_runtime_panic_o() {
-  xlang_compiler_make -q runtime_panic.o 2>/dev/null || xlang_compiler_make runtime_panic.o
+  _ensure_compiler_leaf_o runtime_panic.o
 }
 
 ensure_runtime_process_argv_o() {
-  xlang_compiler_make -q runtime_process_argv.o 2>/dev/null || xlang_compiler_make runtime_process_argv.o
+  _ensure_compiler_leaf_o runtime_process_argv.o
 }
 
 # F-ZC：确保 runtime_sync_os.o / runtime_sync_lock_diag_tls.o；链 sync.o 时须一并链接。

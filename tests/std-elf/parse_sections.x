@@ -25,7 +25,7 @@ function main(): i32 {
     0, 46, 116, 101, 120, 116, 0, 46, 115, 121, 109, 116, 97, 98, 0, 144,
     144, 144, 144,
   ];
-  let hdr: Elf64Hdr = Elf64Hdr {
+  let hdr: Elf64Hdr = {
     e_type: 0,
     machine: 0,
     entry: 0,
@@ -35,7 +35,7 @@ function main(): i32 {
     shoff: 0,
     shstrndx: 0,
   };
-  let sec: Elf64Sec = Elf64Sec {
+  let sec: Elf64Sec = {
     name_off: 0,
     sh_type: 0,
     addr: 0,

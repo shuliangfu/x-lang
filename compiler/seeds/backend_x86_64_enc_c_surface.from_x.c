@@ -175,6 +175,10 @@ int32_t x86_enc_jcc_rel32(uint8_t * elf_ctx, uint8_t opcode2, uint8_t * label, i
   uint8_t b0 = 15;
   uint8_t b1 = opcode2;
   uint8_t z = 0;
+  /* Dual-authority mirror of backend_x86_64_enc_c.x x86_enc_jcc_rel32:
+   * append jcc skeleton first, then rel32_at = emit_code_len()-4.
+   * Same-block let hoist of emit_code_len()-4 before appends corrupts prior
+   * insns (Ubuntu option SIGILL / stdlib-import SEGV). PLATFORM: SHARED x86_64. */
   {
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &(b0), 1) !=0)) {
       return -1;
@@ -194,6 +198,8 @@ int32_t x86_enc_jcc_rel32(uint8_t * elf_ctx, uint8_t opcode2, uint8_t * label, i
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &(z), 1) !=0)) {
       return -1;
     }
+  }
+  {
     int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
     if ((pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) !=0)) {
       return -1;
@@ -400,8 +406,17 @@ int32_t arch_x86_64_enc_enc_prologue(uint8_t * elf_ctx, int32_t frame_size) {
   if ((x86_enc_u8(elf_ctx, 83) !=0)) {
     return -1;
   }
+  /* SysV 16B: after push rbp+rbx, pad sub imm to ≡8 mod 16 (see .x authority). */
+  int32_t fs_i = frame_size;
+  int32_t rem;
+  if (fs_i < 0) fs_i = 0;
+  rem = fs_i % 16;
+  if (rem != 8) {
+    if (rem < 8) fs_i = fs_i + (8 - rem);
+    else fs_i = fs_i + (16 - rem + 8);
+  }
   uint8_t sub[7] = {72, 129, 236, 0, 0, 0, 0};
-  uint32_t fs = ((uint32_t)(frame_size));
+  uint32_t fs = ((uint32_t)(fs_i));
   (void)(((sub)[3] = ((uint8_t)((fs & 255)))));
   (void)(((sub)[4] = ((uint8_t)(((fs / 256) & 255)))));
   (void)(((sub)[5] = ((uint8_t)(((fs / 65536) & 255)))));
@@ -725,18 +740,20 @@ int32_t arch_x86_64_enc_enc_sub_ebx_edx(uint8_t * elf_ctx) {
   uint8_t ins[2] = {41, 211};
   return x86_enc_bytes(elf_ctx, ins, 2);
 }
+/* Wave184: IMUL ecx,edx (0xCA) — primary *= secondary; was 0xD1 product-in-edx. */
 int32_t arch_x86_64_enc_enc_imul_ecx_edx(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[3] = {15, 175, 209};
+  uint8_t ins[3] = {15, 175, 202};
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
+/* Wave184: IMUL ebx,edx (0xDA) — rbx *= secondary; was 0xD3 product-in-edx. */
 int32_t arch_x86_64_enc_enc_imul_ebx_edx(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[3] = {15, 175, 211};
+  uint8_t ins[3] = {15, 175, 218};
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 int32_t arch_x86_64_enc_enc_sub_rax_rbx(uint8_t * elf_ctx) {
@@ -804,6 +821,9 @@ int32_t arch_x86_64_enc_enc_setz_movzbl_eax(uint8_t * elf_ctx) {
   uint8_t ins1[3] = {15, 182, 192};
   return x86_enc_bytes(elf_ctx, ins1, 3);
 }
+/* Ordering contract: pad_code_to_4 BEFORE emit_code_len (same as .x authority).
+ * pass0 hoist of emit_code_len before pad → sym points at zero pad → multi-func SEGV.
+ * PLATFORM: SHARED — dual-authority with backend_x86_64_enc_c.x arch_x86_64_enc_enc_label. */
 int32_t arch_x86_64_enc_enc_label(uint8_t * elf_ctx, uint8_t * name, int32_t name_len, int32_t is_func) {
   if ((elf_ctx ==0)) {
     return -1;
@@ -814,12 +834,14 @@ int32_t arch_x86_64_enc_enc_label(uint8_t * elf_ctx, uint8_t * name, int32_t nam
   if ((name_len < 0)) {
     return -1;
   }
-  {
-    if ((is_func !=0)) {
-      if ((pipeline_elf_ctx_pad_code_to_4(elf_ctx) !=0)) {
-        return -1;
-      }
+  /* Block 1: pad only. */
+  if ((is_func !=0)) {
+    if ((pipeline_elf_ctx_pad_code_to_4(elf_ctx) !=0)) {
+      return -1;
     }
+  }
+  /* Block 2: capture code_len after pad; register label + optional export sym. */
+  {
     int32_t code_len = pipeline_elf_ctx_emit_code_len(elf_ctx);
     if ((pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) !=0)) {
       return -1;
@@ -1225,8 +1247,10 @@ int32_t arch_x86_64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name
   }
   {
     int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
-    /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63). PLATFORM: MACOS|DARWIN. */
-    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=127)) && ((name)[0] !=95))) {
+    /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63). PLATFORM: MACOS|DARWIN.
+     * Stage 12.0.5 ABI: always prepend '_' even when C name starts with '_'
+     * (__error → ___error). Do not skip on name[0]=='_'. */
+    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=127)))) {
       uint8_t rn[128] = {0};
       (void)(((rn)[0] = 95));
       int32_t k = 0;

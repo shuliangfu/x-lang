@@ -9,10 +9,10 @@ const err = import("std.error");
  */
 function main(): i32 {
   let bg: context.Context = context.background();
-  let loopback: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let loopback: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let buf: u8[1] = [0];
   let p: *u8 = &buf[0];
-  let fake: TcpStream = TcpStream { fd: 1 };
+  let fake: TcpStream = { fd: 1 };
 
   let cancelled: context.Context = context.with_cancel(bg);
   context.cancel(cancelled);

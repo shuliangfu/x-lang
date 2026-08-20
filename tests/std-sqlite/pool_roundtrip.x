@@ -16,9 +16,9 @@ function main(): i32 {
     32, 86, 65, 76, 85, 69, 83, 32, 40, 55, 41, 59, 0
   ];
   let pool: DbPool = sqlite.open(&mem[0], 1);
-  let c1: DbConn = DbConn { handle: 0 };
-  let c2: DbConn = DbConn { handle: 0 };
-  let c3: DbConn = DbConn { handle: 0 };
+  let c1: DbConn = { handle: 0 };
+  let c2: DbConn = { handle: 0 };
+  let c3: DbConn = { handle: 0 };
 
   if (pool.handle == 0) { return 1; }
   c1 = sqlite.acquire(pool);

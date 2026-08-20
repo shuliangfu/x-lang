@@ -221,57 +221,17 @@ export function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal
 }
 
 /**
- * Resolve free/export func return type by name + arity (+ optional call-site overload later).
- * Monofile typeck needs a real .x body (export extern alone was not registered for this long name).
- * Product seed C may provide arg-score overload under FROM_X=0; this body is arity-first twin.
- * call_expr_ref / is_method reserved for overload scoring (seed pick_func path).
- * PLATFORM: SHARED — G.7 keep seed twin when product is not FROM_X.
+ * wave303 G.7 8.3.6 leave: STRONG body on typeck_x.o (score + by_name_overload Cap face).
+ * dual-export ban — export-extern only here (no arity-first twin).
+ * Early surface at file top; product seed C body deleted same commit.
+ * PLATFORM: SHARED freestanding 8.3.6 leave.
  */
-#[no_mangle]
-export function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-  mod: *u8, arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32,
-  call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32
-): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    // silence reserved overload args until pick_func is ported to .x
-    let _cs: i32 = call_expr_ref;
-    let _im: i32 = is_method;
-    if (_cs < 0) { _cs = 0; }
-    if (_im < 0) { _im = 0; }
-    let func_ix: i32 = pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod, name, name_len, want_arity);
-    if (func_ix < 0) { return 0; }
-    if (from_dep_index >= 0) {
-      if (pipeline_visibility_allow_func(mod, func_ix, 1) == 0) {
-        return 0;
-      }
-    }
-    if (func_index_out != 0 as *i32) {
-      func_index_out[0] = func_ix;
-    }
-    let ret_ty: i32 = pipeline_module_func_return_type_at(mod, func_ix);
-    if (from_dep_index < 0) { return ret_ty; }
-    return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, arena, ctx);
-  }
-  return 0;
-}
+/* defined on typeck_x: pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal */
+/* defined on typeck_x: pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal */
 
-// See implementation.
-/** Function `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`.
- * Purpose: implements `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
+export extern function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
   mod: *u8, caller_arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32, ctx: *u8, func_index_out: *i32
-): i32 {
-  unsafe {
-    return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-      mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out
-    );
-  }
-  return 0;
-}
+): i32;
 
 // See implementation.
 /** Function `pipeline_typeck_map_import_binding_named_to_caller_strict_minimal`.
@@ -2646,238 +2606,26 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
 export extern function pipeline_typeck_resolve_dep_index_for_import_c(module: *u8, ctx: *u8, imp_ix: i32): i32;
 /* deduped: pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal */
 
-/** Exported function `pipeline_typeck_check_expr_method_call_c`.
- * Implements `pipeline_typeck_check_expr_method_call_c`.
- * @param module *u8
- * @param arena *u8
- * @param expr_ref i32
- * @param return_type_ref i32
- * @param ctx *u8
- * @return i32
+/** wave253: product authority for METHOD_CALL lives in typeck_x.o. */
+export extern function typeck_check_expr_method_call(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32;
+/** Cap residual face `pipeline_typeck_check_expr_method_call_c`.
+ * wave253 pure leave; wave260 pure-owned leave: strong Cap sole on typeck_x.o.
+ * Product seed C twin is XLANG_WEAK thin hop (G.7 dual-export ban).
+ * This .x face remains thin for seed-only paths; product links typeck_x strong.
+ * @param module *u8 — Module*
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — METHOD_CALL expr
+ * @param return_type_ref i32 — ambient expected return
+ * @param ctx *u8 — PipelineDepCtx*
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck method_call pure leave.
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (module == 0 as *u8) { return 0; }
-  if (arena == 0 as *u8) { return 0; }
-  if (expr_ref <= 0) { return 0; }
+  // PLATFORM: SHARED — Cap face thin hop only (product: weak in from_x.c).
   unsafe {
-    pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
-    let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    let base_rc: i32 = typeck_check_expr(module, arena, base_ref, 0, ctx);
-    let base_kind: i32 = pipeline_expr_kind_ord_at(arena, base_ref);
-    let base_ty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
-    let method_nlen: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
-    if (method_nlen <= 0) { return 0 - 1; }
-    if (method_nlen > 127) { return 0 - 1; }
-    let method_nm: u8[128] = [];
-    pipeline_expr_method_call_name_into(arena, expr_ref, &method_nm[0]);
-    let ret_ty: i32 = 0;
-    // TYPE_I32=0; "double" 6
-    if (base_ty > 0) {
-      if (pipeline_type_kind_ord_at(arena, base_ty) == 0) {
-        if (method_nlen == 6) {
-          if (method_nm[0] == 100) {
-            if (method_nm[1] == 111) {
-              if (method_nm[2] == 117) {
-                if (method_nm[3] == 98) {
-                  if (method_nm[4] == 108) {
-                    if (method_nm[5] == 101) {
-                      ret_ty = pipeline_type_ensure_by_kind_ord(arena, 0);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    let num_args: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-    let arg_i: i32 = 0;
-    while (arg_i < num_args) {
-      let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
-      if (typeck_check_expr(module, arena, arg_ref, return_type_ref, ctx) != 0) {
-        return 0 - 1;
-      }
-      arg_i = arg_i + 1;
-    }
-    let dep_ix: i32 = 0 - 1;
-    let func_ix: i32 = 0 - 1;
-    let import_ret_ty: i32 = 0;
-    if (ctx != 0 as *u8) {
-      if (base_kind == 3) {
-        let base_nlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
-        if (base_nlen > 0) {
-          // wave587 Cap residual: method-call import binding name ≤127 (seed already).
-          if (base_nlen <= 127) {
-            let base_nm: u8[128] = [];
-            pipeline_expr_var_name_into(arena, base_ref, &base_nm[0]);
-            let nimp: i32 = parser_get_module_num_imports(module);
-            let ii: i32 = 0;
-            while (ii < nimp) {
-              let import_kind: i32 = pipeline_module_import_kind_at(module, ii);
-              if (import_kind == 1) {
-                if (pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, &base_nm[0], base_nlen) != 0) {
-                  // Path-match dep slot. Empty/misaligned slots (dm_funcs=0 during dep prerun)
-                  // must fall back across all ctx deps — matches pipeline_glue weak authority.
-                  // PLATFORM: SHARED — freestanding co-emit soft XT001 on heap.default_alloc / mem.mem_set.
-                  let dep_slot: i32 = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
-                  let fout: i32 = 0 - 1;
-                  if (dep_slot >= 0) {
-                    let dm: *u8 = pipeline_dep_ctx_module_at(ctx, dep_slot);
-                    if (dm != 0 as *u8) {
-                      if (pipeline_module_num_funcs(dm) > 0) {
-                        import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-                          dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &fout
-                        );
-                        if (import_ret_ty > 0) {
-                          dep_ix = dep_slot;
-                          func_ix = fout;
-                        }
-                      }
-                    }
-                  }
-                  // Fallback: path/module misalignment or empty path-matched slot.
-                  if (import_ret_ty <= 0) {
-                    let nd: i32 = pipeline_dep_ctx_ndep(ctx);
-                    let try_di: i32 = 0;
-                    while (try_di < nd) {
-                      if (try_di != dep_slot) {
-                        let try_dm: *u8 = pipeline_dep_ctx_module_at(ctx, try_di);
-                        if (try_dm != 0 as *u8) {
-                          if (pipeline_module_num_funcs(try_dm) > 0) {
-                            fout = 0 - 1;
-                            let try_ret: i32 = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-                              try_dm, arena, &method_nm[0], method_nlen, try_di, num_args, expr_ref, 1, ctx, &fout
-                            );
-                            if (try_ret > 0) {
-                              import_ret_ty = try_ret;
-                              dep_ix = try_di;
-                              func_ix = fout;
-                              try_di = nd;
-                            }
-                          }
-                        }
-                      }
-                      try_di = try_di + 1;
-                    }
-                  }
-                  ii = nimp;
-                } else {
-                  ii = ii + 1;
-                }
-              } else {
-                ii = ii + 1;
-              }
-            }
-          }
-        }
-      }
-    }
-    if (import_ret_ty > 0) {
-      pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
-      return 0;
-    }
-    // wave494: generic method_call UFCS — method on generic struct.
-    // Must run BEFORE non-generic UFCS below: the non-generic UFCS uses
-    // pipeline_typeck_type_refs_equal_c (pointer equality) which fails for
-    // generic instantiations (Wrap<i32> != Wrap<T>). But the weak integer
-    // match (score 100) would still match them by TYPE_NAMED kind and stamp
-    // the raw return type T, returning 0 before the generic fixup can run.
-    // Delegating to pipeline_typeck_method_call_generic_ufcs_c (exported
-    // from pipeline_glue.c, G.7 single authority) first ensures pattern-unify
-    // of the formal self param with the concrete receiver type and substitutes
-    // the return type. Non-generic methods (self has no free type-param) are
-    // skipped by the generic path and fall through to non-generic UFCS.
-    // PLATFORM: SHARED typeck — mac + Ubuntu.
-    if (base_ty > 0) {
-      if (method_nlen > 0) {
-        if (pipeline_typeck_method_call_generic_ufcs_c(module, arena, expr_ref, base_ty, &method_nm[0], method_nlen, num_args) != 0) {
-          return 0;
-        }
-      }
-    }
-    /*
-     * wave358 Cap residual pure — UFCS same-module free method.
-     * receiver.method(args) → free fn method(receiver, args...) when nparams
-     * == num_args+1 and param0 matches receiver type. G.7 seed twin.
-     * PLATFORM: SHARED — mac + Ubuntu L2.
-     */
-    if (base_ty > 0) {
-      if (method_nlen > 0) {
-        let uf_best: i32 = 0 - 1;
-        let uf_best_score: i32 = 0 - 1;
-        let nf: i32 = pipeline_module_num_funcs(module);
-        let uj: i32 = 0;
-        while (uj < nf) {
-          if (pipeline_module_func_name_equal_at(module, uj, &method_nm[0], method_nlen) != 0) {
-            let nparams: i32 = pipeline_module_func_num_params_at(module, uj);
-            if (nparams == num_args + 1) {
-              let p0: i32 = pipeline_module_func_param_type_ref_at(module, uj, 0);
-              let sc0: i32 = 0 - 1;
-              if (p0 > 0) {
-                if (pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
-                  sc0 = 1000;
-                }
-              }
-              if (sc0 >= 0) {
-                let score: i32 = sc0;
-                let matched: i32 = 1;
-                let ai: i32 = 0;
-                while (ai < num_args) {
-                  let param_raw: i32 = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
-                  let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
-                  let arg_ty: i32 = 0;
-                  if (arg_ref > 0) {
-                    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-                  }
-                  if (param_raw > 0) {
-                    if (arg_ty > 0) {
-                      if (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) != 0) {
-                        score = score + 1000;
-                        ai = ai + 1;
-                      } else {
-                        matched = 0;
-                        ai = num_args;
-                      }
-                    } else {
-                      matched = 0;
-                      ai = num_args;
-                    }
-                  } else {
-                    matched = 0;
-                    ai = num_args;
-                  }
-                }
-                if (matched != 0) {
-                  if (score > uf_best_score) {
-                    uf_best_score = score;
-                    uf_best = uj;
-                  }
-                }
-              }
-            }
-          }
-          uj = uj + 1;
-        }
-        if (uf_best >= 0) {
-          let uf_ret: i32 = pipeline_module_func_return_type_at(module, uf_best);
-          if (uf_ret > 0) {
-            pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, uf_best);
-            pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
-            return 0;
-          }
-        }
-      }
-    }
-    if (ret_ty > 0) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
-      return 0;
-    }
-    if (base_rc != 0) { return 0 - 1; }
+    return typeck_check_expr_method_call(module, arena, expr_ref, return_type_ref, ctx);
   }
-  return 0 - 1;
 }
 
 // See implementation.
@@ -2987,62 +2735,16 @@ export extern function pipeline_get_dep_arena_slot(ix: i32): *u8;
 export extern function pipeline_module_func_num_generic_params_at(mod: *u8, fi: i32): i32;
 export extern function getenv(name: *u8): *u8;
 
-// See implementation.
-let g_typeck_entry_module_for_dep_map_x: *u8 = 0;
-
-// G-02f-220：set entry module for dep named map
-/** Exported function `pipeline_typeck_set_entry_module_for_dep_map_c`.
- * Implements `pipeline_typeck_set_entry_module_for_dep_map_c`.
- * @param module *u8
- * @return void
+/*
+ * wave254 pure leave: set_entry / get_dep Cap faces live in typeck_x.o only.
+ * Dual-export ban — strict_minimal must not define a second BSS / body.
+ * Product L2 still links strict helpers (map_import_strict / dep_return_strict)
+ * for other call sites; Cap names resolve from typeck_x.
+ * PLATFORM: SHARED freestanding typeck dep map.
  */
-#[no_mangle]
-export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): void {
-  g_typeck_entry_module_for_dep_map_x = module;
-}
-
-// pipeline_typeck_get_dep_return_type_in_caller_arena_c: see function docblock below.
-/** Exported function `pipeline_typeck_get_dep_return_type_in_caller_arena_c`.
- * Implements `pipeline_typeck_get_dep_return_type_in_caller_arena_c`.
- * @param from_dep_index i32
- * @param dep_return_type_ref i32
- * @param caller_arena *u8
- * @param ctx *u8
- * @return i32
- */
-#[no_mangle]
-export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32 {
-  if (from_dep_index < 0) { return 0; }
-  if (ctx == 0 as *u8) { return 0; }
-  unsafe {
-    let dep_arena: *u8 = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-    if (dep_arena == 0) {
-      dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-      if (dep_arena == 0) { return 0; }
-    }
-    let ndep: i32 = pipeline_dep_ctx_ndep(ctx);
-    if (from_dep_index >= ndep) {
-      if (pipeline_dep_ctx_module_at(ctx, from_dep_index) == 0) { return 0; }
-    }
-    if (g_typeck_entry_module_for_dep_map_x != 0) {
-      if (dep_return_type_ref > 0) {
-        let kind: i32 = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-        // TYPE_NAMED=8
-        if (kind == 8) {
-          let nm: u8[128] = [];
-          let nlen: i32 = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, &nm[0]);
-          if (nlen > 0) {
-            return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
-              g_typeck_entry_module_for_dep_map_x, from_dep_index, caller_arena, &nm[0], nlen
-            );
-          }
-        }
-      }
-    }
-    return pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, dep_return_type_ref, caller_arena);
-  }
-  return 0;
-}
+export extern function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): void;
+export extern function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32,
+dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32;
 
 // ast_pipeline_module_func_num_generic_params_at: see function docblock below.
 /** Exported function `ast_pipeline_module_func_num_generic_params_at`.
@@ -3575,87 +3277,7 @@ export function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
   }
 }
 
-// parser_diagnostic_parse_commit_pre: see function docblock below.
-/** Exported function `parser_diagnostic_parse_commit_pre`.
- * Implements `parser_diagnostic_parse_commit_pre`.
- * @param arena *u8
- * @param name *u8
- * @param name_len i32
- * @param block_ref i32
- * @param pool *u8
- * @param final_expr_ref i32
- * @return void
- */
-#[no_mangle]
-export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void {
-  unsafe {
-    let pool_nc: i32 = 0;
-    let pool_nl: i32 = 0;
-    let pool_nif: i32 = 0;
-    let pool_nreg: i32 = 0;
-    let pool_nso: i32 = 0;
-    if (pool != 0) {
-      pool_nc = pipeline_onefunc_num_consts(pool);
-      pool_nl = pipeline_onefunc_num_lets(pool);
-      pool_nif = pipeline_onefunc_num_if_stmts(pool);
-      pool_nreg = pipeline_onefunc_num_regions(pool);
-      pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
-    }
-    let _a: *u8 = arena;
-    if (_a == 0) {
-      // keep seed (void)arena semantics
-    }
-    driver_diagnostic_parse_commit_shape(
-      0, 0, name, name_len, 0, block_ref,
-      pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
-      0, 0, 0, 0, 0, final_expr_ref
-    );
-  }
-}
-
-// parser_diagnostic_parse_commit_post: see function docblock below.
-/** Exported function `parser_diagnostic_parse_commit_post`.
- * Implements `parser_diagnostic_parse_commit_post`.
- * @param arena *u8
- * @param name *u8
- * @param name_len i32
- * @param block_ref i32
- * @param pool *u8
- * @return void
- */
-#[no_mangle]
-export function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void {
-  unsafe {
-    let pool_nc: i32 = 0;
-    let pool_nl: i32 = 0;
-    let pool_nif: i32 = 0;
-    let pool_nreg: i32 = 0;
-    let pool_nso: i32 = 0;
-    if (pool != 0) {
-      pool_nc = pipeline_onefunc_num_consts(pool);
-      pool_nl = pipeline_onefunc_num_lets(pool);
-      pool_nif = pipeline_onefunc_num_if_stmts(pool);
-      pool_nreg = pipeline_onefunc_num_regions(pool);
-      pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
-    }
-    let blk_nc: i32 = 0;
-    let blk_nl: i32 = 0;
-    let blk_nif: i32 = 0;
-    let blk_nreg: i32 = 0;
-    let blk_nso: i32 = 0;
-    let final_er: i32 = 0;
-    if (arena != 0 as *u8) {
-      blk_nc = ast_ast_block_num_consts(arena, block_ref);
-      blk_nl = ast_ast_block_num_lets(arena, block_ref);
-      blk_nif = ast_ast_block_num_if_stmts(arena, block_ref);
-      blk_nreg = ast_ast_block_num_regions(arena, block_ref);
-      blk_nso = ast_ast_block_num_stmt_order(arena, block_ref);
-      final_er = ast_ast_block_final_expr_ref(arena, block_ref);
-    }
-    driver_diagnostic_parse_commit_shape(
-      0, 0, name, name_len, 1, block_ref,
-      pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
-      blk_nc, blk_nl, blk_nif, blk_nreg, blk_nso, final_er
-    );
-  }
-}
+/* wave302 G.7: parse_commit_pre/post authority = runtime_driver_diagnostic_thin.x
+ * (product diagnostic.o). Dual-export ban — no body in this seed twin. PLATFORM: SHARED. */
+export extern "C" function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void;
+export extern "C" function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void;

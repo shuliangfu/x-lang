@@ -11,7 +11,7 @@ function main(): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 64, 0, 3, 0, 2, 0
   ];
-  let hdr: Elf64Hdr = Elf64Hdr {
+  let hdr: Elf64Hdr = {
     e_type: 0,
     machine: 0,
     entry: 0,

@@ -39,7 +39,10 @@ export enum TypeKind {
   TYPE_VECTOR,
   TYPE_F32,
   TYPE_F64,
-  TYPE_VOID
+  TYPE_VOID,
+  /* TYPE_DYN: fat trait object {data*, vtable*} (ord 17). Append-only after
+   * TYPE_VOID so existing 0..16 ordinals stay stable. PLATFORM: SHARED. */
+  TYPE_DYN
 }
 
 /* See implementation. */
@@ -650,7 +653,7 @@ export function ast_placeholder(): i32 {
  * See implementation.
  */
 export function expr_layout_prime_call_resolved(): void {
-  let _tail: Expr = Expr {
+  let _tail: Expr = {
     kind: ExprKind.EXPR_LIT,
     resolved_type_ref: 0,
     line: 0,
@@ -670,7 +673,7 @@ export function expr_layout_prime_call_resolved(): void {
  */
 export function func_layout_prime_generic_params(): void {
   let name0: u8[128] = [];
-  let f0: Func = Func {
+  let f0: Func = {
     name: name0,
     name_len: 0,
     param_base: 0,

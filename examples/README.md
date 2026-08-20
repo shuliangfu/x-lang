@@ -2,6 +2,8 @@
 
 **示例 .x 程序**，便于上手与回归测试。
 
+> **AI / Agent**：写代码前先看短真源 [`docs/ai/`](../docs/ai/README.md)（cheat-sheet · 模板 · 幻觉对照）；本目录示例是**可运行锚点**，勿另起一套「像 Rust」的示例方言。
+
 - **用途**：用户参考「如何写 .x」；CI/本地测试时编译并运行，验证编译器与标准库。
 - **内容**：例如：
   - Hello World（`examples/hello.x`：`function main(): void`，Zig 风格隐含 exit 0）

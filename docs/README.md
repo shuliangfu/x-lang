@@ -16,6 +16,7 @@
 | [08-语法规范](./08-语法规范.md) | 缩进、分号、块与 `}`、命名、空格等书写规范 |
 | [09-条件编译](./09-条件编译.md) | `#if` 与 `#[cfg(...)]` 选用、`target_os` / `-target`、标准库模式 |
 | [10-内核级特性](./10-内核级特性.md) | 内联汇编 `asm!`/`asm goto!`、volatile 指针、位域、内核属性、构建链、QEMU 测试套件（30 项） |
+| [ai/](./ai/README.md) | **AI / Agent 短真源**（cheat-sheet · Canonical Shape · anti-patterns）；**非**第二套语法规范；**不改编译器** |
 
 ## 约定
 

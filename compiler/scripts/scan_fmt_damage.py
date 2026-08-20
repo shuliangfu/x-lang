@@ -17,9 +17,12 @@ import re
 import sys
 
 SKIP_DIRS = {".git", "build_asm", "node_modules", ".cursor", "build"}
+# break/continue after // comments are normal control flow (not fmt-damaged
+# continuations). Historical false positive: runtime_pipeline_abi.x
+# `// … breaks.` then `break;` was flagged [slash] and blocked run-check.
 CODE_START = re.compile(
     r"^(import|function|struct|enum|let|const|extern|return|if|while|for|match|"
-    r"defer|trait|impl|#|@|pub\s|}\s*$|\{\s*$)"
+    r"break|continue|defer|trait|impl|#|@|pub\s|}\s*$|\{\s*$)"
 )
 PAT_PREV_SLASH = re.compile(r"^\s*//(?![/!])")
 # fmt 在 prefix[n]= 等处硬切后行首丢失 pr 前缀（唯一可靠信号）

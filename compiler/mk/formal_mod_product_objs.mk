@@ -17,6 +17,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/sys/sys.o \
 	../std/sys/linux.o \
 	../core/mem/mem.o \
+	../core/builtin/builtin.o \
 	../core/types/types.o \
 	../core/option/option.o \
 	../core/result/result.o \
@@ -48,5 +49,15 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/csv/csv.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
-	../std/tar/tar.o
+	../std/tar/tar.o \
+	../std/unicode/unicode.o \
+	../std/channel/channel.o \
+	../std/runtime/runtime.o \
+	../std/backtrace/backtrace.o \
+	../core/assert/assert.o \
+	../std/fmt/fmt.o \
+	../std/compress/compress.o \
+	../std/io/driver.o \
+	../std/io/io.o \
+	../std/debug/debug.o
 

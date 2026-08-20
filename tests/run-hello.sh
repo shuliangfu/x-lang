@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# 阶段 4 Hello World：编译 examples/hello.x 并运行，检查输出含 "Hello World"
-# run-all 默认用 C（RUN_ALL_USE_C=1）：父脚本会 export XLANG=./compiler/xlang-c（若存在），走 C 流水线。
-# 显式 XLANG=./compiler/xlang 时走 seed / .x 流水线（bootstrap 验证）。
+# Stage 4 Hello World: compile examples/hello.x and require stdout "Hello World".
+# Product path: pure-asm `$XLANG -o` (default; no silent host-cc).
+# Host-cc `-backend c` only when XLANG_ALLOW_HOST_CC=1 or XLANG_FORCE_LINK_BACKEND=c
+# (matches void-main / option / defer-gate). PLATFORM: SHARED pure-asm product gate.
+# run-all USE_C path may still bind xlang-c when RUN_ALL_USE_C=1.
 
 set -e
 cd "$(dirname "$0")/.."
@@ -9,7 +11,7 @@ cd "$(dirname "$0")/.."
 . tests/lib/compiler-make.sh
 XLANG=${XLANG:-./compiler/xlang}
 
-# 探测二进制是否支持 -x（链 pipeline）；纯 C 前端 xlang-c 会报 unknown option。
+# Probe whether the binary accepts -x (pipeline); pure C frontend xlang-c rejects it.
 xlang_cli_supports_x() {
   local o
   o=$("$1" -x 2>&1) || true
@@ -19,24 +21,35 @@ xlang_cli_supports_x() {
   esac
 }
 
+# Unique outs so parallel JOBS>1 cannot clobber /tmp/xlang_hello.
+HELLO_OUT="${TMPDIR:-/tmp}/xlang_hello.$$"
+HELLO_BUILD_LOG="${TMPDIR:-/tmp}/xlang_hello_build.$$.log"
+trap 'rm -f "$HELLO_OUT" "$HELLO_BUILD_LOG"' EXIT
+
 HELLO_COMPILE_XLANG="$XLANG"
 HELLO_BACKEND=""
-# MSYS2：seed -o 挂起；与 bootstrap-link-xlang / run-async 一致走 xlang-c。
+# Optional experimental host-cc only when explicitly allowed.
+if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+  HELLO_BACKEND="-backend ${XLANG_FORCE_LINK_BACKEND}"
+elif [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ]; then
+  HELLO_BACKEND="-backend c"
+fi
+# MSYS2: seed -o can hang; prefer xlang-c like bootstrap-link-xlang / run-async.
 if [ -n "${MSYSTEM:-}" ] || case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*) true ;; *) false ;; esac; then
   if [ -x ./compiler/xlang-c ]; then
     HELLO_COMPILE_XLANG=./compiler/xlang-c
     HELLO_BACKEND=""
   fi
 elif [ -n "${XLANG_LINK_XLANG:-}" ] && [ -x "${XLANG_LINK_XLANG}" ]; then
-  # 产品冷链：XLANG 已是 xlang_asm→xlang 时勿改绑 pin xlang-c（bstrict 默认 XLANG_LINK_XLANG）。
+  # Product cold chain: keep product xlang/xlang_asm (bstrict exports XLANG_LINK_XLANG).
+  # Do NOT inject -backend c here — silent host-cc is banned (host-cc-requires-allow).
   case "$(basename "${XLANG:-}")" in
     xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
       HELLO_COMPILE_XLANG="$XLANG"
-      HELLO_BACKEND="-backend c"
+      # HELLO_BACKEND already set only for ALLOW / FORCE above.
       ;;
     *)
       HELLO_COMPILE_XLANG="${XLANG_LINK_XLANG}"
-      HELLO_BACKEND=""
       ;;
   esac
 fi
@@ -46,24 +59,18 @@ case "${XLANG##*/}" in
     if [ -x "$_hello_xlang_dir/xlang-c" ]; then HELLO_COMPILE_XLANG="$_hello_xlang_dir/xlang-c"; fi
     ;;
 esac
-# bootstrap seed 默认 asm 后端在 ARM64 等会链入 x86_64 宿主 .o；非 x86_64 可执行链接优先 xlang-c。
+# Non-x86_64: prefer xlang-c for runnable host objs; do not force -backend c without ALLOW.
 case "$(uname -m 2>/dev/null)" in
   x86_64|amd64) ;;
   *)
     if [ -x ./compiler/xlang-c ]; then
       HELLO_COMPILE_XLANG=./compiler/xlang-c
       HELLO_BACKEND=""
-    else
-      case "${HELLO_COMPILE_XLANG##*/}" in
-        xlang-c|xlang_asm) ;;
-        *) HELLO_BACKEND="-backend c" ;;
-      esac
     fi
     ;;
 esac
 if [ -n "${RUN_ALL_USE_C:-}" ]; then
-  # run-all 默认 C 流水线；run-all 入口已 make 时跳过（XLANG_SKIP_SUBSCRIPT_MAKE=1），
-  # 避免子脚本 `make all` 触发默认 xlang-c target（cp -f bootstrap_xlangc）覆盖真正 C 前端。
+  # run-all C pipeline; skip make when parent already built (XLANG_SKIP_SUBSCRIPT_MAKE=1).
   if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
     xlang_compiler_make -q all 2>/dev/null || xlang_compiler_make all
   fi
@@ -71,25 +78,27 @@ if [ -n "${RUN_ALL_USE_C:-}" ]; then
     HELLO_COMPILE_XLANG=./compiler/xlang-c
     HELLO_BACKEND=""
   fi
-  $HELLO_COMPILE_XLANG $HELLO_BACKEND examples/hello.x -o /tmp/xlang_hello
+  $HELLO_COMPILE_XLANG $HELLO_BACKEND examples/hello.x -o "$HELLO_OUT"
 else
   if [[ "$HELLO_COMPILE_XLANG" == *xlang-c* ]] || ! xlang_cli_supports_x "$HELLO_COMPILE_XLANG"; then
-    $HELLO_COMPILE_XLANG $HELLO_BACKEND -L . examples/hello.x -o /tmp/xlang_hello
+    $HELLO_COMPILE_XLANG $HELLO_BACKEND -L . examples/hello.x -o "$HELLO_OUT"
   else
-    # -o 链接走 driver 全路径；与 run-all-x 一致带 -L .
-    # seed/xlang_asm：非 TTY stdout 重定向会挂起；须 tee|cat Drain（Codespace gold L5）。
-    if ! $HELLO_COMPILE_XLANG $HELLO_BACKEND -L . examples/hello.x -o /tmp/xlang_hello 2>&1 | tee /tmp/xlang_hello_build.log | cat >/dev/null; then
-      echo "hello compile failed (see /tmp/xlang_hello_build.log)" >&2
+    # -o full driver path; drain non-TTY stdout (seed hang on Codespace gold L5).
+    # pipefail so compile failure is not swallowed by tee|cat.
+    set -o pipefail
+    if ! $HELLO_COMPILE_XLANG $HELLO_BACKEND -L . examples/hello.x -o "$HELLO_OUT" 2>&1 | tee "$HELLO_BUILD_LOG" | cat >/dev/null; then
+      echo "hello compile failed (see $HELLO_BUILD_LOG)" >&2
       exit 1
     fi
+    set +o pipefail
   fi
 fi
-if [ ! -x /tmp/xlang_hello ]; then
-  echo "hello compile failed (no executable /tmp/xlang_hello)" >&2
+if [ ! -x "$HELLO_OUT" ]; then
+  echo "hello compile failed (no executable $HELLO_OUT)" >&2
   exit 1
 fi
 set +e
-out=$(/tmp/xlang_hello)
+out=$("$HELLO_OUT")
 rc=$?
 set -e
 echo "$out" | grep -q "Hello World" || { echo "expected 'Hello World' in output, got: $out"; exit 1; }

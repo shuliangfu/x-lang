@@ -5,7 +5,7 @@
 struct Counter { value: i32, }
 
 function make_counter(v: i32): Counter {
-  return Counter { value: v };
+  return { value: v };
 }
 
 function main(): i32 {

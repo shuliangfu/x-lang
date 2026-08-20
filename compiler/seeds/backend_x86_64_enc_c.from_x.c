@@ -43,6 +43,7 @@ extern int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_c
 extern int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                            uint8_t disp8_modrm, uint8_t disp32_modrm);
 extern int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t x86_enc_store_r64_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t offset);
 extern int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
                                         uint8_t reg_modrm);
 extern int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
@@ -208,6 +209,32 @@ int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx,
 
 }
 
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* movq %r64, -offset(%rbp). F7 dyn coerce vtable store. PLATFORM: LINUX x86_64. */
+int32_t x86_enc_store_r64_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                     int32_t offset) {
+  int32_t disp;
+  uint8_t buf[8];
+  int32_t lo;
+  if (!elf_ctx || reg < 0 || reg > 15)
+    return -1;
+  disp = 0 - offset;
+  lo = reg & 7;
+  buf[0] = (reg >= 8) ? 76 : 72;
+  buf[1] = 0x89;
+  if (disp >= -128 && disp <= -1) {
+    buf[2] = (uint8_t)(0x45 + lo * 8);
+    buf[3] = (uint8_t)disp;
+    return x86_enc_bytes(elf_ctx, buf, 4);
+  }
+  buf[2] = (uint8_t)(0x85 + lo * 8);
+  buf[3] = (uint8_t)(disp & 255);
+  buf[4] = (uint8_t)((disp >> 8) & 255);
+  buf[5] = (uint8_t)((disp >> 16) & 255);
+  buf[6] = (uint8_t)((disp >> 24) & 255);
+  return x86_enc_bytes(elf_ctx, buf, 7);
+}
+#endif
 
 /** add/sub/imul imm32 到 32-bit reg 的通用模板。 */
 /* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -239,19 +266,30 @@ int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int
 /*
  * 【Why 根源】push/pop %rbx：body 用 rbx 作 array/const 基址却未保存，破坏 SysV 被调方保存；
  *   args_iter_count_c 覆写 next 保存在 rbx 的 it → run-env env_iter Ubuntu exit 1。
+ * SysV 16B CALL align (same as backend_x86_64_enc_c.x): after push rbp+push rbx,
+ *   RSP≡8; sub imm must be ≡8 mod 16 so body CALL sites have RSP≡0. Else glibc
+ *   mktime/tzset/sscanf SEGV (run-time format_timezone). Locals rbp-relative.
  * PLATFORM: SHARED x86_64 SysV. Seed 与 arch/x86_64_enc.x 同语义。
  */
 int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
   uint8_t mov[3] = {72, 137, 229};
   uint8_t sub[7] = {72, 129, 236, 0, 0, 0, 0};
+  int32_t fs_i = frame_size;
+  int32_t rem;
   if (!elf_ctx) return -1;
   if (x86_enc_u8(elf_ctx, 85) != 0) return -1; /* push rbp */
   if (X86_ENC_FIXED(elf_ctx, mov) != 0) return -1; /* mov rbp, rsp */
   if (x86_enc_u8(elf_ctx, 83) != 0) return -1; /* push rbx (callee-saved) */
-  sub[3] = (uint8_t)(frame_size & 255);
-  sub[4] = (uint8_t)((frame_size >> 8) & 255);
-  sub[5] = (uint8_t)((frame_size >> 16) & 255);
-  sub[6] = (uint8_t)((frame_size >> 24) & 255);
+  if (fs_i < 0) fs_i = 0;
+  rem = fs_i % 16;
+  if (rem != 8) {
+    if (rem < 8) fs_i = fs_i + (8 - rem);
+    else fs_i = fs_i + (16 - rem + 8);
+  }
+  sub[3] = (uint8_t)(fs_i & 255);
+  sub[4] = (uint8_t)((fs_i >> 8) & 255);
+  sub[5] = (uint8_t)((fs_i >> 16) & 255);
+  sub[6] = (uint8_t)((fs_i >> 24) & 255);
   return X86_ENC_FIXED(elf_ctx, sub);
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
@@ -271,15 +309,21 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label */
+/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label when FROM_X.
+ * Ordering: pad_code_to_4 BEFORE emit_code_len (G.7 dual-authority with .x).
+ * Hoist of emit_code_len before pad → multi-func SEGV (overload.x). */
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
   uint8_t mn[128];
   int32_t k;
+  int32_t code_len;
   if (!elf_ctx || !name || name_len < 0) return -1;
   cb = x86_enc_ctx_bytes(elf_ctx);
+  /* Block 1: pad only. */
   if (is_func != 0 && pipeline_elf_ctx_pad_code_to_4(cb) != 0) return -1;
-  if (pipeline_elf_ctx_add_label(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb)) != 0) return -1;
+  /* Block 2: capture after pad. */
+  code_len = pipeline_elf_ctx_emit_code_len(cb);
+  if (pipeline_elf_ctx_add_label(cb, name, name_len, code_len) != 0) return -1;
   if (is_func == 0) return 0;
   /* wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
    * PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name. */
@@ -295,8 +339,18 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_rax_rbx */
+/* addl %ebx, %eax — 32-bit add (zero-extends to RAX).
+ * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
+ *      A 32-bit ADD EAX,EBX zero-extends the result to RAX, giving correct
+ *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
+ *      ADD RAX,RBX (REX.W + 01 D8) did not wrap at 32 bits, breaking
+ *      unsigned overflow.
+ * Invariant: Must match .x authority x86_64_enc.x::enc_add_rax_rbx.
+ *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
+ *            ptr-arith scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 1, 216};
+  static const uint8_t ins[] = {1, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -466,8 +520,12 @@ int32_t arch_x86_64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx)
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_rbx_rax */
+/* imull %ebx, %eax — 32-bit imul (zero-extends to RAX).
+ * Why: Must match .x authority x86_64_enc.x::enc_imul_rbx_rax.
+ *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 int32_t arch_x86_64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 15, 175, 195};
+  static const uint8_t ins[] = {15, 175, 195};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -730,9 +788,11 @@ int32_t arch_x86_64_enc_enc_sub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_c
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ecx_edx */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ecx_edx.
+ * Wave184 root-fix: 0F AF /r IMUL ecx,edx (ModRM 0xCA). Was 0xD1 (IMUL edx,ecx).
+ * PLATFORM: SHARED x86_64 SysV — index_scratch primary *= secondary. */
 int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 209};
+  static const uint8_t ins[] = {15, 175, 202};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -740,9 +800,11 @@ int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ebx_edx */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ebx_edx.
+ * Wave184 root-fix: 0F AF /r IMUL ebx,edx (ModRM 0xDA). Was 0xD3 (IMUL edx,ebx).
+ * PLATFORM: SHARED x86_64 SysV — INDEX read path rbx *= secondary; scale uses rbx. */
 int32_t arch_x86_64_enc_enc_imul_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 211};
+  static const uint8_t ins[] = {15, 175, 218};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -881,6 +943,13 @@ int32_t arch_x86_64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *el
 int32_t arch_x86_64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   if (!elf_ctx) return -1;
   return x86_enc_store_rax_to_rbp_neg(elf_ctx, offset);
+}
+
+/* F7: general r64 → [rbp-off]. Completes store_x_reg_to_rbp_arch on x86_64. */
+int32_t arch_x86_64_enc_enc_store_r64_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                              int32_t offset) {
+  if (!elf_ctx) return -1;
+  return x86_enc_store_r64_to_rbp_neg(elf_ctx, reg, offset);
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
@@ -1135,8 +1204,10 @@ int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
   rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
   /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63).
-   * PLATFORM: MACOS|DARWIN x86_64 call reloc. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
+   * PLATFORM: MACOS|DARWIN x86_64 call reloc.
+   * Stage 12.0.5 ABI: always prepend '_' even when C name starts with '_'
+   * (__error → ___error). Do not skip on name[0]=='_'. */
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127) {
     rn[0] = 95; k = 0;
     while (k < name_len && k < 127) { rn[k + 1] = name[k]; k = k + 1; }
     return pipeline_elf_ctx_append_reloc(cb, rel32_at, rn, name_len + 1);
@@ -1200,11 +1271,15 @@ int32_t arch_x86_64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodeg
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
-/** subq %rax, %rbx（rax = rax - rbx；字面量左操作数 SUB 快路径）。 */
+/** subl %ebx, %eax — 32-bit sub (zero-extends to RAX). */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_rax_rbx */
+/* subl %ebx, %eax — 32-bit sub (zero-extends to RAX).
+ * Why: Must match .x authority x86_64_enc.x::enc_sub_rax_rbx.
+ *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 int32_t arch_x86_64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 41, 216};
+  static const uint8_t ins[] = {41, 216};
   if (!elf_ctx)
     return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));

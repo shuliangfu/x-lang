@@ -21,7 +21,7 @@ function main(): i32 {
   let n: i32 = 5;
   let s: i32 = 0;
   let i: i32 = 0;
-  let p: Pair = Pair { a: 0, b: 2 };
+  let p: Pair = { a: 0, b: 2 };
   while (i < n) {
     p.a = i;
     s = s + get_a(p);

@@ -11,8 +11,20 @@
 # 仍走 Makefile 冷启动；本脚本服务日常 relink / xlang_asm 产品路径。
 
 set -e
-# 允许从任意 cwd 调用：解析到 compiler/
-_G05_ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+# Resolve compiler/ from this file's path — not $0 alone.
+# When this file is `source`d (bash), $0 is the parent shell argv0 and
+# dirname("$0")/.. can land on the *repo* root; Ubuntu then misses
+# compiler/scripts/bootstrap_nostdlib_shared.sh (mac had an untracked
+# repo scripts/ symlink that masked the bug).
+# PLATFORM: SHARED — BASH_SOURCE when available; $0 for sh exec/eval.
+# shellcheck disable=SC2128,SC3054
+if [ -n "${BASH_SOURCE:-}" ]; then
+  # bash: BASH_SOURCE[0] is this file even under `source`
+  _G05_SELF="${BASH_SOURCE[0]}"
+else
+  _G05_SELF="$0"
+fi
+_G05_ROOT="$(CDPATH= cd -- "$(dirname "$_G05_SELF")/.." && pwd)"
 cd "$_G05_ROOT"
 
 UNAME_S="$(uname -s 2>/dev/null || echo Unknown)"
@@ -49,10 +61,14 @@ case "$UNAME_S" in
   _MAIN_LINK_FLAGS=""
   ;;
   esac
-  # Darwin：filtered pipeline + filtered user_asm seed 拓扑
+  # wave309 G.7 8.3 floor: product pipeline_x / filtered mega retired (0 residual
+  # product T after Cap/domain leave; only gen weak io_register stub — duplicated).
+  # Darwin historically linked bootstrap_seed_pipeline_filtered.o; empty keep after
+  # leave made filter --require-keep fail. Live faces = runtime_pipeline_abi pure/seed.
   # asm_experimental_symbol_bridge：Darwin weak 桩 platform_macho_write_macho_o_to_buf
   # （seed bridge weak_import 静态链必需；见 seeds/asm_experimental_symbol_bridge.from_x.c）
-  _PIPELINE_LINK_O="build_asm/bootstrap_seed_pipeline_filtered.o"
+  # PLATFORM: MACOS product pure-ld — no pipeline mega .o.
+  _PIPELINE_LINK_O=""
   # PLATFORM: MACOS — backend_arm64_enc_c.o strong arch_arm64_enc_* override weak -1 stubs (CG002).
   _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_arm64_enc_c.o build_asm/asm_experimental_symbol_bridge.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
@@ -60,7 +76,10 @@ case "$UNAME_S" in
   _ASM_GLUE_DUP_LDFLAGS="-Wl,--allow-multiple-definition"
   case "$UNAME_M" in
   x86_64|amd64)
-  _MAIN_LINK_O="src/asm/crt0_x86_64.o"
+  # PLATFORM: LINUX x86_64 — mirror mk/driver_seed_link_picks.mk MAIN_LINK_O.
+  # freestanding_io provides xlang_sys_* for pure-ld (driver_x std.sys UNDEFs);
+  # -lc alone cannot resolve them. G.7: same face as catalog MAIN_LINK.
+  _MAIN_LINK_O="src/asm/crt0_x86_64.o src/asm/freestanding_io_x86_64.o"
   _MAIN_LINK_FLAGS="-no-pie -e _start -nostartfiles"
   ;;
   *)
@@ -68,8 +87,9 @@ case "$UNAME_S" in
   _MAIN_LINK_FLAGS=""
   ;;
   esac
-  # Linux：pipeline_x.o + 全量 USER_ASM_LINK
-  _PIPELINE_LINK_O="pipeline_x.o"
+  # wave309 G.7 8.3 floor: product pipeline_x.o retired (empty mega; pure/seed owns faces).
+  # Linux historically linked pipeline_x.o; now empty. PLATFORM: LINUX product pure-ld.
+  _PIPELINE_LINK_O=""
   _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   # PLATFORM: WINDOWS | MSYS | MINGW — mirror of Makefile XLANG_IS_WIN_HOST branch
@@ -77,7 +97,7 @@ case "$UNAME_S" in
   # (MSYS default main thread stack ~2MiB overflows deep parse_into/typeck_x_ast
   # recursion), --allow-multiple-definition (PE has no weak function symbols;
   # XLANG_WEAK expands empty, stubs are strong — see include/xlang_weak.h).
-  # Topology mirrors Linux else-branch (pipeline_x.o + raw USER_ASM_SEED_OBJS;
+  # wave309: topology mirrors Linux (empty pipeline mega + raw USER_ASM_SEED_OBJS).
   # Darwin-only filtered objs do not apply on PE). Single authority is the
   # Makefile; this shell branch is the G-05 product-path mirror (G.7).
   MINGW*|MSYS*|CYGWIN*)
@@ -92,7 +112,8 @@ case "$UNAME_S" in
   _MAIN_LINK_FLAGS=""
   ;;
   esac
-  _PIPELINE_LINK_O="pipeline_x.o"
+  # wave309: empty pipeline mega on Windows product path too.
+  _PIPELINE_LINK_O=""
   _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   *)
@@ -141,19 +162,17 @@ else
 fi
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
-# _GLUE_SUFFIX mirrors the Makefile target-specific DRIVER_SEED_GLUE_SUFFIX
-# (makefile L2499/L2504, applies to bootstrap-driver-seed & xlang-c LEGACY):
-#   build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+# _GLUE_SUFFIX: stubs only at link END.
+# wave304 G.7 8.3.6: pipeline_glue_strict_minimal seed shell retired (0 residual T
+# after wave303 overload leave → typeck_x). Product no longer host-cc or links
+# that empty shell. Historical: strict_minimal + stubs was DRIVER_SEED_GLUE_SUFFIX.
 # Why runtime_driver_strict_glue_stubs.o at link END (not in _DRIVER_SEED_SUPPORT
-# middle): stubs .o has symbols WITH real impls in pipeline_x.o (e.g.
-# driver_get_module_num_funcs, parser_parse_into_init, pipeline_run_x_pipeline).
-# On Windows PE --allow-multiple-definition FIRST-wins; linking stubs BEFORE
-# pipeline_x.o makes the stub shadow the real impl → xlang -c silently reports
-# num_funcs=0 / pipeline returned -1 (XP001/XP003). On ELF/Darwin XLANG_WEAK=weak
-# so real impl wins regardless of order. Moving stubs to link END (after
-# pipeline_glue_strict_minimal.o, after all real impls) guarantees real impls
-# win on PE. Mirrors Makefile L1863-1875 fix (2026-07-19 stubs move). G.7.
-_GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
+# middle): stubs .o has symbols WITH real impls in runtime_pipeline_abi / pure
+# (historical: pipeline_x.o). wave309 retired product pipeline_x mega.
+# On Windows PE --allow-multiple-definition FIRST-wins; stubs AFTER real impls.
+# On ELF/Darwin XLANG_WEAK=weak so real impl wins regardless of order.
+# PLATFORM: SHARED freestanding 8.3.6 shell retire + wave309 pipeline mega retire.
+_GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_xlang_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 XLANG_RT_*_FROM_X 下不内嵌 BSS 定义。
@@ -199,7 +218,9 @@ if bootstrap_wants_nostdlib; then
   # Obj paths only (no ensure). atoi_stub always listed; ensure builds it.
   # runtime_panic T atoi skip is applied in ensure when CRT0_ATOI_LINK empty —
   # g05 bag has no runtime_panic.o, so atoi_stub.o is always required.
-  _G05_NOSTDLIB_OBJS="src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o atoi_stub.o"
+  # freestanding_io is already on MAIN_LINK_O (Linux x86_64 pure-ld face) —
+  # G.7: do not re-list it here (duplicate strong xlang_sys_*).
+  _G05_NOSTDLIB_OBJS="src/asm/bootstrap_nostdlib_stubs.o atoi_stub.o"
   G05_CFLAGS="$G05_CFLAGS $_G05_NOSTDLIB_FLAGS"
   G05_OBJS="$G05_OBJS $_G05_NOSTDLIB_OBJS"
   ;;
@@ -209,10 +230,11 @@ fi
 # 供 ensure 使用的热路径（force 重编的 .c → .o）
 # Hot-path C rebuild targets. In no_c mode runtime_driver_no_c.o is hot;
 # in LEGACY mode runtime_driver.o is hot (matches Makefile DRIVER_SEED_RUNTIME_REBUILD).
+# wave304: strict_minimal shell retired — no longer a hot C rebuild target.
 if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" = "1" ]; then
-  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver.o build_asm/pipeline_glue_strict_minimal.o"
+  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver.o"
 else
-  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o build_asm/pipeline_glue_strict_minimal.o"
+  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o"
 fi
 
 # shell 安全单引号转义

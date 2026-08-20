@@ -451,10 +451,14 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
   return 0;
 }
 
-/** Exported function `link_abi_user_o_needs_std_test`.
- * Implements `link_abi_user_o_needs_std_test`.
- * @param user_o *u8
- * @return i32
+/**
+ * Whether user .o references std.test API (on-demand chain test.o).
+ * G.7: product table must match labi_ondemand_list pure orch (wave122 + pure-asm
+ * std_test_* faces). Multi-slice ld -r may keep this monofile twin as the linked
+ * authority over L8b — both must stay complete (dual-authority ban: same semantics).
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * PLATFORM: SHARED — pure-asm run-stdtest residual (std_test_expect*)
  */
 #[no_mangle]
 export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
@@ -465,6 +469,7 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
+    // Bare / prefix faces (C-path co-emit residual).
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "test_call_i32_void_c") != 0) {
       return 1;
     }
@@ -484,6 +489,22 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
       return 1;
     }
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "test_fuzz_") != 0) {
+      return 1;
+    }
+    // PLATFORM: SHARED — pure-asm import METHOD → std_test_* exact faces.
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_expect") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_expect_eq_i32") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_expect_ne_i32") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_assert") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_runner_case") != 0) {
       return 1;
     }
     return 0;
@@ -2503,6 +2524,9 @@ export extern "C" function xlang_invoke_cc_impl(
   uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
   trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
 ): i32;
+/** Stage 12.2.3 early host-cc gate (G.7 authority in labi_invoke_cc_list).
+ * @return i32 — 1 allow, 0 deny (diag already set) */
+export extern "C" function invoke_cc_host_cc_spawn_gate(): i32;
 export extern "C" function xlang_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
 
 /* See implementation. */
@@ -2649,6 +2673,8 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
  * Thin public face for host cc invoke (56 std/runtime .o path slots + include_root).
  * wave264: multi-line signature/call — single-line form was >=512 bytes and tripped the
  * product line-length hard fail (cascade silent-skip of later mega exports).
+ * Stage 12.2.3: early invoke_cc_host_cc_spawn_gate before impl (G.7 ≡ labi_gates.x).
+ * Product live L9 is labi_gates; monofile residual must not re-open un-gated ensure/argv.
  * @param c_paths *u8 — C path table (host layout; null rejected)
  * @param n i32 — path count
  * @param out_path *u8 — output object/exe path; null rejected
@@ -2657,7 +2683,7 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
  * @param use_lto i32 — non-zero enables LTO path in host impl
  * @param io_o..async_scheduler_o *u8 — std/runtime companion .o paths (may be null)
  * @param include_root *u8 — -I root for host cc
- * @return i32 — host status; -1 on null gates
+ * @return i32 — host status; -1 on null gates / gate deny / impl failure
  * PLATFORM: SHARED orch face; body is Cap residual host via xlang_invoke_cc_impl
  */
 #[no_mangle]
@@ -2677,6 +2703,12 @@ export function xlang_invoke_cc(
   }
   if (out_path == 0 as *u8) {
     return 0 - 1;
+  }
+  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in. */
+  unsafe {
+    if (invoke_cc_host_cc_spawn_gate() == 0) {
+      return 0 - 1;
+    }
   }
   unsafe {
     return xlang_invoke_cc_impl(

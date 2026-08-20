@@ -12,7 +12,7 @@ allow(padding) struct Result_i32 {
  * @return i32
  */
 function main(): i32 {
-  let r3: Result_i32 = Result_i32 { value: 1, _pad1: 0, err: 0, _pad2: 0 };
+  let r3: Result_i32 = { value: 1, _pad1: 0, err: 0, _pad2: 0 };
   if (r3.err != 0) {
     return 1;
   }

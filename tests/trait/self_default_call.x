@@ -5,7 +5,7 @@
 
 trait Incrementable {
   function increment(self): Self {
-    return Self { value: self.value + 1 };
+    return { value: self.value + 1 };
   }
   function get(self): i32;
 }
@@ -19,6 +19,6 @@ impl Incrementable for Counter {
 }
 
 function main(): i32 {
-  let c: Counter = Counter { value: 10 };
+  let c: Counter = { value: 10 };
   return c.increment().get();
 }

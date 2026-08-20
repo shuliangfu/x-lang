@@ -2,7 +2,9 @@
  * parser_asm_as_suffix_slice.inc — parse_as_suffix_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 与 parser.x parse_as_suffix_into 一致：`as type` 后缀链，支持 *T 与标量/命名类型。
+ * 与 parser.x parse_as_suffix_into 一致：`as type` 后缀链。
+ * After `as`, the full type_ref parser is the only matcher (`[]T` / `[N]T` /
+ * `*T` / scalars / NAMED / SIMD tokens). PLATFORM: SHARED parse.
  */
 #ifndef PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
 #define PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
@@ -16,9 +18,9 @@ enum {
 #endif
 
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
-extern int32_t ast_ast_arena_type_alloc(void *arena);
-extern struct ast_Type ast_arena_type_get(void *arena, int32_t ref);
-extern void ast_arena_type_set(void *arena, int32_t ref, struct ast_Type t);
+extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                                               struct parser_asm_slice_u8 *source,
+                                                               struct parser_asm_lexer *out_lex);
 
 /** parser_asm_thin_c.c 在 #include 前定义（同 TU）。 */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
@@ -27,88 +29,6 @@ void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 extern int32_t parser_asm_stretch_as_suffix_chain_audit_c(struct parser_asm_lexer lex,
                                                           struct parser_asm_slice_u8 *source);
-
-/** as 后缀目标类型：标量 token → type ref；IDENT → TYPE_NAMED。 */
-static int32_t parser_asm_as_suffix_type_from_token_c(void *arena, struct parser_asm_slice_u8 *source,
-                                                      struct parser_asm_lexer_result *r) {
-  int32_t type_ref;
-  struct ast_Type t;
-  int32_t nlen;
-  int32_t si;
-  if (!arena || !r)
-    return 0;
-  if (r->tok.kind == (int32_t)TOKEN_I32 || r->tok.kind == (int32_t)TOKEN_I64 || r->tok.kind == (int32_t)TOKEN_BOOL
-      || r->tok.kind == (int32_t)TOKEN_U8 || r->tok.kind == (int32_t)TOKEN_U32 || r->tok.kind == (int32_t)TOKEN_U64
-      || r->tok.kind == (int32_t)TOKEN_USIZE || r->tok.kind == (int32_t)TOKEN_ISIZE || r->tok.kind == (int32_t)TOKEN_VOID
-      || r->tok.kind == (int32_t)TOKEN_F32 || r->tok.kind == (int32_t)TOKEN_F64) {
-    type_ref = ast_ast_arena_type_alloc(arena);
-    if (type_ref == 0)
-      return 0;
-    t = ast_arena_type_get(arena, type_ref);
-    t.name_len = 0;
-    t.elem_type_ref = 0;
-    t.array_size = 0;
-    t.region_label_len = 0;
-    switch (r->tok.kind) {
-    case TOKEN_I32:
-      t.kind = PARSER_ASM_TYPE_I32;
-      break;
-    case TOKEN_I64:
-      t.kind = PARSER_ASM_TYPE_I64;
-      break;
-    case TOKEN_BOOL:
-      t.kind = PARSER_ASM_TYPE_BOOL;
-      break;
-    case TOKEN_U8:
-      t.kind = PARSER_ASM_TYPE_U8;
-      break;
-    case TOKEN_U32:
-      t.kind = PARSER_ASM_TYPE_U32;
-      break;
-    case TOKEN_U64:
-      t.kind = PARSER_ASM_TYPE_U64;
-      break;
-    case TOKEN_USIZE:
-      t.kind = PARSER_ASM_TYPE_USIZE;
-      break;
-    case TOKEN_ISIZE:
-      t.kind = PARSER_ASM_TYPE_ISIZE;
-      break;
-    case TOKEN_VOID:
-      t.kind = PARSER_ASM_TYPE_VOID;
-      break;
-    case TOKEN_F32:
-      t.kind = PARSER_ASM_TYPE_F32;
-      break;
-    case TOKEN_F64:
-      t.kind = PARSER_ASM_TYPE_F64;
-      break;
-    default:
-      return 0;
-    }
-    ast_arena_type_set(arena, type_ref, t);
-    return type_ref;
-  }
-  if (r->tok.kind == (int32_t)TOKEN_IDENT) {
-    type_ref = ast_ast_arena_type_alloc(arena);
-    if (type_ref == 0)
-      return 0;
-    t = ast_arena_type_get(arena, type_ref);
-    t.kind = PARSER_ASM_TYPE_NAMED;
-    nlen = r->tok.ident_len;
-    if (nlen > 63)
-      nlen = 63;
-    t.name_len = nlen;
-    for (si = 0; si < nlen && source && r->token_start + (size_t)si < source->length; si++)
-      t.name[si] = source->data[r->token_start + (size_t)si];
-    t.elem_type_ref = 0;
-    t.array_size = 0;
-    t.region_label_len = 0;
-    ast_arena_type_set(arena, type_ref, t);
-    return type_ref;
-  }
-  return 0;
-}
 
 /**
  * parse_as_suffix_into：解析零个或多个 postfix 后缀（`?` Result 传播、`as type`；假定 out 已由 primary 填充）。
@@ -162,42 +82,23 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
       return;
     }
     parser_asm_lex_from_result_val_into(&lex_cur, r);
-    lexer_next_into(&r, lex_cur, source);
-    type_ref = 0;
-    if (r.tok.kind == (int32_t)TOKEN_STAR) {
-      /*
-       * wave438: delegate to the full type_ref parser so `as *[N]T` /
-       * `as *[]T` / `as *[N][M]T` casts parse correctly. Previously only
-       * `as *T` (simple pointer to scalar/named) was supported; impl
-       * methods containing `as *[N]T` casts were silently dropped during
-       * parse, causing "missing method" false negatives in trait checks.
-       *
-       * lex_cur points at `*` (set at the `as` advance above); the parser
-       * consumes the whole type incl. dims and writes the post-type
-       * position back into lex_cur. r.next_lex is then synced so the
-       * loop tail `lex_cur = r.next_lex` stays consistent without
-       * re-reading a token that belongs to the next iteration.
-       * PLATFORM: SHARED.
-       */
-      type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex_cur, source, &lex_cur);
-      if (type_ref == 0) {
-        out->ok = 0;
-        return;
-      }
-      r.next_lex = lex_cur;
-    } else {
-      type_ref = parser_asm_as_suffix_type_from_token_c(arena, source, &r);
-      if (type_ref == 0) {
-        out->ok = 0;
-        return;
-      }
-      parser_lex_from_lexer_result_ptr_into(&lex_cur, &r);
-      lex_cur = r.next_lex;
-    }
+    /*
+     * After `as`, parse the full type (same authority as formals / wave438 STAR).
+     * Prior: only TOKEN_STAR delegated to type_ref; a half table handled
+     * scalars + IDENT and rejected `[]T` / `[N]T` / SIMD tokens →
+     * parse_expr.ok=0 → body_lets drop → P001 (`let x = [10,32] as []i32`).
+     * G.7: complete this suffix; no second type matcher.
+     * lex_cur now sits at the type-start token. type_ref consumes the whole
+     * type and writes the post-type position back into lex_cur. Sync
+     * r.next_lex so the loop tail `lex_cur = r.next_lex` stays consistent.
+     * PLATFORM: SHARED parse.
+     */
+    type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex_cur, source, &lex_cur);
     if (type_ref == 0) {
       out->ok = 0;
       return;
     }
+    r.next_lex = lex_cur;
     inner_ref = out->expr_ref;
     as_ref = ast_ast_arena_expr_alloc(arena);
     if (as_ref == 0) {

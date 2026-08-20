@@ -31,10 +31,23 @@ if [ ! -x "$XLANG" ]; then
 fi
 
 echo "=== types gate: typeck ==="
+# PLATFORM: SHARED — product check ignores paths containing /tests/ (bare-scan
+# hygiene). Stage copies outside tests/ so explicit harness check still runs.
+_types_chk_tmp="${TMPDIR:-/tmp}/xlang_types_check_$$"
+mkdir -p "$_types_chk_tmp"
+trap 'rm -rf "$_types_chk_tmp"' EXIT
 for f in "${CHECK_CASES[@]}"; do
-  if ! "$XLANG" check -L . "$f" >/dev/null 2>&1; then
+  _base=$(basename "$f")
+  cp "$f" "$_types_chk_tmp/$_base"
+  if ! "$XLANG" check -L . "$_types_chk_tmp/$_base" >/dev/null 2>&1; then
     echo "types gate FAIL: typeck $f" >&2
-    "$XLANG" check -L . "$f" 2>&1 | tail -6 >&2 || true
+    "$XLANG" check -L . "$_types_chk_tmp/$_base" 2>&1 | tail -6 >&2 || true
+    exit 1
+  fi
+  # Also require silent success (CHK002 historically exited 0 with a message).
+  _chk_out=$("$XLANG" check -L . "$_types_chk_tmp/$_base" 2>&1) || true
+  if [ -n "$_chk_out" ]; then
+    echo "types gate FAIL: typeck not silent $f: $_chk_out" >&2
     exit 1
   fi
   echo "types gate OK: check $f"
@@ -46,20 +59,29 @@ done
 # 仅 xlang_asm/xlang_asm2 等链 asm 后端的构建支持。
 # bootstrap-link 在 XLANG_LINK_XLANG=xlang-c + FORCE_BACKEND=c 时会把 RUN_XLANG
 # 包成 wrap 指向 pin xlang-c，-backend c 导致 link 失败。
-# 产品冷链：-o 用当前 XLANG/xlang_asm + -backend c（与 mac 矩阵一致）。
-TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-${XLANG_LINK_BACKEND_ARGS:-}}"
+#
+# Product pure-asm cold chain (xlang / xlang_asm): default backend is pure asm.
+# Forcing `-backend c` hits host-cc-requires-allow (NO silent host-cc) and fails
+# types gate even when pure-asm -o is green (L2 matrix). PLATFORM: SHARED —
+# dual-end pure-asm product path; opt-in C only via XLANG_TYPES_LINK_BACKEND_ARGS.
+TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-}"
 TYPES_LINK_XLANG="$RUN_XLANG"
 case "$(basename "${XLANG:-}")" in
   xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
     TYPES_LINK_XLANG="$XLANG"
-    TYPES_LINK_BACKEND_ARGS="-backend c"
+    # Keep empty unless caller explicitly sets XLANG_TYPES_LINK_BACKEND_ARGS.
+    TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-}"
+    ;;
+  xlang-c|xlang_c)
+    TYPES_LINK_XLANG="$XLANG"
+    TYPES_LINK_BACKEND_ARGS=""
     ;;
 esac
-# 若仍是 wrap，还原真实二进制
+# 若仍是 wrap，还原真实二进制（do not re-inject -backend c for pure product）
 case "$(basename "$TYPES_LINK_XLANG")" in
   xlang-backend-wrap.sh|xlang-min-link.sh)
     TYPES_LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-./compiler/xlang}}"
-    TYPES_LINK_BACKEND_ARGS="${XLANG_BACKEND_WRAP_ARGS:--backend c}"
+    TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-}"
     ;;
 esac
 

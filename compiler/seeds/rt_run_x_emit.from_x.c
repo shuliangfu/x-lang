@@ -425,6 +425,10 @@ int driver_run_x_emit_c(void) {
         memset(module, 0, module_sz);
         int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
         if (ec == 0 && out_buf->length > 0) {
+            /* Emit smoke summary (parse OK / typeck OK) before C body so run-typeck.sh
+             * gate grep finds the marker on the -E path. Mirrors driver/emit.x:413
+             * and rt_run_compiler_parsed.from_x.c:1055. PLATFORM: SHARED. */
+            driver_print_x_smoke_summary(module, (size_t)out_buf->length);
             fwrite(out_buf->data, 1, (size_t)out_buf->length, stdout);
             fflush(stdout);
             for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }

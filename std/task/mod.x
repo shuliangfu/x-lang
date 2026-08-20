@@ -111,7 +111,7 @@ export function echo_ptr(): *u8 {
 export function new(capacity: i32): TaskGroup {
   let h: i64 = 0;
   unsafe { h = task_group_create_c(capacity); }
-  return TaskGroup { handle: h };
+  return { handle: h };
 }
 
 /** Exported function `free`.
@@ -221,7 +221,7 @@ export function total(tg: *TaskGroup): i64 {
 export function set_new(capacity: i32): JoinSet {
   let h: i64 = 0;
   unsafe { h = join_set_create_c(capacity); }
-  return JoinSet { handle: h };
+  return { handle: h };
 }
 
 /** Exported function `set_free`.

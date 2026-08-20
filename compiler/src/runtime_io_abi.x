@@ -592,7 +592,7 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
  */
 #[no_mangle]
 export function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
-  let view: XlangRuntimeFileView = XlangRuntimeFileView {
+  let view: XlangRuntimeFileView = {
     data: 0 as *u8,
     length: 0,
     needs_free: 0,

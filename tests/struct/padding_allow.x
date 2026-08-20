@@ -10,6 +10,6 @@ struct WithGap {
  * @return i32
  */
 function main(): i32 {
-  let x: WithGap = WithGap { a: 1, b: 2 };
+  let x: WithGap = { a: 1, b: 2 };
   return x.b;
 }

@@ -316,9 +316,7 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
 ): i32 {
   let out_ptr: *u8 = 0 as *u8;
   let target_ptr: *u8 = 0 as *u8;
-  let want_generic_check: i32 = 0;
   let has_import: i32 = 0;
-  let entry_only: i32 = 0;
   if (state == 0 as *RtDispatchState) {
     return 1;
   }
@@ -333,32 +331,19 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
       state.use_asm_backend = 0;
     }
   }
-  want_generic_check = 0;
-  if (state.out_path_len == 0) {
-    want_generic_check = 1;
-  } else {
-    unsafe {
-      if (driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
-        want_generic_check = 1;
-      }
-    }
-  }
-  if (state.use_asm_backend != 0) {
-    if (want_generic_check != 0) {
-      unsafe {
-        if (driver_source_has_generic_syntax(&state.path_buf[0], state.path_len) != 0) {
-          state.use_asm_backend = 0;
-        }
-      }
-    }
-  }
+  /*
+   * PLATFORM: SHARED — PC invoke_cc opt-in (2026-08-12): silent generic→C removed.
+   * Prior residual: driver_source_has_generic_syntax on want_exe forced C + invoke_cc
+   * without `-backend c`. Closed same class as import→C / seed APPLE exe→C.
+   * Product host-cc only via explicit `-backend c` (argv) or check-only / emit-c.
+   * Keep no-import -o → backend_asm_explicit lock for explicit-asm gate consumers.
+   */
   if (state.out_path_len > 0) {
     out_ptr = &state.out_path_buf[0];
   }
   if (state.target_len > 0) {
     target_ptr = &state.target_buf[0];
   }
-  // Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
   if (state.out_path_len > 0) {
     if (state.backend_asm_explicit == 0) {
       unsafe {
@@ -366,19 +351,6 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
       }
       if (has_import == 0) {
         state.backend_asm_explicit = 1;
-      }
-    }
-  }
-  if (state.use_asm_backend != 0) {
-    if (state.backend_asm_explicit == 0) {
-      unsafe {
-        entry_only = driver_asm_entry_module_only_from_env();
-        has_import = driver_source_has_top_level_import_path(&state.path_buf[0]);
-      }
-      if (entry_only == 0) {
-        if (has_import != 0) {
-          state.use_asm_backend = 0;
-        }
       }
     }
   }

@@ -10,15 +10,15 @@ function main(): i32 {
   if (http.multistream_client_smoke() != 0) { return 2; }
   if (http.err_max_streams() != -1236) { return 3; }
 
-  let ps: Http2PeerSettings = Http2PeerSettings { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 };
+  let ps: Http2PeerSettings = { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 };
   http.peer_settings_init(&ps);
   http.peer_settings_apply_entry(&ps, http.setting_max_concurrent_streams(), 2);
   if (http.peer_settings_max_streams(&ps) != 2) { return 4; }
 
-  let cli: Http2MultistreamClient = Http2MultistreamClient {
-    registry: Http2StreamRegistry { slots_blob: [], count: 0, next_id: 0 },
-    peer: Http2PeerSettings { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 },
-    flow: Http2FlowState { conn_window: 0, stream_window: 0 },
+  let cli: Http2MultistreamClient = {
+    registry: { slots_blob: [], count: 0, next_id: 0 },
+    peer: { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 },
+    flow: { conn_window: 0, stream_window: 0 },
     open_count: 0
   };
   http.client_init(&cli);

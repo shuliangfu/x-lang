@@ -110,7 +110,7 @@ extern function config_yaml_smoke_c(): i32;
 export function new(): Config {
   unsafe {
     let h: i64 = config_create_c();
-    return Config { handle: h };
+    return { handle: h };
   }
 }
 

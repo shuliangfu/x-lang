@@ -9,7 +9,7 @@ struct Pair {
 
 /* See implementation. */
 async function struct_across_await(): i32 {
-  let p: Pair = Pair { a: 3, b: 4 };
+  let p: Pair = { a: 3, b: 4 };
   let kick: i32 = p.a;
   let mid: i32 = await kick;
   return p.a + p.b + mid;

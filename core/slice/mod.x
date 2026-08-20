@@ -88,7 +88,7 @@ export function subslice_i32(s: []i32, start: usize, len: usize): []i32 {
 export function split_at_i32(s: []i32, at: usize): Split_i32 {
   let at_clamped: usize = at;
   if (at_clamped > s.length) { at_clamped = s.length; }
-  return Split_i32 {
+  return {
     left: subslice_i32(s, 0 as usize, at_clamped),
     right: subslice_i32(s, at_clamped, s.length - at_clamped),
   };
@@ -156,7 +156,7 @@ export function subslice_u8(s: []u8, start: usize, len: usize): []u8 {
 export function split_at_u8(s: []u8, at: usize): Split_u8 {
   let at_clamped: usize = at;
   if (at_clamped > s.length) { at_clamped = s.length; }
-  return Split_u8 {
+  return {
     left: subslice_u8(s, 0 as usize, at_clamped),
     right: subslice_u8(s, at_clamped, s.length - at_clamped),
   };
@@ -227,7 +227,7 @@ export function subslice_u64(s: []u64, start: usize, len: usize): []u64 {
 export function split_at_u64(s: []u64, at: usize): Split_u64 {
   let at_clamped: usize = at;
   if (at_clamped > s.length) { at_clamped = s.length; }
-  return Split_u64 {
+  return {
     left: subslice_u64(s, 0 as usize, at_clamped),
     right: subslice_u64(s, at_clamped, s.length - at_clamped),
   };

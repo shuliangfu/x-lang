@@ -77,7 +77,10 @@ enum {
   PARSER_ASM_TYPE_VECTOR = 13,
   PARSER_ASM_TYPE_F32 = 14,
   PARSER_ASM_TYPE_F64 = 15,
-  PARSER_ASM_TYPE_VOID = 16
+  PARSER_ASM_TYPE_VOID = 16,
+  /* TYPE_DYN fat trait object {data*, vtable*} — append after VOID (ord 17).
+   * PLATFORM: SHARED type grammar. G.7 ≡ ast.x TypeKind. */
+  PARSER_ASM_TYPE_DYN = 17
 };
 
 extern int32_t ast_ast_arena_type_alloc(void *arena);
@@ -151,6 +154,116 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
 static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_lexer lex,
                                                 struct parser_asm_slice_u8 *source,
                                                 struct parser_asm_lexer *out_lex);
+
+/**
+ * True when IDENT spelling is contextual prefix `dyn` (docs/01 does not list
+ * dyn as a keyword; same TOKEN_IDENT shape as `mut`). Used only to reject
+ * the old `dyn Trait` spelling (P013); TYPE_DYN is produced by wrapping a
+ * registered trait name.
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *source,
+                                                  struct parser_asm_lexer_result *r) {
+  uint8_t n[4];
+  if (!source || !r)
+    return 0;
+  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len != 3)
+    return 0;
+  parser_asm_copy_slice_to_name64_slice_c(source, r->token_start, 3, n);
+  return n[0] == 100 && n[1] == 121 && n[2] == 110; /* d y n */
+}
+
+/*
+ * Skip-trait registry: defined in parser_asm_skip_tl_slice.inc (same product
+ * TU, later include). pthin_type_ref hybrid resolves it from skip_tl glue.
+ * PLATFORM: SHARED parse.
+ */
+extern int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen);
+
+/**
+ * Allocate TYPE_DYN wrapping `inner_tr`. If inner is already TYPE_DYN,
+ * return it (no nested fat). Copies the trait name from a TYPE_NAMED
+ * inner for diagnostics / F2 impl lookup. G.7: single TYPE_DYN allocator
+ * for type-position registered trait names.
+ * @param arena void* — AST arena
+ * @param inner_tr i32 — inner type_ref (trait NAMED, or already DYN)
+ * @return i32 — TYPE_DYN type_ref, or inner_tr on alloc failure
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_alloc_dyn_type_ref_c(void *arena, int32_t inner_tr) {
+  struct ast_Type td;
+  struct ast_Type ti;
+  int32_t dyn_tr;
+  int32_t ni;
+  if (!arena || inner_tr <= 0)
+    return inner_tr;
+  ti = ast_arena_type_get(arena, inner_tr);
+  if ((int32_t)ti.kind == PARSER_ASM_TYPE_DYN)
+    return inner_tr;
+  dyn_tr = ast_ast_arena_type_alloc(arena);
+  if (dyn_tr == 0)
+    return inner_tr;
+  td = ast_arena_type_get(arena, dyn_tr);
+  td.kind = PARSER_ASM_TYPE_DYN;
+  td.elem_type_ref = inner_tr;
+  td.array_size = 0;
+  td.region_label_len = 0;
+  td.name_len = 0;
+  if ((int32_t)ti.kind == PARSER_ASM_TYPE_NAMED && ti.name_len > 0 && ti.name_len < 128) {
+    for (ni = 0; ni < ti.name_len; ni++)
+      td.name[ni] = ti.name[ni];
+    td.name_len = ti.name_len;
+  }
+  ast_arena_type_set(arena, dyn_tr, td);
+  return dyn_tr;
+}
+
+/**
+ * If `named_tr` is TYPE_NAMED of a registered trait, wrap TYPE_DYN.
+ * This is the only type-position producer of TYPE_DYN (write `Clone`,
+ * not `dyn Clone`). Struct/alias names stay TYPE_NAMED.
+ * @param arena void* — AST arena
+ * @param named_tr i32 — candidate type_ref
+ * @return i32 — TYPE_DYN or the original ref
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_wrap_registered_trait_as_dyn_c(void *arena, int32_t named_tr) {
+  struct ast_Type ti;
+  if (!arena || named_tr <= 0)
+    return named_tr;
+  ti = ast_arena_type_get(arena, named_tr);
+  if ((int32_t)ti.kind != PARSER_ASM_TYPE_NAMED || ti.name_len <= 0)
+    return named_tr;
+  if (xlang_skip_trait_is_registered_c(ti.name, ti.name_len) == 0)
+    return named_tr;
+  return parser_asm_alloc_dyn_type_ref_c(arena, named_tr);
+}
+
+/**
+ * Token that may start a type after a peeled `dyn` / `impl` prefix.
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_type_ref_token_starts_type_c(int32_t kind) {
+  if (kind == (int32_t)TOKEN_IDENT || kind == (int32_t)TOKEN_STAR || kind == (int32_t)TOKEN_LBRACKET)
+    return 1;
+  if (kind == (int32_t)TOKEN_IMPL)
+    return 1;
+  if (kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL)
+    return 1;
+  if (kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64)
+    return 1;
+  if (kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_ISIZE || kind == (int32_t)TOKEN_VOID)
+    return 1;
+  if (kind == (int32_t)TOKEN_F32 || kind == (int32_t)TOKEN_F64)
+    return 1;
+  if (kind == (int32_t)TOKEN_I32X4 || kind == (int32_t)TOKEN_I32X8 || kind == (int32_t)TOKEN_I32X16)
+    return 1;
+  if (kind == (int32_t)TOKEN_U32X4 || kind == (int32_t)TOKEN_U32X8 || kind == (int32_t)TOKEN_U32X16)
+    return 1;
+  if (kind == (int32_t)TOKEN_F32X4)
+    return 1;
+  return 0;
+}
 
 /** 将 lex 写入 out_lex（parse_type_ref 失败/成功路径共用）。 */
 static void parser_asm_write_out_lex_c(struct parser_asm_lexer *out_lex, struct parser_asm_lexer lex) {
@@ -493,6 +606,41 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
+  /*
+   * 4.2.2 impl type prefix + one TYPE_DYN producer (G.7).
+   *
+   * TYPE_DYN (ord 17) is produced only by wrapping a registered trait
+   * name in type position (`let x: Clone = a`). Host-C emits
+   * `struct xlang_dyn_obj` fat {data*, vtable*} — not incomplete
+   * `struct Trait` (empty-struct paint ban).
+   *
+   * `dyn Trait` is not a second producer (AI / users write the trait
+   * name). Prior peel wrapped TYPE_DYN from the `dyn` prefix; that
+   * path is removed. Seeing `dyn` followed by a type is P013 hard-fail
+   * (sticky, so unused `take(x: dyn Clone)` cannot vanish while main
+   * stays green). Bare `dyn` (no following type) stays TYPE_NAMED "dyn".
+   *
+   * `impl Trait` stays peeled TYPE_NAMED trait (static path; not fat)
+   * unless the inner IDENT is a registered trait (then implicit DYN,
+   * same as bare `Trait`).
+   * PLATFORM: SHARED type grammar.
+   */
+  if (parser_asm_type_ref_ident_is_dyn_c(source, &r)) {
+    struct parser_asm_lexer_result peek_pref;
+    lexer_next_into(&peek_pref, r.next_lex, source);
+    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind)) {
+      extern void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col);
+      parser_report_dyn_prefix_p013_c((int32_t)r.tok.line, (int32_t)r.tok.col);
+      parser_asm_write_out_lex_c(out_lex, r.next_lex);
+      return 0;
+    }
+  }
+  if (r.tok.kind == (int32_t)TOKEN_IMPL) {
+    struct parser_asm_lexer_result peek_impl;
+    lexer_next_into(&peek_impl, r.next_lex, source);
+    if (parser_asm_type_ref_token_starts_type_c(peek_impl.tok.kind))
+      return parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
+  }
   if (r.tok.kind == (int32_t)TOKEN_STAR) {
     ptr_depth = 0;
     while (r.tok.kind == (int32_t)TOKEN_STAR) {
@@ -507,6 +655,19 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
        * the `[`), then PTR is wrapped around it. The C-style postfix *T[N]
        * (ARRAY of PTR to T, scalar base T) is preserved for the scalar path
        * below. PLATFORM: SHARED parse.
+       */
+      elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+      if (elem_ref == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+    } else if (parser_asm_type_ref_ident_is_dyn_c(source, &r) || r.tok.kind == (int32_t)TOKEN_IMPL) {
+      /*
+       * Same-layer: `*dyn Trait` (P013 reject via recurse) / `*impl Trait`.
+       * alloc_pointee only accepts IDENT as TYPE_NAMED, so a leftover
+       * Clone after `*dyn` would drop the function. Recurse so the
+       * prefix handler above reports P013 (or peels `impl`). `lex` sits
+       * after the stars, before the pointee token. PLATFORM: SHARED.
        */
       elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
       if (elem_ref == 0) {
@@ -768,6 +929,14 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       }
       /* If next was not `<`, leave lex unadvanced so postfix sees `[` / end. */
     }
+    /*
+     * Bare trait name in type position (`let x: Clone = a`) is TYPE_DYN
+     * without writing `dyn`. Registered skip-trait names wrap the same
+     * fat as `dyn Trait`. Struct / alias IDENT stays TYPE_NAMED.
+     * Wrap after `<T>` so generic `Wrap<i32>` is not treated as a trait.
+     * PLATFORM: SHARED type grammar. G.7 complete this IDENT path.
+     */
+    type_ref_param = parser_asm_wrap_registered_trait_as_dyn_c(arena, type_ref_param);
     return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_param, lex, source, out_lex);
   }
   parser_asm_write_out_lex_c(out_lex, lex);

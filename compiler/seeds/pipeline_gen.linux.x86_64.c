@@ -58,7 +58,10 @@ static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_a
 static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
 static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
 typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
-__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+/* wave316 G.7: monofile dual WEAK polyfill → extern-only (pipeline_gen residual sole dual).
+ * live STRONG = runtime/product .o. Completes freestanding dual leave after wave310 shell re-pin.
+ * PLATFORM: SHARED freestanding dual leave. */
+extern int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr);
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN, ast_ExprKind_EXPR_TRY_PROPAGATE };
@@ -79,7 +82,7 @@ struct ast_StructLayout { uint8_t name[128]; int32_t name_len; int32_t field_bas
 struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t pending_repr_compatible_struct; int32_t pending_used; int32_t pending_naked; int32_t pending_entry; int32_t pending_no_mangle; int32_t pending_interrupt; int32_t pending_export; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
 struct ast_PipelineDepCtx { int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t path_buf[512]; uint8_t loaded_buf[4194304]; ptrdiff_t loaded_len; uint8_t preprocess_buf[4194304]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t target_cpu_features; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t typeck_loop_depth; int32_t current_func_index; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; int32_t current_codegen_dep_index; uint8_t current_codegen_prefix_mirror[128]; int32_t current_codegen_prefix_len; int32_t asm_entry_module_only; uint8_t entry_module_import_path_mirror[128]; int32_t entry_module_import_path_len; int32_t typeck_scope_region_len; uint8_t typeck_scope_region_label[128]; };
-enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_ELLIPSIS, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING };
+enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_ELLIPSIS, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING, token_TokenKind_TOKEN_EXPORT, token_TokenKind_TOKEN_NULL };
 struct token_Token { enum token_TokenKind kind; int32_t line; int32_t col; int64_t int_val; double float_val; uint8_t * ident; int32_t ident_len; };
 struct lexer_Lexer { size_t pos; int32_t line; int32_t col; };
 struct lexer_LexerResult { struct lexer_Lexer next_lex; struct token_Token tok; size_t token_start; };
@@ -253,18 +256,19 @@ extern int32_t run_x_pipeline_codegen_entry_emit(struct ast_Module * module, str
 #define ast_arena_init ast_ast_arena_init
 
 int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * buf, int32_t buf_len);
+/* wave305 G.7 dual-export leave: sole T/W on runtime_pipeline_abi (pure/seed). */
+extern int32_t pipeline_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * buf, int32_t buf_len);
 int32_t pipeline_path_append_from_buf_256(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * buf, int32_t len);
 int32_t pipeline_path_append_from_buf_512(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * buf, int32_t len);
 int32_t pipeline_path_append_import_path(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * import_path, int32_t path_len);
 int32_t pipeline_resolve_path_import_has_dot(uint8_t * import_path, int32_t path_len);
-int32_t pipeline_resolve_path_probe_dot_x_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off);
+extern int32_t pipeline_resolve_path_probe_dot_x_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off);
 int32_t pipeline_resolve_path_try_flat_import_under_lib(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len);
 int32_t pipeline_resolve_path_try_one_lib_root(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len);
 int32_t pipeline_resolve_path_try_entry_dir(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len);
-int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len);
+extern int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len);
 size_t pipeline_loaded_buf_cap();
-int32_t pipeline_read_file_x(struct ast_PipelineDepCtx * ctx);
+extern int32_t pipeline_read_file_x(struct ast_PipelineDepCtx * ctx);
 struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len);
 int32_t pipeline_parse_apply_main_from_scalars(struct ast_Module * module, struct ast_ASTArena * arena);
 int32_t pipeline_parse_set_main_from_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * data, int32_t len);
@@ -277,7 +281,7 @@ int32_t pipeline_sync_dep_slots_from_driver(struct ast_Module * module, struct a
 int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_lsp_diag_parse_entry_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len);
 int32_t pipeline_lsp_diag_typeck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_run_x_pipeline_parse_entry_do_parse(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_run_x_pipeline_parse_entry_if_needed(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_run_x_pipeline_load_deps_after_parse(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
@@ -290,280 +294,18 @@ int32_t pipeline_prepare_dep_codegen_path(struct ast_PipelineDepCtx * ctx, int32
 int32_t pipeline_finish_dep_codegen_diag(int32_t dep_j, struct codegen_CodegenOutBuf * out_buf);
 int32_t pipeline_run_x_pipeline_codegen_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_run_x_pipeline_impl(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
-XLANG_LIB_WEAK int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx * ctx) {
-  if (pipeline_driver_x_pipeline_skip_typeck() != 0) {   return 1;
- }
-  if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {   return 0;
- }
-  if (pipeline_driver_asm_build_skip_typeck() != 0) {   return 1;
- }
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * buf, int32_t buf_len) {
-  return pipeline_parse_into_buf_c(arena, module, buf, buf_len);
-}
-XLANG_LIB_WEAK int32_t pipeline_path_append_from_buf_256(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * buf, int32_t len) {
-  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
-}
-XLANG_LIB_WEAK int32_t pipeline_path_append_from_buf_512(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * buf, int32_t len) {
-  return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
-}
-XLANG_LIB_WEAK int32_t pipeline_path_append_import_path(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * import_path, int32_t path_len) {
-  return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
-}
-XLANG_LIB_WEAK int32_t pipeline_resolve_path_import_has_dot(uint8_t * import_path, int32_t path_len) {
-  if (import_path == ((uint8_t *)(0)) || path_len <= 0) {   return 0;
- }
-  int32_t k = 0;
-  while (k < path_len && k < 64) {
-    if ((import_path)[k] == ((uint8_t)(46))) {   return 1;
- }
-    ++k;
-  }
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_resolve_path_probe_dot_x_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off) {
-  return pipeline_resolve_path_probe_export_c(ctx, off);
-}
-XLANG_LIB_WEAK int32_t pipeline_resolve_path_try_flat_import_under_lib(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len) {
-  if (ctx == ((struct ast_PipelineDepCtx *)(0)) || lib_idx < 0) {   return (-1);
- }
-  if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {   return (-1);
- }
-  if (pipeline_flat_import_probe_open_c(ctx) == 0) {   return 0;
- }
-  return (-1);
-}
-XLANG_LIB_WEAK int32_t pipeline_resolve_path_try_one_lib_root(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len) {
-  if (ctx == ((struct ast_PipelineDepCtx *)(0)) || lib_idx < 0) {   return (-1);
- }
-  if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {   return (-1);
- }
-  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {   return (-1);
- }
-  if (pipeline_resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {   return 0;
- }
-  if (path_len > 0 && path_len < 64 && pipeline_resolve_path_import_has_dot(import_path, path_len) == 0) {   if (pipeline_resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {   return 0;
- }
- }
-  return (-1);
-}
-XLANG_LIB_WEAK int32_t pipeline_resolve_path_try_entry_dir(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len) {
-  if (ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || pipeline_resolve_path_import_has_dot(import_path, path_len) != 0) {   return (-1);
- }
-  if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {   return (-1);
- }
-  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {   return (-1);
- }
-  return pipeline_resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
-}
-XLANG_LIB_WEAK int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len) {
-  if (ctx == ((struct ast_PipelineDepCtx *)(0)) || path_len <= 0) {   return (-1);
- }
-  int32_t lib_i = 0;
-  while (1) {
-    if (pipeline_loop_should_continue_lib_root_c(ctx, lib_i) == 0) {   break;
- }
-    if (pipeline_resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len) == 0) {   return 0;
- }
-    ++lib_i;
-  }
-  if (pipeline_resolve_path_try_entry_dir(ctx, import_path, path_len) == 0) {   return 0;
- }
-  return (-1);
-}
-XLANG_LIB_WEAK size_t pipeline_loaded_buf_cap() {
-  return ((size_t)(4194304));
-}
-XLANG_LIB_WEAK int32_t pipeline_read_file_x(struct ast_PipelineDepCtx * ctx) {
-  return pipeline_read_file_x_impl_c(ctx);
-}
-XLANG_LIB_WEAK struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len) {
-  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
-}
-XLANG_LIB_WEAK int32_t pipeline_parse_apply_main_from_scalars(struct ast_Module * module, struct ast_ASTArena * arena) {
-  return pipeline_parse_apply_main_from_scalars_c(module, arena);
-}
-XLANG_LIB_WEAK int32_t pipeline_parse_set_main_from_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * data, int32_t len) {
-  return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
-}
-XLANG_LIB_WEAK int32_t pipeline_typeck_parsed_module(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t fail_mapped) {
-  return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
-}
-XLANG_LIB_WEAK int32_t pipeline_typeck_entry_module(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  return pipeline_typeck_parsed_module(module, arena, ctx, 0);
-}
-XLANG_LIB_WEAK int32_t pipeline_load_import_resolve_read(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t import_idx) {
-  return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
-}
-XLANG_LIB_WEAK int32_t pipeline_load_import_from_disk(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t import_idx) {
-  return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
-}
-XLANG_LIB_WEAK int32_t pipeline_load_one_import_slot(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t import_idx) {
-  return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
-}
-/*
- * 【Why 根源】旧 while+sync_one_dep_slot 按 entry import[i] 覆写闭包槽 → 丢 std.io.core。
- * Authority: pipeline_sync_dep_slots_from_driver_impl_c (ast_pool/pipeline_glue).
- * PLATFORM: SHARED.
- */
-XLANG_LIB_WEAK int32_t pipeline_sync_dep_slots_from_driver(struct ast_Module * module, struct ast_PipelineDepCtx * ctx) {
-  return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
-}
-XLANG_LIB_WEAK int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
-}
-XLANG_LIB_WEAK int32_t pipeline_lsp_diag_parse_entry_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len) {
-  return pipeline_parse_set_main_from_buf(module, arena, source_data, source_len);
-}
-XLANG_LIB_WEAK int32_t pipeline_lsp_diag_typeck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  /* Skip dep reload if already seeded by driver (ndep > 0). */
-  if (pipeline_dep_ctx_ndep(ctx) > 0) { return 0; }
-  if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {   return (-1);
- }
-  if (pipeline_run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {   return (-3);
- }
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0)) || source_data == ((uint8_t *)(0))) {   return (-1);
- }
-  if (pipeline_parse_set_main_from_buf(module, arena, source_data, source_len) != 0) {   return (-2);
- }
-  if (pipeline_lsp_diag_typeck_after_load(module, arena, ctx) != 0) {   return (-3);
- }
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_parse_entry_do_parse(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx) {
-  return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_parse_entry_if_needed(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  (void)(driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx)));
-  if (pipeline_dep_ctx_entry_already_parsed(ctx) != 0) {   (void)(driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module)));
-  (void)(driver_diagnostic_entry_module(module, arena));
-  return 0;
- }
-  return pipeline_run_x_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_load_deps_after_parse(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   (void)(run_x_pipeline_last_rc_store_c((-1)));
-  return run_x_pipeline_last_rc_get();
- }
-  if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {   (void)(run_x_pipeline_last_rc_store_c((-1)));
-  return run_x_pipeline_last_rc_get();
- }
-  (void)(run_x_pipeline_last_rc_store_c(0));
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_typecheck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_typecheck_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  if (pipeline_driver_x_pipeline_skip_typeck() != 0) {   return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
- }
-  if (pipeline_should_skip_x_typeck(ctx) != 0) {   return 0;
- }
-  return pipeline_typeck_entry_module(module, arena, ctx);
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_fill_dep_import_path(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j) {
-  return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_codegen_one_dep(struct ast_Module * module, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen) {
-  if (module == ((struct ast_Module *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0)) || dep_j < 0) {   return (-1);
- }
-  if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0) {   return 0;
- }
-  if (pipeline_run_x_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {   return (-1);
- }
-  if (run_x_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {   return (-1);
- }
-  if (run_x_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {   (void)(driver_diagnostic_codegen_fail(dep_j, 1));
-  return (-6);
- }
-  (void)(pipeline_finish_dep_codegen_diag(dep_j, out_buf));
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_codegen_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  int32_t dep_codegen_i = 0;
-  while (1) {
-    if (pipeline_loop_should_continue_ndep_c(ctx, dep_codegen_i) == 0) {   break;
- }
-    if (pipeline_run_x_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {   return (-6);
- }
-    ++dep_codegen_i;
-  }
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_prepare_dep_codegen_path(struct ast_PipelineDepCtx * ctx, int32_t dep_j, uint8_t * dst) {
-  (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst));
-  (void)(driver_set_current_dep_path_for_codegen(dst));
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_finish_dep_codegen_diag(int32_t dep_j, struct codegen_CodegenOutBuf * out_buf) {
-  (void)(driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf)));
-  (void)(driver_set_current_dep_path_for_codegen(((uint8_t *)(0))));
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_codegen_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  (void)(driver_diagnostic_entry_module(module, arena));
-  if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {   (void)(driver_diagnostic_codegen_fail(0, 0));
-  return (-6);
- }
-  return 0;
-}
-XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_impl(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  (void)(driver_compile_phase_timing_begin(0));
-  if (pipeline_run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {   (void)(driver_compile_phase_timing_end(0));
-  (void)(driver_compile_phase_timing_flush());
-  return (-2);
- }
-  if (pipeline_run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {   (void)(driver_compile_phase_timing_end(0));
-  (void)(driver_compile_phase_timing_flush());
-  return run_x_pipeline_last_rc_get();
- }
-  (void)(driver_compile_phase_timing_end(0));
-  (void)(driver_compile_phase_timing_begin(1));
-  if (pipeline_run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {   (void)(driver_compile_phase_timing_end(1));
-  (void)(driver_compile_phase_timing_flush());
-  return run_x_pipeline_last_rc_get();
- }
-  (void)(driver_compile_phase_timing_end(1));
-  if (driver_check_only_get() != 0) {   (void)(driver_compile_phase_timing_flush());
-  return 0;
- }
-  if (driver_x_pipeline_skip_codegen_get() != 0) {   (void)(driver_compile_phase_timing_flush());
-  return 0;
- }
-  (void)(codegen_out_buf_set_len(out_buf, 0));
-  (void)(driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0));
-  (void)(driver_compile_phase_timing_begin(2));
-  if (pipeline_run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {   (void)(driver_compile_phase_timing_end(2));
-  (void)(driver_compile_phase_timing_flush());
-  return (-6);
- }
-  if (pipeline_run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {   (void)(driver_compile_phase_timing_end(2));
-  (void)(driver_compile_phase_timing_flush());
-  return (-6);
- }
-  (void)(driver_compile_phase_timing_end(2));
-  (void)(driver_compile_phase_timing_flush());
-  return 0;
-}
+/* wave307: pipeline_should_skip_x_typeck residual pure leave → runtime_pipeline_abi pure (no body here). */
+/* wave305: pipeline_parse_into_buf dual leave → runtime_pipeline_abi pure (no body here). */
+/* wave305: pipeline_resolve_path_probe_dot_x_and_mod dual leave → pure (no body here). */
+/* wave307: pipeline_loaded_buf_cap residual pure leave → runtime_pipeline_abi pure (no body here). */
+/* wave305: pipeline_read_file_x dual leave → pure (no body here). */
+/* wave308: pipeline_parse_into_with_init_buf Cap-struct leave → seed ALWAYS (no body here). */
+/* wave307: pipeline_load_one_import_slot residual pure leave → runtime_pipeline_abi pure (no body here). */
+/* wave307: pipeline_lsp_diag_typeck_after_load residual pure leave → runtime_pipeline_abi pure (no body here). */
+/* wave307: pipeline_run_x_pipeline_impl residual pure leave → runtime_pipeline_abi pure (no body here). */
 
-#include "pipeline_glue.c"
+/* wave309: pipeline_glue shell retired — no include */
+/* wave310 G.7: re-pin this seed to tip residual shell (post wave305–309 leave).
+ * Stale pin had ~40 XLANG_LIB_WEAK residual bodies dual vs runtime_pipeline_abi pure.
+ * After re-pin: sole T was weak io_register_buffers_buf_c; wave316 left dualW→extern (T=0).
+ * PLATFORM: SHARED — product pure-ld does not host-cc pipeline_gen (wave309). */

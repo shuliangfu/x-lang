@@ -645,7 +645,6 @@ export function lsp_main_impl(): i32 {
       continue;
     }
     /* See implementation. */
-    */
     if (lsp_body_contains_did_open(body_ptr, content_len) != 0) {
       lsp_set_document_from_body(body_ptr, content_len);
       lsp_io.lsp_free(body_ptr);

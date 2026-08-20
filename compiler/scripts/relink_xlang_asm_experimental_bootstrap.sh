@@ -121,10 +121,13 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_io_abi_obj
   ensure_runtime_link_abi_obj
   local o="src/runtime_driver_asm_strict.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- seeds/runtime.from_x.c (-DXLANG_ASM_USE_COMPILER_IMPL_C)"
-  "$CC" $CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS \
-  -DXLANG_ASM_USE_COMPILER_IMPL_C -c -o "$o" seeds/runtime.from_x.c
+  # wave321 7.1.1: monofile retired — alias multi-slice product no_c.
+  # PLATFORM: SHARED freestanding experimental bootstrap archaeology path.
+  if [ ! -f "$o" ] \
+    || { [ -f seeds/rt_content.from_x.c ] && [ seeds/rt_content.from_x.c -nt "$o" ]; }; then
+    experimental_bootstrap_info "ensure $o ← multi-slice no_c alias (wave321 monofile retired)"
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o || return 1
+    cp -f src/runtime_driver_no_c.o "$o" || return 1
   fi
 }
 ensure_runtime_driver_asm_strict_obj
@@ -357,6 +360,10 @@ fi
 # NL-07 L10: nostdlib drops -luring/-lpthread/-lc (G.7 shared policy).
 # shellcheck disable=SC1091
 . scripts/bootstrap_nostdlib_shared.sh
+# Stage 12.2.3: pure-ld helpers (zero-CC when XLANG_ZERO_CC_LD=1).
+# PLATFORM: SHARED.
+# shellcheck disable=SC1091
+. scripts/pure_ld_shared.sh
 PIPELINE_LIBS=""
 EXP_LINK_TAIL="-lm -lc"
 if bootstrap_wants_nostdlib; then
@@ -392,21 +399,34 @@ ST_LSP_X=""
 if [ -f "$BUILD_DIR/gen_driver/lsp_x.o" ]; then
   ST_LSP_X="$BUILD_DIR/gen_driver/lsp_x.o $BUILD_DIR/gen_driver/lsp_io_x.o $BUILD_DIR/gen_driver/lsp_io_std_heap_x.o $BUILD_DIR/gen_driver/lsp_diag_x.o"
 fi
-if [ ! -f "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] || [ "scripts/asm_xlang_lsp_diag_stub.c" -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ]; then
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" scripts/asm_xlang_lsp_diag_stub.c
+# wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
+if [ ! -f "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] || [ "seeds/asm_xlang_lsp_diag_stub.from_x.c" -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ]; then
+  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" seeds/asm_xlang_lsp_diag_stub.from_x.c
 fi
 ST_LSP_DIAG_STUB="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
 GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
 PIPELINE_GEN_CFLAGS="-O2 -g -fno-strict-aliasing -DPIPELINE_GEN_STANDALONE"
-if [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ] \
-  || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; then
+# wave309: pipeline_glue_standalone.from_x.c seed retired; pure runtime_pipeline_abi.o
+# is G.7 authority. Skip compilation when seed absent (non-fatal; experimental link
+# resolves via runtime_pipeline_abi.o). PLATFORM: SHARED.
+if [ -f seeds/pipeline_glue_standalone.from_x.c ] && { [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ] \
+  || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; }; then
   experimental_bootstrap_info "cc pipeline_glue_standalone.o"
   mkdir -p "$BUILD_DIR"
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$GLUE_O" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
 fi
+# wave309: glue seed shell retired; drop GLUE_O if .o physically missing so LD argv
+# does not reference non-existent file. Pure runtime_pipeline_abi.o / pipeline_x.o
+# provide pipeline symbols (G.7). PLATFORM: SHARED.
+[ -z "$GLUE_O" ] || [ -f "$GLUE_O" ] || GLUE_O=""
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  EXP_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"
+  # -multiply_defined is obsolete on new macOS ld (causes link error: "file
+  # cannot be open()ed, path=suppress"). G.7 single authority (parser_x.o
+  # excludes parser.o) handles duplicates without linker flags.
+  # PLATFORM: MACOS.
+  EXP_ALLOW_MULTIDEF=""
 else
+  # PLATFORM: LINUX — --allow-multiple-definition is still supported by GNU ld.
   EXP_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 fi
 # parse_diag：与 Makefile RT_SEED_SLICE / g05 同源；runtime 仅声明 recovery 诊断。
@@ -415,51 +435,145 @@ if [ ! -f src/runtime/rt_parse_diag.o ] || [ seeds/rt_parse_diag.from_x.c -nt sr
   experimental_bootstrap_info "cc src/runtime/rt_parse_diag.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/rt_parse_diag.from_x.c -o src/runtime/rt_parse_diag.o
 fi
+# RT_SEED_SLICE companions: same source as build_xlang_asm.sh line 4738-4741 and
+# g05_relink_env (linked as separate .o to avoid Darwin duplicate symbols per
+# ensure_host_cc_seed_o.sh comment). rt_emit_state.o provides driver_x_emit_c_path
+# global; rt_arena_buf/rt_preamble/rt_stack provide other runtime globals referenced
+# by driver/pipeline code paths. Without these, the experimental binary crashes at
+# runtime (dyld: symbol not found in flat namespace).
+# PLATFORM: SHARED.
+for _exp_rt_pair in \
+  "rt_arena_buf:src/runtime/rt_arena_buf.o" \
+  "rt_emit_state:src/runtime/rt_emit_state.o" \
+  "rt_preamble:src/runtime/rt_preamble.o" \
+  "rt_stack:src/runtime/rt_stack.o"; do
+  _exp_rt_name="${_exp_rt_pair%%:*}"
+  _exp_rt_out="${_exp_rt_pair##*:}"
+  if [ ! -f "$_exp_rt_out" ] || [ "seeds/${_exp_rt_name}.from_x.c" -nt "$_exp_rt_out" ]; then
+    mkdir -p src/runtime
+    experimental_bootstrap_info "cc $_exp_rt_out <- seeds/${_exp_rt_name}.from_x.c"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c "seeds/${_exp_rt_name}.from_x.c" -o "$_exp_rt_out"
+  fi
+done
 # PLATFORM: SHARED — G-02e: no runtime_abi/proc_abi .o; link runtime_link_abi instead.
-"$CC" $CFLAGS $EXP_ALLOW_MULTIDEF -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm.experimental \
-  src/asm/runtime_asm_build.o \
-  "$GLUE_O" \
-  src/runtime_io_abi.o \
-  src/runtime_link_abi.o \
-  src/runtime_driver_asm_strict.o \
-  src/runtime/rt_parse_diag.o \
-  pipeline_x.o \
-  pipeline_bootstrap_orchestration.o \
-  preprocess_x.o \
-  "src/runtime_driver_strict_glue_stubs.o" \
-  driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  "$BUILD_DIR/x_seed_bridge.o" \
-  "$BUILD_DIR/seed_host/asm_backend_partial.o" \
-  src/asm/user_asm_seed_bridge.o \
-  src/asm/asm_backend_compat_stubs.o \
-  src/asm/pipeline_run_x_link_alias.o \
-  $BSTRICT_DISPATCH \
-  src/driver/fmt_check_cmd_driver.o \
-  src/driver/target_cpu.o \
-  src/asm/simd_enc.o \
-  src/asm/simd_loop.o \
-  "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
-  ${PARSER_PARSE_BOOT_O:+"$PARSER_PARSE_BOOT_O"} \
-  $ST_LSP_DIAG_STUB \
-  "$SEED_O/async_liveness.o" \
-  "$SEED_O/async_cps_codegen.o" \
-  "$SEED_O/ast_seed.o" \
-  "$SEED_O/lexer.o" \
-  "$SEED_O/parser.o" \
-  "$SEED_O/lsp_diag.o" \
-  $ST_LSP_X \
-  src/lsp/lsp_diag_pipeline_ctx.o \
-  src/lsp/lsp_diag_pipeline_sizes.o \
-  "$PARSER_ASM_THIN_C" \
-  "$PARSER_EXPR_LINK_O" \
-  parser_x.o lexer_x.o typeck_x.o codegen_x.o \
-  x_frontend_link_alias.o \
-  $EXP_LINK_TAIL $PIPELINE_LIBS 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"
+# Build OBJS string (shared between CC and pure-ld paths; G.7 single authority
+# for the experimental bootstrap object inventory).
+EXP_LINK_OBJS="src/asm/runtime_asm_build.o"
+[ -z "$GLUE_O" ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $GLUE_O"
+EXP_LINK_OBJS="$EXP_LINK_OBJS src/runtime_pipeline_abi.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_asm_strict.o src/runtime/rt_parse_diag.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o pipeline_x.o pipeline_bootstrap_orchestration.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/pipeline_run_x_link_alias.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $BUILD_DIR/asm_experimental_symbol_bridge.o"
+[ -z "$PARSER_PARSE_BOOT_O" ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $PARSER_PARSE_BOOT_O"
+[ -z "$ST_LSP_DIAG_STUB" ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $ST_LSP_DIAG_STUB"
+EXP_LINK_OBJS="$EXP_LINK_OBJS $SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/ast_seed.o $SEED_O/lexer.o $SEED_O/lsp_diag.o"
+# G.7: parser_x.o is the Track L authority (covers all parser.o symbols).
+# Skip seed parser.o when parser_x.o exists to avoid duplicate symbols
+# (-multiply_defined suppress is obsolete on new macOS ld; G.7 single
+# authority requires only one parser provider in the link).
+# PLATFORM: SHARED.
+[ -f parser_x.o ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $SEED_O/parser.o"
+[ -z "$ST_LSP_X" ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $ST_LSP_X"
+EXP_LINK_OBJS="$EXP_LINK_OBJS src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_pipeline_sizes.o $PARSER_ASM_THIN_C $PARSER_EXPR_LINK_O parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
+# Stage 12.2.3: Add objects to close pre-existing undefined symbol gap between
+# experimental chain and g05 product chain (symbols present in g05 but missing
+# from experimental link). Objects identified by diffing g05 G05_OBJS against
+# EXP_LINK_OBJS — G.7 single authority (g05_relink_env.sh is the production
+# truth; experimental link must converge to same object set modulo bootstrap
+# specific runtime_asm_build.o / asm_experimental_symbol_bridge.o).
+#
+# Key fix 1: use src/lexer/cfg_eval.o (full partial merge: cfg_eval_x.o +
+# cfg_eval_link_alias.o via ld -r) instead of bare cfg_eval_link_alias.o.
+# The link_alias alone CONSUMES lexer_cfg_* symbols (U in nm); cfg_eval.o
+# PROVIDES them (T in nm). This matches g05 _DRIVER_SEED_SUPPORT in no_c
+# default mode. Without this fix the link fails with 4 lexer_cfg_* U refs.
+#
+# Key fix 2: add src/asm/backend_arm64_enc_c.o (arm64 instruction encoder).
+# Without it, asm_codegen on Darwin arm64 produces code_len=0 (CG002) because
+# arch_arm64_enc_enc_mov_imm32_to_w0 (needed for `return N` → `mov w0, #N`)
+# is undefined. g05 _USER_ASM_LINK includes both x86_64_enc_c.o AND
+# arm64_enc_c.o for cross-target support; experimental BSTRICT_DISPATCH
+# only had x86_64. PLATFORM: SHARED — arm64 encoder needed on Darwin arm64;
+# x86_64 encoder needed on Linux x86_64; both included for cross-target.
+#
+# Key fix 3: add driver_x.o (main entry + command dispatch). The experimental
+# chain had individual driver_*_x.o subcommand objects but NOT driver_x.o
+# itself, which provides _main_run_compiler_c_impl and _main_* helpers.
+# Without it, `xlang_asm build` subcommand fails (rc=255, no output) though
+# default `xlang_asm -o out src.x` works via a different main path.
+#
+# Key fix 4: add runtime_process_argv.o (process_xlang_argc_get /
+# process_xlang_argv_get / xlang_process_argv_bind_from_crt). g05
+# _DRIVER_SEED_OBJS includes this explicitly; experimental had only
+# process_args_count_c from runtime_driver_asm_strict.o.
+#
+# NOTE: LSP objects (lsp_x.o, lsp_diag_x.o, lsp_io_x.o, lsp_io_std_heap_x.o,
+# src/lsp/lsp_diag.o) are NOT added here because the experimental chain
+# already includes them via $SEED_O/lsp_diag.o and $ST_LSP_X variables
+# (lines 465-473). Adding them again causes 145 duplicate symbols.
+#
+# PLATFORM: SHARED — all objects exist on both macOS and Ubuntu after g05
+# ensure. arm64_enc_c.o is needed on arm64; x86_64_enc_c.o on x86_64;
+# both included for cross-target codegen (matches g05).
+EXP_LINK_OBJS="$EXP_LINK_OBJS src/seed_link_compat.o build_asm/seed_host/asm_full_link_stubs.o src/runtime_driver_diagnostic.o src/runtime_driver_abi.o src/diag.o src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
+EXP_LINK_OBJS="$EXP_LINK_OBJS src/asm/backend_arm64_enc_c.o driver_x.o runtime_process_argv.o"
 
-if [ ! -x xlang_asm.experimental ]; then
-  experimental_bootstrap_error "link failed"
-  tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null | sed 's/^/ /' || true
-  exit 1
+# Stage 12.2.3: zero-CC experimental bootstrap link via pure_ld_try_link
+# (G.7 single authority). When XLANG_ZERO_CC_LD=1 and host is freestanding-eligible,
+# use `ld` directly instead of `$CC -o`. When unset or host ineligible, original
+# `$CC` path (zero regression).
+#
+# Hosted (non-nostdlib): include system crt1.o (provides _start → main, same
+#   entry chain as $CC's automatic crt1). Entry = pure_ld_default_entry (-e _start).
+# Nostdlib (Linux x86_64): no crt1 (nostdlib = no standard crt); entry = -e main
+#   (direct kernel → main, matching the $CC -nostdlib behavior where main is the
+#   effective entry). Extra = -static --gc-sections. nostdlib_extra_objs are .o
+#   files and go into OBJS, not tail.
+#
+# PLATFORM: SHARED — Darwin (hosted crt1) + Linux x86_64 (hosted crt1 or nostdlib).
+if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ] && pure_ld_freestanding_ok; then
+  if bootstrap_wants_nostdlib; then
+    # PLATFORM: LINUX — nostdlib freestanding (no crt1; direct main entry).
+    EXP_NOSTDLIB_EXTRA="$(bootstrap_nostdlib_extra_objs)"
+    EXP_LD_ENTRY="-e main"
+    EXP_LD_TAIL=""
+    EXP_LD_EXTRA="-static --gc-sections"
+    EXP_LD_OBJS="$EXP_LINK_OBJS $EXP_NOSTDLIB_EXTRA"
+  else
+    # Hosted: no crt1.o needed on modern Darwin (LC_MAIN auto-detection) or
+    # Linux (ld defaults to _start or accepts -e main). $CC auto-includes
+    # crt1.o, but pure-ld relies on LC_MAIN (Darwin) or -e main (Linux) to
+    # bypass crt1 entirely. This matches $CC's LC_MAIN behavior on modern macOS.
+    EXP_LD_TAIL="-lm $(pure_ld_default_libc_tail)"
+    if [ "$(uname -s)" = "Linux" ]; then
+      EXP_LD_TAIL="$EXP_LD_TAIL -luring -lpthread"
+      # Linux: -e main sets entry to main (no crt1 needed; matches $CC -nostdlib
+      # behavior where main is the effective entry).
+      EXP_LD_ENTRY="-e main"
+      EXP_LD_EXTRA=""
+    else
+      # Darwin: empty entry → ld auto-detects main → LC_MAIN (same as $CC).
+      # -undefined dynamic_lookup: $CC default for dynamic links; experimental
+      # binary has lazy-resolved xlang_* symbols never called at runtime.
+      EXP_LD_ENTRY=""
+      EXP_LD_EXTRA="-undefined dynamic_lookup"
+    fi
+    EXP_LD_OBJS="$EXP_LINK_OBJS"
+  fi
+  experimental_bootstrap_info "pure-ld → xlang_asm.experimental ($(printf '%s' "$EXP_LD_OBJS" | wc -w | tr -d ' ') objs)"
+  if ! pure_ld_try_link xlang_asm.experimental "$EXP_LD_OBJS" "$EXP_LD_ENTRY" "$EXP_LD_TAIL" "$EXP_LD_EXTRA" "" 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"; then
+    experimental_bootstrap_error "pure-ld link failed (no silent CC fallback; unset XLANG_ZERO_CC_LD for CC path)"
+    tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null | sed 's/^/ /' || true
+    exit 1
+  fi
+else
+  # Original $CC path (zero regression when flag unset or host ineligible).
+  # shellcheck disable=SC2086
+  "$CC" $CFLAGS $EXP_ALLOW_MULTIDEF -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm.experimental \
+    $EXP_LINK_OBJS \
+    $EXP_LINK_TAIL $PIPELINE_LIBS 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"
+  if [ ! -x xlang_asm.experimental ]; then
+    experimental_bootstrap_error "link failed"
+    tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null | sed 's/^/ /' || true
+    exit 1
+  fi
 fi
 
 cp -f xlang_asm.experimental xlang_asm

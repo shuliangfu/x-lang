@@ -76,6 +76,54 @@ void closedir_win(DIR *d) {
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#include "xlang_weak.h"
+/*
+ * Stage 12.0.5 pure-asm hybrid residual (G.7 有则补全 — single exported authority):
+ *
+ * pure-asm of fmt_check_cmd_thin.x leaves U xlang_fmt_{opendir,closedir,access,
+ * readdir_name}. Host-cc prologue (rt_prefer_try_x_to_o / g05_ensure) only injects
+ * static inline bodies (local `t` — not exported). Hybrid rest is raw seed under
+ * XLANG_L2_FMT_CHECK_THIN_FROM_X without that prologue → historically no global
+ * def → Darwin pure-ld UNDEF (mac residual; Ubuntu often fell through -E).
+ *
+ * Always export XLANG_WEAK bodies here for both cold monofile and FROM_X rest so
+ * pure-asm thin+rest partial-merge / final pure-ld resolve inside the fmt leaf
+ * (and any peer pure-asm that U's the same face while this leaf is on the bag).
+ *
+ * PLATFORM: SHARED — opendir/readdir/closedir honor Win32 macros above; access
+ * via unistd shim on MinGW. Keep prologue static inline for -E inlining only;
+ * local `t` does not multidef against these weak globals.
+ */
+XLANG_WEAK uint8_t *xlang_fmt_opendir(uint8_t *name) {
+    if (!name) {
+        return (uint8_t *)0;
+    }
+    return (uint8_t *)(void *)opendir((const char *)(void *)name);
+}
+
+XLANG_WEAK int32_t xlang_fmt_closedir(uint8_t *dirp) {
+    if (!dirp) {
+        return (int32_t)-1;
+    }
+    return (int32_t)closedir((DIR *)(void *)dirp);
+}
+
+XLANG_WEAK int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {
+    if (!path) {
+        return (int32_t)-1;
+    }
+    return (int32_t)access((const char *)(void *)path, (int)mode);
+}
+
+XLANG_WEAK uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {
+    struct dirent *ent;
+    if (!dirp) {
+        return (uint8_t *)0;
+    }
+    ent = readdir((DIR *)(void *)dirp);
+    return ent ? (uint8_t *)(void *)ent->d_name : (uint8_t *)0;
+}
+
 /* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED — cold seed residual uses same face as thin.x / full.x. */

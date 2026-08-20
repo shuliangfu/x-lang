@@ -27,7 +27,7 @@ function buf_prefix_eq(buf: *u8, buf_len: i32, expect: *u8, expect_len: i32): i3
  */
 function main(): i32 {
   let tr: Trace = trace.new();
-  let sp: Span = Span { id: 0 };
+  let sp: Span = { id: 0 };
   let obs: ObservabilityCtx = metrics.obs_ctx_empty();
   let obs2: ObservabilityCtx = metrics.obs_ctx_empty();
   let ctx: Context = context.background();

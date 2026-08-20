@@ -16,5 +16,5 @@ function sum_xy(p: Point): i32 {
  * @return i32
  */
 function main(): i32 {
-  return sum_xy(Point { x: 10, y: 20 });
+  return sum_xy({ x: 10, y: 20 });
 }

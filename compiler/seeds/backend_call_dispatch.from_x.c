@@ -98,6 +98,13 @@ int32_t glue_f32_xmm_flag_get_body(void);
 /* wave231 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure).
  * Cap residual host getenv stays only link_abi_getenv_impl. Cold twin of backend_call_dispatch.x. */
 extern char *link_abi_getenv(const char *name);
+/**
+ * Returns 1 if the ELF codegen ctx targets Mach-O (Darwin) so symbol names need
+ * a leading underscore prefix; 0 otherwise. Authority: pipeline_elf_ctx_macho_leading_underscore
+ * in runtime_pipeline_abi.x. Used by vtable static emit to decide whether to prepend
+ * `_` to wrapper/vtable symbol names. PLATFORM: SHARED.
+ */
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx);
 
 static void backend_call_debugf(const char *fmt, ...) {
   char buf[256];
@@ -128,6 +135,8 @@ extern int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t 
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+/* TYPE_ARRAY size for mid `_aN` (align codegen wave687). PLATFORM: SHARED. */
+extern int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 /* ctx is AsmFuncCtx*; void* avoids incomplete-type visibility warning before full layout. */
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
@@ -221,8 +230,11 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
 int32_t glue_asm_string_lit_into_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
   if (!out64)
     return 0;
-  memset(out64, 0, 64);
-  if (glue_asm_string_lit_len(arena, expr_ref) <= 0)
+  /* out is u8[128]; pipeline_expr_var_name_into zeros/copies up to 127. Empty lit OK. */
+  memset(out64, 0, 128);
+  if (glue_asm_string_lit_len(arena, expr_ref) < 0)
+    return 0;
+  if (glue_asm_string_lit_len(arena, expr_ref) == 0)
     return 0;
   pipeline_expr_var_name_into(arena, expr_ref, out64);
   return 0;
@@ -267,7 +279,8 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t 
   uint32_t immlo;
   uint32_t immhi;
   int32_t i;
-  if (!ctx_bytes || !sbuf || slen <= 0 || slen > 63)
+  /* Stage 12.2.5: slen==0 empty ""; max 126 for x86 short-jmp (eb + len+1 ≤127). */
+  if (!ctx_bytes || !sbuf || slen < 0 || slen > 126)
     return -1;
   if (ta != 0 && ta != 1)
     return -1;
@@ -408,6 +421,23 @@ extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx
 extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
+/* F7 dyn Trait vtable dispatch — indirect call + 64-bit load cross-arch encoders. */
+extern int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta);
+extern int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg,
+                                                   int32_t base_reg, int32_t offset, int32_t ta);
+extern int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                               uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t pipeline_block_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
+extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out);
+extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx);
+extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t er);
+extern int32_t pipeline_expr_int_val_at(struct ast_ASTArena *arena, int32_t er);
+extern void pipeline_module_func_set_is_used(void *module, int32_t fi, int32_t is_used);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
@@ -461,6 +491,11 @@ extern int32_t backend_enc_mov_rdx_to_arg_reg_arch(struct platform_elf_ElfCodege
                                                    int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                 int32_t ta);
+/* Incoming stack formals: [rbp+#off] x86 / [x29,#off] ARM64. G.7 param_home twins. */
+extern int32_t backend_enc_load_rbp_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
+                                                    int32_t ta);
+extern int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
+                                                    int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rdx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                 int32_t ta);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
@@ -580,12 +615,29 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
 static int32_t glue_arg_ref_is_f64_width_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t pty) {
   int32_t atr;
   int32_t ak;
-  if (pty > 0 && arena && pipeline_type_kind_ord_at(arena, pty) == 15)
-    return 1;
+  if (pty > 0 && arena) {
+    int32_t pk = pipeline_type_kind_ord_at(arena, pty);
+    if (pk == 15)
+      return 1;
+    /* Formal f32 wins over unstamped FLOAT_LIT default-f64. */
+    if (pk == 14)
+      return 0;
+  }
   if (!arena || arg_ref <= 0)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1)
-    return 1; /* float lit default f64 */
+  /* FLOAT_LIT: honor typeck stamp (f32=14 / f64=15). Unstamped default f64.
+   * Dyn extras pass pty=0 (slot ≠ func) so formal-kind cannot win above. */
+  if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1) {
+    atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (atr > 0) {
+      ak = pipeline_type_kind_ord_at(arena, atr);
+      if (ak == 15)
+        return 1;
+      if (ak == 14)
+        return 0;
+    }
+    return 1;
+  }
   atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
   if (atr <= 0)
     return 0;
@@ -1243,6 +1295,10 @@ int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, u
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-372 call：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+  /* PLATFORM: SHARED — scalar TypeKind → overload mid only.
+   * TYPE_I32=0 is explicit (not a silent default). Unknown kinds (SLICE/ARRAY/…)
+   * return 0 so callers use compound paths; never map u8[] → "i32" (run-io UNDEF
+   * println_i32_reti32 false collision with println(u8[])). Align codegen_type_ref_to_suffix. */
   static const uint8_t lit_i32[3] = { 105, 51, 50 };
   static const uint8_t lit_i64[3] = { 105, 54, 52 };
   static const uint8_t lit_u8[2] = { 117, 56 };
@@ -1258,9 +1314,13 @@ int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t 
   int32_t i;
   if (!out || out_cap <= 0)
     return 0;
-  src = lit_i32;
-  slen = 3;
-  if (kind_ord == 5) {
+  src = 0;
+  slen = 0;
+  if (kind_ord == 0) {
+    /* TYPE_I32 */
+    src = lit_i32;
+    slen = 3;
+  } else if (kind_ord == 5) {
     src = lit_i64;
     slen = 3;
   } else if (kind_ord == 2) {
@@ -1287,6 +1347,8 @@ int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t 
   } else if (kind_ord == 1) {
     src = lit_bool;
     slen = 4;
+  } else {
+    return 0;
   }
   for (i = 0; i < slen && i < out_cap - 1; i++)
     out[i] = src[i];
@@ -1407,8 +1469,11 @@ static int32_t glue_asm_call_expected_ret_ty_c(struct ast_ASTArena *arena, int32
 
 /**
  * PLATFORM: SHARED — type_ref → overload mangle suffix (align codegen_type_ref_to_suffix).
- * PTR: elem suffix + "_ptr"; NAMED: type name ('.'→'_'); scalars: glue_type_kind_to_suffix.
- * Authority for asm call/export symbols that must match formal std .o (len_String, Vec_u8_ptr).
+ * PTR: elem + "_ptr"; SLICE: elem + "_slc" (u8[] → u8_slc; wave687/C twin);
+ * ARRAY: elem + "_aN"; NAMED: type name ('.'→'_'); scalars: glue_type_kind_to_suffix.
+ * Authority for asm call/export symbols that must match formal std .o
+ * (std_fmt_println_i32 vs println_u8_slc — never collide via default-i32).
+ * G.7: single mid authority with host-C codegen_type_ref_to_suffix.
  */
 static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out,
                                             int32_t out_cap) {
@@ -1430,6 +1495,105 @@ static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t typ
       return n + 4;
     }
     return n;
+  }
+  /* TYPE_SLICE = 11 → <elem>_slc (std_fmt_println_u8_slc). */
+  if (tk == 11) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    n = glue_asm_type_ref_to_suffix_c(a, elem, out, out_cap);
+    if (n > 0 && n + 4 < out_cap) {
+      out[n] = (uint8_t)'_';
+      out[n + 1] = (uint8_t)'s';
+      out[n + 2] = (uint8_t)'l';
+      out[n + 3] = (uint8_t)'c';
+      return n + 4;
+    }
+    return 0;
+  }
+  /* TYPE_ARRAY = 10 → <elem>_aN (align codegen wave687). */
+  if (tk == 10) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    int32_t asz = pipeline_type_array_size_at(a, type_ref);
+    int32_t digs[8];
+    int32_t nd;
+    int32_t v;
+    int32_t di;
+    n = glue_asm_type_ref_to_suffix_c(a, elem, out, out_cap);
+    if (n <= 0 || asz <= 0)
+      return 0;
+    if (n + 2 >= out_cap)
+      return 0;
+    out[n] = (uint8_t)'_';
+    out[n + 1] = (uint8_t)'a';
+    n += 2;
+    nd = 0;
+    v = asz;
+    while (v > 0 && nd < 6) {
+      digs[nd++] = v % 10;
+      v /= 10;
+    }
+    if (nd <= 0 || n + nd >= out_cap)
+      return 0;
+    for (di = nd - 1; di >= 0; di--)
+      out[n++] = (uint8_t)('0' + digs[di]);
+    return n;
+  }
+  /* TYPE_VECTOR = 13 → <elem>x<lanes> (f32x4 / i32x8). G.7 ≡ codegen + pure .x.
+   * P0 soft: run-perf-simd-xlangffle-select UNDEF short mid without vector suffix. */
+  if (tk == 13) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    int32_t lanes = pipeline_type_array_size_at(a, type_ref);
+    int32_t ek;
+    int32_t pos = 0;
+    if (elem <= 0 || lanes <= 0)
+      return 0;
+    ek = pipeline_type_kind_ord_at(a, elem);
+    if (ek == 0) { /* i32 */
+      if (out_cap < 4)
+        return 0;
+      out[0] = (uint8_t)'i';
+      out[1] = (uint8_t)'3';
+      out[2] = (uint8_t)'2';
+      pos = 3;
+    } else if (ek == 3) { /* u32 */
+      if (out_cap < 4)
+        return 0;
+      out[0] = (uint8_t)'u';
+      out[1] = (uint8_t)'3';
+      out[2] = (uint8_t)'2';
+      pos = 3;
+    } else if (ek == 14) { /* f32 */
+      if (out_cap < 4)
+        return 0;
+      out[0] = (uint8_t)'f';
+      out[1] = (uint8_t)'3';
+      out[2] = (uint8_t)'2';
+      pos = 3;
+    } else {
+      return 0;
+    }
+    if (pos >= out_cap)
+      return 0;
+    out[pos++] = (uint8_t)'x';
+    if (lanes == 4) {
+      if (pos >= out_cap)
+        return 0;
+      out[pos++] = (uint8_t)'4';
+      return pos;
+    }
+    if (lanes == 8) {
+      if (pos >= out_cap)
+        return 0;
+      out[pos++] = (uint8_t)'8';
+      return pos;
+    }
+    if (lanes == 16) {
+      if (pos + 1 >= out_cap)
+        return 0;
+      out[pos++] = (uint8_t)'1';
+      out[pos++] = (uint8_t)'6';
+      return pos;
+    }
+    return 0;
   }
   /* Named / user types: always try type name (String, Vec_u8, …). */
   n = pipeline_type_named_name_into(a, type_ref, out);
@@ -2619,18 +2783,12 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         spill_off_a64[i] = so;
       }
       /*
-       * Load high→low by *arg index*: x0 is spill temp and may be arg0.
-       * Loading lower GPs first would clobber them when materializing higher ones
-       * through x0 (wave392 reent2). Dual-GP loads write gp and gp+1 atomically
-       * relative to later lower-index loads.
+       * Stage 12.0.5: materialize stack/MEMORY places *before* final GP load.
+       * Root (rt_eq6 9-arg / AAPCS x0..x7 + 1 stack): after high→low load of spills,
+       * placing stack arg via emit→x0 + str [sp] clobbered arg0 (x0 ended as last imm
+       * 0x3e='>', SEGV on c[p]). x86 pushes stack first then loads GPs — same order.
+       * PLATFORM: MACOS|ARM64 AAPCS64 · SHARED freestanding multi-arg >8.
        */
-      for (i = nargs - 1; i >= 0; i--) {
-        if (spill_off_a64[i] < 0)
-          continue;
-        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], gp_start_a64[i],
-                                                     gp_units_a64[i]) != 0)
-          return -1;
-      }
       for (i = 0; i < nargs; i++) {
         int32_t words;
         int32_t stored;
@@ -2660,6 +2818,20 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         if (gp_units_a64[i] >= 2) {
           /* high half soft when stack-spilled dual — rare on probes */
         }
+      }
+      /*
+       * Load high→low by *arg index*: x0 is spill temp and may be arg0.
+       * Loading lower GPs first would clobber them when materializing higher ones
+       * through x0 (wave392 reent2). Dual-GP loads write gp and gp+1 atomically
+       * relative to later lower-index loads.
+       * Must run *after* stack place so emit-to-x0 for stack does not wipe final GPs.
+       */
+      for (i = nargs - 1; i >= 0; i--) {
+        if (spill_off_a64[i] < 0)
+          continue;
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], gp_start_a64[i],
+                                                     gp_units_a64[i]) != 0)
+          return -1;
       }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
@@ -3113,7 +3285,7 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
  * Emit redirected or direct call by symbol name.
  * PLATFORM: LINUX+MACOS x86_64 SysV — float arg/ret xmm is type-driven only:
  *   args: glue_emit_call_args / f32_xmm path (param type + FLOAT_LIT + resolved)
- *   ret:  glue_asm_harvest_sse_call_ret_to_gpr_c (pipeline_asm_call_return_type_kind_ord_c)
+ *   ret:  glue_asm_harvest_call_ret_to_gpr_c (pipeline_asm_call_return_type_kind_ord_c)
  * G.7: no std_math_* symbol-name pre/post xmm choke (import FIELD_ACCESS + dep type map
  * are the authority; name gates hide missing type resolve on other callees).
  */
@@ -3187,7 +3359,8 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c_impl(struct ast_ASTArena *arena, 
   if (pipeline_expr_kind_ord_at(arena, str_expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return -1;
   slen = glue_asm_string_lit_len(arena, str_expr_ref);
-  if (slen <= 0 || slen > 63)
+  /* Stage 12.2.5: empty OK; long diag msgs up to 126 (was wrong hard-cap 63). */
+  if (slen < 0 || slen > 126)
     return -1;
   glue_asm_string_lit_into(arena, str_expr_ref, sbuf);
   if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 1, sbuf, slen) != 0)
@@ -3254,7 +3427,8 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   if (arg_ref <= 0 || pipeline_expr_kind_ord_at(arena, arg_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return 0;
   slen = glue_asm_string_lit_len(arena, arg_ref);
-  if (slen <= 0 || slen > 63)
+  /* Stage 12.2.5: empty OK; string lit embed cap 126. */
+  if (slen < 0 || slen > 126)
     return -1;
   glue_asm_string_lit_into(arena, arg_ref, sbuf);
   /*
@@ -3301,25 +3475,53 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 
+/* G.7 integer ret sxt/zxt (same as VAR load glue_load_var path). Product pure-asm. */
+extern int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t glue_enc_zxt_u32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t glue_enc_zxt_u8_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+
 /**
- * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
+ * PLATFORM: SHARED — after CALL, canonicalize return into GPR x0/rax.
+ * G.7 single authority name: glue_asm_harvest_call_ret_to_gpr_c
+ *   (was static glue_asm_harvest_sse_call_ret_to_gpr_c; pure .x twin owns product PREFER).
  * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved_type + dep map + dep-arena kind).
- * Type-driven only (G.7): kind 14=f32, 15=f64. No name gate; no kind<0 force-harvest.
- * Import FIELD_ACCESS (math.floor) must resolve via glue_asm_resolve_call_target_module_c.
+ * Type-driven only:
+ *   · kind 14=f32 / 15=f64 → xmm0 harvest (x86_64 only; ta==0)
+ *   · kind 0=I32 → sxtw/cdqe (AAPCS64 `mov w0,imm` zero-extends; pure-asm
+ *     compares full x0 vs sign-ext -2 → false without this — hybrid
+ *     ONLY=rt_run_compiler_parsed try_c returned 254)
+ *   · kind 3=U32 → zxt; kind 1=BOOL / 2=U8 → zxt8
+ * Cold seed twin when pure .x not linked; product PREFER uses .x body.
  */
-static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
-                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                      int32_t call_expr_ref, int32_t ta) {
+#ifndef XLANG_BACKEND_CALL_DISPATCH_FROM_X
+int32_t glue_asm_harvest_call_ret_to_gpr_c(struct ast_ASTArena *arena,
+                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                           int32_t call_expr_ref, int32_t ta) {
   int32_t kind;
-  if (ta != 0 || !arena || !elf_ctx || call_expr_ref <= 0)
+  if (!arena || !elf_ctx || call_expr_ref <= 0)
     return 0;
   kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
-  if (kind == 14)
-    return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
-  if (kind == 15)
-    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  /* SSE harvest remains x86-only (xmm). */
+  if (ta == 0) {
+    if (kind == 14)
+      return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
+    if (kind == 15)
+      return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  }
+  /* Integer GP ret: both x86_64 and arm64 (sxtw / cdqe / uxt). */
+  if (kind == 0)
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  if (kind == 3)
+    return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+  if (kind == 1 || kind == 2)
+    return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
   return 0;
 }
+#else
+extern int32_t glue_asm_harvest_call_ret_to_gpr_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t call_expr_ref, int32_t ta);
+#endif
 
 /**
  * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
@@ -3372,7 +3574,8 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     return -1;
   if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
     return -1;
-  if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+  /* G.7: single harvest authority (pure .x / cold seed twin). */
+  if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
     return -1;
   return 0;
 }
@@ -3480,8 +3683,21 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                 if (cln < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
                   return -1;
               }
-              if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+              if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
                 return -1;
+              /* PLATFORM: MACOS|ARM64 AAPCS64 — host-C import-binding CALL f32/f64 in s0/d0.
+               * Same-pattern twin of import METHOD harvest. Do not put this in the
+               * shared helper (local xlang f32 CALL stays GP). */
+              if (ta == 1) {
+                int32_t rk_ib = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+                if (rk_ib == 14) {
+                  if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0)
+                    return -1;
+                } else if (rk_ib == 15) {
+                  if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+                    return -1;
+                }
+              }
               return 0;
             }
           }
@@ -3521,8 +3737,20 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
         if (cln2 < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln2, ta) != 0)
           return -1;
       }
-      if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+      if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
         return -1;
+      /* PLATFORM: MACOS|ARM64 AAPCS64 — host-C whole-import CALL f32/f64 in s0/d0.
+       * Same-pattern twin of import METHOD harvest. */
+      if (ta == 1) {
+        int32_t rk_wi = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+        if (rk_wi == 14) {
+          if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        } else if (rk_wi == 15) {
+          if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        }
+      }
       return 0;
     }
   }
@@ -3634,6 +3862,204 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
    */
   {
     int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    /*
+     * F7: dyn Trait dispatch via vtable indirect call.
+     * typeck sets call_resolved_dep_index = DYN_DISPATCH_DEP_SENTINEL (-2) when
+     * the receiver is TYPE_DYN (kind=17), and stores the trait method slot
+     * index in call_resolved_func_index (r_fn here). The dyn_obj layout is
+     * { void* data; void* vtable; } (16 bytes), so:
+     *   1. receiver addr in x0 (base_ref expression emit)
+     *   2. ldr x1, [x0, #8]      — x1 = dyn_obj.vtable
+     *   3. ldr x2, [x1, #slot*8] — x2 = vtable[slot] (wrapper fn ptr)
+     *   4. ldr x0, [x0, #0]      — x0 = dyn_obj.data (self arg to wrapper)
+     *   5. extras: GP 1..(reg_max-1) and/or xmm0–7 (x86 SysV); overflow on stack
+     *   6. blr x2 (or scratch)   — indirect call through wrapper fn ptr
+     * PLATFORM: SHARED — arm64 blr / x86_64 call rN / riscv64 jalr.
+     */
+    {
+      int32_t dep_idx = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (dep_idx == -2) {
+        int32_t slot = r_fn;
+        if (slot < 0) { return -1; }
+        /*
+         * Extra method args: integer GP 1..(reg_max-1) after self in GP0.
+         * Overflow extras go on the stack (x86 push / ARM64 [sp+slot]).
+         * x86 SysV f32/f64 extras go xmm0–7 then stack (impl param_home).
+         * ARM64 local callee homes GP — do not copy import METHOD s0/d0.
+         * Wrapper copies incoming stack extras before call impl (not tail-jmp).
+         * Do NOT glue_emit_one_call_arg — resolved_func_index is the vtable slot.
+         * G.7: emit_expr_elf_for_call_args + glue_arg_ref_is_sse_float_c
+         * + glue_asm_call_reg_max (not a hardcoded 5).
+         * PLATFORM: LINUX x86_64 SysV xmm · MACOS ARM64 extras stay GP.
+         */
+        {
+          int32_t extra_off[96];
+          int32_t is_sse_e[96];
+          int32_t is_f64_e[96];
+          int32_t place_e[96];
+          int32_t on_stk_e[96];
+          int32_t xmm_cur;
+          int32_t gp_cur;
+          int32_t n_stk;
+          int32_t reg_max_e;
+          int32_t ei;
+          int32_t arg_ex;
+          int32_t so_ex;
+          int32_t data_off;
+          int32_t fn_off;
+          int32_t cur_fn;
+          int32_t stk_bytes;
+          int32_t stk_slot;
+          xmm_cur = 0;
+          gp_cur = 1;
+          n_stk = 0;
+          reg_max_e = glue_asm_call_reg_max(ta);
+          if (reg_max_e < 2)
+            reg_max_e = 6;
+          for (ei = 0; ei < nargs; ei++) {
+            extra_off[ei] = -1;
+            is_sse_e[ei] = 0;
+            is_f64_e[ei] = 0;
+            place_e[ei] = 0;
+            on_stk_e[ei] = 0;
+            arg_ex = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
+            if (arg_ex == 0)
+              return -1;
+            if (ta == 0) {
+              is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
+              is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, arg_ex, 0);
+            }
+            if (is_sse_e[ei] != 0) {
+              if (xmm_cur < 8) {
+                place_e[ei] = xmm_cur;
+                xmm_cur = xmm_cur + 1;
+              } else {
+                on_stk_e[ei] = 1;
+                place_e[ei] = n_stk;
+                n_stk = n_stk + 1;
+              }
+            } else {
+              if (gp_cur < reg_max_e) {
+                place_e[ei] = gp_cur;
+                gp_cur = gp_cur + 1;
+              } else {
+                on_stk_e[ei] = 1;
+                place_e[ei] = n_stk;
+                n_stk = n_stk + 1;
+              }
+            }
+            if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ex, ctx, ta) != 0)
+              return -1;
+            so_ex = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+            if (so_ex < 0)
+              return -1;
+            extra_off[ei] = so_ex;
+          }
+          /* F7: &dyn_obj via lvalue LEA, not emit_expr (which loads .data). */
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            return -1;
+          }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 1, 0, 8, ta) != 0) { return -1; }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 2, 1, slot * 8, ta) != 0) { return -1; }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+          /* SysV first arg is rdi. Do not change wrapper rdi=data. */
+          if (ta == 0) {
+            if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
+          }
+          if (nargs <= 0) {
+            if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
+            return 0;
+          }
+          data_off = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+          if (data_off < 0)
+            return -1;
+          fn_off = -1;
+          if (nargs >= 2) {
+            cur_fn = ly->next_offset + 16;
+            if (cur_fn < 16)
+              cur_fn = 16;
+            fn_off = cur_fn;
+            if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 2, fn_off, ta) != 0)
+              return -1;
+            ly->next_offset = fn_off + 16;
+          }
+          /* Stack extras from spills. PLATFORM: LINUX x86_64 SysV push · MACOS|ARM64 [sp]. */
+          stk_bytes = 0;
+          if (n_stk > 0) {
+            if (ta == 0) {
+              if ((n_stk & 1) != 0) {
+                if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+                  return -1;
+                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+                  return -1;
+                stk_bytes = stk_bytes + 8;
+              }
+              for (ei = nargs - 1; ei >= 0; ei--) {
+                if (on_stk_e[ei] != 0) {
+                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                    return -1;
+                  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+                    return -1;
+                  stk_bytes = stk_bytes + 8;
+                }
+              }
+            } else {
+              stk_bytes = n_stk * 8;
+              stk_bytes = (stk_bytes + 15) & -16;
+              if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes, ta) != 0)
+                return -1;
+              stk_slot = 0;
+              for (ei = 0; ei < nargs; ei++) {
+                if (on_stk_e[ei] != 0) {
+                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                    return -1;
+                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+                    return -1;
+                  stk_slot = stk_slot + 1;
+                }
+              }
+            }
+          }
+          for (ei = 0; ei < nargs; ei++) {
+            if (on_stk_e[ei] == 0) {
+              if (is_sse_e[ei] != 0) {
+                if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
+                  return -1;
+                if (is_f64_e[ei] != 0) {
+                  if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0)
+                    return -1;
+                } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, place_e[ei], ta) != 0) {
+                  return -1;
+                }
+              } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, extra_off[ei], place_e[ei], 1) != 0) {
+                return -1;
+              }
+            }
+          }
+          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, data_off, 0, 1) != 0)
+            return -1;
+          if (nargs >= 2) {
+            /* Non-arg scratch: x86 r11 / ARM64 x9. PLATFORM: LINUX x86 · MACOS ARM64. */
+            if (ta == 0) {
+              if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 11, 5, 0 - fn_off, ta) != 0)
+                return -1;
+              if (backend_enc_blr_arch(elf_ctx, 11, ta) != 0) { return -1; }
+            } else {
+              if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 9, 29, fn_off, ta) != 0)
+                return -1;
+              if (backend_enc_blr_arch(elf_ctx, 9, ta) != 0) { return -1; }
+            }
+          } else {
+            if (backend_enc_blr_arch(elf_ctx, 2, ta) != 0) { return -1; }
+          }
+          if (stk_bytes > 0) {
+            if (backend_enc_call_stack_cleanup_arch(elf_ctx, stk_bytes, ta) != 0)
+              return -1;
+          }
+          return 0;
+        }
+      }
+    }
     if (r_fn < 0 && nargs == 0 && name_len == 6 && base_ref != 0 && name[0] == (uint8_t)'d' &&
         name[1] == (uint8_t)'o' && name[2] == (uint8_t)'u' && name[3] == (uint8_t)'b' &&
         name[4] == (uint8_t)'l' && name[5] == (uint8_t)'e') {
@@ -3688,9 +4114,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, name, name_len, nargs);
           /**
            * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args (math.floor / vec.push / len /
-           * xlang_io_submit_*_batch).
+           * xlang_io_submit_*_batch). f32/f64 extras go xmm0–7 (host-C gcc).
+           * PLATFORM: MACOS|ARM64 AAPCS64 — same extras go s0–s7 / d0–d7 (host-C gcc reads FP regs).
            * Root: product parses `math.floor(x)` / `core.fn(…)` as METHOD_CALL, not CALL+FIELD_ACCESS.
-           * G.7: same SSE class as CALL; 9–16B POD → 2 GPs; >16B MEMORY by-value on stack (formal C);
+           * G.7: same SSE class as CALL / prefer backend_call_dispatch.x import METHOD (ta==0||ta==1).
+           * Do NOT classify UFCS extras as SSE on arm64 (local xlang callee homes GP).
+           * 9–16B POD → 2 GPs; >16B MEMORY by-value on stack (formal C);
            * excess integer args after 6 GPs go on stack (same as EXPR_CALL); sret shift reserves rdi.
            */
           {
@@ -3724,7 +4153,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 continue;
               sz = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
               arg_sz[i] = sz;
-              is_sse[i] = (ta == 0) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
+              /* PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras → xmm0–7.
+               * PLATFORM: MACOS|ARM64 AAPCS64 — same extras → s0–s7 (encoder fmov sK,w0).
+               * Darwin product L2 lives in this seed (try-heat / r3-prefer cc -c seed).
+               * G.7: same gate as prefer backend_call_dispatch.x import METHOD (ta==0||ta==1).
+               * UFCS places[] below stays ta==0 only (local X callee homes x0). */
+              is_sse[i] = (ta == 0 || ta == 1) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
               is_f64[i] = glue_arg_ref_is_f64_width_c(arena, arg_ref, pty_i);
               if (is_sse[i]) {
                 if (xmm_cur >= 8)
@@ -3733,14 +4167,42 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 reg_units[i] = 1;
                 continue;
               }
-              /** >16B by-value POD: stack MEMORY (not lea→GP). Matches formal C std_vec_len(Vec). */
-              if (ta == 0 && sz > 16) {
-                is_mem[i] = 1;
+              /*
+               * Import METHOD → host-C std .o large POD (String ~260B):
+               * - PLATFORM: LINUX|x86_64 SysV — MEMORY by-value on stack (is_mem=1).
+               *   Host-C gcc formals read [rbp+0x10..]; pure lea→rdi residual run-string
+               *   length(String) exit≠1 (len_ptr OK, by-value length garbage).
+               * - PLATFORM: MACOS|ARM64 AAPCS64 — large composite as pointer in GP (is_mem=2 lea).
+               * Pure→pure UFCS still uses MEMORY stack on its own path (wave602).
+               * G.7: pure .x import METHOD same split (x86 stack / arm64 lea).
+               */
+              if (sz > 16) {
+                if (ta == 0) {
+                  is_mem[i] = 1; /* x86 SysV MEMORY stack multi-word */
+                  continue;
+                }
+                if (gp_cur + 1 > 6) {
+                  is_stk[i] = 1;
+                  continue;
+                }
+                reg_start[i] = gp_cur;
+                reg_units[i] = 1;
+                gp_cur += 1;
+                is_mem[i] = 2; /* arm64 host-indirect lea → GP */
                 continue;
               }
+              /*
+               * G.7: size→units on both SysV and AAPCS64 (9–16B INTEGER dual-GP).
+               * Historic `if (ta != 0) u = 1` left only x0/x1 lows for Result_i32 import
+               * METHOD (or_i32/and_i32) → host expects x0:x1+x2:x3 (run-result -3 residual).
+               * Free CALL / pure import METHOD use the same units classification.
+               * PLATFORM: SHARED freestanding · MACOS|ARM64 AAPCS64 · LINUX+MACOS x86 SysV.
+               */
               u = glue_sysv_arg_gp_units_from_size_c(sz);
-              if (ta != 0)
+              if (u < 1)
                 u = 1;
+              if (u > 2)
+                u = 2;
               if (gp_cur + u > 6) {
                 /** Excess integer args: SysV stack (right-to-left push). Dual-GP that does not fit: fail. */
                 if (u > 1)
@@ -3761,7 +4223,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               int32_t raw_mem = 0;
               int32_t pushed_total = 0;
               for (i = 0; i < n_place; i++) {
-                if (is_mem[i])
+                if (is_mem[i] == 1)
                   raw_mem += (arg_sz[i] + 7) & ~7;
                 else if (is_stk[i])
                   raw_mem += 8;
@@ -3776,7 +4238,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               for (i = n_place - 1; i >= 0; i--) {
                 int32_t arg_ref;
                 int32_t pushed;
-                if (is_mem[i]) {
+                if (is_mem[i] == 1) {
                   arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
                   if (arg_ref == 0)
                     return -1;
@@ -3796,42 +4258,97 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 }
               }
               mem_stack = pushed_total;
+            } else if (ta == 1) {
+              /* arm64: only true stack MEMORY (is_mem==1) / excess GP (is_stk); not host-indirect lea. */
+              int32_t nw = 0;
+              int32_t stack_reserve;
+              for (i = 0; i < n_place; i++) {
+                if (is_mem[i] == 1)
+                  nw += glue_sysv_arg_stack_words_c(arg_sz[i], 0);
+                else if (is_stk[i])
+                  nw += 1;
+              }
+              stack_reserve = nw * 8;
+              if (stack_reserve > 0)
+                stack_reserve = (stack_reserve + 15) & ~15;
+              mem_stack = stack_reserve;
+              if (stack_reserve > 0 &&
+                  backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
+                return -1;
             }
+            /*
+             * PLATFORM: SHARED freestanding multi-arg.
+             * Root (mac arm64 option unwrap_or/some): import-binding METHOD_CALL used to
+             * direct-place on ta!=0 (mov imm→w0 then mov x1,x0) after nested CALL left the
+             * Option in x0 — clobber → is_some=0 / value lost (full option run residual 252).
+             * Ubuntu x86 already spill-then-load here; arm64 must match free CALL / UFCS
+             * wave602 (G.7 one discipline). Load high→low so x0 temp does not wipe lower GPs.
+             * is_mem==2: host-C large POD invisible ref — lea into GP (not stack MEMORY).
+             */
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t so;
-              if (arg_ref == 0 || is_mem[i] || is_stk[i])
+              if (arg_ref == 0 || is_mem[i] == 1 || is_stk[i])
                 continue;
-              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-                return -1;
-              if (ta != 0) {
-                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_start[i], ta) != 0)
+              if (is_mem[i] == 2) {
+                /* >16B host-C: pass &arg in GP (AAPCS large composite / std_string_* wrappers). */
+                if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
                   return -1;
-                continue;
+              } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
+                return -1;
               }
               so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, reg_units[i]);
               if (so < 0)
                 return -1;
               spill_off[i] = so;
             }
-            if (ta == 0) {
+            /* arm64 true MEMORY stack (is_mem==1) before final GP load. */
+            if (ta == 1) {
+              int32_t stk_slot = 0;
               for (i = 0; i < n_place; i++) {
-                int32_t mov_rc;
-                if (spill_off[i] < 0)
+                int32_t arg_ref;
+                int32_t words;
+                int32_t stored;
+                if (is_mem[i] != 1 && !is_stk[i])
                   continue;
-                if (is_sse[i]) {
-                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
-                    return -1;
-                  if (is_f64[i])
-                    mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-                  else
-                    mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-                  if (mov_rc != 0)
-                    return -1;
-                } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
-                                                                  reg_units[i]) != 0) {
+                arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+                if (arg_ref == 0)
                   return -1;
+                if (is_mem[i] == 1) {
+                  stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
+                                                                           arg_sz[i], ta, stk_slot * 8);
+                  if (stored < 0)
+                    return -1;
+                  words = stored / 8;
+                  if (words < 1)
+                    words = 1;
+                  stk_slot += words;
+                  continue;
                 }
+                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+                  return -1;
+                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+                  return -1;
+                stk_slot += 1;
+              }
+            }
+            /* Load spills: high place index first (AAPCS64 x0 temp + SysV rax temp). */
+            for (i = n_place - 1; i >= 0; i--) {
+              int32_t mov_rc;
+              if (spill_off[i] < 0)
+                continue;
+              if (is_sse[i]) {
+                if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+                  return -1;
+                if (is_f64[i])
+                  mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+                else
+                  mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+                if (mov_rc != 0)
+                  return -1;
+              } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                                reg_units[i]) != 0) {
+                return -1;
               }
             }
             if (glue_asm_enc_call_redirected(elf_ctx, sym_flat, sym_len, ta) != 0)
@@ -3845,12 +4362,76 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             }
           }
           /* Type-driven f32/f64 ret harvest (same authority as EXPR_CALL). */
-          if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+          if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
             return -1;
+          /*
+           * PLATFORM: MACOS|ARM64 AAPCS64 — host-C returns f32/f64 in s0/d0.
+           * Shared harvest is x86-only so local xlang f32 CALL stays GP-in/GP-out.
+           * Import METHOD callee is gcc: move s0/d0 → w0/x0 after the no-op harvest.
+           * G.7: same block as prefer backend_call_dispatch.x after import METHOD.
+           * Darwin product L2 lives in this seed (try-heat / r3-prefer cc -c seed).
+           */
+          if (ta == 1) {
+            int32_t rk_m = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+            if (rk_m == 14) {
+              if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0)
+                return -1;
+            } else if (rk_m == 15) {
+              if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+                return -1;
+            }
+          }
           return 0;
         }
       }
     }
+  }
+  /* G.7: same param0.field / field-sum / x+K / wpo_mono-symbol / wpo_mono-vector_lane
+   * / wpo_const-scalar / vector_lane folds as CALL emit
+   * (recv.first() ≡ take_a(recv); recv.pair_sum() ≡ field_sum(recv);
+   *  recv.plus_one() ≡ add_one(recv); recv.fold_add(K) ≡ fold_add_call(recv, K);
+   *  XLANG_WPO_MONO: recv.fold_add(K) ≡ fold_add_call(recv, K) via zero-arg thunk;
+   *  XLANG_WPO_MONO: recv.lane0() ≡ lane0_call(recv) via zero-arg thunk
+   *  when recv is const vec_binop;
+   *  recv.lane0() ≡ lane0_call(recv) when recv is const vec_binop).
+   * After import-binding so import methods never enter lookup/fold. */
+  {
+    int32_t inline_sf = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_sf != 0)
+      return inline_sf < 0 ? -1 : 0;
+  }
+  {
+    int32_t inline_fs = try_inline_param0_field_sum_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_fs != 0)
+      return inline_fs < 0 ? -1 : 0;
+  }
+  {
+    int32_t inline_xk = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_xk != 0)
+      return inline_xk < 0 ? -1 : 0;
+  }
+  /* Same order as CALL emit: mono symbol then vector_lane mono
+   * (both self-gate on XLANG_WPO_MONO) then const fold only when
+   * neither mono nor no-fold env is set. */
+  {
+    int32_t inline_ms = try_call_wpo_mono_symbol_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_ms != 0)
+      return inline_ms < 0 ? -1 : 0;
+  }
+  {
+    int32_t inline_mv = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_mv != 0)
+      return inline_mv < 0 ? -1 : 0;
+  }
+  /* Same env gate as CALL emit: XLANG_WPO_MONO / XLANG_WPO_NO_FOLD skip const fold.
+   * Order matches CALL emit: vector_lane then scalar. */
+  if (!link_abi_getenv("XLANG_WPO_MONO") && !link_abi_getenv("XLANG_WPO_NO_FOLD")) {
+    int32_t inline_vl = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_vl != 0)
+      return inline_vl < 0 ? -1 : 0;
+    int32_t inline_wc = try_inline_wpo_const_scalar_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_wc != 0)
+      return inline_wc < 0 ? -1 : 0;
   }
   /*
    * wave602 Cap residual pure — freestanding UFCS method self SysV dual-GP / MEMORY.
@@ -4016,7 +4597,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             if (need_aref) {
               if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
                 return -1;
-            } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+              /* G.7: receiver uses same pty=formal0 path as extra args (ARRAY_LIT i32x4). */
               return -1;
             }
           } else {
@@ -4065,7 +4647,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         if (need_aref) {
           if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
             return -1;
-        } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+          /* G.7: receiver pty=formal0 so ARRAY_LIT SIMD packs dual-GP. */
           return -1;
         }
       } else {
@@ -4080,29 +4663,11 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         return -1;
       spill_off[i] = so;
     }
-    /* Load high place index first so lower GPs are not clobbered via x0/rax temp. */
-    for (i = n_place - 1; i >= 0; i--) {
-      int32_t mov_rc;
-      if (spill_off[i] < 0)
-        continue;
-      if (is_sse[i]) {
-        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
-          return -1;
-        if (is_f64[i])
-          mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-        else
-          mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-        if (mov_rc != 0)
-          return -1;
-      } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
-                                                         reg_units[i]) != 0) {
-        return -1;
-      }
-    }
 
     /*
-     * wave606: after GP arg regs are final, materialize MEMORY/excess stack places
-     * at [sp+#stk*8] (AAPCS64 low-end). Order: left-to-right place index.
+     * Stage 12.0.5: arm64 stack/MEMORY places *before* final GP load (≡ free CALL).
+     * wave606 originally placed after load; that clobbered x0 when >8 places
+     * (emit stack arg through x0). PLATFORM: MACOS|ARM64 AAPCS64.
      */
     if (ta == 1) {
       int32_t stk_slot = 0;
@@ -4135,7 +4700,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           if (need_aref) {
             if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
               return -1;
-          } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+          } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, base_ref, 0, ctx, ta) != 0) {
+            /* G.7: receiver pty=formal0 so ARRAY_LIT SIMD packs dual-GP. */
             return -1;
           }
         } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0) {
@@ -4144,6 +4710,26 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
           return -1;
         stk_slot++;
+      }
+    }
+
+    /* Load high place index first so lower GPs are not clobbered via x0/rax temp. */
+    for (i = n_place - 1; i >= 0; i--) {
+      int32_t mov_rc;
+      if (spill_off[i] < 0)
+        continue;
+      if (is_sse[i]) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+          return -1;
+        if (is_f64[i])
+          mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        else
+          mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        if (mov_rc != 0)
+          return -1;
+      } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                         reg_units[i]) != 0) {
+        return -1;
       }
     }
 
@@ -4186,7 +4772,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       if (cln > 0 && backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
         return -1;
     }
-    if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+    if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
       return -1;
     return 0;
   }
@@ -4199,6 +4785,403 @@ int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct p
 }
 #endif
 
+/* F7: asm backend native vtable statics + wrapper function emission.
+ * Logic source: src/asm/backend_call_dispatch.x (G.7 twin product seed).
+ * PLATFORM: SHARED — mirrors codegen.x vtable naming (G.7 single authority).
+ */
+extern int32_t xlang_skip_impl_seen_count_c(void);
+extern int32_t xlang_skip_impl_trait_name_into_c(int32_t si, uint8_t *out64);
+extern int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
+        int32_t *out_is_ptr, uint8_t *out_name64, int32_t *out_nlen_ptr);
+extern int32_t xlang_skip_trait_method_count_c(uint8_t *trait_nm, int32_t trait_nlen);
+extern int32_t xlang_skip_trait_method_name_into_c(uint8_t *trait_nm, int32_t trait_nlen,
+        int32_t slot_i, uint8_t *out);
+extern int32_t codegen_find_impl_method_for_type(struct ast_Module *module, struct ast_ASTArena *arena,
+        uint8_t *method_name, int32_t method_name_len, int32_t receiver_type_ref);
+extern int32_t codegen_builtin_type_name_into(int32_t kind_ord, uint8_t *out);
+extern int32_t pipeline_type_find_or_alloc_named(struct ast_ASTArena *arena, uint8_t *name, int32_t nlen);
+extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t offset, uint8_t *name, int32_t name_len);
+/* F7: absolute 64-bit pointer reloc for vtable static data slots. Mirrors .x
+ * backend_call_dispatch.x — sent through _typed with r_type=200 sentinel so
+ * Mach-O/ELF writers map to ARM64_RELOC_UNSIGNED / R_X86_64_64 / R_AARCH64_ABS64.
+ * Without this the default BRANCH26 is applied to data bytes and ld rejects
+ * ("relocation on non-b/bl instruction"). G.7 single authority. */
+extern int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx, int32_t offset, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
+/* F7: data section helpers for vtable static data (__DATA,__const). */
+extern int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx);
+extern int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx, uint32_t word);
+extern void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx, int32_t shndx);
+extern int32_t backend_enc_prologue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_sz, int32_t ta);
+extern int32_t backend_enc_epilogue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
+
+/* F7: outside #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X so thin hybrid path also
+ * compiles vtable statics + wrapper functions (must be present in all build profiles). */
+int32_t pipeline_asm_emit_vtable_static_name_into(uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *for_nm, int32_t for_nlen, int32_t is_ptr, uint8_t *out) {
+  int32_t w, k, ti, fi;
+  uint8_t b;
+  static const uint8_t stem[13] = {0x78,0x6c,0x61,0x6e,0x67,0x5f,0x76,0x74,0x61,0x62,0x6c,0x65,0x5f};
+  static const uint8_t fk[5] = {0x5f,0x66,0x6f,0x72,0x5f};
+  static const uint8_t pk[4] = {0x50,0x74,0x72,0x5f};
+  if (!trait_nm || !for_nm || !out) { return -1; }
+  if (trait_nlen <= 0 || for_nlen <= 0) { return -1; }
+  if (trait_nlen > 64 || for_nlen > 64) { return -1; }
+  w = 0;
+  for (k = 0; k < 13; k++) { out[w++] = stem[k]; }
+  for (ti = 0; ti < trait_nlen; ti++) {
+    b = trait_nm[ti];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  for (k = 0; k < 5; k++) { out[w++] = fk[k]; }
+  if (is_ptr) { for (k = 0; k < 4; k++) { out[w++] = pk[k]; } }
+  for (fi = 0; fi < for_nlen; fi++) {
+    b = for_nm[fi];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  return w;
+}
+
+int32_t pipeline_asm_emit_vtable_wrapper_name_into(uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *for_nm, int32_t for_nlen, int32_t is_ptr, int32_t slot_i, uint8_t *out) {
+  int32_t w, k, ti, fi, n, v, j;
+  uint8_t b;
+  uint8_t tmp[10];
+  static const uint8_t stem[18] = {0x78,0x6c,0x61,0x6e,0x67,0x5f,0x76,0x74,0x61,0x62,0x6c,0x65,0x5f,0x77,0x72,0x61,0x70,0x5f};
+  static const uint8_t fk[5] = {0x5f,0x66,0x6f,0x72,0x5f};
+  static const uint8_t pk[4] = {0x50,0x74,0x72,0x5f};
+  if (!trait_nm || !for_nm || !out) { return -1; }
+  if (trait_nlen <= 0 || for_nlen <= 0) { return -1; }
+  if (trait_nlen > 64 || for_nlen > 64) { return -1; }
+  if (slot_i < 0) { return -1; }
+  w = 0;
+  for (k = 0; k < 18; k++) { out[w++] = stem[k]; }
+  for (ti = 0; ti < trait_nlen; ti++) {
+    b = trait_nm[ti];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  for (k = 0; k < 5; k++) { out[w++] = fk[k]; }
+  if (is_ptr) { for (k = 0; k < 4; k++) { out[w++] = pk[k]; } }
+  for (fi = 0; fi < for_nlen; fi++) {
+    b = for_nm[fi];
+    out[w++] = (b == '_' || (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) ? b : '_';
+  }
+  out[w++] = '_';
+  if (slot_i == 0) { out[w++] = '0'; }
+  else {
+    n = 0; v = slot_i;
+    while (v > 0 && n < 10) { tmp[n++] = '0' + (uint8_t)(v % 10); v /= 10; }
+    for (j = n - 1; j >= 0; j--) { out[w++] = tmp[j]; }
+  }
+  return w;
+}
+
+int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+        struct ast_Module *module, struct ast_ASTArena *arena,
+        uint8_t *trait_nm, int32_t trait_nlen, uint8_t *for_nm, int32_t for_nlen,
+        int32_t for_ptr, int32_t slot_i, int32_t recv_rt) {
+  uint8_t meth_nm[64]; int32_t meth_nlen;
+  int32_t impl_fi; uint8_t impl_nm[128]; int32_t impl_nlen;
+  uint8_t wrap_nm[168]; int32_t wrap_nlen;
+  int32_t macho; uint8_t sym_nm[170]; int32_t sym_nlen;
+  int32_t entry_off, k;
+  int32_t nparams_w, reg_max_w, n_stk_w, stk_bytes_w, si_w;
+  if (!elf_ctx || !module || !arena) { return -1; }
+  if (!trait_nm || !for_nm) { return -1; }
+  if (trait_nlen <= 0 || for_nlen <= 0 || slot_i < 0) { return -1; }
+  meth_nlen = xlang_skip_trait_method_name_into_c(trait_nm, trait_nlen, slot_i, meth_nm);
+  if (meth_nlen <= 0) { return 0; }
+  impl_fi = codegen_find_impl_method_for_type(module, arena, meth_nm, meth_nlen, recv_rt);
+  if (impl_fi < 0) { return 0; }
+  pipeline_module_func_set_is_used(module, impl_fi, 1);
+  impl_nlen = glue_asm_build_func_export_sym_c(module, arena, impl_fi, impl_nm, 128);
+  if (impl_nlen <= 0) { return -1; }
+  wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
+          for_nm, for_nlen, for_ptr, slot_i, wrap_nm);
+  if (wrap_nlen <= 0) { return -1; }
+  macho = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+  sym_nlen = wrap_nlen;
+  if (macho) {
+    sym_nm[0] = '_';
+    for (k = 0; k < wrap_nlen && k < 168; k++) { sym_nm[k + 1] = wrap_nm[k]; }
+    sym_nlen = wrap_nlen + 1;
+  } else {
+    for (k = 0; k < wrap_nlen && k < 169; k++) { sym_nm[k] = wrap_nm[k]; }
+  }
+  entry_off = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx);
+  if (entry_off < 0) { return -1; }
+  if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, sym_nm, sym_nlen, entry_off) != 0) { return -1; }
+  if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, sym_nm, sym_nlen, entry_off) != 0) { return -1; }
+  if (backend_enc_prologue_arch(elf_ctx, 16, ta) != 0) { return -1; }
+  if (for_ptr == 0) {
+    if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, 0, ta) != 0) { return -1; }
+    if (ta == 0) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return -1; }
+    }
+  }
+  /* Copy incoming stack extras to impl outgoing stack. rdi/x0 stays data.
+   * PLATFORM: LINUX x86_64 SysV [rbp+16] · MACOS|ARM64 [x29,#32] after prologue(16). */
+  nparams_w = pipeline_module_func_num_params_at(module, impl_fi);
+  reg_max_w = glue_asm_call_reg_max(ta);
+  if (reg_max_w < 2)
+    reg_max_w = 6;
+  n_stk_w = 0;
+  if (nparams_w > reg_max_w)
+    n_stk_w = nparams_w - reg_max_w;
+  stk_bytes_w = 0;
+  if (n_stk_w > 0) {
+    if (ta == 0) {
+      if ((n_stk_w & 1) != 0) {
+        if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return -1; }
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
+        stk_bytes_w = stk_bytes_w + 8;
+      }
+      for (si_w = n_stk_w - 1; si_w >= 0; si_w--) {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, 16 + si_w * 8, ta) != 0)
+          return -1;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
+        stk_bytes_w = stk_bytes_w + 8;
+      }
+    } else {
+      /* PLATFORM: MACOS|ARM64 — load_x29_pos writes x0 (arg0). Save remapped
+       * self at [sp,#24]==[x29,#24] before reserve; restore after copy.
+       * Slot 24 is prologue(16) pad after x19. Do not use mov_rax_to_rbx
+       * (also writes x1). G.7 complete this wrapper. */
+      if (backend_enc_store_x0_sp_offset_arch(elf_ctx, 24, ta) != 0)
+        return -1;
+      stk_bytes_w = n_stk_w * 8;
+      stk_bytes_w = (stk_bytes_w + 15) & -16;
+      if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes_w, ta) != 0)
+        return -1;
+      for (si_w = 0; si_w < n_stk_w; si_w++) {
+        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 32 + si_w * 8, ta) != 0)
+          return -1;
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, si_w * 8, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 24, ta) != 0)
+        return -1;
+    }
+  }
+  if (backend_enc_call_arch(elf_ctx, impl_nm, impl_nlen, ta) != 0) { return -1; }
+  if (stk_bytes_w > 0) {
+    if (backend_enc_call_stack_cleanup_arch(elf_ctx, stk_bytes_w, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) { return -1; }
+  return 1;
+}
+
+int32_t pipeline_asm_emit_module_vtable_statics(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+        struct ast_Module *module, struct ast_ASTArena *arena) {
+  int32_t n_impl, si, for_k, for_ptr, for_nlen, is_builtin;
+  int32_t recv_rt, meth_count, wi, rc, macho, vt_nlen, vt_sym_nlen;
+  int32_t vt_off, slot_i, slot_off, wrap_nlen, wrap_sym_nlen, k;
+  uint8_t trait_nm[64]; int32_t trait_nlen;
+  uint8_t for_nm[64];
+  uint8_t vt_nm[150]; uint8_t vt_sym[152];
+  uint8_t wrap_nm[168]; uint8_t wrap_sym[170];
+  int32_t has_impl[64];
+  const int32_t PTR_KIND = 9;
+  if (!elf_ctx || !module || !arena) { return -1; }
+  n_impl = xlang_skip_impl_seen_count_c();
+  if (n_impl <= 0) { return 0; }
+  for (si = 0; si < n_impl; si++) {
+    trait_nlen = xlang_skip_impl_trait_name_into_c(si, trait_nm);
+    if (trait_nlen <= 0) { continue; }
+    for_k = 0; for_ptr = 0; for_nlen = 0;
+    if (xlang_skip_impl_for_type_into_c(si, &for_k, &for_ptr, for_nm, &for_nlen) == 0) { continue; }
+    is_builtin = 0;
+    if (for_nlen <= 0) {
+      int32_t blen = codegen_builtin_type_name_into(for_k, for_nm);
+      if (blen <= 0) { continue; }
+      for_nlen = blen; is_builtin = 1;
+    }
+    recv_rt = 0;
+    if (is_builtin) {
+      recv_rt = pipeline_type_find_or_alloc_compound(arena, for_k, 0, 0);
+    } else {
+      recv_rt = pipeline_type_find_or_alloc_named(arena, for_nm, for_nlen);
+    }
+    if (recv_rt <= 0) { continue; }
+    if (for_ptr) {
+      recv_rt = pipeline_type_find_or_alloc_compound(arena, PTR_KIND, recv_rt, 0);
+      if (recv_rt <= 0) { continue; }
+    }
+    meth_count = xlang_skip_trait_method_count_c(trait_nm, trait_nlen);
+    if (meth_count <= 0) { continue; }
+    for (wi = 0; wi < meth_count && wi < 64; wi++) { has_impl[wi] = 0; }
+    for (wi = 0; wi < meth_count && wi < 64; wi++) {
+      rc = pipeline_asm_emit_vtable_wrapper_def(elf_ctx, ta, module, arena,
+              trait_nm, trait_nlen, for_nm, for_nlen, for_ptr, wi, recv_rt);
+      if (rc < 0) { return -1; }
+      has_impl[wi] = rc;
+    }
+    vt_nlen = pipeline_asm_emit_vtable_static_name_into(trait_nm, trait_nlen,
+            for_nm, for_nlen, for_ptr, vt_nm);
+    if (vt_nlen <= 0) { continue; }
+    macho = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+    vt_sym_nlen = vt_nlen;
+    if (macho) {
+      vt_sym[0] = '_';
+      for (k = 0; k < vt_nlen && k < 150; k++) { vt_sym[k + 1] = vt_nm[k]; }
+      vt_sym_nlen = vt_nlen + 1;
+    } else {
+      for (k = 0; k < vt_nlen && k < 151; k++) { vt_sym[k] = vt_nm[k]; }
+    }
+    /* F7: vtable static data goes to __DATA,__const section (separate from
+     * __TEXT,__text which rejects absolute pointer relocations). Override the
+     * current shndx so all new labels/syms/relocs are tagged as data section.
+     * Single-threaded compile; restore to 0 before returning. */
+    pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 4);
+    vt_off = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+    if (vt_off < 0) {
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      return -1;
+    }
+    if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) {
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      return -1;
+    }
+    if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, vt_sym, vt_sym_nlen, vt_off) != 0) {
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      return -1;
+    }
+    for (slot_i = 0; slot_i < meth_count && slot_i < 64; slot_i++) {
+      slot_off = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+      if (slot_off < 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_append_data_u32_le((uint8_t *)elf_ctx, 0) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_append_data_u32_le((uint8_t *)elf_ctx, 0) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (has_impl[slot_i]) {
+        wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
+                for_nm, for_nlen, for_ptr, slot_i, wrap_nm);
+        if (wrap_nlen <= 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        }
+        wrap_sym_nlen = wrap_nlen;
+        if (macho) {
+          wrap_sym[0] = '_';
+          for (k = 0; k < wrap_nlen && k < 168; k++) { wrap_sym[k + 1] = wrap_nm[k]; }
+          wrap_sym_nlen = wrap_nlen + 1;
+        } else {
+          for (k = 0; k < wrap_nlen && k < 169; k++) { wrap_sym[k] = wrap_nm[k]; }
+        }
+        if (pipeline_elf_ctx_append_reloc_absolute64((uint8_t *)elf_ctx, slot_off, wrap_sym, wrap_sym_nlen) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        }
+      }
+    }
+    /* F7: restore shndx override to 0 (text section) after vtable static emit. */
+    pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+  }
+  return 0;
+}
+
+/* F7: TYPE_DYN let-init fat-pointer materialize. Twin of .x. */
+int32_t pipeline_asm_try_emit_dyn_coerce_let(struct ast_ASTArena *arena,
+        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref, int32_t idx,
+        int32_t init_ref, int32_t slot_off, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t let_ty, lt_dyn, rhs_rt, recv_kind, is_ptr, name_rt, trait_nlen, for_nlen;
+  int32_t vt_nlen, macho, vt_sym_nlen, k, elem_rt;
+  uint8_t trait_nm[64];
+  uint8_t for_nm[64];
+  uint8_t vt_nm[160];
+  uint8_t vt_sym[162];
+  if (arena == 0 || elf_ctx == 0 || ctx == 0) return -1;
+  if (block_ref <= 0 || idx < 0 || init_ref <= 0) return 0;
+  let_ty = pipeline_block_let_type_ref(arena, block_ref, idx);
+  if (let_ty <= 0) return 0;
+  lt_dyn = pipeline_typeck_resolve_type_alias_ref_c(arena, let_ty);
+  if (lt_dyn <= 0) return 0;
+  if (pipeline_type_kind_ord_at(arena, lt_dyn) != 17) return 0;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) == 0 &&
+      pipeline_expr_int_val_at(arena, init_ref) == 0)
+    return 0;
+  rhs_rt = pipeline_expr_resolved_type_ref(arena, init_ref);
+  if (rhs_rt <= 0) return -1;
+  recv_kind = pipeline_type_kind_ord_at(arena, rhs_rt);
+  is_ptr = 0;
+  name_rt = rhs_rt;
+  if (recv_kind == 9) {
+    elem_rt = pipeline_type_elem_ref_at(arena, rhs_rt);
+    if (elem_rt > 0 && pipeline_type_kind_ord_at(arena, elem_rt) == 8) {
+      is_ptr = 1;
+      name_rt = elem_rt;
+    }
+  }
+  trait_nlen = pipeline_type_named_name_into(arena, lt_dyn, trait_nm);
+  if (trait_nlen <= 0) return -1;
+  for_nlen = pipeline_type_named_name_into(arena, name_rt, for_nm);
+  /* F7 neighborhood / F6 twin: impl Trait for builtin.
+   * G.7: codegen_builtin_type_name_into is the sole kind→name map.
+   * PLATFORM: SHARED. */
+  {
+    int32_t is_builtin = 0;
+    if (for_nlen <= 0) {
+      int32_t bk = pipeline_type_kind_ord_at(arena, name_rt);
+      for_nlen = codegen_builtin_type_name_into(bk, for_nm);
+      if (for_nlen <= 0) return -1;
+      is_builtin = 1;
+    }
+    /* PTR: data IS the pointer. NAMED: LEA local. Builtin rvalue (INT_LIT):
+     * emit+spill+LEA. Wrapper rdi/x0 = data — do not change that ABI.
+     * EXPR_VAR ordinal is 3. PLATFORM: SHARED. */
+    if (is_ptr != 0) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+    } else if (is_builtin != 0) {
+      int32_t ek = pipeline_expr_kind_ord_at(arena, init_ref);
+      if (ek == 3) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+      } else {
+        int32_t spill;
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+        spill = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (spill < 0) return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, spill, ta) != 0) return -1;
+      }
+    } else {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) return -1;
+    }
+  }
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0) return -1;
+  vt_nlen = pipeline_asm_emit_vtable_static_name_into(trait_nm, trait_nlen, for_nm, for_nlen, is_ptr, vt_nm);
+  if (vt_nlen <= 0) return -1;
+  macho = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+  if (macho != 0) {
+    vt_sym[0] = 95;
+    for (k = 0; k < vt_nlen && k < 160; k++) vt_sym[k + 1] = vt_nm[k];
+    vt_sym_nlen = vt_nlen + 1;
+  } else {
+    for (k = 0; k < vt_nlen && k < 161; k++) vt_sym[k] = vt_nm[k];
+    vt_sym_nlen = vt_nlen;
+  }
+  if (backend_enc_lea_sym_to_reg_arch(elf_ctx, 1, vt_sym, vt_sym_nlen, ta) != 0) return -1;
+  /* Fat {data,vtable}: ARM64 [x29,#off+8] is +8 in address space.
+   * x86 [rbp,#-off] so +8 field is slot_off-8. PLATFORM: LINUX x86_64 rbp-down. */
+  {
+    int32_t vt_home = slot_off + 8;
+    if (ta == 0) {
+      if (slot_off <= 8) return -1;
+      vt_home = slot_off - 8;
+    }
+    if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, vt_home, ta) != 0) return -1;
+  }
+  return 1;
+}
 
 #else /* XLANG_BACKEND_CALL_DISPATCH_FROM_X：产品 rest 业务 H=0 */
 int backend_call_dispatch_slice_marker(void) {

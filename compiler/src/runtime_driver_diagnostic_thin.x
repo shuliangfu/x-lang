@@ -14,6 +14,7 @@
 //   + parse_skip / parse_commit_fail (XP002) / parse_func_generic / parser_onefunc_param_ref
 //   + typeck_import_const_must_be_qualified / warn_pad / warn_hot / hint_unused (append; no va_list)
 //   + typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3)
+//   + parse_commit_pre/post gather→shape (wave302; left strict_minimal dual-export)
 //   + after_entry_parse_module / codegen_emit_func_fail (wave4; pipeline API + append; no va_list).
 //   + asm BSS store/set/trace/print/var/fail_at (wave5; module BSS + append+note; no va_list).
 //   + wave6: slice_marker pure; lsp_diag_get_enabled is G.7 extern (runtime_lsp_glue owner);
@@ -34,6 +35,21 @@ export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
 export extern "C" function pipeline_module_func_is_extern_at(module: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_name_byte_at(module: *u8, fi: i32, bi: i32): u8;
+
+// wave302 G.7: parse_commit_pre/post pool+block metric faces — Cap on pipeline/ast_pool
+// (not reimplemented here). Thin only gathers counts then calls commit_shape.
+// PLATFORM: SHARED freestanding parse-commit gather.
+export extern "C" function pipeline_onefunc_num_consts(pool: *u8): i32;
+export extern "C" function pipeline_onefunc_num_lets(pool: *u8): i32;
+export extern "C" function pipeline_onefunc_num_if_stmts(pool: *u8): i32;
+export extern "C" function pipeline_onefunc_num_regions(pool: *u8): i32;
+export extern "C" function pipeline_onefunc_num_src_stmt_order(pool: *u8): i32;
+export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_regions(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
 
 // pure bodies for parse_fail / skip / commit_fail / warn / hint / generic / param / import /
 // binop / commit_shape / after_entry_module / emit_func_fail / asm BSS are after append_* helpers.
@@ -851,14 +867,31 @@ export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, 
 let g_type_diag_scratch_expect: u8[96] = [];
 let g_type_diag_scratch_found: u8[96] = [];
 
-/** Exported function `driver_parse_strict_enabled`.
- * Implements `driver_parse_strict_enabled`.
- * @return i32
+/**
+ * Whether parse_into_buf must hard-fail (and emit skip diags) instead of
+ * silently soft-skipping a failed top-level function / unexpected token.
+ *
+ * True when:
+ * - `XLANG_PARSE_STRICT` is truthy, or
+ * - `driver_check_only_get()` is set (`xlang check` path).
+ *
+ * Why check_only is included (2026-08-05 root fix): without this, parse_into_buf
+ * soft-skipped bad `function` bodies, returned empty-module success (pr.ok=0),
+ * recovery found nothing, and `xlang check` exited 0 on obvious syntax errors
+ * while typeck errors still worked. Header contract already said PARSE_STRICT
+ * returns -2 on single-function failure; check is the product syntax gate and
+ * must imply the same strictness.
+ *
+ * @return i32 — 1 strict, 0 soft-skip allowed (compile path default)
+ * PLATFORM: SHARED — dual-host check matrix after change.
  */
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
-  // PLATFORM: SHARED - LANG-007 S0: extern call boundary (see analysis doc sec 0.25).
+  // PLATFORM: SHARED — check_only OR env; see analysis / check false-green.
   unsafe {
+    if (driver_check_only_get() != 0) {
+      return 1;
+    }
     return driver_env_flag_truthy("XLANG_PARSE_STRICT");
   }
 }
@@ -1999,6 +2032,93 @@ export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 #[no_mangle]
 export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
+}
+
+/**
+ * Parser parse-commit pre hook (phase 0): gather onefunc pool metrics, then
+ * driver_diagnostic_parse_commit_shape. Called from parser.x at function commit.
+ * @param arena *u8 — ASTArena* (unused at pre; kept for ABI symmetry with post)
+ * @param name *u8 — function name bytes
+ * @param name_len i32 — name length
+ * @param block_ref i32 — block ref being filled
+ * @param pool *u8 — onefunc result pool; null → zeros
+ * @param final_expr_ref i32 — final expr ref at pre fill
+ * @return void
+ * wave302 G.7: authority moved here from pipeline_glue_strict_minimal seed twin
+ * (product U from parser_x; dual-export ban — strict_minimal body deleted).
+ * PLATFORM: SHARED freestanding parse-commit gather → shape.
+ */
+#[no_mangle]
+export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void {
+  let pool_nc: i32 = 0;
+  let pool_nl: i32 = 0;
+  let pool_nif: i32 = 0;
+  let pool_nreg: i32 = 0;
+  let pool_nso: i32 = 0;
+  let _a: *u8 = arena;
+  if (_a == 0 as *u8) {
+    // keep seed (void)arena semantics — pre does not read block metrics
+  }
+  if (pool != 0 as *u8) {
+    pool_nc = pipeline_onefunc_num_consts(pool);
+    pool_nl = pipeline_onefunc_num_lets(pool);
+    pool_nif = pipeline_onefunc_num_if_stmts(pool);
+    pool_nreg = pipeline_onefunc_num_regions(pool);
+    pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
+  }
+  driver_diagnostic_parse_commit_shape(
+    0, 0, name, name_len, 0, block_ref,
+    pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
+    0, 0, 0, 0, 0, final_expr_ref
+  );
+}
+
+/**
+ * Parser parse-commit post hook (phase 1): gather onefunc pool + block metrics,
+ * then driver_diagnostic_parse_commit_shape.
+ * @param arena *u8 — ASTArena*; null → block metrics zero
+ * @param name *u8 — function name bytes
+ * @param name_len i32 — name length
+ * @param block_ref i32 — committed block ref
+ * @param pool *u8 — onefunc result pool; null → pool metrics zero
+ * @return void
+ * wave302 G.7: authority moved here from pipeline_glue_strict_minimal seed twin
+ * (product U from parser_x; dual-export ban — strict_minimal body deleted).
+ * PLATFORM: SHARED freestanding parse-commit gather → shape.
+ */
+#[no_mangle]
+export function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void {
+  let pool_nc: i32 = 0;
+  let pool_nl: i32 = 0;
+  let pool_nif: i32 = 0;
+  let pool_nreg: i32 = 0;
+  let pool_nso: i32 = 0;
+  let blk_nc: i32 = 0;
+  let blk_nl: i32 = 0;
+  let blk_nif: i32 = 0;
+  let blk_nreg: i32 = 0;
+  let blk_nso: i32 = 0;
+  let final_er: i32 = 0;
+  if (pool != 0 as *u8) {
+    pool_nc = pipeline_onefunc_num_consts(pool);
+    pool_nl = pipeline_onefunc_num_lets(pool);
+    pool_nif = pipeline_onefunc_num_if_stmts(pool);
+    pool_nreg = pipeline_onefunc_num_regions(pool);
+    pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
+  }
+  if (arena != 0 as *u8) {
+    blk_nc = ast_ast_block_num_consts(arena, block_ref);
+    blk_nl = ast_ast_block_num_lets(arena, block_ref);
+    blk_nif = ast_ast_block_num_if_stmts(arena, block_ref);
+    blk_nreg = ast_ast_block_num_regions(arena, block_ref);
+    blk_nso = ast_ast_block_num_stmt_order(arena, block_ref);
+    final_er = ast_ast_block_final_expr_ref(arena, block_ref);
+  }
+  driver_diagnostic_parse_commit_shape(
+    0, 0, name, name_len, 1, block_ref,
+    pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
+    blk_nc, blk_nl, blk_nif, blk_nreg, blk_nso, final_er
+  );
 }
 
 // ---- Cap residual pure deep-migrate wave4: after_entry_parse_module + codegen_emit_func_fail ----

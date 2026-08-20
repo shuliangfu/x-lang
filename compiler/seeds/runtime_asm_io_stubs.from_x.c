@@ -194,6 +194,23 @@ size_t std_io_handle_stderr(void) {
   return 2;
 }
 
+/**
+ * PLATFORM: SHARED — pure-asm import METHOD io.stdin()/stdout() mangle to bare
+ * std_io_stdin / std_io_stdout (mod.x export surface). handle_* are historical
+ * co-emit names; complete both faces here (G.7 stub authority).
+ */
+size_t std_io_stdin(void) {
+  return std_io_handle_stdin();
+}
+
+size_t std_io_stdout(void) {
+  return std_io_handle_stdout();
+}
+
+size_t std_io_stderr(void) {
+  return std_io_handle_stderr();
+}
+
 int32_t std_io_write(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   ptrdiff_t r = io_write((int)handle, (const uint8_t *)ptr, len, timeout_ms);
   if (r < 0)
@@ -253,6 +270,15 @@ XLANG_WEAK int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t 
   return seed_io_write_fd1(ptr, len, timeout_ms);
 }
 
+/**
+ * PLATFORM: SHARED — pure-asm overload mid for io.write(ptr,len,timeout):
+ * std_io_write_u8_ptr_usize_u32 (tests/io/write_with_timeout.x). Forwards to
+ * stdout write-with-timeout (3-arg product face). G.7 complete stub surface.
+ */
+int32_t std_io_write_u8_ptr_usize_u32(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+  return seed_io_write_fd1(ptr, len, timeout_ms);
+}
+
 /** std.io.print(ptr,len) C ABI：mangled std_io_print_u8_ptr_usize。 */
 XLANG_WEAK int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {
   int32_t r = std_io_write_stdout(ptr, len);
@@ -299,6 +325,54 @@ int32_t std_fmt_println_u8_ptr_i32(uint8_t *ptr, int32_t len) {
   return std_fmt_println(ptr, (size_t)len);
 }
 
+/**
+ * PLATFORM: SHARED — pure-asm scalar fmt.print/println when std.fmt is not co-emitted.
+ * Call sites mangle to std_fmt_println_i32 / std_fmt_print_u32 / … (codegen + glue mid;
+ * wave687 slice fix: no false println_i32_reti32). Authority: this TU only (G.7 complete
+ * stub surface with string-lit print/println); do not invent a second path or formal
+ * monofile co-emit of std.io for fmt.o. Matches tests/run-io.sh (i32/u32/i64).
+ * Return 0 on success (printf write path); align std_io_print_i32.
+ */
+int32_t std_fmt_print_i32(int32_t x) {
+  (void)printf("%d", (int)x);
+  return 0;
+}
+
+int32_t std_fmt_println_i32(int32_t x) {
+  (void)printf("%d\n", (int)x);
+  return 0;
+}
+
+int32_t std_fmt_print_u32(uint32_t x) {
+  (void)printf("%u", (unsigned)x);
+  return 0;
+}
+
+int32_t std_fmt_println_u32(uint32_t x) {
+  (void)printf("%u\n", (unsigned)x);
+  return 0;
+}
+
+int32_t std_fmt_print_i64(int64_t x) {
+  (void)printf("%lld", (long long)x);
+  return 0;
+}
+
+int32_t std_fmt_println_i64(int64_t x) {
+  (void)printf("%lld\n", (long long)x);
+  return 0;
+}
+
+int32_t std_fmt_print_u64(uint64_t x) {
+  (void)printf("%llu", (unsigned long long)x);
+  return 0;
+}
+
+int32_t std_fmt_println_u64(uint64_t x) {
+  (void)printf("%llu\n", (unsigned long long)x);
+  return 0;
+}
+
 /** 兜底：未走 redirect 的 call 仍可直接链到 print_str。 */
 int32_t print_str(uint8_t *ptr, size_t len) {
   return std_io_print_str(ptr, len);
@@ -337,6 +411,15 @@ XlangSliceU8 std_io_read_stdin_ptr_slice(void) {
   s.data = io_read_ptr(0, 0);
   s.length = s.data ? (size_t)g_io_read_ptr_len : 0;
   return s;
+}
+
+/**
+ * PLATFORM: SHARED — pure-asm import METHOD io.stdin_slice() → std_io_stdin_slice.
+ * Same body as std_io_read_stdin_ptr_slice (historical co-emit name). G.7 stub surface.
+ * Used by tests/io/read_ptr*.x (run-io).
+ */
+XlangSliceU8 std_io_stdin_slice(void) {
+  return std_io_read_stdin_ptr_slice();
 }
 
 /** 零拷贝读 slice；handle 0=stdin。 */

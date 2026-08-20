@@ -11,8 +11,8 @@ function main(): i32 {
   let pool: ObjPool = cache.new(2);
   let v: i64 = 0;
   let r: i64 = 0;
-  let st: CacheStats = CacheStats { hits: 0, misses: 0, evictions: 0, size: 0 };
-  let ps: PoolStats = PoolStats { idle: 0, in_use: 0, unhealthy: 0, acquires: 0 };
+  let st: CacheStats = { hits: 0, misses: 0, evictions: 0, size: 0 };
+  let ps: PoolStats = { idle: 0, in_use: 0, unhealthy: 0, acquires: 0 };
 
   if (lru.handle == zero || pool.handle == zero) {
     return 1;

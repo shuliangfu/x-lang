@@ -10,7 +10,7 @@ struct Header {
  * @return i32
  */
 function main(): i32 {
-  let h: Header = Header { tag: 1, length: 42 };
+  let h: Header = { tag: 1, length: 42 };
   /* See implementation. */
   return (h.tag as i32) + (h.length as i32);
 }

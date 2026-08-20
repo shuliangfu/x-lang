@@ -12,7 +12,7 @@ struct Pair {
  * @return Pair
  */
 function make_pair(x: i32, y: i32): Pair {
-  return Pair { a: x, b: y };
+  return { a: x, b: y };
 }
 
 /** Internal function `sum_pair`.

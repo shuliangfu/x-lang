@@ -13,20 +13,36 @@
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
-/** Matches PIPELINE_ELF_CTX_TABLE_CAP / seed CAP. */
+/** Matches PIPELINE_ELF_CTX_TABLE_CAP / seed CAP / elf.x ElfCodegenCtx. */
 export const RT_ELF_CTX_TABLE_CAP: i32 = 16384;
-/** LabelEntry size: name[128]+name_len+offset = 72. */
-export const RT_ELF_LABEL_ENTRY_SIZE: i32 = 72;
-/** PatchEntry size: rel32+name[128]+name_len+patch_imm = 76. */
-export const RT_ELF_PATCH_ENTRY_SIZE: i32 = 76;
+/**
+ * LabelEntry size: name[128]+name_len+offset = 136.
+ * G.7 authority = pipeline_abi pipe_elf_label_esz + elf.x ElfLabelEntry
+ * (historical pure diag used 72 = name[64] dead layout → false num_labels=0).
+ * PLATFORM: SHARED LP64 LE.
+ */
+export const RT_ELF_LABEL_ENTRY_SIZE: i32 = 136;
+/**
+ * PatchEntry size: rel32+name[128]+name_len+patch_imm = 140.
+ * G.7 authority = pipeline_abi pipe_elf_patch_esz + elf.x ElfPatchEntry
+ * (historical pure diag used 76 = name[64] dead layout).
+ * PLATFORM: SHARED LP64 LE.
+ */
+export const RT_ELF_PATCH_ENTRY_SIZE: i32 = 140;
 /** Byte offset of labels table (after code_len). */
 export const RT_ELF_LABELS_OFF: i32 = 4;
-/** Byte offset of num_labels (4 + CAP*72). */
-export const RT_ELF_NUM_LABELS_OFF: i32 = 1179652;
-/** Byte offset of patches (num_labels + 4). */
-export const RT_ELF_PATCHES_OFF: i32 = 1179656;
-/** Byte offset of num_patches (patches + CAP*76). */
-export const RT_ELF_NUM_PATCHES_OFF: i32 = 2424840;
+/** Byte offset of num_labels (4 + CAP*136) — ≡ pipe_elf_off_num_labels. */
+export const RT_ELF_NUM_LABELS_OFF: i32 = 2228228;
+/** Byte offset of patches (num_labels + 4) — ≡ pipe_elf_off_patches. */
+export const RT_ELF_PATCHES_OFF: i32 = 2228232;
+/** Byte offset of num_patches (patches + CAP*140) — ≡ pipe_elf_off_num_patches. */
+export const RT_ELF_NUM_PATCHES_OFF: i32 = 4521992;
+/** LabelEntry.name_len offset (name[128] then i32). */
+export const RT_ELF_LAB_OFF_NAME_LEN: i32 = 128;
+/** LabelEntry.offset field (name_len + 4). */
+export const RT_ELF_LAB_OFF_OFFSET: i32 = 132;
+/** PatchEntry.name_len offset (rel32 + name[128]). */
+export const RT_ELF_PAT_OFF_NAME_LEN: i32 = 132;
 
 /** Load little-endian i32 at base+off. Returns 0 if base is null or off < 0.
  * Track-L: #[no_mangle] keeps surface short name (not pipeline_rt_elf_load_i32_le).
@@ -146,8 +162,17 @@ export function rt_elf_append(dst: *u8, cap: i32, src: *u8): void {
 
 /** Append decimal representation of v onto dst (handles 0 and negatives).
  * Digits built in a small local buffer then reverse-copied via rt_elf_append.
+ *
+ * Digit buffer accesses use an unsafe *u8 view of dig[16], matching the rest of
+ * this module (rt_elf_load_i32_le / names_eq). Reason: pure-asm INDEX on fixed
+ * arrays with two live index vars (swap dig[j] with dig[hi]) emits U xlang_panic_
+ * bounds calls; g05 freestanding bag has no runtime_panic.o T for that surface
+ * (product user path links panic via invoke_cc ensure). Pointer indexing keeps
+ * pure-asm ABI equal to -E+$CC for this freestanding leaf (no U xlang_panic_).
+ *
  * Track-L: #[no_mangle] keeps surface short name (not pipeline_rt_elf_append_i32).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — link-name contract; dual-host prove; pure-asm g05 bag safe.
+ */
 #[no_mangle]
 export function rt_elf_append_i32(dst: *u8, cap: i32, v: i32): void {
   let dig: u8[16] = [];
@@ -156,41 +181,48 @@ export function rt_elf_append_i32(dst: *u8, cap: i32, v: i32): void {
   let j: i32 = 0;
   let neg: i32 = 0;
   let a: u8 = 0;
-  dig[0] = 0;
-  if (n == 0) {
-    dig[0] = 48;
-    dig[1] = 0;
-    rt_elf_append(dst, cap, &dig[0]);
-    return;
-  }
-  if (n < 0) {
-    neg = 1;
-    n = 0 - n;
-  }
-  while (n > 0) {
-    if (i >= 15) {
-      break;
+  let hi: i32 = 0;
+  unsafe {
+    let d: *u8 = &dig[0];
+    // Manual digit buffer via d[k]; caller-owned stack storage, cap 16.
+    d[0] = 0;
+    if (n == 0) {
+      d[0] = 48;
+      d[1] = 0;
+      rt_elf_append(dst, cap, d);
+      return;
     }
-    dig[i] = (48 + (n - (n / 10) * 10)) as u8;
-    n = n / 10;
-    i = i + 1;
-  }
-  if (neg != 0) {
-    if (i < 15) {
-      dig[i] = 45;
+    if (n < 0) {
+      neg = 1;
+      n = 0 - n;
+    }
+    while (n > 0) {
+      if (i >= 15) {
+        break;
+      }
+      // Least-significant digit first; reverse below.
+      d[i as usize] = (48 + (n - (n / 10) * 10)) as u8;
+      n = n / 10;
       i = i + 1;
     }
+    if (neg != 0) {
+      if (i < 15) {
+        d[i as usize] = 45;
+        i = i + 1;
+      }
+    }
+    // Reverse digits in place (were least-significant first).
+    j = 0;
+    while (j < i / 2) {
+      hi = i - 1 - j;
+      a = d[j as usize];
+      d[j as usize] = d[hi as usize];
+      d[hi as usize] = a;
+      j = j + 1;
+    }
+    d[i as usize] = 0;
+    rt_elf_append(dst, cap, d);
   }
-  // Reverse digits in place (were least-significant first).
-  j = 0;
-  while (j < i / 2) {
-    a = dig[j];
-    dig[j] = dig[i - 1 - j];
-    dig[i - 1 - j] = a;
-    j = j + 1;
-  }
-  dig[i] = 0;
-  rt_elf_append(dst, cap, &dig[0]);
 }
 
 /** Write ASCII "note" + NUL into kind[0..4]. Caller must provide at least 5 bytes.
@@ -265,8 +297,8 @@ export function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
   }
 
   p_base = RT_ELF_PATCHES_OFF;
-  // name_len field is at +68 within PatchEntry.
-  name_len = rt_elf_load_i32_le(ctx_bytes, p_base + 68);
+  // name_len @ +132 within PatchEntry (rel32@0 + name[128]@4); was +68 on dead name[64] layout.
+  name_len = rt_elf_load_i32_le(ctx_bytes, p_base + RT_ELF_PAT_OFF_NAME_LEN);
   if (name_len > 64) {
     name_len = 64;
   }
@@ -300,7 +332,8 @@ export function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
       break;
     }
     lbl_base = RT_ELF_LABELS_OFF + l * RT_ELF_LABEL_ENTRY_SIZE;
-    lbl_nl = rt_elf_load_i32_le(ctx_bytes, lbl_base + 64);
+    // name_len @ +128, offset @ +132 (name[128] layout); was +64/+68 on dead name[64].
+    lbl_nl = rt_elf_load_i32_le(ctx_bytes, lbl_base + RT_ELF_LAB_OFF_NAME_LEN);
     same = 0;
     if (lbl_nl == name_len) {
       same = 1;
@@ -312,7 +345,7 @@ export function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
       }
     }
     if (same != 0) {
-      lbl_off = rt_elf_load_i32_le(ctx_bytes, lbl_base + 68);
+      lbl_off = rt_elf_load_i32_le(ctx_bytes, lbl_base + RT_ELF_LAB_OFF_OFFSET);
       msg[0] = 0;
       rt_elf_append(&msg[0], 192, "elf label match at idx=" as *u8);
       rt_elf_append_i32(&msg[0], 192, l);

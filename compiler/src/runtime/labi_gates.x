@@ -32,6 +32,9 @@ export extern "C" function xlang_invoke_cc_impl(
   uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
   trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
 ): i32;
+/** Stage 12.2.3 early host-cc gate (G.7 authority in labi_invoke_cc_list).
+ * @return i32 — 1 allow, 0 deny (diag already set) */
+export extern "C" function invoke_cc_host_cc_spawn_gate(): i32;
 export extern "C" function xlang_asm_ld_append_mach_tail_libs_impl(
   compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32
 ): void;
@@ -54,9 +57,13 @@ export function xlang_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
   return 0 as *u8;
 }
 
-/** Function `xlang_invoke_cc`.
- * Purpose: implements `xlang_invoke_cc`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * Product host-cc link entry (thin gate → xlang_invoke_cc_impl Cap residual).
+ * Stage 12.2.3 slim: invoke_cc_host_cc_spawn_gate runs *before* impl so denied
+ * experimental C paths skip ensure_std / argv build (spawn shell still re-checks).
+ * @return i32 — 0 success, -1 null args / gate deny / impl failure
+ * PLATFORM: SHARED — early gate + dual-end ALLOW/FORBID; G.7 gate authority in
+ * labi_invoke_cc_list.invoke_cc_host_cc_spawn_gate.
  */
 #[no_mangle]
 export function xlang_invoke_cc(
@@ -72,6 +79,12 @@ export function xlang_invoke_cc(
 ): i32 {
   if (c_paths == 0 as *u8) { return 0 - 1; }
   if (out_path == 0 as *u8) { return 0 - 1; }
+  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in. */
+  unsafe {
+    if (invoke_cc_host_cc_spawn_gate() == 0) {
+      return 0 - 1;
+    }
+  }
   unsafe {
     return xlang_invoke_cc_impl(
       c_paths, n, out_path, target, opt_level, use_lto,

@@ -253,7 +253,14 @@ XLANG_WEAK int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t slot_idx) 
 }
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
-XLANG_WEAK int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
+/*
+ * PLATFORM: SHARED — STRONG (not weak). Authority for try_inline fold predicates.
+ * Must beat any residual weak return-(-1) stubs: if both are weak, Darwin may
+ * pick the stub and single_field treats -1 as match (broken field0-only emit).
+ * G.7: single strong authority here; gen_asm_full_link_stubs no longer emits
+ * backend_fold_* stubs.
+ */
+int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
   int32_t body_ref;
   int32_t fin;
   int32_t nes;
@@ -358,14 +365,20 @@ int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, i
 #endif /* XLANG_SEED_LINK_COMPAT_FROM_X */
 
 
-XLANG_WEAK int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,
+/* PLATFORM: SHARED — STRONG; see backend_fold_func_return_operand_ref note. */
+int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,
                                                                          int32_t func_idx) {
   int32_t ret_ref;
   int32_t al;
   int32_t ar;
+  int32_t k;
 
   ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
-  if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != 4)
+  if (ret_ref <= 0)
+    return 0;
+  /* EXPR_ADD=4; also EXPR_BINOP=53 when add is lowered to generic binop. */
+  k = pipeline_expr_kind_ord_at(arena, ret_ref);
+  if (k != 4 && k != 53)
     return 0;
   al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
   ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
@@ -374,7 +387,8 @@ XLANG_WEAK int32_t backend_fold_func_returns_param0_field_sum(void *arena, struc
   return xlang_expr_is_param0_field_access(arena, mod, func_idx, ar) ? 1 : 0;
 }
 
-XLANG_WEAK int32_t backend_fold_func_returns_param0_single_field(void *arena, struct ast_Module *mod,
+/* PLATFORM: SHARED — STRONG; see backend_fold_func_return_operand_ref note. */
+int32_t backend_fold_func_returns_param0_single_field(void *arena, struct ast_Module *mod,
                                                                             int32_t func_idx) {
   int32_t ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
   if (ret_ref <= 0)
@@ -382,7 +396,8 @@ XLANG_WEAK int32_t backend_fold_func_returns_param0_single_field(void *arena, st
   return xlang_expr_is_param0_field_access(arena, mod, func_idx, ret_ref);
 }
 
-XLANG_WEAK int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, int32_t func_idx,
+/* PLATFORM: SHARED — STRONG; see backend_fold_func_return_operand_ref note. */
+int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, int32_t func_idx,
                                                                int32_t depth) {
   int32_t ret_ref;
   int32_t right_ref;

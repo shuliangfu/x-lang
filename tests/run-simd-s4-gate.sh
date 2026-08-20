@@ -139,13 +139,14 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     else
       echo "simd-s4 WARN: no pcmpgtd/vpcmpgtd in vec8i select smoke"
     fi
-    if echo "$V4_SEL_DISAS" | grep -qE 'cmpgtps|vcmpgtps'; then
-      echo "simd-s4: vec4f_select cmpgtps/vcmpgtps insn present"
+    # cmpps $6 / cmpnleps is the SSE mnemonic for cmpgtps (0F C2 /r /6).
+    if echo "$V4_SEL_DISAS" | grep -qE 'cmpgtps|vcmpgtps|cmpnleps|cmpps'; then
+      echo "simd-s4: vec4f_select cmpgtps/cmpnleps insn present"
     elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no cmpgtps/vcmpgtps in $VEC4F_SEL_O" >&2
+      echo "simd-s4 FAIL: no cmpgtps/cmpnleps in $VEC4F_SEL_O" >&2
       exit 1
     else
-      echo "simd-s4 WARN: no cmpgtps/vcmpgtps in vec4f select smoke"
+      echo "simd-s4 WARN: no cmpgtps/cmpnleps in vec4f select smoke"
     fi
   else
     echo "simd-s4: objdump missing; compile-only OK"

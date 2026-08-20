@@ -97,7 +97,7 @@ export function packed_to_ipv4(u: u32): Ipv4Addr {
   let b1: u32 = ((u >> 16) & 255) as u32;
   let b2: u32 = ((u >> 8) & 255) as u32;
   let lo: u32 = (u & 255) as u32;
-  return Ipv4Addr { a: (hi as u8), b: (b1 as u8), c: (b2 as u8), d: (lo as u8) };
+  return { a: (hi as u8), b: (b1 as u8), c: (b2 as u8), d: (lo as u8) };
 }
 // See implementation.
 export struct SocketAddrV4 {
@@ -124,7 +124,7 @@ export function connect(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream {
   unsafe {
     fd = net_tcp_connect_c(addr_to_packed(addr), port, timeout_ms);
   }
-  return TcpStream { fd: fd };
+  return { fd: fd };
 }
 /** Exported function `connect_blocking`.
  * Implements `connect_blocking`.
@@ -138,7 +138,7 @@ export function connect_blocking(addr: Ipv4Addr, port: u32, timeout_ms: u32): Tc
   unsafe {
     fd = net_tcp_connect_blocking_c(addr_to_packed(addr), port, timeout_ms);
   }
-  return TcpStream { fd: fd };
+  return { fd: fd };
 }
 /** Exported function `listen`.
  * Implements `listen`.
@@ -151,7 +151,7 @@ export function listen(addr: Ipv4Addr, port: u32): TcpListener {
   unsafe {
     fd = net_tcp_listen_c(addr_to_packed(addr), port);
   }
-  return TcpListener { fd: fd };
+  return { fd: fd };
 }
 /** Exported function `accept`.
  * Implements `accept`.
@@ -164,7 +164,7 @@ export function accept(listener: TcpListener, timeout_ms: u32): TcpStream {
   unsafe {
     fd = net_accept_c(listener.fd, timeout_ms);
   }
-  return TcpStream { fd: fd };
+  return { fd: fd };
 }
 /** Exported function `close_stream`.
  * Implements `close_stream`.
@@ -203,10 +203,10 @@ export function set_blocking(stream: TcpStream, blocking: i32): i32 {
 export function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   let bufs: Buffer[4] = [
-    Buffer { ptr: p0, length: l0, handle: h },
-    Buffer { ptr: p1, length: l1, handle: h },
-    Buffer { ptr: p2, length: l2, handle: h },
-    Buffer { ptr: p3, length: l3, handle: h }
+    { ptr: p0, length: l0, handle: h },
+    { ptr: p1, length: l1, handle: h },
+    { ptr: p2, length: l2, handle: h },
+    { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_read_batch(bufs, n, timeout_ms);
 }
@@ -228,10 +228,10 @@ export function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: u
 export function write_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   let bufs: Buffer[4] = [
-    Buffer { ptr: p0, length: l0, handle: h },
-    Buffer { ptr: p1, length: l1, handle: h },
-    Buffer { ptr: p2, length: l2, handle: h },
-    Buffer { ptr: p3, length: l3, handle: h }
+    { ptr: p0, length: l0, handle: h },
+    { ptr: p1, length: l1, handle: h },
+    { ptr: p2, length: l2, handle: h },
+    { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_write_batch(bufs, n, timeout_ms);
 }
@@ -323,10 +323,10 @@ export function local_addr(stream: TcpStream): SocketAddrV4 {
   unsafe {
     pk = net_tcp_local_addr_c(stream.fd);
   }
-  if (pk < 0) { return SocketAddrV4 { addr: packed_to_ipv4(0 as u32), port: 0 as u32 }; }
+  if (pk < 0) { return { addr: packed_to_ipv4(0 as u32), port: 0 as u32 }; }
   let addr_u32: u32 = (((pk >> 32) & 4294967295) as u32);
   let port_u32: u32 = ((pk & 65535) as u32);
-  return SocketAddrV4 { addr: packed_to_ipv4(addr_u32), port: port_u32 };
+  return { addr: packed_to_ipv4(addr_u32), port: port_u32 };
 }
 /** Exported function `peer_addr`.
  * Implements `peer_addr`.
@@ -338,10 +338,10 @@ export function peer_addr(stream: TcpStream): SocketAddrV4 {
   unsafe {
     pk = net_tcp_peer_addr_c(stream.fd);
   }
-  if (pk < 0) { return SocketAddrV4 { addr: packed_to_ipv4(0 as u32), port: 0 as u32 }; }
+  if (pk < 0) { return { addr: packed_to_ipv4(0 as u32), port: 0 as u32 }; }
   let addr_u32: u32 = (((pk >> 32) & 4294967295) as u32);
   let port_u32: u32 = ((pk & 65535) as u32);
-  return SocketAddrV4 { addr: packed_to_ipv4(addr_u32), port: port_u32 };
+  return { addr: packed_to_ipv4(addr_u32), port: port_u32 };
 }
 /** Exported function `listener_local_addr`.
  * Implements `listener_local_addr`.
@@ -353,10 +353,10 @@ export function listener_local_addr(listener: TcpListener): SocketAddrV4 {
   unsafe {
     pk = net_tcp_local_addr_c(listener.fd);
   }
-  if (pk < 0) { return SocketAddrV4 { addr: packed_to_ipv4(0 as u32), port: 0 as u32 }; }
+  if (pk < 0) { return { addr: packed_to_ipv4(0 as u32), port: 0 as u32 }; }
   let addr_u32: u32 = (((pk >> 32) & 4294967295) as u32);
   let port_u32: u32 = ((pk & 65535) as u32);
-  return SocketAddrV4 { addr: packed_to_ipv4(addr_u32), port: port_u32 };
+  return { addr: packed_to_ipv4(addr_u32), port: port_u32 };
 }
 // ——— UDP ———
 export struct UdpSocket {
@@ -373,7 +373,7 @@ export function udp_bind(addr: Ipv4Addr, port: u32): UdpSocket {
   unsafe {
     fd = net_udp_bind_c(addr_to_packed(addr), port);
   }
-  return UdpSocket { fd: fd };
+  return { fd: fd };
 }
 /** Exported function `send_to`.
  * Implements `send_to`.
@@ -499,7 +499,7 @@ export struct Ipv6Addr {
  * @return Ipv6Addr
  */
 export function ipv6_loopback(): Ipv6Addr {
-  return Ipv6Addr {
+  return {
     b0: 0, b1: 0, b2: 0, b3: 0, b4: 0, b5: 0, b6: 0, b7: 0,
     b8: 0, b9: 0, b10: 0, b11: 0, b12: 0, b13: 0, b14: 0, b15: 1
   };
@@ -516,7 +516,7 @@ export function connect_ipv6(addr: Ipv6Addr, port: u32, timeout_ms: u32): TcpStr
   unsafe {
     fd = net_tcp_connect_ipv6_c(&addr.b0, port, timeout_ms);
   }
-  return TcpStream { fd: fd };
+  return { fd: fd };
 }
 /** Exported function `listen_ipv6`.
  * Implements `listen_ipv6`.
@@ -529,7 +529,7 @@ export function listen_ipv6(addr: Ipv6Addr, port: u32): TcpListener {
   unsafe {
     fd = net_tcp_listen_ipv6_c(&addr.b0, port);
   }
-  return TcpListener { fd: fd };
+  return { fd: fd };
 }
 // See implementation.
 /** Exported function `resolve`.
@@ -610,7 +610,7 @@ export function accept_many(listener: TcpListener, out: TcpStream[], timeout_ms:
   }
   let i: u32 = 0 as u32;
   while (i < (count as u32)) {
-    out[i] = (TcpStream { fd: fd_buf[i as i32] });
+    out[i] = ({ fd: fd_buf[i as i32] });
     i = (i + 1 as u32) as u32;
   }
   return count as u32;
@@ -634,7 +634,7 @@ export function connect_many(addr: Ipv4Addr, port: u32, out: TcpStream[], timeou
   }
   let i: u32 = 0 as u32;
   while (i < (count as u32)) {
-    out[i] = (TcpStream { fd: fd_buf[i as i32] });
+    out[i] = ({ fd: fd_buf[i as i32] });
     i = (i + 1 as u32) as u32;
   }
   return count as u32;
@@ -723,7 +723,7 @@ export function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: context.C
   if (tm < 0) {
     return tm;
   }
-  let buf: Buffer = Buffer { ptr: ptr, length: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
+  let buf: Buffer = { ptr: ptr, length: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
   return driver.submit_read(buf, tm as u32);
 }
 /** Exported function `write_ctx`.
@@ -739,7 +739,7 @@ export function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: context.
   if (tm < 0) {
     return tm;
   }
-  let buf: Buffer = Buffer { ptr: ptr, length: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
+  let buf: Buffer = { ptr: ptr, length: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
   return driver.submit_write(buf, tm as u32);
 }
 // See implementation.
@@ -788,7 +788,7 @@ export function tls_connect_client(stream: TcpStream, sni: *u8): TlsStream {
   unsafe {
     h = tls_plat.net_tls_connect_client_c(stream.fd, sni);
   }
-  return TlsStream { fd: stream.fd, ctx_handle: h };
+  return { fd: stream.fd, ctx_handle: h };
 }
 
 /** Exported function `tls_alpn_h2_http1_wire`.
@@ -815,7 +815,7 @@ export function tls_connect_client_alpn(stream: TcpStream, sni: *u8, alpn_wire: 
   unsafe {
     h = tls_plat.net_tls_connect_client_alpn_c(stream.fd, sni, alpn_wire, alpn_wire_len);
   }
-  return TlsStream { fd: stream.fd, ctx_handle: h };
+  return { fd: stream.fd, ctx_handle: h };
 }
 
 /** Exported function `tls_alpn_selected`.
@@ -901,7 +901,7 @@ export struct TcpConnPool {
  */
 export function tcp_pool_new(host: u32, port: u32, max_idle: i32): TcpConnPool {
   let _rc: TcpConnPool = 0;
-  unsafe { _rc = TcpConnPool { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) }; }
+  unsafe { _rc = { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) }; }
   return _rc;
 }
 

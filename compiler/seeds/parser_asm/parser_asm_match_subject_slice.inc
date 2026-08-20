@@ -123,6 +123,8 @@ extern void parser_asm_copy_slice_to_name64_slice_c(struct parser_asm_slice_u8 *
 extern struct ast_Module *pipeline_parser_get_match_module(void);
 extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
                                                             uint8_t *variant_name, int32_t variant_len);
+extern int32_t pipeline_module_enum_name_len(void *module, int32_t idx);
+extern uint8_t pipeline_module_enum_name_byte_at(void *module, int32_t idx, int32_t off);
 extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard,
                                               int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
 /* wave700: optional match-arm guard (`pat if cond =>`). */
@@ -224,12 +226,165 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
 }
 
 /**
+ * Parse `{ field, field: lit, field: _ }` after TOKEN_LBRACE is consumed.
+ * *r is the first token inside the braces. On 0: *lex sits after `}`,
+ * *out_guard is 0 or the implicit `subject.field == lit && ...` chain.
+ * On -1: parse fail (caller returns).
+ * Named `Type { fields }` and anonymous `{ fields }` share this loop.
+ * The type name is not stored; match subject type names the struct.
+ * PLATFORM: SHARED — one field-pattern authority (G.7).
+ */
+static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser_asm_lexer *lex,
+                                                      struct parser_asm_slice_u8 *source,
+                                                      struct parser_asm_lexer_result *r,
+                                                      int32_t subject_ref, int32_t *out_guard) {
+  int32_t field_guard = 0;
+  if (!arena || !lex || !source || !r || !out_guard)
+    return -1;
+  *out_guard = 0;
+  while (r->tok.kind != (int32_t)TOKEN_RBRACE && r->tok.kind != (int32_t)TOKEN_EOF) {
+    if (r->tok.kind == (int32_t)TOKEN_IDENT) {
+      uint8_t fname[128];
+      int32_t flen = r->tok.ident_len;
+      size_t fstart = r->token_start;
+      int32_t fi;
+      if (flen > 127)
+        flen = 127;
+      memset(fname, 0, sizeof(fname));
+      for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
+        fname[fi] = source->data[fstart + fi];
+      parser_lex_from_next_into_glue(lex, *r);
+      lexer_next_into(r, *lex, source);
+      if (r->tok.kind == (int32_t)TOKEN_COLON) {
+        int32_t fval;
+        int32_t fref, lit_ref, eq_ref;
+        struct ast_Expr fe, le, ee;
+        parser_lex_from_next_into_glue(lex, *r);
+        lexer_next_into(r, *lex, source);
+        /* `field: _` — wildcard field value, skip (no guard). */
+        if (r->tok.kind == (int32_t)TOKEN_UNDERSCORE) {
+          parser_lex_from_next_into_glue(lex, *r);
+          lexer_next_into(r, *lex, source);
+        } else {
+          if (r->tok.kind != (int32_t)TOKEN_INT)
+            return -1;
+          fval = r->tok.int_val;
+          parser_lex_from_next_into_glue(lex, *r);
+          lexer_next_into(r, *lex, source);
+          fref = ast_ast_arena_expr_alloc(arena);
+          if (fref == 0)
+            return -1;
+          fe = ast_ast_arena_expr_get(arena, fref);
+          memset(&fe, 0, sizeof(fe));
+          fe.kind = 44; /* EXPR_FIELD_ACCESS */
+          fe.field_access_base_ref = subject_ref;
+          memcpy(fe.field_access_field_name, fname, (size_t)flen);
+          fe.field_access_field_len = flen;
+          ast_ast_arena_expr_set(arena, fref, fe);
+          lit_ref = ast_ast_arena_expr_alloc(arena);
+          if (lit_ref == 0)
+            return -1;
+          le = ast_ast_arena_expr_get(arena, lit_ref);
+          memset(&le, 0, sizeof(le));
+          le.kind = 0; /* EXPR_LIT */
+          le.int_val = (int64_t)fval;
+          ast_ast_arena_expr_set(arena, lit_ref, le);
+          eq_ref = ast_ast_arena_expr_alloc(arena);
+          if (eq_ref == 0)
+            return -1;
+          ee = ast_ast_arena_expr_get(arena, eq_ref);
+          memset(&ee, 0, sizeof(ee));
+          ee.kind = 14; /* EXPR_EQ */
+          ee.binop_left_ref = fref;
+          ee.binop_right_ref = lit_ref;
+          ast_ast_arena_expr_set(arena, eq_ref, ee);
+          if (field_guard == 0) {
+            field_guard = eq_ref;
+          } else {
+            int32_t and_ref = ast_ast_arena_expr_alloc(arena);
+            struct ast_Expr ae;
+            if (and_ref == 0)
+              return -1;
+            ae = ast_ast_arena_expr_get(arena, and_ref);
+            memset(&ae, 0, sizeof(ae));
+            ae.kind = 20; /* EXPR_LOGAND */
+            ae.binop_left_ref = field_guard;
+            ae.binop_right_ref = eq_ref;
+            ast_ast_arena_expr_set(arena, and_ref, ae);
+            field_guard = and_ref;
+          }
+        }
+      }
+      /* `field` bind — skip here; typeck/codegen resolve as subject fields. */
+      if (r->tok.kind == (int32_t)TOKEN_COMMA) {
+        parser_lex_from_next_into_glue(lex, *r);
+        lexer_next_into(r, *lex, source);
+      }
+    } else {
+      return -1;
+    }
+  }
+  if (r->tok.kind == (int32_t)TOKEN_RBRACE)
+    parser_lex_from_next_into_glue(lex, *r);
+  *out_guard = field_guard;
+  return 0;
+}
+
+/**
+ * Dest-typed `.Variant` match pattern: unique registered enum that
+ * owns this variant name. Type comes from the match subject the
+ * same way dest-typed `{ fields }` does; this scan finds the unique
+ * sidecar owner so named `Type.Variant` tag lookup can run.
+ * @return tag >= 0; -1 unknown or ambiguous (caller parse-fails)
+ * G.7: same pipeline_module_enum_variant_tag_for_names as IDENT+DOT.
+ * PLATFORM: SHARED dest-typed enum match.
+ */
+static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t vlen) {
+  uint8_t ename[128];
+  int32_t ei;
+  int32_t nlen;
+  int32_t bi;
+  int32_t tag;
+  int32_t hits;
+  int32_t found;
+  if (!m || !vname || vlen <= 0)
+    return -1;
+  hits = 0;
+  found = -1;
+  ei = 0;
+  while (ei < 64) {
+    nlen = pipeline_module_enum_name_len(m, ei);
+    if (nlen <= 0)
+      break;
+    if (nlen > 127)
+      nlen = 127;
+    memset(ename, 0, sizeof(ename));
+    bi = 0;
+    while (bi < nlen) {
+      ename[bi] = pipeline_module_enum_name_byte_at(m, ei, bi);
+      bi = bi + 1;
+    }
+    tag = pipeline_module_enum_variant_tag_for_names(m, ename, nlen, vname, vlen);
+    if (tag >= 0) {
+      hits = hits + 1;
+      found = tag;
+    }
+    ei = ei + 1;
+  }
+  if (hits != 1)
+    return -1;
+  return found;
+}
+
+/**
  * parse_match_into：解析 `match expr { pat => result; ... }`；lex 指向 match 关键字。
  *
  * PLATFORM: SHARED — arm pattern authority (G.7). wave327: multi-pattern arms
  * `1 | 2 | 3 => result` expand to one MatchArmEntry per lit/enum (same result_ref).
- * Docs/04: `|` here is multi-pattern only, not type union. Cap residual pure leaf.
- * Rebuild: parser_asm_thin_glue.o (includes this .inc) + g05.
+ * Docs/04: `|` here is multi-pattern only, not type union.
+ * Struct patterns: named `Type { fields }` or dest-typed `{ fields }`
+ * (type from match subject). Enum patterns: named `Type.Variant` or
+ * dest-typed `.Variant` / bare `Variant`. Rebuild: parser_asm_thin_glue.o + g05.
  */
 void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out) {
@@ -1110,97 +1265,12 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
          * PLATFORM: SHARED — parser_asm match arm authority.
          */
         if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
-          int32_t field_guard = 0; /* 0 = no guard yet; >0 = expr_ref */
           parser_lex_from_next_into_glue(&lex, r);
           lexer_next_into(&r, lex, source);
-          while (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_EOF) {
-            if (r.tok.kind == (int32_t)TOKEN_IDENT) {
-              uint8_t fname[128];
-              int32_t flen = r.tok.ident_len;
-              size_t fstart = r.token_start;
-              int32_t fi;
-              if (flen > 127) flen = 127;
-              memset(fname, 0, sizeof(fname));
-              for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
-                fname[fi] = source->data[fstart + fi];
-              parser_lex_from_next_into_glue(&lex, r);
-              lexer_next_into(&r, lex, source);
-              if (r.tok.kind == (int32_t)TOKEN_COLON) {
-                /* `field: lit_val` — literal comparison */
-                int32_t fval;
-                int32_t fref, lit_ref, eq_ref;
-                struct ast_Expr fe, le, ee;
-                parser_lex_from_next_into_glue(&lex, r);
-                lexer_next_into(&r, lex, source);
-                /* wave709: `field: _` — wildcard field value, skip (no guard). */
-                if (r.tok.kind == (int32_t)TOKEN_UNDERSCORE) {
-                  parser_lex_from_next_into_glue(&lex, r);
-                  lexer_next_into(&r, lex, source);
-                } else {
-                  if (r.tok.kind != (int32_t)TOKEN_INT)
-                    return;
-                  fval = r.tok.int_val;
-                  parser_lex_from_next_into_glue(&lex, r);
-                  lexer_next_into(&r, lex, source); /* wave708: get next token (, or }) */
-                  /* construct FIELD_ACCESS: subject.field */
-                  fref = ast_ast_arena_expr_alloc(arena);
-                  if (fref == 0) return;
-                  fe = ast_ast_arena_expr_get(arena, fref);
-                  memset(&fe, 0, sizeof(fe));
-                  fe.kind = 44; /* EXPR_FIELD_ACCESS */
-                  fe.field_access_base_ref = matched_res.expr_ref;
-                  memcpy(fe.field_access_field_name, fname, (size_t)flen);
-                  fe.field_access_field_len = flen;
-                  ast_ast_arena_expr_set(arena, fref, fe);
-                  /* construct INT_LIT: val */
-                  lit_ref = ast_ast_arena_expr_alloc(arena);
-                  if (lit_ref == 0) return;
-                  le = ast_ast_arena_expr_get(arena, lit_ref);
-                  memset(&le, 0, sizeof(le));
-                  le.kind = 0; /* EXPR_LIT */
-                  le.int_val = (int64_t)fval;
-                  ast_ast_arena_expr_set(arena, lit_ref, le);
-                  /* construct EQ: field == val */
-                  eq_ref = ast_ast_arena_expr_alloc(arena);
-                  if (eq_ref == 0) return;
-                  ee = ast_ast_arena_expr_get(arena, eq_ref);
-                  memset(&ee, 0, sizeof(ee));
-                  ee.kind = 14; /* EXPR_EQ */
-                  ee.binop_left_ref = fref;
-                  ee.binop_right_ref = lit_ref;
-                  ast_ast_arena_expr_set(arena, eq_ref, ee);
-                  /* chain with LOGAND */
-                  if (field_guard == 0) {
-                    field_guard = eq_ref;
-                  } else {
-                    int32_t and_ref = ast_ast_arena_expr_alloc(arena);
-                    struct ast_Expr ae;
-                    if (and_ref == 0) return;
-                    ae = ast_ast_arena_expr_get(arena, and_ref);
-                    memset(&ae, 0, sizeof(ae));
-                    ae.kind = 20; /* EXPR_LOGAND */
-                    ae.binop_left_ref = field_guard;
-                    ae.binop_right_ref = eq_ref;
-                    ast_ast_arena_expr_set(arena, and_ref, ae);
-                    field_guard = and_ref;
-                  }
-                }
-              }
-              /* `field` bind mode — skip (wave707 field bind handles) */
-              /* skip comma */
-              if (r.tok.kind == (int32_t)TOKEN_COMMA) {
-                parser_lex_from_next_into_glue(&lex, r);
-                lexer_next_into(&r, lex, source);
-              }
-            } else {
-              return;
-            }
-          }
-          /* consume closing RBRACE */
-          if (r.tok.kind == (int32_t)TOKEN_RBRACE)
-            parser_lex_from_next_into_glue(&lex, r);
+          if (parser_asm_parse_match_struct_fields_c(arena, &lex, source, &r, matched_res.expr_ref,
+                                                    &pat_guard_ref[pat_n]) != 0)
+            return;
           is_wc = 1;
-          pat_guard_ref[pat_n] = field_guard;
         } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
           parser_lex_from_next_into_glue(&lex, r);
           lexer_next_into(&r, lex, source);
@@ -1221,8 +1291,55 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
             var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf,
                                                                 variant_len);
         } else {
-          return;
+          /* Dest-typed `Green =>`. IDENT is already in enum_buf;
+           * r is FATARROW/PIPE/IF and lex still sits after IDENT
+           * so the common next re-reads that token. Same unique
+           * sidecar scan as dest-typed `.Variant`. Unknown IDENT
+           * still parse-fails. PLATFORM: SHARED dest-typed bare enum. */
+          is_ev = 1;
+          mod_m = pipeline_parser_get_match_module();
+          var_idx = -1;
+          if (mod_m)
+            var_idx = parser_asm_match_dest_enum_tag_c(mod_m, enum_buf, enum_len);
+          if (var_idx < 0)
+            return;
         }
+      } else if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+        /* Anonymous `{ fields } =>`. Type comes from the match subject
+         * (named `Type { fields }` discards IDENT the same way).
+         * PLATFORM: SHARED — dest-typed match pattern. */
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (parser_asm_parse_match_struct_fields_c(arena, &lex, source, &r, matched_res.expr_ref,
+                                                  &pat_guard_ref[pat_n]) != 0)
+          return;
+        is_wc = 1;
+      } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
+        /* Dest-typed `.Variant =>`. Type comes from the match
+         * subject (named `Type.Variant` already uses IDENT+DOT).
+         * Bare `Green =>` is the IDENT-without-DOT dest-typed
+         * arm above (same tag scan).
+         * PLATFORM: SHARED dest-typed enum match. */
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_IDENT)
+          return;
+        variant_len = r.tok.ident_len;
+        if (variant_len > 127)
+          variant_len = 127;
+        variant_start = r.token_start;
+        if (variant_start == 0)
+          variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
+        memset(variant_buf, 0, sizeof(variant_buf));
+        parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
+        parser_lex_from_next_into_glue(&lex, r);
+        is_ev = 1;
+        mod_m = pipeline_parser_get_match_module();
+        var_idx = -1;
+        if (mod_m)
+          var_idx = parser_asm_match_dest_enum_tag_c(mod_m, variant_buf, variant_len);
+        if (var_idx < 0)
+          return;
       } else {
         return;
       }

@@ -15,7 +15,7 @@ function main(): i32 {
     4, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0,
     0, 16, 0, 0, 0, 0, 0, 0,
   ];
-  let hdr: Elf64Hdr = Elf64Hdr {
+  let hdr: Elf64Hdr = {
     e_type: 0,
     machine: 0,
     entry: 0,
@@ -25,7 +25,7 @@ function main(): i32 {
     shoff: 0,
     shstrndx: 0,
   };
-  let ph: Elf64Phdr = Elf64Phdr {
+  let ph: Elf64Phdr = {
     p_type: 0,
     p_flags: 0,
     offset: 0,

@@ -28,7 +28,7 @@ function main(): i32 {
   ];
   let chunk: u8[8] = [];
   let c: DbConn = sqlite.open(&mem[0]);
-  let cur: DbRowCursor = DbRowCursor { cursor: 0 };
+  let cur: DbRowCursor = { cursor: 0 };
   if (c.handle == 0) {
     return 1;
   }

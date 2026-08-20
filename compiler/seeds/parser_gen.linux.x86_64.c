@@ -67,7 +67,8 @@ typedef struct { uint32_t e[16]; } u32x16_t;
 typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+extern int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr);
+
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
@@ -225,54 +226,58 @@ struct std_net_UdpSocket { int32_t fd; };
 #include <stdio.h>
 #ifndef __cplusplus
 /* 仅补 co-emit 未定义的符号；勿桩 xlang_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
-__attribute__((weak)) int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
-  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
-  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
-}
-__attribute__((weak)) int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
-  (void)ptr; (void)len; (void)handle; return -1;
-}
-__attribute__((weak)) int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
-  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
-}
-__attribute__((weak)) int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
-  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
-}
-__attribute__((weak)) int32_t xlang_io_read_ptr_backend(void) { return 0; }
-__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
-  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
-}
-__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
-  (void)fds;(void)n;(void)timeout_ms; return -1;
-}
-__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
-  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
-}
-__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
-  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
-}
+extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+
+extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+
+extern int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t);
+
+extern int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t);
+
+extern int32_t xlang_io_read_ptr_backend(void);
+
+extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
+
+extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);
+
+extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+
+extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+
 extern int32_t process_xlang_argc_get(void);
 extern uint8_t *process_xlang_argv_get(int32_t i);
-__attribute__((weak)) int32_t process_args_count_c(void) { return process_xlang_argc_get(); }
-__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_xlang_argv_get(i); }
-__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
-__attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
-__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-__attribute__((weak)) int64_t ctx_background_c(void) { return 0; }
-__attribute__((weak)) void ctx_cancel_c(int64_t c) { (void)c; }
-__attribute__((weak)) int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) void ctx_free_c(int64_t c) { (void)c; }
-__attribute__((weak)) int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {
-  (void)h;(void)key; if (out) *out = 0; return 0;
-}
-__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {
-  (void)h;(void)key;(void)value; return 0;
-}
-__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }
-__attribute__((weak)) int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
-__attribute__((weak)) int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
+extern int32_t process_args_count_c(void);
+
+extern uint8_t *process_arg_c(int32_t i);
+
+extern int32_t args_iter_count_c(void);
+
+extern uint8_t *args_iter_at_c(int32_t i);
+
+extern uint64_t std_io_driver_driver_read_ptr_gen(void);
+
+extern int64_t ctx_background_c(void);
+
+extern void ctx_cancel_c(int64_t c);
+
+extern int64_t ctx_deadline_ns_c(int64_t c);
+
+extern void ctx_free_c(int64_t c);
+
+extern int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out);
+
+extern int32_t ctx_is_cancelled_c(int64_t c);
+
+extern int64_t ctx_remaining_ns_c(int64_t c);
+
+extern int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value);
+
+extern int64_t ctx_with_cancel_c(int64_t p);
+
+extern int64_t ctx_with_deadline_c(int64_t p, int64_t ns);
+
+extern int64_t ctx_with_timeout_c(int64_t p, int64_t ns);
+
 #endif
 struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };
 struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };
@@ -317,8 +322,10 @@ extern int32_t core_types_placeholder(void);
 extern int32_t std_heap_alloc_size_zero(void);
 extern int32_t std_runtime_runtime_ready(void);
 #ifndef __cplusplus
-__attribute__((weak)) int32_t std_vec_vec_len_empty(void) { return 0; }
-__attribute__((weak)) int32_t std_vec_len_empty(void) { return 0; }
+extern int32_t std_vec_vec_len_empty(void);
+
+extern int32_t std_vec_len_empty(void);
+
 #else
 extern int32_t std_vec_vec_len_empty(void);
 extern int32_t std_vec_len_empty(void);
@@ -327,7 +334,8 @@ extern int32_t std_vec_len_empty(void);
 #define alloc_size_zero std_heap_alloc_size_zero
 #define runtime_ready std_runtime_runtime_ready
 #ifndef __cplusplus
-__attribute__((weak)) int32_t std_string_placeholder(void) { return 0; }
+extern int32_t std_string_placeholder(void);
+
 #else
 extern int32_t std_string_placeholder(void);
 #endif
@@ -1048,80 +1056,8 @@ extern int32_t parser_lexer_token_run_len(enum token_TokenKind kind);
 extern struct lexer_Lexer parser_lex_at_token_from_result(struct lexer_LexerResult r);
 extern struct lexer_Lexer parser_rewind_lex_for_following_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r);
 extern struct lexer_Lexer parser_realign_lex_after_compound_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source);
-extern /* Anti-loop: same re-sync target accepted >32 times → refuse (twin of parser.x). */
-static size_t g_lparen_ctrl_last_pos = 0;
-static int32_t g_lparen_ctrl_hits = 0;
-
-struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
-  /* PLATFORM: SHARED — seed pin twin of parser.x / parser_gen.linux.x86_64.c.
-   * Only re-sync when if/while/for is the *immediate* predecessor of `(`
-   * (whitespace only between). Prior 128-byte scan false-matched outer `if`
-   * for nested paren exprs inside conditions:
-   *   if (f(unsafe { (1) }) != 0) { ... }
-   * → infinite parse_if_stmt recursion / stack overflow.
-   * Safety: same new_pos >32 times → return lex_in (no hang / unkillable spinner). */
-  if ((((r_in.tok).kind) ==82)) {
-    struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r_in);
-    size_t lp_pos = (lp_base.pos);
-    size_t end = lp_pos;
-    while (end > 0) {
-      uint8_t c = (source)->data[end - 1];
-      if (c == 32 || c == 9 || c == 10 || c == 13) {
-        end = end - 1;
-        continue;
-      }
-      break;
-    }
-    if (end == 0) {
-      return lex_in;
-    }
-    int32_t kw_len = 0;
-    if (end >= 5
-        && (source)->data[end - 5] == 119 && (source)->data[end - 4] == 104
-        && (source)->data[end - 3] == 105 && (source)->data[end - 2] == 108
-        && (source)->data[end - 1] == 101) {
-      kw_len = 5; /* while */
-    } else if (end >= 3
-        && (source)->data[end - 3] == 102 && (source)->data[end - 2] == 111
-        && (source)->data[end - 1] == 114) {
-      kw_len = 3; /* for */
-    } else if (end >= 2
-        && (source)->data[end - 2] == 105 && (source)->data[end - 1] == 102) {
-      kw_len = 2; /* if */
-    }
-    if (kw_len == 0) {
-      return lex_in;
-    }
-    size_t new_pos = end - (size_t)kw_len;
-    if (new_pos > 0) {
-      uint8_t b = (source)->data[new_pos - 1];
-      if ((b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95) {
-        return lex_in;
-      }
-    }
-    if (new_pos == g_lparen_ctrl_last_pos) {
-      g_lparen_ctrl_hits = g_lparen_ctrl_hits + 1;
-      if (g_lparen_ctrl_hits > 32) {
-        return lex_in;
-      }
-    } else {
-      g_lparen_ctrl_last_pos = new_pos;
-      g_lparen_ctrl_hits = 1;
-    }
-    int32_t rew_line = 1;
-    int32_t rew_col = 1;
-    parser_lexer_line_col_at_pos(source, new_pos, &rew_line, &rew_col);
-    struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = new_pos, .line = rew_line, .col = rew_col };
-    struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
-    (void)(lexer_next_into(&(r_lp), lex_lp, source));
-    lexer_invalid_type_suffix_reset();
-    if ((((((r_lp.tok).kind) ==4) || (((r_lp.tok).kind) ==6)) || (((r_lp.tok).kind) ==8))) {
-      return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
-    }
-  }
-  return lex_in;
-}
-int parser_match_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start);
+extern struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source);
+extern int parser_match_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start);
 extern int parser_return_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start);
 extern int parser_match_kw_immediately_before_buf(uint8_t * data, int32_t len, size_t ident_start);
 extern int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
@@ -1206,6 +1142,8 @@ extern int parser_append_block_lets_from_res(struct ast_ASTArena * arena, int32_
 extern int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out);
 extern void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out);
 extern int32_t parser_wrap_block_ref_as_expr(struct ast_ASTArena * arena, int32_t block_ref, int32_t type_ref);
+/* Final-if zero-re-parse conversion (defined below; static). PLATFORM: SHARED. */
+static int32_t parser_if_stmt_parts_to_if_expr(struct ast_ASTArena * arena, int32_t cond_ref, int32_t then_blk, int32_t else_blk, int32_t type_ref);
 extern void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
 extern struct parser_ParseResult parser_parse(struct xlang_slice_uint8_t * source);
 extern int32_t parser_first_token_kind(struct xlang_slice_uint8_t * source);
@@ -1400,6 +1338,7 @@ int32_t parser_parse_peek_function_name_buf(struct lexer_Lexer lex, uint8_t * da
 }
 extern struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t * data, int32_t len);
 extern void parser_diagnostic_parse_skip(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t * name);
+extern int32_t parser_parse_strict_enabled(void);
 extern void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer * out, int32_t * count, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t * name);
@@ -1713,11 +1652,18 @@ static void parser_lexer_line_col_at_pos(struct xlang_slice_uint8_t *source, siz
   *out_col = col;
 }
 
+/* Anti-loop: same re-sync target accepted >32 times → refuse (twin of parser.x). */
+static size_t g_lparen_ctrl_last_pos = 0;
+static int32_t g_lparen_ctrl_hits = 0;
+
 struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
-  /* PLATFORM: SHARED — seed pin twin of parser.x / parser_gen.c.
+  /* PLATFORM: SHARED — seed pin twin of parser.x / parser_gen.linux.x86_64.c.
    * Only re-sync when if/while/for is the *immediate* predecessor of `(`
    * (whitespace only between). Prior 128-byte scan false-matched outer `if`
-   * for nested paren exprs inside conditions → infinite parse_if recursion. */
+   * for nested paren exprs inside conditions:
+   *   if (f(unsafe { (1) }) != 0) { ... }
+   * → infinite parse_if_stmt recursion / stack overflow.
+   * Safety: same new_pos >32 times → return lex_in (no hang / unkillable spinner). */
   if ((((r_in.tok).kind) ==82)) {
     struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r_in);
     size_t lp_pos = (lp_base.pos);
@@ -1756,6 +1702,15 @@ struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer 
       if ((b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95) {
         return lex_in;
       }
+    }
+    if (new_pos == g_lparen_ctrl_last_pos) {
+      g_lparen_ctrl_hits = g_lparen_ctrl_hits + 1;
+      if (g_lparen_ctrl_hits > 32) {
+        return lex_in;
+      }
+    } else {
+      g_lparen_ctrl_last_pos = new_pos;
+      g_lparen_ctrl_hits = 1;
     }
     int32_t rew_line = 1;
     int32_t rew_col = 1;
@@ -2398,7 +2353,9 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         (void)(lexer_next_into(&(r), lex_cur, source));
       }
       if (((((r.tok).kind) ==2) || (((r.tok).kind) ==3))) {
+        /* Mid-body let/const: copy both pools; record kind=0 then kind=1 (prefix face). */
         int32_t let_base_mid = (b.num_lets);
+        int32_t const_base_mid = (b.num_consts);
         (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(temp)));
         (void)(((temp->num_lets) = 0));
         (void)(((temp->num_consts) = 0));
@@ -2416,6 +2373,14 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           return;
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+        int32_t ci_mid = const_base_mid;
+        while ((ci_mid < (b.num_consts))) {
+          if ((pipeline_block_append_stmt_order(arena, block_ref, 0, ci_mid) < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          (void)((ci_mid = (ci_mid + 1)));
+        }
         int32_t pi_mid = let_base_mid;
         while ((pi_mid < (b.num_lets))) {
           if ((pipeline_block_append_stmt_order(arena, block_ref, 1, pi_mid) < 0)) {
@@ -3016,7 +2981,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)((lex_cur = (block_res_def.next_lex)));
-        (void)((stmt_tok_ready = 0));
+        /* Optional `;` after defer {…} (compound ASI). Extra-arm dest
+         * `{ defer { k = 1 }; { h: e } }` used to P001. No-semi dest
+         * stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+         * PLATFORM: SHARED — twin of parser.x parse_block defer. */
+        (void)(lexer_next_into(&(r), lex_cur, source));
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          (void)((stmt_tok_ready = 0));
+        } else {
+          (void)((stmt_tok_ready = 1));
+        }
         continue;
       }
       if ((((r.tok).kind) ==17)) {
@@ -3068,9 +3043,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)((lex_cur = (block_res_wa.next_lex)));
+        /* Optional `;` after with_arena(cap) {…} (compound ASI). Extra-arm
+         * dest `{ with_arena(n) { k = 1 }; { h: e } }` used to P001.
+         * No-semi dest stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+         * Do not realign (would skip dest). PLATFORM: SHARED. */
         (void)(lexer_next_into(&(r), lex_cur, source));
-        (void)((lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source)));
-        (void)((stmt_tok_ready = 0));
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          (void)((stmt_tok_ready = 0));
+        } else {
+          (void)((stmt_tok_ready = 1));
+        }
         continue;
       }
       if ((((r.tok).kind) ==16)) {
@@ -3110,9 +3093,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)((lex_cur = (block_res_reg.next_lex)));
+        /* Optional `;` after region label {…} (compound ASI). Extra-arm dest
+         * `{ region foo { k = 1 }; { h: e } }` used to P001. No-semi dest
+         * stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+         * Do not realign (would skip dest). PLATFORM: SHARED. */
         (void)(lexer_next_into(&(r), lex_cur, source));
-        (void)((lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source)));
-        (void)((stmt_tok_ready = 0));
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          (void)((stmt_tok_ready = 0));
+        } else {
+          (void)((stmt_tok_ready = 1));
+        }
         continue;
       }
       if (((((r.tok).kind) ==59) && (((r.tok).ident_len) ==6))) {
@@ -3145,7 +3136,17 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           }
           (void)((b = ast_ast_arena_block_get(arena, block_ref)));
           (void)((lex_cur = (block_res_unsafe.next_lex)));
-          (void)((stmt_tok_ready = 0));
+          /* Optional `;` after unsafe {…} (compound ASI). Extra-arm dest
+           * `{ unsafe { k = 1 }; { h: e } }` used to P001. No-semi dest_if
+           * extra-arm region stays stmt_tok_ready. kind 95 = TOKEN_SEMICOLON.
+           * PLATFORM: SHARED — twin of parser.x parse_block unsafe. */
+          (void)(lexer_next_into(&(r), lex_cur, source));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex_cur), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
       }
@@ -3157,6 +3158,49 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         if (!(parser_parse_if_stmt_into(arena, if_start, source, type_ref, &(if_cond), &(if_then), &(if_else), &(lex_cur)))) {
           (void)(((out->ok) = 0));
           return;
+        }
+        /* dest wrap IF dest: MATCH extra-arm last dest is IF dest.
+         * TOKEN_MATCH last dest is already final_expr; TOKEN_IF
+         * always appended if-stmt (dest-in-rbx CG002, host-C void).
+         * G.7: last dest (kind 85 RBRACE or 95 `;` then 85) reuses
+         * parse_if_expr_into (same as `*p = if`). Mid-block if-stmt
+         * stays if-stmt. parse_if_expr_into fail falls back.
+         * PLATFORM: SHARED dest wrap IF dest. Do not assemble parser.x. */
+        (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
+        (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
+        if ((((rpeek_fe.tok).kind) ==95)) {
+          struct lexer_LexerResult rpeek_if2 = (struct lexer_LexerResult){ .next_lex = (rpeek_fe.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          (void)(lexer_next_into(&(rpeek_if2), (rpeek_fe.next_lex), source));
+          if ((((rpeek_if2.tok).kind) ==85)) {
+            (void)((rpeek_fe = rpeek_if2));
+          }
+        }
+        if ((((rpeek_fe.tok).kind) ==85)) {
+          /*
+           * Final-position if: convert the ALREADY parsed if-STMT triple into
+           * an EXPR_IF (parser_if_stmt_parts_to_if_expr) instead of re-parsing
+           * the whole chain via parser_parse_if_expr_into. The old re-parse
+           * doubled work per nesting level (2^N on deep else-chains; 29-deep
+           * pipeline_asm_emit_expr_elf_rec hit 22-40GB RSS and jetsam). Zero
+           * re-parse keeps block-final-if linear; conversion mirrors the
+           * expr-path shape (G.7 same rule). Fallback to stmt only on
+           * alloc failure. PLATFORM: SHARED.
+           */
+          int32_t if_expr_ref_c = parser_if_stmt_parts_to_if_expr(arena, if_cond, if_then, if_else, type_ref);
+          if ((if_expr_ref_c !=0)) {
+            /* Stale-b rollback guard: mid-body let runs append stmt_order after the
+             * last b refresh; writing the stale snapshot back would rewind
+             * num_stmt_order and drop those entries (host-C pre-let hoist then
+             * uses names before their C declaration). Refresh b so only
+             * final_expr_ref changes on a fresh snapshot. Same class applies to
+             * every break-final writeback in this loop.
+             * PLATFORM: SHARED. */
+            (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+            (void)(((b.final_expr_ref) = (if_expr_ref_c)));
+            (void)(ast_ast_arena_block_set(arena, block_ref, b));
+            (void)((r = rpeek_fe));
+            break;
+          }
         }
         int32_t if_pool_i = pipeline_block_append_if(arena, block_ref, if_cond, if_then, if_else);
         if ((if_pool_i < 0)) {
@@ -3172,6 +3216,20 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         continue;
       }
       if ((((r.tok).kind) ==84)) {
+        /* dest extra-arm `{ fields }`: IDENT then :/,/} is STRUCT_LIT, not nested block.
+         * G.7 twin of parser.x parse_block LBRACE peek + primary lbrace_looks_like_block.
+         * PLATFORM: SHARED. Do not full-assemble parser.x (generic_bound_scan). */
+        struct lexer_LexerResult rpeek_sl = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+        struct lexer_LexerResult rpeek_sl2 = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+        int32_t slit_stmt = 0;
+        (void)(lexer_next_into(&(rpeek_sl), (r.next_lex), source));
+        if ((((rpeek_sl.tok).kind) ==59)) {
+          (void)(lexer_next_into(&(rpeek_sl2), (rpeek_sl.next_lex), source));
+          if ((((((rpeek_sl2.tok).kind) ==91) || (((rpeek_sl2.tok).kind) ==90)) || (((rpeek_sl2.tok).kind) ==85))) {
+            (void)((slit_stmt = 1));
+          }
+        }
+        if ((slit_stmt ==0)) {
         struct parser_ParseBlockResult block_res_bare = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex_cur };
         int32_t bare_expr = 0;
         int32_t bare_ex_i = 0;
@@ -3187,6 +3245,36 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           (void)(((out->ok) = 0));
           return;
         }
+        /* dest extra-arm extra wrap `{ { let t; dest } }`: last nested
+         * block is the dest value. Used to always append expr_stmt, so
+         * host-C GNU stmt-expr was (void)({...}) assigned to dest.
+         * dest-in-rbx peels BLOCK so asm was accidental green.
+         * Peek: RBRACE or `;` then RBRACE → final_expr (same as STRUCT_LIT).
+         * Mid-block `{ let ... } next_stmt` stays expr_stmt.
+         * PLATFORM: SHARED. Do not assemble parser.x. */
+        (void)((lex_cur = (block_res_bare.next_lex)));
+        (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
+        (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
+        if ((((rpeek_fe.tok).kind) ==85)) {
+          /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+          (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+          (void)(((b.final_expr_ref) = bare_expr));
+          (void)(ast_ast_arena_block_set(arena, block_ref, b));
+          (void)((r = rpeek_fe));
+          break;
+        }
+        if ((((rpeek_fe.tok).kind) ==95)) {
+          struct lexer_LexerResult rpeek_fe2 = (struct lexer_LexerResult){ .next_lex = (rpeek_fe.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          (void)(lexer_next_into(&(rpeek_fe2), (rpeek_fe.next_lex), source));
+          if ((((rpeek_fe2.tok).kind) ==85)) {
+            /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+            (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+            (void)(((b.final_expr_ref) = bare_expr));
+            (void)(ast_ast_arena_block_set(arena, block_ref, b));
+            (void)((r = rpeek_fe2));
+            break;
+          }
+        }
         (void)((bare_ex_i = pipeline_block_append_expr_stmt(arena, block_ref, bare_expr)));
         if ((bare_ex_i < 0)) {
           (void)(((out->ok) = 0));
@@ -3197,9 +3285,9 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
           return;
         }
         (void)((b = ast_ast_arena_block_get(arena, block_ref)));
-        (void)((lex_cur = (block_res_bare.next_lex)));
         (void)((stmt_tok_ready = 0));
         continue;
+        }
       }
       (void)((stmt_start = parser_lex_at_token_from_result(r)));
       (void)(parser_parse_expr_result_reset(&(expr_stmt_res), stmt_start));
@@ -3212,6 +3300,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
       (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
       (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
       if ((((rpeek_fe.tok).kind) ==85)) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
         (void)(ast_ast_arena_block_set(arena, block_ref, b));
         (void)((r = rpeek_fe));
@@ -3219,6 +3309,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
       }
       if ((parser_advance_past_stmt_semicolon_into(&(r), lex_cur, source) ==0)) {
         if ((((r.tok).kind) ==85)) {
+          /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+          (void)((b = ast_ast_arena_block_get(arena, block_ref)));
           (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
           (void)(ast_ast_arena_block_set(arena, block_ref, b));
           break;
@@ -3227,6 +3319,8 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
         return;
       }
       if ((((r.tok).kind) ==85)) {
+        /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
+        (void)((b = ast_ast_arena_block_get(arena, block_ref)));
         (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
         (void)(ast_ast_arena_block_set(arena, block_ref, b));
         break;
@@ -3262,6 +3356,10 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
       }
       (void)((b = ast_ast_arena_block_get(arena, block_ref)));
     }
+    /* Stage12.0.5: persist early-let count for region fix_prefix (not num_lets). */
+    (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+    (void)(((b.num_early_lets) = block_prefix_lets));
+    (void)(ast_ast_arena_block_set(arena, block_ref, b));
     if ((block_prefix_lets > 0)) {
       (void)(pipeline_block_stmt_order_fix_prefix_lets(arena, block_ref, block_prefix_lets));
       (void)((b = ast_ast_arena_block_get(arena, block_ref)));
@@ -3295,6 +3393,62 @@ int32_t parser_wrap_block_ref_as_expr(struct ast_ASTArena * arena, int32_t block
 extern void parser_parse_if_expr_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
 void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out) {
   (void)(parser_parse_if_expr_into_glue(arena, lex_at_if, source, type_ref, out));
+}
+/*
+ * Convert an already-parsed if-STMT triple (cond expr + then/else block refs,
+ * exactly what parser_parse_if_stmt_into returned) into an EXPR_IF node with
+ * zero re-parsing. ROOT FIX for the exponential block-final-if blowup: the
+ * old final-if path ran the full stmt parse and then a FULL re-parse via
+ * parser_parse_if_expr_into, doubling work and arena garbage per nesting
+ * level (2^N on deep else-chains; 29-deep pipeline_asm_emit_expr_elf_rec hit
+ * 22-40GB RSS and jetsam-killed dev boxes). Mirrors the expr-path shape
+ * (G.7 same rule): then/else wrapped as EXPR_BLOCK; implicit elif wraps
+ * (single if-STMT, final_expr_ref==0) unrolled recursively so the EXPR_IF
+ * chain shape matches the old re-parse output; missing else keeps 0.
+ * Returns EXPR_IF ref or 0 on alloc failure (caller falls back to stmt).
+ * PLATFORM: SHARED.
+ */
+static int32_t parser_if_stmt_parts_to_if_expr(struct ast_ASTArena * arena, int32_t cond_ref, int32_t then_blk, int32_t else_blk, int32_t type_ref) {
+  int32_t then_expr_ref = parser_wrap_block_ref_as_expr(arena, then_blk, type_ref);
+  if ((then_expr_ref ==0)) {
+    return 0;
+  }
+  int32_t else_expr_ref = 0;
+  if ((else_blk !=0)) {
+    struct ast_Block eb = ast_ast_arena_block_get(arena, else_blk);
+    if ((eb.final_expr_ref !=0)) {
+      /* Real else-block whose own parse already converted its inner final if. */
+      else_expr_ref = parser_wrap_block_ref_as_expr(arena, else_blk, type_ref);
+    } else {
+      if (((eb.num_if_stmts ==1) && (eb.num_stmt_order ==1))) {
+        /* Implicit elif wrap: single if-STMT; recurse to a direct EXPR_IF chain. */
+        int32_t ncond = ast_ast_block_if_cond_ref(arena, else_blk, 0);
+        int32_t nthen = ast_ast_block_if_then_body_ref(arena, else_blk, 0);
+        int32_t nelse = ast_ast_block_if_else_body_ref(arena, else_blk, 0);
+        else_expr_ref = parser_if_stmt_parts_to_if_expr(arena, ncond, nthen, nelse, type_ref);
+      } else {
+        else_expr_ref = parser_wrap_block_ref_as_expr(arena, else_blk, type_ref);
+      }
+    }
+    if ((else_expr_ref ==0)) {
+      return 0;
+    }
+  }
+  int32_t if_ref = ast_ast_arena_expr_alloc(arena);
+  if ((if_ref ==0)) {
+    return 0;
+  }
+  struct ast_Expr ie = ast_ast_arena_expr_get(arena, if_ref);
+  (void)(parser_expr_set_common_zeros(&(ie)));
+  (void)(((ie.kind) = 25)); /* EXPR_IF */
+  (void)(((ie.resolved_type_ref) = type_ref));
+  (void)(((ie.line) = 0));
+  (void)(((ie.col) = 0));
+  (void)(((ie.if_cond_ref) = cond_ref));
+  (void)(((ie.if_then_ref) = then_expr_ref));
+  (void)(((ie.if_else_ref) = else_expr_ref));
+  (void)(ast_ast_arena_expr_set(arena, if_ref, ie));
+  return if_ref;
 }
 struct parser_ParseResult parser_parse(struct xlang_slice_uint8_t * source) {
   {
@@ -3653,7 +3807,11 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           }
         }
         int arr_init_plain = ((((((((((r.tok).kind) ==95) || (((r.tok).kind) ==2)) || (((r.tok).kind) ==3)) || (((r.tok).kind) ==11)) || (((r.tok).kind) ==4)) || (((r.tok).kind) ==6)) || (((r.tok).kind) ==8)) || (((r.tok).kind) ==85));
-        if ((is_let && ((((r.tok).kind) ==128) || !(arr_init_plain)))) {
+        /* PLATFORM: SHARED — body const nested [..] / as: same compound
+         * reparse as let. is_let gate dropped the whole function (P001).
+         * Twin: parser.x parse_body_lets_into. Do not full-reassemble
+         * parser.x (tip -E drops generic_bound_scan). */
+        if (((((r.tok).kind) ==128) || !(arr_init_plain))) {
           int32_t reparsed_ref = parser_parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, source, &(lex), &(r));
           if ((reparsed_ref ==0)) {
             (void)(((lex_out->pos) = (lex.pos)));
@@ -3672,7 +3830,8 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
        * PLATFORM: SHARED parse.
        */
       if ((init_handled ==0)) {
-        if (((((r.tok).kind) ==59) || (((r.tok).kind) ==51))) {
+        /* 59=IDENT, 51=SELF, 129=TOKEN_AT (@shuffle/@select body-let init). G.7 ≡ parser.x. */
+        if (((((r.tok).kind) ==59) || (((r.tok).kind) ==51) || (((r.tok).kind) ==129))) {
           size_t rhs_ident_start = (r.token_start);
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           struct lexer_Lexer expr_lex = (struct lexer_Lexer){ .pos = rhs_ident_start, .line = ((r.tok).line), .col = ((r.tok).col) };
@@ -5064,7 +5223,9 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           return;
         }
         if (((((r.tok).kind) ==2) || (((r.tok).kind) ==3))) {
+          /* Mid-body let/const: push kind=0 consts then kind=1 lets (prefix face). */
           int32_t n_before_mid = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out));
+          int32_t n_const_before = pipeline_onefunc_num_consts(parser_onefunc_result_pool_ptr(out));
           int32_t kw_back = 3;
           if ((((r.tok).kind) ==3)) {
             (void)((kw_back = 5));
@@ -5075,6 +5236,12 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             return;
           }
           (void)(((out->num_lets) = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out))));
+          (void)(((out->num_consts) = pipeline_onefunc_num_consts(parser_onefunc_result_pool_ptr(out))));
+          int32_t push_ci = n_const_before;
+          while ((push_ci < (out->num_consts))) {
+            (void)(parser_onefunc_push_src_stmt(out, 0, push_ci));
+            (void)((push_ci = (push_ci + 1)));
+          }
           int32_t push_mi = n_before_mid;
           while ((push_mi < (out->num_lets))) {
             (void)(parser_onefunc_push_src_stmt(out, 1, push_mi));
@@ -5105,7 +5272,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             return;
           }
           (void)((lex = (block_res_def_fn.next_lex)));
-          (void)((stmt_tok_ready = 0));
+          /* Optional `;` after defer {…} (function-body compound ASI).
+           * `defer { k = 1 }; return k` used to P001. No-semi stays stmt head.
+           * kind 95 = TOKEN_SEMICOLON. Do not realign. PLATFORM: SHARED. */
+          (void)(lexer_next_into(&(r), lex, source));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
         if ((((r.tok).kind) ==17)) {
@@ -5151,8 +5327,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
           (void)(parser_onefunc_push_src_stmt(out, 6, wa_idx_fn));
           (void)((lex = (block_res_wa_fn.next_lex)));
+          /* Optional `;` after with_arena(cap) {…} (function-body compound ASI).
+           * `with_arena(64) { let x = 1; }; return` used to P001. No-semi stays
+           * stmt head. kind 95 = TOKEN_SEMICOLON. Do not realign. PLATFORM: SHARED. */
           (void)(lexer_next_into(&(r), lex, source));
-          (void)((stmt_tok_ready = 1));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
         if ((((r.tok).kind) ==16)) {
@@ -5188,8 +5372,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
           (void)(parser_onefunc_push_src_stmt(out, 6, reg_idx_fn));
           (void)((lex = (block_res_reg_fn.next_lex)));
+          /* Optional `;` after region label {…} (function-body compound ASI).
+           * `region foo { k = 1 }; return k` used to P001. No-semi stays stmt
+           * head. kind 95 = TOKEN_SEMICOLON. Do not realign. PLATFORM: SHARED. */
           (void)(lexer_next_into(&(r), lex, source));
-          (void)((stmt_tok_ready = 1));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)((stmt_tok_ready = 0));
+          } else {
+            (void)((stmt_tok_ready = 1));
+          }
           continue;
         }
         if (((((r.tok).kind) ==59) && (((r.tok).ident_len) ==6))) {
@@ -6978,6 +7170,9 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
+    /* skip_one_impl leaves the lexer inside `{...}`; nest counts those bodies
+     * so the matching `}` is an impl closer, not unexpected junk. */
+    int32_t impl_body_depth = 0;
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
     (void)(parser_collect_imports(lex, source, module, &(import_res)));
     (void)(parser_copy_lex_from_import_into(&(lex), import_res));
@@ -7209,7 +7404,15 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         (void)(parser_skip_one_impl_into(&(lex), iter_start, source));
         if ((((lex.pos) ==(iter_start.pos)) && ((lex.pos) < (source->length)))) {
           (void)((lex = (struct lexer_Lexer){ .pos = ((lex.pos) + 1), .line = (lex.line), .col = ((lex.col) + 1) }));
+        } else {
+          (void)((impl_body_depth = (impl_body_depth + 1)));
         }
+        continue;
+      }
+      /* Impl closer after skip_one_impl parked at first method (wave390 UFCS).
+       * PLATFORM: SHARED — must run before parse_strict unexpected-token. */
+      if (((((r.tok).kind) ==85) && (impl_body_depth > 0))) {
+        (void)((impl_body_depth = (impl_body_depth - 1)));
         continue;
       }
       if ((((r.tok).kind) !=1)) {
@@ -7236,6 +7439,9 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         /* wave424: trait completeness (parse_into slice). */
         return parser_parse_into_finish_ok(module, main_idx);
       }
+      /* Latch export before body parse (G.7 ≡ struct pe_*); body must not clear pe. */
+      int32_t pe_fn = (module->pending_export);
+      (void)(((module->pending_export) = 0));
       struct lexer_Lexer lex_at_function = lexer_init();
       (void)((lex_at_function = current_tok_lex));
       (void)(parser_lex_from_next_into(&(lex), r));
@@ -8213,8 +8419,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       (void)(pipeline_module_func_set_body_ref(module, fi, block_ref));
       (void)(pipeline_module_func_set_is_extern(module, fi, 0));
       (void)(pipeline_module_func_set_is_async(module, fi, (func_is_async_storage)[0]));
-      (void)(pipeline_module_func_set_is_export(module, fi, (module->pending_export)));
-      (void)(((module->pending_export) = 0));
+      (void)(pipeline_module_func_set_is_export(module, fi, pe_fn));
       (void)(pipeline_module_func_set_is_used(module, fi, (module->pending_used)));
       (void)(((module->pending_used) = 0));
       (void)(pipeline_module_func_set_is_naked(module, fi, (module->pending_naked)));
@@ -8524,6 +8729,9 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
+    /* skip_one_impl leaves the lexer inside `{...}`; nest counts those bodies
+     * so the matching `}` is an impl closer, not unexpected junk. */
+    int32_t impl_body_depth_buf = 0;
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
     (void)(parser_collect_imports_buf(lex, data, len, module, &(import_res)));
     (void)(parser_copy_lex_from_import_into(&(lex), import_res));
@@ -8746,6 +8954,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         (void)(parser_skip_one_impl_into_buf(&(lex), iter_start_buf, data, len));
         if ((((lex.pos) ==(iter_start_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
           (void)((lex = (struct lexer_Lexer){ .pos = ((lex.pos) + 1), .line = (lex.line), .col = ((lex.col) + 1) }));
+        } else {
+          (void)((impl_body_depth_buf = (impl_body_depth_buf + 1)));
         }
         continue;
       }
@@ -8781,6 +8991,13 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
           continue;
         }
       }
+      /* Impl closer after skip_one_impl parked at first method (wave390 UFCS).
+       * Without this, parse_strict treats the leftover `}` as unexpected → P001.
+       * PLATFORM: SHARED parse. */
+      if (((((r.tok).kind) ==85) && (impl_body_depth_buf > 0))) {
+        (void)((impl_body_depth_buf = (impl_body_depth_buf - 1)));
+        continue;
+      }
       if ((((r.tok).kind) !=1)) {
         struct parser_TrySkipAllowResult try_res = (struct parser_TrySkipAllowResult){ .lex = lex, .skipped = 0, ._pad = { 0 } };
         (void)(parser_parse_into_try_skip_allow_into_buf(&(try_res), lex, r, data, len));
@@ -8795,6 +9012,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         if ((((r.tok).kind) ==0)) {
           break;
         }
+        /* wave check-false-green (2026-08-05): parse_strict (check) hard-fails unexpected top-level. */
+        if (parser_parse_strict_enabled() != 0) {
+          (void)(parser_diagnostic_parse_skip(((int32_t)((iter_start_buf.pos))), (module->num_funcs), 0, ((uint8_t *)(0))));
+          return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+        }
         if ((((lex.pos) ==(iter_start_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
           (void)((lex = (struct lexer_Lexer){ .pos = ((lex.pos) + 1), .line = (lex.line), .col = ((lex.col) + 1) }));
         }
@@ -8807,6 +9029,9 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         /* wave424: trait completeness on freestanding -o (direct parse_into_buf). */
         return parser_parse_into_finish_ok(module, main_idx);
       }
+      /* Latch export before body parse (buf path; G.7 ≡ pe_struct). */
+      int32_t pe_fn_buf = (module->pending_export);
+      (void)(((module->pending_export) = 0));
       struct lexer_Lexer lex_at_function_buf = lexer_init();
       (void)((lex_at_function_buf = current_tok_lex_buf));
       (void)(parser_lex_from_next_into(&(lex), r));
@@ -8849,6 +9074,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         uint8_t skip_name[128] = {0};
         int32_t skip_nlen = parser_parse_peek_function_name_buf(lex_at_function_buf, data, len, &((skip_name)[0]));
         (void)(parser_diagnostic_parse_skip(((int32_t)((lex_at_function_buf.pos))), (module->num_funcs), skip_nlen, &((skip_name)[0])));
+        /* wave check-false-green (2026-08-05): parse_strict/check hard-fail failed function. */
+        if (parser_parse_strict_enabled() != 0) {
+          (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
+          return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+        }
         (void)(parser_skip_one_function_full_into_buf(&(lex), lex_at_function_buf, data, len));
         (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
         if ((((lex.pos) ==(lex_at_function_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
@@ -8867,6 +9097,10 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         (void)((type_ref = ast_ast_arena_type_alloc(arena)));
         if ((type_ref ==0)) {
           (void)(parser_diagnostic_parse_skip(((int32_t)((lex_at_function_buf.pos))), (module->num_funcs), (res.name_len), &(((res.name))[0])));
+          if (parser_parse_strict_enabled() != 0) {
+            (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
+            return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+          }
           (void)(parser_skip_one_function_full_into_buf(&(lex), lex_at_function_buf, data, len));
           (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
           if ((((lex.pos) ==(lex_at_function_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
@@ -9636,8 +9870,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       (void)(pipeline_module_func_set_body_expr_ref(module, fi_mod, 0));
       (void)(pipeline_module_func_set_is_extern(module, fi_mod, 0));
       (void)(pipeline_module_func_set_is_async(module, fi_mod, (func_is_async_buf)[0]));
-      (void)(pipeline_module_func_set_is_export(module, fi_mod, (module->pending_export)));
-      (void)(((module->pending_export) = 0));
+      (void)(pipeline_module_func_set_is_export(module, fi_mod, pe_fn_buf));
       (void)(pipeline_module_func_set_is_used(module, fi_mod, (module->pending_used)));
       (void)(((module->pending_used) = 0));
       (void)(pipeline_module_func_set_is_naked(module, fi_mod, (module->pending_naked)));
@@ -9719,3 +9952,7 @@ __attribute__((weak)) int32_t parser_copy_module_import_path64(struct ast_Module
   }
 }
 /* stripped: parser.x export main harness (not for product link) */
+/* wave312 G.7: monofile dual WEAK polyfills → extern-only (n=29).
+ * Live STRONG = runtime / product .o; ban dual T on host-cc mega gen .o.
+ * PLATFORM: SHARED freestanding mega gen seed dual leave.
+ */

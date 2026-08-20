@@ -23,6 +23,7 @@ extern int32_t backend_enc_arm64_add_sp_imm12_c(uint8_t * elf_ctx, int32_t imm);
 extern int32_t backend_enc_arm64_sub_sp_imm12_c(uint8_t * elf_ctx, int32_t imm);
 extern int32_t backend_enc_arm64_str_x0_sp_offset_c(uint8_t * elf_ctx, int32_t off_bytes);
 extern int32_t arm64_enc_load_w0_from_rbp_c(uint8_t * elf_ctx, int32_t offset);
+extern int32_t arm64_enc_load_w1_from_rbp_c(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arm64_enc_store_w0_to_rbp_c(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_arm64_enc_enc_add_sp_imm12(uint8_t * elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_sub_sp_imm12(uint8_t * elf_ctx, int32_t imm);
@@ -215,6 +216,8 @@ int32_t backend_enc_arm64_str_x0_sp_offset_c(uint8_t * elf_ctx, int32_t off_byte
   }
   return (0 - 1);
 }
+/* PLATFORM: MACOS|ARM64 — product-positive LDRSW x0,[x29,#off].
+ * Twin of backend_enc_dispatch_thin.x (was LDUR w0,[x29,#-off]). */
 int32_t arm64_enc_load_w0_from_rbp_c(uint8_t * elf_ctx, int32_t offset) {
   if ((elf_ctx ==((uint8_t *)(0)))) {
     return (0 - 1);
@@ -222,15 +225,35 @@ int32_t arm64_enc_load_w0_from_rbp_c(uint8_t * elf_ctx, int32_t offset) {
   if ((offset < 0)) {
     return (0 - 1);
   }
-  if ((offset > 256)) {
-    {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((-1203765248 | (256 * 4096)) | 928))));
-    }
+  if (((offset % 4) != 0)) {
+    return (0 - 1);
+  }
+  if (((offset / 4) > 4095)) {
     return (0 - 1);
   }
   {
-    int32_t u9 = ((0 - offset) & 511);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((-1203765248 | (((uint32_t)(u9)) * 4096)) | 928))));
+    int32_t imm12 = (offset / 4);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)((3112173568 | (imm12 * 1024)) | 928)));
+  }
+  return (0 - 1);
+}
+/* PLATFORM: MACOS|ARM64 — LDRSW x1,[x29,#off] (Rt=1). */
+int32_t arm64_enc_load_w1_from_rbp_c(uint8_t * elf_ctx, int32_t offset) {
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if ((offset < 0)) {
+    return (0 - 1);
+  }
+  if (((offset % 4) != 0)) {
+    return (0 - 1);
+  }
+  if (((offset / 4) > 4095)) {
+    return (0 - 1);
+  }
+  {
+    int32_t imm12 = (offset / 4);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((3112173568 | (imm12 * 1024)) | 928) | 1)));
   }
   return (0 - 1);
 }
@@ -910,6 +933,7 @@ extern int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale4(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale8(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_ret_imm32(uint8_t * elf_ctx, int32_t imm32);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbp(uint8_t * elf_ctx, int32_t offset);
+extern int32_t arch_x86_64_enc_enc_store_r64_to_rbp(uint8_t * elf_ctx, int32_t reg, int32_t offset);
 int32_t backend_enc_prologue_arch(uint8_t * elf_ctx, int32_t frame_sz, int32_t ta) {
   if ((ta ==1)) {
     {
@@ -1174,6 +1198,11 @@ extern int32_t arch_riscv64_enc_enc_load_32_from_rax(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_load_32_from_rax(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_cdqe_rax_impl(uint8_t * elf_ctx);
 extern int32_t arch_arm64_enc_enc_load_rbp_to_x2(uint8_t * elf_ctx, int32_t offset);
+/* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
+ * positive-offset convention; old inline negated offset (LDUR [x29,-off]) loaded
+ * garbage from below the frame for arr[i+j] right operand. */
+extern int32_t arch_arm64_enc_enc_load_rbp_to_x3(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_riscv64_enc_enc_load_rbp_to_a2(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_ecx(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_arm64_enc_enc_load_64_from_rax(uint8_t * elf_ctx);
@@ -1247,7 +1276,9 @@ int32_t backend_enc_load_32_from_rax_arch(uint8_t * elf_ctx, int32_t ta) {
 int32_t backend_enc_load_i32_indirect_to_rax_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_load_32_from_rax(elf_ctx);
+      /* LDRSW x0,[x0] 0xB9800000 — signed 32→64; twin of x86 CDQE.
+       * ldr w0 zero-extends so INDEX vs 64-bit -5 fails. */
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xB9800000u);
     }
   }
   if ((ta ==2)) {
@@ -1573,9 +1604,16 @@ int32_t backend_enc_store_x_reg_to_rbp_arch(uint8_t * elf_ctx, int32_t reg, int3
       return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset);
     }
   }
+  if ((ta ==0)) {
+    return arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx, reg, offset);
+  }
   return (0 - 1);
 }
 int32_t backend_enc_load_qword_from_rbx_to_rax_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta == 1)) {
+    /* ldr x0,[x1] — low 8. PLATFORM: MACOS|ARM64. G.7 twin of full. */
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400020u);
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -1585,6 +1623,10 @@ int32_t backend_enc_load_qword_from_rbx_to_rax_arch(uint8_t * elf_ctx, int32_t t
   return (0 - 1);
 }
 int32_t backend_enc_load_qword_rbx8_to_rdx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta == 1)) {
+    /* ldr x1,[x1,#8] — high 8; rdx=x1. PLATFORM: MACOS|ARM64. */
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xF9400421u);
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -1642,7 +1684,7 @@ extern int32_t backend_enc_x86_jcc_rel32_c_impl(uint8_t * elf_ctx, int32_t opcod
 int32_t backend_enc_index_scratch_add_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 184680514);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 184746050);
     }
   }
   if ((ta ==2)) {
@@ -1658,7 +1700,7 @@ int32_t backend_enc_index_scratch_add_secondary_arch(uint8_t * elf_ctx, int32_t 
 int32_t backend_enc_index_scratch_sub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258553410);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487874);
     }
   }
   if ((ta ==2)) {
@@ -1674,7 +1716,7 @@ int32_t backend_enc_index_scratch_sub_secondary_arch(uint8_t * elf_ctx, int32_t 
 int32_t backend_enc_index_scratch_rsub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487906);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422370);
     }
   }
   if ((ta ==2)) {
@@ -1690,7 +1732,7 @@ int32_t backend_enc_index_scratch_rsub_secondary_arch(uint8_t * elf_ctx, int32_t
 int32_t backend_enc_rbx_index_rsub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422369);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258356833);
     }
   }
   if ((ta ==2)) {
@@ -1706,7 +1748,7 @@ int32_t backend_enc_rbx_index_rsub_secondary_arch(uint8_t * elf_ctx, int32_t ta)
 int32_t backend_enc_rbx_index_add_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 184680481);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 184746017);
     }
   }
   if ((ta ==2)) {
@@ -1722,7 +1764,7 @@ int32_t backend_enc_rbx_index_add_secondary_arch(uint8_t * elf_ctx, int32_t ta) 
 int32_t backend_enc_rbx_index_sub_secondary_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258553377);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487841);
     }
   }
   if ((ta ==2)) {
@@ -1867,6 +1909,9 @@ int32_t backend_enc_rbx_plus_index_scratch_scaled_arch(uint8_t * elf_ctx, int32_
 }
 int32_t backend_enc_load_rbp_lane_to_rax_arch(uint8_t * elf_ctx, int32_t offset, int32_t esz, int32_t ta) {
   if ((ta ==1)) {
+    if ((esz ==4)) {
+      return arm64_enc_load_w0_from_rbp_c(elf_ctx, offset);
+    }
     {
       return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset);
     }
@@ -1969,17 +2014,16 @@ int32_t backend_enc_add_imm_to_index_scratch_arch(uint8_t * elf_ctx, int32_t imm
   return (0 - 1);
 }
 int32_t backend_enc_load_rbp_index_secondary_scratch_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta) {
+  /* wave617: delegate to arch_arm64_enc_enc_load_rbp_to_x3 (positive-offset LDR
+   * X3, [X29, #imm12]) — SAME convention as primary loader load_rbp_to_x2.
+   * Root: old inline negated offset (LDUR W3, [x29,-off]) while primary used
+   *   positive LDR X2, [x29,+off] → secondary loaded garbage below the frame
+   *   for arr[i+j] right operand (i+j computed wrong, e.g. got 10 not 99).
+   * Invariant: secondary loader offset convention MUST match primary loader. */
   if ((ta ==1)) {
-    if ((offset > 256)) {
-      {
-        return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((-1203765248 | (256 * 4096)) | 931))));
-      }
-      return (0 - 1);
-    }
     {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(((-1203765248 | (((uint32_t)(((0 - offset) & 511))) * 4096)) | 931))));
+      return arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx, offset);
     }
-    return (0 - 1);
   }
   if ((ta ==2)) {
     {
@@ -2139,6 +2183,9 @@ int32_t backend_enc_load_rbp_to_rbx_arch(uint8_t * elf_ctx, int32_t offset, int3
 }
 int32_t backend_enc_load_rbp_lane_to_rbx_arch(uint8_t * elf_ctx, int32_t offset, int32_t esz, int32_t ta) {
   if ((ta ==1)) {
+    if ((esz ==4)) {
+      return arm64_enc_load_w1_from_rbp_c(elf_ctx, offset);
+    }
     {
       return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset);
     }
@@ -2526,6 +2573,13 @@ int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t t
   return (0 - 1);
 }
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_t ta) {
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov sK, w0. Twin of full seed. */
+  if (ta == 1) {
+    if ((elf_ctx == ((uint8_t *)(0))) || (k < 0) || (k > 7)) {
+      return (0 - 1);
+    }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(0x1e270000u | (uint32_t)k)));
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -2553,6 +2607,13 @@ int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, in
   return (0 - 1);
 }
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta) {
+  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov w0, sK. Twin of full seed. */
+  if (ta == 1) {
+    if ((elf_ctx == ((uint8_t *)(0))) || (k < 0) || (k > 7)) {
+      return (0 - 1);
+    }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(0x1e260000u | ((uint32_t)k << 5))));
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }

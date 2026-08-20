@@ -2144,8 +2144,10 @@ export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
+    // PLATFORM: SHARED — EXPR_ADD=4; EXPR_BINOP=53 (generic binop that is ADD).
+    // Historic bug: k==51 matched EXPR_ADDR_OF, not add.
     let k: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    if (k == 4 || k == 51) { return 1; }
+    if (k == 4 || k == 53) { return 1; }
     return 0;
   }
 }
@@ -3914,7 +3916,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
     let br_lens: i32[8] = [];
     let co_lens: i32[8] = [];
     let lbl: u8[128] = [];
-    let ctx: AsmFuncCtx = AsmFuncCtx {
+    let ctx: AsmFuncCtx = {
       frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
       module_ref: 0 as *Module,
       loop_break_label_stack: br_stk, loop_break_len_stack: br_lens,
@@ -4040,7 +4042,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
     let br_lens2: i32[8] = [];
     let co_lens2: i32[8] = [];
     let lbl2: u8[128] = [];
-    let ctx: AsmFuncCtx = AsmFuncCtx {
+    let ctx: AsmFuncCtx = {
       frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
       module_ref: 0 as *Module,
       loop_break_label_stack: br_stk2, loop_break_len_stack: br_lens2,

@@ -39,11 +39,12 @@ for kw in 生产级 perf bench_shuffle_hot min_benches stub/Xlang; do
   fi
 done
 
-if ! grep -qF 'STD-061' "$MOD_X" 2>/dev/null; then
-  echo "std-simd-prod gate FAIL: missing STD-061 anchor in $MOD_X" >&2
+# Product STD-* IDs live on the module README (same place as STD-047 / STD-153).
+if ! grep -qF 'STD-061' std/simd/README.md 2>/dev/null; then
+  echo "std-simd-prod gate FAIL: missing STD-061 anchor in std/simd/README.md" >&2
   exit 1
 fi
-echo "std-simd-prod OK mod anchor"
+echo "std-simd-prod OK README anchor"
 
 BENCH_N=0
 MISS=0

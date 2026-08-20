@@ -130,7 +130,7 @@ export struct ArgsIter {
  * @return EnvIter
  */
 export function iter(): EnvIter {
-  return EnvIter { index: 0 };
+  return { index: 0 };
 }
 
 /** Exported function `iter_count`.
@@ -179,7 +179,7 @@ export function iter_next(it: *EnvIter, key_out: *u8, key_cap: i32, val_out: *u8
  * @return ArgsIter
  */
 export function args_iter(): ArgsIter {
-  return ArgsIter { index: 0 };
+  return { index: 0 };
 }
 
 /** Exported function `args_iter_count`.

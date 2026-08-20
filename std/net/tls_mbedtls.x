@@ -289,7 +289,7 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_conf_authmode(&sess.conf[0], MBEDTLS_SSL_VERIFY_NONE); }
-  let alpn_list: AlpnPtr3 = AlpnPtr3 { p0: &ALPN_H2[0]; p1: &ALPN_HTTP11[0]; p2: 0 as *u8; };
+  let alpn_list: AlpnPtr3 = { p0: &ALPN_H2[0]; p1: &ALPN_HTTP11[0]; p2: 0 as *u8; };
   let _u_rc_1: i32 = 0;
   unsafe { _u_rc_1 = mbedtls_ssl_conf_alpn_protocols(&sess.conf[0], &alpn_list.p0); }
   if (_u_rc_1 != 0) {
@@ -526,7 +526,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_conf_authmode(&srv.conf[0], MBEDTLS_SSL_VERIFY_NONE); }
-  let alpn_list: AlpnPtr2 = AlpnPtr2 { p0: &ALPN_H2[0]; p1: 0 as *u8; };
+  let alpn_list: AlpnPtr2 = { p0: &ALPN_H2[0]; p1: 0 as *u8; };
   let _u_rc_3: i32 = 0;
   unsafe { _u_rc_3 = mbedtls_ssl_conf_alpn_protocols(&srv.conf[0], &alpn_list.p0); }
   if (_u_rc_3 != 0) {

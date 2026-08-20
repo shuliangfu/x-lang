@@ -5,7 +5,7 @@
 struct Counter { value: i32, }
 
 function increment(c: Counter): Counter {
-  return Counter { value: c.value + 1 };
+  return { value: c.value + 1 };
 }
 
 function get_value(c: Counter): i32 {
@@ -13,6 +13,6 @@ function get_value(c: Counter): i32 {
 }
 
 function main(): i32 {
-  let c: Counter = Counter { value: 10 };
+  let c: Counter = { value: 10 };
   return get_value(increment(c));
 }

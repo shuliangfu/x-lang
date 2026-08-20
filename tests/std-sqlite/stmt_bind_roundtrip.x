@@ -47,9 +47,9 @@ function main(): i32 {
   let bob: u8[4] = [98, 111, 98, 0];
   let out: u8[16] = [];
   let c: DbConn = sqlite.open(&mem[0]);
-  let ins: DbStmt = DbStmt { handle: 0 };
-  let sel: DbStmt = DbStmt { handle: 0 };
-  let sel2: DbStmt = DbStmt { handle: 0 };
+  let ins: DbStmt = { handle: 0 };
+  let sel: DbStmt = { handle: 0 };
+  let sel2: DbStmt = { handle: 0 };
   let st: i32 = 0;
   let n: i32 = 0;
 

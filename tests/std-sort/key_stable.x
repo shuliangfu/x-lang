@@ -8,10 +8,10 @@ const debug = import("core.debug");
  */
 function main(): i32 {
   let items: sort.KeyTag[4] = [
-    sort.KeyTag { key: 3, tag: 0 },
-    sort.KeyTag { key: 1, tag: 1 },
-    sort.KeyTag { key: 3, tag: 2 },
-    sort.KeyTag { key: 2, tag: 3 },
+    { key: 3, tag: 0 },
+    { key: 1, tag: 1 },
+    { key: 3, tag: 2 },
+    { key: 2, tag: 3 },
   ];
   sort.stable_by_key(&items[0], 4);
   if (items[0].key != 1) { return 1; }

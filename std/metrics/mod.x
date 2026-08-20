@@ -151,7 +151,7 @@ export function copy_bytes(dst: *u8, dst_cap: i32, src: *u8, src_len: i32): i32 
  * @return Label
  */
 export function label_empty(): Label {
-  return Label { key_len: 0, val_len: 0, key: [], val: [] };
+  return { key_len: 0, val_len: 0, key: [], val: [] };
 }
 
 /** Exported function `label_set`.
@@ -176,20 +176,20 @@ export function label_set(l: *Label, key: *u8, key_len: i32, val: *u8, val_len: 
  * @return Registry
  */
 export function registry_new(): Registry {
-  return Registry {
+  return {
     counter_n: 0, gauge_n: 0, hist_n: 0,
-    c0: Counter { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    c1: Counter { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    c2: Counter { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    c3: Counter { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g0: Gauge { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g1: Gauge { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g2: Gauge { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g3: Gauge { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    h0: Histogram { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
-    h1: Histogram { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
-    h2: Histogram { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
-    h3: Histogram { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 }
+    c0: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    c1: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    c2: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    c3: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    g0: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    g1: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    g2: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    g3: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
+    h0: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
+    h1: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
+    h2: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
+    h3: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 }
   };
 }
 
@@ -712,7 +712,7 @@ export function obs_ctx_write_key_span(buf: *u8, cap: i32): i32 {
  */
 export function obs_ctx_empty(): ObservabilityCtx {
   let zero: i64 = 0;
-  return ObservabilityCtx {
+  return {
     trace_handle: zero,
     span_id: zero,
     trace_id_len: 0,
@@ -763,7 +763,7 @@ export function obs_encode_span_id_hex(obs: *ObservabilityCtx, span_id: i64): i3
 export function obs_ctx_from_trace(tr: *Trace, span: Span): ObservabilityCtx {
   let zero: i64 = 0;
   let obs: ObservabilityCtx = obs_ctx_empty();
-  let tid: TraceId = TraceId { bytes: [] };
+  let tid: TraceId = { bytes: [] };
   if (tr == 0 || tr.handle == zero || span.id == zero) { return obs; }
   obs.trace_handle = tr.handle;
   obs.span_id = span.id;
@@ -806,7 +806,7 @@ export function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx
   let obs: ObservabilityCtx = obs_ctx_empty();
   let h: i64 = zero;
   let sid: i64 = zero;
-  let tid: TraceId = TraceId { bytes: [] };
+  let tid: TraceId = { bytes: [] };
   let ktrace: u8[8] = [];
   let kspan: u8[8] = [];
   if (obs_ctx_write_key_trace(&ktrace[0], 8) < 0) { return obs; }

@@ -34,11 +34,15 @@ for my $obj (@objs) {
     next unless /\sU\s(\S+)/;
     my $sym = $1;
     $sym =~ s/^_//;
+    # PLATFORM: SHARED — do NOT stub backend_fold_* / fold_*.
+    # Real bodies live in seed_link_compat (fold predicates for try_inline).
+    # Historic bug: weak return-(-1) stubs competed with weak real impls;
+    # Darwin ld picked the -1 stub → try_inline_param0_single_field treated
+    # non-zero as match and emitted only field0 load (struct_add_pair exit 2
+    # vs 12). Stubs here are for arch_enc / platform / peephole only.
     next unless $sym =~ /^(?:arch_(?:arm64|x86_64|riscv64)_.+|
                           platform_(?:macho|coff)_.+|
                           peephole_.+|
-                          backend_fold_.+|
-                          fold_.+|
                           emit_bytes(?:_from_ptr|_\d+)|
                           emit_indent|
                           elf_section_code_len|

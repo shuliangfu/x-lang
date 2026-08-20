@@ -25,7 +25,7 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
  */
 function test_base64_stream(): i32 {
   let plain: u8[5] = [104, 101, 108, 108, 111];
-  let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let sc: StreamCodec = { kind: 0, mode: 0, state: 0, state_cap: 0 };
   let st: u8[256] = [];
   let cap: i32 = codec.codec_state_bytes();
   if (cap > 256) { return 1; }
@@ -40,7 +40,7 @@ function test_base64_stream(): i32 {
   if (enc_len != 8) { return 5; }
   if (codec.adapter_base64_stream_end(sc) != 0) { return 6; }
 
-  let sc2: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let sc2: StreamCodec = { kind: 0, mode: 0, state: 0, state_cap: 0 };
   let st2: u8[256] = [];
   if (codec.adapter_base64_stream_init(&sc2, &st2[0], 256, 0, 0) != 0) { return 7; }
   let dec: u8[8] = [];
@@ -60,7 +60,7 @@ function test_base64_stream(): i32 {
 function test_gzip_stream(): i32 {
   let raw: u8[12] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33];
   let raw_len: i32 = 12;
-  let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let sc: StreamCodec = { kind: 0, mode: 0, state: 0, state_cap: 0 };
   let st_c: u8[256] = [];
   let cap: i32 = codec.codec_state_bytes();
   if (cap <= 0 || cap > 256) { return 99; }
@@ -115,7 +115,7 @@ function test_gzip_stream(): i32 {
   codec.adapter_compress_stream_end(sc);
   if (comp_len <= 0) { return 4; }
 
-  let sc_d: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let sc_d: StreamCodec = { kind: 0, mode: 0, state: 0, state_cap: 0 };
   let st_d: u8[256] = [];
   if (codec.adapter_compress_stream_init(&sc_d, &st_d[0], cap, codec.mode_decompress()) != 0) { return 5; }
   let dec: u8[256] = [];

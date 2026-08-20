@@ -29,13 +29,18 @@ extern void rt_elf_append_i32(uint8_t * dst, int32_t cap, int32_t v);
 extern void rt_elf_note_kind(uint8_t * kind);
 extern void rt_elf_report_note(uint8_t * msg);
 extern void runtime_pipeline_elf_ctx_diag_note(uint8_t * ctx_bytes);
+/* G.7: layout ≡ pipeline_abi pipe_elf_* / elf.x ElfCodegenCtx (name[128] entries).
+ * Historical surface used 72/76 (name[64]) → pure diag false num_labels=0 on CG002. */
 static const int32_t RT_ELF_CTX_TABLE_CAP = 16384;
-static const int32_t RT_ELF_LABEL_ENTRY_SIZE = 72;
-static const int32_t RT_ELF_PATCH_ENTRY_SIZE = 76;
+static const int32_t RT_ELF_LABEL_ENTRY_SIZE = 136;
+static const int32_t RT_ELF_PATCH_ENTRY_SIZE = 140;
 static const int32_t RT_ELF_LABELS_OFF = 4;
-static const int32_t RT_ELF_NUM_LABELS_OFF = 1179652;
-static const int32_t RT_ELF_PATCHES_OFF = 1179656;
-static const int32_t RT_ELF_NUM_PATCHES_OFF = 2424840;
+static const int32_t RT_ELF_NUM_LABELS_OFF = 2228228;
+static const int32_t RT_ELF_PATCHES_OFF = 2228232;
+static const int32_t RT_ELF_NUM_PATCHES_OFF = 4521992;
+static const int32_t RT_ELF_LAB_OFF_NAME_LEN = 128;
+static const int32_t RT_ELF_LAB_OFF_OFFSET = 132;
+static const int32_t RT_ELF_PAT_OFF_NAME_LEN = 132;
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 int32_t rt_elf_load_i32_le(uint8_t * base, int32_t off) {
   if ((base ==((uint8_t *)(0)))) {
@@ -217,7 +222,7 @@ void runtime_pipeline_elf_ctx_diag_note(uint8_t * ctx_bytes) {
     return;
   }
   (void)((p_base = RT_ELF_PATCHES_OFF));
-  (void)((name_len = rt_elf_load_i32_le(ctx_bytes, (p_base + 68))));
+  (void)((name_len = rt_elf_load_i32_le(ctx_bytes, (p_base + RT_ELF_PAT_OFF_NAME_LEN))));
   if ((name_len > 64)) {
     (void)((name_len = 64));
   }
@@ -248,7 +253,7 @@ void runtime_pipeline_elf_ctx_diag_note(uint8_t * ctx_bytes) {
       break;
     }
     (void)((lbl_base = (RT_ELF_LABELS_OFF + (l * RT_ELF_LABEL_ENTRY_SIZE))));
-    (void)((lbl_nl = rt_elf_load_i32_le(ctx_bytes, (lbl_base + 64))));
+    (void)((lbl_nl = rt_elf_load_i32_le(ctx_bytes, (lbl_base + RT_ELF_LAB_OFF_NAME_LEN))));
     (void)((same = 0));
     if ((lbl_nl ==name_len)) {
       (void)((same = 1));
@@ -260,7 +265,7 @@ void runtime_pipeline_elf_ctx_diag_note(uint8_t * ctx_bytes) {
       }
     }
     if ((same !=0)) {
-      (void)((lbl_off = rt_elf_load_i32_le(ctx_bytes, (lbl_base + 68))));
+      (void)((lbl_off = rt_elf_load_i32_le(ctx_bytes, (lbl_base + RT_ELF_LAB_OFF_OFFSET))));
       (void)(((msg)[0] = 0));
       (void)(rt_elf_append(&((msg)[0]), 192, ((uint8_t *)((uint8_t[]){101, 108, 102, 32, 108, 97, 98, 101, 108, 32, 109, 97, 116, 99, 104, 32, 97, 116, 32, 105, 100, 120, 61, 0 }))));
       (void)(rt_elf_append_i32(&((msg)[0]), 192, l));

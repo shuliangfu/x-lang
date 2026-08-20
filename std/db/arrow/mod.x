@@ -98,7 +98,7 @@ extern "C" function arrow_smoke_c(): i32;
  */
 export function new_i32(capacity: i32): ArrowColumn {
   let _rc: ArrowColumn = 0;
-  unsafe { _rc = ArrowColumn { handle: arrow_column_i32_create_c(capacity) }; }
+  unsafe { _rc = { handle: arrow_column_i32_create_c(capacity) }; }
   return _rc;
 }
 
@@ -109,7 +109,7 @@ export function new_i32(capacity: i32): ArrowColumn {
  */
 export function new_f32(capacity: i32): ArrowColumn {
   let _rc: ArrowColumn = 0;
-  unsafe { _rc = ArrowColumn { handle: arrow_column_f32_create_c(capacity) }; }
+  unsafe { _rc = { handle: arrow_column_f32_create_c(capacity) }; }
   return _rc;
 }
 
@@ -120,7 +120,7 @@ export function new_f32(capacity: i32): ArrowColumn {
  */
 export function new_f64(capacity: i32): ArrowColumn {
   let _rc: ArrowColumn = 0;
-  unsafe { _rc = ArrowColumn { handle: arrow_column_f64_create_c(capacity) }; }
+  unsafe { _rc = { handle: arrow_column_f64_create_c(capacity) }; }
   return _rc;
 }
 
@@ -130,7 +130,7 @@ export function new_f64(capacity: i32): ArrowColumn {
  */
 export function adopt(ptr: *f32, len: i32, capacity: i32): ArrowColumn {
   let _rc: ArrowColumn = 0;
-  unsafe { _rc = ArrowColumn { handle: arrow_column_adopt_f32_c(ptr, len, capacity) }; }
+  unsafe { _rc = { handle: arrow_column_adopt_f32_c(ptr, len, capacity) }; }
   return _rc;
 }
 
@@ -143,7 +143,7 @@ export function adopt(ptr: *f32, len: i32, capacity: i32): ArrowColumn {
  */
 export function adopt(ptr: *i32, len: i32, capacity: i32): ArrowColumn {
   let _rc: ArrowColumn = 0;
-  unsafe { _rc = ArrowColumn { handle: arrow_column_adopt_i32_c(ptr, len, capacity) }; }
+  unsafe { _rc = { handle: arrow_column_adopt_i32_c(ptr, len, capacity) }; }
   return _rc;
 }
 
@@ -279,7 +279,7 @@ export function free(col: ArrowColumn): void {
  */
 export function batch(max_cols: i32): ArrowBatch {
   let _rc: ArrowBatch = 0;
-  unsafe { _rc = ArrowBatch { handle: arrow_batch_create_c(max_cols) }; }
+  unsafe { _rc = { handle: arrow_batch_create_c(max_cols) }; }
   return _rc;
 }
 
@@ -302,7 +302,7 @@ export function add(batch: ArrowBatch, col: ArrowColumn): i32 {
  */
 export function get(batch: ArrowBatch, index: i32): ArrowColumn {
   let _rc: ArrowColumn = 0;
-  unsafe { _rc = ArrowColumn { handle: arrow_batch_column_c(batch.handle, index) }; }
+  unsafe { _rc = { handle: arrow_batch_column_c(batch.handle, index) }; }
   return _rc;
 }
 

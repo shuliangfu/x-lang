@@ -6,6 +6,6 @@ const stack_promote_lib = import("stack_promote_lib");
  * @return i32
  */
 function main(): i32 {
-  let p: Pair = Pair { a: 3, b: 4 };
+  let p: Pair = { a: 3, b: 4 };
   return sum_pair(p);
 }

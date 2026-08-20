@@ -28,8 +28,8 @@ function coop_frame_step(f: *CoopFrame): i32 {
  */
 function main(): i32 {
   let rounds: i64 = 1000000;
-  let ping: CoopFrame = CoopFrame { phase: 0, ops: 0 };
-  let pong: CoopFrame = CoopFrame { phase: 0, ops: 0 };
+  let ping: CoopFrame = { phase: 0, ops: 0 };
+  let pong: CoopFrame = { phase: 0, ops: 0 };
   let i: i64 = 0;
   while (i < rounds) {
     let _p: i32 = coop_frame_step(&ping);

@@ -124,22 +124,34 @@ static int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx 
  * G.7: one helper for LEA/add_imm and large-frame load/store fallback.
  * ADD imm12 unshifted max 4095; LDR/STR X unsigned scaled max byte 32760
  * (imm12=offset/8 ≤ 4095) — do NOT clamp byte offset to 4095 before /8.
+ *
+ * Signed imm: negative values emit SUB Xd,Xd,#chunk (same 4095 chunks).
+ * Old `left<0 → 0` no-op hid Darwin slice OOB when index==length
+ * (`glue_emit_index_bounds_guard` add_imm_to_rbx(-1) for length-1;
+ *  x86 add imm32=-1 already worked — Ubuntu L4 hid the hole).
  * PLATFORM: MACOS|ARM64 product pure-asm (ta==1).
  *
  * @param elf_ctx emit context
  * @param rd destination Xn (0..30)
  * @param rn source Xn (0..30); if rd!=rn emits MOV Xd,Xn first
- * @param imm non-negative byte addend (0 ok)
+ * @param imm signed byte addend (0 is no-op after optional MOV)
  * @return 0 success, -1 failure
  */
 static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd,
                                              int32_t rn, int32_t imm) {
   int32_t left;
+  int32_t is_sub;
   if (!elf_ctx || rd < 0 || rd > 30 || rn < 0 || rn > 30)
     return -1;
+  is_sub = 0;
   left = imm;
-  if (left < 0)
-    left = 0;
+  if (left < 0) {
+    /* Refuse INT_MIN: 0-left overflows i32; no product caller uses it. */
+    if (left == (0 - 2147483647 - 1))
+      return -1;
+    is_sub = 1;
+    left = 0 - left;
+  }
   if (rd != rn) {
     /* mov xd, xn ≡ orr xd, xzr, xn */
     if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | ((uint32_t)rn << 16) | (uint32_t)rd) != 0)
@@ -147,13 +159,47 @@ static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx 
   }
   while (left > 0) {
     int32_t chunk = left > 4095 ? 4095 : left;
-    /* add xd, xd, #chunk */
-    if (arm64_enc_u32_le(elf_ctx, 0x91000000u | ((uint32_t)chunk << 10) | ((uint32_t)rd << 5) |
+    /* add xd,xd,#c = 0x91000000; sub xd,xd,#c = 0xD1000000 */
+    uint32_t base = is_sub != 0 ? 0xD1000000u : 0x91000000u;
+    if (arm64_enc_u32_le(elf_ctx, base | ((uint32_t)chunk << 10) | ((uint32_t)rd << 5) |
                          (uint32_t)rd) != 0)
       return -1;
     left -= chunk;
   }
   return 0;
+}
+
+/**
+ * Save/restore callee-saved x19 at [sp,#off] (8-byte aligned).
+ * dest-shadow leftover `mov x19,x0` still writes x19 on every load; AAPCS64
+ * requires the callee to preserve it. Unsigned STR/LDR imm12 covers off<=32760;
+ * larger frames use x16 (intra-procedure scratch) as a temporary base.
+ * @param elf_ctx emit context
+ * @param off byte offset from SP; must be >=0 and 8-aligned
+ * @param is_ldr 0 → STR, 1 → LDR
+ * @return 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 AAPCS64 — x19 callee-saved; x16 not preserved.
+ */
+static int32_t arm64_enc_x19_sp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off,
+                                    int32_t is_ldr) {
+  uint32_t base;
+  int32_t left;
+  if (!elf_ctx || off < 0 || (off & 7) != 0)
+    return -1;
+  base = is_ldr != 0 ? 0xF94003F3u : 0xF90003F3u;
+  if (off <= 32760)
+    return arm64_enc_u32_le(elf_ctx, base | (((uint32_t)off / 8u) << 10));
+  /* add x16, sp, #0 then add x16, x16, #chunk… then str/ldr x19, [x16]. */
+  if (arm64_enc_u32_le(elf_ctx, 0x910003F0u) != 0)
+    return -1;
+  left = off;
+  while (left > 0) {
+    int32_t chunk = left > 4095 ? 4095 : left;
+    if (arm64_enc_u32_le(elf_ctx, 0x91000210u | ((uint32_t)chunk << 10)) != 0)
+      return -1;
+    left -= chunk;
+  }
+  return arm64_enc_u32_le(elf_ctx, is_ldr != 0 ? 0xF9400213u : 0xF9000213u);
 }
 
 /**
@@ -166,14 +212,19 @@ static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx 
  *
  * G.7: single allocation with x29 at the bottom of the frame so [x29+0..frame)
  * is fully owned:
- *   sub sp,sp,#frame ; stp x29,x30,[sp] ; mov x29,sp
- * Epilogue: ldp x29,x30,[sp] ; add sp,sp,#frame ; ret
+ *   sub sp,sp,#frame ; stp x29,x30,[sp] ; mov x29,sp ; str x19,[sp,#locals]
+ * Epilogue: ldr x19,[sp,#locals] ; ldp x29,x30,[sp] ; add sp,sp,#frame ; ret
+ * Extra 16B at the high end holds callee-saved x19 (AAPCS64). Locals stay at
+ * [x29,#0x10 .. #locals) so dest-in-rbx slot offsets do not shift.
+ * Why (2026-08-17): L1 labi_diag_pure pure-asm hybrid smashed C x19
+ * (`link_abi_getenv` `mov x19,x0` with no save) → Darwin SIGSEGV 0xfe.
  * Multi-chunk add/sub when frame > 4095 (imm12 cap).
  * PLATFORM: MACOS|ARM64 product pure-asm — pairs with asm_local_slot_reg_offset
  * low-end home (ast_pool_bootstrap_glue.c wave402).
  */
 int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
   int32_t fs;
+  int32_t x19_off;
   if (!elf_ctx)
     return -1;
   fs = frame_size;
@@ -182,6 +233,9 @@ int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   /* AAPCS64: keep SP 16-byte aligned. */
   if ((fs & 15) != 0)
     fs += 16 - (fs & 15);
+  /* High-end x19 slot: locals occupy [0, fs); grow by 16. */
+  x19_off = fs;
+  fs = fs + 16;
   g_arm64_enc_frame_size = fs;
   /* sub sp, sp, #fs (chunks if fs > 4095) */
   if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 1) != 0)
@@ -190,20 +244,28 @@ int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   if (arm64_enc_u32_le(elf_ctx, 0xA9007BFDu) != 0)
     return -1;
   /* mov x29, sp  (add x29, sp, #0) */
-  return arm64_enc_u32_le(elf_ctx, 2432697341u);
+  if (arm64_enc_u32_le(elf_ctx, 2432697341u) != 0)
+    return -1;
+  /* str x19, [sp, #x19_off] — AAPCS64 callee-saved dest-shadow. */
+  return arm64_enc_x19_sp_off(elf_ctx, x19_off, 0);
 }
 
 /**
- * wave414: match bottom-x29 prologue — restore saves then free whole frame.
+ * wave414: match bottom-x29 prologue — restore x19 then fp/lr, then free frame.
  * PLATFORM: MACOS|ARM64 product pure-asm.
  */
 int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   int32_t fs;
+  int32_t x19_off;
   if (!elf_ctx)
     return -1;
   fs = g_arm64_enc_frame_size;
   if (fs < 0)
     fs = 0;
+  /* x19 lives at the high 16B added by prologue (locals were fs-16). */
+  x19_off = fs - 16;
+  if (x19_off >= 16 && arm64_enc_x19_sp_off(elf_ctx, x19_off, 1) != 0)
+    return -1;
   /* ldp x29, x30, [sp] */
   if (arm64_enc_u32_le(elf_ctx, 0xA9407BFDu) != 0)
     return -1;
@@ -388,8 +450,12 @@ int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *e
 }
 
 int32_t arch_arm64_enc_enc_mov_rax_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mov x1, x0 */
-  return arm64_enc_u32_le(elf_ctx, 0xaa0003e1u);
+  /* PLATFORM: MACOS|ARM64 — x86 rbx is callee-saved; ARM64 rbx=x1 is the
+   * 16B AAPCS64 hi return. Copy dest to x19 so store_size>=16 survives CALL.
+   * sz<=8 / INDEX still use x1. Twin: arch/arm64_enc.x enc_mov_rax_to_rbx. */
+  if (arm64_enc_u32_le(elf_ctx, 0xaa0003e1u) != 0) /* mov x1, x0 */
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xaa0003f3u); /* mov x19, x0 */
 }
 
 int32_t arch_arm64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -398,13 +464,27 @@ int32_t arch_arm64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf
 }
 
 int32_t arch_arm64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b010000u);
+  /* add w0, w0, w1 — 32-bit add (sf=0).
+   * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
+   *      A 32-bit ADD W0,W0,W1 zero-extends the result to X0, giving correct
+   *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
+   *      ADD X0,X0,X1 did not wrap at 32 bits, breaking unsigned overflow.
+   * Invariant: Must match .x authority arm64_enc.x::enc_add_rax_rbx (0x0B000020).
+   *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
+   *            ptr-arith scaled paths, NOT this function.
+   * PLATFORM: MACOS|ARM64 — twin of compiler/src/asm/arch/arm64_enc.x. */
+  return arm64_enc_u32_le(elf_ctx, 0x0B000020u);
 }
 
 int32_t arch_arm64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* sub x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0xcb010000u);
+  /* sub w0, w0, w1 — 32-bit sub (sf=0), zero-extends to X0.
+   * Why: Must match .x authority arm64_enc.x::enc_sub_rax_rbx (0x4B010000).
+   *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+   * Root: prior 0x4B000001 had Rd=1,Rm=0 → SUB W1,W0,W0 (=0, result in wrong
+   *      reg) instead of SUB W0,W0,W1. SUB is NOT commutative so Rm must be 1
+   *      (rbx=W1) for rax = rax - rbx. Broke (i-j)-k assign bounds-check eval.
+   * PLATFORM: MACOS|ARM64. */
+  return arm64_enc_u32_le(elf_ctx, 0x4B010000u);
 }
 
 int32_t arch_arm64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -413,8 +493,14 @@ int32_t arch_arm64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCt
 }
 
 int32_t arch_arm64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mul x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0x9b017c00u);
+  /* mul w0, w0, w1 — 32-bit mul (sf=0), zero-extends to X0.
+   * Why: Must match .x authority arm64_enc.x::enc_imul_rbx_rax (0x1B017C00).
+   *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+   * Root: prior 0x1B007C00 had Rm=0 → MUL W0,W0,W0 (self-multiply) instead of
+   *      MUL W0,W0,W1. Bounds-check binop eval for arr[i*j] computed i*i not
+   *      i*j → out-of-bounds panic. Rm must be 1 (rbx=W1) for rax*=rbx.
+   * PLATFORM: MACOS|ARM64. */
+  return arm64_enc_u32_le(elf_ctx, 0x1B017C00u);
 }
 
 int32_t arch_arm64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -744,6 +830,24 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf
   return arm64_enc_u32_le(elf_ctx, 0xf9400042u); /* ldr x2, [x2] */
 }
 
+/* G.7 twin of enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary scratch).
+ * Positive-offset LDR X3, [X29, #imm12] (scaled) or lea+ldr fallback.
+ * Root: secondary scratch loader manually negated offset (LDUR [x29,-off])
+ *   while index scratch loader used positive offset — loaded garbage from
+ *   below stack pointer for arr[i+j] right operand.
+ * Invariant: Must use SAME positive-offset convention as load_rbp_to_x2.
+ * PLATFORM: MACOS|ARM64 — G.7 twin arch/arm64_enc.x::enc_load_rbp_to_x3. */
+int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  if (offset < 0)
+    return -1;
+  if ((offset % 8) == 0 && (offset / 8) <= 4095)
+    return arm64_enc_u32_le(elf_ctx, 0xf94003a3u | (((uint32_t)(offset / 8)) << 10));
+  /* lea x3, [x29+#off]; ldr x3, [x3] */
+  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 3, 29, offset) != 0)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xf9400063u); /* ldr x3, [x3] */
+}
+
 /*
  * wave417 Cap residual pure: ARM64 ADD (shifted register) scale for INDEX.
  * Encoding: sf=1 op=ADD shift=LSL Rm imm6 Rn Rd.
@@ -835,6 +939,20 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodege
   uint32_t base;
   if (offset < 0)
     offset = 0;
+  /* dest shadow x19 (enc_mov_rax_to_rbx) + dual-GP: lo x0, hi x1.
+   * PLATFORM: MACOS|ARM64 — 16B CALL clobbers x1; do not use x1 as dest. */
+  if (store_size >= 16) {
+    imm12 = offset / 8;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    if (arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12) << 10) | (19u << 5)) != 0)
+      return -1; /* str x0, [x19, #offset] */
+    imm12 = (offset + 8) / 8;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12) << 10) | (19u << 5) | 1u);
+    /* str x1, [x19, #offset+8] */
+  }
   if (store_size == 1) {
     /* strb w0, [x1, #offset] — imm12 is byte count 0..4095 */
     imm12 = offset;

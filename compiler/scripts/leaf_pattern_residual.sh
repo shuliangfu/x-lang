@@ -908,9 +908,9 @@ GEN_X_LIST_MK_WAVE=wave909
 # Body = ensure try-heat → try-gen-c-to-o. NOT physical delete.
 PHYS_DEL_GEN_C_TO_O_LIST_MK=1
 PHYS_DEL_GEN_C_TO_O_LIST_MK_WAVE=wave910
-PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=5
+PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=4
 PHYS_DEL_GEN_C_TO_O_LIST_MK_VIA=mk_gen_c_to_o_seed_objs_multi_target_thin
-PHYS_DEL_GEN_C_TO_O_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+PHYS_DEL_GEN_C_TO_O_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain_wave295_stubs2_left
 SWALLOWED_GEN_C_TO_O_LIST_MK=1
 GEN_C_TO_O_LIST_MK_SWALLOWED=1
 GEN_C_TO_O_LIST_MK_WAVE=wave910
@@ -1347,20 +1347,21 @@ B7B_RELINK_LEGACY_LIST_MK=mk/driver_seed_composites.mk
 B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # wave823: B7B source-path inventories → mk/x_source_deps.mk (G.7).
 # SRCS (4) + MAIN_X_DEPS (4) + PREPROCESS_X_DEPS (1) + PIPELINE_X_DEPS fixed
-# paths (53; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=62.
+# paths (52; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=61.
 # 8.3.1+8.3.2: +43 #include slices (ctfe/.../soa + asm_emit_assign + asm_emit_index +
-#   asm_emit_match + asm_emit_panic + asm_emit_field_access + asm_emit_binop + asm_emit_cmp +
-#   asm_emit_call_args + asm_emit_struct_lit + asm_emit_vector_let + asm_emit_vector_simd +
-#   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill + asm_emit_index_eff_addr +
-#   asm_emit_expr_rec +
-#   ast_pool_module_import + ast_pool_struct_layout + ast_pool_top_level +
-#   ast_pool_type_alias + ast_pool_expr_sidecar + ast_pool_module_enum +
-#   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
-#   ast_pool_block) into PIPELINE_X_DEPS STALE.
+#   asm_emit_match + asm_emit_panic + asm_emit_field_access + (binop pure wave149) + asm_emit_cmp +
+#   asm_emit_call_args + asm_emit_struct_lit (wave154 pure leave) + asm_emit_vector_let + (vector_simd pure wave148) +
+#   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
+#   asm_emit_block_body (wave153 pure leave) +
+#   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) + pipeline_asm_slot_bytes(leave268) + pipeline_asm_block_tree(leave269) + ast_pool_type(leave270) + pipeline_grow_vec(leave271) +
+#   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
+#   ast_pool_expr_sidecar(leave278) + ast_pool_module_enum(leave264) +
+#   ast_pool_onefunc(leave281) + ast_pool_dep_ctx(leave272) + ast_pool_module_func(leave280) +
+#   ast_pool_arena + ast_pool_block) into PIPELINE_X_DEPS STALE.
 # NOT physical delete — thin edges + std_core product make graph remain.
 PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823/8.3.1
-PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=62
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=59
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_VIA=mk_x_source_deps
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
 SWALLOWED_B7B_SOURCE_DEPS_LIST=1
@@ -1993,8 +1994,8 @@ B3_LSP_SAT_PREFER_WAVE=wave781
 # B4: ~~gen.c → .o bootstrap body~~ wave782 → try-gen-c-to-o
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B4=gen_c_to_o_bootstrap
-PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x+_x_stubs2_thin_call
-PHYS_DEL_BUCKET_B4_HEAT_TARGETS=5
+PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x_thin_call
+PHYS_DEL_BUCKET_B4_HEAT_TARGETS=4
 PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1
 SWALLOWED_B4_GEN_C_TO_O=1
 B4_GEN_C_TO_O_SWALLOWED=1
@@ -3948,8 +3949,8 @@ fi
 if ! grep -q 'PHYS_DEL_GEN_C_TO_O_LIST_MK_WAVE=wave910' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_TO_O_LIST_MK_WAVE=wave910"
 fi
-if ! grep -q 'PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=5' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=5 (wave910)"
+if ! grep -q 'PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=4 (wave910/295)"
 fi
 if ! grep -q 'SWALLOWED_GEN_C_TO_O_LIST_MK=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_GEN_C_TO_O_LIST_MK=1 (wave910)"
@@ -4467,8 +4468,8 @@ fi
 if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823"
 fi
-if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=62' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=62 (8.3.1 expr_rec emit face)"
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=59' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=59 (wave154 struct_lit pure leave)"
 fi
 if ! grep -q 'SWALLOWED_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_SOURCE_DEPS_LIST=1 (wave823)"
@@ -7196,8 +7197,8 @@ _gcto_list_n=$(
     END { print c+0 }
   ' "$_GCTO_MK"
 )
-if [ "${_gcto_list_n:-0}" -ne 5 ]; then
-  bad "wave910 expected 5 GEN_C_TO_O_SEED_OBJS members, got ${_gcto_list_n:-0}"
+if [ "${_gcto_list_n:-0}" -ne 4 ]; then
+  bad "wave910/295 expected 4 GEN_C_TO_O_SEED_OBJS members, got ${_gcto_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/910)"
@@ -7267,11 +7268,11 @@ done < <(
     }
   ' "$_GCTO_MK"
 )
-if [ "$_gcto_thin" -ne 5 ]; then
-  mf_bad "wave910 expected 5 GEN_C_TO_O ensure leaves, got $_gcto_thin"
+if [ "$_gcto_thin" -ne 4 ]; then
+  mf_bad "wave910/295 expected 4 GEN_C_TO_O ensure leaves, got $_gcto_thin"
 fi
-if [ "$_gcto_force" -ne 5 ]; then
-  mf_bad "wave910 expected 5 GEN_C_TO_O FORCE thin leaves, got $_gcto_force"
+if [ "$_gcto_force" -ne 4 ]; then
+  mf_bad "wave910/295 expected 4 GEN_C_TO_O FORCE thin leaves, got $_gcto_force"
 fi
 _gcto_indiv=0
 while IFS= read -r _gcto; do
@@ -9041,8 +9042,8 @@ fi
 if ! grep -qE '^PIPELINE_X_DEPS\s*=' "$_XSD_MK"; then
   bad "$_XSD_MK must define PIPELINE_X_DEPS (wave823)"
 fi
-# Fixed multi-token authority COUNT=62 (8.3.1: +1 asm_emit_expr_rec slice):
-#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 53
+# Fixed multi-token authority COUNT=61 (wave152: -1 asm_emit_expr_rec pure leave):
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths (wave257 region_assign leave)
 #   (exclude $(PIPELINE_ASM_X_DEPS) expansion token).
 _xsd_n=$(awk '
   function count_fixed(line,   n, a, i, c) {
@@ -9063,138 +9064,365 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 62 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 62 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 40 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 40 in mk (wave269 block_tree leave), got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
-if ! grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_ctfe.c (8.3.1 CTFE slice)"
+# wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave256 host-cc leave: assign Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave257 host-cc leave: region_assign Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave258 host-cc leave: coerce_init Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave259 host-cc leave: check_block Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave261 host-cc leave: glue_statics Cap residual retired; authority runtime_pipeline_abi pure.
+# wave260 host-cc leave: method_call Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave262 host-cc leave: ast_pool_type_alias Cap residual retired; authority runtime_pipeline_abi pure.
+# wave263 host-cc leave: ast_pool_module_import Cap residual retired; authority runtime_pipeline_abi pure.
+# wave265 host-cc leave: ast_pool_top_level Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_ctfe.c (wave255 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_typeck_assign\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_assign.c (8.3.1 assign slice)"
+if [ -f "$ROOT/compiler/pipeline_typeck_ctfe.c" ]; then
+  bad "pipeline_typeck_ctfe.c must be deleted (wave255 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_typeck_coerce_init\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_coerce_init.c (8.3.1 coerce_init slice)"
+if grep -qE 'pipeline_typeck_assign\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_assign.c (wave256 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_typeck_method_call\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_method_call.c (8.3.1 method_call slice)"
+if [ -f "$ROOT/compiler/pipeline_typeck_assign.c" ]; then
+  bad "pipeline_typeck_assign.c must be deleted (wave256 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_typeck_check_block\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_check_block.c (8.3.1 check_block slice)"
+if grep -qE 'pipeline_typeck_region_assign\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_region_assign.c (wave257 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_typeck_region_assign\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_region_assign.c (8.3.1 region_assign slice)"
+if [ -f "$ROOT/compiler/pipeline_typeck_region_assign.c" ]; then
+  bad "pipeline_typeck_region_assign.c must be deleted (wave257 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_unary.c (8.3.1 asm_emit_unary slice)"
+if grep -qE 'pipeline_typeck_coerce_init\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_coerce_init.c (wave258 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_as.c (8.3.1 asm_emit_as slice)"
+if [ -f "$ROOT/compiler/pipeline_typeck_coerce_init.c" ]; then
+  bad "pipeline_typeck_coerce_init.c must be deleted (wave258 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_return.c (8.3.1 asm_emit_return slice)"
+if grep -qE 'pipeline_typeck_method_call\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_method_call.c (wave260 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_logand\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_logand.c (8.3.1 asm_emit_logand slice)"
+if [ -f "$ROOT/compiler/pipeline_typeck_method_call.c" ]; then
+  bad "pipeline_typeck_method_call.c must be deleted (wave260 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_block_body\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_body.c (8.3.1 asm_emit_block_body slice)"
+if grep -qE 'pipeline_typeck_check_block\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_check_block.c (wave259 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_block_if_stmt\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_if_stmt.c (8.3.1 asm_emit_block_if_stmt slice)"
+if [ -f "$ROOT/compiler/pipeline_typeck_check_block.c" ]; then
+  bad "pipeline_typeck_check_block.c must be deleted (wave259 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_block_inits\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_inits.c (8.3.1 asm_emit_block_inits slice)"
+if grep -qE 'pipeline_glue_statics\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_glue_statics.c (wave261 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_assign\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_assign.c (8.3.1 asm_emit_assign slice)"
+if [ -f "$ROOT/compiler/pipeline_glue_statics.c" ]; then
+  bad "pipeline_glue_statics.c must be deleted (wave261 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_array_lit\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_array_lit.c (8.3.1 asm_emit_array_lit slice)"
+if grep -qE 'pipeline_asm_ctx_layout\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_asm_ctx_layout.c (wave125 pure leave; stale DEPS cleaned wave261)"
 fi
-if ! grep -qE 'pipeline_asm_emit_index\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index.c (8.3.1 asm_emit_index slice)"
+if grep -qE 'ast_pool_type_alias\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_type_alias.c (wave262 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_match\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_match.c (8.3.1 asm_emit_match slice)"
+if [ -f "$ROOT/compiler/ast_pool_type_alias.c" ]; then
+  bad "ast_pool_type_alias.c must be deleted (wave262 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_panic\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_panic.c (8.3.1 asm_emit_panic slice)"
+# wave270 host-cc leave: ast_pool_type Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'ast_pool_type\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_type.c (wave270 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_field_access\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_field_access.c (8.3.1 asm_emit_field_access slice)"
+if [ -f "$ROOT/compiler/ast_pool_type.c" ]; then
+  bad "ast_pool_type.c must be deleted (wave270 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_binop.c (8.3.1 asm_emit_binop slice)"
+# wave271 host-cc leave: pipeline_grow_vec Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'pipeline_grow_vec\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_grow_vec.c (wave271 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_cmp.c (8.3.1 asm_emit_cmp slice)"
+if [ -f "$ROOT/compiler/pipeline_grow_vec.c" ]; then
+  bad "pipeline_grow_vec.c must be deleted (wave271 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_call_args\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_call_args.c (8.3.1 asm_emit_call_args slice)"
+
+# wave272 host-cc leave: ast_pool_dep_ctx Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_dep_ctx.c (wave272 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_struct_lit\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_struct_lit.c (8.3.1 asm_emit_struct_lit slice)"
+if [ -f "$ROOT/compiler/ast_pool_dep_ctx.c" ]; then
+  bad "ast_pool_dep_ctx.c must be deleted (wave272 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_vector_let\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_vector_let.c (8.3.1 asm_emit_vector_let slice)"
+if [ -f "$ROOT/compiler/pipeline_elf_ctx.c" ]; then
+  bad "pipeline_elf_ctx.c must be deleted (wave273 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_vector_simd\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_vector_simd.c (8.3.1 asm_emit_vector_simd slice)"
+if [ -f "$ROOT/compiler/pipeline_elf_write_o.c" ]; then
+  bad "pipeline_elf_write_o.c must be deleted (wave273 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_struct_let\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_struct_let.c (8.3.1 asm_emit_struct_let slice)"
+if [ -f "$ROOT/compiler/pipeline_asm_wpo.c" ]; then
+  bad "pipeline_asm_wpo.c must be deleted (wave274 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_index_helpers\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index_helpers.c (8.3.1 asm_emit_index_helpers slice)"
+if grep -qE 'pipeline_asm_wpo\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_asm_wpo.c (wave274 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_spill\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_spill.c (8.3.1 asm_emit_spill slice)"
+if [ -f "$ROOT/compiler/ast_pool_sidecar_pool.c" ]; then
+  bad "ast_pool_sidecar_pool.c must be deleted (wave275 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_index_eff_addr\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index_eff_addr.c (8.3.1 asm_emit_index_eff_addr slice)"
+if grep -qE 'ast_pool_sidecar_pool\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_sidecar_pool.c (wave275 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_expr_rec\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_expr_rec.c (8.3.1 asm_emit_expr_rec slice)"
+if [ -f "$ROOT/compiler/ast_pool_arena.c" ]; then
+  bad "ast_pool_arena.c must be deleted (wave276 pure-owned leave)"
 fi
-if ! grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_module_import.c (8.3.2 module_import slice)"
+if grep -qE 'ast_pool_arena\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_arena.c (wave276 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_struct_layout\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_struct_layout.c (8.3.2 struct_layout slice)"
+if [ -f "$ROOT/compiler/ast_pool_block.c" ]; then
+  bad "ast_pool_block.c must be deleted (wave277 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_top_level\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_top_level.c (8.3.2 top_level slice)"
+if grep -qE 'ast_pool_block\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_block.c (wave277 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_type_alias\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_type_alias.c (8.3.2 type_alias slice)"
+if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_expr_sidecar.c (8.3.2 expr_sidecar slice)"
+if [ -f "$ROOT/compiler/ast_pool_module_import.c" ]; then
+  bad "ast_pool_module_import.c must be deleted (wave263 pure-owned leave)"
 fi
-if ! grep -qE 'ast_pool_module_enum\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_module_enum.c (8.3.2 module_enum slice)"
+if grep -qE 'ast_pool_module_enum\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_module_enum.c (wave264 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_onefunc.c (8.3.2 onefunc slice)"
+if [ -f "$ROOT/compiler/ast_pool_module_enum.c" ]; then
+  bad "ast_pool_module_enum.c must be deleted (wave264 pure-owned leave)"
 fi
-if ! grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_dep_ctx.c (8.3.2 dep_ctx slice)"
+if grep -qE 'ast_pool_top_level\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_top_level.c (wave265 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_module_func.c (8.3.2 module_func slice)"
+if [ -f "$ROOT/compiler/ast_pool_top_level.c" ]; then
+  bad "ast_pool_top_level.c must be deleted (wave265 pure-owned leave)"
 fi
-if ! grep -qE 'ast_pool_arena\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_arena.c (8.3.2 arena slice)"
+if grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_unary.c (wave133 pure-owned leave)"
 fi
-if ! grep -qE 'ast_pool_block\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_block.c (8.3.2 block slice)"
+if grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_as.c (wave138 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_typeck_field_access\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_field_access.c (wave965 STALE)"
+if grep -qE 'pipeline_asm_emit_modlet\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_modlet.c (wave139 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_typeck_soa\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_soa.c (wave965 STALE)"
+if [ -f "$ROOT/compiler/pipeline_asm_emit_modlet.c" ]; then
+  bad "pipeline_asm_emit_modlet.c must be deleted (wave139 pure-owned leave)"
+fi
+# wave144 pure-owned leave: return faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_return.c (wave144 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_return.c" ]; then
+  bad "pipeline_asm_emit_return.c must be deleted (wave144 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_logand\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_logand.c (wave128 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_block_body\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_block_body.c (wave153 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_block_body.c" ]; then
+  bad "pipeline_asm_emit_block_body.c must be deleted (wave153 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_block_if_stmt\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_block_if_stmt.c (wave129 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_wpo_mono\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_wpo_mono.c (wave130 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_async_cps\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_async_cps.c (wave131 pure-owned leave)"
+fi
+# wave145 pure-owned leave: block_inits faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_block_inits\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_block_inits.c (wave145 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_block_inits.c" ]; then
+  bad "pipeline_asm_emit_block_inits.c must be deleted (wave145 pure-owned leave)"
+fi
+# wave146 pure-owned leave: vector_let faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_vector_let\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_vector_let.c (wave146 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_vector_let.c" ]; then
+  bad "pipeline_asm_emit_vector_let.c must be deleted (wave146 pure-owned leave)"
+fi
+# wave142 pure-owned leave: assign faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_assign\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_assign.c (wave142 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_assign.c" ]; then
+  bad "pipeline_asm_emit_assign.c must be deleted (wave142 pure-owned leave)"
+fi
+# wave143 pure-owned leave: array_lit faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_array_lit\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_array_lit.c (wave143 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_array_lit.c" ]; then
+  bad "pipeline_asm_emit_array_lit.c must be deleted (wave143 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_index\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index.c (wave140 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_index.c" ]; then
+  bad "pipeline_asm_emit_index.c must be deleted (wave140 pure-owned leave)"
+fi
+
+# wave141 pure-owned leave: context faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_context\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_context.c (wave141 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_context.c" ]; then
+  bad "pipeline_asm_emit_context.c must be deleted (wave141 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_match\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_match.c (wave134 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_x86_enc_helpers\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_x86_enc_helpers.c (wave135 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_fold_primitives\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_fold_primitives.c (wave136 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_panic\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_panic.c (wave127 pure-owned leave)"
+fi
+# wave151 pure-owned leave: field_access faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_field_access\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_field_access.c (wave151 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_field_access.c" ]; then
+  bad "pipeline_asm_emit_field_access.c must be deleted (wave151 pure-owned leave)"
+fi
+# wave152 pure-owned leave: expr_rec faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_expr_rec\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_expr_rec.c (wave152 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_expr_rec.c" ]; then
+  bad "pipeline_asm_emit_expr_rec.c must be deleted (wave152 pure-owned leave)"
+fi
+# wave149 pure-owned leave: binop faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_binop.c (wave149 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_binop.c" ]; then
+  bad "pipeline_asm_emit_binop.c must be deleted (wave149 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_cmp.c (wave137 pure-owned leave)"
+fi
+# wave218 pure-owned leave: call_args / spill / index_helpers empty shells deleted
+if grep -qE 'pipeline_asm_emit_call_args\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_call_args.c (wave218 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_call_args.c" ]; then
+  bad "pipeline_asm_emit_call_args.c must be deleted (wave218 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_struct_lit\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_struct_lit.c (wave154 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_struct_lit.c" ]; then
+  bad "pipeline_asm_emit_struct_lit.c must be deleted (wave154 pure-owned leave)"
+fi
+
+# wave155 pure-owned leave: fold_count_up_while deleted (was not always in PIPELINE_X_DEPS)
+if grep -qE 'pipeline_asm_emit_fold_count_up_while\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_fold_count_up_while.c (wave155 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_fold_count_up_while.c" ]; then
+  bad "pipeline_asm_emit_fold_count_up_while.c must be deleted (wave155 pure-owned leave)"
+fi
+# wave146: vector_let pure leave — must-not check above
+
+# wave148 pure-owned leave: vector_simd faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_vector_simd\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_vector_simd.c (wave148 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_vector_simd.c" ]; then
+  bad "pipeline_asm_emit_vector_simd.c must be deleted (wave148 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_struct_let\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_struct_let.c (wave132 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_index_helpers\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index_helpers.c (wave218 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_index_helpers.c" ]; then
+  bad "pipeline_asm_emit_index_helpers.c must be deleted (wave218 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_spill\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_spill.c (wave218 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_spill.c" ]; then
+  bad "pipeline_asm_emit_spill.c must be deleted (wave218 pure-owned leave)"
+fi
+
+# wave147 pure-owned leave: index_eff_addr faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_index_eff_addr\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index_eff_addr.c (wave147 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_index_eff_addr.c" ]; then
+  bad "pipeline_asm_emit_index_eff_addr.c must be deleted (wave147 pure-owned leave)"
+fi
+# wave152: expr_rec pure-owned leave — must-not list above (was must-list)
+# wave263: ast_pool_module_import.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
+# wave266 host-cc leave: ast_pool_struct_layout Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'ast_pool_struct_layout\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_struct_layout.c (wave266 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/ast_pool_struct_layout.c" ]; then
+  bad "ast_pool_struct_layout.c must be deleted (wave266 pure-owned leave)"
+fi
+# wave265: ast_pool_top_level.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
+# wave262: ast_pool_type_alias.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
+# wave278: ast_pool_expr_sidecar.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_expr_sidecar.c" ]; then
+  bad "ast_pool_expr_sidecar.c must be deleted (wave278 host-cc leave)"
+fi
+if grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_expr_sidecar.c (wave278 host-cc leave)"
+fi
+
+# wave279: ast_pool_lifecycle.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_lifecycle.c" ]; then
+  bad "ast_pool_lifecycle.c must be deleted (wave279 host-cc leave)"
+fi
+if grep -qE 'ast_pool_lifecycle\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_lifecycle.c (wave279 host-cc leave)"
+fi
+# wave280: ast_pool_module_func.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_module_func.c" ]; then
+  bad "ast_pool_module_func.c must be deleted (wave280 host-cc leave)"
+fi
+if grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_module_func.c (wave280 host-cc leave)"
+fi
+# wave264: ast_pool_module_enum.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
+# wave281: ast_pool_onefunc.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_onefunc.c" ]; then
+  bad "ast_pool_onefunc.c must be deleted (wave281 host-cc leave)"
+fi
+if grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_onefunc.c (wave281 host-cc leave)"
+fi
+# wave272: ast_pool_dep_ctx.c pure-owned leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_dep_ctx.c" ]; then
+  bad "ast_pool_dep_ctx.c must be deleted (wave272 host-cc leave)"
+fi
+if grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_dep_ctx.c (wave272 host-cc leave)"
+fi
+# wave277: ast_pool_block.c host-cc leave (must-delete checks above with arena)
+# 8.3.3 host-cc leave (2026-08-05): field_access/soa thin retired from PIPELINE_X_DEPS;
+# authority is typeck.x → typeck_x.o. Must NOT reappear as host-cc STALE deps.
+if grep -qE 'pipeline_typeck_field_access\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_field_access.c (8.3.3 host-cc leave)"
+fi
+if grep -qE 'pipeline_typeck_soa\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_soa.c (8.3.3 host-cc leave)"
 fi
 if ! grep -qE 'include[[:space:]]+mk/x_source_deps\.mk' "$MF"; then
   mf_bad "Makefile must include mk/x_source_deps.mk (wave823)"

@@ -98,6 +98,22 @@ fi
 # shellcheck disable=SC2064
 trap 'if [ "${_bootstrap_cat_owned:-0}" = "1" ]; then rm -f "${_bootstrap_cat_cache:-}" /tmp/xlang_bootstrap_cat_err_$$.txt; fi' EXIT HUP INT TERM
 
+# L4 true-cold installs the platform pin egg before any PREFER hybrid leaf.
+# Wipe deletes ./bootstrap_xlangc / ./xlang*; without the pin, try-pipeline-abi-
+# prefer (and peers) skip hybrid and fall into cold full seed, which still has
+# void*/struct* type conflicts → missing src/runtime_pipeline_abi.o → pure-ld
+# phase1 fails. Authority: scripts/select_bootstrap_xlangc.sh (seeds/bootstrap_
+# xlangc.<os>.<arch>). PLATFORM: SHARED — mac/Ubuntu/Windows pin pick.
+# Product daily path matches g05 historic PREFER=1 (override with =0 for sat).
+if [ -f scripts/select_bootstrap_xlangc.sh ]; then
+  if bash scripts/select_bootstrap_xlangc.sh; then
+    log "pin egg OK (./bootstrap_xlangc via select_bootstrap_xlangc)"
+  else
+    log "WARN select_bootstrap_xlangc failed (PREFER hybrid leaves may miss .o)"
+  fi
+fi
+export XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}"
+
 # --- §5b whitelist make helper (only named leaves; no free-form recipes) ---
 # wave936: all mk calls migrated to direct shell. mk() retained only for
 # XLANG_SKIP_SUBSCRIPT_MAKE re-entry path (line 68) which needs make-graph

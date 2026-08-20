@@ -62,29 +62,19 @@ fi
 catalog_out="$(bash scripts/driver_seed_obj_catalog.sh)"
 prereqs="$(printf '%s\n' "$catalog_out" | sed -n 's/^DRIVER_SEED_PREREQS=//p' | head -1)"
 
-# Historical Makefile attached glue companion outside the composite list:
-#   bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
-# Keep that edge; do not bake a full second list.
-extra_glue="build_asm/pipeline_glue_strict_minimal.o"
+# wave304 G.7 8.3.6: historical extra_glue companion
+#   build_asm/pipeline_glue_strict_minimal.o
+# retired (0 residual T after wave303 overload leave; product g05 unlinked).
+# Do not force-append a missing host-cc leaf. PLATFORM: SHARED shell retire.
 
 if [ -z "${prereqs// /}" ]; then
   echo "driver_seed_ensure_prereqs: empty DRIVER_SEED_PREREQS from catalog" >&2
   exit 1
 fi
 
-# Build ordered unique word list (prereqs first, then glue if not already present).
+# Build ordered unique word list from catalog PREREQS only.
 # shellcheck disable=SC2086
 set -- $prereqs
-have_glue=0
-for t in "$@"; do
-  if [ "$t" = "$extra_glue" ]; then
-    have_glue=1
-    break
-  fi
-done
-if [ "$have_glue" -eq 0 ]; then
-  set -- "$@" "$extra_glue"
-fi
 
 n=$#
 if [ "$n" -lt 8 ]; then
@@ -104,7 +94,7 @@ for must in pipeline_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o; do
   esac
 done
 
-echo "driver_seed_ensure_prereqs: mode=$MODE count=$n (catalog DRIVER_SEED_PREREQS + glue companion)" >&2
+echo "driver_seed_ensure_prereqs: mode=$MODE count=$n (catalog DRIVER_SEED_PREREQS)" >&2
 
 # ---------------------------------------------------------------------------
 # Filter product PE / tip binaries out of make goals.

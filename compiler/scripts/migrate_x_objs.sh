@@ -134,7 +134,7 @@ ensure_gen_via_shell() {
     exit 1
   fi
   MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-    sh scripts/ensure_migrate_gen.sh "$mode"
+    bash scripts/ensure_migrate_gen.sh "$mode"
 }
 
 # Skip ensure when gen already present (make only re-runs recipe when .x is newer).
@@ -166,7 +166,70 @@ want_ensure_gen() {
       || ! grep -Fq 'typeck_type_is_valid_subscript_index' "$gen"; then
       return 0
     fi
+    # Post-pull: tip seed newer than gitignored pin → re-enter ensure (8.3.3).
+    if [ -n "$seed" ] && [ -f "$seed" ] && [ "$seed" -nt "$gen" ] \
+      && ! cmp -s "$seed" "$gen" 2>/dev/null; then
+      return 0
+    fi
   fi
+  return 1
+}
+
+# wave329: Track L retirement — bespoke cold-seed rung for front-end M4 leaves
+# (parser/typeck/codegen). Force archaeology pin snapshot instead of
+# .x → -E → assemble → host-cc, avoiding:
+#   (a) 30s+ -E compile cost on slow machines (Alarm clock 14)
+#   (b) duplicate shared export symbols from shared module re-inline
+#   (c) gen.c migrate-output implicit-decl legacy bugs
+# Prologue mirrors driver_leaf_x_to_o PREFER_X_O C wrapper. Success returns 0;
+# any failure prints fallback and returns 1 (caller falls through to original
+# HALF host-cc path — zero risk regression).
+# Args: $1=OUT_O  $2=COLD_SEED  $3=extra_cflags (optional, e.g. -include xlang_weak.h for typeck)
+# PLATFORM: SHARED (Darwin arm64 + Ubuntu x86_64 gold: archaeology copy single-source
+# freestanding TU; weak symbols + xlang_weak.h handled.
+_try_frontend_track_l_cold_seed() {
+  local out="$1" seed="$2" extra_cflags="${3:-}"
+  if [ -z "$seed" ] || [ ! -f "$seed" ]; then
+    return 1
+  fi
+  local base_cflags="${CFLAGS:-} ${PIPELINE_GEN_CFLAGS:-} -I. -Iinclude -Isrc -Wno-implicit-function-declaration"
+  local tmp
+  tmp="$(mktemp "${TMPDIR:-/tmp}/fe_cold_seed.XXXXXX.c")"
+  {
+    echo '#include <stddef.h>'
+    echo '#include <stdint.h>'
+    echo '#include <sys/types.h>'
+    echo '#include <stdlib.h>'
+    echo '#include <string.h>'
+    echo '#include <stdio.h>'
+    echo '#ifndef _WIN32'
+    echo '#include <unistd.h>'
+    echo '#include <fcntl.h>'
+    echo '#include <errno.h>'
+    echo '#include <sys/uio.h>'
+    echo '#include <poll.h>'
+    echo '#endif'
+    sed -e '/^extern uint8_t \* malloc(/d' \
+        -e '/^extern void free(/d' \
+        -e '/^extern uint8_t \* calloc(/d' \
+        -e '/^#include /d' \
+        "$seed"
+  } > "$tmp"
+  # shellcheck disable=SC2086
+  if $CC $base_cflags $extra_cflags -Wno-error -c -o "$out" "$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    log "${out} ← Track L cold seed (${seed}; wave329; archaeology pin snapshot; bypass assemble/E)"
+    return 0
+  fi
+  # Fallback: unstripped direct seed copy
+  cp -f "$seed" "$tmp"
+  # shellcheck disable=SC2086
+  if $CC $base_cflags $extra_cflags -Wno-error -c -o "$out" "$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    log "${out} ← Track L cold seed (unstripped direct copy; wave329)"
+    return 0
+  fi
+  rm -f "$tmp"
   return 1
 }
 
@@ -178,9 +241,20 @@ build_parser() {
     log "parser_x.o up-to-date"
     return 0
   fi
-  # Makefile parity: token enum sync before cc (no-op-ish if already aligned)
-  if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
+  # wave329: try Track L cold seed first (bypasses slow assemble + sync)
+  if _try_frontend_track_l_cold_seed parser_x.o "seeds/parser_gen.linux.x86_64.c"; then
+    return 0
+  fi
+  log "parser_x.o: Track L cold seed failed; falling back to parser_gen.c (archaeology)"
+  # Makefile parity: token enum sync before cc (no-op-ish if already aligned).
+  # wave324: tip -E assemble already matches live freestanding TokenKind ordinals;
+  # sync_lexer_gen_token_enum rewrites enum bodies and breaks comment/lex (L003).
+  # PLATFORM: SHARED — only skip for wave324 assemble banner; pin still syncs.
+  if [ -f scripts/sync_lexer_gen_token_enum.pl ] \
+    && ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
     perl scripts/sync_lexer_gen_token_enum.pl parser_gen.c
+  elif grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
+    log "parser_gen.c: skip token enum sync (wave324 .x assemble)"
   fi
   # shellcheck disable=SC2086
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
@@ -199,6 +273,11 @@ build_typeck() {
     log "typeck_x.o up-to-date"
     return 0
   fi
+  # wave329: try Track L cold seed first (bypasses assemble/patch chain)
+  if _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
+    return 0
+  fi
+  log "typeck_x.o: Track L cold seed failed; falling back to typeck_gen.c (archaeology)"
   # LANG-007: patch before compile (Makefile parity)
   if [ -f scripts/patch_typeck_gen_lang007.py ]; then
     "$PYTHON" scripts/patch_typeck_gen_lang007.py || true
@@ -207,7 +286,7 @@ build_typeck() {
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
   sz=$(obj_size typeck_x.o)
   if [ "$sz" -le 10000 ]; then
-    log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && sh scripts/ensure_migrate_gen.sh typeck)"
+    log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && bash scripts/ensure_migrate_gen.sh typeck)"
     exit 1
   fi
   log "typeck_x.o OK ($sz bytes)"
@@ -221,11 +300,16 @@ build_codegen() {
     log "codegen_x.o up-to-date"
     return 0
   fi
+  # wave329: try Track L cold seed first
+  if _try_frontend_track_l_cold_seed codegen_x.o "seeds/codegen_gen.linux.x86_64.c"; then
+    return 0
+  fi
+  log "codegen_x.o: Track L cold seed failed; falling back to codegen_gen.c (archaeology)"
   # shellcheck disable=SC2086
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_x.o
   sz=$(obj_size codegen_x.o)
   if [ "$sz" -le 50000 ]; then
-    log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && sh scripts/ensure_migrate_gen.sh codegen)"
+    log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && bash scripts/ensure_migrate_gen.sh codegen)"
     exit 1
   fi
   log "codegen_x.o OK ($sz bytes)"

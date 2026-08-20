@@ -57,7 +57,11 @@ typedef struct { uint32_t e[16]; } u32x16_t;
 typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-XLANG_WEAK int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+/* wave315 G.7: monofile dual WEAK polyfills → extern-only (runtime mega host-cc leave).
+ * live STRONG = runtime/product .o (freestanding dual leave).
+ * PLATFORM: SHARED freestanding dual leave. */
+extern int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr);
+
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
@@ -211,54 +215,58 @@ struct std_net_UdpSocket { int32_t fd; };
 #include <stdio.h>
 #ifndef __cplusplus
 /* 仅补 co-emit 未定义的符号；勿桩 xlang_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
-XLANG_WEAK int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
-  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
-  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
-}
-XLANG_WEAK int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
-  (void)ptr; (void)len; (void)handle; return -1;
-}
-XLANG_WEAK int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
-  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
-}
-XLANG_WEAK int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
-  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
-}
-XLANG_WEAK int32_t xlang_io_read_ptr_backend(void) { return 0; }
-XLANG_WEAK int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
-  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
-}
-XLANG_WEAK int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
-  (void)fds;(void)n;(void)timeout_ms; return -1;
-}
-XLANG_WEAK ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
-  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
-}
-XLANG_WEAK ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
-  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
-}
+extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+
+extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+
+extern int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t);
+
+extern int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t);
+
+extern int32_t xlang_io_read_ptr_backend(void);
+
+extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
+
+extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);
+
+extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+
+extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+
 extern int32_t process_xlang_argc_get(void);
 extern uint8_t *process_xlang_argv_get(int32_t i);
-XLANG_WEAK int32_t process_args_count_c(void) { return process_xlang_argc_get(); }
-XLANG_WEAK uint8_t *process_arg_c(int32_t i) { return process_xlang_argv_get(i); }
-XLANG_WEAK int32_t args_iter_count_c(void) { return process_args_count_c(); }
-XLANG_WEAK uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
-XLANG_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-XLANG_WEAK int64_t ctx_background_c(void) { return 0; }
-XLANG_WEAK void ctx_cancel_c(int64_t c) { (void)c; }
-XLANG_WEAK int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }
-XLANG_WEAK void ctx_free_c(int64_t c) { (void)c; }
-XLANG_WEAK int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {
-  (void)h;(void)key; if (out) *out = 0; return 0;
-}
-XLANG_WEAK int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }
-XLANG_WEAK int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }
-XLANG_WEAK int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {
-  (void)h;(void)key;(void)value; return 0;
-}
-XLANG_WEAK int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }
-XLANG_WEAK int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
-XLANG_WEAK int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
+extern int32_t process_args_count_c(void);
+
+extern uint8_t * process_arg_c(int32_t i);
+
+extern int32_t args_iter_count_c(void);
+
+extern uint8_t * args_iter_at_c(int32_t i);
+
+extern uint64_t std_io_driver_driver_read_ptr_gen(void);
+
+extern int64_t ctx_background_c(void);
+
+extern void ctx_cancel_c(int64_t c);
+
+extern int64_t ctx_deadline_ns_c(int64_t c);
+
+extern void ctx_free_c(int64_t c);
+
+extern int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out);
+
+extern int32_t ctx_is_cancelled_c(int64_t c);
+
+extern int64_t ctx_remaining_ns_c(int64_t c);
+
+extern int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value);
+
+extern int64_t ctx_with_cancel_c(int64_t p);
+
+extern int64_t ctx_with_deadline_c(int64_t p, int64_t ns);
+
+extern int64_t ctx_with_timeout_c(int64_t p, int64_t ns);
+
 #endif
 struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };
 struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };
@@ -303,8 +311,10 @@ extern int32_t core_types_placeholder(void);
 extern int32_t std_heap_alloc_size_zero(void);
 extern int32_t std_runtime_runtime_ready(void);
 #ifndef __cplusplus
-XLANG_WEAK int32_t std_vec_vec_len_empty(void) { return 0; }
-XLANG_WEAK int32_t std_vec_len_empty(void) { return 0; }
+extern int32_t std_vec_vec_len_empty(void);
+
+extern int32_t std_vec_len_empty(void);
+
 #else
 extern int32_t std_vec_vec_len_empty(void);
 extern int32_t std_vec_len_empty(void);
@@ -313,7 +323,8 @@ extern int32_t std_vec_len_empty(void);
 #define alloc_size_zero std_heap_alloc_size_zero
 #define runtime_ready std_runtime_runtime_ready
 #ifndef __cplusplus
-XLANG_WEAK int32_t std_string_placeholder(void) { return 0; }
+extern int32_t std_string_placeholder(void);
+
 #else
 extern int32_t std_string_placeholder(void);
 #endif
@@ -937,9 +948,14 @@ void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32
   (void)((at = driver_diag_append_i32(&((msg)[0]), 200, at, got_ty_ref)));
   (void)(driver_diag_note(&((msg)[0])));
 }
+/* wave check-false-green (2026-08-05): check_only OR XLANG_PARSE_STRICT.
+ * Seed hex was SHUX_PARSE_STRICT (rename residual); product .x uses XLANG_*.
+ * PLATFORM: SHARED — keep seed ≡ thin.x. */
 int32_t driver_parse_strict_enabled(void) {
-  return driver_env_flag_truthy(((uint8_t *)"\x53\x48\x55\x58\x5f\x50\x41\x52\x53\x45\x5f\x53\x54\x52\x49\x43\x54"));
-  return 0;
+  if (driver_check_only_get() != 0)
+    return 1;
+  /* "XLANG_PARSE_STRICT" */
+  return driver_env_flag_truthy((uint8_t *)"XLANG_PARSE_STRICT");
 }
 void driver_diag_note(uint8_t * msg) {
   {
@@ -1689,6 +1705,52 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 }
 void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t * name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref) {
   (void)(driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref));
+}
+/* wave302 G.7: parse_commit_pre/post cold twin — pure authority thin.x; dual-export ban
+ * vs pipeline_glue_strict_minimal (body deleted there). PLATFORM: SHARED.
+ * Incomplete struct — ABI matches parser ASTArena*; no layout read here. */
+struct ast_ASTArena;
+void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+                                        int32_t block_ref, uint8_t *pool, int32_t final_expr_ref) {
+  extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
+  (void)arena;
+  driver_diagnostic_parse_commit_shape(0, 0, name, name_len, 0, block_ref,
+                                       pool ? pipeline_onefunc_num_consts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_lets(pool) : 0,
+                                       pool ? pipeline_onefunc_num_if_stmts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_regions(pool) : 0,
+                                       pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
+                                       0, 0, 0, 0, 0, final_expr_ref);
+}
+void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+                                         int32_t block_ref, uint8_t *pool) {
+  extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
+  extern int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t block_ref);
+  driver_diagnostic_parse_commit_shape(0, 0, name, name_len, 1, block_ref,
+                                       pool ? pipeline_onefunc_num_consts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_lets(pool) : 0,
+                                       pool ? pipeline_onefunc_num_if_stmts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_regions(pool) : 0,
+                                       pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
+                                       arena ? ast_ast_block_num_consts(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_lets(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_if_stmts(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_regions(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_stmt_order(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_final_expr_ref(arena, block_ref) : 0);
 }
 void driver_diagnostic_after_entry_parse_module(uint8_t * module) {
   {

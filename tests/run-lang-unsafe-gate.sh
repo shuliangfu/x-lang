@@ -7,6 +7,10 @@
 #   policy=hook         — 调用 tests/run-*.sh
 #
 # 用法：./tests/run-lang-unsafe-gate.sh
+#
+# Product path: pure-asm `$XLANG -L . src -o` (default; no silent host-cc).
+# Host-cc `-backend c` only when XLANG_ALLOW_HOST_CC is set (matches void-main /
+# option / defer / safe-ffi gates). PLATFORM: SHARED pure-asm product gate.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
@@ -104,13 +108,23 @@ run_x_case() {
   local want_ec="$2"
   local src="tests/unsafe/${script}"
   local out="/tmp/xlang_unsafe_${script%.x}"
+  local log="/tmp/xlang_unsafe_compile.log"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  # LANG-007：relink seed 的 asm -o 路径 x parse 回归中；`-backend c` 与 check 同走 C 前端（unsafe 边界已覆盖）。
-  if ! run_timeout_case "$XLANG_BIN" -backend c -L . "$src" -o "$out" >/tmp/xlang_unsafe_compile.log 2>&1; then
-    cat /tmp/xlang_unsafe_compile.log >&2
+  rm -f "$out"
+  # Prefer pure-asm product -o (host-cc banned without XLANG_ALLOW_HOST_CC).
+  # PLATFORM: SHARED — dual-end pure-asm; optional -backend c only if allowed.
+  # Historical note: older gate hard-coded `-backend c` (C frontend typeck parity);
+  # product default now denies silent host-cc → BLD001 host-cc-requires-allow.
+  if run_timeout_case "$XLANG_BIN" -L . "$src" -o "$out" >"$log" 2>&1; then
+    :
+  elif [ -n "${XLANG_ALLOW_HOST_CC:-}" ] \
+    && run_timeout_case "$XLANG_BIN" -backend c -L . "$src" -o "$out" >"$log" 2>&1; then
+    :
+  else
+    cat "$log" >&2
     return 1
   fi
   local ec=0

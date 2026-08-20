@@ -33,6 +33,12 @@ export extern function pipeline_sizeof_module(): usize;
 export extern function parser_parse_into_init(module: *u8, arena: *u8): void;
 export extern function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
 export extern function driver_get_module_num_funcs(m: *u8): i32;
+// Stage 12.2.4: extern-only module detection for asm backend CG002 false-positive
+// fix. extern-only modules (e.g., pipeline.x — 162 export extern function signatures
+// with ZERO bodies) legitimately produce 0 bytes of code; CG002 must not fire for
+// them. Provided by runtime_pipeline_abi (G.7 single authority).
+// PLATFORM: SHARED.
+export extern function pipeline_module_func_is_extern_at(module: *u8, fi: i32): i32;
 export extern function parser_get_module_num_imports(module: *u8): i32;
 export extern function xlang_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
 export extern function driver_dep_seeded_clear_all(): void;
@@ -1656,30 +1662,63 @@ export function rt_ab_step_finish(): i32 {
               driver_pipeline_dep_ctx_set_use_asm(pctx, 1);
             }
           }
+          // Stage 12.2.4: Check if module is extern-only BEFORE calling codegen.
+          // extern-only modules (all functions are export extern declarations with
+          // no bodies, e.g., pipeline.x — 162 export extern signatures) legitimately
+          // produce 0 bytes of code. asm_codegen_elf_o returns -1 for them because
+          // 0 code + 0 labels fails ELF emission. Skip codegen entirely and produce
+          // a 0-byte .o (matching C path where extern decls produce no .text).
+          // PLATFORM: SHARED.
+          // extern calls require unsafe (typeck T001); keep both in one block.
+          let _all_extern_pre: i32 = 1;
+          let _fi_pre: i32 = 0;
+          let _nf_pre: i32 = 0;
           unsafe {
-            xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
-            elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, pctx, elf, out_buf);
-            out_len = driver_codegen_outbuf_len(out_buf);
-            out_data = driver_codegen_outbuf_data(out_buf);
+            _nf_pre = driver_get_module_num_funcs(module);
           }
-          if (elf_ec != 0) {
-            rt_ab_diag(path, 5, 10, 11);
-            if (elf != 0 as *u8) {
-              unsafe {
-                runtime_pipeline_elf_ctx_diag_note(elf);
+          while (_fi_pre < _nf_pre) {
+            unsafe {
+              if (pipeline_module_func_is_extern_at(module, _fi_pre) == 0) {
+                _all_extern_pre = 0;
               }
             }
-            unsafe {
-              driver_unlink_failed_output(outp);
-            }
-            return 1;
+            _fi_pre = _fi_pre + 1;
           }
-          if (out_len <= 0) {
-            rt_ab_diag(path, 5, 10, 11);
+          if (_all_extern_pre == 1 && _nf_pre > 0) {
+            // Extern-only module — skip codegen, produce 0-byte .o.
+            // out_len stays 0, out_data stays null; fwrite is a no-op.
+            // xlang_driver_asm_prepare_entry_elf_emit is still called for
+            // dep slot / pctx setup consistency.
             unsafe {
-              driver_unlink_failed_output(outp);
+              xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
             }
-            return 1;
+          } else {
+            unsafe {
+              xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+              elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, pctx, elf, out_buf);
+              out_len = driver_codegen_outbuf_len(out_buf);
+              out_data = driver_codegen_outbuf_data(out_buf);
+            }
+            if (elf_ec != 0) {
+              rt_ab_diag(path, 5, 10, 11);
+              if (elf != 0 as *u8) {
+                unsafe {
+                  runtime_pipeline_elf_ctx_diag_note(elf);
+                }
+              }
+              unsafe {
+                driver_unlink_failed_output(outp);
+              }
+              return 1;
+            }
+            if (out_len <= 0) {
+              // Non-extern module with 0 output — real CG002 error (codegen gap).
+              rt_ab_diag(path, 5, 10, 11);
+              unsafe {
+                driver_unlink_failed_output(outp);
+              }
+              return 1;
+            }
           }
         }
       }

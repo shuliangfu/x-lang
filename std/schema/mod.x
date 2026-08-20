@@ -100,7 +100,7 @@ extern function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32)
 export function new(): Schema {
   let h: i64 = 0;
   unsafe { h = schema_create_c(); }
-  return Schema { handle: h };
+  return { handle: h };
 }
 
 /** Exported function `free`.

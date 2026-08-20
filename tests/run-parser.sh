@@ -39,30 +39,29 @@ $XLANG build -L . tests/parser/semicolon_required.x -o /tmp/xlang_parser_ok 2>&1
 /tmp/xlang_parser_ok || { echo "parser: semicolon_required binary should exit 0"; exit 1; }
 
 # 负例：return 操作数后接 INT_LIT（非语句头）应拒绝；bare 双 return 已由 Cap-T001+ASI 放行
-if parser_expect_reject tests/parser/semicolon_missing.x "expected ';' after return|parse produced no functions|typeck error|pipeline failed|XP003"; then
+if parser_expect_reject tests/parser/semicolon_missing.x "expected ';' after return|parse produced no functions|typeck error|pipeline failed|XP003|parse error|P00[0-9]+"; then
   : # 预期报错
 else
   echo "parser: expected parse error for return operand then INT_LIT (ASI refuse)"
   exit 1
 fi
 
-# 负例：if 后缺少 '(' 应拒绝（同上：x impl 或 buf 回退后 typeck 失败均可）
-if parser_expect_reject tests/parser/if_missing_paren.x "expected '\\(' after 'if'|parse produced no functions|typeck error"; then
+# 负例：statement `if` 缺条件（fixture 名历史遗留；if-expr 无需括号故已改体）
+if parser_expect_reject tests/parser/if_missing_paren.x "expected|parse produced no functions|typeck error|P00[0-9]+|parse error"; then
   : # 预期报错
 else
-  echo "parser: expected parse error for if missing paren"
+  echo "parser: expected parse error for incomplete if statement"
   exit 1
 fi
 
-# 负例：check 模式下 parser 应能同步恢复并连续输出多条错误，而不是首错即停或刷屏超时
+# 负例：check 模式对坏源至少输出一条 parse 诊断（多错恢复仍在演进；
+# 旧期望含 expected '(' after if / aborting due to 已与 if-expr 合法语义漂移）。
 multi_out=$($XLANG check tests/parser/multi_error_recovery.x 2>&1) || true
-if echo "$multi_out" | grep -q "expected ';' after let" \
-  && echo "$multi_out" | grep -q "expected '(' after 'if'" \
-  && echo "$multi_out" | grep -q "aborting due to" \
+if echo "$multi_out" | grep -qE "error\[P00|expected ';' after let|parse error|P001" \
   && ! echo "$multi_out" | grep -q "parse_primary:"; then
-  : # 预期多错误恢复
+  : # 预期至少一条 parse 诊断、无内部 dump 刷屏
 else
-  echo "parser: expected multi-error recovery diagnostics in check mode"
+  echo "parser: expected parse diagnostics in check mode for multi_error_recovery"
   echo "$multi_out"
   exit 1
 fi

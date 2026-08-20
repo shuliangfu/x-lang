@@ -192,7 +192,8 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
-  return 10;
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x g0..g19 (G.7 cold twin). */
+  return 20;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -227,6 +228,38 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   }
   if ((g ==9)) {
     return 10;
+  }
+  /* PLATFORM: SHARED — core.builtin formal (pure-asm residual; C G-01 __builtin_*). */
+  if ((g ==10)) {
+    return 14;
+  }
+  /* PLATFORM: SHARED — std.ffi formal (pure-asm run-ffi residual). */
+  if ((g ==11)) {
+    return 8;
+  }
+  if ((g ==12)) {
+    return 5;
+  }
+  if ((g ==13)) {
+    return 6;
+  }
+  if ((g ==14)) {
+    return 8;
+  }
+  if ((g ==15)) {
+    return 6;
+  }
+  if ((g ==16)) {
+    return 4;
+  }
+  if ((g ==17)) {
+    return 3;
+  }
+  if ((g ==18)) {
+    return 23; /* std.simd VECTOR mid + binop/dot/fma + scalar faces + select_lane */
+  }
+  if ((g ==19)) {
+    return 3; /* std.io ctx-timeout */
   }
   return 0;
 }
@@ -471,6 +504,118 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     }
     return ((uint8_t *)(0));
   }
+  /* PLATFORM: SHARED — core.builtin formal surface (G.7 twin of pure labi_ondemand_list.x). */
+  if ((g ==10)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"core_builtin_placeholder"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"core_builtin_copy"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"core_builtin_min_i32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"core_builtin_max_i32"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"core_builtin_min_u32"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"core_builtin_max_u32"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"core_builtin_clz_u32"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"core_builtin_ctz_u32"); return p; }
+    if ((i ==8)) { uint8_t * p = ((uint8_t *)"core_builtin_popcount_u32"); return p; }
+    if ((i ==9)) { uint8_t * p = ((uint8_t *)"core_builtin_bswap_u32"); return p; }
+    if ((i ==10)) { uint8_t * p = ((uint8_t *)"core_builtin_rotl_u32"); return p; }
+    if ((i ==11)) { uint8_t * p = ((uint8_t *)"core_builtin_rotr_u32"); return p; }
+    if ((i ==12)) { uint8_t * p = ((uint8_t *)"core_builtin_unreachable"); return p; }
+    if ((i ==13)) { uint8_t * p = ((uint8_t *)"core_builtin_abort"); return p; }
+    return ((uint8_t *)(0));
+  }
+  /* PLATFORM: SHARED — std.ffi formal surface (G.7 twin of pure labi_ondemand_list.x). */
+  if ((g ==11)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_ffi_cstr_len"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_new"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_free"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_try_new"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_destroy"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"ffi_cstr_len_c"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"ffi_cstring_new_c"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"ffi_cstring_free_c"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==12)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_test_expect"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_test_expect_eq_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_test_expect_ne_i32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_test_assert"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_test_runner_case"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==13)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"core_assert_assert"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"core_assert_assert_eq_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"core_assert_assert_ne_i32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"core_assert_debug_assert"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"core_assert_assert_eq_u32"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"core_assert_assert_eq_bool"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==14)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_fmt_format_i32"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_u32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_i64"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_fmt_to_buf_u8_ptr_i32_u64"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_fmt_hex_to_buf_u8_ptr_i32_u32"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"std_fmt_append_to_buf_u8_ptr_i32_i32_i32"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_fmt_format_u8_ptr_i32_i32_i32"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==15)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_compress_gzip_compress"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_compress_gzip_decompress"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_compress_brotli_compress"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_compress_brotli_decompress"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_compress_zstd_compress"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_compress_zstd_decompress"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==16)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_io_driver_register"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_io_driver_submit_read"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_io_driver_submit_write"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_io_driver_submit_register_fixed_buffers_buf"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==17)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_debug_assert"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_debug_println_u8_ptr_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_debug_print_u8_ptr_i32"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==18)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_simd_shuffle_f32x4_i32_a4"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_simd_shuffle_i32x8_i32_a8"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_simd_select_f32x4_f32x4_f32x4"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_simd_select_i32x8_i32x8_i32x8"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_simd_splat_i32"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_simd_splat_f32"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"std_simd_mul_f32x4_f32x4"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_simd_mul_i32x8_i32x8"); return p; }
+    if ((i ==8)) { uint8_t * p = ((uint8_t *)"std_simd_sub_i32x8_i32x8"); return p; }
+    if ((i ==9)) { uint8_t * p = ((uint8_t *)"std_simd_sub_f32x4_f32x4"); return p; }
+    if ((i ==10)) { uint8_t * p = ((uint8_t *)"std_simd_add_f32x4_f32x4"); return p; }
+    if ((i ==11)) { uint8_t * p = ((uint8_t *)"std_simd_add_i32x8_i32x8"); return p; }
+    if ((i ==12)) { uint8_t * p = ((uint8_t *)"std_simd_dot"); return p; }
+    if ((i ==13)) { uint8_t * p = ((uint8_t *)"std_simd_madd"); return p; }
+    if ((i ==14)) { uint8_t * p = ((uint8_t *)"std_simd_fma"); return p; }
+    if ((i ==15)) { uint8_t * p = ((uint8_t *)"std_simd_hsum"); return p; }
+    if ((i ==16)) { uint8_t * p = ((uint8_t *)"std_simd_placeholder"); return p; }
+    if ((i ==17)) { uint8_t * p = ((uint8_t *)"std_simd_hw_available"); return p; }
+    if ((i ==18)) { uint8_t * p = ((uint8_t *)"std_simd_recommend_path"); return p; }
+    if ((i ==19)) { uint8_t * p = ((uint8_t *)"std_simd_SIMD_PATH_SCALAR"); return p; }
+    if ((i ==20)) { uint8_t * p = ((uint8_t *)"std_simd_SIMD_PATH_HW"); return p; }
+    if ((i ==21)) { uint8_t * p = ((uint8_t *)"std_simd_select_lane_i32_i32_i32"); return p; }
+    if ((i ==22)) { uint8_t * p = ((uint8_t *)"std_simd_select_lane_f32_f32_f32"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==19)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_io_timeout_from_ctx"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_io_read_ctx"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_io_write_ctx"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_simple_group_rel(int32_t g) {
@@ -515,6 +660,46 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
   }
   if ((g ==9)) {
     uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f");
+    return p;
+  }
+  if ((g ==10)) {
+    uint8_t * p = ((uint8_t *)"core/builtin/builtin.o");
+    return p;
+  }
+  if ((g ==11)) {
+    uint8_t * p = ((uint8_t *)"std/ffi/ffi.o");
+    return p;
+  }
+  if ((g ==12)) {
+    uint8_t * p = ((uint8_t *)"std/test/test.o");
+    return p;
+  }
+  if ((g ==13)) {
+    uint8_t * p = ((uint8_t *)"core/assert/assert.o");
+    return p;
+  }
+  if ((g ==14)) {
+    uint8_t * p = ((uint8_t *)"std/fmt/fmt.o");
+    return p;
+  }
+  if ((g ==15)) {
+    uint8_t * p = ((uint8_t *)"std/compress/compress.o");
+    return p;
+  }
+  if ((g ==16)) {
+    uint8_t * p = ((uint8_t *)"std/io/driver.o");
+    return p;
+  }
+  if ((g ==17)) {
+    uint8_t * p = ((uint8_t *)"std/debug/debug.o");
+    return p;
+  }
+  if ((g ==18)) {
+    uint8_t * p = ((uint8_t *)"std/simd/simd.o");
+    return p;
+  }
+  if ((g ==19)) {
+    uint8_t * p = ((uint8_t *)"std/io/io.o");
     return p;
   }
   return ((uint8_t *)(0));
@@ -996,7 +1181,7 @@ int32_t link_abi_user_o_needs_std_queue(uint8_t * user_o) {
   return 0;
 }
 int32_t labi_od_test_sym_count(void) {
-  return 7;
+  return 12;
 }
 uint8_t * labi_od_test_sym_at(int32_t i) {
   if ((i < 0)) {
@@ -1030,6 +1215,11 @@ uint8_t * labi_od_test_sym_at(int32_t i) {
     uint8_t * p = ((uint8_t *)"\x74\x65\x73\x74\x5f\x66\x75\x7a\x7a\x5f");
     return p;
   }
+  if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_test_expect"); return p; }
+  if ((i ==8)) { uint8_t * p = ((uint8_t *)"std_test_expect_eq_i32"); return p; }
+  if ((i ==9)) { uint8_t * p = ((uint8_t *)"std_test_expect_ne_i32"); return p; }
+  if ((i ==10)) { uint8_t * p = ((uint8_t *)"std_test_assert"); return p; }
+  if ((i ==11)) { uint8_t * p = ((uint8_t *)"std_test_runner_case"); return p; }
   return ((uint8_t *)(0));
 }
 int32_t link_abi_user_o_needs_std_test(uint8_t * user_o) {

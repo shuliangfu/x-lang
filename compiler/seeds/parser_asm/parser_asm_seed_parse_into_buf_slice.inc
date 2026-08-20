@@ -733,6 +733,14 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
 #define XLANG_SEED_TRAIT_TY_PTR 9
 #define XLANG_SEED_TRAIT_TY_ARRAY 10
 #define XLANG_SEED_TRAIT_TY_SLICE 11
+/* dest-SLICE extra inner SLICE ndims discriminant.
+ * 0 = scalar/NAMED; >=1 = ARRAY; -2 = extra SLICE wrap (`[]*[]T` /
+ * `[]*[][]T` / `[][][]T` / `[][][][]T`). Extra wrap COUNT lives
+ * in dims[0] (0 means 1 extra wrap = `[]*[]T` or 3-layer; 2 =
+ * `[]*[][]T` or 4-layer). Do not invent -3.
+ * Twin of XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS.
+ * PLATFORM: SHARED. */
+#define XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS (-2)
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
@@ -987,8 +995,13 @@ static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, i
       if (fn_lex.col <= 0)
         fn_lex.col = 1;
       res = parser_asm_seed_onefunc_wired_c(fn_lex);
-      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_xlang_seed_trait_src_data,
-                                              g_xlang_seed_trait_src_len);
+      {
+        extern void parser_allow_bare_self_set_c(int32_t on);
+        parser_allow_bare_self_set_c(1);
+        parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_xlang_seed_trait_src_data,
+                                                g_xlang_seed_trait_src_len);
+        parser_allow_bare_self_set_c(0);
+      }
       if (!res.ok)
         continue;
       nf_before = pipeline_module_num_funcs(module);
@@ -1013,6 +1026,11 @@ static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, i
           if (plen > 32)
             plen = 32;
           pty = xlang_seed_rewrite_self_type_ref_c(arena, pty, for_name, for_nlen, for_is_ptr);
+          /* wave477 / 4.2.1: bare self (type_ref 0) → impl for-type so UFCS matches. */
+          if (pty == 0 && pi == 0 && for_name && for_nlen > 0) {
+            extern int32_t pipeline_type_find_or_alloc_named(void *arena, uint8_t *name, int32_t name_len);
+            pty = pipeline_type_find_or_alloc_named(arena, (uint8_t *)for_name, for_nlen);
+          }
           pipeline_module_func_param_write(module, new_fi, pi, pname32, plen, pty);
         }
       }
@@ -1120,6 +1138,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         int32_t want_ret = 0;
         int32_t ret_elem_pending = 0;
         int32_t ret_slice_need_rb = 0;
+        /* Prefix `[N]T` / `[N][M]T` ret — twin of skip_tl / wave436 *[N]T. */
+        int32_t ret_prefix_arr_need_rb = 0;
+        int32_t ret_prefix_arr_need_size = 0;
+        int32_t ret_prefix_arr_elem_pending = 0;
         int32_t ret_suffix_pending = 0;
         int32_t ret_arr_need_size = 0;
         int32_t ret_arr_need_rb = 0;
@@ -1142,6 +1164,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         int32_t want_param_ty = 0;
         int32_t param_elem_pending = 0;   /* wave432: saw STAR, awaiting elem type */
         int32_t param_slice_need_rb = 0; /* wave432: saw LBRACKET, awaiting RBRACKET */
+        /* Prefix `[N]T` / `[N][M]T` param — twin of skip_tl / wave436 *[N]T. */
+        int32_t param_prefix_arr_need_rb = 0;
+        int32_t param_prefix_arr_need_size = 0;
+        int32_t param_prefix_arr_elem_pending = 0;
         /* wave433: twin of wave431 ret multi-dim suffix state machine. */
         int32_t param_suffix_pending = 0; /* base set; may still see [N] or [] */
         int32_t param_arr_need_size = 0;  /* saw `[` after base; want INT or `]` */
@@ -1200,6 +1226,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
               }
               param_elem_suffix_pending = 0;
               param_elem_dim_n = 0;
+              param_prefix_arr_need_rb = 0;
+              param_prefix_arr_need_size = 0;
+              param_prefix_arr_elem_pending = 0;
               if (saw_param_tok)
                 param_count++;
               if (mi_reg >= 0)
@@ -1239,6 +1268,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
               }
               param_elem_suffix_pending = 0;
               param_elem_dim_n = 0;
+              param_prefix_arr_need_rb = 0;
+              param_prefix_arr_need_size = 0;
+              param_prefix_arr_elem_pending = 0;
               if (saw_param_tok)
                 param_count++;
               saw_param_tok = 0;
@@ -1300,12 +1332,99 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                   want_param_ty = 0;
                 }
               } else if (param_slice_need_rb) {
+                /*
+                 * Prefix `[...]T` after the opening `[` (kind tentatively SLICE).
+                 * Twin of skip_tl param_slice_need_rb / wave436 *[N]T:
+                 *   `]`     → `[]T`  = SLICE of T (existing)
+                 *   INT N   → `[N]T` = ARRAY of N T (was bail → impl T001)
+                 * PLATFORM: SHARED parse. G.7: complete this scanner.
+                 */
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   param_slice_need_rb = 0;
                   param_elem_pending = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  ent->method_param_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_ARRAY;
+                  param_dim_n = 0;
+                  if (param_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_slice_need_rb = 0;
+                  param_prefix_arr_need_rb = 1;
                 } else {
                   want_param_ty = 0;
                   param_slice_need_rb = 0;
+                }
+              } else if (param_prefix_arr_need_rb) {
+                /* Prefix `[N` — want `]` then leaf T or another `[`. */
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  int32_t di;
+                  ent->method_param_array_ndims[mi_reg][param_count] = param_dim_n;
+                  for (di = 0; di < param_dim_n; di++)
+                    ent->method_param_array_dims[mi_reg][param_count][di] = param_dims[di];
+                  param_prefix_arr_need_rb = 0;
+                  param_prefix_arr_elem_pending = 1;
+                } else {
+                  param_prefix_arr_need_rb = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_prefix_arr_need_size) {
+                /*
+                 * Prefix `[N][` — next dim INT (`[N][M]T`) or `]` (`[N][]T`
+                 * = ARRAY of SLICE of T). Twin of skip_tl. G.7: complete
+                 * this scanner (no second trait-type parser).
+                 * PLATFORM: SHARED parse.
+                 */
+                if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  if (param_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_prefix_arr_need_size = 0;
+                  param_prefix_arr_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_SLICE;
+                  param_dim_n = 0;
+                  param_prefix_arr_need_size = 0;
+                  param_elem_elem_pending = 1;
+                } else {
+                  param_prefix_arr_need_size = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_prefix_arr_elem_pending) {
+                /* After `[N]` / `[N][M]…` — capture leaf T, or another `[`. */
+                if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                  param_prefix_arr_elem_pending = 0;
+                  param_prefix_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * Prefix `[N]*T` — STAR is a PTR elem, not a scalar
+                   * token_to_type_kind. Store elem=PTR; capture pointee T
+                   * via param_elem_elem_pending. dest-ARRAY extras still
+                   * skip kind 9 (separate leftover).
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_PTR;
+                  param_prefix_arr_elem_pending = 0;
+                  param_elem_elem_pending = 1;
+                  saw_param_tok = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_NAMED;
+                  xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len,
+                                               ent->method_param_names[mi_reg][param_count],
+                                               &ent->method_param_name_lens[mi_reg][param_count]);
+                  param_dim_n = 0;
+                  param_prefix_arr_elem_pending = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else {
+                  int32_t bk = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
+                  if (bk >= 0) {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = bk;
+                    param_dim_n = 0;
+                    param_prefix_arr_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  } else {
+                    param_prefix_arr_elem_pending = 0;
+                    want_param_ty = 0;
+                  }
                 }
               } else if (param_elem_slice_need_rb) {
                 /*
@@ -1421,15 +1540,47 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 }
               } else if (param_elem_arr_need_size) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-                  /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred to soft).
-                   * Mark elem uncaptured so check skips; avoids parse failure.
-                   * wave437: also clears prefix_arr_more if came from *[N][]T. */
-                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
-                  param_elem_arr_need_size = 0;
-                  param_elem_prefix_arr_more = 0;
-                  param_elem_dim_n = 0;
-                  want_param_ty = 0;
-                  saw_param_tok = 1;
+                  /*
+                   * After `[]*` then `[` then `]` (`[]*[]T`): dest-SLICE of
+                   * PTR-to-SLICE. After `[][]` then `[` then `]` (`[][][]T`):
+                   * dest-SLICE of SLICE of SLICE. After a further empty
+                   * `[]` (`[]*[][]T` / `[][][][]T`): ndims is already -2;
+                   * count extra wraps in dims[0] (0 means 1 = `[]*[]T` or
+                   * 3-layer; 2 = `[]*[][]T` or 4-layer). Do not invent -3.
+                   * Keep elem (PTR or SLICE); mark extra SLICE via
+                   * ndims=-2; capture leaf T as eek. Twin of skip_tl.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  if ((ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_PTR
+                       || ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_SEED_TRAIT_TY_SLICE)
+                      && param_elem_dim_n == 0) {
+                    if (ent->method_param_elem_array_ndims[mi_reg][param_count]
+                        == XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                      int32_t extra =
+                          ent->method_param_elem_array_dims[mi_reg][param_count][0];
+                      if (extra <= 0)
+                        extra = 1;
+                      extra = extra + 1;
+                      if (extra < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][0] = extra;
+                    } else {
+                      ent->method_param_elem_array_ndims[mi_reg][param_count] =
+                          XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    }
+                    param_elem_arr_need_size = 0;
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_dim_n = 0;
+                    param_elem_elem_pending = 1;
+                  } else {
+                    /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred).
+                     * wave437: also clears prefix_arr_more if came from *[N][]T. */
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_arr_need_size = 0;
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_dim_n = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
                 } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
                   /* Collect one elem dim; finalize on non-`[` after closing `]`. */
                   if (param_elem_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
@@ -1475,6 +1626,17 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                    * state which inspects the next token (`]` vs INT). PLATFORM: SHARED.
                    */
                   param_elem_slice_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * After `[]` (or after top-level `*` for `**T`): STAR is a
+                   * PTR elem. token_to_type_kind does not handle STAR so the
+                   * prior else stored elem_kind=-1. Store elem=PTR; capture
+                   * pointee T via param_elem_elem_pending. dest-SLICE extra
+                   * `[]*i32` reconstructs PTR then wrap slice.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_SEED_TRAIT_TY_PTR;
+                  param_elem_elem_pending = 1;
                 } else {
                   ent->method_param_elem_kinds[mi_reg][param_count] =
                       parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
@@ -1529,6 +1691,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
             ret_elem_prefix_arr_need_rb = 0;
             ret_elem_prefix_arr_more = 0;
             ret_elem_dim_n = 0;
+            ret_prefix_arr_need_rb = 0;
+            ret_prefix_arr_need_size = 0;
+            ret_prefix_arr_elem_pending = 0;
           } else if (want_ret && mi_reg >= 0) {
             /* wave427/430/431: twin of skip_tl ret capture (suffix T[N]/T[]/T[N][M]). */
             if (ret_arr_need_rb) {
@@ -1577,12 +1742,76 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 want_ret = 0;
               }
             } else if (ret_slice_need_rb) {
+              /*
+               * Prefix `[...]T` ret after the opening `[` (kind tentatively SLICE).
+               * Twin of skip_tl ret_slice_need_rb / wave436 *[N]T:
+               *   `]`     → `[]T`  = SLICE of T (existing)
+               *   INT N   → `[N]T` = ARRAY of N T (was bail)
+               * PLATFORM: SHARED parse. G.7: complete this scanner.
+               */
               if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                 ret_slice_need_rb = 0;
                 ret_elem_pending = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                ent->method_ret_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_ARRAY;
+                ret_dim_n = 0;
+                if (ret_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
+                ret_slice_need_rb = 0;
+                ret_prefix_arr_need_rb = 1;
               } else {
                 want_ret = 0;
                 ret_slice_need_rb = 0;
+              }
+            } else if (ret_prefix_arr_need_rb) {
+              /* Prefix `[N` ret — want `]` then leaf T or another `[`. */
+              if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                int32_t di;
+                ent->method_ret_array_ndims[mi_reg] = ret_dim_n;
+                ent->method_ret_array_sizes[mi_reg] = (ret_dim_n > 0) ? ret_dims[0] : -1;
+                for (di = 0; di < ret_dim_n; di++)
+                  ent->method_ret_array_dims[mi_reg][di] = ret_dims[di];
+                ret_prefix_arr_need_rb = 0;
+                ret_prefix_arr_elem_pending = 1;
+              } else {
+                ret_prefix_arr_need_rb = 0;
+                want_ret = 0;
+              }
+            } else if (ret_prefix_arr_need_size) {
+              /* Prefix `[N][` ret — want next dim INT. */
+              if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                if (ret_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
+                ret_prefix_arr_need_size = 0;
+                ret_prefix_arr_need_rb = 1;
+              } else {
+                ret_prefix_arr_need_size = 0;
+                want_ret = 0;
+              }
+            } else if (ret_prefix_arr_elem_pending) {
+              /* After `[N]` / `[N][M]…` ret — capture leaf T, or another `[`. */
+              if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                ret_prefix_arr_elem_pending = 0;
+                ret_prefix_arr_need_size = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                ent->method_ret_elem_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_NAMED;
+                xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len,
+                                             ent->method_ret_names[mi_reg],
+                                             &ent->method_ret_name_lens[mi_reg]);
+                ret_dim_n = 0;
+                ret_prefix_arr_elem_pending = 0;
+                want_ret = 0;
+              } else {
+                int32_t bk = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
+                if (bk >= 0) {
+                  ent->method_ret_elem_kinds[mi_reg] = bk;
+                  ret_dim_n = 0;
+                  ret_prefix_arr_elem_pending = 0;
+                  want_ret = 0;
+                } else {
+                  ret_prefix_arr_elem_pending = 0;
+                  want_ret = 0;
+                }
               }
             } else if (ret_elem_pending) {
               if (r.tok.kind == (int32_t)TOKEN_IDENT) {
@@ -2102,12 +2331,36 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                   /*
                    * wave435: *[]T → PTR to SLICE of T. Walk pipeline SLICE
                    * leaf → its elem → compare elem_elem (the slice base T).
-                   * PLATFORM: SHARED parse.
+                   * dest-SLICE extra `[][][]T` / `[][][][]T`: eek=SLICE +
+                   * eeek=leaf + ndims=-2; extra wrap count is dims[0]
+                   * (0 means 1). Peel extra times when ndims==-2 or T001
+                   * if layers run out. Twin of skip_tl. Do not invent -3.
+                   * PLATFORM: SHARED parse. G.7: complete this walk.
                    */
                   int32_t eeek = g_xlang_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
                   int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
                   if (eeek >= 0 && pelem != 0) {
                     int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    int32_t eand = g_xlang_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                    if (eand == XLANG_SEED_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                      int32_t extra =
+                          g_xlang_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                      if (extra <= 0)
+                        extra = 1;
+                      while (extra > 0) {
+                        if (pgek != XLANG_SEED_TRAIT_TY_SLICE || pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pelem = pipeline_type_elem_ref_at(arena, pelem);
+                        if (pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra = extra - 1;
+                      }
+                    }
                     if (pgek >= 0 && pgek != eeek) {
                       mm = 1;
                     } else if (pgek == eeek && eeek == XLANG_SEED_TRAIT_TY_NAMED) {

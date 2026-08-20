@@ -176,7 +176,9 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
       tc_rc = run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
     } else if (driver_x_pipeline_skip_typeck_get() != 0 && parser_get_module_num_imports(module) > 0 &&
                driver_asm_build_skip_typeck() == 0) {
-      tc_rc = 0;
+      /* NO_C product: C typeck precheck is gone; user -o with imports still needs
+       * full .x typeck (run-typeck negatives / result_try_bad). Do not skip. */
+      tc_rc = run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
     } else if (driver_x_pipeline_skip_typeck_get() != 0 || driver_asm_build_skip_typeck() != 0) {
       /*
        * 用户 -o（skip_typeck、非 XLANG_ASM_BUILD_SKIP_TYPECK）：入口仍须全量 typeck（ERR-01 负例等）。

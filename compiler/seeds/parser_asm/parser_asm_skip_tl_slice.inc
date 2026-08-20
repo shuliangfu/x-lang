@@ -987,6 +987,16 @@ static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
 #define XLANG_TRAIT_TY_PTR 9
 #define XLANG_TRAIT_TY_ARRAY 10
 #define XLANG_TRAIT_TY_SLICE 11
+/* dest-SLICE extra inner SLICE on method_param_elem_array_ndims.
+ * 0 = scalar/NAMED (`[]*i32` / two-wrap `[][]i32`); >=1 = ARRAY pointee
+ * (`[]*[N]T`); -2 = extra SLICE wrap (`[]*[]T` / `[]*[][]T` PTR
+ * pointee, or `[][][]T` / `[][][][]T` SLICE-of-SLICE). Extra wrap
+ * COUNT lives in dims[0] (0 means 1 extra wrap = `[]*[]T` or 3-layer
+ * SLICE; 2 = `[]*[][]T` or 4-layer SLICE). Accessor invalid is -1 so
+ * this sentinel must not collide. Do not invent -3. PTR vs SLICE is
+ * elem_kind, not a second sentinel.
+ * PLATFORM: SHARED parse. */
+#define XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS (-2)
 
 /* wave455: prototype — body after g_fn_gp_* tables. */
 void xlang_generic_func_reg_reset_c(void);
@@ -1054,6 +1064,12 @@ int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_
                                                     const uint8_t names[][64], const int32_t *lens,
                                                     int32_t n);
 void xlang_generic_func_reg_reset_c(void);
+/* 4.2.2 generic-body method: T: Trait → Trait.method (typeck method_call). */
+int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len,
+                                               const uint8_t *method_name, int32_t method_name_len,
+                                               int32_t num_args, int32_t *out_ret_kind,
+                                               uint8_t *out_ret_name, int32_t *out_ret_name_len);
 
 /* wave439: source buffer stash. Populated by xlang_generic_bound_stash_source_c
  * from the top-level skip functions (struct/enum/trait/impl), each of which
@@ -1164,6 +1180,879 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
       return 0;
   }
   return 1;
+}
+
+/**
+ * F2: Returns 1 iff some registered impl block has trait_name == trait_nm AND
+ * for-type matches concrete_ty_ref (reuses xlang_skip_impl_self_matches_for_c
+ * for the for-type shape comparison). 0 otherwise.
+ *
+ * Called from typeck dyn-coerce gate (src/typeck/typeck.x assign + let-init
+ * paths) to verify `let x: dyn Trait = concrete_T_val` requires an impl block.
+ * G.7 single authority: this function (twin of xlang_skip_impl_self_matches_for_c);
+ * typeck must NOT iterate g_xlang_skip_impl_* globals directly.
+ * PLATFORM: SHARED.
+ *
+ * @param arena           ASTArena (void*) for kind/name access; same instance
+ *                       the parser populated impl entries into.
+ * @param concrete_ty_ref type_ref of the RHS concrete type (e.g. struct A);
+ *                       must be non-zero.
+ * @param trait_nm       trait name bytes (e.g. "Clone"); must be non-null.
+ * @param trait_nlen     trait name length; must be > 0.
+ * @return 1 if any impl block matches; 0 otherwise.
+ */
+int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
+        int32_t concrete_ty_ref, const uint8_t *trait_nm, int32_t trait_nlen) {
+  int32_t si;
+  if (!trait_nm || trait_nlen <= 0 || concrete_ty_ref == 0)
+    return 0;
+  for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
+    int32_t tlen = g_xlang_skip_impl_trait_len[si];
+    const uint8_t *tname = g_xlang_skip_impl_trait[si];
+    if (tlen != trait_nlen || tlen <= 0)
+      continue;
+    if (memcmp(tname, trait_nm, (size_t)tlen) != 0)
+      continue;
+    if (xlang_skip_impl_self_matches_for_c(arena, concrete_ty_ref,
+            g_xlang_skip_impl_for_kinds[si],
+            g_xlang_skip_impl_for_is_ptr[si],
+            g_xlang_skip_impl_for_names[si],
+            g_xlang_skip_impl_for_name_lens[si]))
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * F4 per-impl vtable statics: iterator accessors over the impl registry
+ * `g_xlang_skip_impl_*`. These complement the F2 query accessor
+ * `xlang_skip_impl_concrete_implements_trait_c` (which answers "does Type X
+ * implement Trait Y") by exposing the list of registered impl blocks so that
+ * codegen can iterate every `impl Trait for Type` and emit a module-level
+ * static vtable per impl.
+ *
+ * G.7 "有则补全": the query authority (concrete_implements_trait_c) already
+ * iterates internally; these three new iterators expose iteration to codegen
+ * without duplicating the for-type shape-matching logic (shape matching stays
+ * in xlang_skip_impl_self_matches_for_c). codegen must NOT touch the globals
+ * directly — same rule as typeck (see L1183 comment).
+ *
+ * PLATFORM: SHARED parse + codegen.
+ */
+
+/**
+ * Return the count of registered impl blocks in the current module's impl
+ * registry. Safe to call with empty registry (returns 0).
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_impl_seen_count_c(void) {
+  return g_xlang_skip_impl_seen_n;
+}
+
+/**
+ * Copy the trait name of impl block at index `si` into `out64` (must be
+ * >= 64 bytes). Returns the trait name length (0 if si out of range or name
+ * is empty). The copied bytes are exactly `min(name_len, 64)` long; if the
+ * stored name is longer than 64 it is truncated but the returned length is
+ * the true stored length (caller can detect truncation).
+ *
+ * @param si    impl block index, 0..xlang_skip_impl_seen_count_c()-1.
+ * @param out64 output buffer for the trait name bytes (capacity >= 64).
+ * @return trait name length, or 0 on invalid si / empty name.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_impl_trait_name_into_c(int32_t si, uint8_t *out64) {
+  int32_t nlen;
+  int32_t ci;
+  if (si < 0 || si >= g_xlang_skip_impl_seen_n || !out64)
+    return 0;
+  nlen = g_xlang_skip_impl_trait_len[si];
+  if (nlen <= 0)
+    return 0;
+  for (ci = 0; ci < nlen && ci < 64; ci++)
+    out64[ci] = g_xlang_skip_impl_trait[si][ci];
+  return nlen;
+}
+
+/**
+ * Read the for-type info of impl block at index `si`. All out-params are
+ * written on success (returns 1) and left untouched on failure (returns 0).
+ *
+ * @param si          impl block index.
+ * @param out_kind    receives for-type kind ord (XLANG_TRAIT_TY_NAMED=8 etc.),
+ *                    or -1 if unknown (matches g_xlang_skip_impl_for_kinds init).
+ * @param out_is_ptr  receives 1 if for-type is *T, 0 otherwise.
+ * @param out_name64  receives for-type name bytes (capacity >= 64; empty for
+ *                    builtin for-types).
+ * @param out_nlen_ptr receives for-type name length (0 for builtin / unknown).
+ * @return 1 on success, 0 if si out of range.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
+        int32_t *out_is_ptr, uint8_t *out_name64, int32_t *out_nlen_ptr) {
+  int32_t nlen;
+  int32_t ci;
+  if (si < 0 || si >= g_xlang_skip_impl_seen_n)
+    return 0;
+  if (!out_kind || !out_is_ptr || !out_name64 || !out_nlen_ptr)
+    return 0;
+  *out_kind = g_xlang_skip_impl_for_kinds[si];
+  *out_is_ptr = g_xlang_skip_impl_for_is_ptr[si];
+  nlen = g_xlang_skip_impl_for_name_lens[si];
+  *out_nlen_ptr = nlen;
+  for (ci = 0; ci < nlen && ci < 64; ci++)
+    out_name64[ci] = g_xlang_skip_impl_for_names[si][ci];
+  return 1;
+}
+
+/**
+ * F3 vtable dispatch helpers — G.7 single-authority accessors over the
+ * trait registry `g_xlang_skip_trait_reg[]`. Method declaration order in the
+ * trait body defines the vtable slot index (slot 0 = first declared method).
+ *
+ * Used by typeck (resolve method name -> vtable slot for dyn dispatch) and
+ * codegen (enumerate trait methods to build the per-impl function-pointer
+ * array at the concrete->dyn coerce site).
+ *
+ * PLATFORM: SHARED parse + typeck + codegen.
+ */
+
+/**
+ * Find the trait registry index for a trait by name (linear scan).
+ * @param trait_nm   trait name bytes (e.g. "Clone"); must be non-null.
+ * @param trait_nlen trait name length; must be > 0.
+ * @return registry slot 0..g_xlang_skip_trait_reg_n-1, or -1 if not found.
+ * PLATFORM: SHARED.
+ */
+static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0)
+    return -1;
+  for (ti = 0; ti < g_xlang_skip_trait_reg_n; ti++) {
+    int32_t tlen = g_xlang_skip_trait_reg[ti].name_len;
+    const uint8_t *tname = g_xlang_skip_trait_reg[ti].name;
+    if (tlen != trait_nlen || tlen <= 0)
+      continue;
+    if (memcmp(tname, trait_nm, (size_t)tlen) != 0)
+      continue;
+    return ti;
+  }
+  return -1;
+}
+
+/**
+ * True when `trait_nm` is a registered trait (skip-trait table).
+ * G.7: thin public wrapper over xlang_skip_trait_find_reg_c so type_ref
+ * can treat a bare trait name as TYPE_DYN without a second lookup table.
+ * `xlang_skip_trait_method_count_c` returns 0 for both "missing" and
+ * "empty trait", so it cannot be this predicate.
+ * @param trait_nm *u8 — trait name bytes; null rejected
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @return i32 — 1 if registered, 0 otherwise
+ * PLATFORM: SHARED parse.
+ */
+int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  if (xlang_skip_trait_find_reg_c(trait_nm, trait_nlen) >= 0)
+    return 1;
+  return 0;
+}
+
+/**
+ * Resolve a method name to its vtable slot index within a trait.
+ * Slot = declaration order (0-based) in the trait body.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param method_nm   method name bytes; must be non-null.
+ * @param method_nlen method name length; must be > 0.
+ * @return slot index >= 0, or -1 if trait not registered or method absent.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_slot_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                       const uint8_t *method_nm, int32_t method_nlen) {
+  int32_t ti;
+  int32_t mi;
+  int32_t n;
+  if (!trait_nm || trait_nlen <= 0 || !method_nm || method_nlen <= 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  n = g_xlang_skip_trait_reg[ti].num_methods;
+  if (n < 0)
+    n = 0;
+  for (mi = 0; mi < n; mi++) {
+    int32_t mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
+    const uint8_t *mname = g_xlang_skip_trait_reg[ti].methods[mi];
+    if (mlen != method_nlen || mlen <= 0)
+      continue;
+    if (memcmp(mname, method_nm, (size_t)mlen) != 0)
+      continue;
+    return mi;
+  }
+  return -1;
+}
+
+/**
+ * Return the number of declared methods in a trait (= vtable slot count).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @return method count (0 if trait not registered or empty).
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_count_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  int32_t ti;
+  int32_t n;
+  if (!trait_nm || trait_nlen <= 0)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  n = g_xlang_skip_trait_reg[ti].num_methods;
+  return (n > 0) ? n : 0;
+}
+
+/**
+ * Copy the method name at a given vtable slot into a caller buffer.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param out64       output buffer of at least 64 bytes; must be non-null.
+ * @return method name length (>0 on success), 0 if trait/slot invalid.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                           int32_t slot, uint8_t *out64) {
+  int32_t ti;
+  int32_t mlen;
+  int32_t mi;
+  if (!trait_nm || trait_nlen <= 0 || !out64 || slot < 0)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return 0;
+  mlen = g_xlang_skip_trait_reg[ti].method_lens[slot];
+  if (mlen <= 0 || mlen > 64)
+    return 0;
+  for (mi = 0; mi < mlen; mi++)
+    out64[mi] = g_xlang_skip_trait_reg[ti].methods[slot][mi];
+  return mlen;
+}
+
+/**
+ * Return the TypeKind ordinal of the method's return type at a vtable slot.
+ * Used by typeck to stamp the call's resolved_type_ref for dyn dispatch so
+ * codegen can emit a typed function-pointer cast at the call site.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot invalid or not captured.
+ * PLATFORM: SHARED.
+ */
+int32_t xlang_skip_trait_method_ret_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                          int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_kinds[slot];
+}
+
+/**
+ * Return the TypeKind ordinal of a trait-method return's element type.
+ * Completes the F3 accessor family next to ret_kind. The scanner already
+ * stores method_ret_elem_kinds (leaf of `[]T` / `[N]T`). Typeck dyn
+ * dispatch cannot look up a module-func return type_ref (func_ix is the
+ * vtable slot), so host-C ret `[2]i32` / `[]i32` reconstructs the type
+ * via this + find_or_alloc_array/slice (sit-red XP003).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                               int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_kinds[slot];
+}
+
+/**
+ * Return the outer N of a trait-method `[N]T` return (method_ret_array_sizes).
+ * Completes the F3 accessor family next to ret_kind / ret_elem_kind.
+ * `[]T` stores -1. Used with ret_elem_kind to find_or_alloc_array.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return N > 0, or -1 if trait/slot invalid / not a sized array.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_array_size_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_array_sizes[slot];
+}
+
+/**
+ * Return ndims of a trait-method `[K][N]…T` return (method_ret_array_ndims).
+ * Completes the F3 accessor family next to ret_array_size. The scanner
+ * already stores ndims + dims; typeck dyn ret used only the outer N
+ * (sit-red XT001 expected [2][2]i32 found [2]i32).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return ndims (>=1) for `[N]T` / `[K][N]T`, or 0 / -1 if unset / invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_array_ndims[slot];
+}
+
+/**
+ * Return one dim of a trait-method `[K][N]…T` return (method_ret_array_dims).
+ * dim_ix 0 is the outer K (same as ret_array_size); last dim is the
+ * innermost N next to the leaf. Cap is XLANG_SKIP_TRAIT_ARRAY_DIM_MAX (8).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param dim_ix      dimension index (0 = outer).
+ * @return N > 0, or -1 if trait/slot/dim invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                              int32_t slot, int32_t dim_ix) {
+  int32_t ti;
+  int32_t nd;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || dim_ix < 0
+      || dim_ix >= XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  nd = g_xlang_skip_trait_reg[ti].method_ret_array_ndims[slot];
+  if (dim_ix >= nd)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_array_dims[slot][dim_ix];
+}
+
+/**
+ * Return the TypeKind ordinal of a trait-method return's ARRAY/SLICE
+ * element leaf (method_ret_elem_elem_kinds). Completes the F3 accessor
+ * family next to ret_elem_kind. The scanner already stores the leaf of
+ * `*[N]T` / `*[]T` (elem=ARRAY/SLICE, elem_elem=T). Typeck dyn ret
+ * cannot look up a module-func return type_ref (func_ix is the slot),
+ * so `*[2]i32` reconstructs via this + elem_array ndims/dims +
+ * find_or_alloc_array then wrap ptr (sit-red: host-C
+ * `int32_t (*p)[2] = (void)call`). Twin of param_elem_elem_kind.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                    int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[slot];
+}
+
+/**
+ * Return ndims of a trait-method return's ARRAY elem (`*[K][N]T`).
+ * Completes the F3 accessor family next to ret_elem_elem_kind. The
+ * scanner already stores method_ret_elem_array_ndims (not the
+ * top-level ret_array_ndims used by `[K][N]T` ret). Twin of
+ * param_elem_array_ndims.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @return ndims (>=1), or 0 / -1 if unset / invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[slot];
+}
+
+/**
+ * Return one dim of a trait-method return's ARRAY elem (`*[K][N]T`).
+ * dim_ix 0 is the outer K of the ARRAY elem; last dim is innermost N.
+ * Cap is XLANG_SKIP_TRAIT_ARRAY_DIM_MAX (8). Twin of param_elem_array_dim.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
+ * @return N > 0, or -1 if trait/slot/dim invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                    int32_t slot, int32_t dim_ix) {
+  int32_t ti;
+  int32_t nd;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || dim_ix < 0
+      || dim_ix >= XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  nd = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[slot];
+  if (dim_ix >= nd)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][dim_ix];
+}
+
+/**
+ * Copy the TYPE_NAMED spelling of a trait-method return into out64.
+ * Completes the F3 accessor family next to ret_kind / ret_elem_kind.
+ * The scanner already stores method_ret_names for a bare `Pair` return
+ * (and for a NAMED leaf of `*T` / `[]T` / `[N]T`). Typeck dyn dispatch
+ * cannot look up a module-func return type_ref (func_ix is the vtable
+ * slot), so host-C `let r: Pair = x.getp()` reconstructs via this +
+ * find_or_alloc_named (sit-red: void-cast assignment).
+ * Twin of xlang_skip_trait_method_name_into_c.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param out64       output buffer of at least 64 bytes; must be non-null.
+ * @return name length (>0 on success), 0 if trait/slot invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_ret_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                               int32_t slot, uint8_t *out64) {
+  int32_t ti;
+  int32_t nlen;
+  int32_t i;
+  if (!trait_nm || trait_nlen <= 0 || !out64 || slot < 0)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return 0;
+  nlen = g_xlang_skip_trait_reg[ti].method_ret_name_lens[slot];
+  if (nlen <= 0 || nlen > 64)
+    return 0;
+  for (i = 0; i < nlen; i++)
+    out64[i] = g_xlang_skip_trait_reg[ti].method_ret_names[slot][i];
+  return nlen;
+}
+
+/**
+ * Return the TypeKind ordinal of one trait-method formal.
+ * Completes the F3 accessor family (slot / count / name / ret_kind).
+ * wave426 already stores method_param_kinds at parse; typeck dyn dispatch
+ * cannot call typeck_stamp_resolved_args_float_lit (func_ix is the vtable
+ * slot, not a module func) so it reads formals here and reuses
+ * typeck_coerce_init_float_lit_to_decl.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot/param invalid or untyped.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                            int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_kinds[slot][param_ix];
+}
+
+/**
+ * Return the TypeKind ordinal of one trait-method formal's element type.
+ * Completes the F3 accessor family next to param_kind. wave426 already
+ * stores method_param_elem_kinds (leaf of `[]T` / `[N]T` / `*[N]T`).
+ * Typeck dyn extras cannot look up a module-func formal type_ref
+ * (func_ix is the vtable slot), so dest-SLICE ARRAY_LIT reuse
+ * typeck_coerce_init_slice_from_array after this + find_or_alloc_slice.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot/param invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                 int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_kinds[slot][param_ix];
+}
+
+/**
+ * Copy the TYPE_NAMED spelling of one trait-method formal into out64.
+ * Completes the F3 accessor family next to param_kind / param_elem_kind.
+ * The scanner already stores method_param_names for a bare `Pair` formal
+ * (and for a NAMED leaf of `*T` / `[]T` / `[N]T`). Typeck dyn extras
+ * cannot look up a module-func formal type_ref (func_ix is the vtable
+ * slot), so STRUCT_LIT dest-stamp reconstructs via this +
+ * find_or_alloc_named + typeck_coerce_init_struct_lit_to_decl
+ * (sit-red: host-C `(struct )` / asm run=162). Twin of
+ * xlang_skip_trait_method_ret_name_into_c. Extra i of a METHOD_CALL
+ * maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @param out64       output buffer of at least 64 bytes; must be non-null.
+ * @return name length (>0 on success), 0 if trait/slot/param invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                 int32_t slot, int32_t param_ix,
+                                                 uint8_t *out64) {
+  int32_t ti;
+  int32_t nlen;
+  int32_t i;
+  if (!trait_nm || trait_nlen <= 0 || !out64 || slot < 0 || param_ix < 0)
+    return 0;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return 0;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return 0;
+  nlen = g_xlang_skip_trait_reg[ti].method_param_name_lens[slot][param_ix];
+  if (nlen <= 0 || nlen > 64)
+    return 0;
+  for (i = 0; i < nlen; i++)
+    out64[i] = g_xlang_skip_trait_reg[ti].method_param_names[slot][param_ix][i];
+  return nlen;
+}
+
+/**
+ * Return ndims of a trait-method `[K][N]…T` formal (method_param_array_ndims).
+ * Completes the F3 accessor family next to param_elem_kind / param_name.
+ * The scanner already stores ndims + dims for prefix `[N]T` / `[K][N]T`.
+ * Typeck dyn extras cannot look up a module-func formal type_ref (func_ix
+ * is the vtable slot), so dest-ARRAY extras (`[2]Pair`) reconstruct via
+ * this + param_array_dim + find_or_alloc_array (sit-red host-C
+ * `(uint8_t[]){(struct )}`). Twin of xlang_skip_trait_method_ret_array_ndims_c.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return ndims (>=1) for `[N]T` / `[K][N]T`, or 0 / -1 if unset / invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                   int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_array_ndims[slot][param_ix];
+}
+
+/**
+ * Return one dim of a trait-method `[K][N]…T` formal (method_param_array_dims).
+ * dim_ix 0 is the outer K; last dim is the innermost N next to the leaf.
+ * Cap is XLANG_SKIP_TRAIT_ARRAY_DIM_MAX (8). Twin of
+ * xlang_skip_trait_method_ret_array_dim_c. Extra i maps to param_ix = i+1.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @param dim_ix      dimension index (0 = outer).
+ * @return N > 0, or -1 if trait/slot/param/dim invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                 int32_t slot, int32_t param_ix, int32_t dim_ix) {
+  int32_t ti;
+  int32_t nd;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0 || dim_ix < 0
+      || dim_ix >= XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  nd = g_xlang_skip_trait_reg[ti].method_param_array_ndims[slot][param_ix];
+  if (dim_ix >= nd)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_array_dims[slot][param_ix][dim_ix];
+}
+
+/**
+ * Return the TypeKind ordinal of a trait-method formal's ARRAY/SLICE
+ * element leaf (method_param_elem_elem_kinds). Completes the F3
+ * accessor family next to param_elem_kind. The scanner already stores
+ * the leaf of `[][N]T` / `*[N]T` (elem=ARRAY, elem_elem=T). Typeck
+ * dest-SLICE extras cannot look up a module-func formal type_ref
+ * (func_ix is the vtable slot), so `[][2]i32` reconstructs via this +
+ * elem_array ndims/dims + find_or_alloc_array then wrap slice
+ * (sit-red: dyn extra `[[2,4]]` asm=1 / host-C=139). Extra i of a
+ * METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return TypeKind ord (>=0), or -1 if trait/slot/param invalid or unset.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_elem_kind_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[slot][param_ix];
+}
+
+/**
+ * Return ndims of a trait-method formal's ARRAY elem (`[][K][N]T`).
+ * Completes the F3 accessor family next to param_elem_elem_kind.
+ * The scanner already stores method_param_elem_array_ndims (not the
+ * top-level param_array_ndims used by dest-ARRAY extras). Extra i
+ * maps to param_ix = i+1.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @return ndims (>=1 ARRAY pointee), 0 scalar, -2 extra SLICE wrap
+ *         (`[]*[]T` / `[]*[][]T` / `[2]*[]T` / `[2]*[][]T` PTR
+ *         pointee or `[][][]T` / `[][][][]T` SLICE-of-SLICE; extra
+ *         wrap count in dims[0]), or -1 if unset / invalid.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                        int32_t slot, int32_t param_ix) {
+  int32_t ti;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  return g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[slot][param_ix];
+}
+
+/**
+ * Return one dim of a trait-method formal's ARRAY elem (`[][K][N]T`).
+ * dim_ix 0 is the outer K of the ARRAY elem; last dim is innermost N.
+ * Cap is XLANG_SKIP_TRAIT_ARRAY_DIM_MAX (8). Extra i maps to param_ix = i+1.
+ * @param trait_nm    trait name bytes; must be non-null.
+ * @param trait_nlen  trait name length; must be > 0.
+ * @param slot        vtable slot index (0..num_methods-1).
+ * @param param_ix    formal index including self (0..PARAM_MAX-1).
+ * @param dim_ix      dimension index (0 = outer of the ARRAY elem).
+ * @return N > 0, or -1 if trait/slot/param/dim invalid.
+ * When ndims==-2, dim_ix 0 returns the extra SLICE wrap count
+ * (`[]*[]T` / `[][][]T` / `[2]*[]T` / `[2][][]T` = 1,
+ * `[]*[][]T` / `[][][][]T` / `[2]*[][]T` / `[2][][][]T`
+ * = 2). dims[0]==0 means 1 (`[]*[]T` / `[2]*[]T` /
+ * `[2][][]T` / 3-layer compat). dest extras dest-SLICE-of-PTR,
+ * dest-SLICE-of-SLICE, dest-ARRAY-of-PTR, and dest-ARRAY-of-SLICE
+ * all read this for ndims==-2.
+ * When ndims==0, dim_ix 0 returns dest extras dest-ARRAY-of-SLICE
+ * extra PTR wrap count in unused slot dims[0] (`[2][]*T` = 1;
+ * 0 / missing means no extra PTR = `[2][]i32`) AND dest extras
+ * dest-SLICE-of-SLICE extra PTR wrap count (`[][]*T` = 1;
+ * 0 / missing means no extra PTR = `[][]i32`). Discriminant is
+ * the dest extras consumer (ARRAY outer vs SLICE outer), not a
+ * second slot. When ndims==-2, dim_ix 1 returns dest extras
+ * dest-SLICE-of-SLICE extra PTR wrap count in unused slot
+ * dims[1] (`[][][]*T` = 1; 0 / missing means no extra PTR =
+ * `[][][]T`) AND dest extras dest-ARRAY-of-SLICE extra PTR
+ * wrap count (`[2][][]*T` = 1; 0 / missing means no extra
+ * PTR = `[2][][]T`). Discriminant is the dest extras consumer
+ * (SLICE outer vs ARRAY outer), not a second slot. dims[0]
+ * stays extra SLICE (ban -3 / reuse of dim_ix 0).
+ * When ndims>0, dim_ix==ndims returns dest extras dest-SLICE-of-ARRAY
+ * extra SLICE wrap count in the unused slot (`[][2][]T` = 1;
+ * `[][2][][]T` = 2; 0 / missing means no extra wrap = `[][2]i32`)
+ * AND dest extras dest-SLICE-of-PTR extra SLICE wrap count
+ * (`[]*[2][]T` = 1; `[]*[2][][]T` = 2; 0 / missing means no extra
+ * wrap = `[]*[2]i32`) AND dest extras dest-ARRAY-of-SLICE extra
+ * PTR wrap count (`[2][][2]*T` = 1; 0 / missing means no extra
+ * PTR = `[2][][2]T`) AND dest extras dest-SLICE-of-SLICE extra
+ * PTR wrap count (`[][][2]*T` = 1; 0 / missing means no extra
+ * PTR = `[][][2]T`). Discriminant vs extra SLICE is elem_kind
+ * (ARRAY vs SLICE); discriminant ARRAY vs SLICE outer is param
+ * kind. dim_ix==ndims+1 returns extra PTR wrap count
+ * (`[][2]*T` = 1; `[][2][]*T` = 1 with extra SLICE also in
+ * dims[ndims]; 0 / missing means no extra PTR). Both unused
+ * slots may be set (`[][2][]*T`). Do not invent -3: ARRAY dims
+ * occupy 0..ndims-1 so extra wrap cannot reuse ndims=-2.
+ * PLATFORM: SHARED parse + typeck.
+ */
+int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot, int32_t param_ix, int32_t dim_ix) {
+  int32_t ti;
+  int32_t nd;
+  if (!trait_nm || trait_nlen <= 0 || slot < 0 || param_ix < 0 || dim_ix < 0
+      || dim_ix >= XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+    return -1;
+  if (param_ix >= XLANG_SKIP_TRAIT_PARAM_MAX)
+    return -1;
+  ti = xlang_skip_trait_find_reg_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return -1;
+  if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
+    return -1;
+  nd = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[slot][param_ix];
+  /* ndims==-2: extra SLICE wrap count in dims[0]. dim_ix>=nd would
+   * reject every dim_ix>=0 because -2 is negative. PLATFORM: SHARED. */
+  if (nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+    int32_t extra;
+    if (dim_ix == 0) {
+      extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][0];
+      if (extra <= 0)
+        extra = 1;
+      return extra;
+    }
+    /*
+     * dest extras dest-SLICE-of-SLICE extra PTR (`[][][]*T`) and
+     * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][][]*T`):
+     * unused slot dims[1] when ndims==-2. extra>0 returns the
+     * count; 0 / missing → -1 so `[][][]i32` / `[2][][]i32`
+     * stay extra-SLICE-only. Discriminant is SLICE vs ARRAY
+     * outer. Do not invent -3. PLATFORM: SHARED.
+     */
+    if (dim_ix == 1) {
+      extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][1];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
+    return -1;
+  }
+  /*
+   * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][]*T`) and
+   * dest extras dest-SLICE-of-SLICE extra PTR (`[][]*T`): unused
+   * slot dims[0] when ndims==0. dim_ix>=nd would treat dim_ix=0 as
+   * an extra-wrap probe and reject because nd is not >0. extra>0
+   * returns the count; 0 / missing → -1 so `[2][]i32` / `[][]i32`
+   * stay wrap-once. Do not invent -3. PLATFORM: SHARED.
+   */
+  if (nd == 0 && dim_ix == 0) {
+    int32_t extra;
+    extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][0];
+    if (extra <= 0)
+      return -1;
+    return extra;
+  }
+  if (dim_ix >= nd) {
+    /*
+     * dest extras dest-SLICE-of-ARRAY extra wraps: unused slot
+     * dims[ndims] holds extra SLICE wraps (`[][2][]T`); unused slot
+     * dims[ndims+1] holds extra PTR wraps (`[][2]*T`). Both slots
+     * may be set (`[][2][]*T`). dim_ix==ndims or ndims+1 and extra>0
+     * → return the count. 0 / missing → -1 so `[][2]i32` (no extra
+     * wrap) stays wrap-once. PLATFORM: SHARED.
+     */
+    int32_t extra;
+    if (!(nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
+      return -1;
+    if (dim_ix == nd) {
+      /* dest extras dest-SLICE-of-ARRAY extra `[][2][]T`, dest
+       * extras dest-SLICE-of-PTR extra `[]*[2][]T`, dest extras
+       * dest-ARRAY-of-SLICE extra PTR `[2][][2]*T`, and dest extras
+       * dest-SLICE-of-SLICE extra PTR `[][][2]*T` (elem=SLICE,
+       * unused slot dims[ndims]; discriminant vs extra SLICE of
+       * `[][2][]T` is elem_kind; discriminant ARRAY vs SLICE outer
+       * is param kind). extra>0 returns the count; 0 / missing →
+       * -1 so `[][2]i32` / `[]*[2]i32` / `[2][][2]i32` / `[][][2]i32`
+       * stay wrap-once / extra-ARRAY-only. PLATFORM: SHARED. */
+      extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
+    if (dim_ix == nd + 1 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+      extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd + 1];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
+    return -1;
+  }
+  return g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][dim_ix];
 }
 
 /**
@@ -1668,7 +2557,12 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
       if (fn_lex.col <= 0)
         fn_lex.col = 1;
       res = parser_asm_onefunc_alloc_wired_for_parse_c(fn_lex);
-      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
+      {
+        extern void parser_allow_bare_self_set_c(int32_t on);
+        parser_allow_bare_self_set_c(1);
+        parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
+        parser_allow_bare_self_set_c(0);
+      }
       if (!res.ok)
         continue;
       (void)xlang_skip_commit_default_onefunc_c(arena, module, &res,
@@ -1816,12 +2710,175 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     /*
                      * wave435: *[]T → PTR to SLICE of T. Walk pipeline SLICE
                      * leaf → its elem → compare elem_elem (the slice base T).
-                     * PLATFORM: SHARED parse.
+                     * dest-SLICE extra `[][][]T` / `[][][][]T`: skip-trait
+                     * stores eek=SLICE + eeek=leaf + ndims=-2 (extra inner
+                     * SLICE). Extra wrap count is dims[0] (0 means 1).
+                     * Pipeline pelem is then still SLICE — peel extra times
+                     * when ndims==-2 or T001 if layers run out. `[][]T`
+                     * (ndims=0) keeps the one-peel. dest extras dest-SLICE
+                     * of SLICE extra `[][]*T`: extra PTR wrap COUNT is
+                     * unused slot dims[0] with ndims staying 0 (1 =
+                     * `[][]*T`; 0 = no extra PTR = `[][]i32`). After the
+                     * leftover-SLICE peel, pelem is still PTR vs eeek=leaf
+                     * — peel leftover PTR extra times or T001. dest extras
+                     * dest-SLICE of SLICE extra ARRAY `[][][2]T`: leftover
+                     * after leftover-SLICE peel is ARRAY vs eeek=leaf
+                     * (ndims>=1, dims[0..ndims-1] from wave437 pending
+                     * LBRACKET after `[][]` then `[M]`). Peel leftover
+                     * ARRAY or T001. dest extras dest-SLICE of SLICE extra
+                     * ARRAY extra PTR `[][][2]*T`: leftover after extra
+                     * ARRAY peels is PTR vs eeek=leaf; extra PTR wrap
+                     * COUNT is unused slot dims[ndims] (1 = `[][][2]*T`;
+                     * 0 = no extra PTR = `[][][2]T`). Peel leftover PTR
+                     * extra times or T001. Store already has ndims>=1
+                     * (named / UFCS dest-stamp via the formal).
+                     * Discriminant: ndims==-2 extra SLICE; ndims==0 extra
+                     * PTR; ndims>=1 inner ARRAY (plus unused-slot extra
+                     * PTR). Do not invent -3.
+                     * PLATFORM: SHARED parse. G.7: complete this walk.
                      */
                     int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
                     int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
                     if (eeek >= 0 && pelem != 0) {
                       int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                      if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                        int32_t extra =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        int32_t extra_ptr;
+                        if (extra <= 0)
+                          extra = 1;
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          extra = extra - 1;
+                        }
+                        /*
+                         * dest extras dest-SLICE of SLICE extra PTR
+                         * `[][][]*T`: leftover after extra SLICE peels
+                         * is PTR vs eeek=leaf. Extra PTR wrap COUNT is
+                         * unused slot dims[1] (1 = `[][][]*T`; 0 = no
+                         * extra PTR = `[][][]T`). Peel leftover PTR
+                         * extra times or T001. dest extras dest-ARRAY
+                         * of SLICE extra PTR `[2][][]*T` uses the same
+                         * dims[1] encoding (ARRAY leftover matches at
+                         * leftover SLICE vs eek=SLICE — not this walk;
+                         * not T001). Do not invent -3. PLATFORM:
+                         * SHARED. G.7: complete this walk.
+                         */
+                        extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][1];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                      } else if (eand == 0) {
+                        int32_t extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                      } else if (eand >= 1) {
+                        /*
+                         * dest extras dest-SLICE of SLICE extra ARRAY
+                         * `[][][2]T`: leftover after leftover-SLICE
+                         * peel is ARRAY vs eeek=leaf. Inner ARRAY
+                         * dims are dims[0..ndims-1] (wave437 pending
+                         * LBRACKET after `[][]` then `[M]`). Peel
+                         * ARRAY outer-first or T001 if layers run
+                         * out. dest extras dest-SLICE of SLICE extra
+                         * ARRAY extra PTR `[][][2]*T`: leftover after
+                         * extra ARRAY peels is PTR vs eeek=leaf.
+                         * Extra PTR wrap COUNT is unused slot
+                         * dims[ndims] (1 = `[][][2]*T`; 0 = no extra
+                         * PTR = `[][][2]T`; same unused slot as dest
+                         * extras dest-SLICE of ARRAY extra `[][2][]T`
+                         * and dest extras dest-ARRAY of SLICE extra
+                         * `[2][][2]*T`; discriminant is elem_kind
+                         * SLICE vs ARRAY AND SLICE vs ARRAY outer).
+                         * Peel leftover PTR extra times or T001.
+                         * dest extras dest-ARRAY of SLICE extra PTR
+                         * `[2][][2]*T` uses the same dims[ndims]
+                         * encoding (ARRAY leftover matches at leftover
+                         * SLICE vs eek=SLICE — not this walk; not
+                         * T001). `[][]i32` (ndims==0) keeps leftover
+                         * vs eeek=leaf. Discriminant vs extra PTR
+                         * wrap-once: ndims==0 dims[0]; vs extra SLICE:
+                         * ndims==-2. Store already has ndims>=1
+                         * (named / UFCS dest-stamp via the formal).
+                         * Do not invent -3. PLATFORM: SHARED.
+                         * G.7: complete this walk.
+                         */
+                        int32_t d;
+                        int32_t extra_ptr;
+                        for (d = 0; d < eand; d++) {
+                          int32_t gsz;
+                          if (pgek != XLANG_TRAIT_TY_ARRAY || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          gsz = pipeline_type_array_size_at(arena, pelem);
+                          if (gsz != g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][d]) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        }
+                        extra_ptr = 0;
+                        if (eand > 0 && eand < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                          extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                      }
                       if (pgek >= 0 && pgek != eeek) {
                         mm = 1;
                       } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
@@ -1872,6 +2929,60 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                     }
                     if (!mm && eeek >= 0 && leaf_tr != 0) {
                       int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                      /*
+                       * dest extras dest-SLICE of ARRAY extra `[][2]*T` /
+                       * `[][2][]T` / `[][2][]*T`: after walking ARRAY dims
+                       * leftover is still PTR (inner `*` of i32), SLICE
+                       * (inner `[]` of i32), or SLICE-of-PTR
+                       * (`[][2][]*T`) vs eeek=leaf. Extra PTR wrap count
+                       * is unused slot dims[ndims+1] (1 = `[][2]*T` /
+                       * `[][2][]*T`); extra SLICE wrap count is unused
+                       * slot dims[ndims] (1 = `[][2][]T` / `[][2][]*T`).
+                       * Peel extra SLICE first (outer extra) then extra
+                       * PTR (inner extra) — dest extras wraps PTR of leaf
+                       * then SLICE. Peel PTR first of `[][2][]*T` is T001
+                       * (leftover SLICE vs PTR). `[][2]*T` extra SLICE=0
+                       * still peels PTR; `[][2][]T` extra PTR=0 still
+                       * peels SLICE. `[][2]i32` (both slots 0) keeps the
+                       * ARRAY-then-leaf compare. Do not invent -3.
+                       * PLATFORM: SHARED. G.7: complete this walk.
+                       */
+                      int32_t extra_ptr = 0;
+                      int32_t extra = 0;
+                      if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend];
+                      if (extra > 0) {
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                          if (leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                          extra = extra - 1;
+                        }
+                      }
+                      if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend + 1];
+                      if (extra_ptr > 0) {
+                        while (extra_ptr > 0) {
+                          if (pgek != XLANG_TRAIT_TY_PTR || leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                          if (leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                          extra_ptr = extra_ptr - 1;
+                        }
+                      }
                       if (pgek >= 0 && pgek != eeek) {
                         mm = 1;
                       } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
@@ -1945,6 +3056,54 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                       int32_t pelem = pipeline_type_elem_ref_at(arena, leaf_tr);
                       if (eeek >= 0 && pelem != 0) {
                         int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        /*
+                         * wave774: PTR pointee may be ARRAY/SLICE (e.g.
+                         * *[2]i32 or *[]i32). eeek holds the LEAF kind
+                         * (i32=0), not the direct pointee kind (ARRAY=10 /
+                         * SLICE=11). Walk elem_array_ndims dims (or -2 for
+                         * SLICE) to reach the leaf, then compare. Without
+                         * this, [2]*[2]i32 and [2]*[]i32 trait/impl params
+                         * mismatch (eeek=0 vs pgek=10/11).
+                         * dest extras dest-ARRAY of PTR `[2]*[][]T`: extra
+                         * wrap count is dims[0] (0 means 1 = `[2]*[]T`;
+                         * 2 = `[2]*[][]T`). Peel extra times when
+                         * ndims==-2 or T001 if layers run out. Peel-once
+                         * left pelem still SLICE vs eeek=leaf. Twin of
+                         * SLICE-of-SLICE extra peel above. Do not invent
+                         * -3. PLATFORM: SHARED. G.7: complete this walk.
+                         */
+                        if (pgek == XLANG_TRAIT_TY_ARRAY || pgek == XLANG_TRAIT_TY_SLICE) {
+                          int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                          if (eand > 0) {
+                            int32_t ed;
+                            for (ed = 0; ed < eand && pelem != 0; ed++) {
+                              pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            }
+                            if (pelem != 0) {
+                              pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            }
+                          } else if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                            int32_t extra =
+                                g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                            if (extra <= 0)
+                              extra = 1;
+                            while (extra > 0) {
+                              if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                                mm = 1;
+                                break;
+                              }
+                              pelem = pipeline_type_elem_ref_at(arena, pelem);
+                              if (pelem == 0) {
+                                mm = 1;
+                                break;
+                              }
+                              pgek = pipeline_type_kind_ord_at(arena, pelem);
+                              extra = extra - 1;
+                            }
+                          } else if (pelem != 0) {
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          }
+                        }
                         if (pgek >= 0 && pgek != eeek) {
                           mm = 1;
                         } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
@@ -2253,11 +3412,10 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
       }
     }
   }
-  /* wave439: tokenize stashed source to capture generic bounds + call sites,
-   * then verify each call site's type arg satisfies its function's bound.
-   * Scan is idempotent (resets globals at entry); running it here (inside the
-   * trait checker) guarantees it executes on every product path regardless of
-   * which .x entry invoked us. PLATFORM: SHARED parse. */
+  /* wave439: tokenize stashed source to capture generic bounds + sites,
+   * then verify each site's type arg satisfies the decl bound (function
+   * or struct). Scan is idempotent (resets globals at entry); running it
+   * here guarantees it executes on every product path. PLATFORM: SHARED. */
   xlang_generic_bound_scan_c(g_w439_src_data, g_w439_src_len);
   if (xlang_generic_bound_check_c() != 0)
     rc = -1;
@@ -2371,24 +3529,99 @@ void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len) {
  * sites. Called from xlang_trait_check_impls_complete_c via the stashed source
  * pointer. Populates g_fn_bound_* and g_call_* globals.
  *
- * Bound pattern: `function IDENT < IDENT : IDENT >` — the second IDENT is
- *   the bound trait name; stored as (function_name, trait_name).
- * Call pattern: `IDENT < IDENT > (` — the inner IDENT is the type arg;
- *   stored as (callee_name, type_arg). Only captured when `>` is followed
- *   by `(` to avoid false-matching comparison operators `a < b`.
- *
- * Soft-skip: nested generics like `foo<Vec<i32>>()` (angle depth > 1)
- * are not captured; only simple single-IDENT type args are checked.
+ * Bound pattern: `function IDENT < IDENT : IDENT >`,
+ *   `struct IDENT < IDENT : IDENT >`, `impl IDENT < IDENT : IDENT >`, and
+ *   `impl < IDENT : IDENT > Type` / `impl <…> Trait for Type` — the bound
+ *   trait is the IDENT after `:`; stored as (decl_name, trait_name).
+ *   Impl-level rows are keyed by the for-type (inherent Type or `for Type`)
+ *   so type-position `Foo<B>` uses the same check as struct-level bounds.
+ *   Same type-param may list several traits with `+` (`T: Clone + Default`):
+ *   each IDENT after `+` is another bound at the SAME pos (COMMA still
+ *   advances pos).
+ * Instantiation pattern: `IDENT < IDENT >` followed by `(` (generic call)
+ *   or type-position `{` `=` `;` `,` `)` (`let f: Foo<B> = …`, `x: Foo<B>`,
+ *   `Foo<B> { … }`). Comparisons `a < b` have no `>` so they are not
+ *   captured. Nested `foo<Vec<i32>>` (angle depth > 1) stays soft-skip.
+ * Soft: TYPE_DYN / vtable (dyn / impl type-pos now peel to the trait
+ *   NAMED in type_ref; no object dispatch). Bare `Foo { }` without a
+ *   type-pos `Foo<B>` is not captured (inference leftover).
  * PLATFORM: SHARED parse.
  */
+
+extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out,
+                                                            struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source);
+
+/*
+ * Peek the for-type IDENT after `impl<...>`.
+ * `lex` must sit at the `<` of `impl<`. Does not mutate caller lex.
+ * Inherent `impl<T: Clone> Foo` → Foo; `impl<T: Clone> Clone for Foo` → Foo.
+ * @param source   file slice (same as the scan lexer)
+ * @param lex      lexer at the impl-level `<`
+ * @param name64   out: for-type bytes (cleared on miss)
+ * @param name_len out: length ≤63
+ * @return 1 hit; 0 no IDENT for-type
+ * PLATFORM: SHARED parse — G.7 peek only; bound walk stays in scan.
+ */
+static int32_t xlang_generic_bound_peek_impl_for_type_c(struct parser_asm_slice_u8 *source,
+                                                        struct parser_asm_lexer lex,
+                                                        uint8_t *name64, int32_t *name_len) {
+  struct parser_asm_lexer peek;
+  struct parser_asm_lexer_result pr;
+  uint8_t name1[64];
+  int32_t n1;
+  if (!source || !name64 || !name_len)
+    return 0;
+  *name_len = 0;
+  memset(name64, 0, 64);
+  memset(name1, 0, 64);
+  n1 = 0;
+  parser_asm_skip_generic_angle_list_into_slice_c(&peek, lex, source);
+  lexer_next_into(&pr, peek, source);
+  if (pr.tok.kind != (int32_t)TOKEN_IDENT)
+    return 0;
+  n1 = pr.tok.ident_len > 63 ? 63 : pr.tok.ident_len;
+  if (n1 > 0 && source->data)
+    memcpy(name1, source->data + pr.token_start, (size_t)n1);
+  peek = pr.next_lex;
+  lexer_next_into(&pr, peek, source);
+  if (pr.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&peek, peek, source);
+    lexer_next_into(&pr, peek, source);
+  }
+  if (pr.tok.kind == (int32_t)TOKEN_FOR) {
+    peek = pr.next_lex;
+    lexer_next_into(&pr, peek, source);
+    if (pr.tok.kind == (int32_t)TOKEN_STAR) {
+      peek = pr.next_lex;
+      lexer_next_into(&pr, peek, source);
+    }
+    if (pr.tok.kind != (int32_t)TOKEN_IDENT)
+      return 0;
+    n1 = pr.tok.ident_len > 63 ? 63 : pr.tok.ident_len;
+    memset(name1, 0, 64);
+    if (n1 > 0 && source->data)
+      memcpy(name1, source->data + pr.token_start, (size_t)n1);
+  }
+  if (n1 <= 0)
+    return 0;
+  memcpy(name64, name1, (size_t)n1);
+  *name_len = n1;
+  return 1;
+}
+
 void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
   struct parser_asm_slice_u8 source;
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
   int32_t prev_function = 0;
+  int32_t prev_struct = 0;
+  int32_t prev_impl = 0;
   uint8_t last_ident[64];
   int32_t last_ident_len = 0;
   int32_t last_ident_is_fn = 0;
+  int32_t last_ident_is_struct = 0;
+  int32_t last_ident_is_impl = 0;
 
   /*
    * wave455: if source was never stashed (product pure parse path fully
@@ -2427,27 +3660,64 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
 
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       prev_function = 1;
+      prev_struct = 0;
+      prev_impl = 0;
+      last_ident_len = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
+      /* 4.2.2 struct-level `<T: Trait>` — same bound tables as function.
+       * Prior: only TOKEN_FUNCTION armed last_ident_is_fn, so
+       * `struct Foo<T: Clone>` never recorded → Foo<B> false-green. */
+      prev_struct = 1;
+      prev_function = 0;
+      prev_impl = 0;
+      last_ident_len = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_IMPL) {
+      /* 4.2.2 impl-level `<T: Trait>` — `impl<T: Clone> Foo` has no IDENT
+       * before `<`; `impl Foo<T: Clone>` has IDENT Foo after impl.
+       * prev_impl arms both: peek for-type on bare `<`, or last_ident_is_impl
+       * on `impl Type<...>`. Key = for-type so Foo<B> uses the same check.
+       * PLATFORM: SHARED parse. */
+      prev_impl = 1;
+      prev_function = 0;
+      prev_struct = 0;
       last_ident_len = 0;
     } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
       last_ident_len = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
       if (last_ident_len > 0 && source.data)
         memcpy(last_ident, source.data + r.token_start, (size_t)last_ident_len);
       last_ident_is_fn = prev_function;
+      last_ident_is_struct = prev_struct;
+      last_ident_is_impl = prev_impl;
       prev_function = 0;
-    } else if (r.tok.kind == (int32_t)TOKEN_LT && last_ident_len > 0) {
+      prev_struct = 0;
+      prev_impl = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_LT && (last_ident_len > 0 || prev_impl)) {
+      /* `impl<T: Trait> Type` — no IDENT before `<`. Peek the for-type and
+       * reuse the function/struct bound walk (name = for-type). */
+      if (prev_impl && last_ident_len == 0) {
+        if (xlang_generic_bound_peek_impl_for_type_c(&source, lex, last_ident,
+                                                     &last_ident_len))
+          last_ident_is_impl = 1;
+        prev_impl = 0;
+      }
       /* advance lex past the `<` so the inner loops read the token AFTER it
        * (otherwise the first lexer_next_into re-reads `<` and inflates depth). */
       lex = r.next_lex;
-      if (last_ident_is_fn) {
-        /* function name < ... > — scan for:
+      if (last_ident_len > 0 && (last_ident_is_fn || last_ident_is_struct
+                                 || last_ident_is_impl)) {
+        /* function/struct/impl name < ... > — scan for:
          *  (1) wave442 `IDENT : IDENT` bounds with positional pos
          *  (2) wave455 declaration-order type-param names (all slots)
          * Type-param IDENT is the first IDENT at depth 1 after `<` or `,`
          * (expect_tp); COLON switches to expect_trait for the bound name.
+         * struct Foo<T: Clone> / impl Foo<T: Clone> / impl<T: Clone> Foo
+         * use the same tables (name = struct / for-type).
          * PLATFORM: SHARED — same angle walk as bound-only path. */
         int32_t angle_depth = 1;
         int32_t expect_trait = 0;
         int32_t expect_tp = 1;
+        /* 1 after a bound IDENT so `+ Trait` stays on the same pos. */
+        int32_t after_bound = 0;
         int32_t pos = 0;
         int32_t gp_slot = -1;
         if (g_fn_gp_n < XLANG_FN_GP_MAX) {
@@ -2472,6 +3742,15 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
           } else if (r.tok.kind == (int32_t)TOKEN_COLON && angle_depth == 1) {
             expect_trait = 1;
             expect_tp = 0;
+            after_bound = 0;
+          } else if (r.tok.kind == (int32_t)TOKEN_PLUS && angle_depth == 1 && after_bound) {
+            /* T: Clone + Default — another bound on this type-param slot.
+             * Do not increment pos (COMMA does that). Previously PLUS was
+             * ignored so Default never registered → call-site false-green.
+             * PLATFORM: SHARED parse. */
+            expect_trait = 1;
+            expect_tp = 0;
+            after_bound = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_trait) {
             if (g_fn_bound_n < XLANG_FN_BOUND_MAX) {
               memcpy(g_fn_bound_name[g_fn_bound_n], last_ident, (size_t)last_ident_len);
@@ -2484,6 +3763,7 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               g_fn_bound_n++;
             }
             expect_trait = 0;
+            after_bound = 1;
           } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_tp
                      && !expect_trait) {
             /* wave455: type-param name at declaration position. */
@@ -2497,14 +3777,16 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               g_fn_gp_nargs[gp_slot] = pi + 1;
             }
             expect_tp = 0;
+            after_bound = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_COMMA && angle_depth == 1) {
             expect_trait = 0;
             expect_tp = 1;
+            after_bound = 0;
             pos++;
           }
           lex = r.next_lex;
         }
-      } else if (!last_ident_is_fn && g_call_n < XLANG_GENERIC_CALL_MAX) {
+      } else if (!last_ident_is_fn && last_ident_len > 0 && g_call_n < XLANG_GENERIC_CALL_MAX) {
         /* IDENT < ... > — possible generic call. wave442: capture ALL simple
          * type args (up to XLANG_GENERIC_CALL_MAX_ARGS) at angle depth 1, not
          * just the first, so multi-arg bounds `foo<A,B>` check each type arg
@@ -2544,11 +3826,17 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
           }
           lex = r.next_lex;
         }
-        /* only record if `(` follows the closing `>` (generic call, not compare) */
+        /* Record instantiations: generic call `foo<T>(` or type-position
+         * `Foo<B>` followed by `{` `=` `;` `,` `)`. Comparisons `a < b`
+         * never produce `>` so they stay out. PLATFORM: SHARED parse. */
         if (nargs > 0 && simple) {
           struct parser_asm_lexer after = r.next_lex;
+          int32_t nk;
           lexer_next_into(&r, after, &source);
-          if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
+          nk = r.tok.kind;
+          if (nk == (int32_t)TOKEN_LPAREN || nk == (int32_t)TOKEN_LBRACE
+              || nk == (int32_t)TOKEN_ASSIGN || nk == (int32_t)TOKEN_SEMICOLON
+              || nk == (int32_t)TOKEN_COMMA || nk == (int32_t)TOKEN_RPAREN) {
             int32_t k;
             memcpy(g_call_callee[g_call_n], last_ident, (size_t)last_ident_len);
             g_call_callee_len[g_call_n] = last_ident_len;
@@ -2569,9 +3857,15 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
       }
       last_ident_len = 0;
       last_ident_is_fn = 0;
+      last_ident_is_struct = 0;
+      last_ident_is_impl = 0;
       prev_function = 0;
+      prev_struct = 0;
+      prev_impl = 0;
     } else {
       prev_function = 0;
+      prev_struct = 0;
+      prev_impl = 0;
       if (r.tok.kind != (int32_t)TOKEN_DOT && r.tok.kind != (int32_t)TOKEN_COLON) {
         /* clear last_ident for tokens that can't precede `<` in a call;
          * keep it for `.` (qualified path) — though we only handle simple
@@ -2674,6 +3968,104 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
 }
 
 /**
+ * 4.2.2 generic-body method via bound (G.7 complete the skip_tl bound+trait tables).
+ *
+ * typeck method_call used to LANG-004 `x.clone()` when `x: T` even if the
+ * enclosing function declared `T: Clone` and Clone lists `clone`. Call-site
+ * `copy<A>` already checks the impl; the body still needs the method.
+ *
+ * Walk (fn, type-param pos) bounds (PLUS rows share pos) and the trait
+ * registry. First trait that lists `method_name` with matching arity wins.
+ * `num_args` is METHOD_CALL extras (not including self). expect_np < 0
+ * (uncaptured) skips the arity gate.
+ *
+ * On hit, writes TypeKind ordinal + optional NAMED spelling (`Self`, `A`).
+ * typeck maps Self / the type-param name to the receiver type_ref.
+ *
+ * Same globals as scan+check (last parsed file). Soft: dyn Trait;
+ * compound ret (PTR/SLICE/ARRAY) still reported so typeck can refuse
+ * or leave unresolved.
+ * PLATFORM: SHARED parse+typeck — rebuild parser thin glue after edit.
+ *
+ * @param fn_name           enclosing generic function name
+ * @param fn_name_len       ≤63
+ * @param tp_name           receiver type-param spelling (e.g. "T")
+ * @param tp_name_len       length
+ * @param method_name       method spelling
+ * @param method_name_len   length
+ * @param num_args          extra METHOD_CALL args (self is implicit)
+ * @param out_ret_kind      TypeKind ord, or -1 unknown; may be NULL
+ * @param out_ret_name      64-byte NAMED spelling; may be NULL
+ * @param out_ret_name_len  name length; may be NULL
+ * @return 1 method granted by a bound; 0 no
+ */
+int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len,
+                                               const uint8_t *method_name, int32_t method_name_len,
+                                               int32_t num_args, int32_t *out_ret_kind,
+                                               uint8_t *out_ret_name, int32_t *out_ret_name_len) {
+  int32_t pos;
+  int32_t bi;
+  int32_t ti;
+  int32_t mi;
+  if (!fn_name || fn_name_len <= 0 || !tp_name || tp_name_len <= 0
+      || !method_name || method_name_len <= 0)
+    return 0;
+  if (fn_name_len > 63)
+    fn_name_len = 63;
+  if (tp_name_len > 63)
+    tp_name_len = 63;
+  if (method_name_len > 63)
+    method_name_len = 63;
+  pos = xlang_generic_func_type_param_index_c(fn_name, fn_name_len, tp_name, tp_name_len);
+  if (pos < 0)
+    return 0;
+  for (bi = 0; bi < g_fn_bound_n; bi++) {
+    if (g_fn_bound_name_len[bi] != fn_name_len
+        || memcmp(g_fn_bound_name[bi], fn_name, (size_t)fn_name_len) != 0)
+      continue;
+    if (g_fn_bound_pos[bi] != pos)
+      continue;
+    for (ti = 0; ti < g_xlang_skip_trait_reg_n; ti++) {
+      if (g_xlang_skip_trait_reg[ti].name_len != g_fn_bound_trait_len[bi]
+          || memcmp(g_xlang_skip_trait_reg[ti].name, g_fn_bound_trait[bi],
+                    (size_t)g_fn_bound_trait_len[bi]) != 0)
+        continue;
+      for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
+        int32_t expect_np;
+        if (g_xlang_skip_trait_reg[ti].method_lens[mi] != method_name_len)
+          continue;
+        if (memcmp(g_xlang_skip_trait_reg[ti].methods[mi], method_name,
+                   (size_t)method_name_len) != 0)
+          continue;
+        /* Trait param count includes self. METHOD extras = count - 1. */
+        expect_np = g_xlang_skip_trait_reg[ti].method_param_counts[mi];
+        if (expect_np >= 0 && expect_np != num_args + 1)
+          continue;
+        if (out_ret_kind)
+          *out_ret_kind = g_xlang_skip_trait_reg[ti].method_ret_kinds[mi];
+        if (out_ret_name_len)
+          *out_ret_name_len = 0;
+        if (out_ret_name) {
+          int32_t rnl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+          memset(out_ret_name, 0, 64);
+          if (rnl > 0) {
+            if (rnl > 63)
+              rnl = 63;
+            memcpy(out_ret_name, g_xlang_skip_trait_reg[ti].method_ret_names[mi],
+                   (size_t)rnl);
+            if (out_ret_name_len)
+              *out_ret_name_len = rnl;
+          }
+        }
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
  * wave449: single authority for generic trait-bound satisfaction.
  *
  * Given a callee name and positional concrete type-arg names (from turbofish
@@ -2681,17 +4073,21 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
  * verify every bound declared on that function against the impl registry.
  *
  * wave442: iterates ALL bounds matching the callee (not just the first) so
- * `copy_both<T: Clone, U: Default>` checks both positions. If a bound's
- * position exceeds nargs, that bound is skipped (under-specified call — mono
- * gap, not a bound false-positive).
+ * `copy_both<T: Clone, U: Default>` checks both positions.
+ *
+ * 4.2.4 residual close: under-specified slots (nargs==0 pure-phantom bare, or
+ * bound pos >= nargs, or empty concrete name) used to skip silently → bare
+ * `unit_bound<T: Clone>()` false-green. Fail closed: need turbofish or
+ * value/ret pin that fills every bound position.
  *
  * G.7: turbofish path (parse-time g_call_*) and no-turbofish path (typeck after
  * wave448 infer) both call this helper — no second bound algorithm.
  *
  * @param fn_name       callee function name bytes
  * @param fn_name_len   name length (≤63)
- * @param type_args     type_args[pos][64] concrete type names (e.g. "A")
- * @param type_arg_lens length of each type_args[pos]; 0 → skip that slot
+ * @param type_args     type_args[pos][64] concrete type names (e.g. "A");
+ *                      may be null only when nargs==0
+ * @param type_arg_lens length of each type_args[pos]; 0 → under-specified slot
  * @param nargs         number of type-arg slots (≤ XLANG_GENERIC_CALL_MAX_ARGS)
  * @param line          diagnostic line (1-based)
  * @param col           diagnostic column (1-based)
@@ -2704,7 +4100,7 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
                                                int32_t line, int32_t col) {
   int32_t bi, si;
   int32_t violated = 0;
-  if (!fn_name || fn_name_len <= 0 || !type_args || !type_arg_lens || nargs <= 0)
+  if (!fn_name || fn_name_len <= 0)
     return 0;
   if (fn_name_len > 63)
     fn_name_len = 63;
@@ -2717,11 +4113,28 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
         memcmp(g_fn_bound_name[bi], fn_name, (size_t)fn_name_len) != 0)
       continue;
     pos = g_fn_bound_pos[bi];
-    if (pos < 0 || pos >= nargs)
+    /* Under-specified: no slots at all, missing position, or empty name. */
+    if (nargs <= 0 || !type_args || !type_arg_lens || pos < 0 || pos >= nargs) {
+      lsp_diag_report_typeck((int)line, (int)col,
+                             "generic function '%.*s' requires type arguments to satisfy trait bounds",
+                             (int)fn_name_len, (const char *)fn_name);
+      violated = -1;
       continue;
+    }
     ta_len = type_arg_lens[pos];
     ta = type_args[pos];
-    if (ta_len <= 0)
+    if (ta_len <= 0) {
+      lsp_diag_report_typeck((int)line, (int)col,
+                             "generic function '%.*s' requires type arguments to satisfy trait bounds",
+                             (int)fn_name_len, (const char *)fn_name);
+      violated = -1;
+      continue;
+    }
+    /* `Foo<T>` in a generic signature uses the callee's own type-param
+     * name — not a concrete instantiation. Skip or `impl Clone for T`
+     * false-reds every `x: Foo<T>` / `function f<T>(x: Foo<T>)`.
+     * `Foo<B>` (B not a type-param of Foo) still checks. */
+    if (xlang_generic_func_type_param_index_c(fn_name, fn_name_len, ta, ta_len) >= 0)
       continue;
     impl_ok = 0;
     for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
@@ -2747,13 +4160,16 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
 }
 
 /**
- * Verify captured generic call sites against function bounds.
- * For each call `foo<Type>(...)` where foo declared `T: Trait`, checks
- * that `impl Trait for Type` exists in the impl registry. Reports a
- * typeck error if not satisfied.
+ * Verify captured generic call / type-position sites against decl bounds.
+ * For each site `foo<Type>(...)` or `Foo<Type>` where the decl has
+ * `T: Trait`, checks that `impl Trait for Type` exists. Type-arg names
+ * that are the callee's own type params (`Foo<T>`) are skipped.
  * wave442: multi-arg positional bounds via g_call_typeargs / g_fn_bound_pos.
  * wave449: body delegated to xlang_generic_bound_check_type_args_c (shared with
- * typeck no-turbofish inference path). PLATFORM: SHARED parse.
+ * typeck no-turbofish inference path).
+ * 4.2.2: struct-level `<T: Trait>` and impl-level `impl<T: Trait>` /
+ * `impl Type<T: Trait>` use the same tables (decl name = struct / for-type).
+ * PLATFORM: SHARED parse.
  * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
  */
 int32_t xlang_generic_bound_check_c(void) {
@@ -2927,6 +4343,10 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t want_ret = 0;
         int32_t ret_elem_pending = 0;
         int32_t ret_slice_need_rb = 0;
+        /* Prefix `[N]T` / `[N][M]T` ret — twin of wave436 *[N]T (INT was bail). */
+        int32_t ret_prefix_arr_need_rb = 0;   /* saw `[N`, want `]` */
+        int32_t ret_prefix_arr_need_size = 0; /* saw `[N][`, want next INT */
+        int32_t ret_prefix_arr_elem_pending = 0; /* after `[N]`, want T or `[` */
         int32_t ret_suffix_pending = 0; /* base set; may still see [N] or [] */
         int32_t ret_arr_need_size = 0;  /* saw `[` after base; want INT or `]` */
         int32_t ret_arr_need_rb = 0;    /* saw `[N`; want `]` */
@@ -2949,6 +4369,10 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t want_param_ty = 0;
         int32_t param_elem_pending = 0;
         int32_t param_slice_need_rb = 0;
+        /* Prefix `[N]T` / `[N][M]T` param — twin of wave436 *[N]T (INT was bail). */
+        int32_t param_prefix_arr_need_rb = 0;   /* saw `[N`, want `]` */
+        int32_t param_prefix_arr_need_size = 0; /* saw `[N][`, want next INT or `]` (`[N][]T`) */
+        int32_t param_prefix_arr_elem_pending = 0; /* after `[N]`, want T or `[` */
         /* wave433: twin of wave431 ret multi-dim suffix state machine. */
         int32_t param_suffix_pending = 0; /* base set; may still see [N] or [] */
         int32_t param_arr_need_size = 0;  /* saw `[` after base; want INT or `]` */
@@ -3011,6 +4435,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
               }
               param_elem_suffix_pending = 0;
               param_elem_dim_n = 0;
+              param_prefix_arr_need_rb = 0;
+              param_prefix_arr_need_size = 0;
+              param_prefix_arr_elem_pending = 0;
               if (saw_param_tok)
                 param_count++;
               if (mi_reg >= 0 && ent)
@@ -3050,6 +4477,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
               }
               param_elem_suffix_pending = 0;
               param_elem_dim_n = 0;
+              param_prefix_arr_need_rb = 0;
+              param_prefix_arr_need_size = 0;
+              param_prefix_arr_elem_pending = 0;
               if (saw_param_tok)
                 param_count++;
               saw_param_tok = 0;
@@ -3111,12 +4541,105 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   want_param_ty = 0;
                 }
               } else if (param_slice_need_rb) {
+                /*
+                 * Prefix `[...]T` after the opening `[` (kind tentatively SLICE).
+                 * Twin of wave436 param_elem_slice_need_rb for `*[N]T`:
+                 *   `]`     → `[]T`  = SLICE of T (existing)
+                 *   INT N   → `[N]T` = ARRAY of N T (was bail → impl T001)
+                 * PLATFORM: SHARED parse. G.7: complete this scanner (no second
+                 * trait-type parser).
+                 */
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   param_slice_need_rb = 0;
                   param_elem_pending = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  ent->method_param_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_ARRAY;
+                  param_dim_n = 0;
+                  if (param_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_slice_need_rb = 0;
+                  param_prefix_arr_need_rb = 1;
                 } else {
                   want_param_ty = 0;
                   param_slice_need_rb = 0;
+                }
+              } else if (param_prefix_arr_need_rb) {
+                /* Prefix `[N` — want `]` then leaf T or another `[`. */
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  int32_t di;
+                  ent->method_param_array_ndims[mi_reg][param_count] = param_dim_n;
+                  for (di = 0; di < param_dim_n; di++)
+                    ent->method_param_array_dims[mi_reg][param_count][di] = param_dims[di];
+                  param_prefix_arr_need_rb = 0;
+                  param_prefix_arr_elem_pending = 1;
+                } else {
+                  param_prefix_arr_need_rb = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_prefix_arr_need_size) {
+                /*
+                 * Prefix `[N][` — next dim INT (`[N][M]T`) or `]` (`[N][]T`
+                 * = ARRAY of SLICE of T). Sit-red dest-ARRAY extra `[2][]i32`
+                 * bailed here (want INT only) so registry never stored
+                 * elem_kind=SLICE; dyn extras then stamped ARRAY-of-ARRAY
+                 * `(int32_t[][2])` into a slice* wrapper (asm=139 / host-C=133).
+                 * G.7: complete this scanner (twin of param_slice_need_rb
+                 * `]` vs INT). Capture leaf T via param_elem_elem_pending
+                 * (already used by *[]T). PLATFORM: SHARED parse.
+                 */
+                if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  if (param_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_prefix_arr_need_size = 0;
+                  param_prefix_arr_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_SLICE;
+                  param_dim_n = 0;
+                  param_prefix_arr_need_size = 0;
+                  param_elem_elem_pending = 1;
+                } else {
+                  param_prefix_arr_need_size = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_prefix_arr_elem_pending) {
+                /* After `[N]` / `[N][M]…` — capture leaf T, or another `[`. */
+                if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                  param_prefix_arr_elem_pending = 0;
+                  param_prefix_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * Prefix `[N]*T` — STAR is a PTR elem, not a scalar
+                   * token_to_type_kind. Store elem=PTR; capture pointee T
+                   * via param_elem_elem_pending (already used by *[]T /
+                   * *[N]T / [N][]T). dest-ARRAY extras still skip kind 9
+                   * (separate leftover; host-C `[2]*i32` extra already 7).
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_PTR;
+                  param_prefix_arr_elem_pending = 0;
+                  param_elem_elem_pending = 1;
+                  saw_param_tok = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_NAMED;
+                  xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
+                                                 ent->method_param_names[mi_reg][param_count],
+                                                 &ent->method_param_name_lens[mi_reg][param_count]);
+                  param_dim_n = 0;
+                  param_prefix_arr_elem_pending = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else {
+                  int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
+                  if (bk >= 0) {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = bk;
+                    param_dim_n = 0;
+                    param_prefix_arr_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  } else {
+                    param_prefix_arr_elem_pending = 0;
+                    want_param_ty = 0;
+                  }
                 }
               } else if (param_elem_slice_need_rb) {
                 /*
@@ -3192,6 +4715,157 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   param_elem_elem_pending = 0;
                   param_elem_prefix_arr_more = 1;
                   param_elem_arr_need_size = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR
+                           && ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_ARRAY
+                           && ent->method_param_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_SLICE) {
+                  /*
+                   * dest extras dest-SLICE of ARRAY extra `[][2]*T` /
+                   * `[][2][]*T`: after `[]` then `[N]` (and optional extra
+                   * empty `[]`) we are in param_elem_elem_pending
+                   * (elem=ARRAY, dims in the local buffer or registry).
+                   * Extra STAR used to hit token_to_type_kind=-1 then
+                   * want_param_ty=0 so eek never captured (impl T001
+                   * leftover PTR vs eeek=-1). ndims=-2 would lose [N]
+                   * (ban -3 / new field). Keep ARRAY; extra PTR wrap
+                   * COUNT lives in unused slot dims[ndims+1]
+                   * (1 = `[][2]*T` / `[][2][]*T`; 0 = no extra PTR =
+                   * `[][2]i32` / `[][2][]T`). Extra SLICE stays
+                   * dims[ndims] (`[][2][]*T` has both slots set).
+                   * Store-only of `[][2][]*T` without impl-match extra
+                   * SLICE-then-PTR peels is T001 (leftover SLICE-of-PTR
+                   * vs eeek=leaf / peel-PTR-first leftover SLICE vs
+                   * PTR). Outer must be SLICE so `*[N]*T` stays
+                   * deferred. Capture leaf T by staying pending.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  int32_t nd;
+                  int32_t extra;
+                  if (param_elem_dim_n > 0) {
+                    int32_t di;
+                    nd = param_elem_dim_n;
+                    ent->method_param_elem_array_ndims[mi_reg][param_count] = nd;
+                    for (di = 0; di < nd; di++)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][di] =
+                          param_elem_dims[di];
+                    param_elem_dim_n = 0;
+                  } else {
+                    nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                  }
+                  if (nd > 0 && nd + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][nd + 1] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR
+                           && ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_SLICE
+                           && (ent->method_param_kinds[mi_reg][param_count]
+                                   == XLANG_TRAIT_TY_ARRAY
+                               || ent->method_param_kinds[mi_reg][param_count]
+                                      == XLANG_TRAIT_TY_SLICE)) {
+                  /*
+                   * dest extras dest-ARRAY of SLICE extra `[2][]*T` and
+                   * dest extras dest-SLICE of SLICE extra `[][]*T`:
+                   * after `[N][]` / `[][]` we are in
+                   * param_elem_elem_pending (elem=SLICE, ndims=0). Extra
+                   * STAR used to hit token_to_type_kind=-1 then
+                   * want_param_ty=0 so eek never captured; dest extras
+                   * wrap-once dest-stamps `[2][]i32` / `[][]i32`
+                   * (nested ARRAY_LIT 139). ndims=-2 is extra SLICE
+                   * wrap (`[2][][]T` / `[][][]T`). Keep SLICE; extra
+                   * PTR wrap COUNT lives in unused slot dims[0] with
+                   * ndims staying 0 (1 = `[2][]*T` / `[][]*T`; 0 = no
+                   * extra PTR = `[2][]i32` / `[][]i32`). Discriminant
+                   * is param kind (ARRAY vs SLICE outer), not a second
+                   * slot. dest extras dest-SLICE of SLICE extra
+                   * `[][][]*T` and dest extras dest-ARRAY of SLICE
+                   * extra `[2][][]*T`: extra STAR when ndims==-2 used
+                   * to set elem_kind=-1 (dest extras skipped → nested
+                   * ARRAY_LIT 139). dims[0] is extra SLICE (ban -3 /
+                   * reuse). Keep SLICE; extra PTR wrap COUNT lives in
+                   * unused slot dims[1] (1 = `[][][]*T` / `[2][][]*T`;
+                   * 0 = no extra PTR = `[][][]T` / `[2][][]T`).
+                   * dest extras dest-ARRAY of SLICE extra `[2][][2]*T`
+                   * and dest extras dest-SLICE of SLICE extra
+                   * `[][][2]*T`: extra STAR when ndims>=1 used to set
+                   * elem_kind=-1 (dest extras skipped → nested
+                   * ARRAY_LIT 139 / T001). After `[N][]` then `[M]`
+                   * the inner ARRAY dims live in the local buffer
+                   * (wave437 pending LBRACKET) until IDENT commit —
+                   * extra STAR must commit them first or ndims stays 0
+                   * and the inner ARRAY is lost. Keep SLICE; extra PTR
+                   * wrap COUNT lives in unused slot dims[ndims]
+                   * (1 = `[2][][2]*T` / `[][][2]*T`; 0 = no extra PTR
+                   * = `[2][][2]T` / `[][][2]T`). Discriminant vs dest
+                   * extras dest-SLICE of ARRAY extra `[][2][]T` (same
+                   * unused slot) is elem_kind SLICE vs ARRAY.
+                   * Discriminant ARRAY vs SLICE outer is param kind.
+                   * Capture leaf T by staying pending. Store-only of
+                   * `[][][2]*T` without impl-match extra PTR peel is
+                   * T001 (leftover PTR vs eeek=leaf after extra ARRAY
+                   * peels; extra PTR peels live in the SLICE-of-SLICE
+                   * walk). Store-only of `[2][][2]*T` is not T001
+                   * (ARRAY leftover SLICE vs eek=SLICE). PLATFORM:
+                   * SHARED parse. G.7: complete this scanner.
+                   */
+                  int32_t nd;
+                  int32_t extra;
+                  int32_t di;
+                  if (param_elem_dim_n > 0) {
+                    nd = param_elem_dim_n;
+                    ent->method_param_elem_array_ndims[mi_reg][param_count] = nd;
+                    for (di = 0; di < nd; di++)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][di] =
+                          param_elem_dims[di];
+                    param_elem_dim_n = 0;
+                  } else {
+                    nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                  }
+                  if (nd == 0) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][0];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][0] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else if (nd == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][1];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][1] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else if (nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                    extra = ent->method_param_elem_array_dims[mi_reg][param_count][nd];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][nd] =
+                          extra;
+                    /* stay param_elem_elem_pending to capture leaf T */
+                  } else {
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
                 } else {
                   int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
                   if (bk >= 0) {
@@ -3234,15 +4908,126 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 }
               } else if (param_elem_arr_need_size) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-                  /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred to soft).
-                   * Mark elem uncaptured so check skips; avoids parse failure.
-                   * wave437: also clears prefix_arr_more if came from *[N][]T. */
-                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
-                  param_elem_arr_need_size = 0;
-                  param_elem_prefix_arr_more = 0;
-                  param_elem_dim_n = 0;
-                  want_param_ty = 0;
-                  saw_param_tok = 1;
+                  /*
+                   * After `[]*` then `[` then `]` (`[]*[]T`): dest-SLICE of
+                   * PTR-to-SLICE. After `[][]` then `[` then `]` (`[][][]T`):
+                   * dest-SLICE of SLICE of SLICE. After a further empty
+                   * `[]` (`[]*[][]T` / `[][][][]T`): ndims is already -2;
+                   * count extra wraps in dims[0] (0 means 1 = `[]*[]T` or
+                   * 3-layer; 2 = `[]*[][]T` or 4-layer). Do not invent -3.
+                   * Prior wave434 deferred 3-layer by setting elem_kind=-1
+                   * (dest extras never ran → dyn INDEX 139). Store-only
+                   * without impl-match extra peel is T001 for SLICE-of-
+                   * SLICE (eek=leaf vs pipeline still SLICE). PTR extra
+                   * (`[]*[][]T`) is dest extras dest-stamp (dyn run=1
+                   * panic: 0; named / UFCS already dest-stamp via the
+                   * formal). Keep elem (PTR or SLICE); mark extra SLICE
+                   * via ndims=-2 (same sentinel; discriminant is
+                   * elem_kind); capture leaf T as eek via
+                   * param_elem_elem_pending. `*[N][]T` (dim_n>0) stays
+                   * the deferred path.
+                   * dest extras dest-SLICE of PTR extra wrap `[]*[2][][]T`:
+                   * after `[]*[N][]` ndims>0 already holds [N]; a further
+                   * empty `[]` used to hit this branch (dim_n==0) and set
+                   * ndims=-2, wiping [N] (dyn extra wrap run=1 panic).
+                   * Only take the ndims=-2 sentinel when ndims is still
+                   * 0 / unset or already -2. ndims>0 falls through to
+                   * unused-slot extra wrap COUNT. PLATFORM: SHARED
+                   * parse. G.7: complete this scanner.
+                   */
+                  if ((ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_PTR
+                       || ent->method_param_elem_kinds[mi_reg][param_count] == XLANG_TRAIT_TY_SLICE)
+                      && param_elem_dim_n == 0
+                      && (ent->method_param_elem_array_ndims[mi_reg][param_count]
+                              == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS
+                          || ent->method_param_elem_array_ndims[mi_reg][param_count]
+                              <= 0)) {
+                    if (ent->method_param_elem_array_ndims[mi_reg][param_count]
+                        == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                      int32_t extra =
+                          ent->method_param_elem_array_dims[mi_reg][param_count][0];
+                      if (extra <= 0)
+                        extra = 1;
+                      extra = extra + 1;
+                      if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][0] = extra;
+                    } else {
+                      ent->method_param_elem_array_ndims[mi_reg][param_count] =
+                          XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS;
+                    }
+                    param_elem_arr_need_size = 0;
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_dim_n = 0;
+                    param_elem_elem_pending = 1;
+                  } else if ((ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_ARRAY
+                              || ent->method_param_elem_kinds[mi_reg][param_count]
+                                  == XLANG_TRAIT_TY_PTR)
+                             && ent->method_param_kinds[mi_reg][param_count]
+                                 == XLANG_TRAIT_TY_SLICE) {
+                    /*
+                     * dest extras dest-SLICE of ARRAY extra `[][2][]T` and
+                     * dest extras dest-SLICE of PTR extra `[]*[2][]T`:
+                     * after `[]` then `[N]` elem is ARRAY, or after `[]*`
+                     * then `[N]` elem is PTR; ndims holds the [N] dim(s).
+                     * Extra empty `[]` used to set elem_kind=-1 (wave434
+                     * 3-layer defer) so dest extras skipped (dyn extra
+                     * nested ARRAY_LIT 139 / ADDR_OF of `[2][]i32`
+                     * run=1 panic). ndims=-2 would lose [N] (ban -3 /
+                     * new field). Keep ARRAY or PTR; extra wrap COUNT
+                     * lives in the first unused dim slot dims[ndims]
+                     * (1 = `[][2][]T` / `[]*[2][]T`; 2 = `[][2][][]T`
+                     * / `[]*[2][][]T`; 0 means no extra wrap =
+                     * `[][2]i32` / `[]*[2]i32`). Discriminant is
+                     * elem_kind (ARRAY vs PTR), not a second slot.
+                     * Outer must be SLICE so `*[N][]T` stays deferred.
+                     * Capture leaf T via param_elem_elem_pending.
+                     * SLICE-outer PTR-elem impl-match does not walk
+                     * leftover SLICE (not T001). PLATFORM: SHARED
+                     * parse. G.7: complete this scanner.
+                     */
+                    int32_t nd;
+                    int32_t extra;
+                    if (param_elem_dim_n > 0) {
+                      int32_t di;
+                      nd = param_elem_dim_n;
+                      ent->method_param_elem_array_ndims[mi_reg][param_count] = nd;
+                      for (di = 0; di < nd; di++)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][di] =
+                            param_elem_dims[di];
+                      param_elem_dim_n = 0;
+                    } else {
+                      nd = ent->method_param_elem_array_ndims[mi_reg][param_count];
+                    }
+                    if (nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                      extra = ent->method_param_elem_array_dims[mi_reg][param_count][nd];
+                      if (extra < 0)
+                        extra = 0;
+                      extra = extra + 1;
+                      if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][nd] =
+                            extra;
+                      param_elem_arr_need_size = 0;
+                      param_elem_prefix_arr_more = 0;
+                      param_elem_elem_pending = 1;
+                    } else {
+                      ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                      param_elem_arr_need_size = 0;
+                      param_elem_prefix_arr_more = 0;
+                      param_elem_dim_n = 0;
+                      want_param_ty = 0;
+                      saw_param_tok = 1;
+                    }
+                  } else {
+                    /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred).
+                     * wave437: also clears prefix_arr_more if came from *[N][]T. */
+                    ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                    param_elem_arr_need_size = 0;
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_dim_n = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  }
                 } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
                   /* Collect one elem dim; finalize on non-`[` after closing `]`. */
                   if (param_elem_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
@@ -3288,6 +5073,18 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                    * state which inspects the next token (`]` vs INT). PLATFORM: SHARED.
                    */
                   param_elem_slice_need_rb = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                  /*
+                   * After `[]` (or after top-level `*` for `**T`): STAR is a
+                   * PTR elem. token_to_type_kind does not handle STAR so the
+                   * prior else stored elem_kind=-1 and dest extras skipped
+                   * kind 9. Store elem=PTR; capture pointee T via
+                   * param_elem_elem_pending. dest-SLICE extra `[]*i32`
+                   * reconstructs PTR then wrap slice.
+                   * PLATFORM: SHARED parse. G.7: complete this scanner.
+                   */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_PTR;
+                  param_elem_elem_pending = 1;
                 } else {
                   ent->method_param_elem_kinds[mi_reg][param_count] =
                       xlang_trait_token_to_type_kind_c(r.tok.kind);
@@ -3342,6 +5139,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
             ret_elem_prefix_arr_need_rb = 0;
             ret_elem_prefix_arr_more = 0;
             ret_elem_dim_n = 0;
+            ret_prefix_arr_need_rb = 0;
+            ret_prefix_arr_need_size = 0;
+            ret_prefix_arr_elem_pending = 0;
           } else if (want_ret && mi_reg >= 0 && ent) {
             /* wave427/430/431: capture Ret as builtin / NAMED / PTR / SLICE / ARRAY / multi-dim. */
             if (ret_arr_need_rb) {
@@ -3394,12 +5194,76 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 want_ret = 0;
               }
             } else if (ret_slice_need_rb) {
+              /*
+               * Prefix `[...]T` ret after the opening `[` (kind tentatively SLICE).
+               * Twin of param_slice_need_rb / wave436 *[N]T:
+               *   `]`     → `[]T`  = SLICE of T (existing)
+               *   INT N   → `[N]T` = ARRAY of N T (was bail)
+               * PLATFORM: SHARED parse. G.7: complete this scanner.
+               */
               if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                 ret_slice_need_rb = 0;
                 ret_elem_pending = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_ARRAY;
+                ret_dim_n = 0;
+                if (ret_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
+                ret_slice_need_rb = 0;
+                ret_prefix_arr_need_rb = 1;
               } else {
                 want_ret = 0;
                 ret_slice_need_rb = 0;
+              }
+            } else if (ret_prefix_arr_need_rb) {
+              /* Prefix `[N` ret — want `]` then leaf T or another `[`. */
+              if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                int32_t di;
+                ent->method_ret_array_ndims[mi_reg] = ret_dim_n;
+                ent->method_ret_array_sizes[mi_reg] = (ret_dim_n > 0) ? ret_dims[0] : -1;
+                for (di = 0; di < ret_dim_n; di++)
+                  ent->method_ret_array_dims[mi_reg][di] = ret_dims[di];
+                ret_prefix_arr_need_rb = 0;
+                ret_prefix_arr_elem_pending = 1;
+              } else {
+                ret_prefix_arr_need_rb = 0;
+                want_ret = 0;
+              }
+            } else if (ret_prefix_arr_need_size) {
+              /* Prefix `[N][` ret — want next dim INT. */
+              if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                if (ret_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
+                ret_prefix_arr_need_size = 0;
+                ret_prefix_arr_need_rb = 1;
+              } else {
+                ret_prefix_arr_need_size = 0;
+                want_ret = 0;
+              }
+            } else if (ret_prefix_arr_elem_pending) {
+              /* After `[N]` / `[N][M]…` ret — capture leaf T, or another `[`. */
+              if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                ret_prefix_arr_elem_pending = 0;
+                ret_prefix_arr_need_size = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                ent->method_ret_elem_kinds[mi_reg] = XLANG_TRAIT_TY_NAMED;
+                xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
+                                              ent->method_ret_names[mi_reg],
+                                              &ent->method_ret_name_lens[mi_reg]);
+                ret_dim_n = 0;
+                ret_prefix_arr_elem_pending = 0;
+                want_ret = 0;
+              } else {
+                int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
+                if (bk >= 0) {
+                  ent->method_ret_elem_kinds[mi_reg] = bk;
+                  ret_dim_n = 0;
+                  ret_prefix_arr_elem_pending = 0;
+                  want_ret = 0;
+                } else {
+                  ret_prefix_arr_elem_pending = 0;
+                  want_ret = 0;
+                }
               }
             } else if (ret_elem_pending) {
               if (r.tok.kind == (int32_t)TOKEN_IDENT) {
@@ -3659,9 +5523,12 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  *   interior after `{`. Outer parse_into commits each `function` as free UFCS method;
  *   trailing `}` is skipped as non-function noise.
  * G.7 authority: this function (glue for parser.x + seed fallback).
- * Soft: dyn Trait; generic trait bounds.
+ * Soft: dyn Trait.
  * wave421: record trait name for missing-method check (typeck).
  * wave428: also record for-type (kind / named / *T) for untyped-self check.
+ * 4.2.2: skip `impl<T: Trait>` / `Type<T>` / `for Type<T>` angle lists
+ *   (same helper as skip_one_struct) so the header reaches `{` instead of
+ *   early-return on TOKEN_LT (methods leaked as unconstrained free fns).
  * PLATFORM: SHARED parse.
  */
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
@@ -3688,6 +5555,11 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   impl_col = r.tok.col;
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
+  /* impl<T: Trait> … — skip impl-level type params (≡ skip_one_struct). */
+  if (r.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+    lexer_next_into(&r, lex, source);
+  }
   /* Trait name or inherent type: IDENT or built-in type keyword. */
   if (r.tok.kind != (int32_t)TOKEN_IDENT && r.tok.kind != (int32_t)TOKEN_I32
       && r.tok.kind != (int32_t)TOKEN_I64 && r.tok.kind != (int32_t)TOKEN_BOOL
@@ -3709,6 +5581,11 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   }
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
+  /* impl Type<T> / impl Trait<T> for … — skip the type's angle list. */
+  if (r.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+    lexer_next_into(&r, lex, source);
+  }
   if (r.tok.kind == (int32_t)TOKEN_FOR) {
     /* wave421: record impl Trait for …; wave428: fill for-type after Type token. */
     int32_t si = -1;
@@ -3767,6 +5644,11 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     }
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
+    /* impl Trait for Type<T> — skip for-type angle list. */
+    if (r.tok.kind == (int32_t)TOKEN_LT) {
+      parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+      lexer_next_into(&r, lex, source);
+    }
   }
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
     out->pos = lex.pos;

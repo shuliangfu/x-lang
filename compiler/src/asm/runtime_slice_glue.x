@@ -41,7 +41,7 @@ export function runtime_slice_glue_x_doc_anchor(): i32 {
  */
 #[no_mangle]
 export function core_slice_i32_from_ptr_c(data: *i32, len: usize): XlangSliceI32 {
-  let s: XlangSliceI32 = XlangSliceI32 { data: data, length: len };
+  let s: XlangSliceI32 = { data: data, length: len };
   return s;
 }
 
@@ -53,7 +53,7 @@ export function core_slice_i32_from_ptr_c(data: *i32, len: usize): XlangSliceI32
  */
 #[no_mangle]
 export function core_slice_u8_from_ptr_c(data: *u8, len: usize): XlangSliceU8 {
-  let s: XlangSliceU8 = XlangSliceU8 { data: data, length: len };
+  let s: XlangSliceU8 = { data: data, length: len };
   return s;
 }
 
@@ -65,7 +65,7 @@ export function core_slice_u8_from_ptr_c(data: *u8, len: usize): XlangSliceU8 {
  */
 #[no_mangle]
 export function core_slice_u64_from_ptr_c(data: *u64, len: usize): XlangSliceU64 {
-  let s: XlangSliceU64 = XlangSliceU64 { data: data, length: len };
+  let s: XlangSliceU64 = { data: data, length: len };
   return s;
 }
 
@@ -80,7 +80,7 @@ export function core_slice_u64_from_ptr_c(data: *u64, len: usize): XlangSliceU64
 #[no_mangle]
 export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): XlangSliceI32 {
   if (start >= total_len) {
-    let s: XlangSliceI32 = XlangSliceI32 { data: data, length: 0 };
+    let s: XlangSliceI32 = { data: data, length: 0 };
     return s;
   }
   let avail: usize = total_len - start;
@@ -88,7 +88,7 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
   if (len > avail) {
     actual_len = avail;
   }
-  let s: XlangSliceI32 = XlangSliceI32 { data: data + start, length: actual_len };
+  let s: XlangSliceI32 = { data: data + start, length: actual_len };
   return s;
 }
 
@@ -103,7 +103,7 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
 #[no_mangle]
 export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): XlangSliceU8 {
   if (start >= total_len) {
-    let s: XlangSliceU8 = XlangSliceU8 { data: data, length: 0 };
+    let s: XlangSliceU8 = { data: data, length: 0 };
     return s;
   }
   let avail: usize = total_len - start;
@@ -111,7 +111,7 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
   if (len > avail) {
     actual_len = avail;
   }
-  let s: XlangSliceU8 = XlangSliceU8 { data: data + start, length: actual_len };
+  let s: XlangSliceU8 = { data: data + start, length: actual_len };
   return s;
 }
 
@@ -126,7 +126,7 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
 #[no_mangle]
 export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): XlangSliceU64 {
   if (start >= total_len) {
-    let s: XlangSliceU64 = XlangSliceU64 { data: data, length: 0 };
+    let s: XlangSliceU64 = { data: data, length: 0 };
     return s;
   }
   let avail: usize = total_len - start;
@@ -134,6 +134,6 @@ export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, 
   if (len > avail) {
     actual_len = avail;
   }
-  let s: XlangSliceU64 = XlangSliceU64 { data: data + start, length: actual_len };
+  let s: XlangSliceU64 = { data: data + start, length: actual_len };
   return s;
 }

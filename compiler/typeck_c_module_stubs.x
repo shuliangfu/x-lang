@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-24： .x — typeck_module / typeck_one_function （ -1）。
+// Regen: ./xlang-c -E → seeds/typeck_c_module_stubs.from_x.c → typeck_c_module_stubs.o
+// wave293: host wrapper typeck_c_module_stubs.c deleted; product cc seed only (weak).
 // ：./xlang-c -E → seeds/typeck_c_module_stubs.from_x.c（ __attribute__((weak))）。
 //  *u8  ASTModule** （C ABI ）。
 

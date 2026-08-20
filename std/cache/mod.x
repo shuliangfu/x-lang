@@ -100,7 +100,7 @@ extern function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unheal
 export function new_lru(capacity: i32): LruCache {
   unsafe {
     let h: i64 = cache_lru_create_c(capacity);
-    return LruCache { handle: h };
+    return { handle: h };
   }
 }
 
@@ -198,7 +198,7 @@ export function stats(c: *LruCache, out: *CacheStats): void {
 export function new(max_slots: i32): ObjPool {
   unsafe {
     let h: i64 = cache_pool_create_c(max_slots);
-    return ObjPool { handle: h };
+    return { handle: h };
   }
 }
 

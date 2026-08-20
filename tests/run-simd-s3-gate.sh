@@ -84,8 +84,13 @@ F32_SOA_STRIP_VAR_N_O="/tmp/xlang_simd_s3_f32_soa_strip_var_n.o"
 F32_SOA_SUM_BIN="/tmp/xlang_simd_s3_f32_soa_sum"
 F32_SOA_STRIP_BIN="/tmp/xlang_simd_s3_f32_soa_strip"
 F32_SOA_STRIP_VAR_N_BIN="/tmp/xlang_simd_s3_f32_soa_strip_var_n"
+LOOP_SMOKE_BIN="/tmp/xlang_simd_s3_loop"
+LOOP_SUB_SMOKE_BIN="/tmp/xlang_simd_s3_loop_sub"
+LOOP_MUL_SMOKE_BIN="/tmp/xlang_simd_s3_loop_mul"
+STRIP_SMOKE_BIN="/tmp/xlang_simd_s3_strip"
+PEEL64_SMOKE_BIN="/tmp/xlang_simd_s3_peel64"
 CRT0="compiler/src/runtime/crt0_linux_x86_64.o"
-rm -f "$SMOKE_O" "$SUB_SMOKE_O" "$MUL_SMOKE_O" "$FMUL_SMOKE_O" "$FMA_SMOKE_O" "$LOOP_SMOKE_O" "$LOOP_SUB_SMOKE_O" "$LOOP_MUL_SMOKE_O" "$STRIP_SMOKE_O" "$PEEL64_SMOKE_O" "$F32_SOA_SUM_O" "$F32_SOA_STRIP_O" "$F32_SOA_STRIP_VAR_N_O" "$F32_SOA_SUM_BIN" "$F32_SOA_STRIP_BIN" "$F32_SOA_STRIP_VAR_N_BIN"
+rm -f "$SMOKE_O" "$SUB_SMOKE_O" "$MUL_SMOKE_O" "$FMUL_SMOKE_O" "$FMA_SMOKE_O" "$LOOP_SMOKE_O" "$LOOP_SUB_SMOKE_O" "$LOOP_MUL_SMOKE_O" "$STRIP_SMOKE_O" "$PEEL64_SMOKE_O" "$F32_SOA_SUM_O" "$F32_SOA_STRIP_O" "$F32_SOA_STRIP_VAR_N_O" "$F32_SOA_SUM_BIN" "$F32_SOA_STRIP_BIN" "$F32_SOA_STRIP_VAR_N_BIN" "$LOOP_SMOKE_BIN" "$LOOP_SUB_SMOKE_BIN" "$LOOP_MUL_SMOKE_BIN" "$STRIP_SMOKE_BIN" "$PEEL64_SMOKE_BIN"
 
 if ! XLANG="$XLANG_ABS" "$XLANG_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
   echo "simd-s3 FAIL: compile $SMOKE_SRC" >&2
@@ -339,5 +344,11 @@ simd_s3_run_f32_expect() {
 simd_s3_run_f32_expect "$F32_SOA_SUM_SRC" "$F32_SOA_SUM_O" "$F32_SOA_SUM_BIN" 8 "f32_soa_sum_peel_smoke"
 simd_s3_run_f32_expect "$F32_SOA_STRIP_SRC" "$F32_SOA_STRIP_O" "$F32_SOA_STRIP_BIN" 10 "f32_soa_sum_strip_smoke"
 simd_s3_run_f32_expect "$F32_SOA_STRIP_VAR_N_SRC" "$F32_SOA_STRIP_VAR_N_O" "$F32_SOA_STRIP_VAR_N_BIN" 12 "f32_soa_sum_strip_var_n_smoke"
+# Integer peel/strip must RUN (not compile-only): n=20 remainder used to SIGILL on bad xmm1 VEX.
+simd_s3_run_f32_expect "$LOOP_SMOKE_SRC" "$LOOP_SMOKE_O" "$LOOP_SMOKE_BIN" 99 "vec8i_loop_peel_add"
+simd_s3_run_f32_expect "$LOOP_SUB_SMOKE_SRC" "$LOOP_SUB_SMOKE_O" "$LOOP_SUB_SMOKE_BIN" 11 "vec8i_loop_peel_sub"
+simd_s3_run_f32_expect "$LOOP_MUL_SMOKE_SRC" "$LOOP_MUL_SMOKE_O" "$LOOP_MUL_SMOKE_BIN" 12 "vec8i_loop_peel_mul"
+simd_s3_run_f32_expect "$STRIP_SMOKE_SRC" "$STRIP_SMOKE_O" "$STRIP_SMOKE_BIN" 6 "vec8i_loop_strip_var_n"
+simd_s3_run_f32_expect "$PEEL64_SMOKE_SRC" "$PEEL64_SMOKE_O" "$PEEL64_SMOKE_BIN" 3 "vec8i_loop_peel_n64"
 
 echo "simd-s3 gate OK"

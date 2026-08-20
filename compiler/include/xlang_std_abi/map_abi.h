@@ -10,7 +10,11 @@
 
 #include <stdint.h>
 
-extern int32_t map_i32_i32_find_c(const int32_t *keys, const uint8_t *occupied, int32_t cap, int32_t key);
+/* PLATFORM: SHARED — signature must match std/heap/ops.x codegen (`*i32`/`*u8` →
+ * non-const pointers). const qualifiers here redefinition-conflict when the
+ * defining TU is co-emitted with this prototype in product -E (host-cc).
+ * G.7: single authority = ops.x emit; consumers may still pass const data. */
+extern int32_t map_i32_i32_find_c(int32_t *keys, uint8_t *occupied, int32_t cap, int32_t key);
 extern int32_t std_map_empty_size(void);
 #define empty_size(_a, _b) std_map_empty_size()
 

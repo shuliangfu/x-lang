@@ -68,11 +68,27 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   if (elf.append_elf_bytes(ctx, mov, 3) != 0) { return -1; }
   /* pushq %rbx — callee-saved; body may use rbx as store base. */
   if (enc_u8(ctx, 83) != 0) { return -1; }
+  /*
+   * PLATFORM: SHARED x86_64 SysV.
+   * push rbp + push rbx leave RSP ≡ 8 (mod 16) after entry (RSP ≡ 8).
+   * Before CALL, ABI needs RSP ≡ 0 — so sub imm must be ≡ 8 (mod 16).
+   * See arch_x86_64_enc_enc_prologue (product authority; same pad rule).
+   */
+  let fs_i: i32 = frame_size;
+  if (fs_i < 0) { fs_i = 0; }
+  let rem: i32 = fs_i % 16;
+  if (rem != 8) {
+    if (rem < 8) {
+      fs_i = fs_i + (8 - rem);
+    } else {
+      fs_i = fs_i + (16 - rem + 8);
+    }
+  }
   let sub: u8[7] = [72, 129, 236, 0, 0, 0, 0];
-  sub[3] = elf.elf_to_u8(frame_size);
-  sub[4] = elf.elf_to_u8(frame_size >> 8);
-  sub[5] = elf.elf_to_u8(frame_size >> 16);
-  sub[6] = elf.elf_to_u8(frame_size >> 24);
+  sub[3] = elf.elf_to_u8(fs_i);
+  sub[4] = elf.elf_to_u8(fs_i >> 8);
+  sub[5] = elf.elf_to_u8(fs_i >> 16);
+  sub[6] = elf.elf_to_u8(fs_i >> 24);
   return elf.append_elf_bytes(ctx, sub, 7);
 }
 
@@ -135,10 +151,18 @@ export function enc_pop_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u8(ctx, 88);
 }
 
-/** addq %rbx, %rax。 */
+/** addl %ebx, %eax — 32-bit add (zero-extends to RAX).
+ * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
+ *      A 32-bit ADD EAX,EBX zero-extends the result to RAX, giving correct
+ *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
+ *      ADD RAX,RBX did not wrap at 32 bits, breaking unsigned overflow.
+ * Invariant: Must match seed authority backend_x86_64_enc_c.from_x.c.
+ *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
+ *            ptr-arith scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 export function enc_add_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [72, 1, 216];
-  return elf.append_elf_bytes(ctx, buf, 3);
+  let buf: u8[2] = [1, 216];
+  return elf.append_elf_bytes(ctx, buf, 2);
 }
 
 /** subq %rax, %rbx; movq %rbx, %rax。 */
@@ -154,15 +178,20 @@ export function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
  * @param ctx *ElfCodegenCtx
  * @return i32
  */
+/** subl %ebx, %eax — 32-bit sub (zero-extends to RAX).
+ * Why: Must match arm64_enc.x 32-bit sub. i64/u64/ptr use scaled paths.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 export function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [72, 41, 216];
-  return elf.append_elf_bytes(ctx, buf, 3);
+  let buf: u8[2] = [41, 216];
+  return elf.append_elf_bytes(ctx, buf, 2);
 }
 
-/** imulq %rbx, %rax。 */
+/** imull %ebx, %eax — 32-bit imul (zero-extends to RAX).
+ * Why: Must match arm64_enc.x 32-bit mul. i64/u64/ptr use scaled paths.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 export function enc_imul_rbx_rax(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[4] = [72, 15, 175, 195];
-  return elf.append_elf_bytes(ctx, buf, 4);
+  let buf: u8[3] = [15, 175, 195];
+  return elf.append_elf_bytes(ctx, buf, 3);
 }
 
 /** movq %rax, %rbx。 */
@@ -977,23 +1006,27 @@ export function enc_sub_ebx_edx(ctx: *ElfCodegenCtx): i32 {
   return elf.append_elf_bytes(ctx, buf, 2);
 }
 
-/** Exported function `enc_imul_ecx_edx`.
- * Implements `enc_imul_ecx_edx`.
+/**
+ * Emit IMUL ecx, edx (ecx = ecx * edx). Index-scratch primary *= secondary.
+ * Wave184: ModRM 0xCA (was 0xD1 product-in-edx bug).
  * @param ctx *ElfCodegenCtx
  * @return i32
+ * PLATFORM: SHARED x86_64 SysV.
  */
 export function enc_imul_ecx_edx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [15, 175, 209];
+  let buf: u8[3] = [15, 175, 202];
   return elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** Exported function `enc_imul_ebx_edx`.
- * Implements `enc_imul_ebx_edx`.
+/**
+ * Emit IMUL ebx, edx (ebx = ebx * edx). INDEX rvalue primary rbx *= secondary.
+ * Wave184: ModRM 0xDA (was 0xD3 product-in-edx bug; scale uses rbx).
  * @param ctx *ElfCodegenCtx
  * @return i32
+ * PLATFORM: SHARED x86_64 SysV.
  */
 export function enc_imul_ebx_edx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [15, 175, 211];
+  let buf: u8[3] = [15, 175, 218];
   return elf.append_elf_bytes(ctx, buf, 3);
 }
 
@@ -1221,11 +1254,13 @@ export function enc_call(ctx: *ElfCodegenCtx, name: u8[128], name_len: i32): i32
   if (enc_u32_le(ctx, 0) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
 /** See implementation for details. */
-  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names.
+  // Must not skip when name[0]=='_' (__error → ___error). Stage 12.0.5 ABI.
+  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 127) {
     let rn: u8[128] = [];
     rn[0] = 95;
     let k: i32 = 0;
-    while (k < name_len && k < 63) {
+    while (k < name_len && k < 127) {
       rn[k + 1] = name[k];
       k = k + 1;
     }

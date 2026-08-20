@@ -35,7 +35,7 @@ function main(): i32 {
     net_bench_port = bench_parse_port(process.arg(1), net_bench_port);
   }
   let net_bench_conns: i32 = 4096;
-  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let listener: TcpListener = net.listen(addr, net_bench_port);
   if (listener.fd < 0) { return 1; }
   let out_buf: TcpStream[64] = 0;

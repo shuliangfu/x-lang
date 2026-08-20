@@ -13,7 +13,7 @@ function kind_heap(): i32 { return 0; }
  * @return Allocator
  */
 function heap_alloc(): Allocator {
-  return Allocator { kind: kind_heap() };
+  return { kind: kind_heap() };
 }
 
 /** Internal function `alloc`.

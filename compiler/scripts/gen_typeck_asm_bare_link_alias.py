@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-从 typeck.x 函数签名生成 typeck_asm_bare_link_alias.c：
-build_asm/typeck.o 裸符号 → pipeline_glue 期望的 typeck_ 前缀名。
+Generate seeds/typeck_asm_bare_link_alias.from_x.c:
+build_asm/typeck.o bare symbols → typeck_ prefix names expected by glue/pipeline.
+
+wave296: host compiler/typeck_asm_bare_link_alias.c left; seed is sole authority.
+PLATFORM: SHARED — B-hybrid/strict_glue only; G05 does not link this .o.
 """
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 X = ROOT / "src/typeck/typeck.x"
-OUT = ROOT / "typeck_asm_bare_link_alias.c"
+# wave296: seed-only authority (do not reintroduce compiler/typeck_asm_bare_link_alias.c).
+OUT = ROOT / "seeds" / "typeck_asm_bare_link_alias.from_x.c"
 
 TYPE_MAP = {
     "i32": "int32_t",
@@ -81,10 +85,12 @@ def main() -> None:
             pairs.append((pref, bare))
 
     lines = [
-        "/**",
-        " * typeck_asm_bare_link_alias.c — build_asm/typeck.o 裸符号 → pipeline_glue 的 typeck_ 前缀名",
-        " *",
-        " * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.x 签名生成。",
+        "/* seeds/typeck_asm_bare_link_alias.from_x.c — 8.3.5 typeck bare→typeck_ rename table",
+        " * Authority (G.7): gen by scripts/gen_typeck_asm_bare_link_alias.py from typeck.x +",
+        " *   nm(build_asm/typeck.o, typeck_x.o). wave296 host leaf leave; seed-only .o.",
+        " * build_asm/typeck.o exports bare names; glue/pipeline expect typeck_ prefix.",
+        " * PLATFORM: SHARED — B-hybrid / strict_glue asm path only; G05 product uses",
+        " *   typeck_x.o (prefixed) and does not link this .o.",
         " */",
         "#include <stdint.h>",
         "",

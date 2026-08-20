@@ -35,9 +35,10 @@ typedef CRITICAL_SECTION queue_os_mutex_t;
 typedef pthread_mutex_t queue_os_mutex_t;
 #endif
 
-/* Forward declaration of POSIX trampoline impl (provided by .x thin in R2 mode
- * or by the cold path block below). */
-void *queue_os_worker_trampoline_impl(void *arg);
+/* POSIX pthread start routine: public trampoline exists in both hybrid thin
+ * (runtime_queue_contention.x) and cold seed. Rest must not U the thin-only
+ * queue_os_worker_trampoline_impl (mac run-queue Darwin UNDEF after L4). */
+void *queue_os_worker_trampoline(void *arg);
 
 /* Thin function forward declarations for rest-only call sites in R2 mode. */
 #ifndef XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
@@ -106,8 +107,8 @@ void queue_os_mutex_unlock_impl(void *mu) {
 
 /** Launch two worker threads via _beginthreadex / pthread_create, join both.
  *  Returns 0 on success, -1 on failure.
- *  On POSIX, trampoline is queue_os_worker_trampoline_impl (thin-provided by .x);
- *  on Windows, trampoline is queue_os_worker_trampoline_win_impl (rest-provided, stdcall). */
+ *  On POSIX, start routine is queue_os_worker_trampoline (thin or cold).
+ *  On Windows, trampoline is queue_os_worker_trampoline_win_impl (rest-provided, stdcall). */
 int32_t queue_os_run_two_workers_impl(void *ctx) {
 #if XLANG_QUEUE_WIN
     uintptr_t h0, h1;
@@ -121,9 +122,9 @@ int32_t queue_os_run_two_workers_impl(void *ctx) {
     CloseHandle((HANDLE)h1);
 #else
     pthread_t t0, t1;
-    if (pthread_create(&t0, NULL, (void *(*)(void *))queue_os_worker_trampoline_impl, ctx) != 0)
+    if (pthread_create(&t0, NULL, (void *(*)(void *))queue_os_worker_trampoline, ctx) != 0)
         return -1;
-    if (pthread_create(&t1, NULL, (void *(*)(void *))queue_os_worker_trampoline_impl, ctx) != 0) {
+    if (pthread_create(&t1, NULL, (void *(*)(void *))queue_os_worker_trampoline, ctx) != 0) {
         pthread_join(t0, NULL);
         return -1;
     }

@@ -239,7 +239,7 @@ export function ws_b64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i
  * See implementation.
  */
 export function net_ws_compute_accept_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
-  let ctx: WsSha1Ctx = WsSha1Ctx {
+  let ctx: WsSha1Ctx = {
     state0: 0, state1: 0, state2: 0, state3: 0, state4: 0,
     count0: 0, count1: 0, buffer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -19,7 +19,7 @@ function main(): i32 {
   if (http.h2c_session_begin(&preface[0], 32) != 24) { return 16; }
   if (http.is_connection_preface(&preface[0], 24) == false) { return 17; }
 
-  let recv: Http2FlowRecvState = Http2FlowRecvState { conn_left: 0, stream_left: 0 };
+  let recv: Http2FlowRecvState = { conn_left: 0, stream_left: 0 };
   http.flow_recv_init(&recv);
   if (recv.conn_left != 65535) { return 6; }
   if (http.flow_recv_on_data(&recv, 1000) != 0) { return 7; }

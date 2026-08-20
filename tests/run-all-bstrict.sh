@@ -16,8 +16,43 @@ cd "$(dirname "$0")/.."
 # Wall-clock total for this suite (minutes + seconds at exit).
 # PLATFORM: SHARED — date +%s is portable on macOS / Linux / Git Bash.
 # Covers L4 purge + bootstrap-driver-bstrict + whitelist scripts (full script wall).
+# Per-script walls land in XLANG_BSTRICT_TIMING_FILE (default /tmp/…); EXIT prints
+# top-N slowest so L4 mac 30m vs Ubuntu 7m bottlenecks are visible without re-runs.
 _RUN_BSTRICT_WALL_START=$(date +%s)
-echo "run-all-bstrict: started at $(date '+%Y-%m-%d %H:%M:%S')"
+if [ -z "${XLANG_BSTRICT_TIMING_FILE:-}" ]; then
+  export XLANG_BSTRICT_TIMING_FILE="/tmp/xlang_bstrict_timings_$$.txt"
+fi
+: >"${XLANG_BSTRICT_TIMING_FILE}"
+# Parallelism: default 1 (serial; product gold path). Opt-in XLANG_BSTRICT_JOBS=N.
+# PLATFORM: SHARED — parallel is opt-in; Darwin concurrent xlang_asm risks OOM
+# (Killed:9); Ubuntu has more headroom. Cap at 8. Fail-fast still holds.
+_BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}"
+case "$_BSTRICT_JOBS" in
+  ''|*[!0-9]*) _BSTRICT_JOBS=1 ;;
+esac
+if [ "$_BSTRICT_JOBS" -lt 1 ]; then
+  _BSTRICT_JOBS=1
+fi
+if [ "$_BSTRICT_JOBS" -gt 8 ]; then
+  echo "run-all-bstrict: WARN XLANG_BSTRICT_JOBS=$_BSTRICT_JOBS capped at 8" >&2
+  _BSTRICT_JOBS=8
+fi
+echo "run-all-bstrict: started at $(date '+%Y-%m-%d %H:%M:%S') JOBS=${_BSTRICT_JOBS} timings=${XLANG_BSTRICT_TIMING_FILE}"
+_run_bstrict_print_top_timings() {
+  local _topn _file
+  _file="${XLANG_BSTRICT_TIMING_FILE:-}"
+  _topn="${XLANG_BSTRICT_TIMING_TOPN:-15}"
+  if [ -z "$_file" ] || [ ! -s "$_file" ]; then
+    return 0
+  fi
+  echo "run-all-bstrict: === top ${_topn} slowest scripts (wall seconds) ==="
+  # Format: "secs path" — sort numeric desc; portable without GNU sort -h.
+  sort -nr -k1,1 "$_file" 2>/dev/null | head -n "$_topn" | while read -r secs name; do
+    [ -n "$secs" ] || continue
+    printf 'run-all-bstrict:   %6ss  %s\n' "$secs" "$name"
+  done
+  echo "run-all-bstrict: timing file: $_file"
+}
 _run_bstrict_print_elapsed() {
   local _end _elapsed _min _sec
   _end=$(date +%s)
@@ -27,7 +62,8 @@ _run_bstrict_print_elapsed() {
   fi
   _min=$((_elapsed / 60))
   _sec=$((_elapsed % 60))
-  echo "run-all-bstrict: 本次测试共耗时 ${_min} 分 ${_sec} 秒（合计 ${_elapsed} 秒）"
+  _run_bstrict_print_top_timings
+  echo "run-all-bstrict: 本次测试共耗时 ${_min} 分 ${_sec} 秒（合计 ${_elapsed} 秒） JOBS=${_BSTRICT_JOBS:-1}"
 }
 trap '_run_bstrict_print_elapsed' EXIT
 
@@ -89,8 +125,10 @@ export XLANG_BSTRICT_RUN_ALL=1
 if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
   export XLANG_W3_SKIP_STD_ENSURE=1
 fi
-# -o 链接宿主：产品冷链用本波 xlang（已 cp 自 xlang_asm），配合 XLANG_FORCE_LINK_BACKEND=c。
-# 旧默认 pin xlang-c：冷 L2 后常为 seed 拷贝，import/hello/types 等 -o 假红或空产物。
+# -o 链接宿主：产品冷链用本波 xlang / xlang_asm（已 cp 自 pure-asm product）。
+# 旧默认 pin xlang-c 或 FORCE -backend c：冷 L2 后假红，且 product 禁 silent host-cc。
+# PLATFORM: SHARED — pure-asm product default; C backend only if caller sets
+# XLANG_FORCE_LINK_BACKEND / XLANG_ALLOW_HOST_CC. Do not inject -backend c here.
 if [ -z "${XLANG_LINK_XLANG:-}" ]; then
   if [ -x ./compiler/xlang_asm ]; then
     export XLANG_LINK_XLANG=./compiler/xlang_asm
@@ -100,14 +138,48 @@ if [ -z "${XLANG_LINK_XLANG:-}" ]; then
     export XLANG_LINK_XLANG=./compiler/xlang-c
   fi
 fi
-if [ -z "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-  case "$(basename "${XLANG_LINK_XLANG:-}")" in
-    xlang|xlang_asm|xlang_asm2|xlang_asm_stage1) export XLANG_FORCE_LINK_BACKEND=c ;;
-  esac
-fi
+# Leave XLANG_FORCE_LINK_BACKEND unset for pure-asm product (default -o).
+# Explicit opt-in remains: export XLANG_FORCE_LINK_BACKEND=c before run-all-bstrict.
 # CI 全量（XLANG_CI_NO_SKIP=1）须跑 parse 烟测；本地可 XLANG_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
 if [ -z "${XLANG_CI_NO_SKIP:-}" ]; then
   export XLANG_SKIP_PARSE_SMOKE=1
+fi
+
+# ---------------------------------------------------------------------------
+# Hang guards (product L4 / bstrict — mandatory ceilings; no unbounded waits)
+# PLATFORM: SHARED — Linux `timeout` / macOS `gtimeout`; else WARN + still run.
+# ---------------------------------------------------------------------------
+# Per-script wall: product default 300s (net/io/http ok); W3 best-effort 120s.
+# Override: XLANG_BSTRICT_SCRIPT_TIMEOUT=N  (or legacy XLANG_W3_BSTRICT_SCRIPT_TIMEOUT).
+if [ -z "${XLANG_BSTRICT_SCRIPT_TIMEOUT:-}" ]; then
+  if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+    export XLANG_BSTRICT_SCRIPT_TIMEOUT="${XLANG_W3_BSTRICT_SCRIPT_TIMEOUT:-120}"
+  else
+    export XLANG_BSTRICT_SCRIPT_TIMEOUT=300
+  fi
+fi
+# Shared catalog blob for every try-heat child bash (else each leaf re-parses
+# driver_seed_obj_catalog ~8s → multi-minute "dead" looks on Ubuntu L4).
+# ensure_host_cc_seed_o.sh catalog_blob honors XLANG_CATALOG_CACHE_FILE.
+if [ -z "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+  export XLANG_CATALOG_CACHE_FILE="/tmp/xlang_bstrict_catalog_$$.txt"
+fi
+if [ ! -s "${XLANG_CATALOG_CACHE_FILE}" ] && [ -f compiler/scripts/driver_seed_obj_catalog.sh ]; then
+  echo "run-all-bstrict: warm catalog cache → ${XLANG_CATALOG_CACHE_FILE}"
+  (cd compiler && bash scripts/driver_seed_obj_catalog.sh --shell >"${XLANG_CATALOG_CACHE_FILE}") \
+    || echo "run-all-bstrict: WARN catalog warm failed (try-heat may re-parse)" >&2
+fi
+# Resolve timeout binary once (product + W3).
+_BSTRICT_TIMEOUT_BIN=""
+if command -v timeout >/dev/null 2>&1; then
+  _BSTRICT_TIMEOUT_BIN=timeout
+elif command -v gtimeout >/dev/null 2>&1; then
+  _BSTRICT_TIMEOUT_BIN=gtimeout
+fi
+if [ -z "${_BSTRICT_TIMEOUT_BIN}" ]; then
+  echo "run-all-bstrict: WARN no timeout/gtimeout — scripts run unbounded (install coreutils)" >&2
+else
+  echo "run-all-bstrict: per-script timeout=${XLANG_BSTRICT_SCRIPT_TIMEOUT}s via ${_BSTRICT_TIMEOUT_BIN}"
 fi
 
 # bootstrap-driver-seed 仅预链 io/fs/heap；runtime -o 按磁盘存在的 std/*.o 追加链接。
@@ -304,6 +376,13 @@ BSTRICT_SCRIPTS=(
   run-std-net-context-gate.sh
 )
 
+# Parallel job queue (product path only when JOBS>1). Lines: script|shu|link.
+_BSTRICT_JOB_QUEUE=""
+if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+  _BSTRICT_JOB_QUEUE="/tmp/xlang_bstrict_queue_$$.txt"
+  : >"$_BSTRICT_JOB_QUEUE"
+fi
+
 for script in "${BSTRICT_SCRIPTS[@]}"; do
   if [ ! -f "tests/$script" ]; then
     echo "run-all-bstrict: missing tests/$script" >&2
@@ -328,21 +407,28 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   # Darwin：连续 xlang_asm check 易 OOM(Killed:9)；run-check 已跑 types gate 后须冷却再跑 run-types-gate。
   # Heavy -o linkers (run-ub/run-io/run-crypto/run-vector/run-thread/run-net/run-json)
   # peak ~75MB RSS per xlang_asm invocation; transient macOS memory pressure triggers
-  # OOM killer (Killed:9). Default 15s cooldown (tunable XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN).
-  case "$(uname -s)" in
-    Darwin)
-      # PLATFORM: MACOS|DARWIN — continuous xlang_asm -o peaks ~75MB RSS; under memory
-      # pressure the OOM killer returns Killed:9. Heavy scripts need longer reclaim
-      # windows. run-json was missing from the list (2026-07-21 L4: 3x Killed:9 →
-      # product-chain exit 1, ~30 scripts unrun). Default heavy cooldown 15s (was 8).
-      case "$script" in
-        run-types-gate.sh) sleep "${XLANG_BSTRICT_DARWIN_TYPES_COOLDOWN:-5}" ;;
-        run-ub.sh|run-io.sh|run-crypto.sh|run-vector.sh|run-thread.sh|run-net.sh|run-json.sh)
-          sleep "${XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN:-15}" ;;
-        *) sleep "${XLANG_BSTRICT_DARWIN_COOLDOWN:-1}" ;;
-      esac
-      ;;
-  esac
+  # OOM killer (Killed:9). Default heavy cooldown 15s (tunable XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN).
+  # Light inter-script default was 1s (~2min pure sleep on ~120 scripts); default 0 now
+  # (2026-08-12 wall opt). Keep heavy + types cooldowns. Parallel JOBS>1 skips sleeps
+  # (workers already paced by concurrency). Override: XLANG_BSTRICT_DARWIN_COOLDOWN=1.
+  if [ "${_BSTRICT_JOBS:-1}" -le 1 ]; then
+    case "$(uname -s)" in
+      Darwin)
+        # PLATFORM: MACOS|DARWIN — continuous xlang_asm -o peaks ~75MB RSS; under memory
+        # pressure the OOM killer returns Killed:9. Heavy scripts need longer reclaim
+        # windows. run-json was missing from the list (2026-07-21 L4: 3x Killed:9 →
+        # product-chain exit 1, ~30 scripts unrun). Default heavy cooldown 15s (was 8).
+        case "$script" in
+          run-types-gate.sh) sleep "${XLANG_BSTRICT_DARWIN_TYPES_COOLDOWN:-5}" ;;
+          run-ub.sh|run-io.sh|run-crypto.sh|run-vector.sh|run-thread.sh|run-net.sh|run-json.sh)
+            sleep "${XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN:-15}" ;;
+          *) sleep "${XLANG_BSTRICT_DARWIN_COOLDOWN:-0}" ;;
+        esac
+        ;;
+    esac
+  fi
+  # Per-script wall start (product + W3). Recorded after success/fail/timeout.
+  _script_wall_t0=$(date +%s)
   # asm 白名单须 asm-capable 编译器 -o；refresh 后 xlang 为 seed 链，experimental 仍保留真 asm。
   script_shu="$XLANG"
   script_link="${XLANG_LINK_XLANG:-}"
@@ -389,8 +475,8 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       esac
       ;;
     run-vector.sh)
-      # 产品冷链：-o 用 xlang_asm + -backend c（须已有 std/string/string.o）。
-      # 旧逻辑强绑 pin xlang-c → 冷 L2 后静默 compile fail、无 FAIL 文案。
+      # Product pure-asm -o via xlang_asm (same as hello/slice). No silent -backend c.
+      # PLATFORM: SHARED — host-cc only if caller exports FORCE/ALLOW.
       case "$(uname -m 2>/dev/null)" in
         x86_64|amd64)
           script_link="${XLANG_LINK_XLANG:-$script_shu}"
@@ -443,6 +529,13 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
     _max_attempts=1
   fi
+  # Parallel product path: enqueue resolved jobs; W3 best-effort stays serial
+  # (soft-skip / wall-budget semantics don't compose with fail-fast pools).
+  if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+    # Encode: script|script_shu|script_link  (paths have no |).
+    echo "${script}|${script_shu}|${script_link}" >>"$_BSTRICT_JOB_QUEUE"
+    continue
+  fi
   while [ "$attempt" -le "$_max_attempts" ]; do
     # 前序脚本内 xlang_compiler_make 会把 xlang 刷回 seed；-o 须保持本波产品快照。
     # 默认 xlang_asm；仅 XLANG_BSTRICT_USE_ASM2=1 时用 gen2（禁 Stage2 freestanding 残留冒充）。
@@ -452,25 +545,52 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       cp -f compiler/xlang_asm compiler/xlang 2>/dev/null || true
     fi
     _script_ok=0
-    if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ] && command -v timeout >/dev/null 2>&1; then
-      # nohup >> log 时 stdout 非 TTY，子脚本内 xlang -o 会挂起；须 tee|cat Drain。
-      _w3_script_log="/tmp/w3_bstrict_${script%.sh}.log"
-      _w3_script_timeout="${XLANG_W3_BSTRICT_SCRIPT_TIMEOUT:-120}"
-      if timeout -k 10 "$_w3_script_timeout" \
-        env XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
-        bash -c "./tests/$script 2>&1 | tee \"$_w3_script_log\" | cat >/dev/null"; then
-        _script_ok=1
+    _script_rc=0
+    # Product + W3: always ceiling each whitelist script (no unbounded wait).
+    # nohup/tee path drains stdout so xlang -o never blocks on full pipe.
+    _script_log="/tmp/bstrict_${script%.sh}.$$.log"
+    if [ -n "${_BSTRICT_TIMEOUT_BIN}" ]; then
+      set +e
+      if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+        "${_BSTRICT_TIMEOUT_BIN}" -k 15 "${XLANG_BSTRICT_SCRIPT_TIMEOUT}" \
+          env XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
+              XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+          bash -c "./tests/$script 2>&1 | tee \"$_script_log\" | cat >/dev/null"
+        _script_rc=$?
       else
-        _rc=$?
-        w3_bstrict_cleanup_orphans
-        if [ "$_rc" -eq 124 ]; then
-          echo "run-all-bstrict: WARN timeout $script (${_w3_script_timeout}s; W3 best-effort)" >&2
+        # Product: live output to suite log + hard fail on timeout.
+        "${_BSTRICT_TIMEOUT_BIN}" -k 15 "${XLANG_BSTRICT_SCRIPT_TIMEOUT}" \
+          env XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
+              XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+          ./tests/"$script"
+        _script_rc=$?
+      fi
+      set -e
+      if [ "$_script_rc" -eq 0 ]; then
+        _script_ok=1
+      elif [ "$_script_rc" -eq 124 ] || [ "$_script_rc" -eq 137 ]; then
+        echo "run-all-bstrict: TIMEOUT $script after ${XLANG_BSTRICT_SCRIPT_TIMEOUT}s (rc=$_script_rc)" >&2
+        if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+          w3_bstrict_cleanup_orphans 2>/dev/null || true
           _w3_stat_timeout=$((_w3_stat_timeout + 1))
+        else
+          # Product path: hang = red (do not soft-skip).
+          _script_wall_t1=$(date +%s)
+          _script_wall=$((_script_wall_t1 - _script_wall_t0))
+          [ "$_script_wall" -lt 0 ] && _script_wall=0
+          echo "${_script_wall} ${script}" >>"${XLANG_BSTRICT_TIMING_FILE}"
+          echo "run-all-bstrict: $script TIMEOUT wall=${_script_wall}s" >&2
+          exit 124
         fi
       fi
-    elif XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" ./tests/"$script"; then
-      _script_ok=1
+    else
+      if XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
+           XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+           ./tests/"$script"; then
+        _script_ok=1
+      fi
     fi
+    rm -f "$_script_log" 2>/dev/null || true
     if [ "$_script_ok" -eq 1 ]; then
       _w3_stat_ok=$((_w3_stat_ok + 1))
       break
@@ -482,6 +602,11 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
         _w3_stat_fail=$((_w3_stat_fail + 1))
         break
       fi
+      _script_wall_t1=$(date +%s)
+      _script_wall=$((_script_wall_t1 - _script_wall_t0))
+      [ "$_script_wall" -lt 0 ] && _script_wall=0
+      echo "${_script_wall} ${script}" >>"${XLANG_BSTRICT_TIMING_FILE}"
+      echo "run-all-bstrict: $script FAIL wall=${_script_wall}s" >&2
       exit 1
     fi
     echo "run-all-bstrict: retry $script (attempt $((attempt + 1))) ..."
@@ -492,9 +617,180 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     esac
     attempt=$((attempt + 1))
   done
+  # Record per-script wall (serial path only; parallel records in worker).
+  _script_wall_t1=$(date +%s)
+  _script_wall=$((_script_wall_t1 - _script_wall_t0))
+  if [ "$_script_wall" -lt 0 ]; then
+    _script_wall=0
+  fi
+  echo "${_script_wall} ${script}" >>"${XLANG_BSTRICT_TIMING_FILE}"
+  echo "run-all-bstrict: $script done wall=${_script_wall}s"
 done
 
-echo "run-all-bstrict OK (${#BSTRICT_SCRIPTS[@]} scripts, compiler/xlang is xlang_asm)"
+# ---------------------------------------------------------------------------
+# Parallel product pool (XLANG_BSTRICT_JOBS>1). Bash 3.2 portable (no wait -n).
+# PLATFORM: SHARED — default JOBS=1; Ubuntu opt-in JOBS=2..4 typical;
+# Darwin JOBS>1 risks OOM (Killed:9). Each worker: timeout + 3 retries.
+# ---------------------------------------------------------------------------
+if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ] \
+   && [ -s "${_BSTRICT_JOB_QUEUE:-}" ]; then
+  _bstrict_njobs=$(wc -l <"$_BSTRICT_JOB_QUEUE" | tr -d ' ')
+  echo "run-all-bstrict: parallel pool JOBS=${_BSTRICT_JOBS} queue=${_bstrict_njobs} scripts"
+  case "$(uname -s)" in
+    Darwin)
+      echo "run-all-bstrict: WARN Darwin JOBS>1 may OOM (Killed:9); prefer JOBS=1 or 2" >&2
+      ;;
+  esac
+  _BSTRICT_FAIL_FLAG="/tmp/xlang_bstrict_fail_$$.flag"
+  rm -f "$_BSTRICT_FAIL_FLAG"
+  _bstrict_run_worker() {
+    # $1 = script|shu|link
+    local line s shu link attempt max_a ok rc t0 t1 wall slog
+    line="$1"
+    s="${line%%|*}"
+    rest="${line#*|}"
+    shu="${rest%%|*}"
+    link="${rest#*|}"
+    t0=$(date +%s)
+    max_a=3
+    attempt=1
+    ok=0
+    while [ "$attempt" -le "$max_a" ]; do
+      # Refresh product snapshot (shared path; same source → safe under parallel).
+      if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x compiler/xlang_asm2 ]; then
+        cp -f compiler/xlang_asm2 compiler/xlang 2>/dev/null || true
+      else
+        cp -f compiler/xlang_asm compiler/xlang 2>/dev/null || true
+      fi
+      slog="/tmp/bstrict_${s%.sh}.$$.$attempt.log"
+      rc=0
+      if [ -n "${_BSTRICT_TIMEOUT_BIN}" ]; then
+        set +e
+        "${_BSTRICT_TIMEOUT_BIN}" -k 15 "${XLANG_BSTRICT_SCRIPT_TIMEOUT}" \
+          env XLANG="$shu" XLANG_LINK_XLANG="$link" \
+              XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+          ./tests/"$s" >"$slog" 2>&1
+        rc=$?
+        set -e
+        # Live-ish: stream log after each attempt so suite log is not silent.
+        cat "$slog" 2>/dev/null || true
+      else
+        set +e
+        env XLANG="$shu" XLANG_LINK_XLANG="$link" \
+            XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+          ./tests/"$s" >"$slog" 2>&1
+        rc=$?
+        set -e
+        cat "$slog" 2>/dev/null || true
+      fi
+      rm -f "$slog" 2>/dev/null || true
+      if [ "$rc" -eq 0 ]; then
+        ok=1
+        break
+      fi
+      if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+        echo "run-all-bstrict: TIMEOUT $s after ${XLANG_BSTRICT_SCRIPT_TIMEOUT}s (rc=$rc)" >&2
+        echo "timeout $s" >"$_BSTRICT_FAIL_FLAG"
+        t1=$(date +%s)
+        wall=$((t1 - t0))
+        [ "$wall" -lt 0 ] && wall=0
+        echo "${wall} ${s}" >>"${XLANG_BSTRICT_TIMING_FILE}"
+        echo "run-all-bstrict: $s TIMEOUT wall=${wall}s" >&2
+        return 124
+      fi
+      if [ "$attempt" -ge "$max_a" ]; then
+        echo "run-all-bstrict: $s failed after ${max_a} attempt(s) rc=$rc" >&2
+        echo "fail $s rc=$rc" >"$_BSTRICT_FAIL_FLAG"
+        t1=$(date +%s)
+        wall=$((t1 - t0))
+        [ "$wall" -lt 0 ] && wall=0
+        echo "${wall} ${s}" >>"${XLANG_BSTRICT_TIMING_FILE}"
+        echo "run-all-bstrict: $s FAIL wall=${wall}s" >&2
+        return 1
+      fi
+      echo "run-all-bstrict: retry $s (attempt $((attempt + 1))) ..."
+      case "$(uname -s)" in
+        Darwin) sleep "${XLANG_BSTRICT_DARWIN_RETRY_SLEEP:-5}" ;;
+      esac
+      attempt=$((attempt + 1))
+    done
+    t1=$(date +%s)
+    wall=$((t1 - t0))
+    [ "$wall" -lt 0 ] && wall=0
+    echo "${wall} ${s}" >>"${XLANG_BSTRICT_TIMING_FILE}"
+    echo "run-all-bstrict: $s done wall=${wall}s"
+    return 0
+  }
+  # Job pool: bash 3.2 has no wait -n; poll PIDs.
+  _bstrict_pids=""
+  _bstrict_running=0
+  _bstrict_kill_pool() {
+    local p
+    for p in $_bstrict_pids; do
+      kill "$p" 2>/dev/null || true
+    done
+  }
+  while IFS= read -r _bstrict_line || [ -n "$_bstrict_line" ]; do
+    [ -n "$_bstrict_line" ] || continue
+    if [ -f "$_BSTRICT_FAIL_FLAG" ]; then
+      _bstrict_kill_pool
+      wait 2>/dev/null || true
+      echo "run-all-bstrict: parallel fail-fast: $(cat "$_BSTRICT_FAIL_FLAG" 2>/dev/null)" >&2
+      rm -f "$_BSTRICT_JOB_QUEUE" "$_BSTRICT_FAIL_FLAG"
+      exit 1
+    fi
+    # Reap finished workers until a slot opens.
+    while [ "$_bstrict_running" -ge "$_BSTRICT_JOBS" ]; do
+      _bstrict_new_pids=""
+      _bstrict_running=0
+      for _bp in $_bstrict_pids; do
+        if kill -0 "$_bp" 2>/dev/null; then
+          _bstrict_new_pids="${_bstrict_new_pids} ${_bp}"
+          _bstrict_running=$((_bstrict_running + 1))
+        else
+          set +e
+          wait "$_bp"
+          _bw=$?
+          set -e
+          if [ "$_bw" -ne 0 ] || [ -f "$_BSTRICT_FAIL_FLAG" ]; then
+            _bstrict_kill_pool
+            wait 2>/dev/null || true
+            echo "run-all-bstrict: parallel worker failed rc=${_bw}" >&2
+            rm -f "$_BSTRICT_JOB_QUEUE" "$_BSTRICT_FAIL_FLAG"
+            exit 1
+          fi
+        fi
+      done
+      _bstrict_pids="$_bstrict_new_pids"
+      if [ "$_bstrict_running" -ge "$_BSTRICT_JOBS" ]; then
+        sleep 0.2
+      fi
+    done
+    (
+      _bstrict_run_worker "$_bstrict_line"
+    ) &
+    _bstrict_pids="${_bstrict_pids} $!"
+    _bstrict_running=$((_bstrict_running + 1))
+  done <"$_BSTRICT_JOB_QUEUE"
+  # Drain remaining.
+  for _bp in $_bstrict_pids; do
+    set +e
+    wait "$_bp"
+    _bw=$?
+    set -e
+    if [ "$_bw" -ne 0 ] || [ -f "$_BSTRICT_FAIL_FLAG" ]; then
+      _bstrict_kill_pool
+      wait 2>/dev/null || true
+      echo "run-all-bstrict: parallel drain failed rc=${_bw}" >&2
+      rm -f "$_BSTRICT_JOB_QUEUE" "$_BSTRICT_FAIL_FLAG"
+      exit 1
+    fi
+  done
+  rm -f "$_BSTRICT_JOB_QUEUE" "$_BSTRICT_FAIL_FLAG"
+  echo "run-all-bstrict: parallel pool complete queue=${_bstrict_njobs}"
+fi
+
+echo "run-all-bstrict OK (${#BSTRICT_SCRIPTS[@]} scripts, compiler/xlang is xlang_asm, JOBS=${_BSTRICT_JOBS:-1})"
 if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
   _w3_elapsed=$(($(date +%s) - _w3_wall_start))
   echo "run-all-bstrict: W3 best-effort complete ok=${_w3_stat_ok} skip=${_w3_stat_skip} fail=${_w3_stat_fail} timeout=${_w3_stat_timeout} wall=${_w3_elapsed}s"

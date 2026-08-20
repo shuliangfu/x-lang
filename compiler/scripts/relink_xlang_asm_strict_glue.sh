@@ -13,6 +13,9 @@ export STRICT_LINK_BUILD_ASM_PIPELINE=1
 # disagree on underscore/letter order → "file is not in sorted order" noise and
 # wrong set subtraction for WPO partial export (dual authority with build_xlang_asm).
 export LC_ALL=C
+# Stage 12.2.3: source pure_ld_shared.sh for pure_as_compile (zero-CC .s assembly).
+# PLATFORM: SHARED — used for runtime_panic .s compilation on Linux x86_64.
+. scripts/pure_ld_shared.sh
 
 # #region debug-point A:dbg-helpers
 DBG_ENV_FILE="../.dbg/relink-strict-glue-hang.env"
@@ -277,8 +280,9 @@ ensure_ast_asm_bare_link_alias_obj() {
   fi
 }
 
+# wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
 ensure_asm_xlang_lsp_diag_stub_obj() {
-  local STUB_C="scripts/asm_xlang_lsp_diag_stub.c"
+  local STUB_C="seeds/asm_xlang_lsp_diag_stub.from_x.c"
   local STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   local LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   local LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
@@ -1095,7 +1099,10 @@ if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "seeds/parser_asm_thin_c.from_x.c" -nt "$P
   $CC $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm \
     -c seeds/parser_asm_thin_c.from_x.c -o "$PARSER_ASM_THIN_C"
 fi
-if [ ! -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] || [ "seeds/pipeline_glue_strict_minimal.from_x.c" -nt "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+# wave304: pipeline_glue_strict_minimal.from_x.c seed retired; pure runtime_pipeline_abi.o
+# (in LD argv) is G.7 authority. Skip compilation when seed absent; ST_GLUE_OBJ guard
+# below drops the path so LD argv does not reference non-existent .o. PLATFORM: SHARED.
+if [ -f seeds/pipeline_glue_strict_minimal.from_x.c ] && { [ ! -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] || [ "seeds/pipeline_glue_strict_minimal.from_x.c" -nt "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; }; then
   strict_glue_info "cc seeds/pipeline_glue_strict_minimal.from_x.c → pipeline_glue_strict_minimal.o (G-02f-11)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o "$BUILD_DIR/pipeline_glue_strict_minimal.o"
 fi
@@ -1105,7 +1112,10 @@ if asm_strict_typeck_x_glue_via_pipeline_x; then
   strict_glue_info "ST_GLUE glue_strict_minimal + pipeline_x glue support (X orch)"
 else
   strict_glue_info "cc pipeline_glue_standalone.o <- ast_pool.c"
+  # wave309: pipeline_glue_standalone.from_x.c seed retired; skip when absent.
+  if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
+  fi
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   # PLATFORM: SHARED — match build_xlang_asm BSTRICT_MINIMAL_GLUE_COMPANION (Linux).
   # typeck_x.o (non-selfhosted path) UNDEFs pipeline_typeck_*_strict_minimal; standalone
@@ -1115,6 +1125,11 @@ else
   strict_glue_info "companion pipeline_glue_strict_minimal.o (typeck_x *_strict_minimal)"
   fi
 fi
+# wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o physically missing.
+# Pure runtime_pipeline_abi.o (in LD argv) provides same symbols (G.7, same as L4 pure-ld).
+# When ST_GLUE_OBJ is empty, pipeline_x.o tail is auto-included (line ~1449 guard).
+# PLATFORM: SHARED.
+[ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
 
 # 收集非空 build_asm/*.o 并经 filter_strict_asm_objs 筛选（与 build_xlang_asm strict 链一致）。
 build_nonempty_asm_objs() {
@@ -1372,9 +1387,15 @@ if asm_strict_typeck_selfhosted; then
   ST_SEED_PARSER_TCK="$SEED_O/parser.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_x.o x_frontend_link_alias.o"
   strict_glue_info "seed typeck + typeck_x tail (X glue; no build_asm typeck partial/bare_link)"
   else
-  if [ ! -f "$BUILD_DIR/typeck_asm_bare_link_alias.o" ] || [ typeck_asm_bare_link_alias.c -nt "$BUILD_DIR/typeck_asm_bare_link_alias.o" ]; then
-  strict_glue_info "cc -c typeck_asm_bare_link_alias.c -> $BUILD_DIR/typeck_asm_bare_link_alias.o"
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/typeck_asm_bare_link_alias.o" typeck_asm_bare_link_alias.c
+  # wave296: seed-only authority (host typeck_asm_bare_link_alias.c left).
+  _tba_seed=seeds/typeck_asm_bare_link_alias.from_x.c
+  if [ ! -f "$_tba_seed" ]; then
+  strict_glue_info "missing $_tba_seed (wave296 seed authority)"
+  return 1
+  fi
+  if [ ! -f "$BUILD_DIR/typeck_asm_bare_link_alias.o" ] || [ "$_tba_seed" -nt "$BUILD_DIR/typeck_asm_bare_link_alias.o" ]; then
+  strict_glue_info "cc -c $_tba_seed -> $BUILD_DIR/typeck_asm_bare_link_alias.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/typeck_asm_bare_link_alias.o" "$_tba_seed"
   fi
   ST_TYPECK_BARE_ALIAS="$BUILD_DIR/typeck_asm_bare_link_alias.o"
   ST_SEED_PARSER_TCK="$ST_TYPECK_C_STUBS $ST_TYPECK_BARE_ALIAS $SEED_O/parser.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_x.o x_frontend_link_alias.o"
@@ -1644,13 +1665,12 @@ ensure_runtime_pipeline_abi_obj() {
 
 ensure_runtime_driver_obj() {
   local o="src/runtime_driver.o"
-  local cf="$CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_ASM_USE_COMPILER_IMPL_C"
-  if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-  cf="$cf -DXLANG_LEGACY_PREPROCESS_C"
-  fi
-  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/runtime.from_x.c (X driver/pipeline)"
-  $CC $CFLAGS -I. -Iinclude -Isrc $cf -c seeds/runtime.from_x.c -o "$o"
+  # wave321 7.1.1: monofile seeds/runtime.from_x.c retired — multi-slice no_c alias.
+  # PLATFORM: SHARED freestanding; archaeology strict-glue uses product authority.
+  if [ ! -f "$o" ] \
+    || { [ -f seeds/rt_content.from_x.c ] && [ seeds/rt_content.from_x.c -nt "$o" ]; }; then
+    strict_glue_info "ensure $o via multi-slice no_c alias (wave321 monofile retired)"
+    bash scripts/ensure_host_cc_seed_o.sh try-r1 "$o" || return 1
   fi
 }
 
@@ -1879,7 +1899,7 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   if [ -n "$_panic_src" ] && { [ ! -f runtime_panic.o ] || [ "$_panic_src" -nt runtime_panic.o ]; }; then
   strict_glue_info "cc runtime_panic.o <- $_panic_src"
   if [ "${_panic_src##*.}" = "s" ]; then
-  "$CC" -c -o runtime_panic.o "$_panic_src"
+  pure_as_compile runtime_panic.o "$_panic_src"
   else
   sh scripts/cc_inc_tu.sh "$_panic_src" runtime_panic.o
   fi
@@ -1919,7 +1939,7 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   src/runtime_pipeline_abi.o \
   "$BUILD_DIR/runtime_driver_strict_glue_stubs.o" \
   $ST_RUNTIME_PANIC \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_MINIMAL_GLUE_COMPANION \
   $ST_RT_SEED_SLICES \
   $ASM_TRY_OBJS \

@@ -808,21 +808,8 @@ int32_t driver_run_compiler_full_x_post_parse(struct DriverCompileState * state,
     if ((driver_check_only_get() !=0)) {
       (void)(((state->use_asm_backend) = zero));
     }
-    int32_t want_generic_check = zero;
-    if (((state->out_path_len) ==zero)) {
-      (void)((want_generic_check = one));
-    } else {
-      if ((driver_asm_output_want_exe(&(((state->out_path_buf))[0])) !=0)) {
-        (void)((want_generic_check = one));
-      }
-    }
-    if ((((state->use_asm_backend) !=0) && (want_generic_check !=0))) {
-      if ((driver_source_has_generic_syntax(&(((state->path_buf))[0]), (state->path_len)) !=0)) {
-        (void)(((state->use_asm_backend) = zero));
-      }
-    }
-    if (((((state->use_asm_backend) !=0) && ((state->out_path_len) > 0)) && (driver_asm_output_want_exe(&(((state->out_path_buf))[0])) !=0))) {
-    }
+    /* PLATFORM: SHARED — PC invoke_cc opt-in 2026-08-12: silent generic→C removed
+     * (mirror compile.x). Product host-cc only via -backend c / check-only / emit-c. */
     uint8_t * out_ptr = ((uint8_t *)(0));
     if (((state->out_path_len) > 0)) {
       (void)((out_ptr = &(((state->out_path_buf))[0])));
@@ -833,9 +820,6 @@ int32_t driver_run_compiler_full_x_post_parse(struct DriverCompileState * state,
     }
     if (((((state->out_path_len) > 0) && ((state->backend_asm_explicit) ==0)) && (driver_source_has_top_level_import_path(&(((state->path_buf))[0]), (state->path_len)) ==0))) {
       (void)(((state->backend_asm_explicit) = one));
-    }
-    if ((((((state->use_asm_backend) !=0) && ((state->backend_asm_explicit) ==0)) && (driver_asm_entry_module_only_from_env() ==0)) && (driver_source_has_top_level_import_path(&(((state->path_buf))[0]), (state->path_len)) !=0))) {
-      (void)(((state->use_asm_backend) = zero));
     }
     if (((state->use_freestanding) !=0)) {
       (void)(((state->use_asm_backend) = one));

@@ -23,7 +23,7 @@ struct Option_i32 {
  * @return i32
  */
 function main(): i32 {
-  let p: Point = Point { x: 1, y: 2, inner: Inner { tag: 99 } };
+  let p: Point = { x: 1, y: 2, inner: { tag: 99 } };
   let _: i32 = fmt.println(p);
   let arr: i32[3] = [10, 20, 30];
   let _: i32 = fmt.println(arr);

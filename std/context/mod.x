@@ -56,8 +56,8 @@ extern function ctx_smoke_c(): i32;
  */
 export function background(): Context {
   /* See implementation. */
-  let _rc: Context = Context { handle: 0 };
-  unsafe { _rc = Context { handle: ctx_background_c() }; }
+  let _rc: Context = { handle: 0 };
+  unsafe { _rc = { handle: ctx_background_c() }; }
   return _rc;
 }
 
@@ -67,8 +67,8 @@ export function background(): Context {
  * @return Context
  */
 export function with_cancel(parent: Context): Context {
-  let _rc: Context = Context { handle: 0 };
-  unsafe { _rc = Context { handle: ctx_with_cancel_c(parent.handle) }; }
+  let _rc: Context = { handle: 0 };
+  unsafe { _rc = { handle: ctx_with_cancel_c(parent.handle) }; }
   return _rc;
 }
 
@@ -79,8 +79,8 @@ export function with_cancel(parent: Context): Context {
  * @return Context
  */
 export function with_deadline(parent: Context, deadline_ns: i64): Context {
-  let _rc: Context = Context { handle: 0 };
-  unsafe { _rc = Context { handle: ctx_with_deadline_c(parent.handle, deadline_ns) }; }
+  let _rc: Context = { handle: 0 };
+  unsafe { _rc = { handle: ctx_with_deadline_c(parent.handle, deadline_ns) }; }
   return _rc;
 }
 
@@ -91,8 +91,8 @@ export function with_deadline(parent: Context, deadline_ns: i64): Context {
  * @return Context
  */
 export function with_timeout(parent: Context, timeout_ns: i64): Context {
-  let _rc: Context = Context { handle: 0 };
-  unsafe { _rc = Context { handle: ctx_with_timeout_c(parent.handle, timeout_ns) }; }
+  let _rc: Context = { handle: 0 };
+  unsafe { _rc = { handle: ctx_with_timeout_c(parent.handle, timeout_ns) }; }
   return _rc;
 }
 

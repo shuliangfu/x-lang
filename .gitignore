@@ -76,6 +76,7 @@ node_modules/
 !.vscode/settings.json
 !.vscode/extensions.json
 .cursor/
+.claude/
 .grok/
 *.swp
 *.swo
@@ -210,6 +211,11 @@ tests/abi/layout_abi
 tests/tmp_out.txt
 tests/fmt/.fmt_wrap_out.x
 tests/fmt/.fmt_comprehensive_out.x
+# std.fs gate 运行时 scratch（crossplatform / dirmeta / mmap 烟测；勿入库）
+tests/fs/.crossplatform_tmp
+tests/fs/.mmap_ro_tmp
+tests/fs/.dirmeta_tmp/
+tests/fs/.dirmeta_tmp/**
 # 测试输出、临时目录
 tmp/
 temp/

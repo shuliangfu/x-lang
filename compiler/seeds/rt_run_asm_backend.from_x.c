@@ -85,6 +85,12 @@ extern void parser_parse_into_init(void *arena, void *module);
 extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
 extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int driver_get_module_num_funcs(void *m);
+/* Stage 12.2.4: extern-only module detection for asm backend CG002 false-positive
+ * fix. extern-only modules (e.g., pipeline.x — 162 export extern function signatures
+ * with ZERO bodies) legitimately produce 0 bytes of code; CG002 must not fire for
+ * them. Provided by runtime_pipeline_abi (G.7 single authority).
+ * PLATFORM: SHARED. */
+extern int pipeline_module_func_is_extern_at(void *module, int fi);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void xlang_get_entry_dir(const char *path, char *out, size_t out_sz);
 extern int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
@@ -820,14 +826,35 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                     pctx->asm_entry_module_only = 0;
                 pctx->use_asm_backend = 1;
             }
-            xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
-            int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-                diag_reportf(NULL, 0, 0, "note", NULL,
-                             "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
-                             (int)elf_ec, (size_t)out_buf->length);
+            /* Stage 12.2.4: Check if module is extern-only BEFORE calling codegen.
+             * extern-only modules (all functions are export extern declarations with
+             * no bodies, e.g., pipeline.x — 162 export extern signatures) legitimately
+             * produce 0 bytes of code. asm_codegen_elf_o returns -1 for them because
+             * 0 code + 0 labels fails ELF emission. Skip codegen entirely and produce
+             * a 0-byte .o (matching C path where extern decls produce no .text).
+             * PLATFORM: SHARED. */
+            int _all_extern_pre = 1;
+            int _fi_pre;
+            int _nf_pre = driver_get_module_num_funcs(module);
+            for (_fi_pre = 0; _fi_pre < _nf_pre; _fi_pre++) {
+                if (pipeline_module_func_is_extern_at(module, _fi_pre) == 0) {
+                    _all_extern_pre = 0;
+                }
             }
-            if (elf_ec != 0 || out_buf->length <= 0) {
+            if (_all_extern_pre == 1 && _nf_pre > 0) {
+                /* Extern-only module — skip codegen, produce 0-byte .o.
+                 * out_buf->length stays 0; fwrite is a no-op. */
+                xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+            } else {
+                xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+                int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
+                if (link_abi_getenv("XLANG_ASM_DEBUG")) {
+                    diag_reportf(NULL, 0, 0, "note", NULL,
+                                 "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
+                                 (int)elf_ec, (size_t)out_buf->length);
+                }
+                if (elf_ec != 0 || out_buf->length <= 0) {
+                    /* Non-extern module with 0 output or codegen error — real CG002. */
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
                                        (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
@@ -847,6 +874,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(module);
                 free(src);
                 return 1;
+                }
             }
         }
         fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
