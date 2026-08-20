@@ -1642,8 +1642,28 @@ int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t *trait_nm, in
   if (slot >= g_xlang_skip_trait_reg[ti].num_methods)
     return -1;
   nd = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[slot];
-  if (dim_ix >= nd)
+  if (dim_ix >= nd) {
+    /*
+     * dest extras dest-RET PTR-to-ARRAY extra empty `[]` `*[2][]T`:
+     * unused slot dims[ndims] holds extra SLICE wrap COUNT
+     * (1 = `*[2][]T`; 2 = `*[2][][]T`; 0 = no extra wrap =
+     * `*[2]i32`). dim_ix==ndims and extra>0 → return the count.
+     * 0 / missing → -1 so `*[2]i32` stays wrap-once. Extra STAR
+     * `*[2]*T` unused slot dims[ndims+1] stays deferred. Twin of
+     * param_elem_array_dim unused-slot dims[ndims]. Do not invent
+     * -3. PLATFORM: SHARED.
+     */
+    int32_t extra;
+    if (!(nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX))
+      return -1;
+    if (dim_ix == nd) {
+      extra = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][nd];
+      if (extra <= 0)
+        return -1;
+      return extra;
+    }
     return -1;
+  }
   return g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][dim_ix];
 }
 
@@ -3570,19 +3590,53 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
               }
               if (!mm && eeek >= 0 && leaf_tr != 0) {
                 int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
-                if (pgek >= 0 && pgek != eeek) {
-                  mm = 1;
-                } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
-                  int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
-                  if (enl > 0) {
-                    uint8_t gnm[64];
-                    int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
-                    if (!xlang_skip_trait_named_eq_self_c(
-                          g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
-                          gnm, gnl,
-                          g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
-                          g_xlang_skip_impl_for_is_ptr[si]))
+                /*
+                 * dest extras dest-RET PTR-to-ARRAY extra empty `[]`
+                 * `*[2][]T`: leftover after ARRAY peels is SLICE vs
+                 * eeek=leaf (store-only T001). Extra SLICE wrap COUNT
+                 * is unused slot dims[ndims] (1 = `*[2][]T`; 0 = no
+                 * extra wrap = `*[2]i32`). Peel leftover SLICE extra
+                 * times or T001. Extra ADDR_OF of typed `[2][]i32`
+                 * dest-stamps via the formal leftover skip eek=-1 was
+                 * false green; dest extras dest-RET wrap-once dest-
+                 * stamps `*[2]i32`. Extra STAR `*[2]*T` unused slot
+                 * dims[ndims+1] stays deferred. Twin of param ARRAY
+                 * leftover extra SLICE peels. Do not invent -3.
+                 * PLATFORM: SHARED. G.7: complete this walk.
+                 */
+                int32_t extra_slice = 0;
+                if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                  extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                if (extra_slice > 0) {
+                  while (extra_slice > 0) {
+                    if (pgek != XLANG_TRAIT_TY_SLICE || leaf_tr == 0) {
                       mm = 1;
+                      break;
+                    }
+                    leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                    if (leaf_tr == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    extra_slice = extra_slice - 1;
+                  }
+                }
+                if (!mm) {
+                  if (pgek >= 0 && pgek != eeek) {
+                    mm = 1;
+                  } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
                   }
                 }
               }
@@ -5820,14 +5874,67 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
               }
             } else if (ret_elem_arr_need_size) {
               if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-                /* wave438: elem T[] → PTR to SLICE of T (3-layer, deferred to soft).
-                 * Mark elem uncaptured so check skips; avoids parse failure.
-                 * Also clears prefix_arr_more if came from *[N][]T. */
-                ent->method_ret_elem_kinds[mi_reg] = -1;
-                ret_elem_arr_need_size = 0;
-                ret_elem_prefix_arr_more = 0;
-                ret_elem_dim_n = 0;
-                want_ret = 0;
+                /*
+                 * dest extras dest-RET PTR-to-ARRAY extra empty `[]`
+                 * `*[2][]T`: after `*` then `[N]` elem is ARRAY
+                 * (PTR outer). Extra empty `[]` used to set
+                 * elem_kind=-1 (leaf T never committed; leftover
+                 * skip eek=-1 — typed let dest-stamps via the
+                 * local = false green; dest extras dest-RET
+                 * wrap-once dest-stamps `*[2]i32` → INDEX of a
+                 * live `*[2][]i32` identity 139). ndims=-2 would
+                 * lose [N] (ban -3 / new field). Keep ARRAY;
+                 * extra SLICE wrap COUNT lives in unused slot
+                 * dims[ndims] (1 = `*[2][]T`; 2 = `*[2][][]T`;
+                 * 0 = no extra wrap = `*[2]i32`). Extra STAR
+                 * `*[2]*T` unused slot dims[ndims+1] stays
+                 * deferred. Twin of param extra empty `[]`
+                 * ARRAY-elem + PTR outer (`*[2][]T` param already
+                 * closed). Capture leaf T via
+                 * ret_elem_elem_pending. PLATFORM: SHARED parse.
+                 * G.7: complete this scanner.
+                 */
+                if (ent->method_ret_elem_kinds[mi_reg] == XLANG_TRAIT_TY_ARRAY
+                    && ent->method_ret_kinds[mi_reg] == XLANG_TRAIT_TY_PTR) {
+                  int32_t nd;
+                  int32_t extra;
+                  if (ret_elem_dim_n > 0) {
+                    int32_t di;
+                    nd = ret_elem_dim_n;
+                    ent->method_ret_elem_array_ndims[mi_reg] = nd;
+                    for (di = 0; di < nd; di++)
+                      ent->method_ret_elem_array_dims[mi_reg][di] = ret_elem_dims[di];
+                    ret_elem_dim_n = 0;
+                  } else {
+                    nd = ent->method_ret_elem_array_ndims[mi_reg];
+                  }
+                  if (nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                    extra = ent->method_ret_elem_array_dims[mi_reg][nd];
+                    if (extra < 0)
+                      extra = 0;
+                    extra = extra + 1;
+                    if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      ent->method_ret_elem_array_dims[mi_reg][nd] = extra;
+                    ret_elem_arr_need_size = 0;
+                    ret_elem_prefix_arr_more = 0;
+                    ret_elem_elem_pending = 1;
+                  } else {
+                    ent->method_ret_elem_kinds[mi_reg] = -1;
+                    ret_elem_arr_need_size = 0;
+                    ret_elem_prefix_arr_more = 0;
+                    ret_elem_dim_n = 0;
+                    want_ret = 0;
+                  }
+                } else {
+                  /* wave438: elem T[] → PTR to SLICE of T (3-layer, deferred to soft).
+                   * Mark elem uncaptured so check skips; avoids parse failure.
+                   * Also clears prefix_arr_more if came from *[N][]T. */
+                  ent->method_ret_elem_kinds[mi_reg] = -1;
+                  ret_elem_arr_need_size = 0;
+                  ret_elem_prefix_arr_more = 0;
+                  ret_elem_dim_n = 0;
+                  want_ret = 0;
+                }
               } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
                 /* Collect one elem dim; finalize on non-`[` after closing `]`. */
                 if (ret_elem_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)

@@ -14477,6 +14477,29 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                       &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
               let dyn_rew: i32 = dyn_ralf;
               if (dyn_rend >= 1) {
+                /*
+                 * dest extras dest-RET PTR-to-ARRAY extra empty `[]`
+                 * `*[2][]T`: unused slot dims[ndims] extra SLICE wrap
+                 * COUNT (1 = `*[2][]T`; 2 = `*[2][][]T`; 0 = no extra
+                 * wrap = `*[2]i32`). Wrap extra SLICE of leaf extra
+                 * times then ARRAY inner-first then wrap ptr.
+                 * Sit-red dest extras dest-RET wrap-once dest-stamps
+                 * `*[2]i32` (typed let of `*[2][]i32` T001; INDEX of
+                 * a live identity 139). `*[2]i32` (rex<=0) stays
+                 * wrap-once. Extra STAR `*[2]*T` unused slot
+                 * dims[ndims+1] stays deferred. Twin of dest extras
+                 * dest-ARRAY of PTR extra SLICE wraps. Do not invent
+                 * -3. PLATFORM: SHARED. G.7: complete this wrap.
+                 */
+                let dyn_rex: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_rend);
+                if (dyn_rex > 0) {
+                  let dyn_rxi: i32 = 0;
+                  while (dyn_rxi < dyn_rex && dyn_rew > 0) {
+                    dyn_rew = find_or_alloc_slice_type_ref(arena, dyn_rew);
+                    dyn_rxi = dyn_rxi + 1;
+                  }
+                }
                 let dyn_rei: i32 = dyn_rend - 1;
                 while (dyn_rei >= 0 && dyn_rew > 0) {
                   let dyn_red: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(

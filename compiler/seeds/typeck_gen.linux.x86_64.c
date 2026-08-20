@@ -11619,6 +11619,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
               int32_t dyn_rew = dyn_ralf;
               if ((dyn_rend >= 1)) {
+                /* dest extras dest-RET PTR-to-ARRAY extra empty `[]`
+                 * `*[2][]T`. Pin twin of typeck.x. PLATFORM: SHARED. */
+                int32_t dyn_rex = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, dyn_rend);
+                if ((dyn_rex > 0)) {
+                  int32_t dyn_rxi = 0;
+                  while (((dyn_rxi < dyn_rex) && (dyn_rew > 0))) {
+                    (void)((dyn_rew = typeck_find_or_alloc_slice_type_ref(arena, dyn_rew)));
+                    (void)((dyn_rxi = (dyn_rxi + 1)));
+                  }
+                }
                 int32_t dyn_rei = (dyn_rend - 1);
                 while (((dyn_rei >= 0) && (dyn_rew > 0))) {
                   int32_t dyn_red = xlang_skip_trait_method_ret_elem_array_dim_c(
