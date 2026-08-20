@@ -193,15 +193,23 @@ pure_ld_try_link() {
 #           merge, not final executable link). multidef via
 #           pure_ld_multidef_flags (Darwin: -multiply_defined suppress;
 #           Linux: --allow-multiple-definition).
+# PLATFORM: MACOS — F7 MH_OBJECT emits LC_SEGMENT __TEXT + __DATA (vtable
+#           __DATA,__const). Apple `ld -r` / `cc -r` then fail:
+#           "more than one LC_SEGMENT found in object file". Current product
+#           xlang -c produces those objects, so prefer hybrid cannot wait on
+#           a writer rewrite. Complete this merge: if -r fails, `libtool
+#           -static` concatenates members (Darwin final ld accepts the
+#           archive on the object list). LINUX stays $CC -r / ld -r.
 # ---------------------------------------------------------------------------
 pure_ld_partial_merge() {
   local out="$1"; shift
   local objs="$*"
-  local ld_bin multidef
+  local ld_bin multidef os
   if [ -z "$out" ] || [ -z "$objs" ]; then
     echo "pure_ld_shared: pure_ld_partial_merge needs OUT and OBJS" >&2
     return 1
   fi
+  os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
     ld_bin="$(pure_ld_resolve_ld)" || {
       echo "pure_ld_shared: ld not found for partial_merge" >&2
@@ -209,12 +217,23 @@ pure_ld_partial_merge() {
     }
     multidef="$(pure_ld_multidef_flags)"
     # shellcheck disable=SC2086
-    "$ld_bin" -r $multidef -o "$out" $objs
+    if "$ld_bin" -r $multidef -o "$out" $objs; then
+      return 0
+    fi
   else
     # Original path: $CC -r -nostdlib (zero regression when flag unset).
     # shellcheck disable=SC2086
-    ${CC:-cc} -r -nostdlib -o "$out" $objs
+    if ${CC:-cc} -r -nostdlib -o "$out" $objs; then
+      return 0
+    fi
   fi
+  # PLATFORM: MACOS — F7 two-segment MH_OBJECT cannot ld -r; libtool -static.
+  if [ "$os" = "Darwin" ] && command -v libtool >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    libtool -static -o "$out" $objs
+    return $?
+  fi
+  return 1
 }
 
 # ---------------------------------------------------------------------------
