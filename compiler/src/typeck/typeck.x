@@ -148,12 +148,16 @@ export extern function xlang_skip_trait_method_ret_elem_array_ndims_c(trait_nm: 
  * @param slot i32 — vtable slot
  * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
  * @return i32 — N > 0, or -1 if invalid. When ndims>0, dim_ix==ndims
- * is dest extras dest-RET extra empty `[]` wrap COUNT (`*[2][]T` = 1;
- * `*[2][][]T` = 2; 0 / missing means no extra wrap = `*[2]i32`).
- * dim_ix==ndims+1 is dest extras dest-RET extra STAR wrap COUNT
- * (`*[2]*T` / `**[2]*T` = 1; `*[2][]*T` / `**[2][]*T` = 1 with
- * extra SLICE also in dims[ndims]; 0 / missing means no extra PTR
- * = `*[2]i32` / `**[2]i32` / `*[2][]T` / `**[2][]T`).
+ * is dest extras dest-RET extra empty `[]` wrap COUNT for ARRAY/PTR
+ * elem (`*[2][]T` / `**[2][]T` = 1; `*[2][][]T` = 2; 0 / missing
+ * means no extra wrap = `*[2]i32`) OR extra STAR wrap COUNT for
+ * SLICE elem (`*[][2]*T` = 1). dim_ix==ndims+1 is dest extras
+ * dest-RET extra STAR wrap COUNT for ARRAY/PTR elem (`*[2]*T` /
+ * `**[2]*T` = 1; `*[2][]*T` / `**[2][]*T` = 1 with extra SLICE
+ * also in dims[ndims]; 0 / missing means no extra PTR = `*[2]i32`
+ * / `**[2]i32` / `*[2][]T` / `**[2][]T`) OR extra empty `[]`
+ * wrap COUNT for SLICE elem (`*[][2][]T` = 1; `*[][2][][]T` = 2;
+ * 0 / missing means no extra wrap = `*[][2]i32` / `*[][2]*T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_ret_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14615,6 +14619,88 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
               if (dyn_prew > 0) {
                 dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_prew);
+              }
+            }
+          }
+          /*
+           * dest extras dest-RET extra empty `[]` SLICE-elem
+           * `*[][2][]T` / dest extras dest-RET of `*[]T`: scalar PTR
+           * skips elem kind 11 so dyn_ret_ty stays 0 (typed let
+           * dest-stamps via the local = false green; leftover skip
+           * eek=-1 so impl `*[][2]i32` vs trait `*[][2][]i32`
+           * compile=0). Registry ret_elem_elem_kind + ret_elem_array
+           * ndims/dims already hold the SLICE-elem leaf (`[2][]i32`
+           * extras). Unused slot dims[ndims] extra PTR wrap COUNT
+           * (1 = `*[][2]*T`; 0 = no extra PTR = `*[][2]i32` /
+           * `*[][2][]T`). Unused slot dims[ndims+1] extra SLICE wrap
+           * COUNT (1 = `*[][2][]T` / `*[][2][]*T`; 0 = no extra wrap
+           * = `*[][2]i32` / `*[][2]*T`; `*[][2][]*T` has both slots
+           * set). Wrap extra PTR of leaf extra times then extra SLICE
+           * then ARRAY inner-first then wrap SLICE (elem) then wrap
+           * outer ptr. `*[]T` (ndims=0) wraps SLICE of leaf then wrap
+           * outer ptr. Twin of dest extras dest-RET extra STAR PTR-
+           * elem wrap (wrap PTR of elem then wrap outer ptr; this wrap
+           * SLICE of elem then wrap outer ptr). Discriminant vs dest
+           * extras dest-RET extra empty `[]` ARRAY-elem `*[2][]T` /
+           * PTR-elem `**[2][]T` is SLICE vs ARRAY vs PTR elem. Do not
+           * invent -3. PLATFORM: SHARED. G.7: complete this wrap.
+           */
+          if (dyn_ret_ty == 0 && dyn_rek3 == 11) {
+            let dyn_sreek: i32 = xlang_skip_trait_method_ret_elem_elem_kind_c(
+                    &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
+            let dyn_sralf: i32 = 0;
+            if (dyn_sreek >= 0 && dyn_sreek != 8 && dyn_sreek != 9 && dyn_sreek != 10
+                && dyn_sreek != 11 && dyn_sreek != 13) {
+              dyn_sralf = pipeline_type_ensure_by_kind_ord(arena, dyn_sreek);
+            }
+            if (dyn_sralf == 0 && dyn_sreek == 8) {
+              let dyn_sranm: u8[64] = [];
+              let dyn_sranl: i32 = xlang_skip_trait_method_ret_name_into_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, &dyn_sranm[0]);
+              if (dyn_sranl > 0) {
+                dyn_sralf = find_or_alloc_named_type_ref(arena, &dyn_sranm[0], dyn_sranl);
+              }
+            }
+            if (dyn_sralf > 0) {
+              let dyn_srend: i32 = xlang_skip_trait_method_ret_elem_array_ndims_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
+              let dyn_srew: i32 = dyn_sralf;
+              if (dyn_srend >= 1) {
+                let dyn_srpx: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_srend);
+                if (dyn_srpx > 0) {
+                  let dyn_srpi: i32 = 0;
+                  while (dyn_srpi < dyn_srpx && dyn_srew > 0) {
+                    dyn_srew = find_or_alloc_ptr_type_ref(arena, dyn_srew);
+                    dyn_srpi = dyn_srpi + 1;
+                  }
+                }
+                let dyn_srex: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_srend + 1);
+                if (dyn_srex > 0) {
+                  let dyn_srxi: i32 = 0;
+                  while (dyn_srxi < dyn_srex && dyn_srew > 0) {
+                    dyn_srew = find_or_alloc_slice_type_ref(arena, dyn_srew);
+                    dyn_srxi = dyn_srxi + 1;
+                  }
+                }
+                let dyn_srei: i32 = dyn_srend - 1;
+                while (dyn_srei >= 0 && dyn_srew > 0) {
+                  let dyn_sred: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_srei);
+                  if (dyn_sred > 0) {
+                    dyn_srew = find_or_alloc_array_type_ref(arena, dyn_srew, dyn_sred);
+                  } else {
+                    dyn_srew = 0;
+                  }
+                  dyn_srei = dyn_srei - 1;
+                }
+              }
+              if (dyn_srew > 0) {
+                dyn_srew = find_or_alloc_slice_type_ref(arena, dyn_srew);
+              }
+              if (dyn_srew > 0) {
+                dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_srew);
               }
             }
           }
