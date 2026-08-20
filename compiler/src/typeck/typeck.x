@@ -151,8 +151,9 @@ export extern function xlang_skip_trait_method_ret_elem_array_ndims_c(trait_nm: 
  * is dest extras dest-RET extra empty `[]` wrap COUNT (`*[2][]T` = 1;
  * `*[2][][]T` = 2; 0 / missing means no extra wrap = `*[2]i32`).
  * dim_ix==ndims+1 is dest extras dest-RET extra STAR wrap COUNT
- * (`*[2]*T` = 1; `*[2][]*T` = 1 with extra SLICE also in dims[ndims];
- * 0 / missing means no extra PTR = `*[2]i32` / `*[2][]T`).
+ * (`*[2]*T` / `**[2]*T` = 1; `*[2][]*T` / `**[2][]*T` = 1 with
+ * extra SLICE also in dims[ndims]; 0 / missing means no extra PTR
+ * = `*[2]i32` / `**[2]i32` / `*[2][]T` / `**[2][]T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_ret_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14534,6 +14535,86 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               }
               if (dyn_rew > 0) {
                 dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_rew);
+              }
+            }
+          }
+          /*
+           * dest extras dest-RET extra STAR PTR-elem `**[2]*T` /
+           * dest extras dest-RET of `**i32`: scalar PTR skips elem
+           * kind 9 so dyn_ret_ty stays 0 (typed let `**[2]*i32` T001;
+           * Darwin dest-stamp via the local = false green). Registry
+           * ret_elem_elem_kind + ret_elem_array ndims/dims already
+           * hold the PTR-elem leaf (`[2]*i32` extras). Unused slot
+           * dims[ndims] extra SLICE wrap COUNT (1 = `**[2][]T`; 0 =
+           * no extra wrap = `**[2]i32`). Unused slot dims[ndims+1]
+           * extra PTR wrap COUNT (1 = `**[2]*T` / `**[2][]*T`; 0 =
+           * no extra PTR = `**[2]i32` / `**[2][]T`; `**[2][]*T` has
+           * both slots set). Wrap extra PTR of leaf extra times then
+           * extra SLICE then ARRAY inner-first then wrap PTR (elem)
+           * then wrap outer ptr. `**i32` (ndims=0) wraps PTR of leaf
+           * then wrap outer ptr. Twin of dest extras dest-ARRAY of
+           * PTR extra PTR-then-SLICE wraps (ARRAY outer wrap ARRAY
+           * after wrap PTR; this wrap outer ptr after wrap PTR).
+           * Discriminant vs dest extras dest-RET extra STAR ARRAY-
+           * elem `*[2]*T` is PTR vs ARRAY elem. Do not invent -3.
+           * PLATFORM: SHARED. G.7: complete this wrap.
+           */
+          if (dyn_ret_ty == 0 && dyn_rek3 == 9) {
+            let dyn_preek: i32 = xlang_skip_trait_method_ret_elem_elem_kind_c(
+                    &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
+            let dyn_pralf: i32 = 0;
+            if (dyn_preek >= 0 && dyn_preek != 8 && dyn_preek != 9 && dyn_preek != 10
+                && dyn_preek != 11 && dyn_preek != 13) {
+              dyn_pralf = pipeline_type_ensure_by_kind_ord(arena, dyn_preek);
+            }
+            if (dyn_pralf == 0 && dyn_preek == 8) {
+              let dyn_pranm: u8[64] = [];
+              let dyn_pranl: i32 = xlang_skip_trait_method_ret_name_into_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, &dyn_pranm[0]);
+              if (dyn_pranl > 0) {
+                dyn_pralf = find_or_alloc_named_type_ref(arena, &dyn_pranm[0], dyn_pranl);
+              }
+            }
+            if (dyn_pralf > 0) {
+              let dyn_prend: i32 = xlang_skip_trait_method_ret_elem_array_ndims_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
+              let dyn_prew: i32 = dyn_pralf;
+              if (dyn_prend >= 1) {
+                let dyn_prpx: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_prend + 1);
+                if (dyn_prpx > 0) {
+                  let dyn_prpi: i32 = 0;
+                  while (dyn_prpi < dyn_prpx && dyn_prew > 0) {
+                    dyn_prew = find_or_alloc_ptr_type_ref(arena, dyn_prew);
+                    dyn_prpi = dyn_prpi + 1;
+                  }
+                }
+                let dyn_prex: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_prend);
+                if (dyn_prex > 0) {
+                  let dyn_prxi: i32 = 0;
+                  while (dyn_prxi < dyn_prex && dyn_prew > 0) {
+                    dyn_prew = find_or_alloc_slice_type_ref(arena, dyn_prew);
+                    dyn_prxi = dyn_prxi + 1;
+                  }
+                }
+                let dyn_prei: i32 = dyn_prend - 1;
+                while (dyn_prei >= 0 && dyn_prew > 0) {
+                  let dyn_pred: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_prei);
+                  if (dyn_pred > 0) {
+                    dyn_prew = find_or_alloc_array_type_ref(arena, dyn_prew, dyn_pred);
+                  } else {
+                    dyn_prew = 0;
+                  }
+                  dyn_prei = dyn_prei - 1;
+                }
+              }
+              if (dyn_prew > 0) {
+                dyn_prew = find_or_alloc_ptr_type_ref(arena, dyn_prew);
+              }
+              if (dyn_prew > 0) {
+                dyn_ret_ty = find_or_alloc_ptr_type_ref(arena, dyn_prew);
               }
             }
           }
