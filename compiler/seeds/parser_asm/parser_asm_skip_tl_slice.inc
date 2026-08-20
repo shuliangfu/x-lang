@@ -6194,6 +6194,64 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   ret_elem_elem_pending = 0;
                   want_ret = 0;
                 }
+              } else if (r.tok.kind == (int32_t)TOKEN_STAR
+                         && ent->method_ret_elem_kinds[mi_reg]
+                                == XLANG_TRAIT_TY_SLICE
+                         && ent->method_ret_kinds[mi_reg]
+                                == XLANG_TRAIT_TY_PTR) {
+                /*
+                 * dest extras dest-RET extra STAR SLICE-elem
+                 * `*[][2]*T`: after `*` then `[]` then `[N]` we are
+                 * in ret_elem_elem_pending (elem=SLICE, dims in the
+                 * local buffer or registry). Extra STAR used to hit
+                 * token_to_type_kind=-1 then want_ret=0 (leaf T never
+                 * committed; leftover skip eek=-1 — dest-stamp via
+                 * the local of typed dest = false green even Ubuntu;
+                 * dest extras dest-RET wrap rek3==11 dest-stamps
+                 * `*[][2]i32` so typed let `*[][2]*i32` T001; impl
+                 * `*[][2]i32` vs trait `*[][2]*i32` compile=0).
+                 * ndims=-2 would lose [N] (ban -3 / new field). Extra
+                 * SLICE of `*[][2][]T` already lives in unused slot
+                 * dims[ndims+1] — do not reopen that encoding. Keep
+                 * SLICE; extra PTR wrap COUNT lives in unused slot
+                 * dims[ndims] (1 = `*[][2]*T`; 2 = `*[][2]**T`; 0 =
+                 * no extra PTR = `*[][2]i32` / `*[][2][]T`; extra
+                 * SLICE stays dims[ndims+1]; both slots =
+                 * `*[][2][]*T`). Twin of param extra STAR SLICE-elem
+                 * + PTR outer (`*[][2]*T` param already closed).
+                 * Discriminant vs dest extras dest-RET extra STAR
+                 * ARRAY-elem `*[2]*T` / PTR-elem `**[2]*T` (same
+                 * unused-slot family; ARRAY/PTR extra PTR lives in
+                 * dims[ndims+1]) is SLICE vs ARRAY vs PTR elem.
+                 * Capture leaf T by staying pending (zeros
+                 * ret_elem_dim_n so wave434 does not lift).
+                 * PLATFORM: SHARED parse. G.7: complete this scanner.
+                 */
+                int32_t nd;
+                int32_t extra;
+                if (ret_elem_dim_n > 0) {
+                  int32_t di;
+                  nd = ret_elem_dim_n;
+                  ent->method_ret_elem_array_ndims[mi_reg] = nd;
+                  for (di = 0; di < nd; di++)
+                    ent->method_ret_elem_array_dims[mi_reg][di] = ret_elem_dims[di];
+                  ret_elem_dim_n = 0;
+                } else {
+                  nd = ent->method_ret_elem_array_ndims[mi_reg];
+                }
+                if (nd > 0 && nd < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX) {
+                  extra = ent->method_ret_elem_array_dims[mi_reg][nd];
+                  if (extra < 0)
+                    extra = 0;
+                  extra = extra + 1;
+                  if (extra < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    ent->method_ret_elem_array_dims[mi_reg][nd] = extra;
+                  /* stay ret_elem_elem_pending to capture leaf T */
+                } else {
+                  ent->method_ret_elem_kinds[mi_reg] = -1;
+                  ret_elem_elem_pending = 0;
+                  want_ret = 0;
+                }
               } else {
                 int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
                 if (bk >= 0) {
