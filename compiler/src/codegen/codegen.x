@@ -5368,13 +5368,17 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
  * wave636: TYPE_PTR → TYPE_ARRAY (`*[N]T`) must be `E (*name)[N]`, not `E * *`.
  * dest-SLICE return/assign of INDEX: TYPE_ARRAY → TYPE_ARRAY (`[K][N]T` param)
  * decays to a pointer to the row, the same C form `E (*name)[N]…`.
+ * `[K]*[N]T` (ARRAY of PTR-to-ARRAY) param-decays to a pointer to `*[N]T`,
+ * so the C form is `E (**name)[N]…` (abstract `E (**)[N]…`). Sit-red
+ * dyn_add_arr_ptr_arr host-C INDEX `(*((p)[0]))[0]` when p was `E **`
+ * (`*(p[0])` is a scalar, not an array).
  * Abstract emit_type peels ARRAY to `E *` twice → `int32_t ** a` and
  * `(a)[0]` reads the first row's scalars as a pointer (memcpy SEGV).
  * C form: `E (*name)[N][M]…` (name_len==0 → abstract `E (*)[N]…`).
  * Reuses emit_local_fixed_array_elem_type + suffix (G.7; no third peel).
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
- * @param ptr_type_ref i32 — TYPE_PTR→TYPE_ARRAY or TYPE_ARRAY→TYPE_ARRAY
+ * @param ptr_type_ref i32 — TYPE_PTR→TYPE_ARRAY, TYPE_ARRAY→TYPE_ARRAY, or TYPE_ARRAY→TYPE_PTR→TYPE_ARRAY
  * @param name *u8 — optional declarator name (may be null when name_len==0)
  * @param name_len i32 — 0 for abstract type (casts / sizeof)
  * @param ctx *PipelineDepCtx — nested named/struct emit
@@ -5394,6 +5398,45 @@ export function emit_c_ptr_to_fixed_array_decl(arena: *ASTArena, out: *CodegenOu
       return -1;
     }
     arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref);
+    /*
+     * `[K]*[N]T` param decay: pointer to `*[N]T` → `E (**name)[N]`.
+     * Do not fall through to ARRAY-of-ARRAY (`arr_tr` is PTR, not ARRAY).
+     * Kind checks are inlined (this function is defined before
+     * type_is_ptr_to_fixed_array). PLATFORM: SHARED host-C.
+     */
+    if (decl_tk == (TypeKind.TYPE_ARRAY as i32) && !ast.ref_is_null(arr_tr)
+        && pipeline_type_kind_ord_at(arena, arr_tr) == (TypeKind.TYPE_PTR as i32)) {
+      let inner_arr: i32 = pipeline_type_elem_ref_at(arena, arr_tr);
+      if (ast.ref_is_null(inner_arr)
+          || pipeline_type_kind_ord_at(arena, inner_arr) != (TypeKind.TYPE_ARRAY as i32)) {
+        return -1;
+      }
+      if (emit_local_fixed_array_elem_type(arena, out, inner_arr, ctx) != 0) {
+        return -1;
+      }
+      /* " (**" */
+      if (append_byte(out, 32) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 42) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 42) != 0) {
+        return -1;
+      }
+      if (name_len > 0 && name != 0 as *u8) {
+        if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+          return -1;
+        }
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      return emit_local_fixed_array_suffix(arena, out, inner_arr);
+    }
     if (ast.ref_is_null(arr_tr) || pipeline_type_kind_ord_at(arena, arr_tr) != (TypeKind.TYPE_ARRAY as i32)) {
       return -1;
     }
@@ -5472,8 +5515,9 @@ export function type_is_array_of_fixed_array(arena: *ASTArena, type_ref: i32): i
 
 /**
  * Host-C: true when a param/abstract type needs a named C array declarator
- * (`E (*name)[N]…`) instead of emit_type + trailing name.
- * Covers `*[N]T` and `[K][N]T` (same C form; G.7 single emit_c_ptr path).
+ * (`E (*name)[N]…` / `E (**name)[N]…`) instead of emit_type + trailing name.
+ * Covers `*[N]T`, `[K][N]T`, and `[K]*[N]T` (G.7 single emit_c_ptr path).
+ * `[K]*T` (ARRAY of PTR-to-leaf) stays emit_type `E **` — not this leaf.
  * @param arena *ASTArena — type pool
  * @param type_ref i32 — candidate type
  * @return i32 — 1 if named declarator required, else 0
@@ -5482,10 +5526,19 @@ export function type_is_array_of_fixed_array(arena: *ASTArena, type_ref: i32): i
 export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0.
   unsafe {
+    let elem: i32 = 0;
     if (type_is_ptr_to_fixed_array(arena, type_ref) != 0) {
       return 1;
     }
-    return type_is_array_of_fixed_array(arena, type_ref);
+    if (type_is_array_of_fixed_array(arena, type_ref) != 0) {
+      return 1;
+    }
+    /* `[K]*[N]T`: ARRAY whose element is PTR-to-fixed-ARRAY. */
+    if (ast.ref_is_null(type_ref) || pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_ARRAY as i32)) {
+      return 0;
+    }
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+    return type_is_ptr_to_fixed_array(arena, elem);
   }
 }
 
@@ -15772,9 +15825,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * (twin of [][N]T slice path). PLATFORM: SHARED host-C.
          */
         let elem_is_arr: i32 = 0;
+        let elem_is_ptr_arr: i32 = 0;
         if (!ast.ref_is_null(elem_type_ref) && elem_type_ref > 0 && elem_type_ref <= arena.num_types) {
           if (pipeline_type_kind_ord_at(arena, elem_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
             elem_is_arr = 1;
+          }
+          if (type_is_ptr_to_fixed_array(arena, elem_type_ref) != 0) {
+            elem_is_ptr_arr = 1;
           }
         }
         if (elem_is_arr != 0) {
@@ -15794,6 +15851,41 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
           if (emit_local_fixed_array_suffix(arena, out, elem_type_ref) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 41) != 0) {
+            return -1;
+          }
+          if (emit_braced_array_lit_init(arena, out, expr_ref, ctx) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+        /*
+         * `[K]*[N]T` ARRAY_LIT extra: emit_type(`*[N]T`) peels to `E *` so
+         * this path produced `(int32_t *[]){&r0,&r1}` vs wrapper
+         * `int32_t (**)[2]`. Sit-red dyn_add_arr_ptr_arr host-C
+         * incompatible-pointer-types. G.7: `(E (*[])[N]){…}` twin of
+         * dest-SLICE `E (*al[n])[N]`. Scalar `[K]*T` stays `(E[]){…}`.
+         * PLATFORM: SHARED host-C.
+         */
+        if (elem_is_ptr_arr != 0) {
+          let pal_arr: i32 = pipeline_type_elem_ref_at(arena, elem_type_ref);
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_elem_type(arena, out, pal_arr, ctx) != 0) {
+            let fb_pa: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_9(out, &fb_pa[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  (*[]) */
+          let pa_mid: u8[8] = [32, 40, 42, 91, 93, 41, 0, 0];
+          if (emit_bytes_from_ptr(out, &pa_mid[0], 6) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_suffix(arena, out, pal_arr) != 0) {
             return -1;
           }
           if (append_byte(out, 41) != 0) {

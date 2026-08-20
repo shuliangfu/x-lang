@@ -5450,7 +5450,8 @@ int32_t codegen_emit_c(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf
   {
     int32_t arr_tr = 0;
     int32_t decl_tk = 0;
-    /* PLATFORM: SHARED — accept TYPE_PTR (*[N]T) and TYPE_ARRAY ([K][N]T).
+    /* PLATFORM: SHARED — accept TYPE_PTR (*[N]T), TYPE_ARRAY ([K][N]T),
+     * and TYPE_ARRAY of PTR-to-ARRAY ([K]*[N]T → E (**name)[N]).
      * Twin of living/codegen.x emit_c_ptr_to_fixed_array_decl. Wrapper extras
      * for [2][2]i32 are TYPE_ARRAY; PTR-only rejected them (XP003). */
     if (ast_ref_is_null(ptr_type_ref)) {
@@ -5461,6 +5462,38 @@ int32_t codegen_emit_c(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf
       return -1;
     }
     (void)((arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref)));
+    /* [K]*[N]T param decay: pointer to *[N]T → E (**name)[N]. Pin twin. */
+    if ((decl_tk == 10) && (!(ast_ref_is_null(arr_tr)))
+        && (pipeline_type_kind_ord_at(arena, arr_tr) == 9)) {
+      int32_t inner_arr = pipeline_type_elem_ref_at(arena, arr_tr);
+      if ((ast_ref_is_null(inner_arr) || (pipeline_type_kind_ord_at(arena, inner_arr) != 10))) {
+        return -1;
+      }
+      if ((codegen_emit_local_fixed_array_elem_type(arena, out, inner_arr, ctx) !=0)) {
+        return -1;
+      }
+      if ((codegen_append_byte(out, 32) !=0)) {
+        return -1;
+      }
+      if ((codegen_append_byte(out, 40) !=0)) {
+        return -1;
+      }
+      if ((codegen_append_byte(out, 42) !=0)) {
+        return -1;
+      }
+      if ((codegen_append_byte(out, 42) !=0)) {
+        return -1;
+      }
+      if (((name_len > 0) && (name !=0))) {
+        if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
+          return -1;
+        }
+      }
+      if ((codegen_append_byte(out, 41) !=0)) {
+        return -1;
+      }
+      return codegen_emit_local_fixed_array_suffix(arena, out, inner_arr);
+    }
     if ((ast_ref_is_null(arr_tr) || (pipeline_type_kind_ord_at(arena, arr_tr) !=10))) {
       return -1;
     }
@@ -12940,9 +12973,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
          * PLATFORM: SHARED host-C. Pin twin of codegen.x.
          */
         int32_t elem_is_arr = 0;
+        int32_t elem_is_ptr_arr = 0;
         if ((!(ast_ref_is_null(elem_type_ref)) && (elem_type_ref > 0) && (elem_type_ref <= ((arena)->num_types)))) {
           if ((pipeline_type_kind_ord_at(arena, elem_type_ref) == 10)) {
             elem_is_arr = 1;
+          }
+          if ((codegen_type_is(arena, elem_type_ref) != 0)) {
+            elem_is_ptr_arr = 1;
           }
         }
         if ((elem_is_arr !=0)) {
@@ -12962,6 +12999,33 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -1;
           }
           if ((codegen_emit_local_fixed_array_suffix(arena, out, elem_type_ref) !=0)) {
+            return -1;
+          }
+          if ((codegen_append_byte(out, 41) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_braced_array_lit_init(arena, out, expr_ref, ctx) !=0)) {
+            return -1;
+          }
+          return 0;
+        }
+        /* [K]*[N]T ARRAY_LIT extra: (E (*[])[N]){…}. Pin twin of codegen.x. */
+        if ((elem_is_ptr_arr != 0)) {
+          int32_t pal_arr = pipeline_type_elem_ref_at(arena, elem_type_ref);
+          if ((codegen_append_byte(out, 40) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_local_fixed_array_elem_type(arena, out, pal_arr, ctx) !=0)) {
+            uint8_t fb_pa[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, &((fb_pa)[0]), 7) !=0)) {
+              return -1;
+            }
+          }
+          uint8_t pa_mid[8] = {32, 40, 42, 91, 93, 41, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((pa_mid)[0]), 6) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_local_fixed_array_suffix(arena, out, pal_arr) !=0)) {
             return -1;
           }
           if ((codegen_append_byte(out, 41) !=0)) {
@@ -15815,6 +15879,23 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     } else {
       int32_t p = 0;
       while ((p < pipeline_module_func_num_params_at(module, fi))) {
+        int32_t pty_na = pipeline_module_func_param_type_ref_at(module, fi, p);
+        int32_t use_na = codegen_type_is(arena, pty_na);
+        /* Pin twin of type_uses_named_array_decl: also [K][N]T and [K]*[N]T. */
+        if ((use_na == 0)) {
+          int32_t pk_na = pipeline_type_kind_ord_at(arena, pty_na);
+          if ((pk_na == 10)) {
+            int32_t pe_na = pipeline_type_elem_ref_at(arena, pty_na);
+            if ((!(ast_ref_is_null(pe_na)))) {
+              int32_t pek_na = pipeline_type_kind_ord_at(arena, pe_na);
+              if ((pek_na == 10)) {
+                use_na = 1;
+              } else if ((codegen_type_is(arena, pe_na) != 0)) {
+                use_na = 1;
+              }
+            }
+          }
+        }
         if ((p > 0)) {
           uint8_t comma[3] = {44, 32, 0};
           if ((codegen_emit_bytes_3(out, &((comma)[0]), 2) !=0)) {
@@ -15851,7 +15932,7 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     return -1;
                   }
                 } else {
-                  if ((codegen_type_is(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) !=0)) {
+                  if ((use_na !=0)) {
                     uint8_t pta_nm[128] = {};
                     int32_t pta_nl = 0;
                     if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
@@ -15908,7 +15989,7 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
             }
           }
         }
-        if (((codegen_type_is(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==0) && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11))) {
+        if (((use_na ==0) && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11))) {
           if ((codegen_append_byte(out, 32) !=0)) {
             return -1;
           }
@@ -15916,7 +15997,7 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -1;
           }
         }
-        if ((codegen_type_is(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==0)) {
+        if ((use_na ==0)) {
           if ((codegen_append_byte(out, 32) !=0)) {
             return -1;
           }
@@ -17077,6 +17158,12 @@ int32_t codegen_emit_dyn_host_c_fn_ptr_suffix(struct codegen_CodegenOutBuf * out
           int32_t pe = pipeline_type_elem_ref_at(arena, ty2);
           if ((!(ast_ref_is_null(pe))) && (pipeline_type_kind_ord_at(arena, pe) == 10)) {
             use_named = 1;
+          } else if ((pk == 10) && (!(ast_ref_is_null(pe))) && (pipeline_type_kind_ord_at(arena, pe) == 9)) {
+            /* [K]*[N]T: ARRAY of PTR-to-ARRAY. Pin twin of type_uses_named_array_decl. */
+            int32_t ie = pipeline_type_elem_ref_at(arena, pe);
+            if ((!(ast_ref_is_null(ie))) && (pipeline_type_kind_ord_at(arena, ie) == 10)) {
+              use_named = 1;
+            }
           }
         }
         if (use_named != 0) {
@@ -17336,6 +17423,12 @@ int32_t codegen_emit_vtable_wrapper_def(struct codegen_CodegenOutBuf * out, stru
         int32_t pe = pipeline_type_elem_ref_at(arena, pty);
         if ((!(ast_ref_is_null(pe))) && (pipeline_type_kind_ord_at(arena, pe) == 10)) {
           use_named = 1;
+        } else if ((pk == 10) && (!(ast_ref_is_null(pe))) && (pipeline_type_kind_ord_at(arena, pe) == 9)) {
+          /* [K]*[N]T: ARRAY of PTR-to-ARRAY. Pin twin of type_uses_named_array_decl. */
+          int32_t ie = pipeline_type_elem_ref_at(arena, pe);
+          if ((!(ast_ref_is_null(ie))) && (pipeline_type_kind_ord_at(arena, ie) == 10)) {
+            use_named = 1;
+          }
         }
       }
       if ((use_named !=0)) {
