@@ -3142,7 +3142,9 @@ ensure_pipeline_abi_prefer_one() {
       # ttc-thin merge-fail is pre-existing (already-strong dup); do not
       # abort before blkpeel (same as arrcopy || true before ttc).
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
-      pipeline_abi_inject_binop_block_peel_thin "$o" || return 1
+      # blkpeel merge-fail is pre-existing on Ubuntu leftover (already-strong
+      # dup). Do not abort before ptrslot (this leaf).
+      pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || return 1
       return 0
     fi
@@ -3332,9 +3334,10 @@ pipeline_abi_inject_param_ptr_slot_thin() {
     oc=objcopy
   fi
   if [ -n "$oc" ]; then
-    "$oc" --weaken-symbol=_glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null \
-      || "$oc" --weaken-symbol=glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null \
-      || true
+    # Try both ELF (no prefix) and Mach-O (_ prefix). Do not short-circuit:
+    # GNU objcopy may exit 0 on a missing Darwin-prefixed name.
+    "$oc" --weaken-symbol=glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null || true
   fi
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
     log "pipeline_abi ptrslot-thin inject OK (first-wins over weakened leftover)"
