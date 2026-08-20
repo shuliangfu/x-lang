@@ -11726,8 +11726,9 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
             }
           }
           /* dest extras dest-RET extra empty `[]` SLICE-elem
-           * `*[][2][]T` / dest extras dest-RET of `*[]T`. Pin twin
-           * of typeck.x. PLATFORM: SHARED. */
+           * `*[][2][]T` / dest extras dest-RET of `*[]T` / dest
+           * extras dest-RET extra STAR SLICE-elem ndims=0 `*[]*T`.
+           * Pin twin of typeck.x. PLATFORM: SHARED. */
           if (((dyn_ret_ty == 0) && (dyn_rek3 == 11))) {
             int32_t dyn_sreek = xlang_skip_trait_method_ret_elem_elem_kind_c(
                     &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
@@ -11750,7 +11751,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
               int32_t dyn_srend = xlang_skip_trait_method_ret_elem_array_ndims_c(
                       &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot);
               int32_t dyn_srew = dyn_sralf;
-              if ((dyn_srend >= 1)) {
+              if ((dyn_srend == 0)) {
+                int32_t dyn_srpx0 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 0);
+                if ((dyn_srpx0 > 0)) {
+                  int32_t dyn_srpi0 = 0;
+                  while (((dyn_srpi0 < dyn_srpx0) && (dyn_srew > 0))) {
+                    (void)((dyn_srew = typeck_find_or_alloc_ptr_type_ref(arena, dyn_srew)));
+                    (void)((dyn_srpi0 = (dyn_srpi0 + 1)));
+                  }
+                }
+              } else if ((dyn_srend >= 1)) {
                 int32_t dyn_srpx = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot,
                         dyn_srend);

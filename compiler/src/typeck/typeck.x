@@ -14637,13 +14637,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
            * = `*[][2]i32` / `*[][2]*T`; `*[][2][]*T` has both slots
            * set). Wrap extra PTR of leaf extra times then extra SLICE
            * then ARRAY inner-first then wrap SLICE (elem) then wrap
-           * outer ptr. `*[]T` (ndims=0) wraps SLICE of leaf then wrap
-           * outer ptr. Twin of dest extras dest-RET extra STAR PTR-
-           * elem wrap (wrap PTR of elem then wrap outer ptr; this wrap
-           * SLICE of elem then wrap outer ptr). Discriminant vs dest
-           * extras dest-RET extra empty `[]` ARRAY-elem `*[2][]T` /
-           * PTR-elem `**[2][]T` is SLICE vs ARRAY vs PTR elem. Do not
-           * invent -3. PLATFORM: SHARED. G.7: complete this wrap.
+           * outer ptr. dest extras dest-RET extra STAR SLICE-elem
+           * ndims=0 `*[]*T`: unused slot dims[0] extra PTR wrap COUNT
+           * (1 = `*[]*T`; 2 = `*[]**T`; 0 = no extra PTR = `*[]i32`).
+           * Wrap extra PTR of leaf extra times then wrap SLICE then
+           * wrap outer ptr (wrap rek3==11 previously skipped extra
+           * PTR when ndims=0 so dest-stamped `*[]i32` — typed let
+           * `*[]*i32` T001; dest-stamp via the local of typed dest =
+           * false green even Ubuntu). `*[]T` (ndims=0 extra PTR=0)
+           * wraps SLICE of leaf then wrap outer ptr. Twin of dest
+           * extras dest-RET extra STAR PTR-elem wrap (wrap PTR of
+           * elem then wrap outer ptr; this wrap SLICE of elem then
+           * wrap outer ptr) and param extra STAR ndims=0 leftover
+           * eand==0 extra PTR peels (`*[]*T` param already closed).
+           * Discriminant vs dest extras dest-RET extra empty `[]`
+           * ARRAY-elem `*[2][]T` / PTR-elem `**[2][]T` is SLICE vs
+           * ARRAY vs PTR elem. Do not invent -3. PLATFORM: SHARED.
+           * G.7: complete this wrap.
            */
           if (dyn_ret_ty == 0 && dyn_rek3 == 11) {
             let dyn_sreek: i32 = xlang_skip_trait_method_ret_elem_elem_kind_c(
@@ -14665,7 +14675,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               let dyn_srend: i32 = xlang_skip_trait_method_ret_elem_array_ndims_c(
                       &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot);
               let dyn_srew: i32 = dyn_sralf;
-              if (dyn_srend >= 1) {
+              if (dyn_srend == 0) {
+                let dyn_srpx0: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, 0);
+                if (dyn_srpx0 > 0) {
+                  let dyn_srpi0: i32 = 0;
+                  while (dyn_srpi0 < dyn_srpx0 && dyn_srew > 0) {
+                    dyn_srew = find_or_alloc_ptr_type_ref(arena, dyn_srew);
+                    dyn_srpi0 = dyn_srpi0 + 1;
+                  }
+                }
+              } else if (dyn_srend >= 1) {
                 let dyn_srpx: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_srend);
                 if (dyn_srpx > 0) {
