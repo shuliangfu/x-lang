@@ -147,7 +147,12 @@ export extern function xlang_skip_trait_method_ret_elem_array_ndims_c(trait_nm: 
  * @param trait_nlen i32 — trait name length; must be > 0
  * @param slot i32 — vtable slot
  * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
- * @return i32 — N > 0, or -1 if invalid
+ * @return i32 — N > 0, or -1 if invalid. When ndims>0, dim_ix==ndims
+ * is dest extras dest-RET extra empty `[]` wrap COUNT (`*[2][]T` = 1;
+ * `*[2][][]T` = 2; 0 / missing means no extra wrap = `*[2]i32`).
+ * dim_ix==ndims+1 is dest extras dest-RET extra STAR wrap COUNT
+ * (`*[2]*T` = 1; `*[2][]*T` = 1 with extra SLICE also in dims[ndims];
+ * 0 / missing means no extra PTR = `*[2]i32` / `*[2][]T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_ret_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -14479,18 +14484,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
               if (dyn_rend >= 1) {
                 /*
                  * dest extras dest-RET PTR-to-ARRAY extra empty `[]`
-                 * `*[2][]T`: unused slot dims[ndims] extra SLICE wrap
+                 * `*[2][]T` AND dest extras dest-RET extra STAR
+                 * `*[2]*T`: unused slot dims[ndims] extra SLICE wrap
                  * COUNT (1 = `*[2][]T`; 2 = `*[2][][]T`; 0 = no extra
-                 * wrap = `*[2]i32`). Wrap extra SLICE of leaf extra
-                 * times then ARRAY inner-first then wrap ptr.
-                 * Sit-red dest extras dest-RET wrap-once dest-stamps
-                 * `*[2]i32` (typed let of `*[2][]i32` T001; INDEX of
-                 * a live identity 139). `*[2]i32` (rex<=0) stays
-                 * wrap-once. Extra STAR `*[2]*T` unused slot
-                 * dims[ndims+1] stays deferred. Twin of dest extras
-                 * dest-ARRAY of PTR extra SLICE wraps. Do not invent
-                 * -3. PLATFORM: SHARED. G.7: complete this wrap.
+                 * wrap = `*[2]i32`). Unused slot dims[ndims+1] extra
+                 * PTR wrap COUNT (1 = `*[2]*T` / `*[2][]*T`; 0 = no
+                 * extra PTR = `*[2]i32` / `*[2][]T`; `*[2][]*T` has
+                 * both slots set). Wrap extra PTR of leaf extra times
+                 * then extra SLICE then ARRAY inner-first then wrap
+                 * ptr. Sit-red dest extras dest-RET wrap-once dest-
+                 * stamps `*[2]i32` (typed let of `*[2]*i32` /
+                 * `*[2][]i32` T001; INDEX of a live identity 139).
+                 * `*[2]i32` (rpx/rex<=0) stays wrap-once. Twin of
+                 * dest extras dest-ARRAY of PTR extra PTR-then-SLICE
+                 * wraps. Do not invent -3. PLATFORM: SHARED. G.7:
+                 * complete this wrap.
                  */
+                let dyn_rpx: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_rend + 1);
+                if (dyn_rpx > 0) {
+                  let dyn_rpi: i32 = 0;
+                  while (dyn_rpi < dyn_rpx && dyn_rew > 0) {
+                    dyn_rew = find_or_alloc_ptr_type_ref(arena, dyn_rew);
+                    dyn_rpi = dyn_rpi + 1;
+                  }
+                }
                 let dyn_rex: i32 = xlang_skip_trait_method_ret_elem_array_dim_c(
                         &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, dyn_rend);
                 if (dyn_rex > 0) {
