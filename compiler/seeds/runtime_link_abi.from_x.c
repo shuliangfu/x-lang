@@ -5029,8 +5029,42 @@ void xlang_append_linux_link_harden(char *argv[], int *la, int cap);
 #endif
 
 
+#if defined(__APPLE__)
 /**
- * ASM -o exe：fork 子进程执行 clang/ld 或 lld-link/ld；调用方须先 xlang_asm_ld_prepare_for_exe_link。
+ * Durable Darwin SDK path for product -o ld (no clang/cc driver).
+ * PLATFORM: MACOS — G.7 same candidate list as compiler/scripts/pure_ld_shared.sh
+ * pure_ld_platform_prefix. Prefer SDKROOT; then Xcode; then CommandLineTools.
+ * Do not spawn xcrun/cc. Returns static storage; empty string on miss.
+ */
+static const char *labi_darwin_sdk_path(void) {
+    static char buf[512];
+    const char *env;
+    static const char *cands[3];
+    int i;
+    size_t n;
+    cands[0] = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk";
+    cands[1] = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+    cands[2] = 0;
+    env = link_abi_getenv("SDKROOT");
+    if (env && env[0] && link_abi_path_readable(env) != 0) {
+        n = strlen(env);
+        if (n < sizeof buf) {
+            memcpy(buf, env, n + 1);
+            return buf;
+        }
+    }
+    for (i = 0; cands[i] != 0; i++) {
+        if (link_abi_path_readable(cands[i]) != 0)
+            return cands[i];
+    }
+    buf[0] = 0;
+    return buf;
+}
+#endif
+
+/**
+ * ASM -o exe：fork 子进程执行 ld 或 lld-link；调用方须先 xlang_asm_ld_prepare_for_exe_link。
+ * Darwin product -o uses bare ld + syslibroot (no clang/cc driver).
  * 参数：driver_freestanding 同 xlang_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。
  */
@@ -5097,25 +5131,34 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
         compress_o = NULL; /* F-06 v1 / F-04 v7：无 compress.o，tail libs 由 user_o 扫描 */
 #if defined(__APPLE__)
         if (use_macho_o) {
-            argv[la++] = labi_ld_driver_clang();
-            argv[la++] = labi_ld_flag_o();
-            argv[la++] = exe_path;
-            argv[la++] = o_path;
-            xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
-            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
-            xlang_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, XLANG_LD_ARGV_CAP, 0);
-            /* G.7: CLI user .o after std/on_demand (same globals as invoke_cc). */
-            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
-            argv[la] = NULL;
-            {
-                int rc = xlang_spawn_sync(labi_ld_driver_clang(), (const char *const *)argv);
-                if (rc == 0)
-                    return 0;
+            /*
+             * PLATFORM: MACOS — product default -o must not spawn clang/cc as
+             * the linker driver (PC zero-spawn leftover). G.7 complete the
+             * existing ld fallback: -syslibroot + -dynamic + -arch so bare
+             * ld finds libSystem. Sit-red: PATH trap clang → FAKE_CC_SPAWN;
+             * ld without syslibroot failed. Hello/rv/opt ld+syslibroot run
+             * 0/42/102. Same object list as the old clang driver (std +
+             * on_demand + extra). Do not fall back to clang.
+             */
+            const char *sdk;
+            const char *arch;
+            sdk = labi_darwin_sdk_path();
+            if (!sdk || !sdk[0]) {
+                link_diag_tool_status("ld", -1);
+                return -1;
             }
-            la = 0;
-            ld_bank->n = 0;
-            memset(ld_bank->slots, 0, sizeof ld_bank->slots);
+            arch = "x86_64";
+            if (xlang_host_is_apple_aarch64() != 0)
+                arch = "arm64";
             argv[la++] = labi_ld_driver_ld();
+            argv[la++] = "-syslibroot";
+            argv[la++] = sdk;
+            argv[la++] = "-dynamic";
+            argv[la++] = "-arch";
+            argv[la++] = arch;
+            /* PLATFORM: MACOS — clang-as-driver implied -dead_strip; keep it
+             * on bare ld so product -o size does not jump (rv 55KiB→16KiB). */
+            argv[la++] = "-dead_strip";
             argv[la++] = labi_ld_flag_e();
             argv[la++] = labi_ld_mach_entry_main();
             argv[la++] = labi_ld_flag_o();
@@ -5124,6 +5167,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
             xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, XLANG_LD_ARGV_CAP, 1);
+            /* G.7: CLI user .o after std/on_demand (same globals as invoke_cc). */
             xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
             {
