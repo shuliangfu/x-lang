@@ -11716,6 +11716,23 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
                   }
                   (void)((dyn_prei = (dyn_prei - 1)));
                 }
+              } else if ((dyn_prend == 0)) {
+                /*
+                 * dest extras dest-RET extra STAR PTR-elem ndims=0
+                 * `***T`: unused slot dims[1] extra PTR wrap COUNT.
+                 * Wrap extra PTR of leaf extra times then wrap PTR
+                 * then wrap outer ptr. Pin twin of typeck.x.
+                 * PLATFORM: SHARED. G.7: complete this wrap.
+                 */
+                int32_t dyn_prpx0 = xlang_skip_trait_method_ret_elem_array_dim_c(
+                        &((dyn_trait_nm)[0]), dyn_trait_nlen, dyn_slot, 1);
+                if ((dyn_prpx0 > 0)) {
+                  int32_t dyn_prpi0 = 0;
+                  while (((dyn_prpi0 < dyn_prpx0) && (dyn_prew > 0))) {
+                    (void)((dyn_prew = typeck_find_or_alloc_ptr_type_ref(arena, dyn_prew)));
+                    (void)((dyn_prpi0 = (dyn_prpi0 + 1)));
+                  }
+                }
               }
               if ((dyn_prew > 0)) {
                 (void)((dyn_prew = typeck_find_or_alloc_ptr_type_ref(arena, dyn_prew)));
