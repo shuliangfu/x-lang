@@ -289,7 +289,9 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * kind). dim_ix==ndims+1 is extra PTR wrap count
  * (`[][2]*T` = 1; `[][2][]*T` = 1 with extra SLICE also in
  * dims[ndims]; `[]*[2]*T` = 1; `[]*[2][]*T` = 1 with extra
- * SLICE also in dims[ndims]; 0 / missing means no extra PTR)
+ * SLICE also in dims[ndims]; `[2]*[2]*T` = 1;
+ * `[2]*[2][]*T` = 1 with extra SLICE also in dims[ndims];
+ * 0 / missing means no extra PTR)
  * AND dest extras dest-ARRAY-of-SLICE extra wrap `[2][][2][]T`
  * extra SLICE wrap count (`[2][][2][]T` = 1;
  * `[2][][2][][]T` = 2; extra PTR of `[2][][2]*T` stays
@@ -301,12 +303,13 @@ export extern function xlang_skip_trait_method_param_elem_array_ndims_c(trait_nm
  * missing means no extra wrap = `[][][2]T`). Discriminant
  * dest extras dest-SLICE of ARRAY extra `[][2]*T` vs dest
  * extras dest-SLICE of PTR extra `[]*[2]*T` vs dest extras
+ * dest-ARRAY of PTR extra `[2]*[2]*T` vs dest extras
  * dest-ARRAY of SLICE extra wrap `[2][][2][]T` vs dest
  * extras dest-SLICE of SLICE extra wrap `[][][2][]T` is
  * elem_kind ARRAY vs PTR vs SLICE (ARRAY vs SLICE outer).
  * Both unused slots may be set
- * (`[][2][]*T` / `[]*[2][]*T` / `[2][][2][]*T` /
- * `[][][2][]*T`).
+ * (`[][2][]*T` / `[]*[2][]*T` / `[2]*[2][]*T` /
+ * `[2][][2][]*T` / `[][][2][]*T`).
  * PLATFORM: SHARED.
  */
 export extern function xlang_skip_trait_method_param_elem_array_dim_c(trait_nm: *u8, trait_nlen: i32,
@@ -15366,23 +15369,33 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             }
             /*
              * dest-ARRAY-of-PTR extra (`p: [2]*[2]i32` / `[2]*[]i32` /
-             * `[2]*[][]i32`): ARRAY_LIT `[&r0, &r1]` stays TYPE_ARRAY
-             * of PTR. Scalar dest-ARRAY skips elem kind 9. Sit-red
-             * `[2]*[2]i32` was T001 (inner ARRAY dim lost); `[2]*[][]T`
-             * sit-red T001 because ARRAY+PTR impl-match peeled ndims=-2
-             * once (pelem still SLICE vs eeek=leaf) and dest extras
-             * wrapped SLICE of leaf once (dest would be `[2]*[]i32`).
-             * Skip-trait stores elem_kind=PTR + eek=leaf +
-             * elem_array_ndims/dims after `[N]*` then `[` (ndims=-2
-             * extra wrap count in dims[0]: 0 means 1 = `[2]*[]T`;
-             * 2 = `[2]*[][]T`). Named / UFCS / module-func already
-             * dest-stamp via the formal (7). G.7: wrap ARRAY via
-             * elem_array_ndims or extra SLICE wraps via dim accessor
-             * then wrap ptr into dyn_alf; the existing ARRAY wrap
-             * below handles the outer [N]. No second dest-ARRAY stamp;
-             * do not invent -3. ndims==0 keeps ptr-of-leaf (`[2]*i32`
-             * / `[2]*Pair` already 7 via ADDR_OF elems). Twin of
-             * dest-SLICE-of-PTR extra wraps. PLATFORM: SHARED.
+             * `[2]*[][]i32` / `[2]*[2]*i32`): ARRAY_LIT `[&r0, &r1]`
+             * stays TYPE_ARRAY of PTR. Scalar dest-ARRAY skips elem
+             * kind 9. Sit-red `[2]*[2]i32` was T001 (inner ARRAY dim
+             * lost); `[2]*[][]T` sit-red T001 because ARRAY+PTR
+             * impl-match peeled ndims=-2 once (pelem still SLICE vs
+             * eeek=leaf) and dest extras wrapped SLICE of leaf once
+             * (dest would be `[2]*[]i32`). `[2]*[2]*T` sit-red T001
+             * because extra STAR after `[K]*[N]` required SLICE outer
+             * so ARRAY outer never stored extra PTR (leaf T never
+             * committed) and dest extras wrap-once dest-stamps
+             * `[2]*[2]i32`. Extra PTR wrap COUNT lives in unused slot
+             * dims[ndims+1] (1 = `[2]*[2]*T`; 0 = no extra PTR =
+             * `[2]*[2]i32`; extra SLICE stays dims[ndims];
+             * `[2]*[2][]*T` has both slots set). Skip-trait stores
+             * elem_kind=PTR + eek=leaf + elem_array_ndims/dims after
+             * `[N]*` then `[` (ndims=-2 extra wrap count in dims[0]:
+             * 0 means 1 = `[2]*[]T`; 2 = `[2]*[][]T`). Named / UFCS
+             * dest-stamp via the formal once store keeps PTR.
+             * G.7: wrap extra PTR of leaf extra times then extra
+             * SLICE wraps then ARRAY via elem_array_ndims then wrap
+             * ptr into dyn_alf; the existing ARRAY wrap below handles
+             * the outer [N]. No second dest-ARRAY stamp; do not invent
+             * -3. ndims==0 keeps ptr-of-leaf (`[2]*i32` / `[2]*Pair`
+             * already 7 via ADDR_OF elems). Twin of dest-SLICE-of-PTR
+             * extra wraps. Discriminant vs dest extras dest-SLICE of
+             * PTR extra `[]*[2]*T` (same unused slot) is ARRAY vs
+             * SLICE outer. PLATFORM: SHARED.
              */
             if (dyn_alf == 0 && dyn_aek == 9) {
               let dyn_aeek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
@@ -15425,6 +15438,41 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                       dyn_api = dyn_api + 1;
                     }
                   } else if (dyn_aand >= 1) {
+                    /*
+                     * dest extras dest-ARRAY-of-PTR extra wraps
+                     * (`[2]*[2][]T` / `[2]*[2][][]T` / `[2]*[2]*T` /
+                     * `[2]*[2][]*T`): dim accessor returns extra PTR
+                     * wrap count at dim_ix==ndims+1 and extra SLICE
+                     * wrap count at dim_ix==ndims when unused slots
+                     * >0. Wrap PTR of leaf extra times then extra
+                     * SLICE wraps THEN ARRAY wrap then wrap PTR then
+                     * outer ARRAY (`[2]*[2][]*T` is wrap-both).
+                     * `[2]*[2]i32` (appx/apex<=0) stays wrap-once.
+                     * Discriminant vs dest extras dest-SLICE-of-PTR
+                     * extra `[]*[2]*T` / `[]*[2][]T` is ARRAY vs
+                     * SLICE outer; same unused slots. Do not invent
+                     * -3. PLATFORM: SHARED.
+                     */
+                    let dyn_appx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                            dyn_aand + 1);
+                    if (dyn_appx > 0) {
+                      let dyn_appi: i32 = 0;
+                      while (dyn_appi < dyn_appx && dyn_apaw > 0) {
+                        dyn_apaw = find_or_alloc_ptr_type_ref(arena, dyn_apaw);
+                        dyn_appi = dyn_appi + 1;
+                      }
+                    }
+                    let dyn_apex2: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                            dyn_aand);
+                    if (dyn_apex2 > 0) {
+                      let dyn_api2: i32 = 0;
+                      while (dyn_api2 < dyn_apex2 && dyn_apaw > 0) {
+                        dyn_apaw = find_or_alloc_slice_type_ref(arena, dyn_apaw);
+                        dyn_api2 = dyn_api2 + 1;
+                      }
+                    }
                     let dyn_apai: i32 = dyn_aand - 1;
                     while (dyn_apai >= 0 && dyn_apaw > 0) {
                       let dyn_apad: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
