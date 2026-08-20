@@ -2029,12 +2029,14 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
     return -1;
   }
   /*
-   * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][]*T`) and
-   * dest extras dest-SLICE-of-SLICE extra PTR (`[][]*T`): unused
-   * slot dims[0] when ndims==0. dim_ix>=nd would treat dim_ix=0 as
-   * an extra-wrap probe and reject because nd is not >0. extra>0
-   * returns the count; 0 / missing → -1 so `[2][]i32` / `[][]i32`
-   * stay wrap-once. Do not invent -3. PLATFORM: SHARED.
+   * dest extras dest-ARRAY-of-SLICE extra PTR (`[2][]*T`), dest
+   * extras dest-SLICE-of-SLICE extra PTR (`[][]*T`), and PTR-outer
+   * extra STAR `*[]*T`: unused slot dims[0] when ndims==0.
+   * dim_ix>=nd would treat dim_ix=0 as an extra-wrap probe and
+   * reject because nd is not >0. extra>0 returns the count; 0 /
+   * missing → -1 so `[2][]i32` / `[][]i32` / `*[]i32` stay
+   * wrap-once. Discriminant ARRAY vs SLICE vs PTR outer is param
+   * kind. Do not invent -3. PLATFORM: SHARED.
    */
   if (nd == 0 && dim_ix == 0) {
     int32_t extra;
@@ -2060,15 +2062,17 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
        * extras dest-SLICE-of-PTR extra `[]*[2][]T`, dest extras
        * dest-ARRAY-of-PTR extra `[2]*[2][]T`, dest extras
        * dest-ARRAY-of-SLICE extra PTR `[2][][2]*T`, dest extras
-       * dest-SLICE-of-SLICE extra PTR `[][][2]*T` (elem=SLICE,
-       * unused slot dims[ndims]; discriminant vs extra SLICE of
-       * `[][2][]T` is elem_kind; discriminant ARRAY vs SLICE outer
-       * is param kind), and PTR-elem + PTR-outer extra `**[2][]T`
-       * (elem=PTR, unused slot dims[ndims]; discriminant vs
-       * `[]*[2][]T` / `[2]*[2][]T` is SLICE vs ARRAY vs PTR
-       * outer). extra>0 returns the count; 0 / missing → -1 so
-       * `[][2]i32` / `[]*[2]i32` / `[2]*[2]i32` / `[2]*[2]*T` /
-       * `[2][][2]i32` / `[][][2]i32` / `**[2]i32` / `**[2]*T`
+       * dest-SLICE-of-SLICE extra PTR `[][][2]*T`, PTR-outer
+       * extra STAR `*[][2]*T` (elem=SLICE, unused slot
+       * dims[ndims]; discriminant vs extra SLICE of `[][2][]T`
+       * is elem_kind; discriminant ARRAY vs SLICE vs PTR outer
+       * is param kind), and PTR-elem + PTR-outer extra
+       * `**[2][]T` (elem=PTR, unused slot dims[ndims];
+       * discriminant vs `[]*[2][]T` / `[2]*[2][]T` is SLICE vs
+       * ARRAY vs PTR outer). extra>0 returns the count; 0 /
+       * missing → -1 so `[][2]i32` / `[]*[2]i32` /
+       * `[2]*[2]i32` / `[2]*[2]*T` / `[2][][2]i32` /
+       * `[][][2]i32` / `*[][2]i32` / `**[2]i32` / `**[2]*T`
        * stay wrap-once / extra-ARRAY-only / extra-PTR-only.
        * PLATFORM: SHARED. */
       extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][nd];
@@ -2899,6 +2903,13 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                          * uses the same dims[ndims+1] encoding
                          * (ARRAY leftover matches at leftover SLICE
                          * vs eek=SLICE — not this walk; not T001).
+                         * PTR-outer extra STAR `*[][2]*T` uses the
+                         * same dims[ndims] extra PTR encoding (this
+                         * walk peels leftover SLICE then extra ARRAY
+                         * then extra PTR; leftover PTR vs eek=SLICE
+                         * is not T001 once extra PTR is stored). Extra
+                         * ADDR_OF of typed `[][2]*i32` dest-stamps via
+                         * the formal (no dest extras dest-PTR stamp).
                          * `[][]i32` (ndims==0) keeps leftover vs
                          * eeek=leaf. Discriminant vs extra PTR
                          * wrap-once: ndims==0 dims[0]; vs extra SLICE:
@@ -5021,51 +5032,69 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                            && (ent->method_param_kinds[mi_reg][param_count]
                                    == XLANG_TRAIT_TY_ARRAY
                                || ent->method_param_kinds[mi_reg][param_count]
-                                      == XLANG_TRAIT_TY_SLICE)) {
+                                      == XLANG_TRAIT_TY_SLICE
+                               || ent->method_param_kinds[mi_reg][param_count]
+                                      == XLANG_TRAIT_TY_PTR)) {
                   /*
-                   * dest extras dest-ARRAY of SLICE extra `[2][]*T` and
-                   * dest extras dest-SLICE of SLICE extra `[][]*T`:
-                   * after `[N][]` / `[][]` we are in
-                   * param_elem_elem_pending (elem=SLICE, ndims=0). Extra
-                   * STAR used to hit token_to_type_kind=-1 then
-                   * want_param_ty=0 so eek never captured; dest extras
-                   * wrap-once dest-stamps `[2][]i32` / `[][]i32`
-                   * (nested ARRAY_LIT 139). ndims=-2 is extra SLICE
-                   * wrap (`[2][][]T` / `[][][]T`). Keep SLICE; extra
-                   * PTR wrap COUNT lives in unused slot dims[0] with
-                   * ndims staying 0 (1 = `[2][]*T` / `[][]*T`; 0 = no
-                   * extra PTR = `[2][]i32` / `[][]i32`). Discriminant
-                   * is param kind (ARRAY vs SLICE outer), not a second
-                   * slot. dest extras dest-SLICE of SLICE extra
-                   * `[][][]*T` and dest extras dest-ARRAY of SLICE
-                   * extra `[2][][]*T`: extra STAR when ndims==-2 used
-                   * to set elem_kind=-1 (dest extras skipped → nested
-                   * ARRAY_LIT 139). dims[0] is extra SLICE (ban -3 /
-                   * reuse). Keep SLICE; extra PTR wrap COUNT lives in
-                   * unused slot dims[1] (1 = `[][][]*T` / `[2][][]*T`;
-                   * 0 = no extra PTR = `[][][]T` / `[2][][]T`).
-                   * dest extras dest-ARRAY of SLICE extra `[2][][2]*T`
-                   * and dest extras dest-SLICE of SLICE extra
-                   * `[][][2]*T`: extra STAR when ndims>=1 used to set
-                   * elem_kind=-1 (dest extras skipped → nested
-                   * ARRAY_LIT 139 / T001). After `[N][]` then `[M]`
-                   * the inner ARRAY dims live in the local buffer
-                   * (wave437 pending LBRACKET) until IDENT commit —
-                   * extra STAR must commit them first or ndims stays 0
-                   * and the inner ARRAY is lost. Keep SLICE; extra PTR
-                   * wrap COUNT lives in unused slot dims[ndims]
-                   * (1 = `[2][][2]*T` / `[][][2]*T`; 0 = no extra PTR
-                   * = `[2][][2]T` / `[][][2]T`). Discriminant vs dest
-                   * extras dest-SLICE of ARRAY extra `[][2][]T` (same
-                   * unused slot) is elem_kind SLICE vs ARRAY.
-                   * Discriminant ARRAY vs SLICE outer is param kind.
-                   * Capture leaf T by staying pending. Store-only of
-                   * `[][][2]*T` without impl-match extra PTR peel is
-                   * T001 (leftover PTR vs eeek=leaf after extra ARRAY
-                   * peels; extra PTR peels live in the SLICE-of-SLICE
-                   * walk). Store-only of `[2][][2]*T` is not T001
-                   * (ARRAY leftover SLICE vs eek=SLICE). PLATFORM:
-                   * SHARED parse. G.7: complete this scanner.
+                   * dest extras dest-ARRAY of SLICE extra `[2][]*T`,
+                   * dest extras dest-SLICE of SLICE extra `[][]*T`,
+                   * and PTR-outer extra STAR `*[]*T` / `*[][2]*T` /
+                   * `*[][]*T`: after `[N][]` / `[][]` / `*[]` we are
+                   * in param_elem_elem_pending (elem=SLICE). Extra
+                   * STAR used to require ARRAY or SLICE outer so PTR
+                   * outer hit token_to_type_kind=-1 then
+                   * want_param_ty=0 (leaf T never committed). After
+                   * `*[]` then `[N]` param_elem_dim_n stayed live —
+                   * COMMA/RPAREN wave434 *T[N] lift overwrote
+                   * kind=ARRAY (impl T001 leftover PTR vs ARRAY /
+                   * leftover PTR vs eeek=-1). After `*[]*` (ndims=0)
+                   * leftover skip eek=-1 — extra ADDR_OF of typed
+                   * `[]*i32` dest-stamps via the formal = false
+                   * green. ndims=-2 is extra SLICE wrap
+                   * (`[2][][]T` / `[][][]T` / `*[][]T`). Keep SLICE;
+                   * extra PTR wrap COUNT lives in unused slot
+                   * dims[0] with ndims staying 0 (1 = `[2][]*T` /
+                   * `[][]*T` / `*[]*T`; 0 = no extra PTR =
+                   * `[2][]i32` / `[][]i32` / `*[]i32`). Discriminant
+                   * is param kind (ARRAY vs SLICE vs PTR outer), not
+                   * a second slot. dest extras dest-SLICE of SLICE
+                   * extra `[][][]*T` and dest extras dest-ARRAY of
+                   * SLICE extra `[2][][]*T` and PTR-outer `*[][]*T`:
+                   * extra STAR when ndims==-2 used to set
+                   * elem_kind=-1. dims[0] is extra SLICE (ban -3 /
+                   * reuse). Keep SLICE; extra PTR wrap COUNT lives
+                   * in unused slot dims[1] (1 = `[][][]*T` /
+                   * `[2][][]*T` / `*[][]*T`; 0 = no extra PTR =
+                   * `[][][]T` / `[2][][]T` / `*[][]T`). dest extras
+                   * dest-ARRAY of SLICE extra `[2][][2]*T`, dest
+                   * extras dest-SLICE of SLICE extra `[][][2]*T`,
+                   * and PTR-outer extra STAR `*[][2]*T`: extra STAR
+                   * when ndims>=1 used to set elem_kind=-1. After
+                   * `[N][]` / `[][]` / `*[]` then `[M]` the inner
+                   * ARRAY dims live in the local buffer (wave437
+                   * pending LBRACKET) until IDENT commit — extra
+                   * STAR must commit them first or ndims stays 0
+                   * and the inner ARRAY is lost. Keep SLICE; extra
+                   * PTR wrap COUNT lives in unused slot dims[ndims]
+                   * (1 = `[2][][2]*T` / `[][][2]*T` / `*[][2]*T`;
+                   * 0 = no extra PTR = `[2][][2]T` / `[][][2]T` /
+                   * `*[][2]T`). Discriminant vs dest extras dest-
+                   * SLICE of ARRAY extra `[][2][]T` (same unused
+                   * slot) is elem_kind SLICE vs ARRAY. Discriminant
+                   * ARRAY vs SLICE vs PTR outer is param kind.
+                   * Capture leaf T by staying pending. Store-only
+                   * of `[][][2]*T` without impl-match extra PTR
+                   * peel is T001 (leftover PTR vs eeek=leaf after
+                   * extra ARRAY peels; extra PTR peels live in the
+                   * SLICE-of-SLICE / PTR-outer SLICE-elem walk).
+                   * Store-only of `[2][][2]*T` is not T001 (ARRAY
+                   * leftover SLICE vs eek=SLICE). PTR-outer leftover
+                   * PTR vs eek=SLICE is not T001 once extra PTR is
+                   * stored (walk peels leftover SLICE then extra
+                   * ARRAY then extra PTR). Extra ADDR_OF of typed
+                   * `[][2]*i32` dest-stamps via the formal (no dest
+                   * extras dest-PTR stamp). PLATFORM: SHARED parse.
+                   * G.7: complete this scanner.
                    */
                   int32_t nd;
                   int32_t extra;
