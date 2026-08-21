@@ -287,7 +287,7 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 0;
   }
   if (g == 0) {
-    return 9;
+    return 10;
   }
   if (g == 1) {
     return 2;
@@ -431,6 +431,15 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 8) {
       let p: *u8 = "std_string_string_len";
+      return p;
+    }
+    /*
+     * wave958: std_string_string_view_case_fold for string_case_fold
+     * cookbook. Before wave958: g==0 table missed this → BLD001 UNDEF.
+     * G.7: complete the single string probe table. PLATFORM: SHARED.
+     */
+    if (i == 9) {
+      let p: *u8 = "std_string_string_view_case_fold";
       return p;
     }
     return 0 as *u8;
@@ -1614,6 +1623,218 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
     i = i + 1;
   }
   return 0;
+}
+
+/*
+ * wave958: std.vec on_demand probe table. Before wave958: no vec probe table
+ * existed; user programs using Vec<u16/i32/u8/u64/f64> hit BLD001 UNDEF
+ * because needs_std_vec never fired. Probe covers common ops (push/get/
+ * length/deinit/new/with_capacity) across all type mangles. G.7: single
+ * vec probe authority. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function labi_od_vec_sym_count(): i32 {
+  return 12;
+}
+
+/**
+ * Vec on_demand UNDEF symbol at index (product probe table for needs_std_vec).
+ * @param i i32 — index in [0, 12)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_std_vec authority (no second table)
+ */
+#[no_mangle]
+export function labi_od_vec_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_vec_push_Vec_u16_ptr_u16";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_vec_push_Vec_i32_ptr_i32";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_vec_push_Vec_u8_ptr_u8";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_vec_get_Vec_u16_i32";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_vec_length_Vec_u16";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_vec_deinit_Vec_u16_ptr";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_vec_get_Vec_i32_i32";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_vec_length_Vec_i32";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_vec_deinit_Vec_i32_ptr";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_vec_from_slice_u8_ptr_i32";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_vec_capacity_Vec_u8";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_vec_clear_Vec_u8_ptr";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.vec API (on-demand chain std/vec/vec.o).
+ * Pure orch: fixed vec UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * PLATFORM: SHARED — G.7 single vec probe authority.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_vec(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_vec_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_vec_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Return relative .o path for std.vec (repo-relative).
+ * @return *u8 — static "std/vec/vec.o"
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_rel_vec(): *u8 {
+  let p: *u8 = "std/vec/vec.o";
+  return p;
+}
+
+/*
+ * wave958: std.http on_demand probe table. Before wave958: no http probe
+ * table existed; user programs using http.parse_status_line / decode_chunked
+ * / has_chunked_encoding / has_keep_alive / headers_body_offset hit BLD001
+ * UNDEF. All 5 symbols are in std/http/http.o. G.7: single http probe
+ * authority. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function labi_od_http_sym_count(): i32 {
+  return 5;
+}
+
+/**
+ * Http on_demand UNDEF symbol at index (product probe table for needs_std_http).
+ * @param i i32 — index in [0, 5)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_std_http authority (no second table)
+ */
+#[no_mangle]
+export function labi_od_http_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_http_parse_status_line";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_http_decode_chunked_body";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_http_has_chunked_encoding";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_http_has_keep_alive";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_http_headers_body_offset";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.http API (on-demand chain std/http/http.o).
+ * Pure orch: fixed http UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * PLATFORM: SHARED — G.7 single http probe authority.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_http(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_http_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_http_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Return relative .o path for std.http (repo-relative).
+ * @return *u8 — static "std/http/http.o"
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_rel_http(): *u8 {
+  let p: *u8 = "std/http/http.o";
+  return p;
 }
 
 /**

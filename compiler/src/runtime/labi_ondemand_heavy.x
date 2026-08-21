@@ -64,6 +64,8 @@ export extern function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_http_glue_o(argv0: *u8): i32;
+export extern function xlang_runtime_http_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
@@ -1931,6 +1933,17 @@ export function labi_od_rel_thread_glue(): *u8 {
   return p;
 }
 
+/** Exported function `labi_od_rel_http_glue`.
+ * wave958: http glue companion .o path for std.http on_demand ensure.
+ * @return *u8 — static "compiler/runtime_http_glue.o"
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_rel_http_glue(): *u8 {
+  let p: *u8 = "compiler/runtime_http_glue.o";
+  return p;
+}
+
 /** Exported function `labi_od_rel_net_udp_batch`.
  * Implements `labi_od_rel_net_udp_batch`.
  * @return *u8
@@ -2691,6 +2704,68 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           labi_od_glue_push_if(er2, tp2, link_argv0, trel2, lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
       }
+    }
+
+    /*
+     * wave958: standalone std.vec on_demand. Before wave958: no vec probe
+     * table existed; user programs using Vec<u16/i32/u8> hit BLD001 UNDEF.
+     * Probe: link_abi_user_o_needs_std_vec scans labi_od_vec_sym_* (push/
+     * get/length/deinit/capacity/clear/from_slice across type mangles).
+     * When hit, ensure + push std/vec/vec.o. PLATFORM: SHARED.
+     */
+    let need_vec: i32 = link_abi_user_o_needs_std_vec(user_o);
+    if (need_vec != 0) {
+      let root_vec: *u8 = 0 as *u8;
+      unsafe {
+        root_vec = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_vec != 0 as *u8) {
+        if (root_vec[0] != 0) {
+          unsafe {
+            let _ev: i32 = xlang_ensure_formal_std_make_o(root_vec, "std/vec/vec.o", "../std/vec/vec.o");
+          }
+        }
+      }
+      let rv: *u8 = labi_od_rel_vec();
+      unsafe {
+        let _pv: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rv, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+
+    /*
+     * wave958: standalone std.http on_demand. Before wave958: no http probe
+     * table existed; user programs using http.parse_status_line / decode_chunked
+     * / has_chunked_encoding / has_keep_alive / headers_body_offset hit BLD001
+     * UNDEF. Probe: link_abi_user_o_needs_std_http scans labi_od_http_sym_*.
+     * When hit, ensure + push std/http/http.o + runtime_http_glue.o (http.o
+     * has UNDEF _http_*_c symbols defined in compiler/runtime_http_glue.o).
+     * PLATFORM: SHARED.
+     */
+    let need_http: i32 = link_abi_user_o_needs_std_http(user_o);
+    if (need_http != 0) {
+      let root_http: *u8 = 0 as *u8;
+      unsafe {
+        root_http = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_http != 0 as *u8) {
+        if (root_http[0] != 0) {
+          unsafe {
+            let _eh2: i32 = xlang_ensure_formal_std_make_o(root_http, "std/http/http.o", "../std/http/http.o");
+          }
+        }
+      }
+      let rh2: *u8 = labi_od_rel_http();
+      unsafe {
+        let _ph2: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+      let erh: i32 = 0;
+      let tph: *u8 = 0 as *u8;
+      let trelh: *u8 = labi_od_rel_http_glue();
+      unsafe {
+        erh = xlang_ensure_runtime_http_glue_o(link_argv0);
+        tph = xlang_runtime_http_glue_o_path(link_argv0);
+      }
+      labi_od_glue_push_if(erh, tph, link_argv0, trelh, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
 
     // --- heap import (skip if user provides) ---

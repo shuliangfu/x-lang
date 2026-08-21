@@ -72,6 +72,8 @@ int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_r
 int driver_freestanding_get(void);
 int xlang_ensure_runtime_thread_glue_o(const char *argv0);
 const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_http_glue_o(const char *argv0);
+const char *xlang_runtime_http_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
 const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
@@ -154,7 +156,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g < 0)
     return 0;
   if (g == 0)
-    return 9;
+    return 10;
   if (g == 1)
     return 2;
   if (g == 2)
@@ -223,6 +225,12 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_string_string_view";
     if (i == 8)
       return "std_string_string_len";
+    /*
+     * wave958: std_string_string_view_case_fold for string_case_fold
+     * cookbook. G.7: complete the single string probe table. PLATFORM: SHARED.
+     */
+    if (i == 9)
+      return "std_string_string_view_case_fold";
     return NULL;
   }
   if (g == 1) {
@@ -821,6 +829,92 @@ int link_abi_user_o_needs_std_thread(const char *user_o) {
   n = labi_od_thread_sym_count();
   for (i = 0; i < n; i++) {
     const char *sym = labi_od_thread_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/*
+ * wave958: std.vec on_demand probe table + needs_std_vec pure orch.
+ * Twin of labi_od_thread_sym_* / link_abi_user_o_needs_std_thread.
+ * PLATFORM: SHARED.
+ */
+int labi_od_vec_sym_count(void) { return 12; }
+const char *labi_od_vec_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_vec_push_Vec_u16_ptr_u16";
+  if (i == 1)
+    return "std_vec_push_Vec_i32_ptr_i32";
+  if (i == 2)
+    return "std_vec_push_Vec_u8_ptr_u8";
+  if (i == 3)
+    return "std_vec_get_Vec_u16_i32";
+  if (i == 4)
+    return "std_vec_length_Vec_u16";
+  if (i == 5)
+    return "std_vec_deinit_Vec_u16_ptr";
+  if (i == 6)
+    return "std_vec_get_Vec_i32_i32";
+  if (i == 7)
+    return "std_vec_length_Vec_i32";
+  if (i == 8)
+    return "std_vec_deinit_Vec_i32_ptr";
+  if (i == 9)
+    return "std_vec_from_slice_u8_ptr_i32";
+  if (i == 10)
+    return "std_vec_capacity_Vec_u8";
+  if (i == 11)
+    return "std_vec_clear_Vec_u8_ptr";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_vec(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_vec_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_vec_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/*
+ * wave958: std.http on_demand probe table + needs_std_http pure orch.
+ * Twin of labi_od_thread_sym_* / link_abi_user_o_needs_std_thread.
+ * PLATFORM: SHARED.
+ */
+int labi_od_http_sym_count(void) { return 5; }
+const char *labi_od_http_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_http_parse_status_line";
+  if (i == 1)
+    return "std_http_decode_chunked_body";
+  if (i == 2)
+    return "std_http_has_chunked_encoding";
+  if (i == 3)
+    return "std_http_has_keep_alive";
+  if (i == 4)
+    return "std_http_headers_body_offset";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_http(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_http_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_http_sym_at(i);
     if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
       return 1;
   }
@@ -2582,6 +2676,9 @@ const char *labi_od_rel_error(void) { return "std/error/error.o"; }
 const char *labi_od_rel_context(void) { return "std/context/context.o"; }
 const char *labi_od_rel_atomic_glue(void) { return "compiler/runtime_atomic_glue.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
+/* wave958: std.vec / std.http on_demand rel constants. PLATFORM: SHARED. */
+const char *labi_od_rel_vec(void) { return "std/vec/vec.o"; }
+const char *labi_od_rel_http(void) { return "std/http/http.o"; }
 const char *labi_od_rel_heap(void) { return "std/heap/heap.o"; }
 const char *labi_od_rel_set(void) { return "std/set/set.o"; }
 const char *labi_od_rel_map(void) { return "std/map/map.o"; }
@@ -2595,6 +2692,8 @@ const char *labi_od_rel_test(void) { return "std/test/test.o"; }
 const char *labi_od_rel_heap_user(void) { return "compiler/runtime_heap_user.o"; }
 const char *labi_od_rel_scheduler_glue(void) { return "compiler/runtime_scheduler_glue.o"; }
 const char *labi_od_rel_thread_glue(void) { return "compiler/runtime_thread_glue.o"; }
+/* wave958: http glue companion .o path for std.http on_demand ensure. */
+const char *labi_od_rel_http_glue(void) { return "compiler/runtime_http_glue.o"; }
 const char *labi_od_rel_net_udp_batch(void) { return "compiler/runtime_net_udp_batch.o"; }
 const char *labi_od_rel_net_workers(void) { return "compiler/runtime_net_workers.o"; }
 const char *labi_od_rel_test_fn_invoke(void) { return "compiler/runtime_test_fn_invoke.o"; }
@@ -2701,6 +2800,38 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     labi_od_rel_thread_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
             }
         }
+    }
+    /*
+     * wave958: standalone std.vec on_demand. PLATFORM: SHARED.
+     * Probe: link_abi_user_o_needs_std_vec scans labi_od_vec_sym_*.
+     * When hit, ensure std/vec/vec.o then push it onto the link line.
+     * G.7: single vec ensure path (table + this block).
+     */
+    if (link_abi_user_o_needs_std_vec(user_o)) {
+        const char *root_vec = xlang_repo_root_from_argv0(link_argv0);
+        if (root_vec && root_vec[0])
+            xlang_ensure_formal_std_make_o(root_vec, "std/vec/vec.o", "../std/vec/vec.o");
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_vec(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /*
+     * wave958: standalone std.http on_demand. PLATFORM: SHARED.
+     * Probe: link_abi_user_o_needs_std_http scans labi_od_http_sym_*.
+     * When hit, ensure std/http/http.o then push it onto the link line.
+     * G.7: single http ensure path (table + this block).
+     */
+    if (link_abi_user_o_needs_std_http(user_o)) {
+        const char *root_http = xlang_repo_root_from_argv0(link_argv0);
+        if (root_http && root_http[0])
+            xlang_ensure_formal_std_make_o(root_http, "std/http/http.o", "../std/http/http.o");
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_http(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /*
+         * wave958: http.o has UNDEF _http_*_c symbols defined in
+         * compiler/runtime_http_glue.o. Ensure + push glue companion.
+         * PLATFORM: SHARED.
+         */
+        link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_http_glue_o,
+            xlang_runtime_http_glue_o_path(link_argv0), link_argv0,
+            labi_od_rel_http_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     if (link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
         /* L4 wipe deletes heap.o; push_obj skip-missing is not enough. Ensure
@@ -3144,6 +3275,8 @@ int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int l
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
+const char *labi_od_rel_vec(void);
+const char *labi_od_rel_http(void);
 const char *labi_od_rel_heap(void);
 const char *labi_od_rel_set(void);
 const char *labi_od_rel_map(void);
@@ -3157,6 +3290,7 @@ const char *labi_od_rel_test(void);
 const char *labi_od_rel_heap_user(void);
 const char *labi_od_rel_scheduler_glue(void);
 const char *labi_od_rel_thread_glue(void);
+const char *labi_od_rel_http_glue(void);
 const char *labi_od_rel_net_udp_batch(void);
 const char *labi_od_rel_net_workers(void);
 const char *labi_od_rel_test_fn_invoke(void);
