@@ -272,7 +272,7 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 20;
+  return 21;
 }
 
 /**
@@ -368,6 +368,16 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // timeout_from_ctx / read_ctx / write_ctx (mod.x; monofile skip std.io emit).
   if (g == 19) {
     return 3;
+  }
+  /*
+   * wave957: std.unicode formal product probe (run-unicode residual).
+   * Before wave957: .x source had no unicode simple_group; C seed had k==17
+   * but PREFER path used .x → unicode symbols never probed → BLD001 UNDEF.
+   * Added as g==20 to avoid disrupting existing g0-g19 assignments.
+   * PLATFORM: SHARED.
+   */
+  if (g == 20) {
+    return 8;
   }
   return 0;
 }
@@ -985,6 +995,47 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  /*
+   * wave957: std.unicode formal product probes. Mirrors C seed k==17 unicode
+   * group + 2 new entries (is_supplementary, rune_utf8_len) needed by
+   * unicode_nfc_smoke cookbook. G.7: single unicode probe authority.
+   * PLATFORM: SHARED.
+   */
+  if (g == 20) {
+    if (i == 0) {
+      let p: *u8 = "std_unicode_category";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_unicode_to_lower";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_unicode_to_upper";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_unicode_is_whitespace";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_unicode_is_ascii";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_unicode_case_fold_rune";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_unicode_is_supplementary";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_unicode_rune_utf8_len";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -1087,6 +1138,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — std.io context-timeout formal product .o (STD-091 residual).
   if (g == 19) {
     let p: *u8 = "std/io/io.o";
+    return p;
+  }
+  // wave957: std.unicode formal product .o (run-unicode residual).
+  if (g == 20) {
+    let p: *u8 = "std/unicode/unicode.o";
     return p;
   }
   return 0 as *u8;
@@ -1704,17 +1760,17 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
 
 /**
  * Count of UNDEF symbols that pull std/map/map.o on product asm on_demand.
- * @return i32 — 9 (empty_size smoke + Map_i32_i32 surface + str map)
+ * @return i32 — 15 (empty_size smoke + Map_i32_i32 surface + str map + wave957 Map_u64_i32 surface)
  * PLATFORM: SHARED — must match formal map.o export mangles
  */
 #[no_mangle]
 export function labi_od_map_sym_count(): i32 {
-  return 9;
+  return 15;
 }
 
 /**
  * Map on_demand UNDEF symbol at index (product probe table for needs_std_map).
- * @param i i32 — index in [0, 9)
+ * @param i i32 — index in [0, 15)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete existing needs_std_map authority (no second table)
  */
@@ -1757,6 +1813,38 @@ export function labi_od_map_sym_at(i: i32): *u8 {
   }
   if (i == 8) {
     let p: *u8 = "std_map_str_insert";
+    return p;
+  }
+  /*
+   * wave957: Map<u64, i32> on_demand probes. Before wave957: probe table only
+   * had Map_i32_i32 + str variants; user programs using Map<u64, i32> hit
+   * BLD001 UNDEF because needs_std_map probe never fired. Probe shape:
+   * map.new/get/insert/remove/deinit/with_capacity codegen to std_map_*_Map_u64_i32_*
+   * mangled symbols in map.o. G.7: complete the single map probe table.
+   * PLATFORM: SHARED.
+   */
+  if (i == 9) {
+    let p: *u8 = "std_map_new_u64";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_map_with_capacity_Map_u64_i32_ptr_i32";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_map_insert_Map_u64_i32_ptr_u64_i32";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_map_get_Map_u64_i32_u64_i32";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_map_remove_Map_u64_i32_ptr_u64";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_map_deinit_Map_u64_i32_ptr";
     return p;
   }
   return 0 as *u8;
@@ -2127,12 +2215,12 @@ export function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
  */
 #[no_mangle]
 export function labi_od_core_slice_sym_count(): i32 {
-  return 6;
+  return 9;
 }
 
 /**
  * Product core.slice on_demand UNDEF symbol at index (needs_core_slice probe table).
- * @param i i32 — index in [0, 6)
+ * @param i i32 — index in [0, 9)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_core_slice authority (no second hard-coded list)
  */
@@ -2163,6 +2251,26 @@ export function labi_od_core_slice_sym_at(i: i32): *u8 {
   }
   if (i == 5) {
     let p: *u8 = "core_subslice_u64_c";
+    return p;
+  }
+  /*
+   * wave957: core.slice X-facing u64 on_demand probes (chunks_len / split_at /
+   * subslice). Before wave957: probe table only had C-bridge _c suffix symbols;
+   * user programs calling slice.chunks_len / slice.split_at / slice.subslice
+   * with u64 codegen to core_slice_*_u64 (X-facing, no _c) which didn't match
+   * any probe entry → BLD001 UNDEF. G.7: complete the single core_slice probe
+   * table. PLATFORM: SHARED.
+   */
+  if (i == 6) {
+    let p: *u8 = "core_slice_chunks_len_u64";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "core_slice_split_at_u64";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "core_slice_subslice_u64";
     return p;
   }
   return 0 as *u8;
@@ -2483,12 +2591,12 @@ export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
  */
 #[no_mangle]
 export function labi_od_heap_api_sym_count(): i32 {
-  return 25;
+  return 27;
 }
 
 /**
  * Product std.heap on_demand UNDEF symbol at index (needs_std_heap_api probe table).
- * @param i i32 — index in [0, 25)
+ * @param i i32 — index in [0, 27)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_heap_api authority (no second hard-coded list)
  */
@@ -2595,6 +2703,21 @@ export function labi_od_heap_api_sym_at(i: i32): *u8 {
   }
   if (i == 24) {
     let p: *u8 = "std_heap_libc_heap_copy_u8_at_c";
+    return p;
+  }
+  /*
+   * wave957: std.heap trace on_demand probes (trace_on / trace_reset). Before
+   * wave957: probe table had alloc/free/Allocator/libc surface but not trace
+   * symbols; user programs calling heap.trace_on / heap.trace_reset hit
+   * BLD001 UNDEF because needs_std_heap_api probe never fired. G.7: complete
+   * the single heap probe table. PLATFORM: SHARED.
+   */
+  if (i == 25) {
+    let p: *u8 = "std_heap_trace_on";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "std_heap_trace_reset";
     return p;
   }
   return 0 as *u8;

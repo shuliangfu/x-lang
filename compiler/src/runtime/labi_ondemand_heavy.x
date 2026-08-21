@@ -2922,6 +2922,24 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_cs);
         }
       }
+      /*
+       * wave957: X-facing core_slice u64 symbols (chunks_len / split_at /
+       * subslice) are in core/slice/mod.o (API), not slice.o (glue). Push
+       * mod.o too when needs_core_slice fires. Before wave957: only glue
+       * was pushed → BLD001 UNDEF for user programs using slice.subslice_u64.
+       * G.7: complete the single core_slice ensure path. PLATFORM: SHARED.
+       */
+      let csmod_rel: *u8 = "core/slice/mod.o";
+      let csmod_prim: *u8 = 0 as *u8;
+      unsafe {
+        csmod_prim = xlang_rel_o_path_from_argv0(link_argv0, csmod_rel);
+      }
+      let p_csmod: *u8 = labi_od_resolve_or_try(csmod_prim, csmod_rel, lib_roots, n_lib_roots, bank);
+      if (p_csmod != 0 as *u8) {
+        unsafe {
+          link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
+        }
+      }
     }
 
     // --- kv + glue ---

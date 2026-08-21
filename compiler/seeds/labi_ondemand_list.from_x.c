@@ -147,7 +147,7 @@ int labi_od_simple_group_count(void) {
    * G.7: seed cold twin must match pure table; L4 product often falls back to
    * this host-cc seed when pure prefer times out. Was return 13 with g12=simd
    * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe. */
-  return 20;
+  return 21;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -193,6 +193,9 @@ int labi_od_simple_group_sym_count(int g) {
     return 23; /* std.simd VECTOR mid + binop/dot/fma + scalar faces + select_lane */
   if (g == 19)
     return 3; /* std.io ctx-timeout STD-091 */
+  /* wave957: std.unicode formal (run-unicode residual). */
+  if (g == 20)
+    return 8;
   return 0;
 }
 
@@ -528,6 +531,29 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_io_write_ctx";
     return NULL;
   }
+  /*
+   * wave957: std.unicode formal product probes. Mirrors .x g==20.
+   * G.7: single unicode probe authority. PLATFORM: SHARED.
+   */
+  if (g == 20) {
+    if (i == 0)
+      return "std_unicode_category";
+    if (i == 1)
+      return "std_unicode_to_lower";
+    if (i == 2)
+      return "std_unicode_to_upper";
+    if (i == 3)
+      return "std_unicode_is_whitespace";
+    if (i == 4)
+      return "std_unicode_is_ascii";
+    if (i == 5)
+      return "std_unicode_case_fold_rune";
+    if (i == 6)
+      return "std_unicode_is_supplementary";
+    if (i == 7)
+      return "std_unicode_rune_utf8_len";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -574,6 +600,9 @@ const char *labi_od_simple_group_rel(int g) {
     return "std/simd/simd.o";
   if (g == 19)
     return "std/io/io.o";
+  /* wave957: std.unicode formal product .o (run-unicode residual). */
+  if (g == 20)
+    return "std/unicode/unicode.o";
   return NULL;
 }
 
@@ -863,7 +892,7 @@ int link_abi_user_o_needs_std_set(const char *user_o) {
 }
 
 /* wave120: map UNDEF table + needs_std_map pure orch. PLATFORM: SHARED. */
-int labi_od_map_sym_count(void) { return 9; }
+int labi_od_map_sym_count(void) { return 15; }
 const char *labi_od_map_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -885,6 +914,24 @@ const char *labi_od_map_sym_at(int i) {
     return "std_map_str_new";
   if (i == 8)
     return "std_map_str_insert";
+  /*
+   * wave957: Map<u64, i32> on_demand probes. Before wave957: probe table only
+   * had Map_i32_i32 + str variants; user programs using Map<u64, i32> hit
+   * BLD001 UNDEF because needs_std_map probe never fired. G.7: complete the
+   * single map probe table. PLATFORM: SHARED.
+   */
+  if (i == 9)
+    return "std_map_new_u64";
+  if (i == 10)
+    return "std_map_with_capacity_Map_u64_i32_ptr_i32";
+  if (i == 11)
+    return "std_map_insert_Map_u64_i32_ptr_u64_i32";
+  if (i == 12)
+    return "std_map_get_Map_u64_i32_u64_i32";
+  if (i == 13)
+    return "std_map_remove_Map_u64_i32_ptr_u64";
+  if (i == 14)
+    return "std_map_deinit_Map_u64_i32_ptr";
   return NULL;
 }
 
@@ -1029,7 +1076,7 @@ int link_abi_user_o_needs_core_mem(const char *user_o) {
 
 /* wave124: product core.slice exact UNDEF table + needs_core_slice pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_core_slice_sym_count(void) { return 6; }
+int labi_od_core_slice_sym_count(void) { return 9; }
 const char *labi_od_core_slice_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1045,6 +1092,19 @@ const char *labi_od_core_slice_sym_at(int i) {
     return "core_slice_u64_from_ptr_c";
   if (i == 5)
     return "core_subslice_u64_c";
+  /*
+   * wave957: core.slice X-facing u64 on_demand probes (chunks_len / split_at /
+   * subslice). Before wave957: probe table only had C-bridge _c suffix symbols;
+   * user programs calling slice.chunks_len / slice.split_at / slice.subslice
+   * with u64 codegen to core_slice_*_u64 (X-facing, no _c) which didn't match.
+   * G.7: complete the single core_slice probe table. PLATFORM: SHARED.
+   */
+  if (i == 6)
+    return "core_slice_chunks_len_u64";
+  if (i == 7)
+    return "core_slice_split_at_u64";
+  if (i == 8)
+    return "core_slice_subslice_u64";
   return NULL;
 }
 
@@ -1177,7 +1237,7 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
 
 /* wave128: product std.heap formal API exact UNDEF table + needs_std_heap_api pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_heap_api_sym_count(void) { return 25; }
+int labi_od_heap_api_sym_count(void) { return 27; }
 const char *labi_od_heap_api_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1231,6 +1291,16 @@ const char *labi_od_heap_api_sym_at(int i) {
     return "std_heap_map_find";
   if (i == 24)
     return "std_heap_libc_heap_copy_u8_at_c";
+  /*
+   * wave957: std.heap trace on_demand probes (trace_on / trace_reset). Before
+   * wave957: probe table had alloc/free/Allocator/libc surface but not trace
+   * symbols; user programs calling heap.trace_on / heap.trace_reset hit
+   * BLD001 UNDEF. G.7: complete the single heap probe table. PLATFORM: SHARED.
+   */
+  if (i == 25)
+    return "std_heap_trace_on";
+  if (i == 26)
+    return "std_heap_trace_reset";
   return NULL;
 }
 
@@ -2182,6 +2252,15 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_unicode_is_ascii";
     if (i == 5)
       return "std_unicode_case_fold_rune";
+    /*
+     * wave957: added is_supplementary + rune_utf8_len for unicode_nfc_smoke
+     * cookbook. Before wave957: probe table missed these → BLD001 UNDEF.
+     * G.7: complete the single unicode probe table. PLATFORM: SHARED.
+     */
+    if (i == 6)
+      return "std_unicode_is_supplementary";
+    if (i == 7)
+      return "std_unicode_rune_utf8_len";
     return NULL;
   }
   /* PLATFORM: SHARED — std/runtime/runtime.o exact UNDEF needles (fk0 k==18). */
@@ -2749,6 +2828,20 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             p = xlang_asm_ld_try_under_lib_roots(labi_od_rel_core_slice(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+        /*
+         * wave957: X-facing core_slice u64 symbols (chunks_len / split_at /
+         * subslice) are in core/slice/mod.o (API), not slice.o (glue). Push
+         * mod.o too when needs_core_slice fires. G.7: complete the single
+         * core_slice ensure path. PLATFORM: SHARED.
+         */
+        {
+            const char *csmod_rel = "core/slice/mod.o";
+            const char *p_csmod = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, csmod_rel));
+            if (!p_csmod && bank)
+                p_csmod = xlang_asm_ld_try_under_lib_roots(csmod_rel, lib_roots, n_lib_roots, bank);
+            if (p_csmod)
+                link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
+        }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_kv_sym_count(), labi_od_kv_sym_at)) {
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_kv_rel()));
