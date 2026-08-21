@@ -2652,6 +2652,47 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       }
     }
 
+    /*
+     * wave956: standalone std.thread on_demand (independent of need_net).
+     * Before wave956: thread.o + thread_glue.o were only pushed inside the
+     * need_net block above; user programs importing only std.thread (no
+     * std.net) never triggered thread.o ensure → BLD001 UNDEF std_thread_*.
+     * Probe: link_abi_user_o_needs_std_thread scans labi_od_thread_sym_*
+     * (std_thread_create / join / start / stats). When hit, push thread.o
+     * then ensure + push thread_glue.o (same as the net-embedded thread
+     * path). Skip if need_net already pushed thread.o (have_th flag f[2]).
+     * PLATFORM: SHARED. G.7: single thread ensure path (table + this block).
+     */
+    let need_thread_alone: i32 = link_abi_user_o_needs_std_thread(user_o);
+    if (need_thread_alone != 0) {
+      let already_th: i32 = 0;
+      if (flags != 0 as *u8) {
+        let ff: *i32 = flags as *i32;
+        already_th = ff[2];
+      }
+      if (already_th == 0) {
+        let rel_th2: *u8 = labi_od_rel_thread();
+        let have_th2: i32 = 0;
+        unsafe {
+          let _t2: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_th2, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_th2);
+        }
+        if (have_th2 != 0) {
+          if (flags != 0 as *u8) {
+            let f3: *i32 = flags as *i32;
+            f3[2] = 1;
+          }
+          let er2: i32 = 0;
+          let tp2: *u8 = 0 as *u8;
+          let trel2: *u8 = labi_od_rel_thread_glue();
+          unsafe {
+            er2 = xlang_ensure_runtime_thread_glue_o(link_argv0);
+            tp2 = xlang_runtime_thread_glue_o_path(link_argv0);
+          }
+          labi_od_glue_push_if(er2, tp2, link_argv0, trel2, lib_roots, n_lib_roots, bank, argv, la, max_la);
+        }
+      }
+    }
+
     // --- heap import (skip if user provides) ---
     // Aggregate already scans user_o + argv .o (append_std pushed http.o first).
     // L4 wipe deletes heap.o: push_obj skip-missing is not enough — ensure first

@@ -1294,17 +1294,18 @@ export function labi_od_queue_contention_rel(): *u8 {
 
 /**
  * Count of UNDEF symbols that pull std/net/net.o on product asm on_demand.
- * @return i32 — 17 (std_net_* + net_*_c surface)
+ * @return i32 — 27 (std_net_* + net_*_c surface + wave956 std_net_resolve_*
+ *                + std_net_close_stream/connect_blocking/write_batch/tcp_pool_*)
  * PLATFORM: SHARED — must match formal net.o export / C glue mangles
  */
 #[no_mangle]
 export function labi_od_net_sym_count(): i32 {
-  return 17;
+  return 27;
 }
 
 /**
  * Net on_demand UNDEF symbol at index (product probe table for needs_std_net).
- * @param i i32 — index in [0, 17)
+ * @param i i32 — index in [0, 27)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED
  */
@@ -1381,6 +1382,58 @@ export function labi_od_net_sym_at(i: i32): *u8 {
     let p: *u8 = "net_sock_create_c";
     return p;
   }
+  /*
+   * wave956: std.net cookbook on_demand probes (resolve_ex / resolve_err_* /
+   * close_stream / connect_blocking / write_batch / tcp_pool_*). Before
+   * wave956: 4 cookbook examples (net_resolve_invalid / net_stream_write /
+   * net_tcp_pool / thread_pool_stats — thread goes via labi_od_thread_sym_*)
+   * hit BLD001 UNDEF because needs_std_net probe table did not include
+   * these symbols. Probe shape: net.resolve_ex / net.resolve_err_* /
+   * net.close_stream / net.connect_blocking / net.write_batch /
+   * net.tcp_pool_* codegen to std_net_* mangled symbols in net.o. Twin of
+   * labi_od_thread_sym_* (wave956) for std_thread_stats. G.7: complete the
+   * single net probe table — no second path. PLATFORM: SHARED.
+   */
+  if (i == 17) {
+    let p: *u8 = "std_net_resolve_ex";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_net_resolve_err_host_not_found";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "std_net_resolve_err_no_data";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "std_net_close_stream";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "std_net_connect_blocking";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "std_net_write_batch";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "std_net_tcp_pool_connect_count";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "std_net_tcp_pool_destroy";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "std_net_tcp_pool_drain";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "std_net_tcp_pool_idle_count";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -1404,6 +1457,93 @@ export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_net_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of UNDEF symbols that pull std/thread/thread.o on product asm on_demand.
+ * @return i32 — 4 (wave956: std_thread_create / join / start / stats)
+ * PLATFORM: SHARED — must match formal thread.o export / C glue mangles
+ */
+#[no_mangle]
+export function labi_od_thread_sym_count(): i32 {
+  return 4;
+}
+
+/**
+ * Thread on_demand UNDEF symbol at index (product probe table for needs_std_thread).
+ * @param i i32 — index in [0, 4)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 single thread probe table (no second path)
+ */
+#[no_mangle]
+export function labi_od_thread_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  /*
+   * wave956: std.thread cookbook on_demand probes (create / join / start /
+   * stats). Before wave956: thread_pool_stats.x hit BLD001 UNDEF
+   * std_thread_stats because asm on_demand only pushed thread.o inside the
+   * need_net block (L2568 labi_ondemand_heavy.x); user programs importing
+   * only std.thread (no std.net) never triggered thread.o ensure. Probe
+   * shape: thread.create / thread.join / thread.start / thread.stats
+   * codegen to std_thread_* mangled symbols in thread.o. G.7: single
+   * thread probe table (mirrors labi_od_net_sym_*). PLATFORM: SHARED.
+   */
+  if (i == 0) {
+    let p: *u8 = "std_thread_create";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_thread_join";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_thread_start";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_thread_stats";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.thread / std_thread_* (on-demand chain thread.o).
+ * Pure orch: fixed thread UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave956): before this, asm on_demand only pushed thread.o inside
+ * need_net block; user programs importing only std.thread never got
+ * thread.o. Twin of link_abi_user_o_needs_std_net. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_thread_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_thread_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;

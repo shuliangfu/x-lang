@@ -676,7 +676,7 @@ const char *labi_od_queue_contention_rel(void) {
 }
 
 /* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED. */
-int labi_od_net_sym_count(void) { return 17; }
+int labi_od_net_sym_count(void) { return 27; }
 const char *labi_od_net_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -714,6 +714,37 @@ const char *labi_od_net_sym_at(int i) {
     return "net_dns_resolve_c";
   if (i == 16)
     return "net_sock_create_c";
+  /*
+   * wave956: std.net cookbook on_demand probes (resolve_ex / resolve_err_* /
+   * close_stream / connect_blocking / write_batch / tcp_pool_*). Before
+   * wave956: 4 cookbook examples hit BLD001 UNDEF because needs_std_net
+   * probe table did not include these symbols. Probe shape: net.resolve_ex /
+   * net.resolve_err_* / net.close_stream / net.connect_blocking /
+   * net.write_batch / net.tcp_pool_* codegen to std_net_* mangled symbols
+   * in net.o. Twin of labi_od_thread_sym_* (wave956) for std_thread_stats.
+   * G.7: complete the single net probe table — no second path.
+   * PLATFORM: SHARED.
+   */
+  if (i == 17)
+    return "std_net_resolve_ex";
+  if (i == 18)
+    return "std_net_resolve_err_host_not_found";
+  if (i == 19)
+    return "std_net_resolve_err_no_data";
+  if (i == 20)
+    return "std_net_close_stream";
+  if (i == 21)
+    return "std_net_connect_blocking";
+  if (i == 22)
+    return "std_net_write_batch";
+  if (i == 23)
+    return "std_net_tcp_pool_connect_count";
+  if (i == 24)
+    return "std_net_tcp_pool_destroy";
+  if (i == 25)
+    return "std_net_tcp_pool_drain";
+  if (i == 26)
+    return "std_net_tcp_pool_idle_count";
   return NULL;
 }
 
@@ -726,6 +757,41 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
   n = labi_od_net_sym_count();
   for (i = 0; i < n; i++) {
     const char *sym = labi_od_net_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/*
+ * wave956: std.thread on_demand probe table + needs_std_thread pure orch.
+ * Before wave956: asm on_demand only pushed thread.o inside need_net block;
+ * user programs importing only std.thread never got thread.o. Twin of
+ * labi_od_net_sym_* / link_abi_user_o_needs_std_net. PLATFORM: SHARED.
+ */
+int labi_od_thread_sym_count(void) { return 4; }
+const char *labi_od_thread_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_thread_create";
+  if (i == 1)
+    return "std_thread_join";
+  if (i == 2)
+    return "std_thread_start";
+  if (i == 3)
+    return "std_thread_stats";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_thread(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_thread_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_thread_sym_at(i);
     if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
       return 1;
   }
@@ -2532,6 +2598,29 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_net_workers_o,
                 xlang_runtime_net_workers_o_path(link_argv0), link_argv0,
                 labi_od_rel_net_workers(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+        }
+    }
+    /*
+     * wave956: standalone std.thread on_demand (independent of need_net).
+     * Before wave956: thread.o + thread_glue.o were only pushed inside the
+     * need_net block above; user programs importing only std.thread (no
+     * std.net) never triggered thread.o ensure → BLD001 UNDEF std_thread_*.
+     * Probe: link_abi_user_o_needs_std_thread scans labi_od_thread_sym_*
+     * (std_thread_create / join / start / stats). When hit, push thread.o
+     * then ensure + push thread_glue.o (same as the net-embedded thread
+     * path). Skip if need_net already pushed thread.o (flags->have_thread).
+     * PLATFORM: SHARED. G.7: single thread ensure path (table + this block).
+     */
+    if (link_abi_user_o_needs_std_thread(user_o)) {
+        int already_th = (flags && flags->have_thread);
+        if (!already_th) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_thread(), lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, flags ? &flags->have_thread : NULL);
+            if (flags && flags->have_thread) {
+                link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_thread_glue_o,
+                    xlang_runtime_thread_glue_o_path(link_argv0), link_argv0,
+                    labi_od_rel_thread_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+            }
         }
     }
     if (link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
