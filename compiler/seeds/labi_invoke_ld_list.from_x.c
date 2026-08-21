@@ -414,7 +414,7 @@ void xlang_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char 
   if (flags->have_sqlite && *la < max_la - 1)
     argv[(*la)++] = labi_ld_flag_lsqlite3();
   if (need_pt && *la < max_la - 1)
-    argv[(*la)++] = labi_ld_flag_pthread();
+    argv[(*la)++] = labi_ld_flag_lpthread();
   if (append_lsystem && *la < max_la - 1)
     argv[(*la)++] = labi_ld_flag_lSystem();
 }

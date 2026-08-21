@@ -1218,11 +1218,22 @@ export function xlang_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o:
       la[0] = curs + 1;
     }
   }
-  // -pthread when thread/sync/channel.
+  // -lpthread when thread/sync/channel.
+  // PLATFORM: MACOS — bare /usr/bin/ld (used by asm -o exe path) does not
+  // recognize the -pthread driver flag (it is a cc/clang driver option).
+  // Use -lpthread instead so the library is resolved via libSystem on
+  // Darwin and via libpthread on Linux. This matches the unix_gcc twin
+  // (labi_invoke_ld_list.x !have_io && need_pt branch) which already uses
+  // labi_ld_flag_lpthread(). Before wave955: mach tail unconditionally used
+  // labi_ld_flag_pthread() = "-pthread" → macOS ld: "unknown options:
+  // -pthread" → BLD001 for any user program importing std.net/thread/sync/
+  // channel (e.g. examples/cookbook/net_listen_bind.x). G.7: fix at the
+  // single authority (mach tail libs) — no second path. G.8: SHARED, both
+  // .x and from_x.c twin updated in same commit.
   if (need_pt != 0) {
     let curp: i32 = la[0];
     if (curp < max_la - 1) {
-      let fp: *u8 = labi_ld_flag_pthread();
+      let fp: *u8 = labi_ld_flag_lpthread();
       argv[curp] = fp;
       la[0] = curp + 1;
     }
