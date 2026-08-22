@@ -184,7 +184,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 13)
     return 6; /* core.assert */
   if (g == 14)
-    return 8; /* std.fmt */
+    return 9; /* std.fmt — +format_template cookbook sole UNDEF */
   if (g == 15)
     return 6; /* std.compress */
   if (g == 16)
@@ -450,6 +450,8 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_fmt_append_to_buf_u8_ptr_i32_i32_i32";
     if (i == 7)
       return "std_fmt_format_u8_ptr_i32_i32_i32";
+    if (i == 8)
+      return "std_fmt_format_template";
     return NULL;
   }
   if (g == 15) {

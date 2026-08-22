@@ -341,8 +341,9 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   }
   // PLATFORM: SHARED — std.fmt formal (run-fmt / run-fmt-std residual).
   // Not on default OP_STD plan; simple-group is sole pure-asm push path.
+  // Count 8→9: cookbook fmt_template_i32 sole UNDEF std_fmt_format_template.
   if (g == 14) {
-    return 8;
+    return 9;
   }
   // PLATFORM: SHARED — std.compress formal facade (run-compress residual).
   // Product path previously retired compress.o for C co-emit; pure-asm needs formal T.
@@ -802,8 +803,9 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
-  // PLATFORM: SHARED — std.fmt formal export surface (std/fmt/mod.x).
-  // Exact needles cover sole-caller overload faces used by tests/fmt/main.x.
+  // PLATFORM: SHARED — std.fmt formal export surface (std/fmt/mod.x + c_face).
+  // Exact needles cover sole-caller faces used by tests/fmt/main.x and
+  // cookbook fmt_template_i32 (std_fmt_format_template is unique-name, no suffix).
   if (g == 14) {
     if (i == 0) {
       let p: *u8 = "std_fmt_format_i32";
@@ -835,6 +837,10 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 7) {
       let p: *u8 = "std_fmt_format_u8_ptr_i32_i32_i32";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_fmt_format_template";
       return p;
     }
     return 0 as *u8;

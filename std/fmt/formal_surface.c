@@ -383,3 +383,38 @@ int32_t std_fmt_format_u8_ptr_i32_u8_ptr_i32(uint8_t *buf, int32_t cap, uint8_t 
   return n1 + n2;
 }
 
+/* PLATFORM: SHARED — unique-name mangle of std.fmt format_template(*u8,i32,*u8,i32,i32).
+ * G.7: complete existing c_face (fmt.o); body ≡ std/fmt/mod.x (first "{}" → i32 decimal).
+ * cookbook fmt_template_i32: pat "x{}y" + 42 → "x42y". */
+int32_t std_fmt_format_template(uint8_t *buf, int32_t cap, uint8_t *pat, int32_t pat_len, int32_t val) {
+  int32_t i;
+  int32_t o;
+  int32_t replaced;
+  if (buf == NULL || pat == NULL) {
+    return -1;
+  }
+  i = 0;
+  o = 0;
+  replaced = 0;
+  while (i < pat_len) {
+    if (replaced == 0 && i + 1 < pat_len && pat[i] == (uint8_t)'{' && pat[i + 1] == (uint8_t)'}') {
+      int32_t n;
+      n = face_i64(buf + o, cap - o, (int64_t)val);
+      if (n < 0) {
+        return -1;
+      }
+      o = o + n;
+      i = i + 2;
+      replaced = 1;
+    } else {
+      if (o >= cap) {
+        return -1;
+      }
+      buf[o] = pat[i];
+      o = o + 1;
+      i = i + 1;
+    }
+  }
+  return o;
+}
+
