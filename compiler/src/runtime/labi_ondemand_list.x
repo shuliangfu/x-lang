@@ -1642,18 +1642,19 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
  * because needs_std_vec never fired. Probe covers common ops (push/get/
  * length/deinit/from_slice/capacity/clear) plus pop/extend (exact UNDEF;
  * matcher is exact — push/from_slice_u8 do not cover pop, Vec_u64/f64
- * extend, sole from_slice_u64/f64, sole push_u64/f64, or sole
- * length/get/deinit u64/f64). G.7: single vec probe authority.
+ * extend, sole from_slice_u64/f64, sole push_u64/f64, sole
+ * length/get/deinit u64/f64, or sole vec3f SOA/AOS push/deinit/
+ * reserve/sum). G.7: single vec probe authority.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function labi_od_vec_sym_count(): i32 {
-  return 28;
+  return 44;
 }
 
 /**
  * Vec on_demand UNDEF symbol at index (product probe table for needs_std_vec).
- * @param i i32 — index in [0, 28)
+ * @param i i32 — index in [0, 44)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_vec authority (no second table)
  */
@@ -1781,6 +1782,75 @@ export function labi_od_vec_sym_at(i: i32): *u8 {
   }
   if (i == 27) {
     let p: *u8 = "std_vec_get_Vec_f64_i32";
+    return p;
+  }
+  // PLATFORM: SHARED — exact UNDEF needles for Vec3f SOA/AOS.
+  // Matcher is exact; length/push/deinit Vec_* do not cover unique
+  // names vec3f_soa_push / vec3f_aos_deinit / reserve_one / sum_x.
+  // new() is a const STRUCT_LIT and inlines; needles cover the
+  // public unique names that can appear as the sole user UNDEF.
+  if (i == 28) {
+    let p: *u8 = "std_vec_vec3f_soa_push";
+    return p;
+  }
+  if (i == 29) {
+    let p: *u8 = "std_vec_vec3f_soa_deinit";
+    return p;
+  }
+  if (i == 30) {
+    let p: *u8 = "std_vec_vec3f_aos_push";
+    return p;
+  }
+  if (i == 31) {
+    let p: *u8 = "std_vec_vec3f_aos_deinit";
+    return p;
+  }
+  if (i == 32) {
+    let p: *u8 = "std_vec_vec3f_soa_sum_x";
+    return p;
+  }
+  if (i == 33) {
+    let p: *u8 = "std_vec_vec3f_soa_reserve_one";
+    return p;
+  }
+  if (i == 34) {
+    let p: *u8 = "std_vec_vec3f_soa_len";
+    return p;
+  }
+  if (i == 35) {
+    let p: *u8 = "std_vec_vec3f_soa_get_x";
+    return p;
+  }
+  if (i == 36) {
+    let p: *u8 = "std_vec_vec3f_soa_get_y";
+    return p;
+  }
+  if (i == 37) {
+    let p: *u8 = "std_vec_vec3f_soa_get_z";
+    return p;
+  }
+  if (i == 38) {
+    let p: *u8 = "std_vec_vec3f_soa_set";
+    return p;
+  }
+  if (i == 39) {
+    let p: *u8 = "std_vec_vec3f_soa_with_capacity";
+    return p;
+  }
+  if (i == 40) {
+    let p: *u8 = "std_vec_vec3f_aos_reserve_one";
+    return p;
+  }
+  if (i == 41) {
+    let p: *u8 = "std_vec_vec3f_aos_get_x";
+    return p;
+  }
+  if (i == 42) {
+    let p: *u8 = "std_vec_vec3f_aos_sum_x";
+    return p;
+  }
+  if (i == 43) {
+    let p: *u8 = "std_vec_vec3f_aos_with_capacity";
     return p;
   }
   return 0 as *u8;

@@ -393,7 +393,7 @@ int32_t labi_fk0_sym_count(int32_t k) {
     return 4;
   }
   if ((k ==10)) {
-    return 26;
+    return 42;
   }
   if ((k ==11)) {
     return 9;
@@ -790,6 +790,72 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     if ((i ==25)) {
       uint8_t * p = ((uint8_t *)"std_vec_get_Vec_f64_i32");
+      return p;
+    }
+    /* PLATFORM: SHARED — fk0 k==10 +vec3f SOA/AOS (mirror heavy.x).
+     * Vec_* push/length/deinit do not cover unique vec3f_* names. */
+    if ((i ==26)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_push");
+      return p;
+    }
+    if ((i ==27)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_deinit");
+      return p;
+    }
+    if ((i ==28)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_aos_push");
+      return p;
+    }
+    if ((i ==29)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_aos_deinit");
+      return p;
+    }
+    if ((i ==30)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_sum_x");
+      return p;
+    }
+    if ((i ==31)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_reserve_one");
+      return p;
+    }
+    if ((i ==32)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_len");
+      return p;
+    }
+    if ((i ==33)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_get_x");
+      return p;
+    }
+    if ((i ==34)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_get_y");
+      return p;
+    }
+    if ((i ==35)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_get_z");
+      return p;
+    }
+    if ((i ==36)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_set");
+      return p;
+    }
+    if ((i ==37)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_soa_with_capacity");
+      return p;
+    }
+    if ((i ==38)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_aos_reserve_one");
+      return p;
+    }
+    if ((i ==39)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_aos_get_x");
+      return p;
+    }
+    if ((i ==40)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_aos_sum_x");
+      return p;
+    }
+    if ((i ==41)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec3f_aos_with_capacity");
       return p;
     }
     return ((uint8_t *)(0));

@@ -846,7 +846,7 @@ int link_abi_user_o_needs_std_thread(const char *user_o) {
  * Twin of labi_od_thread_sym_* / link_abi_user_o_needs_std_thread.
  * PLATFORM: SHARED.
  */
-int labi_od_vec_sym_count(void) { return 28; }
+int labi_od_vec_sym_count(void) { return 44; }
 const char *labi_od_vec_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -913,6 +913,41 @@ const char *labi_od_vec_sym_at(int i) {
     return "std_vec_get_Vec_u64_i32";
   if (i == 27)
     return "std_vec_get_Vec_f64_i32";
+  /* PLATFORM: SHARED — exact UNDEF needles for Vec3f SOA/AOS
+   * (mirror list.x). Vec_* push/length/deinit do not cover unique
+   * names vec3f_soa_push / vec3f_aos_deinit / reserve_one / sum_x. */
+  if (i == 28)
+    return "std_vec_vec3f_soa_push";
+  if (i == 29)
+    return "std_vec_vec3f_soa_deinit";
+  if (i == 30)
+    return "std_vec_vec3f_aos_push";
+  if (i == 31)
+    return "std_vec_vec3f_aos_deinit";
+  if (i == 32)
+    return "std_vec_vec3f_soa_sum_x";
+  if (i == 33)
+    return "std_vec_vec3f_soa_reserve_one";
+  if (i == 34)
+    return "std_vec_vec3f_soa_len";
+  if (i == 35)
+    return "std_vec_vec3f_soa_get_x";
+  if (i == 36)
+    return "std_vec_vec3f_soa_get_y";
+  if (i == 37)
+    return "std_vec_vec3f_soa_get_z";
+  if (i == 38)
+    return "std_vec_vec3f_soa_set";
+  if (i == 39)
+    return "std_vec_vec3f_soa_with_capacity";
+  if (i == 40)
+    return "std_vec_vec3f_aos_reserve_one";
+  if (i == 41)
+    return "std_vec_vec3f_aos_get_x";
+  if (i == 42)
+    return "std_vec_vec3f_aos_sum_x";
+  if (i == 43)
+    return "std_vec_vec3f_aos_with_capacity";
   return NULL;
 }
 
@@ -2044,7 +2079,7 @@ int labi_fk0_sym_count(int k) {
   if (k == 9)
     return 4;
   if (k == 10)
-    return 26;
+    return 42;
   if (k == 11)
     return 9;
   if (k == 12)
@@ -2274,6 +2309,40 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_vec_get_Vec_u64_i32";
     if (i == 25)
       return "std_vec_get_Vec_f64_i32";
+    /* PLATFORM: SHARED — fk0 k==10 +vec3f SOA/AOS (mirror heavy.x).
+     * Vec_* push/length/deinit do not cover unique vec3f_* names. */
+    if (i == 26)
+      return "std_vec_vec3f_soa_push";
+    if (i == 27)
+      return "std_vec_vec3f_soa_deinit";
+    if (i == 28)
+      return "std_vec_vec3f_aos_push";
+    if (i == 29)
+      return "std_vec_vec3f_aos_deinit";
+    if (i == 30)
+      return "std_vec_vec3f_soa_sum_x";
+    if (i == 31)
+      return "std_vec_vec3f_soa_reserve_one";
+    if (i == 32)
+      return "std_vec_vec3f_soa_len";
+    if (i == 33)
+      return "std_vec_vec3f_soa_get_x";
+    if (i == 34)
+      return "std_vec_vec3f_soa_get_y";
+    if (i == 35)
+      return "std_vec_vec3f_soa_get_z";
+    if (i == 36)
+      return "std_vec_vec3f_soa_set";
+    if (i == 37)
+      return "std_vec_vec3f_soa_with_capacity";
+    if (i == 38)
+      return "std_vec_vec3f_aos_reserve_one";
+    if (i == 39)
+      return "std_vec_vec3f_aos_get_x";
+    if (i == 40)
+      return "std_vec_vec3f_aos_sum_x";
+    if (i == 41)
+      return "std_vec_vec3f_aos_with_capacity";
     return NULL;
   }
   if (k == 11) {

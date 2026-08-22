@@ -454,7 +454,7 @@ export function labi_fk0_sym_count(k: i32): i32 {
     return 4;
   }
   if (k == 10) {
-    return 26;
+    return 42;
   }
   if (k == 11) {
     return 9;
@@ -877,6 +877,73 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 25) {
         let p: *u8 = "std_vec_get_Vec_f64_i32";
+        return p;
+      }
+      // PLATFORM: SHARED — exact UNDEF needles for Vec3f SOA/AOS.
+      // Matcher is exact; Vec_* push/length/deinit do not cover unique
+      // names vec3f_soa_push / vec3f_aos_deinit / reserve_one / sum_x.
+      if (i == 26) {
+        let p: *u8 = "std_vec_vec3f_soa_push";
+        return p;
+      }
+      if (i == 27) {
+        let p: *u8 = "std_vec_vec3f_soa_deinit";
+        return p;
+      }
+      if (i == 28) {
+        let p: *u8 = "std_vec_vec3f_aos_push";
+        return p;
+      }
+      if (i == 29) {
+        let p: *u8 = "std_vec_vec3f_aos_deinit";
+        return p;
+      }
+      if (i == 30) {
+        let p: *u8 = "std_vec_vec3f_soa_sum_x";
+        return p;
+      }
+      if (i == 31) {
+        let p: *u8 = "std_vec_vec3f_soa_reserve_one";
+        return p;
+      }
+      if (i == 32) {
+        let p: *u8 = "std_vec_vec3f_soa_len";
+        return p;
+      }
+      if (i == 33) {
+        let p: *u8 = "std_vec_vec3f_soa_get_x";
+        return p;
+      }
+      if (i == 34) {
+        let p: *u8 = "std_vec_vec3f_soa_get_y";
+        return p;
+      }
+      if (i == 35) {
+        let p: *u8 = "std_vec_vec3f_soa_get_z";
+        return p;
+      }
+      if (i == 36) {
+        let p: *u8 = "std_vec_vec3f_soa_set";
+        return p;
+      }
+      if (i == 37) {
+        let p: *u8 = "std_vec_vec3f_soa_with_capacity";
+        return p;
+      }
+      if (i == 38) {
+        let p: *u8 = "std_vec_vec3f_aos_reserve_one";
+        return p;
+      }
+      if (i == 39) {
+        let p: *u8 = "std_vec_vec3f_aos_get_x";
+        return p;
+      }
+      if (i == 40) {
+        let p: *u8 = "std_vec_vec3f_aos_sum_x";
+        return p;
+      }
+      if (i == 41) {
+        let p: *u8 = "std_vec_vec3f_aos_with_capacity";
         return p;
       }
       return 0 as *u8;
