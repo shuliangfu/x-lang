@@ -206,26 +206,37 @@ export function enc_not_eax(ctx: *ElfCodegenCtx): i32 {
   return elf.append_elf_bytes(ctx, buf, 2);
 }
 
-/** Exported function `enc_and_rbx_rax`.
- * Implements `enc_and_rbx_rax`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * andq %rbx, %rax (REX.W). 32-bit andl wiped usize/ptr high 32.
+ * @param ctx *ElfCodegenCtx — ELF emit ctx; null handled by append
+ * @return i32 — 0 success, -1 overflow
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64
  */
 export function enc_and_rbx_rax(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[2] = [33, 216];
-  return elf.append_elf_bytes(ctx, buf, 2);
+  let buf: u8[3] = [72, 33, 216];
+  return elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** orl %ebx, %eax。 */
+/**
+ * orq %rbx, %rax (REX.W). 32-bit orl truncated g02f_load_ptr_at usize reconstruct.
+ * @param ctx *ElfCodegenCtx — ELF emit ctx; null handled by append
+ * @return i32 — 0 success, -1 overflow
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64
+ */
 export function enc_or_rbx_rax(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[2] = [9, 216];
-  return elf.append_elf_bytes(ctx, buf, 2);
+  let buf: u8[3] = [72, 9, 216];
+  return elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** xorl %ebx, %eax。 */
+/**
+ * xorq %rbx, %rax (REX.W). Same high-32 wipe as AND/OR.
+ * @param ctx *ElfCodegenCtx — ELF emit ctx; null handled by append
+ * @return i32 — 0 success, -1 overflow
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64
+ */
 export function enc_xor_rbx_rax(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[2] = [49, 216];
-  return elf.append_elf_bytes(ctx, buf, 2);
+  let buf: u8[3] = [72, 49, 216];
+  return elf.append_elf_bytes(ctx, buf, 3);
 }
 
 /** Exported function `enc_mov_rbx_to_ecx`.

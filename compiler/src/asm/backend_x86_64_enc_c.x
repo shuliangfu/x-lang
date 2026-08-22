@@ -448,43 +448,51 @@ export function arch_x86_64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `and_rbx_rax` (2 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit `andq %rbx, %rax` (REX.W 48 21 D8).
+ * Prior 2-byte `andl %ebx, %eax` (21 D8) zero-extended EAX and wiped
+ * the high 32 bits, truncating usize/ptr bitwise AND.
+ * i32 AND of zero-extended operands is unchanged in the low 32.
+ * Twin of ARM64 ELF `and x0, x0, x1` (64-bit).
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64 — SysV encode path.
+ * @param elf_ctx *u8 — opaque ElfCodegenCtx*; null → -1
+ * @return i32 — 0 success, -1 null/overflow
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [33, 216];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  let ins: u8[3] = [72, 33, 216];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `or_rbx_rax` (2 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit `orq %rbx, %rax` (REX.W 48 09 D8).
+ * Prior 2-byte `orl %ebx, %eax` (09 D8) zero-extended EAX after each OR,
+ * so `g02f_load_ptr_at` usize `| (byte << n)` kept only the low 32 bits
+ * (Ubuntu ELF: module 0x7ffff7ef9950 → 0xf7ef9950 SIGSEGV in
+ * glue_module_func_index_by_name). SHL of usize was already 64-bit.
+ * i32 OR of zero-extended operands is unchanged in the low 32.
+ * Twin of ARM64 ELF `orr x0, x0, x1` (64-bit).
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64 — SysV encode path.
+ * @param elf_ctx *u8 — opaque ElfCodegenCtx*; null → -1
+ * @return i32 — 0 success, -1 null/overflow
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [9, 216];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  let ins: u8[3] = [72, 9, 216];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `xor_rbx_rax` (2 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit `xorq %rbx, %rax` (REX.W 48 31 D8).
+ * Same REX.W as AND/OR: 32-bit `xorl` wiped high 32 of usize/ptr XOR.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64 — SysV encode path.
+ * @param elf_ctx *u8 — opaque ElfCodegenCtx*; null → -1
+ * @return i32 — 0 success, -1 null/overflow
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [49, 216];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  let ins: u8[3] = [72, 49, 216];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
 /** Emit fixed x86_64 insn `mov_rax_to_rbx` (3 bytes).

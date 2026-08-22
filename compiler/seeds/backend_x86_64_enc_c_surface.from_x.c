@@ -450,22 +450,22 @@ int32_t arch_x86_64_enc_enc_and_rbx_rax(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[2] = {33, 216};
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  uint8_t ins[3] = {72, 33, 216};
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 int32_t arch_x86_64_enc_enc_or_rbx_rax(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[2] = {9, 216};
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  uint8_t ins[3] = {72, 9, 216};
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 int32_t arch_x86_64_enc_enc_xor_rbx_rax(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[2] = {49, 216};
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  uint8_t ins[3] = {72, 49, 216};
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 int32_t arch_x86_64_enc_enc_mov_rax_to_rbx(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {

@@ -358,9 +358,10 @@ int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_c
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_and_rbx_rax */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_and_rbx_rax.
+ * REX.W andq %rbx,%rax — 32-bit andl wiped usize/ptr high 32. */
 int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {33, 216};
+  static const uint8_t ins[] = {72, 33, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -368,9 +369,11 @@ int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_c
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_or_rbx_rax */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_or_rbx_rax.
+ * REX.W orq %rbx,%rax — 32-bit orl truncated g02f_load_ptr_at (Ubuntu SIGSEGV).
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. Twin of ARM64 ELF orr x0,x0,x1. */
 int32_t arch_x86_64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {9, 216};
+  static const uint8_t ins[] = {72, 9, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -378,9 +381,10 @@ int32_t arch_x86_64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ct
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_rbx_rax */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_rbx_rax.
+ * REX.W xorq %rbx,%rax — same high-32 wipe as AND/OR. */
 int32_t arch_x86_64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {49, 216};
+  static const uint8_t ins[] = {72, 49, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
