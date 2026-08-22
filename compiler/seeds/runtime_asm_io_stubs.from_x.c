@@ -459,6 +459,39 @@ int32_t std_io_ptr_backend(void) {
   return g_io_read_ptr_backend;
 }
 
+/**
+ * Product import METHOD io.ptr_view / ptr_view_valid / stdin_ptr_view.
+ * Unique UNDEF class for examples/cookbook/zc_read_ptr_slice (G.7 complete
+ * this always-linked TU; do not add labi needles or a c_face second buffer).
+ * Layout matches std/io/mod.x ReadPtrView {ptr, length, gen} with padding
+ * after length (24B on 64-bit). Semantics: pack last read_ptr/len/gen;
+ * valid is non-null ptr AND gen equals the gen cell.
+ * PLATFORM: SHARED.
+ */
+typedef struct std_io_ReadPtrView {
+  uint8_t *ptr;
+  int32_t length;
+  uint64_t gen;
+} std_io_ReadPtrView;
+
+std_io_ReadPtrView std_io_ptr_view(size_t handle, uint32_t timeout_ms) {
+  std_io_ReadPtrView v;
+  v.ptr = io_read_ptr((unsigned)handle, timeout_ms);
+  v.length = io_read_ptr_len();
+  v.gen = g_io_read_ptr_gen;
+  return v;
+}
+
+int32_t std_io_ptr_view_valid(std_io_ReadPtrView v) {
+  if (v.ptr == 0)
+    return 0;
+  return std_io_ptr_valid(v.gen);
+}
+
+std_io_ReadPtrView std_io_stdin_ptr_view(void) {
+  return std_io_ptr_view(std_io_stdin(), 0);
+}
+
 /** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。 */
 typedef struct XlangSliceU8 {
   uint8_t *data;
