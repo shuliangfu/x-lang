@@ -1361,23 +1361,53 @@ for fm in _func_def_re.finditer(s):
     farg_names = _extract_arg_names(fargs)
     decl_args = 'void' if (fargs == '' or fargs == 'void') else fargs
     to_wrap.append((fname, ns, fret, decl_args, farg_names))
+# PLATFORM: MACOS — libc-clash names (write/read/close/open/exit/mmap/…)
+# cannot remain the static body identifier: headers already declared them.
+# A file-wide `#define write xlang_formal_bare_write` (clash gate below) also
+# rewrites co-emitted FFI calls (std.sys.macos `r = write(fd, buf, count)`).
+# Rename only wrapped definitions of the *same arity* + wrapper callees.
+# Different-arity FFI prototypes (msync 3-arg vs X msync 2-arg) stay libc.
+# G.7: complete wrapper authority (do not stack a second #define).
+_libc_clash = {
+    'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
+    'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
+    'getpid', 'getppid', 'waitpid', 'exec', 'signal', 'abort',
+    'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
+    'read', 'write',
+    'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
+    'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
+    'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+    'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
+    'erf', 'erfc', 'min', 'max',
+}
+def _arg_count(args_str):
+    a = (args_str or '').strip()
+    if a == '' or a == 'void':
+        return 0
+    return a.count(',') + 1
 if to_wrap:
     s2 = s
     for fname, ns, fret, decl_args, farg_names in to_wrap:
-        # Forward decls: "extern ret fname(" / "ret fname(" → static (once each form).
-        s2 = re.sub(
-            rf'(?m)^(extern\s+)?((?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*)\s+){re.escape(fname)}(\s*\()',
-            rf'static \2{fname}\3',
-            s2,
+        body = ('xlang_formal_bare_' + fname) if fname in _libc_clash else fname
+        want_n = _arg_count(decl_args)
+        pat = re.compile(
+            rf'(?m)^(extern\s+)?((?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*)\s+){re.escape(fname)}(\s*\()([^)]*)(\))'
         )
+        def _repl(m, body=body, want_n=want_n):
+            got_n = _arg_count(m.group(4))
+            if got_n != want_n:
+                return m.group(0)
+            return 'static ' + m.group(2) + body + m.group(3) + m.group(4) + m.group(5)
+        s2 = pat.sub(_repl, s2)
     with open(gen_c_path, 'w') as f:
         f.write(s2)
     print('/* Namespaced wrappers — macOS twin of Linux objcopy; bare body static. */')
     for fname, ns, fret, decl_args, farg_names in to_wrap:
+        body = ('xlang_formal_bare_' + fname) if fname in _libc_clash else fname
         if fret == 'void':
-            print(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}')
+            print(f'{fret} {ns}({decl_args}) {{ {body}({farg_names}); }}')
         else:
-            print(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}')
+            print(f'{fret} {ns}({decl_args}) {{ return {body}({farg_names}); }}')
 PYEOF
     fi
   fi

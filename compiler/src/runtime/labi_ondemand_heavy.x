@@ -3187,6 +3187,21 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         }
       }
       if (need_sy != 0) {
+        // PLATFORM: SHARED — L4 wipe deletes sys.o; skip-missing push is not
+        // enough (≡ heap/vec/http). Needles already fire; cookbook
+        // sys_write_stdout UNDEF std_sys_write_stdout until formal ensure.
+        // G.7: complete existing need_sys path; no second simple-group table.
+        let root_sy: *u8 = 0 as *u8;
+        unsafe {
+          root_sy = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_sy != 0 as *u8) {
+          if (root_sy[0] != 0) {
+            unsafe {
+              let _esy: i32 = xlang_ensure_formal_std_make_o(root_sy, "std/sys/sys.o", "../std/sys/sys.o");
+            }
+          }
+        }
         let rsy: *u8 = labi_od_rel_sys();
         unsafe {
           let _sy: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rsy, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
