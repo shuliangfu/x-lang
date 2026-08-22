@@ -1640,17 +1640,18 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
  * wave958: std.vec on_demand probe table. Before wave958: no vec probe table
  * existed; user programs using Vec<u16/i32/u8/u64/f64> hit BLD001 UNDEF
  * because needs_std_vec never fired. Probe covers common ops (push/get/
- * length/deinit/new/with_capacity) across all type mangles. G.7: single
- * vec probe authority. PLATFORM: SHARED.
+ * length/deinit/from_slice/capacity/clear) plus pop/extend (exact UNDEF;
+ * matcher is exact — push/from_slice_u8 do not cover pop or Vec_u64/f64
+ * extend). G.7: single vec probe authority. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function labi_od_vec_sym_count(): i32 {
-  return 12;
+  return 18;
 }
 
 /**
  * Vec on_demand UNDEF symbol at index (product probe table for needs_std_vec).
- * @param i i32 — index in [0, 12)
+ * @param i i32 — index in [0, 18)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_vec authority (no second table)
  */
@@ -1705,6 +1706,33 @@ export function labi_od_vec_sym_at(i: i32): *u8 {
   }
   if (i == 11) {
     let p: *u8 = "std_vec_clear_Vec_u8_ptr";
+    return p;
+  }
+  // PLATFORM: SHARED — exact UNDEF needles for pop/extend. Matcher is exact;
+  // push/from_slice_u8 do not cover sole pop or Vec_u64/f64 extend
+  // (tests/vec/append_roundtrip, pop-only after from_slice of other widths).
+  if (i == 12) {
+    let p: *u8 = "std_vec_pop_Vec_i32_ptr";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_vec_pop_Vec_u8_ptr";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_vec_extend_Vec_i32_ptr_i32_ptr_i32";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "std_vec_extend_Vec_u8_ptr_u8_ptr_i32";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_vec_extend_Vec_u64_ptr_u64_ptr_i32";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "std_vec_extend_Vec_f64_ptr_f64_ptr_i32";
     return p;
   }
   return 0 as *u8;

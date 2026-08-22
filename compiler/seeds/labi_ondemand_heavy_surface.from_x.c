@@ -393,7 +393,7 @@ int32_t labi_fk0_sym_count(int32_t k) {
     return 4;
   }
   if ((k ==10)) {
-    return 10;
+    return 16;
   }
   if ((k ==11)) {
     return 9;
@@ -720,6 +720,31 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     if ((i ==9)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x76\x65\x63\x5f\x70\x75\x73\x68");
+      return p;
+    }
+    /* PLATFORM: SHARED — fk0 k==10 +pop/+extend exact UNDEF (mirror heavy.x). */
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"std_vec_pop_Vec_i32_ptr");
+      return p;
+    }
+    if ((i ==11)) {
+      uint8_t * p = ((uint8_t *)"std_vec_pop_Vec_u8_ptr");
+      return p;
+    }
+    if ((i ==12)) {
+      uint8_t * p = ((uint8_t *)"std_vec_extend_Vec_i32_ptr_i32_ptr_i32");
+      return p;
+    }
+    if ((i ==13)) {
+      uint8_t * p = ((uint8_t *)"std_vec_extend_Vec_u8_ptr_u8_ptr_i32");
+      return p;
+    }
+    if ((i ==14)) {
+      uint8_t * p = ((uint8_t *)"std_vec_extend_Vec_u64_ptr_u64_ptr_i32");
+      return p;
+    }
+    if ((i ==15)) {
+      uint8_t * p = ((uint8_t *)"std_vec_extend_Vec_f64_ptr_f64_ptr_i32");
       return p;
     }
     return ((uint8_t *)(0));
