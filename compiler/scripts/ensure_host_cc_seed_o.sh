@@ -849,7 +849,14 @@ extras_for_extra_cflags() {
       printf '%s' '-fPIE'
       ;;
     runtime_sqlite_glue.o)
-      printf '%s' '-DXLANG_DB_USE_SQLITE3'
+      # PLATFORM: SHARED — seed has #ifdef XLANG_DB_USE_SQLITE3 / stub #else.
+      # Always defining it makes cc -c require sqlite3.h (Ubuntu gold may not
+      # ship libsqlite3). Probe the header; omit the define so stub T
+      # xlang_db_use_sqlite3_c still lands. G.7 complete extra-cflags; product
+      # -o must not hard-fail on missing sqlite3.h (cookbook sqlite_available).
+      if echo '#include <sqlite3.h>' | ${CC:-cc} -E - >/dev/null 2>&1; then
+        printf '%s' '-DXLANG_DB_USE_SQLITE3'
+      fi
       ;;
     runtime_sqlite_glue_stub.o)
       ;;

@@ -80,6 +80,8 @@ export extern "C" function link_abi_obj_needs_brotli(obj_o: *u8): i32;
 
 // Peer pure (ondemand L8b): user.o needs any compress lib (zlib|zstd|brotli aggregate).
 export extern "C" function link_abi_user_o_needs_compress_libs(user_o: *u8): i32;
+// Peer pure (ondemand L8b): exact UNDEF probe (nm -u; strip optional U/_).
+export extern "C" function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 
 // Cap residual: ensure zlib macro-wrapper glue .o + resolve its path for ld argv.
 export extern "C" function xlang_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
@@ -1209,13 +1211,33 @@ export function xlang_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o:
   if (need_comp != 0) {
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
   }
-  // -lsqlite3 when sqlite std linked.
+  // -lsqlite3 only when glue.o actually U sqlite3_open (real libsqlite3 TU).
+  // Stub glue (no sqlite3.h) defines xlang_sqlite3_*_c without that U; adding
+  // -lsqlite3 then fails Ubuntu gold `ld: cannot find -lsqlite3`.
+  // PLATFORM: SHARED — G.7 complete have_sqlite tail; glue already OP 18.
   if (have_sqlite != 0) {
-    let curs: i32 = la[0];
-    if (curs < max_la - 1) {
-      let fs: *u8 = labi_ld_flag_lsqlite3();
-      argv[curs] = fs;
-      la[0] = curs + 1;
+    let gp: *u8 = 0 as *u8;
+    let need_lib: i32 = 1;
+    unsafe {
+      gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    }
+    if (gp == 0 as *u8) {
+      unsafe {
+        gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+      }
+    }
+    if (gp != 0 as *u8) {
+      unsafe {
+        need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+      }
+    }
+    if (need_lib != 0) {
+      let curs: i32 = la[0];
+      if (curs < max_la - 1) {
+        let fs: *u8 = labi_ld_flag_lsqlite3();
+        argv[curs] = fs;
+        la[0] = curs + 1;
+      }
     }
   }
   // -lpthread when thread/sync/channel.
@@ -1342,13 +1364,32 @@ export function xlang_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, use
   if (need_comp != 0) {
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
   }
-  // -lsqlite3 when sqlite std linked.
+  // -lsqlite3 only when glue.o actually U sqlite3_open (real libsqlite3 TU).
+  // Stub glue (no sqlite3.h) must not pull -lsqlite3 (Ubuntu gold).
+  // PLATFORM: SHARED — G.7 complete have_sqlite tail; ≡ mach twin.
   if (have_sqlite != 0) {
-    let curs: i32 = la[0];
-    if (curs < max_la - 1) {
-      let fs: *u8 = labi_ld_flag_lsqlite3();
-      argv[curs] = fs;
-      la[0] = curs + 1;
+    let gp: *u8 = 0 as *u8;
+    let need_lib: i32 = 1;
+    unsafe {
+      gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    }
+    if (gp == 0 as *u8) {
+      unsafe {
+        gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+      }
+    }
+    if (gp != 0 as *u8) {
+      unsafe {
+        need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+      }
+    }
+    if (need_lib != 0) {
+      let curs: i32 = la[0];
+      if (curs < max_la - 1) {
+        let fs: *u8 = labi_ld_flag_lsqlite3();
+        argv[curs] = fs;
+        la[0] = curs + 1;
+      }
     }
   }
   // -ldl only on Linux when dynlib (mega #if __linux__; peer pure host_is_linux).

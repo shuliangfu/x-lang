@@ -1718,6 +1718,12 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
       # PLATFORM: SHARED — nested module std.io.driver product face.
       leaf="io_driver"
       ;;
+    std/db/sqlite/sqlite.o)
+      # PLATFORM: SHARED — nested module std.db.sqlite product face.
+      # Import mangle is std_db_sqlite_*; leaf basename sqlite would yield
+      # std_sqlite_* (Ubuntu objcopy). Twin of std/io/driver.o → io_driver.
+      leaf="db_sqlite"
+      ;;
   esac
   case "$out_root" in
     core) prod_pref="core_${leaf}_" ;;

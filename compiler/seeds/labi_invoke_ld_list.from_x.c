@@ -69,6 +69,7 @@ int link_abi_obj_needs_zlib(const char *obj_o);
 int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
+int xlang_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
 /* Cap residual always (wave215/255): multi-slot realpath pool body only (mega). */
@@ -411,8 +412,18 @@ void xlang_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char 
     need_comp = link_abi_user_o_needs_compress_libs(user_o);
   if (need_comp)
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-  if (flags->have_sqlite && *la < max_la - 1)
-    argv[(*la)++] = labi_ld_flag_lsqlite3();
+  /* PLATFORM: SHARED — -lsqlite3 only when glue.o U sqlite3_open (real lib).
+   * Stub glue (no sqlite3.h) must not pull -lsqlite3 (Ubuntu gold). Twin of .x. */
+  if (flags->have_sqlite && *la < max_la - 1) {
+    const char *gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    int need_lib = 1;
+    if (!gp)
+      gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+    if (gp)
+      need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+    if (need_lib)
+      argv[(*la)++] = labi_ld_flag_lsqlite3();
+  }
   if (need_pt && *la < max_la - 1)
     argv[(*la)++] = labi_ld_flag_lpthread();
   if (append_lsystem && *la < max_la - 1)
@@ -442,8 +453,17 @@ void xlang_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const c
     need_comp = link_abi_user_o_needs_compress_libs(user_o);
   if (need_comp)
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-  if (flags->have_sqlite && *la < max_la - 1)
-    argv[(*la)++] = labi_ld_flag_lsqlite3();
+  /* PLATFORM: SHARED — -lsqlite3 only when glue.o U sqlite3_open. Twin of .x. */
+  if (flags->have_sqlite && *la < max_la - 1) {
+    const char *gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    int need_lib = 1;
+    if (!gp)
+      gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+    if (gp)
+      need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+    if (need_lib)
+      argv[(*la)++] = labi_ld_flag_lsqlite3();
+  }
   /* -ldl only on Linux when dynlib (mega #if __linux__). */
   if (flags->have_dynlib && xlang_host_is_linux() && *la < max_la - 1)
     argv[(*la)++] = labi_ld_flag_ldl();
