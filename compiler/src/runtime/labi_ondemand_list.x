@@ -1641,17 +1641,18 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
  * existed; user programs using Vec<u16/i32/u8/u64/f64> hit BLD001 UNDEF
  * because needs_std_vec never fired. Probe covers common ops (push/get/
  * length/deinit/from_slice/capacity/clear) plus pop/extend (exact UNDEF;
- * matcher is exact — push/from_slice_u8 do not cover pop or Vec_u64/f64
- * extend). G.7: single vec probe authority. PLATFORM: SHARED.
+ * matcher is exact — push/from_slice_u8 do not cover pop, Vec_u64/f64
+ * extend, or sole from_slice_u64/f64). G.7: single vec probe authority.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function labi_od_vec_sym_count(): i32 {
-  return 18;
+  return 20;
 }
 
 /**
  * Vec on_demand UNDEF symbol at index (product probe table for needs_std_vec).
- * @param i i32 — index in [0, 18)
+ * @param i i32 — index in [0, 20)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_vec authority (no second table)
  */
@@ -1708,9 +1709,9 @@ export function labi_od_vec_sym_at(i: i32): *u8 {
     let p: *u8 = "std_vec_clear_Vec_u8_ptr";
     return p;
   }
-  // PLATFORM: SHARED — exact UNDEF needles for pop/extend. Matcher is exact;
-  // push/from_slice_u8 do not cover sole pop or Vec_u64/f64 extend
-  // (tests/vec/append_roundtrip, pop-only after from_slice of other widths).
+  // PLATFORM: SHARED — exact UNDEF needles for pop/extend/from_slice_u64/f64.
+  // Matcher is exact; from_slice_u8 does not cover sole from_slice_u64/f64
+  // (length/get/deinit u64/f64 also miss until vec.o is pulled).
   if (i == 12) {
     let p: *u8 = "std_vec_pop_Vec_i32_ptr";
     return p;
@@ -1733,6 +1734,14 @@ export function labi_od_vec_sym_at(i: i32): *u8 {
   }
   if (i == 17) {
     let p: *u8 = "std_vec_extend_Vec_f64_ptr_f64_ptr_i32";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_vec_from_slice_u64_ptr_i32";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "std_vec_from_slice_f64_ptr_i32";
     return p;
   }
   return 0 as *u8;
