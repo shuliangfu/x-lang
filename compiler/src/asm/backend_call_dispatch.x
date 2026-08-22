@@ -3890,6 +3890,9 @@ export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32,
 
 /**
  * Score field_name candidates in res_mod (arity + arg-type mid match).
+ * ARRAY T vs *T counts as a suffix hit (same decay as typeck_overload_arg_param_score
+ * ak==10 && pk==9). Without it, from_slice(u64[4], n) stays name+arity first-wins
+ * from_slice_i32 (score==1; mangle override requires sc_best>=11).
  * @param arena *u8 — call-site arena
  * @param expr_ref i32 — CALL or METHOD_CALL
  * @param res_mod *u8 — dep module to scan
@@ -3900,7 +3903,7 @@ export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32,
  * @param is_method i32 — 1 → METHOD_CALL arg refs; 0 → CALL arg refs
  * @param out_best_score *i32 — optional; written best suffix-score (1 arity / +10 match)
  * @return i32 — best func_ix or -1
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — product -o mangle; seed twin must match.
  */
 #[no_mangle]
 export function glue_asm_score_import_binding_func_ix_c(
@@ -3943,6 +3946,7 @@ export function glue_asm_score_import_binding_func_ix_c(
                   let sb: u8[64] = [];
                   let na: i32 = glue_asm_type_ref_to_suffix_c(arena, arg_ty, &sa[0], 64);
                   let nb: i32 = glue_asm_type_ref_to_suffix_c(res_arena, pty, &sb[0], 64);
+                  let hit: i32 = 0;
                   if (na > 0) {
                     if (na == nb) {
                       let eq: i32 = 1;
@@ -3951,9 +3955,41 @@ export function glue_asm_score_import_binding_func_ix_c(
                         if (sa[k] != sb[k]) { eq = 0; break; }
                         k = k + 1;
                       }
-                      if (eq != 0) { score = score + 10; }
+                      if (eq != 0) { hit = 1; }
                     }
                   }
+                  /* PLATFORM: SHARED — ARRAY T → *T decay ≡ typeck ak==10 pk==9.
+                   * FLOAT_LIT splat stays score==1 (not ARRAY); gate sc_best>=11 unchanged. */
+                  if (hit == 0) {
+                    let ak: i32 = pipeline_type_kind_ord_at(arena, arg_ty);
+                    let pk: i32 = pipeline_type_kind_ord_at(res_arena, pty);
+                    if (ak == 10) {
+                      if (pk == 9) {
+                        let ae: i32 = pipeline_type_elem_ref_at(arena, arg_ty);
+                        let pe: i32 = pipeline_type_elem_ref_at(res_arena, pty);
+                        if (ae > 0) {
+                          if (pe > 0) {
+                            let sea: u8[64] = [];
+                            let seb: u8[64] = [];
+                            let nea: i32 = glue_asm_type_ref_to_suffix_c(arena, ae, &sea[0], 64);
+                            let neb: i32 = glue_asm_type_ref_to_suffix_c(res_arena, pe, &seb[0], 64);
+                            if (nea > 0) {
+                              if (nea == neb) {
+                                let eqe: i32 = 1;
+                                let ke: i32 = 0;
+                                while (ke < nea) {
+                                  if (sea[ke] != seb[ke]) { eqe = 0; break; }
+                                  ke = ke + 1;
+                                }
+                                if (eqe != 0) { hit = 1; }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  if (hit != 0) { score = score + 10; }
                 }
               }
               pi = pi + 1;

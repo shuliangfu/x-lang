@@ -1673,6 +1673,8 @@ static int32_t glue_asm_build_func_overload_mid_c(struct ast_Module *m, struct a
  * Returns best func_ix or -1. Used by import-binding formal mid path (G.7 one authority).
  * best_score_out: optional; 1=name+arity only, +10/arg match, +20 zero-arg ret. Override r_func
  * only when score >= 11 (typed arg evidence) so bare residual does not clobber correct resolve.
+ * ARRAY T vs *T is a +10 hit (≡ typeck_overload_arg_param_score ak==10 && pk==9) so
+ * from_slice(u64[4], n) beats first-wins from_slice_i32. FLOAT_LIT splat stays score==1.
  */
 static int32_t glue_asm_score_import_binding_func_ix_ex_c(struct ast_ASTArena *arena,
                                                            struct backend_AsmFuncCtx *ctx, int32_t expr_ref,
@@ -1730,6 +1732,34 @@ static int32_t glue_asm_score_import_binding_func_ix_ex_c(struct ast_ASTArena *a
         }
         if (eq)
           score += 10;
+      } else if (na > 0 && nb > 0) {
+        /* PLATFORM: SHARED — ARRAY T → *T decay ≡ typeck ak==10 pk==9.
+         * Product -o mangle: from_slice(src: u64[4], n) must pick from_slice_u64_ptr
+         * not first-name from_slice_i32 (score==1 cannot pass sc_best>=11). */
+        int32_t ak = pipeline_type_kind_ord_at(arena, arg_ty);
+        int32_t pk = pipeline_type_kind_ord_at(res_arena, pty);
+        if (ak == 10 && pk == 9) {
+          int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
+          int32_t pe = pipeline_type_elem_ref_at(res_arena, pty);
+          if (ae > 0 && pe > 0) {
+            uint8_t sea[64];
+            uint8_t seb[64];
+            int32_t nea = glue_asm_type_ref_to_suffix_c(arena, ae, sea, 64);
+            int32_t neb = glue_asm_type_ref_to_suffix_c(res_arena, pe, seb, 64);
+            if (nea > 0 && nea == neb) {
+              int32_t eqe = 1;
+              int32_t ke;
+              for (ke = 0; ke < nea; ke++) {
+                if (sea[ke] != seb[ke]) {
+                  eqe = 0;
+                  break;
+                }
+              }
+              if (eqe)
+                score += 10;
+            }
+          }
+        }
       }
     }
     if (want_np == 0 && exp_ty > 0) {
