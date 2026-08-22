@@ -1412,6 +1412,65 @@ PYEOF
     fi
   fi
 
+  # PLATFORM: SHARED — arity-aware libc-clash rename of X defs/forwards only.
+  # File-wide `#define msync` also rewrites linux/macos FFI 3-arg msync() calls
+  # (std.sys.linux `return msync(addr, len, flags)`). X exports msync(ptr,size)
+  # 2-arg. Rename only matching-arity decls; calls stay libc. Darwin wrappers
+  # already renamed → no-op. G.7 complete clash gate (mmap family not #define).
+  if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    python3 - "$gen_c" <<'PYEOF' || true
+import re, sys
+path = sys.argv[1]
+with open(path, 'r') as f:
+    s = f.read()
+clash = {
+    'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
+    'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
+    'getpid', 'getppid', 'waitpid', 'exec', 'signal', 'abort',
+    'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
+    'read', 'write',
+    'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
+    'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
+    'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+    'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
+    'erf', 'erfc', 'min', 'max',
+}
+ret = (
+    r'(?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|'
+    r'double|ssize_t|uintptr_t|intptr_t)[\s\*]*)'
+)
+def arg_count(a):
+    a = (a or '').strip()
+    if a == '' or a == 'void':
+        return 0
+    return a.count(',') + 1
+def_arity = {}
+for m in re.finditer(
+    rf'(?m)^(?:extern\s+|static\s+)?(?:{ret})\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*\{{',
+    s,
+):
+    name = m.group(1)
+    if name not in clash:
+        continue
+    def_arity.setdefault(name, set()).add(arg_count(m.group(2)))
+for name, arities in def_arity.items():
+    if len(arities) != 1:
+        continue
+    want = next(iter(arities))
+    body = 'xlang_formal_bare_' + name
+    pat = re.compile(
+        rf'(?m)^((?:extern\s+|static\s+)?)({ret}\s+){re.escape(name)}(\s*\()([^)]*)(\))'
+    )
+    def repl(m, body=body, want=want):
+        if arg_count(m.group(4)) != want:
+            return m.group(0)
+        return m.group(1) + m.group(2) + body + m.group(3) + m.group(4) + m.group(5)
+    s = pat.sub(repl, s)
+with open(path, 'w') as f:
+    f.write(s)
+PYEOF
+  fi
+
   # PLATFORM: SHARED — pre-cc POSIX/libc bare-name clash guard.
   # Root: formal_mod host-C emits bare export names (e.g. std.sync wait). System
   # headers already declare wait(int*)/free/… → "conflicting types for 'wait'" at
@@ -1690,6 +1749,7 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                  getenv setenv unsetenv getpid getppid waitpid wait exec signal abort \
                  unreachable \
                  remove rename system time clock read write \
+                 mmap munmap msync ftruncate lseek \
                  abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                  sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
       if [ -n "$prod_pref" ]; then
