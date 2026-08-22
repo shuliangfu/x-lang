@@ -1575,8 +1575,12 @@ export function labi_std_fk_gate_sym_count(fk: i32): i32 {
   if (fk == 9) {
     return 29;
   }
+  // PLATFORM: SHARED — cookbook sqlite_available unique UNDEF (is_available).
+  // Was 3 needles std_db_sqlite / sqlite3_open / db_sqlite_open. Matcher exact
+  // so prefix never fires for std_db_sqlite_is_available. G.7 complete: 29 unique
+  // import faces + keep legacy 3. Glue companion already OP 18 (have_sqlite).
   if (fk == 10) {
-    return 3;
+    return 32;
   }
   if (fk == 11) {
     return 2;
@@ -1919,15 +1923,133 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
       return 0 as *u8;
     }
     if (fk == 10) {
+      // PLATFORM: SHARED — unique-first cookbook sqlite_available, then remaining
+      // unique std.db.sqlite export faces in mod.x source order, then legacy 3.
       if (i == 0) {
-        let p: *u8 = "std_db_sqlite";
+        let p: *u8 = "std_db_sqlite_is_available";
         return p;
       }
       if (i == 1) {
-        let p: *u8 = "sqlite3_open";
+        let p: *u8 = "std_db_sqlite_open";
         return p;
       }
       if (i == 2) {
+        let p: *u8 = "std_db_sqlite_close";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_db_sqlite_exec";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_db_sqlite_rows";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_db_sqlite_begin";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_db_sqlite_next_row";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_db_sqlite_col";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_db_sqlite_col_text";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_db_sqlite_col_blob";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_db_sqlite_col_blob_len";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_db_sqlite_col_blob_read";
+        return p;
+      }
+      if (i == 12) {
+        let p: *u8 = "std_db_sqlite_end";
+        return p;
+      }
+      if (i == 13) {
+        let p: *u8 = "std_db_sqlite_begin_tx";
+        return p;
+      }
+      if (i == 14) {
+        let p: *u8 = "std_db_sqlite_commit";
+        return p;
+      }
+      if (i == 15) {
+        let p: *u8 = "std_db_sqlite_rollback";
+        return p;
+      }
+      if (i == 16) {
+        let p: *u8 = "std_db_sqlite_last_error";
+        return p;
+      }
+      if (i == 17) {
+        let p: *u8 = "std_db_sqlite_backend_name";
+        return p;
+      }
+      if (i == 18) {
+        let p: *u8 = "std_db_sqlite_changes";
+        return p;
+      }
+      if (i == 19) {
+        let p: *u8 = "std_db_sqlite_prepare";
+        return p;
+      }
+      if (i == 20) {
+        let p: *u8 = "std_db_sqlite_prepare_cached";
+        return p;
+      }
+      if (i == 21) {
+        let p: *u8 = "std_db_sqlite_bind";
+        return p;
+      }
+      if (i == 22) {
+        let p: *u8 = "std_db_sqlite_step";
+        return p;
+      }
+      if (i == 23) {
+        let p: *u8 = "std_db_sqlite_reset";
+        return p;
+      }
+      if (i == 24) {
+        let p: *u8 = "std_db_sqlite_finalize";
+        return p;
+      }
+      if (i == 25) {
+        let p: *u8 = "std_db_sqlite_cache_clear";
+        return p;
+      }
+      if (i == 26) {
+        let p: *u8 = "std_db_sqlite_acquire";
+        return p;
+      }
+      if (i == 27) {
+        let p: *u8 = "std_db_sqlite_release";
+        return p;
+      }
+      if (i == 28) {
+        let p: *u8 = "std_db_sqlite_idle";
+        return p;
+      }
+      if (i == 29) {
+        let p: *u8 = "std_db_sqlite";
+        return p;
+      }
+      if (i == 30) {
+        let p: *u8 = "sqlite3_open";
+        return p;
+      }
+      if (i == 31) {
         let p: *u8 = "db_sqlite_open";
         return p;
       }

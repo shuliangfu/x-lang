@@ -2881,7 +2881,10 @@ int labi_std_fk_gate_sym_count(int fk) {
   if (fk == 7) return 4;
   if (fk == 8) return 2;
   if (fk == 9) return 29;
-  if (fk == 10) return 3;
+  /* PLATFORM: SHARED — cookbook sqlite_available unique UNDEF (is_available).
+   * Was 3 needles; matcher exact so prefix std_db_sqlite never fires.
+   * Twin of labi_ondemand_heavy.x. 29 unique import faces + legacy 3. */
+  if (fk == 10) return 32;
   if (fk == 11) return 2;
   if (fk == 12) return 4;
   if (fk == 13) return 4;
@@ -3005,9 +3008,40 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     return NULL;
   }
   if (fk == 10) {
-    if (i == 0) return "std_db_sqlite";
-    if (i == 1) return "sqlite3_open";
-    if (i == 2) return "db_sqlite_open";
+    /* PLATFORM: SHARED — unique-first cookbook sqlite_available, then remaining
+     * unique std.db.sqlite export faces in mod.x source order, then legacy 3. */
+    if (i == 0) return "std_db_sqlite_is_available";
+    if (i == 1) return "std_db_sqlite_open";
+    if (i == 2) return "std_db_sqlite_close";
+    if (i == 3) return "std_db_sqlite_exec";
+    if (i == 4) return "std_db_sqlite_rows";
+    if (i == 5) return "std_db_sqlite_begin";
+    if (i == 6) return "std_db_sqlite_next_row";
+    if (i == 7) return "std_db_sqlite_col";
+    if (i == 8) return "std_db_sqlite_col_text";
+    if (i == 9) return "std_db_sqlite_col_blob";
+    if (i == 10) return "std_db_sqlite_col_blob_len";
+    if (i == 11) return "std_db_sqlite_col_blob_read";
+    if (i == 12) return "std_db_sqlite_end";
+    if (i == 13) return "std_db_sqlite_begin_tx";
+    if (i == 14) return "std_db_sqlite_commit";
+    if (i == 15) return "std_db_sqlite_rollback";
+    if (i == 16) return "std_db_sqlite_last_error";
+    if (i == 17) return "std_db_sqlite_backend_name";
+    if (i == 18) return "std_db_sqlite_changes";
+    if (i == 19) return "std_db_sqlite_prepare";
+    if (i == 20) return "std_db_sqlite_prepare_cached";
+    if (i == 21) return "std_db_sqlite_bind";
+    if (i == 22) return "std_db_sqlite_step";
+    if (i == 23) return "std_db_sqlite_reset";
+    if (i == 24) return "std_db_sqlite_finalize";
+    if (i == 25) return "std_db_sqlite_cache_clear";
+    if (i == 26) return "std_db_sqlite_acquire";
+    if (i == 27) return "std_db_sqlite_release";
+    if (i == 28) return "std_db_sqlite_idle";
+    if (i == 29) return "std_db_sqlite";
+    if (i == 30) return "sqlite3_open";
+    if (i == 31) return "db_sqlite_open";
     return NULL;
   }
   if (fk == 11) {

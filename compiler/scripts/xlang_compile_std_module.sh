@@ -88,6 +88,9 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
     # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
     ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
+    # PLATFORM: SHARED — cookbook sqlite_available unique UNDEF (is_available).
+    # Was std_x auto-soft sqlite.x only → T db_* / no std_db_sqlite_*.
+    ../std/db/sqlite/sqlite.o|std/db/sqlite/sqlite.o|*std/db/sqlite/sqlite.o) printf '%s' "std/db/sqlite/sqlite.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
@@ -173,6 +176,10 @@ formal_mod_spec_for_key() {
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
     std/datetime/datetime.o) printf '%s' "mod|1|../std/datetime/mod.x|../std/datetime/datetime.x" ;;
+    # PLATFORM: SHARED — std.db.sqlite product face (cookbook sqlite_available).
+    # Was std_x bare sqlite.x only → T db_* / no std_db_sqlite_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/http/datetime: mod.x prefix + --bare-impl *_c.
+    std/db/sqlite/sqlite.o) printf '%s' "mod|1|../std/db/sqlite/mod.x|../std/db/sqlite/sqlite.x" ;;
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
@@ -248,6 +255,7 @@ formal_mod_all_keys() {
     std/csv/csv.o \
     std/cli/cli.o \
     std/datetime/datetime.o \
+    std/db/sqlite/sqlite.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \
@@ -1616,6 +1624,32 @@ PYEOF
         cat "$_fin_slice"
         tail -n +"$((_ins + 1))" "$gen_c"
       } >"$tmp_dir/gen_finsl_${idx}.c" && mv "$tmp_dir/gen_finsl_${idx}.c" "$gen_c"
+    fi
+  fi
+
+  # PLATFORM: SHARED — libc extern prototypes that clash with hosted headers.
+  # Darwin fortify: `#define snprintf(...) __snprintf_chk_func(...)` rewrites
+  # codegen's `extern int32_t snprintf(uint8_t *, size_t, uint8_t *)` into an
+  # invalid declarator (cookbook sqlite_available / sqlite.x snprintf FFI).
+  # Product skip predicate codegen_is_libc_conflicting_extern_name covers
+  # stdlib/string/unistd names whose headers are already in the C prologue;
+  # snprintf is stdio (not in that prologue) so -E still emits the redecl.
+  # G.7 complete this compile vehicle: drop the redecl and include stdio.h
+  # when this TU calls snprintf. Do not file-wide `#define snprintf` (would
+  # rewrite libc calls into a missing xlang_formal_bare_snprintf). Same class
+  # as g05 sed-delete of malloc/write redecls; not a second sqlite-only path.
+  if [ -f "$gen_c" ] && grep -qE '^extern[[:space:]]+(int32_t|int)[[:space:]]+snprintf[[:space:]]*\(' "$gen_c" 2>/dev/null; then
+    sed -e '/^extern int32_t snprintf(/d' -e '/^extern int snprintf(/d' \
+      "$gen_c" >"$tmp_dir/gen_nsprintf_${idx}.c" && mv "$tmp_dir/gen_nsprintf_${idx}.c" "$gen_c"
+    if ! grep -qE '#include[[:space:]]*<stdio\.h>' "$gen_c" 2>/dev/null; then
+      _ns_inc=$(grep -n '^#include' "$gen_c" 2>/dev/null | tail -1 | cut -d: -f1)
+      [ -n "$_ns_inc" ] || _ns_inc=1
+      {
+        head -n "$_ns_inc" "$gen_c"
+        echo '/* PLATFORM: SHARED — libc snprintf after dropping conflicting XLANG extern */'
+        echo '#include <stdio.h>'
+        tail -n +"$((_ns_inc + 1))" "$gen_c"
+      } >"$tmp_dir/gen_stdio_${idx}.c" && mv "$tmp_dir/gen_stdio_${idx}.c" "$gen_c"
     fi
   fi
 

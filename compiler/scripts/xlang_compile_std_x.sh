@@ -42,7 +42,7 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 21 (cli.o moved to formal_mod; was 22).
+# Honesty COUNT = 19 (sqlite.o moved to formal_mod; was 20 after datetime).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
@@ -62,7 +62,6 @@ std_x_key_for_out() {
     ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
     ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
     ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
-    ../std/db/sqlite/sqlite.o|std/db/sqlite/sqlite.o|*std/db/sqlite/sqlite.o) printf '%s' "std/db/sqlite/sqlite.o" ;;
     ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
     ../std/regex/regex.o|std/regex/regex.o|*std/regex/regex.o) printf '%s' "std/regex/regex.o" ;;
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
@@ -89,7 +88,6 @@ std_x_spec_for_key() {
     std/schema/schema.o) printf '%s' "auto|../std/schema/schema.x" ;;
     std/db/kv/kv.o) printf '%s' "auto-soft|../std/db/kv/kv.x" ;;
     std/db/arrow/arrow.o) printf '%s' "auto-soft|../std/db/arrow/arrow.x" ;;
-    std/db/sqlite/sqlite.o) printf '%s' "auto-soft|../std/db/sqlite/sqlite.x" ;;
     std/elf/elf.o) printf '%s' "auto-soft|../std/elf/elf.x" ;;
     std/regex/regex.o) printf '%s' "auto-soft|../std/regex/regex.x" ;;
     std/unicode/unicode.o) printf '%s' "auto-soft|../std/unicode/unicode.x" ;;
@@ -115,7 +113,6 @@ std_x_all_keys() {
     std/schema/schema.o \
     std/db/kv/kv.o \
     std/db/arrow/arrow.o \
-    std/db/sqlite/sqlite.o \
     std/elf/elf.o \
     std/regex/regex.o \
     std/unicode/unicode.o \
@@ -219,22 +216,21 @@ std/task/task.o
 std/schema/schema.o
 std/db/kv/kv.o
 std/db/arrow/arrow.o
-std/db/sqlite/sqlite.o
 std/elf/elf.o
 std/regex/regex.o
 std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 20 ]; then
-    echo "std_x --check: expected 20 keys, counted $_n" >&2
+  if [ "$_n" -ne 19 ]; then
+    echo "std_x --check: expected 19 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (20 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (19 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 
