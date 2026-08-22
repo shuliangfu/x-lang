@@ -162,29 +162,151 @@ export function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: 
   return 0;
 }
 
-/* See implementation. */
+/**
+ * Bytes occupied by a file payload including 512-byte padding (0 when n<=0).
+ * @param n i32 — payload size in bytes; n<=0 → 0
+ * @return i32 — n rounded up to a multiple of 512
+ * PLATFORM: SHARED — UStar block size; no OS I/O
+ */
+function tar_padded_span(n: i32): i32 {
+  if (n <= 0) { return 0; }
+  let rem: i32 = n % 512;
+  if (rem == 0) { return n; }
+  return n + (512 - rem);
+}
+
+/**
+ * Append one UStar entry at *off_io (STD-038 short path, name_len<=100).
+ * Writes a 512-byte header via tar_write_header_c, then file data padded to 512.
+ * Directories (is_dir!=0) use typeflag '5', size 0, and no data block.
+ * @param buf *u8 — archive buffer; caller owns
+ * @param buf_cap i32 — capacity of buf in bytes
+ * @param off_io *i32 — in/out byte offset of the next free byte; updated on success
+ * @param name *u8 — entry name bytes (not required to be NUL-terminated)
+ * @param name_len i32 — name byte count; must be 0..100 (UStar name field)
+ * @param data *u8 — file payload; ignored when is_dir!=0 or data_len<=0; null rejected when copying
+ * @param data_len i32 — payload size; ignored when is_dir!=0
+ * @param is_dir i32 — non-zero → directory typeflag '5'
+ * @return i32 — 0 success, -1 null/cap/name_len/overflow
+ * PLATFORM: SHARED — in-memory archive; prefix/Pax (STD-152) is a later leaf
+ */
 export function tar_append_entry_c(buf: *u8, buf_cap: i32, off_io: *i32, name: *u8, name_len: i32, data: *u8,
-  data_len: i32): i32 {
-  return -1;
+  data_len: i32, is_dir: i32): i32 {
+  if (buf == 0 || off_io == 0 || name == 0 || name_len < 0 || name_len > 100) {
+    return -1;
+  }
+  let off: i32 = off_io[0];
+  if (off < 0 || data_len < 0) { return -1; }
+  let file_size: i32 = data_len;
+  if (is_dir != 0) { file_size = 0; }
+  let span: i32 = 0;
+  if (is_dir == 0) { span = tar_padded_span(file_size); }
+  if (off + 512 + span > buf_cap) { return -1; }
+  let hdr: *u8 = buf + off;
+  if (tar_write_header_c(hdr, buf_cap - off, name, name_len, file_size) != 0) {
+    return -1;
+  }
+  // Directories overwrite typeflag '0' from write_header and recompute chksum.
+  if (is_dir != 0) {
+    hdr[156] = 53;
+    let chk: i32 = tar_header_chksum(hdr);
+    tar_write_octal(hdr, 148, 7, chk);
+    hdr[155] = 32;
+  }
+  off = off + 512;
+  if (is_dir == 0 && file_size > 0) {
+    if (data == 0) { return -1; }
+    let i: i32 = 0;
+    while (i < file_size) {
+      buf[off + i] = data[i];
+      i = i + 1;
+    }
+    off = off + file_size;
+    let pad: i32 = span - file_size;
+    i = 0;
+    while (i < pad) {
+      buf[off + i] = 0;
+      i = i + 1;
+    }
+    off = off + pad;
+  }
+  off_io[0] = off;
+  return 0;
 }
 
-/* See implementation. */
+/**
+ * Iterate the next UStar header in a memory archive (STD-038 short path).
+ * Zero-filled 512-byte blocks or running past buf_len end the walk (return 1).
+ * Does not parse Pax / GNU longname; name is the 100-byte UStar name field.
+ * @param buf *u8 — archive bytes
+ * @param buf_len i32 — valid length of buf
+ * @param pos_io *i32 — in/out header offset; advanced past header+payload on success
+ * @param name_out *u8 — NUL-terminated name; caller owns
+ * @param name_cap i32 — capacity of name_out; must be >0
+ * @param size_out *i32 — file size from the header octal field
+ * @param type_out *i32 — ASCII typeflag ('0'=48 file, '5'=53 directory)
+ * @return i32 — 0 entry, 1 end, -1 null/bad offset
+ * PLATFORM: SHARED — in-memory walk; Pax skip is a later leaf
+ */
 export function tar_next_entry_c(buf: *u8, buf_len: i32, pos_io: *i32, name_out: *u8, name_cap: i32,
-  size_out: *i32): i32 {
-  return -1;
+  size_out: *i32, type_out: *i32): i32 {
+  if (buf == 0 || pos_io == 0 || name_out == 0 || name_cap <= 0 || size_out == 0 || type_out == 0) {
+    return -1;
+  }
+  let pos: i32 = pos_io[0];
+  if (pos < 0) { return -1; }
+  if (pos + 512 > buf_len) { return 1; }
+  let hdr: *u8 = buf + pos;
+  let all_zero: i32 = 1;
+  let i: i32 = 0;
+  while (i < 512) {
+    if (hdr[i] != 0) { all_zero = 0; }
+    i = i + 1;
+  }
+  if (all_zero != 0) { return 1; }
+  i = 0;
+  while (i < name_cap - 1 && i < 100 && hdr[i] != 0) {
+    name_out[i] = hdr[i];
+    i = i + 1;
+  }
+  name_out[i] = 0;
+  let sz: i32 = tar_read_octal(hdr, 124, 12);
+  if (sz < 0) { return -1; }
+  size_out[0] = sz;
+  type_out[0] = hdr[156] as i32;
+  pos_io[0] = pos + 512 + tar_padded_span(sz);
+  return 0;
 }
 
-/** Exported function `tar_read_entry_data_c`.
- * Read path helper `tar_read_entry_data_c`.
- * @param buf *u8
- * @param buf_len i32
- * @param entry_off i32
- * @param out *u8
- * @param out_cap i32
- * @return i32
+/**
+ * Copy the file payload that follows the header at entry_off.
+ * Directories and empty files return 0. Truncates to out_cap.
+ * @param buf *u8 — archive bytes
+ * @param buf_len i32 — valid length of buf
+ * @param entry_off i32 — byte offset of the UStar header (not the data)
+ * @param out *u8 — destination; caller owns
+ * @param out_cap i32 — capacity of out
+ * @return i32 — bytes copied, 0 for dir/empty, -1 on null/range error
+ * PLATFORM: SHARED — in-memory extract; Pax header skip is a later leaf
  */
 export function tar_read_entry_data_c(buf: *u8, buf_len: i32, entry_off: i32, out: *u8, out_cap: i32): i32 {
-  return -1;
+  if (buf == 0 || out == 0 || entry_off < 0 || out_cap < 0) { return -1; }
+  if (entry_off + 512 > buf_len) { return -1; }
+  let hdr: *u8 = buf + entry_off;
+  let tf: i32 = hdr[156] as i32;
+  let sz: i32 = tar_read_octal(hdr, 124, 12);
+  if (sz < 0) { return -1; }
+  if (tf == 53 || sz == 0) { return 0; }
+  let n: i32 = sz;
+  if (n > out_cap) { n = out_cap; }
+  let data_off: i32 = entry_off + 512;
+  if (data_off + n > buf_len) { return -1; }
+  let i: i32 = 0;
+  while (i < n) {
+    out[i] = buf[data_off + i];
+    i = i + 1;
+  }
+  return n;
 }
 
 /** Exported function `tar_extended_smoke_c`.
