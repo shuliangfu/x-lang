@@ -113,15 +113,22 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
 /** 与 io_read_ptr 配套的 TLS 缓冲（F-03 seed 桩：单线程单缓冲）。 */
 static uint8_t g_io_read_ptr_buf[4096];
 static int32_t g_io_read_ptr_len = 0;
+/* Match std/io/read_ptr.x generation + backend cells (G.7 single buffer).
+ * backend stays 0 in this TU — no mmap/io_uring here. */
+static uint64_t g_io_read_ptr_gen = 0;
+static int32_t g_io_read_ptr_backend = 0;
 
 /** Zero-copy read into g_io_read_ptr_buf; EOF/error returns NULL.
  * PLATFORM: SHARED — handle is a POSIX fd (std.io from_fd is identity).
  * Historic restriction handle!=0 (stdin-only) dropped: cookbooks/tests
  * call io.read_ptr(from_fd(fd)) on a regular file. Length cell is the
- * same g_io_read_ptr_len used by std_io_ptr_len (G.7 single buffer). */
+ * same g_io_read_ptr_len used by std_io_ptr_len (G.7 single buffer).
+ * Generation bumps on every call (read_ptr.x); backend forced 0. */
 uint8_t *io_read_ptr(unsigned handle, unsigned timeout_ms) {
   ptrdiff_t r;
   (void)timeout_ms;
+  g_io_read_ptr_gen = g_io_read_ptr_gen + 1;
+  g_io_read_ptr_backend = 0;
   g_io_read_ptr_len = 0;
   r = io_read((int)handle, g_io_read_ptr_buf, sizeof g_io_read_ptr_buf, 0);
   if (r <= 0)
@@ -431,6 +438,27 @@ uint8_t *std_io_read_ptr(size_t handle, uint32_t timeout_ms) {
   return io_read_ptr((unsigned)handle, timeout_ms);
 }
 
+/**
+ * Product import METHOD io.ptr_gen / ptr_valid / ptr_backend → std_io_ptr_*.
+ * Unique UNDEF class for tests/io/read_ptr_mmap_smoke (G.7 complete this
+ * always-linked TU; do not add labi needles or a c_face second buffer).
+ * Semantics match std/io/read_ptr.x: gen is the last io_read_ptr bump;
+ * valid is equality with that cell; backend is always 0.
+ * mmap_smoke wants backend 1 or 2 and will return 9 — do not fake mmap.
+ * PLATFORM: SHARED.
+ */
+uint64_t std_io_ptr_gen(void) {
+  return g_io_read_ptr_gen;
+}
+
+int32_t std_io_ptr_valid(uint64_t saved) {
+  return saved == g_io_read_ptr_gen ? 1 : 0;
+}
+
+int32_t std_io_ptr_backend(void) {
+  return g_io_read_ptr_backend;
+}
+
 /** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。 */
 typedef struct XlangSliceU8 {
   uint8_t *data;
@@ -592,7 +620,7 @@ ptrdiff_t io_write_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n,
  * 【Why 根源】codegen_should_skip_emit_std_io_core_io_dup 假定 io.o 提供
  * xlang_io_read_fixed 等，但 Makefile 注释已标明「无 io.o」，导致 U 符号。
  */
-XLANG_WEAK int32_t xlang_io_read_ptr_backend(void) { return 0; }
+XLANG_WEAK int32_t xlang_io_read_ptr_backend(void) { return g_io_read_ptr_backend; }
 XLANG_WEAK int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset,
                                                  size_t len, uint32_t timeout_ms) {
   (void)handle; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
@@ -639,8 +667,8 @@ XLANG_WEAK int32_t std_io_driver_submit_write_batch_buf(size_t handle, void *buf
   (void)handle; (void)bufs; (void)n; (void)timeout_ms;
   return -1;
 }
-XLANG_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-XLANG_WEAK int32_t std_io_driver_driver_read_ptr_backend(void) { return 0; }
+XLANG_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return g_io_read_ptr_gen; }
+XLANG_WEAK int32_t std_io_driver_driver_read_ptr_backend(void) { return g_io_read_ptr_backend; }
 /* sync 层：backend co-emit 转发到 std_io_sync_*；无定义时弱回退 */
 XLANG_WEAK ptrdiff_t std_io_sync_io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset,
                                                           size_t len, uint32_t timeout_ms) {
@@ -652,7 +680,7 @@ XLANG_WEAK ptrdiff_t std_io_sync_io_write_fixed(int32_t fd, uint32_t buf_index, 
   (void)fd; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
   return (ptrdiff_t)-1;
 }
-XLANG_WEAK int32_t std_io_backend_io_read_ptr_backend(void) { return 0; }
+XLANG_WEAK int32_t std_io_backend_io_read_ptr_backend(void) { return g_io_read_ptr_backend; }
 
 /* page_mmap / freestanding heap 引用 xlang_sys_mmap；std/sys 未绿时 weak 回退到 libc mmap */
 #if defined(__unix__) || defined(__APPLE__)
