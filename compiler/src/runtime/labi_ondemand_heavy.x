@@ -291,16 +291,16 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 20 (was 19; +cli cookbook cli_subcommand residual 2026-08-22)
+ * @return i32 — 21 (was 20; +datetime cookbook datetime_iana residual 2026-08-23)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
- * run-unicode / cli_subcommand history: formal .o existed, plan step present,
- * fk0 table missed).
+ * run-unicode / cli_subcommand / datetime_iana history: formal .o existed, plan
+ * step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 19 (+tar/+unicode/+runtime); +k19 std/cli/cli.o.
-  return 20;
+  // PLATFORM: SHARED — was 20 (+cli); +k20 std/datetime/datetime.o.
+  return 21;
 }
 
 /**
@@ -402,6 +402,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/cli/cli.o";
     return p;
   }
+  // PLATFORM: SHARED — std/datetime/datetime.o is OP_STD flag_kind=0 but was missing
+  // from fk0 → never push formal datetime.o even after formal_mod exported
+  // std_datetime_* (cookbook datetime_iana UNDEF timezone_iana).
+  if (k == 20) {
+    let p: *u8 = "std/datetime/datetime.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -489,6 +496,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // PLATFORM: SHARED — cli formal public surface (std_cli_*).
   if (k == 19) {
     return 10;
+  }
+  // PLATFORM: SHARED — datetime formal public surface (std_datetime_*).
+  // Count 27 = full export surface in std/datetime/mod.x (G.7 complete one table).
+  if (k == 20) {
+    return 27;
   }
   return 0;
 }
@@ -1326,6 +1338,120 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 9) {
         let p: *u8 = "std_cli_write_usage";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/datetime/datetime.o exact UNDEF needles (fk0 k==20).
+    // Exact match only; timezone_iana is cookbook datetime_iana sole UNDEF.
+    // Count 27 = full export surface in std/datetime/mod.x (G.7 complete one table).
+    if (k == 20) {
+      if (i == 0) {
+        let p: *u8 = "std_datetime_timezone_iana";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_datetime_now_utc";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_datetime_from_unix";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_datetime_from_utc_fields";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_datetime_to_utc_fields";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_datetime_compare";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_datetime_parse_rfc3339";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_datetime_format_rfc3339";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_datetime_format_rfc3339_nano";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_datetime_local_offset_min";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_datetime_to_local_fields";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_datetime_duration_from_ns";
+        return p;
+      }
+      if (i == 12) {
+        let p: *u8 = "std_datetime_duration_from_sec";
+        return p;
+      }
+      if (i == 13) {
+        let p: *u8 = "std_datetime_duration_between";
+        return p;
+      }
+      if (i == 14) {
+        let p: *u8 = "std_datetime_add_duration";
+        return p;
+      }
+      if (i == 15) {
+        let p: *u8 = "std_datetime_duration_sleep";
+        return p;
+      }
+      if (i == 16) {
+        let p: *u8 = "std_datetime_duration_from_monotonic";
+        return p;
+      }
+      if (i == 17) {
+        let p: *u8 = "std_datetime_timezone_utc";
+        return p;
+      }
+      if (i == 18) {
+        let p: *u8 = "std_datetime_timezone_local";
+        return p;
+      }
+      if (i == 19) {
+        let p: *u8 = "std_datetime_timezone_fixed";
+        return p;
+      }
+      if (i == 20) {
+        let p: *u8 = "std_datetime_timezone_from_name";
+        return p;
+      }
+      if (i == 21) {
+        let p: *u8 = "std_datetime_timezone_offset_at";
+        return p;
+      }
+      if (i == 22) {
+        let p: *u8 = "std_datetime_parse_offset_min";
+        return p;
+      }
+      if (i == 23) {
+        let p: *u8 = "std_datetime_to_zoned_fields";
+        return p;
+      }
+      if (i == 24) {
+        let p: *u8 = "std_datetime_from_zoned_fields";
+        return p;
+      }
+      if (i == 25) {
+        let p: *u8 = "std_datetime_iana_dst_smoke";
+        return p;
+      }
+      if (i == 26) {
+        let p: *u8 = "std_datetime_timezone_smoke";
         return p;
       }
       return 0 as *u8;

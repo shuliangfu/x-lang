@@ -2215,8 +2215,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 19; +cli (=heavy return 20). */
-  return 20;
+  /* PLATFORM: SHARED — was 20; +datetime (=heavy return 21). */
+  return 21;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -2262,6 +2262,9 @@ const char *labi_fk0_rel_at(int k) {
   /* PLATFORM: SHARED — mirror heavy k19 (cookbook cli_subcommand). */
   if (k == 19)
     return "std/cli/cli.o";
+  /* PLATFORM: SHARED — mirror heavy k20 (cookbook datetime_iana). */
+  if (k == 20)
+    return "std/datetime/datetime.o";
   return NULL;
 }
 
@@ -2315,6 +2318,9 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — cli formal public surface (mirror heavy). */
   if (k == 19)
     return 10;
+  /* PLATFORM: SHARED — datetime formal public surface (mirror heavy). */
+  if (k == 20)
+    return 27;
   return 0;
 }
 
@@ -2769,6 +2775,64 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_cli_match_short";
     if (i == 9)
       return "std_cli_write_usage";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/datetime/datetime.o exact UNDEF needles (fk0 k==20; mirror heavy). */
+  if (k == 20) {
+    if (i == 0)
+      return "std_datetime_timezone_iana";
+    if (i == 1)
+      return "std_datetime_now_utc";
+    if (i == 2)
+      return "std_datetime_from_unix";
+    if (i == 3)
+      return "std_datetime_from_utc_fields";
+    if (i == 4)
+      return "std_datetime_to_utc_fields";
+    if (i == 5)
+      return "std_datetime_compare";
+    if (i == 6)
+      return "std_datetime_parse_rfc3339";
+    if (i == 7)
+      return "std_datetime_format_rfc3339";
+    if (i == 8)
+      return "std_datetime_format_rfc3339_nano";
+    if (i == 9)
+      return "std_datetime_local_offset_min";
+    if (i == 10)
+      return "std_datetime_to_local_fields";
+    if (i == 11)
+      return "std_datetime_duration_from_ns";
+    if (i == 12)
+      return "std_datetime_duration_from_sec";
+    if (i == 13)
+      return "std_datetime_duration_between";
+    if (i == 14)
+      return "std_datetime_add_duration";
+    if (i == 15)
+      return "std_datetime_duration_sleep";
+    if (i == 16)
+      return "std_datetime_duration_from_monotonic";
+    if (i == 17)
+      return "std_datetime_timezone_utc";
+    if (i == 18)
+      return "std_datetime_timezone_local";
+    if (i == 19)
+      return "std_datetime_timezone_fixed";
+    if (i == 20)
+      return "std_datetime_timezone_from_name";
+    if (i == 21)
+      return "std_datetime_timezone_offset_at";
+    if (i == 22)
+      return "std_datetime_parse_offset_min";
+    if (i == 23)
+      return "std_datetime_to_zoned_fields";
+    if (i == 24)
+      return "std_datetime_from_zoned_fields";
+    if (i == 25)
+      return "std_datetime_iana_dst_smoke";
+    if (i == 26)
+      return "std_datetime_timezone_smoke";
     return NULL;
   }
   return NULL;

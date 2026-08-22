@@ -85,6 +85,9 @@ formal_mod_key_for_out() {
     ../std/json/json.o|std/json/json.o|*std/json/json.o) printf '%s' "std/json/json.o" ;;
     ../std/csv/csv.o|std/csv/csv.o|*std/csv/csv.o) printf '%s' "std/csv/csv.o" ;;
     ../std/cli/cli.o|std/cli/cli.o|*std/cli/cli.o) printf '%s' "std/cli/cli.o" ;;
+    # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
+    # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
+    ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
@@ -166,6 +169,10 @@ formal_mod_spec_for_key() {
     # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/http: mod.x prefix + --bare-impl *_c.
     std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
+    # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
+    # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
+    std/datetime/datetime.o) printf '%s' "mod|1|../std/datetime/mod.x|../std/datetime/datetime.x" ;;
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
@@ -240,6 +247,7 @@ formal_mod_all_keys() {
     std/json/json.o \
     std/csv/csv.o \
     std/cli/cli.o \
+    std/datetime/datetime.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \

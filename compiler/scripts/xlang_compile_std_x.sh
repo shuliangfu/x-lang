@@ -52,7 +52,6 @@ std_x_key_for_out() {
     ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
     ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
-    ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
     ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
@@ -80,7 +79,6 @@ std_x_spec_for_key() {
     std/async/future.o) printf '%s' "auto-soft|../std/async/future.x" ;;
     std/channel/channel.o) printf '%s' "auto-soft|../std/channel/channel.x" ;;
     std/backtrace/backtrace.o) printf '%s' "auto-soft|../std/backtrace/backtrace.x" ;;
-    std/datetime/datetime.o) printf '%s' "auto-soft|../std/datetime/datetime.x" ;;
     std/uuid/uuid.o) printf '%s' "auto|../std/uuid/uuid.x" ;;
     std/url/url.o) printf '%s' "auto-soft|../std/url/url.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
@@ -107,7 +105,6 @@ std_x_all_keys() {
     std/async/future.o \
     std/channel/channel.o \
     std/backtrace/backtrace.o \
-    std/datetime/datetime.o \
     std/uuid/uuid.o \
     std/url/url.o \
     std/security/security.o \
@@ -212,7 +209,6 @@ std/async/scheduler.o
 std/async/future.o
 std/channel/channel.o
 std/backtrace/backtrace.o
-std/datetime/datetime.o
 std/uuid/uuid.o
 std/url/url.o
 std/security/security.o
@@ -230,15 +226,15 @@ std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 21 ]; then
-    echo "std_x --check: expected 21 keys, counted $_n" >&2
+  if [ "$_n" -ne 20 ]; then
+    echo "std_x --check: expected 20 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (21 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (20 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 

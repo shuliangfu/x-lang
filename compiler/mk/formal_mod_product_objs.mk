@@ -51,6 +51,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/json/json.o \
 	../std/csv/csv.o \
 	../std/cli/cli.o \
+	../std/datetime/datetime.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
 	../std/tar/tar.o \

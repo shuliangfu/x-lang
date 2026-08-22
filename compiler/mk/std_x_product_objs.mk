@@ -15,7 +15,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/async/future.o \
 	../std/channel/channel.o \
 	../std/backtrace/backtrace.o \
-	../std/datetime/datetime.o \
 	../std/uuid/uuid.o \
 	../std/url/url.o \
 	../std/security/security.o \

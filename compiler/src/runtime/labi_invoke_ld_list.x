@@ -2439,6 +2439,42 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
       }
     }
   }
+  // PLATFORM: SHARED — formal datetime.o U time_now_wall_*_c / time_wall_local_offset_min_c
+  // (datetime.x now_utc / local_offset) and std_time_sleep_ns / duration_ns (mod.x).
+  // User.o for datetime_iana only U std_datetime_timezone_iana so fk0 time needles miss.
+  // Companion ≡ time.o → time_os. G.7 complete ensure_for_rel; no second group.
+  let eq_dt: i32 = 0;
+  unsafe {
+    eq_dt = strcmp(rel, "std/datetime/datetime.o");
+  }
+  if (eq_dt == 0) {
+    let _ftm: i32 = 0;
+    unsafe {
+      _ftm = xlang_ensure_formal_std_make_o(include_root, "std/time/time.o", "../std/time/time.o");
+    }
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _ptm: i32 = 0;
+        unsafe {
+          _ptm = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/time/time.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        let trdt: i32 = 0;
+        unsafe {
+          trdt = xlang_ensure_runtime_time_os_o(link_argv0);
+        }
+        if (trdt == 0) {
+          let tm_pdt: *u8 = 0 as *u8;
+          unsafe {
+            tm_pdt = xlang_runtime_time_os_o_path(link_argv0);
+          }
+          let _ptdt: i32 = 0;
+          unsafe {
+            _ptdt = link_abi_asm_ld_push_obj(tm_pdt, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
   // Companion: formal fs.o carries U std_error_* / std_context_* (timeout/ctx IO).
   // User.o typically only U std_fs_* so fk0 error/context user needles miss.
   // context.o then U atomic_*_i32_c + time_now_monotonic_ns_c.
