@@ -114,23 +114,28 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
 static uint8_t g_io_read_ptr_buf[4096];
 static int32_t g_io_read_ptr_len = 0;
 
-/** stdin 指针读：读入 g_io_read_ptr_buf 并返回指针；EOF/错误返回 NULL。 */
+/** Zero-copy read into g_io_read_ptr_buf; EOF/error returns NULL.
+ * PLATFORM: SHARED — handle is a POSIX fd (std.io from_fd is identity).
+ * Historic restriction handle!=0 (stdin-only) dropped: cookbooks/tests
+ * call io.read_ptr(from_fd(fd)) on a regular file. Length cell is the
+ * same g_io_read_ptr_len used by std_io_ptr_len (G.7 single buffer). */
 uint8_t *io_read_ptr(unsigned handle, unsigned timeout_ms) {
   ptrdiff_t r;
   (void)timeout_ms;
   g_io_read_ptr_len = 0;
-  if (handle != 0)
-    return NULL;
-  r = io_read(0, g_io_read_ptr_buf, sizeof g_io_read_ptr_buf, 0);
+  r = io_read((int)handle, g_io_read_ptr_buf, sizeof g_io_read_ptr_buf, 0);
   if (r <= 0)
     return NULL;
   g_io_read_ptr_len = (int32_t)r;
   return g_io_read_ptr_buf;
 }
 
-/** 与 io_read_ptr 配套的可用长度桩。 */
+/** Length of the last io_read_ptr fill (g_io_read_ptr_len).
+ * Historic body always returned 0 (length stub), so ptr_len() never
+ * observed a successful read. Complete the existing face (G.7).
+ * PLATFORM: SHARED. */
 int32_t io_read_ptr_len(void) {
-  return 0;
+  return g_io_read_ptr_len;
 }
 
 /** std.io.core 注册单缓冲桩。 */
@@ -223,6 +228,24 @@ int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms
   if (r < 0)
     return -1;
   return (int32_t)r;
+}
+
+/* Unique std.io names (cookbook io_fallback_read / io_mmap_read).
+ * Always-linked with std_io_read / std_io_write / std_io_ptr_len so we
+ * complete this TU instead of a second buffer in io.o c_face (G.7).
+ * from_fd ≡ (size_t)fd as in std/io/mod.x. read_fd/write_fd timeout=0.
+ * PLATFORM: SHARED — product import mangle std_io_*. */
+size_t std_io_from_fd(int32_t fd, int32_t unused) {
+  (void)unused;
+  return (size_t)fd;
+}
+
+int32_t std_io_read_fd(int32_t fd, uint8_t *ptr, size_t len) {
+  return std_io_read((size_t)fd, ptr, len, 0);
+}
+
+int32_t std_io_write_fd(int32_t fd, uint8_t *ptr, size_t len) {
+  return std_io_write((size_t)fd, ptr, len, 0);
 }
 
 /** stdout 写：供 std_io_write_stdout / write_with_timeout 桩使用。 */
@@ -396,6 +419,15 @@ int32_t xlang_io_read_ptr_len(void) {
   return io_read_ptr_len();
 }
 uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms) {
+  return io_read_ptr((unsigned)handle, timeout_ms);
+}
+
+/**
+ * Product import METHOD io.read_ptr → std_io_read_ptr.
+ * Same cell as std_io_ptr_len / xlang_io_read_ptr (G.7; no c_face copy).
+ * PLATFORM: SHARED.
+ */
+uint8_t *std_io_read_ptr(size_t handle, uint32_t timeout_ms) {
   return io_read_ptr((unsigned)handle, timeout_ms);
 }
 
