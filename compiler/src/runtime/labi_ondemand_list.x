@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 20 (was 19; +g19 std.io ctx-timeout formal faces STD-091)
+ * @return i32 — 22 (was 21; +g21 core.str formal faces, cookbook core_str_index)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 21;
+  return 22;
 }
 
 /**
@@ -381,6 +381,15 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
    */
   if (g == 20) {
     return 8;
+  }
+  /*
+   * PLATFORM: SHARED — core.str formal (cookbook core_str_index unique UNDEF).
+   * Matcher is exact; bytes_view itself is often inlined (STRUCT_LIT return) so
+   * index_of / index_of_byte / starts_with are the fire points. Count 12 = full
+   * export surface in core/str/mod.x (G.7 complete one table; no second group).
+   */
+  if (g == 21) {
+    return 12;
   }
   return 0;
 }
@@ -1117,6 +1126,63 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/str/mod.o (g==21).
+   * Cookbook core_str_index unique names: index_of / index_of_byte / starts_with
+   * (bytes_view is inlined). Rest of the table = remaining mod.x exports so
+   * tests/str/bytes_view and find_split sole-call UNDEFs also fire. G.7: one table.
+   */
+  if (g == 21) {
+    if (i == 0) {
+      let p: *u8 = "core_str_bytes_view";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_str_bytes_view_from_slice";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_str_bytes_view_len";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_str_bytes_view_is_empty";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_str_bytes_view_get";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_str_bytes_view_subview";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_str_bytes_view_eq";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_str_bytes_view_eq_bytes";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_str_bytes_view_index_of_byte";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_str_bytes_view_index_of";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "core_str_bytes_view_contains_byte";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "core_str_bytes_view_starts_with";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -1224,6 +1290,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // wave957: std.unicode formal product .o (run-unicode residual).
   if (g == 20) {
     let p: *u8 = "std/unicode/unicode.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.str formal product .o (cookbook core_str_index).
+  if (g == 21) {
+    let p: *u8 = "core/str/mod.o";
     return p;
   }
   return 0 as *u8;

@@ -145,11 +145,12 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
  * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g19).
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g21).
    * G.7: seed cold twin must match pure table; L4 product often falls back to
    * this host-cc seed when pure prefer times out. Was return 13 with g12=simd
-   * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe. */
-  return 21;
+   * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe.
+   * g21: core.str formal (cookbook core_str_index unique UNDEF). */
+  return 22;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -198,6 +199,11 @@ int labi_od_simple_group_sym_count(int g) {
   /* wave957: std.unicode formal (run-unicode residual). */
   if (g == 20)
     return 8;
+  /* PLATFORM: SHARED — core.str formal (cookbook core_str_index unique UNDEF).
+   * Matcher exact; bytes_view often inlined so index_of* / starts_with fire.
+   * Count 12 = full core/str/mod.x export surface. G.7 one table. */
+  if (g == 21)
+    return 12;
   return 0;
 }
 
@@ -599,6 +605,38 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_unicode_rune_utf8_len";
     return NULL;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/str/mod.o (g==21).
+   * Cookbook unique: index_of / index_of_byte / starts_with. Rest = remaining
+   * mod.x exports (tests/str sole-call). G.7: one table, no second group.
+   */
+  if (g == 21) {
+    if (i == 0)
+      return "core_str_bytes_view";
+    if (i == 1)
+      return "core_str_bytes_view_from_slice";
+    if (i == 2)
+      return "core_str_bytes_view_len";
+    if (i == 3)
+      return "core_str_bytes_view_is_empty";
+    if (i == 4)
+      return "core_str_bytes_view_get";
+    if (i == 5)
+      return "core_str_bytes_view_subview";
+    if (i == 6)
+      return "core_str_bytes_view_eq";
+    if (i == 7)
+      return "core_str_bytes_view_eq_bytes";
+    if (i == 8)
+      return "core_str_bytes_view_index_of_byte";
+    if (i == 9)
+      return "core_str_bytes_view_index_of";
+    if (i == 10)
+      return "core_str_bytes_view_contains_byte";
+    if (i == 11)
+      return "core_str_bytes_view_starts_with";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -648,6 +686,9 @@ const char *labi_od_simple_group_rel(int g) {
   /* wave957: std.unicode formal product .o (run-unicode residual). */
   if (g == 20)
     return "std/unicode/unicode.o";
+  /* PLATFORM: SHARED — core.str formal product .o (cookbook core_str_index). */
+  if (g == 21)
+    return "core/str/mod.o";
   return NULL;
 }
 

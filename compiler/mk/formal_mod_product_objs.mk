@@ -23,6 +23,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../core/result/result.o \
 	../core/debug/debug.o \
 	../core/slice/mod.o \
+	../core/str/mod.o \
 	../std/map/map.o \
 	../std/set/set.o \
 	../std/vec/vec.o \

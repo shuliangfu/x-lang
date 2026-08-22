@@ -57,6 +57,7 @@ formal_mod_key_for_out() {
     ../core/result/result.o|core/result/result.o|*core/result/result.o) printf '%s' "core/result/result.o" ;;
     ../core/debug/debug.o|core/debug/debug.o|*core/debug/debug.o) printf '%s' "core/debug/debug.o" ;;
     ../core/slice/mod.o|core/slice/mod.o|*core/slice/mod.o) printf '%s' "core/slice/mod.o" ;;
+    ../core/str/mod.o|core/str/mod.o|*core/str/mod.o) printf '%s' "core/str/mod.o" ;;
     ../std/map/map.o|std/map/map.o|*std/map/map.o) printf '%s' "std/map/map.o" ;;
     ../std/set/set.o|std/set/set.o|*std/set/set.o) printf '%s' "std/set/set.o" ;;
     ../std/vec/vec.o|std/vec/vec.o|*std/vec/vec.o) printf '%s' "std/vec/vec.o" ;;
@@ -126,6 +127,9 @@ formal_mod_spec_for_key() {
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
+    # PLATFORM: SHARED — cookbook core_str_index unique UNDEF (bytes_view_index_of*).
+    # G.7 complete formal_mod like core/slice/mod.o; product import mangle core_str_*.
+    core/str/mod.o) printf '%s' "mod|0|../core/str/mod.x" ;;
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
     std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
@@ -200,6 +204,7 @@ formal_mod_all_keys() {
     core/result/result.o \
     core/debug/debug.o \
     core/slice/mod.o \
+    core/str/mod.o \
     std/map/map.o \
     std/set/set.o \
     std/vec/vec.o \
