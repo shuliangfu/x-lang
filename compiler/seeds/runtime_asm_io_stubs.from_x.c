@@ -492,6 +492,25 @@ std_io_ReadPtrView std_io_stdin_ptr_view(void) {
   return std_io_ptr_view(std_io_stdin(), 0);
 }
 
+/**
+ * Product import METHOD io.register_provided / unregister_provided.
+ * Unique UNDEF class for examples/cookbook/zc_provided_buffers (G.7 complete
+ * this always-linked TU; do not add labi needles or a c_face second buffer).
+ * Semantics match std/io/stubs.x: register always returns 0 (no io_uring
+ * provided-buffer ring on this TU); unregister is a no-op.
+ * Cookbook treats rc==1 as registered-then-unregister; stub path still
+ * returns 0 from main. Do not fake a real buffer ring.
+ * PLATFORM: SHARED.
+ */
+int32_t std_io_register_provided(uint32_t nr, uint32_t bufsz) {
+  (void)nr;
+  (void)bufsz;
+  return 0;
+}
+
+void std_io_unregister_provided(void) {
+}
+
 /** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。 */
 typedef struct XlangSliceU8 {
   uint8_t *data;
