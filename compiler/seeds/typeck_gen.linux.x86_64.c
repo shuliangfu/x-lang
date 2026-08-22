@@ -1538,6 +1538,8 @@ extern int32_t typeck_dep_top_level_const_match(struct ast_Module * dep_mod, uin
 extern int32_t typeck_field_import_try_dep_enum_type(struct ast_Module * dep_mod, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, uint8_t * base_name, int32_t base_name_len, uint8_t * field_name, int32_t field_name_len);
 extern int32_t typeck_field_import_binding(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_field_reverse_infer_base_type(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t outer_expected);
+extern int32_t typeck_named_last_segment_off(uint8_t * name, int32_t name_len);
+extern int32_t typeck_named_spelling_eq(uint8_t * a, int32_t a_len, uint8_t * b, int32_t b_len);
 extern int32_t typeck_named_is_module_concrete(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len);
 extern int32_t typeck_mono_field_type_from_base(struct ast_Module * module, struct ast_ASTArena * arena, int32_t field_ty, int32_t base_ty);
 extern int32_t typeck_field_unknown_hard_fail(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
@@ -3986,6 +3988,52 @@ int32_t typeck_field_reverse_infer_base_type(struct ast_Module * module, struct 
     return 0;
   }
 }
+/* Pin twin of typeck.x 565e105b3 (2026-08-15, was never raised into the pin):
+ * import-qualified TYPE_NAMED (`heap.Allocator`) must count as concrete so
+ * apply_ambient does not stamp the CALL return (*u8) over the field type.
+ * Byte offset of the last '.' segment; 0 when no dot. PLATFORM: SHARED.
+ * G.7 helper for typeck_named_is_module_concrete only. */
+int32_t typeck_named_last_segment_off(uint8_t * name, int32_t name_len) {
+  int32_t i = 0;
+  int32_t off = 0;
+  if (((name ==0) || (name_len <=0))) {
+    return 0;
+  }
+  while ((i < name_len)) {
+    if (((name)[i] ==46)) {
+      (void)((off = (i + 1)));
+    }
+    (void)((i = (i + 1)));
+  }
+  return off;
+}
+/* Pin twin of typeck.x 565e105b3: exact match, or last '.' segment
+ * (`heap.Allocator` vs layout `Allocator`). PLATFORM: SHARED. */
+int32_t typeck_named_spelling_eq(uint8_t * a, int32_t a_len, uint8_t * b, int32_t b_len) {
+  int32_t ao = 0;
+  int32_t bo = 0;
+  int32_t n = 0;
+  int32_t i = 0;
+  if (((((a ==0) || (b ==0)) || (a_len <=0)) || (b_len <=0))) {
+    return 0;
+  }
+  if (typeck_name_equal(a, a_len, b, b_len)) {
+    return 1;
+  }
+  (void)((ao = typeck_named_last_segment_off(a, a_len)));
+  (void)((bo = typeck_named_last_segment_off(b, b_len)));
+  (void)((n = (a_len - ao)));
+  if (((n <=0) || (n !=(b_len - bo)))) {
+    return 0;
+  }
+  while ((i < n)) {
+    if (((a)[(ao + i)] !=(b)[(bo + i)])) {
+      return 0;
+    }
+    (void)((i = (i + 1)));
+  }
+  return 1;
+}
 int32_t typeck_named_is_module_concrete(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len) {
   {
     int32_t k = 0;
@@ -4005,16 +4053,9 @@ int32_t typeck_named_is_module_concrete(struct ast_Module * module, struct ast_P
     (void)((k = 0));
     while ((k < nsl)) {
       (void)((sl = pipeline_module_struct_layout_name_len(module, k)));
-      if ((sl ==name_len)) {
+      if (((sl > 0) && (sl <=127))) {
         (void)(pipeline_module_struct_layout_name_into(module, k, &((snm)[0])));
-        (void)((bi = 0));
-        while ((bi < sl)) {
-          if (((snm)[bi] !=(name)[bi])) {
-            break;
-          }
-          (void)((bi = (bi + 1)));
-        }
-        if ((bi ==sl)) {
+        if ((typeck_named_spelling_eq(name, name_len, &((snm)[0]), sl) !=0)) {
           return 1;
         }
       }
@@ -4024,15 +4065,13 @@ int32_t typeck_named_is_module_concrete(struct ast_Module * module, struct ast_P
     (void)((k = 0));
     while ((k < ne)) {
       (void)((el = pipeline_module_enum_name_len(module, k)));
-      if ((el ==name_len)) {
+      if (((el > 0) && (el <=127))) {
         (void)((bi = 0));
         while ((bi < el)) {
-          if ((pipeline_module_enum_name_byte_at(module, k, bi) !=(name)[bi])) {
-            break;
-          }
+          (void)(((snm)[bi] = pipeline_module_enum_name_byte_at(module, k, bi)));
           (void)((bi = (bi + 1)));
         }
-        if ((bi ==el)) {
+        if ((typeck_named_spelling_eq(name, name_len, &((snm)[0]), el) !=0)) {
           return 1;
         }
       }
@@ -4048,16 +4087,9 @@ int32_t typeck_named_is_module_concrete(struct ast_Module * module, struct ast_P
           (void)((k = 0));
           while ((k < nsl)) {
             (void)((sl = pipeline_module_struct_layout_name_len(dm, k)));
-            if ((sl ==name_len)) {
+            if (((sl > 0) && (sl <=127))) {
               (void)(pipeline_module_struct_layout_name_into(dm, k, &((snm)[0])));
-              (void)((bi = 0));
-              while ((bi < sl)) {
-                if (((snm)[bi] !=(name)[bi])) {
-                  break;
-                }
-                (void)((bi = (bi + 1)));
-              }
-              if ((bi ==sl)) {
+              if ((typeck_named_spelling_eq(name, name_len, &((snm)[0]), sl) !=0)) {
                 return 1;
               }
             }
@@ -4067,15 +4099,13 @@ int32_t typeck_named_is_module_concrete(struct ast_Module * module, struct ast_P
           (void)((k = 0));
           while ((k < ne)) {
             (void)((el = pipeline_module_enum_name_len(dm, k)));
-            if ((el ==name_len)) {
+            if (((el > 0) && (el <=127))) {
               (void)((bi = 0));
               while ((bi < el)) {
-                if ((pipeline_module_enum_name_byte_at(dm, k, bi) !=(name)[bi])) {
-                  break;
-                }
+                (void)(((snm)[bi] = pipeline_module_enum_name_byte_at(dm, k, bi)));
                 (void)((bi = (bi + 1)));
               }
-              if ((bi ==el)) {
+              if ((typeck_named_spelling_eq(name, name_len, &((snm)[0]), el) !=0)) {
                 return 1;
               }
             }
