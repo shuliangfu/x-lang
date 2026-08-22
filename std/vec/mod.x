@@ -745,6 +745,22 @@ export function reserve(v: *Vec_u64, new_cap: i32): i32 {
   return -1;
 }
 
+/**
+ * Append one u64. Grows through reserve_one (empty → cap 8, else 2×).
+ * @param v *Vec_u64 — destination vector; caller-owned, non-null
+ * @param x u64 — element stored at v.ptr[v.length]
+ * @return i32 — 0 on success, -1 if reserve_one failed
+ * PLATFORM: SHARED — 2-arg overload beside push(*Vec_i32,*i32)/u8/u16.
+ * Import METHOD mangle scores *Vec_u64 + u64 suffixes; missing this
+ * candidate used to first-win push_Vec_i32 (silent 4-byte stores).
+ */
+export function push(v: *Vec_u64, x: u64): i32 {
+  if (reserve_one(v) != 0) { return -1; }
+  v.ptr[v.length] = x;
+  v.length = v.length + 1;
+  return 0;
+}
+
 /** Exported function `extend`.
  * Implements `extend`.
  * @param v *Vec_u64
@@ -885,6 +901,22 @@ export function reserve(v: *Vec_f64, new_cap: i32): i32 {
     return 0;
   }
   return -1;
+}
+
+/**
+ * Append one f64. Grows through reserve_one (empty → cap 8, else 2×).
+ * @param v *Vec_f64 — destination vector; caller-owned, non-null
+ * @param x f64 — element stored at v.ptr[v.length]
+ * @return i32 — 0 on success, -1 if reserve_one failed
+ * PLATFORM: SHARED — 2-arg overload beside push(*Vec_i32,*i32)/u8/u16/u64.
+ * Import METHOD mangle scores *Vec_f64 + f64 suffixes; missing this
+ * candidate used to first-win push_Vec_i32.
+ */
+export function push(v: *Vec_f64, x: f64): i32 {
+  if (reserve_one(v) != 0) { return -1; }
+  v.ptr[v.length] = x;
+  v.length = v.length + 1;
+  return 0;
 }
 
 /** Exported function `extend`.

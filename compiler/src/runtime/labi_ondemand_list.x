@@ -1642,17 +1642,18 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
  * because needs_std_vec never fired. Probe covers common ops (push/get/
  * length/deinit/from_slice/capacity/clear) plus pop/extend (exact UNDEF;
  * matcher is exact — push/from_slice_u8 do not cover pop, Vec_u64/f64
- * extend, or sole from_slice_u64/f64). G.7: single vec probe authority.
+ * extend, sole from_slice_u64/f64, or sole push_u64/f64). G.7: single
+ * vec probe authority.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function labi_od_vec_sym_count(): i32 {
-  return 20;
+  return 22;
 }
 
 /**
  * Vec on_demand UNDEF symbol at index (product probe table for needs_std_vec).
- * @param i i32 — index in [0, 20)
+ * @param i i32 — index in [0, 22)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_vec authority (no second table)
  */
@@ -1742,6 +1743,17 @@ export function labi_od_vec_sym_at(i: i32): *u8 {
   }
   if (i == 19) {
     let p: *u8 = "std_vec_from_slice_f64_ptr_i32";
+    return p;
+  }
+  // PLATFORM: SHARED — exact UNDEF needles for push Vec_u64/f64.
+  // Matcher is exact; push_i32/u8/u16 do not cover sole push_u64/f64
+  // (length/get/deinit u64/f64 still miss until vec.o is pulled).
+  if (i == 20) {
+    let p: *u8 = "std_vec_push_Vec_u64_ptr_u64";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "std_vec_push_Vec_f64_ptr_f64";
     return p;
   }
   return 0 as *u8;

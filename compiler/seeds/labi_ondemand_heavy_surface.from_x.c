@@ -393,7 +393,7 @@ int32_t labi_fk0_sym_count(int32_t k) {
     return 4;
   }
   if ((k ==10)) {
-    return 18;
+    return 20;
   }
   if ((k ==11)) {
     return 9;
@@ -754,6 +754,16 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     if ((i ==17)) {
       uint8_t * p = ((uint8_t *)"std_vec_from_slice_f64_ptr_i32");
+      return p;
+    }
+    /* PLATFORM: SHARED — fk0 k==10 +push_u64/f64 exact UNDEF (mirror heavy.x).
+     * push_i32/u8 do not cover sole push_Vec_u64/f64. */
+    if ((i ==18)) {
+      uint8_t * p = ((uint8_t *)"std_vec_push_Vec_u64_ptr_u64");
+      return p;
+    }
+    if ((i ==19)) {
+      uint8_t * p = ((uint8_t *)"std_vec_push_Vec_f64_ptr_f64");
       return p;
     }
     return ((uint8_t *)(0));

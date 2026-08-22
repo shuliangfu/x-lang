@@ -846,7 +846,7 @@ int link_abi_user_o_needs_std_thread(const char *user_o) {
  * Twin of labi_od_thread_sym_* / link_abi_user_o_needs_std_thread.
  * PLATFORM: SHARED.
  */
-int labi_od_vec_sym_count(void) { return 20; }
+int labi_od_vec_sym_count(void) { return 22; }
 const char *labi_od_vec_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -892,6 +892,12 @@ const char *labi_od_vec_sym_at(int i) {
     return "std_vec_from_slice_u64_ptr_i32";
   if (i == 19)
     return "std_vec_from_slice_f64_ptr_i32";
+  /* PLATFORM: SHARED — exact UNDEF needles for push Vec_u64/f64
+   * (mirror list.x). push_i32/u8/u16 do not cover sole push_u64/f64. */
+  if (i == 20)
+    return "std_vec_push_Vec_u64_ptr_u64";
+  if (i == 21)
+    return "std_vec_push_Vec_f64_ptr_f64";
   return NULL;
 }
 
@@ -2023,7 +2029,7 @@ int labi_fk0_sym_count(int k) {
   if (k == 9)
     return 4;
   if (k == 10)
-    return 18;
+    return 20;
   if (k == 11)
     return 9;
   if (k == 12)
@@ -2235,6 +2241,10 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_vec_from_slice_u64_ptr_i32";
     if (i == 17)
       return "std_vec_from_slice_f64_ptr_i32";
+    if (i == 18)
+      return "std_vec_push_Vec_u64_ptr_u64";
+    if (i == 19)
+      return "std_vec_push_Vec_f64_ptr_f64";
     return NULL;
   }
   if (k == 11) {

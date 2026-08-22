@@ -454,7 +454,7 @@ export function labi_fk0_sym_count(k: i32): i32 {
     return 4;
   }
   if (k == 10) {
-    return 18;
+    return 20;
   }
   if (k == 11) {
     return 9;
@@ -770,8 +770,8 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
     }
     if (k == 10) {
       // PLATFORM: SHARED — fk0 k==10 std/vec/vec.o exact UNDEF needles.
-      // Matcher is exact; new/push/length do not cover pop, Vec_u64/f64 extend,
-      // or sole from_slice_u64/f64.
+      // Matcher is exact; new/push_i32/length do not cover pop, Vec_u64/f64
+      // extend, sole from_slice_u64/f64, or sole push_u64/f64.
       if (i == 0) {
         let p: *u8 = "std_vec_new_retVec_u8";
         return p;
@@ -842,6 +842,14 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 17) {
         let p: *u8 = "std_vec_from_slice_f64_ptr_i32";
+        return p;
+      }
+      if (i == 18) {
+        let p: *u8 = "std_vec_push_Vec_u64_ptr_u64";
+        return p;
+      }
+      if (i == 19) {
+        let p: *u8 = "std_vec_push_Vec_f64_ptr_f64";
         return p;
       }
       return 0 as *u8;
