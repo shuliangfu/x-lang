@@ -111,6 +111,22 @@ export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32
  * PLATFORM: SHARED — gates mutable top-level let decl-site init vs init_globals. */
 export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
+/**
+ * Stamp anonymous STRUCT_LIT dest name (typeck / host-C emit pair).
+ * Why setter (not Expr get_copy/set_copy): ~400-byte Expr sret SIGBUS on arm64.
+ * PLATFORM: SHARED — glue pipeline_expr_struct_lit_type_name_set.
+ */
+export extern function pipeline_expr_struct_lit_type_name_set(arena: *ASTArena, expr_ref: i32,
+name: *u8, name_len: i32): void;
+/**
+ * Stamp expr resolved_type_ref without copying the whole Expr row.
+ * @param arena *ASTArena — expression pool
+ * @param expr_ref i32 — expr
+ * @param type_ref i32 — dest type
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_expr_set_resolved_type_ref(arena: *ASTArena, expr_ref: i32,
+type_ref: i32): void;
 export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -5627,11 +5643,14 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
  * @param name *u8 — C local identifier bytes (may be placeholder `_lN`)
  * @param name_len i32 — byte length of name; must match what was just emitted
  * @param linit_ref i32 — init expression ref; null/invalid → zero brace init
+ * @param dest_type_ref i32 — let dest TYPE_ARRAY (may be 0); stamps ARRAY_LIT
+ *   resolved_type_ref when dep typeck left it empty so braced STRUCT_LIT elems
+ *   can recover Iovec (fs_formal posix readv4 incomplete `struct std_fs_posix_`).
  * @param ctx *PipelineDepCtx — emit context for nested expr
  * @return i32 — 0 on success, -1 on hard emit failure
  * PLATFORM: SHARED host-C emit (string.h memcpy already in product preamble).
  */
-export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
+export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, linit_ref: i32, dest_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
@@ -5648,6 +5667,19 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
       }
     }
     if (use_brace != 0) {
+      /* Dep co-emit can leave ARRAY_LIT resolved_type_ref empty; let dest is
+       * the authority (already used for `E name[N]`). Stamp so braced
+       * STRUCT_LIT elems recover TYPE_NAMED (Iovec) instead of empty prefix.
+       * PLATFORM: SHARED host-C. */
+      if (!ast.ref_is_null(dest_type_ref) && dest_type_ref > 0 && dest_type_ref <= arena.num_types) {
+        let dk: i32 = pipeline_type_kind_ord_at(arena, dest_type_ref);
+        if (dk == (TypeKind.TYPE_ARRAY as i32) || dk == (TypeKind.TYPE_SLICE as i32)) {
+          let ie_d: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+          if (ast.ref_is_null(ie_d.resolved_type_ref) || ie_d.resolved_type_ref <= 0) {
+            pipeline_expr_set_resolved_type_ref(arena, linit_ref, dest_type_ref);
+          }
+        }
+      }
       let eqb: u8[4] = [32, 61, 32, 0];
       if (emit_bytes_4(out, &eqb[0], 3) != 0) {
         return -1;
@@ -6587,6 +6619,89 @@ export function try_emit_dest_slice_from_module_array_var(
 }
 
 /**
+ * Peel TYPE_ARRAY / TYPE_PTR / TYPE_SLICE (and aliases) down to TYPE_NAMED.
+ * Anonymous `{ fields }` inside `let x: Iovec[4] = [{...}]` must recover dest
+ * Iovec, not the enclosing function return (often i64) and not empty prefix.
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — dest type; 0/null → 0
+ * @return i32 — TYPE_NAMED ref or 0
+ * PLATFORM: SHARED host-C STRUCT_LIT dest peel (pair skip_abi_dup Iovec).
+ */
+export function codegen_peel_named_dest_type(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let rec: i32 = type_ref;
+    let peel: i32 = 0;
+    if (arena == 0 as *ASTArena || ast.ref_is_null(type_ref) || type_ref <= 0) {
+      return 0;
+    }
+    while (peel < 4) {
+      if (ast.ref_is_null(rec) || rec <= 0 || rec > arena.num_types) {
+        return 0;
+      }
+      rec = pipeline_typeck_resolve_type_alias_ref_c(arena, rec);
+      if (ast.ref_is_null(rec) || rec <= 0 || rec > arena.num_types) {
+        return 0;
+      }
+      let k: i32 = pipeline_type_kind_ord_at(arena, rec);
+      if (k == (TypeKind.TYPE_NAMED as i32)) {
+        return rec;
+      }
+      if (k == (TypeKind.TYPE_ARRAY as i32) || k == (TypeKind.TYPE_PTR as i32)
+          || k == (TypeKind.TYPE_SLICE as i32)) {
+        rec = pipeline_type_elem_ref_at(arena, rec);
+        peel = peel + 1;
+        continue;
+      }
+      return 0;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Stamp anonymous STRUCT_LIT dest name from dest TYPE_NAMED (peel compounds).
+ * Dep co-emit leaves struct_lit_struct_name empty; typeck only backfills entry.
+ * Let `buf: Buffer = {…}` and array `{f}` elems both use this (G.7 one stamp).
+ * @param arena *ASTArena — expression pool
+ * @param expr_ref i32 — EXPR_STRUCT_LIT
+ * @param dest_type_ref i32 — let/array dest; 0 ok (falls back to expr resolved)
+ * @return i32 — 1 stamped, 0 not applicable
+ * PLATFORM: SHARED host-C. Why setter: Expr sret SIGBUS on arm64.
+ */
+export function codegen_stamp_anon_struct_lit_dest(arena: *ASTArena, expr_ref: i32, dest_type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(expr_ref) || expr_ref <= 0
+        || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != (ExprKind.EXPR_STRUCT_LIT as i32)) {
+      return 0;
+    }
+    let el: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    if (el.struct_lit_struct_name_len > 0) {
+      return 0;
+    }
+    let dest_n: i32 = codegen_peel_named_dest_type(arena, dest_type_ref);
+    if (ast.ref_is_null(dest_n) || dest_n <= 0) {
+      dest_n = codegen_peel_named_dest_type(arena, el.resolved_type_ref);
+    }
+    if (ast.ref_is_null(dest_n) || dest_n <= 0) {
+      return 0;
+    }
+    let dnm: u8[128] = [];
+    let dnl: i32 = pipeline_type_named_name_into(arena, dest_n, &dnm[0]);
+    if (dnl <= 0 || dnl > 127) {
+      return 0;
+    }
+    pipeline_expr_struct_lit_type_name_set(arena, expr_ref, &dnm[0], dnl);
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, dest_n);
+    return 1;
+  }
+}
+
+/**
  * Host-C: emit `{ e0, e1, … }` for ARRAY_LIT (fixed TYPE_ARRAY / vector let-init).
  * wave357 Cap residual pure: nested ARRAY_LIT rows recurse (multi-dim `{{1,2},{3,4}}`).
  * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
@@ -6712,6 +6827,17 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
         }
         if (wrap_br < 0) {
           return -1;
+        }
+        /*
+         * Stamp dest TYPE_NAMED onto anonymous STRUCT_LIT elems so emit_expr
+         * skip_abi_dup sees Iovec → std_io_sync_, not empty prefix std_fs_posix_
+         * (fs_formal KEEP_C host-cc incomplete type → missing fs.o → BLD001).
+         * ARRAY_LIT dest is stamped by typeck or emit_local_fixed_array_let_finish.
+         * PLATFORM: SHARED host-C. G.7 complete STRUCT_LIT dest (pair http Result).
+         */
+        if (wrap_br == 0 && !ast.ref_is_null(elem_ref)) {
+          let _st: i32 = codegen_stamp_anon_struct_lit_dest(arena, elem_ref, self_e.resolved_type_ref);
+          _st = _st;
         }
         if (wrap_br == 0 && emit_expr(arena, out, elem_ref, ctx) != 0) {
           return -1;
@@ -14594,9 +14720,11 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
        * co-emit under host-C `-o` can leave the name empty, so the module prefix
        * alone becomes incomplete `struct core_result_` while signatures use
        * `struct core_result_Result_i32` (cookbook http_chunked_decode BLD001).
-       * Recover dest TYPE_NAMED from resolved_type_ref, else the enclosing
-       * function return type; existing skip_abi_dup / prefix rewrite then
-       * applies (Result_* → core_result_). Mutates the local Expr copy only.
+       * Recover dest TYPE_NAMED from resolved_type_ref (peel TYPE_ARRAY/PTR/SLICE
+       * so `{f}` inside `Iovec[4] = [{...}]` is Iovec, not empty prefix), else
+       * the enclosing function return type; existing skip_abi_dup / prefix rewrite
+       * then applies (Result_* → core_result_; Iovec → std_io_sync_).
+       * Mutates the local Expr copy only.
        * G.7: complete this STRUCT_LIT emit (pair typeck backfill); no second tagger.
        * PLATFORM: SHARED host-C.
        */
@@ -14605,13 +14733,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (ast.ref_is_null(rec_ty)) {
           rec_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
         }
+        rec_ty = codegen_peel_named_dest_type(arena, rec_ty);
         if (ast.ref_is_null(rec_ty) && ctx != 0 as *PipelineDepCtx
             && ctx.current_codegen_module != 0 as *Module
             && ctx.current_func_index >= 0) {
-          rec_ty = pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index);
-        }
-        if (!ast.ref_is_null(rec_ty)) {
-          rec_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, rec_ty);
+          rec_ty = codegen_peel_named_dest_type(arena,
+            pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index));
         }
         if (!ast.ref_is_null(rec_ty)
             && pipeline_type_kind_ord_at(arena, rec_ty) == (TypeKind.TYPE_NAMED as i32)) {
@@ -16948,7 +17075,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
           /* wave353: fixed TYPE_ARRAY local — brace lit or memcpy (not T t[N]=ptr). */
           if (use_local_array_pre != 0) {
-            if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_pre[0], emit_nml_pre, linit_pre, ctx) != 0) {
+            if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_pre[0], emit_nml_pre, linit_pre, let_type_pre, ctx) != 0) {
               return -1;
             }
           } else {
@@ -17019,6 +17146,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 }
               }
             }
+            let _stp: i32 = codegen_stamp_anon_struct_lit_dest(arena, linit_pre, let_type_pre);
+            _stp = _stp;
             if (emit_expr(arena, out, linit_pre, ctx) != 0) {
               return -1;
             }
@@ -17279,7 +17408,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              * Authority: emit_local_fixed_array_let_finish — brace lit or memcpy once-eval.
              */
             if (use_local_array != 0) {
-              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, ctx) != 0) {
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, let_type_ref, ctx) != 0) {
                 return -1;
               }
             } else if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 11
@@ -17439,6 +17568,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                       }
                     }
                   }
+                  let _stn: i32 = codegen_stamp_anon_struct_lit_dest(arena, linit_ref, let_type_ref);
+                  _stn = _stn;
                   if (emit_expr(arena, out, linit_ref, ctx) != 0) {
                     return -1;
                   }
@@ -17923,7 +18054,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       }
       /* wave353: fixed TYPE_ARRAY local let finish (brace or memcpy). */
       if (use_local_array != 0) {
-        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, ctx) != 0) {
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, let_type_ref, ctx) != 0) {
           return -1;
         }
       } else {
@@ -17937,6 +18068,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             return -1;
           }
         } else {
+          let _stf: i32 = codegen_stamp_anon_struct_lit_dest(arena, linit_fb, let_type_ref);
+          _stf = _stf;
           if (emit_expr(arena, out, linit_fb, ctx) != 0) {
             return -1;
           }
