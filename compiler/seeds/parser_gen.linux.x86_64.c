@@ -3648,8 +3648,15 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       if ((((r.tok).kind) ==52)) {
         (void)((is_discard_name = 1));
       } else {
-        /* 59=IDENT, 51=SELF: let self is a valid binding (TOKEN_SELF keyword spelling). */
+        /* 59=IDENT, 51=SELF: let self is a valid binding (TOKEN_SELF keyword spelling).
+         * Other keywords (57=RUN unary, spawn/async/await, if, …) are not binding
+         * names — soft return-0 dropped the function (P001). G.7: P014 hard.
+         * Twin: parser.x parse_body_lets_into. PLATFORM: SHARED parse. */
         if (((((r.tok).kind) !=59) && (((r.tok).kind) !=51))) {
+          {
+            extern void parser_report_keyword_binding_p014_c(int32_t line, int32_t col);
+            parser_report_keyword_binding_p014_c((int32_t)((r.tok).line), (int32_t)((r.tok).col));
+          }
           (void)(((lex_out->pos) = (lex.pos)));
           (void)(((lex_out->line) = (lex.line)));
           (void)(((lex_out->col) = (lex.col)));
@@ -4990,8 +4997,13 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
       while ((1 ==1)) {
         /* 59=TOKEN_IDENT, 51=TOKEN_SELF: accept self as param binding name.
          * Lexer keywords self as TOKEN_SELF with ident_len=0; IDENT-only check
-         * silent set_onefunc_fail → function dropped from multi-fn AST (wave43). */
+         * silent set_onefunc_fail → function dropped from multi-fn AST (wave43).
+         * Other keywords: P014 hard (twin of parser.x / body-lets `let run`). */
         if (((((r.tok).kind) !=59) && (((r.tok).kind) !=51))) {
+          {
+            extern void parser_report_keyword_binding_p014_c(int32_t line, int32_t col);
+            parser_report_keyword_binding_p014_c((int32_t)((r.tok).line), (int32_t)((r.tok).col));
+          }
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
         }

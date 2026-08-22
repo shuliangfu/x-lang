@@ -79,8 +79,14 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
       lexer_next_into(&r, lex, source);
     }
   }
-  if (r.tok.kind != (int32_t)TOKEN_IDENT)
+  if (r.tok.kind != (int32_t)TOKEN_IDENT) {
+    /* Keyword as top-level let/const name: same silent-drop class as body-lets
+     * `let run` (P001 / missing _main). G.7: P014 at this IDENT gate.
+     * PLATFORM: SHARED parse. */
+    extern void parser_report_keyword_binding_p014_c(int32_t line, int32_t col);
+    parser_report_keyword_binding_p014_c((int32_t)r.tok.line, (int32_t)r.tok.col);
     return;
+  }
   name_len = r.tok.ident_len;
   /* wave581 Cap residual: content cap 127 (was 63). PLATFORM: SHARED parse. */
   if (name_len <= 0 || name_len > 127)

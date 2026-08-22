@@ -909,6 +909,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
        * re-parsing trait bodies as free UFCS methods. PLATFORM: SHARED parse.
        */
       if (r.tok.kind != (int32_t)TOKEN_IDENT && r.tok.kind != (int32_t)TOKEN_SELF) {
+        /* Keyword param name: P014 hard (twin of parser.x / parser_gen).
+         * PLATFORM: SHARED parse. */
+        extern void parser_report_keyword_binding_p014_c(int32_t line, int32_t col);
+        parser_report_keyword_binding_p014_c((int32_t)r.tok.line, (int32_t)r.tok.col);
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }

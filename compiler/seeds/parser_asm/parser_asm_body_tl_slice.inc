@@ -128,6 +128,29 @@ void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col) {
                         NULL);
 }
 
+/*
+ * Hard P014 when a let/const/param binding name is a keyword token.
+ * Root: parse_body_lets_into / param list / top-level let accepted only
+ * IDENT|SELF|UNDERSCORE; TOKEN_RUN/SPAWN/ASYNC/AWAIT/`if`/… returned false
+ * with no diag → whole function dropped → soft P001 "no functions" /
+ * BLD001 missing _main. Cookbook `let run: u8[3] = [114,117,110]` hit this
+ * (`run` is unary EXPR_RUN; `run[0]` cannot be a variable index).
+ * G.7: complete this diagnostic family (P010–P013); call from the existing
+ * IDENT|SELF gates — do not make `run` an ident (unary vs `run[0]` collide).
+ * Sticky: g_parser_sig_type_hard so parse_into_buf aborts (ok=-2).
+ * @param line 1-based source line of the keyword token
+ * @param col  1-based column
+ * PLATFORM: SHARED parse.
+ */
+void parser_report_keyword_binding_p014_c(int32_t line, int32_t col) {
+  extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
+                                    const char *code, const char *msg, const char *detail);
+  g_parser_sig_type_hard = 1;
+  diag_report_with_code(NULL, line, col, "parse error", "P014",
+                        "binding name must be an identifier, not a keyword",
+                        NULL);
+}
+
 /**
  * wave679: return 1 if `name` already appears among params [0, nparams).
  * @param pool OneFunc sidecar pool (pipeline_onefunc_*)

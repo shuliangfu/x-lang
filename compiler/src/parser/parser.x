@@ -3900,6 +3900,19 @@ export extern function parser_report_untyped_formal_p011_c(line: i32, col: i32, 
 export extern function parser_report_duplicate_name_p012_c(line: i32, col: i32, kind: i32): void;
 
 /**
+ * Hard parse error[P014] when a let/const/param name is a keyword token.
+ * Root: IDENT|SELF|UNDERSCORE-only gates returned false with no diag →
+ * whole function dropped (soft P001). `run`/`spawn`/`async`/`await` are
+ * unary; they cannot be binding names (`run[0]` vs `run <expr>` collide).
+ * G.7: reporter lives in parser_asm_body_tl_slice.inc; this is the .x twin
+ * of the seed call sites. Sticky aborts parse_into_buf (ok=-2).
+ * @param line i32 — 1-based line of the keyword token
+ * @param col i32 — 1-based column
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_report_keyword_binding_p014_c(line: i32, col: i32): void;
+
+/**
  * wave679: 1 if name already among first nparams of OneFunc param pool.
  * @param pool *u8 — onefunc sidecar pool
  * @param nparams i32 — params already appended
@@ -4036,10 +4049,15 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     /* discard binding `let _`: lexer emits TOKEN_UNDERSCORE (ident_len=0) as name "_".
      * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static.
      * `let self`: TOKEN_SELF (keyword, ident_len=0) is a valid binding name "self" (phase 7.2
-     * receiver spelling re-used as ordinary local); same silent-drop class as param list. */
+     * receiver spelling re-used as ordinary local); same silent-drop class as param list.
+     * Other keywords (TOKEN_RUN=57 unary, SPAWN/ASYNC/AWAIT, `if`, `match`, …) are NOT
+     * binding names: `run <expr>` vs `run[0]` are the same tokens. Soft return-false
+     * here dropped the whole function (P001). G.7: complete this gate with P014;
+     * do not accept RUN as IDENT. PLATFORM: SHARED parse. */
     if ((r.tok.kind as i32) == 52) {
       is_discard_name = 1;
     } else if ((r.tok.kind as i32) != 59 && (r.tok.kind as i32) != 51) {
+      parser_report_keyword_binding_p014_c(r.tok.line, r.tok.col);
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* Assign after name token: hoist must not use LET/CONST token's ident_len/start. */
@@ -5873,9 +5891,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     /* Param list: IDENT or TOKEN_SELF (method/receiver keyword used as binding name).
      * Root fix: lexer keywords `self` as TOKEN_SELF (ident_len=0); requiring IDENT only
      * silently set_onefunc_fail → whole function dropped from AST (wave43).
+     * Other keywords: P014 hard (same class as body-lets `let run`). G.7 complete
+     * this IDENT|SELF gate; do not accept TOKEN_RUN as a param name.
      * PLATFORM: SHARED — bind name "self" via token_start copy (len 4). */
     while (1 == 1) {
       if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
+        parser_report_keyword_binding_p014_c(r.tok.line, r.tok.col);
         set_onefunc_fail(out_ref, lex); return;
       }
       // TOKEN_SELF has ident_len=0 in lexer; spelling is always 4 bytes "self".
