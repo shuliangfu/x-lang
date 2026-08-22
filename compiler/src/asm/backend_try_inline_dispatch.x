@@ -598,10 +598,13 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
 // module_ref@16，dep_pipe@1384；FIELD_ACCESS=44，VAR=3，METHOD_CALL=49
 /**
  * Resolve callee module + func index for a CALL or METHOD_CALL site.
- * METHOD must not use CALL resolved_func/dep slots: a stale dep_ix makes
- * pipeline_dep_ctx_module_at return a non-module pointer and
- * pipeline_module_func_body_ref_at SIGSEGV (Ubuntu increment().field).
- * METHOD path: same-module then dep scan by method name (UFCS / impl).
+ * METHOD prefers typeck apply_call_resolve stamp (same slots CALL uses).
+ * Name-first first-wins inlined Vec_i32.new (default_alloc, 32B) into
+ * Vec_u64/u16/f64 slots (16B). Dest-type pick already stamps the matching
+ * overload. Bounded dep: stale dep_ix used to SIGSEGV Ubuntu
+ * increment().field — consume only when 0<=dep_ix<ndep, module non-null,
+ * func_ix < nfuncs. dep_ix==-2 is dyn vtable: do not inline.
+ * Name scan remains fallback when unresolved.
  * @param caller_arena *u8 — caller AST arena; null → 0
  * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr; <=0 → 0
  * @param ctx *u8 — AsmFuncCtx (module_ref@16, dep_pipe@1384); null → 0
@@ -609,7 +612,7 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
  * @param out_cm *u8 — 8-byte slot for callee module pointer
  * @param out_fi *i32 — filled with func index; null → 0
  * @return i32 — 1 found, 0 miss
- * PLATFORM: SHARED — product PREFER full.x; seed _impl same METHOD name path.
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same METHOD stamp path.
  */
 #[no_mangle]
 export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
@@ -625,8 +628,43 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
     g02f_store_ptr_at(out_ca, 0, caller_arena);
     g02f_store_ptr_at(out_cm, 0, entry_mod);
     out_fi[0] = 0 - 1;
-    // METHOD_CALL=49: name lookup only (do not read CALL resolve slots).
+    // METHOD_CALL=49: prefer typeck stamp; name scan is fallback.
+    // PLATFORM: SHARED — dest-typed vec.new overloads; bounded dep vs stale SIGSEGV.
     if (pipeline_expr_kind_ord_at(caller_arena, call_ref) == 49) {
+      let mfunc: i32 = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
+      let mdep: i32 = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
+      if (mfunc >= 0) {
+        if (mdep == (0 - 2)) { return 0; }
+        if (mdep >= 0) {
+          let rpctx: *u8 = g02f_load_ptr_at(ctx, 1384);
+          if (rpctx == 0) {
+            rpctx = pipeline_asm_emit_dep_pipe_c();
+          }
+          if (rpctx != 0) {
+            let rnd: i32 = pipeline_dep_ctx_ndep(rpctx);
+            if (mdep < rnd) {
+              let rdm: *u8 = pipeline_dep_ctx_module_at(rpctx, mdep);
+              let rda: *u8 = pipeline_dep_ctx_arena_at(rpctx, mdep);
+              if (rdm != 0) {
+                if (mfunc < pipeline_module_num_funcs(rdm)) {
+                  out_fi[0] = mfunc;
+                  g02f_store_ptr_at(out_cm, 0, rdm);
+                  if (rda != 0) {
+                    g02f_store_ptr_at(out_ca, 0, rda);
+                  }
+                  return 1;
+                }
+              }
+            }
+          }
+          // stale / OOB dep: fall through to name scan
+        } else {
+          if (mfunc < pipeline_module_num_funcs(entry_mod)) {
+            out_fi[0] = mfunc;
+            return 1;
+          }
+        }
+      }
       let mlen: i32 = pipeline_expr_method_call_name_len(caller_arena, call_ref);
       if (mlen <= 0) { return 0; }
       if (mlen > 127) { return 0; }

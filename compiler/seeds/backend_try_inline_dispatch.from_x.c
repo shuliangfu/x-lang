@@ -553,8 +553,10 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
 #endif
 
 /**
- * 解析 CALL 的 callee（同模块或 typeck 填写的 import dep/func）；写 callee 模块/arena/函数下标。
- * 返回 1=命中，0=未匹配。
+ * Resolve CALL / METHOD_CALL callee (same module or typeck import dep/func).
+ * METHOD prefers apply_call_resolve stamp; name scan is fallback.
+ * Writes callee module/arena/func index. Returns 1=hit, 0=miss.
+ * PLATFORM: SHARED — Darwin L2 product body; .x prefer twin same stamp path.
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-379 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -577,9 +579,41 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   *out_ca = caller_arena;
   *out_cm = entry_mod;
   *out_fi = -1;
-  /* METHOD_CALL=49: name lookup only. CALL resolve slots can hand a stale
-   * dep_ix → non-module pointer → pipeline_module_func_body_ref_at SIGSEGV. */
+  /* METHOD_CALL=49: prefer typeck apply_call_resolve stamp (same slots as CALL).
+   * PLATFORM: SHARED — name-first first-wins inlined Vec_i32.new (default_alloc,
+   * 32B) into Vec_u64/u16/f64 slots (16B). typeck dest-type pick already stamps
+   * the matching overload (let v: Vec_u64 = vec.new()).
+   * Bounded dep: a stale dep_ix used to SIGSEGV Ubuntu increment().field —
+   * consume only when 0<=dep_ix<ndep, module_at non-null, func_ix < nfuncs.
+   * dep_ix==-2 is dyn vtable slot: do not inline (CALL emit handles dyn).
+   * Name scan remains fallback when unresolved / stamp OOB. */
   if (pipeline_expr_kind_ord_at(caller_arena, call_ref) == GLUE_EXPR_METHOD_CALL) {
+    func_ix = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
+    if (func_ix >= 0) {
+      if (dep_ix == -2)
+        return 0;
+      if (dep_ix >= 0) {
+        pctx = (struct ast_PipelineDepCtx *)ctx->dep_pipe;
+        if (!pctx)
+          pctx = pipeline_asm_emit_dep_pipe_c();
+        if (pctx && dep_ix < pipeline_dep_ctx_ndep(pctx)) {
+          struct ast_Module *rdm = pipeline_dep_ctx_module_at(pctx, dep_ix);
+          struct ast_ASTArena *rda = pipeline_dep_ctx_arena_at(pctx, dep_ix);
+          if (rdm && func_ix < pipeline_module_num_funcs(rdm)) {
+            *out_cm = rdm;
+            if (rda)
+              *out_ca = rda;
+            *out_fi = func_ix;
+            return 1;
+          }
+        }
+        /* stale / OOB dep: fall through to name scan */
+      } else if (func_ix < pipeline_module_num_funcs(entry_mod)) {
+        *out_fi = func_ix;
+        return 1;
+      }
+    }
     clen = pipeline_expr_method_call_name_len(caller_arena, call_ref);
     if (clen <= 0 || clen > 127)
       return 0;
