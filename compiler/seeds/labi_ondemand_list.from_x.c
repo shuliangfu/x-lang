@@ -1520,7 +1520,7 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
 
 /* wave128: product std.heap formal API exact UNDEF table + needs_std_heap_api pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_heap_api_sym_count(void) { return 27; }
+int labi_od_heap_api_sym_count(void) { return 30; }
 const char *labi_od_heap_api_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1584,6 +1584,21 @@ const char *labi_od_heap_api_sym_at(int i) {
     return "std_heap_trace_on";
   if (i == 26)
     return "std_heap_trace_reset";
+  /*
+   * zc_arena_concat unique UNDEF: import METHOD arena64_empty / init / deinit.
+   * Before this leaf: table had arena64_alloc (vec grow) but matcher is exact,
+   * so empty/init/deinit never fired needs_std_heap_api. heap.o already
+   * defines the three T names (mod.x). string.o is pulled by g0 view and
+   * injects T libc arena64_*_c, so string cannot pull heap as a side effect.
+   * G.7: complete this single heap probe table. Do not add a second group.
+   * PLATFORM: SHARED.
+   */
+  if (i == 27)
+    return "std_heap_arena64_empty";
+  if (i == 28)
+    return "std_heap_arena64_init";
+  if (i == 29)
+    return "std_heap_arena64_deinit";
   return NULL;
 }
 

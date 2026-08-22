@@ -3158,17 +3158,17 @@ export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
 /**
  * Count of std.heap formal API on_demand UNDEF probes (product heap.o gate).
  * Exact symbol names only (no prefix/strstr probes).
- * @return i32 — 25
+ * @return i32 — 30
  * PLATFORM: SHARED — must match formal std/heap export surface (incl. Allocator/libc family)
  */
 #[no_mangle]
 export function labi_od_heap_api_sym_count(): i32 {
-  return 27;
+  return 30;
 }
 
 /**
  * Product std.heap on_demand UNDEF symbol at index (needs_std_heap_api probe table).
- * @param i i32 — index in [0, 27)
+ * @param i i32 — index in [0, 30)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_heap_api authority (no second hard-coded list)
  */
@@ -3290,6 +3290,27 @@ export function labi_od_heap_api_sym_at(i: i32): *u8 {
   }
   if (i == 26) {
     let p: *u8 = "std_heap_trace_reset";
+    return p;
+  }
+  /*
+   * zc_arena_concat unique UNDEF: import METHOD arena64_empty / init / deinit.
+   * Before this leaf: table had arena64_alloc (vec grow) but matcher is exact,
+   * so empty/init/deinit never fired needs_std_heap_api. heap.o already
+   * defines the three T names (mod.x). string.o is pulled by g0 view and
+   * injects T libc arena64_*_c, so string cannot pull heap as a side effect.
+   * G.7: complete this single heap probe table. Do not add a second group.
+   * PLATFORM: SHARED.
+   */
+  if (i == 27) {
+    let p: *u8 = "std_heap_arena64_empty";
+    return p;
+  }
+  if (i == 28) {
+    let p: *u8 = "std_heap_arena64_init";
+    return p;
+  }
+  if (i == 29) {
+    let p: *u8 = "std_heap_arena64_deinit";
     return p;
   }
   return 0 as *u8;
