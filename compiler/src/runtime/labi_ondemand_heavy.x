@@ -454,7 +454,7 @@ export function labi_fk0_sym_count(k: i32): i32 {
     return 4;
   }
   if (k == 10) {
-    return 20;
+    return 26;
   }
   if (k == 11) {
     return 9;
@@ -770,8 +770,9 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
     }
     if (k == 10) {
       // PLATFORM: SHARED — fk0 k==10 std/vec/vec.o exact UNDEF needles.
-      // Matcher is exact; new/push_i32/length do not cover pop, Vec_u64/f64
-      // extend, sole from_slice_u64/f64, or sole push_u64/f64.
+      // Matcher is exact; new/push_i32/length_u8/i32 do not cover pop,
+      // Vec_u64/f64 extend, sole from_slice_u64/f64, sole push_u64/f64,
+      // or sole length/get/deinit u64/f64.
       if (i == 0) {
         let p: *u8 = "std_vec_new_retVec_u8";
         return p;
@@ -850,6 +851,32 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 19) {
         let p: *u8 = "std_vec_push_Vec_f64_ptr_f64";
+        return p;
+      }
+      // PLATFORM: SHARED — exact UNDEF needles for length/deinit/get
+      // Vec_u64/f64. u8/i32 length do not cover sole new+length/deinit.
+      if (i == 20) {
+        let p: *u8 = "std_vec_length_Vec_u64";
+        return p;
+      }
+      if (i == 21) {
+        let p: *u8 = "std_vec_deinit_Vec_u64_ptr";
+        return p;
+      }
+      if (i == 22) {
+        let p: *u8 = "std_vec_length_Vec_f64";
+        return p;
+      }
+      if (i == 23) {
+        let p: *u8 = "std_vec_deinit_Vec_f64_ptr";
+        return p;
+      }
+      if (i == 24) {
+        let p: *u8 = "std_vec_get_Vec_u64_i32";
+        return p;
+      }
+      if (i == 25) {
+        let p: *u8 = "std_vec_get_Vec_f64_i32";
         return p;
       }
       return 0 as *u8;
@@ -2827,7 +2854,7 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
      * table existed; user programs using Vec<u16/i32/u8> hit BLD001 UNDEF.
      * Probe: link_abi_user_o_needs_std_vec scans labi_od_vec_sym_* (push/
      * get/length/deinit/capacity/clear/from_slice plus pop/extend plus
-     * from_slice_u64/f64).
+     * from_slice_u64/f64 plus push_u64/f64 plus length/get/deinit u64/f64).
      * When hit, ensure + push std/vec/vec.o. PLATFORM: SHARED.
      */
     let need_vec: i32 = link_abi_user_o_needs_std_vec(user_o);

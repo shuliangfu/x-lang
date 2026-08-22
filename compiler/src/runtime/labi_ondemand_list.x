@@ -1642,18 +1642,18 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
  * because needs_std_vec never fired. Probe covers common ops (push/get/
  * length/deinit/from_slice/capacity/clear) plus pop/extend (exact UNDEF;
  * matcher is exact — push/from_slice_u8 do not cover pop, Vec_u64/f64
- * extend, sole from_slice_u64/f64, or sole push_u64/f64). G.7: single
- * vec probe authority.
+ * extend, sole from_slice_u64/f64, sole push_u64/f64, or sole
+ * length/get/deinit u64/f64). G.7: single vec probe authority.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function labi_od_vec_sym_count(): i32 {
-  return 22;
+  return 28;
 }
 
 /**
  * Vec on_demand UNDEF symbol at index (product probe table for needs_std_vec).
- * @param i i32 — index in [0, 22)
+ * @param i i32 — index in [0, 28)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_vec authority (no second table)
  */
@@ -1746,14 +1746,41 @@ export function labi_od_vec_sym_at(i: i32): *u8 {
     return p;
   }
   // PLATFORM: SHARED — exact UNDEF needles for push Vec_u64/f64.
-  // Matcher is exact; push_i32/u8/u16 do not cover sole push_u64/f64
-  // (length/get/deinit u64/f64 still miss until vec.o is pulled).
+  // Matcher is exact; push_i32/u8/u16 do not cover sole push_u64/f64.
   if (i == 20) {
     let p: *u8 = "std_vec_push_Vec_u64_ptr_u64";
     return p;
   }
   if (i == 21) {
     let p: *u8 = "std_vec_push_Vec_f64_ptr_f64";
+    return p;
+  }
+  // PLATFORM: SHARED — exact UNDEF needles for length/deinit/get Vec_u64/f64.
+  // Matcher is exact; u16/i32 length/deinit/get do not cover sole
+  // new+length / new+deinit / get on Vec_u64/f64 (push/from_slice already
+  // pull vec.o when those UNDEFs exist).
+  if (i == 22) {
+    let p: *u8 = "std_vec_length_Vec_u64";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "std_vec_deinit_Vec_u64_ptr";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "std_vec_length_Vec_f64";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "std_vec_deinit_Vec_f64_ptr";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "std_vec_get_Vec_u64_i32";
+    return p;
+  }
+  if (i == 27) {
+    let p: *u8 = "std_vec_get_Vec_f64_i32";
     return p;
   }
   return 0 as *u8;
