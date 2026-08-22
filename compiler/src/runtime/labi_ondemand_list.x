@@ -314,8 +314,9 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 6;
   }
   // core.slice formal API surface (tests/slice/length.x, subslice_split_chunks.x).
+  // Count 10→13: cookbook slice_u64_subslice unique UNDEF (subslice/split_at/chunks_len u64).
   if (g == 9) {
-    return 10;
+    return 13;
   }
   // PLATFORM: SHARED — core.builtin formal (tests/builtin/main.x pure-asm UNDEF residual).
   // G-01: C-path still never hard-links builtin.o (bitops → __builtin_*); pure-asm emits
@@ -650,6 +651,25 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 9) {
       let p: *u8 = "core_slice_get_u64";
+      return p;
+    }
+    /*
+     * Cookbook slice_u64_subslice unique names. Matcher is exact: len_u64 /
+     * get_u64 / subslice_i32 do not cover subslice_u64 / split_at_u64 /
+     * chunks_len_u64. Those T live in core/slice/mod.o (g9 rel); glue
+     * slice.o only has *_c. Without these needles g9 never ensures mod.o.
+     * PLATFORM: SHARED — same complete-table pattern as g14/g15.
+     */
+    if (i == 10) {
+      let p: *u8 = "core_slice_subslice_u64";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "core_slice_split_at_u64";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "core_slice_chunks_len_u64";
       return p;
     }
     return 0 as *u8;

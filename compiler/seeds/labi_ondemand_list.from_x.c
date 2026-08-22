@@ -174,7 +174,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 8)
     return 6;
   if (g == 9)
-    return 10;
+    return 13; /* core.slice — +subslice/split_at/chunks_len u64 cookbook unique UNDEF */
   if (g == 10)
     return 14;
   if (g == 11)
@@ -350,6 +350,19 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_slice_len_u64";
     if (i == 9)
       return "core_slice_get_u64";
+    /*
+     * Cookbook slice_u64_subslice unique names. Matcher is exact: len_u64 /
+     * get_u64 / subslice_i32 do not cover subslice_u64 / split_at_u64 /
+     * chunks_len_u64. T lives in core/slice/mod.o (g9 rel); glue slice.o
+     * only has *_c. Without these needles g9 never ensures mod.o.
+     * PLATFORM: SHARED — same complete-table pattern as g14/g15.
+     */
+    if (i == 10)
+      return "core_slice_subslice_u64";
+    if (i == 11)
+      return "core_slice_split_at_u64";
+    if (i == 12)
+      return "core_slice_chunks_len_u64";
     return NULL;
   }
   /* PLATFORM: SHARED — core.builtin formal (tests/builtin pure-asm UNDEF residual). */
