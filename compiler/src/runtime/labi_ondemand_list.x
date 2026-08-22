@@ -287,7 +287,7 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 0;
   }
   if (g == 0) {
-    return 10;
+    return 13;
   }
   if (g == 1) {
     return 2;
@@ -460,6 +460,26 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
      */
     if (i == 9) {
       let p: *u8 = "std_string_string_view_case_fold";
+      return p;
+    }
+    /*
+     * zc_arena_concat unique UNDEF (Ubuntu gold): string.view is often
+     * inlined so g0 never fired from string_view. Unique names
+     * concat_arena / string_view_get / length_StrView then never ensure
+     * string.o. Matcher is exact; string_len does not cover length_StrView.
+     * G.7: complete this single string probe table. Do not add a second group.
+     * PLATFORM: SHARED.
+     */
+    if (i == 10) {
+      let p: *u8 = "std_string_string_view_concat_arena";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_string_string_view_get";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "std_string_length_StrView";
       return p;
     }
     return 0 as *u8;

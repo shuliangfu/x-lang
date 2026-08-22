@@ -158,7 +158,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g < 0)
     return 0;
   if (g == 0)
-    return 10;
+    return 13; /* std.string — +concat_arena/view_get/length_StrView cookbook unique UNDEF */
   if (g == 1)
     return 2;
   if (g == 2)
@@ -243,6 +243,20 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
      */
     if (i == 9)
       return "std_string_string_view_case_fold";
+    /*
+     * zc_arena_concat unique UNDEF (Ubuntu gold): string.view is often
+     * inlined so g0 never fired from string_view. Unique names
+     * concat_arena / string_view_get / length_StrView then never ensure
+     * string.o. Matcher is exact; string_len does not cover length_StrView.
+     * G.7: complete this single string probe table. Do not add a second group.
+     * PLATFORM: SHARED.
+     */
+    if (i == 10)
+      return "std_string_string_view_concat_arena";
+    if (i == 11)
+      return "std_string_string_view_get";
+    if (i == 12)
+      return "std_string_length_StrView";
     return NULL;
   }
   if (g == 1) {
