@@ -14588,6 +14588,45 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     /* See implementation. */
     if ((e.kind as i32) == (ExprKind.EXPR_STRUCT_LIT as i32)) {
+      /*
+       * Anonymous `{ fields }` (no type name) must still emit a complete C tag.
+       * Entry-module typeck backfills struct_lit_struct_name (typeck.x); dep
+       * co-emit under host-C `-o` can leave the name empty, so the module prefix
+       * alone becomes incomplete `struct core_result_` while signatures use
+       * `struct core_result_Result_i32` (cookbook http_chunked_decode BLD001).
+       * Recover dest TYPE_NAMED from resolved_type_ref, else the enclosing
+       * function return type; existing skip_abi_dup / prefix rewrite then
+       * applies (Result_* → core_result_). Mutates the local Expr copy only.
+       * G.7: complete this STRUCT_LIT emit (pair typeck backfill); no second tagger.
+       * PLATFORM: SHARED host-C.
+       */
+      if (e.struct_lit_struct_name_len <= 0) {
+        let rec_ty: i32 = e.resolved_type_ref;
+        if (ast.ref_is_null(rec_ty)) {
+          rec_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        }
+        if (ast.ref_is_null(rec_ty) && ctx != 0 as *PipelineDepCtx
+            && ctx.current_codegen_module != 0 as *Module
+            && ctx.current_func_index >= 0) {
+          rec_ty = pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index);
+        }
+        if (!ast.ref_is_null(rec_ty)) {
+          rec_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, rec_ty);
+        }
+        if (!ast.ref_is_null(rec_ty)
+            && pipeline_type_kind_ord_at(arena, rec_ty) == (TypeKind.TYPE_NAMED as i32)) {
+          let rec_nm: u8[128] = [];
+          let rec_nl: i32 = pipeline_type_named_name_into(arena, rec_ty, &rec_nm[0]);
+          if (rec_nl > 0 && rec_nl <= 127) {
+            let rec_i: i32 = 0;
+            while (rec_i < rec_nl) {
+              e.struct_lit_struct_name[rec_i] = rec_nm[rec_i];
+              rec_i = rec_i + 1;
+            }
+            e.struct_lit_struct_name_len = rec_nl;
+          }
+        }
+      }
       let sl_pfx: u8[128] = [];
       let sl_plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &sl_pfx[0], 128);
       let bare_user_lit: i32 = 0;

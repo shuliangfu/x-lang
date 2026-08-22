@@ -11910,6 +11910,41 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_emit_match_from_arm(arena, out, expr_ref, ctx, 0);
     }
     if ((((int32_t)(((e).kind))) ==45)) {
+      /*
+       * Anonymous `{ fields }` (no type name) must still emit a complete C tag.
+       * Entry-module typeck backfills struct_lit_struct_name; dep co-emit under
+       * host-C `-o` can leave the name empty → incomplete `struct core_result_`
+       * vs signatures `struct core_result_Result_i32` (http_chunked_decode BLD001).
+       * Recover dest TYPE_NAMED from resolved_type_ref, else enclosing function
+       * return type; existing skip_abi_dup / prefix rewrite then applies.
+       * Mutates the local Expr copy only.
+       * G.7: complete this STRUCT_LIT emit (pair typeck backfill); no second tagger.
+       * PLATFORM: SHARED host-C. Twin of codegen.x; same commit.
+       */
+      if ((((e).struct_lit_struct_name_len) <=0)) {
+        int32_t rec_ty = ((e).resolved_type_ref);
+        if ((rec_ty <= 0)) {
+          rec_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        }
+        if (((((rec_ty <= 0) && (ctx !=0)) && (((ctx)->current_codegen_module) !=0)) && (((ctx)->current_func_index) >=0))) {
+          rec_ty = pipeline_module_func_return_type_at(((ctx)->current_codegen_module), ((ctx)->current_func_index));
+        }
+        if ((rec_ty > 0)) {
+          rec_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, rec_ty);
+        }
+        if (((rec_ty > 0) && (pipeline_type_kind_ord_at(arena, rec_ty) ==8))) {
+          uint8_t rec_nm[128] = {};
+          int32_t rec_nl = pipeline_type_named_name_into(arena, rec_ty, &((rec_nm)[0]));
+          if (((rec_nl > 0) && (rec_nl <=127))) {
+            int32_t rec_i = 0;
+            while ((rec_i < rec_nl)) {
+              (void)(((((e).struct_lit_struct_name))[rec_i] = (rec_nm)[rec_i]));
+              (void)((rec_i = (rec_i + 1)));
+            }
+            (void)((((e).struct_lit_struct_name_len) = rec_nl));
+          }
+        }
+      }
       uint8_t sl_pfx[128] = {};
       int32_t sl_plen = codegen_emit_prefix_len_from_ctx(ctx, &((sl_pfx)[0]), 128);
       int32_t bare_user_lit = 0;
