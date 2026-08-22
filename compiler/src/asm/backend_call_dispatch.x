@@ -2425,6 +2425,10 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       let i_m: i32 = 0;
                       let mem_stack_m: i32 = 0;
                       let xmm_cur_m: i32 = 0;
+                      // PLATFORM: SHARED — SysV 6 (rdi..r9) / AAPCS64 8 (x0–x7).
+                      // Seed twin pipeline_asm_emit_method_call_elf_c_impl must call this
+                      // (not hardcode 6): Darwin product L2 is the seed; csv.parse_row's
+                      // 7th GP is x6. Free CALL / UFCS already use glue_asm_call_reg_max.
                       let reg_max_m: i32 = glue_asm_call_reg_max(ta);
                       // SysV hidden sret consumes rdi (GP0); shift formals by sret_sh.
                       // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV; AAPCS64 uses x8 (sret_sh=0).

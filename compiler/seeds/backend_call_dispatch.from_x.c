@@ -4120,7 +4120,11 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
            * G.7: same SSE class as CALL / prefer backend_call_dispatch.x import METHOD (ta==0||ta==1).
            * Do NOT classify UFCS extras as SSE on arm64 (local xlang callee homes GP).
            * 9–16B POD → 2 GPs; >16B MEMORY by-value on stack (formal C);
-           * excess integer args after 6 GPs go on stack (same as EXPR_CALL); sret shift reserves rdi.
+           * excess integer args after glue_asm_call_reg_max GPs go on stack
+           * (SysV 6 = rdi..r9; AAPCS64 8 = x0–x7). Hardcoded 6 here sent
+           * csv.parse_row's 7th GP (`&cnt`) to [sp] while the host-C wrapper
+           * reads x6 → SIGSEGV. Free CALL / UFCS already use glue_asm_call_reg_max.
+           * sret shift reserves rdi on x86 only.
            */
           {
             int32_t reg_start[GLUE_ASM_MAX_CALL_ARGS];
@@ -4136,6 +4140,10 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             int32_t xmm_cur = 0;
             int32_t mem_stack = 0;
             int32_t n_place = nargs;
+            /* PLATFORM: SHARED — same GP file as EXPR_CALL / UFCS / prefer .x. */
+            int32_t reg_max = glue_asm_call_reg_max(ta);
+            if (reg_max < 1)
+              reg_max = 6;
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
@@ -4181,7 +4189,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                   is_mem[i] = 1; /* x86 SysV MEMORY stack multi-word */
                   continue;
                 }
-                if (gp_cur + 1 > 6) {
+                if (gp_cur + 1 > reg_max) {
                   is_stk[i] = 1;
                   continue;
                 }
@@ -4203,8 +4211,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 u = 1;
               if (u > 2)
                 u = 2;
-              if (gp_cur + u > 6) {
-                /** Excess integer args: SysV stack (right-to-left push). Dual-GP that does not fit: fail. */
+              if (gp_cur + u > reg_max) {
+                /* Excess integer: SysV stack (push) / AAPCS64 [sp]. Dual-GP that does not fit: fail. */
                 if (u > 1)
                   return -1;
                 is_stk[i] = 1;
