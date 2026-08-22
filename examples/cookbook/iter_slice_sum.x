@@ -1,5 +1,7 @@
 /**
- * See implementation.
+ * Product cookbook: import("core.iterator") unique UNDEF fire (iter_i32 / next_i32).
+ * Designed success score is 10 (sum of [1,2,3,4]); not an error code.
+ * PLATFORM: SHARED — product `-o` pulls core/iterator/mod.o via labi g==22.
  */
 const iterator = import("core.iterator");
 const option = import("core.option");

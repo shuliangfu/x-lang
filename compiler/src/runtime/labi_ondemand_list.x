@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 22 (was 21; +g21 core.str formal faces, cookbook core_str_index)
+ * @return i32 — 23 (was 22; +g22 core.iterator formal faces, cookbook iter_slice_sum)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 22;
+  return 23;
 }
 
 /**
@@ -390,6 +390,14 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
    */
   if (g == 21) {
     return 12;
+  }
+  /*
+   * PLATFORM: SHARED — core.iterator formal (cookbook iter_slice_sum unique UNDEF).
+   * Matcher is exact; no prior group. Count 10 = full export surface in
+   * core/iterator/mod.x (G.7 complete one table; no second group).
+   */
+  if (g == 22) {
+    return 10;
   }
   return 0;
 }
@@ -1183,6 +1191,55 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/iterator/mod.o (g==22).
+   * Cookbook iter_slice_sum unique names: iter_i32 / next_i32. Rest of the
+   * table = remaining mod.x exports so tests/iterator/main and u64_roundtrip
+   * sole-call UNDEFs also fire. G.7: one table.
+   */
+  if (g == 22) {
+    if (i == 0) {
+      let p: *u8 = "core_iterator_iter_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_iterator_iter_u8";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_iterator_next_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_iterator_next_u8";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_iterator_iter_remaining_i32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_iterator_iter_remaining_u8";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_iterator_iterator_protocol_version";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_iterator_iter_u64_from_buf";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_iterator_next_u64";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_iterator_iter_remaining_u64";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -1295,6 +1352,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — core.str formal product .o (cookbook core_str_index).
   if (g == 21) {
     let p: *u8 = "core/str/mod.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.iterator formal product .o (cookbook iter_slice_sum).
+  if (g == 22) {
+    let p: *u8 = "core/iterator/mod.o";
     return p;
   }
   return 0 as *u8;

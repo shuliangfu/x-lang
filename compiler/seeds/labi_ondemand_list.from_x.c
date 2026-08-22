@@ -145,12 +145,13 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
  * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g21).
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g22).
    * G.7: seed cold twin must match pure table; L4 product often falls back to
    * this host-cc seed when pure prefer times out. Was return 13 with g12=simd
    * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe.
-   * g21: core.str formal (cookbook core_str_index unique UNDEF). */
-  return 22;
+   * g21: core.str formal (cookbook core_str_index unique UNDEF).
+   * g22: core.iterator formal (cookbook iter_slice_sum unique UNDEF). */
+  return 23;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -204,6 +205,11 @@ int labi_od_simple_group_sym_count(int g) {
    * Count 12 = full core/str/mod.x export surface. G.7 one table. */
   if (g == 21)
     return 12;
+  /* PLATFORM: SHARED — core.iterator formal (cookbook iter_slice_sum unique UNDEF).
+   * Matcher exact; no prior group. Count 10 = full core/iterator/mod.x export
+   * surface. G.7 one table. */
+  if (g == 22)
+    return 10;
   return 0;
 }
 
@@ -637,6 +643,34 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_str_bytes_view_starts_with";
     return NULL;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/iterator/mod.o (g==22).
+   * Cookbook unique: iter_i32 / next_i32. Rest = remaining mod.x exports
+   * (tests/iterator sole-call). G.7: one table, no second group.
+   */
+  if (g == 22) {
+    if (i == 0)
+      return "core_iterator_iter_i32";
+    if (i == 1)
+      return "core_iterator_iter_u8";
+    if (i == 2)
+      return "core_iterator_next_i32";
+    if (i == 3)
+      return "core_iterator_next_u8";
+    if (i == 4)
+      return "core_iterator_iter_remaining_i32";
+    if (i == 5)
+      return "core_iterator_iter_remaining_u8";
+    if (i == 6)
+      return "core_iterator_iterator_protocol_version";
+    if (i == 7)
+      return "core_iterator_iter_u64_from_buf";
+    if (i == 8)
+      return "core_iterator_next_u64";
+    if (i == 9)
+      return "core_iterator_iter_remaining_u64";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -689,6 +723,9 @@ const char *labi_od_simple_group_rel(int g) {
   /* PLATFORM: SHARED — core.str formal product .o (cookbook core_str_index). */
   if (g == 21)
     return "core/str/mod.o";
+  /* PLATFORM: SHARED — core.iterator formal product .o (cookbook iter_slice_sum). */
+  if (g == 22)
+    return "core/iterator/mod.o";
   return NULL;
 }
 
