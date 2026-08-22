@@ -291,15 +291,16 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 18 (was 16; +tar +unicode pure-asm batch residual 2026-08-13)
+ * @return i32 — 20 (was 19; +cli cookbook cli_subcommand residual 2026-08-22)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
- * run-unicode history: formal .o existed, plan step present, fk0 table missed).
+ * run-unicode / cli_subcommand history: formal .o existed, plan step present,
+ * fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 18 (+tar/+unicode); +k18 std/runtime class-batch 2.
-  return 19;
+  // PLATFORM: SHARED — was 19 (+tar/+unicode/+runtime); +k19 std/cli/cli.o.
+  return 20;
 }
 
 /**
@@ -394,6 +395,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/runtime/runtime.o";
     return p;
   }
+  // PLATFORM: SHARED — std/cli/cli.o is OP_STD flag_kind=0 but was missing from
+  // fk0 table → never push formal cli.o even after formal_mod exported std_cli_*
+  // (cookbook cli_subcommand UNDEF std_cli_err_* / parse_from_iter).
+  if (k == 19) {
+    let p: *u8 = "std/cli/cli.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -452,7 +460,7 @@ export function labi_fk0_sym_count(k: i32): i32 {
     return 9;
   }
   if (k == 12) {
-    return 10;
+    return 11;
   }
   if (k == 13) {
     return 12;
@@ -477,6 +485,10 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // PLATFORM: SHARED — runtime formal public surface (std_runtime_*).
   if (k == 18) {
     return 5;
+  }
+  // PLATFORM: SHARED — cli formal public surface (std_cli_*).
+  if (k == 19) {
+    return 10;
   }
   return 0;
 }
@@ -879,6 +891,12 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
         let p: *u8 = "std_env_args_iter";
         return p;
       }
+      // PLATFORM: SHARED — cookbook cli_subcommand sole-UNDEF of
+      // std_env_args_iter_count (args_iter may be co-emitted; exact match).
+      if (i == 10) {
+        let p: *u8 = "std_env_args_iter_count";
+        return p;
+      }
       return 0 as *u8;
     }
     if (k == 13) {
@@ -1126,6 +1144,51 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 4) {
         let p: *u8 = "std_runtime_crash_evidence_collect";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/cli/cli.o exact UNDEF needles (fk0 k==19).
+    // Exact match only; err_ok/err_help/parse_from_iter are cookbook sole UNDEFs.
+    if (k == 19) {
+      if (i == 0) {
+        let p: *u8 = "std_cli_err_ok";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_cli_err_help";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_cli_err_unknown";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_cli_parse_from_iter";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_cli_arg_len";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_cli_is_help";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_cli_is_version";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_cli_match_long";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_cli_match_short";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_cli_write_usage";
         return p;
       }
       return 0 as *u8;

@@ -5238,8 +5238,8 @@ fi
 _sx_list_n=$(
   tr ' \t\\\n' ' ' < "$_SX_MK" | tr -s ' ' '\n' | grep -cE '\.\./std/.+\.o' || true
 )
-if [ "${_sx_list_n:-0}" -ne 22 ]; then
-  bad "wave895 expected 22 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
+if [ "${_sx_list_n:-0}" -ne 21 ]; then
+  bad "wave895 expected 21 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
 fi
 if ! grep -q 'include mk/std_x_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/std_x_product_objs.mk (wave895)"

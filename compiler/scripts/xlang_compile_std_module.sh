@@ -81,6 +81,7 @@ formal_mod_key_for_out() {
     ../std/error/error.o|std/error/error.o|*std/error/error.o) printf '%s' "std/error/error.o" ;;
     ../std/json/json.o|std/json/json.o|*std/json/json.o) printf '%s' "std/json/json.o" ;;
     ../std/csv/csv.o|std/csv/csv.o|*std/csv/csv.o) printf '%s' "std/csv/csv.o" ;;
+    ../std/cli/cli.o|std/cli/cli.o|*std/cli/cli.o) printf '%s' "std/cli/cli.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
@@ -149,6 +150,10 @@ formal_mod_spec_for_key() {
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
     std/json/json.o) printf '%s' "mod|1|../std/json/mod.x|../std/json/json.x" ;;
     std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
+    # PLATFORM: SHARED — std.cli product face (cookbook cli_subcommand).
+    # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/http: mod.x prefix + --bare-impl *_c.
+    std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
@@ -219,6 +224,7 @@ formal_mod_all_keys() {
     std/error/error.o \
     std/json/json.o \
     std/csv/csv.o \
+    std/cli/cli.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \
@@ -378,14 +384,15 @@ std/context/context.o
 std/error/error.o
 std/json/json.o
 std/csv/csv.o
+std/cli/cli.o
 std/dynlib/dynlib.o
 std/http/http.o
 std/tar/tar.o
 std/unicode/unicode.o
 std/channel/channel.o
 KEYS
-  if [ "$_n" -ne 41 ]; then
-    echo "formal_mod --check: expected 41 keys, counted $_n" >&2
+  if [ "$_n" -ne 42 ]; then
+    echo "formal_mod --check: expected 42 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then

@@ -1927,8 +1927,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 16; +tar +unicode +runtime (=heavy return 19). */
-  return 19;
+  /* PLATFORM: SHARED — was 19; +cli (=heavy return 20). */
+  return 20;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -1971,6 +1971,9 @@ const char *labi_fk0_rel_at(int k) {
     return "std/unicode/unicode.o";
   if (k == 18)
     return "std/runtime/runtime.o";
+  /* PLATFORM: SHARED — mirror heavy k19 (cookbook cli_subcommand). */
+  if (k == 19)
+    return "std/cli/cli.o";
   return NULL;
 }
 
@@ -2006,7 +2009,7 @@ int labi_fk0_sym_count(int k) {
   if (k == 11)
     return 9;
   if (k == 12)
-    return 10;
+    return 11;
   if (k == 13)
     return 12;
   if (k == 14)
@@ -2021,6 +2024,9 @@ int labi_fk0_sym_count(int k) {
     return 6;
   if (k == 18)
     return 5;
+  /* PLATFORM: SHARED — cli formal public surface (mirror heavy). */
+  if (k == 19)
+    return 10;
   return 0;
 }
 
@@ -2238,6 +2244,8 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_env_iter_count";
     if (i == 9)
       return "std_env_args_iter";
+    if (i == 10)
+      return "std_env_args_iter_count";
     return NULL;
   }
   if (k == 13) {
@@ -2380,6 +2388,30 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_runtime_diag_enabled";
     if (i == 4)
       return "std_runtime_crash_evidence_collect";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/cli/cli.o exact UNDEF needles (fk0 k==19; mirror heavy). */
+  if (k == 19) {
+    if (i == 0)
+      return "std_cli_err_ok";
+    if (i == 1)
+      return "std_cli_err_help";
+    if (i == 2)
+      return "std_cli_err_unknown";
+    if (i == 3)
+      return "std_cli_parse_from_iter";
+    if (i == 4)
+      return "std_cli_arg_len";
+    if (i == 5)
+      return "std_cli_is_help";
+    if (i == 6)
+      return "std_cli_is_version";
+    if (i == 7)
+      return "std_cli_match_long";
+    if (i == 8)
+      return "std_cli_match_short";
+    if (i == 9)
+      return "std_cli_write_usage";
     return NULL;
   }
   return NULL;

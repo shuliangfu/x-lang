@@ -47,6 +47,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/error/error.o \
 	../std/json/json.o \
 	../std/csv/csv.o \
+	../std/cli/cli.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
 	../std/tar/tar.o \

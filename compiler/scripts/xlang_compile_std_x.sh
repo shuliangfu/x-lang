@@ -42,7 +42,7 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 22 (same product leaves as wave811).
+# Honesty COUNT = 21 (cli.o moved to formal_mod; was 22).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
@@ -55,7 +55,6 @@ std_x_key_for_out() {
     ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
     ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
-    ../std/cli/cli.o|std/cli/cli.o|*std/cli/cli.o) printf '%s' "std/cli/cli.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
     ../std/cache/cache.o|std/cache/cache.o|*std/cache/cache.o) printf '%s' "std/cache/cache.o" ;;
@@ -84,7 +83,6 @@ std_x_spec_for_key() {
     std/datetime/datetime.o) printf '%s' "auto-soft|../std/datetime/datetime.x" ;;
     std/uuid/uuid.o) printf '%s' "auto|../std/uuid/uuid.x" ;;
     std/url/url.o) printf '%s' "auto-soft|../std/url/url.x" ;;
-    std/cli/cli.o) printf '%s' "auto|../std/cli/cli.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
     std/config/config.o) printf '%s' "auto-soft|../std/config/config.x" ;;
     std/cache/cache.o) printf '%s' "auto|../std/cache/cache.x" ;;
@@ -112,7 +110,6 @@ std_x_all_keys() {
     std/datetime/datetime.o \
     std/uuid/uuid.o \
     std/url/url.o \
-    std/cli/cli.o \
     std/security/security.o \
     std/config/config.o \
     std/cache/cache.o \
@@ -218,7 +215,6 @@ std/backtrace/backtrace.o
 std/datetime/datetime.o
 std/uuid/uuid.o
 std/url/url.o
-std/cli/cli.o
 std/security/security.o
 std/config/config.o
 std/cache/cache.o
@@ -234,15 +230,15 @@ std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 22 ]; then
-    echo "std_x --check: expected 22 keys, counted $_n" >&2
+  if [ "$_n" -ne 21 ]; then
+    echo "std_x --check: expected 21 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (22 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (21 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 

@@ -273,8 +273,8 @@ int32_t labi_user_needs_std_task(uint8_t * user_o) {
   return 0;
 }
 int32_t labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — +tar +unicode +runtime class-batch 2 */
-  return 19;
+  /* PLATFORM: SHARED — +tar +unicode +runtime +cli */
+  return 20;
 }
 uint8_t * labi_fk0_rel_at(int32_t k) {
   if ((k ==0)) {
@@ -353,6 +353,10 @@ uint8_t * labi_fk0_rel_at(int32_t k) {
     uint8_t * p = ((uint8_t *)"std/runtime/runtime.o");
     return p;
   }
+  if ((k ==19)) {
+    uint8_t * p = ((uint8_t *)"std/cli/cli.o");
+    return p;
+  }
   return ((uint8_t *)(0));
 }
 int32_t labi_fk0_sym_count(int32_t k) {
@@ -395,7 +399,7 @@ int32_t labi_fk0_sym_count(int32_t k) {
     return 9;
   }
   if ((k ==12)) {
-    return 10;
+    return 11;
   }
   if ((k ==13)) {
     return 12;
@@ -414,6 +418,9 @@ int32_t labi_fk0_sym_count(int32_t k) {
   }
   if ((k ==18)) {
     return 5;
+  }
+  if ((k ==19)) {
+    return 10;
   }
   return 0;
 }
@@ -797,6 +804,10 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x65\x6e\x76\x5f\x61\x72\x67\x73\x5f\x69\x74\x65\x72");
       return p;
     }
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"std_env_args_iter_count");
+      return p;
+    }
     return ((uint8_t *)(0));
   }
   if ((k ==13)) {
@@ -985,6 +996,19 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_runtime_abort"); return p; }
     if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_runtime_diag_enabled"); return p; }
     if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_runtime_crash_evidence_collect"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==19)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_cli_err_ok"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_cli_err_help"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_cli_err_unknown"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_cli_parse_from_iter"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_cli_arg_len"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_cli_is_help"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"std_cli_is_version"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_cli_match_long"); return p; }
+    if ((i ==8)) { uint8_t * p = ((uint8_t *)"std_cli_match_short"); return p; }
+    if ((i ==9)) { uint8_t * p = ((uint8_t *)"std_cli_write_usage"); return p; }
     return ((uint8_t *)(0));
   }
   return ((uint8_t *)(0));

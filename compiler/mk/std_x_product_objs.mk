@@ -18,7 +18,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/datetime/datetime.o \
 	../std/uuid/uuid.o \
 	../std/url/url.o \
-	../std/cli/cli.o \
 	../std/security/security.o \
 	../std/config/config.o \
 	../std/cache/cache.o \
