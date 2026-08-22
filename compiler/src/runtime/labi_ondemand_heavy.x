@@ -427,7 +427,7 @@ export function labi_fk0_sym_count(k: i32): i32 {
     return 6;
   }
   if (k == 5) {
-    return 2;
+    return 4;
   }
   // PLATFORM: SHARED — path.o fk0 was incomplete (only join/dirname/empty_len/basename).
   // Sole callers of sep/extension/stem/clean/resolve/is_absolute never opened the gate
@@ -613,6 +613,8 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — fk0 k==5 std/csv/csv.o exact UNDEF needles.
+    // Matcher is exact; next_field/parse_line do not cover parse_row/write_row.
     if (k == 5) {
       if (i == 0) {
         let p: *u8 = "std_csv_next_field";
@@ -620,6 +622,14 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 1) {
         let p: *u8 = "std_csv_parse_line";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_csv_parse_row";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_csv_write_row";
         return p;
       }
       return 0 as *u8;

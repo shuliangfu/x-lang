@@ -373,7 +373,7 @@ int32_t labi_fk0_sym_count(int32_t k) {
     return 6;
   }
   if ((k ==5)) {
-    return 2;
+    return 4;
   }
   /* PLATFORM: SHARED — path.o fk0 complete (mirror labi_ondemand_heavy.x). */
   if ((k ==6)) {
@@ -534,12 +534,21 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((k ==5)) {
+    /* PLATFORM: SHARED — fk0 k==5 csv.o exact UNDEF (mirror labi_ondemand_heavy.x). */
     if ((i ==0)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x6e\x65\x78\x74\x5f\x66\x69\x65\x6c\x64");
       return p;
     }
     if ((i ==1)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x70\x61\x72\x73\x65\x5f\x6c\x69\x6e\x65");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_csv_parse_row");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_csv_write_row");
       return p;
     }
     return ((uint8_t *)(0));

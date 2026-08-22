@@ -299,7 +299,7 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 4;
   }
   if (g == 4) {
-    return 3;
+    return 5;
   }
   if (g == 5) {
     return 3;
@@ -502,6 +502,9 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     return 0 as *u8;
   }
   if (g == 4) {
+    // PLATFORM: SHARED — exact UNDEF needles for std/csv/csv.o (g==4).
+    // Matcher is exact; next_field/escape do not cover parse_row/write_row
+    // (cookbook csv_write_row and tests/csv/row_roundtrip sole UNDEFs).
     if (i == 0) {
       let p: *u8 = "std_csv_next_field";
       return p;
@@ -512,6 +515,14 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 2) {
       let p: *u8 = "std_csv_csv_test_quoted_first";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_csv_parse_row";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_csv_write_row";
       return p;
     }
     return 0 as *u8;

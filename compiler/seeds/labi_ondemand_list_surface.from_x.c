@@ -212,7 +212,7 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
     return 4;
   }
   if ((g ==4)) {
-    return 3;
+    return 5;
   }
   if ((g ==5)) {
     return 3;
@@ -367,6 +367,7 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((g ==4)) {
+    /* PLATFORM: SHARED — exact UNDEF needles for std/csv/csv.o (g==4). */
     if ((i ==0)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x6e\x65\x78\x74\x5f\x66\x69\x65\x6c\x64");
       return p;
@@ -377,6 +378,14 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     }
     if ((i ==2)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x63\x73\x76\x5f\x74\x65\x73\x74\x5f\x71\x75\x6f\x74\x65\x64\x5f\x66\x69\x72\x73\x74");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_csv_parse_row");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_csv_write_row");
       return p;
     }
     return ((uint8_t *)(0));

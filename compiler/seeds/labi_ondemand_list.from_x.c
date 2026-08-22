@@ -164,7 +164,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 3)
     return 4;
   if (g == 4)
-    return 3;
+    return 5;
   if (g == 5)
     return 3;
   if (g == 6)
@@ -267,12 +267,18 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     return NULL;
   }
   if (g == 4) {
+    /* PLATFORM: SHARED — exact UNDEF needles for std/csv/csv.o (g==4).
+     * next_field/escape do not cover parse_row/write_row (cookbook sole UNDEF). */
     if (i == 0)
       return "std_csv_next_field";
     if (i == 1)
       return "std_csv_escape";
     if (i == 2)
       return "std_csv_csv_test_quoted_first";
+    if (i == 3)
+      return "std_csv_parse_row";
+    if (i == 4)
+      return "std_csv_write_row";
     return NULL;
   }
   if (g == 5) {
@@ -1983,7 +1989,7 @@ int labi_fk0_sym_count(int k) {
   if (k == 4)
     return 6;
   if (k == 5)
-    return 2;
+    return 4;
   /* PLATFORM: SHARED — path.o fk0 complete (mirror labi_ondemand_heavy.x).
    * Was: join/dirname/empty_len/basename only. Sole sep/clean/extension UNDEF
    * never opened gate (run-path extension_stem_abs_clean). */
@@ -2088,10 +2094,15 @@ const char *labi_fk0_sym_at(int k, int i) {
     return NULL;
   }
   if (k == 5) {
+    /* PLATFORM: SHARED — fk0 k==5 csv.o exact UNDEF (mirror labi_ondemand_heavy.x). */
     if (i == 0)
       return "std_csv_next_field";
     if (i == 1)
       return "std_csv_parse_line";
+    if (i == 2)
+      return "std_csv_parse_row";
+    if (i == 3)
+      return "std_csv_write_row";
     return NULL;
   }
   /* PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6).
