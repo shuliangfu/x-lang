@@ -57,3 +57,73 @@ int32_t std_compress_zstd_decompress(uint8_t *in, int32_t in_len, uint8_t *out, 
   (void)out_cap;
   return -1;
 }
+
+/* Stream surface (cookbook compress_stream_br_zs unique UNDEF).
+ * format/mode match std/compress/mod.x constants. state_bytes_for returns
+ * the real gzip/brotli/zstd caps (128/32/32) so the cookbook passes the
+ * 1..512 gate. init/process/end stay unavailable (-1), same contract as
+ * the one-shot faces: tests/cookbooks treat codec-not-linked as success 0.
+ * PLATFORM: SHARED — c_face T only; product body remains mod.x. */
+typedef struct std_compress_StreamCompress {
+  int32_t format;
+  int32_t mode;
+  uint8_t *state;
+  int32_t state_cap;
+} std_compress_StreamCompress;
+
+int32_t std_compress_format_brotli(void) {
+  return 1;
+}
+
+int32_t std_compress_format_zstd(void) {
+  return 2;
+}
+
+int32_t std_compress_mode_compress(void) {
+  return 0;
+}
+
+int32_t std_compress_mode_decompress(void) {
+  return 1;
+}
+
+int32_t std_compress_compress_state_bytes_for(int32_t format) {
+  if (format == 0) {
+    return 128;
+  }
+  if (format == 1) {
+    return 32;
+  }
+  if (format == 2) {
+    return 32;
+  }
+  return -1;
+}
+
+int32_t std_compress_compress_init(std_compress_StreamCompress *sc, uint8_t *state,
+                                   int32_t state_cap, int32_t format, int32_t mode) {
+  (void)sc;
+  (void)state;
+  (void)state_cap;
+  (void)format;
+  (void)mode;
+  return -1;
+}
+
+int32_t std_compress_compress_process(std_compress_StreamCompress sc, uint8_t *inp,
+                                      int32_t in_len, uint8_t *out, int32_t out_cap,
+                                      int32_t is_last, int32_t *in_consumed) {
+  (void)sc;
+  (void)inp;
+  (void)in_len;
+  (void)out;
+  (void)out_cap;
+  (void)is_last;
+  (void)in_consumed;
+  return -1;
+}
+
+int32_t std_compress_compress_end(std_compress_StreamCompress sc) {
+  (void)sc;
+  return -1;
+}

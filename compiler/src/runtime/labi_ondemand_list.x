@@ -347,8 +347,9 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   }
   // PLATFORM: SHARED — std.compress formal facade (run-compress residual).
   // Product path previously retired compress.o for C co-emit; pure-asm needs formal T.
+  // Count 6→14: cookbook compress_stream_br_zs unique UNDEF stream/format/mode.
   if (g == 15) {
-    return 6;
+    return 14;
   }
   // PLATFORM: SHARED — std.io.driver formal (run-io-driver residual).
   if (g == 16) {
@@ -845,7 +846,9 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
-  // PLATFORM: SHARED — std.compress formal facade (std/compress/mod.x).
+  // PLATFORM: SHARED — std.compress formal facade (std/compress/mod.x + c_face).
+  // One-shot gzip/brotli/zstd plus stream unique names used by
+  // cookbook compress_stream_br_zs (no type suffix; matcher is exact).
   if (g == 15) {
     if (i == 0) {
       let p: *u8 = "std_compress_gzip_compress";
@@ -869,6 +872,38 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 5) {
       let p: *u8 = "std_compress_zstd_decompress";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_compress_compress_state_bytes_for";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_compress_compress_init";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_compress_compress_process";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_compress_compress_end";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "std_compress_format_brotli";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_compress_format_zstd";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "std_compress_mode_compress";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "std_compress_mode_decompress";
       return p;
     }
     return 0 as *u8;

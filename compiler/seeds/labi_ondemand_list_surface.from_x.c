@@ -247,7 +247,7 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
     return 8;
   }
   if ((g ==15)) {
-    return 6;
+    return 14;
   }
   if ((g ==16)) {
     return 4;
@@ -578,6 +578,14 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_compress_brotli_decompress"); return p; }
     if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_compress_zstd_compress"); return p; }
     if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_compress_zstd_decompress"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"std_compress_compress_state_bytes_for"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_compress_compress_init"); return p; }
+    if ((i ==8)) { uint8_t * p = ((uint8_t *)"std_compress_compress_process"); return p; }
+    if ((i ==9)) { uint8_t * p = ((uint8_t *)"std_compress_compress_end"); return p; }
+    if ((i ==10)) { uint8_t * p = ((uint8_t *)"std_compress_format_brotli"); return p; }
+    if ((i ==11)) { uint8_t * p = ((uint8_t *)"std_compress_format_zstd"); return p; }
+    if ((i ==12)) { uint8_t * p = ((uint8_t *)"std_compress_mode_compress"); return p; }
+    if ((i ==13)) { uint8_t * p = ((uint8_t *)"std_compress_mode_decompress"); return p; }
     return ((uint8_t *)(0));
   }
   if ((g ==16)) {

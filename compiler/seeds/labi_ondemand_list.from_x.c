@@ -186,7 +186,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 14)
     return 9; /* std.fmt — +format_template cookbook sole UNDEF */
   if (g == 15)
-    return 6; /* std.compress */
+    return 14; /* std.compress — +stream/format/mode cookbook unique UNDEF */
   if (g == 16)
     return 4; /* std.io.driver */
   if (g == 17)
@@ -467,6 +467,22 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_compress_zstd_compress";
     if (i == 5)
       return "std_compress_zstd_decompress";
+    if (i == 6)
+      return "std_compress_compress_state_bytes_for";
+    if (i == 7)
+      return "std_compress_compress_init";
+    if (i == 8)
+      return "std_compress_compress_process";
+    if (i == 9)
+      return "std_compress_compress_end";
+    if (i == 10)
+      return "std_compress_format_brotli";
+    if (i == 11)
+      return "std_compress_format_zstd";
+    if (i == 12)
+      return "std_compress_mode_compress";
+    if (i == 13)
+      return "std_compress_mode_decompress";
     return NULL;
   }
   if (g == 16) {
