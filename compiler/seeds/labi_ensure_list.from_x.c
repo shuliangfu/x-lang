@@ -432,7 +432,11 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   if (flags == 1) {
     crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, "-fPIE");
   } else if (flags == 2) {
+    /* PLATFORM: SHARED — try libsqlite3 define; on cc fail retry stub (no sqlite3.h).
+     * Twin of labi_ensure_list.x. Product -o must not hard-fail Ubuntu gold. */
     crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, "-DXLANG_DB_USE_SQLITE3");
+    if (crc != 0)
+      crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
   } else if (flags == 3) {
     char http_inc[4096];
     char flag_I[4096];
