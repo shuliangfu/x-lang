@@ -145,13 +145,14 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
  * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g22).
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g23).
    * G.7: seed cold twin must match pure table; L4 product often falls back to
    * this host-cc seed when pure prefer times out. Was return 13 with g12=simd
    * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe.
    * g21: core.str formal (cookbook core_str_index unique UNDEF).
-   * g22: core.iterator formal (cookbook iter_slice_sum unique UNDEF). */
-  return 23;
+   * g22: core.iterator formal (cookbook iter_slice_sum unique UNDEF).
+   * g23: std.bytes formal (tests/std-bytes/arena_external unique UNDEF). */
+  return 24;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -210,6 +211,11 @@ int labi_od_simple_group_sym_count(int g) {
    * surface. G.7 one table. */
   if (g == 22)
     return 10;
+  /* PLATFORM: SHARED — std.bytes formal (tests/std-bytes/arena_external unique UNDEF).
+   * Matcher exact; no prior group. Count 29 = full std/bytes/mod.x export
+   * surface. G.7 one table. */
+  if (g == 23)
+    return 29;
   return 0;
 }
 
@@ -685,6 +691,73 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_iterator_iter_remaining_u64";
     return NULL;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for std/bytes/bytes.o (g==23).
+   * Test unique: from_external / is_owned / recommend_bytes_alloc_arena /
+   * extend / length / deinit. Rest = remaining mod.x exports
+   * (tests/std-bytes/roundtrip sole-call). G.7: one table, no second group.
+   */
+  if (g == 23) {
+    if (i == 0)
+      return "std_bytes_from_external";
+    if (i == 1)
+      return "std_bytes_is_owned";
+    if (i == 2)
+      return "std_bytes_recommend_bytes_alloc_arena";
+    if (i == 3)
+      return "std_bytes_extend";
+    if (i == 4)
+      return "std_bytes_length";
+    if (i == 5)
+      return "std_bytes_deinit";
+    if (i == 6)
+      return "std_bytes_default_capacity";
+    if (i == 7)
+      return "std_bytes_new";
+    if (i == 8)
+      return "std_bytes_recommend_bytes_alloc";
+    if (i == 9)
+      return "std_bytes_with_capacity";
+    if (i == 10)
+      return "std_bytes_reserve_one";
+    if (i == 11)
+      return "std_bytes_reserve";
+    if (i == 12)
+      return "std_bytes_grow";
+    if (i == 13)
+      return "std_bytes_append_byte";
+    if (i == 14)
+      return "std_bytes_from_slice";
+    if (i == 15)
+      return "std_bytes_capacity";
+    if (i == 16)
+      return "std_bytes_clear";
+    if (i == 17)
+      return "std_bytes_as_view";
+    if (i == 18)
+      return "std_bytes_from_view";
+    if (i == 19)
+      return "std_bytes_as_buffer";
+    if (i == 20)
+      return "std_bytes_reader";
+    if (i == 21)
+      return "std_bytes_read";
+    if (i == 22)
+      return "std_bytes_remaining";
+    if (i == 23)
+      return "std_bytes_seek";
+    if (i == 24)
+      return "std_bytes_writer";
+    if (i == 25)
+      return "std_bytes_write";
+    if (i == 26)
+      return "std_bytes_remaining_cap";
+    if (i == 27)
+      return "std_bytes_eq";
+    if (i == 28)
+      return "std_bytes_bytes_module_anchor";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -740,6 +813,9 @@ const char *labi_od_simple_group_rel(int g) {
   /* PLATFORM: SHARED — core.iterator formal product .o (cookbook iter_slice_sum). */
   if (g == 22)
     return "core/iterator/mod.o";
+  /* PLATFORM: SHARED — std.bytes formal product .o (tests/std-bytes/arena_external). */
+  if (g == 23)
+    return "std/bytes/bytes.o";
   return NULL;
 }
 
@@ -3407,6 +3483,23 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+            }
+            /* PLATFORM: SHARED — bytes.o U heap.alloc/realloc/copy/free (mod.x grow/extend).
+             * User.o for roundtrip only U std_bytes_* so heap_api needles miss.
+             * Companion ≡ encoding.o → string/base64. Also co-push string.o for as_view.
+             */
+            if (strstr(rel, "std/bytes/bytes.o")) {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0]) {
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o",
+                                                        "../std/heap/heap.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/string/string.o",
+                                                        "../std/string/string.o");
+                }
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
             }
             /* PLATFORM: SHARED — formal mod.o U from_ptr/subslice → always co-push glue slice.o.

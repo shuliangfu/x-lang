@@ -3669,6 +3669,42 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 }
               }
             }
+            /*
+             * PLATFORM: SHARED — g23 std/bytes/bytes.o U heap.alloc/realloc/copy/free
+             * (mod.x grow/extend). User.o for roundtrip only U std_bytes_* so heap_api
+             * needles miss. Companion ≡ g2 encoding → string/base64. Also co-push
+             * string.o for as_view. G.7: complete g23 ensure; no second group.
+             */
+            if (sg == 23) {
+              let rtb: *u8 = 0 as *u8;
+              unsafe {
+                rtb = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rtb != 0 as *u8) {
+                if (rtb[0] != 0) {
+                  unsafe {
+                    let _feh: i32 = xlang_ensure_formal_std_make_o(rtb, "std/heap/heap.o", "../std/heap/heap.o");
+                    let _fes: i32 = xlang_ensure_formal_std_make_o(rtb, "std/string/string.o", "../std/string/string.o");
+                  }
+                }
+              }
+              let hrel: *u8 = labi_od_rel_heap();
+              let srelb: *u8 = labi_od_simple_group_rel(0);
+              if (hrel != 0 as *u8) {
+                if (hrel[0] != 0) {
+                  unsafe {
+                    let _ph: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, hrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                  }
+                }
+              }
+              if (srelb != 0 as *u8) {
+                if (srelb[0] != 0) {
+                  unsafe {
+                    let _psb: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, srelb, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                  }
+                }
+              }
+            }
             // g9: co-push glue slice.o after formal mod.o
             if (sg == 9) {
               let rtg: *u8 = 0 as *u8;

@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 23 (was 22; +g22 core.iterator formal faces, cookbook iter_slice_sum)
+ * @return i32 — 24 (was 23; +g23 std.bytes formal faces, tests/std-bytes/arena_external)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 23;
+  return 24;
 }
 
 /**
@@ -398,6 +398,16 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
    */
   if (g == 22) {
     return 10;
+  }
+  /*
+   * PLATFORM: SHARED — std.bytes formal (tests/std-bytes/arena_external unique UNDEF).
+   * Matcher is exact; no prior group. Count 29 = full export surface in
+   * std/bytes/mod.x (G.7 complete one table; no second group). Unique fire
+   * points: from_external / is_owned / recommend_bytes_alloc_arena / extend /
+   * length / deinit.
+   */
+  if (g == 23) {
+    return 29;
   }
   return 0;
 }
@@ -1260,6 +1270,131 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for std/bytes/bytes.o (g==23).
+   * Test unique: from_external / is_owned / recommend_bytes_alloc_arena /
+   * extend / length / deinit. Rest = remaining mod.x exports so
+   * tests/std-bytes/roundtrip sole-call UNDEFs also fire. G.7: one table.
+   */
+  if (g == 23) {
+    if (i == 0) {
+      let p: *u8 = "std_bytes_from_external";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_bytes_is_owned";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_bytes_recommend_bytes_alloc_arena";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_bytes_extend";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_bytes_length";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_bytes_deinit";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_bytes_default_capacity";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_bytes_new";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_bytes_recommend_bytes_alloc";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_bytes_with_capacity";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "std_bytes_reserve_one";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_bytes_reserve";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "std_bytes_grow";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "std_bytes_append_byte";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "std_bytes_from_slice";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "std_bytes_capacity";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "std_bytes_clear";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "std_bytes_as_view";
+      return p;
+    }
+    if (i == 18) {
+      let p: *u8 = "std_bytes_from_view";
+      return p;
+    }
+    if (i == 19) {
+      let p: *u8 = "std_bytes_as_buffer";
+      return p;
+    }
+    if (i == 20) {
+      let p: *u8 = "std_bytes_reader";
+      return p;
+    }
+    if (i == 21) {
+      let p: *u8 = "std_bytes_read";
+      return p;
+    }
+    if (i == 22) {
+      let p: *u8 = "std_bytes_remaining";
+      return p;
+    }
+    if (i == 23) {
+      let p: *u8 = "std_bytes_seek";
+      return p;
+    }
+    if (i == 24) {
+      let p: *u8 = "std_bytes_writer";
+      return p;
+    }
+    if (i == 25) {
+      let p: *u8 = "std_bytes_write";
+      return p;
+    }
+    if (i == 26) {
+      let p: *u8 = "std_bytes_remaining_cap";
+      return p;
+    }
+    if (i == 27) {
+      let p: *u8 = "std_bytes_eq";
+      return p;
+    }
+    if (i == 28) {
+      let p: *u8 = "std_bytes_bytes_module_anchor";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -1377,6 +1512,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — core.iterator formal product .o (cookbook iter_slice_sum).
   if (g == 22) {
     let p: *u8 = "core/iterator/mod.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.bytes formal product .o (tests/std-bytes/arena_external).
+  if (g == 23) {
+    let p: *u8 = "std/bytes/bytes.o";
     return p;
   }
   return 0 as *u8;
