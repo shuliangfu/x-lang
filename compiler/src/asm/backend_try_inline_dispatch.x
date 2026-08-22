@@ -1371,13 +1371,20 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
 }
 // See implementation.
 // glue_emit_default_alloc_to_rbx_offset: see function docblock below.
-/** Exported function `glue_emit_default_alloc_to_rbx_offset`.
- * Memory management helper `glue_emit_default_alloc_to_rbx_offset`.
- * @param elf_ctx *u8
- * @param foff i32
- * @param fsz i32
- * @param ta i32
- * @return i32
+/**
+ * Materialize `heap.default_alloc()` into dest@rbx + foff (16-byte Allocator).
+ * with_arena scope: kind=arena + lea of the scope Arena64 (no CALL).
+ * Else: CALL `std_heap_default_alloc` then store the 16B return.
+ * @param elf_ctx *u8 — codegen ctx; null → -1
+ * @param foff i32 — byte offset of the Allocator field from dest-in-rbx
+ * @param fsz i32 — field_store_sz; often 8 for cross-module Allocator (leftover)
+ * @param ta i32 — 0 x86_64 SysV, 1 AAPCS64, 2 RISC-V
+ * @return i32 — 0 ok, -1 encode error
+ * PLATFORM: SHARED helper. MACOS|ARM64 (ta==1): AAPCS64 returns Allocator in
+ * x0+x1, which clobbers dest-in-x1 (rbx analog). enc_store store_size>=16
+ * uses dest-shadow x19 + dual-GP. LINUX|x86_64: rbx is callee-saved; when
+ * fsz<16 zero the high 8 (heap arena is null). Do not change enc_store
+ * sz>=16 globally.
  */
 #[no_mangle]
 export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
@@ -1400,6 +1407,11 @@ export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, f
     da[16] = 95; da[17] = 97; da[18] = 108; da[19] = 108;
     da[20] = 111; da[21] = 99;
     if (backend_enc_call_arch(elf_ctx, &da[0], 27, ta) != 0) { return 0 - 1; }
+    // ta==1: ignore leftover fsz==8; 16B store uses x19 dest + x0/x1 payload.
+    if (ta == 1) {
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 16, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
     let sz: i32 = fsz;
     if (sz <= 0) { sz = 8; }
     if (sz > 16) { sz = 16; }

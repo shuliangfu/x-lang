@@ -1267,6 +1267,13 @@ int32_t glue_emit_default_alloc_to_rbx_offset(uint8_t * elf_ctx, int32_t foff, i
     if ((backend_enc_call_arch(elf_ctx, &((da)[0]), 27, ta) !=0)) {
       return (0 - 1);
     }
+    /* ta==1 AAPCS64: 16B Allocator return clobbers dest-in-x1; sz>=16 uses x19. */
+    if ((ta == 1)) {
+      if ((backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 16, ta) !=0)) {
+        return (0 - 1);
+      }
+      return 0;
+    }
     if ((sz <=0)) {
       (void)((sz = 8));
     }

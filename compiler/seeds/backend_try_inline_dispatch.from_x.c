@@ -2528,7 +2528,12 @@ int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struc
 
 
 /**
- * default_alloc() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_alloc。
+ * default_alloc() inline: with_arena writes kind=arena + stack Arena64*;
+ * else CALL runtime default_alloc then store the 16B Allocator.
+ * PLATFORM: SHARED. MACOS|ARM64 (ta==1): AAPCS64 returns Allocator in x0+x1
+ * which clobbers dest-in-x1; enc_store store_size>=16 uses dest-shadow x19
+ * + dual-GP. LINUX|x86_64: rbx callee-saved; leftover fsz==8 zeros high 8
+ * (heap arena is null). Do not change enc_store sz>=16 globally.
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -2550,6 +2555,12 @@ int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodege
   }
   if (backend_enc_call_arch(elf_ctx, (uint8_t *)da_sym, 27, ta) != 0)
     return -1;
+  /* ta==1: ignore leftover fsz==8; 16B store uses x19 dest + x0/x1 payload. */
+  if (ta == 1) {
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 16, ta) != 0)
+      return -1;
+    return 0;
+  }
   if (fsz <= 0)
     fsz = 8;
   if (fsz > 16)
