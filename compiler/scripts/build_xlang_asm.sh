@@ -4282,11 +4282,9 @@ ensure_asm_experimental_lsp_objs() {
   cp -f lsp_io_std_heap_x.o "$GEN_DIR/lsp_io_std_heap_x.o"
   return 0
   fi
-  if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
-  ensure_asm_gen_driver_x_objs
-  return 0
-  fi
-  # OOM 可能留下 0 字节 gen；删空文件以便 Makefile 走 xlang-c fallback。
+  # PLATFORM: SHARED — post-Makefile phys-del: do NOT early-bail to gen_driver on
+  # missing MF. Shell gen + try-heat is the authority (wave930). VIA_MAKE + MF escapes.
+  # OOM 可能留下 0 字节 gen；删空文件以便 shell gen / try-heat 重产。
   if [ -f lsp_io_std_heap_gen.c ] && [ ! -s lsp_io_std_heap_gen.c ]; then
   rm -f lsp_io_std_heap_gen.c
   fi
@@ -4543,8 +4541,7 @@ ensure_asm_gen_driver_x_objs() {
   cp -f "$GEN_DIR/driver_check_x.o" driver_check_x.o 2>/dev/null || true
   cp -f "$GEN_DIR/driver_test_x.o" driver_test_x.o 2>/dev/null || true
 
-  # pipeline/driver/preprocess: same products as Makefile gen-x-driver-objs.
-  # G.7 on Linux/Darwin: `make gen-x-driver-objs` → FORCE leaves → ensure try-heat.
+  # pipeline/driver/preprocess: same products as retired Makefile gen-x-driver-objs.
   #
   # PLATFORM: WINDOWS | MINGW | MSYS — do NOT:
   #   1) nest MinGW `make gen-x-driver-objs` (sh.dll "C:", empty UNAME_M, 0-CPU stall)
@@ -4553,7 +4550,9 @@ ensure_asm_gen_driver_x_objs() {
   #      pipeline_x.o with no gcc, frozen hybrid log_bytes) until kill.
   # Seed/g05 already owns pipeline_x.o / driver_x.o / preprocess_x.o on the
   # hybrid host; reuse when present, else direct cc -c of pinned gen.c.
-  # PLATFORM: SHARED Linux/Darwin — keep `make gen-x-driver-objs`.
+  # PLATFORM: SHARED Linux/Darwin — post-Makefile phys-del: shell try-heat is the
+  # authority (wave930). Do NOT gate try-heat on MF presence (that forced raw
+  # cc -c after phys-del). VIA_MAKE + MF still escapes for parity / debug.
   if build_xlang_asm_is_msys; then
     if [ -f pipeline_x.o ] && [ -f driver_x.o ] && [ -f preprocess_x.o ]; then
       echo " win: reuse seed pipeline_x.o driver_x.o preprocess_x.o (skip nested make + try-heat)"
@@ -4574,16 +4573,15 @@ ensure_asm_gen_driver_x_objs() {
       cp -f "$GEN_DIR/driver_x.o" driver_x.o 2>/dev/null || true
       cp -f "$GEN_DIR/preprocess_x.o" preprocess_x.o 2>/dev/null || true
     fi
-  elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    # Wave930: shell try-heat for 3 leaves (no make; gen-x-driver-objs target
-    # body is @true — only triggers pipeline_x.o + driver_x.o + preprocess_x.o
-    # FORCE rebuild via GEN_C_TO_O_SEED_OBJS + GEN_X_SEED_OBJS bodies).
-    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
-    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
+  else
+    # Wave930: shell try-heat for 3 leaves (no make).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug; MF must exist).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+      && command -v make >/dev/null 2>&1; then
       echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
       make gen-x-driver-objs
     else
-      echo " wave930: try-heat pipeline_x.o + driver_x.o + preprocess_x.o -> $GEN_DIR/"
+      echo " wave930: try-heat pipeline_x.o + driver_x.o + preprocess_x.o -> $GEN_DIR/ (0-make)"
       bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
       bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
       bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
@@ -4591,16 +4589,6 @@ ensure_asm_gen_driver_x_objs() {
     cp -f pipeline_x.o "$GEN_DIR/"
     cp -f driver_x.o "$GEN_DIR/driver_x.o"
     cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
-  else
-    echo " cc -c gen_driver/*_x.o <- pipeline/driver/lsp/preprocess -E product (no Makefile make)"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
-      -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
-      -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
-      -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_x.o"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
-      -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
-      -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
   fi
 
   echo " cc -c gen_driver/lsp*.o <- lsp -E 产物"
@@ -4621,7 +4609,9 @@ ensure_asm_gen_driver_x_objs() {
 # PLATFORM: WINDOWS | MINGW | MSYS — never nest MinGW make for these leaves:
 #   make typeck_x.o / x_frontend_link_alias.o → FORCE try-heat re-entry hang
 #   (same class as pipeline_x.o ensure recursion). Reuse seed/g05 objs when present.
-# PLATFORM: SHARED Linux/Darwin — make remains the ensure graph authority.
+# PLATFORM: SHARED Linux/Darwin — post-Makefile phys-del: shell migrate + try-heat
+# is the authority (wave929). Do NOT gate on MF presence (that silently skipped
+# ensure after phys-del). VIA_MAKE + MF still escapes for parity / debug.
 ensure_gen_driver_typeck_companion_objs() {
   if [ "${XLANG_ASM_GEN_DRIVER_TYPECK_READY:-0}" = "1" ] \
     && [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
@@ -4637,17 +4627,16 @@ ensure_gen_driver_typeck_companion_objs() {
     XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
     return 0
   fi
-  if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    # Wave929: shell migrate + try-heat (no make; MIGRATE_X_OBJS + R1_ALIAS_STUBS bodies).
-    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
-    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
-      build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
-      make typeck_x.o x_frontend_link_alias.o
-    else
-      build_xlang_asm_info "gen_driver typeck companions (wave929; migrate + try-heat)"
-      bash scripts/migrate_x_objs.sh typeck_x.o
-      bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
-    fi
+  # Wave929: shell migrate + try-heat (no make; MIGRATE_X_OBJS + R1_ALIAS_STUBS bodies).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug; MF must exist).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
+    make typeck_x.o x_frontend_link_alias.o
+  else
+    build_xlang_asm_info "gen_driver typeck companions (wave929; migrate + try-heat; 0-make)"
+    bash scripts/migrate_x_objs.sh typeck_x.o
+    bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
   fi
   XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
 }
