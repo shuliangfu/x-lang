@@ -53,7 +53,7 @@
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
 11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
-  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`；深层 linux-a09／g06-docker／compress／perf 仍可续）  
+  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`）· ✅ **tests 深层裸 make→shell／xbuild**（a09／g06／compress／perf／wpo-docker；hub `compress-o-*` no-op＋`sqlite-o-stub`；`54ace50f0`）  
 
   BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
@@ -509,15 +509,15 @@
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
-| 313 | `net-o-stub` | ⬜ |
-| 317 | `net-o-openssl` | ⬜ |
-| 331 | `net-o-mbedtls` | ⬜ |
+| 313 | `net-o-stub` | ✅ hub → `archaeology_host_pick_phony` |
+| 317 | `net-o-openssl` | ✅ hub → `archaeology_host_pick_phony` |
+| 331 | `net-o-mbedtls` | ✅ hub → `archaeology_host_pick_phony` |
 | 613 | `sqlite-o` | ⬜ |
-| 614 | `sqlite-o-stub` | ⬜ |
-| 651 | `compress-o-zlib` | ⬜ |
-| 651 | `compress-o-zlib-zstd` | ⬜ |
-| 651 | `compress-o-brotli` | ⬜ |
-| 651 | `compress-o-zlib-zstd-brotli` | ⬜ |
+| 614 | `sqlite-o-stub` | ✅ hub → `archaeology_host_pick_phony` |
+| 651 | `compress-o-zlib` | ✅ hub no-op（F-04 v7 formats in .x） |
+| 651 | `compress-o-zlib-zstd` | ✅ hub no-op（F-04 v7 formats in .x） |
+| 651 | `compress-o-brotli` | ✅ hub no-op（F-04 v7 formats in .x） |
+| 651 | `compress-o-zlib-zstd-brotli` | ✅ hub no-op（F-04 v7 formats in .x） |
 | 709 | `std-objs` | ⬜ |
 
 ### 类 M — clean / compile_commands / legacy
