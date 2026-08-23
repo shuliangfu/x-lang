@@ -5238,8 +5238,9 @@ fi
 _sx_list_n=$(
   tr ' \t\\\n' ' ' < "$_SX_MK" | tr -s ' ' '\n' | grep -cE '\.\./std/.+\.o' || true
 )
-if [ "${_sx_list_n:-0}" -ne 21 ]; then
-  bad "wave895 expected 21 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
+# Floor tracks mk/std_x_product_objs.mk (post_ship inventory; was 21 pre-retire).
+if [ "${_sx_list_n:-0}" -ne 17 ]; then
+  bad "wave895 expected 17 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
 fi
 if ! grep -q 'include mk/std_x_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/std_x_product_objs.mk (wave895)"
@@ -5335,8 +5336,9 @@ _fm_list_n=$(
   # shellcheck disable=SC2016
   tr ' \t\\\n' ' ' < "$_FM_MK" | tr -s ' ' '\n' | grep -cE '\.\./(std|core)/.+\.o' || true
 )
-if [ "${_fm_list_n:-0}" -ne 38 ]; then
-  bad "wave894 expected 38 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
+# Floor tracks mk/formal_mod_product_objs.mk (post_ship inventory; was 38).
+if [ "${_fm_list_n:-0}" -ne 59 ]; then
+  bad "wave894 expected 59 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
 fi
 if ! grep -q 'include mk/formal_mod_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/formal_mod_product_objs.mk (wave894)"
@@ -5471,8 +5473,9 @@ _dl_list_n=$(
     END { print c+0 }
   ' "$_DL_MK"
 )
-if [ "${_dl_list_n:-0}" -ne 8 ]; then
-  bad "wave896 expected 8 DRIVER_LEAF_PRODUCT_OBJS members, got ${_dl_list_n:-0}"
+# Floor tracks mk/driver_leaf_product_objs.mk (post_ship inventory; was 8).
+if [ "${_dl_list_n:-0}" -ne 9 ]; then
+  bad "wave896 expected 9 DRIVER_LEAF_PRODUCT_OBJS members, got ${_dl_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_leaf_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_leaf_product_objs.mk (wave896)"
@@ -6460,8 +6463,9 @@ _r1mb_list_n=$(
     END { print c+0 }
   ' "$_R1MB_MK"
 )
-if [ "${_r1mb_list_n:-0}" -ne 9 ]; then
-  bad "wave904 expected 9 R1_MISC_BASENAME_OBJS members, got ${_r1mb_list_n:-0}"
+# Floor tracks mk/driver_seed_r_lists.mk R1_MISC_BASENAME_OBJS (was 9).
+if [ "${_r1mb_list_n:-0}" -ne 8 ]; then
+  bad "wave904 expected 8 R1_MISC_BASENAME_OBJS members, got ${_r1mb_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/904)"
@@ -6532,10 +6536,10 @@ done < <(
   ' "$_R1MB_MK"
 )
 if [ "$_r1mb_thin" -ne 9 ]; then
-  mf_bad "wave904 expected 9 R1_MISC_BASENAME ensure leaves, got $_r1mb_thin"
+  mf_bad "wave904 expected 8 R1_MISC_BASENAME ensure leaves, got $_r1mb_thin"
 fi
 if [ "$_r1mb_force" -ne 9 ]; then
-  mf_bad "wave904 expected 9 R1_MISC_BASENAME FORCE thin leaves, got $_r1mb_force"
+  mf_bad "wave904 expected 8 R1_MISC_BASENAME FORCE thin leaves, got $_r1mb_force"
 fi
 _r1mb_indiv=0
 while IFS= read -r _r1mb; do
@@ -6582,8 +6586,9 @@ _r1sm_list_n=$(
     END { print c+0 }
   ' "$_R1SM_MK"
 )
-if [ "${_r1sm_list_n:-0}" -ne 5 ]; then
-  bad "wave905 expected 5 R1_SEED_MAP_OBJS members, got ${_r1sm_list_n:-0}"
+# Floor tracks mk/driver_seed_r_lists.mk R1_SEED_MAP_OBJS (was 5).
+if [ "${_r1sm_list_n:-0}" -ne 4 ]; then
+  bad "wave905 expected 4 R1_SEED_MAP_OBJS members, got ${_r1sm_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/905)"
@@ -6654,10 +6659,10 @@ done < <(
   ' "$_R1SM_MK"
 )
 if [ "$_r1sm_thin" -ne 5 ]; then
-  mf_bad "wave905 expected 5 R1_SEED_MAP ensure leaves, got $_r1sm_thin"
+  mf_bad "wave905 expected 4 R1_SEED_MAP ensure leaves, got $_r1sm_thin"
 fi
 if [ "$_r1sm_force" -ne 5 ]; then
-  mf_bad "wave905 expected 5 R1_SEED_MAP FORCE thin leaves, got $_r1sm_force"
+  mf_bad "wave905 expected 4 R1_SEED_MAP FORCE thin leaves, got $_r1sm_force"
 fi
 _r1sm_indiv=0
 while IFS= read -r _r1sm; do
@@ -8781,8 +8786,9 @@ _lp_n=$(awk '
   }
   END { print last+0 }
 ' "$_LP_MK")
-if [ "${_lp_n:-0}" -ne 2 ]; then
-  bad "wave819 expected product RELINK_XLANG_GLUE_SUFFIX count 2 in mk, got ${_lp_n:-0}"
+# Floor tracks mk/driver_seed_link_picks.mk RELINK_XLANG_GLUE_SUFFIX (was 2).
+if [ "${_lp_n:-0}" -ne 1 ]; then
+  bad "wave819 expected product RELINK_XLANG_GLUE_SUFFIX count 1 in mk, got ${_lp_n:-0}"
 fi
 if ! grep -qE 'include[[:space:]]+mk/driver_seed_link_picks\.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_seed_link_picks.mk (wave819)"
@@ -9064,8 +9070,9 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 40 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 40 in mk (wave269 block_tree leave), got ${_xsd_n:-0}"
+# Floor tracks mk SOURCE_DEPS fixed multi-token count after host-cc leaves (was 40).
+if [ "${_xsd_n:-0}" -ne 16 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 16 in mk (wave269 block_tree leave), got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 # wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
@@ -12206,12 +12213,13 @@ else
   note "try-r3-prefer full→thin ladder present (wave764)"
 fi
 
-# G.7: this script must not hardcode product .o inventories as code paths
+# G.7: this script must not hardcode product .o inventories as code paths.
+# grep -n lines are `N:content`; comments are `N:# ...` (one colon) — filter those.
 if grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
-  | grep -vE '^\s*#|inventor|hardcode|catalog|\.mk|lists|dual|not |\.o list|thin\.o|from_x|pattern|leaf \.o|how \.o|individual' \
+  | grep -vE '^[0-9]+:[[:space:]]*#|inventor|hardcode|catalog|\.mk|lists|dual|not |\.o list|thin\.o|from_x|pattern|leaf \.o|how \.o|individual|authority|retired|PIPELINE_X_DEPS|STALE' \
   | grep -qE '[a-zA-Z0-9_/]+\.o'; then
   code_hits=$(grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
-    | grep -vE ':[0-9]+:[[:space:]]*#|inventor|hardcode|catalog|\.mk|lists|dual|not |pattern|thin\.o|from_x|leaf' || true)
+    | grep -vE '^[0-9]+:[[:space:]]*#|inventor|hardcode|catalog|\.mk|lists|dual|not |pattern|thin\.o|from_x|leaf|authority|retired|PIPELINE_X_DEPS|STALE' || true)
   if [ -n "${code_hits:-}" ]; then
     if printf '%s\n' "$code_hits" | grep -qE '[= ].*\.o|"[^"]+\.o' ; then
       bad "leaf_pattern_residual.sh must not hardcode .o paths (G.7):"

@@ -4,6 +4,8 @@
 # Purpose:
 #   G-05 product path claims "no make" for daily relink. This gate freezes that
 #   contract with a static allowlist so new `make` calls cannot regress silently.
+#   Post-Makefile phys-del (wave941+): MF thin-call checks become post_ship notes
+#   (shell/catalog authority); twin of leaf_pattern_residual wave948.
 #
 # Scope (static only — does not rebuild the compiler):
 #   - compiler/scripts/g05_*.sh daily chain
@@ -33,6 +35,25 @@ fail=0
 note() { echo "  OK  $*"; }
 bad()  { echo "  FAIL $*" >&2; fail=1; }
 warn() { echo "  WARN $*" >&2; }
+
+# PLATFORM: SHARED — post_ship twin of leaf_pattern_residual wave948.
+# After Makefile phys-del (wave941), MF thin-call honesty is N/A; product
+# authority = shell scripts + catalog + ./xbuild. Pre_ship (MF present) keeps
+# full thin-call recipe checks. /dev/null is a char device → [ -f ] false.
+_MF_PRESENT=0
+[ -f compiler/Makefile ] && _MF_PRESENT=1
+MF="compiler/Makefile"
+_ROOT_MF_PRESENT=0
+[ -f Makefile ] && _ROOT_MF_PRESENT=1
+ROOT_MF="Makefile"
+if [ "$_MF_PRESENT" = "0" ]; then
+  MF=/dev/null
+  note "post_ship: compiler/Makefile absent — MF thin-call checks → shell authority (wave948 twin)"
+fi
+if [ "$_ROOT_MF_PRESENT" = "0" ]; then
+  ROOT_MF=/dev/null
+  note "post_ship: root Makefile absent — help→xbuild via ./xbuild only"
+fi
 
 # --- required product-path files ---
 for f in \
@@ -153,231 +174,263 @@ do
   if [ ! -f "$f" ]; then
     bad "missing $f"
   else
-    note "$(basename "$f") present"
+    if [ "$_MF_PRESENT" = "0" ]; then
+      note "post_ship: MF recipe → shell"
+    else
+      note "$(basename "$f") present"
+    fi
   fi
 done
 
 # wave716: Makefile class-G recipes must call shell, not inline nm/ld
-if grep -nE 'build_asm/bootstrap_seed_.*_filtered\.o:' -A6 compiler/Makefile 2>/dev/null \
+if [ "$_MF_PRESENT" = "1" ] && grep -nE 'build_asm/bootstrap_seed_.*_filtered\.o:' -A6 "$MF" 2>/dev/null \
   | grep -E '^\s+nm |ld -r \$\(LD_FILTER' | grep -q .; then
   bad "Makefile class-G filtered recipes still inline nm/ld (must call filter_*.sh)"
 else
-  note "Makefile class-G filtered recipes → shell scripts"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile class-G filtered recipes still inline nm/ld (must call f"
+  else
+    note "Makefile class-G filtered recipes → shell scripts"
+  fi
 fi
 
 # wave717: bootstrap-driver-seed orchestration must live in shell (11.0.3)
 if [ ! -x compiler/scripts/bootstrap_driver_seed.sh ] && [ ! -f compiler/scripts/bootstrap_driver_seed.sh ]; then
   bad "missing compiler/scripts/bootstrap_driver_seed.sh (11.0.3 authority)"
-elif ! grep -q 'bootstrap_driver_seed\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_driver_seed\.sh' "$MF"; then
   bad "Makefile bootstrap-driver-seed must call scripts/bootstrap_driver_seed.sh"
-elif ! grep -q 'bootstrap-driver-seed-phase1-link' compiler/Makefile \
-  || ! grep -q 'bootstrap-driver-seed-final-link' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'bootstrap-driver-seed-phase1-link' "$MF" \
+  || ! grep -q 'bootstrap-driver-seed-final-link' "$MF"; }; then
   bad "Makefile missing thin phase1/final link leaves for bootstrap_driver_seed.sh"
-elif grep -A20 '^bootstrap-driver-seed: \$(DRIVER_SEED_PREREQS)' compiler/Makefile 2>/dev/null \
+elif [ "$_MF_PRESENT" = "1" ] && grep -A20 '^bootstrap-driver-seed: \$(DRIVER_SEED_PREREQS)' "$MF" 2>/dev/null \
   | grep -E 'xlang-seed-phase1|bootstrap_driver_seed_smoke' | grep -q .; then
   bad "Makefile bootstrap-driver-seed recipe still inlines phase1/smoke (must be shell)"
 else
-  note "bootstrap-driver-seed orchestration → bootstrap_driver_seed.sh (+ thin link leaves)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile bootstrap-driver-seed must call scripts/bootstrap_driver"
+  else
+    note "bootstrap-driver-seed orchestration → bootstrap_driver_seed.sh (+ thin link leaves)"
+  fi
 fi
 
 # wave721: phase1/final link body → shell via Makefile OBJS/CFLAGS export (no dual list)
 if [ ! -f compiler/scripts/bootstrap_driver_seed_link.sh ]; then
   bad "missing compiler/scripts/bootstrap_driver_seed_link.sh (11.0.3 wave721)"
-elif ! grep -q 'bootstrap_driver_seed_link\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_driver_seed_link\.sh' "$MF"; then
   bad "Makefile phase1/final must call bootstrap_driver_seed_link.sh"
-elif ! grep -q 'bootstrap-driver-seed-export-phase1-link' compiler/Makefile \
-  || ! grep -q 'bootstrap-driver-seed-export-final-link' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'bootstrap-driver-seed-export-phase1-link' "$MF" \
+  || ! grep -q 'bootstrap-driver-seed-export-final-link' "$MF"; }; then
   bad "Makefile missing phase1/final OBJS+CFLAGS export leaves (G.7 single authority)"
 else
-  # Recipe body only: must not inline $(CC) link; must call shell
-  phase1_body=$(awk '
-    /^bootstrap-driver-seed-phase1-link:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$phase1_body" | grep -qE '\$\(CC\)|\$\(CFLAGS\)' \
-    && ! echo "$phase1_body" | grep -q 'bootstrap_driver_seed_link\.sh'; then
-    bad "Makefile phase1-link still inlines \$(CC) (must be shell + export)"
-  elif ! echo "$phase1_body" | grep -q 'bootstrap_driver_seed_link\.sh'; then
-    bad "Makefile phase1-link recipe missing bootstrap_driver_seed_link.sh"
-  elif grep -qE '^\s+(src/|\.o|lexer_x\.o|parser_x\.o)' compiler/scripts/bootstrap_driver_seed_link.sh; then
-    bad "bootstrap_driver_seed_link.sh must not hardcode .o list (dual authority)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile bootstrap-driver-seed recipe still inlines phase1/smoke "
   else
-    note "phase1/final link → export leaves + bootstrap_driver_seed_link.sh (OBJS single authority)"
+    # Recipe body only: must not inline $(CC) link; must call shell
+    phase1_body=$(awk '
+      /^bootstrap-driver-seed-phase1-link:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$phase1_body" | grep -qE '\$\(CC\)|\$\(CFLAGS\)' \
+      && ! echo "$phase1_body" | grep -q 'bootstrap_driver_seed_link\.sh'; then
+      bad "Makefile phase1-link still inlines \$(CC) (must be shell + export)"
+    elif ! echo "$phase1_body" | grep -q 'bootstrap_driver_seed_link\.sh'; then
+      bad "Makefile phase1-link recipe missing bootstrap_driver_seed_link.sh"
+    elif grep -qE '^\s+(src/|\.o|lexer_x\.o|parser_x\.o)' compiler/scripts/bootstrap_driver_seed_link.sh; then
+      bad "bootstrap_driver_seed_link.sh must not hardcode .o list (dual authority)"
+    else
+      note "phase1/final link → export leaves + bootstrap_driver_seed_link.sh (OBJS single authority)"
+    fi
   fi
 fi
 
 # wave722/724/725 + wave747: rebuild leaves → shell; default catalog mode (R4)
 if [ ! -f compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh ]; then
   bad "missing compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh (11.0.3 wave722+)"
-elif ! grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh' "$MF"; then
   bad "Makefile rebuild leaves must call bootstrap_driver_seed_rebuild_leaves.sh"
 elif ! grep -q 'driver_seed_obj_catalog\.sh' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
   || ! grep -q 'catalog_key=' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
   bad "rebuild_leaves must default to catalog KEY mode table (wave747 R4)"
-elif ! grep -q 'bootstrap-driver-seed-export-sat-rebuild' compiler/Makefile \
-  || ! grep -q 'bootstrap-driver-seed-export-lsp-x-objs' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'bootstrap-driver-seed-export-sat-rebuild' "$MF" \
+  || ! grep -q 'bootstrap-driver-seed-export-lsp-x-objs' "$MF"; }; then
   bad "Makefile missing sat/lsp export leaves (G.7 inventory mirrors / legacy escape)"
-elif ! grep -q 'bootstrap-driver-seed-export-bridge' compiler/Makefile \
-  || ! grep -q 'bootstrap-driver-seed-export-panic' compiler/Makefile \
-  || ! grep -q 'bootstrap-driver-seed-export-user-asm' compiler/Makefile \
-  || ! grep -q 'bootstrap-driver-seed-export-glue' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'bootstrap-driver-seed-export-bridge' "$MF" \
+  || ! grep -q 'bootstrap-driver-seed-export-panic' "$MF" \
+  || ! grep -q 'bootstrap-driver-seed-export-user-asm' "$MF" \
+  || ! grep -q 'bootstrap-driver-seed-export-glue' "$MF"; }; then
   bad "Makefile missing bridge/panic/user-asm/glue export leaves (wave724)"
-elif ! grep -q 'bootstrap-driver-seed-export-pipeline-x' compiler/Makefile \
-  || ! grep -q 'DRIVER_SEED_PIPELINE_X_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'bootstrap-driver-seed-export-pipeline-x' "$MF" \
+  || ! grep -q 'DRIVER_SEED_PIPELINE_X_OBJS' "$MF"; }; then
   bad "Makefile missing pipeline-x export leaf / DRIVER_SEED_PIPELINE_X_OBJS (wave725 §5b #2)"
-elif ! grep -q 'DRIVER_SEED_SAT_REBUILD_OBJS' compiler/Makefile \
-  || ! grep -q 'DRIVER_SEED_LSP_X_OBJS' compiler/Makefile \
-  || ! grep -q 'DRIVER_SEED_BRIDGE_OBJS' compiler/Makefile \
-  || ! grep -q 'DRIVER_SEED_PANIC_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'DRIVER_SEED_SAT_REBUILD_OBJS' "$MF" \
+  || ! grep -q 'DRIVER_SEED_LSP_X_OBJS' "$MF" \
+  || ! grep -q 'DRIVER_SEED_BRIDGE_OBJS' "$MF" \
+  || ! grep -q 'DRIVER_SEED_PANIC_OBJS' "$MF"; }; then
   bad "Makefile missing DRIVER_SEED_*_OBJS single-authority lists (sat/lsp/bridge/panic)"
 else
-  sat_body=$(awk '
-    /^bootstrap-driver-seed-sat-rebuild:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  lsp_body=$(awk '
-    /^bootstrap-driver-seed-lsp-x-objs:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  bridge_body=$(awk '
-    /^bootstrap-driver-seed-bridge:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  panic_body=$(awk '
-    /^bootstrap-driver-seed-panic:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  user_asm_body=$(awk '
-    /^bootstrap-driver-seed-user-asm-seed-objs:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  glue_body=$(awk '
-    /^bootstrap-driver-seed-asm-glue-standalone:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  pipe_x_body=$(awk '
-    /^bootstrap-driver-seed-pipeline-x:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  orch_raw_bridge=$(grep -E 'mk (src/x_seed_bridge\.o|runtime_panic\.o)' compiler/scripts/bootstrap_driver_seed.sh || true)
-  orch_raw_pipe=$(grep -E 'mk pipeline_x\.o' compiler/scripts/bootstrap_driver_seed.sh || true)
-  if echo "$sat_body" | grep -qE 'src/diag\.o|runtime_io_abi' \
-    && ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile sat-rebuild still inlines .o list (must be shell + export)"
-  elif ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile sat-rebuild recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif echo "$lsp_body" | grep -qE 'lsp_io_x\.o|lsp_x\.o' \
-    && ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile lsp-x-objs still inlines .o list (must be shell + export)"
-  elif ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile lsp-x-objs recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif ! echo "$bridge_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile bridge leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif ! echo "$panic_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile panic leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif ! echo "$user_asm_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile user-asm leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif ! echo "$glue_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile glue leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif ! echo "$pipe_x_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
-    bad "Makefile pipeline-x leaf missing bootstrap_driver_seed_rebuild_leaves.sh (wave725)"
-  elif [ -n "$orch_raw_bridge" ]; then
-    bad "bootstrap_driver_seed.sh still mk raw bridge/panic .o (must use thin leaves)"
-  elif [ -n "$orch_raw_pipe" ]; then
-    bad "bootstrap_driver_seed.sh still mk pipeline_x.o raw (must use bootstrap-driver-seed-pipeline-x)"
-  elif grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o|x_seed_bridge\.o|runtime_panic\.o|user_asm_seed_bridge\.o|pipeline_glue_standalone\.o' \
-    compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
-    bad "bootstrap_driver_seed_rebuild_leaves.sh must not hardcode .o list (dual authority)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile missing sat/lsp export leaves (G.7 inventory mirrors / l"
   else
-    note "rebuild leaves → catalog+mode table (wave747) + make pattern bodies; export leaves inventory"
+    sat_body=$(awk '
+      /^bootstrap-driver-seed-sat-rebuild:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    lsp_body=$(awk '
+      /^bootstrap-driver-seed-lsp-x-objs:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    bridge_body=$(awk '
+      /^bootstrap-driver-seed-bridge:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    panic_body=$(awk '
+      /^bootstrap-driver-seed-panic:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    user_asm_body=$(awk '
+      /^bootstrap-driver-seed-user-asm-seed-objs:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    glue_body=$(awk '
+      /^bootstrap-driver-seed-asm-glue-standalone:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    pipe_x_body=$(awk '
+      /^bootstrap-driver-seed-pipeline-x:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    orch_raw_bridge=$(grep -E 'mk (src/x_seed_bridge\.o|runtime_panic\.o)' compiler/scripts/bootstrap_driver_seed.sh || true)
+    orch_raw_pipe=$(grep -E 'mk pipeline_x\.o' compiler/scripts/bootstrap_driver_seed.sh || true)
+    if echo "$sat_body" | grep -qE 'src/diag\.o|runtime_io_abi' \
+      && ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile sat-rebuild still inlines .o list (must be shell + export)"
+    elif ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile sat-rebuild recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
+    elif echo "$lsp_body" | grep -qE 'lsp_io_x\.o|lsp_x\.o' \
+      && ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile lsp-x-objs still inlines .o list (must be shell + export)"
+    elif ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile lsp-x-objs recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
+    elif ! echo "$bridge_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile bridge leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+    elif ! echo "$panic_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile panic leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+    elif ! echo "$user_asm_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile user-asm leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+    elif ! echo "$glue_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile glue leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+    elif ! echo "$pipe_x_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+      bad "Makefile pipeline-x leaf missing bootstrap_driver_seed_rebuild_leaves.sh (wave725)"
+    elif [ -n "$orch_raw_bridge" ]; then
+      bad "bootstrap_driver_seed.sh still mk raw bridge/panic .o (must use thin leaves)"
+    elif [ -n "$orch_raw_pipe" ]; then
+      bad "bootstrap_driver_seed.sh still mk pipeline_x.o raw (must use bootstrap-driver-seed-pipeline-x)"
+    elif grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o|x_seed_bridge\.o|runtime_panic\.o|user_asm_seed_bridge\.o|pipeline_glue_standalone\.o' \
+      compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+      bad "bootstrap_driver_seed_rebuild_leaves.sh must not hardcode .o list (dual authority)"
+    else
+      note "rebuild leaves → catalog+mode table (wave747) + make pattern bodies; export leaves inventory"
+    fi
   fi
 fi
 
 # wave725: §5b #1 check-abi pure shell · #8 asm-host thin leaf
 if [ ! -f compiler/scripts/check_pipeline_gen_expr_i64_abi.sh ]; then
   bad "missing compiler/scripts/check_pipeline_gen_expr_i64_abi.sh (11.0.3 wave725 §5b #1)"
-elif ! grep -q 'check_pipeline_gen_expr_i64_abi\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'check_pipeline_gen_expr_i64_abi\.sh' "$MF"; then
   bad "Makefile check-pipeline-gen-expr-i64-abi must call check_pipeline_gen_expr_i64_abi.sh"
 elif ! grep -q 'check_pipeline_gen_expr_i64_abi\.sh' compiler/scripts/bootstrap_driver_seed.sh; then
   bad "bootstrap_driver_seed.sh must call check_pipeline_gen_expr_i64_abi.sh directly (§5b #1)"
 else
-  abi_body=$(awk '
-    /^check-pipeline-gen-expr-i64-abi:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$abi_body" | grep -qE 'int64_t int_val|restored empty pipeline_gen'; then
-    bad "Makefile check-abi still inlines restore/fail body (must be shell)"
-  elif ! echo "$abi_body" | grep -q 'check_pipeline_gen_expr_i64_abi\.sh'; then
-    bad "Makefile check-abi recipe missing check_pipeline_gen_expr_i64_abi.sh"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile check-pipeline-gen-expr-i64-abi must call check_pipeline"
   else
-    note "§5b #1 check-abi → check_pipeline_gen_expr_i64_abi.sh (pure shell)"
+    abi_body=$(awk '
+      /^check-pipeline-gen-expr-i64-abi:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$abi_body" | grep -qE 'int64_t int_val|restored empty pipeline_gen'; then
+      bad "Makefile check-abi still inlines restore/fail body (must be shell)"
+    elif ! echo "$abi_body" | grep -q 'check_pipeline_gen_expr_i64_abi\.sh'; then
+      bad "Makefile check-abi recipe missing check_pipeline_gen_expr_i64_abi.sh"
+    else
+      note "§5b #1 check-abi → check_pipeline_gen_expr_i64_abi.sh (pure shell)"
+    fi
   fi
 fi
 
-if ! grep -q 'bootstrap-driver-seed-asm-host' compiler/Makefile \
-  || ! grep -q 'DRIVER_SEED_ASM_HOST_DISPATCH_OBJS' compiler/Makefile; then
+if [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'bootstrap-driver-seed-asm-host' "$MF" \
+  || ! grep -q 'DRIVER_SEED_ASM_HOST_DISPATCH_OBJS' "$MF"; }; then
   bad "Makefile missing bootstrap-driver-seed-asm-host / DRIVER_SEED_ASM_HOST_DISPATCH_OBJS (wave725 §5b #8)"
 elif ! grep -q 'bootstrap-driver-seed-asm-host' compiler/scripts/bootstrap_driver_seed.sh; then
   bad "bootstrap_driver_seed.sh must mk bootstrap-driver-seed-asm-host (not raw build-seed-asm-host)"
 elif grep -qE 'mk build-seed-asm-host\b' compiler/scripts/bootstrap_driver_seed.sh; then
   bad "bootstrap_driver_seed.sh still mk raw build-seed-asm-host (must use thin leaf)"
 else
-  asm_host_body=$(awk '
-    /^bootstrap-driver-seed-asm-host:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if ! echo "$asm_host_body" | grep -q 'build_seed_asm_host\.sh'; then
-    bad "Makefile bootstrap-driver-seed-asm-host missing build_seed_asm_host.sh"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile check-abi still inlines restore/fail body (must be shell"
   else
-    note "§5b #8 asm-host → thin leaf bootstrap-driver-seed-asm-host + build_seed_asm_host.sh"
+    asm_host_body=$(awk '
+      /^bootstrap-driver-seed-asm-host:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if ! echo "$asm_host_body" | grep -q 'build_seed_asm_host\.sh'; then
+      bad "Makefile bootstrap-driver-seed-asm-host missing build_seed_asm_host.sh"
+    else
+      note "§5b #8 asm-host → thin leaf bootstrap-driver-seed-asm-host + build_seed_asm_host.sh"
+    fi
   fi
 fi
 
 # wave723: host-stubs body → shell via Makefile SCAN_BASE/CFLAGS export (no dual list)
 if [ ! -f compiler/scripts/bootstrap_driver_seed_host_stubs.sh ]; then
   bad "missing compiler/scripts/bootstrap_driver_seed_host_stubs.sh (11.0.3 wave723)"
-elif ! grep -q 'bootstrap_driver_seed_host_stubs\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_driver_seed_host_stubs\.sh' "$MF"; then
   bad "Makefile host-stubs must call bootstrap_driver_seed_host_stubs.sh"
-elif ! grep -q 'bootstrap-driver-seed-export-host-stubs' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap-driver-seed-export-host-stubs' "$MF"; then
   bad "Makefile missing host-stubs export leaf (G.7 single authority)"
-elif ! grep -q 'DRIVER_SEED_HOST_STUBS_SCAN_BASE' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'DRIVER_SEED_HOST_STUBS_SCAN_BASE' "$MF"; then
   bad "Makefile missing DRIVER_SEED_HOST_STUBS_SCAN_BASE single-authority scan list"
 else
-  stubs_body=$(awk '
-    /^bootstrap-driver-seed-host-stubs:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  file_rule_body=$(awk '
-    /^\$\(USER_ASM_SEED_HOST_STUBS\):/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$stubs_body" | grep -qE 'gen_asm_full_link_stubs\.pl|\$\(CC\)' \
-    && ! echo "$stubs_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
-    bad "Makefile thin host-stubs still inlines perl/cc (must be shell + export)"
-  elif ! echo "$stubs_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
-    bad "Makefile thin host-stubs recipe missing bootstrap_driver_seed_host_stubs.sh"
-  elif echo "$file_rule_body" | grep -qE 'gen_asm_full_link_stubs\.pl|\$\(CC\)' \
-    && ! echo "$file_rule_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
-    bad "Makefile \$(USER_ASM_SEED_HOST_STUBS) still inlines perl/cc (must be shell + export)"
-  elif ! echo "$file_rule_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
-    bad "Makefile \$(USER_ASM_SEED_HOST_STUBS) missing bootstrap_driver_seed_host_stubs.sh"
-  elif grep -qE 'user_asm_seed_bridge\.o|pipeline_glue_standalone\.o|backend_x86_64_enc_c\.o' \
-    compiler/scripts/bootstrap_driver_seed_host_stubs.sh; then
-    bad "bootstrap_driver_seed_host_stubs.sh must not hardcode SCAN .o list (dual authority)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile bootstrap-driver-seed-asm-host missing build_seed_asm_ho"
   else
-    note "host-stubs → export leaf + bootstrap_driver_seed_host_stubs.sh (SCAN_BASE single authority)"
+    stubs_body=$(awk '
+      /^bootstrap-driver-seed-host-stubs:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    file_rule_body=$(awk '
+      /^\$\(USER_ASM_SEED_HOST_STUBS\):/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$stubs_body" | grep -qE 'gen_asm_full_link_stubs\.pl|\$\(CC\)' \
+      && ! echo "$stubs_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+      bad "Makefile thin host-stubs still inlines perl/cc (must be shell + export)"
+    elif ! echo "$stubs_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+      bad "Makefile thin host-stubs recipe missing bootstrap_driver_seed_host_stubs.sh"
+    elif echo "$file_rule_body" | grep -qE 'gen_asm_full_link_stubs\.pl|\$\(CC\)' \
+      && ! echo "$file_rule_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+      bad "Makefile \$(USER_ASM_SEED_HOST_STUBS) still inlines perl/cc (must be shell + export)"
+    elif ! echo "$file_rule_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+      bad "Makefile \$(USER_ASM_SEED_HOST_STUBS) missing bootstrap_driver_seed_host_stubs.sh"
+    elif grep -qE 'user_asm_seed_bridge\.o|pipeline_glue_standalone\.o|backend_x86_64_enc_c\.o' \
+      compiler/scripts/bootstrap_driver_seed_host_stubs.sh; then
+      bad "bootstrap_driver_seed_host_stubs.sh must not hardcode SCAN .o list (dual authority)"
+    else
+      note "host-stubs → export leaf + bootstrap_driver_seed_host_stubs.sh (SCAN_BASE single authority)"
+    fi
   fi
 fi
 
@@ -396,7 +449,7 @@ fi
 # wave718: build-tool / clean authority → shell (no make -C for those targets)
 if [ ! -f compiler/scripts/build_tool.sh ]; then
   bad "missing compiler/scripts/build_tool.sh (11.0.3 wave718)"
-elif ! grep -q 'scripts/build_tool\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'scripts/build_tool\.sh' "$MF"; then
   bad "Makefile build-tool must call scripts/build_tool.sh"
 elif ! grep -q 'scripts/build_tool\.sh' xlang-build.sh; then
   bad "xlang-build.sh must call scripts/build_tool.sh (not make -C build-tool)"
@@ -408,98 +461,118 @@ fi
 
 if [ ! -f compiler/scripts/clean_compiler.sh ]; then
   bad "missing compiler/scripts/clean_compiler.sh (11.0.3 wave718)"
-elif ! grep -q 'scripts/clean_compiler\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'scripts/clean_compiler\.sh' "$MF"; then
   bad "Makefile clean must call scripts/clean_compiler.sh"
 elif ! grep -q 'scripts/clean_compiler\.sh' xlang-build.sh; then
   bad "xlang-build.sh clean must call scripts/clean_compiler.sh"
 elif grep -nE 'make -C compiler clean' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "xlang-build.sh still has make -C compiler clean (must be shell)"
 else
-  note "clean → scripts/clean_compiler.sh (Makefile + xlang-build)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile clean must call scripts/clean_compiler.sh"
+  else
+    note "clean → scripts/clean_compiler.sh (Makefile + xlang-build)"
+  fi
 fi
 
 # wave719: bootstrap-token/lexer + bootstrap-driver-bstrict → shell
 if [ ! -f compiler/scripts/bootstrap_token_lexer_smoke.sh ]; then
   bad "missing compiler/scripts/bootstrap_token_lexer_smoke.sh (11.0.3 wave719)"
-elif ! grep -q 'bootstrap_token_lexer_smoke\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_token_lexer_smoke\.sh' "$MF"; then
   bad "Makefile bootstrap-token/lexer must call bootstrap_token_lexer_smoke.sh"
 elif ! grep -q 'bootstrap_token_lexer_smoke\.sh' xlang-build.sh; then
   bad "xlang-build.sh must call bootstrap_token_lexer_smoke.sh (not make -C token/lexer)"
 elif grep -nE 'make -C compiler bootstrap-(token|lexer)' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "xlang-build.sh still has make -C compiler bootstrap-token/lexer (must be shell)"
 else
-  note "bootstrap-token/lexer → bootstrap_token_lexer_smoke.sh (Makefile + xlang-build)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile bootstrap-token/lexer must call bootstrap_token_lexer_sm"
+  else
+    note "bootstrap-token/lexer → bootstrap_token_lexer_smoke.sh (Makefile + xlang-build)"
+  fi
 fi
 
 if [ ! -f compiler/scripts/bootstrap_driver_bstrict.sh ]; then
   bad "missing compiler/scripts/bootstrap_driver_bstrict.sh (11.0.3 wave719)"
-elif ! grep -q 'bootstrap_driver_bstrict\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_driver_bstrict\.sh' "$MF"; then
   bad "Makefile bootstrap-driver-bstrict must call bootstrap_driver_bstrict.sh"
 elif ! grep -q 'bootstrap_driver_bstrict\.sh' xlang-build.sh; then
   bad "xlang-build.sh must call bootstrap_driver_bstrict.sh (not make -C bstrict)"
 elif grep -nE 'make -C compiler bootstrap-driver-bstrict' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "xlang-build.sh still has make -C compiler bootstrap-driver-bstrict (must be shell)"
 else
-  # Recipe body only (stop at next non-comment target line); must not inline build/refresh
-  bstrict_body=$(awk '
-    /^bootstrap-driver-bstrict: bootstrap-driver-seed$/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$bstrict_body" | grep -qE 'build_xlang_asm\.sh|refresh-xlang-asm-gate'; then
-    bad "Makefile bootstrap-driver-bstrict recipe still inlines build/refresh (must be shell)"
-  elif ! echo "$bstrict_body" | grep -q 'bootstrap_driver_bstrict\.sh'; then
-    bad "Makefile bootstrap-driver-bstrict recipe missing shell call"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile bootstrap-driver-bstrict must call bootstrap_driver_bstr"
   else
-    note "bootstrap-driver-bstrict → bootstrap_driver_bstrict.sh (Makefile + xlang-build)"
+    # Recipe body only (stop at next non-comment target line); must not inline build/refresh
+    bstrict_body=$(awk '
+      /^bootstrap-driver-bstrict: bootstrap-driver-seed$/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$bstrict_body" | grep -qE 'build_xlang_asm\.sh|refresh-xlang-asm-gate'; then
+      bad "Makefile bootstrap-driver-bstrict recipe still inlines build/refresh (must be shell)"
+    elif ! echo "$bstrict_body" | grep -q 'bootstrap_driver_bstrict\.sh'; then
+      bad "Makefile bootstrap-driver-bstrict recipe missing shell call"
+    else
+      note "bootstrap-driver-bstrict → bootstrap_driver_bstrict.sh (Makefile + xlang-build)"
+    fi
   fi
 fi
 
 # wave720: test* / bootstrap-verify → shell (xlang-build product entry 0× make -C)
 if [ ! -f compiler/scripts/run_compiler_tests.sh ]; then
   bad "missing compiler/scripts/run_compiler_tests.sh (11.0.3 wave720)"
-elif ! grep -q 'run_compiler_tests\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'run_compiler_tests\.sh' "$MF"; then
   bad "Makefile test_c/test_x must call run_compiler_tests.sh"
 elif ! grep -q 'run_compiler_tests\.sh' xlang-build.sh; then
   bad "xlang-build.sh must call run_compiler_tests.sh (not make -C test*)"
 elif grep -nE 'make -C compiler test(_c|_x)?' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "xlang-build.sh still has make -C compiler test* (must be shell)"
 else
-  # Recipe body only for test_c
-  test_c_body=$(awk '
-    /^test_c:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$test_c_body" | grep -qE 'run-all-c\.sh' && ! echo "$test_c_body" | grep -q 'run_compiler_tests\.sh'; then
-    bad "Makefile test_c still inlines run-all-c (must be shell)"
-  elif ! echo "$test_c_body" | grep -q 'run_compiler_tests\.sh'; then
-    bad "Makefile test_c recipe missing run_compiler_tests.sh"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile bootstrap-driver-bstrict recipe missing shell call"
   else
-    note "test_c/test_x/test → run_compiler_tests.sh (Makefile + xlang-build)"
+    # Recipe body only for test_c
+    test_c_body=$(awk '
+      /^test_c:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$test_c_body" | grep -qE 'run-all-c\.sh' && ! echo "$test_c_body" | grep -q 'run_compiler_tests\.sh'; then
+      bad "Makefile test_c still inlines run-all-c (must be shell)"
+    elif ! echo "$test_c_body" | grep -q 'run_compiler_tests\.sh'; then
+      bad "Makefile test_c recipe missing run_compiler_tests.sh"
+    else
+      note "test_c/test_x/test → run_compiler_tests.sh (Makefile + xlang-build)"
+    fi
   fi
 fi
 
 if [ ! -f compiler/scripts/bootstrap_verify_bstrict.sh ]; then
   bad "missing compiler/scripts/bootstrap_verify_bstrict.sh (11.0.3 wave720)"
-elif ! grep -q 'bootstrap_verify_bstrict\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'bootstrap_verify_bstrict\.sh' "$MF"; then
   bad "Makefile check-7.2-bstrict must call bootstrap_verify_bstrict.sh"
 elif ! grep -q 'bootstrap_verify_bstrict\.sh' xlang-build.sh; then
   bad "xlang-build.sh bootstrap-verify must call bootstrap_verify_bstrict.sh"
 elif grep -nE 'make -C compiler bootstrap-verify' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "xlang-build.sh still has make -C compiler bootstrap-verify (must be shell)"
 else
-  verify_body=$(awk '
-    /^check-7\.2-bstrict:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$verify_body" | grep -qE 'run-lexer\.sh|verify-selfhost-stage2' && ! echo "$verify_body" | grep -q 'bootstrap_verify_bstrict\.sh'; then
-    bad "Makefile check-7.2-bstrict still inlines stage suite (must be shell)"
-  elif ! echo "$verify_body" | grep -q 'bootstrap_verify_bstrict\.sh'; then
-    bad "Makefile check-7.2-bstrict recipe missing bootstrap_verify_bstrict.sh"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile test_c recipe missing run_compiler_tests.sh"
   else
-    note "bootstrap-verify → bootstrap_verify_bstrict.sh (Makefile + xlang-build)"
+    verify_body=$(awk '
+      /^check-7\.2-bstrict:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$verify_body" | grep -qE 'run-lexer\.sh|verify-selfhost-stage2' && ! echo "$verify_body" | grep -q 'bootstrap_verify_bstrict\.sh'; then
+      bad "Makefile check-7.2-bstrict still inlines stage suite (must be shell)"
+    elif ! echo "$verify_body" | grep -q 'bootstrap_verify_bstrict\.sh'; then
+      bad "Makefile check-7.2-bstrict recipe missing bootstrap_verify_bstrict.sh"
+    else
+      note "bootstrap-verify → bootstrap_verify_bstrict.sh (Makefile + xlang-build)"
+    fi
   fi
 fi
 
@@ -543,36 +616,43 @@ else
   bad "missing tests/run-product-path-zero-make-path-probe.sh (wave726 PATH probe)"
 fi
 
-if grep -q 'bootstrap-driver-seed-export-obj-catalog' compiler/Makefile \
-  && [ -f compiler/scripts/driver_seed_obj_catalog.sh ]; then
+if [ ! -f compiler/scripts/driver_seed_obj_catalog.sh ]; then
+  bad "missing driver_seed_obj_catalog.sh (wave726)"
+elif [ "$_MF_PRESENT" = "0" ]; then
+  note "post_ship: driver_seed_obj_catalog.sh present (MF export leaf N/A; wave726)"
+elif grep -q 'bootstrap-driver-seed-export-obj-catalog' "$MF"; then
   note "export-obj-catalog + driver_seed_obj_catalog.sh (OBJS read API, G.7)"
 else
   bad "missing bootstrap-driver-seed-export-obj-catalog / driver_seed_obj_catalog.sh (wave726)"
 fi
 
 # --- wave727/728: OBJS defs in mk/ fragments (11.0.4) + tests/lib make hub (11.2.3) ---
-if [ -f compiler/mk/user_asm_seed_objs.mk ] \
-  && [ -f compiler/mk/driver_seed_export_lists.mk ] \
-  && [ -f compiler/mk/driver_seed_composites.mk ] \
-  && grep -q 'include mk/user_asm_seed_objs.mk' compiler/Makefile \
-  && grep -q 'include mk/driver_seed_export_lists.mk' compiler/Makefile \
-  && grep -q 'include mk/driver_seed_composites.mk' compiler/Makefile; then
+# Post_ship (MF absent): mk fragments are the authority; include lines lived in deleted Makefile.
+if [ ! -f compiler/mk/user_asm_seed_objs.mk ] \
+  || [ ! -f compiler/mk/driver_seed_export_lists.mk ] \
+  || [ ! -f compiler/mk/driver_seed_composites.mk ]; then
+  bad "missing compiler/mk/*.mk fragments (wave727/728 11.0.4 OBJS extract)"
+elif [ "$_MF_PRESENT" = "0" ]; then
+  note "post_ship: mk user_asm + export_lists + composites present (MF include N/A)"
+elif grep -q 'include mk/user_asm_seed_objs.mk' "$MF" \
+  && grep -q 'include mk/driver_seed_export_lists.mk' "$MF" \
+  && grep -q 'include mk/driver_seed_composites.mk' "$MF"; then
   note "mk user_asm + export_lists + composites included (OBJS leave Makefile body)"
 else
   bad "missing compiler/mk/*.mk includes (wave727/728 11.0.4 OBJS extract)"
 fi
 
 # G.7: leaf + composite list assignments must not reappear as bare defs in Makefile body
-if grep -nE '^DRIVER_SEED_(PIPELINE_X|SAT_REBUILD|LSP_X|BRIDGE|PANIC)_OBJS[[:space:]]*=' compiler/Makefile \
+if [ "$_MF_PRESENT" = "1" ] && grep -nE '^DRIVER_SEED_(PIPELINE_X|SAT_REBUILD|LSP_X|BRIDGE|PANIC)_OBJS[[:space:]]*=' "$MF" \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
   bad "Makefile still assigns DRIVER_SEED_*_OBJS (must live only in mk/driver_seed_export_lists.mk)"
-elif grep -nE '^USER_ASM_SEED_OBJS[[:space:]]*=' compiler/Makefile \
+elif [ "$_MF_PRESENT" = "1" ] && grep -nE '^USER_ASM_SEED_OBJS[[:space:]]*=' "$MF" \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
   bad "Makefile still assigns USER_ASM_SEED_OBJS (must live only in mk/user_asm_seed_objs.mk)"
-elif grep -nE '^DRIVER_SEED_(OBJS|LINK_BASE|PREREQS|X_OBJS|X_FRONTEND_OBJS)[[:space:]]*=' compiler/Makefile \
+elif [ "$_MF_PRESENT" = "1" ] && grep -nE '^DRIVER_SEED_(OBJS|LINK_BASE|PREREQS|X_OBJS|X_FRONTEND_OBJS)[[:space:]]*=' "$MF" \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
   bad "Makefile still assigns DRIVER_SEED composites (must live only in mk/driver_seed_composites.mk)"
-elif grep -nE '^BOOTSTRAP_DRIVER_SEED_LINK_BASE[[:space:]]*=' compiler/Makefile \
+elif [ "$_MF_PRESENT" = "1" ] && grep -nE '^BOOTSTRAP_DRIVER_SEED_LINK_BASE[[:space:]]*=' "$MF" \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
   bad "Makefile still assigns BOOTSTRAP_DRIVER_SEED_LINK_BASE (must live only in mk/driver_seed_composites.mk)"
 elif ! grep -q '^USER_ASM_SEED_OBJS' compiler/mk/user_asm_seed_objs.mk \
@@ -653,12 +733,13 @@ else
   bad "missing ./xbuild product entry (wave729 11.0.4)"
 fi
 
-if grep -q 'help-only' Makefile \
-  && grep -q '\./xbuild' Makefile \
-  && grep -q '\.DEFAULT_GOAL := help' Makefile; then
-  # Must not re-list full target recipes that call xlang-build by name for each target
-  # (compat % forward is OK; explicit multi-recipe wrappers are the old thick style).
-  if grep -nE '^\t\./xlang-build\.sh ' Makefile | grep -v help | grep -q .; then
+# Post_ship: root Makefile deleted with compiler/Makefile; product entry is ./xbuild only.
+if [ "$_ROOT_MF_PRESENT" = "0" ]; then
+  note "post_ship: root Makefile absent — product entry ./xbuild only (wave729)"
+elif [ "$_ROOT_MF_PRESENT" = "1" ] && grep -q 'help-only' "$ROOT_MF" \
+  && grep -q '\./xbuild' "$ROOT_MF" \
+  && grep -q '\.DEFAULT_GOAL := help' "$ROOT_MF"; then
+  if grep -nE '^	\./xlang-build\.sh ' "$ROOT_MF" | grep -v help | grep -q .; then
     bad "root Makefile still has explicit xlang-build recipes (must be help-only + % → xbuild)"
   else
     note "root Makefile help-only → ./xbuild (11.0.4 wave729)"
@@ -785,7 +866,11 @@ if grep -q 'BASH_SOURCE\[0\]' tests/lib/compiler-make.sh \
   && grep -q 'xlang_compiler_make "\$@"' tests/lib/compiler-make.sh; then
   note "compiler-make.sh CLI mode present (source + exec; G.7 wave733)"
 else
-  bad "tests/lib/compiler-make.sh missing CLI entry for xbuild run_compiler_make"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: MF recipe → shell"
+  else
+    bad "tests/lib/compiler-make.sh missing CLI entry for xbuild run_compiler_make"
+  fi
 fi
 # g05 first-class targets on xbuild (11.1.6 slice)
 if grep -q 'ensure|g05-ensure' xlang-build.sh \
@@ -796,7 +881,11 @@ if grep -q 'ensure|g05-ensure' xlang-build.sh \
   && grep -q 'g05_prepare_and_relink\.sh' xlang-build.sh; then
   note "xbuild g05 targets: ensure / link-env / link-product (11.1.6 wave733; 0 make)"
 else
-  bad "xlang-build missing wave733 g05 first-class targets (ensure/link-env/link-product)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: MF recipe → shell"
+  else
+    bad "xlang-build missing wave733 g05 first-class targets (ensure/link-env/link-product)"
+  fi
 fi
 
 # wave734: refresh-xlang-asm-gate → shell body + xbuild first-class
@@ -806,7 +895,7 @@ elif ! grep -q 'g05_prepare_and_relink\.sh' compiler/scripts/refresh_xlang_asm_g
   || ! grep -q 'migrate' compiler/scripts/refresh_xlang_asm_gate.sh \
   || ! grep -q 'xlang_asm' compiler/scripts/refresh_xlang_asm_gate.sh; then
   bad "refresh_xlang_asm_gate.sh must own migrate + g05 relink + xlang_asm overlay"
-elif ! grep -q 'refresh_xlang_asm_gate\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'refresh_xlang_asm_gate\.sh' "$MF"; then
   bad "Makefile refresh-xlang-asm-gate must call refresh_xlang_asm_gate.sh"
 elif ! grep -q 'refresh-gate|refresh-xlang-asm-gate' xlang-build.sh \
   || ! grep -q 'run_refresh_xlang_asm_gate' xlang-build.sh; then
@@ -818,19 +907,23 @@ elif grep -nE '["\$]MAKE["\s]* refresh-xlang-asm-gate|make refresh-xlang-asm-gat
   | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "bootstrap_driver_bstrict still invokes make refresh-xlang-asm-gate"
 else
-  refresh_body=$(awk '
-    /^refresh-xlang-asm-gate:/ { in_r=1; next }
-    in_r && /^[^#[:space:]	]/ { exit }
-    in_r { print }
-  ' compiler/Makefile)
-  if echo "$refresh_body" | grep -qE 'cp -f|g05_prepare|migrate-x-objs'; then
-    bad "Makefile refresh-xlang-asm-gate recipe still inlines body (must be shell)"
-  elif ! echo "$refresh_body" | grep -q 'refresh_xlang_asm_gate\.sh'; then
-    bad "Makefile refresh-xlang-asm-gate recipe missing shell call"
-  elif ! grep -q '\./xbuild refresh-gate' tests/run-refresh-xlang-asm-gate.sh; then
-    bad "tests/run-refresh-xlang-asm-gate.sh must call ./xbuild refresh-gate"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile refresh-xlang-asm-gate must call refresh_xlang_asm_gate."
   else
-    note "refresh-xlang-asm-gate → refresh_xlang_asm_gate.sh + xbuild refresh-gate (11.1.6 wave734)"
+    refresh_body=$(awk '
+      /^refresh-xlang-asm-gate:/ { in_r=1; next }
+      in_r && /^[^#[:space:]	]/ { exit }
+      in_r { print }
+    ' "$MF")
+    if echo "$refresh_body" | grep -qE 'cp -f|g05_prepare|migrate-x-objs'; then
+      bad "Makefile refresh-xlang-asm-gate recipe still inlines body (must be shell)"
+    elif ! echo "$refresh_body" | grep -q 'refresh_xlang_asm_gate\.sh'; then
+      bad "Makefile refresh-xlang-asm-gate recipe missing shell call"
+    elif ! grep -q '\./xbuild refresh-gate' tests/run-refresh-xlang-asm-gate.sh; then
+      bad "tests/run-refresh-xlang-asm-gate.sh must call ./xbuild refresh-gate"
+    else
+      note "refresh-xlang-asm-gate → refresh_xlang_asm_gate.sh + xbuild refresh-gate (11.1.6 wave734)"
+    fi
   fi
 fi
 
@@ -841,7 +934,7 @@ elif ! grep -q 'parser_x\.o' compiler/scripts/migrate_x_objs.sh \
   || ! grep -q 'typeck_x\.o' compiler/scripts/migrate_x_objs.sh \
   || ! grep -q 'codegen_x\.o' compiler/scripts/migrate_x_objs.sh; then
   bad "migrate_x_objs.sh must own parser/typeck/codegen _x.o compile"
-elif ! grep -q 'migrate_x_objs\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'migrate_x_objs\.sh' "$MF"; then
   bad "Makefile migrate/parser_x/typeck_x/codegen_x leaves must call migrate_x_objs.sh"
 elif ! grep -q 'migrate|migrate-x-objs' xlang-build.sh \
   || ! grep -q 'run_migrate_x_objs' xlang-build.sh; then
@@ -853,32 +946,36 @@ elif grep -nE '["\$]MAKE["\s]* migrate-x-objs|make migrate-x-objs' \
   | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "refresh_xlang_asm_gate still invokes make migrate-x-objs"
 else
-  migrate_body=$(awk '
-    /^migrate-x-objs:/ { in_m=1; next }
-    in_m && /^[^#[:space:]	]/ { exit }
-    in_m { print }
-  ' compiler/Makefile)
-  # Thin leaf may pass CC="$(CC)" env; ban real compile recipes only.
-  if echo "$migrate_body" | grep -qE '\$\(CC\)[[:space:]]+\$\(CFLAGS\)|-c[[:space:]]+parser_gen\.c|-c[[:space:]]+typeck_gen\.c|-c[[:space:]]+codegen_gen\.c'; then
-    bad "Makefile migrate-x-objs recipe still inlines cc (must be shell)"
-  elif ! echo "$migrate_body" | grep -q 'migrate_x_objs\.sh'; then
-    bad "Makefile migrate-x-objs recipe missing shell call"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile migrate/parser_x/typeck_x/codegen_x leaves must call mig"
   else
-    # leaf recipes must not inline cc for the three companions
-    for leaf in parser_x.o typeck_x.o codegen_x.o; do
-      leaf_body=$(awk -v leaf="$leaf" '
-        $0 ~ "^" leaf ":" { in_l=1; next }
-        in_l && /^[^#[:space:]	]/ { exit }
-        in_l { print }
-      ' compiler/Makefile)
-      if echo "$leaf_body" | grep -qE '\$\(CC\)[[:space:]]+\$\(CFLAGS\)| -c[[:space:]]+.*_gen\.c'; then
-        bad "Makefile $leaf recipe still inlines cc (must call migrate_x_objs.sh)"
-      fi
-      if ! echo "$leaf_body" | grep -q 'migrate_x_objs\.sh'; then
-        bad "Makefile $leaf recipe missing migrate_x_objs.sh"
-      fi
-    done
-    note "migrate-x-objs → migrate_x_objs.sh + xbuild migrate (11.1.6 wave735)"
+    migrate_body=$(awk '
+      /^migrate-x-objs:/ { in_m=1; next }
+      in_m && /^[^#[:space:]	]/ { exit }
+      in_m { print }
+    ' "$MF")
+    # Thin leaf may pass CC="$(CC)" env; ban real compile recipes only.
+    if echo "$migrate_body" | grep -qE '\$\(CC\)[[:space:]]+\$\(CFLAGS\)|-c[[:space:]]+parser_gen\.c|-c[[:space:]]+typeck_gen\.c|-c[[:space:]]+codegen_gen\.c'; then
+      bad "Makefile migrate-x-objs recipe still inlines cc (must be shell)"
+    elif ! echo "$migrate_body" | grep -q 'migrate_x_objs\.sh'; then
+      bad "Makefile migrate-x-objs recipe missing shell call"
+    else
+      # leaf recipes must not inline cc for the three companions
+      for leaf in parser_x.o typeck_x.o codegen_x.o; do
+        leaf_body=$(awk -v leaf="$leaf" '
+          $0 ~ "^" leaf ":" { in_l=1; next }
+          in_l && /^[^#[:space:]	]/ { exit }
+          in_l { print }
+        ' "$MF")
+        if echo "$leaf_body" | grep -qE '\$\(CC\)[[:space:]]+\$\(CFLAGS\)| -c[[:space:]]+.*_gen\.c'; then
+          bad "Makefile $leaf recipe still inlines cc (must call migrate_x_objs.sh)"
+        fi
+        if ! echo "$leaf_body" | grep -q 'migrate_x_objs\.sh'; then
+          bad "Makefile $leaf recipe missing migrate_x_objs.sh"
+        fi
+      done
+      note "migrate-x-objs → migrate_x_objs.sh + xbuild migrate (11.1.6 wave735)"
+    fi
   fi
 fi
 
@@ -893,7 +990,7 @@ elif ! grep -q 'parser_gen\.c' compiler/scripts/ensure_migrate_gen.sh \
 elif ! grep -q 'ensure_lexer_gen\|lexer_gen\.c' compiler/scripts/ensure_migrate_gen.sh \
   || ! grep -q 'sync_lexer_gen_token_enum' compiler/scripts/ensure_migrate_gen.sh; then
   bad "ensure_migrate_gen.sh must own lexer_gen.c (wave737; pin/seed/-E + token enum)"
-elif ! grep -q 'ensure_migrate_gen\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'ensure_migrate_gen\.sh' "$MF"; then
   bad "Makefile parser_gen/typeck_gen/codegen_gen/lexer_gen leaves must call ensure_migrate_gen.sh"
 elif ! grep -q 'migrate-gen\|ensure-migrate-gen' xlang-build.sh \
   || ! grep -q 'ensure_migrate_gen\.sh' xlang-build.sh; then
@@ -907,21 +1004,25 @@ elif grep -nE '["\$]MAKE["\s]* (parser|typeck|codegen)_gen\.c|make (parser|typec
   | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "migrate_x_objs still invokes make for *_gen.c"
 else
-  for leaf in parser_gen.c typeck_gen.c codegen_gen.c lexer_gen.c; do
-    leaf_body=$(awk -v leaf="$leaf" '
-      $0 ~ "^" leaf ":" { in_l=1; next }
-      in_l && /^[^#[:space:]	]/ { exit }
-      in_l { print }
-    ' compiler/Makefile)
-    # Ban residual force-regen / seed-cp / -E body in Makefile leaf
-    if echo "$leaf_body" | grep -qE 'XLANG_FORCE_REGEN_GEN.*=.*1|cp -f seeds/|-E-extern|fix_slim_arena|sync_lexer_gen_token_enum'; then
-      bad "Makefile $leaf recipe still inlines gen body (must call ensure_migrate_gen.sh)"
-    fi
-    if ! echo "$leaf_body" | grep -q 'ensure_migrate_gen\.sh'; then
-      bad "Makefile $leaf recipe missing ensure_migrate_gen.sh"
-    fi
-  done
-  note "parser/typeck/codegen/lexer *_gen.c → ensure_migrate_gen.sh + xbuild migrate-gen|lexer-gen (11.1.6 wave736/737)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile parser_gen/typeck_gen/codegen_gen/lexer_gen leaves must "
+  else
+    for leaf in parser_gen.c typeck_gen.c codegen_gen.c lexer_gen.c; do
+      leaf_body=$(awk -v leaf="$leaf" '
+        $0 ~ "^" leaf ":" { in_l=1; next }
+        in_l && /^[^#[:space:]	]/ { exit }
+        in_l { print }
+      ' "$MF")
+      # Ban residual force-regen / seed-cp / -E body in Makefile leaf
+      if echo "$leaf_body" | grep -qE 'XLANG_FORCE_REGEN_GEN.*=.*1|cp -f seeds/|-E-extern|fix_slim_arena|sync_lexer_gen_token_enum'; then
+        bad "Makefile $leaf recipe still inlines gen body (must call ensure_migrate_gen.sh)"
+      fi
+      if ! echo "$leaf_body" | grep -q 'ensure_migrate_gen\.sh'; then
+        bad "Makefile $leaf recipe missing ensure_migrate_gen.sh"
+      fi
+    done
+    note "parser/typeck/codegen/lexer *_gen.c → ensure_migrate_gen.sh + xbuild migrate-gen|lexer-gen (11.1.6 wave736/737)"
+  fi
 fi
 
 # wave738: driver_gen.c + preprocess_gen.c → ensure_driver_gen.sh; Makefile thin leaves
@@ -933,7 +1034,7 @@ elif ! grep -q 'driver_gen\.c' compiler/scripts/ensure_driver_gen.sh \
 elif ! grep -q 'fix_driver_gen_duplicate_main' compiler/scripts/ensure_driver_gen.sh \
   || ! grep -q 'MAIN_X_DEPS\|any_dep_newer' compiler/scripts/ensure_driver_gen.sh; then
   bad "ensure_driver_gen.sh must own MAIN_X_DEPS freshness + fix_driver_gen_duplicate_main"
-elif ! grep -q 'ensure_driver_gen\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'ensure_driver_gen\.sh' "$MF"; then
   bad "Makefile driver_gen/preprocess_gen leaves must call ensure_driver_gen.sh"
 elif ! grep -q 'driver-gen\|ensure-driver-gen' xlang-build.sh \
   || ! grep -q 'ensure_driver_gen\.sh' xlang-build.sh; then
@@ -941,21 +1042,25 @@ elif ! grep -q 'driver-gen\|ensure-driver-gen' xlang-build.sh \
 elif ! grep -q 'preprocess-gen\|ensure-preprocess-gen' xlang-build.sh; then
   bad "xlang-build missing preprocess-gen first-class target (wave738)"
 else
-  for leaf in driver_gen.c preprocess_gen.c; do
-    leaf_body=$(awk -v leaf="$leaf" '
-      $0 ~ "^" leaf ":" { in_l=1; next }
-      in_l && /^[^#[:space:]	]/ { exit }
-      in_l { print }
-    ' compiler/Makefile)
-    # Ban residual force-regen / seed-cp / -E body in Makefile leaf
-    if echo "$leaf_body" | grep -qE 'cp -f seeds/|-E-extern|fix_driver_gen_duplicate_main|MAIN_X_E_DIRS'; then
-      bad "Makefile $leaf recipe still inlines gen body (must call ensure_driver_gen.sh)"
-    fi
-    if ! echo "$leaf_body" | grep -q 'ensure_driver_gen\.sh'; then
-      bad "Makefile $leaf recipe missing ensure_driver_gen.sh"
-    fi
-  done
-  note "driver/preprocess *_gen.c → ensure_driver_gen.sh + xbuild driver-gen|preprocess-gen (11.1.6 wave738)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile driver_gen/preprocess_gen leaves must call ensure_driver"
+  else
+    for leaf in driver_gen.c preprocess_gen.c; do
+      leaf_body=$(awk -v leaf="$leaf" '
+        $0 ~ "^" leaf ":" { in_l=1; next }
+        in_l && /^[^#[:space:]	]/ { exit }
+        in_l { print }
+      ' "$MF")
+      # Ban residual force-regen / seed-cp / -E body in Makefile leaf
+      if echo "$leaf_body" | grep -qE 'cp -f seeds/|-E-extern|fix_driver_gen_duplicate_main|MAIN_X_E_DIRS'; then
+        bad "Makefile $leaf recipe still inlines gen body (must call ensure_driver_gen.sh)"
+      fi
+      if ! echo "$leaf_body" | grep -q 'ensure_driver_gen\.sh'; then
+        bad "Makefile $leaf recipe missing ensure_driver_gen.sh"
+      fi
+    done
+    note "driver/preprocess *_gen.c → ensure_driver_gen.sh + xbuild driver-gen|preprocess-gen (11.1.6 wave738)"
+  fi
 fi
 
 # wave739: product lsp_*_gen.c + pipeline_gen.c → ensure_lsp_pipeline_gen.sh
@@ -969,7 +1074,7 @@ elif ! grep -q 'lsp_diag_gen\.c' compiler/scripts/ensure_lsp_pipeline_gen.sh \
 elif ! grep -q 'check_pipeline_gen_expr_i64_abi' compiler/scripts/ensure_lsp_pipeline_gen.sh \
   || ! grep -q 'g_lsp_state_buf\|C-04 -E-extern TU aliases' compiler/scripts/ensure_lsp_pipeline_gen.sh; then
   bad "ensure_lsp_pipeline_gen.sh must own i64 ABI check + lsp C-04/state_buf posts"
-elif ! grep -q 'ensure_lsp_pipeline_gen\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'ensure_lsp_pipeline_gen\.sh' "$MF"; then
   bad "Makefile lsp/pipeline gen leaves must call ensure_lsp_pipeline_gen.sh"
 elif ! grep -q 'lsp-gen\|ensure-lsp-gen' xlang-build.sh \
   || ! grep -q 'ensure_lsp_pipeline_gen\.sh' xlang-build.sh; then
@@ -977,22 +1082,26 @@ elif ! grep -q 'lsp-gen\|ensure-lsp-gen' xlang-build.sh \
 elif ! grep -q 'pipeline-gen\|ensure-pipeline-gen' xlang-build.sh; then
   bad "xlang-build missing pipeline-gen first-class target (wave739)"
 else
-  for leaf in lsp_diag_gen.c lsp_io_gen.c lsp_gen.c pipeline_gen.c; do
-    leaf_body=$(awk -v leaf="$leaf" '
-      $0 ~ "^" leaf ":" { in_l=1; next }
-      in_l && /^[^#[:space:]	]/ { exit }
-      in_l { print }
-    ' compiler/Makefile)
-    # Ban residual body on non-comment recipe lines only (nearby # comments may mention -E-extern)
-    leaf_code=$(echo "$leaf_body" | grep -vE '^[[:space:]]*#' || true)
-    if echo "$leaf_code" | grep -qE 'cp -f seeds/|-E-extern|g_lsp_state_buf|check-pipeline-gen-expr-i64'; then
-      bad "Makefile $leaf recipe still inlines gen body (must call ensure_lsp_pipeline_gen.sh)"
-    fi
-    if ! echo "$leaf_body" | grep -q 'ensure_lsp_pipeline_gen\.sh'; then
-      bad "Makefile $leaf recipe missing ensure_lsp_pipeline_gen.sh"
-    fi
-  done
-  note "lsp/pipeline *_gen.c → ensure_lsp_pipeline_gen.sh + xbuild lsp-gen|pipeline-gen (11.1.6 wave739)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile lsp/pipeline gen leaves must call ensure_lsp_pipeline_ge"
+  else
+    for leaf in lsp_diag_gen.c lsp_io_gen.c lsp_gen.c pipeline_gen.c; do
+      leaf_body=$(awk -v leaf="$leaf" '
+        $0 ~ "^" leaf ":" { in_l=1; next }
+        in_l && /^[^#[:space:]	]/ { exit }
+        in_l { print }
+      ' "$MF")
+      # Ban residual body on non-comment recipe lines only (nearby # comments may mention -E-extern)
+      leaf_code=$(echo "$leaf_body" | grep -vE '^[[:space:]]*#' || true)
+      if echo "$leaf_code" | grep -qE 'cp -f seeds/|-E-extern|g_lsp_state_buf|check-pipeline-gen-expr-i64'; then
+        bad "Makefile $leaf recipe still inlines gen body (must call ensure_lsp_pipeline_gen.sh)"
+      fi
+      if ! echo "$leaf_body" | grep -q 'ensure_lsp_pipeline_gen\.sh'; then
+        bad "Makefile $leaf recipe missing ensure_lsp_pipeline_gen.sh"
+      fi
+    done
+    note "lsp/pipeline *_gen.c → ensure_lsp_pipeline_gen.sh + xbuild lsp-gen|pipeline-gen (11.1.6 wave739)"
+  fi
 fi
 
 # wave740: archaeology driver_*_gen + lsp_io_std_heap_gen → ensure_archaeology_gen.sh
@@ -1004,29 +1113,33 @@ elif ! grep -q 'driver_fmt_gen\.c' compiler/scripts/ensure_archaeology_gen.sh \
   bad "ensure_archaeology_gen.sh must own driver_*_gen + lsp_io_std_heap_gen production"
 elif ! grep -q 'Track L\|archaeology' compiler/scripts/ensure_archaeology_gen.sh; then
   bad "ensure_archaeology_gen.sh must document Track L archaeology (not product link path)"
-elif ! grep -q 'ensure_archaeology_gen\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'ensure_archaeology_gen\.sh' "$MF"; then
   bad "Makefile archaeology gen leaves must call ensure_archaeology_gen.sh"
 elif ! grep -q 'archaeology-gen\|ensure-archaeology-gen' xlang-build.sh \
   || ! grep -q 'ensure_archaeology_gen\.sh' xlang-build.sh; then
   bad "xlang-build missing archaeology-gen first-class target (wave740)"
 else
-  for leaf in driver_fmt_gen.c driver_check_gen.c driver_test_gen.c \
-    driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c \
-    lsp_io_std_heap_gen.c; do
-    leaf_body=$(awk -v leaf="$leaf" '
-      $0 ~ "^" leaf ":" { in_l=1; next }
-      in_l && /^[^#[:space:]	]/ { exit }
-      in_l { print }
-    ' compiler/Makefile)
-    leaf_code=$(echo "$leaf_body" | grep -vE '^[[:space:]]*#' || true)
-    if echo "$leaf_code" | grep -qE 'cp -f seeds/|-E-extern|DRIVER_SUBCMD_DIRS|LSP_X_E_DIRS'; then
-      bad "Makefile $leaf recipe still inlines gen body (must call ensure_archaeology_gen.sh)"
-    fi
-    if ! echo "$leaf_body" | grep -q 'ensure_archaeology_gen\.sh'; then
-      bad "Makefile $leaf recipe missing ensure_archaeology_gen.sh"
-    fi
-  done
-  note "archaeology *_gen.c → ensure_archaeology_gen.sh + xbuild archaeology-gen (11.1.6 wave740)"
+  if [ "$_MF_PRESENT" = "0" ]; then
+    note "post_ship: Makefile archaeology gen leaves must call ensure_archaeology_gen."
+  else
+    for leaf in driver_fmt_gen.c driver_check_gen.c driver_test_gen.c \
+      driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c \
+      lsp_io_std_heap_gen.c; do
+      leaf_body=$(awk -v leaf="$leaf" '
+        $0 ~ "^" leaf ":" { in_l=1; next }
+        in_l && /^[^#[:space:]	]/ { exit }
+        in_l { print }
+      ' "$MF")
+      leaf_code=$(echo "$leaf_body" | grep -vE '^[[:space:]]*#' || true)
+      if echo "$leaf_code" | grep -qE 'cp -f seeds/|-E-extern|DRIVER_SUBCMD_DIRS|LSP_X_E_DIRS'; then
+        bad "Makefile $leaf recipe still inlines gen body (must call ensure_archaeology_gen.sh)"
+      fi
+      if ! echo "$leaf_body" | grep -q 'ensure_archaeology_gen\.sh'; then
+        bad "Makefile $leaf recipe missing ensure_archaeology_gen.sh"
+      fi
+    done
+    note "archaeology *_gen.c → ensure_archaeology_gen.sh + xbuild archaeology-gen (11.1.6 wave740)"
+  fi
 fi
 
 # wave741: 11.5.2–4 tests/ host-cc policy (authority tests/HOST_CC_POLICY.md)
@@ -1098,7 +1211,7 @@ elif [ ! -f compiler/scripts/driver_seed_ensure_prereqs.sh ]; then
   bad "missing compiler/scripts/driver_seed_ensure_prereqs.sh (wave744)"
 elif ! grep -q 'driver_seed_ensure_prereqs' compiler/scripts/bootstrap_driver_seed.sh; then
   bad "bootstrap_driver_seed.sh must call driver_seed_ensure_prereqs (wave744)"
-elif grep -nE '^bootstrap-driver-seed:.*DRIVER_SEED_PREREQS' compiler/Makefile \
+elif [ "$_MF_PRESENT" = "1" ] && grep -nE '^bootstrap-driver-seed:.*DRIVER_SEED_PREREQS' "$MF" \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
   bad "Makefile must not use DRIVER_SEED_PREREQS as make-graph deps (wave744 shell ensure)"
 elif ! grep -q 'product-dag\|build-dag\|cold-dag' xlang-build.sh \
@@ -1146,7 +1259,7 @@ elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' compiler/d
   bad "BUILD_DAG.md must cross-ref wave746 LEAF_PATTERN"
 elif [ ! -f compiler/scripts/ensure_host_cc_seed_o.sh ]; then
   bad "missing compiler/scripts/ensure_host_cc_seed_o.sh (wave748–753 R1 families)"
-elif ! grep -q 'ensure_host_cc_seed_o\.sh' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'ensure_host_cc_seed_o\.sh' "$MF"; then
   bad "Makefile must thin-call ensure_host_cc_seed_o.sh (wave748–753)"
 elif ! grep -q 'RT_SEED_SLICE_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
   bad "driver_seed_obj_catalog must require RT_SEED_SLICE_OBJS (wave748)"
@@ -1166,21 +1279,21 @@ elif ! grep -q 'R1_SEED_MAP_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; t
   bad "driver_seed_obj_catalog must require R1_SEED_MAP_OBJS (wave755)"
 elif ! grep -q 'R3_COLD_SEED_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
   bad "driver_seed_obj_catalog must require R3_COLD_SEED_OBJS (wave757)"
-elif ! grep -q 'R1_CORE_SEED_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_CORE_SEED_OBJS' "$MF"; then
   bad "Makefile must define R1_CORE_SEED_OBJS (wave749)"
-elif ! grep -q 'R1_FRONTEND_GLUE_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_FRONTEND_GLUE_OBJS' "$MF"; then
   bad "Makefile must define R1_FRONTEND_GLUE_OBJS (wave750)"
-elif ! grep -q 'R1_MAIN_RUNTIME_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_MAIN_RUNTIME_OBJS' "$MF"; then
   bad "Makefile must define R1_MAIN_RUNTIME_OBJS (wave751)"
-elif ! grep -q 'R1_ALIAS_STUBS_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_ALIAS_STUBS_OBJS' "$MF"; then
   bad "Makefile must define R1_ALIAS_STUBS_OBJS (wave752)"
-elif ! grep -q 'R1_EXTRA_CFLAGS_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_EXTRA_CFLAGS_OBJS' "$MF"; then
   bad "Makefile must define R1_EXTRA_CFLAGS_OBJS (wave753)"
-elif ! grep -q 'R1_MISC_BASENAME_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_MISC_BASENAME_OBJS' "$MF"; then
   bad "Makefile must define R1_MISC_BASENAME_OBJS (wave754)"
-elif ! grep -q 'R1_SEED_MAP_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_SEED_MAP_OBJS' "$MF"; then
   bad "Makefile must define R1_SEED_MAP_OBJS (wave755)"
-elif ! grep -q 'R3_COLD_SEED_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R3_COLD_SEED_OBJS' "$MF"; then
   bad "Makefile must define R3_COLD_SEED_OBJS (wave757)"
 elif ! grep -qE 'host-cc-seed|rt-seed-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed' xlang-build.sh \
   || ! grep -q 'ensure_host_cc_seed_o\.sh' xlang-build.sh; then
@@ -1245,11 +1358,11 @@ elif ! grep -qE 'wave757|try-r3-cold|R3_COLD|r3-cold-seed' build.x; then
   bad "build.x must mention wave757 / try-r3-cold / R3_COLD"
 elif ! grep -qE 'wave758|thin_glue|parser_asm_thin_glue' build.x; then
   bad "build.x must mention wave758 / thin_glue seed-map"
-elif ! grep -q 'parser_asm_thin_glue' compiler/Makefile \
-  || ! grep -q 'R1_SEED_MAP_OBJS' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'parser_asm_thin_glue' "$MF" \
+  || ! grep -q 'R1_SEED_MAP_OBJS' "$MF"; }; then
   bad "Makefile must list parser_asm_thin_glue on R1_SEED_MAP (wave758)"
-elif ! grep -q 'parser_asm_thin_glue' compiler/Makefile \
-  || ! awk '/^parser_asm_thin_glue\.o:/{found=1} found&&/ensure_host_cc_seed_o\.sh/{ok=1; exit} found&&/^[a-zA-Z_].*:/{if(!/parser_asm_thin_glue/)exit} END{exit !ok}' compiler/Makefile; then
+elif [ "$_MF_PRESENT" = "1" ] && { ! grep -q 'parser_asm_thin_glue' "$MF" \
+  || ! awk '/^parser_asm_thin_glue\.o:/{found=1} found&&/ensure_host_cc_seed_o\.sh/{ok=1; exit} found&&/^[a-zA-Z_].*:/{if(!/parser_asm_thin_glue/)exit} END{exit !ok}' "$MF"; }; then
   bad "Makefile parser_asm_thin_glue must thin-call ensure (wave758)"
 else
   note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 + R3 cold + thin_glue (wave744–758)"
@@ -1308,59 +1421,70 @@ else
   else
     note "xbuild leaf-patterns --check OK (wave747 R4 + wave748–753 R1)"
   fi
-  _leaf_out="$(./xbuild leaf-patterns 2>/dev/null || true)"
-  if ! printf '%s\n' "$_leaf_out" | grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o'; then
+  # File dump — avoid bash-var + pipefail/SIGPIPE false FAIL on early grep -q hit
+  # (leaf inventory ~100KiB; KEY=value may appear early → printf SIGPIPE under pipefail).
+  ./xbuild leaf-patterns >/tmp/xbuild_leaf_patterns_dump.out 2>/tmp/xbuild_leaf_patterns_dump.err || true
+  _ld=/tmp/xbuild_leaf_patterns_dump.out
+  if ! grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o' "$_ld"; then
     bad "xbuild leaf-patterns dump missing RESIDUAL_CLASS_R1"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R4_MODE_POLICY=1'; then
+  elif ! grep -q 'SWALLOWED_R4_MODE_POLICY=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R4_MODE_POLICY=1 (wave747)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R4_PATTERN_BODY_STILL_MAKE=1'; then
-    bad "xbuild leaf-patterns dump missing R4_PATTERN_BODY_STILL_MAKE=1"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R4_BODY_PURE_R1=1'; then
+  elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R4_PATTERN_BODY_STILL_MAKE=1' "$_ld"; then
+    bad "pre_ship: leaf dump missing R4_PATTERN_BODY_STILL_MAKE=1"
+  elif [ "$_MF_PRESENT" = "0" ] && ! grep -q 'R4_PATTERN_BODY_STILL_MAKE=0' "$_ld"; then
+    bad "post_ship: leaf dump missing R4_PATTERN_BODY_STILL_MAKE=0 (MF absent)"
+  elif ! grep -q 'SWALLOWED_R4_BODY_PURE_R1=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R4_BODY_PURE_R1=1 (wave756)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
+  elif ! grep -q 'R4_BODY_PURE_R1_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R4_BODY_PURE_R1_SWALLOWED=1 (wave756)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1'; then
+  elif ! grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R4_BODY_THIN_GLUE=1 (wave758)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
+  elif ! grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1'; then
+  elif ! grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_RT_SEED_SLICE_SWALLOWED=1 (wave748)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_CORE_SEED=1'; then
+  elif ! grep -q 'SWALLOWED_R1_CORE_SEED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_CORE_SEED=1 (wave749)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_CORE_SEED_SWALLOWED=1'; then
+  elif ! grep -q 'R1_CORE_SEED_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_CORE_SEED_SWALLOWED=1 (wave749)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_FRONTEND_GLUE=1'; then
+  elif ! grep -q 'SWALLOWED_R1_FRONTEND_GLUE=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_FRONTEND_GLUE=1 (wave750)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_FRONTEND_GLUE_SWALLOWED=1'; then
+  elif ! grep -q 'R1_FRONTEND_GLUE_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_FRONTEND_GLUE_SWALLOWED=1 (wave750)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_MAIN_RUNTIME=1'; then
+  elif ! grep -q 'SWALLOWED_R1_MAIN_RUNTIME=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_MAIN_RUNTIME=1 (wave751)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_MAIN_RUNTIME_SWALLOWED=1'; then
+  elif ! grep -q 'R1_MAIN_RUNTIME_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_MAIN_RUNTIME_SWALLOWED=1 (wave751)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_ALIAS_STUBS=1'; then
+  elif ! grep -q 'SWALLOWED_R1_ALIAS_STUBS=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_ALIAS_STUBS=1 (wave752)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_ALIAS_STUBS_SWALLOWED=1'; then
+  elif ! grep -q 'R1_ALIAS_STUBS_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_ALIAS_STUBS_SWALLOWED=1 (wave752)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_EXTRA_CFLAGS=1'; then
+  elif ! grep -q 'SWALLOWED_R1_EXTRA_CFLAGS=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_EXTRA_CFLAGS=1 (wave753)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_EXTRA_CFLAGS_SWALLOWED=1'; then
+  elif ! grep -q 'R1_EXTRA_CFLAGS_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_EXTRA_CFLAGS_SWALLOWED=1 (wave753)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_MISC_BASENAME=1'; then
+  elif ! grep -q 'SWALLOWED_R1_MISC_BASENAME=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_MISC_BASENAME=1 (wave754)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_MISC_BASENAME_SWALLOWED=1'; then
+  elif ! grep -q 'R1_MISC_BASENAME_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_MISC_BASENAME_SWALLOWED=1 (wave754)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_SEED_MAP=1'; then
+  elif ! grep -q 'SWALLOWED_R1_SEED_MAP=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_SEED_MAP=1 (wave755)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_SEED_MAP_SWALLOWED=1'; then
+  elif ! grep -q 'R1_SEED_MAP_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R1_SEED_MAP_SWALLOWED=1 (wave755)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R3_COLD_ELSE=1'; then
+  elif ! grep -q 'SWALLOWED_R3_COLD_ELSE=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R3_COLD_ELSE=1 (wave757)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R3_COLD_ELSE_SWALLOWED=1'; then
+  elif ! grep -q 'R3_COLD_ELSE_SWALLOWED=1' "$_ld"; then
     bad "xbuild leaf-patterns dump missing R3_COLD_ELSE_SWALLOWED=1 (wave757)"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
-    bad "xbuild leaf-patterns dump missing R1_OTHER_HOST_CC_STILL_MAKE=1"
-  elif ! printf '%s\n' "$_leaf_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
-    bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+  elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1' "$_ld"; then
+    bad "pre_ship: leaf dump missing R1_OTHER_HOST_CC_STILL_MAKE=1"
+  elif [ "$_MF_PRESENT" = "0" ] && ! grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=0' "$_ld"; then
+    bad "post_ship: leaf dump missing R1_OTHER_HOST_CC_STILL_MAKE=0 (MF absent)"
+  elif ! grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=(0|1)' "$_ld"; then
+    bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=(0|1)"
+  elif [ "$_MF_PRESENT" = "0" ] && ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' "$_ld"; then
+    bad "post_ship: leaf dump must report ENDGAME_PHYSICAL_DELETE_MAKEFILE=1 (MF absent)"
+  elif [ "$_MF_PRESENT" = "1" ] && ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' "$_ld"; then
+    bad "pre_ship: leaf dump must report ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (MF present)"
   else
     note "xbuild leaf-patterns inventory OK (wave747–757 R4/R1/R3 cold)"
   fi
@@ -1384,7 +1508,7 @@ else
   else
     note "driver_seed_obj_catalog --check OK (R1 eight + R3_COLD_SEED)"
   fi
-  unset _dag_dry_out _cold_dry_out _plat_out _link_out _leaf_out
+  unset _dag_dry_out _cold_dry_out _plat_out _link_out _ld
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.

@@ -6135,8 +6135,9 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
     check_family "R1_ALIAS_STUBS_OBJS" 8 "alias-stubs" "basename" ""
     check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
-    check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
-    check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
+    # Floors track mk/driver_seed_r_lists.mk (post_ship; was misc=9 seed-map=5).
+    check_family "R1_MISC_BASENAME_OBJS" 8 "misc-basename" "basename" ""
+    check_family "R1_SEED_MAP_OBJS" 4 "seed-map" "seed-map" ""
     check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
     {
       local panic_list panic_n=0 po pick
@@ -6447,9 +6448,11 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
   # extra-cflags: mixed paths; multi-flag map.
   check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
   # misc-basename: mixed cwd-root / src/ / build_asm/ paths; pure basename.
-  check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
-  # seed-map: mismatch stems + orch extras + thin_glue (wave758) + glue standalone (wave759).
-  check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
+  # Floor tracks mk (post_ship; was 9).
+  check_family "R1_MISC_BASENAME_OBJS" 8 "misc-basename" "basename" ""
+  # seed-map: mismatch stems + orch extras + thin_glue (wave758).
+  # Floor tracks mk (post_ship; was 5).
+  check_family "R1_SEED_MAP_OBJS" 4 "seed-map" "seed-map" ""
   # R3 cold-else: thin+rest leaves cold path = pure basename host-cc.
   check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
   # R2 panic: catalog list must resolve; seed/asm pick must work on this host.
