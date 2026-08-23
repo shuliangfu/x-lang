@@ -3103,6 +3103,18 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la);
         let rel_th: *u8 = labi_od_rel_thread();
         let have_th: i32 = 0;
+        // PLATFORM: SHARED — net.o T net_run_accept_workers_c U thread_create_c
+        // (thread_glue). L4 wipe deletes thread.o; skip-missing never pushes
+        // glue. Darwin -dead_strip hid unused workers T; Ubuntu gold exposes
+        // UNDEF. G.7 complete existing need_net thread companion with formal
+        // ensure (≡ error/context); do not add a second table.
+        if (root_net_ensure != 0 as *u8) {
+          if (root_net_ensure[0] != 0) {
+            unsafe {
+              let _eth: i32 = xlang_ensure_formal_std_make_o(root_net_ensure, "std/thread/thread.o", "../std/thread/thread.o");
+            }
+          }
+        }
         unsafe {
           let _t: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_th, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_th);
         }
