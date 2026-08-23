@@ -478,7 +478,7 @@
 | ~1690 | `test_x` | 🟢 wave720 shell `run_compiler_tests.sh x` |
 | ~1694 | `test` | 🟢 wave720 → test_c+test_x（xlang-build: mode all） |
 | ~2783 | `verify-selfhost-stage2` | 🟢 wave893 shell `scripts/verify-selfhost-stage2.sh` |
-| ~2792 | `verify-selfhost-stage2-bstrict` | 🟢 wave893 shell `scripts/verify-selfhost-stage2-bstrict.sh`；**2026-08-24** tip E2E 诚实红（Darwin Step2 UNDEF／Ubuntu hash STRICT；standalone seed skip @ `a6e8e05c0`） |
+| ~2792 | `verify-selfhost-stage2-bstrict` | 🟢 wave893 shell `scripts/verify-selfhost-stage2-bstrict.sh`；**2026-08-24** tip E2E：Darwin stubs filt 三项 UNDEF 清 @ `dc555af5b`（残留 pipeline `__text=0B`）；Ubuntu hash STRICT 仍失配；standalone seed skip @ `a6e8e05c0` |
 | 3220 | `check-asm-o-quality` | ⬜ |
 | 2959 | `check-6.4` | 🟢 wave871 shell `check_6_4.sh` |
 | 3015 | `check-7.2` | 🟢 wave870 shell `check_7_2.sh` |
