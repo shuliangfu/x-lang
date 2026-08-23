@@ -15415,6 +15415,132 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             }
           }
           /*
+           * dest extras dest-PTR stamp (`p: *[2][]i32` / `*[2]i32` /
+           * `*[2]*T` / `*[2][]*T`): nested extra lit `&[[2],[4]]` is
+           * ADDR_OF of ARRAY_LIT. Scalar PTR skips elem kind 10 so
+           * check_expr leaves the ARRAY_LIT wrap-once as `[2][1]i32`
+           * (host-C) and asm ADDR_OF of ARRAY_LIT is CG002 until emit
+           * completes. Named ADDR_OF of a typed `[2][]i32` local already
+           * dest-stamps via the formal (dyn_add_ptr_arr_slice.x = 7).
+           * Registry param_elem_kind / param_elem_elem_kind /
+           * param_elem_array ndims/dims already hold the ARRAY pointee
+           * (`[2][]T` extras / wrap-once `[2]i32` / extra STAR). Unused
+           * slot dims[ndims] extra SLICE wrap COUNT (1 = `*[2][]T`; 2 =
+           * `*[2][][]T`; 0 = no extra wrap = `*[2]i32`). Unused slot
+           * dims[ndims+1] extra PTR wrap COUNT (1 = `*[2]*T` /
+           * `*[2][]*T`; 0 = no extra PTR = `*[2]i32` / `*[2][]T`;
+           * `*[2][]*T` has both slots set). Wrap extra PTR of leaf
+           * extra times then extra SLICE then ARRAY inner-first then
+           * wrap ptr. Peel ADDR_OF (kind 51): dest-stamp the operand
+           * ARRAY_LIT as the PTR elem via typeck_coerce_init_expr_to_decl,
+           * then stamp ADDR_OF as the reconstructed PTR dest. Do not
+           * change typeck_coerce_init_expr_to_decl to peel ADDR_OF
+           * globally (would mix typed-dest ADDR_OF of ARRAY_LIT
+           * leftover). Twin of dest extras dest-RET PTR-to-ARRAY extra
+           * empty `[]` `*[2][]T`. Discriminant vs dest extras dest-
+           * ARRAY of SLICE extra `[2][]i32` (no ADDR_OF) is PTR wrap.
+           * Do not invent -3 / a second dest-PTR stamp table. Do not
+           * mix dest extras dest-PTR of SLICE extra `*[]T` / dest
+           * extras dest-PTR of PTR extra `**T` (RET twins; PARAM first
+           * leaf is PTR-to-ARRAY). PLATFORM: SHARED. G.7: complete
+           * this wrap.
+           */
+          if (dyn_arg > 0 && dyn_pk == 9) {
+            let dyn_pek: i32 = xlang_skip_trait_method_param_elem_kind_c(&dyn_trait_nm[0],
+                    dyn_trait_nlen, dyn_slot, arg_i + 1);
+            /*
+             * PTR-to-ARRAY formal (`*[2]i32` / `*[2][]T` / `*[2]*T`):
+             * scalar PTR skips elem kind 10. Twin of dest extras
+             * dest-RET PTR-to-ARRAY. PLATFORM: SHARED.
+             */
+            if (dyn_pek == 10) {
+              let dyn_peek: i32 = xlang_skip_trait_method_param_elem_elem_kind_c(
+                      &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+              let dyn_plf: i32 = 0;
+              if (dyn_peek >= 0 && dyn_peek != 8 && dyn_peek != 9 && dyn_peek != 10
+                  && dyn_peek != 11 && dyn_peek != 13) {
+                dyn_plf = pipeline_type_ensure_by_kind_ord(arena, dyn_peek);
+              }
+              /*
+               * PTR-to-ARRAY NAMED leaf (`*[2]Pair`): registry
+               * param_elem_elem_kind=8; param_name is the leaf.
+               * G.7: wrap named into dyn_plf then ARRAY + wrap ptr.
+               * PLATFORM: SHARED.
+               */
+              if (dyn_plf == 0 && dyn_peek == 8) {
+                let dyn_pnm2: u8[64] = [];
+                let dyn_pnl2: i32 = xlang_skip_trait_method_param_name_into_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                        &dyn_pnm2[0]);
+                if (dyn_pnl2 > 0) {
+                  dyn_plf = find_or_alloc_named_type_ref(arena, &dyn_pnm2[0], dyn_pnl2);
+                }
+              }
+              if (dyn_plf > 0) {
+                let dyn_pend: i32 = xlang_skip_trait_method_param_elem_array_ndims_c(
+                        &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1);
+                let dyn_pew: i32 = dyn_plf;
+                if (dyn_pend >= 1) {
+                  let dyn_ppx: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_pend + 1);
+                  if (dyn_ppx > 0) {
+                    let dyn_ppi: i32 = 0;
+                    while (dyn_ppi < dyn_ppx && dyn_pew > 0) {
+                      dyn_pew = find_or_alloc_ptr_type_ref(arena, dyn_pew);
+                      dyn_ppi = dyn_ppi + 1;
+                    }
+                  }
+                  let dyn_pex: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                          &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                          dyn_pend);
+                  if (dyn_pex > 0) {
+                    let dyn_pxi: i32 = 0;
+                    while (dyn_pxi < dyn_pex && dyn_pew > 0) {
+                      dyn_pew = find_or_alloc_slice_type_ref(arena, dyn_pew);
+                      dyn_pxi = dyn_pxi + 1;
+                    }
+                  }
+                  let dyn_pei: i32 = dyn_pend - 1;
+                  while (dyn_pei >= 0 && dyn_pew > 0) {
+                    let dyn_ped: i32 = xlang_skip_trait_method_param_elem_array_dim_c(
+                            &dyn_trait_nm[0], dyn_trait_nlen, dyn_slot, arg_i + 1,
+                            dyn_pei);
+                    if (dyn_ped > 0) {
+                      dyn_pew = find_or_alloc_array_type_ref(arena, dyn_pew, dyn_ped);
+                    } else {
+                      dyn_pew = 0;
+                    }
+                    dyn_pei = dyn_pei - 1;
+                  }
+                } else {
+                  dyn_pew = 0;
+                }
+                if (dyn_pew > 0) {
+                  let dyn_pty: i32 = find_or_alloc_ptr_type_ref(arena, dyn_pew);
+                  if (dyn_pty > 0) {
+                    /*
+                     * Peel ADDR_OF then dest-stamp operand as PTR elem;
+                     * stamp ADDR_OF as reconstructed PTR. Non-ADDR_OF
+                     * extras reuse coerce on the arg itself.
+                     * PLATFORM: SHARED.
+                     */
+                    let dyn_ak9: i32 = pipeline_expr_kind_ord_at(arena, dyn_arg);
+                    if (dyn_ak9 == 51) {
+                      let dyn_op9: i32 = pipeline_expr_unary_operand_ref_at(arena, dyn_arg);
+                      if (dyn_op9 > 0) {
+                        typeck_coerce_init_expr_to_decl(module, arena, dyn_op9, dyn_pew);
+                      }
+                      pipeline_expr_set_resolved_type_ref(arena, dyn_arg, dyn_pty);
+                    } else {
+                      typeck_coerce_init_expr_to_decl(module, arena, dyn_arg, dyn_pty);
+                    }
+                  }
+                }
+              }
+            }
+          }
+          /*
            * dest-ARRAY extra (`p: [2]i32` / `[2]Pair`): ARRAY_LIT stays
            * TYPE_ARRAY of unstamped elems after check_expr. Scalar
            * `[2]i32` already works (INT_LIT elems). NAMED leaf (`[2]Pair`)

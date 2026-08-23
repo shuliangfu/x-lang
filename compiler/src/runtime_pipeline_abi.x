@@ -32703,7 +32703,17 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
 }
 
 /**
- * Emit EXPR_ADDR_OF: lea local/param slot, INDEX eff_addr, FIELD/DEREF lvalue.
+ * Emit EXPR_ADDR_OF: lea local/param slot, INDEX eff_addr, FIELD/DEREF
+ * lvalue, or ARRAY_LIT dest-stamp into a temp then lea (rax already holds
+ * the temp address after pipeline_asm_emit_array_lit_elf_c).
+ * Nested extra lit `&[[2],[4]]` of dest extras dest-PTR stamp
+ * `*[2][]i32` is ADDR_OF of ARRAY_LIT (kind 46). Prior path only handled
+ * VAR/INDEX/FIELD/DEREF so ARRAY_LIT fell through to -99 → CG002
+ * `.Lf0_1`. G.7: complete this emit; reuse ARRAY_LIT authority (already
+ * dest-stamps into temp then lea rbp→rax). Do not invent a second
+ * dest-PTR stamp / -3. Twin thin first-wins
+ * pipeline_glue_strict_minimal.x must complete the same case or Ubuntu
+ * stays CG002. PLATFORM: SHARED freestanding · LINUX gold.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - ADDR_OF expr
@@ -32711,7 +32721,6 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 fail; -99 FAST_UNHANDLED
  * wave140 pure: G.7 authority (was pipeline_asm_emit_addr_of_elf_c).
- * PLATFORM: SHARED freestanding · LINUX gold.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -32780,6 +32789,17 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   if (ok == 52) {
     unsafe {
       rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
+    }
+    return rc;
+  }
+  /*
+   * EXPR_ARRAY_LIT = 46: dest-stamp into temp then lea (rax = &temp).
+   * dest extras dest-PTR stamp nested extra lit `&[[2],[4]]`.
+   * PLATFORM: SHARED — G.7 complete ADDR_OF of ARRAY_LIT.
+   */
+  if (ok == 46) {
+    unsafe {
+      rc = pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, op, ctx, ta);
     }
     return rc;
   }

@@ -13845,6 +13845,11 @@ int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
 }
 
+/* PLATFORM: SHARED — ADDR_OF of ARRAY_LIT (dest extras dest-PTR stamp
+ * nested extra lit `&[[2],[4]]`). G.7 complete: reuse ARRAY_LIT emit
+ * (temp + lea → rax). Twin runtime_pipeline_abi.x + thin
+ * pipeline_glue_strict_minimal.x. Do not invent -3. */
+extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op;
   int32_t ok;
@@ -13880,6 +13885,9 @@ int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
   if (ok == 52)
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
+  /* EXPR_ARRAY_LIT = 46: dest-stamp into temp then lea (rax = &temp). */
+  if (ok == 46)
+    return pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, op, ctx, ta);
   return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 }
 

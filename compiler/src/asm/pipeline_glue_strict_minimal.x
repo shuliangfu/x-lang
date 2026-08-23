@@ -946,15 +946,26 @@ export function parse_into_init(module: *u8, arena: *u8): void {
   }
 }
 
-// pipeline_asm_emit_addr_of_elf_c: see function docblock below.
-/** Exported function `pipeline_asm_emit_addr_of_elf_c`.
- * Implements `pipeline_asm_emit_addr_of_elf_c`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param expr_ref i32
- * @param ctx *u8
- * @param ta i32
- * @return i32
+/*
+ * PLATFORM: SHARED / UBUNTU first-wins thin — ADDR_OF of ARRAY_LIT for
+ * dest extras dest-PTR stamp nested extra lit `&[[2],[4]]`. Mega
+ * runtime_pipeline_abi.x owns the full body; thin must complete the
+ * same ARRAY_LIT case or Ubuntu stays CG002. G.7: call mega
+ * pipeline_asm_emit_array_lit_elf_c (already lea temp into rax).
+ * Do not invent -3 / a second dest-PTR stamp.
+ */
+export extern function pipeline_asm_emit_array_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+
+/**
+ * Emit EXPR_ADDR_OF (thin first-wins): VAR/FIELD/INDEX lvalue, or
+ * ARRAY_LIT dest-stamp into temp then lea via mega ARRAY_LIT emit.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param expr_ref i32 — ADDR_OF expr
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @return i32 — 0 ok; -1 fail; -99 FAST_UNHANDLED
+ * PLATFORM: SHARED / UBUNTU thin inject first-wins.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -966,7 +977,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     if (op_ref <= 0) { return 0 - 1; }
     let op_kind: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
-    // EXPR_VAR=3 FIELD=44 INDEX=47
+    // EXPR_VAR=3 FIELD=44 INDEX=47 ARRAY_LIT=46
     if (op_kind == 3) {
       return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
     }
@@ -975,6 +986,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     }
     if (op_kind == 47) {
       return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
+    }
+    if (op_kind == 46) {
+      return pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, op_ref, ctx, ta);
     }
   }
   return 0 - 99;
