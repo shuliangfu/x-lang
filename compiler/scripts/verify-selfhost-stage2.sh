@@ -8,6 +8,16 @@
 # Stage2 X E2E link hygiene: platform crt0 / DUP / USER_ASM from g05_relink_env
 # (G.7 有则补全); pipeline_x2 filter via filter_o_export_against_deps --omit-sym
 # (ban hardcoded Darwin crt0_arm64 / -multiply_defined / bare exported_symbols_list).
+#
+# Product NO_C / G-02a (2026-08): classic Step 1 `-x -E -E-extern` requires the
+# deleted C frontend (driver_run_x_emit_c_extern_via_cparser_impl body gone;
+# product driver_x_emit_try_extern_via_cparser is a fixed BLD001 stub). Live
+# Stage2 dogfood under product NO_C is verify-selfhost-stage2-bstrict.sh.
+# Default: probe then soft-skip (exit 0) with a loud banner. Escape:
+#   XLANG_STAGE2_X_REQUIRE_X_EMIT=1 → hard-fail when emit is blocked (restore work).
+# Step 5 Darwin/ARM64 -backend c: G.7 twin of bstrict — export XLANG_ALLOW_HOST_CC=1
+# (Stage 12.2.3; -backend c alone is not enough).
+#
 # Usage: cd compiler && bash scripts/verify-selfhost-stage2.sh
 # PLATFORM: SHARED — orchestration; link faces branched via g05_relink_env.
 set -e
@@ -18,6 +28,26 @@ cd "$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 # wave941 / experimental archaeology 0-make). Ban bare make-only after phys-del.
 stage2_via_make() {
   [ "${XLANG_STAGE2_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1
+}
+
+# Probe GEN for classic Stage2 X emit (-x -E -E-extern).
+# Returns 0 if emit produces non-empty C; 1 if product NO_C / missing cparser.
+# PLATFORM: SHARED — product default is NO_C; do not treat soft-skip as product green.
+stage2_probe_x_emit() {
+  _probe_bin="$1"
+  _probe_src="${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.x"
+  _probe_out="${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.c"
+  _probe_err="${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.err"
+  printf '%s\n' 'function main(): i32 { return 42; }' > "$_probe_src"
+  rm -f "$_probe_out" "$_probe_err"
+  set +e
+  "$_probe_bin" -x -E -E-extern "$_probe_src" > "$_probe_out" 2>"$_probe_err"
+  _probe_rc=$?
+  set -e
+  if [ "$_probe_rc" -eq 0 ] && [ -s "$_probe_out" ]; then
+    return 0
+  fi
+  return 1
 }
 
 # Load platform link faces from g05_relink_env (same table as product g05).
@@ -88,8 +118,31 @@ echo " 种子: GEN=xlang-x 生成 _gen2.c（-x -E -E-extern），链接 xlang-x2
 echo "============================================"
 
 # GEN 使用 xlang-x：-x -E 经 driver_run_x_emit_c_extern_via_cparser 与 C 路径 -E-extern 对齐（parse/typeck/codegen）。
+# Product NO_C (G-02a): that cparser path is deleted; probe before burning Step 1.
 X=./xlang-x
 GEN=$X
+
+echo ""
+echo "── Step 0b: probe GEN -x -E -E-extern (product NO_C honesty) ──"
+if ! stage2_probe_x_emit "$GEN"; then
+  echo "verify-stage2: GEN=$GEN cannot -x -E -E-extern (product NO_C / G-02a C frontend deleted)."
+  if [ -f "${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.err" ]; then
+    echo "verify-stage2: probe stderr (head):"
+    head -5 "${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.err" || true
+  fi
+  if [ "${XLANG_STAGE2_X_REQUIRE_X_EMIT:-0}" = "1" ]; then
+    echo "verify-stage2: XLANG_STAGE2_X_REQUIRE_X_EMIT=1 → hard-fail (restore WITH_C GEN or reimplement X emit)." >&2
+    exit 1
+  fi
+  echo "============================================"
+  echo " Stage2 X SKIP (honest): product NO_C blocks classic -x -E -E-extern"
+  echo " Live Stage2 dogfood under product = verify-selfhost-stage2-bstrict.sh"
+  echo " Force hard-fail: XLANG_STAGE2_X_REQUIRE_X_EMIT=1"
+  echo " Link hygiene / ALLOW_HOST_CC Step5 still maintained in this script."
+  echo "============================================"
+  exit 0
+fi
+echo " verify-stage2: probe OK — classic -x -E -E-extern available"
 
 # ── Step 1: 生成所有 _gen2.c ──
 echo ""
@@ -222,12 +275,16 @@ echo ""
 echo "── Step 5: 功能对比 ──"
 echo 'function main(): i32 { return 42; }' > /tmp/selfhost_test.x
 # 与 verify-selfhost-stage2-bstrict 对齐：Darwin/ARM64 等平台 asm -o 尚不稳定时，用 -backend c 验证行为 parity。
+# G.7 有则补全：bstrict already exports XLANG_ALLOW_HOST_CC=1 for this fallback
+# (Stage 12.2.3 — explicit -backend c alone hits host-cc-requires-allow).
 GEN_FLAGS="-L .."
 STAGE2_X_COMPILE_BACKEND=""
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
   STAGE2_X_COMPILE_BACKEND="-backend c"
-  echo "verify-stage2: use -backend c for Step 5 on $(uname -s)/$(uname -m 2>/dev/null)"
+  # PLATFORM: SHARED — only this Darwin/ARM64 fallback path uses -backend c.
+  export XLANG_ALLOW_HOST_CC=1
+  echo "verify-stage2: use -backend c for Step 5 on $(uname -s)/$(uname -m 2>/dev/null) (ALLOW_HOST_CC=1)"
   ;;
 esac
 REF=$X
