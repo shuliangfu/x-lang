@@ -196,6 +196,10 @@ p.write_text(s)
 PY
 
 CFLAGS="-std=gnu11 -fPIE -ffunction-sections -fdata-sections -I$ROOT -I$COMP -I$COMP/include -I$COMP/src -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare -Wno-incompatible-pointer-types"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin) CFLAGS="$CFLAGS -mmacosx-version-min=11.0" ;;
+esac
 cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 
 # 2) string.x bare ABI (xlang_string_*_c) — 必须裸符号。

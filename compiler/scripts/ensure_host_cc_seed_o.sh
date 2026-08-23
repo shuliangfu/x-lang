@@ -387,6 +387,18 @@ if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
 fi
 # Match g05 / Makefile product includes; PIPELINE_GEN_CFLAGS optional when empty.
 BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+# Catalog CFLAGS already completes this when unset; keep the flag if env CFLAGS
+# omitted it so always-linked companions (stubs/panic/user_env) match product-asm.
+# Do not -w swallow; do not raise macho.x minos to 26.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    case " $BASE_CFLAGS " in
+      *" -mmacosx-version-min="*) ;;
+      *) BASE_CFLAGS="$BASE_CFLAGS -mmacosx-version-min=11.0" ;;
+    esac
+    ;;
+esac
 PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
 
 # Default multi-flag mirrors for family mode when env empty.

@@ -250,6 +250,15 @@ int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
 #else
     argv[ai++] = "cc";
 #endif
+    /* PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0 (0x000B0000).
+     * Host-cc default SDK stamps LC_BUILD_VERSION minos 26.0; Apple ld then
+     * warns when those .o are linked with product-asm objects at 11.0.
+     * Applies to .c and .s (from_asm_s) — both get the Mach-O load command from cc.
+     * Do not -w swallow; do not raise macho.x minos to 26.0.
+     * PLATFORM: LINUX / WINDOWS — no-op (GNU ld / link have no Mach-O minos check). */
+#if defined(__APPLE__)
+    argv[ai++] = "-mmacosx-version-min=11.0";
+#endif
     if (!from_asm_s) {
         argv[ai++] = "-Wall";
         argv[ai++] = "-Wextra";

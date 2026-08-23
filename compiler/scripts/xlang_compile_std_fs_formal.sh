@@ -57,6 +57,8 @@ CFLAGS="$CFLAGS -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-
 CFLAGS="$CFLAGS -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch"
 case "$(uname -s 2>/dev/null)" in
   Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
+  # PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+  Darwin) CFLAGS="$CFLAGS -mmacosx-version-min=11.0" ;;
 esac
 
 tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t xlangfs)

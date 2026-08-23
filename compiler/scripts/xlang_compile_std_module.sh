@@ -34,6 +34,15 @@
 # PLATFORM: SHARED — catalog + compile body; host-cc CFLAGS may add LINUX -D_GNU_SOURCE.
 set -e
 
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+# c_face ensure compiles before the main CFLAGS bag; keep one Darwin extra.
+# Do not -w swallow; do not raise macho.x minos to 26.0.
+# PLATFORM: LINUX / WINDOWS — empty (no Mach-O minos check).
+DARWIN_MINOS=""
+case "$(uname -s 2>/dev/null)" in
+  Darwin) DARWIN_MINOS="-mmacosx-version-min=11.0" ;;
+esac
+
 # ---------------------------------------------------------------------------
 # wave812: formal_mod shell-primary catalog (G.7 有则补全; not physical delete)
 # Spec line: kind|bare|src1[|src2...]
@@ -516,7 +525,7 @@ case "${1:-}" in
       fi
       mkdir -p "$(dirname "$out_o")"
       # shellcheck disable=SC2086
-      if ! cc -c -fPIE -I.. -I. -o "$out_o" "$_csrc"; then
+      if ! cc -c -fPIE -I.. -I. $DARWIN_MINOS -o "$out_o" "$_csrc"; then
         echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
         exit 1
       fi
@@ -612,6 +621,7 @@ XLANG_BIN="${XLANG:-./xlang}"
 CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -ffunction-sections -fdata-sections -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch"
 case "$(uname -s 2>/dev/null)" in
   Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
+  Darwin) CFLAGS="$CFLAGS $DARWIN_MINOS" ;;
 esac
 if cc -v 2>&1 | grep -q clang; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
@@ -2258,7 +2268,7 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
             esac
           done
         } >"$alias_c"
-        if [ -s "$alias_c" ] && cc -fPIE -c "$alias_c" -o "$alias_o" 2>/dev/null; then
+        if [ -s "$alias_c" ] && cc -fPIE $DARWIN_MINOS -c "$alias_c" -o "$alias_o" 2>/dev/null; then
           merged="$tmp_dir/heap_merged.o"
           # PLATFORM: MACOS — when multi-file path left an ar archive, ar-append the
           # alias member first (Darwin `ld -r ar.a alias.o` can drop other members).

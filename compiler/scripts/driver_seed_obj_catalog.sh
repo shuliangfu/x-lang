@@ -276,6 +276,21 @@ catalog_seed_host_defaults() {
   else
     catalog_set CFLAGS "$CFLAGS"
   fi
+  # PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+  # Host-cc SDK default (26.0) warns at product -o ld against product-asm 11.0.
+  # Complete the flag unless the caller already set -mmacosx-version-min=.
+  # Do not -w swallow; do not raise macho.x minos to 26.0.
+  # PLATFORM: LINUX / WINDOWS — no-op (no Mach-O minos check).
+  case "$uname_s" in
+    Darwin)
+      _cf=$(catalog_get CFLAGS)
+      case " $_cf " in
+        *" -mmacosx-version-min="*) ;;
+        *) catalog_set CFLAGS "$_cf -mmacosx-version-min=11.0" ;;
+      esac
+      unset _cf
+      ;;
+  esac
   catalog_set TARGET "${TARGET:-xlang}"
 
   # wave925: CC_IS_CLANG mirrors Makefile `:= $(findstring clang,$(shell $(CC) -v 2>&1))`.

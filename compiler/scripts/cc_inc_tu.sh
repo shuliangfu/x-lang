@@ -112,6 +112,16 @@ fi
 
 CC="${CC:-cc}"
 BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+# Do not -w swallow; do not raise macho.x minos to 26.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    case " $BASE_CFLAGS " in
+      *" -mmacosx-version-min="*) ;;
+      *) BASE_CFLAGS="$BASE_CFLAGS -mmacosx-version-min=11.0" ;;
+    esac
+    ;;
+esac
 WRAP_DIR="$(dirname "$OUT")"
 mkdir -p "$WRAP_DIR"
 WRAP="$WRAP_DIR/.$(basename "$OUT" .o)_inc_wrap.c"
