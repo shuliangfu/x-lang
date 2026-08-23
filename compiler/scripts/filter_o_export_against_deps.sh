@@ -131,12 +131,115 @@ if [ ! -s "$keep_syms" ]; then
 fi
 
 uname_s="$(uname -s 2>/dev/null || echo unknown)"
+uname_m="$(uname -m 2>/dev/null || echo unknown)"
 echo "filter_o_export_against_deps: $SRC_O → $OUT_O (stem=$STEM keep=$keep_n; host=$uname_s)"
 
-# PLATFORM: MACOS|DARWIN — ld64/lld -exported_symbols_list
-# PLATFORM: LINUX — GNU ld --version-script (keep names with leading _)
+# PLATFORM: MACOS|DARWIN — Xcode ld requires -arch on -r; F7 prefer hybrid may
+# leave SRC as libtool -static **ar archive** (two LC_SEGMENT MH_OBJECT cannot
+# ld -r). Filter MH_OBJECT with -arch; for ar, per-member filter (keep original
+# member when that member rejects ld -r) then re-ar. Never exit 0 without OUT
+# (Apple ld has returned 0 after "Missing -arch" with no file).
+# PLATFORM: LINUX — GNU ld --version-script (keep names with leading _).
+darwin_ld_arch_args() {
+  case "$uname_m" in
+    arm64|aarch64) printf '%s' "-arch arm64" ;;
+    x86_64|amd64) printf '%s' "-arch x86_64" ;;
+    *) printf '%s' "" ;;
+  esac
+}
+
+# $1=src $2=out $3=exported_symbols_list (leading _).
+darwin_filter_mh_object() {
+  local src="$1" out="$2" exp_list="$3" arch_args
+  arch_args="$(darwin_ld_arch_args)"
+  # shellcheck disable=SC2086
+  if ! ld -r $arch_args -exported_symbols_list "$exp_list" -o "$out" "$src" 2>/dev/null; then
+    return 1
+  fi
+  [ -s "$out" ] || return 1
+  return 0
+}
+
+darwin_filter_ar_archive() {
+  local src="$1" out="$2"
+  local work mem mem_exp mem_keep policy_keep bare ok any
+  local -a members
+  work="$(mktemp -d "${TMPDIR:-/tmp}/filter_ar_${STEM}.XXXXXX")" || return 1
+  # Absolute paths: ar x + member ld run under $work.
+  case "$src" in
+    /*) ;;
+    *) src="$(pwd)/$src" ;;
+  esac
+  case "$out" in
+    /*) ;;
+    *) out="$(pwd)/$out" ;;
+  esac
+  policy_keep="$keep_syms"
+  case "$policy_keep" in
+    /*) ;;
+    *) policy_keep="$(pwd)/$policy_keep" ;;
+  esac
+  (
+    cd "$work" || exit 1
+    ar x "$src" || exit 1
+    any=0
+    members=()
+    for mem in *; do
+      [ -f "$mem" ] || continue
+      case "$mem" in
+        __.SYMDEF|__.SYMDEF\ SORTED|*.keep|*.exp) continue ;;
+      esac
+      # Per-member keep = intersection(policy keep, member TDS).
+      mem_keep="${mem}.keep"
+      : >"$mem_keep"
+      while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
+        bare="$sym"
+        case "$sym" in
+          _*) bare="${sym#_}" ;;
+        esac
+        if grep -qx "_${bare}" "$policy_keep" 2>/dev/null \
+          || grep -qx "$sym" "$policy_keep" 2>/dev/null; then
+          printf '%s\n' "_${bare}" >>"$mem_keep"
+        fi
+      done < <(nm "$mem" 2>/dev/null | awk '/ [TDS] / { print $3 }')
+      mem_exp="${mem}.exp"
+      if [ -s "$mem_keep" ] && darwin_filter_mh_object "$mem" "$mem_exp" "$mem_keep"; then
+        mv "$mem_exp" "$mem"
+      else
+        # Multi LC_SEGMENT thin / empty keep: keep member as-is (final ld
+        # accepts libtool ar; omit is best-effort on filterable members).
+        rm -f "$mem_exp"
+      fi
+      rm -f "$mem_keep"
+      members+=("$mem")
+      any=1
+    done
+    [ "$any" = "1" ] || exit 1
+    rm -f "$out"
+    ar rc "$out" "${members[@]}" || exit 1
+    if command -v ranlib >/dev/null 2>&1; then
+      ranlib "$out" 2>/dev/null || true
+    fi
+    [ -s "$out" ] || exit 1
+  )
+  ok=$?
+  rm -rf "$work"
+  return "$ok"
+}
+rm -f "$OUT_O"
 if [ "$uname_s" = "Darwin" ]; then
-  ld -r -exported_symbols_list "$keep_syms" -o "$OUT_O" "$SRC_O"
+  if file "$SRC_O" 2>/dev/null | grep -q 'ar archive'; then
+    if ! darwin_filter_ar_archive "$SRC_O" "$OUT_O"; then
+      echo "filter_o_export_against_deps: Darwin ar filter failed for $SRC_O" >&2
+      exit 1
+    fi
+  else
+    if ! darwin_filter_mh_object "$SRC_O" "$OUT_O" "$keep_syms"; then
+      echo "filter_o_export_against_deps: Darwin ld -r filter failed for $SRC_O" >&2
+      exit 1
+    fi
+  fi
 else
   {
     printf '{ global:\n'
@@ -145,7 +248,14 @@ else
     fi
     printf '  *;\n};\n'
   } >"$ver_file"
-  ld -r --version-script="$ver_file" -o "$OUT_O" "$SRC_O"
+  if ! ld -r --version-script="$ver_file" -o "$OUT_O" "$SRC_O"; then
+    echo "filter_o_export_against_deps: GNU ld -r filter failed for $SRC_O" >&2
+    exit 1
+  fi
+  if [ ! -s "$OUT_O" ]; then
+    echo "filter_o_export_against_deps: missing OUT after ld -r ($OUT_O)" >&2
+    exit 1
+  fi
 fi
 
 exit 0
