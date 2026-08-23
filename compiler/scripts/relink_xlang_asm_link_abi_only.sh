@@ -36,8 +36,18 @@ fi
 cp -f ./xlang_asm "$PRE"
 echo "relink_xlang_asm_link_abi_only: backup -> $PRE ($(wc -c <"$PRE" | tr -d ' ')B)"
 
+# PLATFORM: SHARED — post-Makefile phys-del: refresh via ensure_host_cc_seed_o
+# (G.7 single authority; ban residual `make`). labi = try-labi-prefer;
+# io stubs = try-r1 (R1_EXTRA_CFLAGS / -fPIE).
 touch seeds/runtime_link_abi.from_x.c seeds/runtime_asm_io_stubs.from_x.c
-make -s src/runtime_link_abi.o runtime_asm_io_stubs.o
+if ! bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer src/runtime_link_abi.o; then
+  echo "relink_xlang_asm_link_abi_only: FAIL ensure src/runtime_link_abi.o (try-labi-prefer)" >&2
+  exit 1
+fi
+if ! bash scripts/ensure_host_cc_seed_o.sh try-r1 runtime_asm_io_stubs.o; then
+  echo "relink_xlang_asm_link_abi_only: FAIL ensure runtime_asm_io_stubs.o (try-r1)" >&2
+  exit 1
+fi
 
 export XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1
 export XLANG_ASM_BSTRICT_RELINK_ONLY=1

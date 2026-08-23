@@ -621,7 +621,7 @@ if seed_partial_needs_regen; then
               src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o \
              ; do
     if [ ! -f "$_dof" ]; then
-      build_seed_asm_host_error "missing $_dof (make bootstrap-driver-seed 须先编 dispatch TU)"
+      build_seed_asm_host_error "missing $_dof (ensure try-r3-cold / bootstrap-driver-seed first; 0-make)"
       exit 1
     fi
     nm "$_dof" 2>/dev/null \
