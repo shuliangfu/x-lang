@@ -90332,6 +90332,41 @@ function pipe_macho_link_name_extra_byte(name_ptr: *u8): i32 {
 }
 
 /**
+ * Encode Mach-O common-symbol alignment into n_desc (GET_COMM_ALIGN).
+ * Apple ld: when n_desc align bits are 0, section __DATA,__common alignment is
+ * size-derived (up to 0x8000 for multi-MiB commons) and then reduced to the
+ * segment max 0x4000 with a warning. Explicit log2(align) in n_desc stops
+ * that derivation. Floor at 8 (log2=3) so n_desc is never 0; cap at 2^14 so
+ * we never request more than the segment maximum.
+ * @param calign i32 — byte alignment from add_common_sym (usually 1..16)
+ * @return i32 — log2 to store in n_desc[15:8]
+ * PLATFORM: MACOS|DARWIN — Mach-O nlist_64 n_desc only; ELF uses st_value.
+ */
+function pipe_macho_common_align_log2(calign: i32): i32 {
+  let a: i32 = calign;
+  if (a < 8) {
+    a = 8;
+  }
+  if (a > 16384) {
+    a = 16384;
+  }
+  let lg: i32 = 3;
+  while (lg < 14) {
+    let step: i32 = 1;
+    let k: i32 = 0;
+    while (k < lg) {
+      step = step * 2;
+      k = k + 1;
+    }
+    if (step >= a) {
+      return lg;
+    }
+    lg = lg + 1;
+  }
+  return 14;
+}
+
+/**
  * Mach-O MH_OBJECT writer for pure-asm -o .o (product g05 Darwin).
  * @return i32 - out length on success, -1 fail
  * wave273 pure-owned leave.
@@ -90620,11 +90655,25 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
     }
     if (is_common != 0) {
       let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
+      let alg: i32 = 0;
+      let ndesc: i32 = 0;
       if (csize <= 0) {
         csize = 8;
       }
+      if (calign <= 0) {
+        calign = 8;
+      }
+      /* N_UNDF|N_EXT + n_value=size + n_desc GET_COMM_ALIGN (see
+       * pipe_macho_common_align_log2). Leaving n_desc=0 made Apple ld
+       * size-derive __common section align to 0x8000 for 4MiB fmt paths.
+       * PLATFORM: MACOS|DARWIN. */
+      alg = pipe_macho_common_align_log2(calign);
+      ndesc = alg * 256;
       unsafe {
         ent[4] = 1; ent[5] = 0;
+        ent[6] = (ndesc & 255) as u8;
+        ent[7] = ((ndesc / 256) & 255) as u8;
       }
       pipe_elf_store_i32_bytes(ent, 8, csize);
     } else {

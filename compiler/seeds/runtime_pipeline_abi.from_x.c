@@ -36027,12 +36027,38 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
                     ? 1
                     : 0;
     if (is_common != 0) {
+      int32_t calign;
+      int32_t alg;
+      int32_t ndesc;
       csize = g_pipeline_elf_sym_common_size[s];
+      calign = g_pipeline_elf_sym_common_align[s];
       if (csize <= 0)
         csize = 8;
-      /* N_UNDF|N_EXT = 0x01; n_sect=NO_SECT; n_value=size (tentative/common). */
+      if (calign <= 0)
+        calign = 8;
+      /* N_UNDF|N_EXT = 0x01; n_sect=NO_SECT; n_value=size (tentative/common).
+       * PLATFORM: MACOS|DARWIN — set n_desc GET_COMM_ALIGN (log2) so Apple ld
+       * does not size-derive __DATA,__common section align to 0x8000 for
+       * multi-MiB commons (fmt g_fmt_file_list_paths 4MiB). Floor 8 / cap 2^14
+       * twin of pipe_macho_common_align_log2. */
+      alg = 3;
+      if (calign < 8)
+        calign = 8;
+      if (calign > 16384)
+        calign = 16384;
+      while (alg < 14) {
+        int32_t step = 1 << alg;
+        if (step >= calign)
+          break;
+        alg++;
+      }
+      if (alg > 14)
+        alg = 14;
+      ndesc = alg << 8;
       ent[4] = 1;
       ent[5] = 0;
+      ent[6] = (uint8_t)(ndesc & 255);
+      ent[7] = (uint8_t)((ndesc >> 8) & 255);
       ent[8] = (uint8_t)(csize & 255);
       ent[9] = (uint8_t)((csize >> 8) & 255);
       ent[10] = (uint8_t)((csize >> 16) & 255);
