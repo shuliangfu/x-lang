@@ -1415,13 +1415,41 @@ esac
 #      Makefile rule, not a second generator.
 mkdir -p build_asm/seed_host
 if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full_link_stubs.pl ]; then
-  _stubs_scan="pipeline_x.o build_asm/pipeline_glue_standalone.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
-  [ -f build_asm/seed_host/asm_full.o ] && _stubs_scan="build_asm/seed_host/asm_full.o $_stubs_scan"
-  _stubs_scan="build_asm/seed_host/asm_backend_partial.o $_stubs_scan"
-  if perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $_stubs_scan 2>&1; then
-    if [ build_asm/seed_host/asm_full_link_stubs.c -nt build_asm/seed_host/asm_full_link_stubs.o ] 2>/dev/null; then
-      echo "g05_ensure: cc -c build_asm/seed_host/asm_full_link_stubs.o (stubs.c updated)" >&2
-      $CC $BASE_CFLAGS -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c
+  # G.7: single scan inventory = catalog DRIVER_SEED_HOST_STUBS_SCAN_BASE
+  # (mk/driver_seed_export_lists.mk → ASM_GLUE_STANDALONE_O empty since wave309).
+  # Do NOT hardcode pipeline_glue_standalone.o — seed retired; nm on missing .o
+  # was soft Darwin noise on every g05. Mirror bootstrap_driver_seed_host_stubs.sh.
+  # PLATFORM: SHARED.
+  _g05_stubs_cat_query() {
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      sed -n "s|^$1=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1
+    else
+      bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+        | sed -n "s|^$1=||p" | tail -n 1
+    fi
+  }
+  _stubs_scan="$(_g05_stubs_cat_query DRIVER_SEED_HOST_STUBS_SCAN_BASE)"
+  if [ -z "$_stubs_scan" ]; then
+    echo "g05_ensure: WARN stubs scan base empty (catalog); skip asm_full_link_stubs regen" >&2
+  else
+    # Optional peers under seed_host (same order as bootstrap_driver_seed_host_stubs).
+    [ -f build_asm/seed_host/asm_full.o ] && _stubs_scan="build_asm/seed_host/asm_full.o $_stubs_scan"
+    _stubs_scan="build_asm/seed_host/asm_backend_partial.o $_stubs_scan"
+    # Drop missing paths so gen_asm_full_link_stubs never nm-errors on retired leaves.
+    _stubs_scan_present=""
+    for _so in $_stubs_scan; do
+      if [ -f "$_so" ]; then
+        _stubs_scan_present="${_stubs_scan_present} ${_so}"
+      else
+        echo "g05_ensure: stubs scan skip missing ${_so}" >&2
+      fi
+    done
+    _stubs_scan="${_stubs_scan_present# }"
+    if [ -n "$_stubs_scan" ] && perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $_stubs_scan 2>&1; then
+      if [ build_asm/seed_host/asm_full_link_stubs.c -nt build_asm/seed_host/asm_full_link_stubs.o ] 2>/dev/null; then
+        echo "g05_ensure: cc -c build_asm/seed_host/asm_full_link_stubs.o (stubs.c updated)" >&2
+        $CC $BASE_CFLAGS -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c
+      fi
     fi
   fi
 fi

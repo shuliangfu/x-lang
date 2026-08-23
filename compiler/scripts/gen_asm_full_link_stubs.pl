@@ -29,6 +29,13 @@ my $weak_attr = $is_windows ? '' : '__attribute__((weak)) ';
 
 my %want;
 for my $obj (@objs) {
+  # PLATFORM: SHARED — skip missing scan peers (wave309 retired
+  # pipeline_glue_standalone.o; callers must prefer catalog SCAN_BASE, but
+  # generator must not nm-error on a stale path).
+  if (!-f $obj) {
+    print STDERR "gen_asm_full_link_stubs: skip missing $obj\n";
+    next;
+  }
   open my $nm, '-|', 'nm', $obj or die "nm $obj: $!\n";
   while (<$nm>) {
     next unless /\sU\s(\S+)/;

@@ -67,6 +67,8 @@ mkdir -p "$SEED_STUBS_HOST_DIR"
 # Word-split SCAN_BASE intentionally (Makefile space-separated expansion).
 # Optional peers: asm_full.o / asm_backend_partial.o under HOST_DIR if present
 # (same order as pre-wave723 recipe: full, then partial, then base).
+# Drop missing paths (wave309 ASM_GLUE_STANDALONE_O empty; never nm retired
+# pipeline_glue_standalone.o). PLATFORM: SHARED.
 # shellcheck disable=SC2086
 _scan="$SEED_STUBS_SCAN_BASE"
 if [ -f "$SEED_STUBS_HOST_DIR/asm_full.o" ]; then
@@ -74,6 +76,19 @@ if [ -f "$SEED_STUBS_HOST_DIR/asm_full.o" ]; then
 fi
 if [ -f "$SEED_STUBS_HOST_DIR/asm_backend_partial.o" ]; then
   _scan="$SEED_STUBS_HOST_DIR/asm_backend_partial.o $_scan"
+fi
+_scan_present=""
+for _so in $_scan; do
+  if [ -f "$_so" ]; then
+    _scan_present="${_scan_present} ${_so}"
+  else
+    echo "bootstrap_driver_seed_host_stubs: scan skip missing ${_so}" >&2
+  fi
+done
+_scan="${_scan_present# }"
+if [ -z "$_scan" ]; then
+  echo "bootstrap_driver_seed_host_stubs: no present scan objs" >&2
+  exit 1
 fi
 
 n_scan=$(printf '%s\n' "$_scan" | wc -w | tr -d ' ')
