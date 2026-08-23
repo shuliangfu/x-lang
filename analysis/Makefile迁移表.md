@@ -53,7 +53,7 @@
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
 11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
-  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`）· ✅ **tests 深层裸 make→shell／xbuild**（a09／g06／compress／perf／wpo-docker；hub `compress-o-*` no-op＋`sqlite-o-stub`；`54ace50f0`）  
+  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`）· ✅ **tests 深层裸 make→shell／xbuild**（a09／g06／compress／perf／wpo-docker；hub `compress-o-*` no-op＋`sqlite-o-stub`；`54ace50f0`）· ✅ **零 make 门禁 post_ship**（MF-absent thin-call→shell／catalog；leaf／ensure 地板对齐；`5042669b0`）  
 
   BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
