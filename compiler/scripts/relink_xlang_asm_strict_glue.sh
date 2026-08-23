@@ -1372,10 +1372,19 @@ ST_ASYNC_CPS_SEED=$(asm_seed_st_async_support_link)
 ST_PREPROCESS_SEED=$(asm_seed_st_preprocess_link)
 
 # strict 自举链须 typeck_x.o（与 experimental 一致；缺则 X typeck 桥接不全）。
+# PLATFORM: SHARED — post-Makefile phys-del: migrate_x_objs (G.7 twin of
+# build_xlang_asm wave929). Escape: XLANG_STRICT_GLUE_VIA_MAKE=1 + MF.
 ensure_typeck_x_o_for_strict_link() {
-  if [ ! -f typeck_x.o ] && command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  strict_glue_info "make typeck_x.o"
-  make -s typeck_x.o
+  if [ -f typeck_x.o ]; then
+    return 0
+  fi
+  if [ "${XLANG_STRICT_GLUE_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    strict_glue_info "make typeck_x.o"
+    make -s typeck_x.o
+  else
+    strict_glue_info "migrate_x_objs typeck_x.o (0-make)"
+    bash scripts/migrate_x_objs.sh typeck_x.o || true
   fi
   [ -f typeck_x.o ] || return 1
   return 0

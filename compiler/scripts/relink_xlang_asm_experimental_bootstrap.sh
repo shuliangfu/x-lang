@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # experimental bootstrap 重链：pipeline_x.o + X companions + seed C（与 build_xlang_asm.sh 首链一致）。
 # ast_pool.c 变更后须重编 pipeline_glue_standalone / pipeline_x，再本脚本重链 xlang_asm.experimental。
-# 用法：cd compiler && make lexer_x.o parser_x.o typeck_x.o codegen_x.o && ./scripts/relink_xlang_asm_experimental_bootstrap.sh
+# 用法：cd compiler && ./scripts/relink_xlang_asm_experimental_bootstrap.sh
+#   (companions via migrate/try-heat/driver_leaf — 0-make post phys-del; twin of build_xlang_asm wave931)
+# Escape: XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE=1 + Makefile → historic make leaves.
 set -e
 cd "$(dirname "$0")/.."
 BUILD_DIR="build_asm"
@@ -66,24 +68,32 @@ ensure_asm_driver_seed_c_objs() {
 ensure_asm_driver_seed_c_objs
 
 # ast_pool.c / pipeline_glue.c 变更后须重编 pipeline_x.o（glue 在 pipeline_gen.c #include 内）。
+# PLATFORM: SHARED — post-Makefile phys-del: try-heat + PIPELINE_X_FORCE_COMPILE
+# (twin of build_xlang_asm wave929 / strict_glue). Ban bare make-only rebuild.
+rebuild_pipeline_x_force() {
+  if [ "${XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
+  else
+    PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o || return 1
+  fi
+  return 0
+}
+
 ensure_pipeline_x_fresh_for_ast_pool() {
   if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
-  experimental_bootstrap_info "ast_pool.c newer than pipeline_x.o - rebuild"
-  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || {
+  experimental_bootstrap_info "ast_pool.c newer than pipeline_x.o - rebuild (0-make try-heat)"
+  rebuild_pipeline_x_force || {
   experimental_bootstrap_warn "pipeline_x.o rebuild failed"
   return 1
   }
-  fi
   fi
   if [ -f pipeline_glue.c ] && { [ ! -f pipeline_x.o ] || [ pipeline_glue.c -nt pipeline_x.o ]; }; then
-  experimental_bootstrap_info "pipeline_glue.c newer than pipeline_x.o - rebuild"
-  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || {
+  experimental_bootstrap_info "pipeline_glue.c newer than pipeline_x.o - rebuild (0-make try-heat)"
+  rebuild_pipeline_x_force || {
   experimental_bootstrap_warn "pipeline_x.o rebuild failed"
   return 1
   }
-  fi
   fi
   return 0
 }
@@ -155,14 +165,42 @@ ensure_simd_glue_link_objs() {
 ensure_simd_glue_link_objs
 
 # build_asm 伴生 .o（experimental 链与 build_xlang_asm ensure_asm_bootstrap_x_companion_objs 对齐）。
+# PLATFORM: SHARED — post-Makefile phys-del: shell multi-family ensure (twin of
+# build_xlang_asm wave931). VIA_MAKE + MF escapes to historic make list.
 ensure_experimental_companion_objs() {
   mkdir -p "$BUILD_DIR" "$BUILD_DIR/seed_host"
-  if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-  make -s parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
-  x_frontend_link_alias.o \
-  driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
-  driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  pipeline_bootstrap_orchestration.o 2>/dev/null || true
+  if [ "${XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    experimental_bootstrap_info "VIA_MAKE ensure X companion objs"
+    make -s parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
+      x_frontend_link_alias.o \
+      driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
+      driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+      pipeline_bootstrap_orchestration.o 2>/dev/null || true
+  else
+    experimental_bootstrap_info "0-make ensure X companion objs (migrate/try-heat/driver_leaf)"
+    bash scripts/migrate_x_objs.sh parser_x.o || true
+    bash scripts/migrate_x_objs.sh typeck_x.o || true
+    bash scripts/migrate_x_objs.sh codegen_x.o || true
+    bash scripts/ensure_host_cc_seed_o.sh try-heat lexer_x.o || true
+    bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o || true
+    bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o || true
+    bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_fmt_x.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_check_x.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_test_x.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_build_x.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_run_x.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_compile_x.o || true
+    bash scripts/driver_leaf_x_to_o.sh ensure driver_emit_x.o || true
+    if [ ! -f pipeline_bootstrap_orchestration.o ] \
+      || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
+      if [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
+        experimental_bootstrap_info "cc pipeline_bootstrap_orchestration.o <- seeds"
+        $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
+          -o pipeline_bootstrap_orchestration.o || true
+      fi
+    fi
   fi
   if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
   experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
@@ -223,23 +261,34 @@ EOF
 fi
 
 # parser_x.o：Makefile 要求 parser_copy_module_import_path64 在 gen 内；experimental 链由 link_alias+thin_glue 提供。
+# PLATFORM: SHARED — post-Makefile phys-del: migrate_x_objs (G.7 twin of build_xlang_asm wave929).
 ensure_parser_x_obj() {
   if [ -f parser_x.o ]; then
   return 0
   fi
-  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  make -s parser_x.o 2>/dev/null || true
+  if [ "${XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    make -s parser_x.o 2>/dev/null || true
+  else
+    experimental_bootstrap_info "migrate_x_objs parser_x.o (0-make)"
+    bash scripts/migrate_x_objs.sh parser_x.o || true
   fi
   if [ ! -f parser_x.o ] && [ -f parser_gen.c ]; then
   experimental_bootstrap_info "cc parser_gen.c -> parser_x.o (link_alias supplies parser_* pipeline symbols)"
-  "$CC" $CFLAGS $(make -s -f Makefile print-PIPELINE_GEN_CFLAGS 2>/dev/null || echo "") \
+  # Catalog owns PIPELINE_GEN_CFLAGS post phys-del (no make print-*).
+  _pgc=""
+  if [ -f scripts/driver_seed_obj_catalog.sh ]; then
+    _pgc=$(bash scripts/driver_seed_obj_catalog.sh --cflags-export 2>/dev/null \
+      | sed -n 's/^PIPELINE_GEN_CFLAGS=//p' | tail -n 1)
+  fi
+  "$CC" $CFLAGS ${_pgc} \
   -I. -Iinclude -Isrc \
   -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
   -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
   -c parser_gen.c -o parser_x.o
   fi
   if [ ! -f parser_x.o ]; then
-  experimental_bootstrap_error "missing parser_x.o (make parser_x.o or restore parser_gen.c)"
+  experimental_bootstrap_error "missing parser_x.o (migrate_x_objs / restore parser_gen.c)"
   exit 1
   fi
 }
@@ -286,15 +335,17 @@ ensure_parser_parse_bootstrap_asm_obj() {
   return 1
   fi
   if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
-  experimental_bootstrap_info "ast_pool.c newer - rebuild pipeline_x.o for parse bootstrap"
-  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || true
-  fi
+  experimental_bootstrap_info "ast_pool.c newer - rebuild pipeline_x.o for parse bootstrap (0-make try-heat)"
+  rebuild_pipeline_x_force || true
   fi
   if [ -f pipeline_x.o ] && [ pipeline_x.o -nt "$XLANG_SEED" ] 2>/dev/null; then
-  experimental_bootstrap_info "refresh ./xlang (pipeline_x.o for parse bootstrap emit)"
-  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  make -s relink-xlang 2>/dev/null || true
+  experimental_bootstrap_info "refresh ./xlang (pipeline_x.o for parse bootstrap emit; 0-make g05)"
+  if [ "${XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    make -s relink-xlang 2>/dev/null || true
+  else
+    # g05 --no-sync = historic relink-xlang (xlang only; no xlang_asm sync).
+    bash scripts/g05_prepare_and_relink.sh --no-sync 2>/dev/null || true
   fi
   fi
   experimental_bootstrap_info "$XLANG_SEED asm parser parse bootstrap (XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT opt-in)"
@@ -345,7 +396,7 @@ for o in pipeline_x.o pipeline_bootstrap_orchestration.o preprocess_x.o lexer_x.
   x_frontend_link_alias.o \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o; do
   if [ ! -f "$o" ]; then
-  experimental_bootstrap_error "missing $o (make $o)"
+  experimental_bootstrap_error "missing $o (migrate/try-heat/driver_leaf ensure)"
   exit 1
   fi
 done

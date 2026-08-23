@@ -4371,18 +4371,21 @@ ensure_pipeline_x_o_fresh() {
 }
 
 # B-strict 最终链：用 seed xlang-c -E 的 parser_x.o 覆盖 C seed parser（struct return / param-binop 等门禁）。
+# PLATFORM: SHARED — post-Makefile phys-del: do NOT early-return on missing MF;
+# migrate_x_objs is the shell authority (wave929). VIA_MAKE + MF still escapes.
 ensure_parser_x_o_for_strict_link() {
-  if [ ! -f Makefile ] || [ ! -f src/parser/parser.x ]; then
+  if [ ! -f src/parser/parser.x ]; then
   return 0
   fi
   if [ ! -f parser_x.o ] || [ src/parser/parser.x -nt parser_x.o ]; then
   # Wave929: shell migrate_x_objs.sh (no make; MIGRATE_X_OBJS body authority).
   # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
-  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && command -v make >/dev/null 2>&1; then
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
     build_xlang_asm_info "make parser_x.o (strict link must override seed parser.o)"
     make -s parser_x.o
   else
-    build_xlang_asm_info "migrate_x_objs parser_x.o (wave929; strict link override)"
+    build_xlang_asm_info "migrate_x_objs parser_x.o (wave929; strict link override; 0-make)"
     bash scripts/migrate_x_objs.sh parser_x.o
   fi
   fi
