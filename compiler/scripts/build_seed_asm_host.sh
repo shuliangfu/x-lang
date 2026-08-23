@@ -504,34 +504,45 @@ if seed_partial_needs_regen; then
     else
       build_seed_asm_host_warn "(no stderr; bootstrap may have crashed - run preflight_g06_coldstart.sh --asm-e)"
     fi
-    # -E OOM(137)/Killed 时若已有可用 asm_full_gen.c（上次 134 落盘），继续 fix+cc
+    rm -f "$ASM_TMP"
+    # G.7 single recovery ladder after -E fail (PLATFORM: SHARED):
+    #   1) existing strong partial  2) committed SEED_PARTIAL pin
+    #   3) source fallback.from_x.c  4) last: reuse prior asm_full_gen.c (OOM salvage)
+    # Do NOT prefer stale asm_full_gen.c first: typeck-fail waves leave a .c with
+    # conflicting backend_enc_* decls (ElfCodegenCtx* vs uint8_t*) → cc "60 errors"
+    # soft noise, then the same fallback anyway (L4 cold logs @ tip).
+    if [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
+      build_seed_asm_host_warn "asm_seed_full.x -E 失败，沿用已有 $BACKEND_PARTIAL"
+      clear_asm_seed_stale_logs
+      exit 0
+    fi
+    if [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL" ] \
+        && has_real_partial_seed_mega "$SEED_PARTIAL"; then
+      mkdir -p "$OUT_DIR"
+      cp -f "$SEED_PARTIAL" "$BACKEND_PARTIAL"
+      build_seed_asm_host_warn "asm_seed_full.x -E 失败，改用 pin $SEED_PARTIAL"
+      clear_asm_seed_stale_logs
+      exit 0
+    fi
+    if build_backend_partial_from_c_fallback; then
+      build_seed_asm_host_warn "asm_seed_full.x -E 失败，改用源码 fallback partial"
+      clear_asm_seed_stale_logs
+      exit 0
+    fi
+    # OOM(137)/Killed salvage only: prior -E may have left a usable asm_full_gen.c
     if [ -s "$ASM_FULL_C" ] && asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
-      # OOM 落盘可能短于 .bak；优先用更大且可用的 bak
       if [ -f "${ASM_FULL_C}.bak" ] && asm_full_gen_c_usable_for_fix "${ASM_FULL_C}.bak" \
           && [ "$(wc -c <"${ASM_FULL_C}.bak" | tr -d ' ')" -gt "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" ]; then
         cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
-        build_seed_asm_host_warn "-E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
+        build_seed_asm_host_warn "-E 失败且无 pin/fallback，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
       else
-        build_seed_asm_host_warn "-E 失败，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
+        build_seed_asm_host_warn "-E 失败且无 pin/fallback，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
       fi
-      rm -f "$ASM_TMP"
     elif [ -f "${ASM_FULL_C}.bak" ] && asm_full_gen_c_usable_for_fix "${ASM_FULL_C}.bak"; then
       cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
-      build_seed_asm_host_warn "-E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
-      rm -f "$ASM_TMP"
-    elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-      build_seed_asm_host_warn "asm_seed_full.x -E 失败，沿用已有 $BACKEND_PARTIAL"
-      rm -f "$ASM_TMP"
-      clear_asm_seed_stale_logs
-      exit 0
+      build_seed_asm_host_warn "-E 失败且无 pin/fallback，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
     else
-      rm -f "$ASM_TMP"
-      if build_backend_partial_from_c_fallback; then
-        build_seed_asm_host_warn "asm_seed_full.x -E 失败，改用源码 fallback partial"
-        clear_asm_seed_stale_logs
-        exit 0
-      fi
-      build_seed_asm_host_error "asm_seed_full.x -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial"
+      build_seed_asm_host_error "asm_seed_full.x -E 失败且无 pin／fallback／可用 $ASM_FULL_C"
       exit 1
     fi
   else
