@@ -64,6 +64,8 @@ export extern function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_http_glue_o(argv0: *u8): i32;
 export extern function xlang_runtime_http_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
@@ -3523,6 +3525,19 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     // --- kv + glue ---
     let n_kv: i32 = labi_od_kv_sym_count();
     if (labi_od_user_needs_table_which(user_o, n_kv, 0) != 0) {
+      // PLATFORM: SHARED — L4 wipe deletes kv.o; skip-missing never ensure
+      // (≡ need_sys). Produce path is formal_mod mod.x+kv.x. Twin of L8b seed.
+      let root_kv: *u8 = 0 as *u8;
+      unsafe {
+        root_kv = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_kv != 0 as *u8) {
+        if (root_kv[0] != 0) {
+          unsafe {
+            let _ekv: i32 = xlang_ensure_formal_std_make_o(root_kv, "std/db/kv/kv.o", "../std/db/kv/kv.o");
+          }
+        }
+      }
       let kvrel: *u8 = labi_od_kv_rel();
       let kvprim: *u8 = 0 as *u8;
       unsafe {
@@ -3533,16 +3548,17 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         unsafe {
           link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kv);
         }
-        if (la[0] < max_la - 1) {
-          let kvp: *u8 = 0 as *u8;
+        unsafe {
+          let _kg: i32 = xlang_ensure_runtime_kv_mmap_glue_o(link_argv0);
+        }
+        let kvp: *u8 = 0 as *u8;
+        unsafe {
+          kvp = xlang_runtime_kv_mmap_glue_o_path(link_argv0);
+        }
+        let p_kg: *u8 = labi_od_resolve_or_try(kvp, labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
+        if (p_kg != 0 as *u8) {
           unsafe {
-            kvp = xlang_runtime_kv_mmap_glue_o_path(link_argv0);
-          }
-          let p_kg: *u8 = labi_od_resolve_or_try(kvp, labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
-          if (p_kg != 0 as *u8) {
-            unsafe {
-              link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kg);
-            }
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kg);
           }
         }
       }
@@ -3551,6 +3567,20 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     // --- arrow + glue ---
     let n_ar: i32 = labi_od_arrow_sym_count();
     if (labi_od_user_needs_table_which(user_o, n_ar, 1) != 0) {
+      // PLATFORM: SHARED — L4 wipe deletes arrow.o; skip-missing never ensure.
+      // simd c_face companion for simd_hw_available_c. Twin of L8b seed.
+      let root_ar: *u8 = 0 as *u8;
+      unsafe {
+        root_ar = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_ar != 0 as *u8) {
+        if (root_ar[0] != 0) {
+          unsafe {
+            let _ear: i32 = xlang_ensure_formal_std_make_o(root_ar, "std/db/arrow/arrow.o", "../std/db/arrow/arrow.o");
+            let _esi: i32 = xlang_ensure_formal_std_make_o(root_ar, "std/simd/simd.o", "../std/simd/simd.o");
+          }
+        }
+      }
       let arrel: *u8 = labi_od_arrow_rel();
       let arprim: *u8 = 0 as *u8;
       unsafe {
@@ -3561,16 +3591,18 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         unsafe {
           link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ar);
         }
-        if (la[0] < max_la - 1) {
-          let arp: *u8 = 0 as *u8;
+        unsafe {
+          let _si: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/simd/simd.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          let _ag: i32 = xlang_ensure_runtime_arrow_simd_glue_o(link_argv0);
+        }
+        let arp: *u8 = 0 as *u8;
+        unsafe {
+          arp = xlang_runtime_arrow_simd_glue_o_path(link_argv0);
+        }
+        let p_ag: *u8 = labi_od_resolve_or_try(arp, labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
+        if (p_ag != 0 as *u8) {
           unsafe {
-            arp = xlang_runtime_arrow_simd_glue_o_path(link_argv0);
-          }
-          let p_ag: *u8 = labi_od_resolve_or_try(arp, labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
-          if (p_ag != 0 as *u8) {
-            unsafe {
-              link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ag);
-            }
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ag);
           }
         }
       }

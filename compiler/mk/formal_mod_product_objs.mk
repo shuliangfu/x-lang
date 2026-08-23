@@ -53,6 +53,8 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/cli/cli.o \
 	../std/datetime/datetime.o \
 	../std/db/sqlite/sqlite.o \
+	../std/db/kv/kv.o \
+	../std/db/arrow/arrow.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
 	../std/tar/tar.o \

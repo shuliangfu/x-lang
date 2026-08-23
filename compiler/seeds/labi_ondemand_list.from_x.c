@@ -97,7 +97,9 @@ void labi_std_append_test_monofile_companions(const char *link_argv0, const char
 const char *xlang_std_async_scheduler_o_path(const char *argv0);
 const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
 const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0);
 const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0);
 void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *), const char *glue_primary,
     const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
@@ -819,17 +821,45 @@ const char *labi_od_simple_group_rel(int g) {
   return NULL;
 }
 
-/* KV: multi-sym → kv.o + optional glue rel */
+/* KV: multi-sym → kv.o + optional glue rel.
+ * PLATFORM: SHARED — cookbook db_kv_arrow unique-first (mmap_available /
+ * open / close / append_ts / get / wal_flush / compact / sst_level_count),
+ * then remaining unique std.db.kv export faces, then legacy C ABI.
+ * Matcher is exact; C ABI names never fire import METHOD std_db_kv_*. */
 int labi_od_kv_sym_count(void) {
-  return 2;
+  return 14;
 }
 
 const char *labi_od_kv_sym_at(int i) {
   if (i < 0)
     return NULL;
   if (i == 0)
-    return "db_kv_open_c";
+    return "std_db_kv_mmap_available";
   if (i == 1)
+    return "std_db_kv_open";
+  if (i == 2)
+    return "std_db_kv_close";
+  if (i == 3)
+    return "std_db_kv_append_ts";
+  if (i == 4)
+    return "std_db_kv_get";
+  if (i == 5)
+    return "std_db_kv_wal_flush";
+  if (i == 6)
+    return "std_db_kv_compact";
+  if (i == 7)
+    return "std_db_kv_sst_level_count";
+  if (i == 8)
+    return "std_db_kv_sync";
+  if (i == 9)
+    return "std_db_kv_put";
+  if (i == 10)
+    return "std_db_kv_compact_generation";
+  if (i == 11)
+    return "std_db_kv_wal_bytes";
+  if (i == 12)
+    return "db_kv_open_c";
+  if (i == 13)
     return "db_kv_get_c";
   return NULL;
 }
@@ -842,17 +872,74 @@ const char *labi_od_kv_glue_rel(void) {
   return "compiler/runtime_kv_mmap_glue.o";
 }
 
-/* Arrow */
+/* Arrow.
+ * PLATFORM: SHARED — cookbook db_kv_arrow unique-first (adopt_f32_ptr_i32_i32 /
+ * sum / dot / free_ArrowColumn), then remaining unique std.db.arrow export
+ * faces, then legacy C ABI. Matcher is exact. */
 int labi_od_arrow_sym_count(void) {
-  return 2;
+  return 29;
 }
 
 const char *labi_od_arrow_sym_at(int i) {
   if (i < 0)
     return NULL;
   if (i == 0)
-    return "arrow_column_i32_create_c";
+    return "std_db_arrow_adopt_f32_ptr_i32_i32";
   if (i == 1)
+    return "std_db_arrow_sum";
+  if (i == 2)
+    return "std_db_arrow_dot";
+  if (i == 3)
+    return "std_db_arrow_free_ArrowColumn";
+  if (i == 4)
+    return "std_db_arrow_new_i32";
+  if (i == 5)
+    return "std_db_arrow_new_f32";
+  if (i == 6)
+    return "std_db_arrow_new_f64";
+  if (i == 7)
+    return "std_db_arrow_adopt_i32_ptr_i32_i32";
+  if (i == 8)
+    return "std_db_arrow_length_ArrowColumn";
+  if (i == 9)
+    return "std_db_arrow_length_ArrowBatch";
+  if (i == 10)
+    return "std_db_arrow_owned";
+  if (i == 11)
+    return "std_db_arrow_null_bitmap";
+  if (i == 12)
+    return "std_db_arrow_valid";
+  if (i == 13)
+    return "std_db_arrow_data_i32";
+  if (i == 14)
+    return "std_db_arrow_data_f32";
+  if (i == 15)
+    return "std_db_arrow_data_f64";
+  if (i == 16)
+    return "std_db_arrow_append_ArrowColumn_i32";
+  if (i == 17)
+    return "std_db_arrow_append_ArrowColumn_f32";
+  if (i == 18)
+    return "std_db_arrow_append_ArrowColumn_f64";
+  if (i == 19)
+    return "std_db_arrow_append_null";
+  if (i == 20)
+    return "std_db_arrow_batch";
+  if (i == 21)
+    return "std_db_arrow_add";
+  if (i == 22)
+    return "std_db_arrow_get";
+  if (i == 23)
+    return "std_db_arrow_free_ArrowBatch";
+  if (i == 24)
+    return "std_db_arrow_sum_valid_i32";
+  if (i == 25)
+    return "std_db_arrow_sum_valid_f32";
+  if (i == 26)
+    return "std_db_arrow_simd_hw_available";
+  if (i == 27)
+    return "arrow_column_i32_create_c";
+  if (i == 28)
     return "arrow_column_adopt_f32_c";
   return NULL;
 }
@@ -3511,31 +3598,52 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_kv_sym_count(), labi_od_kv_sym_at)) {
+        /* PLATFORM: SHARED — L4 wipe deletes kv.o; push skip-missing is not
+         * enough (≡ need_sys / need_net). Produce path is formal_mod
+         * mod.x+kv.x (was std_x auto-soft kv.x only → T db_kv_*). G.7 complete
+         * existing kv table with formal ensure + glue ensure. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/db/kv/kv.o",
+                                                    "../std/db/kv/kv.o");
+        }
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_kv_rel()));
         if (!p && bank)
             p = xlang_asm_ld_try_under_lib_roots(labi_od_kv_rel(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
-        if (p && *la < max_la - 1) {
-            const char *rkv = asm_link_obj_skip_missing(xlang_runtime_kv_mmap_glue_o_path(link_argv0));
-            if (!rkv && bank)
-                rkv = xlang_asm_ld_try_under_lib_roots(labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
-            if (rkv)
-                link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rkv);
-        }
+        if (p)
+            link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_kv_mmap_glue_o,
+                xlang_runtime_kv_mmap_glue_o_path(link_argv0), link_argv0,
+                labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_arrow_sym_count(), labi_od_arrow_sym_at)) {
+        /* PLATFORM: SHARED — L4 wipe deletes arrow.o; skip-missing never
+         * ensure (≡ kv). Produce path is formal_mod mod.x+arrow.x.
+         * arrow.o U arrow_column_f32_*_c (simd glue) and simd_hw_available_c
+         * (simd c_face C ABI). Darwin -dead_strip hid unused simd T; Ubuntu
+         * gold exposes UNDEF. G.7 complete existing arrow table. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0]) {
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/db/arrow/arrow.o",
+                                                    "../std/db/arrow/arrow.o");
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/simd/simd.o",
+                                                    "../std/simd/simd.o");
+            }
+        }
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_arrow_rel()));
         if (!p && bank)
             p = xlang_asm_ld_try_under_lib_roots(labi_od_arrow_rel(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
-        if (p && *la < max_la - 1) {
-            const char *rar = asm_link_obj_skip_missing(xlang_runtime_arrow_simd_glue_o_path(link_argv0));
-            if (!rar && bank)
-                rar = xlang_asm_ld_try_under_lib_roots(labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
-            if (rar)
-                link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rar);
+        if (p) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/simd/simd.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_arrow_simd_glue_o,
+                xlang_runtime_arrow_simd_glue_o_path(link_argv0), link_argv0,
+                labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
     }
     if (link_abi_user_o_needs_std_test(user_o)) {

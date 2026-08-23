@@ -91,6 +91,10 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — cookbook sqlite_available unique UNDEF (is_available).
     # Was std_x auto-soft sqlite.x only → T db_* / no std_db_sqlite_*.
     ../std/db/sqlite/sqlite.o|std/db/sqlite/sqlite.o|*std/db/sqlite/sqlite.o) printf '%s' "std/db/sqlite/sqlite.o" ;;
+    # PLATFORM: SHARED — cookbook db_kv_arrow unique UNDEF (mmap_available / adopt).
+    # Was std_x auto-soft kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_*.
+    ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
+    ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
@@ -180,6 +184,11 @@ formal_mod_spec_for_key() {
     # Was std_x bare sqlite.x only → T db_* / no std_db_sqlite_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http/datetime: mod.x prefix + --bare-impl *_c.
     std/db/sqlite/sqlite.o) printf '%s' "mod|1|../std/db/sqlite/mod.x|../std/db/sqlite/sqlite.x" ;;
+    # PLATFORM: SHARED — std.db.kv / std.db.arrow product faces (cookbook db_kv_arrow).
+    # Was std_x bare kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_kv_* /
+    # std_db_arrow_* (import METHOD UNDEF). G.7 complete formal_mod like sqlite.
+    std/db/kv/kv.o) printf '%s' "mod|1|../std/db/kv/mod.x|../std/db/kv/kv.x" ;;
+    std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
@@ -256,6 +265,8 @@ formal_mod_all_keys() {
     std/cli/cli.o \
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
+    std/db/kv/kv.o \
+    std/db/arrow/arrow.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \
@@ -1404,7 +1415,7 @@ _libc_clash = {
     'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
     'getpid', 'getppid', 'waitpid', 'exec', 'signal', 'abort',
     'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
-    'read', 'write',
+    'read', 'write', 'sync',
     'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
     'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
@@ -1459,7 +1470,7 @@ clash = {
     'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
     'getpid', 'getppid', 'waitpid', 'exec', 'signal', 'abort',
     'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
-    'read', 'write',
+    'read', 'write', 'sync',
     'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
     'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
@@ -1529,9 +1540,20 @@ PYEOF
     for _cn in wait free open close malloc realloc calloc getcwd chdir pipe exit \
                getenv setenv unsetenv getpid getppid waitpid exec signal abort \
                unreachable \
-               remove rename system time clock read write \
+               remove rename system time clock read write sync \
                abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
+      # PLATFORM: SHARED — skip file-wide `#define open` when arity-aware rename
+      # already created xlang_formal_bare_* AND leftover bare calls remain.
+      # kv/mod.x export open(path, cap) 2-arg + co-emitted macos mmap FFI
+      # open(path, flags, mode) 3-arg: file-wide define rewrites FFI into an
+      # implicit 3-arg xlang_formal_bare_open then the static 2-arg X def
+      # conflicts (≡ msync 2 vs 3; mmap family not #define). G.7 complete
+      # existing clash gate — mixed-arity TUs rely on arity-aware rename only.
+      if grep -Eq "xlang_formal_bare_${_cn}" "$gen_c" 2>/dev/null \
+         && grep -Eq "[^_A-Za-z0-9]${_cn}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
+        continue
+      fi
       # Only guard names that have a function *definition* in this TU (not mere
       # mentions in comments / strings). Match return-type name( form.
       if grep -Eq "^[A-Za-z_][A-Za-z0-9_ *]*[[:space:]]+${_cn}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
@@ -1724,6 +1746,18 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
       # std_sqlite_* (Ubuntu objcopy). Twin of std/io/driver.o → io_driver.
       leaf="db_sqlite"
       ;;
+    std/db/kv/kv.o)
+      # PLATFORM: SHARED — nested module std.db.kv product face.
+      # Import mangle is std_db_kv_*; leaf basename kv would yield std_kv_*
+      # (Ubuntu objcopy). Twin of sqlite → db_sqlite.
+      leaf="db_kv"
+      ;;
+    std/db/arrow/arrow.o)
+      # PLATFORM: SHARED — nested module std.db.arrow product face.
+      # Import mangle is std_db_arrow_*; leaf basename arrow would yield
+      # std_arrow_* (Ubuntu objcopy). Twin of sqlite → db_sqlite.
+      leaf="db_arrow"
+      ;;
   esac
   case "$out_root" in
     core) prod_pref="core_${leaf}_" ;;
@@ -1811,7 +1845,7 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
     for clash in free open close malloc realloc calloc getcwd chdir pipe exit \
                  getenv setenv unsetenv getpid getppid waitpid wait exec signal abort \
                  unreachable \
-                 remove rename system time clock read write \
+                 remove rename system time clock read write sync \
                  mmap munmap msync ftruncate lseek \
                  abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                  sqrt cbrt pow exp log log1p expm1 erf erfc min max; do

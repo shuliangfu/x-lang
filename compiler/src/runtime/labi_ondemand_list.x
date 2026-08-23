@@ -1522,16 +1522,19 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   return 0 as *u8;
 }
 
-/* KV: multi-sym → kv.o + optional glue rel */
+/* KV: multi-sym → kv.o + optional glue rel.
+ * PLATFORM: SHARED — cookbook db_kv_arrow unique-first, then remaining unique
+ * std.db.kv export faces, then legacy C ABI. Twin of L8b seed. */
 #[no_mangle]
 export function labi_od_kv_sym_count(): i32 {
-  return 2;
+  return 14;
 }
 
-/** Exported function `labi_od_kv_sym_at`.
- * Implements `labi_od_kv_sym_at`.
- * @param i i32
- * @return *u8
+/**
+ * Exact UNDEF needle at index i for std.db.kv on-demand (user .o).
+ * @param i i32 — 0..count-1; unique-first cookbook names, then remaining unique, then C ABI
+ * @return *u8 — NUL-terminated symbol; null if i out of range
+ * PLATFORM: SHARED — matcher is exact; import METHOD is std_db_kv_*.
  */
 #[no_mangle]
 export function labi_od_kv_sym_at(i: i32): *u8 {
@@ -1539,10 +1542,58 @@ export function labi_od_kv_sym_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "db_kv_open_c";
+    let p: *u8 = "std_db_kv_mmap_available";
     return p;
   }
   if (i == 1) {
+    let p: *u8 = "std_db_kv_open";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_db_kv_close";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_db_kv_append_ts";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_db_kv_get";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_db_kv_wal_flush";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_db_kv_compact";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_db_kv_sst_level_count";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_db_kv_sync";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_db_kv_put";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_db_kv_compact_generation";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_db_kv_wal_bytes";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "db_kv_open_c";
+    return p;
+  }
+  if (i == 13) {
     let p: *u8 = "db_kv_get_c";
     return p;
   }
@@ -1569,16 +1620,19 @@ export function labi_od_kv_glue_rel(): *u8 {
   return p;
 }
 
-/* Arrow */
+/* Arrow.
+ * PLATFORM: SHARED — cookbook db_kv_arrow unique-first, then remaining unique
+ * std.db.arrow export faces, then legacy C ABI. Twin of L8b seed. */
 #[no_mangle]
 export function labi_od_arrow_sym_count(): i32 {
-  return 2;
+  return 29;
 }
 
-/** Exported function `labi_od_arrow_sym_at`.
- * Implements `labi_od_arrow_sym_at`.
- * @param i i32
- * @return *u8
+/**
+ * Exact UNDEF needle at index i for std.db.arrow on-demand (user .o).
+ * @param i i32 — 0..count-1; unique-first cookbook names, then remaining unique, then C ABI
+ * @return *u8 — NUL-terminated symbol; null if i out of range
+ * PLATFORM: SHARED — matcher is exact; import METHOD is std_db_arrow_*.
  */
 #[no_mangle]
 export function labi_od_arrow_sym_at(i: i32): *u8 {
@@ -1586,10 +1640,118 @@ export function labi_od_arrow_sym_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "arrow_column_i32_create_c";
+    let p: *u8 = "std_db_arrow_adopt_f32_ptr_i32_i32";
     return p;
   }
   if (i == 1) {
+    let p: *u8 = "std_db_arrow_sum";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_db_arrow_dot";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_db_arrow_free_ArrowColumn";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_db_arrow_new_i32";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_db_arrow_new_f32";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_db_arrow_new_f64";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_db_arrow_adopt_i32_ptr_i32_i32";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_db_arrow_length_ArrowColumn";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_db_arrow_length_ArrowBatch";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_db_arrow_owned";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_db_arrow_null_bitmap";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_db_arrow_valid";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_db_arrow_data_i32";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_db_arrow_data_f32";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "std_db_arrow_data_f64";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_db_arrow_append_ArrowColumn_i32";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "std_db_arrow_append_ArrowColumn_f32";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_db_arrow_append_ArrowColumn_f64";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "std_db_arrow_append_null";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "std_db_arrow_batch";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "std_db_arrow_add";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "std_db_arrow_get";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "std_db_arrow_free_ArrowBatch";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "std_db_arrow_sum_valid_i32";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "std_db_arrow_sum_valid_f32";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "std_db_arrow_simd_hw_available";
+    return p;
+  }
+  if (i == 27) {
+    let p: *u8 = "arrow_column_i32_create_c";
+    return p;
+  }
+  if (i == 28) {
     let p: *u8 = "arrow_column_adopt_f32_c";
     return p;
   }

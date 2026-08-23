@@ -254,3 +254,13 @@ int32_t std_simd_recommend_path(void) {
   /* force_hw (AUTovec=hw|1) and default share the same rule: HW iff available. */
   return std_simd_hw_available() != 0 ? 1 : 0;
 }
+
+/* C ABI aliases for co-emitted std.db.arrow / std.simd.mod externs.
+ * PLATFORM: SHARED — formal_mod arrow.o U simd_hw_available_c /
+ * simd_recommend_path_c (mod.x import of std.simd). Product wrapper names
+ * are std_simd_*; Darwin -dead_strip hid unused simd T in arrow.o; Ubuntu
+ * gold exposes UNDEF. G.7 complete existing c_face (same contract as
+ * std_simd_hw_available / std_simd_recommend_path). */
+int32_t simd_hw_available_c(void) { return std_simd_hw_available(); }
+
+int32_t simd_recommend_path_c(void) { return std_simd_recommend_path(); }
