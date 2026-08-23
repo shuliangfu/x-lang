@@ -13149,9 +13149,12 @@ typedef struct {
   int32_t cell_size[XLANG_ASM_MODLET_MAX];
 } pipeline_asm_modlet_table_t;
 
-/* PLATFORM: SHARED — modlet cell_size encoding (mirror .x pipe_modlet_cell_*). */
+/* PLATFORM: SHARED — modlet cell_size encoding (mirror .x pipe_modlet_cell_*).
+ * low 29 = payload; bit29 = .data-baked non-empty ARRAY_LIT; bit30 = array decay.
+ * Product max payload 8 MiB << bit29; mask 30→29 is safe. */
 #define XLANG_ASM_MODLET_CELL_ARRAY_BIT 0x40000000
-#define XLANG_ASM_MODLET_CELL_PAYLOAD_MASK 0x3fffffff
+#define XLANG_ASM_MODLET_CELL_DATA_BIT 0x20000000
+#define XLANG_ASM_MODLET_CELL_PAYLOAD_MASK 0x1fffffff
 
 static int32_t pipeline_asm_modlet_cell_payload_cold(int32_t csz) {
   int32_t p = csz & XLANG_ASM_MODLET_CELL_PAYLOAD_MASK;
@@ -13166,6 +13169,10 @@ static int32_t pipeline_asm_modlet_cell_is_array_cold(int32_t csz) {
   if (p != 8 && p > 0)
     return 1;
   return 0;
+}
+
+static int32_t pipeline_asm_modlet_cell_is_data_cold(int32_t csz) {
+  return ((csz & XLANG_ASM_MODLET_CELL_DATA_BIT) != 0) ? 1 : 0;
 }
 
 static pipeline_asm_modlet_table_t g_pipeline_asm_modlet_cold;
@@ -13219,6 +13226,17 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t imm, int
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t off, int32_t ta);
 extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t size,
                                                int32_t align);
+extern int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes);
+extern int32_t pipeline_elf_ctx_append_data_zeros(uint8_t *ctx_bytes, int32_t n);
+extern int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b);
+extern void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx_bytes, int32_t shndx);
+extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et);
 extern int32_t pipeline_module_top_level_let_is_const(void *m, int32_t tl);
 extern int32_t pipeline_module_top_level_let_name_len(void *m, int32_t tl);
 extern uint8_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t tl, int32_t k);
@@ -13382,6 +13400,65 @@ static void pipe_modlet_assign_unique_label_cold(int idx, uint32_t module_fp) {
   g_pipeline_asm_modlet_cold.label_len[idx] = 21;
 }
 
+/**
+ * Bake ARRAY_LIT LIT elems into an already-reserved .data cell.
+ * Twin of runtime_pipeline_abi.x pipe_modlet_bake_array_lit_elems_to_data.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ */
+static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t data_base, int32_t base_off) {
+  int32_t ne = 0, ei = 0, eref = 0, ek = 0, ev = 0, esz = 4, etk = 0;
+  int32_t inner_et = 0, row_sz = 0, bi = 0, cur = 0;
+  if (!arena || !elf_ctx || init_ref <= 0)
+    return 0;
+  if (elem_ty > 0)
+    etk = pipeline_type_kind_ord_at(arena, elem_ty);
+  if (etk == 10) {
+    inner_et = pipeline_type_elem_ref_at(arena, elem_ty);
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    row_sz = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+    if (row_sz <= 0)
+      row_sz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+    if (ne <= 0 || ne > 1024)
+      return 0;
+    for (ei = 0; ei < ne; ei++) {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+      if (eref <= 0)
+        continue;
+      ek = pipeline_expr_kind_ord_at(arena, eref);
+      if (ek == 46) {
+        if (pipe_modlet_bake_array_lit_elems_to_data_cold(arena, elf_ctx, eref, inner_et, data_base,
+                                                           base_off + ei * row_sz) != 0)
+          return -1;
+      }
+    }
+    return 0;
+  }
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    esz = 4;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  if (ne <= 0 || ne > 1024)
+    return 0;
+  for (ei = 0; ei < ne; ei++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    if (eref <= 0)
+      continue;
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+    if (ek != 0)
+      continue;
+    ev = pipeline_expr_int_val_at(arena, eref);
+    cur = ev;
+    for (bi = 0; bi < esz; bi++) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_base + base_off + ei * esz + bi, cur & 255) != 0)
+        return -1;
+      cur = cur / 256;
+    }
+  }
+  return 0;
+}
+
 int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
   int32_t tl, n, i;
   pipeline_asm_modlet_reset_cold();
@@ -13447,8 +13524,14 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
       pipe_modlet_assign_unique_label_cold(i, module_fp);
   }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
-    int32_t csz = pipeline_asm_modlet_cell_payload_cold(g_pipeline_asm_modlet_cold.cell_size[i]);
+    int32_t csz_raw = g_pipeline_asm_modlet_cold.cell_size[i];
+    int32_t csz = pipeline_asm_modlet_cell_payload_cold(csz_raw);
     int32_t calign = 8;
+    int32_t use_data = 0;
+    int32_t init_ref2 = 0, type_ref2 = 0, ik2 = 0, tk2 = 0, et2 = 0, ne2 = 0;
+    int32_t data_off = 0, data_len_now = 0, pad = 0;
+    int32_t tl2 = 0, match_tl = -1, k2 = 0;
+    int32_t nlen2 = g_pipeline_asm_modlet_cold.name_len[i];
     if (csz == 1)
       calign = 1;
     else if (csz == 2)
@@ -13457,9 +13540,76 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
       calign = 4;
     else if (csz >= 16)
       calign = 16;
-    if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
-                                        g_pipeline_asm_modlet_cold.label_len[i], csz, calign) != 0)
-      return -1;
+    /* Non-empty TYPE_ARRAY ARRAY_LIT → F7 .data when it fits (library TU).
+     * Empty `[]` stays COMMON. Oversized non-empty → COMMON + hoist seed.
+     * PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare emit. */
+    if (pipeline_asm_modlet_cell_is_array_cold(csz_raw)) {
+      for (tl2 = 0; tl2 < n; tl2++) {
+        int32_t tln = pipeline_module_top_level_let_name_len(m, tl2);
+        if (tln != nlen2 || tln <= 0)
+          continue;
+        for (k2 = 0; k2 < tln; k2++) {
+          if ((int32_t)pipeline_module_top_level_let_name_byte_at(m, tl2, k2) !=
+              (int32_t)g_pipeline_asm_modlet_cold.name[i][k2])
+            break;
+        }
+        if (k2 == tln) {
+          match_tl = tl2;
+          break;
+        }
+      }
+      if (match_tl >= 0) {
+        init_ref2 = pipeline_module_top_level_let_init_ref(m, match_tl);
+        type_ref2 = pipeline_module_top_level_let_type_ref(m, match_tl);
+        if (init_ref2 > 0 && init_ref2 <= cold_arena_num_exprs(a) && type_ref2 > 0) {
+          ik2 = pipeline_expr_kind_ord_at(a, init_ref2);
+          tk2 = pipeline_type_kind_ord_at(a, type_ref2);
+          ne2 = (ik2 == 46) ? pipeline_expr_array_lit_num_elems_at(a, init_ref2) : 0;
+          if (ik2 == 46 && tk2 == 10 && ne2 > 0) {
+            data_len_now = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+            if (data_len_now < 0)
+              data_len_now = 0;
+            pad = 0;
+            if (calign > 1)
+              pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+            if (data_len_now + pad + csz <= 65536)
+              use_data = 1;
+          }
+        }
+      }
+    }
+    if (use_data) {
+      if (pad > 0 && pipeline_elf_ctx_append_data_zeros((uint8_t *)elf_ctx, pad) != 0)
+        return -1;
+      data_off = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 4);
+      if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
+                                     g_pipeline_asm_modlet_cold.label_len[i], data_off) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
+                                   g_pipeline_asm_modlet_cold.label_len[i], data_off) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_append_data_zeros((uint8_t *)elf_ctx, csz) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      et2 = pipeline_type_elem_ref_at(a, type_ref2);
+      if (pipe_modlet_bake_array_lit_elems_to_data_cold(a, (uint8_t *)elf_ctx, init_ref2, et2, data_off,
+                                                         0) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      g_pipeline_asm_modlet_cold.cell_size[i] = csz_raw | XLANG_ASM_MODLET_CELL_DATA_BIT;
+    } else {
+      if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
+                                          g_pipeline_asm_modlet_cold.label_len[i], csz, calign) != 0)
+        return -1;
+    }
   }
   return 0;
 }
@@ -13470,6 +13620,9 @@ int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) 
     return 0;
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
     int32_t imm = g_pipeline_asm_modlet_cold.init_imm[i];
+    /* .data-backed arrays must not be scalar-seeded (imm stays 0). */
+    if (pipeline_asm_modlet_cell_is_data_cold(g_pipeline_asm_modlet_cold.cell_size[i]))
+      continue;
     if (imm == 0)
       continue;
     if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
@@ -13479,7 +13632,7 @@ int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) 
       return -1;
   }
   /* Live .x also seeds TYPE_ARRAY ARRAY_LIT LIT elems into COMMON
-   * (const + mutable). Cold twin remains scalar-only. */
+   * (skips .data-backed). Cold twin remains scalar-only for ARRAY_LIT. */
   return 0;
 }
 
@@ -34490,6 +34643,39 @@ int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx_bytes, uint32_t word) {
 }
 
 /**
+ * F7: Append `n` zero bytes to the data section buffer (reserve + clear).
+ * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_append_data_zeros.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ */
+int32_t pipeline_elf_ctx_append_data_zeros(uint8_t *ctx_bytes, int32_t n) {
+  int32_t off;
+  if (!ctx_bytes)
+    return -1;
+  if (n <= 0)
+    return 0;
+  if (g_pipeline_elf_data_len < 0)
+    g_pipeline_elf_data_len = 0;
+  if (g_pipeline_elf_data_len + n > 65536)
+    return -1;
+  off = g_pipeline_elf_data_len;
+  memset(&g_pipeline_elf_data_buf[off], 0, (size_t)n);
+  g_pipeline_elf_data_len = off + n;
+  return 0;
+}
+
+/**
+ * F7: Poke one byte into an already-reserved data-section offset.
+ * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_data_poke_u8.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ */
+int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b) {
+  if (!ctx_bytes || off < 0 || off >= g_pipeline_elf_data_len)
+    return -1;
+  g_pipeline_elf_data_buf[off] = (uint8_t)(b & 255);
+  return 0;
+}
+
+/**
  * F7: Set/clear shndx override. When set to 4 (data section), subsequent
  * relocs/syms/labels are tagged as data-section. Set to 0 to restore default.
  * PLATFORM: SHARED freestanding ELF leave.
@@ -35655,8 +35841,13 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   seg2[56] = 7;
   seg2[60] = 3;
   seg2[64] = 1;  /* nsects = 1 */
-  /* section_64.sectname = "__const" at seg2+72 */
-  seg2[72] = 95; seg2[73] = 95; seg2[74] = 99; seg2[75] = 111; seg2[76] = 110; seg2[77] = 115; seg2[78] = 116;
+  /* section_64.sectname = "__data" at seg2+72.
+   * Was "__const": final ld maps __const RO → mutable modlet ARRAY_LIT
+   * counters (fmt g_fmt_*_n) SIGBUS on store. Library-TU .data bake needs
+   * writable home; vtable statics are fine in __data too.
+   * PLATFORM: MACOS|DARWIN — __DATA,__data; ELF stays .data.
+   * Twin of runtime_pipeline_abi.x macho writer. */
+  seg2[72] = 95; seg2[73] = 95; seg2[74] = 100; seg2[75] = 97; seg2[76] = 116; seg2[77] = 97;
   /* section_64.segname = "__DATA" at seg2+88 */
   seg2[88] = 95; seg2[89] = 95; seg2[90] = 68; seg2[91] = 65; seg2[92] = 84; seg2[93] = 65;
   /* section_64.addr = data_vmaddr (match segment vmaddr) */

@@ -440,9 +440,6 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 # Skip (return 1) when:
 #   · SRC is runtime_pipeline_abi.x (mega pure monofile incomplete for product
 #     bag — Cap residual only in seed rest; see ban comment above)
-#   · SRC is fmt_check_cmd_thin.x (library TU; pure-asm COMMON+hoist-seed never
-#     runs — module u8[N]={bytes} stay BSS 0). Host-C -E already emits decl-site
-#     static init (codegen.x want_decl_init). Opt-in: XLANG_FMT_ALLOW_PURE_ASM=1
 #   · emit exceeds XLANG_PURE_ASM_TIMEOUT_SEC (default 90; hang residual safety)
 #   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
@@ -556,20 +553,12 @@ pure_asm_x_to_o() {
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
-  # PLATFORM: SHARED — fmt_check_cmd_thin.x is a library TU (no main).
-  # Pure-asm homes module `u8[N] = [bytes…]` in SHN_COMMON / Mach-O __common
-  # (always BSS zero) and seeds ARRAY_LIT elems only on hoist-target entry
-  # (pipeline_asm_modlet_seed_nonzero_inits_elf_c; first non-extern body).
-  # This file's first body is driver_check_quiet_ok_get — never entered by
-  # `xlang fmt`. Result: empty ignore needles (strstr(path,"") matches all)
-  # + silent FMT001 (zero kind/msg lits). C -E already emits
-  # `static uint8_t g[] = {…}` at decl (codegen.x want_decl_init for library
-  # TUs — same reason heap_trace sentinels cannot wait for init_globals).
-  # Instant skip so rt_prefer / other-l2 prefer fall through to host-C.
-  # Do not "fix" path_should_ignore empty-needle; that is a symptom patch.
-  # Asm .data for non-zero ARRAY_LIT in library TUs is a later leaf (not this
-  # fmt knife; dest extras stay frozen).
-  # Opt-in bisect: XLANG_FMT_ALLOW_PURE_ASM=1.
+  # PLATFORM: SHARED — library-TU .data bake is closed (modlet prepare →
+  # ELF .data / Mach-O __DATA,__data for non-empty ARRAY_LIT). fmt_check_cmd_thin
+  # still skips pure-asm: with needles baked, --check / write still no-op
+  # (format path residual — separate knife; not empty-needle). Host-C -E keeps
+  # product fmt green. Opt-in bisect: XLANG_FMT_ALLOW_PURE_ASM=1.
+  # Do not "fix" path_should_ignore empty-needle; that was the old symptom.
   if [ "$_bn" = "fmt_check_cmd_thin.x" ] && [ "${XLANG_FMT_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
