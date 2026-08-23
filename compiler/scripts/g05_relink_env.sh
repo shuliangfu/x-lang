@@ -245,6 +245,10 @@ _sq() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g"
 }
 
+# PLATFORM: SHARED — surface platform link faces for archaeology / Stage2 X dogfood
+# (verify-selfhost-stage2). Same values already folded into G05_CFLAGS / G05_OBJS;
+# export named keys so consumers do not re-hardcode Darwin crt0 / multiply_defined.
+# G.7 有则补全 — do not invent a second platform table in Stage2.
 echo "G05_CC='$(_sq "$G05_CC")'"
 echo "G05_CFLAGS='$(_sq "$G05_CFLAGS")'"
 echo "G05_OUT='$(_sq "$G05_OUT")'"
@@ -252,5 +256,9 @@ echo "G05_XLANG_C='$(_sq "$G05_XLANG_C")'"
 echo "G05_BOOTSTRAP='$(_sq "$G05_BOOTSTRAP")'"
 echo "G05_OBJS='$(_sq "$G05_OBJS")'"
 echo "G05_HOT_C_OBJS='$(_sq "$G05_HOT_C_OBJS")'"
+echo "G05_MAIN_LINK_O='$(_sq "$_MAIN_LINK_O")'"
+echo "G05_MAIN_LINK_FLAGS='$(_sq "$_MAIN_LINK_FLAGS")'"
+echo "G05_ASM_GLUE_DUP_LDFLAGS='$(_sq "$_ASM_GLUE_DUP_LDFLAGS")'"
+echo "G05_USER_ASM_LINK='$(_sq "$_USER_ASM_LINK")'"
 echo "G05_UNAME_S='$(_sq "$UNAME_S")'"
 echo "G05_UNAME_M='$(_sq "$UNAME_M")'"

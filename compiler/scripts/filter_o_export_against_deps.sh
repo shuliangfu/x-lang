@@ -14,7 +14,7 @@
 #
 # Usage (cwd = compiler/):
 #   sh scripts/filter_o_export_against_deps.sh \
-#     --src SRC.o --out OUT.o --stem NAME [--omit DEP.o]... [--require-keep]
+#     --src SRC.o --out OUT.o --stem NAME [--omit DEP.o]... [--omit-sym NAME]... [--require-keep]
 #   # positional:
 #   sh scripts/filter_o_export_against_deps.sh SRC OUT STEM [DEP...]
 #   # optional env:
@@ -24,6 +24,8 @@
 #
 # PLATFORM: SHARED — Darwin product link is primary consumer of filtered.o;
 # Linux may build for hygiene (product link often uses bare .o).
+# --omit-sym: Stage2 X dogfood (verify-selfhost-stage2) named-symbol omit set;
+# G.7 有则补全 on this filter (do not re-copy Darwin/Linux ld -r bodies).
 
 set -euo pipefail
 # PLATFORM: SHARED — GNU comm rejects non-C locale order (Ubuntu L2 hang/fail);
@@ -39,9 +41,10 @@ OUT_O=""
 STEM=""
 REQUIRE_KEEP="${FILTER_REQUIRE_KEEP:-0}"
 OMITS=()
+OMIT_SYMS=()
 
 usage() {
-  echo "usage: filter_o_export_against_deps.sh --src SRC --out OUT --stem STEM [--omit DEP]... [--require-keep]" >&2
+  echo "usage: filter_o_export_against_deps.sh --src SRC --out OUT --stem STEM [--omit DEP]... [--omit-sym NAME]... [--require-keep]" >&2
   echo "   or: filter_o_export_against_deps.sh SRC OUT STEM [DEP...]" >&2
   exit 2
 }
@@ -74,6 +77,10 @@ else
         ;;
       --omit)
         OMITS+=("${2:-}")
+        shift 2
+        ;;
+      --omit-sym)
+        OMIT_SYMS+=("${2:-}")
         shift 2
         ;;
       --require-keep)
@@ -114,6 +121,14 @@ for dep_o in "${OMITS[@]+"${OMITS[@]}"}"; do
   if [ -n "$dep_o" ] && [ -f "$dep_o" ]; then
     nm "$dep_o" 2>/dev/null | awk '/ [TDS] / { s=$3; sub(/^_/, "", s); print s }' >>"$omit_syms" || true
   fi
+done
+# Named-symbol omit (Stage2 X dogfood): strip leading _ for nm parity.
+for sym in "${OMIT_SYMS[@]+"${OMIT_SYMS[@]}"}"; do
+  [ -n "$sym" ] || continue
+  case "$sym" in
+    _*) printf '%s\n' "${sym#_}" >>"$omit_syms" ;;
+    *) printf '%s\n' "$sym" >>"$omit_syms" ;;
+  esac
 done
 sort -u "$omit_syms" -o "$omit_syms"
 

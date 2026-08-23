@@ -5,8 +5,11 @@
 # Post-Makefile phys-del: default path is 0-make shell (bootstrap_driver_seed /
 # build_seed_asm_host / ensure_host_cc_seed_o). Escape:
 #   XLANG_STAGE2_VIA_MAKE=1 + Makefile → historic make leaves (parity only).
+# Stage2 X E2E link hygiene: platform crt0 / DUP / USER_ASM from g05_relink_env
+# (G.7 有则补全); pipeline_x2 filter via filter_o_export_against_deps --omit-sym
+# (ban hardcoded Darwin crt0_arm64 / -multiply_defined / bare exported_symbols_list).
 # Usage: cd compiler && bash scripts/verify-selfhost-stage2.sh
-# PLATFORM: SHARED — orchestration only; product binaries stay host-local.
+# PLATFORM: SHARED — orchestration; link faces branched via g05_relink_env.
 set -e
 # cwd = compiler/ (this file lives in scripts/)
 cd "$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
@@ -15,6 +18,25 @@ cd "$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 # wave941 / experimental archaeology 0-make). Ban bare make-only after phys-del.
 stage2_via_make() {
   [ "${XLANG_STAGE2_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1
+}
+
+# Load platform link faces from g05_relink_env (same table as product g05).
+# Sets: STAGE2_MAIN_LINK_O / STAGE2_MAIN_LINK_FLAGS / STAGE2_ASM_GLUE_DUP /
+#        STAGE2_USER_ASM_LINK / STAGE2_UNAME_S / STAGE2_UNAME_M
+stage2_load_g05_platform() {
+  # shellcheck disable=SC1090
+  eval "$(bash scripts/g05_relink_env.sh)"
+  STAGE2_MAIN_LINK_O="${G05_MAIN_LINK_O:-}"
+  STAGE2_MAIN_LINK_FLAGS="${G05_MAIN_LINK_FLAGS:-}"
+  STAGE2_ASM_GLUE_DUP="${G05_ASM_GLUE_DUP_LDFLAGS:-}"
+  STAGE2_USER_ASM_LINK="${G05_USER_ASM_LINK:-}"
+  STAGE2_UNAME_S="${G05_UNAME_S:-$(uname -s)}"
+  STAGE2_UNAME_M="${G05_UNAME_M:-$(uname -m)}"
+  if [ -z "$STAGE2_MAIN_LINK_O" ]; then
+    echo "verify-stage2: g05_relink_env missing G05_MAIN_LINK_O" >&2
+    exit 1
+  fi
+  echo " verify-stage2: platform $STAGE2_UNAME_S/$STAGE2_UNAME_M MAIN_LINK=$STAGE2_MAIN_LINK_O"
 }
 
 stage2_bootstrap_driver_seed() {
@@ -123,25 +145,25 @@ cc $CFLAGS -c preprocess_gen2.c -o preprocess_x2.o
 cc $CFLAGS -c pipeline_gen2.c -o pipeline_x2.o
 STAGE2_X_TMP_DIR="${TMPDIR:-/tmp}/xlang-stage2-x"
 mkdir -p "$STAGE2_X_TMP_DIR"
-PIPELINE_X2_ALL="$STAGE2_X_TMP_DIR/pipeline_x2.syms"
-PIPELINE_X2_OMIT="$STAGE2_X_TMP_DIR/pipeline_x2.omit"
-PIPELINE_X2_KEEP="$STAGE2_X_TMP_DIR/pipeline_x2.keep"
 PIPELINE_X2_FILTERED="$STAGE2_X_TMP_DIR/pipeline_x2_filtered.o"
-cat >"$PIPELINE_X2_OMIT" <<'EOF'
-typeck_check_expr_call
-typeck_check_expr_deref
-typeck_check_expr_method_call
-codegen_try_emit_slice_init_from_array_var
-backend_ctx_push_loop_labels
-backend_ctx_pop_loop_labels
-backend_try_fold_count_up_while_elf
-EOF
-nm pipeline_x2.o 2>/dev/null | awk '/ [TDS] / { s=$3; sub(/^_/, "", s); print s }' | sort -u >"$PIPELINE_X2_ALL"
-grep -vxF -f "$PIPELINE_X2_OMIT" "$PIPELINE_X2_ALL" | sed 's/^/_/' >"$PIPELINE_X2_KEEP"
-ld -r -exported_symbols_list "$PIPELINE_X2_KEEP" -o "$PIPELINE_X2_FILTERED" pipeline_x2.o
+# PLATFORM: SHARED — named-symbol omit via filter_o_export (Darwin -arch +
+# exported_symbols_list / Linux --version-script). Ban bare Darwin-only ld -r.
+echo " verify-stage2: filter pipeline_x2.o (omit-sym; 0-make filter_o_export)"
+bash scripts/filter_o_export_against_deps.sh \
+  --src pipeline_x2.o \
+  --out "$PIPELINE_X2_FILTERED" \
+  --stem stage2_pipeline_x2 \
+  --omit-sym typeck_check_expr_call \
+  --omit-sym typeck_check_expr_deref \
+  --omit-sym typeck_check_expr_method_call \
+  --omit-sym codegen_try_emit_slice_init_from_array_var \
+  --omit-sym backend_ctx_push_loop_labels \
+  --omit-sym backend_ctx_pop_loop_labels \
+  --omit-sym backend_try_fold_count_up_while_elf
 
 echo ""
 echo "── 编译 C 侧与 seed 桥（与 bootstrap-driver-seed 同拓扑）──"
+stage2_load_g05_platform
 stage2_build_seed_asm_host
 # runtime_driver_strict_glue_stubs is already on the seed/g05 bag when needed;
 # do not re-cc with a truncated -o (historic phys-del bitrot).
@@ -155,7 +177,8 @@ cc $CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXL
 # Stage2 链接仍需沿用 driver 专用 C 对象；不要依赖工作区里偶然残留的 .o。
 stage2_ensure_driver_c_objs
 
-# ── Step 4: 链接 xlang-x2（*_x2.o 替代 parser_x/typeck_x/codegen_x/pipeline_x；其余与 bootstrap-driver-seed 同拓扑）──
+# ── Step 4: 链接 xlang-x2（*_x2.o 替代 parser_x/typeck_x/codegen_x/pipeline_x；
+# PLATFORM faces = g05_relink_env MAIN_LINK / DUP / USER_ASM）──
 echo ""
 echo "── Step 4: 链接 xlang-x2 ──"
 stage2_bootstrap_driver_seed >/dev/null
@@ -168,11 +191,12 @@ for _o in driver_x.o driver_compile_x.o driver_fmt_x.o driver_check_x.o driver_t
     break
   fi
 done
+# shellcheck disable=SC2086
 cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
-  -Wl,-multiply_defined,suppress -e _start -nostartfiles \
+  $STAGE2_ASM_GLUE_DUP $STAGE2_MAIN_LINK_FLAGS \
   -o xlang-x2 \
-  src/asm/crt0_arm64.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
+  $STAGE2_MAIN_LINK_O src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
   src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o runtime_driver2.o \
   src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
   src/lexer/lexer.o src/ast/ast_seed.o \
@@ -187,12 +211,9 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
   src/lsp/lsp_diag_stubs_no_c.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o lsp_x.o lsp_diag_x.o \
-  lsp_io_x.o lsp_io_std_heap_x.o build_asm/seed_host/asm_backend_partial.o \
-  build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
-  build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o \
-  src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o \
-  src/asm/backend_call_dispatch.o parser_asm_thin_glue.o \
-  src/asm/parser_asm_parse_expr_link.o build_asm/pipeline_glue_strict_minimal.o
+  lsp_io_x.o lsp_io_std_heap_x.o \
+  $STAGE2_USER_ASM_LINK \
+  build_asm/pipeline_glue_strict_minimal.o
 
 echo "xlang-x2 linked: $(ls -lh xlang-x2 | awk '{print $5}')"
 
