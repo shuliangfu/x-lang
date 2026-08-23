@@ -7,7 +7,7 @@
 #   B05  three-lang size     — stripped size comparison table across C/Zig/xlang
 #   BT02 mid-project build   — xlang compiler compiling a mid-size .x project
 #   BT03 incremental build   — rebuild after touching one file
-#   BT05 parallel build      — make -j1 / -j2 / -j4 scaling
+#   BT05 parallel build      — xbuild/hub ensure xlang-c under XLANG_JOBS=1/2/4
 #   L02  large gen code      — compile a large generated .x file
 #   L03  debug info size     — binary size with -g vs without
 #
@@ -199,22 +199,31 @@ bench_bt03() {
 }
 
 # ── BT05: Parallel build scaling ──
+# Post-MF phys-del: historic make -jN is gone. Bench ./xbuild / hub ensure_xlang_c
+# under XLANG_JOBS=N when present; else skip honestly. PLATFORM: SHARED
 bench_bt05() {
-  echo "## BT05: Parallel Build Scaling (make -jN, wall seconds)" | tee -a "$REPORT"
+  echo "## BT05: Parallel Build Scaling (xbuild/hub ensure xlang-c, wall seconds)" | tee -a "$REPORT"
   echo "" | tee -a "$REPORT"
   printf '| -jN | wall time (s) |\n' | tee -a "$REPORT"
   printf '|-----|---------------|\n' | tee -a "$REPORT"
-  # Use the project's own make (if Makefile exists).
-  if [ -f Makefile ]; then
+  if [ -x ./xbuild ] || [ -f tests/lib/compiler-make.sh ]; then
+    # shellcheck source=tests/lib/compiler-make.sh
+    . tests/lib/compiler-make.sh 2>/dev/null || true
     for j in 1 2 4; do
       local bt
-      bt=$(time_cmd make -j"$j" -C compiler xlang-c 2>/dev/null || echo "nan")
+      bt=$(time_cmd env XLANG_JOBS="$j" bash -c '
+        if [ -x ./xbuild ]; then
+          ./xbuild compiler-make xlang-c
+        else
+          xlang_compiler_make xlang-c
+        fi
+      ' 2>/dev/null || echo "nan")
       printf '| -j%s | %s |\n' "$j" "$bt" | tee -a "$REPORT"
       echo "  BT05: -j${j}=${bt}s"
     done
   else
-    printf '| (no Makefile) | n/a |\n' | tee -a "$REPORT"
-    echo "  BT05: skipped (no Makefile)"
+    printf '| (no xbuild/hub) | n/a |\n' | tee -a "$REPORT"
+    echo "  BT05: skipped (no xbuild / compiler-make hub)"
   fi
   echo "" | tee -a "$REPORT"
 }
@@ -321,7 +330,7 @@ bench_l03
 
 echo "## Notes" | tee -a "$REPORT"
 echo "- Static link may not be available on macOS (libc differences)." | tee -a "$REPORT"
-echo "- BT05 uses 'make -jN' if Makefile exists; otherwise skipped." | tee -a "$REPORT"
+echo "- BT05 uses './xbuild compiler-make xlang-c' / hub (MF phys-del); otherwise skipped." | tee -a "$REPORT"
 echo "- L02 generates 1000 functions and measures compile time." | tee -a "$REPORT"
 echo "- L03 compares binary size with/without debug info." | tee -a "$REPORT"
 

@@ -42,7 +42,7 @@ nolibc_n07_run_bootstrap_link_smoke() {
     src/asm/freestanding_io_x86_64.o \
     src/asm/bootstrap_nostdlib_stubs.o \
     runtime_panic.o >/dev/null 2>&1; then
-    echo "nolibc-n07-link-smoke FAIL: make bootstrap objects" >&2
+    echo "nolibc-n07-link-smoke FAIL: xlang_compiler_make bootstrap objects" >&2
     return 1
   fi
 

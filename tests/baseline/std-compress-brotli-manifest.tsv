@@ -10,8 +10,8 @@ api_avail	api	brotli_available	std/compress/mod.x	探测
 api_smoke	api	brotli_smoke	std/compress/mod.x	烟测
 symbol_avail_c	symbol	compress_brotli_available_c	std/compress/brotli/lib.x	探测
 symbol_smoke_c	symbol	compress_brotli_smoke_c	std/compress/brotli/lib.x	烟测
-make_brotli	target	compress-o-brotli	compiler/Makefile	构建
-make_all	target	compress-o-zlib-zstd-brotli	compiler/Makefile	全格式
+make_brotli	target	compress-o-brotli	tests/lib/compiler-make.sh	hub no-op phony
+make_all	target	compress-o-zlib-zstd-brotli	tests/lib/compiler-make.sh	hub no-op phony
 smoke_x	smoke	tests/std-compress/brotli_roundtrip.x	.x往返
 smoke_c	smoke	tests/std-compress/brotli_smoke_ok.c	C烟测
 lib	script	lib/std-compress-brotli.sh	tests/lib/std-compress-brotli.sh

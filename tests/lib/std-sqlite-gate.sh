@@ -23,7 +23,7 @@ EOF
 # 确保 sqlite.o 已构建（默认 SQLite3）。
 std_sqlite_build_o() {
   if ! xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1; then
-    echo "std-sqlite FAIL: make ../std/db/sqlite/sqlite.o" >&2
+    echo "std-sqlite FAIL: xlang_compiler_make ../std/db/sqlite/sqlite.o" >&2
     return 1
   fi
   return 0

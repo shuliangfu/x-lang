@@ -79,9 +79,10 @@ while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
       fi
       ;;
     target)
-      path="${src:-compiler/Makefile}"
+      # Post-MF phys-del: compress-o-* live as hub no-ops in compiler-make.sh.
+      path="${src:-tests/lib/compiler-make.sh}"
       if ! grep -qF "$anchor" "$path" 2>/dev/null; then
-        echo "std-compress FAIL: missing make target $anchor" >&2
+        echo "std-compress FAIL: missing hub phony $anchor in $path" >&2
         MISS=$((MISS + 1))
       fi
       ;;

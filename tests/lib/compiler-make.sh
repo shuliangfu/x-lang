@@ -153,7 +153,15 @@ _xlang_cm_dispatch_one() {
       ;;
     clean)
       # Soft product clean — do not wipe seed pins; only common products.
+      # Full wipe (historic `make clean` under compiler/) → scripts/clean_compiler.sh
+      # or `./xbuild clean`. PLATFORM: SHARED
       rm -f xlang xlang_asm xlang-c bootstrap_xlangc 2>/dev/null || true
+      return 0
+      ;;
+    # F-04 v7: compress formats live in .x; historic compress-o-* phonies are
+    # no-ops (runtime links -lz/-lzstd/-lbrotli* on demand). G.7 single hub.
+    # PLATFORM: SHARED
+    compress-o-zlib|compress-o-zlib-zstd|compress-o-brotli|compress-o-zlib-zstd-brotli)
       return 0
       ;;
     # --- leaf .o / path-like targets ---
@@ -161,10 +169,14 @@ _xlang_cm_dispatch_one() {
       _xlang_cm_ensure_one_o "$t"
       return $?
       ;;
-    # net-o-* archaeology phony
-    net-o-stub|net-o-openssl|net-o-mbedtls)
+    # net-o-* / sqlite-o-stub archaeology phonies (G.7 → archaeology_host_pick_phony)
+    net-o-stub|net-o-openssl|net-o-mbedtls|sqlite-o-stub)
       if [ -f scripts/archaeology_host_pick_phony.sh ]; then
         bash scripts/archaeology_host_pick_phony.sh "$t"
+        return $?
+      fi
+      if [ "$t" = "sqlite-o-stub" ]; then
+        _xlang_cm_ensure_one_o ../std/db/sqlite/sqlite.o
         return $?
       fi
       _xlang_cm_ensure_one_o ../std/net/net.o

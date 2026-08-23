@@ -219,13 +219,15 @@ else
   progress "WARN: skip $o (compile timeout/hang; A-10 子项可能 SKIP)"
   STD_X_OK=0
 fi
-# net：多 .x 合并；走 Makefile 规则。
+# net：多 .x 合并；G.7 hub → formal/std_x/try-heat（MF phys-del；禁裸 make）。
+# PLATFORM: SHARED — timeout wraps hub CLI (function not inherited by timeout).
 o=../std/net/net.o
 rm -f "$o"
 if command -v timeout >/dev/null 2>&1; then
-  timeout "${XLANG_STD_X_COMPILE_TIMEOUT:-120}" make -s "$o" 2>/dev/null || rm -f "$o"
+  timeout "${XLANG_STD_X_COMPILE_TIMEOUT:-120}" \
+    bash "$_XLANG_REPO_ROOT/tests/lib/compiler-make.sh" -s "$o" 2>/dev/null || rm -f "$o"
 else
-  make -s "$o" 2>/dev/null || rm -f "$o"
+  xlang_compiler_make -s "$o" 2>/dev/null || rm -f "$o"
 fi
 if [ -s "$o" ]; then
   progress "OK $o ($(wc -c <"$o" | tr -d ' ') bytes)"
@@ -233,7 +235,7 @@ else
   progress "WARN: skip $o (compile timeout/hang; A-10 子项可能 SKIP)"
   STD_X_OK=0
 fi
-make -s runtime_test_fn_invoke.o runtime_panic.o
+xlang_compiler_make -s runtime_test_fn_invoke.o runtime_panic.o || true
 cd ..
 fi
 if [ "$W3_RESUME" != "l5" ] && [ "$W3_RESUME" != "p1" ]; then

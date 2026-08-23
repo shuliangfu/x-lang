@@ -4,12 +4,14 @@
 # 用法（仓库根）：
 #   ./tests/run-g06-bootstrap-docker.sh
 #
-# 步骤：
+# 步骤（0-make · MF phys-del）：
 #   1) 恢复 *_gen seed
-#   2) make bootstrap-driver-seed（无 partial seed 时 Makefile 自动生成 phase1 弱桩）
+#   2) clean_compiler.sh + ensure_lsp_pipeline_gen + try-heat standalone
+#      + bootstrap_driver_seed.sh（无 partial seed 时脚本生成 phase1 弱桩）
 #   3) 若产出真 partial（含强符号 seed_mega），写入 seeds/
 #
 # 日志：/tmp/xlang-g06-bootstrap.log
+# PLATFORM: LINUX — docker amd64 cold bootstrap dogfood
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -24,8 +26,8 @@ progress() { echo "[$(date +%H:%M:%S)] $*"; }
 cd /src/compiler
 chmod +x scripts/*.sh 2>/dev/null || true
 
-progress "make clean (drop host-built .o) ..."
-make clean
+progress "clean_compiler.sh (drop host-built .o) ..."
+bash scripts/clean_compiler.sh
 
 copy_seed() { cat "$1" > "$2"; }
 
@@ -43,17 +45,16 @@ if [ -s seeds/asm_backend_partial.linux.x86_64.o ]; then
   mkdir -p build_asm/seed_host
   cat seeds/asm_backend_partial.linux.x86_64.o > build_asm/seed_host/asm_backend_partial.o
 else
-  progress "partial seed missing — Makefile will gen phase1 backend stub"
+  progress "partial seed missing — bootstrap_driver_seed will gen phase1 backend stub"
 fi
 
-progress "prebuild pipeline_glue_standalone.o ..."
 progress "regen pipeline_gen.c (force) ..."
-make pipeline_gen.c XLANG_FORCE_REGEN_GEN=1
+XLANG_FORCE_REGEN_GEN=1 bash scripts/ensure_lsp_pipeline_gen.sh pipeline
 progress "prebuild pipeline_glue_standalone.o ..."
-make build_asm/pipeline_glue_standalone.o XLANG_FORCE_REGEN_GEN=1
+XLANG_FORCE_REGEN_GEN=1 bash scripts/ensure_host_cc_seed_o.sh try-heat build_asm/pipeline_glue_standalone.o
 
 progress "bootstrap-driver-seed ..."
-make bootstrap-driver-seed XLANG_FORCE_REGEN_GEN=1
+XLANG_FORCE_REGEN_GEN=1 bash scripts/bootstrap_driver_seed.sh
 progress "bootstrap-driver-seed OK"
 ./xlang-c -h | head -3
 

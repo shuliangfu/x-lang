@@ -14,9 +14,16 @@ std_compress_has_api() {
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# F-04 v7：compress 格式已全 .x；compress-o-* 为兼容 no-op，runtime 按需 -lz/-lzstd/-lbrotli*。
+# F-04 v7：compress 格式已全 .x；compress-o-* 为 hub 兼容 no-op，runtime 按需 -lz/-lzstd/-lbrotli*。
+# G.7: xlang_compiler_make — ban bare make (MF phys-del). PLATFORM: SHARED
 std_compress_try_libs() {
-  (cd compiler && make compress-o-zlib-zstd 2>/dev/null) || true
+  if type xlang_compiler_make >/dev/null 2>&1; then
+    xlang_compiler_make compress-o-zlib-zstd 2>/dev/null || true
+  elif [ -f tests/lib/compiler-make.sh ]; then
+    # shellcheck source=tests/lib/compiler-make.sh
+    . tests/lib/compiler-make.sh
+    xlang_compiler_make compress-o-zlib-zstd 2>/dev/null || true
+  fi
   echo "std-compress: formats via .x (F-04 v7, no compress.o)" >&2
   return 0
 }

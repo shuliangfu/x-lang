@@ -146,7 +146,7 @@ std_net_tls_mbedtls_ldflags() {
 # 构建 net.o（mbedTLS TLS）。
 std_net_tls_build_mbedtls_o() {
   if ! xlang_compiler_make net-o-mbedtls >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: make net-o-mbedtls" >&2
+    echo "std-net-tls FAIL: xlang_compiler_make net-o-mbedtls" >&2
     return 1
   fi
   return 0
@@ -155,7 +155,7 @@ std_net_tls_build_mbedtls_o() {
 # 构建 net.o（OpenSSL TLS .x + stub net.o）。
 std_net_tls_build_openssl_o() {
   if ! xlang_compiler_make net-o-openssl >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: make net-o-openssl (tls_openssl.x)" >&2
+    echo "std-net-tls FAIL: xlang_compiler_make net-o-openssl (tls_openssl.x)" >&2
     return 1
   fi
   return 0
@@ -203,7 +203,7 @@ std_net_tls_run_openssl_c_smoke() {
   local ldflags
   ldflags="$(std_net_tls_openssl_ldflags)"
   if [ ! -f "$tls_o" ]; then
-    echo "std-net-tls FAIL: missing $tls_o (run make net-o-openssl)" >&2
+    echo "std-net-tls FAIL: missing $tls_o (run xlang_compiler_make net-o-openssl)" >&2
     return 1
   fi
   if [ ! -f "$net_o" ]; then
@@ -234,7 +234,7 @@ std_net_tls_run_mbedtls_c_smoke() {
   local ldflags
   ldflags="$(std_net_tls_mbedtls_ldflags)"
   if [ ! -f "$tls_o" ]; then
-    echo "std-net-tls FAIL: missing $tls_o (run make net-o-mbedtls)" >&2
+    echo "std-net-tls FAIL: missing $tls_o (run xlang_compiler_make net-o-mbedtls)" >&2
     return 1
   fi
   if [ ! -f "$net_o" ]; then

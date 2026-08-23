@@ -59,7 +59,9 @@ if [ -f "$MANIFEST" ]; then
         grep -qF "$anchor" "$target" || die "manifest missing '$anchor' in $target"
         ;;
       target)
-        grep -qF "$anchor" "${mod_path:-compiler/Makefile}" || die "manifest missing target $anchor"
+        # Post-MF phys-del: compress-o-* hub no-ops in compiler-make.sh (G.7).
+        grep -qF "$anchor" "${mod_path:-tests/lib/compiler-make.sh}" \
+          || die "manifest missing hub phony $anchor"
         ;;
       absent)
         case "$anchor" in

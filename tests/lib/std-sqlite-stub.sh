@@ -73,7 +73,7 @@ std_sqlite_stub_run_c_smoke() {
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if ! xlang_compiler_make sqlite-o-stub >/dev/null 2>&1; then
-    echo "std-sqlite-stub FAIL: make sqlite-o-stub" >&2
+    echo "std-sqlite-stub FAIL: xlang_compiler_make sqlite-o-stub" >&2
     return 1
   fi
   if [ ! -f "$sqlite_o" ]; then

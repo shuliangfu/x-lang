@@ -42,7 +42,7 @@ echo "run-linux-a09-a11-gate: streaming to $LOG (watch: tail -f $LOG)"
 INNER='
 set -e
 progress() { echo "[$(date +%H:%M:%S)] $*"; }
-progress "make clean ..."
+progress "xlang_compiler_make clean ..."
 xlang_compiler_make clean >/dev/null 2>&1 || true
 progress "purge host core/std .o (Docker Linux must relink native objects) ..."
 find ../core ../std -name '"'"'*.o'"'"' -delete 2>/dev/null || true

@@ -9,7 +9,7 @@ if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): xlang_asm_stage1 OOM"; ex
 #   XLANG_LINK_XLANG=./compiler/xlang_asm ./tests/run-bootstrap-min-gate.sh
 #
 # 环境：
-#   XLANG_BOOTSTRAP_MIN_SKIP_BUILD=1   跳过 make bootstrap-driver-bstrict
+#   XLANG_BOOTSTRAP_MIN_SKIP_BUILD=1   跳过 xlang_compiler_make bootstrap-driver-bstrict
 #   XLANG_BOOTSTRAP_MIN_SKIP_STAGE=1   跳过 d03/d04（仅跑语言+P0）
 #   XLANG_BOOTSTRAP_MIN_FAIL=1         任一步失败即 exit 1（CI 用）
 
@@ -23,7 +23,7 @@ if [ ! -f compiler/xlang_asm ] || [ ! -x compiler/xlang_asm ]; then
     echo "run-bootstrap-min-gate: missing compiler/xlang_asm (unset SKIP_BUILD to build)" >&2
     exit 127
   fi
-  echo "run-bootstrap-min-gate: make bootstrap-driver-bstrict ..."
+  echo "run-bootstrap-min-gate: xlang_compiler_make bootstrap-driver-bstrict ..."
   xlang_compiler_make bootstrap-driver-bstrict
 fi
 
