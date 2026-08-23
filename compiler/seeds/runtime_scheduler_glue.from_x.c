@@ -60,6 +60,15 @@ XLANG_WEAK void ctx_cancel_c(int64_t handle) {
 XLANG_WEAK void ctx_free_c(int64_t handle) {
     (void)handle;
 }
+/* F-task v2: optional task.o companion. Comment on xlang_async_task_echo_fn_ptr_c
+ * already promised NULL when task.o is not linked; the body used a hard extern
+ * so Ubuntu full chain UNDEF task_echo_fn_c (Darwin -dead_strip hid unused).
+ * G.7 complete the existing XLANG_WEAK optional family (thread/io/context).
+ * Strong T from std/task/task.o overrides when F-task smoke is actually linked.
+ * PLATFORM: SHARED — unique std.async drain_idle only needs drain_until_idle. */
+XLANG_WEAK int32_t task_echo_fn_c(void) {
+    return 0;
+}
 #endif
 
 /** OBS-002：async/runtime trace 采样（XLANG_ASYNC_RUNTIME_TRACE=1 启用；默认零开销）。 */
