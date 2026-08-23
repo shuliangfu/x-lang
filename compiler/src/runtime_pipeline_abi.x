@@ -31315,6 +31315,45 @@ function pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx: *u8, idx: i32): i32 {
 }
 
 /**
+ * Emit lea rax, [rip+disp32] for a modlet COMMON cell (x86_64).
+ * Used by load_to_rax so value loads do not clobber cmp's parked left in rbx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @return i32 - 0 ok; -1 on failure
+ * PLATFORM: LINUX|UBUNTU x86_64 — R_X86_64_PC32 to SHN_COMMON BSS.
+ */
+function pipeline_asm_modlet_lea_rax_rip_x86(elf_ctx: *u8, idx: i32): i32 {
+  let n: i32 = pipe_modlet_get_n();
+  if (elf_ctx == 0 as *u8 || idx < 0 || idx >= n) {
+    return 0 - 1;
+  }
+  let llen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  // REX.W LEA rax, [rip+disp32] = 48 8d 05 disp32
+  let lea7: u8[7] = [];
+  lea7[0] = 0x48 as u8;
+  lea7[1] = 0x8d as u8;
+  lea7[2] = 0x05 as u8;
+  lea7[3] = 0 as u8;
+  lea7[4] = 0 as u8;
+  lea7[5] = 0 as u8;
+  lea7[6] = 0 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let rel32_at: i32 = 0;
+  unsafe {
+    rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen);
+  }
+  return rc;
+}
+
+/**
  * Emit adrp x1 + add x1,pageoff for a modlet COMMON cell (arm64).
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param idx i32 - table index
@@ -31369,6 +31408,62 @@ function pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
 }
 
 /**
+ * Emit adrp x0 + add x0,pageoff for a modlet COMMON cell (arm64).
+ * Used by load_to_rax so value loads do not clobber cmp's parked left in x1.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @return i32 - 0 ok; -1 on failure
+ * PLATFORM: MACOS|ARM64 — ARM64_RELOC_PAGE21 + PAGEOFF12.
+ */
+function pipeline_asm_modlet_lea_rax_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
+  let n: i32 = pipe_modlet_get_n();
+  if (elf_ctx == 0 as *u8 || idx < 0 || idx >= n) {
+    return 0 - 1;
+  }
+  let llen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  // adrp x0, #0 → 0x90000000
+  let adrp4: u8[4] = [];
+  adrp4[0] = 0x00 as u8;
+  adrp4[1] = 0x00 as u8;
+  adrp4[2] = 0x00 as u8;
+  adrp4[3] = 0x90 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &adrp4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let adrp_at: i32 = 0;
+  unsafe {
+    adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // add x0, x0, #0 → 0x91000000
+  let add4: u8[4] = [];
+  add4[0] = 0x00 as u8;
+  add4[1] = 0x00 as u8;
+  add4[2] = 0x00 as u8;
+  add4[3] = 0x91 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &add4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let add_at: i32 = 0;
+  unsafe {
+    add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0);
+  }
+  return rc;
+}
+
+/**
  * Dispatch lea rbx/x1 to modlet COMMON cell by target arch.
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param idx i32 - table index
@@ -31388,11 +31483,37 @@ function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 
 }
 
 /**
+ * Dispatch lea rax/x0 to modlet COMMON cell by target arch.
+ * Value-load path only — must not touch rbx/x1 (cmp parks left there).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @param ta i32 - 0 x86_64, 1 arm64
+ * @return i32 - 0 ok; -1 unsupported or encoder fail
+ * PLATFORM: SHARED.
+ */
+function pipeline_asm_modlet_lea_rax_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return pipeline_asm_modlet_lea_rax_adrp_arm64(elf_ctx, idx);
+  }
+  if (ta == 0) {
+    return pipeline_asm_modlet_lea_rax_rip_x86(elf_ctx, idx);
+  }
+  return 0 - 1;
+}
+
+/**
  * Load a shared modlet cell into rax/x0.
- * Scalar cells (cell_size==8, no array bit): LEA base then load qword (value).
- * Array/blob cells (array bit or legacy payload!=8): LEA base then mov base→rax
+ * Scalar cells (cell_size==8, no array bit): LEA base into rax then load qword.
+ * Array/blob cells (array bit or legacy payload!=8): LEA base into rax only
  *   (C array decay). Fixed TYPE_ARRAY module lets need the address for
  *   INDEX / `&arr[0]` / call args; loading the first qword is wrong.
+ *
+ * G.7 root fix (fmt pure-asm format residual): LEA must target rax/x0, NOT
+ * rbx/x1. cmp parks the left operand in rbx/x1; the old lea_rbx + ldr
+ * clobbered it so `i >= g_modlet_n[0]` compared (&n) >= n (always true) and
+ * fmt_file_list_at always returned null → driver_fmt_one_file never ran.
+ * store_from_rax still uses lea_rbx (address in rbx, value in rax).
+ *
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param name *u8 - modlet name
  * @param name_len i32 - length
@@ -31402,8 +31523,7 @@ function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 
  * Stage 12.0.5: array bit30 on cell_size so u8[8] (e.g. g_labi_icc_oopt_buf)
  *   is LEA-only; prior payload!=8 heuristic collided with scalar 8-byte cells
  *   → pure-asm hybrid SEGV on invoke_cc_list head_flags strb [null].
- * Cap residual: backend_enc_load_qword_from_rbx_to_rax_arch (x86) + append_bytes (arm64 ldr)
- *   + backend_enc_mov_rbx_to_rax_arch (array decay).
+ * Cap residual: append_bytes for arm64 ldr x0,[x0] / x86 movq (%rax),%rax.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -31415,23 +31535,19 @@ export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, n
   if (idx < 0) {
     return 0 - 1;
   }
-  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0) {
+  if (pipeline_asm_modlet_lea_rax_arch(elf_ctx, idx, ta) != 0) {
     return 0 - 1;
   }
-  // Array/blob COMMON: return address in rax (C array decay), do not load payload.
+  // Array/blob COMMON: address already in rax (C array decay), do not load payload.
   // G.7: bit30 marks TYPE_ARRAY (incl. payload==8); legacy unflagged N!=8 still LEA.
   let csz: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx));
   if (pipe_modlet_cell_is_array(csz) != 0) {
-    let rc_arr: i32 = 0;
-    unsafe {
-      rc_arr = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
-    }
-    return rc_arr;
+    return 0;
   }
   if (ta == 1) {
-    // ldr x0, [x1] = 0xf9400020
+    // ldr x0, [x0] = 0xf9400000
     let ldr4: u8[4] = [];
-    ldr4[0] = 0x20 as u8;
+    ldr4[0] = 0x00 as u8;
     ldr4[1] = 0x00 as u8;
     ldr4[2] = 0x40 as u8;
     ldr4[3] = 0xf9 as u8;
@@ -31441,9 +31557,14 @@ export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, n
     }
     return rc;
   }
+  // movq (%rax), %rax = 48 8b 00
+  let mov3: u8[3] = [];
+  mov3[0] = 0x48 as u8;
+  mov3[1] = 0x8b as u8;
+  mov3[2] = 0x00 as u8;
   let rc2: i32 = 0;
   unsafe {
-    rc2 = backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
+    rc2 = pipeline_elf_ctx_append_bytes(elf_ctx, &mov3[0], 3);
   }
   return rc2;
 }

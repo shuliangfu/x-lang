@@ -13271,6 +13271,27 @@ static int32_t pipeline_asm_modlet_lea_rbx_rip_x86_cold(void *elf_ctx, int32_t i
   return pipeline_elf_ctx_append_reloc(cb, rel32_at, lname, llen);
 }
 
+/* G.7: lea into rax so load_to_rax does not clobber cmp's parked left in rbx. */
+static int32_t pipeline_asm_modlet_lea_rax_rip_x86_cold(void *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  int32_t llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet_cold.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet_cold.label_len[idx];
+  lname = g_pipeline_asm_modlet_cold.label[idx];
+  /* REX.W LEA rax, [rip+disp32] */
+  lea7[0] = 0x48; lea7[1] = 0x8d; lea7[2] = 0x05;
+  lea7[3] = 0; lea7[4] = 0; lea7[5] = 0; lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes(cb, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc(cb, rel32_at, lname, llen);
+}
+
 static int32_t pipeline_asm_modlet_lea_rbx_adrp_arm64_cold(void *elf_ctx, int32_t idx) {
   uint8_t *cb;
   uint8_t adrp4[4];
@@ -13295,11 +13316,44 @@ static int32_t pipeline_asm_modlet_lea_rbx_adrp_arm64_cold(void *elf_ctx, int32_
   return pipeline_elf_ctx_append_reloc_typed(cb, add_at, lname, llen, 4, 0);
 }
 
+/* G.7: lea into x0 so load_to_rax does not clobber cmp's parked left in x1. */
+static int32_t pipeline_asm_modlet_lea_rax_adrp_arm64_cold(void *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at, add_at, llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet_cold.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet_cold.label_len[idx];
+  lname = g_pipeline_asm_modlet_cold.label[idx];
+  adrp4[0] = 0x00; adrp4[1] = 0x00; adrp4[2] = 0x00; adrp4[3] = 0x90; /* adrp x0 */
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, lname, llen, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x00; add4[1] = 0x00; add4[2] = 0x00; add4[3] = 0x91; /* add x0,x0,#0 */
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, lname, llen, 4, 0);
+}
+
 static int32_t pipeline_asm_modlet_lea_rbx_arch_cold(void *elf_ctx, int32_t idx, int32_t ta) {
   if (ta == 1)
     return pipeline_asm_modlet_lea_rbx_adrp_arm64_cold(elf_ctx, idx);
   if (ta == 0)
     return pipeline_asm_modlet_lea_rbx_rip_x86_cold(elf_ctx, idx);
+  return -1;
+}
+
+static int32_t pipeline_asm_modlet_lea_rax_arch_cold(void *elf_ctx, int32_t idx, int32_t ta) {
+  if (ta == 1)
+    return pipeline_asm_modlet_lea_rax_adrp_arm64_cold(elf_ctx, idx);
+  if (ta == 0)
+    return pipeline_asm_modlet_lea_rax_rip_x86_cold(elf_ctx, idx);
   return -1;
 }
 
@@ -13311,20 +13365,26 @@ int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int3
   idx = pipeline_asm_modlet_find_cold(name, name_len);
   if (idx < 0)
     return -1;
-  if (pipeline_asm_modlet_lea_rbx_arch_cold(elf_ctx, idx, ta) != 0)
+  /* G.7: lea into rax/x0 — must not touch rbx/x1 (cmp parks left there).
+   * Old lea_rbx + ldr made `i >= g_n[0]` compare (&n) >= n → fmt at() always null. */
+  if (pipeline_asm_modlet_lea_rax_arch_cold(elf_ctx, idx, ta) != 0)
     return -1;
-  /* Stage 12.0.5: array/blob COMMON → address decay (mov base→rax), not load.
+  /* Stage 12.0.5: array/blob COMMON → address already in rax (decay), not load.
    * Scalar lit cells are always cell_size==8 (no bit30); arrays set bit30 so
    * payload==8 (u8[8]) still LEA-only — see g_labi_icc_oopt_buf hybrid SEGV. */
   csz = g_pipeline_asm_modlet_cold.cell_size[idx];
   if (pipeline_asm_modlet_cell_is_array_cold(csz))
-    return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+    return 0;
   if (ta == 1) {
     uint8_t ldr4[4];
-    ldr4[0] = 0x20; ldr4[1] = 0x00; ldr4[2] = 0x40; ldr4[3] = 0xf9;
+    ldr4[0] = 0x00; ldr4[1] = 0x00; ldr4[2] = 0x40; ldr4[3] = 0xf9; /* ldr x0,[x0] */
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, ldr4, 4);
   }
-  return backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
+  {
+    uint8_t mov3[3];
+    mov3[0] = 0x48; mov3[1] = 0x8b; mov3[2] = 0x00; /* movq (%rax), %rax */
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, mov3, 3);
+  }
 }
 
 int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {

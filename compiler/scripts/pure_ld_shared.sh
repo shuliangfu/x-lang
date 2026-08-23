@@ -559,13 +559,12 @@ pure_asm_x_to_o() {
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
-  # PLATFORM: SHARED — library-TU .data bake is closed (modlet prepare →
-  # ELF .data / Mach-O __DATA,__data for non-empty ARRAY_LIT). fmt_check_cmd_thin
-  # still skips pure-asm: with needles baked, --check / write still no-op
-  # (format path residual — separate knife; not empty-needle). Host-C -E keeps
-  # product fmt green. Opt-in bisect: XLANG_FMT_ALLOW_PURE_ASM=1.
-  # Do not "fix" path_should_ignore empty-needle; that was the old symptom.
-  if [ "$_bn" = "fmt_check_cmd_thin.x" ] && [ "${XLANG_FMT_ALLOW_PURE_ASM:-0}" != "1" ]; then
+  # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default again.
+  # Library-TU .data bake closed empty-needle; modlet_load_to_rax lea→rax (not
+  # rbx/x1) closed the format residual (`i >= g_n[0]` no longer compares &n).
+  # Opt-out bisect only: XLANG_FMT_DENY_PURE_ASM=1 → host-C -E fallback.
+  # Do not revive path_should_ignore empty-needle patches.
+  if [ "$_bn" = "fmt_check_cmd_thin.x" ] && [ "${XLANG_FMT_DENY_PURE_ASM:-0}" = "1" ]; then
     return 1
   fi
   # Optional single-slice / allow-list gate for hybrid ABI bisect.
