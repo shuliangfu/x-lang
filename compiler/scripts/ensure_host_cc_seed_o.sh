@@ -4568,21 +4568,24 @@ _std_core_try_xlang_c_direct() {
   XLANG_KEEP_C=1 "$xx" -L .. -L src -L src/asm -lib-name "" -o "$out_o" "$x_src"
 }
 
-# ld -r multi-obj merge with platform multidef (Makefile LD_R_MULTIDEF twin).
-# PLATFORM: DARWIN -multiply_defined suppress · LINUX/PE --allow-multiple-definition
+# Relocatable multi-obj merge for std/core prefer (process_merge / net_merge / fast).
+#
+# G.7: single authority = `pure_ld_partial_merge` (already sourced above).
+# Do NOT keep a second body with bare `ld -r -multiply_defined suppress`:
+#   - `-multiply_defined` is obsolete on current Apple ld
+#   - no Darwin libtool fallback → when an input is a prefer **libtool archive
+#     named `.o`** (e.g. `runtime_process_argv.o` thin+rest after F7 two-segment
+#     `ld -r` failure), Apple `ld -r` errors
+#     "more than one LC_SEGMENT found in object file" and process_merge fails →
+#     no `std/process/process.o` → product `-o` UNDEF `std_process_*` (tip L4
+#     run-process BLD001 after CG002 force_load wave left process_argv as archive)
+#
+# PLATFORM: SHARED — pure_ld_partial_merge owns Linux ELF -r + Darwin libtool
+#           -static fallback; callers (process_merge / net_merge) unchanged.
 _std_core_ld_r() {
   local out="$1"
   shift
-  local uname_s
-  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
-  if [ "$uname_s" = "Darwin" ]; then
-    ld -r -multiply_defined suppress -o "$out" "$@"
-  else
-    if ld -r --allow-multiple-definition -o "$out" "$@" 2>/dev/null; then
-      return 0
-    fi
-    ld -r -o "$out" "$@"
-  fi
+  pure_ld_partial_merge "$out" "$@"
 }
 
 # PLATFORM: SHARED — after ld -r product .o, keep only export faces as global T.
