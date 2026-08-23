@@ -67,5 +67,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/compress/compress.o \
 	../std/io/driver.o \
 	../std/io/io.o \
-	../std/debug/debug.o
+	../std/debug/debug.o \
+	../std/simd/simd.o \
+	../std/async/async.o
 

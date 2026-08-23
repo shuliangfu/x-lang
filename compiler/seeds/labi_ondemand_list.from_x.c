@@ -96,6 +96,7 @@ void labi_std_append_test_monofile_companions(const char *link_argv0, const char
     int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 const char *xlang_std_async_scheduler_o_path(const char *argv0);
 const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0);
 const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0);
 const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
@@ -950,6 +951,28 @@ const char *labi_od_arrow_rel(void) {
 
 const char *labi_od_arrow_glue_rel(void) {
   return "compiler/runtime_arrow_simd_glue.o";
+}
+
+/* PLATFORM: SHARED — cookbook async_mod_import / async_drain_idle unique-first.
+ * Distinct from labi_od_async_scheduler_sym_* (C ABI ×35 for scheduler.o
+ * skip-missing; never unique import METHOD std_async_*). Matcher is exact.
+ * Produce path is formal_mod c_face std/async/async.o (not host-cc of mod.x). */
+int labi_od_async_sym_count(void) {
+  return 2;
+}
+
+const char *labi_od_async_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_async_placeholder";
+  if (i == 1)
+    return "std_async_drain_idle";
+  return NULL;
+}
+
+const char *labi_od_async_rel(void) {
+  return "std/async/async.o";
 }
 
 /* Time */
@@ -3646,6 +3669,29 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
     }
+    if (labi_od_user_needs_any_sym_table(user_o, labi_od_async_sym_count(), labi_od_async_sym_at)) {
+        /* PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder /
+         * std_async_drain_idle. No async.o existed; scheduler C ABI table never
+         * fires unique import METHOD. Produce path is formal_mod c_face.
+         * drain_idle U xlang_async_run_drain_until_idle → scheduler glue ensure.
+         * G.7 无才新增 unique table; 有则补全 glue ensure. Do not dump unique
+         * names into labi_od_async_scheduler_sym_*. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/async/async.o",
+                                                    "../std/async/async.o");
+        }
+        p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_async_rel()));
+        if (!p && bank)
+            p = xlang_asm_ld_try_under_lib_roots(labi_od_async_rel(), lib_roots, n_lib_roots, bank);
+        if (p)
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+        if (p)
+            link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_scheduler_glue_o,
+                xlang_runtime_scheduler_glue_o_path(link_argv0), link_argv0,
+                labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+    }
     if (link_abi_user_o_needs_std_test(user_o)) {
         /* PLATFORM: SHARED — Darwin -backend asm run-stdtest. Cold L4 leaves L8c
          * unused, so this full L8b seed is the on_demand body. Do not gate
@@ -3843,6 +3889,9 @@ int labi_od_arrow_sym_count(void);
 const char *labi_od_arrow_sym_at(int i);
 const char *labi_od_arrow_rel(void);
 const char *labi_od_arrow_glue_rel(void);
+int labi_od_async_sym_count(void);
+const char *labi_od_async_sym_at(int i);
+const char *labi_od_async_rel(void);
 int labi_od_time_sym_count(void);
 const char *labi_od_time_sym_at(int i);
 const char *labi_od_time_rel(void);

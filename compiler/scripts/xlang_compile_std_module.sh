@@ -115,6 +115,10 @@ formal_mod_key_for_out() {
     ../std/debug/debug.o|std/debug/debug.o|*std/debug/debug.o) printf '%s' "std/debug/debug.o" ;;
     # PLATFORM: SHARED — pure-asm std.simd formal (shuffle/select/splat VECTOR mid).
     ../std/simd/simd.o|std/simd/simd.o|*std/simd/simd.o) printf '%s' "std/simd/simd.o" ;;
+    # PLATFORM: SHARED — cookbook async_mod_import / async_drain_idle unique UNDEF.
+    # No async.o existed (std_x only scheduler.o/future.o auto-soft). Host-cc of
+    # whole mod.x would U ~50 xlang_async_* C ABI. c_face = leftover unique T only.
+    ../std/async/async.o|std/async/async.o|*std/async/async.o) printf '%s' "std/async/async.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -217,6 +221,9 @@ formal_mod_spec_for_key() {
     std/debug/debug.o) printf '%s' "c_face|0|../std/debug/formal_surface.c" ;;
     # PLATFORM: SHARED — pure-asm VECTOR mid faces (≡ codegen f32x4/i32x8 mangle).
     std/simd/simd.o) printf '%s' "c_face|0|../std/simd/formal_surface.c" ;;
+    # PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder / drain_idle.
+    # G.7 无才新增 catalog c_face; do not host-cc whole mod.x.
+    std/async/async.o) printf '%s' "c_face|0|../std/async/formal_surface.c" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -280,7 +287,8 @@ formal_mod_all_keys() {
     std/io/driver.o \
     std/io/io.o \
     std/debug/debug.o \
-    std/simd/simd.o
+    std/simd/simd.o \
+    std/async/async.o
 }
 
 formal_mod_out_for_key() {

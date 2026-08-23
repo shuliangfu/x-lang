@@ -1778,6 +1778,48 @@ export function labi_od_arrow_glue_rel(): *u8 {
   return p;
 }
 
+/* PLATFORM: SHARED — cookbook async_mod_import / async_drain_idle unique-first.
+ * Distinct from labi_od_async_scheduler_sym_* (C ABI ×35 for scheduler.o
+ * skip-missing; never unique import METHOD std_async_*). Twin of L8b seed.
+ * Produce path is formal_mod c_face std/async/async.o. */
+#[no_mangle]
+export function labi_od_async_sym_count(): i32 {
+  return 2;
+}
+
+/**
+ * Exact UNDEF needle at index i for std.async leftover unique on-demand (user .o).
+ * @param i i32 — 0..count-1; unique-first cookbook names only
+ * @return *u8 — NUL-terminated symbol; null if i out of range
+ * PLATFORM: SHARED — matcher is exact; import METHOD is std_async_*.
+ */
+#[no_mangle]
+export function labi_od_async_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_async_placeholder";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_async_drain_idle";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Rel path of the formal_mod c_face vehicle for leftover unique std.async names.
+ * @return *u8 — "std/async/async.o"
+ * PLATFORM: SHARED — distinct from scheduler.o / future.o std_x auto-soft.
+ */
+#[no_mangle]
+export function labi_od_async_rel(): *u8 {
+  let p: *u8 = "std/async/async.o";
+  return p;
+}
+
 /* Time */
 #[no_mangle]
 export function labi_od_time_sym_count(): i32 {

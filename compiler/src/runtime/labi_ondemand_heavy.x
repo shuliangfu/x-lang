@@ -22,6 +22,9 @@ export extern function labi_od_arrow_sym_at(i: i32): *u8;
 export extern function labi_od_arrow_sym_count(): i32;
 export extern function labi_od_kv_glue_rel(): *u8;
 export extern function labi_od_kv_rel(): *u8;
+export extern function labi_od_async_rel(): *u8;
+export extern function labi_od_async_sym_at(i: i32): *u8;
+export extern function labi_od_async_sym_count(): i32;
 export extern function labi_od_kv_sym_at(i: i32): *u8;
 export extern function labi_od_kv_sym_count(): i32;
 export extern function labi_od_queue_contention_rel(): *u8;
@@ -66,6 +69,7 @@ export extern function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_http_glue_o(argv0: *u8): i32;
 export extern function xlang_runtime_http_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
@@ -2792,7 +2796,7 @@ function labi_od_user_needs_simple_group(user_o: *u8, g: i32): i32 {
  * Specializations below call this with concrete table accessors.
  * @param user_o *u8 — user .o; null/empty → 0
  * @param n i32 — symbol count
- * @param which i32 — 0=kv 1=arrow 2=time 3=queue_contention
+ * @param which i32 — 0=kv 1=arrow 2=time 3=queue_contention 4=async unique
  * @return i32 — 1 if any UNDEF hit
  * PLATFORM: SHARED pure; Cap residual undef_sym.
  */
@@ -2822,6 +2826,9 @@ function labi_od_user_needs_table_which(user_o: *u8, n: i32, which: i32): i32 {
       }
       if (which == 3) {
         s = labi_od_queue_sym_at(i);
+      }
+      if (which == 4) {
+        s = labi_od_async_sym_at(i);
       }
       if (s != 0 as *u8) {
         if (s[0] != 0) {
@@ -3603,6 +3610,49 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         if (p_ag != 0 as *u8) {
           unsafe {
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ag);
+          }
+        }
+      }
+    }
+
+    // --- async unique c_face + scheduler glue ---
+    let n_as: i32 = labi_od_async_sym_count();
+    if (labi_od_user_needs_table_which(user_o, n_as, 4) != 0) {
+      // PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder /
+      // drain_idle. No async.o existed; scheduler C ABI table never fires
+      // unique import METHOD. Produce path is formal_mod c_face. Twin of L8b seed.
+      let root_as: *u8 = 0 as *u8;
+      unsafe {
+        root_as = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_as != 0 as *u8) {
+        if (root_as[0] != 0) {
+          unsafe {
+            let _eas: i32 = xlang_ensure_formal_std_make_o(root_as, "std/async/async.o", "../std/async/async.o");
+          }
+        }
+      }
+      let asrel: *u8 = labi_od_async_rel();
+      let asprim: *u8 = 0 as *u8;
+      unsafe {
+        asprim = xlang_rel_o_path_from_argv0(link_argv0, asrel);
+      }
+      let p_as2: *u8 = labi_od_resolve_or_try(asprim, asrel, lib_roots, n_lib_roots, bank);
+      if (p_as2 != 0 as *u8) {
+        unsafe {
+          link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_as2);
+        }
+        unsafe {
+          let _sg: i32 = xlang_ensure_runtime_scheduler_glue_o(link_argv0);
+        }
+        let sgp: *u8 = 0 as *u8;
+        unsafe {
+          sgp = xlang_runtime_scheduler_glue_o_path(link_argv0);
+        }
+        let p_sg2: *u8 = labi_od_resolve_or_try(sgp, labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank);
+        if (p_sg2 != 0 as *u8) {
+          unsafe {
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_sg2);
           }
         }
       }
