@@ -162,7 +162,7 @@ do_ensure() {
     exit 1
   fi
   if [ ! -f "$partial" ]; then
-    echo "$TAG: missing partial $partial (make build-seed-asm-host / seed pin)" >&2
+    echo "$TAG: missing partial $partial (bash scripts/build_seed_asm_host.sh / seed pin)" >&2
     exit 1
   fi
   if ! need_rebuild "$src" "$out" "$partial"; then

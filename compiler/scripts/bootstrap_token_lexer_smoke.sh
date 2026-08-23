@@ -36,7 +36,7 @@ case "$MODE" in
 esac
 
 if [ ! -x "$XLANG" ]; then
-  log "missing executable $XLANG (build product first: make bootstrap-driver-seed / g05 relink)"
+  log "missing executable $XLANG (build product first: ./xbuild bootstrap-driver-seed / g05 relink)"
   exit 1
 fi
 
@@ -51,7 +51,7 @@ for f in ../std/sys/sys.o runtime_panic.o; do
 done
 if [ "$need_std" -ne 0 ]; then
   log "std/runtime objects missing (e.g. ../std/sys/sys.o, runtime_panic.o)"
-  log "hint: ./xbuild compiler-make std-objs  # product path builds std .o
+  log "hint: ./xbuild compiler-make std-objs  # product path builds std .o"
   exit 1
 fi
 

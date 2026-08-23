@@ -82,7 +82,7 @@ CDIR="$(pwd)"
 
 for ST in "${TARGET}_stage1" "${TARGET}_stage2"; do
   if [ ! -x "$CDIR/$ST" ]; then
-    fail "missing executable $ST (run make bootstrap-self first)"
+    fail "missing executable $ST (run bash scripts/bootstrap_self.sh first)"
   fi
   cp "$CDIR/$ST" "$CDIR/$TARGET"
   (

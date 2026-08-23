@@ -121,7 +121,7 @@ esac
 # Product path (run host build_tool → ./$TARGET)
 # ---------------------------------------------------------------------------
 if [ ! -x ./build_tool ]; then
-  fail "missing executable ./build_tool (run make build-tool or ./xbuild build-tool first)"
+  fail "missing executable ./build_tool (run ./xbuild build-tool / bash scripts/build_tool.sh first)"
 fi
 
 # Historic: ./build_tool ./$(TARGET) [subcmd]
