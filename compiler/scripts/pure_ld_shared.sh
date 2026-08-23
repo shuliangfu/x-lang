@@ -64,11 +64,17 @@ pure_ld_platform_prefix() {
 }
 
 # ---------------------------------------------------------------------------
-# pure_ld_multidef_flags — host multidef for final executable link
+# pure_ld_multidef_flags — host multidef for final executable / ld -r merge
+# PLATFORM: MACOS — Apple ld treats `-multiply_defined` as obsolete (warning on
+#           every g05 pure-ld; new ld may error `path=suppress`). Product g05
+#           relies on G.7 single authority (no duplicate strong T), so Darwin
+#           returns empty — same as experimental_bootstrap. Do NOT reintroduce.
+# PLATFORM: LINUX — GNU ld still supports --allow-multiple-definition (thin
+#           inject first-wins / residual strong overlays).
 # ---------------------------------------------------------------------------
 pure_ld_multidef_flags() {
   case "$(uname -s 2>/dev/null || echo Unknown)" in
-    Darwin) printf '%s\n' "-multiply_defined suppress" ;;
+    Darwin) printf '%s\n' "" ;;
     Linux) printf '%s\n' "--allow-multiple-definition" ;;
     *) printf '%s\n' "" ;;
   esac
@@ -191,7 +197,7 @@ pure_ld_try_link() {
 #
 # PLATFORM: SHARED — ld -r + first-wins; no syslibroot/dynamic (relocatable
 #           merge, not final executable link). Flags from
-#           pure_ld_multidef_flags (Darwin: -multiply_defined suppress;
+#           pure_ld_multidef_flags (Darwin: empty — obsolete flag removed;
 #           Linux: --allow-multiple-definition).
 # PLATFORM: LINUX — gcc/ld -r without --allow-multiple-definition errors
 #           "multiple definition" when thin inject overlays a strong leftover
@@ -201,8 +207,8 @@ pure_ld_try_link() {
 # PLATFORM: MACOS — F7 MH_OBJECT emits LC_SEGMENT __TEXT + __DATA (vtable
 #           __DATA,__const). Apple `ld -r` / `cc -r` then fail:
 #           "more than one LC_SEGMENT found in object file". Duplicate
-#           strong defs also fail `ld -r` even with -multiply_defined
-#           suppress. Current product xlang -c produces two-segment
+#           strong defs also fail `ld -r` (obsolete `-multiply_defined` no
+#           longer passed). Current product xlang -c produces two-segment
 #           objects, so prefer hybrid cannot wait on a writer rewrite.
 #           Complete this merge: if -r fails, `libtool -static` concatenates
 #           members (Darwin final ld accepts the archive on the object list).

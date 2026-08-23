@@ -203,7 +203,12 @@ extern int32_t lsp_main_impl(void);
 extern void driver_bump_stack_limit(void);
 extern void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 
-uint8_t g_lsp_state_buf[16388];
+/* PLATFORM: MACOS — tentative COMMON for a 16388-byte object gets size-derived
+ * alignment 2^15 (0x8000). Apple ld then warns:
+ *   reducing alignment of section __DATA,__common from 0x8000 to 0x4000
+ * Zero-init forces a defined zerofill symbol in __DATA,__common with align 2^0
+ * (same shape as -fno-common; no 16KiB file bloat). PLATFORM: SHARED seed. */
+uint8_t g_lsp_state_buf[16388] = {0};
 
 typedef struct LspMainThreadArgs {
     int32_t result;

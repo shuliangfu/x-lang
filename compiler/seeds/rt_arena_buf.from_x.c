@@ -20,9 +20,14 @@
 #define DRIVER_MODULE_STATIC_SIZE (2 * 1024 * 1024)
 
 /* Cap-global-bss residual：大数组必须非 static 跨 TU → 始终在 seed 定义
- * （.x export let 会编成 static，不能替代本块；driver_abi 槽 extern 本符号）。 */
-uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE];
-uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE];
+ * （.x export let 会编成 static，不能替代本块；driver_abi 槽 extern 本符号）。
+ * PLATFORM: MACOS — tentative COMMON for 128MiB gets size-derived section
+ * alignment 0x8000; Apple ld then warns:
+ *   reducing alignment of section __DATA,__common from 0x8000 to 0x4000
+ * Zero-init forces defined zerofill in __DATA,__common (align 2^0; .o stays
+ * tiny). PLATFORM: SHARED seed — Linux ELF BSS same shape. */
+uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE] = {0};
+uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE] = {0};
 
 extern size_t pipeline_arena_offset_num_types(void);
 

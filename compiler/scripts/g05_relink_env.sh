@@ -46,7 +46,10 @@ _DRIVER_SEED_LINK_FLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE
 
 case "$UNAME_S" in
   Darwin)
-  _ASM_GLUE_DUP_LDFLAGS="-Wl,-multiply_defined,suppress"
+  # PLATFORM: MACOS — `-multiply_defined` is obsolete on Apple ld (g05 pure-ld
+  # warned every relink; experimental_bootstrap already cleared this). G.7
+  # single authority owns duplicates; do not pass the dead flag via G05_CFLAGS.
+  _ASM_GLUE_DUP_LDFLAGS=""
   case "$UNAME_M" in
   arm64|aarch64)
   _MAIN_LINK_O="src/asm/crt0_arm64.o"
