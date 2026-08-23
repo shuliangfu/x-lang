@@ -1,20 +1,62 @@
 #!/bin/sh
 # verify-selfhost-stage2.sh — Stage2 X dogfood: xlang-x → xlang-x2 (-x -E full modules).
-# Authority (G.7): single body for make verify-selfhost-stage2 / CI stage2.
+# Authority (G.7): single body for verify-selfhost-stage2 / CI stage2.
 # wave893: live under compiler/scripts/ (Makefile pure @bash scripts/… form).
+# Post-Makefile phys-del: default path is 0-make shell (bootstrap_driver_seed /
+# build_seed_asm_host / ensure_host_cc_seed_o). Escape:
+#   XLANG_STAGE2_VIA_MAKE=1 + Makefile → historic make leaves (parity only).
 # Usage: cd compiler && bash scripts/verify-selfhost-stage2.sh
 # PLATFORM: SHARED — orchestration only; product binaries stay host-local.
 set -e
 # cwd = compiler/ (this file lives in scripts/)
 cd "$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 
-# Step 0：重链 xlang-x；若无 driver_x.o 等则先 bootstrap-driver-seed
+# PLATFORM: SHARED — shell-primary bootstrap (twin of verify-selfhost-stage2-bstrict
+# wave941 / experimental archaeology 0-make). Ban bare make-only after phys-del.
+stage2_via_make() {
+  [ "${XLANG_STAGE2_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1
+}
+
+stage2_bootstrap_driver_seed() {
+  if stage2_via_make; then
+    echo " verify-stage2: VIA_MAKE bootstrap-driver-seed"
+    make bootstrap-driver-seed
+  else
+    echo " verify-stage2: 0-make bootstrap_driver_seed.sh"
+    bash scripts/bootstrap_driver_seed.sh
+  fi
+}
+
+stage2_build_seed_asm_host() {
+  if stage2_via_make; then
+    echo " verify-stage2: VIA_MAKE build-seed-asm-host"
+    make -q build-seed-asm-host 2>/dev/null || make build-seed-asm-host
+  else
+    echo " verify-stage2: 0-make build_seed_asm_host.sh"
+    bash scripts/build_seed_asm_host.sh
+  fi
+}
+
+stage2_ensure_driver_c_objs() {
+  # G.7: main_driver = try-heat (R1 seed); fmt_check_cmd_driver = try-other-l2-prefer.
+  if stage2_via_make; then
+    echo " verify-stage2: VIA_MAKE main_driver + fmt_check_cmd_driver"
+    make src/main_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
+  else
+    echo " verify-stage2: 0-make ensure main_driver + fmt_check_cmd_driver"
+    bash scripts/ensure_host_cc_seed_o.sh try-heat src/main_driver.o
+    bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer src/driver/fmt_check_cmd_driver.o
+  fi
+}
+
+# Step 0：重链 xlang-x；若无则先 bootstrap_driver_seed（产出 xlang-x）
 echo ""
 echo "── Step 0: 确保 xlang-x ──"
 if [ ! -x ./xlang-x ]; then
-  if ! ${MAKE:-make} xlang-x; then
-  echo " make xlang-x 失败，执行 bootstrap-driver-seed …"
-  ${MAKE:-make} bootstrap-driver-seed
+  stage2_bootstrap_driver_seed
+  if [ ! -x ./xlang-x ]; then
+    echo "verify-stage2: xlang-x still missing after bootstrap_driver_seed" >&2
+    exit 1
   fi
 fi
 
@@ -100,8 +142,9 @@ ld -r -exported_symbols_list "$PIPELINE_X2_KEEP" -o "$PIPELINE_X2_FILTERED" pipe
 
 echo ""
 echo "── 编译 C 侧与 seed 桥（与 bootstrap-driver-seed 同拓扑）──"
-${MAKE:-make} -q build-seed-asm-host 2>/dev/null || ${MAKE:-make} build-seed-asm-host
-cc $CFLAGS -c src/runtime_driver_strict_glue_stubs.c -o
+stage2_build_seed_asm_host
+# runtime_driver_strict_glue_stubs is already on the seed/g05 bag when needed;
+# do not re-cc with a truncated -o (historic phys-del bitrot).
 cc $CFLAGS -DX_VERIFY_STAGE2 -c src/x_seed_bridge.c -o src/x_seed_bridge_stage2.o
 cc $CFLAGS -c typeck_x_link_alias.c -o x_frontend_link_alias.o
 cc $CFLAGS -c codegen_x_link_alias.c -o x_frontend_link_alias.o
@@ -110,16 +153,20 @@ cc $CFLAGS -c lexer_x_link_alias.c -o x_frontend_link_alias.o 2>/dev/null || tru
 cc $CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -DXLANG_USE_X_PREPROCESS \
   -c src/runtime.c -o runtime_driver2.o
 # Stage2 链接仍需沿用 driver 专用 C 对象；不要依赖工作区里偶然残留的 .o。
-${MAKE:-make} src/main_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
+stage2_ensure_driver_c_objs
 
 # ── Step 4: 链接 xlang-x2（*_x2.o 替代 parser_x/typeck_x/codegen_x/pipeline_x；其余与 bootstrap-driver-seed 同拓扑）──
 echo ""
 echo "── Step 4: 链接 xlang-x2 ──"
-${MAKE:-make} bootstrap-driver-seed >/dev/null
+stage2_bootstrap_driver_seed >/dev/null
 for _o in driver_x.o driver_compile_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
   driver_build_x.o driver_run_x.o driver_emit_x.o preprocess_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o lsp_io_std_heap_x.o \
   pipeline_bootstrap_orchestration.o src/async/async_liveness.o src/async/async_cps_codegen.o; do
-  if [ ! -f "$_o" ]; then ${MAKE:-make} xlang-x bootstrap-driver-seed 2>/dev/null || ${MAKE:-make} xlang-x; break; fi
+  if [ ! -f "$_o" ]; then
+    echo " verify-stage2: missing $_o → re-run bootstrap_driver_seed"
+    stage2_bootstrap_driver_seed
+    break
+  fi
 done
 cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \

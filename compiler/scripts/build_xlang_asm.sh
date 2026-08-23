@@ -5367,7 +5367,7 @@ if [ -z "${XLANG_ASM_LINK_TOPOLOGY+x}" ]; then
   if [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
   build_xlang_asm_info "M11 production B-strict (SKIP_GEN -> asm_only_strict, no cc -c pipeline_gen.c in final link)"
   elif [ "$UNAMES" != "Linux" ]; then
-  build_xlang_asm_info "hint: export XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 or make bootstrap-driver-bstrict for asm_only_strict"
+  build_xlang_asm_info "hint: export XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 or bash scripts/bootstrap_driver_bstrict.sh for asm_only_strict"
   fi
   elif [ "$UNAMES" != "Linux" ]; then
   build_xlang_asm_info "host=$UNAMES: topology pipeline_x (__text 未全绿；crt0 仅 Linux，见 docs/SELFHOST.md §4)"
@@ -5388,7 +5388,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   # B-strict（SKIP_GEN）须 asm_only_strict（含 runtime_driver）；crt0 链无 driver，成功反而会触发末尾 bstrict 失败。
   if [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-  build_xlang_asm_info "XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 make bootstrap-driver-crt0)"
+  build_xlang_asm_info "XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 bash scripts/bootstrap_driver_crt0.sh)"
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking xlang_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
