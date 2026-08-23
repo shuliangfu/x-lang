@@ -559,13 +559,31 @@ pure_asm_x_to_o() {
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
-  # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default again.
-  # Library-TU .data bake closed empty-needle; modlet_load_to_rax lea→rax (not
-  # rbx/x1) closed the format residual (`i >= g_n[0]` no longer compares &n).
-  # Opt-out bisect only: XLANG_FMT_DENY_PURE_ASM=1 → host-C -E fallback.
-  # Do not revive path_should_ignore empty-needle patches.
-  if [ "$_bn" = "fmt_check_cmd_thin.x" ] && [ "${XLANG_FMT_DENY_PURE_ASM:-0}" = "1" ]; then
-    return 1
+  # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default when the
+  # emitting compiler has modlet lea→rax (tip). Pin egg / pre-lea compilers
+  # still emit the (&n)>=n cmp bug → silent `xlang fmt` exit 1 (stderr newline
+  # only). Auto host-C fallback until nm sees pipeline_asm_modlet_lea_rax_*.
+  # Opt-out bisect: XLANG_FMT_DENY_PURE_ASM=1. Do not revive empty-needle patches.
+  if [ "$_bn" = "fmt_check_cmd_thin.x" ]; then
+    if [ "${XLANG_FMT_DENY_PURE_ASM:-0}" = "1" ]; then
+      return 1
+    fi
+    _fmt_xl=""
+    if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then
+      _fmt_xl="$XLANG"
+    elif [ -x ./xlang ]; then
+      _fmt_xl=./xlang
+    elif [ -x ./xlang_asm ]; then
+      _fmt_xl=./xlang_asm
+    elif [ -x ./xlang-c ]; then
+      _fmt_xl=./xlang-c
+    elif [ -x ./bootstrap_xlangc ]; then
+      _fmt_xl=./bootstrap_xlangc
+    fi
+    if [ -z "$_fmt_xl" ] \
+      || ! nm "$_fmt_xl" 2>/dev/null | grep -q 'pipeline_asm_modlet_lea_rax_'; then
+      return 1
+    fi
   fi
   # Optional single-slice / allow-list gate for hybrid ABI bisect.
   # PLATFORM: SHARED diagnostic harness — does not change default-all behavior.
