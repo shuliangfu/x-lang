@@ -2476,25 +2476,44 @@ ensure_bstrict_pipeline_filtered_obj() {
 
 # PLATFORM: DARWIN — experimental bootstrap needs strict_glue_stubs (preprocess/codegen/ast
 # helpers) but must not re-export asm_driver_* already strong in runtime_asm_build.o.
-# Authority: keep full stubs on Linux; Darwin uses this partial export instead of dropping
-# the whole .o (which left U preprocess_*/codegen_*/ast_module_free).
+# Authority: keep full stubs on Linux; Darwin uses filter_o_export partial instead of
+# dropping the whole .o (which left U preprocess_*/codegen_*/ast_module_free).
+# Stage2 round2 tip: prefer/libtool may leave src as **ar archive** (multi LC_SEGMENT);
+# local ld_partial_export lacked -arch and cannot re-filter ar → filt fail → historical
+# "drop stubs" fallback → UNDEF codegen_set_* / pipeline_block_labeled_set_names.
+# G.7: filter_o_export_against_deps.sh is the ld -r authority (Darwin -arch + ar path).
 ensure_bstrict_darwin_strict_glue_stubs_filt_obj() {
   local src_o="src/runtime_driver_strict_glue_stubs.o"
   local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
-  local keep_syms="$BUILD_DIR/.bstrict_strict_glue_stubs_darwin_keep.txt"
-  # Ensure source .o exists (same seed as G-02f-11 product path).
-  if [ ! -f "$src_o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$src_o" ]; then
-  echo " cc -c $src_o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (Darwin filt prep)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$src_o" || return 1
+  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
+  local need_cc=0
+  # Prefer/libtool may leave an ar at src_o; force a fresh MH_OBJECT before filter.
+  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
+  need_cc=1
+  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
+  need_cc=1
+  fi
+  if [ "$need_cc" = "1" ]; then
+  echo " cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
   fi
   [ -f "$src_o" ] || return 1
-  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$keep_syms" -nt "$out_o" ]; then
-  nm "$src_o" 2>/dev/null | awk '/ T / {print $3}' \
-    | grep -vE 'asm_driver_set_current_dep_path_for_codegen|asm_driver_skip_codegen_dep_0_get' \
-    | sort -u >"$keep_syms"
-  [ -s "$keep_syms" ] || return 1
-  echo " ld partial export $keep_syms $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_*)"
-  ld_partial_export "$keep_syms" "$out_o" "$src_o" || return 1
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ]; then
+  echo " filter_o_export $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_*)"
+  bash scripts/filter_o_export_against_deps.sh \
+    --src "$src_o" --out "$out_o" --stem bstrict_strict_glue_stubs_darwin \
+    --omit-sym asm_driver_set_current_dep_path_for_codegen \
+    --omit-sym asm_driver_skip_codegen_dep_0_get \
+    --require-keep || return 1
+  fi
+  # Required fillers for runtime_driver_asm_strict + parser_x (Stage2 round2 UNDEF map).
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'codegen_set_dep_slots_for_x_pipeline'; then
+  build_xlang_asm_warn "Darwin stubs filt missing codegen_set_dep_slots_for_x_pipeline"
+  return 1
+  fi
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'pipeline_block_labeled_set_names'; then
+  build_xlang_asm_warn "Darwin stubs filt missing pipeline_block_labeled_set_names"
+  return 1
   fi
   return 0
 }
@@ -5581,15 +5600,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_bootstrap_support_extra_objs
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
   # PLATFORM: DARWIN — do not drop whole strict_glue_stubs (historically hid U
-  # preprocess_*/codegen_*/ast_*). Use partial export that omits only asm_driver_*
-  # strong-duplicated by BOOT_ENTRY=runtime_asm_build.o.
+  # preprocess_*/codegen_*/ast_* / Stage2 round2 codegen_set_*). Prefer filtered
+  # partial that omits only asm_driver_* strong-duplicated by BOOT_ENTRY.
+  # Fallback keeps unfiltered stubs.o (never drop — drop recreates UNDEF).
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   if ensure_bstrict_darwin_strict_glue_stubs_filt_obj 2>/dev/null; then
   BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" \
     | sed "s|src/runtime_driver_strict_glue_stubs\\.o|$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o|g")
   else
-  # Fallback: omit only if filt failed (legacy path; may leave UNDEFs).
-  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|src/runtime_driver_strict_glue_stubs\.o||g')
+  build_xlang_asm_warn "Darwin strict_glue_stubs filt failed; linking unfiltered stubs.o"
   fi
   fi
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
