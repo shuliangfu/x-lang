@@ -53,7 +53,7 @@
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
 11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
-  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`）· ✅ **tests 深层裸 make→shell／xbuild**（a09／g06／compress／perf／wpo-docker；hub `compress-o-*` no-op＋`sqlite-o-stub`；`54ace50f0`）· ✅ **零 make 门禁 post_ship**（MF-absent thin-call→shell／catalog；leaf／ensure 地板对齐；`5042669b0`）  
+  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`）· ✅ **tests 深层裸 make→shell／xbuild**（a09／g06／compress／perf／wpo-docker；hub `compress-o-*` no-op＋`sqlite-o-stub`；`54ace50f0`）· ✅ **零 make 门禁 post_ship**（MF-absent thin-call→shell／catalog；leaf／ensure 地板对齐；`5042669b0`）· ✅ **Stage2 X E2E 诚实门禁**（产品 NO_C probe soft-skip＋ALLOW_HOST_CC；`9a2ff18d2`）  
 
   BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
@@ -97,7 +97,7 @@
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
 | `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
-| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave907 ASYNC multi; wave906 R3_COLD multi; wave905 SEED_MAP multi; wave904 MISC multi; wave903 EXTRA_CFLAGS multi; wave902 ALIAS_STUBS multi; wave901 MAIN_RUNTIME multi; wave900 FRONTEND_GLUE multi; wave899 R1_CORE; wave898 RT_SEED; wave897 B2; wave896 driver_leaf; wave895 std_x; wave894 formal_mod; wave893 body under scripts；root shim CI | Stage2 X dogfood |
+| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave907…wave893 body under scripts；root shim CI；**2026-08-24** NO_C honesty probe soft-skip＋Step5 ALLOW_HOST_CC（活 Stage2＝bstrict） | Stage2 X dogfood（经典 `-x -E` 产品 NO_C 堵） |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
