@@ -89,6 +89,7 @@ export extern function xlang_output_want_exe(path: *u8): i32;
 export extern function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32;
 export extern function driver_bump_stack_limit(): void;
 export extern function driver_check_only_get(): i32;
+export extern function driver_check_diag_emitted_get(): i32;
 export extern function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
 export extern function driver_print_check_ok(input_path: *u8): void;
 export extern function driver_x_pipeline_skip_typeck_set(v: i32): void;
@@ -1069,9 +1070,16 @@ export function rt_cp_step_prerun(): i32 {
   return 0;
 }
 
-/** Step: run x pipeline large-stack for parsed compile. Returns 0 ok / 1 fail.
- * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+/**
+ * Run the large-stack x pipeline for a parsed compile.
+ * check_only (`xlang check`): still typechecks the **entry** (AL-04 allocator
+ * region escape / al06). std/core **deps** stay parse-only in prerun — full
+ * dep typeck of sys/fs/heap mods historically SIGSEGV. Pipeline skips codegen
+ * when check_only. Return 2 = check success (caller cleans up, no emit).
+ * @return i32 — 0 continue to finish, 1 fail, 2 check-only success
+ * PLATFORM: SHARED — product PREFER `.x` is the authority; cold seed twin
+ * must match (no early print_ok skip on std/core-closure deps).
+ */
 #[no_mangle]
 export function rt_cp_step_pipeline(): i32 {
   let path: *u8 = 0 as *u8;
@@ -1153,24 +1161,12 @@ export function rt_cp_step_pipeline(): i32 {
       }
     }
   }
-  /* See signature and body for contracts. */
-  if (check != 0) {
-    if (n_deps > 0) {
-      if (core_only != 0) {
-        let rec_n: i32 = 0;
-        unsafe {
-          rec_n = runtime_report_parse_recovery_diagnostics(path, src, src_len);
-        }
-        if (rec_n > 0) {
-          return 1;
-        }
-        unsafe {
-          driver_print_check_ok(path);
-        }
-        return 2;
-      }
-    }
-  }
+  /* check_only + std/core-closure deps: do **not** print_ok and skip the
+   * pipeline. Dep prerun is already parse-only (SIGSEGV guard). Entry typeck
+   * must still run so AL-04 assign escape (`allocator region escape`) is a
+   * real diagnostic, not a quiet false-green. Pipeline orch typecks when
+   * driver_check_only_get() and returns before codegen.
+   * PLATFORM: SHARED — same as cold seed NO_C_FRONTEND fall-through. */
   unsafe {
     ec = xlang_pipeline_run_x_pipeline_large_stack(
       module, arena, src, src_len, out_buf, pctx);
@@ -1197,10 +1193,19 @@ export function rt_cp_step_pipeline(): i32 {
     // Aligns with seeds/rt_run_compiler_parsed.from_x.c check_only empty-module path.
     // PLATFORM: SHARED — dual-host check matrix.
     let rec_n: i32 = 0;
+    let diag_em: i32 = 0;
     unsafe {
       rec_n = runtime_report_parse_recovery_diagnostics(path, src, src_len);
+      diag_em = driver_check_diag_emitted_get();
     }
     if (rec_n > 0) {
+      return 1;
+    }
+    /* Typeck T001 (allocator region escape, slice region escape, …) may
+     * leave pipeline ec==0 with diagnostics already printed. Quiet print_ok
+     * here would false-green al06 / run-check negatives.
+     * PLATFORM: SHARED — align with seed driver_check_diag_emitted_get. */
+    if (diag_em != 0) {
       return 1;
     }
     unsafe {

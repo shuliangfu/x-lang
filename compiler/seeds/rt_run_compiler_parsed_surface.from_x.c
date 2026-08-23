@@ -1209,16 +1209,8 @@ int32_t rt_cp_step_pipeline(void) {
       }
     }
   }
-  if ((check !=0)) {
-    if ((n_deps > 0)) {
-      if ((core_only !=0)) {
-        {
-          (void)(driver_print_check_ok(path));
-        }
-        return 2;
-      }
-    }
-  }
+  /* check_only + std/core-closure: fall through to entry typeck (al06).
+   * PLATFORM: SHARED — twin of rt_cp_step_pipeline; product PREFER uses .x. */
   {
     (void)((ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src, src_len, out_buf, pctx)));
     (void)(driver_x_pipeline_skip_typeck_set(0));

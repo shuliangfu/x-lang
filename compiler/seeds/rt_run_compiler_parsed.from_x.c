@@ -946,33 +946,16 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         }
     }
 #endif
-#if defined(XLANG_NO_C_FRONTEND)
     /*
-     * stage1 xlang check：std/core import 闭包上大模块（sys/fs/heap mod）全量 .x typecheck 易 SIGSEGV。
-     * 入口 parse_into_buf + dep parse-only 已足够 S7 硬依赖门禁；与 asm -o 跳过入口 typeck 策略一致。
+     * PLATFORM: SHARED — xlang check (NO_C_FRONTEND product xlang_asm).
+     * Do **not** print_ok + return before the pipeline when deps are a
+     * std/core closure. That skip false-greened al06 (`allocator region
+     * escape`) because entry typeck never ran. Dep prerun above is already
+     * parse-only when check_only (the SIGSEGV guard for sys/fs/heap mods).
+     * Fall through: pipeline typechecks the **entry** and skips codegen
+     * when driver_check_only_get(). Twin: rt_cp_step_pipeline in
+     * src/runtime/rt_run_compiler_parsed.x (product PREFER authority).
      */
-    if (driver_check_only_get() && n_deps > 0 &&
-        driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
-        driver_print_check_ok(input_path);
-        if (!emit_to_stdout) {
-            fclose(cf);
-            unlink(tmp_c);
-        }
-        free(out_buf);
-        pipeline_dep_ctx_heap_destroy(pctx);
-        for (int k = 0; k < n_deps; k++) {
-            rt_cp_release_arena_module(dep_arenas[k], dep_modules[k]);
-        }
-        while (n_deps > 0) {
-            n_deps--;
-            free(dep_sources[n_deps]);
-            free(dep_paths[n_deps]);
-        }
-        rt_cp_release_arena_module(arena, module);
-        free(src);
-        return 0;
-    }
-#endif
     int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_x_pipeline_skip_typeck_set(0);
     if (link_abi_getenv("XLANG_DEBUG_PIPE"))
