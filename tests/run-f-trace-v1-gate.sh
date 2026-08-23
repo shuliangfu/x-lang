@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'trace.x' compiler/Makefile || die "Makefile missing trace.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/trace/trace.o >/dev/null 2>&1 || die "make trace.o failed"
+  xlang_compiler_make ../std/trace/trace.o >/dev/null 2>&1 || die "ensure trace.o failed (xlang_compiler_make)"
 else
   echo "f-trace-v1 SKIP trace.o build (no xlang-c)" >&2
 fi

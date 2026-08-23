@@ -26,7 +26,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime_channel_glue' compiler/Makefile || die "Makefile missing runtime_channel_glue"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/channel/channel.o >/dev/null 2>&1 || die "make channel.o failed"
+  xlang_compiler_make ../std/channel/channel.o >/dev/null 2>&1 || die "ensure channel.o failed (xlang_compiler_make)"
 else
   echo "f-channel-v1 SKIP channel.o build (no xlang-c)" >&2
 fi

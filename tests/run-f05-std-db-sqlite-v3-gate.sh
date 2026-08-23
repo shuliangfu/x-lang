@@ -34,7 +34,7 @@ fi
 
 [ ! -f std/db/sqlite/sqlite_glue.c ] || die "sqlite_glue.c should be deleted (F-ZC)"
 grep -q 'runtime_sqlite_glue' compiler/Makefile || die "Makefile missing runtime_sqlite_glue"
-xlang_compiler_make ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o >/dev/null 2>&1 || die "make sqlite.o failed"
+xlang_compiler_make ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o >/dev/null 2>&1 || die "ensure sqlite.o failed (xlang_compiler_make)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

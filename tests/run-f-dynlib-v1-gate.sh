@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'dynlib.x' compiler/Makefile || die "Makefile missing dynlib.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "make dynlib.o failed"
+  xlang_compiler_make ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "ensure dynlib.o failed (xlang_compiler_make)"
 else
   echo "f-dynlib-v1 SKIP dynlib.o build (no xlang-c)" >&2
 fi

@@ -28,7 +28,7 @@ grep -q 'tar_f_tar_v2_marker_c' std/tar/tar.x || die "tar.x missing v2 marker"
 grep -q 'tar.x' compiler/Makefile || die "Makefile missing tar.x"
 grep -q 'tar_glue.c' compiler/Makefile && die "Makefile still references tar_glue.c"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/tar/tar.o >/dev/null 2>&1 || die "make tar.o failed"
+  xlang_compiler_make ../std/tar/tar.o >/dev/null 2>&1 || die "ensure tar.o failed (xlang_compiler_make)"
 else
   echo "f-tar-v2 SKIP tar.o build (no xlang-c)" >&2
 fi

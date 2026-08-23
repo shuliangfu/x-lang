@@ -27,7 +27,7 @@ xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c >/dev/
 rm -f compiler/parser_gen.c compiler/lsp_diag_gen.c 2>/dev/null || true
 
 if ! xlang_compiler_make parser_gen.c lsp_diag_gen.c 2>"$LOG" | tee -a "$LOG"; then
-  echo "c04-no-perl gate FAIL: make parser_gen.c/lsp_diag_gen.c" >&2
+  echo "c04-no-perl gate FAIL: ensure parser_gen.c/lsp_diag_gen.c" >&2
   tail -n 12 "$LOG" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

@@ -28,7 +28,7 @@ grep -q 'cache_smoke_c' std/cache/cache.x || die "cache.x missing smoke"
 grep -q 'cache_f_cache_v2_marker_c' std/cache/cache.x || die "cache.x missing v2 marker"
 grep -q 'F-cache v2' compiler/Makefile || die "Makefile missing F-cache v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/cache/cache.o >/dev/null 2>&1 || die "make cache.o failed"
+  xlang_compiler_make ../std/cache/cache.o >/dev/null 2>&1 || die "ensure cache.o failed (xlang_compiler_make)"
 else
   echo "f-cache-v2 SKIP cache.o build (no xlang-c)" >&2
 fi

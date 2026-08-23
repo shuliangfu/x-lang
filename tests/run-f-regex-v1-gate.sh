@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'regex.x' compiler/Makefile || die "Makefile missing regex.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/regex/regex.o >/dev/null 2>&1 || die "make regex.o failed"
+  xlang_compiler_make ../std/regex/regex.o >/dev/null 2>&1 || die "ensure regex.o failed (xlang_compiler_make)"
 else
   echo "f-regex-v1 SKIP regex.o build (no xlang-c)" >&2
 fi

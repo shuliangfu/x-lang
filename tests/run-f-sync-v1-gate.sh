@@ -30,7 +30,7 @@ grep -q 'runtime_sync_os' compiler/Makefile || die "Makefile missing runtime_syn
 xlang_compiler_make -q runtime_sync_os.o runtime_sync_lock_diag_tls.o 2>/dev/null || \
   xlang_compiler_make runtime_sync_os.o runtime_sync_lock_diag_tls.o >/dev/null 2>&1 || die "runtime sync build failed"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
+  xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "ensure sync.o failed (xlang_compiler_make)"
 else
   echo "f-sync-v1 SKIP sync.o build (no xlang-c)" >&2
 fi

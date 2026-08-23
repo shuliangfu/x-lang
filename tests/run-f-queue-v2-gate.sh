@@ -30,7 +30,7 @@ grep -q 'queue_os_run_two_workers_c' compiler/seeds/runtime_queue_contention.fro
 grep -q 'queue_glue.c' compiler/Makefile && die "Makefile still references queue_glue.c"
 grep -q 'runtime_queue_contention' compiler/Makefile || die "Makefile missing runtime_queue_contention.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
+  xlang_compiler_make ../std/queue/queue.o >/dev/null 2>&1 || die "ensure queue.o failed (xlang_compiler_make)"
 else
   echo "f-queue-v2 SKIP queue.o build (no xlang-c)" >&2
 fi

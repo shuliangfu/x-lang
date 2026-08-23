@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'csv.x' compiler/Makefile || die "Makefile missing csv.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/csv/csv.o >/dev/null 2>&1 || die "make csv.o failed"
+  xlang_compiler_make ../std/csv/csv.o >/dev/null 2>&1 || die "ensure csv.o failed (xlang_compiler_make)"
 else
   echo "f-csv-v1 SKIP csv.o build (no xlang-c)" >&2
 fi

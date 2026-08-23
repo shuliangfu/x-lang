@@ -53,7 +53,7 @@ if [ -f "$MANIFEST" ]; then
   done < "$MANIFEST"
 fi
 
-xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
+xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "ensure crypto.o failed (xlang_compiler_make)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

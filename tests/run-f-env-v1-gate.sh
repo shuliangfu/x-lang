@@ -26,7 +26,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime_env_os' compiler/Makefile || die "Makefile missing runtime_env_os"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/env/env.o >/dev/null 2>&1 || die "make env.o failed"
+  xlang_compiler_make ../std/env/env.o >/dev/null 2>&1 || die "ensure env.o failed (xlang_compiler_make)"
 else
   echo "f-env-v1 SKIP env.o build (no xlang-c)" >&2
 fi

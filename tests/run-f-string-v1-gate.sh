@@ -44,7 +44,7 @@ if grep -q 'std/string/string\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/string/string.o >/dev/null 2>&1 || die "make string.o failed"
+  xlang_compiler_make ../std/string/string.o >/dev/null 2>&1 || die "ensure string.o failed (xlang_compiler_make)"
 else
   echo "f-string-v1 SKIP string.o build (no xlang-c)" >&2
 fi

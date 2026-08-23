@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'json.x' compiler/Makefile || die "Makefile missing json.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/json/json.o >/dev/null 2>&1 || die "make json.o failed"
+  xlang_compiler_make ../std/json/json.o >/dev/null 2>&1 || die "ensure json.o failed (xlang_compiler_make)"
 else
   echo "f-json-v1 SKIP json.o build (no xlang-c)" >&2
 fi

@@ -32,7 +32,7 @@ grep -q 'datetime_local_offset_min_c' std/datetime/datetime.x || die "datetime.x
 grep -q 'time_wall_local_offset_min_c' std/datetime/datetime.x || die "datetime.x missing time extern"
 grep -q 'datetime.x' compiler/Makefile || die "Makefile missing datetime.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
+  xlang_compiler_make ../std/datetime/datetime.o >/dev/null 2>&1 || die "ensure datetime.o failed (xlang_compiler_make)"
 else
   echo "f-datetime-v2 SKIP datetime.o build (no xlang-c)" >&2
 fi

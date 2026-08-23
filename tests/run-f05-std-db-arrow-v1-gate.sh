@@ -33,7 +33,7 @@ if grep -q 'std/db/arrow/arrow\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references arrow.c"
 fi
 
-xlang_compiler_make ../std/db/arrow/arrow.o runtime_arrow_simd_glue.o >/dev/null 2>&1 || die "make arrow.o failed"
+xlang_compiler_make ../std/db/arrow/arrow.o runtime_arrow_simd_glue.o >/dev/null 2>&1 || die "ensure arrow.o failed (xlang_compiler_make)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

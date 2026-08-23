@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'context.x' compiler/Makefile || die "Makefile missing context.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "make context.o failed"
+  xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "ensure context.o failed (xlang_compiler_make)"
 else
   echo "f-context-v1 SKIP context.o build (no xlang-c)" >&2
 fi

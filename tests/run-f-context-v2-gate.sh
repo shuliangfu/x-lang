@@ -28,7 +28,7 @@ grep -q 'ctx_smoke_c' std/context/context.x || die "context.x missing smoke"
 grep -q 'ctx_f_context_v2_marker_c' std/context/context.x || die "context.x missing v2 marker"
 grep -q 'F-context v2' compiler/Makefile || die "Makefile missing F-context v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "make context.o failed"
+  xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "ensure context.o failed (xlang_compiler_make)"
 else
   echo "f-context-v2 SKIP context.o build (no xlang-c)" >&2
 fi

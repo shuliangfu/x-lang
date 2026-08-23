@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'cache.x' compiler/Makefile || die "Makefile missing cache.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/cache/cache.o >/dev/null 2>&1 || die "make cache.o failed"
+  xlang_compiler_make ../std/cache/cache.o >/dev/null 2>&1 || die "ensure cache.o failed (xlang_compiler_make)"
 else
   echo "f-cache-v1 SKIP cache.o build (no xlang-c)" >&2
 fi

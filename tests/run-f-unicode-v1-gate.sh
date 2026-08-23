@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'unicode.x' compiler/Makefile || die "Makefile missing unicode.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
+  xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "ensure unicode.o failed (xlang_compiler_make)"
 else
   echo "f-unicode-v1 SKIP unicode.o build (no xlang-c)" >&2
 fi

@@ -31,7 +31,7 @@ grep -q 'url_inet_pton6_c' std/url/url.x || die "url.x missing inet_pton"
 grep -q 'inet_ntop' std/url/url.x || die "url.x missing inet_ntop extern"
 grep -q 'url.x' compiler/Makefile || die "Makefile missing url.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/url/url.o >/dev/null 2>&1 || die "make url.o failed"
+  xlang_compiler_make ../std/url/url.o >/dev/null 2>&1 || die "ensure url.o failed (xlang_compiler_make)"
 else
   echo "f-url-v2 SKIP url.o build (no xlang-c)" >&2
 fi

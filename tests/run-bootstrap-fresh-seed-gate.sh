@@ -46,7 +46,7 @@ SMOKE="compiler/scripts/bootstrap_driver_seed_smoke.sh"
 [ -x "$SMOKE" ] || { gate_progress "FAIL: missing $SMOKE"; exit 1; }
 
 if [ "${XLANG_BOOTSTRAP_FRESH_SEED_BUILD:-0}" = "1" ]; then
-  gate_progress "V6: make bootstrap-driver-seed（耗时长）..."
+  gate_progress "V6: ./xbuild bootstrap-driver-seed（耗时长）..."
   gate_progress_run "bootstrap-driver-seed" xlang_compiler_make bootstrap-driver-seed XLANG_FORCE_REGEN_GEN=1
 fi
 

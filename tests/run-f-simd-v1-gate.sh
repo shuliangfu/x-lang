@@ -26,7 +26,7 @@ grep -q 'simd_autovec_smoke_c' std/simd/simd.x || die "simd.x missing smoke"
 grep -q 'simd_f_zero_c_marker_c' std/simd/simd.x || die "simd.x missing zero-c marker"
 grep -q 'simd.x' compiler/Makefile || die "Makefile missing simd.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/simd/simd.o >/dev/null 2>&1 || die "make simd.o failed"
+  xlang_compiler_make ../std/simd/simd.o >/dev/null 2>&1 || die "ensure simd.o failed (xlang_compiler_make)"
 else
   echo "f-simd-v1 SKIP simd.o build (no xlang-c)" >&2
 fi

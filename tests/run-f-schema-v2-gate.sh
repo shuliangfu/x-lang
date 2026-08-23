@@ -28,7 +28,7 @@ grep -q 'schema_smoke_c' std/schema/schema.x || die "schema.x missing smoke"
 grep -q 'schema_f_schema_v2_marker_c' std/schema/schema.x || die "schema.x missing v2 marker"
 grep -q 'F-schema v2' compiler/Makefile || die "Makefile missing F-schema v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/schema/schema.o >/dev/null 2>&1 || die "make schema.o failed"
+  xlang_compiler_make ../std/schema/schema.o >/dev/null 2>&1 || die "ensure schema.o failed (xlang_compiler_make)"
 else
   echo "f-schema-v2 SKIP schema.o build (no xlang-c)" >&2
 fi

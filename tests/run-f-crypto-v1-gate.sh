@@ -20,7 +20,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
+  xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "ensure crypto.o failed (xlang_compiler_make)"
 else
   echo "f-crypto-v1 SKIP crypto.o build (no xlang-c)" >&2
 fi

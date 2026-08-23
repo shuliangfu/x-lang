@@ -31,8 +31,8 @@ grep -q 'runtime_scheduler_glue' compiler/Makefile || die "Makefile missing runt
 xlang_compiler_make -q runtime_scheduler_glue.o 2>/dev/null || xlang_compiler_make runtime_scheduler_glue.o >/dev/null 2>&1 || die "runtime_scheduler_glue.o build failed"
 grep -q 'future.x' compiler/Makefile || die "Makefile missing future.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/async/scheduler.o >/dev/null 2>&1 || die "make scheduler.o failed"
-  xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
+  xlang_compiler_make ../std/async/scheduler.o >/dev/null 2>&1 || die "ensure scheduler.o failed (xlang_compiler_make)"
+  xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "ensure future.o failed (xlang_compiler_make)"
 else
   echo "f-async-v1 SKIP scheduler/future.o build (no xlang-c)" >&2
 fi

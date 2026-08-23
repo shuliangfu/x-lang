@@ -26,7 +26,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime_log_os' compiler/Makefile || die "Makefile missing runtime_log_os"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/log/log.o >/dev/null 2>&1 || die "make log.o failed"
+  xlang_compiler_make ../std/log/log.o >/dev/null 2>&1 || die "ensure log.o failed (xlang_compiler_make)"
 else
   echo "f-log-v1 SKIP log.o build (no xlang-c)" >&2
 fi

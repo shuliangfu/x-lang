@@ -74,7 +74,7 @@ echo "s2 emit-heavy: __text=${sz} real_funcs=${real} (min_real=${MIN_REAL}, min_
 if [ "${XLANG_S2_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
   if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
     echo "s2 emit-heavy FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
-    echo "s2 emit-heavy hint: ast_pool.c 变更后须 make bootstrap-driver-bstrict 重链 xlang_asm" >&2
+    echo "s2 emit-heavy hint: ast_pool.c 变更后须 ./xbuild bootstrap-driver-bstrict 重链 xlang_asm" >&2
     exit 1
   fi
   if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s > m) ? 0 : 1 }'; then

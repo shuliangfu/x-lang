@@ -47,7 +47,7 @@ if grep -q 'std/random/random\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/random/random.o >/dev/null 2>&1 || die "make random.o failed"
+  xlang_compiler_make ../std/random/random.o >/dev/null 2>&1 || die "ensure random.o failed (xlang_compiler_make)"
 else
   echo "f-random-v1 SKIP random.o build (no xlang-c)" >&2
 fi

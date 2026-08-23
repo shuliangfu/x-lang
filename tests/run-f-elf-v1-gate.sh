@@ -24,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'elf.x' compiler/Makefile || die "Makefile missing elf.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/elf/elf.o >/dev/null 2>&1 || die "make elf.o failed"
+  xlang_compiler_make ../std/elf/elf.o >/dev/null 2>&1 || die "ensure elf.o failed (xlang_compiler_make)"
 else
   echo "f-elf-v1 SKIP elf.o build (no xlang-c)" >&2
 fi

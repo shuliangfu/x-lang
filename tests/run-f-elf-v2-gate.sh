@@ -31,7 +31,7 @@ grep -q 'elf_read_fixture_c' std/elf/elf.x || die "elf.x missing read_fixture"
 grep -q 'fs_open_read_c' std/elf/elf.x || die "elf.x missing fs fixture IO"
 grep -q 'elf.x' compiler/Makefile || die "Makefile missing elf.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/elf/elf.o >/dev/null 2>&1 || die "make elf.o failed"
+  xlang_compiler_make ../std/elf/elf.o >/dev/null 2>&1 || die "ensure elf.o failed (xlang_compiler_make)"
 else
   echo "f-elf-v2 SKIP elf.o build (no xlang-c)" >&2
 fi

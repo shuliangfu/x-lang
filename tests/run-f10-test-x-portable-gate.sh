@@ -46,7 +46,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== F-10: make test_x (XLANG=$XLANG_BIN) ==="
-  xlang_compiler_make test_x >/dev/null 2>&1 || die "make test_x failed"
+  xlang_compiler_make test_x >/dev/null 2>&1 || die "ensure test_x failed (xlang_compiler_make)"
 else
   echo "f10 SKIP make test_x (no native xlang)" >&2
 fi

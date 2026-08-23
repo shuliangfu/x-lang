@@ -24,11 +24,11 @@ run_timeout() {
 make_ret=0
 run_timeout 120 bash -c 'xlang_compiler_make bootstrap-pipeline && xlang_compiler_make xlang-x-pipeline' || make_ret=$?
 if [ "$make_ret" -eq 124 ]; then
-  echo "run-x-multi-file SKIP (make xlang-x-pipeline timed out after 120s)"
+  echo "run-x-multi-file SKIP (xlang_compiler_make xlang-x-pipeline timed out after 120s)"
   exit 0
 fi
 if [ "$make_ret" -ne 0 ]; then
-  echo "run-x-multi-file: make bootstrap-pipeline or xlang-x-pipeline failed (exit $make_ret); xlang_x may be missing"
+  echo "run-x-multi-file: xlang_compiler_make bootstrap-pipeline or xlang-x-pipeline failed (exit $make_ret); xlang_x may be missing"
 fi
 if [ -x compiler/xlang_x ]; then
   X_XLANG=compiler/xlang_x

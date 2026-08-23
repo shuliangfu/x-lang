@@ -23,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'hash.x' compiler/Makefile || die "Makefile missing hash.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/hash/hash.o >/dev/null 2>&1 || die "make hash.o failed"
+  xlang_compiler_make ../std/hash/hash.o >/dev/null 2>&1 || die "ensure hash.o failed (xlang_compiler_make)"
 else
   echo "f-hash-v1 SKIP hash.o build (no xlang-c)" >&2
 fi

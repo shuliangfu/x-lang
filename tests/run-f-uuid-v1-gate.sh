@@ -44,7 +44,7 @@ if grep -q 'std/uuid/uuid\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/uuid/uuid.o >/dev/null 2>&1 || die "make uuid.o failed"
+  xlang_compiler_make ../std/uuid/uuid.o >/dev/null 2>&1 || die "ensure uuid.o failed (xlang_compiler_make)"
 else
   echo "f-uuid-v1 SKIP uuid.o build (no xlang-c)" >&2
 fi

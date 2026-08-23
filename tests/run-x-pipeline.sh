@@ -26,7 +26,7 @@ run_timeout() {
 make_ret=0
 run_timeout 120 bash -c 'xlang_compiler_make bootstrap-pipeline 2>/dev/null || true; xlang_compiler_make xlang-x-pipeline 2>/dev/null || true' || make_ret=$?
 if [ "$make_ret" -eq 124 ]; then
-  echo "run-x-pipeline FAIL (make bootstrap-pipeline / xlang-x-pipeline timed out after 120s)"
+  echo "run-x-pipeline FAIL (xlang_compiler_make bootstrap-pipeline / xlang-x-pipeline timed out after 120s)"
   exit 1
 fi
 
@@ -57,7 +57,7 @@ fi
 if [ "$ec" -ne 0 ]; then
   if [ "$X_XLANG" = "compiler/xlang" ]; then
     rm -f "$out" "$err"
-    echo "run-x-pipeline SKIP (xlang does not support -x -E; run make bootstrap-driver or use build_tool for full xlang)"
+    echo "run-x-pipeline SKIP (xlang does not support -x -E; run ./xbuild bootstrap-driver-seed or build_tool for full xlang)"
     exit 0
   fi
   if [ "$ec" -eq 126 ]; then

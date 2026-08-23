@@ -28,7 +28,7 @@ grep -q 'hash_hasher_switch_smoke_c' std/hash/hash.x || die "hash.x missing smok
 grep -q 'hash_f_hash_v2_marker_c' std/hash/hash.x || die "hash.x missing v2 marker"
 grep -q 'F-hash v2' compiler/Makefile || die "Makefile missing F-hash v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/hash/hash.o >/dev/null 2>&1 || die "make hash.o failed"
+  xlang_compiler_make ../std/hash/hash.o >/dev/null 2>&1 || die "ensure hash.o failed (xlang_compiler_make)"
 else
   echo "f-hash-v2 SKIP hash.o build (no xlang-c)" >&2
 fi

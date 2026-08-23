@@ -28,7 +28,7 @@ grep -q 'trace_smoke_c' std/trace/trace.x || die "trace.x missing smoke"
 grep -q 'trace_f_trace_v2_marker_c' std/trace/trace.x || die "trace.x missing v2 marker"
 grep -q 'F-trace v2' compiler/Makefile || die "Makefile missing F-trace v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/trace/trace.o >/dev/null 2>&1 || die "make trace.o failed"
+  xlang_compiler_make ../std/trace/trace.o >/dev/null 2>&1 || die "ensure trace.o failed (xlang_compiler_make)"
 else
   echo "f-trace-v2 SKIP trace.o build (no xlang-c)" >&2
 fi

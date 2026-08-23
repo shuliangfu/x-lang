@@ -33,7 +33,7 @@ if grep -q 'std/db/kv/kv\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references kv.c"
 fi
 
-xlang_compiler_make ../std/db/kv/kv.o runtime_kv_mmap_glue.o >/dev/null 2>&1 || die "make kv.o failed"
+xlang_compiler_make ../std/db/kv/kv.o runtime_kv_mmap_glue.o >/dev/null 2>&1 || die "ensure kv.o failed (xlang_compiler_make)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

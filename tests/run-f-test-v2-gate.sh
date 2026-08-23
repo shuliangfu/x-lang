@@ -32,7 +32,7 @@ grep -q 'test_io_bench_line_c' std/test/test.x || die "test.x missing IO bench"
 grep -q 'test_f_zero_c_marker_c' std/test/test.x || die "test.x missing F-ZC marker"
 grep -q 'runtime_test_fn_invoke' compiler/Makefile || die "Makefile missing runtime_test_fn_invoke.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make runtime_test_fn_invoke.o ../std/test/test.o >/dev/null 2>&1 || die "make test.o failed"
+  xlang_compiler_make runtime_test_fn_invoke.o ../std/test/test.o >/dev/null 2>&1 || die "ensure test.o failed (xlang_compiler_make)"
 else
   echo "f-test-v2 SKIP test.o build (no xlang-c)" >&2
 fi

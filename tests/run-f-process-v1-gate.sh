@@ -52,7 +52,7 @@ fi
 xlang_compiler_make -q runtime_process_os_glue.o 2>/dev/null || xlang_compiler_make runtime_process_os_glue.o >/dev/null 2>&1 || die "runtime_process_os_glue.o build failed"
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make runtime_process_argv.o ../std/process/process.o >/dev/null 2>&1 || die "make process.o failed"
+  xlang_compiler_make runtime_process_argv.o ../std/process/process.o >/dev/null 2>&1 || die "ensure process.o failed (xlang_compiler_make)"
 else
   echo "f-process-v1 SKIP process.o build (no xlang-c)" >&2
 fi

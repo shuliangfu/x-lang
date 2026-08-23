@@ -50,9 +50,9 @@ if grep -q 'std/db/sqlite/sqlite\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 xlang_compiler_make runtime_kv_mmap_glue.o runtime_arrow_simd_glue.o runtime_sqlite_glue.o >/dev/null 2>&1 || true
-xlang_compiler_make ../std/db/kv/kv.o >/dev/null 2>&1 || die "make kv.o failed"
-xlang_compiler_make ../std/db/arrow/arrow.o >/dev/null 2>&1 || die "make arrow.o failed"
-xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || die "make sqlite.o failed"
+xlang_compiler_make ../std/db/kv/kv.o >/dev/null 2>&1 || die "ensure kv.o failed (xlang_compiler_make)"
+xlang_compiler_make ../std/db/arrow/arrow.o >/dev/null 2>&1 || die "ensure arrow.o failed (xlang_compiler_make)"
+xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || die "ensure sqlite.o failed (xlang_compiler_make)"
 
 for sub in run-f05-std-db-arrow-v1-gate.sh run-f05-std-db-kv-v2-gate.sh \
   run-f05-std-db-sqlite-v3-gate.sh; do

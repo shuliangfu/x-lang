@@ -29,7 +29,7 @@ grep -q 'socketio_f_socketio_v2_marker_c' std/socketio/socketio.x || die "socket
 grep -q 'socketio.x' compiler/Makefile || die "Makefile missing socketio.x"
 grep -q 'socketio_glue.c' compiler/Makefile && die "Makefile still references socketio_glue.c"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/socketio/socketio.o >/dev/null 2>&1 || die "make socketio.o failed"
+  xlang_compiler_make ../std/socketio/socketio.o >/dev/null 2>&1 || die "ensure socketio.o failed (xlang_compiler_make)"
 else
   echo "f-socketio-v2 SKIP socketio.o build (no xlang-c)" >&2
 fi

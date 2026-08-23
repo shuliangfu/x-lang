@@ -30,7 +30,7 @@ grep -q 'sync_lock_diag_tls_push_c' "$SYNC_TLS_RUNTIME" || die "runtime tls miss
 grep -q 'runtime_sync_lock_diag_tls' compiler/Makefile || die "Makefile missing runtime tls"
 grep -q 'sync_lock_diag_glue.c' compiler/Makefile && die "Makefile still references diag glue"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
+  xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "ensure sync.o failed (xlang_compiler_make)"
 else
   echo "f-sync-lock-diag-v2 SKIP sync.o build (no xlang-c)" >&2
 fi

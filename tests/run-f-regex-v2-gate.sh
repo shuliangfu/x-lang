@@ -28,7 +28,7 @@ grep -q 'regex_f_regex_v2_marker_c' std/regex/regex.x || die "regex.x missing v2
 grep -q 'atomic_nest' std/regex/regex.x || die "regex.x missing atomic_nest"
 grep -q 'F-regex v2' compiler/Makefile || die "Makefile missing F-regex v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/regex/regex.o >/dev/null 2>&1 || die "make regex.o failed"
+  xlang_compiler_make ../std/regex/regex.o >/dev/null 2>&1 || die "ensure regex.o failed (xlang_compiler_make)"
 else
   echo "f-regex-v2 SKIP regex.o build (no xlang-c)" >&2
 fi

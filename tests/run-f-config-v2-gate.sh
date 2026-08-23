@@ -31,7 +31,7 @@ grep -q 'config_read_file_c' std/config/config.x || die "config.x missing read_f
 grep -q 'fs_open_read_c' std/config/config.x || die "config.x missing fs IO"
 grep -q 'config.x' compiler/Makefile || die "Makefile missing config.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/config/config.o >/dev/null 2>&1 || die "make config.o failed"
+  xlang_compiler_make ../std/config/config.o >/dev/null 2>&1 || die "ensure config.o failed (xlang_compiler_make)"
 else
   echo "f-config-v2 SKIP config.o build (no xlang-c)" >&2
 fi

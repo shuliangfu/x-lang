@@ -47,7 +47,7 @@ if grep -q 'std/time/time\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/time/time.o >/dev/null 2>&1 || die "make time.o failed"
+  xlang_compiler_make ../std/time/time.o >/dev/null 2>&1 || die "ensure time.o failed (xlang_compiler_make)"
 else
   echo "f-time-v1 SKIP time.o build (no xlang-c)" >&2
 fi

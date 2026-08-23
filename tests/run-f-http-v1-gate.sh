@@ -27,7 +27,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'http.x' compiler/Makefile || die "Makefile missing http.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/http/http.o >/dev/null 2>&1 || die "make http.o failed"
+  xlang_compiler_make ../std/http/http.o >/dev/null 2>&1 || die "ensure http.o failed (xlang_compiler_make)"
 else
   echo "f-http-v1 SKIP http.o build (no xlang-c)" >&2
 fi

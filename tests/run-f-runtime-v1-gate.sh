@@ -24,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime.x' compiler/Makefile || die "Makefile missing runtime.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/runtime/runtime.o >/dev/null 2>&1 || die "make runtime.o failed"
+  xlang_compiler_make ../std/runtime/runtime.o >/dev/null 2>&1 || die "ensure runtime.o failed (xlang_compiler_make)"
 else
   echo "f-runtime-v1 SKIP runtime.o build (no xlang-c)" >&2
 fi

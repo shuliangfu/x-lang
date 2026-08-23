@@ -34,7 +34,7 @@ WIN_BSTRICT="${XLANG_WIN_BSTRICT:-0}"
 PIPELINE_GEN_PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
 if [ "$WIN_BSTRICT" = "1" ]; then
-  echo "bootstrap-bstrict-windows-gate: E-06 v5 make bootstrap-driver-bstrict (Windows B-strict) ..."
+  echo "bootstrap-bstrict-windows-gate: E-06 v5 xlang_compiler_make bootstrap-driver-bstrict (Windows B-strict) ..."
   # Why: `make | tee` masks make's exit code with tee's (always 0). Without
   #      capturing PIPESTATUS a real make failure (e.g. relink-xlang Error 2
   #      from g05_relink_env unsupported host) is silently swallowed and the
@@ -47,7 +47,7 @@ if [ "$WIN_BSTRICT" = "1" ]; then
   BOOT_RC=${PIPESTATUS[0]}
   set +o pipefail
   if [ "$BOOT_RC" -ne 0 ]; then
-    echo "bootstrap-bstrict-windows-gate FAIL: make bootstrap-driver-bstrict rc=$BOOT_RC" >&2
+    echo "bootstrap-bstrict-windows-gate FAIL: xlang_compiler_make bootstrap-driver-bstrict rc=$BOOT_RC" >&2
     exit 1
   fi
   BOOT_LOG=/tmp/boot_win_bstrict.log
@@ -68,7 +68,7 @@ else
   #            skips the 14-.o link rule, running only build_xlang_asm.sh.
   # PLATFORM: WINDOWS | MSYS | MINGW (script only runs on MSYS2 hosts; see
   #           ci_is_windows_msys guard above).
-  echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
+  echo "bootstrap-bstrict-windows-gate: xlang_compiler_make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
   xlang_compiler_make bootstrap-driver-seed 2>&1 | tee /tmp/boot_win_seed.log
   SEED_RC=${PIPESTATUS[0]}
   if [ "$SEED_RC" -ne 0 ]; then

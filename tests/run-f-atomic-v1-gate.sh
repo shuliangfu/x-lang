@@ -26,7 +26,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime_atomic_glue' compiler/Makefile || die "Makefile missing runtime_atomic_glue"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/atomic/atomic.o >/dev/null 2>&1 || die "make atomic.o failed"
+  xlang_compiler_make ../std/atomic/atomic.o >/dev/null 2>&1 || die "ensure atomic.o failed (xlang_compiler_make)"
 else
   echo "f-atomic-v1 SKIP atomic.o build (no xlang-c)" >&2
 fi

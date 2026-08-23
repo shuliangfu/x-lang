@@ -26,7 +26,7 @@ done < "$MANIFEST"
 grep -q 'runtime_thread_glue' compiler/Makefile || die "Makefile missing runtime_thread_glue"
 xlang_compiler_make -q runtime_thread_glue.o 2>/dev/null || xlang_compiler_make runtime_thread_glue.o >/dev/null 2>&1 || die "runtime_thread_glue.o build failed"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/thread/thread.o >/dev/null 2>&1 || die "make thread.o failed"
+  xlang_compiler_make ../std/thread/thread.o >/dev/null 2>&1 || die "ensure thread.o failed (xlang_compiler_make)"
 else
   echo "f-thread-v1 SKIP thread.o build (no xlang-c)" >&2
 fi

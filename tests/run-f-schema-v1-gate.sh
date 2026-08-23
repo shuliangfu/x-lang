@@ -25,7 +25,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'schema.x' compiler/Makefile || die "Makefile missing schema.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/schema/schema.o >/dev/null 2>&1 || die "make schema.o failed"
+  xlang_compiler_make ../std/schema/schema.o >/dev/null 2>&1 || die "ensure schema.o failed (xlang_compiler_make)"
 else
   echo "f-schema-v1 SKIP schema.o build (no xlang-c)" >&2
 fi

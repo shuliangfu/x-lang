@@ -27,7 +27,7 @@ done < "$MANIFEST"
 grep -q 'runtime_math_libm' compiler/Makefile || die "Makefile missing runtime_math_libm"
 if grep -q 'std/math/math\.c' compiler/Makefile 2>/dev/null; then die "Makefile still references math.c"; fi
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/math/math.o >/dev/null 2>&1 || die "make math.o failed"
+  xlang_compiler_make ../std/math/math.o >/dev/null 2>&1 || die "ensure math.o failed (xlang_compiler_make)"
 else
   echo "f-math-v1 SKIP math.o build (no xlang-c)" >&2
 fi

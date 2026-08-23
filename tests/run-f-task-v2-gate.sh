@@ -33,7 +33,7 @@ grep -q 'xlang_async_spawn_i32' std/task/task.x || die "task.x missing spawn ext
 grep -q 'task_echo_fn_ptr_c()' std/task/task.x || die "task.x smoke should use task_echo_fn_ptr_c"
 grep -q 'F-task v2' compiler/Makefile || die "Makefile missing F-task v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/task/task.o >/dev/null 2>&1 || die "make task.o failed"
+  xlang_compiler_make ../std/task/task.o >/dev/null 2>&1 || die "ensure task.o failed (xlang_compiler_make)"
 else
   echo "f-task-v2 SKIP task.o build (no xlang-c)" >&2
 fi

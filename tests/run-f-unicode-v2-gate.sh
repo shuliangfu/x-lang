@@ -29,7 +29,7 @@ grep -q 'unicode_grapheme_case_smoke_c' std/unicode/unicode.x || die "unicode.x 
 grep -q 'unicode_f_unicode_v2_marker_c' std/unicode/unicode.x || die "unicode.x missing v2 marker"
 grep -q 'F-unicode v2' compiler/Makefile || die "Makefile missing F-unicode v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
+  xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "ensure unicode.o failed (xlang_compiler_make)"
 else
   echo "f-unicode-v2 SKIP unicode.o build (no xlang-c)" >&2
 fi

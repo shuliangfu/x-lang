@@ -30,9 +30,12 @@ for fn in async_scheduler core_builtin core_mem db_kv db_arrow core_slice; do
   fi
 done
 
-# runtime.o 可编译
-if ! make -s -C compiler src/runtime.o 2>/tmp/b20_runtime_o.log; then
-  echo "b20-generated-c-scan-gate FAIL: make runtime.o" >&2
+# runtime.o 可编译（G.7: tests hub xlang_compiler_make；禁裸 make -C，MF phys-del）
+# PLATFORM: SHARED — hub routes to ensure_host_cc_seed_o try-heat.
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+if ! xlang_compiler_make src/runtime.o 2>/tmp/b20_runtime_o.log; then
+  echo "b20-generated-c-scan-gate FAIL: ensure src/runtime.o (xlang_compiler_make)" >&2
   tail -n 8 /tmp/b20_runtime_o.log 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

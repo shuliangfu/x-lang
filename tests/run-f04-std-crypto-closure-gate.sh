@@ -45,7 +45,7 @@ if grep -q 'aes_gcm\.inc\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references aes_gcm.inc.c"
 fi
 
-xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
+xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "ensure crypto.o failed (xlang_compiler_make)"
 
 for sub in run-f04-std-crypto-v16-gate.sh run-f04-std-crypto-v17-gate.sh \
   run-f04-std-crypto-v18-gate.sh run-f04-std-crypto-v19-gate.sh; do

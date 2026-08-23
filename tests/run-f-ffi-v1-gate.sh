@@ -28,7 +28,7 @@ grep -q 'ffi_invoke_i32_cb_c' std/ffi/ffi.x || die "ffi.x missing invoke"
 grep -q 'ffi_f_zero_c_marker_c' std/ffi/ffi.x || die "ffi.x missing zero-c marker"
 grep -q 'ffi.x' compiler/Makefile || die "Makefile missing ffi.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/ffi/ffi.o >/dev/null 2>&1 || die "make ffi.o failed"
+  xlang_compiler_make ../std/ffi/ffi.o >/dev/null 2>&1 || die "ensure ffi.o failed (xlang_compiler_make)"
 else
   echo "f-ffi-v1 SKIP ffi.o build (no xlang-c)" >&2
 fi

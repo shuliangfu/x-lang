@@ -44,7 +44,7 @@ if grep -q 'std/base64/base64\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/base64/base64.o >/dev/null 2>&1 || die "make base64.o failed"
+  xlang_compiler_make ../std/base64/base64.o >/dev/null 2>&1 || die "ensure base64.o failed (xlang_compiler_make)"
 else
   echo "f-base64-v1 SKIP base64.o build (no xlang-c)" >&2
 fi

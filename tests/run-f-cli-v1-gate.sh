@@ -24,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'cli.x' compiler/Makefile || die "Makefile missing cli.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/cli/cli.o >/dev/null 2>&1 || die "make cli.o failed"
+  xlang_compiler_make ../std/cli/cli.o >/dev/null 2>&1 || die "ensure cli.o failed (xlang_compiler_make)"
 else
   echo "f-cli-v1 SKIP cli.o build (no xlang-c)" >&2
 fi

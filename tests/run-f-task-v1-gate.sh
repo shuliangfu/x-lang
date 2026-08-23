@@ -24,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'task.x' compiler/Makefile || die "Makefile missing task.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/task/task.o >/dev/null 2>&1 || die "make task.o failed"
+  xlang_compiler_make ../std/task/task.o >/dev/null 2>&1 || die "ensure task.o failed (xlang_compiler_make)"
 else
   echo "f-task-v1 SKIP task.o build (no xlang-c)" >&2
 fi

@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# run-l1-relink-fast.sh — L1 语义 gate 高效路径（parser/typeck 迭代用）
+# run-l1-relink-fast.sh — L1 semantic gate fast path (parser/typeck iteration)
 #
-# 用法（仓库根）：
-# ./tests/run-l1-relink-fast.sh # Docker 内 relink + 4 条 L1 gate
-# ./tests/run-l1-relink-fast.sh --smoke-only # 仅 slice 单文件烟测（最快）
-# ./tests/run-l1-relink-fast.sh --relink-only
+# Usage (repo root):
+#   ./tests/run-l1-relink-fast.sh              # Docker relink + 4 L1 gates
+#   ./tests/run-l1-relink-fast.sh --smoke-only # slice single-file smoke only
+#   ./tests/run-l1-relink-fast.sh --relink-only
 #
-# 环境：
-# XLANG_DOCKER_PERSIST=1 默认开启（常驻容器，二次 ~1min）
-# XLANG_DOCKER_MEMORY=16g 默认 16g
-# XLANG_FORCE_FULL_BOOTSTRAP=1 无 xlang 时跑完整 bootstrap-driver-seed（慢，仅首次）
+# Env:
+#   XLANG_DOCKER_PERSIST=1   default on (persistent container; ~1min on repeat)
+#   XLANG_DOCKER_MEMORY=16g  default 16g
+#   XLANG_FORCE_FULL_BOOTSTRAP=1  when set, always cold bootstrap_driver_seed
+#
+# Post-Makefile phys-del (wave941+): INNER is 0-make.
+#   leaf .o  → scripts/ensure_host_cc_seed_o.sh try-heat (--force after touch)
+#   final    → FULL=0 g05_prepare_and_relink.sh (syncs xlang / xlang_asm / xlang-c)
+#   cold     → scripts/bootstrap_driver_seed.sh (G.7 single cold authority)
+# Ban bare `make` / `make -n` link-line scrape (MF gone → sit-red).
+# PLATFORM: SHARED orchestration; Docker host is Linux x86_64 gold path.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -21,9 +28,9 @@ for arg in "$@"; do
   --smoke-only) SMOKE_ONLY=1 ;;
   --relink-only) RELINK_ONLY=1 ;;
   -h|--help)
-  sed -n '2,16p' "$0"
-  exit 0
-  ;;
+    sed -n '2,20p' "$0"
+    exit 0
+    ;;
   *) echo "run-l1-relink-fast: unknown arg $arg" >&2; exit 1 ;;
   esac
 done
@@ -42,7 +49,7 @@ progress(){ echo "[$(date +%H:%M:%S)] l1-fast $*"; }
 cd /src/compiler
 chmod +x scripts/*.sh 2>/dev/null || true
 
-# 恢复 pinned gen（免 xlang-c -E 再生）
+# Restore pinned gen (avoid xlang-c -E regen).
 copy_seed() { [ -f "$1" ] && cat "$1" > "$2"; }
 for f in lexer_gen parser_gen typeck_gen codegen_gen pipeline_gen driver_gen preprocess_gen \
   lsp_io_gen lsp_gen lsp_diag_gen lsp_io_std_heap_gen \
@@ -50,56 +57,47 @@ for f in lexer_gen parser_gen typeck_gen codegen_gen pipeline_gen driver_gen pre
   copy_seed "seeds/${f}.linux.x86_64.c" "${f}.c"
 done
 
+# Force-rebuild one leaf via heat ladder (G.7: ensure_host_cc_seed_o authority).
+# PLATFORM: SHARED — same try-heat body as product g05 / bootstrap_driver_seed.
+ensure_force_o() {
+  XLANG_HOST_CC_SEED_FORCE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat "$1"
+}
+
 progress "rebuild parser_asm_thin_glue.o (slice T[] fix)"
 touch seeds/parser_asm/parser_asm_type_ref_slice.inc
-make -j"$(nproc 2>/dev/null || echo 4)" parser_asm_thin_glue.o
+ensure_force_o parser_asm_thin_glue.o
 
 progress "rebuild parser_x.o (region { parse fix)"
 touch parser_gen.c
-make -j"$(nproc 2>/dev/null || echo 4)" parser_x.o 2>&1 | tail -3 || true
+ensure_force_o parser_x.o 2>&1 | tail -3 || true
 
 progress "rebuild pipeline_x.o + typeck_x.o (region parent link + assign final_expr)"
 touch ast_pool.c pipeline_glue.c typeck_gen.c
-make -j"$(nproc 2>/dev/null || echo 4)" pipeline_x.o typeck_x.o 2>&1 | tail -8 || true
+ensure_force_o pipeline_x.o 2>&1 | tail -4 || true
+ensure_force_o typeck_x.o 2>&1 | tail -4 || true
 
 final_link_xlang() {
-  local line
-  line=$(make -n bootstrap-driver-seed 2>/dev/null | grep " -o xlang " | grep -v xlang-seed-phase1 | tail -1)
-  if [ -z "$line" ]; then
-  echo "l1-fast FAIL: cannot extract final link line from make -n" >&2
-  exit 1
+  # G.7: product daily relink owns xlang + sync xlang_asm / xlang-c / bootstrap_xlangc.
+  # Ban historic `make -n bootstrap-driver-seed` link-line scrape (MF phys-del).
+  progress "final link xlang via g05 (0-make)"
+  FULL=0 bash scripts/g05_prepare_and_relink.sh
+  if [ ! -x ./xlang-c ]; then
+    echo "l1-fast FAIL: g05 did not produce ./xlang-c" >&2
+    exit 1
   fi
-  progress "final link xlang (skip asm.x -E)"
-  eval "$line"
-  cp -f xlang xlang-c
-  cp -f xlang bootstrap_xlangc
 }
 
 if [ -x ./xlang ] && [ "${XLANG_FORCE_FULL_BOOTSTRAP:-}" != "1" ]; then
-  progress "incremental: existing xlang -> relink final only"
+  progress "incremental: existing xlang -> ensure leaves + g05 relink"
   final_link_xlang
 else
-  progress "cold: build DRIVER_SEED prereqs (parallel, no asm -E yet)"
-  # cfg_eval.x 的 asm 编译极慢；冷启动直接用 stub
-  cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o seeds/cfg_eval_bootstrap_stub.from_x.c
-  cp -f src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval.o
-  make -j"$(nproc 2>/dev/null || echo 4)" \
-  parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o lexer_x.o x_frontend_link_alias.o \
-  preprocess_x.o pipeline_bootstrap_orchestration.o \
-  lsp_x.o lsp_diag_x.o lsp_io_x.o lsp_io_std_heap_x.o \
-  driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
-  src/main_driver.o src/runtime_driver.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o \
-  src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o \
-  src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
-  src/x_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o \
-  src/lsp/lsp_diag_pipeline_sizes_nostub.o \
-  src/lsp/lsp_diag_pipeline_ctx.o \
-  typeck_c_module_stubs.o \
-  src/runtime_heap_user.o src/runtime_heap_user.o \
-  2>&1 | while IFS= read -r line; do echo "$line"; done
-  progress "gen phase1 stub partial (avoid long asm -E)"
-  ./scripts/gen_g06_phase1_backend_stub.sh
-  final_link_xlang
+  # G.7: cold seed is the single authority (no parallel make .o list / stub scrapes).
+  progress "cold: bootstrap_driver_seed.sh (0-make)"
+  bash scripts/bootstrap_driver_seed.sh
+  if [ ! -x ./xlang-c ] && [ -x ./xlang ]; then
+    cp -f xlang xlang-c
+    cp -f xlang bootstrap_xlangc 2>/dev/null || true
+  fi
 fi
 
 progress "smoke: i32[] parse (expect num_funcs=2)"

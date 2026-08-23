@@ -35,7 +35,7 @@ grep -q 'xlang_async_run_drain_until_idle' std/async/future.x || die "future.x m
 grep -q 'xlang_io_poll_async_completions' std/async/future.x || die "future.x missing io poll extern"
 grep -q 'F-async-future v2' compiler/Makefile || die "Makefile missing F-async-future v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
+  xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "ensure future.o failed (xlang_compiler_make)"
 else
   echo "f-async-future-v2 SKIP future.o build (no xlang-c)" >&2
 fi

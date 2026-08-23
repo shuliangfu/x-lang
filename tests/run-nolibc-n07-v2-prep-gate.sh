@@ -51,12 +51,12 @@ while IFS=$'\t' read -r item_id category anchor check_type notes; do
 done < "$MANIFEST"
 
 echo "=== NL-07 v2: compile bootstrap_nostdlib_stubs.o ==="
-xlang_compiler_make src/asm/bootstrap_nostdlib_stubs.o >/dev/null 2>&1 || die "make bootstrap_nostdlib_stubs.o failed"
+xlang_compiler_make src/asm/bootstrap_nostdlib_stubs.o >/dev/null 2>&1 || die "ensure bootstrap_nostdlib_stubs.o failed (xlang_compiler_make)"
 
 if [ "${XLANG_NOLIBC_N07_V2_TRY_LINK:-0}" = "1" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ]; then
     echo "=== NL-07 v2: compile freestanding_io_x86_64.o (link smoke prep) ==="
-    xlang_compiler_make src/asm/freestanding_io_x86_64.o >/dev/null 2>&1 || die "make freestanding_io_x86_64.o failed"
+    xlang_compiler_make src/asm/freestanding_io_x86_64.o >/dev/null 2>&1 || die "ensure freestanding_io_x86_64.o failed (xlang_compiler_make)"
     echo "nolibc-n07-v2: freestanding_io + stubs OK (full crt0 link → XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm)"
   else
     echo "nolibc-n07-v2 SKIP link try (need Linux x86_64)" >&2

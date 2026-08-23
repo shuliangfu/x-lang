@@ -14,7 +14,7 @@ echo "=== F-test v1: std.test test.c → test.x (F-ZC) ==="
 [ ! -f std/test/test.c ] || die "test.c should be deleted"
 grep -q 'test.x' compiler/Makefile || die "Makefile missing test.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/test/test.o >/dev/null 2>&1 || die "make test.o failed"
+  xlang_compiler_make ../std/test/test.o >/dev/null 2>&1 || die "ensure test.o failed (xlang_compiler_make)"
 else
   echo "f-test-v1 SKIP test.o build (no xlang-c)" >&2
 fi

@@ -43,7 +43,7 @@ EC=0
 
 if [ "$EC" -ne 0 ]; then
   # 任意 -backend asm 失败均视为「当前编译器不支持 asm」并 SKIP（如 run-all-c 用的 xlang-c、或未 bootstrap-driver）
-  echo "run-asm SKIP (compiler does not support -backend asm; run make bootstrap-driver for full asm)"
+  echo "run-asm SKIP (compiler does not support -backend asm; run ./xbuild bootstrap-driver-seed for full asm)"
   [ -s "$OUT_S" ] && cat "$OUT_S"
   rm -f "$OUT_S"
   exit 0

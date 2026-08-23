@@ -44,7 +44,7 @@ if grep -q 'std/sort/sort\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/sort/sort.o >/dev/null 2>&1 || die "make sort.o failed"
+  xlang_compiler_make ../std/sort/sort.o >/dev/null 2>&1 || die "ensure sort.o failed (xlang_compiler_make)"
   if strings ../std/sort/sort.o 2>/dev/null | grep -q 'sort_stable'; then
     echo "f-sort-v1: sort.o symbols OK"
   else

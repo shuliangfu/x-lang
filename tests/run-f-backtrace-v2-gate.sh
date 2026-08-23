@@ -31,7 +31,7 @@ grep -q 'backtrace_gold_anchor_c' compiler/seeds/runtime_backtrace_platform.from
 grep -q 'backtrace_glue.c' compiler/Makefile && die "Makefile still references backtrace_glue.c"
 grep -q 'runtime_backtrace_platform' compiler/Makefile || die "Makefile missing runtime_backtrace_platform"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "make backtrace.o failed"
+  xlang_compiler_make ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "ensure backtrace.o failed (xlang_compiler_make)"
 else
   echo "f-backtrace-v2 SKIP backtrace.o build (no xlang-c)" >&2
 fi

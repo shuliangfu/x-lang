@@ -47,7 +47,7 @@ grep -q 'extern function sep' std/path/mod.x && die "mod.x still extern sep"
 
 # path.o 构建（无 xlang-c 时 SKIP smoke，不 FAIL）
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/path/path.o >/dev/null 2>&1 || die "make path.o failed"
+  xlang_compiler_make ../std/path/path.o >/dev/null 2>&1 || die "ensure path.o failed (xlang_compiler_make)"
   if strings ../std/path/path.o 2>/dev/null | grep -q 'path_sep'; then
     echo "f-path-v1: path.o symbols OK"
   else

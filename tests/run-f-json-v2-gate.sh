@@ -28,7 +28,7 @@ grep -q 'json_f_json_v2_marker_c' std/json/json.x || die "json.x missing v2 mark
 grep -q 'json.x' compiler/Makefile || die "Makefile missing json.x"
 grep -q 'json_parse_glue.c' compiler/Makefile && die "Makefile still references json_parse_glue.c"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/json/json.o >/dev/null 2>&1 || die "make json.o failed"
+  xlang_compiler_make ../std/json/json.o >/dev/null 2>&1 || die "ensure json.o failed (xlang_compiler_make)"
 else
   echo "f-json-v2 SKIP json.o build (no xlang-c)" >&2
 fi

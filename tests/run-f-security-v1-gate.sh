@@ -26,7 +26,7 @@ grep -q 'security_mlock_c' std/security/security.x || die "security.x missing ml
 grep -q 'security_f_zero_c_marker_c' std/security/security.x || die "security.x missing zero-c marker"
 grep -q 'security.x' compiler/Makefile || die "Makefile missing security.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/security/security.o >/dev/null 2>&1 || die "make security.o failed"
+  xlang_compiler_make ../std/security/security.o >/dev/null 2>&1 || die "ensure security.o failed (xlang_compiler_make)"
 else
   echo "f-security-v1 SKIP security.o build (no xlang-c)" >&2
 fi
