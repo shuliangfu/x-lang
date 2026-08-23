@@ -3040,6 +3040,23 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     if (need_net != 0) {
       let have_net: i32 = 0;
       let rel_net: *u8 = labi_od_rel_net();
+      // PLATFORM: SHARED — L4 wipe deletes net.o; push_obj skip-missing is
+      // not enough (≡ need_sys). Cookbook net_listen_bind UNDEF std_net_listen
+      // / close_listener while needles already fire. Produce path is existing
+      // net_merge via compiler-make try-heat (not formal_mod). G.7: complete
+      // existing need_net path with ensure; do not add a second simple-group
+      // or convert net_merge into formal_mod.
+      let root_net_ensure: *u8 = 0 as *u8;
+      unsafe {
+        root_net_ensure = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (root_net_ensure != 0 as *u8) {
+        if (root_net_ensure[0] != 0) {
+          unsafe {
+            let _enet: i32 = xlang_ensure_formal_std_make_o(root_net_ensure, "std/net/net.o", "../std/net/net.o");
+          }
+        }
+      }
       unsafe {
         let _n: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_net, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_net);
       }

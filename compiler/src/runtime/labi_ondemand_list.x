@@ -1724,18 +1724,19 @@ export function labi_od_queue_contention_rel(): *u8 {
 
 /**
  * Count of UNDEF symbols that pull std/net/net.o on product asm on_demand.
- * @return i32 — 27 (std_net_* + net_*_c surface + wave956 std_net_resolve_*
- *                + std_net_close_stream/connect_blocking/write_batch/tcp_pool_*)
+ * @return i32 — 28 (std_net_* + net_*_c surface + wave956 std_net_resolve_*
+ *                + std_net_close_stream/connect_blocking/write_batch/tcp_pool_*
+ *                + unique close_listener)
  * PLATFORM: SHARED — must match formal net.o export / C glue mangles
  */
 #[no_mangle]
 export function labi_od_net_sym_count(): i32 {
-  return 27;
+  return 28;
 }
 
 /**
  * Net on_demand UNDEF symbol at index (product probe table for needs_std_net).
- * @param i i32 — index in [0, 27)
+ * @param i i32 — index in [0, 28)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED
  */
@@ -1862,6 +1863,15 @@ export function labi_od_net_sym_at(i: i32): *u8 {
   }
   if (i == 26) {
     let p: *u8 = "std_net_tcp_pool_idle_count";
+    return p;
+  }
+  /*
+   * PLATFORM: SHARED — cookbook net_listen_bind unique close_listener.
+   * listen already fires need_net; matcher is exact so close_listener-only
+   * user.o would miss. G.7 complete the single net probe table.
+   */
+  if (i == 27) {
+    let p: *u8 = "std_net_close_listener";
     return p;
   }
   return 0 as *u8;

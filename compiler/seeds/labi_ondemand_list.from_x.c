@@ -918,7 +918,7 @@ const char *labi_od_queue_contention_rel(void) {
 }
 
 /* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED. */
-int labi_od_net_sym_count(void) { return 27; }
+int labi_od_net_sym_count(void) { return 28; }
 const char *labi_od_net_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -987,6 +987,11 @@ const char *labi_od_net_sym_at(int i) {
     return "std_net_tcp_pool_drain";
   if (i == 26)
     return "std_net_tcp_pool_idle_count";
+  /* PLATFORM: SHARED — cookbook net_listen_bind unique close_listener.
+   * listen already fires need_net; matcher is exact so close_listener-only
+   * user.o would miss. G.7 complete the single net probe table. */
+  if (i == 27)
+    return "std_net_close_listener";
   return NULL;
 }
 
@@ -3235,6 +3240,18 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         return;
     if (link_abi_user_o_needs_std_net(user_o)) {
         int have_net = 0;
+        /* PLATFORM: SHARED — L4 wipe deletes net.o; push_obj skip-missing is
+         * not enough (≡ need_sys). Cookbook net_listen_bind UNDEF std_net_listen
+         * / close_listener while needles already fire. Produce path is existing
+         * net_merge via compiler-make try-heat (not formal_mod). G.7: complete
+         * existing need_net path with ensure; do not add a second simple-group
+         * or convert net_merge into formal_mod. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/net/net.o",
+                                                    "../std/net/net.o");
+        }
         link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_net(), lib_roots, n_lib_roots, bank, argv, la, max_la, &have_net);
         if (have_net) {
             if (flags)
