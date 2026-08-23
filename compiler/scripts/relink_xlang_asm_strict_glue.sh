@@ -487,8 +487,16 @@ ensure_pipeline_x_o_fresh() {
   fi
   done
   if [ "$need" -eq 1 ]; then
-  strict_glue_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer)"
-  make bootstrap-pipeline pipeline_x.o
+  # PLATFORM: SHARED — post-Makefile phys-del: rebuild pipeline_x.o via try-heat
+  # (twin of build_xlang_asm wave929 / xlang_x_pipeline wave947). Ban bare make.
+  # Escape: XLANG_STRICT_GLUE_VIA_MAKE=1 + Makefile → historic bootstrap-pipeline.
+  strict_glue_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer; 0-make try-heat)"
+  if [ "${XLANG_STRICT_GLUE_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    make bootstrap-pipeline pipeline_x.o || return 1
+  else
+    PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o \
+      || { strict_glue_error "try-heat pipeline_x.o failed (ensure_pipeline_x_o_fresh)"; return 1; }
+  fi
   fi
   if [ -f pipeline_x.o ]; then
   # PLATFORM: SHARED — re-promote when pipeline.o missing, older, or reduced to WPO-helpers-only
@@ -1583,7 +1591,7 @@ if [ -f parser_x.o ]; then
   if [ -f lexer_x.o ]; then
   ST_PARSER_X_TAIL="$ST_PARSER_X_TAIL lexer_x.o"
   else
-  strict_glue_warn "missing lexer_x.o (make lexer_x.o); strict link may have undefined symbols"
+  strict_glue_warn "missing lexer_x.o (ensure try-gen-x / migrate); strict link may have undefined symbols"
   fi
   # parser_x.o 已导出 parse_expr_into / parser_copy_module_import_path64 等；勿再链 partial。
   # 弱 parse 桩 / parse_expr 桥在 src/asm/parser_asm_parse_expr_link.o（ST_BSTRICT_LINK_EXTRA）。

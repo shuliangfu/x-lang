@@ -10,8 +10,17 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# PLATFORM: SHARED — post-Makefile phys-del: LEGACY xlang-c via legacy_xlang_c_link
+# (G.7; same authority as capture_asm_partial_seed_legacy). Ban residual bare make.
+# Escape: XLANG_GEN_BOOTSTRAP_VIA_MAKE=1 + Makefile → historic `make xlang-c`.
 echo "gen_bootstrap_gens: build LEGACY xlang-c ..."
-XLANG_LEGACY_C_FRONTEND=1 make xlang-c
+if [ "${XLANG_GEN_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+  echo "gen_bootstrap_gens: VIA_MAKE escape → make xlang-c" >&2
+  XLANG_LEGACY_C_FRONTEND=1 make xlang-c
+else
+  echo "gen_bootstrap_gens: legacy_xlang_c_link.sh (0-make; LEGACY host-cc)" >&2
+  XLANG_LEGACY_C_FRONTEND=1 bash scripts/legacy_xlang_c_link.sh
+fi
 
 XLANG=./xlang-c
 LIB_ASM="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline -L src/codegen"
