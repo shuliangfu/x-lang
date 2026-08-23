@@ -3106,10 +3106,18 @@ filter_strict_asm_objs() {
 }
 
 # Target B 实验链：独立 pipeline_glue+ast_pool TU（类型从 pipeline_gen.c 抽取，不含 .x 函数体）。
+# wave309: seed retired — early-return when absent (G.7 twin of g05_ensure /
+# experimental_bootstrap / strict_glue). Ban -E pipeline.x / cc_inc_tu noise on
+# Stage2 round2 when ASM_GLUE_STANDALONE_O is empty. PLATFORM: SHARED.
 ensure_asm_pipeline_glue_standalone_obj() {
+  GLUE_STANDALONE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+  if [ ! -f seeds/pipeline_glue_standalone.from_x.c ]; then
+  build_xlang_asm_info "skip pipeline_glue_standalone (wave309 seed retired; use pipeline_glue_strict_minimal / runtime_pipeline_abi)"
+  rm -f "$GLUE_STANDALONE_OBJ" 2>/dev/null || true
+  return 0
+  fi
   detect_pipeline_gen_cflags
   GLUE_TYPES="$BUILD_DIR/pipeline_glue_types.inc"
-  GLUE_STANDALONE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   GEN_PIPELINE="$BUILD_DIR/gen_driver/pipeline_gen.c"
   NEED_GEN=0
   if [ ! -f "$GEN_PIPELINE" ] || [ ! -s "$GEN_PIPELINE" ]; then
