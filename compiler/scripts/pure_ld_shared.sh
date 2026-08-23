@@ -142,6 +142,63 @@ pure_ld_resolve_ld() {
 }
 
 # ---------------------------------------------------------------------------
+# pure_ld_darwin_force_load_prefer_archives — rewrite OBJS for Apple ld.
+#
+# PLATFORM: MACOS — `pure_ld_partial_merge` may leave a libtool **static archive**
+# named `*.o` when `ld -r` rejects F7 two-segment MH_OBJECT / strong dups.
+# Apple ld archive semantics: a **weak** definition already present from a real
+# MH_OBJECT (e.g. `asm_experimental_symbol_bridge` XLANG_WEAK
+# `asm_asm_codegen_elf_o`) satisfies the reference, so the archive member that
+# holds the **strong** product body is never pulled → tip product keeps the
+# weak stub → asm codegen returns immediately → CG002 `code_len=0`.
+#
+# Prefer thin+rest merges are ≤2 real members. Multi-slice first-wins archives
+# (labi / pipeline_abi / driver_no_c, many members, intentional selective pull)
+# must stay plain archives — force-loading them surfaces duplicate strongs.
+#
+# G.7: single consume-side fix in pure_ld (cold seed + g05). Do not strip
+# experimental weak stubs (still needed for experimental chains without the
+# real bridge). LINUX ELF prefer stays real ET_REL `.o` (no-op here).
+#
+# Usage: pure_ld_darwin_force_load_prefer_archives "OBJS..." → stdout rewritten
+# ---------------------------------------------------------------------------
+pure_ld_darwin_force_load_prefer_archives() {
+  local objs="$1"
+  local o ft n abs out="" n_force=0
+  case "$(uname -s 2>/dev/null || echo Unknown)" in
+    Darwin) ;;
+    *) printf '%s\n' "$objs"; return 0 ;;
+  esac
+  for o in $objs; do
+    case "$o" in
+      -*) out="${out}${out:+ }$o"; continue ;;
+    esac
+    if [ ! -f "$o" ]; then
+      out="${out}${out:+ }$o"
+      continue
+    fi
+    ft="$(file -b "$o" 2>/dev/null || true)"
+    case "$ft" in
+      *archive*|*ar\ archive*)
+        n="$(ar t "$o" 2>/dev/null | grep -cv 'SYMDEF' || echo 0)"
+        n="$(printf '%s' "$n" | tr -d '[:space:]')"
+        if [ -n "$n" ] && [ "$n" -le 2 ] 2>/dev/null; then
+          abs="$(cd "$(dirname "$o")" && pwd)/$(basename "$o")"
+          out="${out}${out:+ }-force_load ${abs}"
+          n_force=$((n_force + 1))
+        else
+          out="${out}${out:+ }$o"
+        fi
+        ;;
+      *) out="${out}${out:+ }$o" ;;
+    esac
+  done
+  if [ "$n_force" -gt 0 ]; then
+    echo "pure_ld_shared: Darwin -force_load prefer archives ×${n_force} (weak-stub vs libtool .o)" >&2
+  fi
+  printf '%s\n' "$out"
+}
+
 # pure_ld_try_link — run pure ld once
 # Usage: pure_ld_try_link OUT "OBJS..." ENTRY TAIL [EXTRA_LD_FLAGS] [LD_BIN]
 #   ENTRY/TAIL/EXTRA are space-separated flag strings (may be empty).
@@ -170,6 +227,8 @@ pure_ld_try_link() {
     return 1
   }
   multidef="$(pure_ld_multidef_flags)"
+  # PLATFORM: MACOS — expand prefer libtool archives so strong bodies beat weak stubs.
+  objs="$(pure_ld_darwin_force_load_prefer_archives "$objs")"
   n_objs=$(printf '%s\n' "$objs" | wc -w | tr -d ' ')
   echo "pure_ld_shared: ld=$(basename "$ld_bin") → $out ($n_objs objs)" >&2
   # shellcheck disable=SC2086
@@ -212,6 +271,9 @@ pure_ld_try_link() {
 #           objects, so prefer hybrid cannot wait on a writer rewrite.
 #           Complete this merge: if -r fails, `libtool -static` concatenates
 #           members (Darwin final ld accepts the archive on the object list).
+#           Consume-side pair: `pure_ld_darwin_force_load_prefer_archives` in
+#           `pure_ld_try_link` — ≤2-member prefer archives must `-force_load` or
+#           weak stubs in MH_OBJECT suppress strong member pull (CG002 code_len=0).
 # ---------------------------------------------------------------------------
 pure_ld_partial_merge() {
   local out="$1"; shift
