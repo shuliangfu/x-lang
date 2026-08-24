@@ -29,8 +29,10 @@ fi
 
 cd "$CDIR"
 
-if command -v bear >/dev/null 2>&1; then
-  echo "gen_compile_commands: bear 捕获 make 编译命令…"
+# wave941/965: Makefile physically deleted — bear+make capture is archaeology only.
+# Prefer static seed DB below (no fake make graph). Escape: restore MF + bear.
+if [[ -f Makefile ]] && command -v bear >/dev/null 2>&1; then
+  echo "gen_compile_commands: bear capturing make compile commands (MF archaeology)…"
   rm -f "$OUT"
   bear -- make -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)" \
     src/runtime_driver.o \
@@ -47,7 +49,7 @@ if command -v bear >/dev/null 2>&1; then
   fi
 fi
 
-echo "gen_compile_commands: bear 不可用，写入静态 compile_commands.json…"
+echo "gen_compile_commands: writing static compile_commands.json (post_ship; no MF)…"
 CC="${CC:-cc}"
 python3 - "$CDIR" "$CC" "$OUT" <<'PY'
 import json, os, sys
@@ -58,16 +60,10 @@ driver_flags = base + [
     "-DXLANG_USE_X_DRIVER", "-DXLANG_USE_X_PIPELINE", "-DXLANG_USE_X_PREPROCESS",
     "-DXLANG_USE_X_TYPECK", "-DXLANG_USE_X_CODEGEN",
 ]
-pipeline_flags = base + [
-    "-Wno-unused-variable", "-Wno-unused-parameter", "-Wno-unused-function",
-    "-Wno-parentheses", "-Wno-sign-compare", "-Wno-ignored-qualifiers",
-    "-Wno-unused-but-set-variable", "-Wno-type-limits",
-    "-include", "ide/clangd_glued_preamble.h",
-]
-glued = [
-    "pipeline_glue.c",
-    "ast_pool.c",
-]
+# wave965: pipeline_glue.c / ast_pool.c left wave309 — do not list deleted
+# paths in compile_commands (IDE fake authority; same debt as audit_static_limits).
+# Live clangd surface = seeds below + ide/clangd_glued_preamble.h for types.
+# PLATFORM: SHARED — static DB only when bear/make unavailable (MF deleted wave941).
 entries = [
     # wave321 7.1.1: monofile seeds/runtime.from_x.c retired; content layer is gate.
     ("seeds/rt_content.from_x.c", driver_flags),
@@ -88,10 +84,9 @@ entries = [
     ]),
     ("seeds/pipeline_glue_standalone.from_x.c", base + [
         "-Ibuild_asm", "-Wno-unused-function",
+        "-include", "ide/clangd_glued_preamble.h",
     ]),
 ]
-for rel in glued:
-    entries.append((rel, pipeline_flags))
 
 seen = set()
 db = []

@@ -1,36 +1,59 @@
 #!/usr/bin/env bash
-# audit_static_limits.sh — 静态上限 vs 源侧规模（只读）
+# audit_static_limits.sh — static caps vs source-side enum scale (read-only)
 #
-# 对照 MODULE_ENUM_MAX_VARIANTS / AST_ENUM_MAX_VARIANTS 与 .x 枚举变体数；
-# 防止再出现「静默截断 → typeck found ?」类故障。
+# Compare MODULE_ENUM_MAX (live = pipe_en_max_variants in runtime_pipeline_abi.x)
+# and AST_ENUM_MAX_VARIANTS (ast.h legacy doc) against .x enum variant counts.
+# Prevents silent truncate → typeck "found ?" class failures.
 #
-# 用法：bash compiler/scripts/audit_static_limits.sh
-# 退出：0=通过；1=发现 enum 变体接近/超过 MODULE 硬顶（余量 <16）
+# wave965: retarget off deleted compiler/ast_pool.c (wave309 leave). Grepping a
+# missing file silently defaulted MODULE_ENUM_MAX=256 and always reported 0
+# sentinel hits while printing OK — fake authority (same debt layer as dead -nt).
+# PLATFORM: SHARED — structural honesty only (no product compile); dual-end L2.
+#
+# Usage: bash compiler/scripts/audit_static_limits.sh
+# Exit: 0=pass; 1=enum variants near/over MODULE hard cap (headroom <16)
+#       or live MODULE authority unresolved.
 
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT" || exit 1
 
+ABI_X="compiler/src/runtime_pipeline_abi.x"
+AST_H="compiler/include/ast.h"
+
+# Live authority: pipe_en_max_variants() return N in runtime_pipeline_abi.x
+# (≡ historic MODULE_ENUM_MAX_VARIANTS; ast_pool.c retired wave309).
 MODULE_ENUM_MAX="$(
-  rg -o 'MODULE_ENUM_MAX_VARIANTS[[:space:]]+[0-9]+' compiler/ast_pool.c \
-    | head -1 | awk '{print $NF}'
+  rg -n 'function[[:space:]]+pipe_en_max_variants[[:space:]]*\(' "$ABI_X" 2>/dev/null \
+    | head -1 | cut -d: -f1 | {
+      read -r ln || exit 0
+      # Body is small: scan a short window after the function line for `return N;`.
+      sed -n "${ln},$((ln + 12))p" "$ABI_X" \
+        | rg -o 'return[[:space:]]+[0-9]+[[:space:]]*;' \
+        | head -1 | awk '{print $2}' | tr -d ';'
+    }
 )"
 AST_ENUM_MAX="$(
-  rg -o 'AST_ENUM_MAX_VARIANTS[[:space:]]+[0-9]+' compiler/include/ast.h \
+  rg -o 'AST_ENUM_MAX_VARIANTS[[:space:]]+[0-9]+' "$AST_H" \
     | head -1 | awk '{print $NF}'
 )"
-: "${MODULE_ENUM_MAX:=256}"
+
+if [ -z "${MODULE_ENUM_MAX:-}" ]; then
+  echo "audit_static_limits: FAIL: cannot resolve pipe_en_max_variants return in $ABI_X" >&2
+  echo "  (ast_pool.c retired wave309; do not silent-default — fake authority)" >&2
+  exit 1
+fi
 : "${AST_ENUM_MAX:=32}"
 
-echo "=== 硬顶宏（热路径）==="
-echo "MODULE_ENUM_MAX_VARIANTS=$MODULE_ENUM_MAX  (ast_pool ModuleEnumEntry, X 路径)"
-echo "AST_ENUM_MAX_VARIANTS=$AST_ENUM_MAX  (ast.h 文档/legacy；无定长数组引用)"
+echo "=== hard-cap macros (hot path) ==="
+echo "MODULE_ENUM_MAX_VARIANTS=$MODULE_ENUM_MAX  (pipe_en_max_variants @ runtime_pipeline_abi.x)"
+echo "AST_ENUM_MAX_VARIANTS=$AST_ENUM_MAX  (ast.h legacy doc; no fixed-array refs)"
 echo ""
 
 export MODULE_ENUM_MAX AST_ENUM_MAX
 python3 - <<'PY'
 from pathlib import Path
-import re, sys, os, subprocess
+import re, sys, os
 
 mod_max = int(os.environ["MODULE_ENUM_MAX"])
 ast_max = int(os.environ["AST_ENUM_MAX"])
@@ -46,7 +69,7 @@ for p in sorted(root.rglob("*.x")):
             rows.append((len(vars_), name, str(p)))
 rows.sort(reverse=True)
 
-print("=== compiler/src 大型 enum 变体数 ===")
+print("=== compiler/src large enum variant counts ===")
 print(f"{'n':>4}  {'enum':28s}  {'file':42s}  MODULE  AST_legacy")
 fail = 0
 for n, name, path in rows[:40]:
@@ -64,29 +87,19 @@ if not rows:
     print("(no enums with >=8 variants found)")
 
 print("")
-print("=== 哨兵类（0 兼合法下标）— ast_pool.c 赋值条件 ===")
-for pat, label in [
-    (r"param_base\s*==\s*0", "param_base==0"),
-    (r"field_base\s*==\s*0", "field_base==0"),
-    (r"struct_lit_field_base\s*==\s*0", "struct_lit_field_base==0"),
-]:
-    r = subprocess.run(["rg", "-n", pat, "compiler/ast_pool.c"], capture_output=True, text=True)
-    hits = [
-        ln
-        for ln in (r.stdout or "").splitlines()
-        if ln.strip() and "禁止" not in ln and "兼作" not in ln
-    ]
-    print(f"{label}: {len(hits)} code hits")
-    for h in hits[:6]:
-        print(" ", h)
+print("=== sentinel class (0 also legal index) — retired with ast_pool.c ===")
+print("ast_pool.c left wave309; param_base/field_base/struct_lit_field_base")
+print("assignment sentinels lived only in that C shell. Live path = abi.x pools.")
+print("Scan of deleted compiler/ast_pool.c removed (never fired / always 0 hits).")
+print("PLATFORM: SHARED — archaeology N/A; not a silent-green 0-hit report.")
 
 print("")
-print("=== A 类硬顶（摘要）===")
-print("  MODULE_ENUM_MAX_VARIANTS — 列表个数，静默失败已改诊断")
-print("  AST_ENUM_MAX_VARIANTS=32 — legacy 文档常量，X 路径不读")
-print("  XLANG_DRIVER_DEP_SLOT_MAX=32 — dep 图槽；撞顶再抬")
-print("  name[64]/param[32] — 语义长度，不抬")
-print("  详表：analysis/X侧车grow池与动态上限清单.md § 静默硬顶对表")
+print("=== class-A hard caps (summary) ===")
+print("  MODULE_ENUM_MAX_VARIANTS — list count; silent fail → diagnostics")
+print("  AST_ENUM_MAX_VARIANTS=32 — legacy doc constant; X path does not read")
+print("  XLANG_DRIVER_DEP_SLOT_MAX=32 — dep-graph slots; raise when hit")
+print("  name[64]/param[32] — semantic lengths; do not raise")
+print("  detail: analysis/X侧车grow池与动态上限清单.md § silent hard-cap table")
 print("")
 
 if fail:

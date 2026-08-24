@@ -316,8 +316,9 @@ typedef struct ASTStructDef {
 
 /**
  * 单枚举最大变体数（legacy C ASTEnumDef 文档常量）。
- * X 自举热路径用 ast_pool ModuleEnumEntry / MODULE_ENUM_MAX_VARIANTS（256），
- * 本宏目前无数组定长引用；勿与 ModuleEnum 混为第二权威。TokenKind≈132。
+ * X 自举热路径：runtime_pipeline_abi.x 的 pipe_en_max_variants()（256；≡ 历史
+ * MODULE_ENUM_MAX_VARIANTS）。ast_pool.c 已于 wave309 退役 — 勿把本宏当第二
+ * ModuleEnum 权威。TokenKind≈132+。
  */
 #define AST_ENUM_MAX_VARIANTS 32
 
