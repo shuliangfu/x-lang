@@ -1582,6 +1582,8 @@ ensure_parser_bootstrap_partial_obj() {
 }
 
 # strict 链：从 pipeline_x.o 导出全部 parser_* 真机码（自洽 TU），替代 build_asm/parser.o 桩 + 零散 partial。
+# PLATFORM: SHARED — SYMS freshness = producer .o (+ script/$0 when present); deleted
+# ast_pool.c -nt never fired post-leave (same debt layer as glue_standalone ensure).
 ensure_parser_from_x_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/parser_from_x_partial.o"
@@ -1591,7 +1593,7 @@ ensure_parser_from_x_partial_obj() {
   if [ ! -f "$SUO" ]; then
   ensure_asm_gen_driver_x_objs
   fi
-  if [ ! -f "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ]; then
+  if [ ! -f "$SYMS" ] || [ "$SUO" -nt "$SYMS" ]; then
   GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
   ensure_asm_pipeline_glue_standalone_obj
   nm "$SUO" | awk '/ T _parser_/ {print $3}' > "$BUILD_DIR/.parser_from_x_all.txt"
@@ -1817,7 +1819,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   build_xlang_asm_warn "stale pipeline_strict_link export (missing W resolve_path); regen"
   rm -f "$SYMS" "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_x_glue_support_export.txt" -nt "$SYMS" ]; }; then
   # PLATFORM: SHARED — pipeline.x emits resolve_path helpers as weak (W); bridge needs them.
@@ -1968,7 +1970,7 @@ ensure_typeck_wpo_helpers_partial_obj() {
   if [ -f "$PARTIAL" ]; then
   nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?typeck_x_ast$' && rm -f "$PARTIAL" "$SYMS"
   fi
-  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ]; then
+  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ]; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE "$EXCLUDE_RE" >"$SYMS"
   echo " nm typeck_wpo.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') layout syms, minus check_block/check_expr/typeck_x_ast*)"
   fi
@@ -2035,7 +2037,7 @@ ensure_pipeline_x_glue_support_partial_obj() {
   ensure_typeck_o_strict_link_partial_obj || true
   TCK_SYMS="$BUILD_DIR/typeck_strict_link_export.txt"
   fi
-  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || \
   { [ -f "$TCK_SYMS" ] && [ "$TCK_SYMS" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
   ensure_pipeline_glue_standalone_export_syms_txt || return 1
@@ -2206,11 +2208,12 @@ typeck_wpo_strict_partial_export_syms_stale() {
 }
 
 # pipeline_glue_standalone.o 全局 T 导出表：与 build_asm/typeck.o 并列链时会 duplicate ast_pool/glue → fill_cl SIGSEGV。
+# PLATFORM: SHARED — freshness authority = GLUE_O only (deleted pipeline_glue.c -nt never fired).
 ensure_pipeline_glue_standalone_export_syms_txt() {
   local GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
   local OUT="$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt"
   [ -f "$GLUE_O" ] || return 1
-  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ] || [ "pipeline_glue.c" -nt "$OUT" ]; then
+  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ]; then
   nm "$GLUE_O" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$OUT"
   fi
   [ -s "$OUT" ] || return 1
@@ -2262,7 +2265,7 @@ ensure_typeck_o_strict_link_partial_obj() {
   if [ -f "$PARTIAL" ] && [ -f "$GLUE_O" ] && [ "$GLUE_O" -nt "$PARTIAL" ]; then
   rm -f "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$TCKO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$TCKO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$GLUE_O" ] && [ "$GLUE_O" -nt "$SYMS" ]; }; then
   nm "$TCKO" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS"
@@ -2763,7 +2766,7 @@ ensure_backend_o_strict_link_partial_obj() {
   if [ -f "$PARTIAL" ] && [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
   nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?arch_emit_add_imm_to_rax$' || rm -f "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$BACKO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$BACKO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; }; then
   nm "$BACKO" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS"
   if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && [ -f "$WPO_E" ] && asm_backend_wpo_strict_reach_ok; then
@@ -3360,7 +3363,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
   perl -i -0777 -pe 's/\nenum ast_ExprKind parser_compound_assign_token_to_expr_kind\(enum token_TokenKind kind\) \{\n return compound_assign_token_to_expr_kind_from_glue\(kind\);\n\}//g' "$GLUE_TYPES" 2>/dev/null || true
   fi
   fi
-  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
+  # Authority = seed + glue_types + extract/patch scripts (deleted ast_pool.c /
+  # pipeline_glue.c -nt never fired post-leave). PLATFORM: SHARED.
+  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
   build_xlang_asm_info "cc -c seeds/pipeline_glue_standalone.from_x.c -> $GLUE_STANDALONE_OBJ"
   if ! sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$GLUE_STANDALONE_OBJ" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"; then
   build_xlang_asm_warn "pipeline_glue_standalone.o compile failed (strict 链可继续用 pipeline_glue_strict_minimal)"

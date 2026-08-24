@@ -467,9 +467,10 @@ GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
 PIPELINE_GEN_CFLAGS="-O2 -g -fno-strict-aliasing -DPIPELINE_GEN_STANDALONE"
 # wave309: pipeline_glue_standalone.from_x.c seed retired; pure runtime_pipeline_abi.o
 # is G.7 authority. Skip compilation when seed absent (non-fatal; experimental link
-# resolves via runtime_pipeline_abi.o). PLATFORM: SHARED.
-if [ -f seeds/pipeline_glue_standalone.from_x.c ] && { [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ] \
-  || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; }; then
+# resolves via runtime_pipeline_abi.o). Deleted ast_pool.c / pipeline_glue.c -nt never
+# fired post-leave — freshness = seed only when present. PLATFORM: SHARED.
+if [ -f seeds/pipeline_glue_standalone.from_x.c ] && \
+  { [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ]; }; then
   experimental_bootstrap_info "cc pipeline_glue_standalone.o"
   mkdir -p "$BUILD_DIR"
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$GLUE_O" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
