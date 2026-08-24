@@ -1153,9 +1153,13 @@ wpo_rebuild_compiler_candidates() {
   done
   return 0
   fi
+  # PLATFORM: SHARED — prefer product tip ./xlang_asm first. Stale
+  # ./xlang_asm.experimental often lags ASM_WPO_MAX_FUNCS / emit_order clamp
+  # (2026-08-24: experimental still 1024 → re-emit ~971× T _strchr / ~814KiB
+  # fake size after tip compress). experimental / strict_glue stay fallbacks.
   # pipeline 已 promote/selfhosted 时跳过 pipeline.x smoke（Docker 上易 futex 卡死数小时）
   if [ "${XLANG_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || asm_strict_pipeline_selfhosted 2>/dev/null; then
-  for comp in ./xlang_asm.experimental ./xlang_asm.strict_glue ./xlang_asm ./xlang-seed-phase1 ./xlang; do
+  for comp in ./xlang_asm ./xlang_asm.strict_glue ./xlang_asm.experimental ./xlang-seed-phase1 ./xlang; do
   [ -x "$comp" ] && printf '%s\n' "$comp"
   done
   return 0
@@ -1164,19 +1168,19 @@ wpo_rebuild_compiler_candidates() {
   # Skip smoke for candidate list speed; rebuild_pipeline_wpo_o still compiles abi.
   # Escape: XLANG_ASM_FORCE_ENTRY_SMOKE=1.
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "${XLANG_ASM_FORCE_ENTRY_SMOKE:-0}" != "1" ]; then
-  for comp in ./xlang_asm.experimental ./xlang_asm.strict_glue ./xlang_asm ./xlang; do
+  for comp in ./xlang_asm ./xlang_asm.strict_glue ./xlang_asm.experimental ./xlang; do
   [ -x "$comp" ] && printf '%s\n' "$comp"
   done
   return 0
   fi
-  if [ -x ./xlang_asm.experimental ] && xlang_asm_entry_module_smoke_ok ./xlang_asm.experimental; then
-  printf '%s\n' "./xlang_asm.experimental"
+  if [ -x ./xlang_asm ] && xlang_asm_entry_module_smoke_ok ./xlang_asm; then
+  printf '%s\n' "./xlang_asm"
   fi
   if [ -x ./xlang_asm.strict_glue ] && xlang_asm_entry_module_smoke_ok ./xlang_asm.strict_glue; then
   printf '%s\n' "./xlang_asm.strict_glue"
   fi
-  if [ -x ./xlang_asm ] && xlang_asm_entry_module_smoke_ok ./xlang_asm; then
-  printf '%s\n' "./xlang_asm"
+  if [ -x ./xlang_asm.experimental ] && xlang_asm_entry_module_smoke_ok ./xlang_asm.experimental; then
+  printf '%s\n' "./xlang_asm.experimental"
   fi
   if [ -n "${XLANG_ASM_SECOND_PASS_COMPILER:-}" ] && [ -x "${XLANG_ASM_SECOND_PASS_COMPILER}" ] \
   && xlang_asm_entry_module_smoke_ok "${XLANG_ASM_SECOND_PASS_COMPILER}"; then
@@ -1210,7 +1214,7 @@ rebuild_pipeline_wpo_o() {
   local txt=""
   local preserve_backup=""
   local pipe_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
-  # Post-compress tip ~37KiB; soft 96KiB headroom (STRICT_SIZE hard).
+  # Post-cap tip ~72KiB (FUNCS=2048 full emit); soft 96KiB headroom (STRICT_SIZE hard).
   local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-98304}"
   local pipe_tout="${XLANG_WPO_PIPELINE_COMPILE_TIMEOUT:-600}"
   if [ "${XLANG_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then

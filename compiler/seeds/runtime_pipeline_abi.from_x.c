@@ -37645,9 +37645,11 @@ enum {
  * WPO v0（asm 后端 DCE）：按 typeck 解析后的 call graph 标记 reachable，emit 时跳过 dead export。
  * 与 codegen.c 的 codegen_wpo_reach 语义对齐，但 keyed by (ast_Module*, func_index) 供 .x asm 后端查询。
  */
-#define ASM_WPO_MAX_FUNCS 1024
+/* 2026-08-24: FUNCS 1024→2048 (abi pipeline_wpo silent truncate at 1024 T);
+ * EDGES 4096→8192. Twin of runtime_pipeline_abi.x asm_wpo_max_*. PLATFORM: SHARED. */
+#define ASM_WPO_MAX_FUNCS 2048
 #define ASM_WPO_MAX_MODS 64
-#define ASM_WPO_MAX_EDGES 4096
+#define ASM_WPO_MAX_EDGES 8192
 
 /** WPO call 边解析：与 backend emit_call 同读 pipeline_expr_*（勿裸 *Expr 字段，避免池布局偏差）。 */
 extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref);

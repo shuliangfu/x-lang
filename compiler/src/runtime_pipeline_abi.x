@@ -90887,16 +90887,18 @@ export function platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: *u8):
 // Authority: pipeline_asm_wpo_* live here (#[no_mangle]). Residual host-cc deleted.
 // Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (WAVE274).
 // Flat BSS + accessors; G.7 dual-export ban for public faces.
-// Caps: ASM_WPO_MAX_FUNCS=1024 MAX_MODS=64 MAX_EDGES=4096
+// Caps: ASM_WPO_MAX_FUNCS=2048 MAX_MODS=64 MAX_EDGES=8192
+// 2026-08-24: raised FUNCS 1024→2048 (abi pipeline_wpo hit exactly 1024 T =
+// silent truncate). Edges 4096→8192 same ratio. PLATFORM: SHARED WPO leave.
 // =============================================================================
 
 // Overload pick (Cap residual typeck) — not declared earlier in this file.
 export extern "C" function pipeline_typeck_pick_overload_func_index_for_call_c(m: *u8, a: *u8, call_ref: i32): i32;
 
 // Cap constants (private).
-function asm_wpo_max_funcs(): i32 { return 1024; }
+function asm_wpo_max_funcs(): i32 { return 2048; }
 function asm_wpo_max_mods(): i32 { return 64; }
-function asm_wpo_max_edges(): i32 { return 4096; }
+function asm_wpo_max_edges(): i32 { return 8192; }
 
 // ExprKind ordinals used by walk (product pool).
 function asm_wpo_ek_neg(): i32 { return 22; }
@@ -90929,24 +90931,24 @@ let g_aw_entry: u8[8] = [];
 let g_aw_dep_ctx: u8[8] = [];
 let g_aw_mods: u8[512] = [];
 let g_aw_arenas: u8[512] = [];
-let g_aw_func_mod: u8[8192] = [];
-let g_aw_func_fi: i32[1024] = [];
-let g_aw_reachable: u8[1024] = [];
-let g_aw_edge_from: i32[4096] = [];
-let g_aw_edge_to: i32[4096] = [];
+let g_aw_func_mod: u8[16384] = [];
+let g_aw_func_fi: i32[2048] = [];
+let g_aw_reachable: u8[2048] = [];
+let g_aw_edge_from: i32[8192] = [];
+let g_aw_edge_to: i32[8192] = [];
 let g_aw_nmods: i32 = 0;
 let g_aw_nfuncs: i32 = 0;
 let g_aw_nedges: i32 = 0;
 let g_aw_root_id: i32 = -1;
 let g_aw_valid: i32 = 0;
-let g_aw_pgo_hot: u8[1024] = [];
-let g_aw_pgo_depth: i32[1024] = [];
+let g_aw_pgo_hot: u8[2048] = [];
+let g_aw_pgo_depth: i32[2048] = [];
 let g_aw_pgo_emit_mod: u8[8] = [];
-let g_aw_pgo_emit_order: i32[1024] = [];
+let g_aw_pgo_emit_order: i32[2048] = [];
 let g_aw_pgo_emit_n: i32 = 0;
 
 // BFS workspace (avoid huge pure stack frames).
-let g_aw_queue: i32[1024] = [];
+let g_aw_queue: i32[2048] = [];
 
 /**
  * Clear asm WPO reach/PGO process state.
@@ -90961,9 +90963,9 @@ export function pipeline_asm_wpo_reach_clear(): void {
     memset(&g_aw_dep_ctx[0], 0, 8 as usize);
     memset(&g_aw_mods[0], 0, 512 as usize);
     memset(&g_aw_arenas[0], 0, 512 as usize);
-    memset(&g_aw_func_mod[0], 0, 8192 as usize);
-    memset(&g_aw_reachable[0], 0, 1024 as usize);
-    memset(&g_aw_pgo_hot[0], 0, 1024 as usize);
+    memset(&g_aw_func_mod[0], 0, 16384 as usize);
+    memset(&g_aw_reachable[0], 0, 2048 as usize);
+    memset(&g_aw_pgo_hot[0], 0, 2048 as usize);
     memset(&g_aw_pgo_emit_mod[0], 0, 8 as usize);
   }
   g_aw_nmods = 0;
@@ -90973,14 +90975,14 @@ export function pipeline_asm_wpo_reach_clear(): void {
   g_aw_valid = 0;
   g_aw_pgo_emit_n = 0;
   let i: i32 = 0;
-  while (i < 1024) {
+  while (i < asm_wpo_max_funcs()) {
     g_aw_func_fi[i] = 0;
     g_aw_pgo_depth[i] = -1;
     g_aw_pgo_emit_order[i] = 0;
     i = i + 1;
   }
   i = 0;
-  while (i < 4096) {
+  while (i < asm_wpo_max_edges()) {
     g_aw_edge_from[i] = 0;
     g_aw_edge_to[i] = 0;
     i = i + 1;
@@ -92028,7 +92030,7 @@ function asm_wpo_close_std_heap_helpers(): void {
 function asm_wpo_mark_pgo_hot(): void {
   unsafe {
     let i: i32 = 0;
-    while (i < 1024) {
+    while (i < asm_wpo_max_funcs()) {
       g_aw_pgo_hot[i] = 0;
       i = i + 1;
     }
@@ -92091,7 +92093,7 @@ function asm_wpo_mark_pgo_depth_user_from_main(): void {
     return;
   }
   let i: i32 = 0;
-  while (i < 1024) {
+  while (i < asm_wpo_max_funcs()) {
     g_aw_pgo_depth[i] = -1;
     i = i + 1;
   }
@@ -92128,7 +92130,7 @@ function asm_wpo_mark_pgo_depth_user_from_main(): void {
 function asm_wpo_mark_pgo_depth(): void {
   unsafe {
     let i: i32 = 0;
-    while (i < 1024) {
+    while (i < asm_wpo_max_funcs()) {
       g_aw_pgo_depth[i] = -1;
       i = i + 1;
     }
