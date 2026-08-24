@@ -114,13 +114,14 @@ echo "lang-const-eval manifest OK (layers=${LAYER_N} cases=${CASE_N})"
 chmod +x "$RUNNER" 2>/dev/null || true
 
 if lang_const_eval_resolve_shu >/dev/null 2>&1; then
-  echo "=== LANG-006: runnable report (observational) ==="
-  # Observational: some CTFE goldens still product-red (array_len / match / enum ld);
-  # manifest + live typeck.x / codegen.x anchors are the hard gate (check pause 2026-08-05).
+  echo "=== LANG-006: runnable report ==="
+  # Hard gate: goldens must match live product CTFE (C5 array-len coerce + match subject).
+  # Manifest + live typeck.x / codegen.x anchors remain required above.
   if lang_const_eval_main; then
     echo "lang-const-eval runnable OK"
   else
-    echo "lang-const-eval gate SKIP runnable (product CTFE residual)" >&2
+    echo "lang-const-eval gate FAIL runnable (CTFE residual)" >&2
+    exit 1
   fi
 else
   echo "lang-const-eval gate SKIP bench (no native xlang)" >&2

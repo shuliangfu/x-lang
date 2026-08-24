@@ -8814,6 +8814,50 @@ decl_kind: i32): i32 {
 }
 
 /**
+ * Coerce ARRAY_LIT const/let init into a scalar integer declaration (C5-array-len).
+ *
+ * Purpose: LANG-006 documents `const N: i32 = [1, 2, 3, 4]` as folding to the
+ * element count. check_expr types the lit as an array, so type_refs_equal
+ * rejects array≠i32 before typeck_fold_block_const_init can stamp
+ * const_folded_val=num_elems. This coerce only rewrites resolved_type_ref to
+ * the declared scalar so the subsequent equality check passes; the fold
+ * producer (typeck_fold_block_const_init / ARRAY_LIT fold arm) still owns the
+ * length stamp.
+ *
+ * @param arena *ASTArena — type/expr pool
+ * @param init_ref i32 — already type-checked init (must be EXPR_ARRAY_LIT)
+ * @param decl_ty_ref i32 — annotated const/let scalar integer type
+ * @param decl_kind i32 — pipeline_type_kind_ord_at(decl)
+ * @param init_kind i32 — pipeline_expr_kind_ord_at(init)
+ * @return i32 — 1 if coercion applied, 0 if not this shape
+ * PLATFORM: SHARED — LANG-006 C5; verify with tests/lang-const/c_array_len.x.
+ */
+export function typeck_coerce_init_array_lit_to_len_int_decl(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  // PLATFORM: SHARED — LANG-006 C5-array-len let/const coerce (fold stamps length).
+  unsafe {
+    let ord_i32: i32 = 0;
+    let ord_u8: i32 = 2;
+    let ord_u32: i32 = 3;
+    let ord_u64: i32 = 4;
+    let ord_i64: i32 = 5;
+    let ord_usize: i32 = 6;
+    let ord_isize: i32 = 7;
+    let ord_expr_array_lit: i32 = 46;
+    if (init_kind != ord_expr_array_lit) {
+      return 0;
+    }
+    if (decl_kind != ord_i32 && decl_kind != ord_u8 && decl_kind != ord_u32 &&
+        decl_kind != ord_u64 && decl_kind != ord_i64 && decl_kind != ord_usize &&
+        decl_kind != ord_isize) {
+      return 0;
+    }
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+}
+
+/**
  * Let/const: coerce already-typed T[N] init to declared T[].
  * Stamps resolved_type_ref so the dest let type is TYPE_SLICE (emit looks at
  * the dest + source var, not this stamp). Return/assign must not call this
@@ -8972,6 +9016,11 @@ decl_ty_ref: i32): i32 {
       return 1;
     }
     if (typeck_coerce_init_bool_to_int_decl(arena, init_ref, decl_ty_ref, decl_kind) != 0) {
+      return 1;
+    }
+    /* LANG-006 C5: `const N: i32 = [1,2,3,4]` — array lit → scalar len type stamp. */
+    if (typeck_coerce_init_array_lit_to_len_int_decl(arena, init_ref, decl_ty_ref, decl_kind,
+        init_kind) != 0) {
       return 1;
     }
     if (typeck_coerce_init_slice_from_array(arena, init_ref, decl_ty_ref, decl_kind) != 0) {
