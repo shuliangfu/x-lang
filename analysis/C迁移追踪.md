@@ -1,3 +1,4 @@
+> **2026-08-25**：STBL-001 Tier-S 符号漂移硬绿 @ **`a7794a457`**（queue／set／thread／sync TSV＋README↔live mod.x；闸 sym_miss=0 硬失败；**不升钉**；双端 stbl＋L2 5／5）。残：L6 unused／const-eval runnable／fmt to_buf。
 > **2026-08-25**：slot dep-max 产品入链硬绿 @ **`868a17c37`**（`runtime_pipeline_abi_slot_bytes_thin.x`＋inject first-wins；thin-first 保留；**不升钉**；双端 inject OK＋Ubuntu NL-04＋L2 5／5）。残：L6 unused／phase-f。
 > **2026-08-25**：soft T001 table_available／sys nested leaf 硬绿 @ **`8cc94d0f5`**（主刀 `dbdb2a0f3`；localize 仅 sys.o）（formal_mod `sys_linux`／`sys_macos`＋针表 linux×34／macos×13；闸硬失败；**不升钉**；双端 cfg＋L2 5／5）。残：L6 unused／slot dep-max／phase-f。
 > **2026-08-25**：std-config .x on-demand 硬绿 @ **`f36a20909`**（主刀 `d944e6c80`：formal_mod `std_config_*`＋fk0 k21；yaml 烟测 len＝65；闸硬失败；**不升钉**；双端 c／x＝1＋L2 5／5）。残：soft T001／L6 unused／slot dep-max。
