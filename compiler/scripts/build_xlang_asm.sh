@@ -4573,10 +4573,16 @@ ensure_asm_experimental_lsp_objs() {
   cp -f lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 
-# ast_pool.c 白名单在 pipeline_x.o（#include pipeline_glue.c）内；PIPELINE_X_DEPS（含 backend/arm64_enc）变更后须 bootstrap-pipeline → pipeline_x.o。
+# pipeline_x.o freshness (G.7 single authority; twin of relink_xlang_asm_strict_glue).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; dead -nt on those paths never fired (bash treats missing LHS as false).
+# pipeline_x.o producer = src/pipeline/pipeline.x via try-gen-x (pure-extern leaf),
+# NOT runtime_pipeline_abi.x — abi freshness lives in ensure_experimental_ast_pool_for_wpo
+# / runtime_pipeline_abi.o. Do not retarget this ensure to abi (would forever need=1
+# while cwd pipeline_x.o stays a tiny stub). Authority = PIPELINE_X_DEPS only.
 ensure_pipeline_x_o_fresh() {
   local need=0
-  # runtime-only relink：已有 pipeline_x.o 时跳过（勿因 ast_pool 等 mtime 触发 bootstrap-pipeline）。
+  # runtime-only relink：已有 pipeline_x.o 时跳过（勿因源 mtime 触发 bootstrap-pipeline）。
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f pipeline_x.o ]; then
   mkdir -p "$BUILD_DIR/gen_driver"
   if [ ! -f "$BUILD_DIR/gen_driver/pipeline_x.o" ] || ! cmp -s pipeline_x.o "$BUILD_DIR/gen_driver/pipeline_x.o" 2>/dev/null; then
@@ -4587,10 +4593,8 @@ ensure_pipeline_x_o_fresh() {
   if [ ! -f pipeline_x.o ] || [ ! -f pipeline_gen.c ]; then
   need=1
   fi
-  if [ "$need" -eq 0 ] && [ "ast_pool.c" -nt "pipeline_x.o" ]; then
-  need=1
-  fi
-  # Makefile PIPELINE_X_DEPS：asm 编码/backend 变更不会触达 pipeline_gen.c 时 ensure 仍须重 -E。
+  # PIPELINE_X_DEPS：asm 编码/backend 变更不会触达 pipeline_gen.c 时 ensure 仍须重 -E。
+  # (Deleted ast_pool.c / pipeline_glue.c -nt removed — never fired post-leave.)
   for dep in \
   src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x \
   src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x src/asm/asm.x \
@@ -4605,10 +4609,10 @@ ensure_pipeline_x_o_fresh() {
   # target thin-calls ensure_lsp_pipeline_gen.sh pipeline; pipeline_x.o via GEN_C_TO_O).
   # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
   if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer than pipeline_x.o)"
+    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS newer than pipeline_x.o)"
     make bootstrap-pipeline pipeline_x.o
   else
-    build_xlang_asm_info "rebuild pipeline_x.o (wave930; ensure_lsp_pipeline_gen + try-heat)"
+    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS; ensure_lsp_pipeline_gen + try-heat)"
     bash scripts/ensure_lsp_pipeline_gen.sh pipeline
     bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
   fi

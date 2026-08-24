@@ -510,18 +510,18 @@ asm_strict_typeck_x_glue_via_pipeline_x() {
   return 0
 }
 
-# ast_pool.c / pipeline_glue.c / PIPELINE_X_DEPS 变更后须重建 pipeline_x.o（与 build_xlang_asm.sh 一致）。
+# pipeline_x.o freshness (G.7 single authority; twin of build_xlang_asm.sh).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; dead -nt on those paths never fired. pipeline_x.o producer =
+# src/pipeline/pipeline.x via try-gen-x — NOT runtime_pipeline_abi.x (abi freshness
+# is ensure_experimental_ast_pool_for_wpo / runtime_pipeline_abi.o). Authority =
+# PIPELINE_X_DEPS only; do not retarget to abi (forever need=1 on stub .o).
 ensure_pipeline_x_o_fresh() {
   local need=0
   if [ ! -f pipeline_x.o ] || [ ! -f pipeline_gen.c ]; then
   need=1
   fi
-  if [ "$need" -eq 0 ] && [ "ast_pool.c" -nt "pipeline_x.o" ]; then
-  need=1
-  fi
-  if [ "$need" -eq 0 ] && [ "pipeline_glue.c" -nt "pipeline_x.o" ]; then
-  need=1
-  fi
+  # (Deleted ast_pool.c / pipeline_glue.c -nt removed — never fired post-leave.)
   for dep in \
   src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x \
   src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x src/asm/asm.x \
@@ -535,7 +535,7 @@ ensure_pipeline_x_o_fresh() {
   # PLATFORM: SHARED — post-Makefile phys-del: rebuild pipeline_x.o via try-heat
   # (twin of build_xlang_asm wave929 / xlang_x_pipeline wave947). Ban bare make.
   # Escape: XLANG_STRICT_GLUE_VIA_MAKE=1 + Makefile → historic bootstrap-pipeline.
-  strict_glue_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer; 0-make try-heat)"
+  strict_glue_info "rebuild pipeline_x.o (PIPELINE_X_DEPS newer; 0-make try-heat)"
   if [ "${XLANG_STRICT_GLUE_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
     make bootstrap-pipeline pipeline_x.o || return 1
   else

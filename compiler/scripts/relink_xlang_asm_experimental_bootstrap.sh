@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # experimental bootstrap 重链：pipeline_x.o + X companions + seed C（与 build_xlang_asm.sh 首链一致）。
-# ast_pool.c 变更后须重编 pipeline_glue_standalone / pipeline_x，再本脚本重链 xlang_asm.experimental。
+# pipeline.x newer → rebuild pipeline_x.o (try-gen-x); abi/WPO freshness is
+# ensure_experimental_ast_pool_for_wpo (not this script). Deleted ast_pool.c -nt retired.
 # 用法：cd compiler && ./scripts/relink_xlang_asm_experimental_bootstrap.sh
 #   (companions via migrate/try-heat/driver_leaf — 0-make post phys-del; twin of build_xlang_asm wave931)
 # Escape: XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE=1 + Makefile → historic make leaves.
@@ -67,9 +68,13 @@ ensure_asm_driver_seed_c_objs() {
 }
 ensure_asm_driver_seed_c_objs
 
-# ast_pool.c / pipeline_glue.c 变更后须重编 pipeline_x.o（glue 在 pipeline_gen.c #include 内）。
-# PLATFORM: SHARED — post-Makefile phys-del: try-heat + PIPELINE_X_FORCE_COMPILE
-# (twin of build_xlang_asm wave929 / strict_glue). Ban bare make-only rebuild.
+# pipeline_x.o freshness for experimental bootstrap (G.7; twin of
+# ensure_pipeline_x_o_fresh in build_xlang_asm / strict_glue).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; dead -nt on those paths never fired. pipeline_x.o producer =
+# src/pipeline/pipeline.x via try-gen-x. Abi/WPO freshness is
+# ensure_experimental_ast_pool_for_wpo (build_xlang_asm) — do not retarget this
+# helper to abi.x (would forever need=1 on stub pipeline_x.o). Name kept.
 rebuild_pipeline_x_force() {
   if [ "${XLANG_EXPERIMENTAL_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
     && command -v make >/dev/null 2>&1; then
@@ -81,15 +86,15 @@ rebuild_pipeline_x_force() {
 }
 
 ensure_pipeline_x_fresh_for_ast_pool() {
-  if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
-  experimental_bootstrap_info "ast_pool.c newer than pipeline_x.o - rebuild (0-make try-heat)"
-  rebuild_pipeline_x_force || {
-  experimental_bootstrap_warn "pipeline_x.o rebuild failed"
-  return 1
-  }
+  local need=0
+  local pipe_x="src/pipeline/pipeline.x"
+  if [ ! -f pipeline_x.o ]; then
+  need=1
+  elif [ -f "$pipe_x" ] && [ "$pipe_x" -nt pipeline_x.o ]; then
+  need=1
   fi
-  if [ -f pipeline_glue.c ] && { [ ! -f pipeline_x.o ] || [ pipeline_glue.c -nt pipeline_x.o ]; }; then
-  experimental_bootstrap_info "pipeline_glue.c newer than pipeline_x.o - rebuild (0-make try-heat)"
+  if [ "$need" -eq 1 ]; then
+  experimental_bootstrap_info "pipeline.x newer than pipeline_x.o - rebuild (0-make try-heat)"
   rebuild_pipeline_x_force || {
   experimental_bootstrap_warn "pipeline_x.o rebuild failed"
   return 1
@@ -334,8 +339,11 @@ ensure_parser_parse_bootstrap_asm_obj() {
   if [ ! -x "$XLANG_SEED" ]; then
   return 1
   fi
-  if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
-  experimental_bootstrap_info "ast_pool.c newer - rebuild pipeline_x.o for parse bootstrap (0-make try-heat)"
+  # G.7: pipeline_x.o producer = pipeline.x (deleted ast_pool.c never fires).
+  _pipe_x="src/pipeline/pipeline.x"
+  if { [ ! -f pipeline_x.o ] \
+    || { [ -f "$_pipe_x" ] && [ "$_pipe_x" -nt pipeline_x.o ]; }; }; then
+  experimental_bootstrap_info "pipeline.x newer - rebuild pipeline_x.o for parse bootstrap (0-make try-heat)"
   rebuild_pipeline_x_force || true
   fi
   if [ -f pipeline_x.o ] && [ pipeline_x.o -nt "$XLANG_SEED" ] 2>/dev/null; then
