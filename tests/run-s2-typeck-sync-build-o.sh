@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 将 EMIT_HEAVY 第二遍产物写入 compiler/build_asm/typeck.o，供 asm_strict_typeck_selfhosted / S2 gate 使用。
-# 依赖：compiler/xlang_asm.strict_glue 或 xlang_asm.experimental 已重链（含最新 ast_pool.c）。
+# Depends: compiler/xlang_asm.strict_glue or xlang_asm.experimental relinked with
+# live runtime_pipeline_abi / typeck leaves (ast_pool.c left wave309).
 # 用法：./tests/run-s2-typeck-sync-build-o.sh
 # 可选：XLANG_S2_FAIL_ON_EMIT_HEAVY=1 — __text / real_funcs 低于 baseline 时失败
 set -e

@@ -2,19 +2,19 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # min_layers	6
 # min_cases	4
-read_path	section	## 1. 阅读路径	analysis/comp-regalloc-v1.md	-	20min
+read_path	section	## 1. 阅读路径	analysis/archive/comp/comp-regalloc-v1.md	-	20min
 layers	section	## 2. 评估层 R1–R6	comp-regalloc.tsv	-	regalloc
 quality	section	## 3. 质量对比表	comp-regalloc-quality.tsv	-	report
-cases	section	## 4. Golden 用例	analysis/comp-regalloc-v1.md	-	cases
-verify	section	## 6. 验证与门禁	analysis/comp-regalloc-v1.md	-	gate
-layer_r1	layers	R1-linear-scan	compiler/pipeline_glue.c	linear	glue_asm73
-layer_r2	layers	R2-chaitin-k6	compiler/pipeline_glue.c	chaitin	K=6
+cases	section	## 4. Golden 用例	analysis/archive/comp/comp-regalloc-v1.md	-	cases
+verify	section	## 6. 验证与门禁	analysis/archive/comp/comp-regalloc-v1.md	-	gate
+layer_r1	layers	R1-linear-scan	compiler/src/runtime_pipeline_abi.x	linear	glue_asm73
+layer_r2	layers	R2-chaitin-k6	compiler/src/runtime_pipeline_abi.x	chaitin	K=6
 layer_r3	layers	R3-stack-spill	tests/run-asm-binop-stack-spill.sh	stack	push
 layer_r4	layers	R4-cfg-phi	tests/run-asm-binop-cfg-merge.sh	cfg	phi
 layer_r5	layers	R5-peephole	compiler/src/asm/README.md	peephole	mov
 layer_r6	layers	R6-quality-report	comp-regalloc-quality.tsv	report	metrics
-sym_chaitin	symbol	glue_asm73_compute_spill_color_chaitin	compiler/pipeline_glue.c	color	着色
-sym_linear	symbol	glue_asm73_linear_max_live_n	compiler/pipeline_glue.c	live	峰值
+sym_chaitin	symbol	glue_asm73_compute_spill_color_chaitin	compiler/src/runtime_pipeline_abi.x	color	着色
+sym_linear	symbol	glue_asm73_linear_max_live_n	compiler/src/runtime_pipeline_abi.x	live	峰值
 case_four	case	case_four_mul	tests/asm/binop_return_four_mul.x	arm64	24
 case_seven	case	case_seven_add	tests/asm/binop_return_seven_add.x	arm64	28
 case_fourteen	case	case_fourteen_add	tests/asm/binop_return_fourteen_add.x	arm64	105

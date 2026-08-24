@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # S2 EMIT_HEAVY 烟测：用 xlang_asm 第二遍重编 typeck.o，统计非 ret0 桩的真机码函数数。
-# 依赖：compiler/xlang_asm 已重链含最新 ast_pool.c（make bootstrap-driver-bstrict）。
+# Depends: compiler/xlang_asm relinked with live runtime_pipeline_abi /
+# typeck EMIT_HEAVY leave (ast_pool.c left wave309; product = ./xbuild).
 # 用法：./tests/run-s2-typeck-emit-heavy.sh
 # 门禁：XLANG_S2_FAIL_ON_EMIT_HEAVY=1 — real_funcs < baseline min_real_funcs 或 __text < min_text_emit_heavy 时失败
 set -e
@@ -74,7 +75,7 @@ echo "s2 emit-heavy: __text=${sz} real_funcs=${real} (min_real=${MIN_REAL}, min_
 if [ "${XLANG_S2_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
   if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
     echo "s2 emit-heavy FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
-    echo "s2 emit-heavy hint: ast_pool.c 变更后须 ./xbuild bootstrap-driver-bstrict 重链 xlang_asm" >&2
+    echo "s2 emit-heavy hint: after runtime_pipeline_abi / typeck leave change, ./xbuild bootstrap-driver-bstrict to relink xlang_asm (ast_pool.c left wave309)" >&2
     exit 1
   fi
   if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s > m) ? 0 : 1 }'; then

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# build_asm/parser.o 第二遍烟测：ENTRY_MODULE_ONLY + SKIP_TYPECK 须产出非空 __text（ast_pool 截断模块桩化）。
-# strict 链仍靠 parser_x.o；本门禁保证 experimental/second pass 不回归空 parser.o。
+# build_asm/parser.o second-pass smoke: ENTRY_MODULE_ONLY + SKIP_TYPECK must emit
+# non-empty __text (historical ast_pool truncated-module stub left wave309).
+# strict link still uses parser_x.o; this gate keeps experimental/second pass
+# from regressing to an empty parser.o.
 # 用法：
 #   ./tests/run-parser-second-pass-gate.sh
 #   XLANG_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh

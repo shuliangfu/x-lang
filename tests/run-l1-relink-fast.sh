@@ -71,8 +71,11 @@ progress "rebuild parser_x.o (region { parse fix)"
 touch parser_gen.c
 ensure_force_o parser_x.o 2>&1 | tail -3 || true
 
+# wave309: ast_pool.c / pipeline_glue.c left — do NOT touch-create fossils under
+# /src/compiler (Docker INNER cwd). Live producers = pipeline.x + typeck.x /
+# typeck_gen.c. PLATFORM: SHARED archaeology honesty.
 progress "rebuild pipeline_x.o + typeck_x.o (region parent link + assign final_expr)"
-touch ast_pool.c pipeline_glue.c typeck_gen.c
+touch src/pipeline/pipeline.x src/typeck/typeck.x typeck_gen.c
 ensure_force_o pipeline_x.o 2>&1 | tail -4 || true
 ensure_force_o typeck_x.o 2>&1 | tail -4 || true
 

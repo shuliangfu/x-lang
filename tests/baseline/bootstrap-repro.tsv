@@ -51,7 +51,7 @@ sys_mod_cfg_import	sys	run-sys-mod-cfg-import-gate.sh	any	B-19 std.sys #[cfg] im
 sys_read_file	sys	run-sys-read-file-gate.sh	any	B-20 v0 os_read_file_into
 b04_freestanding_syscall	sys	run-b04-freestanding-syscall-gate.sh	linux	B-04 extern→.s syscall
 b05_codegen_mvp	compile	run-b05-codegen-mvp-gate.sh	!docker	B-05 asm-73 MVP
-b06_ast_pool	build	run-b06-ast-pool-gate.sh	any	B-06 ast_pool + pool limits
+b06_ast_pool	build	run-b06-ast-pool-gate.sh	any	B-06 live pool/arena (runtime_pipeline_abi; ast_pool.c left wave309) + pool limits
 b15_io_uring_sys	sys	run-b15-io-uring-sys-gate.sh	any	B-15 io_uring facade
 b17_exit_process	sys	run-b17-exit-process-gate.sh	any	B-17 v3 ExitProcess
 b18_win32_net	sys	run-b18-win32-net-gate.sh	any	B-18 WSA facade

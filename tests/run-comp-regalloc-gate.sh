@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # COMP-005：寄存器分配策略 manifest 门禁
+# wave309 honesty: live glue_asm73_* in runtime_pipeline_abi.x;
+# DOC default = analysis/archive/comp/comp-regalloc-v1.md (archived).
+# PLATFORM: SHARED archaeology.
 #
 # 用法：./tests/run-comp-regalloc-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_REGALLOC_DOC:-analysis/comp-regalloc-v1.md}"
+DOC="${XLANG_COMP_REGALLOC_DOC:-analysis/archive/comp/comp-regalloc-v1.md}"
 MANIFEST="${XLANG_COMP_REGALLOC_MANIFEST:-tests/baseline/comp-regalloc.tsv}"
 QUALITY="${XLANG_COMP_REGALLOC_QUALITY:-tests/baseline/comp-regalloc-quality.tsv}"
 MIN_LAYERS=6
@@ -16,8 +19,10 @@ MIN_METRICS=9
 . tests/lib/comp-regalloc.sh
 
 echo "=== COMP-005: regalloc strategy manifest ==="
+# wave309: pipeline_glue.c left — live asm73 regalloc = runtime_pipeline_abi.x.
+# Doc archived under analysis/archive/comp/ (default DOC path updated).
 for f in "$DOC" "$MANIFEST" "$QUALITY" \
-  compiler/pipeline_glue.c compiler/src/asm/README.md \
+  compiler/src/runtime_pipeline_abi.x compiler/src/asm/README.md \
   tests/asm/binop_return_four_mul.x tests/asm/binop_return_seven_add.x \
   tests/asm/binop_return_fourteen_add.x tests/asm/binop_if_return_twelve_add.x \
   tests/run-asm-73-gate.sh; do

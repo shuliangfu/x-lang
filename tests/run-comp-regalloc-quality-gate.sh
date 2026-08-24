@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_COMP013_DOC:-analysis/comp-regalloc-quality-v1.md}"
+DOC="${XLANG_COMP013_DOC:-analysis/archive/comp/comp-regalloc-quality-v1.md}"
 MANIFEST="${XLANG_COMP013_WAVE_TSV:-tests/baseline/comp-regalloc-quality-wave.tsv}"
 QUALITY="${XLANG_COMP013_QUALITY:-tests/baseline/comp-regalloc-quality.tsv}"
 LIB="tests/lib/comp-regalloc-quality.sh"
@@ -23,7 +23,7 @@ MIN_METRICS=9
 
 echo "=== COMP-013: regalloc quality wave manifest ==="
 for f in "$DOC" "$MANIFEST" "$QUALITY" "$LIB" \
-  analysis/comp-regalloc-v1.md tests/run-comp-regalloc-gate.sh; do
+  analysis/archive/comp/comp-regalloc-v1.md tests/run-comp-regalloc-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-regalloc-quality gate FAIL: missing $f" >&2
     exit 1

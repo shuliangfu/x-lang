@@ -83,7 +83,7 @@ else
   echo "s2 parity: no pipeline_type_ensure_by_kind_ord in typeck.o OK"
 fi
 
-# 允许的 pool 只读/写入 glue（链接期由 pipeline_glue.c 提供）
+# Allowed pool read/write glue (link-time: runtime_pipeline_abi; pipeline_glue.c left wave309)
 ALLOW_GLUE='pipeline_type_kind_ord_at|pipeline_type_elem_ref_at|pipeline_type_array_size_at|pipeline_type_named_name_into|pipeline_type_init_primitive_kind_at|pipeline_type_init_named_at|pipeline_type_init_compound_kind_at'
 unexpected=$(nm "$TYPECK_O" 2>/dev/null | awk '/ U (_)?pipeline_type_/ {print $2}' | sed 's/^_//' | grep -Ev "^(${ALLOW_GLUE})$" || true)
 if [ -n "$unexpected" ]; then
@@ -92,7 +92,7 @@ else
   echo "s2 parity: pipeline_type_* glue refs whitelist OK"
 fi
 
-# ── 3) EMIT_HEAVY 分片（ast_pool.c）：mega 入口 intentionally 桩化，勿验 insn/size ──
+# ── 3) EMIT_HEAVY shards (historical ast_pool.c left wave309; mega entry intentionally stubbed — skip insn/size) ──
 # __text≥68264 + real_funcs≥133（步骤 1）已证明 safe helper 真 emit；mega 仅须符号存在供 C glue。
 for sym in check_block_impl check_expr_impl typeck_x_ast; do
   if ! sym_defined "$TYPECK_O" "$sym"; then
