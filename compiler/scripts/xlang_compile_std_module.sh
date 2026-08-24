@@ -71,6 +71,7 @@ formal_mod_key_for_out() {
     ../core/slice/mod.o|core/slice/mod.o|*core/slice/mod.o) printf '%s' "core/slice/mod.o" ;;
     ../core/str/mod.o|core/str/mod.o|*core/str/mod.o) printf '%s' "core/str/mod.o" ;;
     ../core/iterator/mod.o|core/iterator/mod.o|*core/iterator/mod.o) printf '%s' "core/iterator/mod.o" ;;
+    ../core/fmt/mod.o|core/fmt/mod.o|*core/fmt/mod.o) printf '%s' "core/fmt/mod.o" ;;
     ../std/bytes/bytes.o|std/bytes/bytes.o|*std/bytes/bytes.o) printf '%s' "std/bytes/bytes.o" ;;
     ../std/map/map.o|std/map/map.o|*std/map/map.o) printf '%s' "std/map/map.o" ;;
     ../std/set/set.o|std/set/set.o|*std/set/set.o) printf '%s' "std/set/set.o" ;;
@@ -166,6 +167,9 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — cookbook iter_slice_sum unique UNDEF (iter_i32 / next_i32).
     # G.7 complete formal_mod like core/str/mod.o; product import mangle core_iterator_*.
     core/iterator/mod.o) printf '%s' "mod|0|../core/iterator/mod.x" ;;
+    # PLATFORM: SHARED — CORE-010 direct import("core.fmt") product -o (fmt_*_to_buf UNDEF).
+    # G.7 complete formal_mod like core/str/mod.o; product import mangle core_fmt_*.
+    core/fmt/mod.o) printf '%s' "mod|0|../core/fmt/mod.x" ;;
     # PLATFORM: SHARED — tests/std-bytes/arena_external unique UNDEF (from_external*).
     # G.7 complete formal_mod like core/iterator/mod.o; product import mangle std_bytes_*.
     std/bytes/bytes.o) printf '%s' "mod|0|../std/bytes/mod.x" ;;
@@ -266,6 +270,7 @@ formal_mod_all_keys() {
     core/slice/mod.o \
     core/str/mod.o \
     core/iterator/mod.o \
+    core/fmt/mod.o \
     std/bytes/bytes.o \
     std/map/map.o \
     std/set/set.o \

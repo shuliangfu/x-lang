@@ -154,8 +154,9 @@ int labi_od_simple_group_count(void) {
    * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe.
    * g21: core.str formal (cookbook core_str_index unique UNDEF).
    * g22: core.iterator formal (cookbook iter_slice_sum unique UNDEF).
-   * g23: std.bytes formal (tests/std-bytes/arena_external unique UNDEF). */
-  return 24;
+   * g23: std.bytes formal (tests/std-bytes/arena_external unique UNDEF).
+   * g24: core.fmt formal (CORE-010/011 direct import). */
+  return 25;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -219,6 +220,9 @@ int labi_od_simple_group_sym_count(int g) {
    * surface. G.7 one table. */
   if (g == 23)
     return 29;
+  /* PLATFORM: SHARED — core.fmt formal (CORE-010/011). Count 12. G.7 one table. */
+  if (g == 24)
+    return 12;
   return 0;
 }
 
@@ -761,6 +765,34 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_bytes_bytes_module_anchor";
     return NULL;
   }
+  /* PLATFORM: SHARED — exact UNDEF needles for core/fmt/mod.o (g==24). */
+  if (g == 24) {
+    if (i == 0)
+      return "core_fmt_fmt_usize_to_buf";
+    if (i == 1)
+      return "core_fmt_fmt_isize_to_buf";
+    if (i == 2)
+      return "core_fmt_fmt_ptr_to_buf";
+    if (i == 3)
+      return "core_fmt_fmt_f64_to_buf";
+    if (i == 4)
+      return "core_fmt_fmt_f64_to_buf_prec";
+    if (i == 5)
+      return "core_fmt_fmt_i32_to_buf";
+    if (i == 6)
+      return "core_fmt_fmt_u32_to_buf";
+    if (i == 7)
+      return "core_fmt_fmt_u64_to_buf";
+    if (i == 8)
+      return "core_fmt_fmt_i64_to_buf";
+    if (i == 9)
+      return "core_fmt_fmt_bool_to_buf";
+    if (i == 10)
+      return "core_fmt_fmt_u64_hex_to_buf";
+    if (i == 11)
+      return "core_fmt_fmt_i32";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -819,6 +851,9 @@ const char *labi_od_simple_group_rel(int g) {
   /* PLATFORM: SHARED — std.bytes formal product .o (tests/std-bytes/arena_external). */
   if (g == 23)
     return "std/bytes/bytes.o";
+  /* PLATFORM: SHARED — core.fmt formal product .o (CORE-010/011). */
+  if (g == 24)
+    return "core/fmt/mod.o";
   return NULL;
 }
 

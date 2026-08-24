@@ -12,7 +12,7 @@ section_special	section	## 2. 特殊值金样	docs
 section_prec	section	## 3. 精度策略	docs
 smoke_nan	smoke	NaN	tests/fmt/f64_special.x	金样
 smoke_inf	smoke	Inf	tests/fmt/f64_special.x	金样
-smoke_prec	smoke	to_buf_prec	tests/fmt/f64_special.x	精度
+smoke_prec	smoke	fmt_f64_to_buf_prec	tests/fmt/f64_special.x	精度（live core.fmt 长名）
 test_smoke	file	tests/fmt/f64_special.x	tests/fmt/f64_special.x	边界烟测
 doc	file	analysis/archive/core/core-fmt-f64-special-v1.md	analysis/archive/core/core-fmt-f64-special-v1.md	RFC
 gate	script	tests/run-core-fmt-f64-special-gate.sh	tests/run-core-fmt-f64-special-gate.sh	manifest

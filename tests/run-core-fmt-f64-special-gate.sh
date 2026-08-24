@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-core-fmt-f64-special-gate.sh
 # wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
-# check smoke observational SKIP (check paused; to_buf typeck debt).
+# 2026-08-25: runnable hard-green (goldens call live fmt_f64_*); check observational.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -93,11 +93,24 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "core-fmt-f64-special manifest OK (symbols=${SYM_N})"
 
+# Goldens must call live core.fmt long names (not std.fmt short to_buf aliases).
+for kw in fmt_f64_to_buf fmt_f64_to_buf_prec; do
+  if ! grep -qF "fmt.$kw" "$SMOKE" 2>/dev/null; then
+    echo "core-fmt-f64-special gate FAIL: smoke missing live call fmt.$kw" >&2
+    exit 1
+  fi
+done
+if grep -qE 'fmt\.(to_buf|to_buf_prec)\(' "$SMOKE" 2>/dev/null; then
+  echo "core-fmt-f64-special gate FAIL: smoke still uses std.fmt short aliases on core.fmt" >&2
+  exit 1
+fi
+
 SKIP=1
 CHECK_OK=0
+RUN_OK=0
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
@@ -105,17 +118,38 @@ if [ -z "$XLANG_BIN" ]; then
   done
 fi
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== CORE-011: smoke (XLANG=$XLANG_BIN; check observational) ==="
+  echo "=== CORE-011: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
   xlang_compiler_make -q 2>/dev/null || xlang_compiler_make 2>/dev/null || true
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
-    SKIP=0
   else
-    echo "core-fmt-f64-special gate SKIP check smoke (paused / to_buf typeck debt)" >&2
+    echo "core-fmt-f64-special gate SKIP check smoke (paused 2026-08-05)" >&2
+  fi
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+  OUT="/tmp/xlang_core_fmt_f64_$$"
+  LOG="/tmp/xlang_core_fmt_f64_build_$$.log"
+  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
+    exitcode=0
+    "$OUT" >/dev/null 2>&1 || exitcode=$?
+    rm -f "$OUT"
+    if [ "$exitcode" -eq 0 ]; then
+      RUN_OK=1
+      SKIP=0
+    else
+      echo "core-fmt-f64-special gate FAIL runnable exit=$exitcode" >&2
+      core_fmt_f64_special_emit_report "fail" "$CHECK_OK" 0 0
+      exit 1
+    fi
+  else
+    echo "core-fmt-f64-special gate FAIL runnable link" >&2
+    tail -20 "$LOG" 2>/dev/null >&2 || true
+    core_fmt_f64_special_emit_report "fail" "$CHECK_OK" 0 0
+    exit 1
   fi
 else
   echo "core-fmt-f64-special gate SKIP typeck (no native xlang)" >&2
 fi
 
-core_fmt_f64_special_emit_report "ok" "$CHECK_OK" "$SKIP"
+core_fmt_f64_special_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
 echo "core-fmt-f64-special gate OK"

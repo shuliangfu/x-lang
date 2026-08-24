@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   core_fmt_f64_special_symbols_ok FMT_X STD_FMT_X TSV
-#   core_fmt_f64_special_emit_report status check_ok skip
+#   core_fmt_f64_special_emit_report status check_ok run_ok skip
 
 CORE_FMT_F64_SPECIAL_PREFIX="${XLANG_CORE_FMT_F64_SPECIAL_PREFIX:-xlang: [XLANG_CORE_FMT_F64_SPECIAL]}"
 
@@ -40,6 +40,12 @@ core_fmt_f64_special_symbols_ok() {
 core_fmt_f64_special_emit_report() {
   local status="$1"
   local check_ok="$2"
-  local skip="$3"
-  echo "${CORE_FMT_F64_SPECIAL_PREFIX} status=${status} check=${check_ok} skip=${skip}"
+  local run_ok="${3:-0}"
+  local skip="${4:-1}"
+  # Back-compat: old 3-arg form was (status, check_ok, skip).
+  if [ "$#" -eq 3 ]; then
+    skip="$run_ok"
+    run_ok=0
+  fi
+  echo "${CORE_FMT_F64_SPECIAL_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

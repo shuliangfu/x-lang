@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 24 (was 23; +g23 std.bytes formal faces, tests/std-bytes/arena_external)
+ * @return i32 — 25 (was 24; +g24 core.fmt formal faces, CORE-010/011 direct import)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 24;
+  return 25;
 }
 
 /**
@@ -408,6 +408,14 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
    */
   if (g == 23) {
     return 29;
+  }
+  /*
+   * PLATFORM: SHARED — core.fmt formal (CORE-010/011 direct import("core.fmt")).
+   * Matcher exact; widths/f64_special unique fire: usize/isize/ptr + f64*_to_buf.
+   * Count 12 = CORE-010/011 fire points + common *_to_buf exports (G.7 one table).
+   */
+  if (g == 24) {
+    return 12;
   }
   return 0;
 }
@@ -1395,6 +1403,62 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/fmt/mod.o (g==24).
+   * CORE-010 unique: fmt_usize/isize/ptr_to_buf. CORE-011 unique: fmt_f64*_to_buf.
+   * Rest = common decimal/hex *_to_buf so sole-call smokes also fire. G.7: one table.
+   */
+  if (g == 24) {
+    if (i == 0) {
+      let p: *u8 = "core_fmt_fmt_usize_to_buf";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_fmt_fmt_isize_to_buf";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_fmt_fmt_ptr_to_buf";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_fmt_fmt_f64_to_buf";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_fmt_fmt_f64_to_buf_prec";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_fmt_fmt_i32_to_buf";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_fmt_fmt_u32_to_buf";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_fmt_fmt_u64_to_buf";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_fmt_fmt_i64_to_buf";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_fmt_fmt_bool_to_buf";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "core_fmt_fmt_u64_hex_to_buf";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "core_fmt_fmt_i32";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -1517,6 +1581,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — std.bytes formal product .o (tests/std-bytes/arena_external).
   if (g == 23) {
     let p: *u8 = "std/bytes/bytes.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.fmt formal product .o (CORE-010/011 direct import).
+  if (g == 24) {
+    let p: *u8 = "core/fmt/mod.o";
     return p;
   }
   return 0 as *u8;
