@@ -24,7 +24,8 @@
 
 ---
 
-> **2026-08-24**：comp-link-sym fixture 假权威诚实 @ **`f40fb165f`**（cases→`duplicate_parser_sx.log`；wpo→`run_x_pipeline_impl`；gitignore 例外＋七 fixture 入库；**不升钉**；双端 L2 5／5）。残：boot-016 `runtime.from_x.c` seed／cookbook typeck／std-config c smoke。
+> **2026-08-24**：boot-016 假权威诚实 @ **`28dfed180`**（RUNTIME→`labi_std_list`＋`labi_ondemand_list`；getter=`-`；锚点→活 `std_*`／`path_sep_c`；**不升钉**；gate 12／12＋双端 L2 5／5）。残：cookbook／std-config c smoke／其它仍指 `runtime.from_x.c` 的门。
+> **2026-08-24**：comp-link-sym fixture 假权威诚实 @ **`f40fb165f`**（cases→`duplicate_parser_sx.log`；wpo→`run_x_pipeline_impl`；gitignore 例外＋七 fixture 入库；**不升钉**；双端 L2 5／5）。
 
 ## 0. 总览仪表盘
 
