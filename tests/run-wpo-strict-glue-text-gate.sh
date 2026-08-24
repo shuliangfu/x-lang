@@ -19,8 +19,12 @@ BASELINE="${XLANG_WPO_STRICT_GLUE_TEXT_BASELINE:-tests/baseline/wpo-strict-glue-
 MAX_GROWTH_BYTES=$(awk -F'\t' '$1=="max_text_growth_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)
 MAX_GROWTH_BYTES=${MAX_GROWTH_BYTES:-8192}
 
+# PLATFORM: MACOS — A/B .text growth needs helpers on vs off. Tip soft-skips
+# helpers extract when abi is on LD argv (dual-authority / multi-LC_SEGMENT), so
+# A/B is not meaningful on Darwin yet. Linux covers measured growth.
+# (strict_link gate itself is SHARED and no longer hard-N/A on Darwin.)
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "run-wpo-strict-glue-text-gate: N/A on Darwin (strict_glue link; Linux x86_64/ARM64 covers)"
+  echo "run-wpo-strict-glue-text-gate: N/A on Darwin (helpers A/B soft-skipped when abi on argv; Linux covers)"
   echo "run-wpo-strict-glue-text-gate OK (Darwin N/A)"
   exit 0
 fi

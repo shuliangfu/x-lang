@@ -1762,12 +1762,22 @@ pipeline_strict_link_export_syms_stale() {
 }
 
 ensure_pipeline_o_strict_link_partial_obj() {
-  local PARTIAL SYMS PO WPO_E
+  local PARTIAL SYMS PO WPO_E n_t
   PARTIAL="$BUILD_DIR/pipeline_strict_link_partial.o"
   SYMS="$BUILD_DIR/pipeline_strict_link_export.txt"
   PO="$BUILD_DIR/pipeline.o"
   WPO_E="$BUILD_DIR/pipeline_wpo.o"
   if [ ! -f "$PO" ] || [ ! -s "$PO" ]; then
+  return 1
+  fi
+  # G.7: wave335+ pipeline.x pure-extern → build_asm/pipeline.o often 0 T.
+  # Live orch = runtime_pipeline_abi / pipeline_wpo; skip empty partial (no hard error).
+  # PLATFORM: SHARED.
+  n_t=$(nm "$PO" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${n_t:-0}" -eq 0 ] && asm_pipeline_wpo_strict_reach_ok; then
+  build_xlang_asm_info "skip pipeline_strict_link_partial (pipeline.o 0 T pure-extern; WPO/abi covers)"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  : >"$SYMS"
   return 1
   fi
   if pipeline_strict_link_export_syms_stale "$SYMS" "$PO"; then
@@ -1847,6 +1857,12 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   return 1
   fi
   if ! asm_pipeline_wpo_strict_reach_ok; then
+  return 1
+  fi
+  # G.7: abi already on LD argv → skip helpers extract (overlap + Darwin LC_SEGMENT /
+  # Ubuntu strchr multi-def inside abi-scale pipeline_wpo). PLATFORM: SHARED.
+  if asm_strict_pipeline_selfhosted; then
+  build_xlang_asm_info "skip pipeline_wpo_helpers_partial (runtime_pipeline_abi on LD argv)"
   return 1
   fi
   # PLATFORM: SHARED — do not overwrite full selfhosted pipeline.o (pipeline_x, 1000+ T
@@ -2428,21 +2444,23 @@ asm_pipeline_wpo_strict_link_full_ok() {
   return 0
 }
 
-# Linux reach OK 时默认链 pipeline_wpo helpers + C 编排（稳定）；FULL=1 显式开启整颗 pipeline_wpo.o。
+# Linux/Darwin reach OK 时默认链 pipeline_wpo；FULL=1 显式开启整颗 pipeline_wpo.o。
+# When runtime_pipeline_abi already on LD argv, keep FULL=0 (avoid dual-authority).
+# PLATFORM: SHARED.
 maybe_default_pipeline_wpo_strict_link() {
   if [ -n "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO+x}" ]; then
   return 0
   fi
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Linux-x86_64|Linux-amd64|Linux-aarch64|Linux-arm64)
+  Linux-x86_64|Linux-amd64|Linux-aarch64|Linux-arm64|Darwin-arm64|Darwin-x86_64)
   if asm_pipeline_wpo_strict_reach_ok; then
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1
-  if [ "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-0}" = "1" ]; then
+  if [ "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-0}" = "1" ] && ! asm_strict_pipeline_selfhosted; then
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1
   build_xlang_asm_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 + FULL=1 (whole pipeline_wpo.o + glue support)"
   else
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=0
-  build_xlang_asm_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers + C orchestration)"
+  build_xlang_asm_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers + C orch; abi covers when selfhosted)"
   fi
   fi
   ;;
@@ -3101,7 +3119,13 @@ filter_strict_asm_objs() {
   if ensure_pipeline_o_strict_link_partial_obj; then
   FILTERED="$FILTERED $BUILD_DIR/pipeline_strict_link_partial.o"
   else
+  # G.7: skip empty pure-extern pipeline.o when WPO/abi covers. PLATFORM: SHARED.
+  _po_t=$(nm "$o" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${_po_t:-0}" -eq 0 ] && { asm_pipeline_wpo_strict_reach_ok || asm_strict_pipeline_selfhosted; }; then
+  build_xlang_asm_info "skip empty pipeline.o on strict LD (WPO/abi covers)"
+  else
   FILTERED="$FILTERED $o"
+  fi
   fi
   fi
   continue
