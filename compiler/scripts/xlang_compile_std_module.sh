@@ -59,6 +59,9 @@ formal_mod_key_for_out() {
     ../std/heap/page_mmap.o|std/heap/page_mmap.o|*std/heap/page_mmap.o) printf '%s' "std/heap/page_mmap.o" ;;
     ../std/sys/sys.o|std/sys/sys.o|*std/sys/sys.o) printf '%s' "std/sys/sys.o" ;;
     ../std/sys/linux.o|std/sys/linux.o|*std/sys/linux.o) printf '%s' "std/sys/linux.o" ;;
+    # PLATFORM: SHARED — B-19 cfg import smoke Darwin unique UNDEF (macos_write_available).
+    # Nested leaf under std/sys; twin of linux.o → sys_macos product face.
+    ../std/sys/macos.o|std/sys/macos.o|*std/sys/macos.o) printf '%s' "std/sys/macos.o" ;;
     ../core/mem/mem.o|core/mem/mem.o|*core/mem/mem.o) printf '%s' "core/mem/mem.o" ;;
     ../core/builtin/builtin.o|core/builtin/builtin.o|*core/builtin/builtin.o) printf '%s' "core/builtin/builtin.o" ;;
     ../core/types/types.o|core/types/types.o|*core/types/types.o) printf '%s' "core/types/types.o" ;;
@@ -147,6 +150,8 @@ formal_mod_spec_for_key() {
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
+    # PLATFORM: SHARED — formal std.sys.macos (cfg import / macos_write_*).
+    std/sys/macos.o) printf '%s' "mod|0|../std/sys/macos.x" ;;
     core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
     # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
     core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
@@ -251,6 +256,7 @@ formal_mod_all_keys() {
     std/heap/page_mmap.o \
     std/sys/sys.o \
     std/sys/linux.o \
+    std/sys/macos.o \
     core/mem/mem.o \
     core/builtin/builtin.o \
     core/types/types.o \
@@ -420,6 +426,7 @@ std/heap/heap.o
 std/heap/page_mmap.o
 std/sys/sys.o
 std/sys/linux.o
+std/sys/macos.o
 core/mem/mem.o
 core/builtin/builtin.o
 core/types/types.o
@@ -459,8 +466,8 @@ std/tar/tar.o
 std/unicode/unicode.o
 std/channel/channel.o
 KEYS
-  if [ "$_n" -ne 43 ]; then
-    echo "formal_mod --check: expected 43 keys, counted $_n" >&2
+  if [ "$_n" -ne 44 ]; then
+    echo "formal_mod --check: expected 44 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
@@ -1785,6 +1792,19 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
       # std_arrow_* (Ubuntu objcopy). Twin of sqlite → db_sqlite.
       leaf="db_arrow"
       ;;
+    std/sys/linux.o)
+      # PLATFORM: SHARED — nested module std.sys.linux product face.
+      # Import mangle is std_sys_linux_* + function linux_* → std_sys_linux_linux_*.
+      # Parent-dir leaf "sys" would yield std_sys_linux_syscall_* (short; BLD001).
+      # Twin of std/db/sqlite → db_sqlite / std/io/driver → io_driver.
+      leaf="sys_linux"
+      ;;
+    std/sys/macos.o)
+      # PLATFORM: SHARED — nested module std.sys.macos product face.
+      # Import mangle is std_sys_macos_* + function macos_* → std_sys_macos_macos_*.
+      # Parent-dir leaf "sys" would yield std_sys_macos_write_* (short; BLD001).
+      leaf="sys_macos"
+      ;;
   esac
   case "$out_root" in
     core) prod_pref="core_${leaf}_" ;;
@@ -1947,6 +1967,14 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
+          # PLATFORM: SHARED — std/sys/sys.o co-emits import("std.sys.linux") bodies as
+          # std_sys_linux_linux_* (matches prod_pref std_sys_*). Authority = linux.o
+          # after nested-leaf rename; keep them local to avoid multi-def when both
+          # sys.o + linux.o are on LD argv (need_sy ∨ need_sl).
+          std_sys_linux_linux_*)
+            objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+            continue
+            ;;
           "${prod_pref}"*) continue ;;
           core_*|std_*)
             objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
@@ -1972,6 +2000,8 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
+          # PLATFORM: SHARED — demote nested linux co-emit (see objcopy localize above).
+          std_sys_linux_linux_*) ;;
           "${prod_pref}"*)
             printf '%s\n' "$sym" >>"$_exp_list"
             ;;

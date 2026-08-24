@@ -16,6 +16,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/heap/page_mmap.o \
 	../std/sys/sys.o \
 	../std/sys/linux.o \
+	../std/sys/macos.o \
 	../core/mem/mem.o \
 	../core/builtin/builtin.o \
 	../core/types/types.o \

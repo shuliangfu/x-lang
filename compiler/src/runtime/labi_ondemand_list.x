@@ -3348,21 +3348,21 @@ export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
 }
 
 /**
- * Count of std.sys.linux on_demand UNDEF probes (product linux.o freestanding gate).
+ * Count of sys_linux on_demand UNDEF probes (product formal .o gate).
  * Exact symbol names only (no prefix/strstr probes).
- * @return i32 — 7
- * PLATFORM: SHARED — must match formal std/sys/linux export surface
+ * @return i32 — 34
+ * PLATFORM: SHARED — must match formal std/sys/linux export surface (nested leaf sys_linux)
  */
 #[no_mangle]
 export function labi_od_sys_linux_sym_count(): i32 {
-  return 7;
+  return 34;
 }
 
 /**
- * Product std.sys.linux on_demand UNDEF symbol at index (needs_std_sys_linux probe table).
- * @param i i32 — index in [0, 7)
+ * Product sys_linux on_demand UNDEF symbol at index.
+ * @param i i32 — index in [0, 34)
  * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED — G.7 complete needs_std_sys_linux authority (no second hard-coded list)
+ * PLATFORM: SHARED — G.7 complete needs_sys_linux authority (no second hard-coded list)
  */
 #[no_mangle]
 export function labi_od_sys_linux_sym_at(i: i32): *u8 {
@@ -3370,31 +3370,139 @@ export function labi_od_sys_linux_sym_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "std_sys_linux_linux_syscall_invoke_available";
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_read_amd64";
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "std_sys_linux_linux_anonymous_mmap";
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_write_amd64";
     return p;
   }
   if (i == 2) {
-    let p: *u8 = "std_sys_linux_linux_syscall_munmap";
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_open_amd64";
     return p;
   }
   if (i == 3) {
-    let p: *u8 = "std_sys_linux_linux_syscall_read";
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_close_amd64";
     return p;
   }
   if (i == 4) {
-    let p: *u8 = "std_sys_linux_linux_syscall_write";
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_exit_amd64";
     return p;
   }
   if (i == 5) {
-    let p: *u8 = "std_sys_linux_linux_syscall_close";
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_mmap_amd64";
     return p;
   }
   if (i == 6) {
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_read_arm64";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_write_arm64";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_openat_arm64";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_close_arm64";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_exit_arm64";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_sys_linux_linux_syscall_nr_mmap_arm64";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_sys_linux_linux_syscall_table_available";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_sys_linux_linux_syscall_invoke_available";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_sys_linux_linux_syscall_read";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "std_sys_linux_linux_syscall_close";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_sys_linux_linux_syscall_write";
+    return p;
+  }
+  if (i == 17) {
     let p: *u8 = "std_sys_linux_linux_syscall_exit";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_sys_linux_linux_syscall_openat";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "std_sys_linux_linux_anonymous_mmap";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "std_sys_linux_linux_syscall_munmap";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "std_sys_linux_linux_read_file_openat";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "std_sys_linux_linux_syscall_open";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "std_sys_linux_linux_read_file_into";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "std_sys_linux_linux_syscall_socket";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "std_sys_linux_linux_syscall_connect";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "std_sys_linux_linux_syscall_bind";
+    return p;
+  }
+  if (i == 27) {
+    let p: *u8 = "std_sys_linux_linux_syscall_listen";
+    return p;
+  }
+  if (i == 28) {
+    let p: *u8 = "std_sys_linux_linux_syscall_accept";
+    return p;
+  }
+  if (i == 29) {
+    let p: *u8 = "std_sys_linux_linux_mmap_rw";
+    return p;
+  }
+  if (i == 30) {
+    let p: *u8 = "std_sys_linux_linux_munmap";
+    return p;
+  }
+  if (i == 31) {
+    let p: *u8 = "std_sys_linux_linux_msync_sync";
+    return p;
+  }
+  if (i == 32) {
+    let p: *u8 = "std_sys_linux_linux_mmap_file_available";
+    return p;
+  }
+  if (i == 33) {
+    let p: *u8 = "std_sys_linux_linux_sys_module_anchor";
     return p;
   }
   return 0 as *u8;
@@ -3403,11 +3511,8 @@ export function labi_od_sys_linux_sym_at(i: i32): *u8 {
 /**
  * Whether user .o references std.sys.linux API (on-demand chain std/sys/linux.o).
  * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
- * F-no-libc freestanding Linux syscall thin wrappers (mmap/read/write/close/exit).
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
- * Why (wave126): hybrid still had needs_std_sys_linux body always mega C with hard-coded strings.
- * Keep single product table+orch in L8b; exact symbols only (no prefix table).
  * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
  */
 #[no_mangle]
@@ -3422,6 +3527,118 @@ export function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_sys_linux_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of sys_macos on_demand UNDEF probes (product formal .o gate).
+ * Exact symbol names only (no prefix/strstr probes).
+ * @return i32 — 13
+ * PLATFORM: SHARED — must match formal std/sys/macos export surface (nested leaf sys_macos)
+ */
+#[no_mangle]
+export function labi_od_sys_macos_sym_count(): i32 {
+  return 13;
+}
+
+/**
+ * Product sys_macos on_demand UNDEF symbol at index.
+ * @param i i32 — index in [0, 13)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_sys_macos authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_sys_macos_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_sys_macos_macos_exit";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_sys_macos_macos_write_available";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_sys_macos_macos_write";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_sys_macos_macos_write_stdout";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_sys_macos_macos_write_stderr";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_sys_macos_macos_read";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_sys_macos_macos_close";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_sys_macos_macos_read_file_into";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_sys_macos_macos_anonymous_mmap";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_sys_macos_macos_munmap";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_sys_macos_macos_mmap_available";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_sys_macos_macos_mmap_rw";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_sys_macos_macos_msync_sync";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.sys.macos API (on-demand chain std/sys/macos.o).
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * PLATFORM: SHARED — Darwin cfg import / macos_write_*; LINUX no-op unless needles fire.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_sys_macos(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_sys_macos_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_sys_macos_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;

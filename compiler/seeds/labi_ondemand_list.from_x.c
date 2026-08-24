@@ -1648,30 +1648,83 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
   return 0;
 }
 
-/* wave126: product std.sys.linux exact UNDEF table + needs_std_sys_linux pure orch.
+/* product sys_linux exact UNDEF table + needs pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_sys_linux_sym_count(void) { return 7; }
+int labi_od_sys_linux_sym_count(void) { return 34; }
 const char *labi_od_sys_linux_sym_at(int i) {
   if (i < 0)
     return NULL;
   if (i == 0)
-    return "std_sys_linux_linux_syscall_invoke_available";
+    return "std_sys_linux_linux_syscall_nr_read_amd64";
   if (i == 1)
-    return "std_sys_linux_linux_anonymous_mmap";
+    return "std_sys_linux_linux_syscall_nr_write_amd64";
   if (i == 2)
-    return "std_sys_linux_linux_syscall_munmap";
+    return "std_sys_linux_linux_syscall_nr_open_amd64";
   if (i == 3)
-    return "std_sys_linux_linux_syscall_read";
+    return "std_sys_linux_linux_syscall_nr_close_amd64";
   if (i == 4)
-    return "std_sys_linux_linux_syscall_write";
+    return "std_sys_linux_linux_syscall_nr_exit_amd64";
   if (i == 5)
-    return "std_sys_linux_linux_syscall_close";
+    return "std_sys_linux_linux_syscall_nr_mmap_amd64";
   if (i == 6)
+    return "std_sys_linux_linux_syscall_nr_read_arm64";
+  if (i == 7)
+    return "std_sys_linux_linux_syscall_nr_write_arm64";
+  if (i == 8)
+    return "std_sys_linux_linux_syscall_nr_openat_arm64";
+  if (i == 9)
+    return "std_sys_linux_linux_syscall_nr_close_arm64";
+  if (i == 10)
+    return "std_sys_linux_linux_syscall_nr_exit_arm64";
+  if (i == 11)
+    return "std_sys_linux_linux_syscall_nr_mmap_arm64";
+  if (i == 12)
+    return "std_sys_linux_linux_syscall_table_available";
+  if (i == 13)
+    return "std_sys_linux_linux_syscall_invoke_available";
+  if (i == 14)
+    return "std_sys_linux_linux_syscall_read";
+  if (i == 15)
+    return "std_sys_linux_linux_syscall_close";
+  if (i == 16)
+    return "std_sys_linux_linux_syscall_write";
+  if (i == 17)
     return "std_sys_linux_linux_syscall_exit";
+  if (i == 18)
+    return "std_sys_linux_linux_syscall_openat";
+  if (i == 19)
+    return "std_sys_linux_linux_anonymous_mmap";
+  if (i == 20)
+    return "std_sys_linux_linux_syscall_munmap";
+  if (i == 21)
+    return "std_sys_linux_linux_read_file_openat";
+  if (i == 22)
+    return "std_sys_linux_linux_syscall_open";
+  if (i == 23)
+    return "std_sys_linux_linux_read_file_into";
+  if (i == 24)
+    return "std_sys_linux_linux_syscall_socket";
+  if (i == 25)
+    return "std_sys_linux_linux_syscall_connect";
+  if (i == 26)
+    return "std_sys_linux_linux_syscall_bind";
+  if (i == 27)
+    return "std_sys_linux_linux_syscall_listen";
+  if (i == 28)
+    return "std_sys_linux_linux_syscall_accept";
+  if (i == 29)
+    return "std_sys_linux_linux_mmap_rw";
+  if (i == 30)
+    return "std_sys_linux_linux_munmap";
+  if (i == 31)
+    return "std_sys_linux_linux_msync_sync";
+  if (i == 32)
+    return "std_sys_linux_linux_mmap_file_available";
+  if (i == 33)
+    return "std_sys_linux_linux_sys_module_anchor";
   return NULL;
 }
 
-/* Pure orch: sys_linux table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
   int n;
   int i;
@@ -1680,6 +1733,55 @@ int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
   n = labi_od_sys_linux_sym_count();
   for (i = 0; i < n; i++) {
     const char *sym = labi_od_sys_linux_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* product sys_macos exact UNDEF table + needs pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
+int labi_od_sys_macos_sym_count(void) { return 13; }
+const char *labi_od_sys_macos_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_sys_macos_macos_exit";
+  if (i == 1)
+    return "std_sys_macos_macos_write_available";
+  if (i == 2)
+    return "std_sys_macos_macos_write";
+  if (i == 3)
+    return "std_sys_macos_macos_write_stdout";
+  if (i == 4)
+    return "std_sys_macos_macos_write_stderr";
+  if (i == 5)
+    return "std_sys_macos_macos_read";
+  if (i == 6)
+    return "std_sys_macos_macos_close";
+  if (i == 7)
+    return "std_sys_macos_macos_read_file_into";
+  if (i == 8)
+    return "std_sys_macos_macos_anonymous_mmap";
+  if (i == 9)
+    return "std_sys_macos_macos_munmap";
+  if (i == 10)
+    return "std_sys_macos_macos_mmap_available";
+  if (i == 11)
+    return "std_sys_macos_macos_mmap_rw";
+  if (i == 12)
+    return "std_sys_macos_macos_msync_sync";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_sys_macos(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_sys_macos_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_sys_macos_sym_at(i);
     if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
       return 1;
   }
@@ -3373,6 +3475,7 @@ const char *labi_od_rel_map(void) { return "std/map/map.o"; }
 const char *labi_od_rel_async_scheduler(void) { return "std/async/scheduler.o"; }
 const char *labi_od_rel_core_mem(void) { return "core/mem/mem.o"; }
 const char *labi_od_rel_sys_linux(void) { return "std/sys/linux.o"; }
+const char *labi_od_rel_sys_macos(void) { return "std/sys/macos.o"; }
 const char *labi_od_rel_page_mmap(void) { return "std/heap/page_mmap.o"; }
 const char *labi_od_rel_sys(void) { return "std/sys/sys.o"; }
 const char *labi_od_rel_core_slice(void) { return "core/slice/slice.o"; }
@@ -3630,6 +3733,7 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
     if (!driver_freestanding_get()) {
         int need_page_mmap = link_abi_user_o_needs_std_heap_page_mmap(user_o);
         int need_sys_linux = link_abi_user_o_needs_std_sys_linux(user_o);
+        int need_sys_macos = link_abi_user_o_needs_std_sys_macos(user_o);
         int need_sys = link_abi_user_o_needs_std_sys(user_o);
         int ai;
         /*
@@ -3646,12 +3750,32 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     need_page_mmap = 1;
                 if (link_abi_user_o_needs_std_sys_linux(argv[ai]))
                     need_sys_linux = 1;
+                if (link_abi_user_o_needs_std_sys_macos(argv[ai]))
+                    need_sys_macos = 1;
                 if (link_abi_user_o_needs_std_sys(argv[ai]))
                     need_sys = 1;
             }
         }
         if (need_sys_linux || need_page_mmap || need_sys) {
+            /* PLATFORM: SHARED — L4 wipe deletes linux.o; nested leaf sys_linux
+             * is authority for std_sys_linux_linux_*. Twin of need_sys ensure. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/sys/linux.o",
+                                                        "../std/sys/linux.o");
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys_linux(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (need_sys_macos) {
+            /* PLATFORM: SHARED — Darwin cfg import macos_write_*; ensure+push. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/sys/macos.o",
+                                                        "../std/sys/macos.o");
+            }
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys_macos(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_page_mmap || need_sys) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -4002,6 +4126,9 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o);
 int labi_od_sys_linux_sym_count(void);
 const char *labi_od_sys_linux_sym_at(int i);
 int link_abi_user_o_needs_std_sys_linux(const char *user_o);
+int labi_od_sys_macos_sym_count(void);
+const char *labi_od_sys_macos_sym_at(int i);
+int link_abi_user_o_needs_std_sys_macos(const char *user_o);
 int labi_od_sys_sym_count(void);
 const char *labi_od_sys_sym_at(int i);
 int link_abi_user_o_needs_std_sys(const char *user_o);
@@ -4068,6 +4195,7 @@ const char *labi_od_rel_map(void);
 const char *labi_od_rel_async_scheduler(void);
 const char *labi_od_rel_core_mem(void);
 const char *labi_od_rel_sys_linux(void);
+const char *labi_od_rel_sys_macos(void);
 const char *labi_od_rel_page_mmap(void);
 const char *labi_od_rel_sys(void);
 const char *labi_od_rel_core_slice(void);

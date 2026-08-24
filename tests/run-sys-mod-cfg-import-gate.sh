@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # B-19：std.sys/mod.x #[cfg] import 剪枝烟测（Darwin/Linux xlang-c）。
 # 用法：./tests/run-sys-mod-cfg-import-gate.sh
-# 环境：XLANG_SYS_MOD_CFG_IMPORT_FAIL=1 失败时硬退出
+# 环境：XLANG_SYS_MOD_CFG_IMPORT_FAIL=1 失败时硬退出（默认 1：table_available／macos_write 硬闸）
+# wave (2026-08-25): nested leaf sys_linux／sys_macos formal mangle + needles;
+# soft T001 residual closed for product -o cfg import.
+# PLATFORM: SHARED formal_mod／labi.
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_SYS_MOD_CFG_IMPORT_FAIL:-0}
+FAIL=${XLANG_SYS_MOD_CFG_IMPORT_FAIL:-1}
 X="tests/sys/sys_mod_cfg_import_smoke.x"
 OUT="/tmp/xlang_sys_mod_cfg_import.$$.out"
-XLANG="${XLANG:-./compiler/xlang-c}"
+XLANG="${XLANG:-./compiler/xlang_asm}"
 
 if [ ! -x "$XLANG" ]; then
   XLANG="./compiler/xlang"

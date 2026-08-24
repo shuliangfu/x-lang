@@ -54,6 +54,7 @@ export extern function link_abi_user_o_needs_std_queue(user_o: *u8): i32;
 export extern function link_abi_user_o_needs_std_set(user_o: *u8): i32;
 export extern function link_abi_user_o_needs_std_sys(user_o: *u8): i32;
 export extern function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32;
+export extern function link_abi_user_o_needs_std_sys_macos(user_o: *u8): i32;
 export extern function link_abi_user_o_needs_std_test(user_o: *u8): i32;
 export extern function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
 export extern function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
@@ -2455,9 +2456,10 @@ export function labi_od_rel_core_mem(): *u8 {
   return p;
 }
 
-/** Exported function `labi_od_rel_sys_linux`.
- * Implements `labi_od_rel_sys_linux`.
- * @return *u8
+/**
+ * Relative product path for formal std/sys/linux.o (on-demand push).
+ * @return *u8 — static C string "std/sys/linux.o"
+ * PLATFORM: SHARED — nested leaf sys_linux product face.
  */
 #[no_mangle]
 export function labi_od_rel_sys_linux(): *u8 {
@@ -2465,9 +2467,21 @@ export function labi_od_rel_sys_linux(): *u8 {
   return p;
 }
 
-/** Exported function `labi_od_rel_page_mmap`.
- * Implements `labi_od_rel_page_mmap`.
- * @return *u8
+/**
+ * Relative product path for formal std/sys/macos.o (on-demand push).
+ * @return *u8 — static C string "std/sys/macos.o"
+ * PLATFORM: SHARED — nested leaf sys_macos product face (Darwin cfg import).
+ */
+#[no_mangle]
+export function labi_od_rel_sys_macos(): *u8 {
+  let p: *u8 = "std/sys/macos.o";
+  return p;
+}
+
+/**
+ * Relative product path for formal std/heap/page_mmap.o (on-demand push).
+ * @return *u8 — static C string "std/heap/page_mmap.o"
+ * PLATFORM: SHARED
  */
 #[no_mangle]
 export function labi_od_rel_page_mmap(): *u8 {
@@ -3549,6 +3563,7 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     if (fs == 0) {
       let need_pm: i32 = link_abi_user_o_needs_std_heap_page_mmap(user_o);
       let need_sl: i32 = link_abi_user_o_needs_std_sys_linux(user_o);
+      let need_sm: i32 = link_abi_user_o_needs_std_sys_macos(user_o);
       let need_sy: i32 = link_abi_user_o_needs_std_sys(user_o);
       // Scan already-pushed argv for formal heap → page_mmap needs
       let ai: i32 = 0;
@@ -3571,6 +3586,9 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
             if (link_abi_user_o_needs_std_sys_linux(e) != 0) {
               need_sl = 1;
             }
+            if (link_abi_user_o_needs_std_sys_macos(e) != 0) {
+              need_sm = 1;
+            }
             if (link_abi_user_o_needs_std_sys(e) != 0) {
               need_sy = 1;
             }
@@ -3589,9 +3607,40 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         need_any_sys = 1;
       }
       if (need_any_sys != 0) {
+        // PLATFORM: SHARED — L4 wipe deletes linux.o; twin of need_sys ensure.
+        // Nested leaf rename makes linux.o the authority for std_sys_linux_linux_*.
+        let root_sl: *u8 = 0 as *u8;
+        unsafe {
+          root_sl = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_sl != 0 as *u8) {
+          if (root_sl[0] != 0) {
+            unsafe {
+              let _esl: i32 = xlang_ensure_formal_std_make_o(root_sl, "std/sys/linux.o", "../std/sys/linux.o");
+            }
+          }
+        }
         let rsl: *u8 = labi_od_rel_sys_linux();
         unsafe {
           let _sl: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rsl, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+      if (need_sm != 0) {
+        // PLATFORM: SHARED — Darwin cfg import macos_write_*; ensure+push macos.o.
+        let root_sm: *u8 = 0 as *u8;
+        unsafe {
+          root_sm = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_sm != 0 as *u8) {
+          if (root_sm[0] != 0) {
+            unsafe {
+              let _esm: i32 = xlang_ensure_formal_std_make_o(root_sm, "std/sys/macos.o", "../std/sys/macos.o");
+            }
+          }
+        }
+        let rsm: *u8 = labi_od_rel_sys_macos();
+        unsafe {
+          let _sm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rsm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
       }
       // core_mem when page_mmap or sys
