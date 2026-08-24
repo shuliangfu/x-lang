@@ -1,3 +1,4 @@
+> **2026-08-24**：LANG-002 import async scheduler_reset 硬绿 @ **`04ce31129`**（formal_surface＋unique on-demand 补 `std_async_scheduler_reset`；闸 observe→run；**不升钉**；双端 `-o`＋gate＋L2 5／5）。残：L6 unused／soft T001／`.x` std_config on-demand／slot dep-max。
 > **2026-08-24**：TOOL-009 vscode 0.2.0＋ENG-005 VERSION 硬绿 @ **`d39b3e092`**（根 VERSION＝0.2.0＋package／lock／README 同步；闸硬失败撤 SKIP；有 node vsix_ok=1；**不升钉**；双端 gate＋L2 5／5）。残：import async／L6 unused／soft T001／`.x` std_config on-demand／slot dep-max。
 > **2026-08-24**：CORE-001 generic_layout -o 硬绿 @ **`242ad78ed`**（asm fold size_of／align_of→imm；闸 -o 硬失败；**不升钉**；双端 gate skip=0＋L2 5／5）。残：vscode 0.2／soft T001／`.x` std_config on-demand／slot dep-max 产品入链。
 # C → .X 迁移追踪（自举全程待办地图）
