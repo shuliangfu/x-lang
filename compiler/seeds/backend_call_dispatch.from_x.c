@@ -3619,6 +3619,87 @@ int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platf
 #endif
 
 
+/* CORE-001 asm fold: type-arg sidecars + layout size/align (G.7 twins of host-C). */
+extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *arena, int32_t expr_ref, int32_t idx);
+extern int32_t glue_type_size_simple(void *mod, struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth);
+extern int32_t glue_type_align_simple(void *mod, struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth);
+
+/**
+ * CORE-001 asm twin of codegen_try_emit_size_align_of_call (host-C sizeof/_Alignof).
+ *
+ * Product surface (`core.types`): free `size_of<T>()` / import `types.size_of<T>()`.
+ * Zero-arg generics skip mono mangling → bare `core_types_size_of` → BLD001 UNDEF on
+ * default `-backend asm` -o. Fold here to imm in w0/eax (i32 return ABI).
+ *
+ * @return 1 folded, 0 not applicable, -1 emit error
+ * PLATFORM: SHARED — layout via glue_type_size_simple / glue_type_align_simple
+ */
+static int32_t try_fold_size_align_of_call_elf(struct ast_ASTArena *arena,
+                                               struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                               void *mod_ref, int32_t ta) {
+  int32_t callee_ref;
+  int32_t callee_ko;
+  int32_t n_ta;
+  int32_t ty_ref;
+  int32_t is_size = 0;
+  int32_t is_align = 0;
+  int32_t nlen = 0;
+  int32_t val = 0;
+  uint8_t name[128];
+
+  if (!arena || !elf_ctx || expr_ref <= 0)
+    return 0;
+  /* Zero value args; at least one type arg (turbofish). */
+  if (pipeline_expr_call_num_args_at(arena, expr_ref) != 0)
+    return 0;
+  n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+  if (n_ta < 1)
+    return 0;
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+  if (callee_ref <= 0)
+    return 0;
+  callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
+  memset(name, 0, sizeof(name));
+  if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
+    nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+    if (nlen <= 0 || nlen > 127)
+      return 0;
+    pipeline_expr_field_access_name_into(arena, callee_ref, name);
+  } else if (callee_ko == 3) { /* EXPR_VAR */
+    nlen = pipeline_expr_var_name_len(arena, callee_ref);
+    if (nlen <= 0 || nlen > 127)
+      return 0;
+    pipeline_expr_var_name_into(arena, callee_ref, name);
+  } else {
+    return 0;
+  }
+  /* Exact bare name: size_of (7) / align_of (8). Not size_of_i32 etc. */
+  if (nlen == 7 && name[0] == 's' && name[1] == 'i' && name[2] == 'z' && name[3] == 'e' && name[4] == '_' &&
+      name[5] == 'o' && name[6] == 'f') {
+    is_size = 1;
+  } else if (nlen == 8 && name[0] == 'a' && name[1] == 'l' && name[2] == 'i' && name[3] == 'g' && name[4] == 'n' &&
+             name[5] == '_' && name[6] == 'o' && name[7] == 'f') {
+    is_align = 1;
+  } else {
+    return 0;
+  }
+  ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+  if (ty_ref <= 0)
+    return 0;
+  if (is_size)
+    val = glue_type_size_simple(mod_ref, arena, ty_ref, 0);
+  else if (is_align)
+    val = glue_type_align_simple(mod_ref, arena, ty_ref, 0);
+  else
+    return 0;
+  if (val < 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, val, ta) != 0)
+    return -1;
+  return 1;
+}
+
 /**
  * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
  * 供 pipeline_asm_emit_expr_elf_rec 与 backend.x emit_expr_elf_call 委托。
@@ -3644,6 +3725,15 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
   backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
                       (int)pipeline_expr_call_num_args_at(arena, expr_ref));
+
+  /* CORE-001: size_of<T>/align_of<T> → imm (before import mangle → core_types_size_of). */
+  {
+    int32_t sa_rc = try_fold_size_align_of_call_elf(arena, elf_ctx, expr_ref, mod_ref, ta);
+    if (sa_rc < 0)
+      return -1;
+    if (sa_rc > 0)
+      return 0;
+  }
 
   /** hello.x: fmt.print/println string lit → call std_fmt_print / std_fmt_println. */
   if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {

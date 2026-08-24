@@ -71,6 +71,10 @@ export extern function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *
 export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
+export extern function pipeline_expr_call_num_type_args_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_type_arg_ref_at(arena: *u8, er: i32, idx: i32): i32;
+export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
+export extern function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
 export extern function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
@@ -3099,6 +3103,94 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
  * @param ta i32
  * @return i32
  */
+/**
+ * CORE-001 asm twin of codegen_try_emit_size_align_of_call (host-C sizeof/_Alignof).
+ * Fold `size_of<T>()` / `align_of<T>()` (free or import-qualified) to imm in w0/eax.
+ * Without this, zero-arg generics skip mono → bare `core_types_size_of` → BLD001 UNDEF.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF/Mach-O codegen ctx
+ * @param expr_ref i32 — EXPR_CALL site
+ * @param mod_ref *u8 — caller module (named-struct layouts)
+ * @param ta i32 — target arch
+ * @return i32 — 1 folded, 0 not applicable, -1 emit error
+ * PLATFORM: SHARED — layout via glue_type_size_simple / glue_type_align_simple
+ */
+function try_fold_size_align_of_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, mod_ref: *u8, ta: i32): i32 {
+  unsafe {
+    let callee_ref: i32 = 0;
+    let callee_ko: i32 = 0;
+    let n_ta: i32 = 0;
+    let ty_ref: i32 = 0;
+    let is_size: i32 = 0;
+    let is_align: i32 = 0;
+    let nlen: i32 = 0;
+    let val: i32 = 0;
+    let name: u8[128] = [];
+    let i: i32 = 0;
+    if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || expr_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 0) {
+      return 0;
+    }
+    n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    if (n_ta < 1) {
+      return 0;
+    }
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
+    i = 0;
+    while (i < 128) {
+      name[i] = 0;
+      i = i + 1;
+    }
+    if (callee_ko == 44) {
+      nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+      if (nlen <= 0) { return 0; }
+      if (nlen > 127) { return 0; }
+      pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+    } else if (callee_ko == 3) {
+      nlen = pipeline_expr_var_name_len(arena, callee_ref);
+      if (nlen <= 0) { return 0; }
+      if (nlen > 127) { return 0; }
+      pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+    } else {
+      return 0;
+    }
+    /* Exact bare name: size_of (7) / align_of (8). */
+    if (nlen == 7 && name[0] == 115 && name[1] == 105 && name[2] == 122 && name[3] == 101
+        && name[4] == 95 && name[5] == 111 && name[6] == 102) {
+      is_size = 1;
+    } else if (nlen == 8 && name[0] == 97 && name[1] == 108 && name[2] == 105 && name[3] == 103
+        && name[4] == 110 && name[5] == 95 && name[6] == 111 && name[7] == 102) {
+      is_align = 1;
+    } else {
+      return 0;
+    }
+    ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+    if (ty_ref <= 0) {
+      return 0;
+    }
+    if (is_size != 0) {
+      val = glue_type_size_simple(mod_ref, arena, ty_ref, 0);
+    } else if (is_align != 0) {
+      val = glue_type_align_simple(mod_ref, arena, ty_ref, 0);
+    } else {
+      return 0;
+    }
+    if (val < 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, val, ta) != 0) {
+      return 0 - 1;
+    }
+    return 1;
+  }
+}
+
 #[no_mangle]
 export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
@@ -3115,6 +3207,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       dep_pipe = pipeline_asm_emit_dep_pipe_c();
     }
     let callee_ko: i32 = pipeline_expr_kind_ord_at(arena, callee_ref);
+    /* CORE-001: size_of<T>/align_of<T> → imm (before import mangle → core_types_size_of). */
+    {
+      let sa_rc: i32 = try_fold_size_align_of_call_elf(arena, elf_ctx, expr_ref, mod_ref, ta);
+      if (sa_rc < 0) { return 0 - 1; }
+      if (sa_rc > 0) { return 0; }
+    }
     // See implementation.
     if (callee_ko == 44) {
       let pre_fmt: u8[16] = [];

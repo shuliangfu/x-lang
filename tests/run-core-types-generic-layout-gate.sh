@@ -93,13 +93,17 @@ if [ -n "$XLANG_BIN" ]; then
     echo "core-types-generic-layout gate SKIP check (paused / typeck debt)" >&2
   fi
   tmp="/tmp/xlang_core_types_gl_$$"
-  if "$XLANG_BIN" -L . "$GENERIC_X" -o "$tmp" 2>/dev/null && "$tmp"; then
+  # CORE-001 hard-green (2026-08-24): asm fold size_of/align_of → imm; -o must run 0.
+  if "$XLANG_BIN" -L . "$GENERIC_X" -o "$tmp" 2>/tmp/xlang_core_types_gl_o.err && "$tmp"; then
     GENERIC_OK=1
     SCALAR_OK=1
     SKIP=0
   else
-    echo "core-types-generic-layout gate SKIP -o smoke (see product CORE-001 residual)" >&2
-    SKIP=1
+    echo "core-types-generic-layout gate FAIL: -o smoke (CORE-001 asm fold residual)" >&2
+    cat /tmp/xlang_core_types_gl_o.err >&2 || true
+    core_types_gl_emit_report "fail" 0 "$SCALAR_OK" 0
+    rm -f "$tmp"
+    exit 1
   fi
   rm -f "$tmp"
 else
