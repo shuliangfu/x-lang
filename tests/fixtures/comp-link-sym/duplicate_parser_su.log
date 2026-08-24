@@ -1,0 +1,5 @@
+relink_experimental_bootstrap: parser_sx.o already defines parse_into_buf
+ld: duplicate symbol 'parse_into_buf' in:
+    compiler/build_asm/parser.o
+    compiler/parser_sx.o
+multiple definition of `parse_into_buf'; compiler/parser_sx.o: first defined here

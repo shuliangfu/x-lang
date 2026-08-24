@@ -93,6 +93,7 @@ node_modules/
 Thumbs.db
 *.log
 !tests/fixtures/bootstrap-stage-diag/*.log
+!tests/fixtures/comp-link-sym/*.log
 
 # --- compiler 目录：构建产物与生成文件（不提交） ---
 # 根目录 build_asm/（gen_driver、seed_host 等；compiler/build_asm/ 见下）
