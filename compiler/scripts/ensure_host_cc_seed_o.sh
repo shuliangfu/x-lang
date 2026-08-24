@@ -3133,6 +3133,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_param_ptr_slot_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_slot_bytes_thin.x ] \
+      && [ src/runtime_pipeline_abi_slot_bytes_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3146,6 +3150,7 @@ ensure_pipeline_abi_prefer_one() {
       # Still inject thin leaves (small -E) when present.
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_slot_bytes_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
@@ -3159,6 +3164,7 @@ ensure_pipeline_abi_prefer_one() {
       log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_slot_bytes_thin "$o" || true
       # ttc-thin merge-fail is pre-existing (already-strong dup); do not
       # abort before blkpeel (same as arrcopy || true before ttc).
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
@@ -3209,6 +3215,7 @@ ensure_pipeline_abi_prefer_one() {
     # (same body as mega pure leave) and first-wins ld -r over weak pure.
     pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_slot_bytes_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
@@ -3226,6 +3233,7 @@ ensure_pipeline_abi_prefer_one() {
     log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
     pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_slot_bytes_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
@@ -3242,6 +3250,7 @@ ensure_pipeline_abi_prefer_one() {
   fi
   pipeline_abi_inject_reent_deep_copy_thin "$o" || true
   pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+  pipeline_abi_inject_slot_bytes_thin "$o" || true
   pipeline_abi_inject_type_to_c_repr_thin "$o" || true
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
   pipeline_abi_inject_param_ptr_slot_thin "$o" || true
@@ -3305,6 +3314,14 @@ pipeline_abi_inject_reent_deep_copy_thin() {
 # dest-ARRAY [K][N]T memcpy / return Path B0 row stride inject.
 pipeline_abi_inject_fixed_array_copy_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fixed_array_copy_thin.x" "arrcopy-thin"
+}
+
+# NL-04: asm_local_slot_bytes dep-max (import PageMmapHeap thin lit vs dep 24B).
+# G.7: thin body matches runtime_pipeline_abi.x; first-wins over weak pure.
+# Keeps thin-first hybrid (seed-first dropped Ubuntu driver_diag).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_slot_bytes_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_slot_bytes_thin.x" "slotbytes-thin"
 }
 
 
