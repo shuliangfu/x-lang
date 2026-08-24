@@ -1967,13 +1967,16 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
-          # PLATFORM: SHARED — std/sys/sys.o co-emits import("std.sys.linux") bodies as
-          # std_sys_linux_linux_* (matches prod_pref std_sys_*). Authority = linux.o
-          # after nested-leaf rename; keep them local to avoid multi-def when both
-          # sys.o + linux.o are on LD argv (need_sy ∨ need_sl).
+          # PLATFORM: SHARED — only for std/sys/sys.o (leaf=sys): co-emitted
+          # import("std.sys.linux") bodies are std_sys_linux_linux_* and match
+          # prod_pref std_sys_*. Authority = linux.o after nested-leaf rename;
+          # keep them local to avoid multi-def when both sys.o + linux.o are on
+          # LD argv. Do NOT localize when leaf=sys_linux (linux.o itself).
           std_sys_linux_linux_*)
-            objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
-            continue
+            if [ "$leaf" = "sys" ]; then
+              objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+              continue
+            fi
             ;;
           "${prod_pref}"*) continue ;;
           core_*|std_*)
@@ -2000,8 +2003,14 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
-          # PLATFORM: SHARED — demote nested linux co-emit (see objcopy localize above).
-          std_sys_linux_linux_*) ;;
+          # PLATFORM: SHARED — demote nested linux co-emit only in sys.o (leaf=sys).
+          std_sys_linux_linux_*)
+            if [ "$leaf" = "sys" ]; then
+              :
+            else
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
           "${prod_pref}"*)
             printf '%s\n' "$sym" >>"$_exp_list"
             ;;
