@@ -1,3 +1,4 @@
+> **2026-08-25**：soft T001 table_available／sys nested leaf 硬绿 @ **`dbdb2a0f3`**（formal_mod `sys_linux`／`sys_macos`＋针表 linux×34／macos×13；闸硬失败；**不升钉**；双端 cfg＋L2 5／5）。残：L6 unused／slot dep-max／phase-f。
 > **2026-08-25**：std-config .x on-demand 硬绿 @ **`f36a20909`**（主刀 `d944e6c80`：formal_mod `std_config_*`＋fk0 k21；yaml 烟测 len＝65；闸硬失败；**不升钉**；双端 c／x＝1＋L2 5／5）。残：soft T001／L6 unused／slot dep-max。
 > **2026-08-24**：LANG-002 import async scheduler_reset 硬绿 @ **`04ce31129`**（formal_surface＋unique on-demand 补 `std_async_scheduler_reset`；闸 observe→run；**不升钉**；双端 `-o`＋gate＋L2 5／5）。残：L6 unused／soft T001／`.x` std_config on-demand／slot dep-max。
 > **2026-08-24**：TOOL-009 vscode 0.2.0＋ENG-005 VERSION 硬绿 @ **`d39b3e092`**（根 VERSION＝0.2.0＋package／lock／README 同步；闸硬失败撤 SKIP；有 node vsix_ok=1；**不升钉**；双端 gate＋L2 5／5）。残：import async／L6 unused／soft T001／`.x` std_config on-demand／slot dep-max。
