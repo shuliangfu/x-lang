@@ -859,8 +859,11 @@ rebuild_main_o_post_strict_link() {
   return 1
 }
 
-# ld -r：EMIT_HEAVY driver_compile + link_alias → driver_compile_link.o（strict 替换 driver_compile_x.o）。
+# EMIT_HEAVY driver_compile + link_alias → driver_compile_link.o（strict 替换 driver_compile_x.o）。
 # EMIT_HEAVY 常漏 driver_compile_parse_argv_loop；从 driver_compile_x.o 部分导出补全。
+# PLATFORM: SHARED — merge authority = pure_ld_partial_merge (G.7; no bare ld -r).
+# PLATFORM: MACOS — F7 MH_OBJECT has two LC_SEGMENT; Apple ld -r fails; merge → libtool ar.
+# PLATFORM: LINUX — cc/ld -r keeps single ET_REL.
 ensure_driver_parse_argv_loop_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
@@ -881,6 +884,7 @@ ensure_driver_compile_link_obj() {
   local alias_o="$BUILD_DIR/driver_compile_asm_link_alias.o"
   local link_o="$BUILD_DIR/driver_compile_link.o"
   local loop_partial="$BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
+  local merge_objs=""
   [ -f "$eh_o" ] && [ -s "$eh_o" ] || return 1
   [ -f "$alias_src" ] || return 1
   if [ ! -f "$alias_o" ] || [ "$alias_src" -nt "$alias_o" ]; then
@@ -891,18 +895,19 @@ ensure_driver_compile_link_obj() {
   ensure_driver_parse_argv_loop_partial_obj || return 1
   else
   loop_partial=""
-  # emit_heavy 已含 loop：仅用 eh+alias 重编 link_o，勿再 ld -r partial。
+  # emit_heavy 已含 loop：仅用 eh+alias 重编 link_o，勿再挂 loop partial。
   rm -f "$link_o" 2>/dev/null || true
   fi
   if [ ! -f "$link_o" ] || [ "$eh_o" -nt "$link_o" ] || [ "$alias_o" -nt "$link_o" ] || \
   { [ -n "$loop_partial" ] && [ -f "$loop_partial" ] && [ "$loop_partial" -nt "$link_o" ]; }; then
-  build_xlang_asm_info "ld -r driver_compile_emit_heavy.o + link_alias -> driver_compile_link.o"
+  build_xlang_asm_info "pure_ld_partial_merge driver_compile_emit_heavy + link_alias -> driver_compile_link.o"
   rm -f "$link_o" 2>/dev/null || true
+  merge_objs="$eh_o $alias_o"
   if [ -n "$loop_partial" ] && [ -f "$loop_partial" ]; then
-  ld -r -o "$link_o" "$eh_o" "$alias_o" "$loop_partial" 2>/dev/null || return 1
-  else
-  ld -r -o "$link_o" "$eh_o" "$alias_o" 2>/dev/null || return 1
+  merge_objs="$merge_objs $loop_partial"
   fi
+  # shellcheck disable=SC2086
+  pure_ld_partial_merge "$link_o" $merge_objs || return 1
   fi
   nm -g "$link_o" 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x' || return 1
   if nm "$link_o" 2>/dev/null | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
@@ -3124,7 +3129,22 @@ filter_strict_asm_objs() {
   fi
   if [ "$base" = "driver_compile_link.o" ]; then
   if asm_strict_link_driver_selfhosted; then
+  # PLATFORM: MACOS — pure_ld_partial_merge may leave link.o as libtool ar (F7
+  # two LC_SEGMENT). Apple ld extracts archive members only for currently-U
+  # symbols; weak/other defs can suppress the strong EMIT_HEAVY body. Expand to
+  # the underlying MH_OBJECT members (G.7 twin of Darwin user_asm MH host).
+  # PLATFORM: LINUX — link.o stays single ET_REL; keep as-is.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
+    && file "$o" 2>/dev/null | grep -qi 'ar archive'; then
+  FILTERED="$FILTERED $BUILD_DIR/driver_compile_emit_heavy.o $BUILD_DIR/driver_compile_asm_link_alias.o"
+  if [ -f "$BUILD_DIR/driver_compile_parse_argv_loop_partial.o" ] \
+    && nm "$BUILD_DIR/driver_compile_emit_heavy.o" 2>/dev/null \
+      | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
+  FILTERED="$FILTERED $BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
+  fi
+  else
   FILTERED="$FILTERED $o"
+  fi
   fi
   continue
   fi
@@ -6125,10 +6145,13 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ -n "$ST_BRIDGE_OBJ" ] || asm_strict_pipeline_selfhosted 2>/dev/null; then
   export XLANG_ASM_SKIP_ENTRY_SMOKE=1
   export XLANG_ASM_SKIP_MAIN_O_REBUILD=1
-  export XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1
   export XLANG_ASM_SKIP_WPO_DOGFOOD=1
+  # PLATFORM: SHARED — do NOT force SKIP_DRIVER_EMIT_HEAVY here. Tip can emit
+  # driver_compile EMIT_HEAVY; Darwin merge is pure_ld_partial_merge (libtool ar).
+  # Escape: caller may still set XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1.
   rebuild_main_o_for_cli || true
-  build_xlang_asm_info "skip WPO dogfood recompile (strict bridge / pipeline selfhosted)"
+  rebuild_driver_compile_emit_heavy_and_link || true
+  build_xlang_asm_info "skip WPO dogfood recompile (strict bridge / pipeline selfhosted); EMIT_HEAVY driver attempted"
   else
   rebuild_main_o_for_cli || true
   rebuild_driver_compile_emit_heavy_and_link || true

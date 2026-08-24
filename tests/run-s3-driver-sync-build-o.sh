@@ -87,16 +87,21 @@ if [ "$WPO_OK" -eq 0 ]; then
   echo "s3 driver sync-build-o: WPO fallback — $DEST = emit_heavy copy (__text=${eh_sz})"
 fi
 
-# ── 3) ld -r：emit_heavy + link_alias → driver_compile_link.o ──
+# ── 3) pure_ld_partial_merge：emit_heavy + link_alias → driver_compile_link.o ──
+# G.7: same authority as build_xlang_asm ensure_driver_compile_link_obj (no bare ld -r).
+# PLATFORM: MACOS — F7 two LC_SEGMENT → libtool ar; LINUX — ET_REL.
 # G-02e-15：alias 源为 .inc，经 compiler/scripts/cc_inc_tu.sh 编译
 LINK_ALIAS_INC="compiler/seeds/driver_compile_asm_link_alias.from_x.c"
 LINK_ALIAS_O="compiler/build_asm/driver_compile_asm_link_alias.o"
 LINK_O="compiler/build_asm/driver_compile_link.o"
+# shellcheck source=compiler/scripts/pure_ld_shared.sh
+. compiler/scripts/pure_ld_shared.sh
 if [ -f "$LINK_ALIAS_INC" ]; then
   # cc_inc_tu 在 compiler/ 下解析路径；此处从仓库根调用
   ( cd compiler && sh scripts/cc_inc_tu.sh seeds/driver_compile_asm_link_alias.from_x.c build_asm/driver_compile_asm_link_alias.o )
-  ld -r -o "$LINK_O" "$DEST_EH" "$LINK_ALIAS_O"
-  if nm "$LINK_O" 2>/dev/null | grep -q ' T _driver_run_compiler_full_x$'; then
+  rm -f "$LINK_O" 2>/dev/null || true
+  pure_ld_partial_merge "$LINK_O" "$DEST_EH" "$LINK_ALIAS_O"
+  if nm -g "$LINK_O" 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x'; then
     echo "s3 driver sync-build-o: wrote $LINK_O (driver_run_compiler_full_x alias OK)"
   else
     echo "s3 driver sync-build-o: warn: $LINK_O missing driver_run_compiler_full_x" >&2

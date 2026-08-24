@@ -1439,8 +1439,22 @@ if [ "${STRICT_LINK_BUILD_ASM_DRIVER:-0}" -eq 1 ] && [ -f "$BUILD_DIR/driver_com
   dc_sz=$(asm_o_text_bytes "$BUILD_DIR/driver_compile.o" 2>/dev/null || echo 0)
   fi
   if [ "$dc_sz" -ge 5120 ] 2>/dev/null; then
+  # PLATFORM: MACOS — link.o may be libtool ar (F7 two LC_SEGMENT via
+  # pure_ld_partial_merge). Expand to MH_OBJECT members for Apple ld (G.7 twin
+  # build_xlang_asm filter_strict_asm_objs). PLATFORM: LINUX — keep ET_REL link.o.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
+    && file "$BUILD_DIR/driver_compile_link.o" 2>/dev/null | grep -qi 'ar archive'; then
+  ST_DRIVER_COMPILE_O="$BUILD_DIR/driver_compile_emit_heavy.o $BUILD_DIR/driver_compile_asm_link_alias.o"
+  if [ -f "$BUILD_DIR/driver_compile_parse_argv_loop_partial.o" ] \
+    && nm "$BUILD_DIR/driver_compile_emit_heavy.o" 2>/dev/null \
+      | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
+  ST_DRIVER_COMPILE_O="$ST_DRIVER_COMPILE_O $BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
+  fi
+  strict_glue_info "driver selfhosted (__text=${dc_sz}B, Darwin eh+alias MH, STRICT_LINK_BUILD_ASM_DRIVER=1)"
+  else
   ST_DRIVER_COMPILE_O="$BUILD_DIR/driver_compile_link.o"
   strict_glue_info "driver selfhosted (__text=${dc_sz}B, link.o, STRICT_LINK_BUILD_ASM_DRIVER=1)"
+  fi
   fi
 fi
 # orchestration partial 已含 pipeline_run_x_pipeline_impl；勿再链 trampoline（与 build_xlang_asm strict_support 一致）。
