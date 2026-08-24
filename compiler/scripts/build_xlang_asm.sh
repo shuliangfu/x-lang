@@ -1113,32 +1113,45 @@ xlang_asm_entry_module_smoke_ok() {
   return 0
 }
 
-# ast_pool.c 变更后须重编 pipeline_x.o（含 WPO reach fixpoint）并重链 experimental。
+# WPO experimental freshness (G.7 single authority).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; live WPO source is runtime_pipeline_abi.x (+ seed twin). Stale checks on
+# deleted files never fired → experimental lagged ASM_WPO_MAX_FUNCS / emit_order
+# clamp and re-emitted ~814KiB fake strchr volume when preferred as fallback.
+# Name kept (call sites); body retargeted to abi.x / seed / pipeline_x.o.
 ensure_experimental_ast_pool_for_wpo() {
   local gen_drv="$BUILD_DIR/gen_driver/pipeline_x.o"
+  local abi_x="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
+  local abi_seed="seeds/runtime_pipeline_abi.from_x.c"
   local need=0
-  if [ ast_pool.c -nt pipeline_x.o ] 2>/dev/null || [ pipeline_glue.c -nt pipeline_x.o ] 2>/dev/null; then
+  # Host-cc mega pipeline_x.o still used in some bags: refresh when abi sources newer.
+  if [ -f "$abi_x" ] && { [ "$abi_x" -nt pipeline_x.o ] 2>/dev/null \
+    || { [ -f "$gen_drv" ] && [ "$abi_x" -nt "$gen_drv" ]; }; }; then
   need=1
-  elif [ -f "$gen_drv" ] && { [ ast_pool.c -nt "$gen_drv" ] || [ pipeline_glue.c -nt "$gen_drv" ]; }; then
+  elif [ -f "$abi_seed" ] && { [ "$abi_seed" -nt pipeline_x.o ] 2>/dev/null \
+    || { [ -f "$gen_drv" ] && [ "$abi_seed" -nt "$gen_drv" ]; }; }; then
   need=1
   fi
   if [ "$need" -eq 1 ]; then
   # Wave929: shell try-heat with PIPELINE_X_FORCE_COMPILE=1 (no make).
-  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug; MF must exist).
   if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    build_xlang_asm_info "ast_pool/glue stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
+    build_xlang_asm_info "abi/WPO source stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
     make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
   else
-    build_xlang_asm_info "ast_pool/glue stale - try-heat pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 (wave929)"
+    build_xlang_asm_info "abi/WPO source stale - try-heat pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 (wave929)"
     PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o || return 1
   fi
   fi
   if [ ! -x ./scripts/relink_xlang_asm_experimental_bootstrap.sh ]; then
   return 1
   fi
-  if [ ! -x ./xlang_asm.experimental ] || [ pipeline_x.o -nt ./xlang_asm.experimental ] 2>/dev/null \
-  || [ ast_pool.c -nt ./xlang_asm.experimental ] 2>/dev/null; then
-  build_xlang_asm_info "relink xlang_asm.experimental (pipeline_x.o / ast_pool WPO)"
+  # Relink experimental when missing or abi / pipeline_x newer (fallback candidate).
+  if [ ! -x ./xlang_asm.experimental ] \
+  || { [ -f "$abi_x" ] && [ "$abi_x" -nt ./xlang_asm.experimental ]; } \
+  || { [ -f "$abi_seed" ] && [ "$abi_seed" -nt ./xlang_asm.experimental ]; } \
+  || [ pipeline_x.o -nt ./xlang_asm.experimental ] 2>/dev/null; then
+  build_xlang_asm_info "relink xlang_asm.experimental (abi WPO source / pipeline_x.o)"
   ./scripts/relink_xlang_asm_experimental_bootstrap.sh || return 1
   fi
   return 0
@@ -1421,13 +1434,16 @@ rebuild_backend_wpo_post_strict() {
 # 仅重编 WPO dogfood 五模块（CI/stage2 补链；须已有可执行 ./xlang_asm，跳过 BUILD 循环与链接）。
 if [ "${XLANG_WPO_REBUILD_ARTIFACTS_ONLY:-}" = "1" ]; then
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-  # ast_pool WPO reach：重编 pipeline_x.o + relink experimental（WPO 产物编应用须 xlang_asm.experimental 或 strict_glue）。
+  # G.7: WPO authority = runtime_pipeline_abi.x (+ seed). ensure refreshes
+  # experimental from abi freshness (deleted ast_pool.c never fired). ARTIFACTS
+  # dogfood prefers tip ./xlang_asm — only relink strict_glue when pipeline_x.o
+  # itself is newer (avoid abi-mtime → full strict relink every dogfood).
   ensure_experimental_ast_pool_for_wpo || \
-  build_xlang_asm_warn "ensure_experimental_ast_pool_for_wpo failed (WPO rebuild may use stale ast_pool)"
+  build_xlang_asm_warn "ensure_experimental_ast_pool_for_wpo failed (WPO rebuild may use stale experimental)"
   if [ -x ./scripts/relink_xlang_asm_strict_glue.sh ] \
-  && { [ ast_pool.c -nt ./xlang_asm.strict_glue ] 2>/dev/null || [ pipeline_glue.c -nt ./xlang_asm.strict_glue ] 2>/dev/null \
-  || [ pipeline_x.o -nt ./xlang_asm.strict_glue ] 2>/dev/null; }; then
-  build_xlang_asm_info "ast_pool/glue newer - relink xlang_asm.strict_glue (pipeline_glue_standalone only, no xlang_asm overwrite)"
+  && [ -x ./xlang_asm.strict_glue ] \
+  && [ pipeline_x.o -nt ./xlang_asm.strict_glue ] 2>/dev/null; then
+  build_xlang_asm_info "pipeline_x.o newer - relink xlang_asm.strict_glue (no xlang_asm overwrite)"
   ./scripts/relink_xlang_asm_strict_glue.sh || \
   build_xlang_asm_warn "relink_xlang_asm_strict_glue failed"
   fi
@@ -5922,7 +5938,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   xlang_asm_bstrict_fail "typeck.o EMIT_HEAVY required for S2 gate after CI experimental bootstrap"
   fi
   else
-  # ast_pool 变更后须刷新 pipeline_x.o + experimental，第二遍 EMIT_HEAVY skip_heavy 才生效。
+  # abi/WPO source 变更后须刷新 pipeline_x.o + experimental（G.7；非已删 ast_pool.c）。
   ensure_experimental_ast_pool_for_wpo || true
   # 第二遍：bootstrap xlang_asm 重编 pipeline/typeck/parser/backend，再 strict 重链（无 pipeline_x.o）。
   SECOND_PASS_OK=0
@@ -6455,7 +6471,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   xlang_asm_sync_stage1_from_strict
   fi
   fi
-  # strict 链成功后：用新链 ./xlang_asm 重编 WPO 压缩 .o（ast_pool+ulimit；main EH=0 ~656B）。
+  # strict 链成功后：用新链 ./xlang_asm 重编 WPO 压缩 .o（abi freshness+ulimit；main EH=0 ~656B）。
   if rebuild_main_o_post_strict_link; then
   :
   elif [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
