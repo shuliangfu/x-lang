@@ -2,14 +2,18 @@
 # B-31：freestanding_io_x86_64.s 极薄 .s 桩登记 + Linux freestanding hello 烟测。
 #
 # 用法：./tests/run-b31-freestanding-io-gate.sh
+# wave honesty (2026-08-24 #4): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 ASM="compiler/src/asm/freestanding_io_x86_64.s"
 FAIL=${XLANG_B31_FAIL:-0}
+DOC="${XLANG_B_DOC:-analysis/archive/phase/phase-b-completion-v1.md}"
 
 echo "=== B-31: freestanding_io .s baseline ==="
-for f in "$ASM" tests/run-freestanding-hello.sh analysis/phase-b-completion-v1.md; do
+for f in "$ASM" tests/run-freestanding-hello.sh "$DOC"; do
   [ -f "$f" ] || { echo "b31 gate FAIL: missing $f" >&2; exit 1; }
 done
 grep -q 'xlang_sys_write' "$ASM" || { echo "b31 gate FAIL: .s missing xlang_sys_write" >&2; exit 1; }

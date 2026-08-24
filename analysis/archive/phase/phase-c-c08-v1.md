@@ -1,5 +1,7 @@
 # 阶段 C-08 完成标准 v1（NEXT §6）
 
+> **honesty 2026-08-24 #4**：archived; gate default = `analysis/archive/phase/phase-c-c08-v1.md`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left). Monofile `seeds/runtime.from_x.c` retired wave321; `compiler/Makefile` / root `Makefile` deleted MG wave941. Live: `rt_*` multi-slice · `mk/driver_subcmd_objs.mk` · `./xbuild`.
+>
 > **目标**：`main.c` 仅保留进程入口；驱动/构建编排迁 `.x`（`main.x` + `src/driver/*.x` + 根 `build.x`）；`runtime.c` 仅 ABI/C glue。
 
 ## v1 完成（✅）

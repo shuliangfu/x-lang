@@ -2,11 +2,16 @@
 # B-04 v1：freestanding syscall 等价路径（extern → freestanding_io_x86_64.s，非 asm{} 语法）。
 #
 # 用法：./tests/run-b04-freestanding-syscall-gate.sh
+# wave honesty (2026-08-24 #4): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_B_DOC:-analysis/archive/phase/phase-b-completion-v1.md}"
+
 echo "=== B-04: freestanding syscall (extern→.s) ==="
-for f in std/sys/linux.x compiler/src/asm/freestanding_io_x86_64.s analysis/phase-b-completion-v1.md; do
+for f in std/sys/linux.x compiler/src/asm/freestanding_io_x86_64.s "$DOC"; do
   [ -f "$f" ] || { echo "b04 gate FAIL: missing $f" >&2; exit 1; }
 done
 grep -q 'extern function xlang_sys_write' std/sys/mod.x || { echo "b04 gate FAIL: mod.x missing extern write" >&2; exit 1; }

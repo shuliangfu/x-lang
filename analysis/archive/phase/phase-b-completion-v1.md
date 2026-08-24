@@ -1,5 +1,7 @@
 # 阶段 B 完成标准 v1（NEXT §5）
 
+> **honesty 2026-08-24 #4**：archived; gate default = `analysis/archive/phase/phase-b-completion-v1.md`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left). B-30 monofile `runtime.from_x.c` retired wave321 — live IO/link faces: `runtime_read_file_view` / `xlang_write_path_bytes` / `link_abi_generated_c_contains_any_substr`.
+>
 > **目标**：语言 `#[cfg]`/`#[repr(C)]` + `std.sys` 斩断 C 脐带（读/写/文件/mmap/syscall），**不阻塞**阶段 C/F 的去 C 与 `asm { }` 语法大项。
 
 ## 完成定义（v1 = ✅）
