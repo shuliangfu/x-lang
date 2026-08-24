@@ -1187,8 +1187,7 @@ export function asm_import_binding_name_equal(module: *Module, imp_ix: i32, nm: 
   }
 }
 
-/** pipeline_module_import_path å
-ç¬¬ want_seg æ®µèµ·ç¹åç§»ä¸é¿åº¦ï¼ä¸ typeck_import_segment_at ä¸è´ï¼ã */
+/** Start offset and length of the want_seg-th segment in pipeline_module_import_path (aligned with typeck_import_segment_at). */
 export function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_seg: i32,
   ostr: *i32, olen: *i32): bool {
 
@@ -1232,8 +1231,9 @@ export function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_s
   }
 }
 
-/** å°æ­£å¨ codegen ç module å¨ç¬¬ imp_ix æ§½ç import é»è¾è·¯å¾è½¬æ C ABI åç¼åå
-¥ pre_bufï¼æåè¿ååç¼é¿åº¦ï¼å­èï¼ï¼è·¯å¾ç©ºæåç¼ç©ºè¿å -1ã */
+/** Convert cur_mod import[imp_ix] logical path to a C ABI prefix into pre_buf.
+ * @return i32 — prefix byte length on success; -1 if path/prefix empty.
+ */
 export function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i32, pre_buf: *u8): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1256,18 +1256,14 @@ export function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i
   }
 }
 
-/** è¥ä¸º `import a.bâ¦` + `a.bâ¦.method(args)` å½¢å¼ï¼æ¼è£
-ä¸ codegen ä¸è´ç C ABI ç¬¦å·å¹¶åå
-¥ sym_flatï¼è¿åå­èé¿åº¦ï¼-1 æªå¹é
-ã
- * æåæ¶åæ¶å°å¯¹åº module import æ§½ä¸æ åå
-¥ *out_match_imp_jã
- * pipe ä»
-ä¿çåæ°å
-¼å®¹ï¼åç¼ä¸å¾ä» cur_mod ç import æ§½åè·¯å¾ï¼codegen dep æ¨¡åæ¶ PipelineDepCtx.ndep å¸¸ä¸ºå
-¥å£ direct ä¾èµæ°ï¼
- * ä¸ cur_mod.num_imports ä¸ä¸è´ï¼ä¸å¯ç¨ dep_j &lt; pipe.ndep æªæ­æ¥æ¾ï¼ãæªå¹é
-ä¸å *outã */
+/** Resolve `import a.b…` + `a.b….method(args)` into a codegen-aligned C ABI symbol in sym_flat.
+ * @param sym_flat *u8 — out buffer; returns byte length, or -1 on miss.
+ * On success also writes the matching module import slot index to *out_match_imp_j.
+ * `pipe` is retained for ABI capacity: prefix always comes from cur_mod import path
+ * (PipelineDepCtx.ndep is often the entry direct-dep count under codegen dep modules and
+ * need not match cur_mod.num_imports — do not use dep_j < pipe.ndep as a miss filter).
+ * On miss leave *out unchanged.
+ */
 export function asm_resolve_whole_import_qualified_symbol(
   arena: *ASTArena, cur_mod: *Module, pipe: *PipelineDepCtx, callee_expr_ref: i32, sym_flat: *u8,
   out_match_imp_j: *i32): i32 {
@@ -1316,8 +1312,7 @@ export function asm_emit_call_args_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx
 }
 
 
-/** æ¯è¾ä¸¤æ®µæ è¯ç¬¦å­èåºåæ¯å¦ç¸ç­ï¼ä¸ typeck.name_equal ç­ä»·ï¼ä¾ asm å
-æ¥ struct_layoutï¼ã */
+/** Compare two identifier byte sequences for equality (same role as typeck.name_equal; used by asm struct_layout lookup). */
 export function asm_names_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   if (a_len != b_len || a_len <= 0) {
     return false;
@@ -1369,8 +1364,8 @@ export function asm_module_named_type_has_struct_layout(module: *Module, name: *
 }
 
 /**
- * FIELD_ACCESS å¨ effective address [rax+x0]+offset å¤åºå è½½çå­èå®½åº¦ã
- * module_ref ä¸ºç©ºæ¶éå 8 å­èä»¥ä¿æåå²è¡ä¸ºã
+ * Byte width to load at FIELD_ACCESS effective address [rax/x0]+offset.
+ * When module_ref is null, fall back to 8 bytes to preserve historical behavior.
  */
 export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: i32, module: *Module): i32 {
 
@@ -1404,8 +1399,7 @@ export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: 
   }
 }
 
-/** éç½®å½æ°ä¸ä¸æï¼ç¨äºæ°å½æ°å¼å§ãmod è®°å
-¥ module_refï¼ä¾ emit_expr FIELD_ACCESS ç­ä½¿ç¨ã */
+/** Reset per-function asm context for a new function. Records mod into module_ref for emit_expr FIELD_ACCESS etc. */
 /** Exported function `ctx_reset`.
  * Implements `ctx_reset`.
  * @param ctx *AsmFuncCtx
@@ -1429,7 +1423,7 @@ export function ctx_reset(ctx: *AsmFuncCtx, mod: *Module): void {
   }
 }
 
-/** æå½¢å + åä¸­ const + let æ°éè®¡ç®æ å¸§å¤§å°ï¼æ¯æ§½ 8 å­èï¼åä¸åæ´å° 16ï¼ï¼å¹¶é¢ç 64 å­è temp åºä¾ STRUCT_LIT/ARRAY_LITã */
+/** Compute stack frame size from params + block const/let count (8 bytes/slot, round up to 16), reserving 64-byte temp for STRUCT_LIT/ARRAY_LIT. */
 /** Exported function `compute_frame_size`.
  * Implements `compute_frame_size`.
  * @param num_params i32
@@ -1446,8 +1440,7 @@ export function compute_frame_size(num_params: i32, arena: *ASTArena, block_ref:
 }
 
 
-/** å°å½æ°çå½¢åå¡«å
-¥ ctx å±é¨ sidecarï¼åç§» 8, 16, 24, ...ï¼ï¼é¡»å¨ fill_local_slots åè°ç¨ã */
+/** Fill function params into ctx local sidecar (offsets 8, 16, 24, …). Must run before fill_local_slots. */
 /** Exported function `fill_param_slots`.
  * Implements `fill_param_slots`.
  * @param ctx *AsmFuncCtx
@@ -1465,8 +1458,7 @@ export function fill_param_slots(ctx: *AsmFuncCtx, mod: *Module, func_index: i32
 }
 
 
-/** å°åç const/let å¡«å
-¥ ctx å±é¨ sidecarï¼åç§»ä» ctx.next_offset èµ·ï¼fill_param_slots åè°ç¨ï¼ã */
+/** Fill block const/let into ctx local sidecar starting at ctx.next_offset (after fill_param_slots). */
 /** Exported function `fill_local_slots`.
  * Implements `fill_local_slots`.
  * @param ctx *AsmFuncCtx
@@ -1485,10 +1477,9 @@ export function fill_local_slots(ctx: *AsmFuncCtx, arena: *ASTArena, block_ref: 
 
 
 /**
- * If è¯­å¥ç then åå¯å«ç¬ç« const/letï¼é¡»å
-å
-¥ ctx.locals æ å°æå¯è§£æ EXPR_VARã
- * ä¸ EXPR_BLOCK è·¯å¾ä¸è´ï¼æå¢æ§½è¡¨ï¼å®æåæ¢å¤ num_locals/next_offsetï¼åµå¥åæ¯æ åç§»å¯åæ¶å¤ç¨ã
+ * If-stmt then-block may hold independent const/let; they must be entered into ctx.locals
+ * before EXPR_VAR resolution. Same pattern as EXPR_BLOCK: temporarily grow the slot table,
+ * then restore num_locals/next_offset so nested branch stack offsets can be reused.
  */
 /** Exported function `emit_if_then_block_body_text`.
  * Implements `emit_if_then_block_body_text`.
@@ -1507,8 +1498,7 @@ export function emit_if_then_block_body_text(arena: *ASTArena, out: *CodegenOutB
 }
 
 
-/** ELF è·¯å¾ï¼`emit_if_then_block_body_text` çé
-å¯¹å®ç°ãta ä¸ºç®æ æ¶æç´¢å¼ã */
+/** ELF path: machine counterpart of `emit_if_then_block_body_text`. ta is target-arch index. */
 /* See implementation. */
 export function emit_if_then_block_body_elf(
   arena: *ASTArena,
@@ -1524,7 +1514,7 @@ export function emit_if_then_block_body_elf(
 }
 
 
-/** å¨ ctx å±é¨ sidecar ä¸­æ¥æ¾åå­ï¼è¿ååç§»ï¼æªæ¾å°è¿å -1ã */
+/** Look up name in ctx local sidecar; return stack offset, or -1 if not found. */
 /** Exported function `local_offset`.
  * Implements `local_offset`.
  * @param ctx *AsmFuncCtx
@@ -1555,9 +1545,7 @@ export function arch_emit_ret_imm32(out: *CodegenOutBuf, imm: i32, ta: i32): i32
     return x86_64.emit_ret_imm32(out, imm);
   }
 }
-/** å° 64 ä½ç«å³æ°ï¼lo/hi ä¸ºä½/é« 32 ä½ï¼è£
-å
-¥ rax/x0ãç¨äº EXPR_FLOAT_LIT åå° double ä½æ¨¡å¼ã */
+/** Move a 64-bit immediate (lo/hi = low/high 32 bits) into rax/x0. Used for EXPR_FLOAT_LIT double bit patterns. */
 export function arch_emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1567,9 +1555,7 @@ export function arch_emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32
     return x86_64.emit_mov_imm64_to_rax(out, lo, hi);
   }
 }
-/** 7.3ï¼ç«å³æ°å
-¥ rbx/w1ï¼ADD å·¦æä½æ°ä¸ºå­é¢éæ¶å
- push/popã */
+/** 7.3: immediate into rbx/w1; avoids push/pop when ADD left operand is a literal. */
 export function arch_emit_mov_imm32_to_rbx(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1617,8 +1603,7 @@ export function arch_emit_test_setz(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** ä»
-æ¯è¾ rbx ä¸ raxï¼ç½®æ å¿/ç»æä¾ jzï¼ãmatch åæ¯ç¸ç­æ¯è¾ç¨ã */
+/** Compare rbx vs rax (set flags/result for jz). Used by match-arm equality. */
 export function arch_emit_cmp_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1629,7 +1614,7 @@ export function arch_emit_cmp_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** æ¯è¾è¿ç®ï¼left å·²å¨ rbxï¼right å¨ raxï¼æ ¹æ® cc ç½®ç»æä¸º 0/1ãcc: 0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=geã */
+/** Compare: left already in rbx, right in rax; set result 0/1 from cc. cc: 0=eq,1=ne,2=lt,3=le,4=gt,5=ge. */
 export function arch_emit_cmp_setcc(out: *CodegenOutBuf, cc: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1812,7 +1797,7 @@ export function arch_emit_store_rax_to_rbp(out: *CodegenOutBuf, off: i32, ta: i3
     return x86_64.emit_store_rax_to_rbp(out, off);
   }
 }
-/** LEA å±é¨åéå°åå° raxï¼x86/arm64ï¼ãç¨äº EXPR_INDEX base ä¸º VARãSTRUCT_LIT/ARRAY_LIT temp åºã */
+/** LEA local-variable address into rax (x86/arm64). For EXPR_INDEX base=VAR and STRUCT_LIT/ARRAY_LIT temp. */
 export function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1823,9 +1808,9 @@ export function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32)
   }
 }
 /**
- * Textï¼å±é¨ VAR ä¸ºæéåä»æ æ§½è½½å
-¥æéå° raxï¼å¦å rax = æ æ§½å°åï¼å°±å°ç»æ/æ°ç»ï¼ã
- * codegen.x ä¸­ `fn(..., out: *CodegenOutBuf)` ç­å¯¹ `out.field` é¡»èµ° loadï¼ä¸è½ lea slotã
+ * Text path: if local VAR is a pointer, load pointer from stack slot into rax;
+ * otherwise rax = stack-slot address (in-place struct/array).
+ * In codegen.x, `fn(..., out: *CodegenOutBuf)` style `out.field` must load — never lea the slot.
  */
 export function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *CodegenOutBuf, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
@@ -1833,8 +1818,7 @@ export function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *Codegen
     return pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, stack_off, ta, ctx as *u8);
   }
 }
-/** rax/x0 = rax/x0 + rbx/x1*4ãç¨äº EXPR_INDEX ä¸æ ä¹å
-ç´ å¤§å° 4ã */
+/** rax/x0 = rax/x0 + rbx/x1*4. For EXPR_INDEX with element size 4. */
 export function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1844,7 +1828,7 @@ export function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32
     return x86_64.emit_rax_plus_rbx_scale4(out);
   }
 }
-/** rbxÃ1 åå å°å°åï¼u8 æ°ç»ï¼ã */
+/** Add rbx×1 to address (u8 arrays). */
 export function arch_emit_rax_plus_rbx_scale1(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1854,7 +1838,7 @@ export function arch_emit_rax_plus_rbx_scale1(out: *CodegenOutBuf, ta: i32): i32
     return x86_64.emit_rax_plus_rbx_scale1(out);
   }
 }
-/** rbxÃ8ï¼æéåçç­ï¼ã */
+/** rbx×8 (pointer slices, etc.). */
 export function arch_emit_rax_plus_rbx_scale8(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1864,7 +1848,7 @@ export function arch_emit_rax_plus_rbx_scale8(out: *CodegenOutBuf, ta: i32): i32
     return x86_64.emit_rax_plus_rbx_scale8(out);
   }
 }
-/** INDEX èµå¼ï¼store è³ [rbx]ã */
+/** INDEX store: write to [rbx]. */
 export function arch_emit_store_rax_to_rbx_indirect(out: *CodegenOutBuf, elem_sz: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1874,8 +1858,7 @@ export function arch_emit_store_rax_to_rbx_indirect(out: *CodegenOutBuf, elem_sz
     return x86_64.emit_store_rax_to_rbx_indirect(out, elem_sz);
   }
 }
-/** ä» [rax]/[x0] å è½½ 4 å­èå° rax/w0ãç¨äº EXPR_INDEX è¯»å
-ç´ ã */
+/** Load 4 bytes from [rax]/[x0] into rax/w0. For EXPR_INDEX element reads. */
 export function arch_emit_load_32_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1885,8 +1868,7 @@ export function arch_emit_load_32_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
     return x86_64.emit_load_32_from_rax(out);
   }
 }
-/** u8 å
-ç´ è¯»åï¼é¶æ©å±å°ç®æ è¿åå¯å­å¨ã */
+/** Load u8 element and zero-extend into the return register. */
 export function arch_emit_load_zext8_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1906,7 +1888,7 @@ export function arch_emit_add_imm_to_rax(out: *CodegenOutBuf, imm: i32, ta: i32)
     return x86_64.emit_add_imm_to_rax(out, imm);
   }
 }
-/** ä» [rax]/[x0] å è½½ 8 å­èå° rax/x0ãç¨äº EXPR_FIELD_ACCESSã */
+/** Load 8 bytes from [rax]/[x0] into rax/x0. For EXPR_FIELD_ACCESS. */
 export function arch_emit_load_64_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1916,8 +1898,7 @@ export function arch_emit_load_64_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
     return x86_64.emit_load_64_from_rax(out);
   }
 }
-/** å° rax å­å° [rbx+offset]ãstore_size 4=ARRAY_LIT å
-ç´ ï¼8=STRUCT_LIT å­æ®µãç¨äº STRUCT_LIT/ARRAY_LIT temp åºã */
+/** Store rax to [rbx+offset]. store_size 4=ARRAY_LIT element, 8=STRUCT_LIT field. For STRUCT_LIT/ARRAY_LIT temp. */
 export function arch_emit_store_rax_to_rbx_offset(out: *CodegenOutBuf, offset: i32, store_size: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1927,7 +1908,7 @@ export function arch_emit_store_rax_to_rbx_offset(out: *CodegenOutBuf, offset: i
     return x86_64.emit_store_rax_to_rbx_offset(out, offset, store_size);
   }
 }
-/** å° rbx æ·å° raxï¼åºå/å¼ï¼ãç¨äº STRUCT_LIT/ARRAY_LIT è¿å temp åºåºåã */
+/** Copy rbx to rax (base/value). For STRUCT_LIT/ARRAY_LIT returning temp base. */
 export function arch_emit_mov_rbx_to_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1937,7 +1918,7 @@ export function arch_emit_mov_rbx_to_rax(out: *CodegenOutBuf, ta: i32): i32 {
     return x86_64.emit_mov_rbx_to_rax(out);
   }
 }
-/** å°å½å rax æ·å°ç¬¬ k ä¸ªåæ°å¯å­å¨ï¼System Vï¼0=rdi..5=r9ï¼ãarm64 å¤åéè¿æ æ§½ + ä¸æ load å®ç°ï¼æ­¤å¤ x86 æ movã */
+/** Copy current rax into arg register k (System V: 0=rdi..5=r9). arm64 multi-arg uses stack slots + later load; x86 mov here. */
 export function arch_emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1948,9 +1929,7 @@ export function arch_emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32, ta: i3
   }
 }
 
-/** arm64ï¼ä» [sp + i*16] è£
-å
-¥ wiï¼ç¨äºå¤å call åãx86 ä¸è°ç¨ã */
+/** arm64: load [sp + i*16] into wi before multi-arg calls. Not used on x86. */
 export function arch_emit_ldr_sp_offset_to_wi(out: *CodegenOutBuf, i: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1960,7 +1939,7 @@ export function arch_emit_ldr_sp_offset_to_wi(out: *CodegenOutBuf, i: i32, ta: i
   }
 }
 
-/** arm64ï¼add sp, sp, #nï¼å¤å call ååæ¶æ ãx86 ä¸è°ç¨ã */
+/** arm64: add sp, sp, #n — reclaim stack after multi-arg call. Not used on x86. */
 export function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1970,7 +1949,7 @@ export function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 
   }
 }
 
-/** åç¬å¤ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeï¼å¯¹é½ codegenï¼ï¼å¦åè¦æ± EXPR_VARã */
+/** Handle EXPR_CALL alone: support import-bound FIELD_ACCESS callee (align with codegen); otherwise require EXPR_VAR. */
 /** Exported function `emit_expr_call`.
  * Implements `emit_expr_call`.
  * @param arena *ASTArena
@@ -1989,7 +1968,7 @@ export function emit_expr_call(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: 
 }
 
 
-/** EXPR_METHOD_CALLï¼receiver ä½ä¸ºç¬¬ä¸åï¼arg0ï¼ï¼åä¼  method call å®åï¼arg1..argNï¼ï¼æå call method_call_nameã */
+/** EXPR_METHOD_CALL: receiver as arg0, then method args arg1..argN, then call method_call_name. */
 /** Exported function `emit_expr_method_call`.
  * Implements `emit_expr_method_call`.
  * @param arena *ASTArena
@@ -2008,7 +1987,7 @@ export function emit_expr_method_call(arena: *ASTArena, out: *CodegenOutBuf, exp
 }
 
 
-/** ELF è·¯å¾ç EXPR_METHOD_CALLï¼receiver ä½ arg0ï¼å arg1..argNï¼enc_call(method_name)ã */
+/** ELF EXPR_METHOD_CALL: receiver as arg0, then arg1..argN, enc_call(method_name). */
 /** Exported function `emit_expr_elf_method_call`.
  * Implements `emit_expr_elf_method_call`.
  * @param arena *ASTArena
@@ -2027,7 +2006,7 @@ export function emit_expr_elf_method_call(arena: *ASTArena, elf_ctx: *ElfCodegen
 }
 
 
-/** æåç§°æ¥æ¬æ¨¡åå½æ°ä¸æ ï¼-1 æªæ¾å°ã */
+/** Look up function index in this module by name; -1 if missing. */
 export function asm_module_func_index_by_name(mod: *Module, name: *u8, name_len: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2054,7 +2033,7 @@ export function asm_module_func_index_by_name(mod: *Module, name: *u8, name_len:
   }
 }
 
-/** expr_ref æ¯å¦ä¸º func_idx çç¬¬ 0 å½¢ååå VARã */
+/** Whether expr_ref is a VAR naming func_idx's parameter 0. */
 export function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_idx: i32, expr_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2078,7 +2057,7 @@ export function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_id
   }
 }
 
-/** è¯»åå½æ°ä½åä¸ return çæä½æ° refï¼å«æ¾å¼ `return expr;` è¯­å¥ï¼ï¼å¤±è´¥è¿å 0ã */
+/** Read the operand ref of a function body's single return (including explicit `return expr;`); 0 on failure. */
 export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, func_idx: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2114,7 +2093,7 @@ export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, fun
   }
 }
 
-/** è¡¨è¾¾å¼æ¯å¦ä¸º ADDï¼å« EXPR_BINOP å ä½ï¼ã */
+/** Whether expression is ADD (including EXPR_BINOP placeholder). */
 export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2129,9 +2108,8 @@ export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
 }
 
 /**
- * è¥å½æ°ä½ä¸º `return param0 + k` æ `return callee(param0) + k`ï¼åæ¨¡åååé¾ï¼ï¼
- * è¿åç´¯è®¡å¸¸æ° kï¼ä¸å¯å
-èæ¶è¿å -1ãdepth éå¶éå½æ·±åº¦ã
+ * If function body is `return param0 + k` or `return callee(param0) + k` (same-module unary chain),
+ * return accumulated constant k; return -1 when not linkable. depth caps recursion.
  */
 export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_idx: i32, depth: i32): i32 {
 
@@ -2171,12 +2149,9 @@ export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_id
 }
 
 /**
- * ELF CALL å
-èï¼åæ¨¡å `f(arg0)` ä¸ f ä¸º `return p.f0 + p.f1`ï¼param0 ä¸¤å­æ®µ i32 æ±åï¼æ¶ï¼
- * å¯¹å®ååå­æ®µ load + addï¼è·³è¿ call/retï¼é const struct äº¦éç¨ï¼ã
- * è¿å 1=å·²å
-èï¼0=æªå¹é
-ï¼-1=éè¯¯ã
+ * ELF CALL fold: when same-module `f(arg0)` and f is `return p.f0 + p.f1` (param0 two i32 fields),
+ * emit field loads + add and skip call/ret (also helps const struct cases).
+ * @return 1=folded, 0=no match, -1=error.
  */
 export function try_inline_param0_field_sum_call_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr,
@@ -2221,11 +2196,8 @@ export function try_inline_param0_field_sum_call_elf(
 }
 
 /**
- * ELF CALL ç®åå
-èï¼åæ¨¡å `f(x)` ä¸ f ä¸º x+K é¾æ¶ï¼emit å®åå add Kï¼è·³è¿ call/retã
- * è¿å 1=å·²å
-èï¼0=æªå¹é
-ï¼-1=éè¯¯ã
+ * ELF CALL simple fold: when same-module `f(x)` and f is an x+K chain, emit arg then add K; skip call/ret.
+ * @return 1=folded, 0=no match, -1=error.
  */
 export function try_inline_x_plus_k_call_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr,
@@ -2254,7 +2226,7 @@ export function try_inline_x_plus_k_call_elf(
   }
 }
 
-/** ELF è·¯å¾ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeã */
+/** ELF EXPR_CALL: support import-bound FIELD_ACCESS callee. */
 /** Exported function `emit_expr_elf_call`.
  * Implements `emit_expr_elf_call`.
  * @param arena *ASTArena
@@ -2307,7 +2279,7 @@ export function arch_emit_jz(out: *CodegenOutBuf, label: u8[128], label_len: i32
     return x86_64.emit_jz(out, label, label_len);
   }
 }
-/** match èç¸ç­åæ¯ï¼cmp å beq/jeï¼ã */
+/** Match-arm equal branch (beq/je after cmp). */
 export function arch_emit_jeq(out: *CodegenOutBuf, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2335,7 +2307,7 @@ export function arch_emit_jmp(out: *CodegenOutBuf, label: u8[128], label_len: i3
   }
 }
 
-/** æ¡ä»¶è·³è½¬ï¼rax é 0 åè·³ï¼ç¨äº LOGOR ç­è·¯ï¼ã */
+/** Conditional jump: branch if rax != 0 (LOGOR short-circuit). */
 export function arch_emit_jnz(out: *CodegenOutBuf, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2346,7 +2318,7 @@ export function arch_emit_jnz(out: *CodegenOutBuf, label: u8[128], label_len: i3
   }
 }
 
-/** ä½ååï¼not/mvn åæä½æ°å¨ raxã */
+/** Bitwise not/mvn; unary operand in rax. */
 export function arch_emit_not_eax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2357,7 +2329,7 @@ export function arch_emit_not_eax(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** ä½ä¸/æ/å¼æï¼left å¨ rbxï¼right å¨ raxï¼ç»æå¨ raxã */
+/** Bitwise and/or/xor: left in rbx, right in rax, result in rax. */
 export function arch_emit_and_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2398,7 +2370,7 @@ export function arch_emit_xor_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** å° rbx æ·å° ecxï¼x86 ç§»ä½è®¡æ°ï¼ï¼arm64 æ éæ­¤æ­¥ã */
+/** Copy rbx to ecx (x86 shift count); unnecessary on arm64. */
 export function arch_emit_mov_rbx_to_ecx(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2409,8 +2381,7 @@ export function arch_emit_mov_rbx_to_ecx(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** å·¦ç§»/é»è¾å³ç§»/ç®æ¯å³ç§»ï¼å¼å¨ raxï¼è®¡æ°å·²å¨ rbxï¼x86 ä¼å
- mov rbxâecxï¼ã */
+/** Left / logical-right / arithmetic-right shift: value in rax, count already in rbx (x86 may mov rbx→ecx). */
 export function arch_emit_shl_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2533,7 +2504,7 @@ export function arch_emit_epilogue(out: *CodegenOutBuf, frame_sz: i32, ta: i32):
   }
 }
 
-/** è¯»å ctx å±é¨ sidecar ä¸­ç¬¬ slot_idx æ§½çæ åç§»ã */
+/** Read stack offset of local sidecar slot slot_idx. */
 export function asm_ctx_slot_offset(ctx: *AsmFuncCtx, slot_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -2541,8 +2512,7 @@ export function asm_ctx_slot_offset(ctx: *AsmFuncCtx, slot_idx: i32): i32 {
   }
 }
 
-/** æ é/å
-ç´ ç±»åçæ å­å®½åº¦ï¼å­èï¼ã */
+/** Stack store width in bytes for a scalar/element type. */
 export function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2560,8 +2530,7 @@ export function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
   }
 }
 
-/** INDEX ç»æçå
-ç´ å­èå®½ï¼åèª typeck å¨ INDEX ç»ç¹ä¸ç resolved_type_refãé»è®¤ 4ã */
+/** INDEX result element byte width from typeck resolved_type_ref on the INDEX node; default 4. */
 export function asm_index_elem_byte_sz(arena: *ASTArena, index_expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -2689,8 +2658,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
 
 
 /**
- * ä¸ emit_expr å¯¹ç­ç ELF æºå¨ç è·¯å¾ï¼ç»æå¨ %rax/w0ï¼ä½¿ç¨ enc_* åå
-¥ elf_ctx.codeï¼ta 0=x86_64ï¼1=arm64ã
+ * ELF machine-code counterpart of emit_expr: result in %rax/w0, write via enc_* into elf_ctx.code;
+ * ta 0=x86_64, 1=arm64.
  */
 /** Exported function `emit_expr_elf`.
  * Implements `emit_expr_elf`.
@@ -2711,8 +2680,7 @@ export function emit_expr_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_re
 
 /** ELF è·¯å¾ INDEX ææå°åè£
 å
-¥ rax/x0ï¼æ  loadï¼ãé¡»å¨ emit_expr_elf ä¹åå®ä¹ä¾å
-¶è°ç¨ã */
+/** ELF INDEX effective address into rax/x0 (no load). Must be defined after emit_expr_elf for mutual calls. */
 /** Exported function `emit_index_eff_addr_elf`.
  * Implements `emit_index_eff_addr_elf`.
  * @param arena *ASTArena
@@ -2764,8 +2732,7 @@ export function emit_block_inits_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, 
 }
 
 
-/** ä¸¤ EXPR_VAR èç¹æ¯å¦ååï¼ç» pipeline è¯»åï¼é¿å
- ast å­æ®µæè£ï¼ã */
+/** Whether two EXPR_VAR nodes share a name (via pipeline name readers; avoid AST field tear). */
 export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2790,9 +2757,8 @@ export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32
 }
 
 /**
- * æ¯å¦ä¸º `target = target + addend`ï¼addend ä¸º EXPR_LIT ç«å³æ°ï¼ã
- * æåæ¶ *out_addend åå
-¥å æ°ï¼target_ref ä¸ºå·¦å¼ VAR ç expr refã
+ * Whether `target = target + addend` with addend an EXPR_LIT immediate.
+ * On success write addend into *out_addend; target_ref is the LHS VAR expr ref.
  */
 export function fold_is_assign_var_add_lit(arena: *ASTArena, expr_ref: i32, target_ref: i32, out_addend: *i32): i32 {
 
@@ -2816,7 +2782,7 @@ export function fold_is_assign_var_add_lit(arena: *ASTArena, expr_ref: i32, targ
   }
 }
 
-/** å stmt_order æ¯å¦å« call / åµå¥å¾ªç¯ï¼ä¸å¯åå¸¸éæå ï¼ã */
+/** Whether block stmt_order contains call / nested loop (blocks constant fold). */
 export function fold_body_has_call_or_nested_loop(arena: *ASTArena, body_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2844,8 +2810,8 @@ export function fold_body_has_call_or_nested_loop(arena: *ASTArena, body_ref: i3
 }
 
 /**
- * è§£æ `while (i < n)`ï¼å·¦ä¸º VAR iï¼å³ä¸º VAR n æ LIT nã
- * æåå *out_i_refã*out_n_is_litã*out_n_litï¼å­é¢éæ¶ï¼æ *out_n_refï¼åéæ¶ï¼ã
+ * Parse `while (i < n)`: left VAR i; right VAR n or LIT n.
+ * On success write *out_i_ref, *out_n_is_lit, and *out_n_lit (literal) or *out_n_ref (var).
  */
 export function fold_parse_while_lt_i_n(
   arena: *ASTArena, cond_ref: i32,
@@ -2878,7 +2844,7 @@ export function fold_parse_while_lt_i_n(
 }
 
 /**
- * æ¯å¦ä¸º `s = s + (i + K)` æ `s = s + f(i)`ï¼f ä¸º x+K é¾ï¼ï¼æåå out_s_refãout_kã
+ * Whether `s = s + (i + K)` or `s = s + f(i)` (f is x+K chain); on success write out_s_ref, out_k.
  */
 export function fold_affine_i_plus_k_expr(arena: *ASTArena, mod: *Module, expr_ref: i32, i_ref: i32, out_k: *i32): i32 {
 
@@ -2945,7 +2911,7 @@ export function fold_is_assign_s_plus_affine_i(
   }
 }
 
-/** è§£æ `s += (i+K); i++` åè¯­å¥å¾ªç¯ä½ï¼call_boundary ç­ï¼ã */
+/** Parse `s += (i+K); i++` two-statement loop body (call_boundary etc.). */
 export function fold_parse_affine_sum_body(
   arena: *ASTArena, mod: *Module, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_k: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2988,7 +2954,7 @@ export function fold_parse_affine_sum_body(
   }
 }
 
-/** è¡¨è¾¾å¼æ¯å¦ä¸º func ç¬¬ 0 å½¢åçå­æ®µè®¿é®ï¼`p.a` ç­ï¼ã */
+/** Whether expression is a field access on func's parameter 0 (`p.a` etc.). */
 export function fold_expr_is_param0_field_access(arena: *ASTArena, mod: *Module, func_idx: i32, expr_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3000,7 +2966,7 @@ export function fold_expr_is_param0_field_access(arena: *ASTArena, mod: *Module,
   }
 }
 
-/** å½æ°ä½æ¯å¦ä¸º `return p.f0 + p.f1`ï¼ä¸¤å­æ®µåæ¥èª param0ï¼ã */
+/** Whether function body is `return p.f0 + p.f1` (both fields from param0). */
 export function fold_func_returns_param0_field_sum(arena: *ASTArena, mod: *Module, func_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3034,9 +3000,8 @@ export function fold_func_returns_param0_single_field(arena: *ASTArena, mod: *Mo
 }
 
 /**
- * è¥ var å¨åå let ä¸åå¼ä¸º STRUCT_LITï¼å°ææ i32 å­é¢éå­æ®µæ±ååå
-¥ *out_sumã
- * ç¨äº `let p = Pair { a: 1, b: 2 }` â 3ã
+ * If var is a same-block let whose init is STRUCT_LIT, sum all i32 literal fields into *out_sum.
+ * Used for `let p = Pair { a: 1, b: 2 }` → 3.
  */
 export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i32, var_ref: i32, out_sum: *i32): i32 {
 
@@ -3239,8 +3204,8 @@ export function fold_parse_struct_pair_n2_body(
 }
 
 /**
- * æ¯å¦ä¸º `s = s + add_pair(p)`ï¼ä¸ add_pair ä¸º param0 å­æ®µæ±åãp ä¸º const struct litã
- * æåå out_s_refãout_stepï¼æ¯è½®å¸¸æ°å¢éï¼ã
+ * Whether `s = s + add_pair(p)` with add_pair = param0 field-sum and p a const struct lit.
+ * On success write out_s_ref, out_step (per-iteration constant delta).
  */
 export function fold_is_assign_s_plus_const_field_call(
   arena: *ASTArena, mod: *Module, block_ref: i32, expr_ref: i32, out_s_ref: *i32, out_step: *i32): i32 {
@@ -3277,7 +3242,7 @@ export function fold_is_assign_s_plus_const_field_call(
   }
 }
 
-/** è§£æ `s += add_pair(const p); i++`ï¼struct_param ç­ï¼ã */
+/** Parse `s += add_pair(const p); i++` (struct_param etc.). */
 export function fold_parse_count_up_const_field_call_body(
   arena: *ASTArena, mod: *Module, block_ref: i32, body_ref: i32, i_ref: i32,
   out_s_ref: *i32, out_step: *i32): i32 {
@@ -3321,8 +3286,7 @@ export function fold_parse_count_up_const_field_call_body(
   }
 }
 
-/** è§£æè®¡æ°å¾ªç¯ä½ï¼ä»
- `s = s + step` ä¸ `i = i + 1` ä¸¤æ¡èµå¼ï¼é¡ºåºä»»æï¼ã */
+/** Parse count-up loop body: the two assigns `s = s + step` and `i = i + 1` (order irrelevant). */
 export function fold_parse_count_up_body(
   arena: *ASTArena, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_step: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3366,9 +3330,8 @@ export function fold_parse_count_up_body(
 }
 
 /**
- * è¥ var_ref å¨åå let ç»å®ä¸åå¼ä¸ºæ´æ°å­é¢éï¼åå
-¥ *out_lit å¹¶è¿å 1ã
- * ç¨äº `let n: i32 = 1000000000; while (i < n)` çå¸¸éä¼ æ­ã
+ * If var_ref is a same-block let bound to an integer literal, write *out_lit and return 1.
+ * Used for const-prop of `let n: i32 = 1000000000; while (i < n)`.
  */
 export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
 
@@ -3410,7 +3373,7 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
   }
 }
 
-/** åå° `i >= n` åæ¯å° exitï¼é¡»ç´§æ¥ cmpï¼ï¼n ä¸ºå­é¢éæ¶ç¨ imm cmpã */
+/** Emit `i >= n` branch to exit (must follow cmp); use imm cmp when n is literal. */
 export function fold_emit_i_ge_n_branch_exit_elf(
   elf_ctx: *ElfCodegenCtx, off_i: i32, off_n: i32, n_is_lit: i32, n_lit: i32,
   exit_buf: u8[128], exit_len: i32, ta: i32): i32 {
@@ -3431,12 +3394,10 @@ export function fold_emit_i_ge_n_branch_exit_elf(
 }
 
 /**
- * ELFï¼å°è¯ä¼å `while (i < n) { s += step; i += 1; }`ã
- * 1) n ä¸ºç¼è¯æå¸¸éä¸æ  call â ç´æ¥æ n*step åå
-¥ sï¼
- * 2) å¦åè¥æ¡ä»¶ä¸º i<n â ç¨ cmp+jge æ¿ä»£ cset æ¡ä»¶ï¼ååå°åå¾ªç¯ä½ã
- * è¿å 1=å·²å¤çï¼0=æªå¹é
-ï¼-1=éè¯¯ã
+ * ELF: try optimize `while (i < n) { s += step; i += 1; }`.
+ * 1) If n is a compile-time constant and body has no call → write n*step into s directly;
+ * 2) Else if condition is i<n → replace cset condition with cmp+jge, then emit original body.
+ * @return 1=folded, 0=no match, -1=error.
  */
 export function try_fold_count_up_while_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, loop_idx: i32,
@@ -3476,7 +3437,7 @@ export function try_fold_count_up_while_elf(
         n_const_ok = 1;
       }
     }
-    /** å¸¸é n + `s += (i+K); i++`ï¼â(i+K)=n(n-1)/2+Knï¼call_boundary ç­ï¼ã */
+    /** Const n + `s += (i+K); i++`: ∑(i+K)=n(n-1)/2+Kn (call_boundary etc.). */
     let affine_s: i32 = 0;
     let affine_k: i32 = 0;
     let s_ea: Expr = ast.ast_arena_expr_get(arena, affine_s);
@@ -3514,7 +3475,7 @@ export function try_fold_count_up_while_elf(
         return 1;
       }
     }
-    /** å¸¸é n + `s += add_pair(const p); i++`ï¼s = n * âfieldsï¼struct_param ç­ï¼ã */
+    /** Const n + `s += add_pair(const p); i++`: s = n * ∑fields (struct_param etc.). */
     let struct_s: i32 = 0;
     let struct_step: i32 = 0;
     let s_es: Expr = ast.ast_arena_expr_get(arena, 0);
@@ -3530,7 +3491,7 @@ export function try_fold_count_up_while_elf(
       if (enc_store_rax_to_rbp_arch(elf_ctx, off_ss, ta) != 0) { return -1; }
       return 1;
     }
-    /** å¸¸é n + çº¯éå¢ä½ï¼æå ä¸º s = n * stepï¼loop_i32 ç­ï¼ã */
+    /** Const n + pure increment body: fold to s = n * step (loop_i32 etc.). */
     let s_e: Expr = ast.ast_arena_expr_get(arena, s_ref);
     let off_s: i32 = -1;
     let prod: i32 = 0;
@@ -3542,7 +3503,7 @@ export function try_fold_count_up_while_elf(
       if (enc_store_rax_to_rbp_arch(elf_ctx, off_s, ta) != 0) { return -1; }
       return 1;
     }
-    /** å« call æéçº¯éå¢ä½ï¼ä¼åæ¡ä»¶æ£æ¥ + åå¾ªç¯ä½ï¼call_boundary / struct_param ç­ï¼ã */
+    /** Const n + `s += (i+K); i++`: ∑(i+K)=n(n-1)/2+Kn (call_boundary etc.). */
     let loop_buf: u8[128] = [];
     let exit_buf: u8[128] = [];
     let loop_len: i32 = emit_next_label(ctx, loop_buf, 20);
@@ -3565,7 +3526,7 @@ export function try_fold_count_up_while_elf(
   }
 }
 
-/** ELF è·¯å¾ï¼while å¾ªç¯ãta 0=x86_64ï¼1=arm64ã */
+/** ELF path: while loop. ta 0=x86_64, 1=arm64. */
 /** Exported function `emit_while_loop_elf`.
  * Implements `emit_while_loop_elf`.
  * @param arena *ASTArena
@@ -3584,7 +3545,7 @@ export function emit_while_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, b
 }
 
 
-/** ELF è·¯å¾ï¼for å¾ªç¯ãta 0=x86_64ï¼1=arm64ã */
+/** ELF path: for loop. ta 0=x86_64, 1=arm64. */
 /** Exported function `emit_for_loop_elf`.
  * Implements `emit_for_loop_elf`.
  * @param arena *ASTArena
@@ -3617,10 +3578,9 @@ export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, b
 }
 
 /**
- * åå°åç const/let åå§åï¼slot_base ä¸ºè¯¥åå¨ ctx å±é¨ sidecar ä¸­çèµ·å§ä¸æ ã
- * åµå¥åå¨ EXPR_BLOCK ä¸­å
- fill_local_slots åè°ç¨æ¬å½æ°ï¼slot_base ä¸ºå¡«å
-¥åç ctx.num_localsã
+ * Emit block const/let initializers; slot_base is this block's start index in ctx local sidecar.
+ * Nested blocks under EXPR_BLOCK call fill_local_slots then this function; slot_base is
+ * ctx.num_locals before the fill.
  */
 /** Exported function `emit_block_inits`.
  * Implements `emit_block_inits`.
@@ -3640,7 +3600,7 @@ export function emit_block_inits(arena: *ASTArena, out: *CodegenOutBuf, block_re
 }
 
 
-/** çæå¯ä¸å±é¨æ ç­¾å° bufï¼è¿åé¿åº¦ãbuf æ ¼å¼ä¸º ".L_" + æ°å­ã */
+/** Generate a unique local label into buf; return length. Format ".L_" + digits. */
 /** Exported function `emit_next_label`.
  * Implements `emit_next_label`.
  * @param ctx *AsmFuncCtx
@@ -3656,8 +3616,7 @@ export function emit_next_label(ctx: *AsmFuncCtx, buf: *u8, buf_size: i32): i32 
 }
 
 
-/** å° label åºå· id æ ¼å¼åä¸º ".L_<id>" åå
-¥ bufï¼è¿åé¿åº¦ï¼ä¸æ¨è¿ ctx.label_counterï¼ãç¨äº match å¤åæ¯æ ç­¾ã */
+/** Format label ordinal id as ".L_<id>" into buf; return length (does not advance ctx.label_counter). For match multi-arm labels. */
 /** Exported function `format_label_id`.
  * Implements `format_label_id`.
  * @param buf *u8
@@ -3673,8 +3632,7 @@ export function format_label_id(buf: *u8, buf_size: i32, id: i32): i32 {
 }
 
 
-/** å° break/continue æ ç­¾åå
-¥ 8 å±æ å¹¶è®¾ä¸ºå½åçææ ç­¾ï¼d>=8 æ¶è¿å -1ã */
+/** Push break/continue labels onto the 8-deep stack and make them current; return -1 if d>=8. */
 export function ctx_push_loop_labels(ctx: *AsmFuncCtx, exit_buf: *u8, exit_len: i32, loop_buf: *u8, loop_len: i32): i32 {
   let d: i32 = ctx.loop_label_depth;
   if (d >= 8) {
@@ -3709,8 +3667,7 @@ export function ctx_push_loop_labels(ctx: *AsmFuncCtx, exit_buf: *u8, exit_len: 
   return 0;
 }
 
-/** å¼¹åºå¾ªç¯æ ç­¾æ é¡¶ï¼æ¢å¤å¤å± break/continue ææ¸
-é¶ã */
+/** Pop loop-label stack top; restore outer break/continue or clear to empty. */
 export function ctx_pop_loop_labels(ctx: *AsmFuncCtx): void {
   if (ctx.loop_label_depth <= 0) {
     ctx.break_len = 0;
@@ -3792,7 +3749,7 @@ export function emit_while_loop(arena: *ASTArena, out: *CodegenOutBuf, block_ref
 }
 
 
-/** åå° for å¾ªç¯ï¼è®¾ç½® break/continue å¹¶åå°å¾ªç¯ä½ã */
+/** Emit for-loop; set break/continue and emit loop body. */
 /** Exported function `emit_for_loop`.
  * Implements `emit_for_loop`.
  * @param arena *ASTArena
@@ -3811,7 +3768,7 @@ export function emit_for_loop(arena: *ASTArena, out: *CodegenOutBuf, block_ref: 
 }
 
 
-/** æ stmt_order åå°åä½ï¼target_arch ç¨äºåæ´¾ emit_expr / store / while / forã */
+/** Emit block body in stmt_order; target_arch dispatches emit_expr / store / while / for. */
 /** Exported function `emit_block_body`.
  * Implements `emit_block_body`.
  * @param arena *ASTArena
@@ -3845,8 +3802,8 @@ export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *Codegen
 }
 
 /**
- * build_xlang_asm SKIP_TYPECK æ¡©ï¼ä»
- mov w0/x0/eax,#0 + epilogueï¼å¿ fill/emit_blockï¼å¤§æ¨¡åå®¿ä¸»æ  SIGSEGVï¼ã
+ * build_xlang_asm SKIP_TYPECK stub: only mov w0/x0/eax,#0 + epilogue; do not fill/emit_block
+ * (large-module host stack would SIGSEGV).
  */
 export function emit_skip_heavy_stub_elf(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
 
