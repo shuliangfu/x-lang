@@ -24,6 +24,7 @@
 
 ---
 
+> **2026-08-24**：c08／b30 假权威诚实 @ **`37f727054`**（主刀 `ffc559d7a`＋b04 观测；C-08／B-30＋B-04/05/31 DOC→archive；monofile→`rt_*`／io／link；Makefile→`mk/driver_subcmd_objs.mk`＋`./xbuild`；`main_entry`；b04 invoke 观测延后；**不升钉**；gate OK＋双端 L2 5／5）。残：其它仍指 `runtime.from_x.c` 的门／e04／f06／comp-wpo／tool-debug／std-config c smoke。
 > **2026-08-24**：boot-014 假权威诚实 @ **`0cdfa36d1`**（RUNTIME→labi 五切片并集；Makefile→`mk/std_and_panic_objs.mk`；死 getter=`-`；活 `xlang_runtime_*` 保留；json always 硬闸；async／core_mem on_demand 观测延后；**不升钉**；gate OK＋双端 L2 5／5）。残：其它仍指 `runtime.from_x.c` 的门／std-config c smoke（cookbook 已绿）。
 > **2026-08-24**：boot-016 假权威诚实 @ **`28dfed180`**（RUNTIME→`labi_std_list`＋`labi_ondemand_list`；getter=`-`；锚点→活 `std_*`／`path_sep_c`；**不升钉**；gate 12／12＋双端 L2 5／5）。残：cookbook／std-config c smoke／其它仍指 `runtime.from_x.c` 的门。
 > **2026-08-24**：comp-link-sym fixture 假权威诚实 @ **`f40fb165f`**（cases→`duplicate_parser_sx.log`；wpo→`run_x_pipeline_impl`；gitignore 例外＋七 fixture 入库；**不升钉**；双端 L2 5／5）。
