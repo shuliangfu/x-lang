@@ -4,7 +4,8 @@
 > 当季版本：**2027-Q4**  
 > 状态：**定版（Q4 季度快照）**  
 > 读者：贡献者、早期用户、关注 Xlang 演进的社区  
-> 内部追踪：`NEXT.md`（深度版，含 ID/验收/状态）
+> 内部追踪：`analysis/自举进度.md`（live KPI；原 `NEXT.md` 已离开，含 ID/验收/状态）
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -93,7 +94,7 @@ Xlang（`.x`）面向**高性能系统编程**：在 C 的执行模型上，用�
 
 ```
 每季度第 1 周：
-  1. 从 NEXT.md 汇总 ✅ / 🟡 / ⚪ 到 §4 / §5
+  1. 从 `analysis/自举进度.md` 汇总 ✅ / 🟡 / ⚪ 到 §4 / §5
   2. 更新文首「更新时间」与「当季版本」
   3. ./tests/run-doc-public-roadmap.sh → 确认 XLANG_DOC_ROADMAP 报告
   4. ./tests/run-doc-public-roadmap-gate.sh
@@ -110,16 +111,16 @@ Xlang（`.x`）面向**高性能系统编程**：在 C 的执行模型上，用�
 |------|------|
 | 语言参考 | `docs/README.md` |
 | 自举架构 | `analysis/doc-selfhost-architecture-v1.md` |
-| 性能对标 | `analysis/perf-zig-baseline-v1.md` |
-| 零拷贝语义 | `analysis/zc-semantics-v1.md` |
+| 性能对标 | `analysis/archive/perf/perf-zig-baseline-v1.md` |
+| 零拷贝语义 | `analysis/archive/zc/zc-semantics-v1.md` |
 | 内存安全实践 | `analysis/doc-memory-safety-error-v1.md` |
-| 内部深度路线图 | `NEXT.md` |
-| Q3 刷新记录 | `analysis/doc-public-roadmap-q3-v1.md` |
-| Q1 2027 刷新记录 | `analysis/doc-public-roadmap-q1-v1.md`（2027-Q1） |
-| Q4 2027 刷新记录 | `analysis/doc-public-roadmap-q4-2027-v1.md` |
-| Q4 2026 刷新记录 | `analysis/doc-public-roadmap-q4-v1.md` |
-| Q1 刷新记录 | `analysis/doc-public-roadmap-q1-v1.md` |
-| Q2 刷新记录 | `analysis/doc-public-roadmap-q2-v1.md` |
+| 内部深度路线图 | `analysis/自举进度.md` |
+| Q3 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q3-v1.md` |
+| Q1 2027 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q1-v1.md`（2027-Q1） |
+| Q4 2027 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q4-2027-v1.md` |
+| Q4 2026 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q4-v1.md` |
+| Q1 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q1-v1.md` |
+| Q2 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q2-v1.md` |
 
 ---
 

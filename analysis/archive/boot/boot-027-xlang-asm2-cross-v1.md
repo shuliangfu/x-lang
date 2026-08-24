@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：BOOT-026 C4 X bootstrap、`run-stage2-bstrict-gate.sh`  
 > 关联：`boot-crossplatform-v1.md`、Stage2 `xlang_asm2` 二进制
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

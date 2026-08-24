@@ -2,7 +2,8 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`PERF-002`（IO 吞吐对标）、`PERF-003`（网络对标）、`analysis/perf-vs-zig-baseline.md`
+> 关联：`PERF-002`（IO 吞吐对标）、`PERF-003`（网络对标）、`analysis/archive/perf/perf-vs-zig-baseline.md`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -60,7 +61,7 @@
 | net_echo_throughput | net | tests/bench/net_echo_throughput.zig |
 | net_mixed_conns_requests | net | tests/bench/net_mixed_conns_requests.zig |
 
-网络 Zig 对照见 `analysis/perf-net-zig-v1.md`（PERF-003）；门禁 `tests/run-perf-net-zig-gate.sh`。
+网络 Zig 对照见 `analysis/archive/perf/perf-net-zig-v1.md`（PERF-003）；门禁 `tests/run-perf-net-zig-gate.sh`。
 
 ---
 
@@ -113,7 +114,7 @@ XLANG_ZIG_BASELINE_RECORD=1 ./tests/run-zig-baseline-gate.sh --record
 
 | 资源 | 路径 |
 |------|------|
-| 微 bench 说明 | `analysis/perf-vs-zig-baseline.md` |
+| 微 bench 说明 | `analysis/archive/perf/perf-vs-zig-baseline.md` |
 | IO Shu 上限 | `tests/baseline/io-perf.tsv` |
 | Net Shu 上限 | `tests/baseline/net-perf.tsv` |
 | 路线图 | `NEXT.md` PERF-001 / PERF-002 |

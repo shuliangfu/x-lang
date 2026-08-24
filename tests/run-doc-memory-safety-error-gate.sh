@@ -6,10 +6,14 @@
 # 3) 示例 .x 存在；hook 脚本存在（native xlang 时可选跑 hook）
 #
 # 用法：./tests/run-doc-memory-safety-error-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 DOC="${XLANG_DOC_MEM_SAFE_ERR:-analysis/doc-memory-safety-error-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_DOC_MEM_SAFE_MANIFEST:-tests/baseline/doc-memory-safety-error.tsv}"
 MIN_SEC=8
 MIN_XREF=6
@@ -32,12 +36,16 @@ native_xlang() {
 }
 
 echo "=== DOC-004: memory safety & error guide manifest ==="
-for f in "$DOC" "$MANIFEST" NEXT.md; do
+for f in "$DOC" "$MANIFEST" "$ROADMAP"; do
   if [ ! -f "$f" ]; then
     echo "doc-memory-safety-error gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "doc-memory-safety-error gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   case "$c1" in

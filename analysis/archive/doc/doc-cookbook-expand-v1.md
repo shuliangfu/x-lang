@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 读者：需覆盖 STD-013～040 与 CORE-006 的开发者  
 > 前置：[`doc-stdlib-cookbook-v1.md`](doc-stdlib-cookbook-v1.md)（DOC-001，§2～§5 共 12 食谱）
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -140,7 +141,7 @@ DOC-001 已覆盖 NET-01～03：`examples/cookbook/net_listen_bind.x`、`net_udp
 ### IO-04：`examples/cookbook/io_fallback_read.x`
 
 `read_fd` / `write_fd` 非 Linux 回退 typeck（STD-026）。  
-深潜：`analysis/std-io-fallback-v1.md`。
+深潜：`analysis/archive/std/std-io-fallback-v1.md`。
 
 DOC-001 已覆盖 IO-01～03：`examples/cookbook/io_batch_rw.x`、`io_read_chunk.x`、`io_mmap_read.x`。
 

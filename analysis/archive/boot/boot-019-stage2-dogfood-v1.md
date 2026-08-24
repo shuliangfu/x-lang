@@ -3,6 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 关联：`bootstrap-verify`、`check-7.2` / `check-7.2-bstrict`、BOOT-015 语义子集
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -30,7 +31,7 @@ Runner：`tests/run-bootstrap-stage2-dogfood-parser-typeck.sh`（`XLANG=` 指定
 
 ---
 
-## 3. Makefile 集成
+## 3. Makefile 集成（历史；MG 后权威入口 = `./xbuild`）
 
 | 路径 | 扩展 |
 |------|------|

@@ -11,9 +11,9 @@ best_practices	section	## 6. 最佳实践清单	DO/DON'T
 examples_index	section	## 7. 示例与门禁索引	烟测
 self_check	section	## 9. 自检（5 题）	quiz
 cross_lang_unsafe	cross_ref	analysis/lang-unsafe-v1-rfc.md	LANG-007
-cross_exc_result	cross_ref	analysis/exc-result-error-v1-rfc.md	EXC-001
-cross_exc_panic	cross_ref	analysis/exc-panic-abort-v1-rfc.md	EXC-002
-cross_exc_code	cross_ref	analysis/exc-error-code-layer-v1.md	EXC-003
+cross_exc_result	cross_ref	analysis/archive/exc/exc-result-error-v1-rfc.md	EXC-001
+cross_exc_panic	cross_ref	analysis/archive/exc/exc-panic-abort-v1-rfc.md	EXC-002
+cross_exc_code	cross_ref	analysis/archive/exc/exc-error-code-layer-v1.md	EXC-003
 cross_safe_api	cross_ref	analysis/safe-unsafe-api-v1.md	SAFE-002
 cross_safe_audit	cross_ref	analysis/safe-unsafe-audit-v1.md	SAFE-003
 example_recoverable	example	tests/exc/recoverable_result.x	Layer A

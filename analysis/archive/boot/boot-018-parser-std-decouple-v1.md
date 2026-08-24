@@ -3,6 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 关联：`COMP-001`、`BOOT-013`（check 矩阵）、`ENG-002`、`boot-mega7-gap.md`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -37,8 +38,8 @@
 
 | 资源 | 路径 |
 |------|------|
-| mega7 差距 | `analysis/boot-mega7-gap.md` §7 |
-| COMP-001 计划 | `analysis/comp-parser-mega7-v1.md` |
+| mega7 差距 | `analysis/archive/boot/boot-mega7-gap.md` §7 |
+| COMP-001 计划 | `analysis/archive/comp/comp-parser-mega7-v1.md` |
 | std check 矩阵 | `tests/baseline/stdlib-check-matrix.tsv` |
 | mega7 矩阵 | `tests/baseline/comp-parser-mega7-matrix.tsv` |
 

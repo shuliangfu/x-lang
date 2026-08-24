@@ -1,6 +1,7 @@
 # 阶段 D-06 完成标准 v1（NEXT §7）
 
 > **D-06 v1**：`SELFHOST.md` / `README.md` 声明 **Stage2 黄金自举**（D-03 SHA256 + D-04 扩面）及 **可复现命令**；**不含**最终「完全自举」（须 D+E+F）。
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ## v1 完成（✅）
 

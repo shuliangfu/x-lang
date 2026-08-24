@@ -27,7 +27,7 @@
   切片/符号/返回值        B1→B7 迁移顺序           139 func 无 ret0
 ```
 
-详见 `analysis/boot-mega7-gap.md` §3；本 RFC 固化 **矩阵 + 门禁 hook**。
+详见 `analysis/archive/boot/boot-mega7-gap.md` §3；本 RFC 固化 **矩阵 + 门禁 hook**。
 
 ---
 
@@ -107,7 +107,7 @@
 
 | 资源 | 路径 |
 |------|------|
-| 差距拆解 | `analysis/boot-mega7-gap.md` |
+| 差距拆解 | `analysis/archive/boot/boot-mega7-gap.md` |
 | 矩阵 | `tests/baseline/comp-parser-mega7-matrix.tsv` |
 | 门禁 | `tests/run-comp-parser-mega7-gate.sh` |
 | mega bisect | `tests/baseline/parser-mega-bisect.tsv` |
@@ -121,4 +121,4 @@
 
 - mega7 阶段 B 保持 **stub** 不阻塞 STD P0 合并  
 - 门禁：`tests/run-boot-018-parser-std-decouple-gate.sh`  
-- RFC：`analysis/boot-018-parser-std-decouple-v1.md`
+- RFC：`analysis/archive/boot/boot-018-parser-std-decouple-v1.md`

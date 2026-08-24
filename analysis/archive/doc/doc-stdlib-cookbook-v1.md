@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 读者：需在 30 分钟内跑通 IO / NET / 零拷贝 / async 主路径的开发者  
 > 关联：`STD-001/002/004`、`ZC-006`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

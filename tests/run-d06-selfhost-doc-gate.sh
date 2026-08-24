@@ -3,15 +3,18 @@
 #
 # 用法：./tests/run-d06-selfhost-doc-gate.sh
 # 环境：XLANG_D06_FAIL=1 失败时硬退出
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_D06_FAIL:-0}
-DOC="analysis/phase-d-d06-v1.md"
+DOC="analysis/archive/phase/phase-d-d06-v1.md"
 MANIFEST="tests/baseline/d06-selfhost-doc.tsv"
 SELFHOST="compiler/docs/SELFHOST.md"
 README="README.md"
-NEXT="NEXT.md"
+NEXT="analysis/自举进度.md"
 
 die() {
   echo "d06 gate FAIL: $*" >&2
@@ -23,6 +26,9 @@ echo "=== D-06: SELFHOST golden self-host doc (v1) ==="
 for f in "$DOC" "$MANIFEST" "$SELFHOST" "$README" "$NEXT"; do
   [ -f "$f" ] || die "missing $f"
 done
+if [ -f NEXT.md ]; then
+  die "NEXT.md resurrected (use analysis/自举进度.md)"
+fi
 grep -q 'D-06 v1' "$DOC" || die "phase doc missing D-06 v1 marker"
 
 # ── SELFHOST.md 必需章节与关键词 ──

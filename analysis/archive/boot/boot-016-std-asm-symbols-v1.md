@@ -3,6 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 关联：BOOT-014（链接契约）、BOOT-015（heap smoke）、BOOT-008（parser thin glue 符号）
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

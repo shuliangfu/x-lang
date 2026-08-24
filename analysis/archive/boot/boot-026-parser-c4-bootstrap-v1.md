@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：BOOT-025 gen12 一致性、`run-parser-parse-bootstrap-x-emit-gate.sh`  
 > 关联：`boot-mega7-gap.md` 阶段 C4、BOOT-024 X emit 探测
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

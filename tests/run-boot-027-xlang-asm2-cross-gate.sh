@@ -2,10 +2,13 @@
 # BOOT-027：parser C5 xlang_asm2 跨平台发布门禁
 #
 # 用法：./tests/run-boot-027-xlang-asm2-cross-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT027_DOC:-analysis/boot-027-xlang-asm2-cross-v1.md}"
+DOC="${XLANG_BOOT027_DOC:-analysis/archive/boot/boot-027-xlang-asm2-cross-v1.md}"
 MANIFEST="${XLANG_BOOT027_TSV:-tests/baseline/boot-027-xlang-asm2-cross.tsv}"
 WAVE="${XLANG_BOOT027_WAVE_TSV:-tests/baseline/xlang-asm2-cross-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"

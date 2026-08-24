@@ -2,12 +2,15 @@
 # BOOT-014：std 模块链接契约门禁（runtime.c ↔ manifest ↔ Makefile）
 #
 # 用法：./tests/run-boot-std-link-contract-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_BOOT_LINK_DOC:-analysis/boot-std-link-contract-v1.md}"
+DOC="${XLANG_BOOT_LINK_DOC:-analysis/archive/boot/boot-std-link-contract-v1.md}"
 MANIFEST="${XLANG_BOOT_LINK_TSV:-tests/baseline/boot-std-link-contract.tsv}"
 RUNTIME="${XLANG_BOOT_LINK_RUNTIME:-compiler/seeds/runtime.from_x.c}"
 MAKEFILE="${XLANG_BOOT_LINK_MAKEFILE:-compiler/Makefile}"

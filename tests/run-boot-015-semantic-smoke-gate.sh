@@ -6,12 +6,16 @@
 # 3) native xlang 时跑 bootstrap 子集 runner（check 必绿；link 可选）
 #
 # 用法：./tests/run-boot-015-semantic-smoke-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_BOOT015_DOC:-analysis/boot-015-semantic-smoke-v1.md}"
+DOC="${XLANG_BOOT015_DOC:-analysis/archive/boot/boot-015-semantic-smoke-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_BOOT015_TSV:-tests/baseline/boot-015-semantic-smoke.tsv}"
 RUNNER="tests/run-bootstrap-semantic-smoke-vec-map-heap.sh"
 LIB="tests/lib/boot-015-semantic-smoke.sh"
@@ -33,12 +37,16 @@ native_xlang() {
 }
 
 echo "=== BOOT-015: semantic smoke manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER" NEXT.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER" "$ROADMAP"; do
   if [ ! -f "$f" ]; then
     echo "boot-015-semantic-smoke gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "boot-015-semantic-smoke gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

@@ -6,10 +6,14 @@
 # 3) portable-suite COMP-001 可 SKIP；eng-quality 无 mega7 ci_hard
 #
 # 用法：./tests/run-boot-018-parser-std-decouple-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT018_DOC:-analysis/boot-018-parser-std-decouple-v1.md}"
+DOC="${XLANG_BOOT018_DOC:-analysis/archive/boot/boot-018-parser-std-decouple-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_BOOT018_TSV:-tests/baseline/boot-018-parser-std-decouple.tsv}"
 MEGA_MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 ENG_MATRIX="tests/baseline/eng-quality-gate-matrix.tsv"
@@ -22,12 +26,16 @@ MIN_STUB=7
 . tests/lib/boot-018-parser-std-decouple.sh
 
 echo "=== BOOT-018: parser/std decouple manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MEGA_MATRIX" "$ENG_MATRIX" "$PORTABLE" "$STD_GATE" NEXT.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MEGA_MATRIX" "$ENG_MATRIX" "$PORTABLE" "$STD_GATE" "$ROADMAP"; do
   if [ ! -f "$f" ]; then
     echo "boot-018-parser-std-decouple gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "boot-018-parser-std-decouple gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -73,8 +81,8 @@ while IFS=$'\t' read -r item_id kind anchor target _notes; do
       fi
       ;;
     forbidden)
-      if ! grep -qF "$anchor" NEXT.md 2>/dev/null; then
-        echo "boot-018 FAIL: NEXT.md missing policy '$anchor'" >&2
+      if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
+        echo "boot-018 FAIL: DOC missing policy '$anchor'" >&2
         MISS=$((MISS + 1))
       fi
       ;;
@@ -108,7 +116,7 @@ if [ "$STD_IND" -ne 1 ] || [ "$PARSER_PORT" -ne 1 ]; then
 fi
 
 # boot-mega7-gap 须含解耦节
-if ! grep -qF '## 7.' analysis/boot-mega7-gap.md 2>/dev/null; then
+if ! grep -qF '## 7.' analysis/archive/boot/boot-mega7-gap.md 2>/dev/null; then
   echo "boot-018-parser-std-decouple gate FAIL: boot-mega7-gap.md missing §7 decouple" >&2
   exit 1
 fi

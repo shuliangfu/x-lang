@@ -9,4 +9,4 @@ baseline	file	stdlib-dogfood.tsv	tests/baseline/stdlib-dogfood.tsv	分模块上�
 lib	script	lib/boot-017-stdlib-dogfood.sh	tests/lib/boot-017-stdlib-dogfood.sh	-
 runner	script	run-boot-017-stdlib-dogfood.sh	tests/run-boot-017-stdlib-dogfood.sh	计时
 gate	script	run-boot-017-stdlib-dogfood-gate.sh	tests/run-boot-017-stdlib-dogfood-gate.sh	manifest
-doc	file	analysis/boot-017-stdlib-dogfood-v1.md	analysis/boot-017-stdlib-dogfood-v1.md	RFC
+doc	file	analysis/archive/boot/boot-017-stdlib-dogfood-v1.md	analysis/archive/boot/boot-017-stdlib-dogfood-v1.md	RFC

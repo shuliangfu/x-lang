@@ -6,12 +6,16 @@
 # 3) 可选：native xlang 时对全部食谱跑 check
 #
 # 用法：./tests/run-doc-cookbook-expand-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_DOC_COOKBOOK_EXPAND:-analysis/doc-cookbook-expand-v1.md}"
+DOC="${XLANG_DOC_COOKBOOK_EXPAND:-analysis/archive/doc/doc-cookbook-expand-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_DOC_COOKBOOK_EXPAND_TSV:-tests/baseline/doc-cookbook-expand.tsv}"
 MIN_SEC=8
 MIN_REC=40
@@ -32,12 +36,16 @@ native_xlang() {
 }
 
 echo "=== DOC-006: cookbook expand manifest ==="
-for f in "$DOC" "$MANIFEST" NEXT.md; do
+for f in "$DOC" "$MANIFEST" "$ROADMAP"; do
   if [ ! -f "$f" ]; then
     echo "doc-cookbook-expand gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "doc-cookbook-expand gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

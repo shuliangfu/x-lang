@@ -2,10 +2,13 @@
 # BOOT-022：mega7 B1–B7 emit 晋升门禁
 #
 # 用法：./tests/run-boot-022-mega7-emit-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT022_DOC:-analysis/boot-022-mega7-emit-v1.md}"
+DOC="${XLANG_BOOT022_DOC:-analysis/archive/boot/boot-022-mega7-emit-v1.md}"
 MANIFEST="${XLANG_BOOT022_TSV:-tests/baseline/boot-022-mega7-emit.tsv}"
 WAVE="${XLANG_BOOT022_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"

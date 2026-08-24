@@ -6,10 +6,13 @@
 # 3) comp-parser-mega7 manifest 绿
 #
 # 用法：./tests/run-boot-020-mega7-milestone-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT020_DOC:-analysis/boot-020-mega7-milestone-v1.md}"
+DOC="${XLANG_BOOT020_DOC:-analysis/archive/boot/boot-020-mega7-milestone-v1.md}"
 MANIFEST="${XLANG_BOOT020_TSV:-tests/baseline/boot-020-mega7-milestone.tsv}"
 SYMBOL_BASELINE="tests/baseline/parser-thin-glue-symbols.tsv"
 THIN_SRC="compiler/seeds/parser_asm_thin_c.from_x.c"
@@ -25,7 +28,7 @@ MIN_SLICE=15
 echo "=== BOOT-020: mega7 milestone manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$SYMBOL_BASELINE" "$THIN_SRC" \
   tests/baseline/comp-parser-mega7-matrix.tsv \
-  analysis/comp-parser-mega7-v1.md \
+  analysis/archive/comp/comp-parser-mega7-v1.md \
   "$HOOK_SYMBOL" "$HOOK_MEGA7"; do
   if [ ! -f "$f" ]; then
     echo "boot-020-mega7-milestone gate FAIL: missing $f" >&2

@@ -2,10 +2,13 @@
 # BOOT-026：parser C4 全量 X bootstrap 门禁
 #
 # 用法：./tests/run-boot-026-parser-c4-bootstrap-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT026_DOC:-analysis/boot-026-parser-c4-bootstrap-v1.md}"
+DOC="${XLANG_BOOT026_DOC:-analysis/archive/boot/boot-026-parser-c4-bootstrap-v1.md}"
 MANIFEST="${XLANG_BOOT026_TSV:-tests/baseline/boot-026-parser-c4-bootstrap.tsv}"
 WAVE="${XLANG_BOOT026_WAVE_TSV:-tests/baseline/parser-c4-bootstrap-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"

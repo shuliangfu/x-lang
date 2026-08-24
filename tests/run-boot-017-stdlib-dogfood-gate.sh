@@ -2,12 +2,15 @@
 # BOOT-017：标准库 .x 前端编译 dogfood 指标门禁
 #
 # 用法：./tests/run-boot-017-stdlib-dogfood-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_BOOT017_DOC:-analysis/boot-017-stdlib-dogfood-v1.md}"
+DOC="${XLANG_BOOT017_DOC:-analysis/archive/boot/boot-017-stdlib-dogfood-v1.md}"
 MANIFEST="${XLANG_BOOT017_MANIFEST:-tests/baseline/boot-017-stdlib-dogfood.tsv}"
 MATRIX="${XLANG_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
 BASELINE="${XLANG_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"

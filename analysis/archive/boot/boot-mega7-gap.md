@@ -106,4 +106,4 @@
 | **生产** | mega7 保持 C glue + symbol-integrity 直至逐项 bisect promote |
 | **CI** | `run-comp-parser-mega7-gate.sh` 在 portable 轨可 `SKIP hooks`；非 ENG-002 `ci_hard` |
 
-详见 `analysis/boot-018-parser-std-decouple-v1.md`。
+详见 `analysis/archive/boot/boot-018-parser-std-decouple-v1.md`。

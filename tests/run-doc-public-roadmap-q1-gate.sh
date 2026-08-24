@@ -6,11 +6,14 @@
 # 3) 联动 DOC-005 run-doc-public-roadmap-gate.sh
 #
 # 用法：./tests/run-doc-public-roadmap-q1-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_DOC011_DOC:-analysis/doc-public-roadmap-q1-v1.md}"
-ROADMAP="analysis/doc-public-roadmap-v1.md"
+DOC="${XLANG_DOC011_DOC:-analysis/archive/doc/doc-public-roadmap-q1-v1.md}"
+ROADMAP="analysis/archive/doc/doc-public-roadmap-v1.md"
 MANIFEST="${XLANG_DOC011_TSV:-tests/baseline/doc-public-roadmap-q1.tsv}"
 DOC005_MANIFEST="tests/baseline/doc-public-roadmap.tsv"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"
@@ -45,18 +48,25 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 
 q_manifest="$(doc_roadmap_quarter_from_manifest "$DOC005_MANIFEST")"
-if [ "$q_manifest" != "$QUARTER" ]; then
-  echo "doc-public-roadmap-q1 gate FAIL: doc005 manifest quarter=$q_manifest want $QUARTER" >&2
+case "$q_manifest" in
+  2027-Q1|2027-Q2|2027-Q3|2027-Q4)
+    ;;
+  *)
+    echo "doc-public-roadmap-q1 gate FAIL: doc005 manifest quarter=$q_manifest want 2027-Q1+ after refresh (live may roll forward)" >&2
+    doc_roadmap_q1_emit_report "fail" "$QUARTER" 0
+    exit 1
+    ;;
+esac
+# Historical quarter string: authority = quarter snapshot DOC (not rolled live ROADMAP).
+if ! doc_roadmap_quarter_ok "$DOC" "$QUARTER"; then
+  echo "doc-public-roadmap-q1 gate FAIL: quarter DOC missing $QUARTER" >&2
   doc_roadmap_q1_emit_report "fail" "$QUARTER" 0
   exit 1
 fi
-if ! doc_roadmap_quarter_ok "$ROADMAP" "$QUARTER"; then
-  echo "doc-public-roadmap-q1 gate FAIL: roadmap doc missing $QUARTER" >&2
-  doc_roadmap_q1_emit_report "fail" "$QUARTER" 0
-  exit 1
-fi
-if ! grep -qF "$QUARTER" "$TEMPLATE" 2>/dev/null; then
-  echo "doc-public-roadmap-q1 gate FAIL: template missing $QUARTER" >&2
+# Live template tracks current DOC-005 quarter only; historical gates do not
+# hard-require old quarter strings in the rolled template (q3 pattern).
+if [ ! -f "$TEMPLATE" ]; then
+  echo "run-doc-public-roadmap-q1-gate.sh FAIL: missing template" >&2
   doc_roadmap_q1_emit_report "fail" "$QUARTER" 0
   exit 1
 fi

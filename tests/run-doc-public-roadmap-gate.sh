@@ -6,10 +6,14 @@
 # 3) runner 烟测 + XLANG_DOC_ROADMAP 报告
 #
 # 用法：./tests/run-doc-public-roadmap-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_DOC_ROADMAP_DOC:-analysis/doc-public-roadmap-v1.md}"
+DOC="${XLANG_DOC_ROADMAP_DOC:-analysis/archive/doc/doc-public-roadmap-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_DOC_ROADMAP_MANIFEST:-tests/baseline/doc-public-roadmap.tsv}"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"
 LIB="tests/lib/doc-public-roadmap.sh"
@@ -22,12 +26,16 @@ PREFIX="xlang: [XLANG_DOC_ROADMAP]"
 . tests/lib/doc-public-roadmap.sh
 
 echo "=== DOC-005: public roadmap manifest ==="
-for f in "$DOC" "$MANIFEST" "$TEMPLATE" "$LIB" "$RUNNER" NEXT.md docs/README.md; do
+for f in "$DOC" "$MANIFEST" "$TEMPLATE" "$LIB" "$RUNNER" "$ROADMAP" docs/README.md; do
   if [ ! -f "$f" ]; then
     echo "doc-public-roadmap gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "doc-public-roadmap gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 QUARTER="$(doc_roadmap_quarter_from_manifest "$MANIFEST")"
 

@@ -7,4 +7,4 @@ d03_gate	gate	tests/run-d03-stage2-hash-gate.sh	gate_ref	SHA256 STRICT
 d04_gate	gate	tests/run-d04-stage2-portable-diff-gate.sh	gate_ref	portable 子集 diff
 linux_a09	gate	tests/run-linux-a09-a11-gate.sh	gate_ref	Docker 金标准
 d06_gate	gate	tests/run-d06-selfhost-doc-gate.sh	gate_ref	phase D closure
-phase_d_doc	doc	analysis/phase-d-d06-v1.md	grep	D-06 v1
+phase_d_doc	doc	analysis/archive/phase/phase-d-d06-v1.md	grep	D-06 v1

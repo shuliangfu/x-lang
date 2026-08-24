@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 读者：标准库/性能路径开发者  
 > 关联：`ZC-001..005` 门禁、`TYPE-002`（slice 域）、`std.io` / `std.fs` / `std.string`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -171,7 +172,7 @@
 4. 大文件是否考虑 `mmap` 而非 slurp 到 vec？  
 5. Linux 专有路径是否有 documented 回退？
 
-ZC-007 PR 声明与证明测试模板见 `analysis/zc-copy-proof-v1.md`、`tests/templates/zc-pr-copy-declaration.txt`。
+ZC-007 PR 声明与证明测试模板见 `analysis/archive/zc/zc-copy-proof-v1.md`、`tests/templates/zc-pr-copy-declaration.txt`。
 
 ---
 

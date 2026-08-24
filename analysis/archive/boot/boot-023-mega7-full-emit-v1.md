@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：BOOT-022 emit 晋升、`parser-mega7-emit-wave.tsv`  
 > 关联：`boot-mega7-gap.md` 阶段 C3、COMP-001
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

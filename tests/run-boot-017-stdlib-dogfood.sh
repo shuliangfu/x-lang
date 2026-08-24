@@ -5,6 +5,9 @@
 #   ./tests/run-boot-017-stdlib-dogfood.sh
 #   XLANG_BOOT017_UPDATE_BASELINE=1 XLANG_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
 #   XLANG_BOOT017_FAIL_ON_REGRESSION=1 ./tests/run-boot-017-stdlib-dogfood.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh

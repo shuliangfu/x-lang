@@ -11,8 +11,8 @@ hook_sweep	hook_ref	run-parser-mega-bisect-sweep-gate.sh	全量 sweep
 bisect_baseline	file	tests/baseline/parser-mega-bisect.tsv	delta 8192
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	B1-B7
 wave_tsv	file	tests/baseline/parser-mega7-promote-wave.tsv	7 rows
-parent_boot020	cross_ref	analysis/boot-020-mega7-milestone-v1.md	里程碑
-parent_gap	cross_ref	analysis/boot-mega7-gap.md	阶段 B
-doc	file	boot-021-mega7-promote-v1.md	analysis/boot-021-mega7-promote-v1.md	RFC
+parent_boot020	cross_ref	analysis/archive/boot/boot-020-mega7-milestone-v1.md	里程碑
+parent_gap	cross_ref	analysis/archive/boot/boot-mega7-gap.md	阶段 B
+doc	file	boot-021-mega7-promote-v1.md	analysis/archive/boot/boot-021-mega7-promote-v1.md	RFC
 lib	script	lib/boot-021-mega7-promote.sh	tests/lib/boot-021-mega7-promote.sh
 gate	script	run-boot-021-mega7-promote-gate.sh	tests/run-boot-021-mega7-promote-gate.sh

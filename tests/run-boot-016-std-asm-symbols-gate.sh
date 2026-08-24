@@ -6,10 +6,13 @@
 # 3) 构建 Top-N .o 并用 nm 校验锚点符号已定义
 #
 # 用法：./tests/run-boot-016-std-asm-symbols-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT016_DOC:-analysis/boot-016-std-asm-symbols-v1.md}"
+DOC="${XLANG_BOOT016_DOC:-analysis/archive/boot/boot-016-std-asm-symbols-v1.md}"
 MANIFEST="${XLANG_BOOT016_TSV:-tests/baseline/boot-016-std-asm-symbols.tsv}"
 RUNTIME="${XLANG_BOOT016_RUNTIME:-compiler/seeds/runtime.from_x.c}"
 LIB="tests/lib/boot-016-std-asm-symbols.sh"

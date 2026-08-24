@@ -4,10 +4,13 @@
 # 校验文档当季版本与 manifest 一致，并输出 XLANG_DOC_ROADMAP 报告。
 #
 # 用法：./tests/run-doc-public-roadmap.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_DOC_ROADMAP_DOC:-analysis/doc-public-roadmap-v1.md}"
+DOC="${XLANG_DOC_ROADMAP_DOC:-analysis/archive/doc/doc-public-roadmap-v1.md}"
 MANIFEST="${XLANG_DOC_ROADMAP_MANIFEST:-tests/baseline/doc-public-roadmap.tsv}"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"
 

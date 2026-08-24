@@ -75,5 +75,5 @@ hook_arrow	smoke	tests/std-db/arrow_column_smoke.x	std/db/arrow/arrow.o	arrow_co
 hook_json	smoke	tests/json/object_array_parse.x	std/json/json.o	-	-	link smoke
 hook_async	smoke	tests/async/await_scheduler_mod.x	std/async/scheduler.o	-	-	on_demand smoke
 hook_core_mem	smoke	tests/core-mem/volatile_fence.x	core/mem/mem.o	-	-	on_demand smoke
-doc	file	analysis/boot-std-link-contract-v1.md	analysis/boot-std-link-contract-v1.md	-	-	RFC
+doc	file	analysis/archive/boot/boot-std-link-contract-v1.md	analysis/archive/boot/boot-std-link-contract-v1.md	-	-	RFC
 gate	script	run-boot-std-link-contract-gate.sh	tests/run-boot-std-link-contract-gate.sh	-	-	manifest

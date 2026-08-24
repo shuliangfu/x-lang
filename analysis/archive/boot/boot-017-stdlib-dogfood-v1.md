@@ -3,6 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 关联：`PERF-004`、`BOOT-013`、`tests/baseline/stdlib-check-matrix.tsv`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

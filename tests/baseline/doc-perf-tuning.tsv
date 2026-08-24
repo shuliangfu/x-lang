@@ -10,12 +10,12 @@ bootstrap_diag	section	## 5. 自举与 CI 诊断	BOOT-004
 baseline_gov	section	## 6. Baseline 治理	ENG-001
 cmd_cheatsheet	section	## 7. 调优命令速查	速查表
 self_check	section	## 9. 自检（5 题）	quiz
-cross_obs	cross_ref	analysis/obs-compile-phase-timing-v1.md	OBS-001
-cross_io	cross_ref	analysis/perf-io-zig-v1.md	PERF-002
-cross_net	cross_ref	analysis/perf-net-zig-v1.md	PERF-003
-cross_zig	cross_ref	analysis/perf-zig-baseline-v1.md	PERF-001
-cross_eng	cross_ref	analysis/eng-baseline-governance-v1.md	ENG-001
-cross_zc	cross_ref	analysis/zc-semantics-v1.md	ZC-006
+cross_obs	cross_ref	analysis/archive/obs/obs-compile-phase-timing-v1.md	OBS-001
+cross_io	cross_ref	analysis/archive/perf/perf-io-zig-v1.md	PERF-002
+cross_net	cross_ref	analysis/archive/perf/perf-net-zig-v1.md	PERF-003
+cross_zig	cross_ref	analysis/archive/perf/perf-zig-baseline-v1.md	PERF-001
+cross_eng	cross_ref	analysis/archive/eng/eng-baseline-governance-v1.md	ENG-001
+cross_zc	cross_ref	analysis/archive/zc/zc-semantics-v1.md	ZC-006
 hook_compile_timing	hook_script	run-obs-compile-phase-timing-gate.sh	OBS-001
 hook_compile_dogfood	hook_script	run-perf-compile-dogfood-gate.sh	PERF-004
 hook_io	hook_script	run-perf-io-zig-gate.sh	PERF-002

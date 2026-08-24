@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 读者：排查编译变慢、IO/NET 回退、自举耗时的开发者  
 > 关联：`PERF-001~004`、`OBS-001`、`ENG-001`、`ZC-006`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -99,7 +100,7 @@ XLANG_PERF_FAIL_ON_IO_REGRESSION=1 XLANG_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-
 | `io_random_pread` | 随机 pread |
 | `zero_copy_sendfile` | 内核零拷贝 |
 
-**零拷贝选型**：见 `analysis/zc-semantics-v1.md` §6 决策树。
+**零拷贝选型**：见 `analysis/archive/zc/zc-semantics-v1.md` §6 决策树。
 
 基线：`tests/baseline/io-perf.tsv`；对标 Zig：`tests/baseline/zig-perf.tsv`。
 
@@ -135,7 +136,7 @@ XLANG_PERF_FAIL_ON_IO_REGRESSION=1 XLANG_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-
 
 ### 5.2 失败分类
 
-`analysis/boot-failure-taxonomy-v1.md` + `run-bootstrap-failure-taxonomy-gate.sh`。
+`analysis/archive/boot/boot-failure-taxonomy-v1.md` + `run-bootstrap-failure-taxonomy-gate.sh`。
 
 ### 5.3 跨平台
 
@@ -178,14 +179,14 @@ XLANG_PERF_FAIL_ON_IO_REGRESSION=1 XLANG_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-
 
 | 主题 | 文档 |
 |------|------|
-| Zig 基线 | `analysis/perf-zig-baseline-v1.md` |
-| IO 对标 | `analysis/perf-io-zig-v1.md` |
-| NET 对标 | `analysis/perf-net-zig-v1.md` |
-| 编译阶段 | `analysis/obs-compile-phase-timing-v1.md` |
-| async trace | `analysis/obs-async-runtime-trace-v1.md` |
-| flamegraph Top20 | `analysis/perf-flamegraph-v1.md` |
-| 零拷贝 | `analysis/zc-semantics-v1.md` |
-| baseline 治理 | `analysis/eng-baseline-governance-v1.md` |
+| Zig 基线 | `analysis/archive/perf/perf-zig-baseline-v1.md` |
+| IO 对标 | `analysis/archive/perf/perf-io-zig-v1.md` |
+| NET 对标 | `analysis/archive/perf/perf-net-zig-v1.md` |
+| 编译阶段 | `analysis/archive/obs/obs-compile-phase-timing-v1.md` |
+| async trace | `analysis/archive/obs/obs-async-runtime-trace-v1.md` |
+| flamegraph Top20 | `analysis/archive/perf/perf-flamegraph-v1.md` |
+| 零拷贝 | `analysis/archive/zc/zc-semantics-v1.md` |
+| baseline 治理 | `analysis/archive/eng/eng-baseline-governance-v1.md` |
 | 自举架构 | `analysis/doc-selfhost-architecture-v1.md` |
 
 ---

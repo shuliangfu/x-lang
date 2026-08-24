@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：BOOT-020 里程碑、`parser-mega-bisect.tsv`、`comp-parser-mega7-matrix.tsv`  
 > 关联：`boot-mega7-gap.md` 阶段 B、COMP-001
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

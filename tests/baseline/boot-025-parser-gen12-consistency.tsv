@@ -10,9 +10,9 @@ hook_dogfood	hook_ref	run-bootstrap-stage2-dogfood-parser-typeck.sh	consist_dogf
 hook_boot024	hook_ref	run-boot-024-parser-bootstrap-emit-gate.sh	consist_boot024
 repro_matrix	cross_ref	tests/baseline/bootstrap-repro.tsv	boot025_stage2_gen12
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	C4 gen12
-parent_boot024	cross_ref	analysis/boot-024-parser-bootstrap-emit-v1.md	C2
-parent_gap	cross_ref	analysis/boot-mega7-gap.md	阶段 C3
+parent_boot024	cross_ref	analysis/archive/boot/boot-024-parser-bootstrap-emit-v1.md	C2
+parent_gap	cross_ref	analysis/archive/boot/boot-mega7-gap.md	阶段 C3
 verify_script	cross_ref	compiler/verify-selfhost-stage2-bstrict.sh	二遍自举
-doc	file	boot-025-parser-gen12-consistency-v1.md	analysis/boot-025-parser-gen12-consistency-v1.md	RFC
+doc	file	boot-025-parser-gen12-consistency-v1.md	analysis/archive/boot/boot-025-parser-gen12-consistency-v1.md	RFC
 lib	script	lib/boot-025-parser-gen12-consistency.sh	tests/lib/boot-025-parser-gen12-consistency.sh
 gate	script	run-boot-025-parser-gen12-consistency-gate.sh	tests/run-boot-025-parser-gen12-consistency-gate.sh
