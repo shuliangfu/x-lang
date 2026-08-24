@@ -2,19 +2,23 @@
 # BOOT-016：xlang_asm 路径 Top-N std .o 符号完整性门禁
 #
 # 1) boot-016-std-asm-symbols-v1.md + manifest
-# 2) runtime.c asm_ld_append_std_objs 含各 obj 路径
+# 2) live labi path seeds contain each Top-N obj_rel string
 # 3) 构建 Top-N .o 并用 nm 校验锚点符号已定义
 #
 # 用法：./tests/run-boot-016-std-asm-symbols-gate.sh
 # wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# wave honesty (2026-08-24 #2): monofile seeds/runtime.from_x.c retired wave321;
+# path inventory = labi_std_list + labi_ondemand_list (union covers Top-12);
+# get_*_o_path getters retired (E-04). Override: XLANG_BOOT016_RUNTIME="f1 f2…".
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 DOC="${XLANG_BOOT016_DOC:-analysis/archive/boot/boot-016-std-asm-symbols-v1.md}"
 MANIFEST="${XLANG_BOOT016_TSV:-tests/baseline/boot-016-std-asm-symbols.tsv}"
-RUNTIME="${XLANG_BOOT016_RUNTIME:-compiler/seeds/runtime.from_x.c}"
+# Live asm std path authorities (space-separated). Union of always-list + on-demand.
+RUNTIME="${XLANG_BOOT016_RUNTIME:-compiler/seeds/labi_std_list.from_x.c compiler/seeds/labi_ondemand_list.from_x.c}"
 LIB="tests/lib/boot-016-std-asm-symbols.sh"
 MIN_TOP=12
 
@@ -22,9 +26,15 @@ MIN_TOP=12
 . tests/lib/boot-016-std-asm-symbols.sh
 
 echo "=== BOOT-016: std asm symbol manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$RUNTIME"; do
+for f in "$DOC" "$MANIFEST" "$LIB"; do
   if [ ! -f "$f" ]; then
     echo "boot-016-std-asm-symbols gate FAIL: missing $f" >&2
+    exit 1
+  fi
+done
+for f in $RUNTIME; do
+  if [ ! -f "$f" ]; then
+    echo "boot-016-std-asm-symbols gate FAIL: missing live seed $f" >&2
     exit 1
   fi
 done
@@ -65,7 +75,7 @@ if [ "${runtime_miss:-0}" -gt 0 ]; then
   boot016_emit_report "fail" 0 0 "$runtime_miss" 1
   exit 1
 fi
-echo "boot-016 runtime paths OK"
+echo "boot-016 live path seeds OK"
 
 if ! command -v nm >/dev/null 2>&1; then
   echo "boot-016-std-asm-symbols gate SKIP nm (no nm)" >&2

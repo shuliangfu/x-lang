@@ -3,8 +3,14 @@
 #
 # 用法（source 后）：
 #   boot016_nm_has_symbol OBJ SYM
-#   boot016_verify_std_objs RUNTIME TSV
+#   boot016_verify_runtime_paths RUNTIME_FILES TSV
 #   boot016_emit_report status obj_ok sym_miss runtime_miss skip
+#
+# wave honesty (2026-08-24): RUNTIME_FILES is a space-separated live seed set
+# (labi_std_list + labi_ondemand_list). Monofile seeds/runtime.from_x.c retired
+# wave321; get_*_o_path getters retired (E-04). Path string literals are the
+# contract — getter column may be "-".
+# PLATFORM: SHARED archaeology.
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -33,9 +39,23 @@ boot016_ensure_obj() {
   [ -f "$obj_rel" ]
 }
 
-# 校验 runtime.c 含 getter 与 obj_rel；echo 缺失数。
+# Return 0 if needle appears in any file listed in space-separated haystack.
+boot016_any_file_has() {
+  local needle="$1"
+  local hay="$2"
+  local f
+  for f in $hay; do
+    if [ -f "$f" ] && grep -qF "$needle" "$f" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Verify live link-path seeds contain each std_obj path (and optional getter).
+# RUNTIME_FILES: space-separated seed paths. Echo miss count; return 0 iff miss=0.
 boot016_verify_runtime_paths() {
-  local rt="$1"
+  local rt_files="$1"
   local tsv="$2"
   local miss=0
   local item_id kind obj_rel anchor getter _notes
@@ -44,13 +64,13 @@ boot016_verify_runtime_paths() {
     case "$kind" in
       std_obj)
         if [ -n "$getter" ] && [ "$getter" != "-" ]; then
-          if ! grep -qF "$getter" "$rt" 2>/dev/null; then
-            echo "boot-016 FAIL: runtime missing getter $getter ($item_id)" >&2
+          if ! boot016_any_file_has "$getter" "$rt_files"; then
+            echo "boot-016 FAIL: live seeds missing getter $getter ($item_id)" >&2
             miss=$((miss + 1))
           fi
         fi
-        if ! grep -qF "$obj_rel" "$rt" 2>/dev/null; then
-          echo "boot-016 FAIL: runtime missing obj path $obj_rel ($item_id)" >&2
+        if ! boot016_any_file_has "$obj_rel" "$rt_files"; then
+          echo "boot-016 FAIL: live seeds missing obj path $obj_rel ($item_id)" >&2
           miss=$((miss + 1))
         fi
         ;;
