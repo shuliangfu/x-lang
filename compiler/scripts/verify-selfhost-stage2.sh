@@ -178,7 +178,9 @@ done
 perl scripts/fix_parser_pool_access_gen_c.pl parser_gen2.c 2>/dev/null || true
 perl scripts/fix_driver_gen_duplicate_main.pl driver_gen2.c 2>/dev/null || true
 perl scripts/fix_pipeline_extern_gen_c.pl pipeline_gen2.c 2>/dev/null || true
-# pipeline 须 #include pipeline_glue.c（ast_pool / preprocess_if_stack / platform 符号）；与 ast_x2 重复项改链 seed 的 ast_x.o。
+# wave967: pipeline_glue.c / ast_pool.c left wave309 — fix_pipeline_extern strips
+# residual #include only (never reinjects). Live orch = runtime_pipeline_abi /
+# pipeline.x pure-extern. Duplicate ast symbols: prefer seed ast_x.o on link.
 perl scripts/hoist_pipeline_prototypes.pl pipeline_gen2.c 2>/dev/null || true
 perl scripts/fix_slim_arena_gen_c.pl pipeline_gen2.c 2>/dev/null || true
 perl -i -ne 'print unless /^extern.*parser_parse_into_buf/' pipeline_gen2.c 2>/dev/null || true

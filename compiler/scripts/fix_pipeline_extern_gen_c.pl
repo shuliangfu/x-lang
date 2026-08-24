@@ -1,6 +1,13 @@
 #!/usr/bin/env perl
-# pipeline.x -E-extern 产物：补 pipeline_dep_ctx_*→ast_pipeline_*、std.fs 短名、parser_parse_into_buf 等，
-# 使 pipeline_gen.c 可与 pipeline_glue.o / typeck_x.o / codegen_x.o 分 TU 链接（无内联 typeck/codegen）。
+# pipeline.x -E-extern product: aliases pipeline_dep_ctx_*→ast_pipeline_*, std.fs
+# short names, parser_parse_into_buf, etc. so pipeline_gen.c can link as a
+# separate TU against typeck_x.o / codegen_x.o / runtime_pipeline_abi (no inlined
+# typeck/codegen).
+#
+# wave967: pipeline_glue.c / ast_pool.c left wave309. Do NOT reinject
+# #include "pipeline_glue.c" (deleted mega = fake authority / broken cc).
+# Strip residual includes only. Live orch = pipeline.x pure-extern + abi.
+# PLATFORM: SHARED — archaeology honesty; Stage2 / glue_types path.
 use strict;
 use warnings;
 
@@ -10,15 +17,27 @@ local $/;
 my $src = <$fh>;
 my $orig = $src;
 
-# 仅处理瘦 pipeline：-E-extern 仍可能追加 #include "pipeline_glue.c" 行，但不含内联 glue 体。
+# wave967: strip any residual #include "pipeline_glue.c" (file deleted wave309).
+# Never reinject — that was the soft knife root (fake include of absent mega).
 if (index($src, '#include "pipeline_glue.c"') >= 0) {
-  $src =~ s/\n#include "pipeline_glue.c"\n?\s*\z/\n/s;
+  print STDERR "fix_pipeline_extern_gen_c: stripping residual #include \"pipeline_glue.c\"\n"
+    . "  (retired wave309; live = runtime_pipeline_abi / pipeline.x pure-extern)\n";
+  $src =~ s/\n#include "pipeline_glue.c"\n?/\n/g;
 }
-# 瘦 pipeline：-E-extern 编排体须含 load/sync 或 parse_entry；run_x_pipeline_impl 迁 C glue 后不再出现在 gen.c。
+# Thin pipeline: -E-extern body must contain load/sync or parse_entry.
 my $is_thin_pipeline = (index($src, 'pipeline_load_and_sync_direct_import_deps') >= 0)
   || (index($src, 'run_x_pipeline_parse_entry_if_needed') >= 0)
   || (index($src, 'pipeline_run_x_pipeline_impl') >= 0);
-exit 0 unless $is_thin_pipeline;
+# Persist residual-include strip even on non-thin; then leave.
+if (!$is_thin_pipeline) {
+  if ($src ne $orig) {
+    seek $fh, 0, 0;
+    print $fh $src;
+    truncate $fh, tell($fh);
+  }
+  close $fh;
+  exit 0;
+}
 
 # 去掉重复 slice struct（与 Makefile dedupe 双保险）。
 my $slice_seen = 0;
@@ -68,7 +87,8 @@ add_alias('lexer_lexer_next_buf', 'lexer_next_buf');
 add_alias('ast_arena_init', 'ast_ast_arena_init');
 add_alias('preprocess_x_buf', 'preprocess_x_buf');
 
-# pipeline_module_* / pipeline_arena_* 由 pipeline_glue.o（ast_pool）提供，generated 已用同名 extern。
+# pipeline_module_* / pipeline_arena_* : linked from runtime_pipeline_abi /
+# pipeline_x (wave309 left glue/ast_pool mega). Generated TU already has same-name externs.
 
 # parser_parse_into_buf：C parser.o 无此符号；extern 须在 struct 定义之后声明。
 if (index($src, 'parser_parse_into_buf') >= 0 && index($src, 'pipeline extern parser_parse_into_buf') < 0) {
@@ -111,49 +131,13 @@ if (index($src, '#define lexer_init lexer_lexer_init') >= 0
   }
 }
 
+# wave967: do NOT reinject #include "pipeline_glue.c" / ast_pool same-TU.
+# Pre-leave path appended the include after stripping so fat-gen detection
+# would not misfire; post-leave that include is a deleted-file fake authority.
+# Thin pipeline links runtime_pipeline_abi + pipeline_x instead.
 if ($src ne $orig) {
   seek $fh, 0, 0;
   print $fh $src;
   truncate $fh, tell($fh);
 }
 close $fh;
-
-sub write_pipeline_gen {
-  my ($p, $body) = @_;
-  open my $wf, '>', $p or die "write $p: $!\n";
-  print $wf $body;
-  close $wf;
-}
-
-# 瘦 pipeline 仍须同 TU 链 ast_pool：在文件末恢复 #include（fix 开头已去掉，避免脚本误判为 fat gen）。
-# 须在 #include 前 #undef 全部 pipeline_*→ast_pipeline_* 别名，否则 ast_pool.c 内 pipeline_dep_ctx_ndep 等
-# 会被宏展开成 ast_pipeline_*，与 pipeline_glue.c 末尾 ast_* 转发函数重复定义。
-if ($is_thin_pipeline) {
-  my $undef_block = '';
-  if (@alias_lines) {
-    my @undef = map {
-      chomp;
-      my ($from) = /^#define (\S+)/ ? $1 : ();
-      $from ? "#undef $from\n" : '';
-    } @alias_lines;
-    $undef_block = "/* pipeline extern TU: drop aliases before glue (ast_pool uses pipeline_* names) */\n"
-      . join('', grep { length } @undef) . "\n";
-  }
-  # 编排 parse/typecheck/codegen 已迁 C glue；gen.c 若仍有 pipeline_run_x_pipeline_* 体则无需 trampoline。
-  my $tramp_block = '';
-  my $tail_changed = 0;
-  if (index($src, '#include "pipeline_glue.c"') < 0) {
-    $src .= "\n$tramp_block$undef_block#include \"pipeline_glue.c\"\n";
-    $tail_changed = 1;
-  } else {
-    if ($undef_block ne '' && index($src, 'pipeline extern TU: drop aliases before glue') < 0) {
-      $src =~ s/\n#include "pipeline_glue.c"\n?\s*\z/\n$tramp_block$undef_block#include "pipeline_glue.c"\n/s;
-      $tail_changed = 1;
-    } elsif ($tramp_block ne '' && index($src, "int32_t run_x_pipeline_codegen_deps(struct") < 0) {
-      $src =~ s/\n(\/\* pipeline extern TU: drop aliases before glue[^\n]* \*\/\n)/\n$tramp_block\n$1/s
-        or $src =~ s/\n#include "pipeline_glue.c"\n?\s*\z/\n$tramp_block\n#include "pipeline_glue.c"\n/s;
-      $tail_changed = 1;
-    }
-  }
-  write_pipeline_gen($path, $src) if $tail_changed;
-}

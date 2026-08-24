@@ -55,13 +55,14 @@ if (index($src, 'ast_arena_func_get(') >= 0) {
   }
 }
 
-# lsp_diag 等：直接调用 ast_arena_*_get 时补 ast_ast_arena_* extern 与 #define 别名。
+# lsp_diag etc.: when calling ast_arena_*_get, inject ast_ast_arena_* extern + #define.
+# wave967: marker no longer names deleted pipeline_glue.c (left wave309).
 if (index($src, 'ast_arena_expr_get(') >= 0 && index($src, '#define ast_arena_expr_get ast_ast_arena_expr_get') < 0) {
-  $src =~ s/\n\/\* ast_ast_arena pool externs \(pipeline_glue\.c at link\) \*\/\n(?:extern[^\n]*\n|#define ast_arena_[^\n]*\n)*//s;
+  $src =~ s/\n\/\* ast_ast_arena pool externs \((?:pipeline_glue\.c at link|pipeline\/runtime at link)\) \*\/\n(?:extern[^\n]*\n|#define ast_arena_[^\n]*\n)*//s;
   if (index($src, 'extern struct ast_Expr ast_ast_arena_expr_get') < 0) {
     my $pool_ext = <<'POOL_EXT';
 
-/* ast_ast_arena pool externs (pipeline_glue.c at link) */
+/* ast_ast_arena pool externs (pipeline/runtime at link) */
 extern struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
 extern struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
 #define ast_arena_expr_get ast_ast_arena_expr_get
@@ -72,13 +73,14 @@ POOL_EXT
   }
 }
 
-# parser 等：经 fix_slim_arena 映射 ast_arena_* → ast_ast_arena_* 时，单 TU 编译须补 pipeline_glue 侧 extern。
+# parser etc.: after fix_slim_arena maps ast_arena_* → ast_ast_arena_*, single-TU
+# compile needs pool externs from live pipeline/runtime (not deleted glue).
 if (index($src, '#define ast_arena_block_get ast_ast_arena_block_get') >= 0) {
-  $src =~ s/\n\/\* ast_ast_arena pool externs \(pipeline_glue\.c at link\) \*\/\n(?:extern[^\n]*\n|#define ast_arena_[^\n]*\n)*//s;
+  $src =~ s/\n\/\* ast_ast_arena pool externs \((?:pipeline_glue\.c at link|pipeline\/runtime at link)\) \*\/\n(?:extern[^\n]*\n|#define ast_arena_[^\n]*\n)*//s;
   if (index($src, 'extern struct ast_Block ast_ast_arena_block_get') < 0) {
     my $pool_ext = <<'POOL_EXT';
 
-/* ast_ast_arena pool externs (pipeline_glue.c at link) */
+/* ast_ast_arena pool externs (pipeline/runtime at link) */
 extern void ast_ast_arena_init(struct ast_ASTArena *arena);
 extern int32_t ast_ast_arena_type_alloc(struct ast_ASTArena *a);
 extern int32_t ast_ast_arena_expr_alloc(struct ast_ASTArena *a);

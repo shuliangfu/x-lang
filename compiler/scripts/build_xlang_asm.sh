@@ -3344,8 +3344,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
   done
   [ -z "$XLANG_E_LOCAL" ] && XLANG_E_LOCAL="$XLANG"
   fi
-  # glue 仅需类型/extern（extract_pipeline_glue_types.pl 在 #include pipeline_glue.c 前截断）；
-  # 全量 -E 会内联 std.io 等大依赖，codegen 中途失败产出截断 C 且 exit=1，阻断 set -e 链。
+  # glue types only: extract_pipeline_glue_types.pl from -E-extern gen
+  # (pipeline_glue.c left wave309 — no mega include truncate). Full -E would
+  # inline std.io etc.; mid-codegen failure yields truncated C and trips set -e.
   echo " $XLANG_E_LOCAL -E -E-extern pipeline.x -> $GEN_PIPELINE (glue standalone types) ..."
   "$XLANG_E_LOCAL" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess \
   -E -E-extern src/pipeline/pipeline.x >"$GEN_PIPELINE"

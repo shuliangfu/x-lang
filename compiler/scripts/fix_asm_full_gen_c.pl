@@ -542,7 +542,8 @@ if ($src =~ /static void init_globals\(void\) \{/ && $src !~ /static struct back
 }
 
 my $glue_stub = <<'GLUE';
-/* pipeline/ast glue：cc -c 前向声明（定义在 pipeline_glue.c / ast_pool.c） */
+/* pipeline/ast glue: cc -c forward decls (live = runtime_pipeline_abi / pipeline_x;
+ * pipeline_glue.c / ast_pool.c left wave309 — do not treat as producers). */
 struct backend_ASTArena;
 struct ast_ASTArena;
 typedef struct backend_ASTArena ast_ASTArena;

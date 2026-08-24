@@ -47,12 +47,15 @@ my $is_pipeline_gen2 = ($path =~ /pipeline_gen2\.c$/);
 my $is_module_gen2   = ($path =~ /(?:parser|typeck|codegen|driver|lexer|lsp_diag|lsp_io|lsp)_gen(?:2)?\.c$/);
 
 if ($is_pipeline_gen2) {
-  # pipeline_gen2 同 TU 含 ast_pool.c（实现 pipeline_*）；仅补 extern 原型，禁止 #define 别名（会宏展开冲突）。
+  # wave967: pipeline_gen2 no longer same-TU includes deleted ast_pool.c
+  # (wave309 leave). Emit pipeline_* extern prototypes only; ban #define
+  # aliases (macro-expand clash with live abi / pipeline_x names).
   while ($src =~ /^extern\s+(${extern_ret})ast_pipeline_(\w+)\s*\(([^;]*)\);/mg) {
     next if $seen{"pext_$2"}++;
     push @pipe_extern_lines, "extern $1 pipeline_$2($3);\n";
   }
-  # ast_pool scratch（preprocess_if_stack / asm_qual_sym / asm_ctx_local / driver_emit）：gen2 若导出 ast_ 前缀则补 pipeline 回落原型。
+  # Scratch symbols (preprocess_if_stack / asm_qual_sym / asm_ctx_local /
+  # driver_emit): if gen2 exports them, add matching pipeline_* prototypes.
   while ($src =~ /^extern\s+(${extern_ret})(preprocess_if_stack_\w+|asm_qual_sym_layer_\w+|asm_ctx_local_\w+|driver_emit_\w+)\s*\(([^;]*)\);/mg) {
     my ($ret, $sym, $args) = ($1, $2, $3);
     next if $seen{"pool_$sym"}++;
@@ -126,7 +129,8 @@ if ($path =~ /parser_gen(?:2)?\.c$/) {
   $src =~ s/\n\/\* parser lexer single-prefix externs \(lexer_x\.o\) \*\/\nextern struct lexer_Lexer lexer_init\(void\);\nextern void lexer_next_into\([^\n]*\nextern struct lexer_LexerResult lexer_next_buf\([^\n]*\n\n//s;
 }
 
-# ast_gen2.c：与 pipeline_glue.c 同链时辅助符号须 weak，避免 duplicate symbol（verify-selfhost-stage2）。
+# ast_gen2.c: helper symbols may need weak when linked with pipeline/runtime
+# (was: pipeline_glue.c; left wave309). Avoid duplicate symbol on Stage2.
 if ($path =~ /ast_gen2\.c$/) {
   # ast.x 自身 TU 的 arena helper 真链接名是 ast_ast_*；若生成后残留 ast_ast_ast_*，会在单文件编译时变成不存在的三级前缀。
   $src =~ s/\bast_ast_ast_/ast_ast_/g;
@@ -184,8 +188,9 @@ if ($is_module_gen2 && ($path =~ /pipeline_gen/ || @fwd_lines)) {
 }
 if ($is_pipeline_gen2 && @pipe_extern_lines) {
   $src =~ s/\n\/\* pipeline call aliases \(ast_pipeline_\* extern, pipeline_\* call\) \*\/\n(?:#define[^\n]*\n)*//s;
-  $src =~ s/\n\/\* pipeline pool extern decls \(calls pipeline_\*, defs in ast_pool\.c\) \*\/\n(?:extern[^\n]*\n)*//s;
-  my $pool_block = "/* pipeline pool extern decls (calls pipeline_*, defs in ast_pool.c) */\n" . join("", @pipe_extern_lines);
+  # Accept historic ast_pool.c marker and wave967 honesty marker.
+  $src =~ s/\n\/\* pipeline pool extern decls \(calls pipeline_\*, defs in (?:ast_pool\.c|runtime_pipeline_abi \/ pipeline_x)\) \*\/\n(?:extern[^\n]*\n)*//s;
+  my $pool_block = "/* pipeline pool extern decls (calls pipeline_*, defs in runtime_pipeline_abi / pipeline_x) */\n" . join("", @pipe_extern_lines);
   $src =~ s/(struct ast_PipelineDepCtx \{.*?\};\n)/$1\n$pool_block/s
     or warn "fix_slim_arena_gen_c: pipeline pool extern anchor not found in $path\n";
 }
@@ -350,49 +355,21 @@ sub inject_ast_gen2_single_prefix_externs {
   return $src;
 }
 
-# 单文件 typeck/codegen/pipeline(-extern) 调 pipeline_* 时，从 pipeline_glue.c 补 ast_pipeline_* extern 与 #define。
+# wave967: honesty-retired. Pre-leave scraped pipeline_glue.c for
+# ast_pipeline_* prototypes + #define aliases. File left wave309; silent
+# `return unless -f` was fake authority (inject never fired = no honesty).
+# Live aliases come from fix_pipeline_extern_gen_c / gen decls / abi link.
+# Refuse resurrected glue fossils (G.7 dual authority ban).
 sub inject_pipeline_glue_from_usage {
   my ($src) = @_;
   my $glue_path = abs_path(dirname($path) . '/pipeline_glue.c');
-  return $src unless -f $glue_path;
-  open my $gl, '<', $glue_path or return $src;
-  my $glue = do { local $/; <$gl> };
-  close $gl;
-
-  my %proto;
-  while ($glue =~ /^((?:void|int32_t|int|uint8_t|size_t|struct\s+ast_\w+\s*\*?)\s+(ast_pipeline_\w+)\s*\(([^)]*)\))\s*\{/mg) {
-    my ($sig, $name, $args) = ($1, $2, $3);
-    $proto{$name} = "extern $sig;\n";
+  if (-e $glue_path) {
+    die "fix_slim_arena_gen_c: REFUSED pipeline_glue.c at $glue_path\n"
+      . "  (retired wave309; inject_pipeline_glue_from_usage honesty-retired)\n"
+      . "  Live: runtime_pipeline_abi / pipeline.x pure-extern + gen decls.\n";
   }
-
-  my %need;
-  while ($src =~ /\bpipeline_([a-zA-Z0-9_]+)\s*\(/g) {
-    my $suffix = $1;
-    next if $src =~ /#define\s+pipeline_\Q$suffix\E\b/;
-    my $ast = "ast_pipeline_$suffix";
-    next unless $proto{$ast};
-    $need{$suffix} = $ast;
-  }
-  return $src unless %need;
-
-  my @ext_lines;
-  my @def_lines;
-  for my $suffix (sort keys %need) {
-    my $ast = $need{$suffix};
-    push @ext_lines, $proto{$ast} unless $src =~ /^\s*extern\s+.*\b\Q$ast\E\s*\(/m;
-    push @def_lines, "#define pipeline_$suffix $ast\n";
-  }
-  return $src unless @ext_lines || @def_lines;
-
-  $src =~ s/\n\/\* pipeline glue usage aliases \*\/\n(?:extern[^\n]*\n|#define[^\n]*\n)*//s;
-  my $block = "/* pipeline glue usage aliases */\n" . join("", @ext_lines) . join("", @def_lines);
-  $src =~ s/(struct ast_PipelineDepCtx \{.*?\};\n)/$1\n$block/s
-    or $src =~ s/(struct ast_ASTArena \{.*?\};\n)/$1\n$block/s
-    or warn "fix_slim_arena_gen_c: pipeline glue alias anchor not found in $path\n";
   return $src;
 }
-
-# inject_pipeline_glue_from_usage 定义见上；module gen2 已在 reverse alias 前调用。
 
 # parser_gen.c：所有 inject 完成后，将 xlang_slice 提前到 ast_ASTArena 后（GCC 见完整类型再声明 lexer_* extern）。
 sub hoist_xlang_slice_struct {
