@@ -1,8 +1,11 @@
 # COMP-007 编译缓存 / 增量编译策略 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-06-17（honesty 2026-08-24 #7）  
 > 状态：**定版（v1 策略 + 原型登记）** — 可测量二次编译；全量 `.x.dep.o` 缓存为 v2  
-> 关联：`OBS-001`（阶段计时）、`PERF-004`（dogfood）、`PERF-010`（冷编译优化）、`COMP-009`（FE/BE 契约）
+> 关联：`OBS-001`（阶段计时）、`PERF-004`（dogfood）、`PERF-010`（冷编译优化）、`COMP-009`（FE/BE 契约）  
+> **Honesty**：`seeds/runtime.from_x.c` / `lsp_diag.c` retired；C2 live = `lsp_diag.h`；  
+> C4 live = `labi_path_pure.from_x.c` (`xlang_rel_o_path_from_argv0`)；  
+> OBS DOC = `analysis/archive/obs/obs-compile-phase-timing-v1.md`；fixture = `examples/hello.x`.
 
 ---
 
@@ -24,10 +27,10 @@
 | 层级 | 策略 | v1 状态 | 锚点 |
 |------|------|---------|------|
 | **C1-dep-seed** | 依赖模块 C 预跑槽位，跳过重复 read/parse | **done** | `driver_dep_seeded_get` |
-| **C2-lsp-cache** | LSP 同源 hash 复用 `ASTModule` | **done** | `lsp_diag_invalidate_cache` |
+| **C2-lsp-cache** | LSP 同源 hash 复用 `ASTModule` | **done** | `lsp_diag.h` `lsp_diag_invalidate_cache` |
 | **C3-asm-preserve** | 自举第二遍失败时保留非空 `__text` | **done** | `build_xlang_asm.sh` |
-| **C4-std-prelink** | 预编译 `std/*.o` 链入，用户增量不重编 std | **done** | `runtime.c` `get_std_*_o_path` |
-| **C5-phase-timing** | 分阶段计时衡量增量收益 | **done** | `XLANG_COMPILE_PHASE_TIMING` |
+| **C4-std-prelink** | 预编译 `std/*.o` 链入，用户增量不重编 std | **done** | `labi_path_pure.from_x.c` `xlang_rel_o_path_from_argv0` |
+| **C5-phase-timing** | 分阶段计时衡量增量收益 | **done** | `obs-compile-phase-timing-v1.md` `XLANG_COMPILE_PHASE_TIMING` |
 | **C6-object-cache** | 按内容 hash 复用 `.o`（import 闭包） | **planned** | v2 RFC |
 
 **incremental 原则**：
@@ -47,9 +50,9 @@
 | proto_id | 能力 | status | 文件 |
 |----------|------|--------|------|
 | `proto_dep_seed` | dep 预跑跳过 parse | done | `pipeline.x` |
-| `proto_lsp_cache` | 源 hash 模块 cache | done | `lsp_diag.c` |
+| `proto_lsp_cache` | 源 hash 模块 cache | done | `lsp_diag.h` |
 | `proto_asm_preserve` | build_asm __text 保留 | done | `build_xlang_asm.sh` |
-| `proto_std_prelink` | std 预链 .o | done | `runtime.c` |
+| `proto_std_prelink` | std 预链 .o | done | `labi_path_pure.from_x.c` |
 | `proto_phase_timing` | 阶段计时 | done | `obs-compile-phase-timing-v1.md` |
 | `proto_object_cache` | 内容寻址 .o | planned | — |
 
@@ -61,8 +64,8 @@
 
 | bench_id | 用例 | 命令 | v1 阈值 |
 |----------|------|------|---------|
-| `bench_double_check` | `loop_i32.x` | `check` ×2 | second/first ≤ **1.0** |
-| `bench_double_o` | `loop_i32.x` | `-o` ×2 | second/first ≤ **1.0** |
+| `bench_double_check` | `examples/hello.x` | `check` ×2 | second/first ≤ **1.0** |
+| `bench_double_o` | `examples/hello.x` | `-o` ×2 | second/first ≤ **1.0** |
 | `bench_timing` | 同上 | `XLANG_COMPILE_PHASE_TIMING=1` | 须输出 timing 行 |
 | `bench_make_q` | `compiler/` | `make -q` | exit 0（构建 cache 代理） |
 | `bench_dogfood_check` | `tests/wpo/dead_fn.x` | `check` ×2 | second/first ≤ **1.1**（扩面 v1） |

@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# TOOL-008：依赖锁定 manifest 门禁
+# TOOL-008：依赖锁定 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-deps-lock-gate.sh
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/tool/;
+# cross TOOL-007 archive; refuse top-level DOC resurrect.
+# Override: XLANG_TOOL_DEPS_LOCK_DOC=…
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL_DEPS_LOCK_DOC:-analysis/tool-deps-lock-v1.md}"
+DOC="${XLANG_TOOL_DEPS_LOCK_DOC:-analysis/archive/tool/tool-deps-lock-v1.md}"
 MANIFEST="${XLANG_TOOL_DEPS_LOCK_MANIFEST:-tests/baseline/tool-deps-lock.tsv}"
+PKGMGR_DOC="${XLANG_TOOL_PKGMGR_DOC:-analysis/archive/tool/tool-pkgmgr-v1.md}"
 PKG_TSV=tests/fixtures/pkgmgr/xlang.pkg.tsv
 LOCK_TSV=tests/fixtures/pkgmgr/xlang.pkg.lock.tsv
 MIN_RULES=6
@@ -15,9 +20,9 @@ MIN_LOCKED=2
 # shellcheck source=tests/lib/tool-deps-lock.sh
 . tests/lib/tool-deps-lock.sh
 
-echo "=== TOOL-008: deps lock manifest ==="
+echo "=== TOOL-008: deps lock manifest (archive DOC) ==="
 for f in "$DOC" "$MANIFEST" "$PKG_TSV" "$LOCK_TSV" \
-  scripts/xlang-deps-lock.sh scripts/xlang-deps-verify.sh analysis/tool-pkgmgr-v1.md; do
+  scripts/xlang-deps-lock.sh scripts/xlang-deps-verify.sh "$PKGMGR_DOC"; do
   if [ ! -f "$f" ]; then
     echo "tool-deps-lock gate FAIL: missing $f" >&2
     exit 1

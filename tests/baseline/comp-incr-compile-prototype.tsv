@@ -1,9 +1,11 @@
 # COMP-007 incremental compile prototype registry
 # 列：proto_id	capability	status	symbol	src	notes
+# honesty 2026-08-24 #7: lsp_diag.c / runtime.from_x.c retired;
+# live = lsp_diag.h + labi_path_pure (xlang_rel_o_path_from_argv0).
 # min_protos	6
 proto_dep_seed	dep pre-seed skip parse	done	driver_dep_seeded_get	compiler/src/pipeline/pipeline.x
-proto_lsp_cache	LSP source hash module cache	done	lsp_diag_invalidate_cache	compiler/src/lsp/lsp_diag.c
+proto_lsp_cache	LSP source hash module cache	done	lsp_diag_invalidate_cache	compiler/src/lsp/lsp_diag.h
 proto_asm_preserve	build_asm __text preserve	done	asm_o_text_bytes	compiler/scripts/build_xlang_asm.sh
-proto_std_prelink	prebuilt std .o link	done	get_std_fs_o_path	compiler/seeds/runtime.from_x.c
-proto_phase_timing	compile phase timing	done	XLANG_COMPILE_PHASE_TIMING	analysis/obs-compile-phase-timing-v1.md
+proto_std_prelink	prebuilt std .o link	done	xlang_rel_o_path_from_argv0	compiler/seeds/labi_path_pure.from_x.c
+proto_phase_timing	compile phase timing	done	XLANG_COMPILE_PHASE_TIMING	analysis/archive/obs/obs-compile-phase-timing-v1.md
 proto_object_cache	content-addressed .o cache	planned	XLANG_DEP_OBJECT_CACHE	-

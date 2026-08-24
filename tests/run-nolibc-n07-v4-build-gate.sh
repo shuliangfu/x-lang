@@ -10,7 +10,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_NOLIBC_N07_V4_FAIL:-0}
-DOC="analysis/phase-f-n07-v4.md"
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/
+DOC="${XLANG_NOLIBC_N07_V4_DOC:-analysis/archive/phase/phase-f-n07-v4.md}"
 MANIFEST="tests/baseline/nolibc-n07-v4-build.tsv"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 XLANG_ASM="compiler/xlang_asm"

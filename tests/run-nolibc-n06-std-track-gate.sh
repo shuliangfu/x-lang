@@ -9,7 +9,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_NOLIBC_N06_FAIL:-0}
-DOC="analysis/phase-f-n06-v1.md"
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/
+DOC="${XLANG_NOLIBC_N06_DOC:-analysis/archive/phase/phase-f-n06-v1.md}"
 MANIFEST="tests/baseline/nolibc-n06-freestanding-replacements.tsv"
 STD_C_GATE="tests/run-std-c-inventory-gate.sh"
 

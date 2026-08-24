@@ -11,7 +11,8 @@ cd "$(dirname "$0")/.."
 . tests/lib/compiler-make.sh
 
 FAIL=${XLANG_NOLIBC_N07_V2_FAIL:-0}
-DOC="analysis/phase-f-n07-v2.md"
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/
+DOC="${XLANG_NOLIBC_N07_V2_DOC:-analysis/archive/phase/phase-f-n07-v2.md}"
 MANIFEST="tests/baseline/nolibc-n07-v2-prep.tsv"
 STUBS="compiler/seeds/bootstrap_nostdlib_stubs.from_x.c"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"

@@ -5,7 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STBL_IMPORT_STD_DOC:-analysis/stbl-import-std-layout-v1.md}"
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/stbl/; TOOL-007 archive cross.
+DOC="${XLANG_STBL_IMPORT_STD_DOC:-analysis/archive/stbl/stbl-import-std-layout-v1.md}"
 MANIFEST="${XLANG_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
 LIB="tests/lib/stbl-import-std-layout.sh"
 PKG_LIB="tests/lib/tool-pkgmgr.sh"
@@ -18,7 +19,7 @@ LIB_ROOT="."
 # shellcheck source=tests/lib/stbl-import-std-layout.sh
 . "$LIB"
 
-echo "=== STBL-004: import std layout manifest ==="
+echo "=== STBL-004: import std layout manifest (archive DOC) ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$PKG_LIB" "$SMOKE_X"; do
   if [ ! -f "$f" ]; then
     echo "stbl-import-std gate FAIL: missing $f" >&2

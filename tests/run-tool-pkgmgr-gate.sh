@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# TOOL-007：包管理器方案 manifest 门禁
+# TOOL-007：包管理器方案 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-pkgmgr-gate.sh
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/tool/;
+# monofile seeds/runtime.from_x.c retired wave321 —
+# resolve live = xlang_resolve_import_file_path_multi (runtime_pipeline_abi.h).
+# Override: XLANG_TOOL_PKGMGR_DOC=…
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL_PKGMGR_DOC:-analysis/tool-pkgmgr-v1.md}"
+DOC="${XLANG_TOOL_PKGMGR_DOC:-analysis/archive/tool/tool-pkgmgr-v1.md}"
 MANIFEST="${XLANG_TOOL_PKGMGR_MANIFEST:-tests/baseline/tool-pkgmgr.tsv}"
 CATALOG="${XLANG_TOOL_PKGMGR_CATALOG:-tests/baseline/tool-pkgmgr-catalog.tsv}"
+RESOLVE_SRC="${XLANG_TOOL_PKGMGR_RESOLVE_SRC:-compiler/src/runtime_pipeline_abi.h}"
 MIN_RULES=6
 MIN_PACKAGES=8
 
@@ -26,8 +32,15 @@ native_xlang() {
   esac
 }
 
-echo "=== TOOL-007: pkgmgr manifest ==="
-for f in "$DOC" "$MANIFEST" "$CATALOG" scripts/xlang-deps-resolve.sh \
+echo "=== TOOL-007: pkgmgr manifest (monofile retired) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "tool-pkgmgr gate FAIL: seeds/runtime.from_x.c resurrected (resolve live = runtime_pipeline_abi.h)" >&2
+  exit 1
+fi
+
+for f in "$DOC" "$MANIFEST" "$CATALOG" "$RESOLVE_SRC" scripts/xlang-deps-resolve.sh \
   tests/fixtures/pkgmgr/xlang.pkg.tsv tests/fixtures/pkgmgr/main.x; do
   if [ ! -f "$f" ]; then
     echo "tool-pkgmgr gate FAIL: missing $f" >&2

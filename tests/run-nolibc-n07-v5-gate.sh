@@ -10,7 +10,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_NOLIBC_N07_V5_FAIL:-0}
-DOC="analysis/phase-f-n07-v5.md"
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/
+DOC="${XLANG_NOLIBC_N07_V5_DOC:-analysis/archive/phase/phase-f-n07-v5.md}"
 MANIFEST="tests/baseline/nolibc-n07-v5.tsv"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 # G.7 / NL-07 L10: wants_nostdlib + ALLOW_LIBC live in shared authority (g05 + crt0).

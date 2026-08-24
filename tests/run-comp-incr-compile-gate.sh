@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# COMP-007：增量编译策略 manifest 门禁
+# COMP-007：增量编译策略 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-comp-incr-compile-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# wave honesty (2026-08-24 #7): DOC under analysis/archive/;
+# monofile / lsp_diag.c retired — C2=lsp_diag.h, C4=labi_path_pure
+# (xlang_rel_o_path_from_argv0); OBS DOC=analysis/archive/obs/.
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
 # PLATFORM: SHARED archaeology.
 set -e
@@ -12,6 +14,9 @@ DOC="${XLANG_COMP_INCR_COMPILE_DOC:-analysis/archive/comp/comp-incr-compile-v1.m
 MANIFEST="${XLANG_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
 PROTOS="${XLANG_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
 BENCH="${XLANG_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
+OBS_DOC="${XLANG_OBS_PHASE_TIMING_DOC:-analysis/archive/obs/obs-compile-phase-timing-v1.md}"
+LSP_SRC="${XLANG_COMP_INCR_LSP_SRC:-compiler/src/lsp/lsp_diag.h}"
+PRELINK_SRC="${XLANG_COMP_INCR_PRELINK_SRC:-compiler/seeds/labi_path_pure.from_x.c}"
 MIN_LAYERS=6
 MIN_PROTOS=6
 MIN_BENCHES=4
@@ -19,11 +24,22 @@ MIN_BENCHES=4
 # shellcheck source=tests/lib/comp-incr-compile.sh
 . tests/lib/comp-incr-compile.sh
 
-echo "=== COMP-007: incremental compile manifest ==="
+echo "=== COMP-007: incremental compile manifest (monofile/lsp.c retired) ==="
+
+# wave321 / E-02: refuse resurrect of retired authorities.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "comp-incr-compile gate FAIL: seeds/runtime.from_x.c resurrected (std prelink live = labi_path_pure)" >&2
+  exit 1
+fi
+if [ -f compiler/src/lsp/lsp_diag.c ]; then
+  echo "comp-incr-compile gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h / lsp_diag.x)" >&2
+  exit 1
+fi
+
 for f in "$DOC" "$MANIFEST" "$PROTOS" "$BENCH" \
   tests/lib/comp-incr-compile.sh tests/run-comp-incr-compile.sh \
-  analysis/obs-compile-phase-timing-v1.md tests/run-obs-compile-phase-timing-gate.sh \
-  compiler/src/pipeline/pipeline.x compiler/src/lsp/lsp_diag.c; do
+  "$OBS_DOC" tests/run-obs-compile-phase-timing-gate.sh \
+  compiler/src/pipeline/pipeline.x "$LSP_SRC" "$PRELINK_SRC"; do
   if [ ! -f "$f" ]; then
     echo "comp-incr-compile gate FAIL: missing $f" >&2
     exit 1

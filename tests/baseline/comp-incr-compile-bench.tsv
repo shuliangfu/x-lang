@@ -3,8 +3,9 @@
 # min_benches	5
 # max_second_first_ratio	1.0
 # target_ratio	0.85
-bench_double_check	bench/loop_i32.x	check	1.0	0.85	check x2
-bench_double_o	bench/loop_i32.x	-o	1.0	0.85	-o x2
-bench_timing	bench/loop_i32.x	timing	1.0	0.85	phase timing
+# honesty 2026-08-24 #7: retired bench/loop_i32.x → examples/hello.x
+bench_double_check	examples/hello.x	check	1.0	0.85	check x2（check 暂停可 SKIP）
+bench_double_o	examples/hello.x	-o	1.0	0.85	-o x2
+bench_timing	examples/hello.x	timing	1.0	0.85	phase timing
 bench_make_q	compiler	make_q	1.0	1.0	make -q proxy
 bench_dogfood_check	tests/wpo/dead_fn.x	check	1.1	0.85	wpo dead_fn x2

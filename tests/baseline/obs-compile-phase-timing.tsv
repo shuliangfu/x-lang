@@ -11,4 +11,4 @@ impl_begin	runtime_fn	driver_compile_phase_timing_begin	runtime_driver_abi.inc
 impl_end	runtime_fn	driver_compile_phase_timing_end	runtime_driver_abi.inc
 impl_flush	runtime_fn	driver_compile_phase_timing_flush	runtime_driver_abi.inc
 pipeline_hook	pipeline_fn	run_x_pipeline_impl	pipeline.x 编排
-smoke_fixture	check	bench/loop_i32.x	native xlang 烟测
+smoke_fixture	check	examples/hello.x	native xlang 烟测（check 暂停时可 -o）

@@ -9,8 +9,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_NOLIBC_N01_FAIL:-0}
-DOC="analysis/phase-f-n01-v1.md"
-PARENT="analysis/phase-f-no-libc-v1.md"
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/ (manifest already archived).
+DOC="${XLANG_NOLIBC_N01_DOC:-analysis/archive/phase/phase-f-n01-v1.md}"
+PARENT="${XLANG_NOLIBC_PARENT_DOC:-analysis/archive/phase/phase-f-no-libc-v1.md}"
 MANIFEST="tests/baseline/nolibc-n01-preparation.tsv"
 ROADMAP="tests/baseline/no-libc-roadmap.tsv"
 POLICY="tests/baseline/no-libc-link-policy.tsv"
@@ -22,7 +23,13 @@ die() {
   exit 0
 }
 
-echo "=== NL-01: F-no-libc preparation (manifest + infra audit) ==="
+echo "=== NL-01: F-no-libc preparation (manifest + infra audit; archive DOC) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  die "seeds/runtime.from_x.c resurrected (NL-05 live = runtime_link_abi)"
+fi
+
 for f in "$DOC" "$PARENT" "$MANIFEST" "$ROADMAP" "$POLICY" "$ASM_IO"; do
   [ -f "$f" ] || die "missing $f"
 done

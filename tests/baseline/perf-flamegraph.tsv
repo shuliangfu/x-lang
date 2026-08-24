@@ -13,4 +13,4 @@ hook_runner	script	run-perf-flamegraph.sh	Top-N 生成器
 hook_gate	script	run-perf-flamegraph-gate.sh	manifest + 烟测
 cross_typeck	cross_ref	analysis/comp-typeck-hotpath-v1.md	COMP-002
 cross_dogfood	cross_ref	analysis/perf-compile-dogfood-v1.md	PERF-004
-cross_obs	cross_ref	analysis/obs-compile-phase-timing-v1.md	OBS-001
+cross_obs	cross_ref	analysis/archive/obs/obs-compile-phase-timing-v1.md	OBS-001

@@ -20,7 +20,8 @@ resolve_std.heap	resolve	std.heap	std/heap/mod.x	mod.x
 resolve_std.error	resolve	std.error	std/error/mod.x	mod.x
 resolve_core.types	resolve	core.types	core/types/mod.x	core
 resolve_core.mem	resolve	core.mem	core/mem/mod.x	core
-cross_tool007	cross_ref	analysis/tool-pkgmgr-v1.md	TOOL-007	K1-K6
+# honesty 2026-08-24 #7: TOOL-007 DOC → analysis/archive/tool/
+cross_tool007	cross_ref	analysis/archive/tool/tool-pkgmgr-v1.md	TOOL-007	K1-K6
 cross_tool008	cross_ref	tests/baseline/tool-deps-lock.tsv	TOOL-008	lock
 cross_stbl001	cross_ref	tests/baseline/stbl-tier-s-registry.tsv	STBL-001	tier-s
 smoke	smoke	tests/import-std-layout/check_imports.x	multi	typeck

@@ -6,11 +6,15 @@
 #   XLANG_NOLIBC_LINK_FAIL=1           — 失败时硬退出
 #   XLANG_NOLIBC_LINK_MANIFEST_ONLY=1  — 仅 manifest + runtime 审计
 #   XLANG_NOLIBC_LINK_SKIP_SMOKE=1     — 跳过 heap/fs 烟测（聚合 gate 已跑时）
+# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/;
+# monofile retired — hosted -lc track = runtime_link_abi / build_xlang_asm.
+# live product strategy prose = analysis/零libc产品策略.md (not this gate DOC).
+# PLATFORM: SHARED archaeology / LINUX smoke.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_NOLIBC_LINK_FAIL:-0}
-DOC="analysis/phase-f-no-libc-v1.md"
+DOC="${XLANG_NOLIBC_LINK_DOC:-analysis/archive/phase/phase-f-no-libc-v1.md}"
 POLICY="tests/baseline/no-libc-link-policy.tsv"
 RT="compiler/seeds/runtime_link_abi.from_x.c"
 DRIVER="compiler/src/driver/compile.x"
@@ -23,6 +27,12 @@ die() {
 }
 
 echo "=== NL-05: freestanding link policy (no -lc for user programs) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  die "seeds/runtime.from_x.c resurrected (hosted -lc track = runtime_link_abi)"
+fi
+
 for f in "$DOC" "$POLICY" "$RT" "$DRIVER" "$BUILD_ASM"; do
   [ -f "$f" ] || die "missing $f"
 done
