@@ -19,9 +19,15 @@
 #include "diag.h"
 #include "runtime_diag_codes.h"
 
-/** 与 pipeline 生成体一致的 CodegenOutBuf 布局。 */
+/**
+ * CodegenOutBuf layout — must match driver_codegen_outbuf_abi /
+ * codegen_outbuf_abi.x (CAP = 9 * 1024 * 1024 = 9437184).
+ * Historical 8MiB (8388608) here made COFF writer store length at the wrong
+ * offset; driver_codegen_outbuf_len read 0 → CG002 after coff_write>0.
+ * PLATFORM: SHARED — LP64 product outbuf ABI.
+ */
 struct codegen_CodegenOutBuf {
-  uint8_t data[8388608];
+  uint8_t data[9437184];
   int32_t length;
 };
 /* G-02f-442 / wave236：thin+rest PREFER_X_O
@@ -293,8 +299,6 @@ int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
  */
 #if defined(__APPLE__)
 extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak_import));
-#elif defined(_WIN32) || defined(_WIN64)
-extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) XLANG_WEAK;
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
@@ -311,19 +315,228 @@ int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
+/* Reloc sidecar accessors (same faces coff.x uses via pipeline_elf_ctx_*). */
+extern void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst);
+extern int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx);
+extern int32_t pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx);
 
-
-
-int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
-#if defined(_WIN32) || defined(_WIN64)
-  if (!platform_coff_write_coff_o_to_buf)
+/**
+ * Append n bytes into CodegenOutBuf (cap 9MiB product ABI).
+ * PLATFORM: SHARED — COFF writer helper.
+ */
+static int32_t seed_coff_append(struct codegen_CodegenOutBuf *out, const uint8_t *ptr, int32_t n) {
+  int32_t i;
+  if (!out || (!ptr && n > 0) || n < 0)
     return -1;
-  return platform_coff_write_coff_o_to_buf(elf_ctx, out_buf);
-#else
-  (void)elf_ctx;
-  (void)out_buf;
-  return -1;
-#endif
+  for (i = 0; i < n && out->length < 9437184; i++) {
+    out->data[out->length] = ptr[i];
+    out->length = out->length + 1;
+  }
+  return (i < n) ? -1 : 0;
+}
+
+/**
+ * Product Windows COFF .obj writer (cross-host).
+ * Twin of compiler/src/asm/platform/coff.x::write_coff_o_to_buf.
+ * Historical false root: this face was `#if _WIN32` only and returned -1 on
+ * Darwin/Linux, so `-target x86_64-pc-windows-msvc -o out.obj` always CG002
+ * while use_coff_o was already set — COMP-011 observational SKIP soft-green.
+ * PLATFORM: SHARED — cross-emit from Darwin/Linux/Windows hosts; e_machine must
+ * be EM_X86_64 (62). build_asm/coff.o remains a ci_text stub; this seed is the
+ * product authority until coff.x pure-asm non-stub lands.
+ */
+int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
+  struct platform_elf_ElfCodegenCtx *ctx;
+  struct codegen_CodegenOutBuf *out;
+  int32_t code_len;
+  int32_t align4;
+  int32_t num_relocs;
+  int32_t num_syms;
+  int32_t reloc_size;
+  int32_t num_coff_syms;
+  int32_t symtab_size;
+  int32_t strtab_used;
+  int32_t ptr_raw;
+  int32_t ptr_reloc;
+  int32_t ptr_sym;
+  int32_t s;
+  int32_t r;
+  uint8_t fh[20];
+  uint8_t sh[40];
+  uint8_t zero[1];
+  uint8_t *ctx_bytes;
+
+  if (!elf_ctx || !out_buf)
+    return -1;
+  ctx = (struct platform_elf_ElfCodegenCtx *)elf_ctx;
+  out = (struct codegen_CodegenOutBuf *)out_buf;
+  ctx_bytes = (uint8_t *)elf_ctx;
+
+  /* coff.x: only AMD64 COFF (IMAGE_FILE_MACHINE_AMD64 = 0x8664). */
+  if (ctx->e_machine != 62)
+    return -1;
+
+  code_len = ctx->code_len;
+  if (code_len < 0)
+    return -1;
+  align4 = (code_len + 3) & (-4);
+  num_relocs = ctx->num_relocs;
+  num_syms = ctx->num_syms;
+  if (num_relocs < 0 || num_syms < 0)
+    return -1;
+  reloc_size = num_relocs * 10;
+  num_coff_syms = 2 + num_syms;
+  symtab_size = num_coff_syms * 18;
+  strtab_used = 4;
+  for (s = 0; s < num_syms; s++)
+    strtab_used = strtab_used + ctx->syms[s].name_len + 1;
+  ptr_raw = 60;
+  ptr_reloc = ptr_raw + align4;
+  ptr_sym = ptr_reloc + reloc_size;
+
+  out->length = 0;
+  memset(fh, 0, sizeof(fh));
+  /* Machine 0x8664 little-endian: 0x64, 0x86 */
+  fh[0] = 100;
+  fh[1] = 134;
+  fh[2] = 1; /* NumberOfSections = 1 */
+  fh[3] = 0;
+  fh[8] = (uint8_t)(ptr_sym);
+  fh[9] = (uint8_t)(ptr_sym >> 8);
+  fh[10] = (uint8_t)(ptr_sym >> 16);
+  fh[11] = (uint8_t)(ptr_sym >> 24);
+  fh[12] = (uint8_t)(num_coff_syms);
+  fh[13] = (uint8_t)(num_coff_syms >> 8);
+  fh[14] = (uint8_t)(num_coff_syms >> 16);
+  fh[15] = (uint8_t)(num_coff_syms >> 24);
+  if (seed_coff_append(out, fh, 20) != 0)
+    return -1;
+
+  memset(sh, 0, sizeof(sh));
+  /* Name ".text" */
+  sh[0] = 46;
+  sh[1] = 116;
+  sh[2] = 101;
+  sh[3] = 120;
+  sh[4] = 116;
+  sh[16] = (uint8_t)(align4);
+  sh[17] = (uint8_t)(align4 >> 8);
+  sh[18] = (uint8_t)(align4 >> 16);
+  sh[19] = (uint8_t)(align4 >> 24);
+  sh[20] = (uint8_t)(ptr_raw);
+  sh[21] = (uint8_t)(ptr_raw >> 8);
+  sh[22] = (uint8_t)(ptr_raw >> 16);
+  sh[23] = (uint8_t)(ptr_raw >> 24);
+  sh[24] = (uint8_t)(ptr_reloc);
+  sh[25] = (uint8_t)(ptr_reloc >> 8);
+  sh[26] = (uint8_t)(ptr_reloc >> 16);
+  sh[27] = (uint8_t)(ptr_reloc >> 24);
+  sh[32] = (uint8_t)(num_relocs);
+  sh[33] = (uint8_t)(num_relocs >> 8);
+  sh[36] = 32;  /* Characteristics low */
+  sh[38] = 80;
+  sh[39] = 96;
+  if (seed_coff_append(out, sh, 40) != 0)
+    return -1;
+
+  if (code_len > 0 && seed_coff_append(out, ctx->code_data, code_len) != 0)
+    return -1;
+  zero[0] = 0;
+  for (s = 0; s < align4 - code_len; s++) {
+    if (seed_coff_append(out, zero, 1) != 0)
+      return -1;
+  }
+
+  for (r = 0; r < num_relocs; r++) {
+    uint8_t rel[10];
+    int32_t sym_idx = 0;
+    int32_t m;
+    uint8_t r_sym_buf[128];
+    int32_t rlen;
+    int32_t roff;
+    memset(r_sym_buf, 0, sizeof(r_sym_buf));
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    for (m = 0; m < num_syms; m++) {
+      if (rlen == ctx->syms[m].name_len &&
+          rlen > 0 &&
+          memcmp(r_sym_buf, ctx->syms[m].name, (size_t)rlen) == 0) {
+        sym_idx = 2 + m;
+        break;
+      }
+    }
+    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+    memset(rel, 0, sizeof(rel));
+    rel[0] = (uint8_t)(roff);
+    rel[1] = (uint8_t)(roff >> 8);
+    rel[2] = (uint8_t)(roff >> 16);
+    rel[3] = (uint8_t)(roff >> 24);
+    rel[4] = (uint8_t)(sym_idx);
+    rel[5] = (uint8_t)(sym_idx >> 8);
+    rel[6] = (uint8_t)(sym_idx >> 16);
+    rel[7] = (uint8_t)(sym_idx >> 24);
+    rel[8] = 4; /* IMAGE_REL_AMD64_REL32 */
+    if (seed_coff_append(out, rel, 10) != 0)
+      return -1;
+  }
+
+  {
+    uint8_t sym_sec[18];
+    uint8_t aux[18];
+    int32_t str_off;
+    uint8_t str_size[4];
+    memset(sym_sec, 0, sizeof(sym_sec));
+    sym_sec[14] = 3; /* IMAGE_SYM_CLASS_STATIC */
+    sym_sec[15] = 1; /* NumberOfAuxSymbols */
+    sym_sec[16] = 1; /* SectionNumber = 1 */
+    if (seed_coff_append(out, sym_sec, 18) != 0)
+      return -1;
+    memset(aux, 0, sizeof(aux));
+    aux[0] = (uint8_t)(align4);
+    aux[1] = (uint8_t)(align4 >> 8);
+    aux[2] = (uint8_t)(align4 >> 16);
+    aux[3] = (uint8_t)(align4 >> 24);
+    aux[4] = (uint8_t)(num_relocs);
+    aux[5] = (uint8_t)(num_relocs >> 8);
+    aux[14] = 1;
+    if (seed_coff_append(out, aux, 18) != 0)
+      return -1;
+
+    str_off = 4;
+    for (s = 0; s < num_syms; s++) {
+      uint8_t ent[18];
+      memset(ent, 0, sizeof(ent));
+      ent[4] = (uint8_t)(str_off);
+      ent[5] = (uint8_t)(str_off >> 8);
+      ent[6] = (uint8_t)(str_off >> 16);
+      ent[7] = (uint8_t)(str_off >> 24);
+      ent[8] = (uint8_t)(ctx->syms[s].offset);
+      ent[9] = (uint8_t)(ctx->syms[s].offset >> 8);
+      ent[10] = (uint8_t)(ctx->syms[s].offset >> 16);
+      ent[11] = (uint8_t)(ctx->syms[s].offset >> 24);
+      ent[12] = 1; /* SectionNumber */
+      ent[14] = 32; /* IMAGE_SYM_CLASS_EXTERNAL */
+      ent[16] = 2; /* Type = function */
+      if (seed_coff_append(out, ent, 18) != 0)
+        return -1;
+      str_off = str_off + ctx->syms[s].name_len + 1;
+    }
+
+    str_size[0] = (uint8_t)(strtab_used);
+    str_size[1] = (uint8_t)(strtab_used >> 8);
+    str_size[2] = (uint8_t)(strtab_used >> 16);
+    str_size[3] = (uint8_t)(strtab_used >> 24);
+    if (seed_coff_append(out, str_size, 4) != 0)
+      return -1;
+    for (s = 0; s < num_syms; s++) {
+      if (ctx->syms[s].name_len > 0 &&
+          seed_coff_append(out, ctx->syms[s].name, ctx->syms[s].name_len) != 0)
+        return -1;
+      if (seed_coff_append(out, zero, 1) != 0)
+        return -1;
+    }
+  }
+  return out->length;
 }
 
 

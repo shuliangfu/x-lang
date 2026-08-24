@@ -35,18 +35,13 @@ if [ ! -f "$SAMPLE" ]; then
   exit 1
 fi
 
-# wave honesty (2026-08-24 #6): COFF cross-emit is product CG002 debt on
-# Darwin/Linux (asm_codegen still ELF-shaped for windows triple). Archaeology
-# gate owns monofile/DOC retarget; keep MSYS hard, observational SKIP elsewhere.
-# PLATFORM: SHARED archaeology / WINDOWS hard when MSYS.
+# wave honesty close (2026-08-25): cross-host COFF writer lives in
+# user_asm_seed_bridge seed (twin of coff.x). Darwin/Linux -target windows
+# must hard-fail on emit miss — no observational SKIP soft-green.
+# PLATFORM: SHARED cross-emit / WINDOWS MSYS also hard.
 if ! comp_win_backend_emit_coff "$XLANG_BIN" "$SAMPLE" "$COFF_OUT" >/dev/null; then
-  if comp_win_backend_is_msys; then
-    echo "comp-win-backend FAIL: COFF emit $SAMPLE" >&2
-    exit 1
-  fi
-  echo "comp-win-backend SKIP coff_emit (product CG002 Windows COFF; archaeology manifest OK; host=$(uname -s))"
-  echo "comp-win-backend OK"
-  exit 0
+  echo "comp-win-backend FAIL: COFF emit $SAMPLE (host=$(uname -s); product CG002)" >&2
+  exit 1
 fi
 SZ="$(wc -c <"$COFF_OUT" | tr -d ' ')"
 echo "comp-win-backend OK coff_emit sample=$SAMPLE bytes=$SZ"
