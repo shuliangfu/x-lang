@@ -17,7 +17,10 @@ function main(): i32 {
     return 2;
   }
   /* See implementation. */
-  let path: u8[33] = [47, 116, 109, 112, 47, 120, 108, 97, 110, 103, 95, 110, 111, 108, 105, 98, 99, 95, 102, 115, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0, 0, 0, 0];
+  /* Allocate PageMmapHeap before path[]: import STRUCT_LIT slot sizing may
+   * be metrics-thin (16B) while field stores use dep AoS offsets 0/8/16
+   * (24B). Keeping path[] after h keeps the path out of the smash zone
+   * (NL-04). PLATFORM: LINUX freestanding smoke. */
   let h: heap.PageMmapHeap = {
     base: 0 as *u8,
     cap: 0 as usize,
@@ -26,6 +29,7 @@ function main(): i32 {
   if (heap.page_mmap_heap_init(&h) != 0) {
     return 3;
   }
+  let path: u8[33] = [47, 116, 109, 112, 47, 120, 108, 97, 110, 103, 95, 110, 111, 108, 105, 98, 99, 95, 102, 115, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0, 0, 0, 0];
   let buf: *u8 = heap.page_mmap_heap_alloc(&h, 16 as usize, 8 as usize);
   if (buf == 0 as *u8) {
     heap.page_mmap_heap_deinit(&h);

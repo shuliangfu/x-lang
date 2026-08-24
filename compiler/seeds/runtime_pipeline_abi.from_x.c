@@ -32652,12 +32652,15 @@ int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref) {
 /* end wave267 asm_locals cold twins */
 
 /*
- * WAVE268: pipeline_asm_slot_bytes pure-owned leave cold twins
+ * WAVE268: pipeline_asm_slot_bytes pure-owned leave
  * (asm_local_slot_bytes + asm_ctx_ensure_block_locals + named/array/mod helpers).
- * Only compiled when product pure is NOT linked (-U FROM_X cold path).
- * PLATFORM: SHARED freestanding stack layout Cap leave.
+ * NL-04 (2026-08-24): ALWAYS compile under FROM_X too. Product hybrid merges
+ * WEAK .x prefer thin first-wins and can keep a stale pipe_local_slot_bytes_mod
+ * (metrics 16 for import PageMmapHeap) while lit stores write 24B. Seed body
+ * carries dep-max sizing and must stay on the LD argv as a strong face.
+ * PLATFORM: SHARED freestanding stack layout Cap leave · LINUX gold.
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if 1 /* was: #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X — NL-04 always-on */
 /* Cap residual faces still host-cc elsewhere when pure not present. */
 extern int32_t typeck_typeck_struct_layout_metrics(void *module, void *arena, int32_t li, int32_t depth,
                                                    int32_t check_pad, int32_t *out_sz, int32_t *out_al);
@@ -32739,14 +32742,25 @@ static int32_t wave268_slot_bytes_named_in_mod(void *arena, int32_t type_ref, vo
     sz = 0;
     al = 1;
     mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz, &al);
+    /* NL-04: raise metrics sz to stored-offset extent — import STRUCT_LIT
+     * may keep thin field types while offsets are wide AoS (PageMmapHeap). */
+    nf = pipeline_module_struct_layout_num_fields(mod, k);
     if (mrc == 0) {
       if (sz <= 0)
         return 0;
+      for (j = 0; j < nf; j++) {
+        foff = pipeline_module_struct_layout_field_offset_at(mod, k, j);
+        fty = pipeline_module_struct_layout_field_type_ref(mod, k, j);
+        fsz = wave268_local_slot_bytes_mod(arena, fty, mod);
+        if (fsz <= 0)
+          fsz = 8;
+        if ((foff + fsz) > sz)
+          sz = foff + fsz;
+      }
       if (sz % 8 != 0)
         sz += 8 - (sz % 8);
       return sz;
     }
-    nf = pipeline_module_struct_layout_num_fields(mod, k);
     if (nf > 0) {
       last = nf - 1;
       foff = pipeline_module_struct_layout_field_offset_at(mod, k, last);
@@ -32831,22 +32845,63 @@ static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void 
   if (ko == 17)
     return 16;
   if (ko == 8) {
+    /* NL-04: take max(emit, dep) — import STRUCT_LIT thin layout must not
+     * win over defining-module authoritative size (PageMmapHeap 16 vs 24). */
+    void *da;
+    int32_t nlayouts2, k2, ln2, j2, eq2, b2, sz2, dot2, bo, bl, ji;
     if (!mod)
       mod = pipeline_asm_glue_emit_module_ref();
     sz = wave268_slot_bytes_named_in_mod(arena, type_ref, mod);
-    if (sz > 0)
-      return sz;
     dep = pipeline_asm_emit_dep_pipe_c();
     if (dep) {
       nd = pipeline_dep_ctx_ndep(dep);
+      nlen = pipeline_type_named_name_into(arena, type_ref, name);
+      if (nlen > 0 && nlen <= 127) {
+        dot2 = -1;
+        for (ji = 0; ji < nlen; ji++) {
+          if (name[ji] == '.')
+            dot2 = ji;
+        }
+        if (dot2 >= 0) {
+          bo = dot2 + 1;
+          bl = nlen - bo;
+          if (bl > 0) {
+            for (ji = 0; ji < bl; ji++)
+              name[ji] = name[bo + ji];
+            nlen = bl;
+          }
+        }
+      }
       for (di = 0; di < nd; di++) {
         dm = pipeline_dep_ctx_module_at(dep, di);
-        if (!dm || dm == mod)
+        da = pipeline_dep_ctx_arena_at(dep, di);
+        if (!dm || !da || dm == mod || nlen <= 0)
           continue;
-        sz = wave268_slot_bytes_named_in_mod(arena, type_ref, dm);
-        if (sz > 0)
-          return sz;
+        nlayouts2 = pipeline_module_num_struct_layouts_at(dm);
+        for (k2 = 0; k2 < nlayouts2; k2++) {
+          ln2 = pipeline_module_struct_layout_name_len(dm, k2);
+          if (ln2 != nlen)
+            continue;
+          eq2 = 1;
+          for (j2 = 0; j2 < nlen; j2++) {
+            b2 = pipeline_module_struct_layout_name_byte_at(dm, k2, j2);
+            if (b2 != (int32_t)name[j2]) {
+              eq2 = 0;
+              break;
+            }
+          }
+          if (!eq2)
+            continue;
+          sz2 = typeck_x_type_size_from_layout_glue(dm, da, k2, 0);
+          if (sz2 > sz)
+            sz = sz2;
+        }
       }
+    }
+    if (sz > 0) {
+      if (sz % 8 != 0)
+        sz += 8 - (sz % 8);
+      return sz;
     }
   }
   if (ko == 10) {
@@ -33008,8 +33063,8 @@ void asm_ctx_ensure_block_locals(uint8_t *ctx, void *arena, int32_t block_ref, i
   *inout_next_offset = off;
   *inout_num_locals = asm_ctx_local_count(ctx);
 }
-/* end wave268 slot_bytes cold twins */
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave268 cold twins */
+/* end wave268 slot_bytes (NL-04 always-on under FROM_X) */
+#endif /* NL-04 always-on wave268 slot_bytes */
 
 /*
  * WAVE269: pipeline_asm_block_tree pure-owned leave cold twins

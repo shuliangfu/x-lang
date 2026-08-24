@@ -83829,6 +83829,14 @@ function pipe_asm_ctx_module_ref(ctx: *u8): *u8 {
  * TYPE_NAMED struct layout stack slot bytes in one module.
  * Metrics OK + sz==0 => true ZST (return 0); metrics fail => invent last_off+fsz.
  * Strips trailing module prefix after last '.' before layout name match.
+ *
+ * NL-04 (2026-08-24): when metrics succeed, also raise sz to cover stored
+ * field offsets (max_j foff_j+fsz_j). Import STRUCT_LIT can leave thin
+ * field types (i32 from untyped 0) while glue_sync / dep merge stamps
+ * wide AoS offsets (e.g. PageMmapHeap off@16) — metrics then return 16
+ * while stores write 24B and smash the previous local (freestanding
+ * fs smoke exit=5). G.7: single sizing authority must respect offsets.
+ *
  * @param arena *u8 - ASTArena*
  * @param type_ref i32 - TYPE_NAMED type ref
  * @param mod *u8 - Module*; null -> 0
@@ -83919,9 +83927,30 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
         }
         sz = sz_slot[0];
         // TRACE soft-dropped.
+        unsafe {
+          nf = pipeline_module_struct_layout_num_fields(mod, k);
+        }
         if (mrc == 0) {
           if (sz <= 0) {
             return 0;
+          }
+          // Raise to stored-offset extent (NL-04 import lit thin types).
+          if (nf > 0) {
+            j = 0;
+            while (j < nf) {
+              unsafe {
+                foff = pipeline_module_struct_layout_field_offset_at(mod, k, j);
+                fty = pipeline_module_struct_layout_field_type_ref(mod, k, j);
+              }
+              fsz = pipe_local_slot_bytes_mod(arena, fty, mod);
+              if (fsz <= 0) {
+                fsz = 8;
+              }
+              if ((foff + fsz) > sz) {
+                sz = foff + fsz;
+              }
+              j = j + 1;
+            }
           }
           if (sz % 8 != 0) {
             sz = sz + (8 - (sz % 8));
@@ -83929,9 +83958,6 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
           return sz;
         }
         // Metrics failed: invent last_off + field slot bytes.
-        unsafe {
-          nf = pipeline_module_struct_layout_num_fields(mod, k);
-        }
         if (nf > 0) {
           last = nf - 1;
           unsafe {
@@ -84100,6 +84126,18 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let lek: i32 = 0;
   let ssz: i32 = 0;
   let simd: i32 = 0;
+  let da: *u8 = 0 as *u8;
+  let nlayouts2: i32 = 0;
+  let k2: i32 = 0;
+  let ln2: i32 = 0;
+  let eq2: i32 = 0;
+  let j2: i32 = 0;
+  let b2: i32 = 0;
+  let sz2: i32 = 0;
+  let dot2: i32 = 0;
+  let bo: i32 = 0;
+  let bl: i32 = 0;
+  let ji: i32 = 0;
   if (arena == 0 as *u8 || type_ref <= 0) {
     return 8;
   }
@@ -84119,32 +84157,94 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
     return 16;
   }
   // TYPE_NAMED = 8: layout metrics + dep walk.
+  // NL-04: never return the first emit-module hit alone. Import STRUCT_LIT
+  // can register a thin-typed PageMmapHeap (metrics 16) while the defining
+  // dep keeps the authoritative 24B layout that FIELD_ACCESS / lit stores
+  // already use — take max(emit, dep) so the stack slot covers the stores.
+  // PLATFORM: SHARED freestanding · LINUX gold.
   if (ko == 8) {
     if (mod == 0 as *u8) {
       mod = pipeline_asm_glue_emit_module_ref();
     }
     sz = pipe_slot_bytes_named_in_mod(arena, type_ref, mod);
-    if (sz > 0) {
-      return sz;
-    }
     dep = pipeline_asm_emit_dep_pipe_c();
     if (dep != 0 as *u8) {
       unsafe {
         nd = pipeline_dep_ctx_ndep(dep);
+        nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
+      }
+      // Strip one module prefix so "heap.PageMmapHeap" matches dep "PageMmapHeap".
+      if (nlen > 0 && nlen <= 127) {
+        dot2 = 0 - 1;
+        ji = 0;
+        while (ji < nlen) {
+          if (name[ji] == 46) {
+            dot2 = ji;
+          }
+          ji = ji + 1;
+        }
+        if (dot2 >= 0) {
+          bo = dot2 + 1;
+          bl = nlen - bo;
+          if (bl > 0) {
+            ji = 0;
+            while (ji < bl) {
+              name[ji] = name[bo + ji];
+              ji = ji + 1;
+            }
+            nlen = bl;
+          }
+        }
       }
       di = 0;
       while (di < nd) {
         unsafe {
           dm = pipeline_dep_ctx_module_at(dep, di);
+          da = pipeline_dep_ctx_arena_at(dep, di);
         }
-        if (dm != 0 as *u8 && dm != mod) {
-          sz = pipe_slot_bytes_named_in_mod(arena, type_ref, dm);
-          if (sz > 0) {
-            return sz;
+        if (dm != 0 as *u8 && da != 0 as *u8 && dm != mod && nlen > 0) {
+          unsafe {
+            nlayouts2 = pipeline_module_num_struct_layouts_at(dm);
+          }
+          k2 = 0;
+          while (k2 < nlayouts2) {
+            unsafe {
+              ln2 = pipeline_module_struct_layout_name_len(dm, k2);
+            }
+            if (ln2 == nlen) {
+              eq2 = 1;
+              j2 = 0;
+              while (j2 < nlen) {
+                unsafe {
+                  b2 = pipeline_module_struct_layout_name_byte_at(dm, k2, j2);
+                }
+                if (b2 != (name[j2] as i32)) {
+                  eq2 = 0;
+                  j2 = nlen;
+                } else {
+                  j2 = j2 + 1;
+                }
+              }
+              if (eq2 != 0) {
+                unsafe {
+                  sz2 = typeck_x_type_size_from_layout_glue(dm, da, k2, 0);
+                }
+                if (sz2 > sz) {
+                  sz = sz2;
+                }
+              }
+            }
+            k2 = k2 + 1;
           }
         }
         di = di + 1;
       }
+    }
+    if (sz > 0) {
+      if (sz % 8 != 0) {
+        sz = sz + (8 - (sz % 8));
+      }
+      return sz;
     }
   }
   // TYPE_ARRAY = 10 fixed T[N].
