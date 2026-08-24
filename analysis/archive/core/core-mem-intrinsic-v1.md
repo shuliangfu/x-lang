@@ -2,7 +2,8 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` Phase 2 §2.1、`core/mem/mod.x`、`compiler/src/codegen/codegen.c`
+> 关联：`NEXT.md` Phase 2 §2.1、`core/mem/mod.x`、`compiler/src/codegen/codegen.x (codegen.c retired)`
+> **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
 
 ---
 
@@ -23,7 +24,7 @@
 
 ## 2. 实现位置
 
-- **映射表**：`compiler/src/codegen/codegen.c` → `builtin_intrinsic_name()`
+- **映射表**：`compiler/src/codegen/codegen.x (codegen.c retired)` → `builtin_intrinsic_name()`
 - **调用点**：`codegen` CALL 跨模块路径经 `builtin_intrinsic_name(full_name)` 输出
 
 自举 `.x` codegen 路径尚未镜像该表；当前验收以 C 前端 `xlang-c -E` 为准（与 Phase 1 其他 emit gate 一致）。

@@ -1,4 +1,5 @@
 # CORE-004 切片 API manifest
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：item_id	kind	anchor	notes
 min_subslice_apis	2
 subslice_i32	symbol	subslice_i32	core/slice/mod.x
@@ -22,6 +23,6 @@ struct_split_u64	symbol	Split_u64	core/slice/mod.x
 struct_split_u8	symbol	Split_u8	core/slice/mod.x
 option_u64	symbol	Option_u64	core/option/mod.x
 test_smoke	file	tests/slice/subslice_split_chunks.x	烟测
-doc	file	core-slice-api-v1.md	analysis/core-slice-api-v1.md	RFC
-doc_generic	file	core-slice-generic-v1.md	analysis/core-slice-generic-v1.md	CORE-157
+doc	file	core-slice-api-v1.md	analysis/archive/core/core-slice-api-v1.md	RFC
+doc_generic	file	core-slice-generic-v1.md	analysis/archive/core/core-slice-generic-v1.md	CORE-157
 gate	script	run-core-slice-api-gate.sh	tests/run-core-slice-api-gate.sh	manifest

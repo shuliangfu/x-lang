@@ -3,6 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` CORE-011、`core/fmt/mod.x`、`std/fmt/mod.x`
+> **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
 
 ---
 

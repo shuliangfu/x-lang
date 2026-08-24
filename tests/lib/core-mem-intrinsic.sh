@@ -8,21 +8,25 @@
 
 CORE_MEM_INTRINSIC_PREFIX="${XLANG_CORE_MEM_INTRINSIC_PREFIX:-xlang: [XLANG_CORE_MEM_INTRINSIC]}"
 
-# 校验 codegen.c 中四条 C 符号 → intrinsic 映射；缺失数 echo 到 stdout，成功返回 0。
+# Live authority = core/mem/mod.x (pure .x loops; codegen.c intrinsic table retired).
+# Mapping rows: c_sym like core_mem_mem_copy → require function mem_copy( in mod.x.
+# Arg1 kept for call-site compat (ignored); Arg2 = TSV; optional Arg3 = mod.x.
 core_mem_intrinsic_mappings_ok() {
-  local codegen="$1"
+  local _codegen_unused="$1"
   local tsv="$2"
+  local mod_x="${3:-core/mem/mod.x}"
   local miss=0
-  local c_sym intrinsic
+  local c_sym intrinsic short
   while IFS=$'\t' read -r item_id kind c_sym intrinsic _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$kind" in
       mapping)
-        if ! grep -qF "\"$c_sym\"" "$codegen" 2>/dev/null; then
-          echo "core-mem-intrinsic FAIL: codegen missing symbol '$c_sym'" >&2
-          miss=$((miss + 1))
-        elif ! grep -qF "\"$intrinsic\"" "$codegen" 2>/dev/null; then
-          echo "core-mem-intrinsic FAIL: codegen missing intrinsic '$intrinsic'" >&2
+        short="$c_sym"
+        case "$c_sym" in
+          core_mem_*) short="${c_sym#core_mem_}" ;;
+        esac
+        if ! grep -qE "function ${short}\\(" "$mod_x" 2>/dev/null; then
+          echo "core-mem-intrinsic FAIL: $mod_x missing function $short (from $c_sym)" >&2
           miss=$((miss + 1))
         fi
         ;;

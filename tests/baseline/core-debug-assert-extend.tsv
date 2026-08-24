@@ -1,4 +1,5 @@
 # CORE-012 core.debug 断言类型扩展 manifest
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：item_id	kind	anchor	mod_path	notes
 # min_symbols	6
 assert_eq_u64	symbol	assert_eq_u64	core/debug/mod.x	u64 相等
@@ -14,5 +15,5 @@ smoke_bool	smoke	assert_ne_bool	tests/debug/assert_extend.x	bool
 smoke_ptr	smoke	assert_eq_ptr	tests/debug/assert_extend.x	指针
 test_smoke	file	tests/debug/assert_extend.x	tests/debug/assert_extend.x	边界烟测
 test_regress	file	tests/debug/main.x	tests/debug/main.x	既有回归
-doc	file	analysis/core-debug-assert-extend-v1.md	analysis/core-debug-assert-extend-v1.md	RFC
+doc	file	analysis/archive/core/core-debug-assert-extend-v1.md	analysis/archive/core/core-debug-assert-extend-v1.md	RFC
 gate	script	tests/run-core-debug-assert-extend-gate.sh	tests/run-core-debug-assert-extend-gate.sh	manifest

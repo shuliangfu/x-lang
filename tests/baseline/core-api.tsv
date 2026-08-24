@@ -1,4 +1,5 @@
 # CORE-014 core 全模块 manifest 注册表
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：module_id	manifest	mod_path	kind	sub_gate
 min_modules	11
 core.types	tests/baseline/core-types-generic-layout.tsv	core/types/mod.x	feature	run-core-types-i16-u16-gate.sh
@@ -13,5 +14,5 @@ core.cmp	tests/baseline/core-cmp-ordering.tsv	core/cmp/mod.x	feature	run-core-cm
 core.iterator	tests/baseline/core-iterator-protocol.tsv	core/iterator/mod.x	feature	run-core-iterator-protocol-gate.sh
 core.str	tests/baseline/core-str-view.tsv	core/str/mod.x	feature	run-core-str-view-gate.sh
 matrix_cross	file	tests/baseline/stdlib-check-matrix.tsv	BOOT-013 11 core
-doc	file	core-api-gate-v1.md	analysis/core-api-gate-v1.md	RFC
+doc	file	core-api-gate-v1.md	analysis/archive/core/core-api-gate-v1.md	RFC
 gate	script	run-core-api-gate.sh	tests/run-core-api-gate.sh	manifest

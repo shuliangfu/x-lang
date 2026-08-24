@@ -1,6 +1,7 @@
 # STD-131：core.str BytesView 查找/分割 v1
 
 > 状态：**定版（v1，零拷贝子视图）**
+> **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
 
 ## API
 

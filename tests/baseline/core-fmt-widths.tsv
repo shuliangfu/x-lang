@@ -1,9 +1,10 @@
 # CORE-010 core.fmt usize/isize/指针 manifest
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：item_id	kind	anchor	notes
 min_fmt_apis	3
 fmt_usize	symbol	fmt_usize_to_buf	core/fmt/mod.x
 fmt_isize	symbol	fmt_isize_to_buf	core/fmt/mod.x
 fmt_ptr	symbol	fmt_ptr_to_buf	core/fmt/mod.x
 test_smoke	file	tests/fmt/widths.x	边界烟测
-doc	file	core-fmt-widths-v1.md	analysis/core-fmt-widths-v1.md	RFC
+doc	file	core-fmt-widths-v1.md	analysis/archive/core/core-fmt-widths-v1.md	RFC
 gate	script	run-core-fmt-widths-gate.sh	tests/run-core-fmt-widths-gate.sh	manifest

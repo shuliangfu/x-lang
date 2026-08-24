@@ -9,21 +9,25 @@
 
 CORE_BUILTIN_PREFIX="${XLANG_CORE_BUILTIN_BITOPS_PREFIX:-xlang: [XLANG_CORE_BUILTIN_BITOPS]}"
 
-# 校验 codegen.c 映射；echo 缺失数。
+# Live authority = core/builtin/mod.x (pure .x; codegen.c intrinsic table retired).
+# Mapping rows: c_sym like core_builtin_clz_u32 → require function clz_u32( in mod.x.
+# Arg1 kept for call-site compat (ignored); Arg2 = TSV; optional Arg3 = mod.x.
 core_builtin_mappings_ok() {
-  local codegen="$1"
+  local _codegen_unused="$1"
   local tsv="$2"
+  local mod_x="${3:-core/builtin/mod.x}"
   local miss=0
-  local item_id kind c_sym intrinsic
+  local item_id kind c_sym intrinsic short
   while IFS=$'\t' read -r item_id kind c_sym intrinsic _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$kind" in
       mapping)
-        if ! grep -qF "\"$c_sym\"" "$codegen" 2>/dev/null; then
-          echo "core-builtin-bitops FAIL: codegen missing '$c_sym'" >&2
-          miss=$((miss + 1))
-        elif ! grep -qF "\"$intrinsic\"" "$codegen" 2>/dev/null; then
-          echo "core-builtin-bitops FAIL: codegen missing '$intrinsic'" >&2
+        short="$c_sym"
+        case "$c_sym" in
+          core_builtin_*) short="${c_sym#core_builtin_}" ;;
+        esac
+        if ! grep -qE "function ${short}\\(" "$mod_x" 2>/dev/null; then
+          echo "core-builtin-bitops FAIL: $mod_x missing function $short (from $c_sym)" >&2
           miss=$((miss + 1))
         fi
         ;;

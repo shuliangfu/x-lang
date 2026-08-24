@@ -1,4 +1,5 @@
 # CORE-007 core.str manifest
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：item_id	kind	anchor	notes
 min_view_apis	1
 bytes_view_struct	symbol	BytesView	core/str/mod.x
@@ -8,6 +9,6 @@ bytes_view_subview	symbol	bytes_view_subview	core/str/mod.x
 bytes_view_eq	symbol	bytes_view_eq	core/str/mod.x
 bytes_view_eq_bytes	symbol	bytes_view_eq_bytes	core/str/mod.x
 test_smoke	file	tests/str/bytes_view.x	烟测
-doc	file	core-str-view-v1.md	analysis/core-str-view-v1.md	RFC
+doc	file	core-str-view-v1.md	analysis/archive/core/core-str-view-v1.md	RFC
 cross_std_strview	cross_ref	std-strview-zc4-v1.md	STD-016 对齐
 gate	script	run-core-str-view-gate.sh	tests/run-core-str-view-gate.sh	manifest

@@ -1,4 +1,5 @@
 # CORE-011 core.fmt f64 NaN/Inf 与精度 manifest
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：item_id	kind	anchor	mod_path	notes
 # min_symbols	6
 fmt_default_prec	symbol	FMT_F64_DEFAULT_PREC	core/fmt/mod.x	默认 6 位
@@ -13,5 +14,5 @@ smoke_nan	smoke	NaN	tests/fmt/f64_special.x	金样
 smoke_inf	smoke	Inf	tests/fmt/f64_special.x	金样
 smoke_prec	smoke	to_buf_prec	tests/fmt/f64_special.x	精度
 test_smoke	file	tests/fmt/f64_special.x	tests/fmt/f64_special.x	边界烟测
-doc	file	analysis/core-fmt-f64-special-v1.md	analysis/core-fmt-f64-special-v1.md	RFC
+doc	file	analysis/archive/core/core-fmt-f64-special-v1.md	analysis/archive/core/core-fmt-f64-special-v1.md	RFC
 gate	script	tests/run-core-fmt-f64-special-gate.sh	tests/run-core-fmt-f64-special-gate.sh	manifest
