@@ -22,7 +22,6 @@
 // Future (7.3): simple register allocation to reduce fixed rax/rbx push/pop;
 // peephole to merge adjacent mov/arith.
 
-// ï¼åå°åºå® rax/rbx å¸¦æ¥ç push/popï¼çª¥å­å¯åå¹¶ç¸é» mov/ç®æ¯ã
 
 const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
@@ -96,32 +95,30 @@ export extern "C" function enc_dispatch_backend_enc_sub_rbx_rax_then_mov_arch(el
 export extern "C" function enc_dispatch_backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function enc_dispatch_backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
-/** è¯æ­ï¼asm ä¸æ¯æç ExprKind æ¶ç± runtime.c æå°ï¼ä¾¿äºå®ä½ rc=-6ã */
+/** Diagnostic: print unsupported ExprKind from runtime (helps locate rc=-6). */
 export extern function driver_diagnostic_asm_unsupported_expr(kind: i32): void;
-/** C æ¡©ï¼å° imm32 è£
-å
-¥ w0/eax/a0ï¼ä¸åå° epilogueï¼é¿å
-ä¸ enc_ret_imm32 å¨ arm64 ä¸æå retï¼ã */
+/** C stub: move imm32 into w0/eax/a0 without emitting epilogue
+ * (avoids early ret vs enc_ret_imm32 on arm64).
+ */
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32;
-/** è¯æ­ï¼return -1 åè°ç¨ï¼loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue 9=tail_join_labelã */
+/** Diagnostic before return -1; loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue 9=tail_join_label. */
 export extern function driver_diagnostic_asm_fail_at(loc: i32): void;
-/** è¯æ­ï¼è®°å½å½åæ­£å¨ emit ç ExprKind åºæ°ï¼ä¾ fail_at æ¶æå°ã */
+/** Diagnostic: record ExprKind ordinal currently being emitted (printed by fail_at). */
 export extern function driver_diagnostic_asm_set_last_expr_kind(k: i32): void;
-/** è¯æ­ï¼EXPR_VAR æªæ¾å°æ¶è°ç¨ï¼first_slot/first_len ä¸º ctx é¦æ§½åï¼num_locals>0 æ¶ä¼  asm_ctx_local é¦æ§½ï¼ã */
+/** Diagnostic: EXPR_VAR not found; first_slot/first_len = ctx first slot name (pass asm_ctx_local first when num_locals>0). */
 export extern function driver_diagnostic_asm_var_not_found(name: *u8, name_len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
-/** è¯æ­ï¼æ¯å½æ° codegen åè®¾ç½®å½åå½æ°åï¼ä¾ var_not_found æå°ã */
+/** Diagnostic: set current function name before each function codegen (for var_not_found). */
 export extern function driver_diagnostic_asm_set_current_func(name: *u8, name_len: i32): void;
 /* See implementation. */
 export extern function driver_freestanding_get(): i32;
 /** build_xlang_asm: heavy-module emit gate (runtime_pipeline_abi; call asm_skip_heavy_set_pipeline_ctx first). Historical ast_pool.c left wave309. */
 export extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTArena, func_index: i32): i32;
-/** XLANG_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
+/** XLANG_ASM_START_FUNC: skip emit for the first N functions of the module (debug). */
 export extern function asm_diag_start_func_skip(): i32;
-/** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå
-¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
+/** parser_gen / C ABI: write cur_mod import i logical path into out_buf (max 64 bytes, NUL-terminated). */
 export extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: u8[128]): void;
 export extern function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
-/** codegenï¼é¨å std/c shim è°ç¨å¨ AST ä¸­ä¸çå® C ååå®åä¸ªæ°ä¸ä¸è´ï¼ç± codegen.x æ ¡æ­£ã */
+/** codegen: some std/c shim calls in AST disagree with real C prototype arity; codegen.x corrects. */
 export extern function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
 /** Module import path/binding sidecar (runtime_pipeline_abi). Historical ast_pool.c left wave309. */
 export extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
@@ -180,8 +177,7 @@ export extern function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *AST
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 export extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
-/** è¯» binop å­è¡¨è¾¾å¼ refï¼å¿ç¨ ast_arena_expr_get å e.binop_*ï¼èªä¸¾ asm ä¸å­æ®µæè£ï¼return 1+2 ä»
-å¾ 1ï¼ã */
+/** Read binop child expr refs; do not use ast_arena_expr_get then e.binop_* (self-host asm field tear; 1+2 would become 1). */
 export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -254,14 +250,11 @@ export extern function pipeline_backend_asm_codegen_ast_c(module: *Module, arena
 export extern function pipeline_backend_asm_codegen_ast_to_elf_c(module: *Module, arena: *ASTArena, elf_ctx: *ElfCodegenCtx, pipeline_ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *ASTArena, cur_mod: *Module, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32;
-/** Block ä¾§è½¦å­æ®µç» C è¯»ï¼é¿å
- ast_arena_block_get æè£ num_stmt_order / final_expr_refã */
+/** Block sidecar fields via C readers; avoid ast_arena_block_get tearing num_stmt_order / final_expr_ref. */
 export extern function pipeline_asm_block_num_stmt_order_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_asm_block_final_expr_ref_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_asm_block_stmt_order_has_return(arena: *ASTArena, block_ref: i32): i32;
-/** äºå
-å·¦/å³å­è¡¨è¾¾å¼ refï¼emit_expr* å
-ç»ä¸ç» glue è¯»åï¼ã */
+/** Binary left/right child expr refs (emit_expr* reads uniformly via glue). */
 export function asm_expr_binop_left(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -280,8 +273,7 @@ export function asm_expr_binop_right(arena: *ASTArena, expr_ref: i32): i32 {
     return pipeline_expr_binop_right_ref_at(arena, expr_ref);
   }
 }
-/** Block sidecarï¼ast.x èå°è£
- + pipeline_block_*ï¼ã */
+/** Block sidecar (ast.x thin wrappers + pipeline_block_*). */
 export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
 export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_const_init_ref(arena: *ASTArena, br: i32, ci: i32): i32;
@@ -314,8 +306,7 @@ export extern function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 
-/** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æ
-ç¨åæ¯æ¾å¼æ å°ã */
+/** Map ExprKind to ordinal (0..60) for diagnostics; typeck lacks enum-as-i32, so branch-map explicitly. */
 export function expr_kind_ordinal(k: ExprKind): i32 {
   let o: i32 = k as i32;
   let lo: i32 = ExprKind.EXPR_LIT as i32;
@@ -327,13 +318,12 @@ export function expr_kind_ordinal(k: ExprKind): i32 {
 }
 
 /**
- * æ¯å¦ä¸ºç©ºçæ°ç»å­é¢é []ï¼é¶å
-ç´ ï¼ã
- * let buf: T[N] = [] æ¶è·³è¿ emit/storeï¼ç±æ æ§½å°åç´æ¥ä½ä¸º buf é¦åï¼INDEX èµ° VAR+LEAï¼ã
+ * True when init is empty array literal [] (zero elements).
+ * For `let buf: T[N] = []`, skip emit/store; stack-slot address is buf base (INDEX uses VAR+LEA).
  */
 /**
- * å·¦å¨ raxãå³ä¸ºç«å³æ°å¨ rbx æ¶ enc_cmp_setcc ä½¿ç¨ cmp w1,w0ï¼
- * å° left OP right ç lt/le/gt/ge æ¡ä»¶ç å¯¹è°ï¼eq/ne ä¸åï¼ã
+ * When left is in rax and immediate right is in rbx, enc_cmp_setcc uses cmp w1,w0;
+ * swap lt/le/gt/ge condition codes for left OP right (eq/ne unchanged).
  */
 export function asm_cmp_cc_when_rhs_imm_in_rbx(cc: i32): i32 {
   if (cc == 2) { return 4; }
@@ -423,9 +413,7 @@ export function enc_mov_imm32_to_rbx_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, t
     return backend_enc_dispatch.backend_enc_mov_imm32_to_rbx_arch(elf_ctx as *u8, imm32, ta);
   }
 }
-/** å° 64 ä½ç«å³æ°è£
-å
-¥ rax/x0ï¼ç¨äº EXPR_FLOAT_LITï¼double ä½æ¨¡å¼ï¼ã */
+/** Move 64-bit immediate into rax/x0; used by EXPR_FLOAT_LIT (double bit pattern). */
 export function enc_mov_imm64_to_rax_arch(elf_ctx: *ElfCodegenCtx, lo: i32, hi: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -480,8 +468,7 @@ export function enc_add_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
     return backend_enc_dispatch.backend_enc_add_rax_rbx_arch(elf_ctx as *u8, ta);
   }
 }
-/** w0/eax = w0 - w1ï¼å·¦å¨ w0ãå³/ç«å³æ°å¨ w1ï¼ï¼ä»
- arm64 æ enc_sub_rax_rbxï¼x86/rv èµ° C glueã */
+/** w0/eax = w0 - w1 (left in w0, right/imm in w1); arm64 has enc_sub_rax_rbx, x86/rv via C glue. */
 export function enc_sub_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -656,8 +643,7 @@ export function enc_mov_edx_to_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
     return backend_enc_dispatch.backend_enc_mov_edx_to_eax_arch(elf_ctx as *u8, ta);
   }
 }
-/** MODï¼arm64 ç¨ sdiv+msubï¼å¿å
- idiv è¦çè¢«é¤æ°ï¼ï¼x86 ä¸º cltd+idiv+edxâeaxã */
+/** MOD: arm64 uses sdiv+msub (do not let idiv clobber dividend); x86 is cltd+idiv+edx->eax. */
 export function enc_rem_mod_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -772,8 +758,7 @@ export function enc_cmp_w0_imm12_arch(elf_ctx: *ElfCodegenCtx, imm12: i32, ta: i
     return backend_enc_dispatch.backend_enc_cmp_w0_imm12_arch(elf_ctx as *u8, imm12, ta);
   }
 }
-/** ä»
- cset å° w0ï¼é¡»å·² cmpï¼ã */
+/** Only cset into w0 (cmp must already have run). */
 export function enc_cset_w0_from_cc_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -846,8 +831,8 @@ export function enc_lea_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta
   }
 }
 /**
- * å±é¨æ§½æ¯å¦ä¸ºãæå temp åºå¯¹è±¡ãç 8 å­èæéï¼ARRAY_LIT / STRUCT_LIT åå¼ï¼ã
- * INDEX / FIELD_ACCESS åºåºä¸º VAR æ¶é¡» load è¯¥æéï¼ä¸è½ lea æ§½åã
+ * Whether a local slot is an 8-byte pointer to a temp-area object (ARRAY_LIT / STRUCT_LIT init).
+ * INDEX / FIELD_ACCESS with VAR base must load that pointer; do not lea the slot address.
  */
 export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var: Expr, mod: *Module): i32 {
 
@@ -881,9 +866,9 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var
 }
 
 /**
- * ELFï¼å±é¨ VAR ä¸ºæéæ¶ç¨ loadï¼æ§½å
-å«æåå¯¹è±¡çå°åï¼ï¼å¦å leaï¼æ§½å³å¯¹è±¡/æ°ç»é¦ï¼ã
- * ä¸ text è·¯å¾ arch_emit_local_slot_ptr_or_addr ä¸è´ã
+ * ELF: when local VAR is a pointer, load (slot holds object address); else lea (slot is object/array base).
+ * Matches text path arch_emit_local_slot_ptr_or_addr.
+ */
  */
 export function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
@@ -903,22 +888,21 @@ export function enc_rax_plus_rbx_scale4_arch(elf_ctx: *ElfCodegenCtx, ta: i32): 
     return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale4_arch(elf_ctx as *u8, ta);
   }
 }
-/** INDEX åç§»ï¼rbxÃ1ï¼u8ï¼ã */
+/** INDEX scale: rbx*1 (u8). */
 export function enc_rax_plus_rbx_scale1_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale1_arch(elf_ctx as *u8, ta);
   }
 }
-/** INDEX åç§»ï¼rbxÃ8ï¼æé/å®½æ´ï¼ã */
+/** INDEX scale: rbx*8 (pointer / wide int). */
 export function enc_rax_plus_rbx_scale8_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale8_arch(elf_ctx as *u8, ta);
   }
 }
-/** å° rax å­å
-¥ [rbx]ï¼å®½åº¦ elem_sz â {1,4,8}ï¼INDEX èµå¼ï¼ã */
+/** Store rax to [rbx]; width elem_sz in {1,4,8} (INDEX assign). */
 export function enc_store_rax_to_rbx_indirect_arch(elf_ctx: *ElfCodegenCtx, elem_sz: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -937,7 +921,7 @@ export function enc_load_32_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32
     return backend_enc_dispatch.backend_enc_load_32_from_rax_arch(elf_ctx as *u8, ta);
   }
 }
-/** u8 INDEX è¯»åºï¼movzbl/ldrb/lbuï¼é¶æ©å±ä¸ºç®æ å¯å­å¨ï¼ã */
+/** u8 INDEX load: movzbl/ldrb/lbu (zero-extend into destination register). */
 export function enc_load_zext8_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -1009,14 +993,14 @@ export function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: 
     return backend_enc_dispatch.backend_enc_jz_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
-/** cmp åæç¸ç­åæ¯ï¼match èï¼ï¼arm64 ä¸º beqï¼x86 ä¸º jeã */
+/** After cmp, branch on equal (match arm); arm64 beq, x86 je. */
 export function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return backend_enc_dispatch.backend_enc_jeq_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
-/** cmp å i>=n åæ¯ï¼è®¡æ° while ä¼åï¼ï¼arm64 b.ge / x86 jge / riscv bge a0,a1ã */
+/** After cmp, branch when i>=n (counted-while opt); arm64 b.ge / x86 jge / riscv bge a0,a1. */
 export function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -1079,44 +1063,42 @@ export function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: u8[128], name_len: 
   }
 }
 
-/** å½åå½æ°ä¸ä¸æï¼æ å¸§å¤§å°ãå±é¨åéè¡¨ï¼sidecarï¼ãæ ç­¾è®¡æ°å¨ï¼å¾ªç¯æ¶å¡«å
-¥ break/continue ç®æ æ ç­¾æ ï¼
- * æ°å¢å­æ®µåä¸ C/driver å¯¹é½æ¶å
-è®¸ç¼è¯å¨å°¾é paddingï¼typeck padding é¨ç¦ï¼ã */
+/** Current function context: frame size, local table (sidecar), label counter;
+ * loop break/continue target stacks; trailing padding OK when aligning new fields with C/driver (typeck padding gate).
+ */
 allow(padding) struct AsmFuncCtx {
   frame_size: i32;
   next_offset: i32;
   num_locals: i32;
   label_counter: i32;
-  /** å½å codegen æå±æ¨¡åæéï¼ç¨äº FIELD_ACCESS å¤æ­å
-·åå­æ®µæ¯å¦ä¸º struct_layout ä¸­çèåç±»åï¼ä¸çº¯æä¸¾åºåï¼ãä¸ºç©ºæ¶ææ§è¡ä¸ºéå 64 ä½å è½½ã */
+  /** Module under codegen; FIELD_ACCESS uses it to tell aggregate struct_layout fields from plain enums. Null → legacy 64-bit load. */
   module_ref: *Module;
-  /** åµå¥å¾ªç¯ break æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
+  /** Nested-loop break label stack: 8 levels × 64 bytes = 512 bytes. */
   loop_break_label_stack: u8[512];
   loop_break_len_stack: i32[8];
-  /** åµå¥å¾ªç¯ continue æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
+  /** Nested-loop continue label stack: 8 levels × 64 bytes = 512 bytes. */
   loop_continue_label_stack: u8[512];
   loop_continue_len_stack: i32[8];
-  /** å½åçæç break/continue æ ç­¾ï¼æ é¡¶ï¼ï¼ä¾ EXPR_BREAK/EXPR_CONTINUE å¿«éè¯»åã */
+  /** Active break/continue labels (stack top); fast path for EXPR_BREAK/EXPR_CONTINUE. */
   break_label: u8[128];
   break_len: i32;
   continue_label: u8[128];
   continue_len: i32;
-  /** å¾ªç¯æ ç­¾æ æ·±åº¦ï¼push æ¶ d>=8 åå¤±è´¥ã */
+  /** Loop-label stack depth; push fails when d>=8. */
   loop_label_depth: i32;
-  /** Pipeline ä¾èµï¼dep_paths / ndepï¼ï¼ä¾ç»å® import è°ç¨ `mod.fn` æ¶ä¸ codegen ä¸è´å°æ¼ç¬¦å·åã */
+  /** Pipeline deps (dep_paths / ndep); bind import calls `mod.fn` with the same symbol spelling as codegen. */
   dep_pipe: *PipelineDepCtx;
-  /** å½æ°å°¾æ±åæ ç­¾ï¼emit_next_label çæï¼ï¼`return;`ï¼æ æä½æ°ï¼å jmp è³æ­¤ï¼åä¸å°¾ return è¡¨è¾¾å¼ãepilogue è¡æ¥ã */
+  /** Function tail-join label (from emit_next_label): bare `return;` jmps here, then joins tail return expr + epilogue. */
   tail_join_label: u8[128];
   tail_join_label_len: i32;
 }
 
-/** å° AsmFuncCtx æéè½¬ä¸º asm_ctx_local_* sidecar é®ï¼*u8ï¼ã */
+/** Cast AsmFuncCtx pointer to asm_ctx_local_* sidecar key (*u8). */
 export function asm_ctx_key(ctx: *AsmFuncCtx): *u8 {
   return ctx as *u8;
 }
 
-/** åç¼ä¸º ASCII ãbuild_ãï¼6 å­èï¼ä¸ name å·²å«æ­¤åç¼æ¶è¿å 1ï¼ä¸ codegen_c_prefix_redundant_with_name å¯¹é½ã */
+/** Return 1 when prefix is ASCII "build_" (6 bytes) and name already contains it; mirrors codegen_c_prefix_redundant_with_name. */
 export function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
   if (prefix == 0 as *u8 || name == 0 as *u8) {
     return 0;
@@ -1140,8 +1122,7 @@ export function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, n
   return 1;
 }
 
-/** å° C åç¼å­èä¸å­æ®µåæ¼æè³å¤ 63 å­èç call ç¬¦å·åå
-¥ out_nameï¼æåè¿åé¿åº¦ï¼1..63ï¼ï¼å¤±è´¥ -1ã */
+/** Concat C prefix bytes + field name into out_name (max 63); return length 1..63 on success, -1 on failure. */
 export function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -1149,7 +1130,7 @@ export function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_
   }
 }
 
-/** import è·¯å¾ç¼å²åºä¸­ '.' åæ®µæ°ï¼ä¸ typeck_import_path_segment_count ä¸è´ï¼ã */
+/** Number of "." segments in import path buffer (matches typeck_import_path_segment_count). */
 export function asm_import_path_segment_count_local(path: *u8, path_len: i32): i32 {
   if (path_len <= 0 || path == 0 as *u8) {
     return 0;
@@ -1165,7 +1146,7 @@ export function asm_import_path_segment_count_local(path: *u8, path_len: i32): i
   return n;
 }
 
-/** æ¯è¾ module ç¬¬ imp_ix æ¡ import è·¯å¾åç [off..off+seg_len) ä¸å¤é¨å­èåºåæ¯å¦ç¸ç­ã */
+/** Compare module import imp_ix path slice [off..off+seg_len) to an external byte sequence. */
 export function asm_import_path_slice_equal(module: *Module, imp_ix: i32, off: i32, seg_len: i32, nm: *u8, nm_len: i32): bool {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1185,7 +1166,7 @@ export function asm_import_path_slice_equal(module: *Module, imp_ix: i32, off: i
   }
 }
 
-/** æ¯è¾ import ç»å®åä¸å¤é¨å­èåºåæ¯å¦ç¸ç­ã */
+/** Compare import binding name to an external byte sequence. */
 export function asm_import_binding_name_equal(module: *Module, imp_ix: i32, nm: *u8, nm_len: i32): bool {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
