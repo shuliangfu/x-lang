@@ -1262,15 +1262,14 @@ rebuild_pipeline_wpo_o() {
   set +e
   while IFS= read -r comp; do
   [ -n "$comp" ] || continue
-  # PLATFORM: MACOS — EMIT_HEAVY=1 Abort risk on mega abi; prefer heavy=0 first.
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  # PLATFORM: SHARED — mega runtime_pipeline_abi.x: prefer EMIT_HEAVY=0 first
+  # (Darwin Abort risk; Linux heavy path hang/fail on tip). Then try heavy=1.
   if try_pipe_wpo "" "$comp" 0 || try_pipe_wpo "1" "$comp" 0 || try_pipe_wpo "0" "$comp" 0; then
   mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
   build_xlang_asm_info "pipeline_wpo.o OK via $comp (__text=${txt}B, EMIT_HEAVY=0, reach OK)"
   rm -f "$preserve_backup" 2>/dev/null || true
   set -e
   return 0
-  fi
   fi
   if try_pipe_wpo "" "$comp" 1 || try_pipe_wpo "0" "$comp" 1; then
   mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
