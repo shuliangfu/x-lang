@@ -8,7 +8,10 @@ const config = import("std.config");
 function main(): i32 {
   let zero: i64 = 0;
   let cfg: Config = config.new();
-  let raw: u8[88] = [
+  // Exact YAML bytes (65). Do not pass a longer len: trailing uninit/padding
+  // on Linux SysV stack made load_yaml_buf return err_invalid (Darwin often
+  // zero-filled and masked the fixture bug). PLATFORM: SHARED fixture length.
+  let raw: u8[65] = [
     112, 111, 114, 116, 58, 32, 56, 48, 56, 48, 10,
     104, 111, 115, 116, 58, 32, 108, 111, 99, 97, 108, 104, 111, 115, 116, 10,
     100, 101, 98, 117, 103, 58, 32, 102, 97, 108, 115, 101, 10,
@@ -26,7 +29,7 @@ function main(): i32 {
 
   if (cfg.handle == zero) { return 1; }
   if (config.backend_yaml() != 2) { return 2; }
-  if (config.load_yaml_buf(&cfg, &raw[0], 87, 1) != config.err_ok()) { return 3; }
+  if (config.load_yaml_buf(&cfg, &raw[0], 65, 1) != config.err_ok()) { return 3; }
   if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.err_ok() || port != 8080) { return 4; }
   if (config.get_string(&cfg, &k_url[0], 6, &host[0], 32) <= 0) { return 5; }
   if (host[0] != 115) { return 6; }
