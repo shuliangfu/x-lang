@@ -1,8 +1,8 @@
 # BOOT-010 force_stub 6 风险处置 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
-> 关联：`COMP-001`、`analysis/boot-mega7-gap.md` §4、`ast_pool.c` `asm_parser_emit_heavy_force_stub`
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — live `PARSER_STUB_EQ` = `compiler/seeds/runtime_pipeline_abi.from_x.c`（`ast_pool.c` left wave309）  
+> 关联：`COMP-001`、`analysis/archive/boot/boot-mega7-gap.md` §4、abi seed `asm_parser_emit_heavy_force_stub`
 
 ---
 
@@ -11,7 +11,7 @@
 | 目标 | 说明 |
 |------|------|
 | **清单固定** | 6 项 force_stub 函数有根因、策略、回归用例 |
-| **不可 silent 删除** | `ast_pool.c` 须保留 `PARSER_STUB_EQ`；删 glue 须 CI fail |
+| **不可 silent 删除** | `runtime_pipeline_abi.from_x.c` 须保留 `PARSER_STUB_EQ`；删 stub 表须 CI fail（historical `ast_pool.c` left wave309） |
 | **与 mega7 分工** | force_stub ≠ mega7；前者为 X emit 安全桩，后者为入口 ret0 |
 
 验收（NEXT BOOT-010）：**每项有根因/策略/回归用例** + 矩阵 + manifest gate。
@@ -37,7 +37,7 @@
 
 | 机制 | 位置 |
 |------|------|
-| force_stub 判定 | `compiler/ast_pool.c` → `asm_parser_emit_heavy_force_stub` |
+| force_stub 判定 | `compiler/seeds/runtime_pipeline_abi.from_x.c` → `asm_parser_emit_heavy_force_stub`（`ast_pool.c` left wave309） |
 | thin delegate | `k_asm_parser_thin_delegate`（padding → glue 名） |
 | if-expr C 包装 | `compiler/seeds/parser_asm/parser_asm_if_expr_slice.inc` |
 | float alloc C | `compiler/seeds/parser_asm/parser_asm_primary_slice.inc` |

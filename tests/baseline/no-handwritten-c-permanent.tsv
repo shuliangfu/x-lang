@@ -30,4 +30,5 @@
 # - string_fast / heap_*: libc mem* / malloc / posix_memalign thin wrappers (P0b extern "C" 自举后可再评估迁 .x)
 # - std_runtime_fast: panic/abort 符号别名 → xlang_panic_
 # - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
-# - preprocess_if_stack_bridge: 已删除（preprocess_if_stack_* 由 pipeline_x.o ast_pool.c 提供）
+# - preprocess_if_stack_bridge: 已删除（preprocess_if_stack_* 由 pipeline_x.o /
+#   runtime_pipeline_abi 提供；ast_pool.c left wave309）

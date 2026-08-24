@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # COMP-002：typeck 热路径剖析与优化门禁
+# wave309 honesty: pipeline_glue.c left — hot_reorder live =
+# runtime_pipeline_abi.x. DOC archived under analysis/archive/comp/.
+# PLATFORM: SHARED archaeology.
 #
-# 1) manifest：comp-typeck-hotpath-v1.md + typeck-hotpath-matrix.tsv
+# 1) manifest：archived comp-typeck-hotpath-v1.md + typeck-hotpath-matrix.tsv
 # 2) 符号存在性 + min_opt_done
 # 3) hook：region/linear typeck；Linux 上 WPO opt-in smoke
 # 4) compile-dogfood 须含 check_typeck 行
@@ -10,6 +13,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_TYPECK_HOTPATH_DOC:-analysis/archive/comp/comp-typeck-hotpath-v1.md}"
 MATRIX="${XLANG_TYPECK_HOTPATH_TSV:-tests/baseline/typeck-hotpath-matrix.tsv}"
 DOGFOOD="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 MIN_DONE=6
@@ -32,7 +36,7 @@ native_xlang() {
 
 echo "=== COMP-002: typeck hotpath manifest ==="
 for f in \
-  analysis/comp-typeck-hotpath-v1.md \
+  "$DOC" \
   "$MATRIX" \
   "$DOGFOOD"; do
   if [ ! -f "$f" ]; then
@@ -40,6 +44,10 @@ for f in \
     exit 1
   fi
 done
+if [ -f compiler/pipeline_glue.c ]; then
+  echo "typeck-hotpath gate FAIL: compiler/pipeline_glue.c resurrected (wave309 left)" >&2
+  exit 1
+fi
 
 # 读取 min_opt_done（默认 6）
 while IFS=$'\t' read -r c1 c2 _rest; do

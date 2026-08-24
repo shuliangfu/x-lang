@@ -1,8 +1,8 @@
 # COMP-009 前端/后端接口契约 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 `pipeline.x`、`pipeline_glue.c`、`doc-selfhost-architecture-v1.md` 对齐  
-> 关联：`COMP-008`（link 归因）、`DOC-002`（自举全景）、`compiler/docs/整项目影响与依赖分析.md`
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — live B6 glue = `compiler/seeds/runtime_pipeline_abi.from_x.c` + `compiler/src/runtime_pipeline_abi.x`（`pipeline_glue.c` left wave309）  
+> 关联：`COMP-008`（link 归因）、`DOC-002`（`doc-selfhost-architecture-v1.md`）、`compiler/docs/整项目影响与依赖分析.md`
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 契约层 B1–B6 |
 | 2 | 打开 `tests/baseline/comp-feb-contract-boundary.tsv` |
 | 3 | `./tests/run-comp-feb-contract-gate.sh` |
-| 4 | 对照 `compiler/pipeline_glue.c` 文件头 glue 表 |
+| 4 | 对照 `compiler/seeds/runtime_pipeline_abi.from_x.c`（slice / PARSER face；historical `pipeline_glue.c` left wave309） |
 
 ---
 
@@ -35,7 +35,7 @@
 1. **单一所有权**：`ASTArena` 由 driver 分配；各阶段只读/追加 arena 槽，不 `free` 跨模块指针。
 2. **显式上下文**：多文件编译时 `PipelineDepCtx` 携带 `ndep`、import 路径、lib_root；typeck/codegen 不得隐式全局。
 3. **后端可替换**：同一 `Module` 可走 `codegen_x_ast`（C 文本）或 `asm_codegen_ast`（asm）；driver 按 `-backend` 分支。
-4. **glue 薄层**：`pipeline_glue.c` 仅承载语言子集暂缺 ABI（slice 构造、metrics、weak 转发），业务逻辑留在 `.x`。
+4. **glue 薄层**：live = `runtime_pipeline_abi.from_x.c` / `runtime_pipeline_abi.x`（historical `pipeline_glue.c` left wave309）承载语言子集暂缺 ABI（slice 构造、metrics、weak 转发），业务逻辑留在 `.x`。
 
 ---
 
@@ -46,13 +46,13 @@
 | boundary_id | upstream | downstream | symbol | payload |
 |-------------|----------|------------|--------|---------|
 | `bd_parse_module` | parser | ast | `parse_into_buf` | Module, ASTArena, ParseIntoResult |
-| `bd_parse_slice` | pipeline_glue | parser | `parser_slice_from_buf` | ptr+len → u8[] |
+| `bd_parse_slice` | runtime_pipeline_abi | parser | `parser_slice_from_buf` | ptr+len → u8[] |
 | `bd_typeck_entry` | pipeline | typeck | `typeck_x_ast` | Module, ASTArena, PipelineDepCtx |
 | `bd_typeck_layout` | typeck | typeck | `typeck_merge_dep_struct_layouts_into_entry` | Module, ASTArena |
 | `bd_codegen_emit` | pipeline | codegen | `codegen_x_ast` | CodegenOutBuf, dep_index |
 | `bd_asm_emit` | asm | backend | `asm_codegen_ast` | CodegenOutBuf, elf_ctx |
 | `bd_pipeline_orchestrate` | driver | pipeline | `run_x_pipeline_impl` | 全阶段串联 |
-| `bd_dep_ctx` | ast_pool | pipeline | `pipeline_dep_ctx_set_module` | PipelineDepCtx, Module |
+| `bd_dep_ctx` | ast / abi | pipeline | `pipeline_dep_ctx_set_module` | PipelineDepCtx, Module |
 
 ---
 
@@ -77,7 +77,7 @@
 | `case_typeck` | `compiler/src/typeck/typeck.x` | `typeck_x_ast` |
 | `case_codegen` | `compiler/src/codegen/codegen.x` | `codegen_x_ast` |
 | `case_asm` | `compiler/src/asm/backend.x` | `asm_codegen_ast` |
-| `case_glue` | `compiler/pipeline_glue.c` | glue 表 + slice 桥 |
+| `case_glue` | `compiler/seeds/runtime_pipeline_abi.from_x.c` | slice 桥（`pipeline_glue.c` left wave309） |
 
 ---
 

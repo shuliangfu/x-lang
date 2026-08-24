@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # S3 EMIT_HEAVY 烟测：用 xlang_asm 第二遍重编 pipeline.o，统计非 ret0 桩的真机码函数数。
-# 依赖：compiler/xlang_asm.experimental 或 strict_glue 已重链含最新 ast_pool.c。
+# 依赖：compiler/xlang_asm.experimental 或 strict_glue 已重链含最新
+# runtime_pipeline_abi / pipeline.x（ast_pool.c left wave309）。
 # 用法：./tests/run-s3-pipeline-emit-heavy.sh
 # 门禁：XLANG_S3_FAIL_ON_EMIT_HEAVY=1 — real_funcs / __text 低于 baseline 时失败
 set -e
@@ -82,7 +83,7 @@ echo "s3 emit-heavy: __text=${sz} real_funcs=${real} (min_real=${MIN_REAL}, min_
 if [ "${XLANG_S3_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
   if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
     echo "s3 emit-heavy FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
-    echo "s3 emit-heavy hint: ast_pool.c 变更后须重编 pipeline_x.o + relink xlang_asm" >&2
+    echo "s3 emit-heavy hint: after runtime_pipeline_abi / pipeline.x leave change, rebuild pipeline_x.o + relink xlang_asm (ast_pool.c left wave309)" >&2
     exit 1
   fi
   if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s >= m) ? 0 : 1 }'; then

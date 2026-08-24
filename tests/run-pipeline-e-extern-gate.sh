@@ -67,8 +67,10 @@ if ! grep -q 'extern int32_t parser_copy_module_import_path64.*out\[64\]' "$GEN"
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-if ! grep -q '#include "pipeline_glue.c"' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: missing #include pipeline_glue.c tail" >&2
+# wave309: xlang_emit_pipeline_glue_include is a no-op — must NOT emit
+# #include "pipeline_glue.c" (shell deleted). Resurrected include = dual authority.
+if grep -q '#include "pipeline_glue.c"' "$GEN"; then
+  echo "pipeline-e-extern-gate FAIL: resurrected #include pipeline_glue.c (wave309 left; emit must be no-op)" >&2
   rm -f "$GEN" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

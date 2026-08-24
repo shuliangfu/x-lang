@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # S5：pipeline_wpo.o 编排链 reach 门禁（pipeline_run_x_pipeline_impl 不应 U 其 direct callee）。
 # G.7: dogfood source = runtime_pipeline_abi.x (pipeline.x pure-extern).
-# ast_pool.c fixpoint + strict preserve 后须重编 pipeline_wpo.o（build_xlang_asm post-strict）。
+# runtime_pipeline_abi / pipeline.x fixpoint + strict preserve 后须重编
+# pipeline_wpo.o（build_xlang_asm post-strict；ast_pool.c left wave309）。
 # 用法：
 #   ./tests/run-wpo-pipeline-reach-gate.sh
 #   XLANG_WPO_PIPELINE_REACH_FAIL=1 ./tests/run-wpo-pipeline-reach-gate.sh

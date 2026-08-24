@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # COMP-009：前端/后端接口契约 manifest 门禁
+# wave309 honesty: pipeline_glue.c left — live B6 glue = runtime_pipeline_abi
+# (seed from_x.c owns parser_slice_from_buf). DOC archived under analysis/archive/comp/.
+# PLATFORM: SHARED archaeology.
 #
 # 用法：./tests/run-comp-feb-contract-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_FEB_CONTRACT_DOC:-analysis/comp-feb-contract-v1.md}"
+DOC="${XLANG_COMP_FEB_CONTRACT_DOC:-analysis/archive/comp/comp-feb-contract-v1.md}"
 MANIFEST="${XLANG_COMP_FEB_CONTRACT_MANIFEST:-tests/baseline/comp-feb-contract.tsv}"
 BOUNDARY="${XLANG_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
 MIN_LAYERS=6
@@ -16,15 +19,21 @@ MIN_CASES=6
 . tests/lib/comp-feb-contract.sh
 
 echo "=== COMP-009: frontend/backend contract manifest ==="
+# wave309: pipeline_glue.c left — do NOT hard-require the deleted mega shell.
 for f in "$DOC" "$MANIFEST" "$BOUNDARY" \
   tests/lib/comp-feb-contract.sh tests/run-comp-feb-contract.sh \
-  compiler/src/pipeline/pipeline.x compiler/pipeline_glue.c \
+  compiler/src/pipeline/pipeline.x compiler/src/runtime_pipeline_abi.x \
+  compiler/seeds/runtime_pipeline_abi.from_x.c \
   tests/run-s3-pipeline-gate.sh analysis/doc-selfhost-architecture-v1.md; do
   if [ ! -f "$f" ]; then
     echo "comp-feb-contract gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f compiler/pipeline_glue.c ]; then
+  echo "comp-feb-contract gate FAIL: compiler/pipeline_glue.c resurrected (wave309 left; dual authority)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

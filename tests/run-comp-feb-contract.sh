@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # COMP-009：前端/后端接口契约边界烟测
+# wave309 honesty: DOC default = analysis/archive/comp/comp-feb-contract-v1.md;
+# live B6 glue src = runtime_pipeline_abi (pipeline_glue.c left).
+# PLATFORM: SHARED archaeology.
 #
 # 用法：./tests/run-comp-feb-contract.sh
 set -e
@@ -9,6 +12,7 @@ cd "$(dirname "$0")/.."
 . tests/lib/comp-feb-contract.sh
 
 BOUNDARY="${XLANG_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
+DOC="${XLANG_COMP_FEB_CONTRACT_DOC:-analysis/archive/comp/comp-feb-contract-v1.md}"
 
 echo "=== COMP-009: FEB contract boundary smoke ==="
 FAILS=0
@@ -30,11 +34,11 @@ while IFS=$'\t' read -r bid layer upstream downstream sym payload src; do
   first_type="${payload%%,*}"
   first_type="${first_type// /}"
   if [ -n "$first_type" ] && ! grep -qF "$first_type" "$path" 2>/dev/null; then
-  if ! grep -qF "$first_type" "analysis/comp-feb-contract-v1.md" 2>/dev/null; then
-    echo "comp-feb-contract FAIL: payload type $first_type missing for $bid" >&2
-    FAILS=$((FAILS + 1))
-    continue
-  fi
+    if ! grep -qF "$first_type" "$DOC" 2>/dev/null; then
+      echo "comp-feb-contract FAIL: payload type $first_type missing for $bid" >&2
+      FAILS=$((FAILS + 1))
+      continue
+    fi
   fi
   echo "comp-feb-contract OK $bid ($sym)"
 done < "$BOUNDARY"
