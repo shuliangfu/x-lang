@@ -93,6 +93,13 @@ export extern function xlang_asm_codegen_elf_o_large_stack(
 export extern function xlang_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho: i32, use_coff: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib: i32): i32;
+/**
+ * Capture compiler `-O <level>` into link_abi before product -o ld.
+ * @param argc i32 — compiler argc
+ * @param argv *u8 — opaque char**; null-safe inside callee
+ * PLATFORM: SHARED — Darwin bare-ld skips -dead_strip at -O 0 (TOOL-005).
+ */
+export extern function xlang_link_capture_opt_level_from_argv(argc: i32, argv: *u8): void;
 /** G.7 single authority: CLI user .o table shared with invoke_cc (historical name).
  * PLATFORM: SHARED — set before invoke_ld; clear after (stale argv pointers). */
 export extern function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
@@ -1822,6 +1829,8 @@ export function driver_run_asm_backend(
   let tlen: i32 = 0;
   unsafe {
     driver_bump_stack_limit();
+    // Record -O before ld so Darwin skips -dead_strip at -O 0 (TOOL-005 nsyms).
+    xlang_link_capture_opt_level_from_argv(argc, argv);
     driver_asm_work_reset();
     path = input_path;
     if (path == 0 as *u8) {

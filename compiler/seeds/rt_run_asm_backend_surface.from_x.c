@@ -133,6 +133,8 @@ extern int32_t xlang_asm_out_buf_is_object(uint8_t * data, size_t len);
 extern void xlang_driver_asm_prepare_entry_elf_emit(uint8_t * module, uint8_t * arena, uint8_t * pctx);
 extern int32_t xlang_asm_codegen_elf_o_large_stack(uint8_t * module, uint8_t * arena, uint8_t * pctx, uint8_t * elf_ctx, uint8_t * out_buf);
 extern int32_t xlang_invoke_ld_for_exe(uint8_t * o_path, uint8_t * exe_path, uint8_t * target, int32_t use_macho, int32_t use_coff, uint8_t * link_argv0, uint8_t * lib_roots, int32_t n_lib);
+/* PLATFORM: SHARED — capture -O for Darwin -dead_strip gate (TOOL-005). */
+extern void xlang_link_capture_opt_level_from_argv(int32_t argc, uint8_t * argv);
 /* G.7: CLI user .o table shared with invoke_cc; set/clear around invoke_ld. */
 extern void xlang_invoke_cc_set_user_o_files_from_argv(int32_t argc, uint8_t * argv);
 extern void xlang_invoke_cc_clear_user_o_files(void);
@@ -1941,6 +1943,8 @@ int32_t driver_run_asm_backend(uint8_t * input_path, uint8_t * out_path, uint8_t
   int32_t tlen = 0;
   {
     (void)(driver_bump_stack_limit());
+    /* PLATFORM: SHARED — feed -O to link_abi before Darwin bare-ld (TOOL-005). */
+    (void)(xlang_link_capture_opt_level_from_argv(argc, argv));
     (void)(driver_asm_work_reset());
     (void)((path = input_path));
     if ((path ==((uint8_t *)(0)))) {

@@ -135,6 +135,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
     driver_bump_stack_limit();
+    /* PLATFORM: SHARED — feed -O to link_abi before Darwin bare-ld (TOOL-005). */
+    xlang_link_capture_opt_level_from_argv(argc, argv);
     if (argv && argc > 0)
         ndefines = driver_argv_collect_defines(argc, argv, defines, MAX_DEFINES);
     /** B-02：#[cfg] 与 -target triple 联动（asm 后端路径）。 */

@@ -1666,11 +1666,15 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, out_path);
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ffunction-sections");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-fdata-sections");
+  /* Skip dead_strip/--gc-sections at -O 0 (≡ NDEBUG/harden/maybe_strip).
+   * PLATFORM: MACOS|DARWIN / LINUX — TOOL-005 debug symtab honesty. */
   is_apple = link_abi_host_is_apple();
-  if (is_apple)
-    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
-  else if (is_linux)
-    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+  if (is0 != 0) {
+    if (is_apple)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
+    else if (is_linux)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+  }
   if (include_root && include_root[0]) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);

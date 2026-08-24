@@ -3652,7 +3652,7 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
  * G.7: reuses labi_icc_argv_try_push_flag + xlang_append_linux_link_harden_impl (no second flag path).
  * Why (wave206): hybrid still had quiet/O/harden/gc argv head always-mega after wave205 fork-exec pure.
  * wave223: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
- * PLATFORM: SHARED orch / LINUX -B/usr/bin + harden + --gc-sections / APPLE -dead_strip / WINDOWS no gc/harden.
+ * PLATFORM: SHARED orch / LINUX -B/usr/bin + harden + --gc-sections(non-O0) / APPLE -dead_strip(non-O0) / WINDOWS no gc/harden.
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
  */
@@ -3766,6 +3766,8 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
 
   // Dead-code GC pair: compile-side function/data sections + link-side strip/gc.
   // Invariant: never pass only --gc-sections without -ffunction-sections (see mega comment).
+  // Skip link-side strip/gc at -O 0 (≡ -DNDEBUG / harden / maybe_strip gates) so
+  // TOOL-005 debug symtab / not-stripped smoke stays honest on Darwin nsyms.
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ffunction-sections");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-fdata-sections");
 
@@ -3773,13 +3775,15 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
   unsafe {
     is_apple = link_abi_host_is_apple();
   }
-  if (is_apple != 0) {
-    // PLATFORM: MACOS|DARWIN — Mach-O dead strip from main reachability.
-    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
-  } else {
-    if (is_linux != 0) {
-      // PLATFORM: LINUX — ELF --gc-sections (pair with function-sections above).
-      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+  if (is0 != 0) {
+    if (is_apple != 0) {
+      // PLATFORM: MACOS|DARWIN — Mach-O dead strip from main reachability (release only).
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
+    } else {
+      if (is_linux != 0) {
+        // PLATFORM: LINUX — ELF --gc-sections (pair with function-sections above).
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+      }
     }
   }
 

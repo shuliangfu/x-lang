@@ -5218,6 +5218,43 @@ static const char *labi_darwin_sdk_path(void) {
 }
 #endif
 
+/*
+ * PLATFORM: SHARED — active -O for link strip/gc decisions.
+ * Default "2" matches product compile default. -O 0 keeps symtab so TOOL-005
+ * Darwin nsyms / Linux "not stripped" smokes are honest (not dead_strip soft SKIP).
+ */
+static char g_xlang_link_opt_level[8] = {'2', '\0'};
+
+void xlang_link_set_opt_level(const char *opt_level) {
+    size_t i;
+    if (!opt_level || !opt_level[0]) {
+        g_xlang_link_opt_level[0] = '2';
+        g_xlang_link_opt_level[1] = '\0';
+        return;
+    }
+    for (i = 0; i < sizeof(g_xlang_link_opt_level) - 1 && opt_level[i]; i++)
+        g_xlang_link_opt_level[i] = opt_level[i];
+    g_xlang_link_opt_level[i] = '\0';
+}
+
+const char *xlang_link_get_opt_level(void) {
+    return g_xlang_link_opt_level;
+}
+
+void xlang_link_capture_opt_level_from_argv(int argc, char **argv) {
+    const char *ol = "2";
+    int i;
+    if (argv) {
+        for (i = 1; i + 1 < argc; i++) {
+            if (argv[i] && strcmp(argv[i], "-O") == 0 && argv[i + 1] && argv[i + 1][0]) {
+                ol = argv[i + 1];
+                break;
+            }
+        }
+    }
+    xlang_link_set_opt_level(ol);
+}
+
 /**
  * ASM -o exe：fork 子进程执行 ld 或 lld-link；调用方须先 xlang_asm_ld_prepare_for_exe_link。
  * Darwin product -o uses bare ld + syslibroot (no clang/cc driver).
@@ -5314,8 +5351,11 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
             argv[la++] = "-arch";
             argv[la++] = arch;
             /* PLATFORM: MACOS — clang-as-driver implied -dead_strip; keep it
-             * on bare ld so product -o size does not jump (rv 55KiB→16KiB). */
-            argv[la++] = "-dead_strip";
+             * on bare ld so product -o size does not jump (rv 55KiB→16KiB).
+             * Skip at -O 0 so debug builds keep symtab (TOOL-005 nsyms>300);
+             * ≡ invoke_cc -DNDEBUG/harden/maybe_strip already gated on is0. */
+            if (strcmp(xlang_link_get_opt_level(), "0") != 0)
+                argv[la++] = "-dead_strip";
             argv[la++] = labi_ld_flag_e();
             argv[la++] = labi_ld_mach_entry_main();
             argv[la++] = labi_ld_flag_o();

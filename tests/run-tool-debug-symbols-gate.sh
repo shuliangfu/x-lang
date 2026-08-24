@@ -153,10 +153,9 @@ fi
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== TOOL-005: debug symbol hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-debug-symbols.sh tests/run-backtrace.sh
-  # wave honesty (2026-08-24 #6): Darwin invoke_cc always passes -Wl,-dead_strip
-  # (even -O 0), so nsyms collapses and not-stripped smoke is product debt.
-  # Archaeology owns DOC/monofile retarget; keep hooks observational.
-  # PLATFORM: SHARED archaeology / DARWIN dead_strip product debt.
+  # Root fix (2026-08-25): -O 0 skips Darwin -dead_strip / Linux --gc-sections
+  # (invoke_cc + bare ld via xlang_link_capture_opt_level_from_argv). Hooks hard.
+  # PLATFORM: SHARED / MACOS|DARWIN nsyms / LINUX not-stripped.
   set +e
   XLANG="$XLANG_BIN" ./tests/run-debug-symbols.sh
   dbg_ec=$?
@@ -166,7 +165,8 @@ if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   if [ "$dbg_ec" -eq 0 ] && [ "$bt_ec" -eq 0 ]; then
     echo "tool-debug-symbols hooks OK"
   else
-    echo "tool-debug-symbols SKIP hooks (product debug/backtrace smoke; archaeology manifest OK; dbg=$dbg_ec bt=$bt_ec host=$(uname -s))"
+    echo "tool-debug-symbols FAIL hooks (dbg=$dbg_ec bt=$bt_ec host=$(uname -s))" >&2
+    exit 1
   fi
 else
   echo "tool-debug-symbols gate SKIP hooks (no native xlang)" >&2
