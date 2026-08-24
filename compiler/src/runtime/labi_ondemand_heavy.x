@@ -3619,8 +3619,9 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     let n_as: i32 = labi_od_async_sym_count();
     if (labi_od_user_needs_table_which(user_o, n_as, 4) != 0) {
       // PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder /
-      // drain_idle. No async.o existed; scheduler C ABI table never fires
-      // unique import METHOD. Produce path is formal_mod c_face. Twin of L8b seed.
+      // drain_idle / scheduler_reset. No async.o existed; scheduler C ABI table
+      // never fires unique import METHOD. Produce path is formal_mod c_face.
+      // Twin of L8b seed.
       let root_as: *u8 = 0 as *u8;
       unsafe {
         root_as = xlang_repo_root_from_argv0(link_argv0);

@@ -1778,13 +1778,13 @@ export function labi_od_arrow_glue_rel(): *u8 {
   return p;
 }
 
-/* PLATFORM: SHARED — cookbook async_mod_import / async_drain_idle unique-first.
+/* PLATFORM: SHARED — cookbook async_mod_import / drain_idle / scheduler_reset unique-first.
  * Distinct from labi_od_async_scheduler_sym_* (C ABI ×35 for scheduler.o
  * skip-missing; never unique import METHOD std_async_*). Twin of L8b seed.
  * Produce path is formal_mod c_face std/async/async.o. */
 #[no_mangle]
 export function labi_od_async_sym_count(): i32 {
-  return 2;
+  return 3;
 }
 
 /**
@@ -1804,6 +1804,11 @@ export function labi_od_async_sym_at(i: i32): *u8 {
   }
   if (i == 1) {
     let p: *u8 = "std_async_drain_idle";
+    return p;
+  }
+  // import("std.async").scheduler_reset → mangled unique METHOD.
+  if (i == 2) {
+    let p: *u8 = "std_async_scheduler_reset";
     return p;
   }
   return 0 as *u8;

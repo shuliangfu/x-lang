@@ -124,7 +124,7 @@ formal_mod_key_for_out() {
     ../std/debug/debug.o|std/debug/debug.o|*std/debug/debug.o) printf '%s' "std/debug/debug.o" ;;
     # PLATFORM: SHARED — pure-asm std.simd formal (shuffle/select/splat VECTOR mid).
     ../std/simd/simd.o|std/simd/simd.o|*std/simd/simd.o) printf '%s' "std/simd/simd.o" ;;
-    # PLATFORM: SHARED — cookbook async_mod_import / async_drain_idle unique UNDEF.
+    # PLATFORM: SHARED — cookbook async unique UNDEF (placeholder/drain_idle/scheduler_reset).
     # No async.o existed (std_x only scheduler.o/future.o auto-soft). Host-cc of
     # whole mod.x would U ~50 xlang_async_* C ABI. c_face = leftover unique T only.
     ../std/async/async.o|std/async/async.o|*std/async/async.o) printf '%s' "std/async/async.o" ;;
