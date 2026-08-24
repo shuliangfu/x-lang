@@ -23,18 +23,19 @@ AST_H="compiler/include/ast.h"
 
 # Live authority: pipe_en_max_variants() return N in runtime_pipeline_abi.x
 # (≡ historic MODULE_ENUM_MAX_VARIANTS; ast_pool.c retired wave309).
+# PLATFORM: SHARED — use grep/sed (Ubuntu gold often has no ripgrep in PATH).
 MODULE_ENUM_MAX="$(
-  rg -n 'function[[:space:]]+pipe_en_max_variants[[:space:]]*\(' "$ABI_X" 2>/dev/null \
-    | head -1 | cut -d: -f1 | {
-      read -r ln || exit 0
-      # Body is small: scan a short window after the function line for `return N;`.
-      sed -n "${ln},$((ln + 12))p" "$ABI_X" \
-        | rg -o 'return[[:space:]]+[0-9]+[[:space:]]*;' \
-        | head -1 | awk '{print $2}' | tr -d ';'
-    }
+  ln="$(grep -nE 'function[[:space:]]+pipe_en_max_variants[[:space:]]*\(' "$ABI_X" 2>/dev/null \
+    | head -1 | cut -d: -f1)"
+  if [ -n "${ln:-}" ]; then
+    # Body is small: scan a short window after the function line for `return N;`.
+    sed -n "${ln},$((ln + 12))p" "$ABI_X" \
+      | grep -oE 'return[[:space:]]+[0-9]+[[:space:]]*;' \
+      | head -1 | awk '{print $2}' | tr -d ';'
+  fi
 )"
 AST_ENUM_MAX="$(
-  rg -o 'AST_ENUM_MAX_VARIANTS[[:space:]]+[0-9]+' "$AST_H" \
+  grep -oE 'AST_ENUM_MAX_VARIANTS[[:space:]]+[0-9]+' "$AST_H" 2>/dev/null \
     | head -1 | awk '{print $NF}'
 )"
 
