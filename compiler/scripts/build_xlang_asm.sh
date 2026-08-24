@@ -3018,6 +3018,7 @@ filter_experimental_asm_objs() {
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
   bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
   bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
+  runtime_driver_strict_glue_stubs.o|\
   pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
   driver_compile_parse_argv_loop_partial.o|\
   typeck_asm_layout_partial.o|typeck_x_no_layout_partial.o|typeck_c_orchestration_partial.o|\
@@ -3151,6 +3152,7 @@ filter_strict_asm_objs() {
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
   bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
   bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
+  runtime_driver_strict_glue_stubs.o|\
   pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
   driver_compile_parse_argv_loop_partial.o|\
   typeck_skip.o|typeck_heavy.o|typeck.second.o|\

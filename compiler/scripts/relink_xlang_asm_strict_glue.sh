@@ -1312,9 +1312,15 @@ filter_strict_asm_objs() {
   if [ "$base" = "parser.o" ]; then
   continue
   fi
+  # PLATFORM: SHARED — keep skip list twin of build_xlang_asm.sh filter_strict_asm_objs /
+  # filter_experimental_asm_objs. Darwin filt / complement / host MH objects are linked
+  # via dedicated ST_* vars (or Darwin-only stubs slot); never re-admit via build_asm glob
+  # or they multiply_define against the explicit stubs / runtime_asm_build authority.
   case "$base" in
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
-  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
+  runtime_driver_strict_glue_stubs.o|\
   parser.o|backend.o|asm.o|main.o|lsp.o|std_fs.o|backend_x86_64_enc_c.o|\
   codegen.o|pipeline_glue_link.o|pipeline_run_impl_alias.o|pipeline_glue_standalone.o|pipeline_glue_strict_minimal.o|\
   parser_bootstrap_partial.o|parser_from_x_partial.o|parser_strict_merged.o|\
@@ -1336,7 +1342,7 @@ filter_strict_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|backend_seed_mega_fallback.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|\
+  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o|\
   \
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
@@ -1386,6 +1392,28 @@ filter_strict_asm_objs() {
   esac
   ;;
   esac
+  # G.7 twin of build_xlang_asm filter_strict_asm_objs: skip tiny enc stubs.
+  case "$base" in
+  x86_64_enc.o|arm64_enc.o|riscv64_enc.o)
+  enc_stub_bytes=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
+  if [ "${enc_stub_bytes:-0}" -lt 512 ] 2>/dev/null; then
+  strict_glue_info "strict skip stub $base (__text=${enc_stub_bytes}B)"
+  continue
+  fi
+  ;;
+  esac
+  # PLATFORM: DARWIN — Apple ld rejects multiple _xlang_asm_ci_text_stub across
+  # first-pass CI placeholders (arm64/ast/token/types/preprocess …). Skip pure
+  # CI text stubs (≤64B, no other global T). Twin of build_xlang_asm.sh.
+  _stub_t=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
+  if [ "${_stub_t:-0}" -le 64 ] 2>/dev/null \
+    && nm "$o" 2>/dev/null | grep -qE '(_)?xlang_asm_ci_text_stub$'; then
+  _other_t=$(nm -g "$o" 2>/dev/null | awk '/ [Tt] / && $3 !~ /xlang_asm_ci_text_stub/ { c++ } END { print c+0 }')
+  if [ "${_other_t:-0}" = "0" ]; then
+  strict_glue_info "strict skip CI text stub $base (__text=${_stub_t}B)"
+  continue
+  fi
+  fi
   FILTERED="$FILTERED $o"
   done
 }
@@ -1832,6 +1860,54 @@ ensure_runtime_driver_strict_glue_stubs_obj() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
   fi
 }
+
+# PLATFORM: DARWIN — G.7 twin of build_xlang_asm ensure_bstrict_darwin_strict_glue_stubs_filt_obj.
+# Full stubs.o exports strong asm_driver_* / asm_asm_codegen_* that collide with
+# runtime_asm_build / user_asm bridge (Darwin ld rejects multiply_defined; Linux
+# --allow-multiple-definition papers it over). Authority = filtered MH_OBJECT that
+# omits those symbols. Prefer/libtool may leave src stubs as ar → force MH_OBJECT.
+ensure_strict_glue_darwin_stubs_filt_obj() {
+  local src_o="src/runtime_driver_strict_glue_stubs.o"
+  local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
+  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
+  local need_cc=0
+  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
+  need_cc=1
+  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
+  need_cc=1
+  fi
+  if [ "$need_cc" = "1" ]; then
+  strict_glue_info "cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
+  fi
+  [ -f "$src_o" ] || return 1
+  if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  rm -f "$out_o"
+  fi
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ]; then
+  strict_glue_info "filter_o_export $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_* + asm_asm_codegen_*)"
+  bash scripts/filter_o_export_against_deps.sh \
+    --src "$src_o" --out "$out_o" --stem bstrict_strict_glue_stubs_darwin \
+    --omit-sym asm_driver_set_current_dep_path_for_codegen \
+    --omit-sym asm_driver_skip_codegen_dep_0_get \
+    --omit-sym asm_asm_codegen_elf_o \
+    --omit-sym asm_asm_codegen_ast \
+    --require-keep || return 1
+  fi
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'codegen_set_dep_slots_for_x_pipeline'; then
+  strict_glue_warn "Darwin stubs filt missing codegen_set_dep_slots_for_x_pipeline"
+  return 1
+  fi
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'pipeline_block_labeled_set_names'; then
+  strict_glue_warn "Darwin stubs filt missing pipeline_block_labeled_set_names"
+  return 1
+  fi
+  if nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  strict_glue_warn "Darwin stubs filt still exports asm_asm_codegen_*"
+  return 1
+  fi
+  return 0
+}
 ensure_runtime_asm_build_obj() {
   local o="src/asm/runtime_asm_build.o"
   if [ ! -f "$o" ] || [ "seeds/runtime_asm_build.from_x.c" -nt "$o" ]; then
@@ -2069,6 +2145,18 @@ ST_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"
 fi
+# PLATFORM: DARWIN — single stubs authority = filtered darwin.o (omit asm_driver_*).
+# Linux keeps full build_asm stubs (GNU ld --allow-multiple-definition). Never link
+# both full stubs.o and bstrict_strict_glue_stubs_darwin.o (G.7 dual-authority ban).
+ST_STRICT_GLUE_STUBS_O="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  if ensure_strict_glue_darwin_stubs_filt_obj; then
+  ST_STRICT_GLUE_STUBS_O="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
+  strict_glue_info "Darwin final link: stubs = bstrict_strict_glue_stubs_darwin.o (filt; omit asm_driver_*)"
+  else
+  strict_glue_warn "Darwin stubs filt failed; linking unfiltered build_asm stubs.o (may multiply_define)"
+  fi
+fi
 dbg_event B "invoke final link"
 LINK_START_S=$(date +%s 2>/dev/null || echo 0)
 # PLATFORM: SHARED — G-02e link line: no runtime_abi/proc_abi/std_fs_shim .o (see build_xlang_asm.sh).
@@ -2081,7 +2169,7 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_abi.o \
   src/runtime_pipeline_abi.o \
-  "$BUILD_DIR/runtime_driver_strict_glue_stubs.o" \
+  "$ST_STRICT_GLUE_STUBS_O" \
   $ST_RUNTIME_PANIC \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_MINIMAL_GLUE_COMPANION \

@@ -39,7 +39,8 @@ if [ -f compiler/build_asm/backend_wpo.o ]; then
 fi
 
 # Capture relink rc: set -e must not abort before FAIL=0 soft residual path.
-# PLATFORM: SHARED — Darwin may residual on stubs dual after 0-symbol lift.
+# PLATFORM: SHARED — Darwin stubs dual (full stubs.o + darwin filt) was lifted;
+# residual now only honest helpers/FULL dual-authority paths.
 if ! (
   cd compiler
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1
