@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# 仅 strict 重链 xlang_asm：更新 pipeline_glue_standalone.o（含 ast_pool.c）后快速激活 EMIT_HEAVY，无需全量 build_xlang_asm。
-# 用法：cd compiler && ./scripts/relink_xlang_asm_strict_glue.sh
+# Strict re-link xlang_asm: refresh partials / glue companions / EMIT_HEAVY without
+# full build_xlang_asm. wave309: pipeline_glue_standalone seed + ast_pool.c retired;
+# product authority = runtime_pipeline_abi.o (+ strict_minimal when present).
+# Usage: cd compiler && ./scripts/relink_xlang_asm_strict_glue.sh
 set -e
 cd "$(dirname "$0")/.."
 BUILD_DIR="build_asm"
@@ -1159,7 +1161,7 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   return 0
 }
 
-# 重编 pipeline_glue_standalone.o（含 ast_pool.c EMIT_HEAVY 修复）
+# Glue companion detect + optional archaeology standalone (seed retired wave309).
 detect_gen() {
   PIPELINE_GEN_CFLAGS="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
   case "$(uname -s)" in
@@ -1193,10 +1195,13 @@ if asm_strict_typeck_x_glue_via_pipeline_x; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   strict_glue_info "ST_GLUE glue_strict_minimal + pipeline_x glue support (X orch)"
 else
-  strict_glue_info "cc pipeline_glue_standalone.o <- ast_pool.c"
-  # wave309: pipeline_glue_standalone.from_x.c seed retired; skip when absent.
+  # wave309: standalone seed + ast_pool.c retired; skip when seed absent.
+  # Authority = runtime_pipeline_abi.o (LD argv); do not claim ast_pool producer.
   if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
+  strict_glue_info "cc pipeline_glue_standalone.o <- seeds/pipeline_glue_standalone.from_x.c (archaeology)"
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
+  else
+  strict_glue_info "skip pipeline_glue_standalone (wave309 seed retired; abi authority)"
   fi
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   # PLATFORM: SHARED — match build_xlang_asm BSTRICT_MINIMAL_GLUE_COMPANION (Linux).
@@ -1797,7 +1802,9 @@ ensure_runtime_pipeline_abi_obj() {
   if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   cf="$cf -DXLANG_LEGACY_PREPROCESS_C"
   fi
-  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+  # PLATFORM: SHARED — freshness authority = seed only (wave941 Makefile deleted;
+  # dead Makefile -nt never fired; same debt layer as ast_pool/glue SYMS ensure).
+  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- seeds/runtime_pipeline_abi.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c seeds/runtime_pipeline_abi.from_x.c -o "$o"
   fi

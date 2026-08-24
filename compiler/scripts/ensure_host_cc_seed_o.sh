@@ -161,10 +161,10 @@
 #            ensure_one also refreshes on seeds/parser_asm/*.inc (Makefile prereq twin).
 #   wave759: R4 residual glue standalone → R1 seed-map (G.7 有则补全):
 #            build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
-#            + -Wno-error=return-type -Ibuild_asm; ensure_one refreshes on
-#            pipeline_glue.c / ast_pool.c / build_asm/pipeline_glue_types.inc
-#            (Makefile prereq twin). Body = ensure_one direct cc (seed accepts
-#            cc -c; former Makefile/g05 used cc_inc_tu wrap — same seed TU).
+#            + -Wno-error=return-type -Ibuild_asm. wave309 seed retired; ensure_one
+#            early-exits when seed absent. Freshness residual (archaeology path):
+#            build_asm/pipeline_glue_types.inc only — deleted pipeline_glue.c /
+#            ast_pool.c -nt never fire (same debt layer as SYMS／glue ensure).
 #   wave760: R2 panic cold body — `try-r2 OUT` resolves OUT against catalog
 #            DRIVER_SEED_PANIC_OBJS (lists = mk). Cold path selects source by
 #            host uname (Linux x86_64 → runtime_panic_x86_64.s when present;
@@ -517,21 +517,21 @@ EOF
 # wave794: Makefile mtime for flag-sensitive FORCE-thin leaves (G.7 single body).
 #
 # These leaves historically listed Makefile as a make prereq so CFLAGS / -D
-# macro changes (USE_X_PIPELINE / USE_X_DRIVER / NO_C / …) forced recompile.
-# FORCE thin removes that edge; shell must mirror it here only for the leaves
-# that still need flag freshness (not every FORCE leaf — Makefile edits must
-# not mass-rebuild pure seed+.x leaves).
-# Exit 0 if Makefile is newer than OUT for a flag-sensitive leaf; else 1.
+# Historic FORCE-thin edge: Makefile mtime drove macro-flag rebuilds
+# (USE_X_PIPELINE / USE_X_DRIVER / NO_C / …). wave941 deleted Makefile —
+# dead `[ Makefile -nt OUT ]` never fires (bash missing -nt → false).
+# Authority now = FORCE / catalog / seed+.x (ensure_one); this helper stays
+# as a named no-op so callers keep a single G.7 hook.
+# Exit 0 if flags source is newer than OUT; else 1 (always 1 post-MG).
 # PLATFORM: SHARED — portable shell; no make graph.
 # ---------------------------------------------------------------------------
 force_thin_makefile_flags_newer() {
   local out="$1"
   case "$out" in
     # wave794: main/runtime/pipeline macro flags · wave795: crt0_mingw WIN32_O_CFLAGS
+    # wave941: Makefile absent — never refresh via deleted make graph.
     src/main_driver.o|src/runtime_driver.o|src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/asm/crt0_mingw.o)
-      if [ -f Makefile ] && [ Makefile -nt "$out" ]; then
-        return 0
-      fi
+      return 1
       ;;
   esac
   return 1
@@ -592,10 +592,11 @@ ensure_one() {
         fi
       done
     fi
-    # wave759: pipeline_glue_standalone embeds pipeline_glue.c + ast_pool + types.inc;
-    # Makefile lists them as prereqs — mirror freshness here (G.7 single body).
+    # wave759→wave309: glue_standalone seed retired; deleted pipeline_glue.c /
+    # ast_pool.c -nt never fire. Residual freshness = types.inc only when the
+    # archaeology seed path is still invoked (G.7 single body). PLATFORM: SHARED.
     if [ "$need" -eq 0 ] && [ "$stem" = "pipeline_glue_standalone" ]; then
-      for cand in pipeline_glue.c ast_pool.c build_asm/pipeline_glue_types.inc; do
+      for cand in build_asm/pipeline_glue_types.inc; do
         if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
           need=1
           break

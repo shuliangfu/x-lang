@@ -605,15 +605,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
   # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
   # wave309 G.7 8.3 structure floor leave: product pure-ld no longer links
-  # pipeline_x / filtered / standalone mega. Glue shell sources deleted; do not
-  # host-cc empty mega for product. Soft no-op when residual files still on disk
-  # (archaeology). PLATFORM: SHARED freestanding pipeline mega shell retire.
-  if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
-    echo "g05_ensure: skip pipeline_x.o host-cc (wave309 product mega retired)"
-  fi
-  if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
-    echo "g05_ensure: skip pipeline_glue_standalone (wave309 product shell retire)"
-  fi
+  # pipeline_x / filtered / standalone mega. pipeline_glue.c / ast_pool.c /
+  # glue_standalone seed permanently absent — always skip (do not gate on
+  # deleted paths; dead -f checks hid the honesty message). PLATFORM: SHARED.
+  echo "g05_ensure: skip pipeline_x.o host-cc (wave309 product mega retired)"
+  echo "g05_ensure: skip pipeline_glue_standalone (wave309 product shell retire)"
   # wave309: Darwin product no longer consumes bootstrap_seed_pipeline_filtered.o.
   if [ -f pipeline_x.o ] && [ "${XLANG_FILTER_PIPELINE_FORCE:-0}" = "1" ]; then
     _filt=build_asm/bootstrap_seed_pipeline_filtered.o
