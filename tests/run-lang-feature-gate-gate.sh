@@ -1,23 +1,36 @@
 #!/usr/bin/env bash
-# LANG-001：语法版本化 feature gate manifest 门禁
+# LANG-001：语法版本化 feature gate manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-lang-feature-gate-gate.sh
+# wave honesty (2026-08-24 #6): DOC → analysis/archive/lang/；
+# monofile seeds/runtime.from_x.c retired wave321 — -D / defines live in
+# runtime_driver_abi (driver_argv_collect_defines); refuse resurrect.
+# Override: XLANG_LANG_FEATURE_DOC=…
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_LANG_FEATURE_DOC:-analysis/lang-feature-gate-v1.md}"
+DOC="${XLANG_LANG_FEATURE_DOC:-analysis/archive/lang/lang-feature-gate-v1.md}"
 MANIFEST="${XLANG_LANG_FEATURE_MANIFEST:-tests/baseline/lang-feature-gate.tsv}"
 CATALOG="${XLANG_LANG_FEATURE_CATALOG:-tests/baseline/lang-feature-catalog.tsv}"
 MIN_GATES=6
 MIN_CASES=2
 MIN_SYMBOLS=3
+DRIVER_SRC="${XLANG_LANG_FEATURE_DRIVER_SRC:-compiler/seeds/runtime_driver_abi.from_x.c}"
 
 # shellcheck source=tests/lib/lang-feature-gate.sh
 . tests/lib/lang-feature-gate.sh
 
-echo "=== LANG-001: feature gate manifest ==="
+echo "=== LANG-001: feature gate manifest (monofile retired) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "lang-feature-gate gate FAIL: seeds/runtime.from_x.c resurrected (defines live = runtime_driver_abi)" >&2
+  exit 1
+fi
+
 for f in "$DOC" "$MANIFEST" "$CATALOG" docs/01-关键字.md \
-  compiler/seeds/runtime.from_x.c scripts/xlang-lang-edition.sh \
+  "$DRIVER_SRC" scripts/xlang-lang-edition.sh \
   tests/lang-feature/edition_stable.x tests/lang-feature/feature_match.x; do
   if [ ! -f "$f" ]; then
     echo "lang-feature-gate gate FAIL: missing $f" >&2

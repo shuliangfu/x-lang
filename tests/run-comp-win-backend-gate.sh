@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# COMP-011：Windows 目标后端 manifest 门禁
+# COMP-011：Windows 目标后端 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-comp-win-backend-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# wave honesty (2026-08-24 #6): DOC under analysis/archive/comp/;
+# monofile seeds/runtime.from_x.c retired wave321 — windows triple live in
+# rt_run_asm_backend; lld-link live in runtime_link_abi; refuse resurrect.
+# live roadmap = analysis/自举进度.md (NEXT.md left).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -17,11 +19,19 @@ MIN_CASES=6
 # shellcheck source=tests/lib/comp-win-backend.sh
 . tests/lib/comp-win-backend.sh
 
-echo "=== COMP-011: Windows backend manifest ==="
+echo "=== COMP-011: Windows backend manifest (monofile retired) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "comp-win-backend gate FAIL: seeds/runtime.from_x.c resurrected (windows/lld-link live = rt_run_asm_backend + runtime_link_abi)" >&2
+  exit 1
+fi
+
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-win-backend.sh tests/run-comp-win-backend.sh \
   compiler/src/asm/platform/coff.x compiler/src/asm/platform/README.md \
-  tests/asm/windows_min.x tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv; do
+  tests/asm/windows_min.x tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv \
+  compiler/seeds/rt_run_asm_backend.from_x.c compiler/seeds/runtime_link_abi.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "comp-win-backend gate FAIL: missing $f" >&2
     exit 1

@@ -1,4 +1,5 @@
 # COMP-004 WPO v1 manifest
+# honesty 2026-08-24 #6: monofile retired; WPO_DUMP_CALLGRAPH face = codegen.h
 # 列：item_id	kind	anchor	src	tier	notes
 # min_stages	6
 # min_cases	4
@@ -10,14 +11,14 @@ stages	section	## 2. 阶段 W1–W6	comp-wpo.tsv	-	wpo
 prototype	section	## 3. 原型目录	comp-wpo-prototype.tsv	-	prototype
 cases	section	## 4. Golden 用例	analysis/comp-wpo-v1.md	-	cases
 verify	section	## 6. 验证与门禁	analysis/comp-wpo-v1.md	-	gate
-stage_w1	stages	W1-reach-dce	compiler/src/codegen/codegen.c	dce	reach
+stage_w1	stages	W1-reach-dce	compiler/src/codegen/codegen.h	dce	reach
 stage_w2	stages	W2-callgraph-s1	compiler/scripts/wpo_dce.pl	s1	JSON
 stage_w3	stages	W3-const-spec-s2	compiler/scripts/wpo_const_spec.pl	s2	fold
 stage_w4	stages	W4-stack-promote-s3	tests/run-wpo-s3-gate.sh	s3	asm
 stage_w5	stages	W5-pgo-s4	tests/run-wpo-s4-gate.sh	s4	hot
 stage_w6	stages	W6-optin-prototype	tests/run-pipeline-wpo-optin-smoke.sh	optin	prototype
-sym_reach	symbol	codegen_wpo_reach_compute	compiler/src/codegen/codegen.c	wpo	构建
-sym_dump	symbol	XLANG_WPO_DUMP_CALLGRAPH	compiler/seeds/runtime.from_x.c	env	导出
+sym_reach	symbol	codegen_wpo_reach_compute	compiler/src/codegen/codegen.h	wpo	构建
+sym_dump	symbol	XLANG_WPO_DUMP_CALLGRAPH	compiler/src/codegen/codegen.h	env	dump API
 case_dead	case	case_dead_fn	tests/wpo/dead_fn.x	dce	-E
 case_user	case	case_dead_user	tests/wpo/dead_user.x	import	7
 case_if	case	case_if_reach	tests/wpo/if_block_reach.x	branch	reach
