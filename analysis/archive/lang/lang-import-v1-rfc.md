@@ -1,6 +1,7 @@
 # LANG-002 import 跨平台一致性 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = archive + import smoke matrix.**
 > 状态：**定版（v1）**  
 > 关联：`compiler/docs/X与C流水线同步状态.md`、`tests/run-import.sh`
 

@@ -1,6 +1,7 @@
 # LANG-005 ABI 稳定承诺边界 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: typeck.c retired; live = typeck.x (typeck_validate_struct_layouts_zero_padding).**
 > 状态：**定版（v1）** — 与 `tests/baseline/lang-abi-compat-levels.tsv`、`tests/run-abi-layout.sh` 对齐  
 > 关联：`ENG-005`（发布节奏）、`SAFE-004`（FFI）、`compiler/docs/F32_XMM_ABI.md`
 

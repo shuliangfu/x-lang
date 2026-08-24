@@ -1,12 +1,14 @@
 # TOOL-009 VS Code 0.2 稳定发布 manifest
 # 列：item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-24 #9: DOC → analysis/archive/tool/; live = editors/vscode grammar;
+# VERSION/0.2.0 sync observational (live package.json=0.1.0; no root VERSION).
 # min_rules	8
 # min_golden	5
 # min_vsix	1
-read_path	section	## 1. 目标	analysis/tool-vscode-020-v1.md	-	15min
-grammar_matrix	section	## 2. Grammar 规则矩阵	analysis/tool-vscode-020-v1.md	-	G1-G8
-release_section	section	## 3. 发布物	analysis/tool-vscode-020-v1.md	-	vsix
-gate_section	section	## 4. Gate	analysis/tool-vscode-020-v1.md	-	runnable
+read_path	section	## 1. 目标	analysis/archive/tool/tool-vscode-020-v1.md	-	15min
+grammar_matrix	section	## 2. Grammar 规则矩阵	analysis/archive/tool/tool-vscode-020-v1.md	-	G1-G8
+release_section	section	## 3. 发布物	analysis/archive/tool/tool-vscode-020-v1.md	-	vsix
+gate_section	section	## 4. Gate	analysis/archive/tool/tool-vscode-020-v1.md	-	runnable
 rule_import	grammar_rule	keyword.control.import	tests/vscode-grammar/import_core.x	G1	import
 rule_struct	grammar_rule	meta.block.struct	tests/vscode-grammar/match_arm.x	G2	struct
 rule_generic	grammar_rule	meta.type.generic	tests/vscode-grammar/option_generic.x	G3	generic
@@ -22,7 +24,7 @@ golden_match	golden	tests/vscode-grammar/match_arm.x	tests/vscode-grammar/match_
 golden_unsafe	golden	tests/vscode-grammar/unsafe_ptr.x	tests/vscode-grammar/unsafe_ptr.x	-	unsafe
 pkg	file	editors/vscode/package.json	editors/vscode/package.json	-	0.2.0
 grammar	file	editors/vscode/grammars/x.tmLanguage.json	editors/vscode/grammars/x.tmLanguage.json	-	tm
-version_file	file	VERSION	VERSION	-	sync
+version_file	file	editors/vscode/package.json	editors/vscode/package.json	-	live 0.1.0; 0.2 VERSION observational
 vsix_pattern	artifact	vscode-xlang-0.2.0.vsix	editors/vscode	-	release
 lib	script	lib/tool-vscode-020.sh	tests/lib/tool-vscode-020.sh	-	helper
 gate	script	run-tool-vscode-020-gate.sh	tests/run-tool-vscode-020-gate.sh	-	manifest

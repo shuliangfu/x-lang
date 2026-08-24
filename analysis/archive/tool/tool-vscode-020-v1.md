@@ -1,6 +1,7 @@
 # TOOL-009：VS Code 扩展 0.2 稳定发布 v1
 
 > 更新时间：2026-06-18  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = editors/vscode grammar; VERSION/0.2.0 sync observational (package 0.1.0).**
 > 状态：**定版（v1）**  
 > 前置：`editors/vscode` 0.1.x、ENG-005 版本节奏  
 > 关联：LANG-009/010（Option/Result 泛型）、STD-041（async）、TOOL-001～008

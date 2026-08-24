@@ -1,6 +1,7 @@
 # TOOL-002 linter 规则分层（error / warn / info）v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = lsp_diag.h + fmt_check_cmd.from_x.c.**
 > 状态：**定版（v1）**  
 > 关联：`TOOL-001`（fmt）、`EXC-005`（CLI/LSP 诊断）、`lsp_diag.h`、`xlang check`
 

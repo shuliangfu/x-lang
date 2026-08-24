@@ -1,6 +1,7 @@
 # TOOL-006 项目模板脚手架 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = analysis/archive/tool/ + templates/xlang-new.**
 > 状态：**定版（v1）**  
 > 关联：`xlang build`/`xlang run`、`tests/templates/`、TOOL-001（fmt）
 

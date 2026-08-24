@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# TOOL-001：formatter 风格锁定 manifest 门禁
+# TOOL-001：formatter 风格锁定 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-fmt-gate.sh
+# wave honesty (2026-08-24 #9): DOC → analysis/archive/tool/;
+# live = driver/fmt.x + fmt_check_cmd.from_x.c.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_TOOL_FMT_DOC:-analysis/tool-fmt-style-v1.md}"
+DOC="${XLANG_TOOL_FMT_DOC:-analysis/archive/tool/tool-fmt-style-v1.md}"
 MANIFEST="${XLANG_TOOL_FMT_MANIFEST:-tests/baseline/tool-fmt-style.tsv}"
 MIN_CASES=5
 MIN_RULES=6
@@ -28,7 +31,11 @@ native_xlang() {
   esac
 }
 
-echo "=== TOOL-001: formatter style manifest ==="
+echo "=== TOOL-001: formatter style manifest (archive DOC) ==="
+if [ -f analysis/tool-fmt-style-v1.md ]; then
+  echo "tool-fmt gate FAIL: top-level DOC resurrected (live = archive/tool/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" compiler/src/driver/fmt.x compiler/seeds/fmt_check_cmd.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "tool-fmt gate FAIL: missing $f" >&2

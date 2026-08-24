@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# TOOL-002：linter 规则分层 manifest 门禁
+# TOOL-002：linter 规则分层 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-lint-gate.sh
+# wave honesty (2026-08-24 #9): DOC → analysis/archive/tool/;
+# live = lsp_diag.h + fmt_check_cmd.from_x.c. Refuse lsp_diag.c resurrect.
+# L6 unused-hint check smoke observational (check gate paused 2026-08-05).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL_LINT_DOC:-analysis/tool-lint-rules-v1.md}"
+DOC="${XLANG_TOOL_LINT_DOC:-analysis/archive/tool/tool-lint-rules-v1.md}"
 MANIFEST="${XLANG_TOOL_LINT_MANIFEST:-tests/baseline/tool-lint-rules.tsv}"
 PROFILE="${XLANG_TOOL_LINT_PROFILE_TSV:-tests/baseline/tool-lint-ci-profile.tsv}"
 MIN_RULES=6
@@ -28,7 +32,15 @@ native_xlang() {
   esac
 }
 
-echo "=== TOOL-002: linter rules manifest ==="
+echo "=== TOOL-002: linter rules manifest (archive DOC) ==="
+if [ -f analysis/tool-lint-rules-v1.md ]; then
+  echo "tool-lint gate FAIL: top-level DOC resurrected (live = archive/tool/)" >&2
+  exit 1
+fi
+if [ -f compiler/src/lsp/lsp_diag.c ]; then
+  echo "tool-lint gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$PROFILE" compiler/src/lsp/lsp_diag.h compiler/seeds/fmt_check_cmd.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "tool-lint gate FAIL: missing $f" >&2

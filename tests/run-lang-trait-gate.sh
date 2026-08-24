@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# LANG-004：trait/接口约束 manifest 门禁
+# LANG-004：trait/接口约束 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-lang-trait-gate.sh
+# wave honesty (2026-08-24 #9): DOC → analysis/archive/lang/;
+# typeck.c/parser.c retired — live = typeck.x / parser.x;
+# find_trait_def → xlang_trait_check_impls_complete_c.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_LANG_TRAIT_DOC:-analysis/lang-trait-v1.md}"
+DOC="${XLANG_LANG_TRAIT_DOC:-analysis/archive/lang/lang-trait-v1.md}"
 MANIFEST="${XLANG_LANG_TRAIT_MANIFEST:-tests/baseline/lang-trait.tsv}"
 TYPECK="${XLANG_LANG_TRAIT_TYPECK:-tests/baseline/lang-trait-typeck.tsv}"
+TYPECK_X="compiler/src/typeck/typeck.x"
+PARSER_X="compiler/src/parser/parser.x"
 MIN_LAYERS=6
 MIN_CASES=3
 MIN_RULES=4
@@ -15,10 +21,22 @@ MIN_RULES=4
 # shellcheck source=tests/lib/lang-trait.sh
 . tests/lib/lang-trait.sh
 
-echo "=== LANG-004: trait interface manifest ==="
+echo "=== LANG-004: trait interface manifest (c retired) ==="
+if [ -f analysis/lang-trait-v1.md ]; then
+  echo "lang-trait gate FAIL: top-level DOC resurrected (live = archive/lang/)" >&2
+  exit 1
+fi
+if [ -f compiler/src/typeck/typeck.c ]; then
+  echo "lang-trait gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
+  exit 1
+fi
+if [ -f compiler/src/parser/parser.c ]; then
+  echo "lang-trait gate FAIL: parser.c resurrected (live = parser.x)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$TYPECK" \
   tests/trait/main.x tests/trait/method_no_impl.x tests/trait/impl_missing_method.x \
-  compiler/src/typeck/typeck.c compiler/src/parser/parser.c; do
+  "$TYPECK_X" "$PARSER_X"; do
   if [ ! -f "$f" ]; then
     echo "lang-trait gate FAIL: missing $f" >&2
     exit 1
@@ -108,7 +126,7 @@ while IFS=$'\t' read -r rule_id err_substr _pipe _status _notes; do
   [ -z "${rule_id:-}" ] && continue
   case "$rule_id" in \#*|min_*) continue ;; esac
   RULE_HIT=$((RULE_HIT + 1))
-  if ! grep -qF "$err_substr" "$DOC" 2>/dev/null && ! grep -qF "$err_substr" compiler/src/typeck/typeck.c 2>/dev/null; then
+  if ! grep -qF "$err_substr" "$DOC" 2>/dev/null && ! grep -qF "$err_substr" "$TYPECK_X" 2>/dev/null; then
     echo "lang-trait FAIL: typeck rule $rule_id missing substr $err_substr" >&2
     MISS=$((MISS + 1))
   fi

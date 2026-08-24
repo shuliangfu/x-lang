@@ -1,6 +1,7 @@
 # LANG-004 trait / 接口约束语义 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: typeck.c/parser.c retired; live = typeck.x / parser.x + xlang_trait_check_impls_complete_c.**
 > 状态：**定版（v1）** — 与 `typeck.c` 阶段 7.2、`tests/run-trait.sh` 对齐  
 > 关联：`LANG-003`（泛型）、`std/io` Reader/Writer **interface**、`TYPE-004`（FFI）
 

@@ -1,17 +1,18 @@
 # TOOL-006 项目脚手架 manifest
 # 列：item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-24 #9: DOC → analysis/archive/tool/; live = templates + xlang-new.
 # min_rules	5
 # min_template_files	2
 # expect_exit	42
-read_path	section	## 1. 阅读路径	analysis/tool-project-scaffold-v1.md	-	10min
+read_path	section	## 1. 阅读路径	analysis/archive/tool/tool-project-scaffold-v1.md	-	10min
 rules	section	## 2. 脚手架契约 S1–S5	tool-project-scaffold.tsv	-	contract
-template_list	section	## 3. 模板清单	analysis/tool-project-scaffold-v1.md	-	files
-verify	section	## 6. 验证与门禁	analysis/tool-project-scaffold-v1.md	-	gate
-rule_s1	rules	S1-main	analysis/tool-project-scaffold-v1.md	main	entry
-rule_s2	rules	S2-readme	analysis/tool-project-scaffold-v1.md	readme	run/build
-rule_s3	rules	S3-template-dir	analysis/tool-project-scaffold-v1.md	dir	hello
-rule_s4	rules	S4-xlang-new	analysis/tool-project-scaffold-v1.md	script	xlang-new
-rule_s5	rules	S5-runnable	analysis/tool-project-scaffold-v1.md	smoke	exit 42
+template_list	section	## 3. 模板清单	analysis/archive/tool/tool-project-scaffold-v1.md	-	files
+verify	section	## 6. 验证与门禁	analysis/archive/tool/tool-project-scaffold-v1.md	-	gate
+rule_s1	rules	S1-main	analysis/archive/tool/tool-project-scaffold-v1.md	main	entry
+rule_s2	rules	S2-readme	analysis/archive/tool/tool-project-scaffold-v1.md	readme	run/build
+rule_s3	rules	S3-template-dir	analysis/archive/tool/tool-project-scaffold-v1.md	dir	hello
+rule_s4	rules	S4-xlang-new	analysis/archive/tool/tool-project-scaffold-v1.md	script	xlang-new
+rule_s5	rules	S5-runnable	analysis/archive/tool/tool-project-scaffold-v1.md	smoke	exit 42
 tpl_main	template	main.x	tests/templates/project-hello/main.x	core	entry
 tpl_readme	template	README.md	tests/templates/project-hello/README.md	docs	quickstart
 script_new	script	xlang-new.sh	scripts/xlang-new.sh	init	一命令

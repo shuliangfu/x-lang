@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# TOOL-006：项目脚手架 manifest 门禁
+# TOOL-006：项目脚手架 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-scaffold-gate.sh
+# wave honesty (2026-08-24 #9): DOC → analysis/archive/tool/;
+# live = tests/templates/project-hello + scripts/xlang-new.sh.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL_SCAFFOLD_DOC:-analysis/tool-project-scaffold-v1.md}"
+DOC="${XLANG_TOOL_SCAFFOLD_DOC:-analysis/archive/tool/tool-project-scaffold-v1.md}"
 MANIFEST="${XLANG_TOOL_SCAFFOLD_MANIFEST:-tests/baseline/tool-project-scaffold.tsv}"
 TEMPLATE="tests/templates/project-hello"
 MIN_RULES=5
@@ -28,7 +31,11 @@ native_xlang() {
   esac
 }
 
-echo "=== TOOL-006: project scaffold manifest ==="
+echo "=== TOOL-006: project scaffold manifest (archive DOC) ==="
+if [ -f analysis/tool-project-scaffold-v1.md ]; then
+  echo "tool-scaffold gate FAIL: top-level DOC resurrected (live = archive/tool/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.x" "$TEMPLATE/README.md" scripts/xlang-new.sh; do
   if [ ! -f "$f" ]; then
     echo "tool-scaffold gate FAIL: missing $f" >&2

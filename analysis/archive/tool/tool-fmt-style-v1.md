@@ -1,6 +1,7 @@
 # TOOL-001 formatter 稳定化与风格锁定 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = driver/fmt.x + fmt_check_cmd.from_x.c.**
 > 状态：**定版（v1）**  
 > 关联：`compiler/src/driver/fmt.x`、`tests/run-fmt-wrap.sh`
 
