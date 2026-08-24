@@ -1202,7 +1202,7 @@ pipeline_wpo_tmp_reach_ok() {
 # pipeline_wpo.o dogfood from runtime_pipeline_abi.x (G.7 single authority).
 # wave335+: pipeline.x is pure-extern (0 bodies) → asm emit exit-0 empty; live orch
 # is runtime_pipeline_abi.x (pipeline_run_x_pipeline_impl + Cap faces).
-# abi-scale __text ~800KiB tip (historical ≤12288B was pre-leave pipeline.x bodies).
+# 2026-08-24: emit_order OOB clamp → true __text ~37KiB (was ~814KiB strchr dups).
 # Soft size unless XLANG_WPO_PIPELINE_STRICT_SIZE=1. PLATFORM: SHARED.
 rebuild_pipeline_wpo_o() {
   local tmp="/tmp/xlang_build_pipeline_wpo.cli.o"
@@ -1210,8 +1210,8 @@ rebuild_pipeline_wpo_o() {
   local txt=""
   local preserve_backup=""
   local pipe_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
-  # abi-scale tip: Darwin ~814KiB / Ubuntu ~1.5MiB soft cap (STRICT_SIZE hard).
-  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-2097152}"
+  # Post-compress tip ~37KiB; soft 96KiB headroom (STRICT_SIZE hard).
+  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-98304}"
   local pipe_tout="${XLANG_WPO_PIPELINE_COMPILE_TIMEOUT:-600}"
   if [ "${XLANG_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
   build_xlang_asm_info "skip pipeline_wpo.o recompile (XLANG_ASM_SKIP_WPO_DOGFOOD=1)"
@@ -1253,7 +1253,7 @@ rebuild_pipeline_wpo_o() {
   if [ "${XLANG_WPO_PIPELINE_STRICT_SIZE:-0}" = "1" ]; then
   return 1
   fi
-  build_xlang_asm_warn "pipeline_wpo.o __text=${txt}B > soft max ${pipe_wpo_max}B (abi-scale; soft OK)"
+  build_xlang_asm_warn "pipeline_wpo.o __text=${txt}B > soft max ${pipe_wpo_max}B (post-compress soft OK)"
   fi
   nm "$tmp" 2>/dev/null | grep -qE '(_)?(pipeline_)?run_x_pipeline_impl' || return 1
   pipeline_wpo_tmp_reach_ok "$tmp" || return 1
@@ -1860,7 +1860,7 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   return 1
   fi
   # G.7: abi already on LD argv → skip helpers extract (overlap + Darwin LC_SEGMENT /
-  # Ubuntu strchr multi-def inside abi-scale pipeline_wpo). PLATFORM: SHARED.
+  # Ubuntu internal multi-def if emit_order OOB regresses). PLATFORM: SHARED.
   if asm_strict_pipeline_selfhosted; then
   build_xlang_asm_info "skip pipeline_wpo_helpers_partial (runtime_pipeline_abi on LD argv)"
   return 1

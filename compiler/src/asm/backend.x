@@ -4069,6 +4069,12 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
         k = k + 1;
         continue;
       }
+      // PLATFORM: SHARED — extern must stay U (text-asm path already skips).
+      // Defense in depth if emit_order ever leaks an extern index (OOB/stale).
+      if (pipeline_asm_module_func_is_extern_at(module, i) != 0) {
+        k = k + 1;
+        continue;
+      }
       pipeline_elf_ctx_set_emit_hot(elf_ctx as *u8, pipeline_asm_wpo_pgo_is_hot_func(module, i));
       pipeline_asm_module_func_name_copy64(module, i, &fname_buf2[0]);
       let fname_len2: i32 = pipeline_asm_module_func_name_len_at(module, i);

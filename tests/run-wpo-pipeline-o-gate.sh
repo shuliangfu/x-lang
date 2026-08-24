@@ -14,11 +14,11 @@ cd "$(dirname "$0")/.."
 PIPE_O="${1:-compiler/build_asm/pipeline_wpo.o}"
 BASELINE="${XLANG_WPO_PIPELINE_O_BASELINE:-tests/baseline/wpo-pipeline-o.tsv}"
 MAX_TEXT=$(awk -F'\t' '$1=="pipeline_wpo_max_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
-MAX_TEXT=${MAX_TEXT:-2097152}
+MAX_TEXT=${MAX_TEXT:-98304}
 MIN_SAVE=$(awk -F'\t' '$1=="pipeline_wpo_min_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_SAVE=${MIN_SAVE:-0}
 OFF_PROXY=$(awk -F'\t' '$1=="pipeline_dce_off_text" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
-OFF_PROXY=${OFF_PROXY:-1700000}
+OFF_PROXY=${OFF_PROXY:-40000}
 FAIL=${XLANG_WPO_PIPELINE_O_FAIL:-1}
 
 if [ ! -f "$PIPE_O" ] || [ ! -s "$PIPE_O" ]; then
@@ -43,14 +43,14 @@ SAVE=$((OFF_PROXY - TXT))
 echo "wpo pipeline_wpo.o gate: $PIPE_O __text=${TXT}B (max=${MAX_TEXT}B, save=${SAVE}B vs proxy off=${OFF_PROXY}B)"
 
 if [ "$TXT" -gt "$MAX_TEXT" ] 2>/dev/null; then
-  # abi-scale tip ~800KiB; soft WARN like main. Hard FAIL only STRICT_SIZE=1.
-  echo "run-wpo-pipeline-o-gate WARN: __text ${TXT}B > soft cap ${MAX_TEXT}B (abi-scale orch)" >&2
+  # Post-compress tip ~37KiB; soft WARN like main. Hard FAIL only STRICT_SIZE=1.
+  echo "run-wpo-pipeline-o-gate WARN: __text ${TXT}B > soft cap ${MAX_TEXT}B (post-compress orch)" >&2
   if [ "${XLANG_WPO_PIPELINE_STRICT_SIZE:-0}" = "1" ] && [ "$FAIL" = "1" ]; then
     exit 1
   fi
 fi
 if [ "$MIN_SAVE" -gt 0 ] && [ "$SAVE" -lt "$MIN_SAVE" ] 2>/dev/null; then
-  echo "run-wpo-pipeline-o-gate WARN: save ${SAVE}B < min ${MIN_SAVE}B (abi mega soft)" >&2
+  echo "run-wpo-pipeline-o-gate WARN: save ${SAVE}B < min ${MIN_SAVE}B (pipeline_wpo soft)" >&2
   if [ "${XLANG_WPO_PIPELINE_STRICT_SIZE:-0}" = "1" ] && [ "$FAIL" = "1" ]; then
     exit 1
   fi

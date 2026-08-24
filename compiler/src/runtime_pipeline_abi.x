@@ -92569,12 +92569,18 @@ export function pipeline_asm_wpo_pgo_emit_order_prepare(m: *u8): void {
     let n: i32 = 0;
     let nf: i32 = pipeline_module_num_funcs(m);
     let fi: i32 = 0;
+    // PLATFORM: SHARED — g_aw_pgo_emit_order is i32[ASM_WPO_MAX_FUNCS].
+    // Historical bug: n kept growing past capacity while the array stopped
+    // being written; g_aw_pgo_emit_n = n then made order_at() read OOB into
+    // adjacent BSS (emit_n / queue), re-emitting the same bogus body hundreds
+    // of times as T _strchr and inflating abi-scale pipeline_wpo.o ~800KiB+.
+    // Only increment n when a slot is stored; emit_n never exceeds capacity.
     while (fi < nf) {
       if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 && pipeline_asm_wpo_should_emit_func(m, fi) != 0) {
         if (n < asm_wpo_max_funcs()) {
           g_aw_pgo_emit_order[n] = fi;
+          n = n + 1;
         }
-        n = n + 1;
       }
       fi = fi + 1;
     }
@@ -92585,8 +92591,8 @@ export function pipeline_asm_wpo_pgo_emit_order_prepare(m: *u8): void {
         if (pipeline_asm_module_func_is_extern_at(m, fi) == 0) {
           if (n < asm_wpo_max_funcs()) {
             g_aw_pgo_emit_order[n] = fi;
+            n = n + 1;
           }
-          n = n + 1;
         }
         fi = fi + 1;
       }
@@ -92643,7 +92649,9 @@ export function pipeline_asm_wpo_pgo_emit_order_at(m: *u8, order_index: i32): i3
     if (m != asm_wpo_get_emit_mod()) {
       pipeline_asm_wpo_pgo_emit_order_prepare(m);
     }
-    if (order_index < 0 || order_index >= g_aw_pgo_emit_n) {
+    // Belt: reject OOB past array capacity even if emit_n were stale/corrupt.
+    if (order_index < 0 || order_index >= g_aw_pgo_emit_n ||
+        order_index >= asm_wpo_max_funcs()) {
       return -1;
     }
     return g_aw_pgo_emit_order[order_index];

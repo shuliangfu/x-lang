@@ -248,9 +248,9 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   return 1
   fi
   # G.7: when runtime_pipeline_abi is already on strict LD argv, helpers extract from
-  # abi-scale pipeline_wpo overlaps (~1k T) and Darwin ld -r rejects multi-LC_SEGMENT /
-  # Ubuntu hits internal strchr multi-def. Soft-skip; abi covers orch (reach gate still
-  # validates pipeline_wpo.o). PLATFORM: SHARED.
+  # pipeline_wpo overlaps (~1k T stubs) and Darwin ld -r rejects multi-LC_SEGMENT /
+  # Ubuntu may hit internal multi-def. Soft-skip; abi covers orch (reach gate still
+  # validates pipeline_wpo.o). strchr OOB dup emit fixed 2026-08-24. PLATFORM: SHARED.
   if asm_strict_pipeline_selfhosted; then
   strict_glue_info "skip pipeline_wpo_helpers_partial (runtime_pipeline_abi on LD argv; avoid dual/WPO ld -r)"
   return 1

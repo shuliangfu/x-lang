@@ -38893,11 +38893,17 @@ void pipeline_asm_wpo_pgo_emit_order_prepare(struct ast_Module *m) {
   n = 0;
   nf = pipeline_module_num_funcs(m);
   fi = 0;
+  /* PLATFORM: SHARED — g_asm_wpo_pgo_emit_order is i32[ASM_WPO_MAX_FUNCS].
+   * Do not increment n past capacity: historically n grew while the array
+   * stopped being written, then emit_n=n made order_at() read OOB into
+   * adjacent BSS and re-emit hundreds of duplicate T _strchr bodies
+   * (abi pipeline_wpo.o ~800KiB+ fake size). */
   while (fi < nf) {
     if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 && pipeline_asm_wpo_should_emit_func(m, fi) != 0) {
-      if (n < ASM_WPO_MAX_FUNCS)
+      if (n < ASM_WPO_MAX_FUNCS) {
         g_asm_wpo_pgo_emit_order[n] = fi;
-      n = n + 1;
+        n = n + 1;
+      }
     }
     fi = fi + 1;
   }
@@ -38909,9 +38915,10 @@ void pipeline_asm_wpo_pgo_emit_order_prepare(struct ast_Module *m) {
     fi = 0;
     while (fi < nf) {
       if (pipeline_asm_module_func_is_extern_at(m, fi) == 0) {
-        if (n < ASM_WPO_MAX_FUNCS)
+        if (n < ASM_WPO_MAX_FUNCS) {
           g_asm_wpo_pgo_emit_order[n] = fi;
-        n = n + 1;
+          n = n + 1;
+        }
       }
       fi = fi + 1;
     }
@@ -38947,7 +38954,9 @@ int32_t pipeline_asm_wpo_pgo_emit_order_count(struct ast_Module *m) {
 int32_t pipeline_asm_wpo_pgo_emit_order_at(struct ast_Module *m, int32_t order_index) {
   if (m != g_asm_wpo_pgo_emit_mod)
     pipeline_asm_wpo_pgo_emit_order_prepare(m);
-  if (order_index < 0 || order_index >= g_asm_wpo_pgo_emit_n)
+  /* Belt: never index past array capacity even if emit_n is stale. */
+  if (order_index < 0 || order_index >= g_asm_wpo_pgo_emit_n ||
+      order_index >= ASM_WPO_MAX_FUNCS)
     return -1;
   return g_asm_wpo_pgo_emit_order[order_index];
 }
@@ -49815,6 +49824,10 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     if (i < 0)
       continue;
     if (i < start_skip)
+      continue;
+    /* PLATFORM: SHARED — extern must stay U (text-asm path already skips).
+     * Defense if emit_order ever leaks an extern index (OOB/stale). */
+    if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
       continue;
     pipeline_elf_ctx_set_emit_hot(elfb, pipeline_asm_wpo_pgo_is_hot_func(m, i));
     pipeline_asm_module_func_name_copy64(m, i, fname_buf);
