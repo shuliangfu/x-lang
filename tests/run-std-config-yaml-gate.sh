@@ -74,15 +74,17 @@ fi
 
 if [ -x ./compiler/xlang-c ]; then
   xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # check pause (2026-08-05) + std_config_* on-demand link residual: observational SKIP.
+  # PLATFORM: SHARED — check pause (2026-08-05): do not hard-fail on check.
+  # .x -o+run is the hard knife: formal_mod std_config_* + fk0 k21 on-demand.
   if ! ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "std-config-yaml gate: .x check observational SKIP (selfhost check pause)" >&2
-    SKIP=1
-  elif std_config_yaml_run_x_smoke ./compiler/xlang-c "$SMOKE_X"; then
+    echo "std-config-yaml gate: .x check observational note (selfhost check pause; -o still required)" >&2
+  fi
+  if std_config_yaml_run_x_smoke ./compiler/xlang-c "$SMOKE_X"; then
     X_OK=1
   else
-    echo "std-config-yaml gate: .x smoke observational SKIP (std_config_* link/on-demand residual)" >&2
-    SKIP=1
+    std_config_yaml_emit_report fail "$C_OK" 0 0
+    echo "std-config-yaml gate FAIL: .x smoke (std_config_* link/on-demand)" >&2
+    exit 1
   fi
 else
   echo "std-config-yaml gate SKIP .x smoke (no xlang)" >&2

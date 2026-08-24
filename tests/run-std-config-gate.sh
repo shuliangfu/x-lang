@@ -105,17 +105,17 @@ if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-086: .x smoke (XLANG=$XLANG_BIN) ==="
-  # check gate paused for selfhost (2026-08-05): observational only; do not hard-fail.
+  # PLATFORM: SHARED — check gate paused (2026-08-05): do not hard-fail on check.
+  # .x -o+run is the hard knife: formal_mod std_config_* + fk0 k21 on-demand.
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "std-config gate: .x check observational SKIP (selfhost check pause)" >&2
-    SKIP=1
-  elif std_config_run_smoke "$XLANG_BIN" "$SMOKE_X" "layer"; then
+    echo "std-config gate: .x check observational note (selfhost check pause; -o still required)" >&2
+  fi
+  if std_config_run_smoke "$XLANG_BIN" "$SMOKE_X" "layer"; then
     X_OK=1
   else
-    # layer_smoke links std_config_* mod wrappers; on-demand ensure of std/config.o
-    # into user -o remains residual (BLD001 UNDEF). C smoke is the hard knife this wave.
-    echo "std-config gate: .x smoke observational SKIP (std_config_* link/on-demand residual)" >&2
-    SKIP=1
+    std_config_emit_report "fail" "$C_OK" 0 0
+    echo "std-config gate FAIL: .x smoke (std_config_* link/on-demand)" >&2
+    exit 1
   fi
 else
   echo "std-config gate SKIP .x smoke (no xlang)" >&2

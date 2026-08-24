@@ -94,6 +94,9 @@ formal_mod_key_for_out() {
     ../std/json/json.o|std/json/json.o|*std/json/json.o) printf '%s' "std/json/json.o" ;;
     ../std/csv/csv.o|std/csv/csv.o|*std/csv/csv.o) printf '%s' "std/csv/csv.o" ;;
     ../std/cli/cli.o|std/cli/cli.o|*std/cli/cli.o) printf '%s' "std/cli/cli.o" ;;
+    # PLATFORM: SHARED — STD-086 layer_smoke unique UNDEF (std_config_*).
+    # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
+    ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
     # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
     # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
     ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
@@ -189,6 +192,10 @@ formal_mod_spec_for_key() {
     # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/http: mod.x prefix + --bare-impl *_c.
     std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
+    # PLATFORM: SHARED — std.config product face (STD-086 layer/yaml .x smoke).
+    # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
+    std/config/config.o) printf '%s' "mod|1|../std/config/mod.x|../std/config/config.x" ;;
     # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
@@ -279,6 +286,7 @@ formal_mod_all_keys() {
     std/json/json.o \
     std/csv/csv.o \
     std/cli/cli.o \
+    std/config/config.o \
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \
@@ -444,21 +452,22 @@ std/error/error.o
 std/json/json.o
 std/csv/csv.o
 std/cli/cli.o
+std/config/config.o
 std/dynlib/dynlib.o
 std/http/http.o
 std/tar/tar.o
 std/unicode/unicode.o
 std/channel/channel.o
 KEYS
-  if [ "$_n" -ne 42 ]; then
-    echo "formal_mod --check: expected 42 keys, counted $_n" >&2
+  if [ "$_n" -ne 43 ]; then
+    echo "formal_mod --check: expected 43 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "formal_mod --check: FAIL" >&2
     return 1
   fi
-  echo "formal_mod --check: OK (47 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
+  echo "formal_mod --check: OK (48 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
   return 0
 }
 

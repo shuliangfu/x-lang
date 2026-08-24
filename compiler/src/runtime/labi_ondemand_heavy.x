@@ -297,16 +297,16 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 21 (was 20; +datetime cookbook datetime_iana residual 2026-08-23)
+ * @return i32 — 22 (was 21; +config STD-086 layer/yaml .x smoke residual 2026-08-25)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
- * run-unicode / cli_subcommand / datetime_iana history: formal .o existed, plan
- * step present, fk0 table missed).
+ * run-unicode / cli_subcommand / datetime_iana / std_config_* history: formal .o
+ * existed or bare impl only, plan step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 20 (+cli); +k20 std/datetime/datetime.o.
-  return 21;
+  // PLATFORM: SHARED — was 21 (+datetime); +k21 std/config/config.o.
+  return 22;
 }
 
 /**
@@ -415,6 +415,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/datetime/datetime.o";
     return p;
   }
+  // PLATFORM: SHARED — std/config/config.o is OP_STD flag_kind=0 but was missing
+  // from fk0 → never push formal config.o even after formal_mod exported
+  // std_config_* (STD-086 layer_smoke / yaml_smoke BLD001 UNDEF).
+  if (k == 21) {
+    let p: *u8 = "std/config/config.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -507,6 +514,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // Count 27 = full export surface in std/datetime/mod.x (G.7 complete one table).
   if (k == 20) {
     return 27;
+  }
+  // PLATFORM: SHARED — config formal public surface (std_config_*).
+  // Count 31 = full export surface in std/config/mod.x (G.7 complete one table).
+  if (k == 21) {
+    return 31;
   }
   return 0;
 }
@@ -1458,6 +1470,136 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 26) {
         let p: *u8 = "std_datetime_timezone_smoke";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/config/config.o exact UNDEF needles (fk0 k==21).
+    // Exact match only; layer_smoke / yaml_smoke sole UNDEFs open the gate.
+    // Count 31 = full export surface in std/config/mod.x (G.7 complete one table).
+    if (k == 21) {
+      if (i == 0) {
+        let p: *u8 = "std_config_err_ok";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_config_err_null";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_config_err_not_found";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_config_err_invalid";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_config_err_io";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_config_err_full";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_config_source_unknown";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_config_source_toml";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_config_source_yaml";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_config_source_env";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_config_source_set";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_config_new";
+        return p;
+      }
+      if (i == 12) {
+        let p: *u8 = "std_config_free";
+        return p;
+      }
+      if (i == 13) {
+        let p: *u8 = "std_config_clear";
+        return p;
+      }
+      if (i == 14) {
+        let p: *u8 = "std_config_load_toml_buf";
+        return p;
+      }
+      if (i == 15) {
+        let p: *u8 = "std_config_load_toml_file";
+        return p;
+      }
+      if (i == 16) {
+        let p: *u8 = "std_config_load_env_prefix";
+        return p;
+      }
+      if (i == 17) {
+        let p: *u8 = "std_config_merge";
+        return p;
+      }
+      if (i == 18) {
+        let p: *u8 = "std_config_set_string";
+        return p;
+      }
+      if (i == 19) {
+        let p: *u8 = "std_config_get_string";
+        return p;
+      }
+      if (i == 20) {
+        let p: *u8 = "std_config_get_i32";
+        return p;
+      }
+      if (i == 21) {
+        let p: *u8 = "std_config_get_bool";
+        return p;
+      }
+      if (i == 22) {
+        let p: *u8 = "std_config_get_source";
+        return p;
+      }
+      if (i == 23) {
+        let p: *u8 = "std_config_get_i32_meta";
+        return p;
+      }
+      if (i == 24) {
+        let p: *u8 = "std_config_get_bool_meta";
+        return p;
+      }
+      if (i == 25) {
+        let p: *u8 = "std_config_get_string_meta";
+        return p;
+      }
+      if (i == 26) {
+        let p: *u8 = "std_config_backend_toml";
+        return p;
+      }
+      if (i == 27) {
+        let p: *u8 = "std_config_backend_yaml";
+        return p;
+      }
+      if (i == 28) {
+        let p: *u8 = "std_config_load_yaml_buf";
+        return p;
+      }
+      if (i == 29) {
+        let p: *u8 = "std_config_load_yaml_file";
+        return p;
+      }
+      if (i == 30) {
+        let p: *u8 = "std_config_yaml_smoke";
         return p;
       }
       return 0 as *u8;

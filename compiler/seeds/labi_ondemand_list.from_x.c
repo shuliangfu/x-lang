@@ -2333,8 +2333,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 20; +datetime (=heavy return 21). */
-  return 21;
+  /* PLATFORM: SHARED — was 21; +config (=heavy return 22). */
+  return 22;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -2383,6 +2383,9 @@ const char *labi_fk0_rel_at(int k) {
   /* PLATFORM: SHARED — mirror heavy k20 (cookbook datetime_iana). */
   if (k == 20)
     return "std/datetime/datetime.o";
+  /* PLATFORM: SHARED — mirror heavy k21 (STD-086 std_config_*). */
+  if (k == 21)
+    return "std/config/config.o";
   return NULL;
 }
 
@@ -2439,6 +2442,9 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — datetime formal public surface (mirror heavy). */
   if (k == 20)
     return 27;
+  /* PLATFORM: SHARED — config formal public surface (mirror heavy). */
+  if (k == 21)
+    return 31;
   return 0;
 }
 
@@ -2951,6 +2957,72 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_datetime_iana_dst_smoke";
     if (i == 26)
       return "std_datetime_timezone_smoke";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/config/config.o exact UNDEF needles (fk0 k==21; mirror heavy). */
+  if (k == 21) {
+    if (i == 0)
+      return "std_config_err_ok";
+    if (i == 1)
+      return "std_config_err_null";
+    if (i == 2)
+      return "std_config_err_not_found";
+    if (i == 3)
+      return "std_config_err_invalid";
+    if (i == 4)
+      return "std_config_err_io";
+    if (i == 5)
+      return "std_config_err_full";
+    if (i == 6)
+      return "std_config_source_unknown";
+    if (i == 7)
+      return "std_config_source_toml";
+    if (i == 8)
+      return "std_config_source_yaml";
+    if (i == 9)
+      return "std_config_source_env";
+    if (i == 10)
+      return "std_config_source_set";
+    if (i == 11)
+      return "std_config_new";
+    if (i == 12)
+      return "std_config_free";
+    if (i == 13)
+      return "std_config_clear";
+    if (i == 14)
+      return "std_config_load_toml_buf";
+    if (i == 15)
+      return "std_config_load_toml_file";
+    if (i == 16)
+      return "std_config_load_env_prefix";
+    if (i == 17)
+      return "std_config_merge";
+    if (i == 18)
+      return "std_config_set_string";
+    if (i == 19)
+      return "std_config_get_string";
+    if (i == 20)
+      return "std_config_get_i32";
+    if (i == 21)
+      return "std_config_get_bool";
+    if (i == 22)
+      return "std_config_get_source";
+    if (i == 23)
+      return "std_config_get_i32_meta";
+    if (i == 24)
+      return "std_config_get_bool_meta";
+    if (i == 25)
+      return "std_config_get_string_meta";
+    if (i == 26)
+      return "std_config_backend_toml";
+    if (i == 27)
+      return "std_config_backend_yaml";
+    if (i == 28)
+      return "std_config_load_yaml_buf";
+    if (i == 29)
+      return "std_config_load_yaml_file";
+    if (i == 30)
+      return "std_config_yaml_smoke";
     return NULL;
   }
   return NULL;
