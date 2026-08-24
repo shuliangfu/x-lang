@@ -1,7 +1,7 @@
 # BOOT-005 自举失败分类清单 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — basename `boot-failure-taxonomy-v1.md`；gate default = `analysis/archive/boot/`  
 > 关联：`BOOT-004`（stage-diag）、`BOOT-003`（repro）、`bootstrap-stage-patterns.tsv`
 
 ---

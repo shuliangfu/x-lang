@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # BOOT-003：自举最小复现 manifest 门禁
 #
+# wave309 honesty: DOC archived under analysis/archive/boot/.
+# PLATFORM: SHARED archaeology.
+#
 # 验证文档、矩阵、hook 脚本存在；可选 list 烟测。
 # 用法：./tests/run-bootstrap-repro-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_BOOT_REPRO_DOC:-analysis/archive/boot/boot-repro-v1.md}"
 MATRIX="${XLANG_BOOTSTRAP_REPRO_TSV:-tests/baseline/bootstrap-repro.tsv}"
 
 echo "=== BOOT-003: bootstrap repro manifest ==="
 for f in \
-  analysis/boot-repro-v1.md \
+  "$DOC" \
   "$MATRIX" \
   tests/run-bootstrap-repro.sh \
   tests/run-bootstrap-repro-build.sh; do

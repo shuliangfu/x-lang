@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # DOC-002：自举架构全景图 manifest 门禁
 #
+# wave309 honesty neighborhood (2026-08-24):
+# - Live roadmap = analysis/自举进度.md (NEXT.md left; do not hard-require)
+# - BOOT companion docs archived under analysis/archive/boot/
+# - Doc body still at analysis/doc-selfhost-architecture-v1.md (live nav)
+# PLATFORM: SHARED archaeology.
+#
 # 1) doc-selfhost-architecture-v1.md 存在且含必需章节
 # 2) 交叉引用文件存在
-# 3) 关联 BOOT 文档存在
+# 3) 关联 BOOT 文档存在（archive paths）
 #
 # 用法：./tests/run-doc-selfhost-architecture-gate.sh
 set -e
@@ -11,6 +17,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${XLANG_DOC_SELFHOST_ARCH:-analysis/doc-selfhost-architecture-v1.md}"
 MANIFEST="${XLANG_DOC_SELFHOST_MANIFEST:-tests/baseline/doc-selfhost-architecture.tsv}"
+# Live KPI / roadmap dashboard (replaces deleted NEXT.md).
+ROADMAP="${XLANG_DOC_SELFHOST_ROADMAP:-analysis/自举进度.md}"
 MIN_SEC=8
 
 echo "=== DOC-002: selfhost architecture manifest ==="
@@ -18,12 +26,16 @@ for f in \
   "$DOC" \
   "$MANIFEST" \
   compiler/docs/SELFHOST.md \
-  NEXT.md; do
+  "$ROADMAP"; do
   if [ ! -f "$f" ]; then
     echo "doc-selfhost-architecture gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "doc-selfhost-architecture gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   case "$c1" in min_sections) MIN_SEC="$c2" ;; esac
@@ -68,11 +80,11 @@ if ! grep -q 'SELFHOST.md' "$DOC"; then
   exit 1
 fi
 
-# 关联 BOOT 分析文档
+# 关联 BOOT 分析文档（archived; basename kept for archaeology grep）
 for boot_doc in \
-  analysis/boot-stage-diag-v1.md \
-  analysis/boot-repro-v1.md \
-  analysis/boot-crossplatform-v1.md; do
+  analysis/archive/boot/boot-stage-diag-v1.md \
+  analysis/archive/boot/boot-repro-v1.md \
+  analysis/archive/boot/boot-crossplatform-v1.md; do
   if [ ! -f "$boot_doc" ]; then
     echo "doc-selfhost-architecture gate FAIL: missing $boot_doc" >&2
     exit 1

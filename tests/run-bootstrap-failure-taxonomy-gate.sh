@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # BOOT-005：自举失败分类清单 manifest 门禁
 #
+# wave309 honesty: DOC archived under analysis/archive/boot/.
+# PLATFORM: SHARED archaeology.
+#
 # 1) boot-failure-taxonomy-v1.md + taxonomy + patterns + repro + fixtures
 # 2) 每 failure_type 的 pattern_ids 存在于 stage-patterns
 # 3) repro_case 存在于 bootstrap-repro.tsv
@@ -11,6 +14,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
+TAX_DOC="${XLANG_BOOT_FAILURE_TAXONOMY_DOC:-analysis/archive/boot/boot-failure-taxonomy-v1.md}"
+STAGE_DOC="${XLANG_BOOT_STAGE_DIAG_DOC:-analysis/archive/boot/boot-stage-diag-v1.md}"
 TAX="${XLANG_BOOT_FAILURE_TAXONOMY:-tests/baseline/bootstrap-failure-taxonomy.tsv}"
 PATTERNS="${XLANG_BOOT_STAGE_PATTERNS:-tests/baseline/bootstrap-stage-patterns.tsv}"
 REPRO="${XLANG_BOOT_REPRO_MATRIX:-tests/baseline/bootstrap-repro.tsv}"
@@ -20,8 +25,8 @@ MIN_TYPES=20
 
 echo "=== BOOT-005: failure taxonomy manifest ==="
 for f in \
-  analysis/boot-failure-taxonomy-v1.md \
-  analysis/boot-stage-diag-v1.md \
+  "$TAX_DOC" \
+  "$STAGE_DOC" \
   "$TAX" \
   "$PATTERNS" \
   "$REPRO" \

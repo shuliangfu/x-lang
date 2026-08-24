@@ -1,7 +1,7 @@
 # BOOT-003 自举失败最小复现 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — basename `boot-repro-v1.md`；gate default = `analysis/archive/boot/`  
 > 关联：`compiler/docs/SELFHOST.md`、`tests/run-bootstrap-bstrict-ci.sh`
 
 ---

@@ -1,6 +1,7 @@
 # Parser mega 7 路径能力差距拆解（BOOT-009）
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**归档** — basename `boot-mega7-gap.md`；gate default = `analysis/archive/boot/`  
 > 目的：为 `mega 7` 从 C glue / ret0 桩迁移到 X 真 emit 提供分阶段路线图。
 
 ---

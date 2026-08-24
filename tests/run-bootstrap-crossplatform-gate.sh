@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # BOOT-011：自举链路跨平台基线门禁 + 宿主报告
 #
+# wave309 honesty: DOC archived under analysis/archive/{boot,eng}/.
+# PLATFORM: SHARED archaeology.
+#
 # 读取 bootstrap-crossplatform-matrix.tsv，按 linux/macos/windows 策略跑 gate，
 # 输出当前平台稳定报告摘要。
 #
@@ -42,10 +45,15 @@ row_policy() {
   esac
 }
 
+# wave309 honesty: DOC archived under analysis/archive/{boot,eng}/.
+# PLATFORM: SHARED archaeology.
+BOOT_DOC="${XLANG_BOOT_CROSSPLATFORM_DOC:-analysis/archive/boot/boot-crossplatform-v1.md}"
+ENG_DOC="${XLANG_ENG_CROSSPLATFORM_DOC:-analysis/archive/eng/eng-crossplatform-ci-v1.md}"
+
 echo "=== BOOT-011: bootstrap cross-platform manifest ==="
 for f in \
-  analysis/boot-crossplatform-v1.md \
-  analysis/eng-crossplatform-ci-v1.md \
+  "$BOOT_DOC" \
+  "$ENG_DOC" \
   "$MATRIX" \
   "$CI_MATRIX"; do
   if [ ! -f "$f" ]; then

@@ -1,7 +1,7 @@
 # 编译器 dogfood 不回退 v1（PERF-004）
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — basename `perf-compile-dogfood-v1.md`；gate default = `analysis/archive/perf/`  
 > 关联：`PERF-001`（基线治理）、`BOOT-012`（自举 perf）、`tests/run-perf-compile-dogfood.sh`
 
 ---

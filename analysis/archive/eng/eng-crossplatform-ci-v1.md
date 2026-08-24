@@ -1,7 +1,7 @@
 # ENG-003 跨平台 CI 补齐 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — basename `eng-crossplatform-ci-v1.md`；gate default = `analysis/archive/eng/`  
 > 关联：`.github/workflows/ci.yml`、`tests/run-ci-full-suite.sh`
 
 ---

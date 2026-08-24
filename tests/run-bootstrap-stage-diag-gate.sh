@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # BOOT-004：自举阶段化诊断门禁
 #
+# wave309 honesty: DOC archived under analysis/archive/boot/.
+# PLATFORM: SHARED archaeology.
+#
 # manifest + fixture 分类烟测（不跑真实自举）。
 # 用法：./tests/run-bootstrap-stage-diag-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_BOOT_STAGE_DIAG_DOC:-analysis/archive/boot/boot-stage-diag-v1.md}"
 PATTERNS="${XLANG_BOOT_STAGE_PATTERNS:-tests/baseline/bootstrap-stage-patterns.tsv}"
 FIXTURES="${XLANG_BOOT_STAGE_FIXTURES:-tests/baseline/bootstrap-stage-diag-fixtures.tsv}"
 LIB="tests/lib/bootstrap-stage-diag.sh"
@@ -13,7 +17,7 @@ FIX_DIR="tests/fixtures/bootstrap-stage-diag"
 
 echo "=== BOOT-004: bootstrap stage diag manifest ==="
 for f in \
-  analysis/boot-stage-diag-v1.md \
+  "$DOC" \
   "$PATTERNS" \
   "$FIXTURES" \
   "$LIB" \

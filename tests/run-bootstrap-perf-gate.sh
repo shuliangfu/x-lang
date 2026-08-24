@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # BOOT-012：自举性能回归 manifest 门禁
 #
+# wave309 honesty: DOC archived under analysis/archive/{boot,perf}/.
+# PLATFORM: SHARED archaeology.
+#
 # 1) boot-perf-regression-v1.md + bootstrap-perf-matrix + compile-dogfood + registry
 # 2) bootstrap_compiler 三 case 须在 dogfood TSV
 # 3) CI / pre-push 接线审计
@@ -13,6 +16,8 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
+BOOT_DOC="${XLANG_BOOT_PERF_DOC:-analysis/archive/boot/boot-perf-regression-v1.md}"
+PERF_DOC="${XLANG_PERF_COMPILE_DOGFOOD_DOC:-analysis/archive/perf/perf-compile-dogfood-v1.md}"
 MATRIX="${XLANG_BOOT_PERF_MATRIX:-tests/baseline/bootstrap-perf-matrix.tsv}"
 DOGFOOD="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
@@ -20,8 +25,8 @@ MIN_BOOT=3
 
 echo "=== BOOT-012: bootstrap perf manifest ==="
 for f in \
-  analysis/boot-perf-regression-v1.md \
-  analysis/perf-compile-dogfood-v1.md \
+  "$BOOT_DOC" \
+  "$PERF_DOC" \
   "$MATRIX" \
   "$DOGFOOD" \
   "$REG" \

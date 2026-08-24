@@ -177,8 +177,8 @@ case "$CMD" in
     ;;
   help|-h|--help)
     echo "Usage: $0 list|<case_id>|all|diag [--repro] [logfile]"
-    echo "Doc: analysis/boot-repro-v1.md"
-    echo "Diag: analysis/boot-stage-diag-v1.md (BOOT-004)"
+    echo "Doc: analysis/archive/boot/boot-repro-v1.md"
+    echo "Diag: analysis/archive/boot/boot-stage-diag-v1.md (BOOT-004)"
     list_cases
     ;;
   diag)

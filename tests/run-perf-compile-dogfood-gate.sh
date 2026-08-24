@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # PERF-004：编译器 dogfood 不回退门禁（固定 compile/check 用例 vs 基线）
 #
+# wave309 honesty: DOC archived under analysis/archive/perf/.
+# PLATFORM: SHARED archaeology.
+#
 # 检查：
 #   1) manifest：compile-dogfood.tsv + 8 个源路径
 #   2) Xlang median ≤ tests/baseline/compile-dogfood.tsv（默认 XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1）
@@ -11,6 +14,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_PERF_COMPILE_DOGFOOD_DOC:-analysis/archive/perf/perf-compile-dogfood-v1.md}"
 BASELINE="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 FAIL_REG="${XLANG_PERF_FAIL_ON_COMPILE_REGRESSION:-1}"
 
@@ -28,12 +32,14 @@ native_xlang() {
 }
 
 # manifest：case_id 与源路径（bash 3.2 兼容，不用关联数组）。
+# wave309 honesty: bench micro cases renamed (r01_/m03_/r10_/a01_);
+# baseline case_id keys unchanged in compile-dogfood.tsv.
 compile_dogfood_case_src() {
   case "$1" in
-    loop_i32) echo bench/loop_i32.x ;;
-    mem_copy) echo bench/mem_copy.x ;;
-    struct_param) echo bench/struct_param.x ;;
-    call_boundary) echo bench/call_boundary.x ;;
+    loop_i32) echo bench/r01_loop_i32.x ;;
+    mem_copy) echo bench/m03_mem_copy.x ;;
+    struct_param) echo bench/r10_struct_param.x ;;
+    call_boundary) echo bench/a01_call_boundary.x ;;
     perf_main) echo tests/perf-baseline/main.x ;;
     check_backend) echo compiler/src/asm/backend.x ;;
     check_parser) echo compiler/src/parser/parser.x ;;
@@ -49,8 +55,8 @@ if [ ! -f "$BASELINE" ]; then
   echo "perf-compile-dogfood gate FAIL: missing $BASELINE" >&2
   exit 1
 fi
-if [ ! -f analysis/perf-compile-dogfood-v1.md ]; then
-  echo "perf-compile-dogfood gate FAIL: missing analysis/perf-compile-dogfood-v1.md" >&2
+if [ ! -f "$DOC" ]; then
+  echo "perf-compile-dogfood gate FAIL: missing $DOC" >&2
   exit 1
 fi
 
@@ -69,6 +75,20 @@ for case_id in $COMPILE_DOGFOOD_CASES; do
 done
 [ "$missing" -eq 0 ] || exit 1
 echo "compile-dogfood manifest OK (8 cases)"
+
+# PLATFORM: LINUX — compile-dogfood hard bench gold is native Linux.
+# Darwin/Docker call this gate with FAIL_REG=0 (BOOT-012 / ci-full-suite);
+# do not run multi-minute -o benches here — ok_pattern accepts SKIP bench.
+if [ "$FAIL_REG" != "1" ]; then
+  case "$(uname -s 2>/dev/null)" in
+    Linux)
+      ;;
+    *)
+      echo "perf-compile-dogfood gate SKIP bench (FAIL_REG=0 non-Linux; gold=Linux)" >&2
+      exit 0
+      ;;
+  esac
+fi
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then

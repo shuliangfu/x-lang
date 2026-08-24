@@ -1,8 +1,8 @@
 # COMP-001 Parser mega 7 深循环改造 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
-> 关联：`BOOT-009`（`analysis/boot-mega7-gap.md`）、`ENG-002`、`parser_asm_*_slice.c`
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — basename `comp-parser-mega7-v1.md`；gate default = `analysis/archive/comp/`  
+> 关联：`BOOT-009`（`analysis/archive/boot/boot-mega7-gap.md`）、`ENG-002`、`parser_asm_*_slice.c`
 
 ---
 

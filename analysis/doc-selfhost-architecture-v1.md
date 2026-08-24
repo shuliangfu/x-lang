@@ -1,10 +1,11 @@
 # DOC-002 自举架构全景图 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）活导航** — basename `doc-selfhost-architecture-v1.md`  
 > 读者：新加入编译器/自举链路的开发者  
 > 目标：**约 1 小时**理解从源码到 `xlang_asm` 的主链路  
-> 深度细节：见 `compiler/docs/SELFHOST.md`（运维/验收）；本文件为**全景 + 导航**
+> 深度细节：见 `compiler/docs/SELFHOST.md`（运维/验收）；本文件为**全景 + 导航**  
+> 路线图权威：`analysis/自举进度.md`（`NEXT.md` left）；BOOT companion DOC → `analysis/archive/boot/`
 
 ---
 
@@ -68,7 +69,8 @@ flowchart TB
 | asm | `backend.x` + arch | cfg-merge / SIGSEGV | asm |
 | link | ld / 符号 | undefined symbol | link |
 
-数据流：`Module` + `ASTArena` 经 pipeline glue（`pipeline_glue.c` / `pipeline.x`）串联。
+数据流：`Module` + `ASTArena` 经 live `runtime_pipeline_abi.x`（+ seed `runtime_pipeline_abi.from_x.c`）串联。  
+历史 mega 壳 `pipeline_glue.c` / `ast_pool.c` 已于 wave309 离开（禁止复活）。
 
 ---
 
@@ -152,10 +154,10 @@ taxonomy 清单：`tests/baseline/bootstrap-failure-taxonomy.tsv`。
 |------|------|
 | 验收 / 拓扑 / Target B | `compiler/docs/SELFHOST.md` |
 | asm 后端能力 | `compiler/src/asm/README.md` |
-| mega7 / force_stub | `analysis/boot-mega7-gap.md`、`analysis/boot-force-stub-v1.md` |
-| 跨平台 CI | `analysis/eng-crossplatform-ci-v1.md` |
-| 质量 vs 体积门禁 | `analysis/eng-quality-gate-v1.md` |
-| 路线图 | `NEXT.md` |
+| mega7 / force_stub（考古） | `analysis/archive/boot/boot-mega7-gap.md`、`analysis/archive/boot/boot-force-stub-v1.md` |
+| 跨平台 CI（考古） | `analysis/archive/eng/eng-crossplatform-ci-v1.md` |
+| 质量 vs 体积门禁（考古） | `analysis/archive/eng/eng-quality-gate-v1.md` |
+| 路线图 / 实时 KPI | `analysis/自举进度.md`（`NEXT.md` 已离开） |
 
 ---
 
