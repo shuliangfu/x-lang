@@ -5,8 +5,15 @@
 # 2) 可选 XLANG_ENG_BASELINE_DIFF_CHECK=1：baseline 变更须 bump registry version
 #
 # 用法：./tests/run-eng-baseline-governance-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+
+if [ -f analysis/eng-baseline-governance-v1.md ]; then
+  echo "eng-baseline-governance-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
 
 REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 
@@ -15,7 +22,7 @@ REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 
 echo "=== ENG-001: perf baseline governance manifest ==="
 for f in \
-  analysis/eng-baseline-governance-v1.md \
+  analysis/archive/eng/eng-baseline-governance-v1.md \
   "$REG" \
   tests/templates/eng-baseline-change-checklist.txt \
   tests/lib/perf-baseline-governance.sh; do

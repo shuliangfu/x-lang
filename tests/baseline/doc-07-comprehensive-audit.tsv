@@ -20,5 +20,5 @@ kw_yellow	keyword	run-next-yellow-clear-gate.sh	docs07	NEXT-YELLOW
 kw_ctx01	keyword	CTX-01	docs07	cookbook
 kw_err02	keyword	ERR-02	docs07	cookbook
 doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
-audit_doc	file	analysis/doc-07-comprehensive-audit-v1.md	analysis	STD-168
+audit_doc	file	analysis/archive/doc/doc-07-comprehensive-audit-v1.md	analysis	STD-168
 gate	script	run-doc-07-comprehensive-audit-gate.sh	tests/run-doc-07-comprehensive-audit-gate.sh	gate

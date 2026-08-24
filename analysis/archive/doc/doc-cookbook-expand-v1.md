@@ -6,6 +6,8 @@
 > 前置：[`doc-stdlib-cookbook-v1.md`](doc-stdlib-cookbook-v1.md)（DOC-001，§2～§5 共 12 食谱）
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 阅读路径（扩充版，约 45 分钟）

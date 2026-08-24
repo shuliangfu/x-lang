@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` §7、`STD-156～167`、`CORE-018～020`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

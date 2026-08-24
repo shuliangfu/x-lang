@@ -4,6 +4,8 @@
 
 ## v1 完成（✅）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 | 项 | 标准 | Gate |
 |----|------|------|
 | 发布入口 | `make bootstrap-driver-bstrict` → `cp xlang_asm $(TARGET)` | `run-d05-single-xlang-release-gate.sh` |

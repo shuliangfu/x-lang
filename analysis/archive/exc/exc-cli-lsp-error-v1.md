@@ -5,6 +5,8 @@
 > 状态：**定版（v1）**  
 > 关联：`EXC-004`（ErrorChain 展示 v2）、`lsp_diag.h`、`run-check.sh`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

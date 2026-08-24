@@ -3,14 +3,21 @@
 #
 # 验证 ci-platform-matrix.tsv 与 workflow 文件一致；不启动 GHA。
 # 用法：./tests/run-eng-crossplatform-ci-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+
+if [ -f analysis/eng-crossplatform-ci-v1.md ]; then
+  echo "eng-crossplatform-ci-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
 
 MATRIX="${XLANG_CI_PLATFORM_MATRIX:-tests/baseline/ci-platform-matrix.tsv}"
 
 echo "=== ENG-003: cross-platform CI manifest ==="
 for f in \
-  analysis/eng-crossplatform-ci-v1.md \
+  analysis/archive/eng/eng-crossplatform-ci-v1.md \
   "$MATRIX" \
   .github/workflows/ci.yml \
   .github/workflows/ci-nightly.yml \
@@ -42,6 +49,14 @@ while IFS=$'\t' read -r pid wf job runner entry tier notes; do
   [ -z "${pid:-}" ] && continue
   case "$pid" in \#*) continue ;; esac
   N=$((N + 1))
+  # Honesty: Cirrus / non-GHA workflow ids are observational (no .cirrus.yml
+  # committed; do not invent CI hosts). GHA rows stay hard.
+  case "$wf" in
+    cirrus|*.cirrus.yml|.cirrus.yml)
+      echo "eng-crossplatform-ci SKIP non-GHA workflow '$wf' ($pid; observational)" >&2
+      continue
+      ;;
+  esac
   wf_path=".github/workflows/${wf}"
   if [ ! -f "$wf_path" ]; then
     echo "eng-crossplatform-ci FAIL: missing workflow $wf_path ($pid)" >&2

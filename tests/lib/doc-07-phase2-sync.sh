@@ -15,7 +15,7 @@ doc07_phase2_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       section)
-        local f="analysis/doc-07-phase2-sync-v1.md"
+        local f="analysis/archive/doc/doc-07-phase2-sync-v1.md"
         if ! grep -qF "$anchor" "$f" 2>/dev/null; then
           echo "doc-07-phase2-sync FAIL: missing section '$anchor'" >&2
           miss=$((miss + 1))

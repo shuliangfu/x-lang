@@ -3,6 +3,8 @@
 > 状态：**定版（v1）**  
 > 关联：`DOC-006`、`§11 #78～#83` 收口项
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

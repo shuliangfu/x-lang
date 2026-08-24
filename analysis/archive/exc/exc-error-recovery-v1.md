@@ -4,6 +4,8 @@
 > 状态：**定版（v1）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
 > 关联：`analysis/exc-result-error-v1-rfc.md`、`analysis/exc-panic-abort-v1-rfc.md`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path. Runnable smoke observational (typeck/product residual).
+
 ---
 
 ## 1. 阅读路径（约 10 分钟）

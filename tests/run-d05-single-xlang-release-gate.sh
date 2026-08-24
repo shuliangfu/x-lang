@@ -6,13 +6,20 @@
 #   XLANG_D05_FAIL=1           — 失败时硬退出
 #   XLANG_D05_MANIFEST_ONLY=1  — 仅 manifest
 #   XLANG=./compiler/xlang      — 默认发布二进制
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/phase/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+
+if [ -f analysis/phase-d-d05-v1.md ]; then
+  echo "d05-single-xlang-release-gate gate FAIL: top-level DOC resurrected (live = archive/phase/)" >&2
+  exit 1
+fi
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
 FAIL=${XLANG_D05_FAIL:-0}
-DOC="analysis/phase-d-d05-v1.md"
+DOC="analysis/archive/phase/phase-d-d05-v1.md"
 MANIFEST="tests/baseline/d05-single-xlang-release.tsv"
 MF="compiler/Makefile"
 BOOT="compiler/bootstrap.sh"

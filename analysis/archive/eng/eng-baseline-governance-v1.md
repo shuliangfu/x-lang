@@ -5,6 +5,8 @@
 > 关联：`PERF-001~004`、`tests/baseline/perf-baseline-registry.tsv`
 > **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/eng/ (OBS-004 xref).
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

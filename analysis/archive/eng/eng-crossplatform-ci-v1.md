@@ -4,6 +4,8 @@
 > 状态：**定版（v1）归档** — basename `eng-crossplatform-ci-v1.md`；gate default = `analysis/archive/eng/`  
 > 关联：`.github/workflows/ci.yml`、`tests/run-ci-full-suite.sh`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

@@ -6,11 +6,18 @@
 #   XLANG_D01_FAIL=1              — 失败时硬退出
 #   XLANG_D01_BUILD_LOG=/path       — 可选 bstrict 构建日志
 #   XLANG_D01_MANIFEST_ONLY=1       — 仅 manifest
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/phase/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
+if [ -f analysis/phase-d-d01-v1.md ]; then
+  echo "d01-stage0-to-stage1-gate gate FAIL: top-level DOC resurrected (live = archive/phase/)" >&2
+  exit 1
+fi
+
 FAIL=${XLANG_D01_FAIL:-0}
-DOC="analysis/phase-d-d01-v1.md"
+DOC="analysis/archive/phase/phase-d-d01-v1.md"
 MANIFEST="tests/baseline/d01-stage0-to-stage1.tsv"
 MF="compiler/Makefile"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"

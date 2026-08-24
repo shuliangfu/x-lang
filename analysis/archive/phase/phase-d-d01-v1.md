@@ -4,6 +4,8 @@
 
 ## v1 完成（✅）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 | 项 | 标准 | Gate |
 |----|------|------|
 | Stage 0 | `make bootstrap-driver-seed` 或 `bootstrap.sh` 产出 seed `xlang` | manifest 登记 |

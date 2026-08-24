@@ -8,15 +8,22 @@
 # 5) run-size-xlang-asm-gate.sh 默认 advisory
 #
 # 用法：./tests/run-eng-quality-gate-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+
+if [ -f analysis/eng-quality-gate-v1.md ]; then
+  echo "eng-quality-gate-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
 
 MATRIX="${XLANG_ENG_QUALITY_GATE_TSV:-tests/baseline/eng-quality-gate-matrix.tsv}"
 MIN_QCI=8
 
 echo "=== ENG-002: quality gate manifest ==="
 for f in \
-  analysis/eng-quality-gate-v1.md \
+  analysis/archive/eng/eng-quality-gate-v1.md \
   "$MATRIX" \
   tests/run-ci-full-suite.sh \
   tests/run-bootstrap-bstrict-ci.sh \

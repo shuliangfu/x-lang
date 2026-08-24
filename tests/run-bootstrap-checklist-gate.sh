@@ -11,8 +11,15 @@ if [ -z "${XLANG_STDBUF_WRAPPED:-}" ] && command -v stdbuf >/dev/null 2>&1; then
   exec stdbuf -oL -eL bash "$0" "$@"
 fi
 
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/narrative/
+# PLATFORM: SHARED archaeology.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+if [ -f analysis/自举前必须清单.md ]; then
+  echo "bootstrap-checklist-gate gate FAIL: top-level DOC resurrected (live = archive/narrative/)" >&2
+  exit 1
+fi
 
 # shellcheck source=tests/lib/gate-progress.sh
 source tests/lib/gate-progress.sh
@@ -41,7 +48,7 @@ fi
 export XLANG_MINIMAL_CC_LINK="${XLANG_MINIMAL_CC_LINK:-1}"
 export XLANG_P0_SKIP_STAGE1="${XLANG_P0_SKIP_STAGE1:-1}"
 
-DOC="analysis/自举前必须清单.md"
+DOC="analysis/archive/narrative/自举前必须清单.md"
 [ -f "$DOC" ] || { gate_progress "FAIL: missing $DOC"; exit 1; }
 
 ONLY="${XLANG_CHECKLIST_SECTION:-}"

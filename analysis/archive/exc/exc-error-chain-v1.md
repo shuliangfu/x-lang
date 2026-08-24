@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：`EXC-001`（Result_i32）、`EXC-003`（码段）、`EXC-005`（CLI/LSP 展示）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path. Runnable smoke observational (typeck/product residual).
+
 ---
 
 ## 1. 目标

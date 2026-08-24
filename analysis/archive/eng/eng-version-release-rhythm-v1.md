@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：`ENG-004`（发布预检）、`ENG-001`（baseline version）、`.cursor/rules/03-操作规则.mdc`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path. VERSION/package 0.2.0 sync observational (live package 0.1.0; no root VERSION).
+
 ---
 
 ## 1. 目标

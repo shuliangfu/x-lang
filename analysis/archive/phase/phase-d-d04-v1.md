@@ -4,6 +4,8 @@
 
 ## v1 完成（✅）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 | 项 | 标准 | Gate |
 |----|------|------|
 | 矩阵 | BOOT-019 parser/typeck + BOOT-015 vec/map/heap + hello | `d04-stage2-portable-matrix.tsv` |

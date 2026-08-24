@@ -11,7 +11,7 @@ channel_stable	section	stable	季度/P0
 cadence_field	field	节奏	发布节奏
 lib	script	lib/eng-version-release-rhythm.sh	解析/校验
 gate	script	run-eng-version-release-rhythm-gate.sh	manifest 门禁
-cross_eng004	cross_ref	analysis/eng-branch-release-gate-v1.md	ENG-004 发布
+cross_eng004	cross_ref	analysis/archive/eng/eng-branch-release-gate-v1.md	ENG-004 发布
 tag_alpha	sample_tag	v0.1.0-alpha.1	渠道烟测
 tag_beta	sample_tag	v0.1.0-beta.1	渠道烟测
 tag_stable	sample_tag	v1.0.0	渠道烟测

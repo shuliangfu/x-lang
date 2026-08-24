@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：`EXC-001`（Layer A/B/C）、`EXC-002`（panic 边界）、`STD-011`（std 统一）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path. Runnable smoke observational (typeck/product residual).
+
 ---
 
 ## 1. 目标

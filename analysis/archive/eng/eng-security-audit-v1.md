@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：`ENG-004`（发布）、`ENG-006`（应急）、`SAFE-003`（unsafe 审计）、`TOOL-008`（依赖锁定）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 阅读路径（约 10 分钟）

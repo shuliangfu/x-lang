@@ -4,6 +4,8 @@
 
 ## v1 完成（✅）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 | 项 | 标准 | Gate |
 |----|------|------|
 | 哈希比对 | `sha256(stage1) == sha256(stage2)` | `run-stage2-hash-gate.sh` + `XLANG_STAGE2_HASH_STRICT=1` |

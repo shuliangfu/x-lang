@@ -6,10 +6,17 @@
 # 3) run-eng-rollback-drill.sh 干跑烟测
 #
 # 用法：./tests/run-eng-rollback-emergency-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_ENG_ROLLBACK_DOC:-analysis/eng-rollback-emergency-v1.md}"
+if [ -f analysis/eng-rollback-emergency-v1.md ]; then
+  echo "eng-rollback-emergency-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
+
+DOC="${XLANG_ENG_ROLLBACK_DOC:-analysis/archive/eng/eng-rollback-emergency-v1.md}"
 MANIFEST="${XLANG_ENG_ROLLBACK_TSV:-tests/baseline/eng-rollback-emergency.tsv}"
 PLAYBOOK="tests/templates/eng-rollback-playbook.txt"
 LIB="tests/lib/eng-rollback-emergency.sh"

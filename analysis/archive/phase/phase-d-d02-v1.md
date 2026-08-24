@@ -4,6 +4,8 @@
 
 ## v1 完成（✅）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 | 项 | 标准 | Gate |
 |----|------|------|
 | 二遍 build | `XLANG=xlang_asm_stage1 ./scripts/build_xlang_asm.sh` round2 | `verify-selfhost-stage2-bstrict.sh` |

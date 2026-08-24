@@ -2,13 +2,25 @@
 # STD-141：docs/07 + Cookbook Phase 2 同步门禁
 #
 # 用法：./tests/run-doc-07-phase2-sync-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/doc/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/doc-07-phase2-sync-v1.md"
+if [ -f analysis/doc-07-phase2-sync-v1.md ]; then
+  echo "doc-07-phase2-sync-gate gate FAIL: top-level DOC resurrected (live = archive/doc/)" >&2
+  exit 1
+fi
+
+if [ -f analysis/doc-cookbook-expand-v1.md ]; then
+  echo "run-doc-07-phase2-sync-gate.sh FAIL: companion top-level DOC resurrected (analysis/doc-cookbook-expand-v1.md)" >&2
+  exit 1
+fi
+
+DOC="analysis/archive/doc/doc-07-phase2-sync-v1.md"
 MANIFEST="tests/baseline/doc-07-phase2-sync.tsv"
 DOC07="docs/07-内置与标准库.md"
-COOKBOOK_DOC="analysis/doc-cookbook-expand-v1.md"
+COOKBOOK_DOC="analysis/archive/doc/doc-cookbook-expand-v1.md"
 LIB="tests/lib/doc-07-phase2-sync.sh"
 
 # shellcheck source=tests/lib/doc-07-phase2-sync.sh

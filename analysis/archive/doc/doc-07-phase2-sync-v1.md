@@ -3,6 +3,8 @@
 > 状态：**定版（v1）**  
 > 关联：`DOC-006`、`DOC-007`、`STD-131`～`STD-140`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

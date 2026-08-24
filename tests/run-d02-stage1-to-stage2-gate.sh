@@ -6,11 +6,18 @@
 #   XLANG_D02_FAIL=1              — 失败时硬退出
 #   XLANG_D02_MANIFEST_ONLY=1     — 仅 manifest
 #   XLANG_STAGE2_SKIP_BOOTSTRAP=1 — 传给 verify（默认 1）
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/phase/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
+if [ -f analysis/phase-d-d02-v1.md ]; then
+  echo "d02-stage1-to-stage2-gate gate FAIL: top-level DOC resurrected (live = archive/phase/)" >&2
+  exit 1
+fi
+
 FAIL=${XLANG_D02_FAIL:-0}
-DOC="analysis/phase-d-d02-v1.md"
+DOC="analysis/archive/phase/phase-d-d02-v1.md"
 MANIFEST="tests/baseline/d02-stage1-to-stage2.tsv"
 VERIFY="compiler/verify-selfhost-stage2-bstrict.sh"
 STAGE2_GATE="tests/run-stage2-bstrict-gate.sh"

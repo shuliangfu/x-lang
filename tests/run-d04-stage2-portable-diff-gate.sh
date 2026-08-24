@@ -6,11 +6,18 @@
 #   XLANG_D04_FAIL=1        — 失败时硬退出（CI 默认）
 #   XLANG_D04_STAGE1/2      — 默认 compiler/xlang_asm_stage1 / xlang_asm2
 #   XLANG_D04_MANIFEST_ONLY — 仅审计 manifest，不跑用例
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/phase/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
+if [ -f analysis/phase-d-d04-v1.md ]; then
+  echo "d04-stage2-portable-diff-gate gate FAIL: top-level DOC resurrected (live = archive/phase/)" >&2
+  exit 1
+fi
+
 FAIL=${XLANG_D04_FAIL:-0}
-DOC="analysis/phase-d-d04-v1.md"
+DOC="analysis/archive/phase/phase-d-d04-v1.md"
 MANIFEST="tests/baseline/d04-stage2-portable-matrix.tsv"
 LIB="tests/lib/d04-stage2-portable-diff.sh"
 if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): xlang_asm_stage1 OOM"; exit 0; fi

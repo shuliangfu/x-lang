@@ -16,5 +16,5 @@ lib	script	lib/eng-rollback-emergency.sh	共享函数
 hook_portable	smoke_hook	run-portable-suite.sh	Tier P
 hook_bstrict	smoke_hook	run-bootstrap-bstrict-ci.sh	B-strict
 hook_precheck	smoke_hook	run-eng-release-precheck.sh	发布预检
-cross_eng004	cross_ref	analysis/eng-branch-release-gate-v1.md
-cross_eng005	cross_ref	analysis/eng-version-release-rhythm-v1.md
+cross_eng004	cross_ref	analysis/archive/eng/eng-branch-release-gate-v1.md
+cross_eng005	cross_ref	analysis/archive/eng/eng-version-release-rhythm-v1.md
