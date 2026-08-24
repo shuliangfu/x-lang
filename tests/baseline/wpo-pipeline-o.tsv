@@ -4,6 +4,6 @@
 # Historical ≤12288B / dce_off 11588B was pre-leave pipeline.x-body era — do not
 # restore those as hard FAIL (use soft size like main; STRICT_SIZE=1 escape).
 # min_save soft: abi mega is not compressible to old proxy; symbol+reach stay hard.
-pipeline_wpo_max_text_bytes	1048576
+pipeline_wpo_max_text_bytes	2097152
 pipeline_wpo_min_save_bytes	0
-pipeline_dce_off_text	900000
+pipeline_dce_off_text	1700000

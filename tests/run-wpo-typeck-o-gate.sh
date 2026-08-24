@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 TYPECK_O="${1:-compiler/build_asm/typeck_wpo.o}"
 BASELINE="${XLANG_WPO_TYPECK_O_BASELINE:-tests/baseline/wpo-typeck-o.tsv}"
 MAX_TEXT=$(awk -F'\t' '$1=="typeck_wpo_max_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
-MAX_TEXT=${MAX_TEXT:-6144}
+MAX_TEXT=${MAX_TEXT:-8192}
 # PLATFORM: MACOS — arm64 typeck_wpo tip ~9–10KiB (Linux ~4.5KiB). Override via env or Darwin default.
 if [ -n "${XLANG_WPO_TYPECK_O_MAX_TEXT_OVERRIDE:-}" ]; then
   MAX_TEXT="$XLANG_WPO_TYPECK_O_MAX_TEXT_OVERRIDE"

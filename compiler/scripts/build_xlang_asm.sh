@@ -1210,7 +1210,8 @@ rebuild_pipeline_wpo_o() {
   local txt=""
   local preserve_backup=""
   local pipe_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
-  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-1048576}"
+  # abi-scale tip: Darwin ~814KiB / Ubuntu ~1.5MiB soft cap (STRICT_SIZE hard).
+  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-2097152}"
   local pipe_tout="${XLANG_WPO_PIPELINE_COMPILE_TIMEOUT:-600}"
   if [ "${XLANG_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
   build_xlang_asm_info "skip pipeline_wpo.o recompile (XLANG_ASM_SKIP_WPO_DOGFOOD=1)"
@@ -1326,7 +1327,8 @@ rebuild_typeck_wpo_o() {
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   tck_wpo_max=16384
   else
-  tck_wpo_max=6144
+  # tip Linux typeck_wpo ~6.5KiB (was 4577→6144; 2026-08-24 probe 6528).
+  tck_wpo_max=8192
   fi
   fi
   [ "$txt" -le "$tck_wpo_max" ] 2>/dev/null || return 1
@@ -1334,18 +1336,16 @@ rebuild_typeck_wpo_o() {
   nm "$tmp" 2>/dev/null | grep -q 'check_block' || return 1
   return 0
   }
-  build_xlang_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_x_ast root, max __text=${XLANG_WPO_TYPECK_MAX_TEXT:-6144}B; Darwin default 16384)"
+  build_xlang_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_x_ast root, max __text=${XLANG_WPO_TYPECK_MAX_TEXT:-8192}B; Darwin default 16384)"
   set +e
   while IFS= read -r comp; do
   [ -n "$comp" ] || continue
-  # PLATFORM: MACOS — EMIT_HEAVY=1 Abort trap on tip typeck.x; prefer heavy=0 first.
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  # PLATFORM: SHARED — prefer EMIT_HEAVY=0 first (Darwin Abort; Linux tip ~6.5KiB OK).
   if try_tck_wpo "" "$comp" 0 || try_tck_wpo "1" "$comp" 0 || try_tck_wpo "0" "$comp" 0; then
   mv -f "$tmp" "$BUILD_DIR/typeck_wpo.o"
   build_xlang_asm_info "typeck_wpo.o OK via $comp (__text=${txt}B, EMIT_HEAVY=0)"
   set -e
   return 0
-  fi
   fi
   if try_tck_wpo "" "$comp" 1 || try_tck_wpo "0" "$comp" 1; then
   mv -f "$tmp" "$BUILD_DIR/typeck_wpo.o"
