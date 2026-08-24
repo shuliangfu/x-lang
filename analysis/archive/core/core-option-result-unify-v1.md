@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：LANG-009 Option<T>、LANG-010 Result<T,E>、CORE-002/003 类型族  
 > 关联：EXC-001（E=i32 Layer A）、CORE-002/003 combinator gate
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/core/. typeck_generic_struct.c/parser.c retired — live = typeck.x (typeck_check_expr_try_propagate) / core/result; check observational SKIP.
 
 ---
 

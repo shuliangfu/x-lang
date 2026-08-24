@@ -1,20 +1,22 @@
 # LANG-003 generic monomorph manifest
 # 列：item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/lang/; typeck.c/codegen.c retired;
+# live = typeck.x / codegen.x; codegen_one_mono_instance → codegen_emit_mono_mangled_name.
 # min_layers	6
 # min_cases	3
-read_path	section	## 1. 阅读路径	analysis/lang-generic-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/lang/lang-generic-v1.md	-	15min
 layers	section	## 2. 最小闭环 M1–M6	lang-generic.tsv	-	generic
 prototype	section	## 3. 原型目录	lang-generic-prototype.tsv	-	prototype
-cases	section	## 4. Golden 用例	analysis/lang-generic-v1.md	-	cases
-bench	section	## 5. benchmark prototype	analysis/lang-generic-v1.md	-	benchmark
-verify	section	## 6. 验证与门禁	analysis/lang-generic-v1.md	-	gate
-layer_m1	layers	M1-syntax	analysis/lang-generic-v1.md	syntax	function
-layer_m2	layers	M2-typeck	compiler/src/typeck/typeck.c	typeck	generic
-layer_m3	layers	M3-monomorph	compiler/src/codegen/codegen.c	mono	codegen_one_mono_instance
+cases	section	## 4. Golden 用例	analysis/archive/lang/lang-generic-v1.md	-	cases
+bench	section	## 5. benchmark prototype	analysis/archive/lang/lang-generic-v1.md	-	benchmark
+verify	section	## 6. 验证与门禁	analysis/archive/lang/lang-generic-v1.md	-	gate
+layer_m1	layers	M1-syntax	analysis/archive/lang/lang-generic-v1.md	syntax	function
+layer_m2	layers	M2-typeck	compiler/src/typeck/typeck.x	typeck	generic
+layer_m3	layers	M3-monomorph	compiler/src/codegen/codegen.x	mono	codegen_emit_mono_mangled_name
 layer_m4	layers	M4-local-call	tests/generic/main.x	local	42
 layer_m5	layers	M5-import-call	tests/multi-file-generic/main.x	import	xlang-c
 layer_m6	layers	M6-benchmark	bench/generic_id_i32.x	bench	loop
-sym_mono	symbol	codegen_one_mono_instance	compiler/src/codegen/codegen.c	codegen	单态化
+sym_mono	symbol	codegen_emit_mono_mangled_name	compiler/src/codegen/codegen.x	codegen	单态化
 case_local	case	case_local_mono	tests/generic/main.x	stable	exit42
 case_arity	case	case_type_args	tests/generic/wrong_type_args.x	typeck	arity
 case_import	case	case_import_mono	tests/multi-file-generic/main.x	import	42

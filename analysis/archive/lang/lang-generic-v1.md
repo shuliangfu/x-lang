@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）** — 与 `codegen.c` 单态化、`tests/run-generic.sh` 对齐  
 > 关联：`COMP-001`（parser）、`TYPE-004`（FFI）、`LANG-004`（trait 约束）
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck.c/codegen.c retired — live = typeck.x / codegen.x; codegen_one_mono_instance → codegen_emit_mono_mangled_name.
 
 ---
 

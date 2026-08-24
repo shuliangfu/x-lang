@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：LANG-003 函数泛型单态化；CORE-002 类型族  
 > 关联：LANG-010 Result<T,E>、CORE-016 统一
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck_generic_struct.c/parser.c retired — live mono = codegen_collect_generic_struct_mono_combos / codegen_emit_generic_struct_mono_suffix in codegen.x.
 
 ---
 

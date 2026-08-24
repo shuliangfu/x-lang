@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# STBL-003：模块变更 RFC 模板门禁
+# STBL-003：模块变更 RFC 模板门禁（假权威诚实）。
 #
-# 验收：analysis/std-change-rfc-template.md 含 API/ABI/ZC/错误码等必填 §。
+# 验收：archive std-change-rfc-template.md 含 API/ABI/ZC/错误码等必填 §。
 #
 # 用法：./tests/run-stbl-003-change-rfc-template-gate.sh
+# wave honesty (2026-08-24 #10): DOC/template → analysis/archive/{stbl,std}/.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STBL_CRFC_DOC:-analysis/stbl-change-rfc-template-v1.md}"
-TEMPLATE="${XLANG_STBL_CRFC_TEMPLATE:-analysis/std-change-rfc-template.md}"
+DOC="${XLANG_STBL_CRFC_DOC:-analysis/archive/stbl/stbl-change-rfc-template-v1.md}"
+TEMPLATE="${XLANG_STBL_CRFC_TEMPLATE:-analysis/archive/std/std-change-rfc-template.md}"
 MANIFEST="${XLANG_STBL_CRFC_TSV:-tests/baseline/stbl-change-rfc-template.tsv}"
 LIB="tests/lib/stbl-change-rfc-template.sh"
 MIN_SEC=7
@@ -16,7 +18,11 @@ MIN_SEC=7
 # shellcheck source=tests/lib/stbl-change-rfc-template.sh
 . "$LIB"
 
-echo "=== STBL-003: change RFC template manifest ==="
+echo "=== STBL-003: change RFC template manifest (archive DOC) ==="
+if [ -f analysis/stbl-change-rfc-template-v1.md ] || [ -f analysis/std-change-rfc-template.md ]; then
+  echo "stbl-change-rfc gate FAIL: top-level DOC/template resurrected (live = archive/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$TEMPLATE" "$MANIFEST" "$LIB"; do
   if [ ! -f "$f" ]; then
     echo "stbl-change-rfc gate FAIL: missing $f" >&2

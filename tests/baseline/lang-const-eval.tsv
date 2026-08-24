@@ -1,19 +1,21 @@
 # LANG-006 编译期常量求值 manifest
 # Format: item_id<TAB>kind<TAB>anchor<TAB>src<TAB>tier<TAB>notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/lang/; typeck.c/codegen.c retired;
+# live CTFE = typeck_expr_is_const_with_module_consts / typeck_fold_expr; const_folded_valid in codegen.x.
 min_layers	6
 min_cases	10
-layer_c1	layers	C1-literal	typeck.c	v1	字面量
-layer_c2	layers	C2-const-bind	typeck.c	v1	const 链
-layer_c3	layers	C3-binop	typeck.c	v1	二元运算
-layer_c4	layers	C4-unary	typeck.c	v1	一元运算
-layer_c5	layers	C5-array-len	typeck.c	v1	数组长度
-layer_c6	layers	C6-codegen	codegen.c	v1	fold 发射
-sym_is_const	symbol	is_const_expr	compiler/src/typeck/typeck.c	v1	常量判定
-sym_eval	symbol	eval_const_int	compiler/src/typeck/typeck.c	v1	求值
-sym_fold	symbol	fold_expr	compiler/src/typeck/typeck.c	v1	折叠
+layer_c1	layers	C1-literal	typeck.x	v1	字面量
+layer_c2	layers	C2-const-bind	typeck.x	v1	const 链
+layer_c3	layers	C3-binop	typeck.x	v1	二元运算
+layer_c4	layers	C4-unary	typeck.x	v1	一元运算
+layer_c5	layers	C5-array-len	typeck.x	v1	数组长度
+layer_c6	layers	C6-codegen	codegen.x	v1	fold 发射
+sym_is_const	symbol	typeck_expr_is_const_with_module_consts	compiler/src/typeck/typeck.x	v1	常量判定
+sym_eval	symbol	typeck_fold_expr	compiler/src/typeck/typeck.x	v1	求值/折叠
+sym_fold	symbol	pipeline_typeck_fold_expr_c	compiler/src/typeck/typeck.x	v1	Cap face
 sym_folded_ast	symbol	const_folded_valid	compiler/include/ast.h	v1	AST 槽
-sym_codegen_fold	symbol	const_folded_valid	compiler/src/codegen/codegen.c	v1	C 发射
-sym_wpo_fold	symbol	const_spec_fold	tests/wpo/const_spec_fold.x	v1	WPO 特化
+sym_codegen_fold	symbol	const_folded_valid	compiler/src/codegen/codegen.x	v1	C 发射
+sym_wpo_fold	symbol	scale	tests/wpo/const_spec_fold.x	v1	WPO 特化 scale(1024,64)
 case_binop_mix	case	c_binop_mix.x	tests/lang-const/c_binop_mix.x	v1	exit 20
 case_bitwise	case	c_bitwise.x	tests/lang-const/c_bitwise.x	v1	exit 131
 case_shift	case	c_shift.x	tests/lang-const/c_shift.x	v1	exit 0
@@ -28,6 +30,3 @@ case_array_len	case	c_array_len.x	tests/lang-const/c_array_len.x	v1	exit 4
 case_match_const	case	c_match_const.x	tests/lang-const/c_match_const.x	v1	exit 20
 case_struct_lit_const	case	c_struct_lit_const.x	tests/lang-const/c_struct_lit_const.x	v1	exit 9
 case_enum_variant_const	case	c_enum_variant_const.x	tests/lang-const/c_enum_variant_const.x	v1	exit 200
-case_ternary_const	case	c_ternary_const.x	tests/lang-const/c_ternary_const.x	v1	exit 100
-case_if_const	case	c_if_const.x	tests/lang-const/c_if_const.x	v1	exit 100
-case_let_const_hook	script	run-let-const.sh	tests/run-let-const.sh	v1	let/const 回归

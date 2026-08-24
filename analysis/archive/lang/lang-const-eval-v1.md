@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）** — 与 `typeck.c` CTFE、`codegen.c` fold 输出对齐  
 > 关联：`LANG-001`（feature gate）、`COMP-004`（WPO const spec fold）、`tests/run-let-const.sh`
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck.c/codegen.c retired — live CTFE = typeck_expr_is_const_with_module_consts / typeck_fold_expr in typeck.x; const_folded_valid in codegen.x + ast.h.
 
 ---
 
@@ -93,3 +94,14 @@ gate 输出 **`lang-const-eval gate OK`**；无 native `xlang` 时 manifest 仍�
 - [x] RFC + manifest **6** layer + **≥10** case
 - [x] `tests/lang-const/*.x` 常见算术/位运算/const 链
 - [x] `run-lang-const-eval-gate.sh` + `run-portable-suite.sh`
+
+## Honesty case anchors (2026-08-24 #10)
+
+Additional CTFE golden cases registered in `tests/baseline/lang-const-eval.tsv` (live paths under `tests/lang-const/`):
+
+| Case | Path |
+|------|------|
+| `c_match_const.x` | `tests/lang-const/c_match_const.x` |
+| `c_struct_lit_const.x` | `tests/lang-const/c_struct_lit_const.x` |
+| `c_enum_variant_const.x` | `tests/lang-const/c_enum_variant_const.x` |
+

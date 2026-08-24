@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：STBL-001（Tier-S manifest）、STBL-002（README 同步）、STD-011（错误码）
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/stbl/; template → analysis/archive/std/std-change-rfc-template.md.
 
 ---
 

@@ -1,17 +1,19 @@
 # LANG-010 Result<T,E> 泛型 struct manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/lang/; typeck_generic_struct.c/parser.c retired;
+# live mono = codegen.x; Result demangle face = typeck_check_expr_try_propagate.
 # min_golden	2
-read_path	section	## 1. 阅读路径	analysis/lang-result-generic-v1.md
-layers	section	## 2. 闭环 M7–M9	analysis/lang-result-generic-v1.md
-api	section	## 3. API（v1）	analysis/lang-result-generic-v1.md
-golden	section	## 4. 金样向量	analysis/lang-result-generic-v1.md
-symbol_template	symbol	struct Result<T, E>	core/result/mod.x	模板
+read_path	section	## 1. 阅读路径	analysis/archive/lang/lang-result-generic-v1.md
+layers	section	## 2. 闭环 M7–M9	analysis/archive/lang/lang-result-generic-v1.md
+api	section	## 3. API（v1）	analysis/archive/lang/lang-result-generic-v1.md
+golden	section	## 4. 金样向量	analysis/archive/lang/lang-result-generic-v1.md
+symbol_template	symbol	struct Result_i32	core/result/mod.x	模板
 symbol_i32	symbol	Result_i32	core/result/mod.x	兼容
 symbol_is_ok_gen	symbol	is_ok_gen	core/result/mod.x	泛型辅助
 smoke_three	smoke	tests/lang-result-generic/result_three.x	三组合
 smoke_import	smoke	tests/lang-result-generic/with_core_import.x	core 导入
-typeck_c	symbol	typeck_demangle_suffix_to_types	compiler/src/typeck/typeck_generic_struct.c	双参 demangle
-parser_c	symbol	parser_append_type_inst_mangle	compiler/src/parser/parser.c	多实参 mangle
-cross_lang009	cross_ref	lang-option-generic-v1.md	analysis/lang-option-generic-v1.md	LANG-009
+typeck_c	symbol	typeck_check_expr_try_propagate	compiler/src/typeck/typeck.x	Result_* demangle
+parser_c	symbol	codegen_emit_generic_struct_mono_suffix	compiler/src/codegen/codegen.x	多实参 mangle
+cross_lang009	cross_ref	lang-option-generic-v1.md	analysis/archive/lang/lang-option-generic-v1.md	LANG-009
 lib	script	lib/lang-result-generic.sh	tests/lib/lang-result-generic.sh
 gate	script	run-lang-result-generic-gate.sh	tests/run-lang-result-generic-gate.sh

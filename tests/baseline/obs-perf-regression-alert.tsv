@@ -1,6 +1,7 @@
 # OBS-004 性能回归告警 manifest
 # 列：item_id	kind	anchor	notes
 # min_alerts	6
+# honesty 2026-08-24 #10: DOC → analysis/archive/; refuse top-level DOC resurrect.
 output_prefix	bracket_component	XLANG_PERF_ALERT	stderr 前缀
 field_severity	output_field	severity=	critical/warn
 field_baseline	output_field	baseline_id=	registry id
@@ -19,5 +20,5 @@ lib	script	lib/obs-perf-regression-alert.sh	emit API
 runner	script	run-obs-perf-regression-alert.sh	--smoke
 gate	script	run-obs-perf-regression-alert-gate.sh	manifest
 registry_ref	file	tests/baseline/perf-baseline-registry.tsv	ENG-001
-cross_obs003	cross_ref	analysis/obs-structured-log-v1.md
-cross_eng001	cross_ref	analysis/eng-baseline-governance-v1.md
+cross_obs003	cross_ref	analysis/archive/obs/obs-structured-log-v1.md
+cross_eng001	cross_ref	analysis/archive/eng/eng-baseline-governance-v1.md

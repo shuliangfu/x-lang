@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# LANG-003：泛型/模板最小闭环 manifest 门禁
+# LANG-003：泛型/模板最小闭环 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-lang-generic-gate.sh
+# wave honesty (2026-08-24 #10): DOC → analysis/archive/lang/;
+# typeck.c/codegen.c retired — live = typeck.x / codegen.x;
+# codegen_one_mono_instance → codegen_emit_mono_mangled_name.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_LANG_GENERIC_DOC:-analysis/lang-generic-v1.md}"
+DOC="${XLANG_LANG_GENERIC_DOC:-analysis/archive/lang/lang-generic-v1.md}"
 MANIFEST="${XLANG_LANG_GENERIC_MANIFEST:-tests/baseline/lang-generic.tsv}"
 PROTOTYPE="${XLANG_LANG_GENERIC_PROTOTYPE:-tests/baseline/lang-generic-prototype.tsv}"
+TYPECK_X="compiler/src/typeck/typeck.x"
+CODEGEN_X="compiler/src/codegen/codegen.x"
 MIN_LAYERS=6
 MIN_CASES=3
 MIN_CAPS=4
@@ -15,12 +21,24 @@ MIN_CAPS=4
 # shellcheck source=tests/lib/lang-generic.sh
 . tests/lib/lang-generic.sh
 
-echo "=== LANG-003: generic monomorph manifest ==="
+echo "=== LANG-003: generic monomorph manifest (c retired) ==="
+if [ -f analysis/lang-generic-v1.md ]; then
+  echo "lang-generic gate FAIL: top-level DOC resurrected (live = archive/lang/)" >&2
+  exit 1
+fi
+if [ -f compiler/src/typeck/typeck.c ]; then
+  echo "lang-generic gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
+  exit 1
+fi
+if [ -f compiler/src/codegen/codegen.c ]; then
+  echo "lang-generic gate FAIL: codegen.c resurrected (live = codegen.x)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$PROTOTYPE" \
   tests/generic/main.x tests/generic/wrong_type_args.x \
   tests/multi-file-generic/main.x tests/multi-file-generic/foo.x \
   bench/generic_id_i32.x \
-  compiler/src/codegen/codegen.c compiler/src/typeck/typeck.c; do
+  "$TYPECK_X" "$CODEGEN_X"; do
   if [ ! -f "$f" ]; then
     echo "lang-generic gate FAIL: missing $f" >&2
     exit 1

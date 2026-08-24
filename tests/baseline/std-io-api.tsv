@@ -20,7 +20,7 @@ ptr_view
 ptr_view_valid
 stdin_ptr_view
 ptr_slice
-stdin_ptr_slice
+# honesty 2026-08-24 #10: stdin_ptr_slice retired → stdin_ptr_view (listed above)
 read_stdin_ptr
 write_stdout
 write_stderr
@@ -30,7 +30,7 @@ read_batch_fd
 write_batch_fd
 readv
 writev
-print
+# honesty 2026-08-24 #10: print moved to std.fmt / std.debug; not std.io export
 register_buffers
 read_fixed_fd
 write_fixed_fd

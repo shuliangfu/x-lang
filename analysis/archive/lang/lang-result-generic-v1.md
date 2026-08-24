@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：LANG-009 Option<T>；CORE-003 Result 类型族；EXC-001 错误传播  
 > 关联：CORE-016 统一、LANG-009 mangling 基础设施
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck_generic_struct.c/parser.c retired — live mono = codegen.x generic-struct helpers; Result_* demangle face = typeck_check_expr_try_propagate.
 
 ---
 

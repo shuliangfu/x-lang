@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` Phase 2、`BOOT-013` check 矩阵
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/stbl/.
 
 ---
 

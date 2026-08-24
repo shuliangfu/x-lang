@@ -1,16 +1,18 @@
 # LANG-009 Option<T> 泛型 struct manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/lang/; typeck_generic_struct.c/parser.c retired;
+# live mono = codegen_collect_generic_struct_mono_combos / codegen_emit_generic_struct_mono_suffix.
 # min_golden	2
-read_path	section	## 1. 阅读路径	analysis/lang-option-generic-v1.md
-layers	section	## 2. 闭环 M7–M9	analysis/lang-option-generic-v1.md
-api	section	## 3. API（v1）	analysis/lang-option-generic-v1.md
-golden	section	## 4. 金样向量	analysis/lang-option-generic-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/lang/lang-option-generic-v1.md
+layers	section	## 2. 闭环 M7–M9	analysis/archive/lang/lang-option-generic-v1.md
+api	section	## 3. API（v1）	analysis/archive/lang/lang-option-generic-v1.md
+golden	section	## 4. 金样向量	analysis/archive/lang/lang-option-generic-v1.md
 symbol_template	symbol	struct Option<T>	core/option/mod.x	模板
 symbol_i32	symbol	Option_i32	core/option/mod.x	兼容
 smoke_three	smoke	tests/lang-option-generic/option_three.x	三类型
 smoke_import	smoke	tests/lang-option-generic/with_core_import.x	core 导入
-typeck_c	symbol	typeck_materialize_generic_structs	compiler/src/typeck/typeck_generic_struct.c	物化
-parser_c	symbol	parser_append_type_inst_mangle	compiler/src/parser/parser.c	mangle
-cross_lang003	cross_ref	lang-generic-v1.md	analysis/lang-generic-v1.md	LANG-003
+typeck_c	symbol	codegen_collect_generic_struct_mono_combos	compiler/src/codegen/codegen.x	物化
+parser_c	symbol	codegen_emit_generic_struct_mono_suffix	compiler/src/codegen/codegen.x	mangle
+cross_lang003	cross_ref	lang-generic-v1.md	analysis/archive/lang/lang-generic-v1.md	LANG-003
 lib	script	lib/lang-option-generic.sh	tests/lib/lang-option-generic.sh
 gate	script	run-lang-option-generic-gate.sh	tests/run-lang-option-generic-gate.sh

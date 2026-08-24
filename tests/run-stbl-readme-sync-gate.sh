@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# STBL-002：std/README 与实现同步门禁
+# STBL-002：std/README 与实现同步门禁（假权威诚实）。
 #
 # 用法：./tests/run-stbl-readme-sync-gate.sh
+# wave honesty (2026-08-24 #10): DOC → analysis/archive/stbl/.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STBL_README_DOC:-analysis/stbl-readme-sync-v1.md}"
+DOC="${XLANG_STBL_README_DOC:-analysis/archive/stbl/stbl-readme-sync-v1.md}"
 MANIFEST="${XLANG_STBL_README_TSV:-tests/baseline/stbl-readme-sync.tsv}"
 README="std/README.md"
 PREFIX="xlang: [XLANG_STBL_README]"
@@ -13,7 +15,11 @@ PREFIX="xlang: [XLANG_STBL_README]"
 # shellcheck source=tests/lib/stbl-readme-sync.sh
 . tests/lib/stbl-readme-sync.sh
 
-echo "=== STBL-002: std README sync manifest ==="
+echo "=== STBL-002: std README sync manifest (archive DOC) ==="
+if [ -f analysis/stbl-readme-sync-v1.md ]; then
+  echo "stbl-readme-sync gate FAIL: top-level DOC resurrected (live = archive/stbl/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$README"; do
   if [ ! -f "$f" ]; then
     echo "stbl-readme-sync gate FAIL: missing $f" >&2

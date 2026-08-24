@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` Phase 2、`analysis/exc-result-error-v1-rfc.md`（EXC-001）
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
 
 ---
 
