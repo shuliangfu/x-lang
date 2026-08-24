@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# LANG-008：生命周期错误友好化 manifest 门禁
+# LANG-008：生命周期错误友好化 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-lang-lifetime-diag-gate.sh
+# wave honesty (2026-08-24 #8): DOC → analysis/archive/lang/;
+# lsp_diag.c / typeck.c retired — live = lsp_diag.h + typeck.x.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_LANG_LIFETIME_DIAG_DOC:-analysis/lang-lifetime-diag-v1.md}"
+DOC="${XLANG_LANG_LIFETIME_DIAG_DOC:-analysis/archive/lang/lang-lifetime-diag-v1.md}"
 MANIFEST="${XLANG_LANG_LIFETIME_DIAG_MANIFEST:-tests/baseline/lang-lifetime-diag.tsv}"
 MATRIX="${XLANG_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
 MIN_LAYERS=6
@@ -14,10 +17,20 @@ MIN_CASES=4
 # shellcheck source=tests/lib/lang-lifetime-diag.sh
 . tests/lib/lang-lifetime-diag.sh
 
-echo "=== LANG-008: lifetime diagnostic manifest ==="
+echo "=== LANG-008: lifetime diagnostic manifest (c retired) ==="
+
+if [ -f compiler/src/lsp/lsp_diag.c ]; then
+  echo "lang-lifetime-diag gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h)" >&2
+  exit 1
+fi
+if [ -f compiler/src/typeck/typeck.c ]; then
+  echo "lang-lifetime-diag gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
+  exit 1
+fi
+
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   analysis/type-region-v1-rfc.md \
-  compiler/src/lsp/lsp_diag.c compiler/src/typeck/typeck.c \
+  compiler/src/lsp/lsp_diag.h compiler/src/typeck/typeck.x \
   tests/typeck/slice_lifetime/region_assign_escape.x; do
   if [ ! -f "$f" ]; then
     echo "lang-lifetime-diag gate FAIL: missing $f" >&2

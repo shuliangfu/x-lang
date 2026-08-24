@@ -1,6 +1,7 @@
 # TOOL-003 LSP 补全质量 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #8: lsp_diag.c retired; live = lsp_diag.h + runtime_lsp_glue.from_x.c.**
 > 状态：**定版（v1）**  
 > 关联：`EXC-005`（诊断统一）、`compiler/src/lsp/lsp_diag.c`、`tests/run-lsp.sh`
 

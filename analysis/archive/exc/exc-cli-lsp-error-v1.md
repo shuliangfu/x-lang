@@ -1,6 +1,7 @@
 # EXC-005 CLI/LSP 错误显示统一 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #8: lsp_diag.c retired; hubs live in lsp_diag.h + runtime_lsp_glue.**
 > 状态：**定版（v1）**  
 > 关联：`EXC-004`（ErrorChain 展示 v2）、`lsp_diag.h`、`run-check.sh`
 

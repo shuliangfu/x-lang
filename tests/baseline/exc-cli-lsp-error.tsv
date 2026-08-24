@@ -1,17 +1,19 @@
 # EXC-005 CLI/LSP 错误显示 manifest
 # 列：item_id	kind	anchor	src	notes
+# honesty 2026-08-24 #8: DOC → analysis/archive/exc/; lsp_diag.c retired;
+# hubs live = lsp_diag.h / runtime_lsp_glue.from_x.c / parser.x / diag.from_x.c.
 # min_items	10
-doc_model	section	## 2. 三态模型	exc-cli-lsp-error-v1.md
-doc_hub	section	## 3. 统一入口	Hub 表
-doc_golden	section	## 4. Golden 用例	golden
-hub_typeck	symbol	lsp_diag_report_typeck	compiler/src/lsp/lsp_diag.c	typeck 入口
-hub_parse	symbol	fail	compiler/src/parser/parser.c	parse fail()
-hub_print	symbol	lsp_diag_print_stderr_human	compiler/src/lsp/lsp_diag.c	check 打印
-hub_add	symbol	lsp_diag_add	compiler/src/lsp/lsp_diag.c	收集器
-format_cli_typeck	pattern	typeck error: %s at %d:%d	compiler/src/lsp/lsp_diag.c	CLI typeck
-format_cli_parse	pattern	parse error at %d:%d:	compiler/src/parser/parser.c	CLI parse
-format_check	pattern	 - %s: %s	compiler/src/lsp/lsp_diag.c	check 行
-macro_typeck	pattern	TYPECK_ERR(	compiler/src/typeck/typeck.c	C 宏
+doc_model	section	## 2. 三态模型	exc-cli-lsp-error-v1.md	-
+doc_hub	section	## 3. 统一入口	Hub 表	-
+doc_golden	section	## 4. Golden 用例	golden	-
+hub_typeck	symbol	lsp_diag_report_typeck	compiler/src/lsp/lsp_diag.h	typeck 入口
+hub_parse	symbol	set_onefunc_fail	compiler/src/parser/parser.x	parse fail path
+hub_print	symbol	lsp_diag_print_stderr_human	compiler/src/lsp/lsp_diag.h	check 打印
+hub_add	symbol	lsp_diag_add	compiler/src/lsp/lsp_diag.h	收集器
+format_cli_typeck	pattern	"typeck error"	compiler/seeds/runtime_lsp_glue.from_x.c	CLI typeck kind
+format_cli_parse	pattern	"parse error"	compiler/seeds/diag.from_x.c	CLI parse kind
+format_check	pattern	diag_report_with_code	compiler/seeds/runtime_lsp_glue.from_x.c	check 路径
+macro_typeck	pattern	lsp_diag_report_typeck	compiler/src/typeck/typeck.x	live report hub
 fixture_assign	golden	type_mismatch_assign.x	tests/typeck/type_mismatch_assign.x	assignment type mismatch: expected i32, found bool
 fixture_return	golden	return_operand_type_mismatch.x	tests/typeck/return_operand_type_mismatch.x	return expression type mismatch
 hook_check	hook_script	run-check.sh	tests/run-check.sh	check 烟测

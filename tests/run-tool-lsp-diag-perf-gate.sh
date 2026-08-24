@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# TOOL-004：LSP 诊断性能 manifest 门禁
+# TOOL-004：LSP 诊断性能 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-lsp-diag-perf-gate.sh
+# wave honesty (2026-08-24 #8): DOC → analysis/archive/tool/;
+# lsp_diag.c hard-retired — P1–P6 live in runtime_lsp_glue(.from_x.c / .x).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL_LSP_DIAG_DOC:-analysis/tool-lsp-diag-perf-v1.md}"
+DOC="${XLANG_TOOL_LSP_DIAG_DOC:-analysis/archive/tool/tool-lsp-diag-perf-v1.md}"
 MANIFEST="${XLANG_TOOL_LSP_DIAG_MANIFEST:-tests/baseline/tool-lsp-diag-perf.tsv}"
 MIN_OPTS=6
 MIN_CASES=2
@@ -28,8 +31,14 @@ native_xlang() {
   esac
 }
 
-echo "=== TOOL-004: LSP diag perf manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.c compiler/src/lsp/lsp_diag.x; do
+echo "=== TOOL-004: LSP diag perf manifest (lsp_diag.c retired) ==="
+
+if [ -f compiler/src/lsp/lsp_diag.c ]; then
+  echo "tool-lsp-diag-perf gate FAIL: lsp_diag.c resurrected (live = runtime_lsp_glue)" >&2
+  exit 1
+fi
+
+for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.x compiler/seeds/runtime_lsp_glue.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "tool-lsp-diag-perf gate FAIL: missing $f" >&2
     exit 1

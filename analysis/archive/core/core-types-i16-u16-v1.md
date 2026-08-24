@@ -1,6 +1,7 @@
 # CORE-013 core.types i16/u16 与标量宽度表 v1
 
 > 更新时间：2026-06-18  
+> **Honesty 2026-08-24 #8: typeck.c/codegen.c → .x; cross_ref = wave313/int16_t.**
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` CORE-013、`core/types/mod.x`、`compiler/src/typeck/typeck.c`、`compiler/src/codegen/codegen.c`
 

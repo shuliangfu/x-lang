@@ -1,6 +1,7 @@
 # LANG-008 生命周期错误信息友好化 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #8: lsp_diag.c/typeck.c retired; live = lsp_diag.h + typeck.x.**
 > 状态：**定版（v1）** — 与 `lsp_diag_report_typeck`、`tests/run-typeck-region.sh` 对齐  
 > 关联：`TYPE-002`（region 检查）、`EXC-005`（CLI/LSP 错误显示）
 

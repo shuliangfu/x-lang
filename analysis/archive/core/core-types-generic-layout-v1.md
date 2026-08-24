@@ -1,6 +1,7 @@
 # CORE-001 core.types 泛型 size_of / align_of v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #8: typeck.c/codegen.c → typeck.x/codegen.x; DOC archived.**
 > 状态：**定版（v1）**  
 > 关联：`CORE-008`（mem intrinsic）、`NEXT.md` P0
 

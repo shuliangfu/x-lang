@@ -1,20 +1,22 @@
 # LANG-008 lifetime diagnostic manifest
 # 列：item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-24 #8: DOC → analysis/archive/lang/; lsp_diag.c/typeck.c retired;
+# live = lsp_diag.h + typeck.x.
 # min_layers	6
 # min_cases	4
-read_path	section	## 1. 阅读路径	analysis/lang-lifetime-diag-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/lang/lang-lifetime-diag-v1.md	-	15min
 layers	section	## 2. 诊断层 E1–E6	lang-lifetime-diag.tsv	-	lifetime
 matrix	section	## 3. 诊断用例矩阵	lang-lifetime-diag-cases.tsv	-	diagnostic
-verify	section	## 5. 验证与门禁	analysis/lang-lifetime-diag-v1.md	-	gate
-layer_e1	layers	E1-format	compiler/src/lsp/lsp_diag.c	format	typeck error
-layer_e2	layers	E2-escape-assign	compiler/src/typeck/typeck.c	assign	escape
-layer_e3	layers	E3-mismatch	compiler/src/typeck/typeck.c	mismatch	label
-layer_e4	layers	E4-return-escape	compiler/src/typeck/typeck.c	return	escape
-layer_e5	layers	E5-call-site	compiler/src/typeck/typeck.c	call	site
-layer_e6	layers	E6-lsp-bridge	compiler/src/lsp/lsp_diag.c	lsp	diag_add
-sym_report	symbol	lsp_diag_report_typeck	compiler/src/lsp/lsp_diag.c	diag	格式化
-sym_escape	symbol	slice region escape	compiler/src/typeck/typeck.c	typeck	文案
-sym_mismatch	symbol	slice region mismatch	compiler/src/typeck/typeck.c	typeck	文案
+verify	section	## 5. 验证与门禁	analysis/archive/lang/lang-lifetime-diag-v1.md	-	gate
+layer_e1	layers	E1-format	compiler/src/lsp/lsp_diag.h	format	typeck error
+layer_e2	layers	E2-escape-assign	compiler/src/typeck/typeck.x	assign	escape
+layer_e3	layers	E3-mismatch	compiler/src/typeck/typeck.x	mismatch	label
+layer_e4	layers	E4-return-escape	compiler/src/typeck/typeck.x	return	escape
+layer_e5	layers	E5-call-site	compiler/src/typeck/typeck.x	call	site
+layer_e6	layers	E6-lsp-bridge	compiler/src/lsp/lsp_diag.h	lsp	diag_add
+sym_report	symbol	lsp_diag_report_typeck	compiler/src/lsp/lsp_diag.h	diag	格式化
+sym_escape	symbol	slice region escape	compiler/src/typeck/typeck.x	typeck	文案
+sym_mismatch	symbol	slice region mismatch	compiler/src/typeck/typeck.x	typeck	文案
 case_escape	case	diag_escape_assign	tests/typeck/slice_lifetime/region_assign_escape.x	neg	12
 case_mismatch	case	diag_mismatch	tests/typeck/slice_lifetime/region_mismatch.x	neg	10
 case_return	case	diag_return_escape	tests/typeck/slice_lifetime/region_return_escape.x	neg	11

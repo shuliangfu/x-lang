@@ -1,6 +1,7 @@
 # TOOL-004 LSP 诊断性能（performance）v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #8: lsp_diag.c retired; P1–P6 live in runtime_lsp_glue.**
 > 状态：**定版（v1）**  
 > 关联：`TOOL-003`（补全）、`OBS-001`（编译阶段耗时）、`compiler/src/lsp/lsp_diag.c`
 

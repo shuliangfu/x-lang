@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# TOOL-003：LSP 补全质量 manifest 门禁
+# TOOL-003：LSP 补全质量 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-lsp-completion-gate.sh
+# wave honesty (2026-08-24 #8): DOC → analysis/archive/tool/;
+# lsp_diag.c hard-retired — live = lsp_diag.h + runtime_lsp_glue.from_x.c
+# (completionProvider / lsp_build_completion_response).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL_LSP_COMP_DOC:-analysis/tool-lsp-completion-v1.md}"
+DOC="${XLANG_TOOL_LSP_COMP_DOC:-analysis/archive/tool/tool-lsp-completion-v1.md}"
 MANIFEST="${XLANG_TOOL_LSP_COMP_MANIFEST:-tests/baseline/tool-lsp-completion.tsv}"
 MIN_TIERS=6
 MIN_CASES=1
@@ -27,8 +31,14 @@ native_xlang() {
   esac
 }
 
-echo "=== TOOL-003: LSP completion manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.c compiler/src/lsp/lsp_diag.h; do
+echo "=== TOOL-003: LSP completion manifest (lsp_diag.c retired) ==="
+
+if [ -f compiler/src/lsp/lsp_diag.c ]; then
+  echo "tool-lsp-completion gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h / runtime_lsp_glue)" >&2
+  exit 1
+fi
+
+for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.h compiler/seeds/runtime_lsp_glue.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "tool-lsp-completion gate FAIL: missing $f" >&2
     exit 1
