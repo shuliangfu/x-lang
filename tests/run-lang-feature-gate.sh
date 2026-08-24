@@ -38,6 +38,12 @@ if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
   exit 0
 fi
 
+# G.7: edition wrapper defaults to compiler/xlang; always export the picked binary
+# so hosts with only xlang-c / xlang_asm (no bare xlang) stay honest.
+# wave honesty (2026-08-24 #6): Ubuntu gold exposed missing XLANG passthrough.
+# PLATFORM: SHARED archaeology.
+export XLANG="$XLANG_BIN"
+
 xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 chmod +x scripts/xlang-lang-edition.sh
 
@@ -60,7 +66,7 @@ ec=$(run_expect edition_stable ./scripts/xlang-lang-edition.sh 2024 "$ED_STABLE"
 [ "$ec" -eq 0 ] || { echo "lang-feature FAIL edition stable want 0 got $ec" >&2; exit 1; }
 
 # edition：无 2025 flag 亦为 0
-ec=$(XLANG="$XLANG_BIN" run_expect edition_default "$XLANG_BIN" "$ED_STABLE")
+ec=$(run_expect edition_default "$XLANG_BIN" "$ED_STABLE")
 [ "$ec" -eq 0 ] || { echo "lang-feature FAIL edition default want 0 got $ec" >&2; exit 1; }
 
 # edition：2025 experimental 99
@@ -68,7 +74,7 @@ ec=$(run_expect edition_2025 ./scripts/xlang-lang-edition.sh 2025 "$ED_STABLE")
 [ "$ec" -eq 99 ] || { echo "lang-feature FAIL edition 2025 want 99 got $ec" >&2; exit 1; }
 
 # feature：off 0
-ec=$(XLANG="$XLANG_BIN" run_expect feature_off "$XLANG_BIN" "$FEAT")
+ec=$(run_expect feature_off "$XLANG_BIN" "$FEAT")
 [ "$ec" -eq 0 ] || { echo "lang-feature FAIL feature off want 0 got $ec" >&2; exit 1; }
 
 # feature：on 42
