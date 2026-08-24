@@ -1,5 +1,6 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
+> **2026-08-24**：NL-04 freestanding fs 硬绿 @ **`7edb07802`**（主刀 `b6300c97a`：slot dep-max＋烟测局部序；thin-first 恢复；**不升钉**；Ubuntu gate OK＋双端 L2 5／5）。残：generic_layout -o／vscode 0.2／soft T001／`.x` std_config on-demand／slot dep-max 产品入链。
 > **2026-08-24 honesty**：eng／exc／doc-07／bootstrap／phase-d DOC→`analysis/archive/{eng,exc,doc,narrative,phase}/`；tip **`5cde55f98`**；钉盘 **`e8176cbe5`** 不升（非 MG residual）。
 
 > **创建**：2026-07-29  
