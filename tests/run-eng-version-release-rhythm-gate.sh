@@ -29,9 +29,8 @@ MIN_CHANNELS=3
 . tests/lib/eng-branch-release-gate.sh
 
 echo "=== ENG-005: version release rhythm manifest ==="
-# Honesty: root VERSION + 0.2.0 sync are product debt (live package.json=0.1.0;
-# no root VERSION). Hard-check archive DOC/manifest/lib/vscode pkg only.
-for f in "$DOC" "$MANIFEST" "$LIB" "$VSCODE_PKG" \
+# PLATFORM: SHARED — root VERSION is the SemVer authority; must exist and sync.
+for f in "$DOC" "$MANIFEST" "$LIB" "$VERSION_FILE" "$VSCODE_PKG" \
   tests/templates/eng-version-channel-matrix.txt; do
   if [ ! -f "$f" ]; then
     echo "eng-version-release-rhythm gate FAIL: missing $f" >&2
@@ -67,9 +66,7 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       fi
       ;;
     file|template)
-      if [ "$anchor" = "VERSION" ] && [ ! -f "$anchor" ]; then
-        echo "eng-version-release-rhythm SKIP file VERSION (product debt; observational)" >&2
-      elif [ ! -f "$anchor" ]; then
+      if [ ! -f "$anchor" ]; then
         echo "eng-version-release-rhythm FAIL: missing $kind $anchor" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$(basename "$anchor")" "$DOC" 2>/dev/null; then
@@ -121,14 +118,19 @@ if [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-if [ -f "$VERSION_FILE" ] \
-  && BASE="$(eng_version_read_base "$VERSION_FILE")" \
-  && eng_version_base_valid "$BASE" \
-  && eng_version_vscode_sync_ok "$VERSION_FILE" "$VSCODE_PKG"; then
-  echo "eng-version-release-rhythm VERSION OK ($BASE, vscode synced)"
-else
-  echo "eng-version-release-rhythm SKIP VERSION sync (no root VERSION / package 0.1.0 debt; observational)" >&2
+BASE="$(eng_version_read_base "$VERSION_FILE")" || {
+  echo "eng-version-release-rhythm gate FAIL: cannot read $VERSION_FILE" >&2
+  exit 1
+}
+if ! eng_version_base_valid "$BASE"; then
+  echo "eng-version-release-rhythm gate FAIL: invalid SemVer base '$BASE'" >&2
+  exit 1
 fi
+if ! eng_version_vscode_sync_ok "$VERSION_FILE" "$VSCODE_PKG"; then
+  echo "eng-version-release-rhythm gate FAIL: VERSION ($BASE) != vscode package.json" >&2
+  exit 1
+fi
+echo "eng-version-release-rhythm VERSION OK ($BASE, vscode synced)"
 
 for kw in alpha beta stable SemVer 节奏; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then

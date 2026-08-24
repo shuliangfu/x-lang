@@ -1,7 +1,7 @@
 # TOOL-009 VS Code 0.2 稳定发布 manifest
 # 列：item_id	kind	anchor	src	tier	notes
 # honesty 2026-08-24 #9: DOC → analysis/archive/tool/; live = editors/vscode grammar;
-# VERSION/0.2.0 sync observational (live package.json=0.1.0; no root VERSION).
+# closed 2026-08-24: VERSION + package.json = 0.2.0; vsix pack hard when node present.
 # min_rules	8
 # min_golden	5
 # min_vsix	1
@@ -24,7 +24,7 @@ golden_match	golden	tests/vscode-grammar/match_arm.x	tests/vscode-grammar/match_
 golden_unsafe	golden	tests/vscode-grammar/unsafe_ptr.x	tests/vscode-grammar/unsafe_ptr.x	-	unsafe
 pkg	file	editors/vscode/package.json	editors/vscode/package.json	-	0.2.0
 grammar	file	editors/vscode/grammars/x.tmLanguage.json	editors/vscode/grammars/x.tmLanguage.json	-	tm
-version_file	file	editors/vscode/package.json	editors/vscode/package.json	-	live 0.1.0; 0.2 VERSION observational
+version_file	file	VERSION	editors/vscode/package.json	-	live 0.2.0 synced
 vsix_pattern	artifact	vscode-xlang-0.2.0.vsix	editors/vscode	-	release
 lib	script	lib/tool-vscode-020.sh	tests/lib/tool-vscode-020.sh	-	helper
 gate	script	run-tool-vscode-020-gate.sh	tests/run-tool-vscode-020-gate.sh	-	manifest

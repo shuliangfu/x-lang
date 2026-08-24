@@ -24,9 +24,8 @@ if [ -f analysis/tool-vscode-020-v1.md ]; then
   echo "tool-vscode-020 gate FAIL: top-level DOC resurrected (live = archive/tool/)" >&2
   exit 1
 fi
-# VERSION root + 0.2.0 release are product debt (live package.json=0.1.0).
-# Honesty: do not invent VERSION/0.2.0; grammar + archive DOC stay hard.
-for f in "$DOC" "$MANIFEST" "$LIB" \
+# PLATFORM: SHARED — VERSION + package.json must stay 0.2.0-synced (TOOL-009).
+for f in "$DOC" "$MANIFEST" "$LIB" VERSION \
   editors/vscode/package.json editors/vscode/grammars/x.tmLanguage.json \
   tests/run-tool-vscode-pack.sh; do
   if [ ! -f "$f" ]; then
@@ -56,13 +55,16 @@ if ! tool_vscode_020_grammar_json_ok; then
 fi
 echo "tool-vscode-020 OK grammar JSON"
 
-# Observational: 0.2.0 VERSION sync deferred (live editors/vscode = 0.1.0; no root VERSION).
-if tool_vscode_020_version_sync_ok \
-  && eng_version_vscode_sync_ok "VERSION" "editors/vscode/package.json"; then
-  echo "tool-vscode-020 OK version sync (0.2.0)"
-else
-  echo "tool-vscode-020 gate SKIP version sync (0.2.0 release debt; live package 0.1.0)" >&2
+# Hard gate: root VERSION == package.json == EXPECTED_VER (0.2.0).
+if ! tool_vscode_020_version_sync_ok; then
+  echo "tool-vscode-020 gate FAIL: VERSION/package not synced to ${EXPECTED_VER:-0.2.0}" >&2
+  exit 1
 fi
+if ! eng_version_vscode_sync_ok "VERSION" "editors/vscode/package.json"; then
+  echo "tool-vscode-020 gate FAIL: eng VERSION/vscode package mismatch" >&2
+  exit 1
+fi
+echo "tool-vscode-020 OK version sync (0.2.0)"
 
 RULE_N=0
 GOLDEN_N=0
@@ -126,28 +128,26 @@ fi
 echo "tool-vscode-020 manifest OK (rules=${RULE_N} golden=${GOLDEN_N})"
 
 VSIX_OK=0
-SKIP=1
+SKIP=0
 EXPECTED_VER="${XLANG_TOOL009_VERSION:-0.2.0}"
 VSIX="editors/vscode/vscode-xlang-${EXPECTED_VER}.vsix"
 
-# Observational: vsix 0.2.0 pack deferred until VERSION/package sync lands.
-if tool_vscode_020_version_sync_ok && tool_vscode_020_has_node; then
+# PLATFORM: SHARED — with node/npm, vsix pack is hard; without node, SKIP pack only.
+if tool_vscode_020_has_node; then
   echo "=== TOOL-009: vsix pack smoke ==="
   chmod +x tests/run-tool-vscode-pack.sh
-  if ./tests/run-tool-vscode-pack.sh; then
-    if [ -f "$VSIX" ]; then
-      VSIX_OK=1
-      SKIP=0
-      echo "tool-vscode-020 runnable OK vsix"
-    else
-      echo "tool-vscode-020 gate SKIP vsix missing after pack (0.2 release debt)" >&2
-    fi
-  else
-    echo "tool-vscode-020 gate SKIP vsix pack failed (0.2 release debt)" >&2
+  if ! ./tests/run-tool-vscode-pack.sh; then
+    echo "tool-vscode-020 gate FAIL: vsix pack failed" >&2
+    exit 1
   fi
-elif tool_vscode_020_has_node; then
-  echo "tool-vscode-020 gate SKIP vsix pack (0.2.0 VERSION debt; live package 0.1.0)" >&2
+  if [ ! -f "$VSIX" ]; then
+    echo "tool-vscode-020 gate FAIL: vsix missing after pack ($VSIX)" >&2
+    exit 1
+  fi
+  VSIX_OK=1
+  echo "tool-vscode-020 runnable OK vsix"
 else
+  SKIP=1
   echo "tool-vscode-020 gate SKIP vsix pack (no node/npm)" >&2
 fi
 
