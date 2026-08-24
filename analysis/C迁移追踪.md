@@ -26,6 +26,7 @@
 
 ---
 
+> **2026-08-24**：b04 Linux invoke 硬绿 @ **`dd9250f6a`**（烟测→`sys.write_stdout`；闸硬闸＋拒 `os_write_stdout` 调用点；软 T001 table_available 残余；**不升钉**；Ubuntu invoke OK＋双端 L2 5／5）。残：std-config c smoke／NL-04 exit=5／generic_layout -o／vscode 0.2／soft T001。
 > **2026-08-24**：eng／exc／doc-07／bootstrap／phase-d DOC 假权威诚实 @ **`5cde55f98`**（DOC→archive/{eng,exc,doc,narrative,phase}；拒顶层复活；inventory→labi／build_xlang_asm；cirrus／VERSION／exc runnable 观测 SKIP；**不升钉**；双端 L2 5／5）。残：std-config c smoke／b04／NL-04／generic_layout -o／vscode 0.2。
 > **2026-08-24**：lang-option／result／generic／const-eval＋core／stbl／obs-perf 假权威诚实 @ **`6f9007575`**（DOC→archive/{lang,core,stbl,obs,std,eng}；活锚 typeck.x／codegen.x；mono／CTFE／Result demangle 重映射；拒顶层 DOC／typeck.c／codegen.c／parser.c／typeck_generic_struct.c；check／const-eval runnable／STBL-001 符号漂移观测 SKIP；**不升钉**；gate 11／11＋双端 L2 5／5）。残：其余顶层 DOC 门／std-config c smoke／b04／NL-04／generic_layout -o。
 > **2026-08-24**：tool-scaffold／lint／fmt／vscode＋lang-trait／abi／import 假权威诚实 @ **`75dde7a93`**（DOC→archive/{tool,lang}；活锚 fmt.x／lsp_diag.h／typeck.x／parser.x；拒顶层 DOC／typeck.c／parser.c；vscode VERSION／0.2／L6 unused／import async 观测 SKIP；**不升钉**；gate 7／7＋双端 L2 5／5）。残：lang-option／result／generic／core-iterator／stbl／obs／std-config c smoke／b04／NL-04。
