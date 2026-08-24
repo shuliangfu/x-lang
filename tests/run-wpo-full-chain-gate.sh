@@ -9,12 +9,6 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "wpo full-chain gate: N/A on Darwin (build_asm WPO; Linux x86_64/ARM64 covers)"
-  echo "wpo full-chain gate OK (Darwin N/A)"
-  exit 0
-fi
-
 XLANG="${XLANG:-./compiler/xlang_asm}"
 if [ ! -x "$XLANG" ]; then
   echo "wpo full-chain gate: SKIP (no xlang_asm: $XLANG; run: xlang_compiler_make bootstrap-driver-bstrict)" >&2
@@ -36,6 +30,15 @@ XLANG_WPO_ENSURE_FAIL=1 XLANG_WPO_ENSURE_COMPILER="$XLANG" ./tests/ensure-wpo-bu
 
 echo "=== wpo full-chain: build_asm chain gate ==="
 ./tests/run-wpo-build-asm-chain-gate.sh
+
+# PLATFORM: MACOS — strict_glue still blocked by pipeline_strict_link 0-symbol /
+# empty pipeline.x emit residual. Keep honest N/A (do not fake-green strict link).
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  echo "=== wpo full-chain: strict link gate ==="
+  echo "wpo full-chain: strict_link N/A on Darwin (pipeline empty-emit + strict_glue 0-symbol residual)"
+  echo "wpo full-chain gate OK (Darwin partial: ensure+chain; strict_link residual)"
+  exit 0
+fi
 
 echo "=== wpo full-chain: strict link gate ==="
 XLANG_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh

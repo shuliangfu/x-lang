@@ -15,6 +15,21 @@ wpo_ab_proxy_from_baseline() {
   awk -F'\t' -v k="$key" '$1==k && $1 !~ /^#/ { print $2; exit }' "$baseline"
 }
 
+# PLATFORM: SHARED — Mach-O nm prints leading `_`; ELF does not.
+# Match a defined text symbol `sym` as `T sym` or `T _sym`.
+wpo_nm_has_t_sym() {
+  local o="$1"
+  local sym="$2"
+  nm "$o" 2>/dev/null | grep -qE " T (_)?${sym}$"
+}
+
+# Product CLI entry ABI is `main_entry` (compiler/src/main.x). Legacy bare `entry`
+# still accepted. PLATFORM: SHARED (underscore optional for Mach-O).
+wpo_nm_has_main_cli_entry() {
+  local o="$1"
+  nm "$o" 2>/dev/null | grep -qE ' (_)?(main_)?entry$'
+}
+
 # Read .text/__text size (Mach-O + ELF; macOS size cannot read Linux ELF).
 wpo_ab_text_bytes() {
   local obj="$1"
@@ -81,7 +96,7 @@ wpo_ab_try_main_fast() {
   off_proxy=${off_proxy:-2234}
   on_txt=$(wpo_ab_text_bytes "$build_main") || return 1
   [ "$on_txt" -le "$max_on" ] 2>/dev/null || return 1
-  nm "$build_main" 2>/dev/null | grep -q ' entry$' || return 1
+  wpo_nm_has_main_cli_entry "$build_main" || return 1
   echo "$off_proxy $on_txt"
   return 0
 }

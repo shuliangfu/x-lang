@@ -8,7 +8,10 @@ cd "$(dirname "$0")/.."
 
 BACKEND_O="${1:-compiler/build_asm/backend_wpo.o}"
 FAIL=${XLANG_WPO_BACKEND_REACH_FAIL:-1}
-MIN_EXPORTS=${XLANG_WPO_BACKEND_MIN_EXPORTS:-5}
+# Tip WPO-compressed backend_wpo has exactly 4 T exports (asm_codegen_ast +
+# asm_codegen_ast_to_elf + emit_expr_elf + emit_block_body_elf). Old min=5
+# rejected true DCE. PLATFORM: SHARED.
+MIN_EXPORTS=${XLANG_WPO_BACKEND_MIN_EXPORTS:-4}
 
 if [ ! -f "$BACKEND_O" ]; then
   echo "run-wpo-backend-reach-gate SKIP: missing $BACKEND_O"
@@ -22,8 +25,9 @@ if ! nm "$BACKEND_O" 2>/dev/null | grep -qE ' T (_)?asm_codegen_ast$'; then
 fi
 
 MISSING=""
+# PLATFORM: SHARED — Mach-O undefined symbols are `U _sym`.
 for sym in asm_codegen_ast emit_expr_elf emit_block_body_elf; do
-  if nm "$BACKEND_O" 2>/dev/null | grep -qE " U ${sym}$"; then
+  if nm "$BACKEND_O" 2>/dev/null | grep -qE " U (_)?${sym}$"; then
     MISSING="${MISSING} ${sym}"
   fi
 done

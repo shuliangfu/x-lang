@@ -10,32 +10,34 @@ cd "$(dirname "$0")/.."
 BUILD_ASM="${XLANG_WPO_BUILD_ASM_DIR:-compiler/build_asm}"
 FAIL=${XLANG_WPO_ENSURE_FAIL:-1}
 COMPILER="${XLANG_WPO_ENSURE_COMPILER:-./compiler/xlang_asm}"
+UNAME_S="$(uname -s 2>/dev/null || echo unknown)"
 
-# Darwin gen_driver：build_asm/parser.o 常为空，parser partial ld + main.o WPO 重编失败；Linux 覆盖五模块产物。
-if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "ensure-wpo-build-asm-artifacts: N/A on Darwin (parser partial + main.o WPO; Linux x86_64/ARM64 covers)"
-  echo "ensure-wpo-build-asm-artifacts OK (Darwin N/A)"
-  exit 0
-fi
-
-# 五模块 WPO 生产链必需 .o（driver 为 WPO 压缩 driver_compile.o，非 emit_heavy）。
+# PLATFORM: MACOS — tip pipeline.x asm emit is exit-0 empty (residual next knife).
+# Hard-require main/driver/typeck_wpo/backend_wpo; pipeline_wpo soft unless
+# XLANG_WPO_REQUIRE_PIPELINE=1. PLATFORM: LINUX — all five hard-required.
 required_o=(
   main.o
   driver_compile.o
-  pipeline_wpo.o
   typeck_wpo.o
   backend_wpo.o
 )
+if [ "$UNAME_S" != "Darwin" ] || [ "${XLANG_WPO_REQUIRE_PIPELINE:-0}" = "1" ]; then
+  required_o+=(pipeline_wpo.o)
+fi
 
 missing=()
 for o in "${required_o[@]}"; do
-  if [ ! -f "$BUILD_ASM/$o" ]; then
+  if [ ! -f "$BUILD_ASM/$o" ] || [ ! -s "$BUILD_ASM/$o" ]; then
     missing+=("$o")
   fi
 done
 
 if [ "${#missing[@]}" -eq 0 ]; then
-  echo "ensure-wpo-build-asm-artifacts OK (all ${#required_o[@]} artifacts present under $BUILD_ASM)"
+  if [ "$UNAME_S" = "Darwin" ] && { [ ! -f "$BUILD_ASM/pipeline_wpo.o" ] || [ ! -s "$BUILD_ASM/pipeline_wpo.o" ]; }; then
+    echo "ensure-wpo-build-asm-artifacts OK (Darwin partial 4/5; pipeline_wpo empty-emit residual)"
+  else
+    echo "ensure-wpo-build-asm-artifacts OK (all ${#required_o[@]} artifacts present under $BUILD_ASM)"
+  fi
   exit 0
 fi
 
@@ -54,12 +56,12 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   XLANG_WPO_REBUILD_ARTIFACTS_ONLY=1 ./scripts/build_xlang_asm.sh
 )
 
-# reach 硬门禁：五模块 WPO .o 编排链 callee 须已定义（rebuild 后必验）。
+# reach 硬门禁：已产出的 WPO .o 编排链 callee 须已定义（rebuild 后必验）。
 run_wpo_reach_gates() {
   chmod +x tests/run-wpo-pipeline-reach-gate.sh \
     tests/run-wpo-typeck-reach-gate.sh \
     tests/run-wpo-backend-reach-gate.sh 2>/dev/null || true
-  if [ -f "$BUILD_ASM/pipeline_wpo.o" ] && [ -x tests/run-wpo-pipeline-reach-gate.sh ]; then
+  if [ -s "$BUILD_ASM/pipeline_wpo.o" ] && [ -x tests/run-wpo-pipeline-reach-gate.sh ]; then
     XLANG_WPO_PIPELINE_REACH_FAIL="${XLANG_WPO_PIPELINE_REACH_FAIL:-1}" \
       ./tests/run-wpo-pipeline-reach-gate.sh "$BUILD_ASM/pipeline_wpo.o" || return 1
   fi
@@ -79,7 +81,9 @@ run_wpo_reach_gates || {
 
 still=()
 for o in "${required_o[@]}"; do
-  [ -f "$BUILD_ASM/$o" ] || still+=("$o")
+  if [ ! -f "$BUILD_ASM/$o" ] || [ ! -s "$BUILD_ASM/$o" ]; then
+    still+=("$o")
+  fi
 done
 if [ "${#still[@]}" -ne 0 ]; then
   echo "ensure-wpo-build-asm-artifacts FAIL: still missing after rebuild: ${still[*]}" >&2
@@ -87,4 +91,8 @@ if [ "${#still[@]}" -ne 0 ]; then
   exit 0
 fi
 
-echo "ensure-wpo-build-asm-artifacts OK (rebuilt missing WPO artifacts under $BUILD_ASM)"
+if [ "$UNAME_S" = "Darwin" ] && { [ ! -f "$BUILD_ASM/pipeline_wpo.o" ] || [ ! -s "$BUILD_ASM/pipeline_wpo.o" ]; }; then
+  echo "ensure-wpo-build-asm-artifacts OK (Darwin partial 4/5 rebuilt; pipeline_wpo empty-emit residual)"
+else
+  echo "ensure-wpo-build-asm-artifacts OK (rebuilt missing WPO artifacts under $BUILD_ASM)"
+fi
