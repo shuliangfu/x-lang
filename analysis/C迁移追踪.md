@@ -24,6 +24,8 @@
 
 ---
 
+> **2026-08-24**：phase-f／comp／std／phase3 死归档 DOC＋NEXT／Makefile 门禁诚实 @ **`cbf6fc2fb`**（DOC→`analysis/archive/...`；makefile→`xbuild`；**不升钉**；双端 L2 5／5）。残：boot-016 `runtime.from_x.c` seed／cookbook typeck／link-sym fixture／std-config c smoke。
+
 ## 0. 总览仪表盘
 
 | 维度 | 状态 | 数据 |
