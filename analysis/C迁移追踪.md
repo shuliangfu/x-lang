@@ -1,3 +1,4 @@
+> **2026-08-24**：CORE-001 generic_layout -o 硬绿 @ **`242ad78ed`**（asm fold size_of／align_of→imm；闸 -o 硬失败；**不升钉**；双端 gate skip=0＋L2 5／5）。残：vscode 0.2／soft T001／`.x` std_config on-demand／slot dep-max 产品入链。
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **2026-08-24**：NL-04 freestanding fs 硬绿 @ **`7edb07802`**（主刀 `b6300c97a`：slot dep-max＋烟测局部序；thin-first 恢复；**不升钉**；Ubuntu gate OK＋双端 L2 5／5）。残：generic_layout -o／vscode 0.2／soft T001／`.x` std_config on-demand／slot dep-max 产品入链。
