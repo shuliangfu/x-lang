@@ -1,6 +1,7 @@
 # std.sync Tier-S stable public API (import std.sync)
-mutex_new
-mutex_lock
-mutex_try_lock
-mutex_unlock
-mutex_free
+# Authority = std/sync/mod.x live exports (new_mutex/lock/…; C glue keeps sync_mutex_*_c).
+new_mutex
+lock
+try_lock
+unlock
+free_mutex
