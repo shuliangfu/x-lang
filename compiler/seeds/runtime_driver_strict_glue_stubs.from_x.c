@@ -750,7 +750,8 @@ static int32_t g_typeck_layout_metrics_sz_depth[64];
 static int32_t g_typeck_layout_metrics_al_depth[64];
 static int32_t g_typeck_call_resolve_dep_idx_slot;
 static int32_t g_typeck_call_resolve_func_idx_slot;
-/* PLATFORM: SHARED — weak fallback; strong def in ast_pool.c on product link. */
+/* PLATFORM: SHARED — weak fallback; strong def in runtime_pipeline_abi on product link
+ * (ast_pool.c left wave309). */
 static int32_t g_typeck_overload_expected_ret_slot;
 
 XLANG_WEAK uint8_t *typeck_scratch64_slot(int32_t slot) {

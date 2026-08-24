@@ -117,7 +117,8 @@ struct platform_elf_ElfCodegenCtx {
   uint8_t sym_name_data[131072];
 };
 
-/** pipeline_x.o / ast_pool.c（勿在此 TU 自建截断 PipelineDepCtx，含 4MiB 内嵌缓冲） */
+/** runtime_pipeline_abi / pipeline orch（勿在此 TU 自建截断 PipelineDepCtx，含 4MiB 内嵌缓冲；
+ * ast_pool.c / pipeline_x mega left wave309） */
 extern int32_t pipeline_dep_ctx_use_macho_o(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_dep_ctx_use_coff_o(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx);

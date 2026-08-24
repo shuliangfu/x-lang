@@ -2044,7 +2044,7 @@ const char *xlang_entry_lib_name_from_path(const char *input_path) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/** -E 且入口为 pipeline.x 时输出 pipeline_glue.c include 行。 */
+/** Historical -E surface; wave309 no-op (pipeline_glue.c shell retired). */
 
 
 /**
@@ -2103,7 +2103,7 @@ int xlang_asm_out_buf_is_object(const unsigned char *data, size_t len) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/** ast.x pipeline_dep_ctx_* 与 lib_root sidecar（由 ast_pool.c 提供）。 */
+/** ast.x pipeline_dep_ctx_* 与 lib_root sidecar（由 runtime_pipeline_abi 提供；ast_pool.c left wave309）。 */
 extern void ast_pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx);
 extern int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
 extern void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_Module *m);
@@ -3841,7 +3841,7 @@ int xlang_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t mod
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
-/** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（ast_pool.c / pipeline_glue.c）。 */
+/** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（runtime_pipeline_abi；mega shells left wave309）。 */
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
 extern void typeck_soa_fill_field_access_for_asm_emit(void *m, void *arena);
@@ -7679,7 +7679,7 @@ int32_t asm_pipeline_m8_tail_thin_delegate_c_name(void *m, int32_t func_index, u
 }
 
 
-/* ── driver / typeck M8-tail 薄委托表（补全五表域；自 ast_pool.c 抽出）── */
+/* ── driver / typeck M8-tail 薄委托表（补全五表域；历史自 ast_pool.c 抽出，live in runtime_pipeline_abi）── */
 /* k_asm_driver_thin_delegate + k_asm_typeck_thin_delegate 及其 m8 查找符号。 */
 
 /** M8-tail：driver compile 薄 bl 表已空；run_compiler_full_x* 堆 state + X post_parse 真 emit。 */

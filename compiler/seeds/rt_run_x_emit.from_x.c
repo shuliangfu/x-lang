@@ -91,9 +91,10 @@ extern int typeck_set_allow_legacy_extern_calls(int allow);
 /**
  * Release GrowVec data buffers backing the arena/module sidecar pools.
  * Declared with `void *` params to avoid pulling struct definitions here;
- * ast_pool.c defines them with `struct ast_ASTArena *` / `struct ast_Module *`
- * which are pointer-compatible. Safe no-op if no sidecar slot matches.
- * PLATFORM: SHARED — see ast_pool.c `arena_sidecar_free` / `module_sidecar_free`.
+ * runtime_pipeline_abi defines them with `struct ast_ASTArena *` /
+ * `struct ast_Module *` which are pointer-compatible (ast_pool.c left wave309).
+ * Safe no-op if no sidecar slot matches.
+ * PLATFORM: SHARED — see runtime_pipeline_abi arena_sidecar_free / module_sidecar_free.
  */
 extern void ast_pool_arena_release(void *arena);
 extern void ast_pool_module_release(void *module);

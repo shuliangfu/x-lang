@@ -4,10 +4,13 @@
  * Product object from this seed; logic still C until full .x port.
  */
 /**
- * asm_backend_compat_stubs.c — pipeline_glue 与 asm_backend_partial.o 的符号桥
+ * asm_backend_compat_stubs.c — runtime_pipeline_abi / residual emit 与
+ * asm_backend_partial.o 的符号桥
  *
- * pipeline_glue.c（编入 pipeline_x.o）仍引用若干 backend_* 名，全量 asm.x -E 后部分已改名或未导出；
- * 本 TU 提供薄转发，使 bootstrap-driver-seed / xlang_stage2 在 macOS arm64 上可链通。
+ * Historical pipeline_glue.c / pipeline_x mega left wave309; residual emit and
+ * abi still reference several backend_* names that full asm.x -E renames or
+ * leaves unexported. This TU provides thin forwards so bootstrap-driver-seed /
+ * xlang_stage2 link on macOS arm64.
  */
 #include <xlang_weak.h>
 #include <stdint.h>
@@ -209,7 +212,7 @@ XLANG_WEAK int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOutBuf *out, i
   return append_asm_line(out, buf, 15 + n);
 }
 
-/** ast_pool.c：与 elf.x / PipelineElfCtxAccess 布局一致的 code_data 追加路由。 */
+/** runtime_pipeline_abi／elf：与 PipelineElfCtxAccess 布局一致的 code_data 追加路由（ast_pool.c left wave309）。 */
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
 /**
@@ -271,7 +274,7 @@ extern void asm_ctx_ensure_block_locals(uint8_t *ctx, struct ast_ASTArena *arena
                                         int32_t *inout_next_offset, int32_t *inout_num_locals);
 extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
 extern int32_t pipeline_expr_call_arg_ref(void *arena, int32_t expr_ref, int32_t idx);
-/** pipeline_glue.c：expr emit C 快/慢路径（call 实参须走此而非仅 slow）。 */
+/** runtime_pipeline_abi：expr emit C 快/慢路径（call 实参须走此而非仅 slow；pipeline_glue.c left wave309）。 */
 extern int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 extern int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br);
@@ -308,7 +311,8 @@ int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_
 }
 
 /**
- * 登记块内 const/let 栈槽（ast_pool.c：按类型宽度步进，并记录 block→slot_base）。
+ * 登记块内 const/let 栈槽（runtime_pipeline_abi：按类型宽度步进，并记录 block→slot_base；
+ * ast_pool.c left wave309）。
  * 替代仅 +8 步进的 fill_local_slots，修复 if 分支 `{ let t: Token = …; … tok: t }` 中 `t` 未入 locals。
  */
 void backend_ensure_block_local_slots(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena, int32_t block_ref) {

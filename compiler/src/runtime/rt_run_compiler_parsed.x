@@ -15,7 +15,8 @@ export extern function free(p: *u8): void;
  * Must be called before free(arena). Without this, batch `xlang check <dir>`
  * leaves dangling g_arena_sc slots; malloc address reuse reattaches stale
  * sidecar data and later files parse truncated (e.g. 363→111 funcs).
- * PLATFORM: SHARED — same authority as ast_pool.c / rt_run_x_emit. */
+ * PLATFORM: SHARED — same authority as runtime_pipeline_abi / rt_run_x_emit
+ * (ast_pool.c left wave309). */
 export extern function ast_pool_arena_release(a: *u8): void;
 /** Release process-wide ModuleSidecar GrowVecs for this module pointer.
  * Must be called before free(module). See ast_pool_arena_release.
@@ -23,7 +24,8 @@ export extern function ast_pool_arena_release(a: *u8): void;
 export extern function ast_pool_module_release(m: *u8): void;
 /**
  * After dep parse_only in check mode: free body expr/block GrowVecs, keep
- * signatures (types + Func headers + layouts). Authority: ast_pool.c.
+ * signatures (types + Func headers + layouts). Authority: runtime_pipeline_abi
+ * (ast_pool.c left wave309).
  * PLATFORM: SHARED — check peak RSS root fix (pipeline.x / directory check).
  */
 export extern function ast_pool_drop_bodies_for_check(arena: *u8, module: *u8): void;

@@ -145,7 +145,8 @@ ld_supports_exported_symbols_list() {
 
 # 从符号列表（每行一个，可带 Mach-O 前缀 _）做 ld -r 局部导出；与 build_xlang_asm.sh 一致。
 # PLATFORM: SHARED — keep g_xlang_depctx_sc global when present (NL-07 pure static; see
-# build_xlang_asm.sh ld_partial_export + ast_pool.c). Must stay in lockstep with that helper.
+# build_xlang_asm.sh ld_partial_export + runtime_pipeline_abi depctx table;
+# ast_pool.c left wave309). Must stay in lockstep with that helper.
 ld_partial_export() {
   local syms_file="$1"
   local out_o="$2"

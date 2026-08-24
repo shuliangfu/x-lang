@@ -209,7 +209,8 @@ export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, e
 /** wave700: optional match-arm guard expr (`pat if cond =>`); 0 = none. */
 export extern function pipeline_expr_match_arm_guard_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 /**
- * wave707: host-C match field-bind emit context (see pipeline_glue.c).
+ * wave707: host-C match field-bind emit context (see runtime_pipeline_abi.x;
+ * pipeline_glue.c left wave309).
  * PLATFORM: SHARED — set around match arm/guard emit; clear or restore after.
  */
 export extern function pipeline_codegen_match_set_subject_c(module: *Module, matched_ref: i32, subject_ty: i32): void;
@@ -253,7 +254,8 @@ export extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32
 /**
  * wave343 Cap residual: find `let s: T[] = a` where a is fixed TYPE_ARRAY under
  * body_ref (top-level and nested if/while/for/region/EXPR_BLOCK). Authority in
- * pipeline_glue.c (shared with freestanding escape). Soft: reassign; untyped-let.
+ * runtime_pipeline_abi.x (pipeline_glue.c left wave309; shared freestanding escape).
+ * Soft: reassign; untyped-let.
  * @param arena *ASTArena — AST arena
  * @param body_ref i32 — function body block ref
  * @param vname *u8 — return VAR name bytes

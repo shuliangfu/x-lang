@@ -29,7 +29,7 @@ int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTAr
   return run_x_pipeline_impl(module, arena, source_data, source_len, out_buf, ctx);
 }
 
-/** ast_pool.c：entry typecheck emit C glue。 */
+/** runtime_pipeline_abi：entry typecheck emit C glue（ast_pool.c left wave309）。 */
 extern int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        struct ast_PipelineDepCtx *ctx);
 

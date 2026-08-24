@@ -21,7 +21,8 @@ struct ast_Module;
 struct ast_ASTArena;
 
 /**
- * 与 ast.x PipelineDepCtx 布局一致（含内嵌源缓冲）；dep/lib_root sidecar 在 ast_pool.c 堆上 grow。
+ * 与 ast.x PipelineDepCtx 布局一致（含内嵌源缓冲）；dep/lib_root sidecar 由
+ * runtime_pipeline_abi 堆上 grow（ast_pool.c left wave309）。
  * C 侧 pipeline / dep 预跑通过本结构向 .x pipeline 传路径与 dep 槽。
  */
 struct ast_PipelineDepCtx {
@@ -175,7 +176,7 @@ const char *xlang_dep_prerun_entry_dir(const char *main_entry_dir, const char **
  */
 const char *xlang_entry_lib_name_from_path(const char *input_path);
 
-/** -E pipeline.x 时向 stdout 输出 #include "pipeline_glue.c"。 */
+/** Historical -E surface; wave309 no-op (pipeline_glue.c shell retired). */
 void xlang_emit_pipeline_glue_include(void);
 
 /** asm 后端：stdout 仅 fflush，其它 fclose。 */
@@ -309,7 +310,8 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
 char *xlang_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
 /**
- * 传递闭包 seed 的 ctx.ndep 与 entry 直接 import 数不一致时清零 ndep（实现于 ast_pool.c / pipeline_x.o）。
+ * 传递闭包 seed 的 ctx.ndep 与 entry 直接 import 数不一致时清零 ndep
+ * （实现于 runtime_pipeline_abi；ast_pool.c / pipeline_x mega left wave309）。
  */
 void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
 

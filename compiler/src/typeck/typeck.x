@@ -720,7 +720,7 @@ export extern function pipeline_module_top_level_name_is_const(module: *Module, 
  * @param module *Module
  * @param func_index i32 — -1 skips param scan
  * @return i32 — 1 conflict, 0 ok
- * PLATFORM: SHARED — G.7 authority in ast_pool.c
+ * PLATFORM: SHARED — G.7 authority in runtime_pipeline_abi (ast_pool.c left wave309).
  */
 export extern function pipeline_block_local_name_redecl_c(arena: *ASTArena, block_ref: i32, vname: *u8,
 vlen: i32, kind: i32, idx: i32, module: *Module, func_index: i32): i32;
@@ -836,7 +836,8 @@ export extern function pipeline_expr_struct_lit_type_name_len(arena: *ASTArena, 
 export extern function pipeline_expr_struct_lit_type_name_into(arena: *ASTArena, expr_ref: i32,
 out: *u8): void;
 /* Backfill struct_lit_struct_name on an anonymous struct literal from the
- * contextual return type (see pipeline_glue.c pipeline_expr_struct_lit_type_name_set).
+ * contextual return type (see runtime_pipeline_abi.x pipeline_expr_struct_lit_type_name_set;
+ * pipeline_glue.c left wave309).
  * PLATFORM: SHARED. */
 export extern function pipeline_expr_struct_lit_type_name_set(arena: *ASTArena, expr_ref: i32,
 name: *u8, name_len: i32): void;

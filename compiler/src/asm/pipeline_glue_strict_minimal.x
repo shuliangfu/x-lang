@@ -27,9 +27,10 @@ export extern function pipeline_module_func_param_name_copy32(mod: *u8, fi: i32,
 export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern function pipeline_type_region_label_into(arena: *u8, tr: i32, out64: *u8): i32;
-// wave494: generic method_call UFCS — exported from pipeline_glue.c (G.7 single
-// authority). Pattern-unifies formal self param with concrete receiver type
-// and substitutes the return type. Called after non-generic UFCS fails.
+// wave494: generic method_call UFCS — G.7 single authority in typeck.x /
+// runtime_pipeline_abi (pipeline_glue.c left wave309). Pattern-unifies formal
+// self param with concrete receiver type and substitutes the return type.
+// Called after non-generic UFCS fails.
 // PLATFORM: SHARED typeck.
 export extern function pipeline_typeck_method_call_generic_ufcs_c(module: *u8, arena: *u8, expr_ref: i32, base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
 
@@ -3223,7 +3224,8 @@ export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i
   if (b == 0) { return 0; }
   if (a == b) { return 1; }
   if (arena == 0 as *u8) { return 0; }
-  // Peel aliases first (wave376); same as pipeline_glue.c type_refs_equal_c.
+  // Peel aliases first (wave376); same as runtime_pipeline_abi type_refs_equal_c
+  // (pipeline_glue.c left wave309).
   a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
   b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
   if (a == b) { return 1; }

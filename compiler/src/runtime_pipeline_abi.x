@@ -130,8 +130,9 @@
 //   panic_elf + panic_int_div_zero + divisor_zero_check_rbx). Cap residual:
 //   emit_expr_elf_c + enc mov/arg/call/test/jne/label + next_label + unary/kind/type faces.
 // wave125: pipeline_asm_ctx_layout.c pure-owned leave (pipeline_asm_ctx_layout cast;
-//   typedef pipeline_glue_AsmFuncCtxLayout stays in pipeline_glue.c shell for residual C
-//   field access). Identity cast only — pure returns same address as *u8.
+//   typedef pipeline_glue_AsmFuncCtxLayout lives in backend_seed_mega_fallback seed
+//   for residual C field access; pipeline_glue.c shell left wave309). Identity cast
+//   only — pure returns same address as *u8.
 // wave124: pipeline_asm_emit_var_decl.c pure-owned leave (glue_var_decl_type_ref_elf_c +
 //   glue_lazy_append_block_let_local). Cap residual: expr/block/module type faces +
 //   emit module/func_index getters + asm_ctx local/slot + asm_local_slot_reg_offset.
@@ -1340,9 +1341,10 @@ export extern "C" function xlang_trait_reg_reset_c(arena: *u8): void;
 export extern "C" function xlang_generic_bound_stash_source_buf_c(data: *u8, len: i32): void;
 
 /* wave1223: extern declarations for pipeline_parse_set_main_from_buf_c body.
- * These mirror the C authority in ast_pool.c L2367-2389 to ensure the
- * .x strong symbol performs identical parse + main_idx set.
- * Without this, the empty .x body (return 0) overrode the C impl, causing
+ * Live G.7 authority is this .x / runtime_pipeline_abi seed (historical C twin
+ * in deleted ast_pool.c left wave309). Keep parse + main_idx set identical to
+ * the pre-leave contract so directory mode does not skip files.
+ * Without this, an empty .x body (return 0) overrode the prior C impl, causing
  * pipeline_run_x_pipeline to skip parsing entirely in directory mode
  * (num_funcs=190 instead of 377 for runtime_driver_abi_thin.x).
  * PLATFORM: SHARED - all externs are platform-agnostic parse/diag helpers. */
@@ -1527,32 +1529,32 @@ export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ct
 
 /** Parse source buffer into module/arena, then set main_func_index.
  *
- * This is the pipeline entry parse function called by
- * run_x_pipeline_parse_entry_do_parse_c (ast_pool.c L2836) during
- * xlang_pipeline_run_x_pipeline_large_stack. It mirrors the C authority
- * in ast_pool.c L2367-2389 exactly.
+ * Pipeline entry parse called by run_x_pipeline_parse_entry_do_parse_c during
+ * xlang_pipeline_run_x_pipeline_large_stack. Live G.7 authority is this .x /
+ * runtime_pipeline_abi seed (historical C twin in deleted ast_pool.c left
+ * wave309); keep the pre-leave parse + main_idx contract.
  *
- * Why: previously this was an empty stub (return 0) that overrode the C
+ * Why: previously this was an empty stub (return 0) that overrode the prior C
  * strong symbol via link order. In directory check mode, the pipeline path
  * calls this function to parse each file; the empty stub caused files to
  * be silently skipped (num_funcs=190 instead of 377 for
  * runtime_driver_abi_thin.x), producing T001 "unresolved function call"
  * errors for functions that were never parsed into the module.
  *
- * wave1224: delegate to pipeline_parse_into_with_init_buf_scalars (C authority
- * ast_pool.c L2301-2323) instead of re-implementing the reset locally.
- * The scalars path calls pipeline_strict_parse_into_init (ast_pool.c L1571-1597)
- * which resets MORE module fields than parser_parse_into_init - including
- * pending_allow_padding / pending_soa_struct / pending_cfg_skip /
- * pending_repr_c_struct / pending_repr_compatible_struct / num_module_enums.
- * Without these resets, stale state from a previous file caused the parser
- * to stop at num_funcs=190 in directory mode for runtime_driver_abi_thin.x
- * (single-file mode was unaffected because no prior file polluted the state).
- * Trait/generic stash is already done inside scalars -> impl_c, so we do NOT
- * call xlang_trait_reg_reset_c / xlang_generic_bound_stash_source_buf_c here
- * (calling them twice would be redundant and could double-stash).
+ * wave1224: delegate to pipeline_parse_into_with_init_buf_scalars instead of
+ * re-implementing the reset locally. The scalars path calls
+ * pipeline_strict_parse_into_init which resets MORE module fields than
+ * parser_parse_into_init - including pending_allow_padding / pending_soa_struct /
+ * pending_cfg_skip / pending_repr_c_struct / pending_repr_compatible_struct /
+ * num_module_enums. Without these resets, stale state from a previous file
+ * caused the parser to stop at num_funcs=190 in directory mode for
+ * runtime_driver_abi_thin.x (single-file mode was unaffected because no prior
+ * file polluted the state). Trait/generic stash is already done inside
+ * scalars -> impl_c, so we do NOT call xlang_trait_reg_reset_c /
+ * xlang_generic_bound_stash_source_buf_c here (calling them twice would be
+ * redundant and could double-stash).
  *
- * Steps (match C authority ast_pool.c L2367-2389):
+ * Steps (match pre-leave parse contract):
  *   1) null/length gate -> -2
  *   2) pipeline_lint_set_source_buf (anchor L7 unused-private warnings)
  *   3) pipeline_parse_into_with_init_buf_scalars (full reset + parse + scalars)
@@ -1564,9 +1566,9 @@ export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ct
  * @param d *u8 - source bytes; null -> -2
  * @param len i32 - byte length; <=0 -> -2
  * @return i32 - 0 on success, -2 on parse failure or null input
- * wave1223: full body matching C authority (was empty stub returning 0).
+ * wave1223: full body matching pre-leave contract (was empty stub returning 0).
  * wave1224: delegate to scalars to guarantee byte-identical reset semantics.
- * PLATFORM: SHARED - pure delegation to platform-agnostic C authority. */
+ * PLATFORM: SHARED - pure delegation to platform-agnostic parse authority. */
 #[no_mangle]
 /**
  * Parse source buffer into module and set main_func_index.
@@ -23265,9 +23267,10 @@ export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref
 // G.7 product authority for:
 //   pipeline_asm_ctx_layout
 // Semantics: opaque AsmFuncCtx* → layout view pointer (same address).
-// Residual C keeps pipeline_glue_AsmFuncCtxLayout typedef in pipeline_glue.c
-// (early shell before emit domains) for ly->frame_size / next_offset / …
-// field access; pure cannot host C typedefs for residual TU field syntax.
+// Residual C keeps pipeline_glue_AsmFuncCtxLayout typedef in
+// seeds/backend_seed_mega_fallback.from_x.c (pipeline_glue.c shell left
+// wave309) for ly->frame_size / next_offset / … field access; pure cannot host
+// C typedefs for residual TU field syntax.
 // Cold twin under seed #ifndef FROM_X (void* identity).
 // PLATFORM: SHARED - dual-end L2 after leave.
 // ---------------------------------------------------------------------------
@@ -23275,7 +23278,8 @@ export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref
 /**
  * Cast opaque backend AsmFuncCtx* to the residual C layout view address.
  * Identity: returned pointer equals ctx; residual C reinterprets as
- * pipeline_glue_AsmFuncCtxLayout* (typedef lives in pipeline_glue.c shell).
+ * pipeline_glue_AsmFuncCtxLayout* (typedef in backend_seed_mega_fallback seed;
+ * pipeline_glue.c shell left wave309).
  * @param ctx *u8 - backend_AsmFuncCtx* (may be null; null passthrough)
  * @return *u8 - same address as ctx (layout overlay base)
  * wave125 pure: G.7 authority (was static in pipeline_asm_ctx_layout.c).

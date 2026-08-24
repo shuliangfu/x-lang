@@ -22,7 +22,7 @@ struct parser_ParseIntoResult {
   int32_t main_idx;
 };
 
-/** ast_pool.c：等价 parser parse_into_init，重置 sidecar grow 池。 */
+/** runtime_pipeline_abi：等价 parser parse_into_init，重置 sidecar grow 池（ast_pool.c left wave309）。 */
 extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Module *module);
 /** pipeline_parse_x_partial.o 提供。 */
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,

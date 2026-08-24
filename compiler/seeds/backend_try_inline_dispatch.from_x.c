@@ -291,7 +291,8 @@ extern int32_t backend_fold_func_x_plus_k_chain(struct ast_ASTArena *arena, stru
                                                 int32_t depth);
 
 /**
- * C 路径读函数 return 操作数（与 pipeline_glue.c glue_fold_func_return_operand_ref_c 一致）。
+ * C 路径读函数 return 操作数（与 runtime_pipeline_abi glue_fold_func_return_operand_ref_c 一致；
+ * pipeline_glue.c left wave309）。
  * B-strict backend.o 桩 fold 失败时供 struct/field 内联 fold 使用。
  */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -470,7 +471,8 @@ int32_t glue_align_up8_c(int32_t n) {
 
 
 /**
- * ARRAY_LIT 元素字节宽；与 pipeline_glue.c pipeline_asm_array_lit_elem_byte_sz_c 一致。
+ * ARRAY_LIT 元素字节宽；与 runtime_pipeline_abi pipeline_asm_array_lit_elem_byte_sz_c 一致
+ * （pipeline_glue.c left wave309）。
  */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -1014,7 +1016,8 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
 #endif
 
 /**
- * INDEX 元素字节宽；委托 pipeline_glue.c（避免 X Type 按值 emit）。
+ * INDEX 元素字节宽；委托 runtime_pipeline_abi（避免 X Type 按值 emit；
+ * pipeline_glue.c left wave309）。
  */
 /* G-02f-196：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -2459,7 +2462,7 @@ extern int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, s
                                                      int32_t field_ix);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                           int32_t store_size, int32_t ta);
-/** MEM-C1：with_arena scope 内 default_alloc 内联（pipeline_glue.c）。 */
+/** MEM-C1：with_arena scope 内 default_alloc 内联（runtime_pipeline_abi；pipeline_glue.c left wave309）。 */
 extern int32_t glue_with_arena_scope_active_c(void);
 extern int32_t glue_with_arena_scope_top_off_c(void);
 

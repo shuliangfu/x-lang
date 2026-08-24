@@ -373,7 +373,8 @@ ld_supports_exported_symbols_list() {
 # Darwin -exported_symbols_list and Linux objcopy --keep-global-symbols both localize
 # unlisted symbols. Static depctx_sidecar_get is copied into each partial and binds
 # whatever BSS it sees; if the table is localized, Cap module_at vs path_copy split
-# (core.types body emitted as core_result_*). Authority: ast_pool.c g_xlang_depctx_sc.
+# (core.types body emitted as core_result_*). Authority: runtime_pipeline_abi
+# g_xlang_depctx_sc / pure depctx table (ast_pool.c left wave309).
 ld_partial_export() {
   local syms_file="$1"
   local out_o="$2"
@@ -2346,7 +2347,8 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
   fi
 }
 
-# B-strict：最小 glue（无 ast_pool）；编排真机在 ast_pool.c glue_standalone。
+# B-strict：最小 glue shell；编排真机在 runtime_pipeline_abi／pipeline.x
+# （ast_pool.c / glue_standalone mega left wave309）。
 # wave304 G.7 8.3.6: seed shell retired (0 residual T after wave303). Product
 # g05 no longer host-cc or links this .o. Soft no-op when seed absent so
 # experimental strict paths do not hard-fail; they must resolve via typeck_x /
@@ -4129,7 +4131,8 @@ ensure_asm_bootstrap_x_companion_objs() {
     echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
   fi
-  # preprocess_if_stack_* 由 pipeline_x.o（ast_pool.c via pipeline_glue.c）提供，bridge 已删除。
+  # preprocess_if_stack_* 由 runtime_pipeline_abi／pipeline orch 提供
+  # （ast_pool.c / pipeline_glue.c mega left wave309）；bridge 已删除。
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
@@ -4534,7 +4537,8 @@ ensure_asm_strict_link_extra_objs() {
   echo " cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c -> src/asm/pipeline_fill_dep_strict_alias.o"
   sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
   fi
-  # preprocess_if_stack_* 由 pipeline_x.o（ast_pool.c）提供，bridge 已删除。
+  # preprocess_if_stack_* 由 runtime_pipeline_abi／pipeline orch 提供
+  # （ast_pool.c mega left wave309）；bridge 已删除。
 }
 
 # experimental / strict 链：lsp_state.o 依赖 typeck_lsp_main_impl（lsp.x -E → lsp_x.o）；勿拉整包 gen_driver。

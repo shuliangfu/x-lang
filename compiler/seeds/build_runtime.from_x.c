@@ -57,7 +57,8 @@ void build_runtime_warn_impl(const char *msg) {
 
 /**
  * 从源头去补丁：pipeline.x 已用 run_x_pipeline_impl、get_ndep()；codegen 已对 slice/数组形参生成 -> 与 *。
- * 此处仅：必要时插入 parser_parse_into extern，并追加 pipeline_glue.c 内容（包装/sizeof/debug 等）。返回 0 成功，-1 失败。
+ * 此处仅：必要时插入 parser_parse_into extern；勿再追加已删 pipeline_glue.c
+ * （wave309；包装/sizeof/debug 活面在 runtime_pipeline_abi）。返回 0 成功，-1 失败。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int build_patch_pipeline_gen_c_impl(void) {
