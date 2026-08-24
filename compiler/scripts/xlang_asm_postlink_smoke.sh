@@ -41,6 +41,12 @@ fi
 SMOKE_BACKEND_ARGS=""
 if [ "$SMOKE_RUN_BACKEND" = "c" ]; then
   SMOKE_BACKEND_ARGS="-backend c"
+  # G.7 twin of run_xlang_asm_smoke.sh / verify-selfhost-stage2-bstrict Step3:
+  # Stage 12.2.3 product host-cc spawn is experimental; -backend c requires ALLOW opt-in.
+  # Without this, Darwin/ARM64 postlink WARN'd with host-cc-requires-allow (BLD001) even
+  # though Stage2 behavior parity already exports ALLOW=1 — dual-authority smoke contract.
+  # PLATFORM: SHARED — only the -backend c path; asm smoke never hits invoke_cc.
+  export XLANG_ALLOW_HOST_CC=1
 elif [ "$SMOKE_RUN_BACKEND" = "asm" ]; then
   SMOKE_BACKEND_ARGS="-backend asm"
 fi

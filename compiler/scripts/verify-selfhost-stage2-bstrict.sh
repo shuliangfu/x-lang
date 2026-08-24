@@ -117,7 +117,7 @@ echo "── Step 1: materialize gen1 via Stage2 asm_only_strict recipe ──"
 # g05-synced product binary as gen1. Hash STRICT then compared different link
 # recipes. Fix: rebuild gen1 with the SAME build_xlang_asm env as Step2, then freeze.
 # PLATFORM: DARWIN — delete-then-cp avoids bad vnode / `zsh: killed` on in-place overwrite.
-# PLATFORM: SHARED — gen1 freeze contract for Linux hash STRICT and Darwin track-only.
+# PLATFORM: SHARED — gen1 freeze contract for dual-end hash STRICT (Linux + Darwin).
 # Escape: XLANG_STAGE2_SKIP_GEN1_REBUILD=1 keeps legacy freeze-only (DEBUG; honest red).
 if [ "${XLANG_STAGE2_SKIP_GEN1_REBUILD:-0}" = "1" ]; then
   echo "verify-stage2-bstrict: SKIP gen1 recipe rebuild (XLANG_STAGE2_SKIP_GEN1_REBUILD=1; topology may fork)"
@@ -531,20 +531,13 @@ _HASH_GEN1="./xlang_asm_gen1_for_hash"
 [ -x "$_HASH_GEN1" ] || _HASH_GEN1="./xlang_asm_stage1"
 if [ -x "$_HASH_GEN1" ] && [ -x ./xlang_asm2 ]; then
   # run-stage2-hash-gate.sh cds to repo root; paths must be repo-relative.
-  # PLATFORM: LINUX — D-03 default STRICT=1 (true gen1==gen2 freestanding gold).
+  # PLATFORM: SHARED — D-03 default STRICT=1 on both Linux and Darwin after tip
+  #   Stage2 SHA256 true fixed-point dogfood (Ubuntu 0ae06666… / Darwin 42ffac6e…).
   #   Step1+Step2 share stage2_build_asm_only_strict (same recipe). Size/hash diverge
   #   now means real compiler non-determinism or residual companion drift — never
   #   freeze g05 product as gen1, and never sync stage1 over gen1 to fake match.
-  # PLATFORM: DARWIN — topologies often differ; default track-only (STRICT=0). Hard gate =
-  #   Step 3 behavior parity (rv=42). Explicit XLANG_STAGE2_HASH_STRICT=1 still overrides.
-  case "$(uname -s 2>/dev/null)-$(uname -m 2>/dev/null)" in
-    Darwin-*)
-      _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-0}"
-      ;;
-    *)
-      _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-1}"
-      ;;
-  esac
+  #   Explicit XLANG_STAGE2_HASH_STRICT=0 still forces track-only (escape hatch).
+  _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-1}"
   # Surface sizes before gate so topology fork is visible in the Stage2 log.
   ls -lh "$_HASH_GEN1" ./xlang_asm2 | awk '{print "  hash-input:", $9, $5}'
   XLANG_STAGE2_HASH_STRICT="$_s2_hash_strict" \
