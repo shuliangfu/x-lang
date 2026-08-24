@@ -2450,19 +2450,19 @@ ensure_bstrict_filtered_obj_against_seed_partial() {
   local out_o="$2"
   local tag="$3"
   local seed_o="$BUILD_DIR/seed_host/asm_backend_partial.o"
-  local src_syms="$BUILD_DIR/.${tag}_all_t.txt"
-  local seed_syms="$BUILD_DIR/.bstrict_seed_partial_all_t.txt"
-  local keep_syms="$BUILD_DIR/.${tag}_keep.txt"
+  # PLATFORM: SHARED — G.7 twin of filter_bootstrap_seed_against_partial_o /
+  #   filter_o_export_against_deps (Darwin -arch + ar-archive path).
+  # Do NOT use bare ld_partial_export here: Xcode ld needs -arch, and prefer/libtool
+  # may leave SRC as ar (multi LC_SEGMENT); Apple ld has returned 0 with no OUT.
   [ -f "$src_o" ] || return 1
   [ -f "$seed_o" ] || return 1
-  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$seed_o" -nt "$out_o" ] || [ "$keep_syms" -nt "$out_o" ]; then
-  nm "$src_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$src_syms"
-  nm "$seed_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$seed_syms"
-  comm -23 "$src_syms" "$seed_syms" >"$keep_syms"
-  [ -s "$keep_syms" ] || return 1
-  echo " ld partial export $keep_syms $(basename "$src_o") -> $(basename "$out_o")"
-  ld_partial_export "$keep_syms" "$out_o" "$src_o" || return 1
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$seed_o" -nt "$out_o" ]; then
+  echo " filter_o_export $(basename "$src_o") -> $(basename "$out_o") (bstrict vs seed_partial; stem=$tag)"
+  bash scripts/filter_o_export_against_deps.sh \
+    --src "$src_o" --out "$out_o" --stem "$tag" \
+    --omit "$seed_o" || return 1
   fi
+  [ -s "$out_o" ] || return 1
   return 0
 }
 
@@ -2514,12 +2514,22 @@ ensure_bstrict_darwin_strict_glue_stubs_filt_obj() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
   fi
   [ -f "$src_o" ] || return 1
+  # Stale filt that still exports asm_asm_codegen_* must rebuild (omit set expanded).
+  if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  rm -f "$out_o"
+  fi
   if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ]; then
-  echo " filter_o_export $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_*)"
+  # Omit asm_driver_* (strong in runtime_asm_build) and asm_asm_codegen_* (strong in
+  # user_asm_seed_bridge ar). Archive members are only extracted for currently
+  # undefined symbols: if weak -1 stubs pre-satisfy U, Stage2 Darwin never pulls
+  # the real bridge → CG002 code_len=0 on every user asm -o (G.7 twin g05 order).
+  echo " filter_o_export $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_* + asm_asm_codegen_*)"
   bash scripts/filter_o_export_against_deps.sh \
     --src "$src_o" --out "$out_o" --stem bstrict_strict_glue_stubs_darwin \
     --omit-sym asm_driver_set_current_dep_path_for_codegen \
     --omit-sym asm_driver_skip_codegen_dep_0_get \
+    --omit-sym asm_asm_codegen_elf_o \
+    --omit-sym asm_asm_codegen_ast \
     --require-keep || return 1
   fi
   # Required fillers for runtime_driver_asm_strict + parser_x (Stage2 round2 UNDEF map).
@@ -2529,6 +2539,10 @@ ensure_bstrict_darwin_strict_glue_stubs_filt_obj() {
   fi
   if ! nm -gU "$out_o" 2>/dev/null | grep -q 'pipeline_block_labeled_set_names'; then
   build_xlang_asm_warn "Darwin stubs filt missing pipeline_block_labeled_set_names"
+  return 1
+  fi
+  if nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  build_xlang_asm_warn "Darwin stubs filt still exports asm_asm_codegen_* (must omit for user_asm ar)"
   return 1
   fi
   return 0
@@ -2914,7 +2928,7 @@ filter_experimental_asm_objs() {
   pipeline_asm_strict_support_partial.o|pipeline_asm_codegen_only_partial.o|\
   pipeline_asm_strict_core_partial.o|\
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
-  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
   bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
   pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
   driver_compile_parse_argv_loop_partial.o|\
@@ -3041,7 +3055,7 @@ filter_strict_asm_objs() {
   pipeline_asm_strict_support_partial.o|pipeline_asm_codegen_only_partial.o|\
   pipeline_asm_strict_core_partial.o|\
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
-  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
   bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
   pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
   driver_compile_parse_argv_loop_partial.o|\
@@ -4014,7 +4028,15 @@ BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
 BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
 BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
 BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+# PLATFORM: MACOS|DARWIN — g05_relink_env _USER_ASM_LINK includes backend_arm64_enc_c.o
+# so strong arch_arm64_enc_* override seed_link_compat / full_link_stubs weak -1.
+# Empty on Linux (x86_64 enc already in BSTRICT_BACKEND_X86_64_ENC_LINK).
+BSTRICT_BACKEND_ARM64_ENC_LINK=""
 BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+BSTRICT_DISPATCH_COMPANIONS="$BSTRICT_DISPATCH_OBJS"
+# Early bag: user_asm (+ Darwin arm64 enc) must precede weak stubs on the link line
+# when user_asm is a prefer/libtool ar (archive extract only for currently-U symbols).
+BSTRICT_USER_ASM_EARLY_LINK=""
 
 refresh_bstrict_link_variants() {
   BSTRICT_PIPELINE_LINK_O="pipeline_x.o"
@@ -4022,6 +4044,7 @@ refresh_bstrict_link_variants() {
   BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
   BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
   BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+  BSTRICT_BACKEND_ARM64_ENC_LINK=""
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   # PLATFORM: DARWIN — ld 不允许多定义（-multiply_defined 已废弃）。
   # filtered pipeline 与 full minimal glue 重叠 → 不整颗链 minimal；改为：
@@ -4042,8 +4065,32 @@ refresh_bstrict_link_variants() {
   fi
   if [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   ensure_asm_backend_compat_stubs_obj >/dev/null 2>&1 || true
-  if ensure_bstrict_filtered_obj_against_seed_partial "src/asm/user_asm_seed_bridge.o" "$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o" "bstrict_user_asm_seed_bridge" 2>/dev/null; then
+  # PLATFORM: DARWIN — prefer/libtool may leave user_asm_seed_bridge.o as an ar whose
+  # thin member has multi LC_SEGMENT; Stage2 final ld then never extracts the rest
+  # member that holds strong asm_asm_codegen_elf_o → CG002 code_len=0. G.7 twin of
+  # ensure_bstrict_darwin_strict_glue_stubs_filt_obj MH_OBJECT prep: host-cc the seed
+  # to a plain MH_OBJECT, then filter against seed_partial (filter out is MH too).
+  _uabr_src="src/asm/user_asm_seed_bridge.o"
+  _uabr_host="$BUILD_DIR/bstrict_user_asm_seed_bridge_host.o"
+  if [ -f seeds/user_asm_seed_bridge.from_x.c ]; then
+  # Rebuild MH host only when missing/stale (not on every refresh just because prefer ar exists).
+  if [ ! -f "$_uabr_host" ] \
+    || [ "seeds/user_asm_seed_bridge.from_x.c" -nt "$_uabr_host" ] \
+    || file "$_uabr_host" 2>/dev/null | grep -qi 'ar archive'; then
+  echo " cc -c seeds/user_asm_seed_bridge.from_x.c -> $_uabr_host (Darwin BSTRICT MH_OBJECT; not prefer ar)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o "$_uabr_host" \
+    || build_xlang_asm_warn "Darwin user_asm MH host-cc failed"
+  fi
+  if [ -s "$_uabr_host" ] && file "$_uabr_host" 2>/dev/null | grep -qi 'Mach-O'; then
+  _uabr_src="$_uabr_host"
+  fi
+  fi
+  # Only the filtered MH enters EARLY / companions. host.o is skipped by
+  # filter_strict_asm_objs / filter_experimental_asm_objs (must not also land in ASM_TRY_OBJS).
+  if ensure_bstrict_filtered_obj_against_seed_partial "$_uabr_src" "$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o" "bstrict_user_asm_seed_bridge" 2>/dev/null; then
   BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o"
+  elif [ -s "$_uabr_host" ]; then
+  BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$_uabr_host"
   fi
   if ensure_bstrict_filtered_obj_against_seed_partial "$BUILD_DIR/asm_backend_compat_stubs.o" "$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o" "bstrict_asm_backend_compat_stubs" 2>/dev/null; then
   BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o"
@@ -4052,9 +4099,29 @@ refresh_bstrict_link_variants() {
   BSTRICT_BACKEND_X86_64_ENC_LINK="$BUILD_DIR/bstrict_backend_x86_64_enc_c_filtered.o"
   fi
   fi
+  # G.7 twin g05_relink_env Darwin _USER_ASM_LINK: strong arm64 enc MH_OBJECT.
+  if [ -f src/asm/backend_arm64_enc_c.o ] || [ -f seeds/backend_arm64_enc_c.from_x.c ]; then
+  if [ ! -f src/asm/backend_arm64_enc_c.o ] \
+    || [ "seeds/backend_arm64_enc_c.from_x.c" -nt src/asm/backend_arm64_enc_c.o ]; then
+  echo " cc -c seeds/backend_arm64_enc_c.from_x.c -> src/asm/backend_arm64_enc_c.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_arm64_enc_c.from_x.c -o src/asm/backend_arm64_enc_c.o
   fi
-  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+  BSTRICT_BACKEND_ARM64_ENC_LINK="src/asm/backend_arm64_enc_c.o"
+  fi
+  fi
+  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK $BSTRICT_BACKEND_ARM64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+  # Early link bag (before BSTRICT_SEED_SUPPORT weak stubs / experimental bridge).
+  # PLATFORM: DARWIN primary; SHARED-safe (arm64 link empty on Linux).
+  # Prefer/libtool may leave user_asm as ar — members extract only for currently-U
+  # symbols, so this bag must precede weak asm_asm_codegen_* stubs (G.7 twin g05).
+  BSTRICT_USER_ASM_EARLY_LINK="$BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_BACKEND_ARM64_ENC_LINK"
+  # Companions omit early-linked objs (Darwin rejects duplicate MH_OBJECT arm64 enc).
+  BSTRICT_DISPATCH_COMPANIONS="$BSTRICT_DISPATCH_OBJS"
+  if [ -n "$BSTRICT_BACKEND_ARM64_ENC_LINK" ]; then
+  BSTRICT_DISPATCH_COMPANIONS=$(echo "$BSTRICT_DISPATCH_OBJS" | sed "s|[[:space:]]*${BSTRICT_BACKEND_ARM64_ENC_LINK}||g")
+  fi
   # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
+  # user_asm + arm64 enc live in BSTRICT_USER_ASM_EARLY_LINK on asm_only_strict lines.
   GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
   # wave309/wave304: glue seed shells retired; pure runtime_pipeline_abi.o (already in
   # LD argv) is G.7 authority. Drop BSTRICT_EXPERIMENTAL_GLUE_OBJ path when .o physically
@@ -5324,7 +5391,8 @@ xlang_asm_bstrict_relink_runtime_only() {
   # runtime_io_abi.o hard-coded once on strict link line — do not also put it here
   # (PLATFORM: DARWIN rejects the same .o twice as duplicate symbols).
   ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
+  # user_asm (+ Darwin arm64 enc) live in BSTRICT_USER_ASM_EARLY_LINK before stubs.
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
   ASM_TRY_OBJS="$FILTERED"
@@ -5677,6 +5745,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
   # shellcheck disable=SC2086
+  # PLATFORM: SHARED — early user_asm (+ Darwin arm64 enc) before weak stubs (ar extract).
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   ${BSTRICT_EXPERIMENTAL_GLUE_OBJ:+"$BSTRICT_EXPERIMENTAL_GLUE_OBJ"} \
@@ -5688,6 +5757,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/diag.o \
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
+  $BSTRICT_USER_ASM_EARLY_LINK \
   $BSTRICT_SEED_SUPPORT \
   "$BSTRICT_PIPELINE_LINK_O" \
   pipeline_bootstrap_orchestration.o \
@@ -5697,9 +5767,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$BUILD_DIR/seed_link_compat.o" \
   "$BUILD_DIR/seed_host/asm_backend_partial.o" \
   $ASM_LINK_STUBS_O \
-  "$BSTRICT_USER_ASM_SEED_BRIDGE_LINK" \
   "$BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK" \
-  $BSTRICT_DISPATCH_OBJS \
+  $BSTRICT_DISPATCH_COMPANIONS \
   src/asm/pipeline_run_x_link_alias.o \
   src/asm/parser_asm_parse_expr_link.o \
   parser_asm_thin_glue.o \
@@ -5998,7 +6067,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_COMPANION_GLUE_STUBS=""
   fi
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
+  # user_asm (+ Darwin arm64 enc) live in BSTRICT_USER_ASM_EARLY_LINK before stubs.
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
   else
   # legacy：须 seed C 前端 *.o 在前、*_x.o 在后（macOS ld 重复符号取后定义）。
   # E-06 v3 X：仅 async seed + X glue；parser_x.o 在 ST_PARSER_X_TAIL 压过重复符号。
@@ -6017,7 +6087,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_COMPANION_GLUE_STUBS=""
   fi
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
   fi
   elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
@@ -6091,6 +6161,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   set +e
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   # shellcheck disable=SC2086
+  # PLATFORM: SHARED — BSTRICT_USER_ASM_EARLY_LINK before weak stubs / bridge so
+  # prefer/libtool ar user_asm extracts strong asm_asm_codegen_elf_o (G.7 twin g05).
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   src/runtime_io_abi.o \
@@ -6100,6 +6172,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/diag.o \
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
+  $BSTRICT_USER_ASM_EARLY_LINK \
   $BSTRICT_SEED_SUPPORT \
   $ST_PREPROCESS_IF_STACK_O \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
@@ -6166,6 +6239,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/diag.o \
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
+  $BSTRICT_USER_ASM_EARLY_LINK \
   $BSTRICT_SEED_SUPPORT \
   $ST_PREPROCESS_IF_STACK_O \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \

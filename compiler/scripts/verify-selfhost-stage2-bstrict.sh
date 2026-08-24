@@ -74,8 +74,13 @@ stage2_check_asm_only_strict_log() {
   if ! grep -q 'driver_compile_link.o' "$_s2_log"; then
     if [ -f build_asm/driver_compile_link.o ] && nm -g build_asm/driver_compile_link.o 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x'; then
       echo "verify-stage2-bstrict: driver_compile_link.o present (artifact OK; log grep missed)"
+    elif grep -q 'skip driver_compile_emit_heavy.o recompile (XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1)' "$_s2_log" \
+      || [ "${XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY:-0}" = "1" ]; then
+      # Honest residual: bridge / pipeline-selfhosted path sets SKIP=1 (not OOM).
+      # PLATFORM: SHARED — do not blame EMIT_HEAVY OOM when the skip is intentional.
+      echo "verify-stage2-bstrict: WARN — driver_compile_link.o skipped (XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1; bridge/selfhosted); continue behavior parity"
     else
-      echo "verify-stage2-bstrict: WARN — driver_compile_link.o not built (EMIT_HEAVY OOM?); continue behavior parity"
+      echo "verify-stage2-bstrict: WARN — driver_compile_link.o not built (EMIT_HEAVY failed or skipped); continue behavior parity"
     fi
   fi
   if [ ! -x ./xlang_asm ]; then
@@ -327,13 +332,19 @@ echo "── Step 3: 功能对比（return-value / hello）──"
 echo 'function main(): i32 { return 42; }' > /tmp/stage2_bstrict_rv.x
 
 STAGE2_COMPILE_BACKEND=""
+# PLATFORM: DARWIN — default pure-asm user -o (G.7 twin tip product path).
+# Historical `-backend c` fallback was for Stage2 binaries that linked prefer/libtool
+# ar user_asm after weak stubs (CG002 code_len=0). Fixed by BSTRICT MH_OBJECT host
+# + EARLY link + arm64 enc; keep ALLOW_HOST_CC escape only when XLANG_STAGE2_FORCE_BACKEND_C=1.
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
-    STAGE2_COMPILE_BACKEND="-backend c"
-    # Stage 12.2.3: experimental host-cc requires XLANG_ALLOW_HOST_CC=1.
-    # PLATFORM: SHARED — only this Darwin/ARM64 fallback path uses -backend c.
-    export XLANG_ALLOW_HOST_CC=1
-    echo "verify-stage2-bstrict: Darwin/ARM64 use -backend c for user compile (asm Mach-O incomplete; ALLOW_HOST_CC=1)"
+    if [ "${XLANG_STAGE2_FORCE_BACKEND_C:-0}" = "1" ]; then
+      STAGE2_COMPILE_BACKEND="-backend c"
+      export XLANG_ALLOW_HOST_CC=1
+      echo "verify-stage2-bstrict: Darwin/ARM64 FORCE -backend c (XLANG_STAGE2_FORCE_BACKEND_C=1; ALLOW_HOST_CC=1)"
+    else
+      echo "verify-stage2-bstrict: Darwin/ARM64 use default asm backend for user compile (pure-asm Mach-O)"
+    fi
     ;;
 esac
 
@@ -404,73 +415,65 @@ echo "── Step 4: hello（import std.io，xlang_asm -o 偶发 SIGSEGV 时重�
 if [ "${XLANG_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || [ "${XLANG_STAGE2_SKIP_HELLO:-0}" = "1" ]; then
   echo "verify-stage2-bstrict: skip Step 4 hello (XLANG_ASM_SKIP_ENTRY_SMOKE / XLANG_STAGE2_SKIP_HELLO; D-03 hash gate covers Stage2)"
 else
-case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Darwin-*|Linux-aarch64|Linux-arm64)
-    echo "verify-stage2-bstrict: skip hello on Darwin/ARM64 (asm Mach-O incomplete; examples/hello.x const-import 与 -backend c 不兼容；Step 3 return-value 已覆盖行为 parity)"
-    ;;
-  *)
-    rm -f /tmp/stage2_bstrict_hello1 /tmp/stage2_bstrict_hello2
-    HELLO_TIMEOUT="${XLANG_STAGE2_HELLO_TIMEOUT:-120}"
-    hello_compile() {
-      local bin="$1" out="$2"
-      local try=1
-      local last_err=""
-      while [ "$try" -le 8 ]; do
-        # shellcheck disable=SC2086
-        if command -v timeout >/dev/null 2>&1; then
-          if err=$(timeout "$HELLO_TIMEOUT" "$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
-            return 0
-          fi
-        elif err=$("$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
+  # PLATFORM: SHARED — Darwin/ARM64 pure-asm hello enabled after BSTRICT MH user_asm fix.
+  # Escape: XLANG_STAGE2_SKIP_HELLO=1 or FORCE_BACKEND_C (hello still runs with -backend c if set).
+  rm -f /tmp/stage2_bstrict_hello1 /tmp/stage2_bstrict_hello2
+  HELLO_TIMEOUT="${XLANG_STAGE2_HELLO_TIMEOUT:-120}"
+  hello_compile() {
+    local bin="$1" out="$2"
+    local try=1
+    local last_err=""
+    while [ "$try" -le 8 ]; do
+      # shellcheck disable=SC2086
+      if command -v timeout >/dev/null 2>&1; then
+        if err=$(timeout "$HELLO_TIMEOUT" "$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
           return 0
         fi
-        last_err="$err"
-        try=$((try + 1))
-      done
-      echo "$last_err" >&2
-      return 1
-    }
-    hello_compile ./xlang_asm_stage1 /tmp/stage2_bstrict_hello1 || {
-      if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
-        echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
-      else
-        echo "verify-stage2-bstrict: xlang_asm_stage1 hello compile failed (8 attempts)" >&2
-        exit 1
+      elif err=$("$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
+        return 0
       fi
-    }
-    if [ -x /tmp/stage2_bstrict_hello1 ]; then
-    hello_compile ./xlang_asm2 /tmp/stage2_bstrict_hello2 || {
-      if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
-        echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
-      else
-        echo "verify-stage2-bstrict: xlang_asm2 hello compile failed (8 attempts)" >&2
-        exit 1
-      fi
-    }
-    fi
-    if [ -x /tmp/stage2_bstrict_hello1 ] && [ -x /tmp/stage2_bstrict_hello2 ]; then
-    /tmp/stage2_bstrict_hello1 | grep -q "Hello World" || {
-      echo "verify-stage2-bstrict: xlang_asm_stage1 hello run failed" >&2
+      last_err="$err"
+      try=$((try + 1))
+    done
+    echo "$last_err" >&2
+    return 1
+  }
+  hello_compile ./xlang_asm_stage1 /tmp/stage2_bstrict_hello1 || {
+    if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
+      echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
+    else
+      echo "verify-stage2-bstrict: xlang_asm_stage1 hello compile failed (8 attempts)" >&2
       exit 1
-    }
-    /tmp/stage2_bstrict_hello2 | grep -q "Hello World" || {
-      echo "verify-stage2-bstrict: xlang_asm2 hello run failed" >&2
-      exit 1
-    }
     fi
-    ;;
-esac
+  }
+  if [ -x /tmp/stage2_bstrict_hello1 ]; then
+  hello_compile ./xlang_asm2 /tmp/stage2_bstrict_hello2 || {
+    if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
+      echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
+    else
+      echo "verify-stage2-bstrict: xlang_asm2 hello compile failed (8 attempts)" >&2
+      exit 1
+    fi
+  }
+  fi
+  if [ -x /tmp/stage2_bstrict_hello1 ] && [ -x /tmp/stage2_bstrict_hello2 ]; then
+  /tmp/stage2_bstrict_hello1 | grep -q "Hello World" || {
+    echo "verify-stage2-bstrict: xlang_asm_stage1 hello run failed" >&2
+    exit 1
+  }
+  /tmp/stage2_bstrict_hello2 | grep -q "Hello World" || {
+    echo "verify-stage2-bstrict: xlang_asm2 hello run failed" >&2
+    exit 1
+  }
+  echo "  xlang_asm_stage1 / xlang_asm2 hello: Hello World"
+  fi
 fi
 
 echo ""
 echo "── Step 4b: xlang_asm2 struct mk 烟测（gen2 CALL 内联，须 exit 10）──"
 SMK_X="$ROOT/tests/boundary/struct_mk_let_inline.x"
 SMK_TIMEOUT="${XLANG_STAGE2_STRUCT_MK_TIMEOUT:-120}"
-case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Darwin-*|Linux-aarch64|Linux-arm64)
-    echo "verify-stage2-bstrict: skip struct_mk on Darwin/ARM64 (user asm -o incomplete; Linux x86_64 covers)"
-    ;;
-  *)
+# PLATFORM: SHARED — Darwin/ARM64 pure-asm struct_mk enabled after BSTRICT MH user_asm fix.
 if [ -x ./xlang_asm2 ] && [ -f "$SMK_X" ]; then
   rm -f /tmp/stage2_bstrict_smki2
   (
@@ -508,9 +511,15 @@ if [ -x ./xlang_asm2 ] && [ -f "$SMK_X" ]; then
     echo "verify-stage2-bstrict: xlang_asm2 struct_mk_let_inline exit=$smk_ec (expected 10)" >&2
     exit 1
   fi
-  # Linux：_main 不得 call mk（与 run-asm-call-inline 语义一致）。
+  # SHARED：_main 不得 call mk（与 run-asm-call-inline 语义一致）。
   if command -v objdump >/dev/null 2>&1; then
     if objdump -d /tmp/stage2_bstrict_smki2 2>/dev/null | sed -n '/<_main>:/,/^$/p' | grep -qE 'call.*\<mk\>|bl[[:space:]]+.*\<mk\>'; then
+      echo "verify-stage2-bstrict: xlang_asm2 struct_mk_let_inline _main still calls mk (inline regression)" >&2
+      exit 1
+    fi
+  elif command -v otool >/dev/null 2>&1; then
+    # PLATFORM: DARWIN — otool -tv when objdump absent.
+    if otool -tv /tmp/stage2_bstrict_smki2 2>/dev/null | sed -n '/_main:/,/^_/p' | grep -qE 'bl[[:space:]]+_mk\>|bl[[:space:]]+mk\>'; then
       echo "verify-stage2-bstrict: xlang_asm2 struct_mk_let_inline _main still calls mk (inline regression)" >&2
       exit 1
     fi
@@ -519,8 +528,6 @@ if [ -x ./xlang_asm2 ] && [ -f "$SMK_X" ]; then
   fi
 fi
 rm -f /tmp/stage2_bstrict_smki2
-    ;;
-esac
 
 echo ""
 echo "── Step 4c: Stage2 SHA256 金标准（A-09 / run-stage2-hash-gate）──"
