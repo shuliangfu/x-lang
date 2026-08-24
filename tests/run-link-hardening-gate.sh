@@ -2,6 +2,9 @@
 # P1-7：链接器硬化烟测 — Linux release 可执行文件须 PIE（Type: DYN）且 GNU_STACK 不可执行。
 #
 # 用法：./tests/run-link-hardening-gate.sh
+# wave honesty (2026-08-24 #5): monofile seeds/runtime.from_x.c retired wave321;
+# harden authority = runtime_link_abi.from_x.c（refuse monofile resurrect）。
+# PLATFORM: SHARED archaeology / LINUX smoke.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
@@ -9,20 +12,21 @@ cd "$(dirname "$0")/.."
 
 MANIFEST="tests/baseline/link-hardening.tsv"
 SRC="tests/link_hardening_smoke.x"
+LINK_ABI="compiler/seeds/runtime_link_abi.from_x.c"
 
 echo "=== P1-7: link hardening manifest ==="
-for f in "$MANIFEST" "$SRC"; do
+for f in "$MANIFEST" "$SRC" "$LINK_ABI"; do
   if [ ! -f "$f" ]; then
     echo "link-hardening gate FAIL: missing $f" >&2
     exit 1
   fi
 done
-if ! grep -qF "xlang_append_linux_link_harden" compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
-  echo "link-hardening gate FAIL: runtime_link_abi.inc missing xlang_append_linux_link_harden" >&2
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "link-hardening gate FAIL: seeds/runtime.from_x.c resurrected (harden live = runtime_link_abi)" >&2
   exit 1
 fi
-if grep -qE '^static void xlang_append_linux_link_harden\(' compiler/seeds/runtime.from_x.c 2>/dev/null; then
-  echo "link-hardening gate FAIL: runtime.c still defines xlang_append_linux_link_harden (expected runtime_link_abi.inc)" >&2
+if ! grep -qF "xlang_append_linux_link_harden" "$LINK_ABI" 2>/dev/null; then
+  echo "link-hardening gate FAIL: runtime_link_abi.inc missing xlang_append_linux_link_harden" >&2
   exit 1
 fi
 echo "link-hardening manifest OK"

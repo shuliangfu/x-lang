@@ -5,12 +5,16 @@
 # 环境：
 #   XLANG_E_SOFT_FAIL=1              — 失败时硬退出
 #   XLANG_E_SOFT_MANIFEST_ONLY=1     — 仅 manifest（跳过子 gate）
+#
+# wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
+# Makefile → compiler/mk/driver_seed_*.mk；monofile retired。
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_E_SOFT_FAIL:-0}
-DOC="analysis/phase-e-soft-v2-closure.md"
-DOC_V1="analysis/phase-e-soft-v1.md"
+DOC="${XLANG_E_SOFT_DOC:-analysis/archive/phase/phase-e-soft-v2-closure.md}"
+DOC_V1="${XLANG_E_SOFT_DOC_V1:-analysis/archive/phase/phase-e-soft-v1.md}"
 MANIFEST="tests/baseline/phase-e-soft-retire.tsv"
 
 die() {
@@ -35,6 +39,13 @@ grep -q 'E-soft v2' "$DOC" || die "doc missing E-soft v2 closure marker"
 grep -q 'E-soft v1' "$DOC_V1" || die "doc missing E-soft v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use mk/driver_seed_*.mk + ./xbuild)"
+fi
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  die "seeds/runtime.from_x.c resurrected"
+fi
+
 # shellcheck source=tests/lib/phase-e-soft-audit.sh
 . tests/lib/phase-e-soft-audit.sh
 
@@ -42,7 +53,7 @@ if ! phase_e_soft_audit_manifest "$MANIFEST"; then
   die "phase-e-soft-retire manifest audit failed"
 fi
 if ! phase_e_soft_audit_makefile_no_c_frontend; then
-  die "Makefile default seed still links C frontend"
+  die "mk default seed still links C frontend"
 fi
 
 ret_n=$(phase_e_soft_count_retired "$MANIFEST")
@@ -78,34 +89,4 @@ if [ -f tests/run-e02-lsp-diag-soft-gate.sh ]; then
   run_sub tests/run-e02-lsp-diag-soft-gate.sh XLANG_E02_FAIL
 fi
 
-if [ -f tests/run-e03-preprocess-soft-gate.sh ]; then
-  echo "=== E-soft: delegate E-03 preprocess soft-retire ==="
-  run_sub tests/run-e03-preprocess-soft-gate.sh XLANG_E03_PREPROCESS_FAIL
-fi
-
-if [ -f tests/run-e03-lexer-ast-soft-gate.sh ]; then
-  echo "=== E-soft: delegate E-03 lexer/ast soft-retire ==="
-  run_sub tests/run-e03-lexer-ast-soft-gate.sh XLANG_E03_LEXER_AST_FAIL
-fi
-
-if [ -f tests/run-e03-v3-coldstart-track-gate.sh ]; then
-  echo "=== E-soft: delegate E-03 v3 cold-start track ==="
-  run_sub tests/run-e03-v3-coldstart-track-gate.sh XLANG_E03_V3_FAIL
-fi
-
-if [ -f tests/run-e04-runtime-soft-gate.sh ]; then
-  echo "=== E-soft: delegate E-04 runtime path audit ==="
-  run_sub tests/run-e04-runtime-soft-gate.sh XLANG_E04_FAIL
-fi
-
-if [ -f tests/run-e06-no-compiler-frontend-cc-gate.sh ]; then
-  echo "=== E-soft: delegate E-06 no compiler frontend cc -c ==="
-  run_sub tests/run-e06-no-compiler-frontend-cc-gate.sh XLANG_E06_FAIL
-fi
-
-if [ -f tests/run-e05-include-soft-gate.sh ]; then
-  echo "=== E-soft: delegate E-05 include inventory ==="
-  run_sub tests/run-e05-include-soft-gate.sh XLANG_E05_FAIL
-fi
-
-echo "e-soft gate OK (E-01～E-06 audited; phase E CLOSED at E-soft v2)"
+echo "e-soft retire gate OK (archive DOC + mk DRIVER_SEED + sub-gates)"

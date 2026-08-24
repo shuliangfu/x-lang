@@ -3,12 +3,17 @@
 #
 # 用法：./tests/run-f06-runtime-std-o-cleanup-gate.sh
 # 环境：XLANG_F06_RUNTIME_CLEANUP_FAIL=1 — 失败时硬退出
+#
+# wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
+# monofile seeds/runtime.from_x.c retired wave321 — F-06 markers live in
+# runtime_link_abi.from_x.c + build_xlang_asm.sh（refuse monofile resurrect）。
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_F06_RUNTIME_CLEANUP_FAIL:-0}
-DOC="analysis/phase-f-f06-v1.md"
-RUNTIME="compiler/seeds/runtime.from_x.c"
+DOC="${XLANG_F06_DOC:-analysis/archive/phase/phase-f-f06-v1.md}"
+DOC_V2="${XLANG_F06_DOC_V2:-analysis/archive/phase/phase-f-f06-v2.md}"
 LINK_ABI="compiler/seeds/runtime_link_abi.from_x.c"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 RELINK_EXP="compiler/scripts/relink_xlang_asm_experimental_bootstrap.sh"
@@ -21,16 +26,26 @@ die() {
   exit 0
 }
 
-echo "=== F-06 v1: runtime / bootstrap std .o cleanup ==="
+echo "=== F-06 v1: runtime / bootstrap std .o cleanup (live link_abi) ==="
 [ -f "$DOC" ] || die "missing $DOC"
+[ -f "$DOC_V2" ] || die "missing $DOC_V2"
 grep -q 'F-06 v1' "$DOC" || die "doc missing F-06 v1 marker"
+grep -q 'F-06 v2' "$DOC_V2" || die "phase-f-f06-v2.md missing marker"
 
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  die "seeds/runtime.from_x.c resurrected (F-06 live face = runtime_link_abi)"
+fi
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+
+[ -f "$LINK_ABI" ] || die "missing $LINK_ABI"
 for legacy in 'std/fs/fs.o' 'std/heap/heap.o' 'std/compress/compress.o'; do
-  if grep -q "xlang_rel_o_path_from_argv0(argv\[0\], \"$legacy\")" "$RUNTIME" 2>/dev/null; then
-    die "runtime.c still resolves $legacy"
+  if grep -q "xlang_rel_o_path_from_argv0(argv\[0\], \"$legacy\")" "$LINK_ABI" 2>/dev/null; then
+    die "runtime_link_abi still resolves $legacy"
   fi
 done
-grep -q 'F-06 v1' "$RUNTIME" || die "runtime.c missing F-06 v1 marker"
+grep -q 'F-06 v1' "$LINK_ABI" || die "runtime_link_abi missing F-06 v1 marker"
 
 if grep -q 'link_abi_asm_ld_push_obj.*std/compress/compress.o' "$LINK_ABI" 2>/dev/null; then
   die "runtime_link_abi.inc still push std/compress/compress.o"
@@ -57,7 +72,5 @@ STAGE2="compiler/verify-selfhost-stage2.sh"
 if grep -qE '\.\./std/(fs/fs|io/io|heap/heap)\.o' "$STAGE2" 2>/dev/null; then
   die "verify-selfhost-stage2.sh still links legacy fs/io/heap .o"
 fi
-[ -f analysis/phase-f-f06-v2.md ] || die "missing phase-f-f06-v2.md"
-grep -q 'F-06 v2' analysis/phase-f-f06-v2.md || die "phase-f-f06-v2.md missing marker"
 
-echo "f06 runtime std .o cleanup gate OK (F-06 v1+v2)"
+echo "f06 runtime std .o cleanup gate OK (F-06 v1+v2; live link_abi + archive DOC)"

@@ -5,14 +5,20 @@
 # 环境：
 #   XLANG_C03_FAIL=1              — 失败时硬退出
 #   XLANG_C03_BUILD_LOG=/path     — 可选，审计已有 bstrict 构建日志
+#
+# wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
+# Makefile deleted MG wave941 — live audit = bootstrap_driver_crt0.sh +
+# build_xlang_asm.sh（refuse resurrect）。
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_C03_FAIL:-0}
-DOC="analysis/phase-c-c03-v1.md"
+DOC="${XLANG_C03_DOC:-analysis/archive/phase/phase-c-c03-v1.md}"
+DOC_V2="${XLANG_C03_DOC_V2:-analysis/archive/phase/phase-c-c03-v2.md}"
 MANIFEST="tests/baseline/c03-no-pipeline-gen.tsv"
-MF="compiler/Makefile"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
+CRT0_SH="compiler/scripts/bootstrap_driver_crt0.sh"
 LOG="${XLANG_C03_BUILD_LOG:-/tmp/build_bstrict.log}"
 PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
@@ -23,18 +29,20 @@ die() {
 }
 
 echo "=== C-03 v2: Windows B-strict track (optional) ==="
-[ -f analysis/phase-c-c03-v2.md ] && grep -q 'C-03 v2' analysis/phase-c-c03-v2.md || echo "c03 note: phase-c-c03-v2.md optional"
+[ -f "$DOC_V2" ] && grep -q 'C-03 v2' "$DOC_V2" || echo "c03 note: phase-c-c03-v2.md optional"
 
 echo "=== C-03: no cc -c pipeline_gen.c (B-strict v1) ==="
-for f in "$DOC" "$MANIFEST" "$MF" "$BUILD_ASM" tests/run-bootstrap-bstrict-ci.sh; do
+for f in "$DOC" "$MANIFEST" "$BUILD_ASM" "$CRT0_SH" tests/run-bootstrap-bstrict-ci.sh; do
   [ -f "$f" ] || die "missing $f"
 done
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild + bootstrap scripts)"
+fi
 grep -q 'C-03 v1' "$DOC" || die "doc missing C-03 v1 marker"
 
-grep -q 'bootstrap-driver-bstrict' "$MF" || die "Makefile missing bootstrap-driver-bstrict"
-grep -q 'XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1' "$MF" || die "Makefile bstrict missing SKIP_GEN"
-grep -q 'cc -c pipeline_gen.c' "$MF" || die "Makefile crt0 missing pipeline_gen audit"
 grep -q 'pipeline_gen' "$BUILD_ASM" || die "build_xlang_asm.sh missing pipeline_gen references"
+grep -q 'cc -c pipeline_gen.c' "$CRT0_SH" || die "bootstrap_driver_crt0.sh missing pipeline_gen audit"
+grep -q 'must not cc -c pipeline_gen' "$CRT0_SH" || die "bootstrap_driver_crt0.sh missing reject message"
 
 # manifest gate_ref
 MISS=0
@@ -42,13 +50,16 @@ while IFS=$'\t' read -r track_id _layer anchor check_type _notes; do
   [ -z "${track_id:-}" ] && continue
   case "$track_id" in \#*) continue ;; esac
   case "$check_type" in gate_ref)
+    case "$anchor" in
+      compiler/Makefile) continue ;; # retired
+      analysis/phase-c-c03-*) continue ;; # archived; gate pins DOC
+    esac
     [ -f "$anchor" ] || { echo "c03 manifest missing: $anchor" >&2; MISS=$((MISS + 1)); }
     ;;
   esac
 done < "$MANIFEST"
 [ "$MISS" -eq 0 ] || die "$MISS manifest gate_ref missing"
 
-# 可选：审计已有 bstrict 构建日志
 if [ -f "$LOG" ]; then
   if grep -qE "$PAT" "$LOG" 2>/dev/null; then
     die "build log $LOG contains cc -c pipeline_gen.c"
@@ -58,4 +69,4 @@ else
   echo "c03 note: no build log at $LOG (run bootstrap-driver-bstrict first for full audit)"
 fi
 
-echo "c03 no-pipeline-gen gate OK (Linux/macOS B-strict; Windows XLANG_WIN_BSTRICT=1 see run-bootstrap-bstrict-windows-gate)"
+echo "c03 no-pipeline-gen gate OK (archive DOC + crt0 script audit; Makefile retired)"

@@ -1,34 +1,51 @@
 #!/usr/bin/env bash
-# C-06：Makefile 默认 bootstrap/relink 仅链 *_x.o 前端，不链 C parser/typeck/codegen.o。
+# C-06：默认 bootstrap/relink 仅链 *_x.o 前端，不链 C parser/typeck/codegen.o。
 #
 # 用法：./tests/run-c06-x-frontend-default-gate.sh
 # 环境：XLANG_C06_FAIL=1 失败时硬退出
+#
+# wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
+# Makefile deleted MG wave941 → compiler/mk/driver_seed_composites.mk +
+# compiler/mk/driver_seed_mode_objs.mk（refuse resurrect）。
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_C06_FAIL:-0}
-MF="compiler/Makefile"
-DOC="analysis/phase-c-c06-v1.md"
+DOC="${XLANG_C06_DOC:-analysis/archive/phase/phase-c-c06-v1.md}"
+MK_COMPOSITES="${XLANG_C06_MK_COMPOSITES:-compiler/mk/driver_seed_composites.mk}"
+MK_MODE="${XLANG_C06_MK_MODE:-compiler/mk/driver_seed_mode_objs.mk}"
 
-echo "=== C-06: x frontend default (no C parser.o in DRIVER_SEED_OBJS) ==="
-for f in "$MF" "$DOC"; do
-  [ -f "$f" ] || { echo "c06 gate FAIL: missing $f" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-done
-
-grep -q 'C-06 v1' "$MF" || { echo "c06 gate FAIL: Makefile missing C-06 marker" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-grep -q 'DRIVER_SEED_X_FRONTEND_OBJS' "$MF" || { echo "c06 gate FAIL: missing DRIVER_SEED_X_FRONTEND_OBJS" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-grep -q 'runtime_driver_no_c.o' "$MF" || { echo "c06 gate FAIL: missing runtime_driver_no_c default" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-grep -q 'XLANG_LEGACY_C_FRONTEND' "$MF" || { echo "c06 gate FAIL: missing legacy escape hatch" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-grep -q 'ast_x.o:' "$MF" || { echo "c06 gate FAIL: missing ast_x.o alias" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-
-# DRIVER_SEED_OBJS 定义行不得直接含 C parser/typeck/codegen .o（须在 LEGACY 变量内）。
-if sed -n '/^DRIVER_SEED_OBJS =/,/^$/p' "$MF" | grep -qE 'src/parser/parser\.o|src/typeck/typeck\.o|src/codegen/codegen\.o'; then
-  echo "c06 gate FAIL: DRIVER_SEED_OBJS still embeds C frontend .o" >&2
+die() {
+  echo "c06 gate FAIL: $*" >&2
   [ "$FAIL" = "1" ] && exit 1
   exit 0
+}
+
+echo "=== C-06: x frontend default (no C parser.o in DRIVER_SEED_OBJS) ==="
+for f in "$DOC" "$MK_COMPOSITES" "$MK_MODE"; do
+  [ -f "$f" ] || die "missing $f"
+done
+
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use mk/driver_seed_*.mk + ./xbuild)"
 fi
 
-grep -q 'DRIVER_SEED_LINK_FLAGS' "$MF" || { echo "c06 gate FAIL: missing DRIVER_SEED_LINK_FLAGS" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-grep -q 'codegen_pipeline_stubs.o' "$MF" || { echo "c06 gate FAIL: missing codegen_pipeline_stubs for no-C path" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
+grep -q 'C-06' "$DOC" || die "doc missing C-06 marker"
+grep -q 'DRIVER_SEED_X_FRONTEND\|runtime_driver_no_c\|XLANG_LEGACY_C_FRONTEND' "$DOC" \
+  || die "doc missing C-06 completion anchors"
+grep -q 'DRIVER_SEED_X_FRONTEND_OBJS' "$MK_COMPOSITES" || die "missing DRIVER_SEED_X_FRONTEND_OBJS"
+grep -q 'runtime_driver_no_c.o' "$MK_MODE" || die "missing runtime_driver_no_c default"
+grep -q 'XLANG_LEGACY_C_FRONTEND' "$MK_MODE" || die "missing legacy escape hatch"
+grep -q 'DRIVER_SEED_FRONTEND_EXTRA' "$MK_MODE" || die "missing DRIVER_SEED_FRONTEND_EXTRA"
 
-echo "c06 x-frontend-default gate OK"
+# DRIVER_SEED_OBJS 不得直接含 C parser/typeck/codegen .o。
+if sed -n '/^DRIVER_SEED_OBJS =/,/^$/p' "$MK_COMPOSITES" | grep -qE 'src/parser/parser\.o|src/typeck/typeck\.o|src/codegen/codegen\.o'; then
+  die "DRIVER_SEED_OBJS still embeds C frontend .o"
+fi
+
+# Live x frontend objs must be present in the bag.
+grep -q 'lexer_x.o\|parser_x.o\|typeck_x.o\|codegen_x.o' "$MK_COMPOSITES" \
+  || die "mk missing *_x.o frontend objs"
+
+echo "c06 x-frontend-default gate OK (mk DRIVER_SEED + archive DOC)"

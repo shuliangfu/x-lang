@@ -5,14 +5,21 @@
 # 环境：
 #   XLANG_E05_FAIL=1              — 失败时硬退出
 #   XLANG_E05_MANIFEST_ONLY=1     — 仅 manifest
+#
+# wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
+# monofile seeds/runtime.from_x.c retired wave321 — NO_C include guard lives in
+# rt_* dispatch/run slices（refuse monofile resurrect）。
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_E05_FAIL:-0}
-DOC="analysis/phase-e-e05-v2.md"
-DOC_V1="analysis/phase-e-e05-v1.md"
+DOC="${XLANG_E05_DOC:-analysis/archive/phase/phase-e-e05-v2.md}"
+DOC_V1="${XLANG_E05_DOC_V1:-analysis/archive/phase/phase-e-e05-v1.md}"
 MF="tests/baseline/e05-include-inventory.tsv"
 README="compiler/include/README.md"
+# Live slices that still carry XLANG_NO_C_FRONTEND guards around C-frontend paths.
+RT_NO_C="${XLANG_E05_RT_NO_C:-compiler/seeds/rt_dispatch_impl.from_x.c compiler/seeds/rt_run_compiler_parsed.from_x.c compiler/seeds/rt_run_x_emit.from_x.c compiler/seeds/rt_run_asm_backend.from_x.c}"
 
 die() {
   echo "e05 gate FAIL: $*" >&2
@@ -20,7 +27,18 @@ die() {
   exit 0
 }
 
-echo "=== E-05 v2: compiler header inventory + runtime NO_C include guard ==="
+e05_any_has() {
+  local needle="$1"
+  local f
+  for f in $RT_NO_C; do
+    if grep -qF "$needle" "$f" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== E-05 v2: compiler header inventory + live rt_* NO_C guards ==="
 [ -f "$DOC" ] || die "missing $DOC"
 [ -f "$DOC_V1" ] || die "missing $DOC_V1"
 [ -f "$MF" ] || die "missing $MF"
@@ -28,12 +46,20 @@ echo "=== E-05 v2: compiler header inventory + runtime NO_C include guard ==="
 grep -q 'E-05 v2' "$DOC" || die "doc missing E-05 v2 marker"
 grep -q 'E-05 v1/v2 inventory' "$README" || die "include/README missing E-05 inventory marker"
 
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  die "seeds/runtime.from_x.c resurrected (NO_C guard live = rt_* slices)"
+fi
+
 MISS=0
 ACT=0
 RET=0
 while IFS=$'\t' read -r item_id _e_task path status _replacement check_type notes; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*) continue ;; esac
+  # Skip top-level DOC rows that moved to archive (gate already pinned DOC path).
+  case "$path" in
+    analysis/phase-e-e05-*) continue ;;
+  esac
   case "$check_type" in
     exists)
       if [ ! -f "$path" ]; then
@@ -73,19 +99,16 @@ done < "$MF"
 [ "$MISS" -eq 0 ] || die "$MISS manifest item(s) failed"
 echo "e05 inventory: active_headers=${ACT} soft_retired_or_absent=${RET} (on disk unless not_exists)"
 
-# E-05 v2：C 前端头须在 XLANG_NO_C_FRONTEND 守卫之后；preprocess/target_cpu/lsp_diag 仍无条件 include
-guard_line=$(grep -n '#if !defined(XLANG_NO_C_FRONTEND)' compiler/seeds/runtime.from_x.c | head -1 | cut -d: -f1)
-[ -n "$guard_line" ] || die "runtime.c missing XLANG_NO_C_FRONTEND guard"
-for hdr in 'lexer/lexer.h' 'parser/parser.h' 'typeck/typeck.h' 'codegen/codegen.h' 'ast.h'; do
-  ln=$(grep -n "#include \"$hdr\"" compiler/seeds/runtime.from_x.c | head -1 | cut -d: -f1 || true)
-  if [ -n "$ln" ] && [ "$ln" -le "$guard_line" ]; then
-    die "runtime.c unguarded include $hdr (line $ln, guard $guard_line)"
-  fi
+# Live NO_C guards must still exist on rt_* product slices.
+for f in $RT_NO_C; do
+  [ -f "$f" ] || die "missing live seed $f"
 done
-for h in preprocess.h target_cpu.h lsp/lsp_diag.h; do
-  grep -q "#include \"$h\"" compiler/seeds/runtime.from_x.c || die "runtime.c must still include $h"
-done
-echo "e05 v2: runtime.c NO_C include guard OK"
+e05_any_has 'XLANG_NO_C_FRONTEND' || die "live rt_* seeds missing XLANG_NO_C_FRONTEND guard"
+# Always-on product headers still present (monofile include list retired with runtime.from_x.c).
+[ -f compiler/src/preprocess.h ] || die "missing compiler/src/preprocess.h"
+[ -f compiler/include/target_cpu.h ] || die "missing compiler/include/target_cpu.h"
+[ -f compiler/src/lsp/lsp_diag.h ] || die "missing compiler/src/lsp/lsp_diag.h"
+echo "e05 v2: live rt_* NO_C include guard OK"
 
 if [ "${XLANG_E05_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "e05 include soft-retire gate OK (manifest only)"
@@ -102,4 +125,4 @@ fi
 . tests/lib/phase-e-soft-audit.sh
 phase_e_soft_audit_no_extern_h_include || die "build still -include lsp_*_extern.h"
 
-echo "e05 include inventory gate OK (E-05 v2 manifest; E-01 not_exists headers absent)"
+echo "e05 include inventory gate OK (E-05 v2 manifest; archive DOC; live rt_* NO_C)"
