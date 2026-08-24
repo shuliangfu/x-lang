@@ -4,6 +4,7 @@
 > 状态：**定版（v1）** — 与 `typeck.c` CTFE、`codegen.c` fold 输出对齐  
 > 关联：`LANG-001`（feature gate）、`COMP-004`（WPO const spec fold）、`tests/run-let-const.sh`
 > **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck.c/codegen.c retired — live CTFE = typeck_expr_is_const_with_module_consts / typeck_fold_expr in typeck.x; const_folded_valid in codegen.x + ast.h.
+> **Hard-green 2026-08-25:** C5 array-len coerce = `typeck_coerce_init_array_lit_to_len_int_decl` (let/const); goldens aligned to live bool/match-subject rules; gate runnable is hard-fail (no observational SKIP).
 
 ---
 
@@ -28,7 +29,7 @@
 | **C2-const-bind** | `const A=3; const B=A+2` 链式绑定 | `typeck.c` const 表 + `eval_const_int` | ✅ |
 | **C3-binop** | `+-*/%` 比较/逻辑/位运算/移位 | `is_const_expr` + `fold_expr` binop | ✅ |
 | **C4-unary** | `-` `~` `!` | `fold_expr` unary | ✅ |
-| **C5-array-len** | 数组字面量在 `i32` 上下文求值为元素个数 | `eval_const_int` `ARRAY_LIT` | ✅ |
+| **C5-array-len** | 数组字面量在 `i32` 上下文求值为元素个数 | `typeck_coerce_init_array_lit_to_len_int_decl` + fold `ARRAY_LIT` | ✅ |
 | **C6-codegen** | 折叠结果写入 `const_folded_valid/val` | `codegen.c` / `pipeline_glue.c` emit | ✅ |
 
 **求值模型**：
