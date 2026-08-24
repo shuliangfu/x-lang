@@ -73,14 +73,16 @@ SKIP=0
 echo "=== STD-086: config c smoke ==="
 # PLATFORM: SHARED — config.o needs short-name fs_open_read_c/fs_posix_read_c
 # (runtime_io_abi.o Track-L) + link_abi_getenv (runtime_link_abi_user_env.o for
-# env/process host getenv path). Do not invent a second fs_* ABI; link the live surface.
+# env host getenv path). Do not invent a second fs_* ABI; link the live surface.
+# Do NOT also link std/process/process.o + runtime_process_os_glue.o together:
+# Ubuntu GNU ld hard-fails on multiple definition (Darwin ld was permissive).
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/config/config.o ../std/env/env.o ../std/process/process.o \
-    runtime_process_argv.o runtime_process_os_glue.o runtime_env_os.o \
+  xlang_compiler_make ../std/config/config.o ../std/env/env.o \
+    runtime_process_argv.o runtime_env_os.o \
     src/runtime_io_abi.o runtime_link_abi_user_env.o >/dev/null 2>&1
   if cc -std=c11 -O1 -o /tmp/xlang_config_smoke \
-    "$SMOKE_C" std/config/config.o std/env/env.o std/process/process.o \
-    compiler/runtime_process_argv.o compiler/runtime_process_os_glue.o compiler/runtime_env_os.o \
+    "$SMOKE_C" std/config/config.o std/env/env.o \
+    compiler/runtime_process_argv.o compiler/runtime_env_os.o \
     compiler/src/runtime_io_abi.o compiler/runtime_link_abi_user_env.o 2>/tmp/xlang_config_smoke_link.err; then
     if /tmp/xlang_config_smoke >/dev/null 2>&1; then C_OK=1; fi
     rm -f /tmp/xlang_config_smoke

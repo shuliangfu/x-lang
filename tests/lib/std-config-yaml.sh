@@ -50,20 +50,22 @@ std_config_yaml_run_x_smoke() {
 std_config_yaml_run_c_smoke() {
   local cfg_o="$1"
   local env_o="$2"
-  local proc_o="$3"
+  # $3 was historically std/process/process.o — omit on the link line (Ubuntu multiple
+  # definition vs runtime_process_*); keep arg for call-site compat, unused.
+  local _proc_unused="${3:-}"
   local rpav_o="${4:-$(cd compiler && pwd)/runtime_process_argv.o}"
   # PLATFORM: SHARED — same short-name fs_* + link_abi_getenv surface as STD-086 c smoke.
+  # No process.o / runtime_process_os_glue.o (GNU ld multiple-definition on Ubuntu).
   local rio_o="${5:-$(cd compiler && pwd)/src/runtime_io_abi.o}"
   local getenv_o="${6:-$(cd compiler && pwd)/runtime_link_abi_user_env.o}"
-  local rpos_o="${7:-$(cd compiler && pwd)/runtime_process_os_glue.o}"
-  local renv_o="${8:-$(cd compiler && pwd)/runtime_env_os.o}"
+  local renv_o="${7:-$(cd compiler && pwd)/runtime_env_os.o}"
   local out="/tmp/xlang_std_config_yaml_c_$$"
   xlang_compiler_make -q runtime_process_argv.o src/runtime_io_abi.o runtime_link_abi_user_env.o \
-    runtime_process_os_glue.o runtime_env_os.o 2>/dev/null \
+    runtime_env_os.o 2>/dev/null \
     || xlang_compiler_make runtime_process_argv.o src/runtime_io_abi.o runtime_link_abi_user_env.o \
-         runtime_process_os_glue.o runtime_env_os.o 2>/dev/null || true
+         runtime_env_os.o 2>/dev/null || true
   cc -std=c11 -O1 -o "$out" tests/std-config/yaml_smoke_ok.c \
-    "$cfg_o" "$env_o" "$proc_o" "$rpav_o" "$rio_o" "$getenv_o" "$rpos_o" "$renv_o" 2>/dev/null || return 1
+    "$cfg_o" "$env_o" "$rpav_o" "$rio_o" "$getenv_o" "$renv_o" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1
   local ec=$?
