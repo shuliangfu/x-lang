@@ -324,6 +324,18 @@ export function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
   return neg2;
 }
 
+/** Surface short name `fs_open_read_c` (std.config / elf / driver import).
+ * @param path *u8 — NUL-terminated path; null rejected by std_fs_fs_open_read
+ * @return i32 — fd >= 0 on success, -1 on error
+ * Track-L: #[no_mangle] bare name — std/fs mangled export is std_fs_fs_open_read_c;
+ * consumers (config.x extern "C", elf.x) need the short C ABI name.
+ * Body: thin wrap of std_fs_fs_open_read (O_RDONLY). PLATFORM: SHARED link-name contract.
+ */
+#[no_mangle]
+export function fs_open_read_c(path: *u8): i32 {
+  return std_fs_fs_open_read(path);
+}
+
 /** Surface short name `fs_posix_close_c` (driver/pipeline import).
  * Params: fd — file descriptor.
  * Returns: close result.

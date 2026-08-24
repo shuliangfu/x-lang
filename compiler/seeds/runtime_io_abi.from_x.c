@@ -464,6 +464,12 @@ ssize_t std_fs_fs_write(int32_t fd, uint8_t * buf, size_t count) {
   return neg2;
 }
 
+/* Surface short name fs_open_read_c — twin of runtime_io_abi.x #[no_mangle].
+ * PLATFORM: SHARED — std/fs mangles to std_fs_fs_open_read_c; config/elf need bare name. */
+int32_t fs_open_read_c(uint8_t * path) {
+  return std_fs_fs_open_read(path);
+}
+
 int32_t fs_posix_close_c(int32_t fd) {
   return std_fs_fs_close(fd);
 }

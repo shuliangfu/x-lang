@@ -1457,8 +1457,12 @@ export function config_smoke_c(): i32 {
   let kind: i32 = 0;
   let label: u8[64] = [];
   let toml: u8[79] = [35, 32, 97, 112, 112, 10, 112, 111, 114, 116, 32, 61, 32, 56, 48, 56, 48, 10, 104, 111, 115, 116, 32, 61, 32, 34, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 10, 100, 101, 98, 117, 103, 32, 61, 32, 102, 97, 108, 115, 101, 10, 10, 91, 100, 98, 93, 10, 117, 114, 108, 32, 61, 32, 34, 115, 113, 108, 105, 116, 101, 58, 47, 47, 109, 101, 109, 34, 10, 0];
-  let env_key: u8[15] = [88, 76, 65, 78, 71, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103];
+  /* XLANG_CFG_debug + trailing NUL — setenv/getenv require a C string; without NUL
+   * the adjacent env_val bytes ("true") were concatenated into the key (smoke exit 7). */
+  let env_key: u8[16] = [88, 76, 65, 78, 71, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
   let env_val: u8[5] = [116, 114, 117, 101, 0];
+  /* "XLANG_CFG_" is 10 bytes; prefix_len must be 10 (was 9 → stripped key "_debug"
+   * and left TOML debug=false in place → get_bool dbg=0 / smoke exit 7). */
   let env_prefix: u8[11] = [88, 76, 65, 78, 71, 95, 67, 70, 71, 95, 0];
   let nr: i32 = 0;
   let ar: i32 = 0;
@@ -1470,7 +1474,7 @@ export function config_smoke_c(): i32 {
   if (config_get_string_c(base, &CFG_LIT_DB_URL[0], 6, &host[0], 64) <= 0) { return 4; }
   unsafe { if (strcmp(&host[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 5; } }
   if (config_smoke_setenv_c(&env_key[0], &env_val[0]) != 0) { return 6; }
-  if (config_load_env_prefix_c(base, &env_prefix[0], 9, 1) < 0) { return 6; }
+  if (config_load_env_prefix_c(base, &env_prefix[0], 10, 1) < 0) { return 6; }
   if (config_get_bool_c(base, &CFG_LIT_DEBUG[0], 5, &dbg) != CFG_OK || dbg != 1) { return 7; }
   if (config_get_source_c(base, &CFG_LIT_DEBUG[0], 5, &kind, &label[0], 64) != CFG_OK) { return 71; }
   if (kind != CFG_SRC_ENV) { return 72; }
