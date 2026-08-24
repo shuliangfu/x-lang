@@ -1,6 +1,6 @@
 # F-11 v1 完全自举发布清单 manifest
 # 列：item_id	kind	anchor	notes
-f11_doc	doc	analysis/phase-f-f11-v1.md	F-11 v1
+f11_doc	doc	analysis/archive/phase/phase-f-f11-v1.md	F-11 v1
 f11_gate	gate	tests/run-f11-selfhost-release-prep-gate.sh	专 gate
 selfhost_doc	doc	compiler/docs/SELFHOST.md	D+E+F
 d03_gate	gate_ref	tests/run-d03-stage2-hash-gate.sh	Stage2 哈希

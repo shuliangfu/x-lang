@@ -1,7 +1,7 @@
 # D-05 单 xlang 发布盘点（manifest）
 # 列：item_id	layer	anchor	check_type	gate_or_notes
-bstrict_cp	makefile	bootstrap-driver-bstrict	grep	cp xlang_asm to TARGET
-bootstrap_driver	makefile	bootstrap-driver	grep	alias bstrict
+bstrict_cp	xbuild	bootstrap-driver-bstrict	grep	xbuild bootstrap-driver-bstrict
+bootstrap_driver	xbuild	bootstrap-driver	grep	xbuild bootstrap-driver
 build_tool	doc	build.x	grep	build_tool ./xlang daily
 readme_daily	doc	README.md	grep	bootstrap-driver-bstrict daily
 selfhost_daily	doc	compiler/docs/SELFHOST.md	grep	D-05 daily xlang

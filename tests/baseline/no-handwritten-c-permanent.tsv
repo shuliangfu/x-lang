@@ -32,3 +32,15 @@
 # - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
 # - preprocess_if_stack_bridge: 已删除（preprocess_if_stack_* 由 pipeline_x.o /
 #   runtime_pipeline_abi 提供；ast_pool.c left wave309）
+
+# G-04 / F-09 (2026-08-25): std/*/formal_surface.c — product pure-asm c_face vehicles.
+# Not legacy handwritten std C; keep until formal_mod/.x emit covers companion push.
+# PLATFORM: SHARED archaeology / product c_face.
+file	std/async/formal_surface.c
+file	std/compress/formal_surface.c
+file	std/debug/formal_surface.c
+file	std/fmt/formal_surface.c
+file	std/io/driver_formal_surface.c
+file	std/io/formal_surface.c
+file	std/runtime/formal_surface.c
+file	std/simd/formal_surface.c

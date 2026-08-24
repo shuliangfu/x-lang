@@ -3,11 +3,14 @@
 #
 # 用法：./tests/run-f03-std-fs-gate.sh
 # 环境：XLANG_F03_FS_FAIL=1 — 失败时硬退出
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/;
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_F03_FS_FAIL:-0}
-DOC="analysis/phase-f-f03-v2-fs.md"
+DOC="${XLANG_F03_FS_DOC:-analysis/archive/phase/phase-f-f03-v2-fs.md}"
 
 die() {
   echo "f03-fs gate FAIL: $*" >&2
@@ -17,6 +20,10 @@ die() {
 
 echo "=== F-03 v2: std.fs remove fs.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 grep -q 'F-03 v2' "$DOC" || die "doc missing F-03 v2 marker"
 [ ! -f std/fs/fs.c ] || die "fs.c should be deleted"
 [ -f std/fs/posix.x ] || die "missing posix.x"
@@ -27,11 +34,15 @@ grep -q 'fs_mmap_ro_c' std/fs/win32.x || die "fs_win32 missing fs_mmap_ro_c"
 if grep -q 'extern function fs_open_read_c' std/fs/mod.x 2>/dev/null; then
   die "mod.x still extern fs_open_read_c (should forward to platform)"
 fi
-if grep -q '../std/fs/fs.o' compiler/Makefile 2>/dev/null; then
-  die "Makefile still references ../std/fs/fs.o"
+# F-03 = delete fs.c; formal std/fs/fs.o may remain in labi on-demand plan
+# (LABI_STD_OP_STD). Align with F-06: forbid argv0 always-resolve of legacy path.
+# PLATFORM: SHARED archaeology / link_abi.
+LINK_ABI="compiler/seeds/runtime_link_abi.from_x.c"
+if grep -q 'xlang_rel_o_path_from_argv0(argv\[0\], "std/fs/fs.o")' "$LINK_ABI" 2>/dev/null; then
+  die "runtime_link_abi still always-resolves std/fs/fs.o (legacy F-06)"
 fi
-if grep -q 'std/fs/fs.o' compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
-  die "runtime_link_abi.inc still pushes std/fs/fs.o"
+if grep -q 'link_abi_asm_ld_push_obj.*std/fs/fs\.o' "$LINK_ABI" 2>/dev/null; then
+  die "runtime_link_abi still unconditionally push_obj std/fs/fs.o"
 fi
 grep -q 'have_fs' compiler/src/runtime_link_abi.h || die "runtime_link_abi.h missing have_fs"
 

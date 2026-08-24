@@ -3,11 +3,16 @@
 #
 # 用法：./tests/run-f07-no-cc-std-migrated-gate.sh
 # 环境：XLANG_F07_NO_CC_MIGRATED_FAIL=1 — 失败时硬退出
+#
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/；
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_F07_NO_CC_MIGRATED_FAIL:-0}
-DOC="analysis/phase-f-f07-v1.md"
+DOC="${XLANG_F07_DOC:-analysis/archive/phase/phase-f-f07-v1.md}"
+DOC_V2="${XLANG_F07_DOC_V2:-analysis/archive/phase/phase-f-f07-v2.md}"
 MANIFEST="tests/baseline/f07-no-cc-std-migrated.tsv"
 BUILD_STD="tests/lib/build-std-c-o.sh"
 
@@ -19,9 +24,16 @@ die() {
 
 echo "=== F-07 v1: forbid cc -c migrated std modules ==="
 [ -f "$DOC" ] || die "missing $DOC"
+[ -f "$DOC_V2" ] || die "missing $DOC_V2"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 grep -q 'F-07 v1' "$DOC" || die "doc missing F-07 v1 marker"
+grep -q 'F-07 v2' "$DOC_V2" || die "phase-f-f07-v2.md missing marker"
 grep -q '_std_c_o_forbidden_migrated' "$BUILD_STD" || die "build-std-c-o.sh missing F-07 guard"
+
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 
 # .c 源文件须已删除
 for c in std/io/io.c std/fs/fs.c std/heap/heap.c std/compress/compress.c \
@@ -61,13 +73,6 @@ while IFS= read -r f; do
     die "$f still ensure_std_c_o migrated module"
   fi
 done < <(find tests -name '*.sh' 2>/dev/null)
-
-# Makefile 不得含 migrated .c 规则（F-03/F-04/F-14 已删源文件）
-if grep -qE '\.\./std/(io/io|fs/fs|heap/heap|compress/compress|net/net)\.c' compiler/Makefile 2>/dev/null; then
-  die "compiler/Makefile still references migrated std/*.c"
-fi
-[ -f analysis/phase-f-f07-v2.md ] || die "missing phase-f-f07-v2.md"
-grep -q 'F-07 v2' analysis/phase-f-f07-v2.md || die "phase-f-f07-v2.md missing marker"
 
 if [ -f tests/run-f06-runtime-std-o-cleanup-gate.sh ]; then
   echo "=== F-07 v1: delegate run-f06-runtime-std-o-cleanup-gate ==="

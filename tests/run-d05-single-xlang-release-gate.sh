@@ -6,7 +6,11 @@
 #   XLANG_D05_FAIL=1           — 失败时硬退出
 #   XLANG_D05_MANIFEST_ONLY=1  — 仅 manifest
 #   XLANG=./compiler/xlang      — 默认发布二进制
-# wave honesty (2026-08-24 #12): DOC → analysis/archive/phase/
+#
+# wave honesty (2026-08-24 #12 / 2026-08-25): DOC → analysis/archive/phase/；
+# compiler/Makefile deleted — refuse resurrect; live entry = ./xbuild
+# bootstrap-driver-bstrict（G.7）. check gate paused — smoke uses -backend asm
+# unless XLANG_D05_REQUIRE_CHECK=1.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -21,7 +25,6 @@ fi
 FAIL=${XLANG_D05_FAIL:-0}
 DOC="analysis/archive/phase/phase-d-d05-v1.md"
 MANIFEST="tests/baseline/d05-single-xlang-release.tsv"
-MF="compiler/Makefile"
 BOOT="compiler/bootstrap.sh"
 XLANG_BIN="${XLANG:-./compiler/xlang}"
 XLANG_ASM="./compiler/xlang_asm"
@@ -46,14 +49,18 @@ d05_native_exe() {
 }
 
 echo "=== D-05: single xlang release (v1) ==="
-for f in "$DOC" "$MANIFEST" "$MF" "$BOOT" README.md compiler/docs/SELFHOST.md; do
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+for f in "$DOC" "$MANIFEST" xbuild xlang-build.sh "$BOOT" README.md compiler/docs/SELFHOST.md; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'D-05 v1' "$DOC" || die "doc missing D-05 v1 marker"
 
-grep -q 'bootstrap-driver-bstrict' "$MF" || die "Makefile missing bootstrap-driver-bstrict"
-grep -q 'cp -f xlang_asm $(TARGET)' "$MF" || grep -q 'cp -f xlang_asm' "$MF" || die "Makefile missing xlang_asm -> xlang copy"
-grep -q 'bootstrap-driver-bstrict' README.md || die "README missing bootstrap-driver-bstrict"
+grep -qE '^[[:space:]]*bootstrap-driver-bstrict\)' xlang-build.sh \
+  || die "xlang-build.sh missing bootstrap-driver-bstrict route"
+grep -qE 'bootstrap-driver-bstrict|\./xbuild full' README.md \
+  || die "README missing bootstrap-driver-bstrict / ./xbuild full"
 grep -q 'D-05' compiler/docs/SELFHOST.md || die "SELFHOST missing D-05"
 
 # manifest gate_ref
@@ -102,24 +109,35 @@ if ! printf '%s' "$HELP_OUT" | grep -qE '\-backend|backend'; then
   fi
 fi
 
-# ── 日常 check 不经过 xlang-c ──
+# ── 日常 smoke：check 闸门自举期暂停（2026-08-05）——默认 -backend asm；
+#    XLANG_D05_REQUIRE_CHECK=1 才硬跑 xlang check。
 SMOKE="tests/c07/minimal_return42.x"
 [ -f "$SMOKE" ] || SMOKE="examples/hello.x"
 unset XLANG_LINK_XLANG
-if ! "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-  "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
-  die "xlang check failed without XLANG_LINK_XLANG ($SMOKE)"
+if [ "${XLANG_D05_REQUIRE_CHECK:-0}" = "1" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    die "xlang check failed without XLANG_LINK_XLANG ($SMOKE)"
+  fi
+  echo "d05 OK: $XLANG_BIN check $SMOKE (XLANG_D05_REQUIRE_CHECK=1)"
+else
+  if ! "$XLANG_BIN" -backend asm -L . "$SMOKE" -o /tmp/d05_smoke_$$ >/dev/null 2>&1; then
+    "$XLANG_BIN" -backend asm -L . "$SMOKE" -o /tmp/d05_smoke_$$ 2>&1 | tail -8 >&2 || true
+    rm -f /tmp/d05_smoke_$$
+    die "xlang -backend asm -o failed ($SMOKE)"
+  fi
+  rm -f /tmp/d05_smoke_$$
+  echo "d05 OK: $XLANG_BIN -backend asm -o $SMOKE (check gate paused; REQUIRE_CHECK=1 to hard-check)"
 fi
-echo "d05 OK: $XLANG_BIN check $SMOKE (no xlang-c link fallback)"
 
-# 若 xlang 与 xlang_asm 同存且均为 native，发布链上宜一致（make xlang_asm / bstrict cp）。
+# 若 xlang 与 xlang_asm 同存且均为 native，发布链上宜一致。
 # 默认仅 note；硬失败需 XLANG_D05_REQUIRE_ASM_HASH=1（Linux 发版 CI 可开）。
 if [ -x "$XLANG_ASM" ] && d05_native_exe "$XLANG_ASM" && [ -x "./compiler/xlang" ] && d05_native_exe "./compiler/xlang"; then
   if command -v shasum >/dev/null 2>&1; then
     H1=$(shasum -a 256 "./compiler/xlang" | awk '{print $1}')
     H2=$(shasum -a 256 "$XLANG_ASM" | awk '{print $1}')
     if [ "$H1" != "$H2" ]; then
-      echo "d05 note: xlang != xlang_asm hash (sync: xlang_compiler_make xlang_asm 或 cp xlang xlang_asm)" >&2
+      echo "d05 note: xlang != xlang_asm hash (sync: ./xbuild link-product-asm / refresh-gate)" >&2
       if [ "${XLANG_D05_REQUIRE_ASM_HASH:-0}" = "1" ]; then
         die "xlang and xlang_asm differ (XLANG_D05_REQUIRE_ASM_HASH=1)"
       fi

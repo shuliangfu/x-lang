@@ -1,6 +1,6 @@
 # F-04 v21：std.crypto 模块闭合 manifest
 # 列：item_id	kind	anchor	notes
-doc	doc	analysis/phase-f-f04-v21-closure.md	F-04 v21
+doc	doc	analysis/archive/phase/phase-f-f04-v21-closure.md	F-04 v21
 gate	gate	tests/run-f04-std-crypto-closure-gate.sh	v21 聚合
 deleted_crypto_c	absent	std/crypto/crypto.c	v16 删除
 deleted_aes_inc	absent	std/crypto/aes_gcm.inc.c	v17 删除

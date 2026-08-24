@@ -487,6 +487,8 @@ On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates)
 - **Not** “soft pure-asm std residual ladder complete” — queue closed; fmt／unicode／compress／debug… still open on tip
 - Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
+**Full self-host (D+E+F):** Stage **D** (Stage2 freestanding / parity) + **E** (compiler tree no C/H on the product path) + **F** (Phase F: repo `std/` / product surface no handwritten C). Stage2 alone is **not** full self-host. Authority: [SELFHOST.md](compiler/docs/SELFHOST.md).
+
 Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时序.md](analysis/自举时序.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 
 ### Near-term front row

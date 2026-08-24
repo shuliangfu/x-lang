@@ -44,8 +44,6 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-  die "Makefile still references std/uuid/uuid.c"
-fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/uuid/uuid.o >/dev/null 2>&1 || die "ensure uuid.o failed (xlang_compiler_make)"

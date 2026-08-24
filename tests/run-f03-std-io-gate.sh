@@ -3,11 +3,14 @@
 #
 # 用法：./tests/run-f03-std-io-gate.sh
 # 环境：XLANG_F03_IO_FAIL=1 — 失败时硬退出
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/;
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_F03_IO_FAIL:-0}
-DOC="analysis/phase-f-f03-v2-io.md"
+DOC="${XLANG_F03_IO_DOC:-analysis/archive/phase/phase-f-f03-v2-io.md}"
 BACKEND="std/io/backend.x"
 CORE="std/io/core.x"
 
@@ -19,6 +22,10 @@ die() {
 
 echo "=== F-03 v2/v3: std.io remove io.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 grep -q 'F-03 v2/v3' "$DOC" || die "doc missing F-03 v2/v3 marker"
 [ ! -f std/io/io.c ] || die "io.c should be deleted"
 [ -f std/io/sync.x ] || die "missing sync.x"
@@ -31,9 +38,7 @@ grep -q 'import("std.io.backend")' "$CORE" || die "core.x missing backend import
 if grep -q 'extern function io_read' "$CORE" 2>/dev/null; then
   die "core.x still extern io_read"
 fi
-if grep -q '../std/io/io.o' compiler/Makefile 2>/dev/null; then
-  die "Makefile still references ../std/io/io.o"
-fi
+# MG: Makefile deleted — resurrect check above covers this fossil.
 if grep -q 'link_abi_asm_ld_push_obj.*std/io/io.o' compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
   die "runtime_link_abi.inc still pushes std/io/io.o"
 fi

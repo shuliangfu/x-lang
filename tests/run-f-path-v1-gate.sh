@@ -44,8 +44,6 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-  die "Makefile still references std/path/path.c"
-fi
 grep -qE 'function sep\(' std/path/mod.x || die "mod.x missing sep"
 grep -q 'extern function sep' std/path/mod.x && die "mod.x still extern sep"
 

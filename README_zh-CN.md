@@ -487,6 +487,8 @@ xlang/
 - **未**宣称 soft pure-asm std residual 梯已全绿 — queue 已收；fmt／unicode／compress／debug… 仍开
 - 终局物理零 C / 彻底去掉 seed（**G**）仍在路线图，不是本周叙事
 
+**完全自举（D+E+F）：** 阶段 **D**（Stage2 freestanding／parity）+ **E**（编译器产品路径无 C/H）+ **F**（阶段 F：仓库 `std/`／产品面无手写 C）。仅 Stage2 **不等于**完全自举。权威：[SELFHOST.md](compiler/docs/SELFHOST.md)。
+
 方法：[自举方法.md](analysis/自举方法.md) · 时序：[自举时序.md](analysis/自举时序.md) · 运维：[SELFHOST.md](compiler/docs/SELFHOST.md) · 纪律：[AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`。
 
 ### 近端前排

@@ -3,11 +3,14 @@
 #
 # 用法：./tests/run-f03-std-heap-ops-gate.sh
 # 环境：XLANG_F03_HEAP_OPS_FAIL=1 — 失败时硬退出
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/;
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_F03_HEAP_OPS_FAIL:-0}
-DOC="analysis/phase-f-f03-v1.md"
+DOC="${XLANG_F03_HEAP_OPS_DOC:-analysis/archive/phase/phase-f-f03-v1.md}"
 
 die() {
   echo "f03-heap-ops gate FAIL: $*" >&2
@@ -17,6 +20,10 @@ die() {
 
 echo "=== F-03 v1: std.heap heap_ops remove C algorithms ==="
 [ -f "$DOC" ] || die "missing $DOC"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 grep -q 'F-03 v1' "$DOC" || die "doc missing F-03 v1 marker"
 [ -f std/heap/ops.x ] || die "missing ops.x"
 grep -q 'heap_mem_set_c' std/heap/ops.x || die "heap_ops missing heap_mem_set_c"

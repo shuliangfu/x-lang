@@ -1,6 +1,6 @@
 # F-12 v1 文档口径统一 manifest
 # 列：item_id	kind	anchor	notes
-f12_doc	doc	analysis/phase-f-f12-v1.md	F-12 v1
+f12_doc	doc	analysis/archive/phase/phase-f-f12-v1.md	F-12 v1
 f12_gate	gate	tests/run-f12-selfhost-doc-unified-gate.sh	专 gate
 selfhost_doc	doc	compiler/docs/SELFHOST.md	D+E+F
 readme	doc	README.md	自举表

@@ -4,10 +4,14 @@
 # v2（2026-07-10）：不再串跑 65 个 F-std 历史子 gate（.sx 路径债 / make *.o 债）；
 # 发版硬门槛改为：manifest + D-05 单 xlang + E-soft（G-02a hard_retired）+ F-09 STRICT +
 # D-03/D-04（有 stage 产物时；Darwin 上 N/A）。
+#
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/；
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${XLANG_F11_SELFHOST_RELEASE_PREP_FAIL:-0}
-DOC="analysis/phase-f-f11-v1.md"
+DOC="${XLANG_F11_DOC:-analysis/archive/phase/phase-f-f11-v1.md}"
 MANIFEST="tests/baseline/f11-selfhost-release-prep.tsv"
 die() { echo "f11-selfhost-release-prep gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 
@@ -15,6 +19,10 @@ echo "=== F-11 / G-07: selfhost release prep checklist ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-11 v1' "$DOC" || die "doc marker"
 grep -q 'vX.Y.Z-selfhost' "$DOC" || die "doc missing tag format"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 while IFS=$'\t' read -r item_id kind anchor _n; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*) continue ;; esac

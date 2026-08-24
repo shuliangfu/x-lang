@@ -11,4 +11,4 @@ zstd	std/compress/zstd/zstd.c	std/compress/zstd/zstd.o	F-04 v7
 net	std/net/net.c	std/net/net.o	F-04 v14
 guard_script	script	tests/lib/build-std-c-o.sh	grep	F-07 forbidden guard
 f06_gate	gate_ref	tests/run-f06-runtime-std-o-cleanup-gate.sh	gate_ref	F-06 bootstrap cleanup
-doc	doc	analysis/phase-f-f07-v1.md	grep	F-07 v1
+doc	doc	analysis/archive/phase/phase-f-f07-v1.md	grep	F-07 v1

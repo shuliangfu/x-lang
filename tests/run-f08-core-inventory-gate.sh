@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
-# F-08 v1：core/ 手写 C 存量确认（4 文件 + mod.x + 专 gate）。
+# F-08 v1：core/ 手写 C 存量确认（零 core .c + mod.x + 专 gate）。
+#
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/；
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${XLANG_F08_CORE_INVENTORY_FAIL:-0}
-DOC="analysis/phase-f-f08-v1.md"
+DOC="${XLANG_F08_DOC:-analysis/archive/phase/phase-f-f08-v1.md}"
 MANIFEST="tests/baseline/f08-core-inventory.tsv"
 die() { echo "f08-core-inventory gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 
 echo "=== F-08 v1: core/ handwritten C inventory ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-08 v1' "$DOC" || die "doc marker"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 CORE_N=0
 while IFS=$'\t' read -r item_id kind anchor _n; do
   [ -z "${item_id:-}" ] && continue

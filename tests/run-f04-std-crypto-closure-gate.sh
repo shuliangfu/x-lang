@@ -3,13 +3,16 @@
 #
 # 用法：./tests/run-f04-std-crypto-closure-gate.sh
 # 环境：XLANG_F04_CRYPTO_CLOSURE_FAIL=1 — 失败时硬退出
+# wave honesty (2026-08-25): DOC → analysis/archive/phase/;
+# compiler/Makefile deleted — refuse resurrect (use ./xbuild).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F04_CRYPTO_CLOSURE_FAIL:-0}
-DOC="analysis/phase-f-f04-v21-closure.md"
+DOC="${XLANG_F04_DOC:-analysis/archive/phase/phase-f-f04-v21-closure.md}"
 MANIFEST="tests/baseline/f04-std-crypto-closure.tsv"
 
 die() {
@@ -20,6 +23,10 @@ die() {
 
 echo "=== F-04 v21: std.crypto module closure ==="
 [ -f "$DOC" ] || die "missing $DOC"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
 grep -q 'F-04 v21' "$DOC" || die "doc missing F-04 v21 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 
