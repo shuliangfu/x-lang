@@ -19,6 +19,7 @@ build_asm_min_text_save_bytes	12000
 #   非 recompile twin；勿降到 7611 否则 o-gate min_save 与 fast-path on<off 双破）
 main_dce_off_text	2234
 driver_dce_off_text	12934
-pipeline_dce_off_text	11588
+# post-wave335: pipeline_wpo from runtime_pipeline_abi.x (~800KiB tip); was 11588 pipeline.x-body era
+pipeline_dce_off_text	900000
 typeck_dce_off_text	105821
 backend_dce_off_text	4941

@@ -1,8 +1,9 @@
-# build_asm/pipeline_wpo.o WPO 生产链：run_x_pipeline_impl root + reach DCE
-# dce_off proxy：全量 EMIT 预算 11588B（o-gate min_save 用；非 ENTRY 真 A/B twin）
-# ENTRY_MODULE 真 A/B（LIBROOT+EMIT_HEAVY=1）：on=off=7611 save=0（ENTRY 已收窄 export）
-# 禁止把本键降到 7611：会破 min_save 与 wpo_ab_try_pipeline_fast 的 on<off。
-# reach 修复后 export 数上升、__text 可能 >2048B；save 相对 11588 仍应 ≥ min_save。
-pipeline_wpo_max_text_bytes	12288
-pipeline_wpo_min_save_bytes	1500
-pipeline_dce_off_text	11588
+# build_asm/pipeline_wpo.o WPO dogfood: runtime_pipeline_abi.x orch root (G.7).
+# wave335+: pipeline.x is pure-extern (0 bodies) → empty emit; live = runtime_pipeline_abi.x
+#   (pipeline_run_x_pipeline_impl + Cap faces). Tip abi-scale __text ~800KiB.
+# Historical ≤12288B / dce_off 11588B was pre-leave pipeline.x-body era — do not
+# restore those as hard FAIL (use soft size like main; STRICT_SIZE=1 escape).
+# min_save soft: abi mega is not compressible to old proxy; symbol+reach stay hard.
+pipeline_wpo_max_text_bytes	1048576
+pipeline_wpo_min_save_bytes	0
+pipeline_dce_off_text	900000

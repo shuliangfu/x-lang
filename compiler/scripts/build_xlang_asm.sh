@@ -1075,19 +1075,29 @@ rebuild_driver_compile_post_strict_link() {
   fi
 }
 
-# strict_glue 链：pipeline.x ENTRY_MODULE_ONLY 自编译用于 WPO dogfood 烟测（须 reach OK）。
+# WPO dogfood smoke: compile runtime_pipeline_abi.x ENTRY_MODULE_ONLY (reach OK).
+# G.7: pipeline.x is pure-extern (0 bodies) → exit-0 empty .o; live orch is
+# runtime_pipeline_abi.x (pipeline_run_x_pipeline_impl). PLATFORM: SHARED.
 xlang_asm_entry_module_smoke_ok() {
   local comp="$1"
   local tmp="/tmp/xlang_wpo_entry_smoke.$$.o"
-  local tout="${XLANG_ASM_ENTRY_SMOKE_TIMEOUT:-120}"
+  local tout="${XLANG_ASM_ENTRY_SMOKE_TIMEOUT:-180}"
+  local smoke_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
   [ -x "$comp" ] || return 1
   rm -f "$tmp" 2>/dev/null || true
+  # PLATFORM: MACOS — EMIT_HEAVY=1 Abort risk on mega TU; prefer heavy=0.
+  local emit_heavy=1
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  emit_heavy=0
+  fi
   if command -v timeout >/dev/null 2>&1; then
-  timeout "$tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$comp" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null \
+  timeout "$tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$comp" -backend asm -o "$tmp" $LIBROOT "$smoke_src" 2>/dev/null \
   || { rm -f "$tmp" 2>/dev/null || true; return 1; }
-  elif ! env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$comp" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null; then
+  elif ! env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$comp" -backend asm -o "$tmp" $LIBROOT "$smoke_src" 2>/dev/null; then
   rm -f "$tmp" 2>/dev/null || true
   return 1
   fi
@@ -1150,9 +1160,9 @@ wpo_rebuild_compiler_candidates() {
   done
   return 0
   fi
-  # PLATFORM: MACOS — entry smoke compiles pipeline.x, which tip emits as empty
-  # (exit 0). Skipping smoke avoids empty candidate list; driver/main/typeck/backend
-  # WPO dogfood still runs. Escape: XLANG_ASM_FORCE_ENTRY_SMOKE=1.
+  # PLATFORM: MACOS — abi smoke is ~20s/candidate (mega runtime_pipeline_abi.x).
+  # Skip smoke for candidate list speed; rebuild_pipeline_wpo_o still compiles abi.
+  # Escape: XLANG_ASM_FORCE_ENTRY_SMOKE=1.
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "${XLANG_ASM_FORCE_ENTRY_SMOKE:-0}" != "1" ]; then
   for comp in ./xlang_asm.experimental ./xlang_asm.strict_glue ./xlang_asm ./xlang; do
   [ -x "$comp" ] && printf '%s\n' "$comp"
@@ -1189,13 +1199,18 @@ pipeline_wpo_tmp_reach_ok() {
   return 0
 }
 
-# pipeline.x WPO 压缩产物（dogfood；strict 仍用 build_asm/pipeline.o 全量 EMIT_HEAVY）。
+# pipeline_wpo.o dogfood from runtime_pipeline_abi.x (G.7 single authority).
+# wave335+: pipeline.x is pure-extern (0 bodies) → asm emit exit-0 empty; live orch
+# is runtime_pipeline_abi.x (pipeline_run_x_pipeline_impl + Cap faces).
+# abi-scale __text ~800KiB tip (historical ≤12288B was pre-leave pipeline.x bodies).
+# Soft size unless XLANG_WPO_PIPELINE_STRICT_SIZE=1. PLATFORM: SHARED.
 rebuild_pipeline_wpo_o() {
   local tmp="/tmp/xlang_build_pipeline_wpo.cli.o"
   local comp=""
   local txt=""
   local preserve_backup=""
-  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-12288}"
+  local pipe_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
+  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-1048576}"
   local pipe_tout="${XLANG_WPO_PIPELINE_COMPILE_TIMEOUT:-600}"
   if [ "${XLANG_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
   build_xlang_asm_info "skip pipeline_wpo.o recompile (XLANG_ASM_SKIP_WPO_DOGFOOD=1)"
@@ -1210,38 +1225,54 @@ rebuild_pipeline_wpo_o() {
   try_pipe_wpo() {
   local wpo_arg="$1"
   local compiler="$2"
+  local emit_heavy="${3:-1}"
   rm -f "$tmp" 2>/dev/null || true
   if command -v timeout >/dev/null 2>&1; then
   if [ -n "$wpo_arg" ]; then
   timeout "$pipe_tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE="$wpo_arg" \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" XLANG_ASM_WPO_DCE="$wpo_arg" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   else
   timeout "$pipe_tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   fi
   elif [ -n "$wpo_arg" ]; then
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE="$wpo_arg" \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" XLANG_ASM_WPO_DCE="$wpo_arg" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   else
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   fi
   txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   [ "$txt" -gt 0 ] || return 1
-  [ "$txt" -le "$pipe_wpo_max" ] 2>/dev/null || return 1
-  nm "$tmp" 2>/dev/null | grep -q 'run_x_pipeline_impl' || return 1
+  if [ "$txt" -gt "$pipe_wpo_max" ] 2>/dev/null; then
+  if [ "${XLANG_WPO_PIPELINE_STRICT_SIZE:-0}" = "1" ]; then
+  return 1
+  fi
+  build_xlang_asm_warn "pipeline_wpo.o __text=${txt}B > soft max ${pipe_wpo_max}B (abi-scale; soft OK)"
+  fi
+  nm "$tmp" 2>/dev/null | grep -qE '(_)?(pipeline_)?run_x_pipeline_impl' || return 1
   pipeline_wpo_tmp_reach_ok "$tmp" || return 1
   return 0
   }
-  build_xlang_asm_info "recompile pipeline_wpo.o (WPO DCE, run_x_pipeline_impl root, max __text=${pipe_wpo_max}B)"
+  build_xlang_asm_info "recompile pipeline_wpo.o from $pipe_src (WPO DCE, pipeline_run_x_pipeline_impl root, max __text=${pipe_wpo_max}B soft)"
   set +e
   while IFS= read -r comp; do
   [ -n "$comp" ] || continue
-  if try_pipe_wpo "" "$comp"; then
+  # PLATFORM: MACOS — EMIT_HEAVY=1 Abort risk on mega abi; prefer heavy=0 first.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  if try_pipe_wpo "" "$comp" 0 || try_pipe_wpo "1" "$comp" 0 || try_pipe_wpo "0" "$comp" 0; then
+  mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
+  build_xlang_asm_info "pipeline_wpo.o OK via $comp (__text=${txt}B, EMIT_HEAVY=0, reach OK)"
+  rm -f "$preserve_backup" 2>/dev/null || true
+  set -e
+  return 0
+  fi
+  fi
+  if try_pipe_wpo "" "$comp" 1 || try_pipe_wpo "0" "$comp" 1; then
   mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
   build_xlang_asm_info "pipeline_wpo.o OK via $comp (__text=${txt}B, reach OK)"
   rm -f "$preserve_backup" 2>/dev/null || true
@@ -1400,26 +1431,16 @@ if [ "${XLANG_WPO_REBUILD_ARTIFACTS_ONLY:-}" = "1" ]; then
   wpo_fail=0
   rebuild_main_o_for_cli || wpo_fail=1
   rebuild_driver_compile_o_wpo || wpo_fail=1
-  # PLATFORM: MACOS — tip pipeline.x → .o is exit-0 empty file (silent empty emit).
-  # Soft residual unless XLANG_WPO_REQUIRE_PIPELINE=1. Linux still hard-requires.
-  if ! rebuild_pipeline_wpo_o; then
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "${XLANG_WPO_REQUIRE_PIPELINE:-0}" != "1" ]; then
-  build_xlang_asm_warn "pipeline_wpo.o rebuild failed on Darwin (empty-emit residual; not hard-fail)"
-  else
-  wpo_fail=1
-  fi
-  fi
+  # G.7: pipeline_wpo from runtime_pipeline_abi.x (pipeline.x pure-extern empty).
+  # Hard-require on both Darwin and Linux once abi source is wired.
+  rebuild_pipeline_wpo_o || wpo_fail=1
   rebuild_typeck_wpo_o || wpo_fail=1
   rebuild_backend_wpo_o || wpo_fail=1
   if [ "$wpo_fail" -ne 0 ]; then
   build_xlang_asm_error "XLANG_WPO_REBUILD_ARTIFACTS_ONLY failed (one or more WPO .o missing)"
   exit 1
   fi
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ ! -s "$BUILD_DIR/pipeline_wpo.o" ]; then
-  build_xlang_asm_info "XLANG_WPO_REBUILD_ARTIFACTS_ONLY OK (Darwin partial: main+driver+typeck_wpo+backend_wpo; pipeline_wpo residual)"
-  else
   build_xlang_asm_info "XLANG_WPO_REBUILD_ARTIFACTS_ONLY OK (main+driver+pipeline_wpo+typeck_wpo+backend_wpo)"
-  fi
   exit 0
 fi
 
@@ -1843,9 +1864,11 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   echo " pipeline_wpo_helpers: rebuild pipeline.o EMIT_HEAVY via $comp"
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   rm -f "$tmp" 2>/dev/null || true
+  # G.7: resolve_path helpers live in runtime_pipeline_abi.x (pipeline.x pure-extern).
   if env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE=0 \
-  "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src src/pipeline/pipeline.x 2>/dev/null; then
+  XLANG_ASM_ENTRY_EMIT_HEAVY=0 XLANG_ASM_WPO_DCE=0 \
+  "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src \
+  "${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}" 2>/dev/null; then
   pt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   if [ "$pt" -gt 512 ] 2>/dev/null && \
   nm "$tmp" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then

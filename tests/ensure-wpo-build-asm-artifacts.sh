@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # S5：确保 build_asm 五模块 WPO dogfood 产物齐全（main + driver + pipeline_wpo + typeck_wpo + backend_wpo）。
 # 在 bootstrap-driver-bstrict / chain gate 前调用；缺文件时用 ./xlang_asm 快速重编（跳过全量 BUILD 循环）。
+# G.7: pipeline_wpo from runtime_pipeline_abi.x (pipeline.x pure-extern empty).
 # 用法：
 #   ./tests/ensure-wpo-build-asm-artifacts.sh
 #   XLANG_WPO_ENSURE_FAIL=1 ./tests/ensure-wpo-build-asm-artifacts.sh
@@ -12,18 +13,14 @@ FAIL=${XLANG_WPO_ENSURE_FAIL:-1}
 COMPILER="${XLANG_WPO_ENSURE_COMPILER:-./compiler/xlang_asm}"
 UNAME_S="$(uname -s 2>/dev/null || echo unknown)"
 
-# PLATFORM: MACOS — tip pipeline.x asm emit is exit-0 empty (residual next knife).
-# Hard-require main/driver/typeck_wpo/backend_wpo; pipeline_wpo soft unless
-# XLANG_WPO_REQUIRE_PIPELINE=1. PLATFORM: LINUX — all five hard-required.
+# PLATFORM: SHARED — all five hard-required after abi retarget (Darwin + Linux).
 required_o=(
   main.o
   driver_compile.o
+  pipeline_wpo.o
   typeck_wpo.o
   backend_wpo.o
 )
-if [ "$UNAME_S" != "Darwin" ] || [ "${XLANG_WPO_REQUIRE_PIPELINE:-0}" = "1" ]; then
-  required_o+=(pipeline_wpo.o)
-fi
 
 missing=()
 for o in "${required_o[@]}"; do
@@ -33,11 +30,7 @@ for o in "${required_o[@]}"; do
 done
 
 if [ "${#missing[@]}" -eq 0 ]; then
-  if [ "$UNAME_S" = "Darwin" ] && { [ ! -f "$BUILD_ASM/pipeline_wpo.o" ] || [ ! -s "$BUILD_ASM/pipeline_wpo.o" ]; }; then
-    echo "ensure-wpo-build-asm-artifacts OK (Darwin partial 4/5; pipeline_wpo empty-emit residual)"
-  else
-    echo "ensure-wpo-build-asm-artifacts OK (all ${#required_o[@]} artifacts present under $BUILD_ASM)"
-  fi
+  echo "ensure-wpo-build-asm-artifacts OK (all ${#required_o[@]} artifacts present under $BUILD_ASM)"
   exit 0
 fi
 
@@ -91,8 +84,4 @@ if [ "${#still[@]}" -ne 0 ]; then
   exit 0
 fi
 
-if [ "$UNAME_S" = "Darwin" ] && { [ ! -f "$BUILD_ASM/pipeline_wpo.o" ] || [ ! -s "$BUILD_ASM/pipeline_wpo.o" ]; }; then
-  echo "ensure-wpo-build-asm-artifacts OK (Darwin partial 4/5 rebuilt; pipeline_wpo empty-emit residual)"
-else
-  echo "ensure-wpo-build-asm-artifacts OK (rebuilt missing WPO artifacts under $BUILD_ASM)"
-fi
+echo "ensure-wpo-build-asm-artifacts OK (rebuilt missing WPO artifacts under $BUILD_ASM)"
