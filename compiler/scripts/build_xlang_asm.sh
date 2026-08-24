@@ -5222,10 +5222,21 @@ bootstrap_ensure_entry_objs() {
 # 用法：XLANG_ASM_BSTRICT_RELINK_ONLY=1 ./scripts/build_xlang_asm.sh
 # 或 ./scripts/relink_xlang_asm_bstrict_runtime_objs.sh
 #
-# strict 重链成功后同步 xlang_asm_stage1（C5/C6 gate 与 gen2 读 stage1 副本）。
+# Sync xlang_asm → xlang_asm_stage1 after a successful strict link.
+# C5/C6 and non-Stage2 consumers read stage1 as "latest strict product".
+#
+# PLATFORM: SHARED — must NOT run during Stage2 round2 (XLANG_ASM_BOOTSTRAP_ROUND2=1).
+# verify-selfhost-stage2-bstrict Step1 freezes gen1 into xlang_asm_stage1; Step4c
+# SHA256-compares that snapshot to xlang_asm2 (gen2). Overwriting stage1 here made
+# gen1==gen2 always (假 fixed point / false SHA256 green) and also collapsed Step3
+# behavior parity to gen2-vs-gen2. Round2 leaves stage1 untouched.
 xlang_asm_sync_stage1_from_strict() {
+  if [ -n "${XLANG_ASM_BOOTSTRAP_ROUND2:-}" ]; then
+  build_xlang_asm_info "skip sync xlang_asm_stage1 (BOOTSTRAP_ROUND2; Stage2 owns gen1 snapshot)"
+  return 0
+  fi
   if [ -f ./xlang_asm ] && [ -x ./xlang_asm ]; then
-  # Darwin 上直接覆盖 stage1 偶发留下坏 vnode/签名缓存；先删再拷可稳定执行同内容副本。
+  # PLATFORM: DARWIN — delete-then-cp avoids bad vnode/signature cache on in-place overwrite.
   rm -f ./xlang_asm_stage1 2>/dev/null || true
   cp -f ./xlang_asm ./xlang_asm_stage1 2>/dev/null || true
   fi

@@ -46,11 +46,16 @@ else
 fi
 
 echo ""
-echo "── Step 1: xlang_asm -> xlang_asm_stage1 ──"
-# Darwin 上原位覆盖 stage1 偶发留下不可执行 vnode 状态；物理删除后重建副本可稳定避免 `zsh: killed`。
-rm -f ./xlang_asm_stage1
+echo "── Step 1: xlang_asm -> xlang_asm_stage1 (gen1 freeze) ──"
+# Freeze gen1 for Step3 behavior parity + Step4c SHA256. Round2 must not overwrite
+# this snapshot (build_xlang_asm skips sync when XLANG_ASM_BOOTSTRAP_ROUND2=1).
+# Also keep xlang_asm_gen1_for_hash as a belt-and-suspenders path that build never touches.
+# PLATFORM: DARWIN — delete-then-cp avoids bad vnode / `zsh: killed` on in-place overwrite.
+# PLATFORM: SHARED — gen1 freeze contract for Linux hash STRICT and Darwin track-only.
+rm -f ./xlang_asm_stage1 ./xlang_asm_gen1_for_hash
 cp -f ./xlang_asm ./xlang_asm_stage1
-ls -lh ./xlang_asm_stage1 | awk '{print "  stage1:", $5}'
+cp -f ./xlang_asm ./xlang_asm_gen1_for_hash
+ls -lh ./xlang_asm_stage1 | awk '{print "  stage1 (gen1):", $5}'
 
 echo ""
 if [ "${XLANG_STAGE2_SKIP_SECOND_BUILD:-0}" = "1" ] && [ -x ./xlang_asm_stage1 ] && [ -x ./xlang_asm2 ]; then
@@ -480,12 +485,16 @@ echo ""
 echo "── Step 4c: Stage2 SHA256 金标准（A-09 / run-stage2-hash-gate）──"
 ROOT_HASH="$(cd .. && pwd)"
 chmod +x "$ROOT_HASH/tests/run-stage2-hash-gate.sh" 2>/dev/null || true
-if [ -x ./xlang_asm_stage1 ] && [ -x ./xlang_asm2 ]; then
-  # run-stage2-hash-gate.sh 会 cd 到仓库根；路径须相对根目录。
-  # PLATFORM: LINUX — D-03 default STRICT=1 (freestanding gen1==gen2 gold).
-  # PLATFORM: DARWIN — stage1 is g05 product, stage2 is experimental bootstrap after
-  # round2; topologies differ so SHA256 match is track-only. Hard gate = Step 3
-  # behavior parity (rv=42). Explicit XLANG_STAGE2_HASH_STRICT=1 still overrides.
+# Prefer gen1 freeze path (never touched by build sync). Fall back to stage1.
+_HASH_GEN1="./xlang_asm_gen1_for_hash"
+[ -x "$_HASH_GEN1" ] || _HASH_GEN1="./xlang_asm_stage1"
+if [ -x "$_HASH_GEN1" ] && [ -x ./xlang_asm2 ]; then
+  # run-stage2-hash-gate.sh cds to repo root; paths must be repo-relative.
+  # PLATFORM: LINUX — D-03 default STRICT=1 (true gen1==gen2 freestanding gold).
+  #   Honest red when g05 product topology ≠ round2 asm_only_strict (size/hash diverge)
+  #   is expected until those link lines converge — never sync stage1 over gen1 to fake match.
+  # PLATFORM: DARWIN — topologies often differ; default track-only (STRICT=0). Hard gate =
+  #   Step 3 behavior parity (rv=42). Explicit XLANG_STAGE2_HASH_STRICT=1 still overrides.
   case "$(uname -s 2>/dev/null)-$(uname -m 2>/dev/null)" in
     Darwin-*)
       _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-0}"
@@ -494,10 +503,12 @@ if [ -x ./xlang_asm_stage1 ] && [ -x ./xlang_asm2 ]; then
       _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-1}"
       ;;
   esac
+  # Surface sizes before gate so topology fork is visible in the Stage2 log.
+  ls -lh "$_HASH_GEN1" ./xlang_asm2 | awk '{print "  hash-input:", $9, $5}'
   XLANG_STAGE2_HASH_STRICT="$_s2_hash_strict" \
-    "$ROOT_HASH/tests/run-stage2-hash-gate.sh" compiler/xlang_asm_stage1 compiler/xlang_asm2
+    "$ROOT_HASH/tests/run-stage2-hash-gate.sh" "compiler/${_HASH_GEN1#./}" compiler/xlang_asm2
 else
-  echo "verify-stage2-bstrict: skip hash gate (xlang_asm_stage1/xlang_asm2 missing)" >&2
+  echo "verify-stage2-bstrict: skip hash gate (gen1 freeze / xlang_asm2 missing)" >&2
   exit 1
 fi
 
