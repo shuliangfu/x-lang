@@ -419,13 +419,20 @@ rebuild_pipeline_o_second_pass() {
   fi
   local min_text=200
   local pcomp PTMP PTEXT=0
-  # pipeline_x.o 已 selfhosted 时 promote 为 build_asm/pipeline.o，跳过 pipeline.x asm 二遍（Docker 上易 futex 卡死）
+  # G.7: pipeline.x is pure-extern (0 bodies). Real impl is src/runtime_pipeline_abi.o
+  # (already on LD argv). pipeline_x.o / build_asm/pipeline.o are driver_leaf stubs
+  # (__text often 0–4B, 0 T). Promote marks second-pass OK when abi is selfhosted;
+  # do NOT require stub __text>=min_text (that gate was for pre-abi emit era).
+  # Skip asm re-emit of pipeline.x (Docker futex; would still yield a stub).
+  # PLATFORM: SHARED — abi authority + stub promote on Darwin and Linux.
   _promote_pipeline_x_second_pass() {
-  [ -f pipeline_x.o ] || return 1
-  cp -f pipeline_x.o "$BUILD_DIR/pipeline.o"
   asm_strict_pipeline_selfhosted || return 1
+  if [ -f pipeline_x.o ]; then
+  cp -f pipeline_x.o "$BUILD_DIR/pipeline.o"
+  fi
   PTEXT=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
-  build_xlang_asm_info "pipeline.o second pass promote pipeline_x.o (__text=${PTEXT}B, skip asm emit)"
+  _abi_t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
+  build_xlang_asm_info "pipeline.o second pass OK via runtime_pipeline_abi (stub=__text=${PTEXT}B, abi=${_abi_t}B, skip asm emit)"
   return 0
   }
   if [ "${XLANG_ASM_SECOND_PASS_FORCE_ASM:-0}" != "1" ] && _promote_pipeline_x_second_pass; then
@@ -1878,9 +1885,18 @@ ensure_pipeline_asm_runtime_partial_obj() {
 }
 
 # strict 回退：build_asm pipeline 仍不足时，从 pipeline_x.o 部分链接完整 pipeline_run_x_pipeline_impl。
+# G.7: when runtime_pipeline_abi.o is selfhosted (already on strict LD argv), skip —
+# pipeline_x.o is a pure-extern stub (0 T); ld -r -exported_symbols_list for
+# _pipeline_run_x_pipeline_impl UNDEFs. Callers use `ensure && FILTERED=...partial`.
+# PLATFORM: SHARED.
 ensure_pipeline_runtime_bootstrap_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
+  if asm_strict_pipeline_selfhosted; then
+  build_xlang_asm_info "skip pipeline_runtime_bootstrap_partial (runtime_pipeline_abi on LD argv)"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  return 1
+  fi
   SYMS="$BUILD_DIR/pipeline_runtime_export.txt"
   SUO="$BUILD_DIR/gen_driver/pipeline_x.o"
   ensure_pipeline_x_o_fresh
@@ -1890,7 +1906,7 @@ ensure_pipeline_runtime_bootstrap_partial_obj() {
   if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   printf '%s\n' '_pipeline_run_x_pipeline_impl' > "$SYMS"
   echo " ld partial export $SYMS pipeline_x.o -> $PARTIAL"
-  ld_partial_export "$SYMS" "$PARTIAL" "$SUO"
+  ld_partial_export "$SYMS" "$PARTIAL" "$SUO" || return 1
   fi
 }
 
@@ -3120,6 +3136,19 @@ filter_strict_asm_objs() {
   fi
   ;;
   esac
+  # PLATFORM: DARWIN — Apple ld-1267+ errors on multiple weak _xlang_asm_ci_text_stub
+  # across FILTERED first-pass stubs (arm64/ast/token/types/preprocess …). Skip pure
+  # CI text stubs (≤64B, no other global T). SHARED-safe: Linux weak coalesce OK, but
+  # stubs add no real symbols either way.
+  _stub_t=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
+  if [ "${_stub_t:-0}" -le 64 ] 2>/dev/null \
+  && nm "$o" 2>/dev/null | grep -qE '(_)?xlang_asm_ci_text_stub$'; then
+  _other_t=$(nm -g "$o" 2>/dev/null | awk '/ [Tt] / && $3 !~ /xlang_asm_ci_text_stub/ { c++ } END { print c+0 }')
+  if [ "${_other_t:-0}" = "0" ]; then
+  build_xlang_asm_info "strict skip CI text stub $base (__text=${_stub_t}B)"
+  continue
+  fi
+  fi
   FILTERED="$FILTERED $o"
   done
 }
@@ -3217,9 +3246,20 @@ ensure_preprocess_if_stack_provider_obj() {
   if [ ! -f "$pure_o" ] && [ -f "compiler/src/runtime_pipeline_abi.o" ]; then
     pure_o="compiler/src/runtime_pipeline_abi.o"
   fi
-  src_o="$pure_o"
   out_o="$BUILD_DIR/preprocess_if_stack_only.o"
   keep_list="$BUILD_DIR/.preprocess_if_stack_only_keep.txt"
+  # G.7: runtime_pipeline_abi.o already defines preprocess_if_stack_* and is on
+  # the strict LD argv. Skip the companion partial — Darwin prefer/libtool may
+  # leave abi as an ar archive; ld_partial_export lacks -arch → "Missing -arch"
+  # and set -e abort. Also avoids duplicate T if a partial ever succeeded.
+  # Callers must only link preprocess_if_stack_only.o when the file exists.
+  # PLATFORM: SHARED.
+  if [ -f "$pure_o" ] && nm -g "$pure_o" 2>/dev/null | grep -qE '(_)?preprocess_if_stack_reset'; then
+    build_xlang_asm_info "skip preprocess_if_stack_only (runtime_pipeline_abi already provides)"
+    rm -f "$out_o" 2>/dev/null || true
+    return 0
+  fi
+  src_o="$pure_o"
   if [ ! -f "$src_o" ]; then
     # Fallback: rebuild standalone only if pure .o missing (dev tree half-clean).
     ensure_asm_pipeline_glue_standalone_obj
@@ -5704,7 +5744,11 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   PTEXT=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
   STRICT_TRY=0
-  if [ "$SECOND_PASS_OK" -eq 1 ] && [ "$PTEXT" -gt 200 ] 2>/dev/null; then
+  # G.7 residual close (post-107d09af2): when runtime_pipeline_abi.o is the
+  # selfhosted authority, stub pipeline.o __text may be 0B — still allow strict.
+  # Legacy path: SECOND_PASS_OK + stub __text>200 (pre-abi emit era).
+  # PLATFORM: SHARED — same gate Darwin/Linux (closes Darwin Stage2 __text=0B RED).
+  if [ "$SECOND_PASS_OK" -eq 1 ] && { [ "$PTEXT" -gt 200 ] 2>/dev/null || asm_strict_pipeline_selfhosted; }; then
   STRICT_TRY=1
   else
   build_xlang_asm_error "pipeline.o second pass failed (__text=${PTEXT}B)"
@@ -5727,7 +5771,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ST_PARSER_LINK=""
   ST_PHASE_PARSE_PARTIAL=""
   if asm_strict_pipeline_selfhosted; then
-  build_xlang_asm_info "pipeline.o EMIT_HEAVY OK (__text=${PTEXT}B, run_x_pipeline_impl + path/resolve X emit)"
+  _abi_t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
+  build_xlang_asm_info "pipeline selfhosted via runtime_pipeline_abi (stub=__text=${PTEXT}B, abi=${_abi_t}B)"
   STRICT_LINK_BUILD_ASM_PIPELINE=1
   export STRICT_LINK_BUILD_ASM_PIPELINE
   build_xlang_asm_info "strict link build_asm/pipeline.o + glue_standalone"
@@ -5839,7 +5884,10 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ASM_TRY_OBJS="$FILTERED"
   fi
   echo " re-link xlang_asm (strict: ${ST_RUNTIME_MODE}, no pipeline_x.o) ..."
-  ensure_preprocess_if_stack_provider_obj
+  ensure_preprocess_if_stack_provider_obj || true
+  # G.7: companion only when ensure actually wrote it; abi-on-argv path deletes it.
+  ST_PREPROCESS_IF_STACK_O=""
+  [ -f "$BUILD_DIR/preprocess_if_stack_only.o" ] && ST_PREPROCESS_IF_STACK_O="$BUILD_DIR/preprocess_if_stack_only.o"
   ensure_asm_driver_seed_c_objs
   SEED_O="$BUILD_DIR/asm_driver_seed"
   ensure_asm_strict_link_extra_objs
@@ -6042,7 +6090,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$BUILD_DIR/preprocess_if_stack_only.o" \
+  $ST_PREPROCESS_IF_STACK_O \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
@@ -6072,7 +6120,10 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   set -e
   if [ "$ST_RC" -ne 0 ] && [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   build_xlang_asm_warn "strict asm orchestration link failed; retrying with pipeline_runtime_bootstrap_partial.o"
-  ensure_pipeline_runtime_bootstrap_partial_obj
+  ST_RUNTIME_BOOTSTRAP_PARTIAL=""
+  if ensure_pipeline_runtime_bootstrap_partial_obj; then
+  ST_RUNTIME_BOOTSTRAP_PARTIAL="$BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
+  fi
   ST_PARSER_LINK="$BUILD_DIR/pipeline_parse_x_partial.o"
   ST_RUNTIME_EXTRA=""
   ST_RUNTIME_MODE="bootstrap"
@@ -6105,12 +6156,12 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$BUILD_DIR/preprocess_if_stack_only.o" \
+  $ST_PREPROCESS_IF_STACK_O \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   "$ST_PARSER_LINK" \
-  "$BUILD_DIR/pipeline_runtime_bootstrap_partial.o" \
+  $ST_RUNTIME_BOOTSTRAP_PARTIAL \
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
