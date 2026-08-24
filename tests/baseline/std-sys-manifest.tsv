@@ -1,6 +1,6 @@
 # BOOT-029 std.sys manifest
 # min_apis	5
-read_path	section	## 1. 目标	analysis/std-sys-v0.md
+read_path	section	## 1. 目标	analysis/archive/std/std-sys-v0.md
 api_doc	section	## 2. API（v0）	os_write
 api_v1	section	## 6. v1（Linux syscall 号表）	linux
 api_v2	section	## 7. v2（macOS POSIX write）	macos

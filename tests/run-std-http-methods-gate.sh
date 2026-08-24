@@ -2,12 +2,15 @@
 # STD-032：std.http POST/HEAD 与状态行解析门禁
 #
 # 用法：./tests/run-std-http-methods-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_HTTP_METHODS_DOC:-analysis/std-http-methods-v1.md}"
+DOC="${XLANG_STD_HTTP_METHODS_DOC:-analysis/archive/std/std-http-methods-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_METHODS_TSV:-tests/baseline/std-http-methods.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"

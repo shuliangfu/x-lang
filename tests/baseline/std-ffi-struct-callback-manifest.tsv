@@ -1,7 +1,7 @@
 # STD-151 std.ffi 结构体/回调 manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 目标	analysis/std-ffi-struct-callback-v1.md
-api_doc	section	## 2. 结构体与回调 API	analysis/std-ffi-struct-callback-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-ffi-struct-callback-v1.md
+api_doc	section	## 2. 结构体与回调 API	analysis/archive/std/std-ffi-struct-callback-v1.md
 api_point_pack	api	point_pack	std/ffi/mod.x	POD 写入
 api_point_unpack	api	point_unpack	std/ffi/mod.x	POD 读出
 api_invoke_cb	api	invoke_cb	std/ffi/mod.x	回调调用

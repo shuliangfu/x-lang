@@ -1,7 +1,7 @@
 # STD-067 std.db.sqlite next_row manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_cursor_apis	3
-read_path	section	## 1. 目标	analysis/std-sqlite-next-row-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-sqlite-next-row-v1.md
 api_doc	section	## 2. next_row API（v1）	next_row
 vectors_doc	section	## 3. 金样向量	cursor_row1
 verify	section	## 4. Gate	gate
@@ -20,4 +20,4 @@ smoke_x	smoke	tests/std-sqlite/next_row_roundtrip.x	.x 往返
 vectors	file	tests/baseline/std-sqlite-next-row-vectors.tsv	向量
 lib	script	lib/std-sqlite-next-row.sh	tests/lib/std-sqlite-next-row.sh
 gate	script	run-std-sqlite-next-row-gate.sh	tests/run-std-sqlite-next-row-gate.sh
-cross_std066	cross_ref	analysis/std-sqlite-query-rows-v1.md	STD-066
+cross_std066	cross_ref	analysis/archive/std/std-sqlite-query-rows-v1.md	STD-066

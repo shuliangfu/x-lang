@@ -6,12 +6,15 @@
 # 3) native xlang：main + zc_parse_string_view 烟测
 #
 # 用法：./tests/run-std-json-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
+DOC="${XLANG_STD_JSON_DOC:-analysis/archive/std/std-json-zc-v1.md}"
 MANIFEST="${XLANG_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
 MOD_X="${XLANG_STD_JSON_MOD:-std/json/mod.x}"
 JSON_X="${XLANG_STD_JSON_X:-std/json/json.x}"

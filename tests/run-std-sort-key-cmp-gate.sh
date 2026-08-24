@@ -2,10 +2,13 @@
 # STD-150：std.sort 复杂 key 比较器策略门禁
 #
 # 用法：./tests/run-std-sort-key-cmp-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-sort-key-cmp-v1.md"
+DOC="analysis/archive/std/std-sort-key-cmp-v1.md"
 MANIFEST="tests/baseline/std-sort-key-cmp-manifest.tsv"
 VECTORS="tests/baseline/std-sort-key-cmp.tsv"
 MOD_X="std/sort/mod.x"

@@ -1,10 +1,10 @@
 # STD-084 std.db.sqlite pool manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_pool_apis	4
-read_path	section	## 1. 目标	analysis/std-sqlite-pool-v1.md
-api_doc	section	## 2. pool API（v1）	analysis/std-sqlite-pool-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-sqlite-pool-v1.md
+api_doc	section	## 2. pool API（v1）	analysis/archive/std/std-sqlite-pool-v1.md
 vectors_doc	section	## 3. 金样向量	reuse_handle
-verify	section	## 4. Gate	analysis/std-sqlite-pool-v1.md
+verify	section	## 4. Gate	analysis/archive/std/std-sqlite-pool-v1.md
 api_open	api	pool_open	std/db/sqlite/mod.x	开池
 api_acquire	api	pool_acquire	std/db/sqlite/mod.x	借连
 api_release	api	pool_release	std/db/sqlite/mod.x	归还
@@ -17,4 +17,4 @@ smoke_x	smoke	tests/std-sqlite/pool_roundtrip.x	.x 往返
 vectors	file	tests/baseline/std-sqlite-pool-vectors.tsv	向量
 lib	script	lib/std-sqlite-pool.sh	tests/lib/std-sqlite-pool.sh
 gate	script	run-std-sqlite-pool-gate.sh	tests/run-std-sqlite-pool-gate.sh
-cross_std070	cross_ref	analysis/std-sqlite-stmt-cache-v1.md	STD-070
+cross_std070	cross_ref	analysis/archive/std/std-sqlite-stmt-cache-v1.md	STD-070

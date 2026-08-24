@@ -2,16 +2,19 @@
 # STD-062：std.regex 纯引擎 perf + 三平台 bench 门禁
 #
 # 用法：./tests/run-std-regex-perf-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${XLANG_STD062_DOC:-analysis/std-regex-perf-v1.md}"
+DOC="${XLANG_STD062_DOC:-analysis/archive/std/std-regex-perf-v1.md}"
 WAVE="${XLANG_STD062_WAVE_TSV:-tests/baseline/std-regex-perf-wave.tsv}"
 XPLAT="${XLANG_STD062_XPLAT:-tests/baseline/std-regex-perf-xplat.tsv}"
-PARENT_DOC="${XLANG_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
+PARENT_DOC="${XLANG_STD_REGEX_DOC:-analysis/archive/std/std-regex-v1.md}"
 MIN_INC="std/regex/regex.x"
 MOD_X="std/regex/mod.x"
 LIB="tests/lib/std-regex-perf.sh"

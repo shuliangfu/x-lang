@@ -6,6 +6,9 @@
 # 3) tests/run-std-async-1m-gate.sh 1M task 无崩溃
 #
 # 用法：./tests/run-std-async-api-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -22,8 +25,8 @@ if [ ! -f "$MOD" ]; then
   echo "std-async-api gate FAIL: missing $MOD" >&2
   exit 1
 fi
-if [ ! -f analysis/std-async-api-v1.md ]; then
-  echo "std-async-api gate FAIL: missing analysis/std-async-api-v1.md" >&2
+if [ ! -f analysis/archive/std/std-async-api-v1.md ]; then
+  echo "std-async-api gate FAIL: missing analysis/archive/std/std-async-api-v1.md" >&2
   exit 1
 fi
 

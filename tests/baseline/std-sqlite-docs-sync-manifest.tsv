@@ -1,8 +1,8 @@
 # STD-154 std.db.sqlite 文档统一 manifest
 # 列：item_id	kind	anchor	target	notes
-read_path	section	## 1. 目标	analysis/std-sqlite-docs-sync-v1.md
-keywords	section	## 2. docs/07 必含关键字	analysis/std-sqlite-docs-sync-v1.md
-forbid	section	## 3. 禁止项	analysis/std-sqlite-docs-sync-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-sqlite-docs-sync-v1.md
+keywords	section	## 2. docs/07 必含关键字	analysis/archive/std/std-sqlite-docs-sync-v1.md
+forbid	section	## 3. 禁止项	analysis/archive/std/std-sqlite-docs-sync-v1.md
 verify	section	## 4. Gate	gate
 kw_sqlite	keyword	std.db.sqlite	docs07	主模块名
 kw_prepare	keyword	prepare_cached	docs07	STD-070

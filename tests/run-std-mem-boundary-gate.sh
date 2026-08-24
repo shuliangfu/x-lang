@@ -6,12 +6,15 @@
 # 3) 可选：native xlang 时 std_mem_boundary 烟测 typeck
 #
 # 用法：./tests/run-std-mem-boundary-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_MEM_BOUNDARY_DOC:-analysis/std-mem-boundary-v1.md}"
+DOC="${XLANG_STD_MEM_BOUNDARY_DOC:-analysis/archive/std/std-mem-boundary-v1.md}"
 MANIFEST="${XLANG_STD_MEM_BOUNDARY_TSV:-tests/baseline/std-mem-boundary.tsv}"
 CORE_X="core/mem/mod.x"
 STD_X="std/mem/mod.x"

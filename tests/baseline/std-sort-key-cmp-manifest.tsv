@@ -1,7 +1,7 @@
 # STD-150 std.sort key 比较器 manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 目标	analysis/std-sort-key-cmp-v1.md
-strategy_doc	section	## 2. 比较器策略表	analysis/std-sort-key-cmp-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-sort-key-cmp-v1.md
+strategy_doc	section	## 2. 比较器策略表	analysis/archive/std/std-sort-key-cmp-v1.md
 api_sort_by_key	api	sort_stable_by_key	std/sort/mod.x	key 稳定
 api_cmp_key	api	cmp_key_i32_fn	std/sort/mod.x	key 比较器
 api_cmp_asc	api	cmp_i32_asc_fn	std/sort/mod.x	升序 fn

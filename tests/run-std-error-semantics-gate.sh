@@ -2,12 +2,15 @@
 # STD-158：std.error 跨模块语义统一门禁
 #
 # 用法：./tests/run-std-error-semantics-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="analysis/std-error-semantics-v1.md"
+DOC="analysis/archive/std/std-error-semantics-v1.md"
 MANIFEST="tests/baseline/std-error-semantics.tsv"
 ERR_MOD="std/error/mod.x"
 LIB="tests/lib/std-error-semantics.sh"

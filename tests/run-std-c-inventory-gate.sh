@@ -3,6 +3,9 @@
 # 用法：./tests/run-std-c-inventory-gate.sh
 # 环境：XLANG_STD_C_INVENTORY_FAIL=1 超过 baseline 时硬失败
 #       XLANG_STD_C_INVENTORY_UPDATE=1 刷新 tests/baseline/std-c-inventory.tsv
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 

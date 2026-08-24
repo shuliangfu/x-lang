@@ -44,10 +44,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-023 | 自举 | mega7 7/7 全量 emit | P0 | `run-boot-023-mega7-full-emit-gate.sh` |
-| COMP-017 | 编译器 | WPO 持续扩面 gate | P1 | `run-comp-wpo-default-gate.sh` |
-| STD-065 | 标准库 | `std.db` SQLite 原型深化 | P2 | `run-std-db-exec-deep-gate.sh` |
-| PLAN-004 | 治理 | Phase 3 第四批路线图定版 | P2 | `run-phase3-roadmap-wave4-gate.sh` |
+| BOOT-023 | 自举 | mega7 7/7 全量 emit | P0 | ✅ | `run-boot-023-mega7-full-emit-gate.sh` |
+| COMP-017 | 编译器 | WPO 持续扩面 gate | P1 | ✅ | `run-comp-wpo-default-gate.sh` |
+| STD-065 | 标准库 | `std.db` SQLite 原型深化 | P2 | ✅ | `run-std-db-exec-deep-gate.sh` |
+| PLAN-004 | 治理 | Phase 3 第四批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave4-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.15。
 

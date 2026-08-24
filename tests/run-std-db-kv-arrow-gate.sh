@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # std.db kv + arrow 门禁：manifest + typeck + C 烟测 + 可选 .x 链接运行
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh

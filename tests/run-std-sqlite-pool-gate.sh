@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # STD-084：std.db.sqlite 连接池门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD084_DOC:-analysis/std-sqlite-pool-v1.md}"
+DOC="${XLANG_STD084_DOC:-analysis/archive/std/std-sqlite-pool-v1.md}"
 MANIFEST="${XLANG_STD084_TSV:-tests/baseline/std-sqlite-pool.tsv}"
 VECTORS="${XLANG_STD084_VECTORS:-tests/baseline/std-sqlite-pool-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_pool_source_sqlite
 
 echo "=== STD-084: std.db.sqlite pool manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-stmt-cache-v1.md tests/run-std-sqlite-stmt-cache-gate.sh; do
+  analysis/archive/std/std-sqlite-stmt-cache-v1.md tests/run-std-sqlite-stmt-cache-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-pool gate FAIL: missing $f" >&2
     exit 1

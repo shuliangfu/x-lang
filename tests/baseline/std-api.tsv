@@ -62,5 +62,5 @@ std.url	tests/baseline/std-url-manifest.tsv	std/url/mod.x	feature	run-std-url-ga
 std.uuid	tests/baseline/std-uuid-manifest.tsv	std/uuid/mod.x	feature	run-std-uuid-gate.sh
 std.vec	tests/baseline/std-map-vec-extend.tsv	std/vec/mod.x	feature	run-std-map-vec-extend-gate.sh
 matrix_cross	file	tests/baseline/stdlib-check-matrix.tsv	BOOT-013 60 std
-doc	file	std-api-gate-v1.md	analysis/std-api-gate-v1.md	RFC
+doc	file	std-api-gate-v1.md	analysis/archive/std/std-api-gate-v1.md	RFC
 gate	script	run-std-api-gate.sh	tests/run-std-api-gate.sh	manifest

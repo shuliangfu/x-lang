@@ -2,10 +2,13 @@
 # STD-068：std.db.sqlite row_col_text 文本列门禁
 #
 # 用法：./tests/run-std-sqlite-row-col-text-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD068_DOC:-analysis/std-sqlite-row-col-text-v1.md}"
+DOC="${XLANG_STD068_DOC:-analysis/archive/std/std-sqlite-row-col-text-v1.md}"
 MANIFEST="${XLANG_STD068_TSV:-tests/baseline/std-sqlite-row-col-text.tsv}"
 VECTORS="${XLANG_STD068_VECTORS:-tests/baseline/std-sqlite-row-col-text-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_row_col_text_source_sqlite
 
 echo "=== STD-068: db row_col_text manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-next-row-v1.md tests/run-std-sqlite-next-row-gate.sh; do
+  analysis/archive/std/std-sqlite-next-row-v1.md tests/run-std-sqlite-next-row-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-row-col-text gate FAIL: missing $f" >&2
     exit 1

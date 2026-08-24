@@ -2,12 +2,15 @@
 # STD-142：std.process 跨平台行为一致性门禁
 #
 # 用法：./tests/run-std-process-xplat-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="analysis/std-process-xplat-v1.md"
+DOC="analysis/archive/std/std-process-xplat-v1.md"
 MANIFEST="tests/baseline/std-process-xplat-manifest.tsv"
 VECTORS="tests/baseline/std-process-xplat.tsv"
 MOD_X="std/process/mod.x"

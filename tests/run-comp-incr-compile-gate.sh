@@ -2,10 +2,13 @@
 # COMP-007：增量编译策略 manifest 门禁
 #
 # 用法：./tests/run-comp-incr-compile-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_INCR_COMPILE_DOC:-analysis/comp-incr-compile-v1.md}"
+DOC="${XLANG_COMP_INCR_COMPILE_DOC:-analysis/archive/comp/comp-incr-compile-v1.md}"
 MANIFEST="${XLANG_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
 PROTOS="${XLANG_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
 BENCH="${XLANG_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"

@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 # F-sync-lock-diag v2：锁诊断逻辑在 sync.x，TLS 在 runtime_sync_lock_diag_tls.inc。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SYNC_LOCK_DIAG_V2_FAIL:-0}
-DOC="analysis/phase-f-sync-lock-diag-v2.md"
+DOC="analysis/archive/phase/phase-f-sync-lock-diag-v2.md"
 MANIFEST="tests/baseline/f-sync-lock-diag-v2-closure.tsv"
 SYNC_TLS_RUNTIME="compiler/seeds/runtime_sync_lock_diag_tls.from_x.c"
 die() { echo "f-sync-lock-diag-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-sync-lock-diag v2: diag logic → sync.x ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-sync-lock-diag v2' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
@@ -27,8 +33,6 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'sync_lock_diag_before_lock' std/sync/sync.x || die "sync.x missing before_lock"
 grep -q 'sync_lock_diag_tls_push_c' "$SYNC_TLS_RUNTIME" || die "runtime tls missing push"
-grep -q 'runtime_sync_lock_diag_tls' compiler/Makefile || die "Makefile missing runtime tls"
-grep -q 'sync_lock_diag_glue.c' compiler/Makefile && die "Makefile still references diag glue"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "ensure sync.o failed (xlang_compiler_make)"
 else

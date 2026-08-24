@@ -2,12 +2,15 @@
 # STD-016：StrView 与 ZC-4 深度整合门禁
 #
 # 用法：./tests/run-std-strview-zc4-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
+DOC="${XLANG_STD_SV_ZC4_DOC:-analysis/archive/std/std-strview-zc4-v1.md}"
 MANIFEST="${XLANG_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
 STRING_X="std/string/mod.x"
 LIB="tests/lib/std-strview-zc4.sh"

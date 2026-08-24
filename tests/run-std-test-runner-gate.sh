@@ -2,10 +2,13 @@
 # STD-145：std.test 统一 test runner 门禁
 #
 # 用法：./tests/run-std-test-runner-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-test-runner-v1.md"
+DOC="analysis/archive/std/std-test-runner-v1.md"
 MANIFEST="tests/baseline/std-test-runner-manifest.tsv"
 MOD_X="std/test/mod.x"
 TEST_X="std/test/test.x"

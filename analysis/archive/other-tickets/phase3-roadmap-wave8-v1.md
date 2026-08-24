@@ -44,10 +44,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-027 | 自举 | parser C5 xlang_asm2 跨平台发布 | P0 | `run-boot-027-xlang-asm2-cross-gate.sh` |
-| COMP-021 | 编译器 | incr-compile 生产 tier 烟测 | P1 | `run-comp-incr-compile-prod-gate.sh` |
-| STD-069 | 标准库 | `std.db` row_col_blob BLOB 列 | P2 | `run-std-db-row-col-blob-gate.sh` |
-| PLAN-008 | 治理 | Phase 3 第八批路线图定版 | P2 | `run-phase3-roadmap-wave8-gate.sh` |
+| BOOT-027 | 自举 | parser C5 xlang_asm2 跨平台发布 | P0 | ✅ | `run-boot-027-xlang-asm2-cross-gate.sh` |
+| COMP-021 | 编译器 | incr-compile 生产 tier 烟测 | P1 | ✅ | `run-comp-incr-compile-prod-gate.sh` |
+| STD-069 | 标准库 | `std.db` row_col_blob BLOB 列 | P2 | ✅ | `run-std-db-row-col-blob-gate.sh` |
+| PLAN-008 | 治理 | Phase 3 第八批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave8-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.19。
 

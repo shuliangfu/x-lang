@@ -2,10 +2,13 @@
 # COMP-010：编译产物体积归因 manifest 门禁
 #
 # 用法：./tests/run-comp-size-attrib-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_SIZE_ATTRIB_DOC:-analysis/comp-size-attrib-v1.md}"
+DOC="${XLANG_COMP_SIZE_ATTRIB_DOC:-analysis/archive/comp/comp-size-attrib-v1.md}"
 MANIFEST="${XLANG_COMP_SIZE_ATTRIB_MANIFEST:-tests/baseline/comp-size-attrib.tsv}"
 MATRIX="${XLANG_SIZE_ATTRIB_MATRIX:-tests/baseline/comp-size-attrib-matrix.tsv}"
 MIN_LAYERS=6

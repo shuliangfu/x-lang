@@ -2,10 +2,13 @@
 # STD-155：std.bytes 与 Arena 协作策略门禁
 #
 # 用法：./tests/run-std-bytes-arena-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-bytes-arena-v1.md"
+DOC="analysis/archive/std/std-bytes-arena-v1.md"
 MANIFEST="tests/baseline/std-bytes-arena-manifest.tsv"
 MOD_X="std/bytes/mod.x"
 LIB="tests/lib/std-bytes-arena.sh"

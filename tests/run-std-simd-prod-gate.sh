@@ -2,12 +2,15 @@
 # STD-061：std.simd shuffle/select 生产级 bench 门禁
 #
 # 用法：./tests/run-std-simd-prod-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD061_DOC:-analysis/std-simd-prod-v1.md}"
+DOC="${XLANG_STD061_DOC:-analysis/archive/std/std-simd-prod-v1.md}"
 WAVE="${XLANG_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
-PARENT_DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
+PARENT_DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/archive/std/std-simd-shuffle-select-v1.md}"
 MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-prod.sh"
 MIN_BENCHES=3

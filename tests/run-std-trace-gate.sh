@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # STD-088：std.trace 门禁（F-trace v2：纯 trace.x）
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_TRACE_DOC:-analysis/std-trace-v1.md}"
+DOC="${XLANG_STD_TRACE_DOC:-analysis/archive/std/std-trace-v1.md}"
 MANIFEST="${XLANG_STD_TRACE_MANIFEST:-tests/baseline/std-trace-manifest.tsv}"
 MOD_X="std/trace/mod.x"
 TRACE_X="std/trace/trace.x"

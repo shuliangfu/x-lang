@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-crypto v1：std.crypto 纳入 F 聚合 batch（F-04 v16～v21 已闭合）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CRYPTO_V1_FAIL:-0}
-DOC="analysis/phase-f-crypto-v1.md"
+DOC="analysis/archive/phase/phase-f-crypto-v1.md"
 MANIFEST="tests/baseline/f-crypto-v1-closure.tsv"
 die() { echo "f-crypto-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-crypto v1: F-04 closure → F batch ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-crypto v1' "$DOC" || die "doc marker"
 while IFS=$'\t' read -r item_id kind anchor _n; do

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-133：std.time benchmark 计时器门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-time-bench-timer-v1.md"
+DOC="analysis/archive/std/std-time-bench-timer-v1.md"
 MANIFEST="tests/baseline/std-time-bench-timer-manifest.tsv"
 MOD_X="std/time/mod.x"
 LIB="tests/lib/std-time-bench-timer.sh"

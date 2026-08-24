@@ -5,6 +5,9 @@
 # 分类：OK / FAIL_XLANGC（xlang-c 生成失败）/ FAIL_CC（cc 编译失败）
 # 用法：./tests/run-f-closure-e-extern-gate.sh
 # 环境：XLANG_F_CLOSURE_FAIL=1 失败时硬退出
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/compiler"
@@ -59,6 +62,9 @@ done
 rm -f /tmp/xlang_f_closure_$$.*.log 2>/dev/null || true
 
 echo "=== F closure -E-extern gate ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 echo "OK=$OK FAIL_CC=$FAIL_CC FAIL_XLANGC=$FAIL_XLANGC"
 echo "--- OK ---"
 echo "$OK_LIST" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort | tr '\n' ' '

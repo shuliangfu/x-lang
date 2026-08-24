@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # STD-094/095：std.http ↔ std.context + C 层 connect/recv 超时门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 

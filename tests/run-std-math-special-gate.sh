@@ -2,12 +2,15 @@
 # STD-115：std.math 特殊函数门禁
 #
 # 用法：./tests/run-std-math-special-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD115_DOC:-analysis/std-math-special-v1.md}"
+DOC="${XLANG_STD115_DOC:-analysis/archive/std/std-math-special-v1.md}"
 MANIFEST="${XLANG_STD115_TSV:-tests/baseline/std-math-special.tsv}"
 VECTORS="${XLANG_STD115_VECTORS:-tests/baseline/std-math-special-vectors.tsv}"
 MOD_X="std/math/mod.x"

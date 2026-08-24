@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-137：std.time 墙钟格式化与时区偏移门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-time-format-timezone-v1.md"
+DOC="analysis/archive/std/std-time-format-timezone-v1.md"
 MANIFEST="tests/baseline/std-time-format-timezone-manifest.tsv"
 MOD_X="std/time/mod.x"
 TIME_X="${XLANG_STD_TIME_IMPL:-std/time/time.x}"

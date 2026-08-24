@@ -2,12 +2,15 @@
 # STD-HTTP-H2：std.http HTTP/2 v0 线格式门禁
 #
 # 用法：./tests/run-std-http-h2-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_HTTP_H2_DOC:-analysis/std-http-h2-v0.md}"
+DOC="${XLANG_STD_HTTP_H2_DOC:-analysis/archive/std/std-http-h2-v0.md}"
 MANIFEST="${XLANG_STD_HTTP_H2_TSV:-tests/baseline/std-http-h2.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"

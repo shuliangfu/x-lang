@@ -2,12 +2,15 @@
 # STD-036：std.csv parse_row / write_row 门禁（F-csv v1：csv.x）
 #
 # 用法：./tests/run-std-csv-row-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_CSV_ROW_DOC:-analysis/std-csv-row-v1.md}"
+DOC="${XLANG_STD_CSV_ROW_DOC:-analysis/archive/std/std-csv-row-v1.md}"
 MANIFEST="${XLANG_STD_CSV_ROW_TSV:-tests/baseline/std-csv-row.tsv}"
 CSV_X="std/csv/mod.x"
 CSV_X="std/csv/csv.x"

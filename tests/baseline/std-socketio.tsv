@@ -177,4 +177,4 @@ npm_live_script	script	run-std-socketio-npm-live.sh	tests/run-std-socketio-npm-l
 live_script	script	run-std-socketio-live.sh	tests/run-std-socketio-live.sh	live SKIP
 lib	script	lib/std-socketio.sh	tests/lib/std-socketio.sh
 gate	script	run-std-socketio-gate.sh	tests/run-std-socketio-gate.sh
-doc	file	analysis/std-socketio-v1.md	analysis/std-socketio-v1.md	P3草案
+doc	file	analysis/archive/std/std-socketio-v1.md	analysis/archive/std/std-socketio-v1.md	P3草案

@@ -2,12 +2,15 @@
 # STD-038：std.tar 目录遍历与 ustar round-trip 门禁
 #
 # 用法：./tests/run-std-tar-ustar-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_TAR_USTAR_DOC:-analysis/std-tar-ustar-v1.md}"
+DOC="${XLANG_STD_TAR_USTAR_DOC:-analysis/archive/std/std-tar-ustar-v1.md}"
 MANIFEST="${XLANG_STD_TAR_USTAR_TSV:-tests/baseline/std-tar-ustar.tsv}"
 TAR_X="std/tar/mod.x"
 TAR_X="std/tar/tar.x"

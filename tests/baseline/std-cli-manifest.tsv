@@ -1,9 +1,9 @@
 # STD-077 std.cli manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
-read_path	section	## 1. 阅读路径	analysis/std-cli-v1.md
-api_doc	section	## 2. API	analysis/std-cli-v1.md
-verify	section	## 3. Gate	analysis/std-cli-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-cli-v1.md
+api_doc	section	## 2. API	analysis/archive/std/std-cli-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-cli-v1.md
 api_parse	api	parse_from_iter	std/cli/mod.x	解析
 api_help	api	is_help	std/cli/mod.x	help
 api_long	api	match_long	std/cli/mod.x	长选项

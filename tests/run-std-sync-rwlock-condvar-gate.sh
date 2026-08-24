@@ -2,12 +2,15 @@
 # STD-045：std.sync RwLock/Condvar 门禁
 #
 # 用法：./tests/run-std-sync-rwlock-condvar-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_SYNC_RWLOCK_CONDVAR_DOC:-analysis/std-sync-rwlock-condvar-v1.md}"
+DOC="${XLANG_STD_SYNC_RWLOCK_CONDVAR_DOC:-analysis/archive/std/std-sync-rwlock-condvar-v1.md}"
 MANIFEST="${XLANG_STD_SYNC_RWLOCK_CONDVAR_TSV:-tests/baseline/std-sync-rwlock-condvar.tsv}"
 MOD_X="std/sync/mod.x"
 SYNC_OS_RUNTIME="${XLANG_STD_SYNC_OS_IMPL:-compiler/seeds/runtime_sync_os.from_x.c}"

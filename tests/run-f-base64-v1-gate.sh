@@ -3,13 +3,16 @@
 #
 # 用法：./tests/run-f-base64-v1-gate.sh
 # 环境：XLANG_F_BASE64_V1_FAIL=1 — 失败时硬退出
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F_BASE64_V1_FAIL:-0}
-DOC="analysis/phase-f-base64-v1.md"
+DOC="analysis/archive/phase/phase-f-base64-v1.md"
 MANIFEST="tests/baseline/f-base64-v1-closure.tsv"
 
 die() {
@@ -19,6 +22,9 @@ die() {
 }
 
 echo "=== F-base64 v1: std.base64 base64.c → base64.x ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-base64 v1' "$DOC" || die "doc missing F-base64 v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
@@ -38,8 +44,6 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'std/base64/base64.x' compiler/Makefile || die "Makefile missing base64.x rule"
-if grep -q 'std/base64/base64\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/base64/base64.c"
 fi
 

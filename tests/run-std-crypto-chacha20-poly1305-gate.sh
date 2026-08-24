@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-113：std.crypto ChaCha20-Poly1305 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-crypto-chacha20-poly1305-v1.md"
+DOC="analysis/archive/std/std-crypto-chacha20-poly1305-v1.md"
 MANIFEST="tests/baseline/std-crypto-chacha20-poly1305.tsv"
 MOD_X="std/crypto/mod.x"
 CRYPTO_GLUE="compiler/seeds/runtime_crypto_inc_glue.from_x.c"

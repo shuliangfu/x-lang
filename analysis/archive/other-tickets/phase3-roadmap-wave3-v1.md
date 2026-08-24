@@ -44,10 +44,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-022 | 自举 | mega7 B1–B7 emit 晋升 | P0 | `run-boot-022-mega7-emit-gate.sh` |
-| COMP-016 | 编译器 | riscv64 后端矩阵扩展 | P1 | `run-comp-riscv64-wave-gate.sh` |
-| STD-064 | 标准库 | `std.elf` program header 只读 | P2 | `run-std-elf-phdr-gate.sh` |
-| PLAN-003 | 治理 | Phase 3 第三批路线图定版 | P2 | `run-phase3-roadmap-wave3-gate.sh` |
+| BOOT-022 | 自举 | mega7 B1–B7 emit 晋升 | P0 | ✅ | `run-boot-022-mega7-emit-gate.sh` |
+| COMP-016 | 编译器 | riscv64 后端矩阵扩展 | P1 | ✅ | `run-comp-riscv64-wave-gate.sh` |
+| STD-064 | 标准库 | `std.elf` program header 只读 | P2 | ✅ | `run-std-elf-phdr-gate.sh` |
+| PLAN-003 | 治理 | Phase 3 第三批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave3-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.14。
 

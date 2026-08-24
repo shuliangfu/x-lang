@@ -2,12 +2,15 @@
 # STD-106：std.log 日志轮转 + 异步缓冲门禁
 #
 # 用法：./tests/run-std-log-rotate-async-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD106_DOC:-analysis/std-log-rotate-async-v1.md}"
+DOC="${XLANG_STD106_DOC:-analysis/archive/std/std-log-rotate-async-v1.md}"
 MANIFEST="${XLANG_STD106_TSV:-tests/baseline/std-log-rotate-async.tsv}"
 VECTORS="${XLANG_STD106_VECTORS:-tests/baseline/std-log-rotate-async-vectors.tsv}"
 MOD_X="std/log/mod.x"

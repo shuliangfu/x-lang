@@ -44,10 +44,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-025 | 自举 | parser C3 gen1/gen2 三代一致性 | P0 | `run-boot-025-parser-gen12-consistency-gate.sh` |
-| COMP-019 | 编译器 | WPO 默认全局开启烟测 | P1 | `run-comp-wpo-global-gate.sh` |
-| STD-067 | 标准库 | `std.db` next_row 列值迭代 | P2 | `run-std-db-next-row-gate.sh` |
-| PLAN-006 | 治理 | Phase 3 第六批路线图定版 | P2 | `run-phase3-roadmap-wave6-gate.sh` |
+| BOOT-025 | 自举 | parser C3 gen1/gen2 三代一致性 | P0 | ✅ | `run-boot-025-parser-gen12-consistency-gate.sh` |
+| COMP-019 | 编译器 | WPO 默认全局开启烟测 | P1 | ✅ | `run-comp-wpo-global-gate.sh` |
+| STD-067 | 标准库 | `std.db` next_row 列值迭代 | P2 | ✅ | `run-std-db-next-row-gate.sh` |
+| PLAN-006 | 治理 | Phase 3 第六批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave6-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.17。
 

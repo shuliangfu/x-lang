@@ -1,9 +1,9 @@
 # STD-119 std.config YAML manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	4
-read_path	section	## 1. 阅读路径	analysis/std-config-yaml-v1.md
-api_doc	section	## 2. API	analysis/std-config-yaml-v1.md
-verify	section	## 3. Gate	analysis/std-config-yaml-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-config-yaml-v1.md
+api_doc	section	## 2. API	analysis/archive/std/std-config-yaml-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-config-yaml-v1.md
 api_yaml_buf	api	load_yaml_buf	std/config/mod.x	内存加载
 api_yaml_file	api	load_yaml_file	std/config/mod.x	文件加载
 api_backend	api	backend_yaml	std/config/mod.x	后端标识

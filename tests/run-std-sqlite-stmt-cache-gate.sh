@@ -2,12 +2,15 @@
 # STD-070：std.db.sqlite 预编译 bind + stmt 缓存门禁
 #
 # 用法：./tests/run-std-sqlite-stmt-cache-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD070_DOC:-analysis/std-sqlite-stmt-cache-v1.md}"
+DOC="${XLANG_STD070_DOC:-analysis/archive/std/std-sqlite-stmt-cache-v1.md}"
 MANIFEST="${XLANG_STD070_TSV:-tests/baseline/std-sqlite-stmt-cache.tsv}"
 VECTORS="${XLANG_STD070_VECTORS:-tests/baseline/std-sqlite-stmt-cache-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -23,7 +26,7 @@ std_sqlite_stmt_cache_source_sqlite
 
 echo "=== STD-070: std.db.sqlite stmt cache manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-next-row-v1.md tests/run-std-sqlite-next-row-gate.sh; do
+  analysis/archive/std/std-sqlite-next-row-v1.md tests/run-std-sqlite-next-row-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-stmt-cache gate FAIL: missing $f" >&2
     exit 1

@@ -2,10 +2,13 @@
 # STD-137：std.db.sqlite 大 BLOB 分块读门禁
 #
 # 用法：./tests/run-std-sqlite-blob-stream-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD137_DOC:-analysis/std-sqlite-blob-stream-v1.md}"
+DOC="${XLANG_STD137_DOC:-analysis/archive/std/std-sqlite-blob-stream-v1.md}"
 MANIFEST="${XLANG_STD137_TSV:-tests/baseline/std-sqlite-blob-stream.tsv}"
 VECTORS="${XLANG_STD137_VECTORS:-tests/baseline/std-sqlite-blob-stream-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_blob_stream_source_sqlite
 
 echo "=== STD-137: db blob stream manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-row-col-blob-v1.md tests/run-std-sqlite-row-col-blob-gate.sh; do
+  analysis/archive/std/std-sqlite-row-col-blob-v1.md tests/run-std-sqlite-row-col-blob-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-blob-stream gate FAIL: missing $f" >&2
     exit 1

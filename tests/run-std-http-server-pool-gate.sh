@@ -2,10 +2,13 @@
 # STD-107：std.http server 循环 + client 连接池门禁
 #
 # 用法：./tests/run-std-http-server-pool-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD107_DOC:-analysis/std-http-server-pool-v1.md}"
+DOC="${XLANG_STD107_DOC:-analysis/archive/std/std-http-server-pool-v1.md}"
 MANIFEST="${XLANG_STD107_TSV:-tests/baseline/std-http-server-pool.tsv}"
 VECTORS="${XLANG_STD107_VECTORS:-tests/baseline/std-http-server-pool-vectors.tsv}"
 MOD_X="std/http/mod.x"

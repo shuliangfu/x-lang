@@ -21,5 +21,5 @@ smoke_std	smoke	tests/mem/std_mem_boundary.x	tests/mem/std_mem_boundary.x	std �
 smoke_buffer	smoke	tests/mem/buffer.x	tests/mem/buffer.x	Buffer ABI
 runner_core	runner	tests/run-mem.sh	tests/run-mem.sh	core
 doc_readme	file	std/mem/README.md	std/mem/README.md	用户文档
-doc	file	analysis/std-mem-boundary-v1.md	analysis/std-mem-boundary-v1.md	RFC
+doc	file	analysis/archive/std/std-mem-boundary-v1.md	analysis/archive/std/std-mem-boundary-v1.md	RFC
 gate	script	tests/run-std-mem-boundary-gate.sh	tests/run-std-mem-boundary-gate.sh	manifest

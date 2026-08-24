@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-datetime v2：std.datetime 逻辑下沉（F-ZC 纯 .x；本地偏移经 std.time）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_DATETIME_V2_FAIL:-0}
-DOC="analysis/phase-f-datetime-v2.md"
+DOC="analysis/archive/phase/phase-f-datetime-v2.md"
 MANIFEST="tests/baseline/f-datetime-v2-closure.tsv"
 die() { echo "f-datetime-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-datetime v2: datetime.x (F-ZC zero C) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-datetime v2' "$DOC" || die "doc marker"
 [ -f std/datetime/datetime.x ] || die "missing datetime.x"
@@ -30,7 +36,6 @@ grep -q 'datetime_f_datetime_v2_marker_c' std/datetime/datetime.x || die "dateti
 grep -q 'datetime_f_zero_c_marker_c' std/datetime/datetime.x || die "datetime.x missing zero-c marker"
 grep -q 'datetime_local_offset_min_c' std/datetime/datetime.x || die "datetime.x missing local offset"
 grep -q 'time_wall_local_offset_min_c' std/datetime/datetime.x || die "datetime.x missing time extern"
-grep -q 'datetime.x' compiler/Makefile || die "Makefile missing datetime.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/datetime/datetime.o >/dev/null 2>&1 || die "ensure datetime.o failed (xlang_compiler_make)"
 else

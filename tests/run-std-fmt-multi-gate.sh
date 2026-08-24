@@ -2,12 +2,15 @@
 # STD-019：std.fmt 多参数 format 门禁
 #
 # 用法：./tests/run-std-fmt-multi-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_FMT_MULTI_DOC:-analysis/std-fmt-multi-v1.md}"
+DOC="${XLANG_STD_FMT_MULTI_DOC:-analysis/archive/std/std-fmt-multi-v1.md}"
 MANIFEST="${XLANG_STD_FMT_MULTI_TSV:-tests/baseline/std-fmt-multi.tsv}"
 FMT_X="std/fmt/mod.x"
 LIB="tests/lib/std-fmt-multi.sh"

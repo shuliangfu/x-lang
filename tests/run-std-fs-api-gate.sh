@@ -4,6 +4,9 @@
 # 2) tests/run-std-fs-crossplatform-gate.sh 三平台对齐烟测
 #
 # 用法：./tests/run-std-fs-api-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -20,8 +23,8 @@ if [ ! -f "$MOD" ]; then
   echo "std-fs-api gate FAIL: missing $MOD" >&2
   exit 1
 fi
-if [ ! -f analysis/std-fs-api-v1.md ]; then
-  echo "std-fs-api gate FAIL: missing analysis/std-fs-api-v1.md" >&2
+if [ ! -f analysis/archive/std/std-fs-api-v1.md ]; then
+  echo "std-fs-api gate FAIL: missing analysis/archive/std/std-fs-api-v1.md" >&2
   exit 1
 fi
 

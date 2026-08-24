@@ -2,10 +2,13 @@
 # STD-072：std.bytes 门禁
 #
 # 用法：./tests/run-std-bytes-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_BYTES_DOC:-analysis/std-bytes-v1.md}"
+DOC="${XLANG_STD_BYTES_DOC:-analysis/archive/std/std-bytes-v1.md}"
 MANIFEST="${XLANG_STD_BYTES_MANIFEST:-tests/baseline/std-bytes-manifest.tsv}"
 VECTORS="${XLANG_STD_BYTES_VECTORS:-tests/baseline/std-bytes-vectors.tsv}"
 MOD_X="std/bytes/mod.x"

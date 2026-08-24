@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-135：std.datetime 固定偏移时区门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-datetime-timezone-v1.md"
+DOC="analysis/archive/std/std-datetime-timezone-v1.md"
 MANIFEST="tests/baseline/std-datetime-timezone-manifest.tsv"
 MOD_X="std/datetime/mod.x"
 DT_X="std/datetime/datetime.x"

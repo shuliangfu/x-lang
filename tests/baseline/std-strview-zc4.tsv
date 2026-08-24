@@ -5,14 +5,14 @@ api_from_string	symbol	string_view_from_string	std/string/mod.x	STD-016
 api_subview	symbol	string_view_subview	std/string/mod.x	ZC-4
 api_concat_arena	symbol	string_view_concat_arena	std/string/mod.x	ZC-4
 api_stack_view	symbol	stack_str_view	std/string/mod.x	SSO
-lifecycle_doc	anchor	## 3. 生命周期规则	analysis/std-strview-zc4-v1.md	RFC
-lifecycle_string	anchor	string_view_from_string	analysis/std-strview-zc4-v1.md	RFC
-lifecycle_arena	anchor	arena64_deinit	analysis/std-strview-zc4-v1.md	RFC
-lifecycle_stack	anchor	stack_str_view	analysis/std-strview-zc4-v1.md	RFC
+lifecycle_doc	anchor	## 3. 生命周期规则	analysis/archive/std/std-strview-zc4-v1.md	RFC
+lifecycle_string	anchor	string_view_from_string	analysis/archive/std/std-strview-zc4-v1.md	RFC
+lifecycle_arena	anchor	arena64_deinit	analysis/archive/std/std-strview-zc4-v1.md	RFC
+lifecycle_stack	anchor	stack_str_view	analysis/archive/std/std-strview-zc4-v1.md	RFC
 test_lifecycle	file	tests/string/view_lifecycle.x		整合烟测
 test_xbview	file	tests/string/view_subview_smoke.x		ZC-4
 test_arena	file	tests/string/arena_concat_smoke.x		ZC-4
 test_sso	file	tests/string/stack_str_sso_smoke.x		ZC-4
 zc4_gate	script	run-zc4-gate.sh	tests/run-zc4-gate.sh	深度回归
-doc	file	analysis/std-strview-zc4-v1.md	analysis/std-strview-zc4-v1.md	RFC
+doc	file	analysis/archive/std/std-strview-zc4-v1.md	analysis/archive/std/std-strview-zc4-v1.md	RFC
 gate	script	run-std-strview-zc4-gate.sh	tests/run-std-strview-zc4-gate.sh	manifest

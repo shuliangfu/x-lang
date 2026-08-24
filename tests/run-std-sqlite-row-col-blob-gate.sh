@@ -2,10 +2,13 @@
 # STD-069：std.db.sqlite row_col_blob BLOB 列门禁
 #
 # 用法：./tests/run-std-sqlite-row-col-blob-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD069_DOC:-analysis/std-sqlite-row-col-blob-v1.md}"
+DOC="${XLANG_STD069_DOC:-analysis/archive/std/std-sqlite-row-col-blob-v1.md}"
 MANIFEST="${XLANG_STD069_TSV:-tests/baseline/std-sqlite-row-col-blob.tsv}"
 VECTORS="${XLANG_STD069_VECTORS:-tests/baseline/std-sqlite-row-col-blob-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_row_col_blob_source_sqlite
 
 echo "=== STD-069: db row_col_blob manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-row-col-text-v1.md tests/run-std-sqlite-row-col-text-gate.sh; do
+  analysis/archive/std/std-sqlite-row-col-text-v1.md tests/run-std-sqlite-row-col-text-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-row-col-blob gate FAIL: missing $f" >&2
     exit 1

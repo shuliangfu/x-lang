@@ -20,6 +20,6 @@ mod_json	module	std.json	-	std/json/mod.x	std/json/mod.x	本地负码
 sidecar_fs	sidecar	last_error	std/fs/mod.x	std/fs/mod.x	errno_i32
 sidecar_db	sidecar	last_error	std/db/sqlite/mod.x	std/db/sqlite/mod.x	db_struct
 test_smoke	file	error_map_smoke.x	tests/std/error_map_smoke.x	tests/std/error_map_smoke.x	烟测
-doc	file	std-error-map-v1.md	analysis/std-error-map-v1.md	analysis/std-error-map-v1.md	RFC
-unify_doc	file	std-error-unify-v1.md	analysis/std-error-unify-v1.md	analysis/std-error-unify-v1.md	STD-011
+doc	file	std-error-map-v1.md	analysis/archive/std/std-error-map-v1.md	analysis/archive/std/std-error-map-v1.md	RFC
+unify_doc	file	std-error-unify-v1.md	analysis/archive/std/std-error-unify-v1.md	analysis/archive/std/std-error-unify-v1.md	STD-011
 gate	script	run-std-error-map-gate.sh	tests/run-std-error-map-gate.sh	tests/run-std-error-map-gate.sh	manifest

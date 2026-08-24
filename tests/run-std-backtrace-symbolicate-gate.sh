@@ -2,13 +2,16 @@
 # STD-052：std.backtrace 符号化门禁
 #
 # 用法：./tests/run-std-backtrace-symbolicate-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${XLANG_STD_BACKTRACE_SYM_DOC:-analysis/std-backtrace-symbolicate-v1.md}"
+DOC="${XLANG_STD_BACKTRACE_SYM_DOC:-analysis/archive/std/std-backtrace-symbolicate-v1.md}"
 MANIFEST="${XLANG_STD_BACKTRACE_SYM_TSV:-tests/baseline/std-backtrace-symbolicate.tsv}"
 VECTORS="${XLANG_STD_BACKTRACE_SYM_VECTORS:-tests/baseline/std-backtrace-symbolicate-vectors.tsv}"
 MOD_X="std/backtrace/mod.x"

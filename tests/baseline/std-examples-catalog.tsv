@@ -1,7 +1,7 @@
 # STD-012 标准库示例目录（可运行 / 可 typeck）
 # 列：example_id	category	path	tier	notes
 # tier: cookbook | core | stdlib
-# 更新：新增示例须同步本表 + analysis/std-examples-v1.md
+# 更新：新增示例须同步本表 + analysis/archive/std/std-examples-v1.md
 ex_hello	hello	examples/hello.x	core	Hello World
 ex_cb_io_batch	io	examples/cookbook/io_batch_rw.x	cookbook	IO-01 batch
 ex_cb_io_chunk	io	examples/cookbook/io_read_chunk.x	cookbook	IO-02 read

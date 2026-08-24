@@ -5,12 +5,15 @@
 # 2) 有 native xlang/xlang_asm 时逐条执行 P0 hook
 #
 # 用法：./tests/run-comp-isel-p0-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_COMP014_DOC:-analysis/comp-isel-p0-v1.md}"
+DOC="${XLANG_COMP014_DOC:-analysis/archive/comp/comp-isel-p0-v1.md}"
 WAVE="${XLANG_COMP014_WAVE_TSV:-tests/baseline/comp-isel-p0-wave.tsv}"
 MANIFEST="${XLANG_COMP014_MANIFEST:-tests/baseline/comp-isel.tsv}"
 LIB="tests/lib/comp-isel-p0.sh"
@@ -23,7 +26,7 @@ MIN_P0=4
 
 echo "=== COMP-014: isel P0 wave manifest ==="
 for f in "$DOC" "$WAVE" "$MANIFEST" "$LIB" \
-  analysis/comp-isel-v1.md tests/run-comp-isel-gate.sh; do
+  analysis/archive/comp/comp-isel-v1.md tests/run-comp-isel-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-isel-p0 gate FAIL: missing $f" >&2
     exit 1

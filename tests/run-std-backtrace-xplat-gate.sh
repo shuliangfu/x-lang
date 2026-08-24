@@ -2,13 +2,16 @@
 # STD-147：std.backtrace Darwin/Windows/Linux 符号质量门禁
 #
 # 用法：./tests/run-std-backtrace-xplat-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="analysis/std-backtrace-xplat-v1.md"
+DOC="analysis/archive/std/std-backtrace-xplat-v1.md"
 MANIFEST="tests/baseline/std-backtrace-xplat-manifest.tsv"
 VECTORS="tests/baseline/std-backtrace-xplat.tsv"
 BT_RUNTIME="compiler/seeds/runtime_backtrace_platform.from_x.c"

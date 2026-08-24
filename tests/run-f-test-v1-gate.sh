@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # F-test v1：std.test 去 C（test.c → test.x；F-ZC 删 test_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
@@ -7,12 +10,14 @@ cd "$(dirname "$0")/.."
 FAIL=${XLANG_F_TEST_V1_FAIL:-0}
 die() { echo "f-test-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-test v1: std.test test.c → test.x (F-ZC) ==="
-[ -f analysis/phase-f-test-v1.md ] || die "missing phase-f-test-v1.md"
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
+[ -f analysis/archive/phase/phase-f-test-v1.md ] || die "missing phase-f-test-v1.md"
 [ -f std/test/test.x ] || die "missing test.x"
 [ -f compiler/seeds/runtime_test_fn_invoke.from_x.c ] || die "missing runtime_test_fn_invoke.inc"
 [ ! -f std/test/test_glue.c ] || die "test_glue.c should be deleted"
 [ ! -f std/test/test.c ] || die "test.c should be deleted"
-grep -q 'test.x' compiler/Makefile || die "Makefile missing test.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/test/test.o >/dev/null 2>&1 || die "ensure test.o failed (xlang_compiler_make)"
 else

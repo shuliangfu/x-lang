@@ -2,17 +2,20 @@
 # STD-138：std.db.sqlite 跨线程连接语义文档门禁
 #
 # 用法：./tests/run-std-sqlite-threading-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD138_DOC:-analysis/std-sqlite-threading-v1.md}"
+DOC="${XLANG_STD138_DOC:-analysis/archive/std/std-sqlite-threading-v1.md}"
 MANIFEST="${XLANG_STD138_TSV:-tests/baseline/std-sqlite-threading.tsv}"
 README="std/db/sqlite/README.md"
 
 STD_DB_THREADING_PREFIX="${XLANG_STD138_PREFIX:-xlang: [XLANG_STD138_DB_THREADING]}"
 
 echo "=== STD-138: sqlite threading manifest ==="
-for f in "$DOC" "$MANIFEST" "$README" analysis/std-sqlite-pool-v1.md; do
+for f in "$DOC" "$MANIFEST" "$README" analysis/archive/std/std-sqlite-pool-v1.md; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-threading gate FAIL: missing $f" >&2
     exit 1

@@ -14,5 +14,5 @@ fmt3_mix	overload	format.*a: i32.*b: u32.*c: usize	std/fmt/mod.x
 core_ptr	symbol	ptr_to_buf	std/fmt/mod.x	重导出
 test_smoke	file	tests/fmt-std/format_multi.x		烟测
 runner	script	run-fmt-std.sh	tests/run-fmt-std.sh	回归
-doc	file	std-fmt-multi-v1.md	analysis/std-fmt-multi-v1.md	RFC
+doc	file	std-fmt-multi-v1.md	analysis/archive/std/std-fmt-multi-v1.md	RFC
 gate	script	run-std-fmt-multi-gate.sh	tests/run-std-fmt-multi-gate.sh	manifest

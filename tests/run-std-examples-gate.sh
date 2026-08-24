@@ -2,12 +2,15 @@
 # STD-012：标准库示例工程 manifest 门禁
 #
 # 用法：./tests/run-std-examples-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_EXAMPLES_DOC:-analysis/std-examples-v1.md}"
+DOC="${XLANG_STD_EXAMPLES_DOC:-analysis/archive/std/std-examples-v1.md}"
 MANIFEST="${XLANG_STD_EXAMPLES_MANIFEST:-tests/baseline/std-examples-manifest.tsv}"
 CATALOG="${XLANG_STD_EXAMPLES_CATALOG:-tests/baseline/std-examples-catalog.tsv}"
 MIN_EX=30

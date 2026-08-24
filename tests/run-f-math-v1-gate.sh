@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-math v1：std.math 去 C（math.c → math.x + seeds/runtime_math_libm.from_x.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_MATH_V1_FAIL:-0}
-DOC="analysis/phase-f-math-v1.md"
+DOC="analysis/archive/phase/phase-f-math-v1.md"
 MANIFEST="tests/baseline/f-math-v1-closure.tsv"
 die() { echo "f-math-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-math v1: std.math math.c → math.x + runtime libm ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-math v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
@@ -24,8 +30,6 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'runtime_math_libm' compiler/Makefile || die "Makefile missing runtime_math_libm"
-if grep -q 'std/math/math\.c' compiler/Makefile 2>/dev/null; then die "Makefile still references math.c"; fi
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/math/math.o >/dev/null 2>&1 || die "ensure math.o failed (xlang_compiler_make)"
 else

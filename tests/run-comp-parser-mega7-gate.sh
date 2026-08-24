@@ -10,6 +10,9 @@
 # 4) hook：symbol-integrity（Linux）；mega bisect baseline 7 行
 #
 # 用法：./tests/run-comp-parser-mega7-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 

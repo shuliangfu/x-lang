@@ -2,10 +2,13 @@
 # BOOT-029：std.sys freestanding write 门禁
 #
 # 用法：./tests/run-std-sys-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_SYS_DOC:-analysis/std-sys-v0.md}"
+DOC="${XLANG_STD_SYS_DOC:-analysis/archive/std/std-sys-v0.md}"
 MANIFEST="${XLANG_STD_SYS_TSV:-tests/baseline/std-sys-manifest.tsv}"
 MOD_X="std/sys/mod.x"
 SMOKE_X="tests/sys/sys_write_freestanding.x"

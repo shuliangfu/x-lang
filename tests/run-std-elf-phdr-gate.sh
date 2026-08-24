@@ -2,10 +2,13 @@
 # STD-064：std.elf ELF64 program header 只读门禁
 #
 # 用法：./tests/run-std-elf-phdr-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD064_DOC:-analysis/std-elf-phdr-v1.md}"
+DOC="${XLANG_STD064_DOC:-analysis/archive/std/std-elf-phdr-v1.md}"
 MANIFEST="${XLANG_STD064_TSV:-tests/baseline/std-elf-phdr.tsv}"
 VECTORS="${XLANG_STD064_VECTORS:-tests/baseline/std-elf-phdr-vectors.tsv}"
 MOD_X="std/elf/mod.x"
@@ -23,7 +26,7 @@ MIN_PHDR=2
 
 echo "=== STD-064: elf phdr manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$ELF_X" "$SMOKE_X" "$SMOKE_C" "$FIXTURE" \
-  analysis/std-elf-deep-v1.md tests/run-std-elf-deep-gate.sh; do
+  analysis/archive/std/std-elf-deep-v1.md tests/run-std-elf-deep-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-elf-phdr gate FAIL: missing $f" >&2
     exit 1

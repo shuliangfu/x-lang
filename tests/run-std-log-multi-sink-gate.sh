@@ -2,12 +2,15 @@
 # STD-053：std.log 多 sink 与级别过滤门禁
 #
 # 用法：./tests/run-std-log-multi-sink-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_LOG_MULTI_SINK_DOC:-analysis/std-log-multi-sink-v1.md}"
+DOC="${XLANG_STD_LOG_MULTI_SINK_DOC:-analysis/archive/std/std-log-multi-sink-v1.md}"
 MANIFEST="${XLANG_STD_LOG_MULTI_SINK_TSV:-tests/baseline/std-log-multi-sink.tsv}"
 VECTORS="${XLANG_STD_LOG_MULTI_SINK_VECTORS:-tests/baseline/std-log-multi-sink-vectors.tsv}"
 MOD_X="std/log/mod.x"

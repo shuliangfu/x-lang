@@ -2,12 +2,15 @@
 # STD-023/024：std.process 管道重定向与 Windows spawn 门禁
 #
 # 用法：./tests/run-std-process-pipe-spawn-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_PPS_DOC:-analysis/std-process-pipe-spawn-v1.md}"
+DOC="${XLANG_STD_PPS_DOC:-analysis/archive/std/std-process-pipe-spawn-v1.md}"
 MANIFEST="${XLANG_STD_PPS_TSV:-tests/baseline/std-process-pipe-spawn.tsv}"
 PROC_X="std/process/mod.x"
 PROC_C="${XLANG_STD_PROCESS_IMPL:-compiler/seeds/runtime_process_os_glue.from_x.c}"

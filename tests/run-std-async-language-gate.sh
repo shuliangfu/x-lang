@@ -3,12 +3,15 @@
 #
 # manifest + typeck + run/mod 烟测 + 1M task 委托
 # 用法：./tests/run-std-async-language-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_ALANG_DOC:-analysis/std-async-language-v1.md}"
+DOC="${XLANG_STD_ALANG_DOC:-analysis/archive/std/std-async-language-v1.md}"
 MANIFEST="${XLANG_STD_ALANG_TSV:-tests/baseline/std-async-language.tsv}"
 MOD_X="std/async/mod.x"
 SCHED_C="compiler/seeds/runtime_scheduler_glue.from_x.c"

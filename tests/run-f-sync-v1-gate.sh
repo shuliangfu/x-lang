@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-sync v1：std.sync 去 C（sync.x + seeds/runtime_sync_os.from_x.c + seeds/runtime_sync_lock_diag_tls.from_x.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SYNC_V1_FAIL:-0}
-DOC="analysis/phase-f-sync-v1.md"
+DOC="analysis/archive/phase/phase-f-sync-v1.md"
 MANIFEST="tests/baseline/f-sync-v1-closure.tsv"
 die() { echo "f-sync-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-sync v1: sync.c → sync.x ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-sync v1' "$DOC" || die "doc marker"
 [ -f std/sync/sync.x ] || die "missing sync.x"
@@ -26,7 +32,6 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'runtime_sync_os' compiler/Makefile || die "Makefile missing runtime_sync_os"
 xlang_compiler_make -q runtime_sync_os.o runtime_sync_lock_diag_tls.o 2>/dev/null || \
   xlang_compiler_make runtime_sync_os.o runtime_sync_lock_diag_tls.o >/dev/null 2>&1 || die "runtime sync build failed"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then

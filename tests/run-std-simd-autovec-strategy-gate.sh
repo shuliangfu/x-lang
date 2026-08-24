@@ -2,10 +2,13 @@
 # STD-153：std.simd 自动向量化策略 + 跨平台 perf 门禁
 #
 # 用法：./tests/run-std-simd-autovec-strategy-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-simd-autovec-strategy-v1.md"
+DOC="analysis/archive/std/std-simd-autovec-strategy-v1.md"
 MANIFEST="tests/baseline/std-simd-autovec-strategy-manifest.tsv"
 VECTORS="tests/baseline/std-simd-autovec-strategy.tsv"
 MOD_X="std/simd/mod.x"

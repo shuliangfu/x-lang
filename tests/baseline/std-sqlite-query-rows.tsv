@@ -1,7 +1,7 @@
 # STD-066 std.db.sqlite query_rows manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_query_apis	1
-read_path	section	## 1. 目标	analysis/std-sqlite-query-rows-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-sqlite-query-rows-v1.md
 api_doc	section	## 2. query_rows API（v1）	query_rows
 vectors_doc	section	## 3. 金样向量	rows_all
 verify	section	## 4. Gate	gate
@@ -14,4 +14,4 @@ smoke_x	smoke	tests/std-sqlite/query_rows_roundtrip.x	.x 往返
 vectors	file	tests/baseline/std-sqlite-query-rows-vectors.tsv	向量
 lib	script	lib/std-sqlite-query-rows.sh	tests/lib/std-sqlite-query-rows.sh
 gate	script	run-std-sqlite-query-rows-gate.sh	tests/run-std-sqlite-query-rows-gate.sh
-cross_std065	cross_ref	analysis/std-sqlite-exec-deep-v1.md	STD-065
+cross_std065	cross_ref	analysis/archive/std/std-sqlite-exec-deep-v1.md	STD-065

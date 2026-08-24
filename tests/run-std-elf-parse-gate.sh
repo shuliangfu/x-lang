@@ -2,10 +2,13 @@
 # STD-058：std.elf ELF64 头与 section 只读解析门禁
 #
 # 用法：./tests/run-std-elf-parse-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_ELF_PARSE_DOC:-analysis/std-elf-parse-v1.md}"
+DOC="${XLANG_STD_ELF_PARSE_DOC:-analysis/archive/std/std-elf-parse-v1.md}"
 MANIFEST="${XLANG_STD_ELF_PARSE_TSV:-tests/baseline/std-elf-parse.tsv}"
 VECTORS="${XLANG_STD_ELF_PARSE_VECTORS:-tests/baseline/std-elf-parse-vectors.tsv}"
 MOD_X="std/elf/mod.x"

@@ -3,6 +3,9 @@
 #
 # 读取 tests/baseline/std-async-1m.tsv，按平台 must/skip 跑 1M ping-pong。
 # 用法：./tests/run-std-async-1m-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh

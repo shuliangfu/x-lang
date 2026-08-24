@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-126：std.crypto Ed25519 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-crypto-ed25519-v1.md"
+DOC="analysis/archive/std/std-crypto-ed25519-v1.md"
 MANIFEST="tests/baseline/std-crypto-ed25519-manifest.tsv"
 MOD_X="std/crypto/mod.x"
 ED25519_X="std/crypto/ed25519.x"

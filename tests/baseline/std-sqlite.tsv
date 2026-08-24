@@ -18,4 +18,4 @@ smoke_c	file	tests/std-sqlite/exec_roundtrip_ok.c	C 入口
 smoke_x	smoke	tests/std-sqlite/exec_roundtrip.x	.x 往返
 lib	script	lib/std-sqlite-gate.sh	tests/lib/std-sqlite-gate.sh
 gate	script	run-std-sqlite-gate.sh	tests/run-std-sqlite-gate.sh
-cross_std010	cross_ref	analysis/std-sqlite-prereq-v1.md	STD-010
+cross_std010	cross_ref	analysis/archive/std/std-sqlite-prereq-v1.md	STD-010

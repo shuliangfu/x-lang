@@ -2,10 +2,13 @@
 # STD-048：std.queue 并发安全可选封装门禁
 #
 # 用法：./tests/run-std-queue-concurrent-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_QUEUE_CONCURRENT_DOC:-analysis/std-queue-concurrent-v1.md}"
+DOC="${XLANG_STD_QUEUE_CONCURRENT_DOC:-analysis/archive/std/std-queue-concurrent-v1.md}"
 MANIFEST="${XLANG_STD_QUEUE_CONCURRENT_TSV:-tests/baseline/std-queue-concurrent.tsv}"
 MOD_X="std/queue/mod.x"
 QUEUE_C="std/queue/queue.x"

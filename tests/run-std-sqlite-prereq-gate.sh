@@ -2,12 +2,15 @@
 # STD-010：std.db.sqlite 接口预研 manifest 门禁
 #
 # 用法：./tests/run-std-sqlite-prereq-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_SQLITE_DOC:-analysis/std-sqlite-prereq-v1.md}"
+DOC="${XLANG_STD_SQLITE_DOC:-analysis/archive/std/std-sqlite-prereq-v1.md}"
 MANIFEST="${XLANG_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
 MOD_X="${XLANG_STD_SQLITE_MOD:-std/db/sqlite/mod.x}"
 MIN_APIS=9

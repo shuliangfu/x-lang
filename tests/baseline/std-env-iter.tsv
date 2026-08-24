@@ -15,5 +15,5 @@ c_args_count	symbol	args_iter_count_c	std/env/env.x
 c_args_at	symbol	args_iter_at_c	std/env/env.x
 test_smoke	file	env_iter.x	tests/env/env_iter.x	烟测
 runner	script	run-env.sh	tests/run-env.sh	回归
-doc	file	std-env-iter-v1.md	analysis/std-env-iter-v1.md	RFC
+doc	file	std-env-iter-v1.md	analysis/archive/std/std-env-iter-v1.md	RFC
 gate	script	run-std-env-iter-gate.sh	tests/run-std-env-iter-gate.sh	manifest

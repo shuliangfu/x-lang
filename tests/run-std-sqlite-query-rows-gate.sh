@@ -2,10 +2,13 @@
 # STD-066：std.db.sqlite query_rows 行迭代原型门禁
 #
 # 用法：./tests/run-std-sqlite-query-rows-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD066_DOC:-analysis/std-sqlite-query-rows-v1.md}"
+DOC="${XLANG_STD066_DOC:-analysis/archive/std/std-sqlite-query-rows-v1.md}"
 MANIFEST="${XLANG_STD066_TSV:-tests/baseline/std-sqlite-query-rows.tsv}"
 VECTORS="${XLANG_STD066_VECTORS:-tests/baseline/std-sqlite-query-rows-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_query_rows_source_sqlite
 
 echo "=== STD-066: db query_rows manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-exec-deep-v1.md tests/run-std-sqlite-exec-deep-gate.sh; do
+  analysis/archive/std/std-sqlite-exec-deep-v1.md tests/run-std-sqlite-exec-deep-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-query-rows gate FAIL: missing $f" >&2
     exit 1

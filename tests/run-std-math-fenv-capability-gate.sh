@@ -2,13 +2,16 @@
 # STD-149：std.math fenv 能力检测门禁
 #
 # 用法：./tests/run-std-math-fenv-capability-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="analysis/std-math-fenv-capability-v1.md"
+DOC="analysis/archive/std/std-math-fenv-capability-v1.md"
 MANIFEST="tests/baseline/std-math-fenv-capability-manifest.tsv"
 VECTORS="tests/baseline/std-math-fenv-capability.tsv"
 MOD_X="std/math/mod.x"

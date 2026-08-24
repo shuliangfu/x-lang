@@ -51,7 +51,7 @@ api_handshake_ctx	api	ws_client_handshake_ctx	std/websocket/mod.x	握手+ctx
 api_srv_accept_ctx	api	ws_server_accept_ctx	std/websocket/mod.x	服务端+ctx
 smoke_context	smoke	tests/net/ws_context.x	Context离线烟测
 smoke_frame	smoke	tests/net/ws_frame.x	帧烟测
-cross_std030	cross_ref	analysis/std-net-tls-v1.md	STD-030
+cross_std030	cross_ref	analysis/archive/std/std-net-tls-v1.md	STD-030
 lib	script	lib/std-net-ws.sh	tests/lib/std-net-ws.sh
 gate	script	run-std-net-ws-gate.sh	tests/run-std-net-ws-gate.sh
-doc	file	analysis/std-net-ws-v1.md	analysis/std-net-ws-v1.md	RFC
+doc	file	analysis/archive/std/std-net-ws-v1.md	analysis/archive/std/std-net-ws-v1.md	RFC

@@ -2,12 +2,15 @@
 # STD-009：std.http 服务器基准 manifest 门禁
 #
 # 用法：./tests/run-std-http-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
+DOC="${XLANG_STD_HTTP_DOC:-analysis/archive/std/std-http-bench-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
 MOD_X="${XLANG_STD_HTTP_MOD:-std/http/mod.x}"
 HTTP_C="${XLANG_STD_HTTP_C:-compiler/seeds/runtime_http_glue.from_x.c}"

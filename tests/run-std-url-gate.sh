@@ -2,12 +2,15 @@
 # STD-076：std.url 门禁
 #
 # 用法：./tests/run-std-url-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_URL_DOC:-analysis/std-url-v1.md}"
+DOC="${XLANG_STD_URL_DOC:-analysis/archive/std/std-url-v1.md}"
 MANIFEST="${XLANG_STD_URL_MANIFEST:-tests/baseline/std-url-manifest.tsv}"
 VECTORS="${XLANG_STD_URL_VECTORS:-tests/baseline/std-url-vectors.tsv}"
 MOD_X="std/url/mod.x"

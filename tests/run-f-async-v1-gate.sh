@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-async v1：std.async 去 C（scheduler/future.c → .x + *_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_ASYNC_V1_FAIL:-0}
-DOC="analysis/phase-f-async-v1.md"
+DOC="analysis/archive/phase/phase-f-async-v1.md"
 MANIFEST="tests/baseline/f-async-v1-closure.tsv"
 die() { echo "f-async-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-async v1: scheduler/future.c → .x + glue ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-async v1' "$DOC" || die "doc marker"
 [ -f std/async/scheduler.x ] || die "missing scheduler.x"
@@ -26,10 +32,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'scheduler.x' compiler/Makefile || die "Makefile missing scheduler.x"
-grep -q 'runtime_scheduler_glue' compiler/Makefile || die "Makefile missing runtime_scheduler_glue"
 xlang_compiler_make -q runtime_scheduler_glue.o 2>/dev/null || xlang_compiler_make runtime_scheduler_glue.o >/dev/null 2>&1 || die "runtime_scheduler_glue.o build failed"
-grep -q 'future.x' compiler/Makefile || die "Makefile missing future.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/async/scheduler.o >/dev/null 2>&1 || die "ensure scheduler.o failed (xlang_compiler_make)"
   xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "ensure future.o failed (xlang_compiler_make)"

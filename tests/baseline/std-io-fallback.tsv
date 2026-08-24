@@ -1,9 +1,9 @@
 # STD-026 std.io 非 Linux 回退矩阵 manifest
 # 列：item_id	kind	doc_anchor	code_anchor	src	notes
 min_matrix_rows	meta	12	-	-	12 rows
-section_matrix	section	## 3. 三平台 read/write 矩阵	-	analysis/std-io-fallback-v1.md	RFC
-section_macos	section	### 3.1 macOS 特例	-	analysis/std-io-fallback-v1.md	§3.1
-section_win	section	### 3.2 Windows 特例	-	analysis/std-io-fallback-v1.md	§3.2
+section_matrix	section	## 3. 三平台 read/write 矩阵	-	analysis/archive/std/std-io-fallback-v1.md	RFC
+section_macos	section	### 3.1 macOS 特例	-	analysis/archive/std/std-io-fallback-v1.md	§3.1
+section_win	section	### 3.2 Windows 特例	-	analysis/archive/std/std-io-fallback-v1.md	§3.2
 readme_link	readme	std-io-fallback-v1.md	-	std/io/README.md	链接
 code_header	code	-	io_uring（Linux）/ kqueue（macOS）/ IOCP（Windows）	std/io/io.c	文件头
 linux_read	matrix	io_uring_prep_read	FALLBACK_READ	std/io/io.c	io_read
@@ -22,5 +22,5 @@ api_read_fd	symbol	-	read_fd	std/io/mod.x	API
 api_read_batch	symbol	-	read_batch_fd	std/io/mod.x	API
 test_smoke	file	-	fallback_matrix.x	tests/io/fallback_matrix.x	烟测
 runner	script	-	run-io.sh	tests/run-io.sh	回归
-doc	file	-	std-io-fallback-v1.md	analysis/std-io-fallback-v1.md	RFC
+doc	file	-	std-io-fallback-v1.md	analysis/archive/std/std-io-fallback-v1.md	RFC
 gate	script	-	run-std-io-fallback-gate.sh	tests/run-std-io-fallback-gate.sh	manifest

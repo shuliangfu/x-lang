@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # STD-119：std.config YAML 可选后端门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="analysis/std-config-yaml-v1.md"
+DOC="analysis/archive/std/std-config-yaml-v1.md"
 MANIFEST="tests/baseline/std-config-yaml-manifest.tsv"
 VECTORS="tests/baseline/std-config-yaml-vectors.tsv"
 MOD_X="std/config/mod.x"

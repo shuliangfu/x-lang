@@ -2,12 +2,15 @@
 # STD-110：std.codec compress/base64 流式适配门禁
 #
 # 用法：./tests/run-std-codec-stream-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD110_DOC:-analysis/std-codec-stream-v1.md}"
+DOC="${XLANG_STD110_DOC:-analysis/archive/std/std-codec-stream-v1.md}"
 MANIFEST="${XLANG_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
 VECTORS="${XLANG_STD110_VECTORS:-tests/baseline/std-codec-stream-vectors.tsv}"
 MOD_X="std/codec/mod.x"

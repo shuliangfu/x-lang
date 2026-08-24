@@ -2,14 +2,14 @@
 # 列：item_id	kind	anchor	src	tier	notes
 min_apis	9
 min_layers	4
-read_path	section	## 1. 阅读路径	analysis/std-sqlite-prereq-v1.md	-	15min
-layers_doc	section	## 2. 设计层 D1–D4	analysis/std-sqlite-prereq-v1.md	-	D1-D4
-api_table	section	## 3. 草案 API 表	analysis/std-sqlite-prereq-v1.md	-	API
-verify	section	## 6. Gate 与 report	analysis/std-sqlite-prereq-v1.md	-	gate
-layer_d1	layers	D1-connection	analysis/std-sqlite-prereq-v1.md	draft	open/close
-layer_d2	layers	D2-query-exec	analysis/std-sqlite-prereq-v1.md	draft	exec/query
-layer_d3	layers	D3-transaction	analysis/std-sqlite-prereq-v1.md	draft	tx
-layer_d4	layers	D4-backend	analysis/std-sqlite-prereq-v1.md	draft	stub/SQLite
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-sqlite-prereq-v1.md	-	15min
+layers_doc	section	## 2. 设计层 D1–D4	analysis/archive/std/std-sqlite-prereq-v1.md	-	D1-D4
+api_table	section	## 3. 草案 API 表	analysis/archive/std/std-sqlite-prereq-v1.md	-	API
+verify	section	## 6. Gate 与 report	analysis/archive/std/std-sqlite-prereq-v1.md	-	gate
+layer_d1	layers	D1-connection	analysis/archive/std/std-sqlite-prereq-v1.md	draft	open/close
+layer_d2	layers	D2-query-exec	analysis/archive/std/std-sqlite-prereq-v1.md	draft	exec/query
+layer_d3	layers	D3-transaction	analysis/archive/std/std-sqlite-prereq-v1.md	draft	tx
+layer_d4	layers	D4-backend	analysis/archive/std/std-sqlite-prereq-v1.md	draft	stub/SQLite
 api_open	api	open	std/db/sqlite/mod.x	draft	连接
 api_close	api	close	std/db/sqlite/mod.x	draft	关闭
 api_exec	api	exec	std/db/sqlite/mod.x	draft	执行

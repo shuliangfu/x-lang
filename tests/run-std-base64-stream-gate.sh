@@ -2,10 +2,13 @@
 # STD-109：std.base64 流式编解码门禁
 #
 # 用法：./tests/run-std-base64-stream-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD109_DOC:-analysis/std-base64-stream-v1.md}"
+DOC="${XLANG_STD109_DOC:-analysis/archive/std/std-base64-stream-v1.md}"
 MANIFEST="${XLANG_STD109_TSV:-tests/baseline/std-base64-stream.tsv}"
 VECTORS="${XLANG_STD109_VECTORS:-tests/baseline/std-base64-stream-vectors.tsv}"
 MOD_X="std/base64/mod.x"

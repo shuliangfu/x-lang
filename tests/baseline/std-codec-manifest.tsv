@@ -1,9 +1,9 @@
 # STD-073 std.codec manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	10
-read_path	section	## 1. 阅读路径	analysis/std-codec-v1.md
-api_doc	section	## 2. API	analysis/std-codec-v1.md
-verify	section	## 3. Gate	analysis/std-codec-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-codec-v1.md
+api_doc	section	## 2. API	analysis/archive/std/std-codec-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-codec-v1.md
 api_encoder_new	api	encoder_new	std/codec/mod.x	编码器
 api_decoder_new	api	decoder_new	std/codec/mod.x	解码器
 api_encoder_encode	api	encoder_encode	std/codec/mod.x	块编

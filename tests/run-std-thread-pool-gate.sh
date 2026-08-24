@@ -2,12 +2,15 @@
 # STD-043：std.thread 线程池与命名线程门禁
 #
 # 用法：./tests/run-std-thread-pool-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_THREAD_POOL_DOC:-analysis/std-thread-pool-v1.md}"
+DOC="${XLANG_STD_THREAD_POOL_DOC:-analysis/archive/std/std-thread-pool-v1.md}"
 MANIFEST="${XLANG_STD_THREAD_POOL_TSV:-tests/baseline/std-thread-pool.tsv}"
 MOD_X="std/thread/mod.x"
 THREAD_RUNTIME="${XLANG_STD_THREAD_IMPL:-compiler/seeds/runtime_thread_glue.from_x.c}"

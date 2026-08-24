@@ -1,8 +1,8 @@
 # STD-122 std.compress unified stream manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	7
-read_path	section	## 1. 阅读路径	analysis/std-compress-unified-stream-v1.md
-verify	section	## 4. Gate	analysis/std-compress-unified-stream-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-compress-unified-stream-v1.md
+verify	section	## 4. Gate	analysis/archive/std/std-compress-unified-stream-v1.md
 api_format	api	format_gzip	std/compress/mod.x	格式常量
 api_mode_c	api	mode_compress	std/compress/mod.x	压缩模式
 api_mode_d	api	mode_decompress	std/compress/mod.x	解压模式

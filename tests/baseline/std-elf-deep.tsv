@@ -1,7 +1,7 @@
 # STD-063 std.elf 深化 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_deep_apis	2
-read_path	section	## 1. 目标	analysis/std-elf-deep-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-elf-deep-v1.md
 api_doc	section	## 2. 深化 API	find_section_idx
 vectors	section	## 3. 金样向量	std-elf-deep-vectors.tsv
 gate_section	section	## 4. Gate	run-std-elf-deep-gate
@@ -16,6 +16,6 @@ fixture	file	tests/baseline/fixtures/elf64_min_reloc.bin	金样
 smoke_c	file	tests/std-elf/parse_sections_smoke_ok.c	C 入口
 smoke_x	smoke	tests/std-elf/parse_sections.x	.x 烟测
 parent_tsv	cross_ref	tests/baseline/std-elf-parse.tsv	STD-058
-parent_doc	cross_ref	analysis/std-elf-parse-v1.md	STD-058
+parent_doc	cross_ref	analysis/archive/std/std-elf-parse-v1.md	STD-058
 lib	script	lib/std-elf-deep.sh	tests/lib/std-elf-deep.sh
 gate	script	run-std-elf-deep-gate.sh	tests/run-std-elf-deep-gate.sh

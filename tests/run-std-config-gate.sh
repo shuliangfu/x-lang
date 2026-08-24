@@ -2,12 +2,15 @@
 # STD-086：std.config 门禁（含来源 meta）
 #
 # 用法：./tests/run-std-config-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
+DOC="${XLANG_STD_CONFIG_DOC:-analysis/archive/std/std-config-v1.md}"
 MANIFEST="${XLANG_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
 MOD_X="std/config/mod.x"
 CFG_X="std/config/config.x"

@@ -2,12 +2,12 @@
 # 列：item_id	kind	anchor	src	tier	notes
 min_apis	5
 min_layers	3
-read_path	section	## 1. 阅读路径	analysis/std-crypto-min-v1.md	-	10min
-layers_doc	section	## 2. 安全层 K1–K3	analysis/std-crypto-min-v1.md	-	K1-K3
-verify	section	## 4. Gate 与 report	analysis/std-crypto-min-v1.md	-	gate
-layer_k1	layers	K1-hash	analysis/std-crypto-min-v1.md	v1	SHA/HMAC
-layer_k2	layers	K2-rand	analysis/std-crypto-min-v1.md	v1	CSPRNG
-layer_k3	layers	K3-sig	analysis/std-crypto-min-v1.md	v1	MAC
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-crypto-min-v1.md	-	10min
+layers_doc	section	## 2. 安全层 K1–K3	analysis/archive/std/std-crypto-min-v1.md	-	K1-K3
+verify	section	## 4. Gate 与 report	analysis/archive/std/std-crypto-min-v1.md	-	gate
+layer_k1	layers	K1-hash	analysis/archive/std/std-crypto-min-v1.md	v1	SHA/HMAC
+layer_k2	layers	K2-rand	analysis/archive/std/std-crypto-min-v1.md	v1	CSPRNG
+layer_k3	layers	K3-sig	analysis/archive/std/std-crypto-min-v1.md	v1	MAC
 api_mem_eq	api	mem_eq	std/crypto/mod.x	core	常量时间比较
 api_sha256	api	sha256	std/crypto/mod.x	core	32B 摘要
 api_hmac	api	hmac_sha256	std/crypto/mod.x	core	HMAC

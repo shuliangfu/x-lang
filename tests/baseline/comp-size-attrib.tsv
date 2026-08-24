@@ -3,12 +3,12 @@
 # min_layers	6
 # min_artifacts	8
 # min_cases	3
-read_path	section	## 1. 阅读路径	analysis/comp-size-attrib-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/comp/comp-size-attrib-v1.md	-	15min
 layers	section	## 2. 归因层 A1–A6	comp-size-attrib.tsv	-	attribution
 matrix	section	## 3. 产物矩阵	comp-size-attrib-matrix.tsv	-	distribution
-report	section	## 4. 报告格式	analysis/comp-size-attrib-v1.md	-	TSV
-cases	section	## 5. Golden 联动	analysis/comp-size-attrib-v1.md	-	cases
-verify	section	## 7. 验证与门禁	analysis/comp-size-attrib-v1.md	-	gate
+report	section	## 4. 报告格式	analysis/archive/comp/comp-size-attrib-v1.md	-	TSV
+cases	section	## 5. Golden 联动	analysis/archive/comp/comp-size-attrib-v1.md	-	cases
+verify	section	## 7. 验证与门禁	analysis/archive/comp/comp-size-attrib-v1.md	-	gate
 layer_a1	layers	A1-exec	comp-size-attrib-matrix.tsv	exec	file_bytes
 layer_a2	layers	A2-object	comp-size-attrib-matrix.tsv	object	build_asm
 layer_a3	layers	A3-text	tests/lib/comp-size-attrib.sh	text	__text

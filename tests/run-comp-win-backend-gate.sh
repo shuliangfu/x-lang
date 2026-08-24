@@ -2,10 +2,13 @@
 # COMP-011：Windows 目标后端 manifest 门禁
 #
 # 用法：./tests/run-comp-win-backend-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_WIN_BACKEND_DOC:-analysis/comp-win-backend-v1.md}"
+DOC="${XLANG_COMP_WIN_BACKEND_DOC:-analysis/archive/comp/comp-win-backend-v1.md}"
 MANIFEST="${XLANG_COMP_WIN_BACKEND_MANIFEST:-tests/baseline/comp-win-backend.tsv}"
 MATRIX="${XLANG_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
 MIN_LAYERS=6

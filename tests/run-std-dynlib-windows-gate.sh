@@ -2,12 +2,15 @@
 # STD-027：std.dynlib Windows LoadLibrary 门禁
 #
 # 用法：./tests/run-std-dynlib-windows-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_DYNLIB_WIN_DOC:-analysis/std-dynlib-windows-v1.md}"
+DOC="${XLANG_STD_DYNLIB_WIN_DOC:-analysis/archive/std/std-dynlib-windows-v1.md}"
 MANIFEST="${XLANG_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
 DYNLIB_RUNTIME="compiler/seeds/runtime_dynlib_os.from_x.c"
 DYNLIB_X="std/dynlib/dynlib.x"

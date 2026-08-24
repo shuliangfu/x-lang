@@ -1,9 +1,9 @@
 # STD-087 std.cache manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	10
-read_path	section	## 1. 阅读路径	analysis/std-cache-v1.md
-api_doc	section	## 2. API	analysis/std-cache-v1.md
-verify	section	## 3. Gate	analysis/std-cache-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-cache-v1.md
+api_doc	section	## 2. API	analysis/archive/std/std-cache-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-cache-v1.md
 api_lru_new	api	lru_new	std/cache/mod.x	LRU
 api_lru_get	api	lru_get	std/cache/mod.x	读
 api_lru_put	api	lru_put	std/cache/mod.x	写

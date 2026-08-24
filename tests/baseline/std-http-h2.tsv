@@ -288,6 +288,6 @@ symbol_hpack_smoke_c	symbol	http2_hpack_smoke_c	compiler/seeds/http/hpack.inc.c	
 symbol_client_smoke_c	symbol	http2_client_smoke_c	compiler/seeds/http/client.inc.c	客户端
 smoke_wire	smoke	tests/http/wire.x	线格式烟测
 smoke_client	smoke	tests/http/client.x	客户端烟测
-doc	file	analysis/std-http-h2-v0.md	RFC
+doc	file	analysis/archive/std/std-http-h2-v0.md	RFC
 lib	script	lib/std-http-h2.sh	tests/lib/std-http-h2.sh
 gate	script	run-std-http-h2-gate.sh	tests/run-std-http-h2-gate.sh

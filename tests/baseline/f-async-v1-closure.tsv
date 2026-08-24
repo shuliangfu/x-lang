@@ -1,6 +1,6 @@
 # F-async v1 std.async 闭合 manifest
 # 列：item_id	kind	anchor	notes
-fa_doc	doc	analysis/phase-f-async-v1.md	F-async v1
+fa_doc	doc	analysis/archive/phase/phase-f-async-v1.md	F-async v1
 fa_gate	gate	tests/run-f-async-v1-gate.sh	聚合门禁
 sched_x	file	std/async/scheduler.x	调度锚点 .x
 sched_glue	file	compiler/seeds/runtime_scheduler_glue.from_x.c	调度胶层 runtime
@@ -11,4 +11,4 @@ async_mod	file	std/async/mod.x	对外 API
 async_inc	file	compiler/seeds/async_net_fs.from_x.c	net/fs 烟测 inc
 sched_c_absent	absent	std/async/scheduler.c	已删除
 fut_c_absent	absent	std/async/future.c	已删除
-makefile	makefile	compiler/Makefile	scheduler.o 纯 .x + runtime_scheduler_glue.o
+makefile	makefile	xbuild	scheduler.o 纯 .x + runtime_scheduler_glue.o

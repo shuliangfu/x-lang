@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-dynlib v1：std.dynlib 去 C（dynlib.c → dynlib.x；胶层 v2 已拆，见 run-f-dynlib-v2-gate.sh）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_DYNLIB_V1_FAIL:-0}
-DOC="analysis/phase-f-dynlib-v1.md"
+DOC="analysis/archive/phase/phase-f-dynlib-v1.md"
 MANIFEST="tests/baseline/f-dynlib-v1-closure.tsv"
 die() { echo "f-dynlib-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-dynlib v1: dynlib.c → dynlib.x (glue superseded by v2) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-dynlib v1' "$DOC" || die "doc marker"
 [ -f std/dynlib/dynlib.x ] || die "missing dynlib.x"
@@ -21,7 +27,6 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'dynlib.x' compiler/Makefile || die "Makefile missing dynlib.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "ensure dynlib.o failed (xlang_compiler_make)"
 else

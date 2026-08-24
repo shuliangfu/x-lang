@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-dynlib v2：std.dynlib F-ZC（dynlib_os_glue.c → runtime_dynlib_os.inc）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_DYNLIB_V2_FAIL:-0}
-DOC="analysis/phase-f-dynlib-v2.md"
+DOC="analysis/archive/phase/phase-f-dynlib-v2.md"
 MANIFEST="tests/baseline/f-dynlib-v2-closure.tsv"
 die() { echo "f-dynlib-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-dynlib v2: logic → dynlib.x + runtime ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-dynlib v2' "$DOC" || die "doc marker"
 [ -f std/dynlib/dynlib.x ] || die "missing dynlib.x"
@@ -27,8 +33,6 @@ grep -q 'dynlib_open_c' std/dynlib/dynlib.x || die "dynlib.x missing open"
 grep -q 'dynlib_last_error_copy_c' std/dynlib/dynlib.x || die "dynlib.x missing last_error"
 grep -q 'dynlib_f_dynlib_v2_marker_c' std/dynlib/dynlib.x || die "dynlib.x missing v2 marker"
 grep -q 'dynlib_os_open_c' compiler/seeds/runtime_dynlib_os.from_x.c || die "runtime missing open"
-grep -q 'dynlib_glue.c' compiler/Makefile && die "Makefile still references dynlib_glue.c"
-grep -q 'runtime_dynlib_os' compiler/Makefile || die "Makefile missing runtime_dynlib_os.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "ensure dynlib.o failed (xlang_compiler_make)"
 else

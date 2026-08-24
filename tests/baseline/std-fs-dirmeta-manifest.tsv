@@ -1,9 +1,9 @@
 # STD-123 std.fs dir/meta manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	10
-read_path	section	## 1. 阅读路径	analysis/std-fs-dirmeta-v1.md
-api_doc	section	## 2. 目录/元数据 API	analysis/std-fs-dirmeta-v1.md
-verify	section	## 3. Gate	analysis/std-fs-dirmeta-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-fs-dirmeta-v1.md
+api_doc	section	## 2. 目录/元数据 API	analysis/archive/std/std-fs-dirmeta-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-fs-dirmeta-v1.md
 api_stat	api	stat	std/fs/mod.x	stat
 api_chmod	api	chmod	std/fs/mod.x	chmod
 api_mkdir	api	mkdir	std/fs/mod.x	mkdir

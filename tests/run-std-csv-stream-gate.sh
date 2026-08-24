@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-128：std.csv 流式 reader/writer 门禁（F-csv v1：csv.x）
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-csv-stream-v1.md"
+DOC="analysis/archive/std/std-csv-stream-v1.md"
 MANIFEST="tests/baseline/std-csv-stream-manifest.tsv"
 MOD_X="std/csv/mod.x"
 CSV_X="std/csv/csv.x"

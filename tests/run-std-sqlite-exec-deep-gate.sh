@@ -2,10 +2,13 @@
 # STD-065：std.db.sqlite SQLite exec 深化门禁
 #
 # 用法：./tests/run-std-sqlite-exec-deep-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD065_DOC:-analysis/std-sqlite-exec-deep-v1.md}"
+DOC="${XLANG_STD065_DOC:-analysis/archive/std/std-sqlite-exec-deep-v1.md}"
 MANIFEST="${XLANG_STD065_TSV:-tests/baseline/std-sqlite-exec-deep.tsv}"
 VECTORS="${XLANG_STD065_VECTORS:-tests/baseline/std-sqlite-exec-deep-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_exec_deep_source_sqlite
 
 echo "=== STD-065: db exec deep manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-v1.md tests/run-std-sqlite-gate.sh; do
+  analysis/archive/std/std-sqlite-v1.md tests/run-std-sqlite-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-exec-deep gate FAIL: missing $f" >&2
     exit 1

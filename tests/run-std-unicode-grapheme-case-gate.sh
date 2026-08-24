@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-114：std.unicode grapheme/case fold 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-unicode-grapheme-case-v1.md"
+DOC="analysis/archive/std/std-unicode-grapheme-case-v1.md"
 MANIFEST="tests/baseline/std-unicode-grapheme-case.tsv"
 MOD_X="std/unicode/mod.x"
 UNI_IMPL="std/unicode/unicode.x"

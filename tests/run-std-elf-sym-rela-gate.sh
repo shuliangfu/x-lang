@@ -2,10 +2,13 @@
 # STD-103：std.elf symtab/rela 门禁
 #
 # 用法：./tests/run-std-elf-sym-rela-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD103_DOC:-analysis/std-elf-sym-rela-v1.md}"
+DOC="${XLANG_STD103_DOC:-analysis/archive/std/std-elf-sym-rela-v1.md}"
 MANIFEST="${XLANG_STD103_TSV:-tests/baseline/std-elf-sym-rela.tsv}"
 VECTORS="${XLANG_STD103_VECTORS:-tests/baseline/std-elf-sym-rela-vectors.tsv}"
 MOD_X="std/elf/mod.x"
@@ -21,7 +24,7 @@ MIN_APIS=4
 
 echo "=== STD-103: elf symtab/rela manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$ELF_X" "$SMOKE_X" "$SMOKE_C" "$FIXTURE" \
-  analysis/std-elf-parse-v1.md tests/run-std-elf-parse-gate.sh; do
+  analysis/archive/std/std-elf-parse-v1.md tests/run-std-elf-parse-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-elf-sym-rela gate FAIL: missing $f" >&2
     exit 1

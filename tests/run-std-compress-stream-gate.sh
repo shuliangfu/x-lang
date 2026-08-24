@@ -2,12 +2,15 @@
 # STD-039：std.compress gzip 流式 compress/decompress 门禁
 #
 # 用法：./tests/run-std-compress-stream-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_COMPRESS_STREAM_DOC:-analysis/std-compress-stream-v1.md}"
+DOC="${XLANG_STD_COMPRESS_STREAM_DOC:-analysis/archive/std/std-compress-stream-v1.md}"
 MANIFEST="${XLANG_STD_COMPRESS_STREAM_TSV:-tests/baseline/std-compress-stream.tsv}"
 MOD_X="std/compress/mod.x"
 COMPRESS_C="std/compress/gzip/libz.x"

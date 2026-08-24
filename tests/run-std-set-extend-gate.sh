@@ -2,12 +2,15 @@
 # STD-015：std.set Set_u64 / Set_str 扩展门禁
 #
 # 用法：./tests/run-std-set-extend-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_SET_EXTEND_DOC:-analysis/std-set-extend-v1.md}"
+DOC="${XLANG_STD_SET_EXTEND_DOC:-analysis/archive/std/std-set-extend-v1.md}"
 MANIFEST="${XLANG_STD_SET_EXTEND_TSV:-tests/baseline/std-set-extend.tsv}"
 SET_X="std/set/mod.x"
 LIB="tests/lib/std-set-extend.sh"

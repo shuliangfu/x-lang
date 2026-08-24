@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-127：std.encoding Base32/percent 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-encoding-extra-v1.md"
+DOC="analysis/archive/std/std-encoding-extra-v1.md"
 MANIFEST="tests/baseline/std-encoding-extra-manifest.tsv"
 MOD_X="std/encoding/mod.x"
 ENCODING_X="${XLANG_STD_ENCODING_IMPL:-std/encoding/encoding.x}"

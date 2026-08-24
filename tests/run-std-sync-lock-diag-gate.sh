@@ -2,12 +2,15 @@
 # STD-111：std.sync 调试锁诊断门禁（F-sync-lock-diag v2：逻辑在 sync.x，TLS 在 tls glue）
 #
 # 用法：./tests/run-std-sync-lock-diag-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
+DOC="${XLANG_STD111_DOC:-analysis/archive/std/std-sync-lock-diag-v1.md}"
 MANIFEST="${XLANG_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
 MOD_X="std/sync/mod.x"
 SYNC_DIAG_X="std/sync/sync.x"

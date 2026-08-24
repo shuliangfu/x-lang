@@ -2,10 +2,13 @@
 # STD-144：std.mem 安全边界封装门禁
 #
 # 用法：./tests/run-std-mem-safe-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-mem-safe-v1.md"
+DOC="analysis/archive/std/std-mem-safe-v1.md"
 MANIFEST="tests/baseline/std-mem-safe-manifest.tsv"
 MOD_X="std/mem/mod.x"
 LIB="tests/lib/std-mem-safe.sh"

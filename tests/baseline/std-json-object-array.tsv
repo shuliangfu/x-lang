@@ -7,8 +7,8 @@ cursor_object_next	symbol	cursor_object_next	std/json/mod.x
 cursor_array_has_elem	symbol	cursor_array_has_elem	std/json/mod.x
 cursor_skip_value	symbol	cursor_skip_value	std/json/mod.x
 json_cursor_c	symbol	json_cursor_object_next_c	std/json/json.x
-zc_doc	anchor	大对象 ZC 策略	analysis/std-json-object-array-v1.md	RFC
-object_array	anchor	object_array_parse	analysis/std-json-object-array-v1.md	RFC
+zc_doc	anchor	大对象 ZC 策略	analysis/archive/std/std-json-object-array-v1.md	RFC
+object_array	anchor	object_array_parse	analysis/archive/std/std-json-object-array-v1.md	RFC
 test_oa	file	tests/json/object_array_parse.x		金样
-doc	file	analysis/std-json-object-array-v1.md	analysis/std-json-object-array-v1.md	RFC
+doc	file	analysis/archive/std/std-json-object-array-v1.md	analysis/archive/std/std-json-object-array-v1.md	RFC
 gate	script	run-std-json-object-array-gate.sh	tests/run-std-json-object-array-gate.sh	manifest

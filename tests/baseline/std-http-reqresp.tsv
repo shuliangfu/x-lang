@@ -51,6 +51,6 @@ smoke_reqresp	smoke	tests/http/request_response.x	烟测
 smoke_url_owned	smoke	tests/http/request_url_owned.x	堆 URL 烟测
 smoke_owned	smoke	tests/http/request_owned.x	Owned 烟测
 smoke_response_owned	smoke	tests/http/response_owned.x	ResponseOwned 烟测
-doc	file	analysis/std-http-reqresp-v0.md	RFC
+doc	file	analysis/archive/std/std-http-reqresp-v0.md	RFC
 lib	script	lib/std-http-reqresp.sh	tests/lib/std-http-reqresp.sh
 gate	script	run-std-http-reqresp-gate.sh	tests/run-std-http-reqresp-gate.sh

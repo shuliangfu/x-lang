@@ -2,12 +2,15 @@
 # STD-035：std.json object/array 序列化门禁
 #
 # 用法：./tests/run-std-json-serialize-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_JSZ_DOC:-analysis/std-json-serialize-v1.md}"
+DOC="${XLANG_STD_JSZ_DOC:-analysis/archive/std/std-json-serialize-v1.md}"
 MANIFEST="${XLANG_STD_JSZ_TSV:-tests/baseline/std-json-serialize.tsv}"
 JSON_X="std/json/mod.x"
 JSON_IMPL="std/json/json.x"

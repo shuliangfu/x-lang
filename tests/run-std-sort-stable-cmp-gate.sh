@@ -2,10 +2,13 @@
 # STD-060：std.sort 稳定排序与自定义比较器门禁
 #
 # 用法：./tests/run-std-sort-stable-cmp-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_SORT_STABLE_CMP_DOC:-analysis/std-sort-stable-cmp-v1.md}"
+DOC="${XLANG_STD_SORT_STABLE_CMP_DOC:-analysis/archive/std/std-sort-stable-cmp-v1.md}"
 MANIFEST="${XLANG_STD_SORT_STABLE_CMP_TSV:-tests/baseline/std-sort-stable-cmp.tsv}"
 VECTORS="${XLANG_STD_SORT_STABLE_CMP_VECTORS:-tests/baseline/std-sort-stable-cmp-vectors.tsv}"
 MOD_X="std/sort/mod.x"

@@ -2,12 +2,15 @@
 # STD-SOCKETIO-001：std.socketio Engine.IO 包编解码门禁（P3 可选）
 #
 # 用法：./tests/run-std-socketio-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_SOCKETIO_DOC:-analysis/std-socketio-v1.md}"
+DOC="${XLANG_STD_SOCKETIO_DOC:-analysis/archive/std/std-socketio-v1.md}"
 MANIFEST="${XLANG_STD_SOCKETIO_TSV:-tests/baseline/std-socketio.tsv}"
 MOD_X="std/socketio/mod.x"
 SIO_X="std/socketio/socketio.x"

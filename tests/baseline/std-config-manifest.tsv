@@ -1,9 +1,9 @@
 # STD-086 std.config manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	15
-read_path	section	## 1. 阅读路径	analysis/std-config-v1.md
-api_doc	section	## 2. API	analysis/std-config-v1.md
-verify	section	## 3. Gate	analysis/std-config-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-config-v1.md
+api_doc	section	## 2. API	analysis/archive/std/std-config-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-config-v1.md
 api_new	api	new	std/config/mod.x	创建
 api_free	api	free	std/config/mod.x	释放
 api_clear	api	clear	std/config/mod.x	清空

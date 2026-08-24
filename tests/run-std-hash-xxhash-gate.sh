@@ -2,12 +2,15 @@
 # STD-105：std.hash xxHash64 快速哈希门禁
 #
 # 用法：./tests/run-std-hash-xxhash-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD105_DOC:-analysis/std-hash-xxhash-v1.md}"
+DOC="${XLANG_STD105_DOC:-analysis/archive/std/std-hash-xxhash-v1.md}"
 MANIFEST="${XLANG_STD105_TSV:-tests/baseline/std-hash-xxhash.tsv}"
 VECTORS="${XLANG_STD105_VECTORS:-tests/baseline/std-hash-xxhash-vectors.tsv}"
 MOD_X="std/hash/mod.x"

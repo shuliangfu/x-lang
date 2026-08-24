@@ -2,10 +2,13 @@
 # STD-059：std.math 浮点环境异常标志门禁
 #
 # 用法：./tests/run-std-math-fenv-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_MATH_FENV_DOC:-analysis/std-math-fenv-v1.md}"
+DOC="${XLANG_STD_MATH_FENV_DOC:-analysis/archive/std/std-math-fenv-v1.md}"
 MANIFEST="${XLANG_STD_MATH_FENV_TSV:-tests/baseline/std-math-fenv.tsv}"
 VECTORS="${XLANG_STD_MATH_FENV_VECTORS:-tests/baseline/std-math-fenv-vectors.tsv}"
 MOD_X="std/math/mod.x"

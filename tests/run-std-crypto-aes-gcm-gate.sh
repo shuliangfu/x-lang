@@ -2,10 +2,13 @@
 # STD-049：std.crypto AES-GCM 门禁
 #
 # 用法：./tests/run-std-crypto-aes-gcm-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_CRYPTO_AES_GCM_DOC:-analysis/std-crypto-aes-gcm-v1.md}"
+DOC="${XLANG_STD_CRYPTO_AES_GCM_DOC:-analysis/archive/std/std-crypto-aes-gcm-v1.md}"
 MANIFEST="${XLANG_STD_CRYPTO_AES_GCM_TSV:-tests/baseline/std-crypto-aes-gcm.tsv}"
 VECTORS="${XLANG_STD_CRYPTO_AES_GCM_VECTORS:-tests/baseline/std-crypto-aes-gcm-vectors.tsv}"
 MOD_X="std/crypto/mod.x"

@@ -2,10 +2,13 @@
 # STD-047：std.simd shuffle/select 矢量化实装门禁
 #
 # 用法：./tests/run-std-simd-shuffle-select-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
+DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/archive/std/std-simd-shuffle-select-v1.md}"
 MANIFEST="${XLANG_STD_SIMD_SHUFFLE_SELECT_TSV:-tests/baseline/std-simd-shuffle-select.tsv}"
 MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-shuffle-select.sh"

@@ -2,12 +2,15 @@
 # STD-033：std.http 分块传输与 Keep-Alive 门禁
 #
 # 用法：./tests/run-std-http-chunked-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/std-http-chunked-v1.md}"
+DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/archive/std/std-http-chunked-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"

@@ -2,12 +2,15 @@
 # STD-098/STD-102/STD-104/STD-108：std.channel select 门禁
 #
 # 用法：./tests/run-std-channel-select-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_CHANNEL_SELECT_DOC:-analysis/std-channel-select-v1.md}"
+DOC="${XLANG_STD_CHANNEL_SELECT_DOC:-analysis/archive/std/std-channel-select-v1.md}"
 MANIFEST="${XLANG_STD_CHANNEL_SELECT_TSV:-tests/baseline/std-channel-select.tsv}"
 MOD_X="std/channel/mod.x"
 CHANNEL_RUNTIME="${XLANG_STD_CHANNEL_IMPL:-compiler/seeds/runtime_channel_glue.from_x.c}"

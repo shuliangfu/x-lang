@@ -2,12 +2,17 @@
 # PLAN-005：Phase 3 第五批路线图定版门禁
 #
 # 用法：./tests/run-phase3-roadmap-wave5-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_PLAN005_DOC:-analysis/phase3-roadmap-wave5-v1.md}"
+DOC="${XLANG_PLAN005_DOC:-analysis/archive/other-tickets/phase3-roadmap-wave5-v1.md}"
 MANIFEST="${XLANG_PLAN005_TSV:-tests/baseline/phase3-roadmap-wave5.tsv}"
-NEXT_MD="NEXT.md"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
+# Historical NEXT.md task/§ authority now lives in archived DOC (refuse resurrect).
+TASK_DOC="$DOC"
 LIB="tests/lib/phase3-roadmap-wave5.sh"
 MIN_TASKS=4
 MIN_SEC=5
@@ -17,8 +22,8 @@ MIN_DONE=4
 . "$LIB"
 
 echo "=== PLAN-005: Phase 3 wave5 manifest ==="
-for f in "$DOC" "$MANIFEST" "$NEXT_MD" "$LIB" \
-  analysis/phase3-roadmap-wave4-v1.md tests/run-phase3-roadmap-wave4-gate.sh \
+for f in "$DOC" "$MANIFEST" "$ROADMAP" "$LIB" \
+  analysis/archive/other-tickets/phase3-roadmap-wave4-v1.md tests/run-phase3-roadmap-wave4-gate.sh \
   tests/run-boot-024-parser-bootstrap-emit-gate.sh \
   tests/run-comp-riscv64-qemu-gate.sh \
   tests/run-std-sqlite-query-rows-gate.sh; do
@@ -27,6 +32,10 @@ for f in "$DOC" "$MANIFEST" "$NEXT_MD" "$LIB" \
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "$(basename "$0" .sh | sed "s/^run-//;s/-gate$//") gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -44,15 +53,15 @@ for kw in Phase 3 BOOT-024 COMP-018 STD-066 XLANG_PLAN005; do
   fi
 done
 
-if ! grep -qF "### 2.16" "$NEXT_MD" 2>/dev/null; then
-  echo "phase3-roadmap-wave5 gate FAIL: NEXT.md missing §2.16" >&2
+if ! grep -qF "§2.16" "$TASK_DOC" 2>/dev/null; then
+  echo "phase3-roadmap-wave5 gate FAIL: DOC missing §2.16" >&2
   phase3_roadmap_wave5_emit_report "fail" 0 0 0
   exit 1
 fi
 
-sym_miss="$(phase3_roadmap_wave5_check "$MANIFEST" "$NEXT_MD" || true)"
+sym_miss="$(phase3_roadmap_wave5_check "$MANIFEST" "$TASK_DOC" || true)"
 task_n="$(phase3_roadmap_wave5_task_count "$MANIFEST")"
-done_n="$(phase3_roadmap_wave5_done_count "$NEXT_MD")"
+done_n="$(phase3_roadmap_wave5_done_count "$TASK_DOC")"
 
 if [ "${sym_miss:-0}" -gt 0 ]; then
   phase3_roadmap_wave5_emit_report "fail" 0 0 0

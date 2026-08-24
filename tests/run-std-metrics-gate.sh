@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # STD-078：std.metrics 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_METRICS_DOC:-analysis/std-metrics-v1.md}"
+DOC="${XLANG_STD_METRICS_DOC:-analysis/archive/std/std-metrics-v1.md}"
 MANIFEST="${XLANG_STD_METRICS_MANIFEST:-tests/baseline/std-metrics-manifest.tsv}"
 VECTORS="${XLANG_STD_METRICS_VECTORS:-tests/baseline/std-metrics-vectors.tsv}"
 MOD_X="std/metrics/mod.x"

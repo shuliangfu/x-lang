@@ -2,12 +2,15 @@
 # STD-073：std.codec 门禁
 #
 # 用法：./tests/run-std-codec-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_CODEC_DOC:-analysis/std-codec-v1.md}"
+DOC="${XLANG_STD_CODEC_DOC:-analysis/archive/std/std-codec-v1.md}"
 MANIFEST="${XLANG_STD_CODEC_MANIFEST:-tests/baseline/std-codec-manifest.tsv}"
 VECTORS="${XLANG_STD_CODEC_VECTORS:-tests/baseline/std-codec-vectors.tsv}"
 MOD_X="std/codec/mod.x"

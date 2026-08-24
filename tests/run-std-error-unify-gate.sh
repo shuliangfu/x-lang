@@ -6,12 +6,15 @@
 # 3) native xlang：tests/std/error_unify_smoke.x
 #
 # 用法：./tests/run-std-error-unify-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/archive/std/std-error-unify-v1.md}"
 MATRIX="${XLANG_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
 ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 MIN_MOD=6

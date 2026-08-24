@@ -2,10 +2,13 @@
 # COMP-012：riscv64 回归 manifest 门禁
 #
 # 用法：./tests/run-comp-riscv64-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_RISCV64_DOC:-analysis/comp-riscv64-v1.md}"
+DOC="${XLANG_COMP_RISCV64_DOC:-analysis/archive/comp/comp-riscv64-v1.md}"
 MANIFEST="${XLANG_COMP_RISCV64_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
 MATRIX="${XLANG_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 MIN_LAYERS=6

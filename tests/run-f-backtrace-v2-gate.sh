@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-backtrace v2：std.backtrace 帧辅助/烟测下沉 + F-ZC 平台胶层迁入 compiler runtime。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_BACKTRACE_V2_FAIL:-0}
-DOC="analysis/phase-f-backtrace-v2.md"
+DOC="analysis/archive/phase/phase-f-backtrace-v2.md"
 MANIFEST="tests/baseline/f-backtrace-v2-closure.tsv"
 die() { echo "f-backtrace-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-backtrace v2: frame helpers/smoke → backtrace.x + runtime platform ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-backtrace v2' "$DOC" || die "doc marker"
 [ -f std/backtrace/backtrace.x ] || die "missing backtrace.x"
@@ -28,8 +34,6 @@ grep -q 'backtrace_symbolicate_smoke_c' std/backtrace/backtrace.x || die "backtr
 grep -q 'backtrace_f_backtrace_v2_marker_c' std/backtrace/backtrace.x || die "backtrace.x missing v2 marker"
 grep -q 'backtrace_capture_c' compiler/seeds/runtime_backtrace_platform.from_x.c || die "runtime missing capture"
 grep -q 'backtrace_gold_anchor_c' compiler/seeds/runtime_backtrace_platform.from_x.c || die "runtime missing anchor"
-grep -q 'backtrace_glue.c' compiler/Makefile && die "Makefile still references backtrace_glue.c"
-grep -q 'runtime_backtrace_platform' compiler/Makefile || die "Makefile missing runtime_backtrace_platform"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "ensure backtrace.o failed (xlang_compiler_make)"
 else

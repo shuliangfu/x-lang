@@ -2,10 +2,13 @@
 # STD-HTTP-HTTPS：std.http HTTPS 客户端门禁
 #
 # 用法：./tests/run-std-http-https-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-http-https-v1.md"
+DOC="analysis/archive/std/std-http-https-v1.md"
 MANIFEST="tests/baseline/std-http-https.tsv"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"

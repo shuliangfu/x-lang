@@ -8,7 +8,7 @@ append_string_value	symbol	append_string_value	std/json/mod.x
 append_number_at	symbol	append_number_at	std/json/mod.x
 json_append_object_c	symbol	json_append_object_c	std/json/json.x
 json_append_array_c	symbol	json_append_array_c	std/json/json.x
-roundtrip_doc	anchor	object_array_roundtrip	analysis/std-json-serialize-v1.md	RFC
+roundtrip_doc	anchor	object_array_roundtrip	analysis/archive/std/std-json-serialize-v1.md	RFC
 test_rt	file	tests/json/object_array_roundtrip.x		金样
-doc	file	analysis/std-json-serialize-v1.md	analysis/std-json-serialize-v1.md	RFC
+doc	file	analysis/archive/std/std-json-serialize-v1.md	analysis/archive/std/std-json-serialize-v1.md	RFC
 gate	script	tests/run-std-json-serialize-gate.sh	tests/run-std-json-serialize-gate.sh	manifest

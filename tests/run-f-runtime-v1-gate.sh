@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-runtime v1：std.runtime 去 C（runtime.c → runtime.x）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_RUNTIME_V1_FAIL:-0}
-DOC="analysis/phase-f-runtime-v1.md"
+DOC="analysis/archive/phase/phase-f-runtime-v1.md"
 MANIFEST="tests/baseline/f-runtime-v1-closure.tsv"
 die() { echo "f-runtime-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-runtime v1: runtime.c → runtime.x ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-runtime v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
@@ -22,7 +28,6 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'runtime.x' compiler/Makefile || die "Makefile missing runtime.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/runtime/runtime.o >/dev/null 2>&1 || die "ensure runtime.o failed (xlang_compiler_make)"
 else

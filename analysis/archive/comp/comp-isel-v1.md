@@ -46,9 +46,9 @@
 |----------|------|------|------|
 | `bench_var_fast` | `binop_var_fast.x` | I1+I3+I5 | `run-asm-binop-var.sh` |
 | `bench_index_lit` | `binop_index_lit_fast.x` | I2 | `run-asm-binop-index-lit.sh` |
-| `bench_loop` | `loop_i32.x` | I6 | bcmp |
-| `bench_call` | `call_boundary.x` | I6 | bcmp |
-| `bench_struct` | `struct_param.x` | I6 | bcmp |
+| `bench_loop` | `r01_loop_i32.x` | I6 | bcmp |
+| `bench_call` | `a01_call_boundary.x` | I6 | bcmp |
+| `bench_struct` | `r10_struct_param.x` | I6 | bcmp |
 | `bench_peephole` | block-var 无往返 mov | I4 | `run-asm-binop-block-var.sh` |
 | `bench_field_p0` | `binop_field_index_fast.x` | I7 | `run-asm-binop-field-index.sh` |
 | `bench_nested_p0` | `binop_nested_var_return.x` | I8 | `run-asm-binop-nested-var.sh` |
@@ -65,7 +65,7 @@ P0 波次详情见 `analysis/comp-isel-p0-v1.md`（COMP-014）。
 | `case_var_fast` | `binop_var_fast.x` | exit **143**；无 stack push |
 | `case_index_lit` | `binop_index_lit_fast.x` | exit **75**；无 `mov x2` |
 | `case_four_add` | `binop_return_four_add.x` | exit **10**（链式 add isel） |
-| `case_loop` | `loop_i32.x` | bcmp 对标 C |
+| `case_loop` | `r01_loop_i32.x` | bcmp 对标 C |
 
 **COMP-014 P0 扩展**（`tier=P0`，详见 `comp-isel-p0-v1.md`）：
 

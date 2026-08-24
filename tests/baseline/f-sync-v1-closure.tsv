@@ -1,6 +1,6 @@
 # F-sync v1 std.sync 闭合 manifest
 # 列：item_id	kind	anchor	notes
-fsync_doc	doc	analysis/phase-f-sync-v1.md	F-sync v1
+fsync_doc	doc	analysis/archive/phase/phase-f-sync-v1.md	F-sync v1
 fsync_gate	gate	tests/run-f-sync-v1-gate.sh	聚合门禁
 sync_x	file	std/sync/sync.x	模块逻辑 .x
 sync_os_runtime	file	compiler/seeds/runtime_sync_os.from_x.c	OS 互斥/RwLock/Condvar
@@ -10,4 +10,4 @@ sync_os_absent	absent	std/sync/sync_os_glue.c	已迁入 runtime
 sync_tls_absent	absent	std/sync/sync_lock_diag_tls_glue.c	已迁入 runtime
 sync_c_absent	absent	std/sync/sync.c	已删除
 sync_diag_glue_v1_absent	absent	std/sync/sync_lock_diag_glue.c	v1 诊断胶层已删除
-makefile	makefile	compiler/Makefile	sync.o 纯 .x + runtime_sync_*.o
+makefile	makefile	xbuild	sync.o 纯 .x + runtime_sync_*.o

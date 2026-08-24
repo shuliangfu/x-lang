@@ -2,12 +2,15 @@
 # STD-017：std.heap XLANG_HEAP_TRACE 调试钩子门禁
 #
 # 用法：./tests/run-std-heap-trace-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_HEAP_TRACE_DOC:-analysis/std-heap-trace-v1.md}"
+DOC="${XLANG_STD_HEAP_TRACE_DOC:-analysis/archive/std/std-heap-trace-v1.md}"
 MANIFEST="${XLANG_STD_HEAP_TRACE_TSV:-tests/baseline/std-heap-trace.tsv}"
 HEAP_X="std/heap/mod.x"
 HEAP_LIBC="std/heap/libc.x"

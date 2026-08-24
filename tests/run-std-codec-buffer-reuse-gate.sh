@@ -2,10 +2,13 @@
 # STD-139：std.codec 缓冲复用与零拷贝策略门禁
 #
 # 用法：./tests/run-std-codec-buffer-reuse-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-codec-buffer-reuse-v1.md"
+DOC="analysis/archive/std/std-codec-buffer-reuse-v1.md"
 MANIFEST="tests/baseline/std-codec-buffer-reuse-manifest.tsv"
 CODEC_X="std/codec/mod.x"
 BYTES_X="std/bytes/mod.x"
@@ -17,7 +20,7 @@ SMOKE_X="tests/std-codec/buffer_reuse.x"
 
 echo "=== STD-139: std.codec buffer reuse manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$CODEC_X" "$BYTES_X" "$SMOKE_X" \
-  analysis/std-codec-v1.md analysis/std-bytes-v1.md std/codec/README.md; do
+  analysis/archive/std/std-codec-v1.md analysis/archive/std/std-bytes-v1.md std/codec/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-codec-buffer-reuse gate FAIL: missing $f" >&2
     exit 1
@@ -31,12 +34,12 @@ for kw in STD-139 encode_into_bytes clear grow encode_upper_bound; do
   fi
 done
 
-if ! grep -qF "std-codec-buffer-reuse-v1.md" analysis/std-codec-v1.md 2>/dev/null; then
+if ! grep -qF "std-codec-buffer-reuse-v1.md" analysis/archive/std/std-codec-v1.md 2>/dev/null; then
   echo "std-codec-buffer-reuse gate FAIL: std-codec-v1 cross-link" >&2
   exit 1
 fi
 
-if ! grep -qF "std-codec-buffer-reuse-v1.md" analysis/std-bytes-v1.md 2>/dev/null; then
+if ! grep -qF "std-codec-buffer-reuse-v1.md" analysis/archive/std/std-bytes-v1.md 2>/dev/null; then
   echo "std-codec-buffer-reuse gate FAIL: std-bytes-v1 cross-link" >&2
   exit 1
 fi

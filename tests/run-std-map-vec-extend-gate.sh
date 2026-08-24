@@ -2,12 +2,15 @@
 # STD-013/014：std.map / std.vec 常用类型扩展门禁
 #
 # 用法：./tests/run-std-map-vec-extend-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
+DOC="${XLANG_STD_MVE_DOC:-analysis/archive/std/std-map-vec-extend-v1.md}"
 MANIFEST="${XLANG_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
 MAP_X="std/map/mod.x"
 VEC_X="std/vec/mod.x"

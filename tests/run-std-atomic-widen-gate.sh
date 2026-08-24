@@ -2,10 +2,13 @@
 # STD-146：std.atomic 16/64 扩展门禁
 #
 # 用法：./tests/run-std-atomic-widen-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-atomic-widen-v1.md"
+DOC="analysis/archive/std/std-atomic-widen-v1.md"
 MANIFEST="tests/baseline/std-atomic-widen-manifest.tsv"
 MOD_X="std/atomic/mod.x"
 ATOMIC_RUNTIME="${XLANG_STD_ATOMIC_IMPL:-compiler/seeds/runtime_atomic_glue.from_x.c}"

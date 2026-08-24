@@ -2,12 +2,15 @@
 # STD-029：std.net DNS 错误码与 IPv6 门禁
 #
 # 用法：./tests/run-std-net-dns-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
+DOC="${XLANG_STD_NET_DNS_DOC:-analysis/archive/std/std-net-dns-v1.md}"
 MANIFEST="${XLANG_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
 NET_X="std/net/mod.x"
 NET_DNS_X="std/net/dns.x"

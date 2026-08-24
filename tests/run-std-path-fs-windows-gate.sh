@@ -2,12 +2,15 @@
 # STD-021/022：std.path / std.fs Windows 对齐门禁
 #
 # 用法：./tests/run-std-path-fs-windows-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_PFW_DOC:-analysis/std-path-fs-windows-v1.md}"
+DOC="${XLANG_STD_PFW_DOC:-analysis/archive/std/std-path-fs-windows-v1.md}"
 MANIFEST="${XLANG_STD_PFW_TSV:-tests/baseline/std-path-fs-windows.tsv}"
 PATH_X="std/path/mod.x"
 LIB="tests/lib/std-path-fs-windows.sh"

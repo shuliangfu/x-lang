@@ -2,10 +2,13 @@
 # COMP-006：指令选择优化 manifest 门禁
 #
 # 用法：./tests/run-comp-isel-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_ISEL_DOC:-analysis/comp-isel-v1.md}"
+DOC="${XLANG_COMP_ISEL_DOC:-analysis/archive/comp/comp-isel-v1.md}"
 MANIFEST="${XLANG_COMP_ISEL_MANIFEST:-tests/baseline/comp-isel.tsv}"
 BENCH="${XLANG_COMP_ISEL_BENCH:-tests/baseline/comp-isel-bench.tsv}"
 MIN_LAYERS=6
@@ -19,7 +22,7 @@ echo "=== COMP-006: instruction selection manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
   compiler/src/asm/peephole.x compiler/src/asm/backend.x \
   tests/asm/binop_var_fast.x tests/asm/binop_index_lit_fast.x \
-  bench/loop_i32.x tests/run-bcmp-gate.sh; do
+  bench/r01_loop_i32.x tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-isel gate FAIL: missing $f" >&2
     exit 1
@@ -77,7 +80,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         echo "comp-isel FAIL: missing case $src" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$(basename "$src")" "$DOC" 2>/dev/null \
-        && ! grep -qF "$(basename "$src")" analysis/comp-isel-p0-v1.md 2>/dev/null; then
+        && ! grep -qF "$(basename "$src")" analysis/archive/comp/comp-isel-p0-v1.md 2>/dev/null; then
         echo "comp-isel FAIL: doc missing case $src" >&2
         MISS=$((MISS + 1))
       fi
@@ -106,7 +109,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         echo "comp-isel FAIL: missing hook tests/$anchor" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$(basename "$anchor")" "$DOC" 2>/dev/null \
-        && ! grep -qF "$(basename "$anchor")" analysis/comp-isel-p0-v1.md 2>/dev/null; then
+        && ! grep -qF "$(basename "$anchor")" analysis/archive/comp/comp-isel-p0-v1.md 2>/dev/null; then
         echo "comp-isel FAIL: doc missing hook $anchor" >&2
         MISS=$((MISS + 1))
       fi
@@ -120,7 +123,7 @@ while IFS=$'\t' read -r bench_id x_file _rest; do
   case "$bench_id" in \#*|min_*) continue ;; esac
   BENCH_N=$((BENCH_N + 1))
   if ! grep -qF "$bench_id" "$DOC" 2>/dev/null \
-    && ! grep -qF "$bench_id" analysis/comp-isel-p0-v1.md 2>/dev/null; then
+    && ! grep -qF "$bench_id" analysis/archive/comp/comp-isel-p0-v1.md 2>/dev/null; then
     echo "comp-isel FAIL: doc missing bench $bench_id" >&2
     MISS=$((MISS + 1))
   fi

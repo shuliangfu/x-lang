@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # STD-080/081：std.option + std.result 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_OPTION_RESULT_DOC:-analysis/std-option-result-v1.md}"
+DOC="${XLANG_STD_OPTION_RESULT_DOC:-analysis/archive/std/std-option-result-v1.md}"
 OPT_MANIFEST="${XLANG_STD_OPTION_MANIFEST:-tests/baseline/std-option-manifest.tsv}"
 RES_MANIFEST="${XLANG_STD_RESULT_MANIFEST:-tests/baseline/std-result-manifest.tsv}"
 OPT_X="std/option/mod.x"

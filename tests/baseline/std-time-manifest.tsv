@@ -1,12 +1,12 @@
 # STD-005 std.time 精度与时区 manifest
 # 列：item_id	kind	anchor	src	tier	notes
 # min_apis	13
-read_path	section	## 1. 阅读路径	analysis/std-time-precision-v1.md	-	15min
-clock_kinds	section	## 2. 时钟语义	analysis/std-time-precision-v1.md	-	monotonic vs wall
-precision	section	## 3. 平台精度矩阵	analysis/std-time-precision-v1.md	-	ns/100ns
-timezone	section	## 4. 时区策略 timezone（v1）	analysis/std-time-precision-v1.md	-	UTC epoch
-api_surface	section	## 5. API 面	analysis/std-time-precision-v1.md	-	13 函数
-verify	section	## 6. 验证与门禁	analysis/std-time-precision-v1.md	-	gate
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-time-precision-v1.md	-	15min
+clock_kinds	section	## 2. 时钟语义	analysis/archive/std/std-time-precision-v1.md	-	monotonic vs wall
+precision	section	## 3. 平台精度矩阵	analysis/archive/std/std-time-precision-v1.md	-	ns/100ns
+timezone	section	## 4. 时区策略 timezone（v1）	analysis/archive/std/std-time-precision-v1.md	-	UTC epoch
+api_surface	section	## 5. API 面	analysis/archive/std/std-time-precision-v1.md	-	13 函数
+verify	section	## 6. 验证与门禁	analysis/archive/std/std-time-precision-v1.md	-	gate
 api_now_mono_ns	api	now_monotonic_ns	std/time/mod.x	core	单调 ns
 api_now_mono_us	api	now_monotonic_us	std/time/mod.x	core	单调 us
 api_now_mono_ms	api	now_monotonic_ms	std/time/mod.x	core	单调 ms

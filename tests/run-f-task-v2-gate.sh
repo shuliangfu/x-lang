@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-task v2：std.task TaskGroup/JoinSet 逻辑全量 .x（删除 task_async_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TASK_V2_FAIL:-0}
-DOC="analysis/phase-f-task-v2.md"
+DOC="analysis/archive/phase/phase-f-task-v2.md"
 MANIFEST="tests/baseline/f-task-v2-closure.tsv"
 die() { echo "f-task-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-task v2: TaskGroup/JoinSet → task.x (zero glue) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-task v2' "$DOC" || die "doc marker"
 [ -f std/task/task.x ] || die "missing task.x"
@@ -31,7 +37,6 @@ grep -q 'task_f_task_v1_marker_c' std/task/task.x || die "task.x missing v1 mark
 grep -q 'task_f_task_v2_marker_c' std/task/task.x || die "task.x missing v2 marker"
 grep -q 'xlang_async_spawn_i32' std/task/task.x || die "task.x missing spawn extern"
 grep -q 'task_echo_fn_ptr_c()' std/task/task.x || die "task.x smoke should use task_echo_fn_ptr_c"
-grep -q 'F-task v2' compiler/Makefile || die "Makefile missing F-task v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/task/task.o >/dev/null 2>&1 || die "ensure task.o failed (xlang_compiler_make)"
 else

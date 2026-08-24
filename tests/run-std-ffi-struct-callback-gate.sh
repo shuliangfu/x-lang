@@ -2,10 +2,13 @@
 # STD-151：std.ffi 结构体/回调安全封装门禁
 #
 # 用法：./tests/run-std-ffi-struct-callback-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-ffi-struct-callback-v1.md"
+DOC="analysis/archive/std/std-ffi-struct-callback-v1.md"
 MANIFEST="tests/baseline/std-ffi-struct-callback-manifest.tsv"
 MOD_X="std/ffi/mod.x"
 FFI_IMPL="std/ffi/ffi.x"

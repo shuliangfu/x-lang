@@ -54,6 +54,9 @@ gate_progress "§五 C5: typeck（多编译器回退）..."
 set +e
 XLANG_BIN="$(p0_gate_run_typeck_prefer_seed "$SRC" 2>/tmp/regalloc_rs_typeck_try.log)"
 typeck_pick_ec=$?
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 
 if [ "$typeck_pick_ec" -ne 0 ] || [ -z "$XLANG_BIN" ]; then

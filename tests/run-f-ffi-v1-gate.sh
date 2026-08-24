@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-ffi v1：std.ffi 去 C（ffi.c → ffi.x；F-ZC 纯 .x 无 cb glue）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_FFI_V1_FAIL:-0}
-DOC="analysis/phase-f-ffi-v1.md"
+DOC="analysis/archive/phase/phase-f-ffi-v1.md"
 MANIFEST="tests/baseline/f-ffi-v1-closure.tsv"
 die() { echo "f-ffi-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-ffi v1: ffi.x (F-ZC zero C) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-ffi v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
@@ -26,7 +32,6 @@ done < "$MANIFEST"
 grep -q 'ffi_cb_double_i32_fn_c' std/ffi/ffi.x || die "ffi.x missing cb fn"
 grep -q 'ffi_invoke_i32_cb_c' std/ffi/ffi.x || die "ffi.x missing invoke"
 grep -q 'ffi_f_zero_c_marker_c' std/ffi/ffi.x || die "ffi.x missing zero-c marker"
-grep -q 'ffi.x' compiler/Makefile || die "Makefile missing ffi.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/ffi/ffi.o >/dev/null 2>&1 || die "ensure ffi.o failed (xlang_compiler_make)"
 else

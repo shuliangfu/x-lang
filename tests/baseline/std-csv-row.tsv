@@ -5,9 +5,9 @@ parse_row	symbol	parse_row	std/csv/mod.x
 write_row	symbol	write_row	std/csv/mod.x
 csv_parse_row_c	symbol	csv_parse_row_c	std/csv/csv.x
 csv_write_row_c	symbol	csv_write_row_c	std/csv/csv.x
-roundtrip_doc	anchor	row_roundtrip	analysis/std-csv-row-v1.md	RFC
+roundtrip_doc	anchor	row_roundtrip	analysis/archive/std/std-csv-row-v1.md	RFC
 test_rt	file	tests/csv/row_roundtrip.x		金样
 test_main	file	tests/csv/main.x		回归
 runner	script	run-csv.sh	tests/run-csv.sh
-doc	file	analysis/std-csv-row-v1.md	analysis/std-csv-row-v1.md	RFC
+doc	file	analysis/archive/std/std-csv-row-v1.md	analysis/archive/std/std-csv-row-v1.md	RFC
 gate	script	run-std-csv-row-gate.sh	tests/run-std-csv-row-gate.sh	manifest

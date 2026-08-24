@@ -18,4 +18,4 @@ bench_decode	file	bench/http_chunked_decode_bench.x	可复现 bench
 cross_std032	cross_ref	STD-032	tests/baseline/std-http-methods.tsv	STD-032 baseline
 lib	script	lib/std-http-chunked.sh	tests/lib/std-http-chunked.sh
 gate	script	run-std-http-chunked-gate.sh	tests/run-std-http-chunked-gate.sh
-doc	file	analysis/std-http-chunked-v1.md	analysis/std-http-chunked-v1.md	RFC
+doc	file	analysis/archive/std/std-http-chunked-v1.md	analysis/archive/std/std-http-chunked-v1.md	RFC

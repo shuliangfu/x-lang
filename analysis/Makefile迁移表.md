@@ -6,6 +6,8 @@
 > **xbuild 目标名**：拟定 API；实现前禁止另开第三套编排（收敛 g05 / `xlang-build.sh` / `build.x`）  
 > **终局**：✅ **已完成**（wave941 物理删除 Makefile；本表保留为历史记录）
 
+> **2026-08-24 archaeology（phase-f／comp／std 死归档 DOC 波）**：`tests/run-f-*-gate.sh` 与 closure TSV 的 `makefile` 锚点／内容 grep 已从死 `compiler/Makefile` 改盯 **`xbuild`**（拒 Makefile 复活）。产品编排权威仍为本表／`./xbuild`；本注仅为门禁考古诚实，不改迁移状态列。
+
 ---
 
 ## 0. 怎么用

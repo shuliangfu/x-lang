@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-unicode v2：std.unicode 逻辑全量 .x（删除 unicode_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_UNICODE_V2_FAIL:-0}
-DOC="analysis/phase-f-unicode-v2.md"
+DOC="analysis/archive/phase/phase-f-unicode-v2.md"
 MANIFEST="tests/baseline/f-unicode-v2-closure.tsv"
 die() { echo "f-unicode-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-unicode v2: category/NFC/grapheme → unicode.x (zero glue) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-unicode v2' "$DOC" || die "doc marker"
 [ -f std/unicode/unicode.x ] || die "missing unicode.x"
@@ -27,7 +33,6 @@ grep -q 'unicode_nfc_buf_c' std/unicode/unicode.x || die "unicode.x missing nfc"
 grep -q 'unicode_grapheme_next_c' std/unicode/unicode.x || die "unicode.x missing grapheme"
 grep -q 'unicode_grapheme_case_smoke_c' std/unicode/unicode.x || die "unicode.x missing smoke"
 grep -q 'unicode_f_unicode_v2_marker_c' std/unicode/unicode.x || die "unicode.x missing v2 marker"
-grep -q 'F-unicode v2' compiler/Makefile || die "Makefile missing F-unicode v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "ensure unicode.o failed (xlang_compiler_make)"
 else

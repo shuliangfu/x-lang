@@ -14,5 +14,5 @@ heap_u64	symbol	alloc_u64	std/heap/mod.x
 heap_f64	symbol	alloc_f64	std/heap/mod.x
 test_map	file	tests/map/boundary.x		烟测
 test_vec	file	tests/vec/append_roundtrip.x		烟测
-doc	file	std-map-vec-extend-v1.md	analysis/std-map-vec-extend-v1.md	RFC
+doc	file	std-map-vec-extend-v1.md	analysis/archive/std/std-map-vec-extend-v1.md	RFC
 gate	script	run-std-map-vec-extend-gate.sh	tests/run-std-map-vec-extend-gate.sh	manifest

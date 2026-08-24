@@ -2,10 +2,13 @@
 # STD-055：std.ffi CString 生命周期与错误码门禁
 #
 # 用法：./tests/run-std-ffi-cstring-lifecycle-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_FFI_CSTRING_DOC:-analysis/std-ffi-cstring-lifecycle-v1.md}"
+DOC="${XLANG_STD_FFI_CSTRING_DOC:-analysis/archive/std/std-ffi-cstring-lifecycle-v1.md}"
 MANIFEST="${XLANG_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
 VECTORS="${XLANG_STD_FFI_CSTRING_VECTORS:-tests/baseline/std-ffi-cstring-lifecycle-vectors.tsv}"
 MOD_X="std/ffi/mod.x"

@@ -2,13 +2,16 @@
 # STD-020：std.error 错误码映射与 last_error 门禁
 #
 # 用法：./tests/run-std-error-map-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_ERROR_MAP_DOC:-analysis/std-error-map-v1.md}"
-UNIFY_DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+DOC="${XLANG_STD_ERROR_MAP_DOC:-analysis/archive/std/std-error-map-v1.md}"
+UNIFY_DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/archive/std/std-error-unify-v1.md}"
 MANIFEST="${XLANG_STD_ERROR_MAP_TSV:-tests/baseline/std-error-map.tsv}"
 ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 LIB="tests/lib/std-error-map.sh"

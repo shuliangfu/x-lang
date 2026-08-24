@@ -2,12 +2,15 @@
 # STD-031：std.websocket 门禁（F-04 v3 纯 .x：ws_codec + ws_io）
 #
 # 用法：./tests/run-std-net-ws-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_NET_WS_DOC:-analysis/std-net-ws-v1.md}"
+DOC="${XLANG_STD_NET_WS_DOC:-analysis/archive/std/std-net-ws-v1.md}"
 MANIFEST="${XLANG_STD_NET_WS_TSV:-tests/baseline/std-net-ws.tsv}"
 MOD_X="std/websocket/mod.x"
 WS_README="std/websocket/README.md"

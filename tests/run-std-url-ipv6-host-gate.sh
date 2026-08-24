@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-134：std.url IPv6 bracket host 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-url-ipv6-host-v1.md"
+DOC="analysis/archive/std/std-url-ipv6-host-v1.md"
 MANIFEST="tests/baseline/std-url-ipv6-host-manifest.tsv"
 MOD_X="std/url/mod.x"
 URL_X="std/url/url.x"

@@ -3,6 +3,9 @@
 #
 # 用法：./tests/run-f-phase-f-92-batch-gate.sh
 # 环境：XLANG_F_PHASE_F_92_FAIL=1 — 任一子 gate 失败时硬退出
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -26,6 +29,9 @@ die() {
 }
 
 echo "=== F §9.2 batch: ${#GATES[@]} gates ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 for g in "${GATES[@]}"; do
   if [ ! -f "tests/$g" ]; then
     die "missing tests/$g"

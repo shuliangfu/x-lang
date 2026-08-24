@@ -2,10 +2,13 @@
 # STD-140：std.path 极端路径规范化门禁
 #
 # 用法：./tests/run-std-path-extreme-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-path-extreme-v1.md"
+DOC="analysis/archive/std/std-path-extreme-v1.md"
 MANIFEST="tests/baseline/std-path-extreme-manifest.tsv"
 VECTORS="tests/baseline/std-path-extreme.tsv"
 MOD_X="std/path/mod.x"

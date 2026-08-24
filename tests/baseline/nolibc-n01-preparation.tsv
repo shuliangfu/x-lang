@@ -1,7 +1,7 @@
 # NL-01 F-no-libc 准备清单（manifest）
 # 列：item_id	category	anchor	check_type	gate_or_notes
-n01_doc	doc	analysis/phase-f-n01-v1.md	grep	NL-01 v1
-parent_doc	doc	analysis/phase-f-no-libc-v1.md	grep	F-no-libc
+n01_doc	doc	analysis/archive/phase/phase-f-n01-v1.md	grep	NL-01 v1
+parent_doc	doc	analysis/archive/phase/phase-f-no-libc-v1.md	grep	F-no-libc
 n01_manifest	manifest	tests/baseline/nolibc-n01-preparation.tsv	exists	本文件
 roadmap	manifest	tests/baseline/no-libc-roadmap.tsv	exists	NL-02～06 进度
 link_policy	manifest	tests/baseline/no-libc-link-policy.tsv	exists	用户/编译器链接策略
@@ -20,17 +20,17 @@ sub_gate_heap	gate_ref	tests/run-no-libc-heap-gate.sh	gate_ref	NL-03 委托
 sub_gate_fs	gate_ref	tests/run-no-libc-fs-gate.sh	gate_ref	NL-04 委托
 sub_gate_link	gate_ref	tests/run-no-libc-link-gate.sh	gate_ref	NL-05 委托
 sub_gate_n06	gate_ref	tests/run-nolibc-n06-std-track-gate.sh	gate_ref	NL-06 委托
-n06_doc	doc	analysis/phase-f-n06-v1.md	grep	NL-06 v1
+n06_doc	doc	analysis/archive/phase/phase-f-n06-v1.md	grep	NL-06 v1
 n06_manifest	manifest	tests/baseline/nolibc-n06-freestanding-replacements.tsv	exists	freestanding 替换
 n06_track_lib	lib	tests/lib/nolibc-n06-std-track.sh	gate_ref	NL-06 审计
 sub_gate_n07	gate_ref	tests/run-nolibc-n07-bootstrap-prep-gate.sh	gate_ref	NL-07 委托
-n07_doc	doc	analysis/phase-f-n07-v1.md	grep	NL-07 v1
+n07_doc	doc	analysis/archive/phase/phase-f-n07-v1.md	grep	NL-07 v1
 n07_manifest	manifest	tests/baseline/nolibc-n07-bootstrap-prep.tsv	exists	bootstrap 准备
 n07_lc_baseline	manifest	tests/baseline/nolibc-n07-bootstrap-lc-track.tsv	exists	lc 基线
 n07_audit_lib	lib	tests/lib/nolibc-n07-bootstrap-audit.sh	gate_ref	NL-07 审计
-n07_v2_doc	doc	analysis/phase-f-n07-v2.md	grep	NL-07 v2
+n07_v2_doc	doc	analysis/archive/phase/phase-f-n07-v2.md	grep	NL-07 v2
 n07_v2_gate	gate_ref	tests/run-nolibc-n07-v2-prep-gate.sh	gate_ref	v2 首试
-n07_v3_doc	doc	analysis/phase-f-n07-v3.md	grep	NL-07 v3
+n07_v3_doc	doc	analysis/archive/phase/phase-f-n07-v3.md	grep	NL-07 v3
 n07_v3_gate	gate_ref	tests/run-nolibc-n07-v3-link-gate.sh	gate_ref	v3 链入烟测
-n07_v4_doc	doc	analysis/phase-f-n07-v4.md	grep	NL-07 v4
+n07_v4_doc	doc	analysis/archive/phase/phase-f-n07-v4.md	grep	NL-07 v4
 n07_v4_gate	gate_ref	tests/run-nolibc-n07-v4-build-gate.sh	gate_ref	v4 全链试跑

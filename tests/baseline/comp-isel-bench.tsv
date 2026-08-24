@@ -4,9 +4,9 @@
 # min_p0_benches	3
 bench_var_fast	binop_var_fast.x	asm	143	run-asm-binop-var
 bench_index_lit	binop_index_lit_fast.x	asm	75	run-asm-binop-index-lit
-bench_loop	loop_i32.x	bcmp	-	C-O3
-bench_call	call_boundary.x	bcmp	-	depth
-bench_struct	struct_param.x	bcmp	-	byval
+bench_loop	r01_loop_i32.x	bcmp	-	C-O3
+bench_call	a01_call_boundary.x	bcmp	-	depth
+bench_struct	r10_struct_param.x	bcmp	-	byval
 bench_peephole	binop_block_swap_add.x	disasm	-	no round-trip
 bench_field_p0	binop_field_index_fast.x	asm	205	run-asm-binop-field-index
 bench_nested_p0	binop_nested_var_return.x	asm	20	run-asm-binop-nested-var

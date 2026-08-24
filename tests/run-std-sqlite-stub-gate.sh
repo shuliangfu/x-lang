@@ -2,10 +2,13 @@
 # STD-139：std.db.sqlite stub 后端文档与烟测门禁
 #
 # 用法：./tests/run-std-sqlite-stub-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD139_DOC:-analysis/std-sqlite-stub-v1.md}"
+DOC="${XLANG_STD139_DOC:-analysis/archive/std/std-sqlite-stub-v1.md}"
 MANIFEST="${XLANG_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"

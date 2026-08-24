@@ -2,11 +2,11 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # min_layers	6
 # min_cases	6
-read_path	section	## 1. 阅读路径	analysis/comp-win-backend-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/comp/comp-win-backend-v1.md	-	15min
 layers	section	## 2. 验证层 W1–W6	comp-win-backend.tsv	-	windows
 matrix	section	## 3. 验证矩阵	comp-win-backend-matrix.tsv	-	sample
-golden	section	## 4. Golden 文件	analysis/comp-win-backend-v1.md	-	coff
-verify	section	## 6. 验证与门禁	analysis/comp-win-backend-v1.md	-	gate
+golden	section	## 4. Golden 文件	analysis/archive/comp/comp-win-backend-v1.md	-	coff
+verify	section	## 6. 验证与门禁	analysis/archive/comp/comp-win-backend-v1.md	-	gate
 layer_w1	layers	W1-coff-writer	compiler/src/asm/platform/coff.x	coff	write_coff_o_to_buf
 layer_w2	layers	W2-target-triple	compiler/seeds/runtime.from_x.c	triple	windows
 layer_w3	layers	W3-ctx-flag	compiler/src/ast/ast.x	ctx	use_coff_o

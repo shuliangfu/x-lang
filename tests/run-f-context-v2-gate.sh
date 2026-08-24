@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-context v2：std.context 节点存储全量 .x（删除 context_node_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CONTEXT_V2_FAIL:-0}
-DOC="analysis/phase-f-context-v2.md"
+DOC="analysis/archive/phase/phase-f-context-v2.md"
 MANIFEST="tests/baseline/f-context-v2-closure.tsv"
 die() { echo "f-context-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-context v2: node storage → context.x (zero glue) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-context v2' "$DOC" || die "doc marker"
 [ -f std/context/context.x ] || die "missing context.x"
@@ -26,7 +32,6 @@ grep -q 'ctx_glue_background_c' std/context/context.x || die "context.x missing 
 grep -q 'ctx_glue_alloc_c' std/context/context.x || die "context.x missing glue alloc"
 grep -q 'ctx_smoke_c' std/context/context.x || die "context.x missing smoke"
 grep -q 'ctx_f_context_v2_marker_c' std/context/context.x || die "context.x missing v2 marker"
-grep -q 'F-context v2' compiler/Makefile || die "Makefile missing F-context v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "ensure context.o failed (xlang_compiler_make)"
 else

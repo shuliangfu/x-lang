@@ -2,10 +2,13 @@
 # STD-026：std.io 非 Linux io_uring 回退统一文档门禁
 #
 # 用法：./tests/run-std-io-fallback-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_IO_FALLBACK_DOC:-analysis/std-io-fallback-v1.md}"
+DOC="${XLANG_STD_IO_FALLBACK_DOC:-analysis/archive/std/std-io-fallback-v1.md}"
 MANIFEST="${XLANG_STD_IO_FALLBACK_TSV:-tests/baseline/std-io-fallback.tsv}"
 IO_C="std/io/io.c"
 MOD_X="std/io/mod.x"

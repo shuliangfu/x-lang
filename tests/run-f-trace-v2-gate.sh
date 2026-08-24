@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-trace v2：std.trace 逻辑全量 .x（删除 trace_span_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TRACE_V2_FAIL:-0}
-DOC="analysis/phase-f-trace-v2.md"
+DOC="analysis/archive/phase/phase-f-trace-v2.md"
 MANIFEST="tests/baseline/f-trace-v2-closure.tsv"
 die() { echo "f-trace-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-trace v2: span/export logic → trace.x (zero glue) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-trace v2' "$DOC" || die "doc marker"
 [ -f std/trace/trace.x ] || die "missing trace.x"
@@ -26,7 +32,6 @@ grep -q 'trace_create_c' std/trace/trace.x || die "trace.x missing trace_create_
 grep -q 'trace_export_text_c' std/trace/trace.x || die "trace.x missing export"
 grep -q 'trace_smoke_c' std/trace/trace.x || die "trace.x missing smoke"
 grep -q 'trace_f_trace_v2_marker_c' std/trace/trace.x || die "trace.x missing v2 marker"
-grep -q 'F-trace v2' compiler/Makefile || die "Makefile missing F-trace v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/trace/trace.o >/dev/null 2>&1 || die "ensure trace.o failed (xlang_compiler_make)"
 else

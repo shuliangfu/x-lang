@@ -6,12 +6,15 @@
 # 3) native xlang：precision_smoke + main 烟测
 #
 # 用法：./tests/run-std-time-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
+DOC="${XLANG_STD_TIME_DOC:-analysis/archive/std/std-time-precision-v1.md}"
 MANIFEST="${XLANG_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
 MOD_X="${XLANG_STD_TIME_MOD:-std/time/mod.x}"
 TIME_RUNTIME="compiler/seeds/runtime_time_os.from_x.c"

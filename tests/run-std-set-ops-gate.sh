@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-129：std.set Set_i32 union/intersect/difference 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-set-ops-v1.md"
+DOC="analysis/archive/std/std-set-ops-v1.md"
 MANIFEST="tests/baseline/std-set-ops-manifest.tsv"
 MOD_X="std/set/mod.x"
 LIB="tests/lib/std-set-ops.sh"

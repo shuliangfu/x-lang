@@ -6,13 +6,16 @@
 #   XLANG_F_STD_ZERO_C_FAIL=1       — 跟踪失败时硬退出（默认软通过）
 #   XLANG_F_STD_ZERO_C_STRICT=1     — 终局模式：std 仍存在 .c/.h 即 FAIL
 #   XLANG_F_STD_ZERO_C_UPDATE=1     — 刷新 tests/baseline/f-std-zero-c-track.tsv
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${XLANG_F_STD_ZERO_C_FAIL:-0}
 STRICT=${XLANG_F_STD_ZERO_C_STRICT:-0}
 UPDATE=${XLANG_F_STD_ZERO_C_UPDATE:-0}
-DOC="analysis/phase-f-std-zero-c-v1.md"
+DOC="analysis/archive/phase/phase-f-std-zero-c-v1.md"
 MANIFEST="tests/baseline/f-std-zero-c-track.tsv"
 TMP="/tmp/xlang_std_zero_c_track.$$.tsv"
 
@@ -66,6 +69,9 @@ collect_track() {
 }
 
 echo "=== F-std-zero-c v1: std zero C/H track ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-std-zero-c v1' "$DOC" || die "doc missing marker"
 

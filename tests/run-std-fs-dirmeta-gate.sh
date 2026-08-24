@@ -2,12 +2,15 @@
 # STD-123：std.fs 目录/元数据 API 门禁
 #
 # 用法：./tests/run-std-fs-dirmeta-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="analysis/std-fs-dirmeta-v1.md"
+DOC="analysis/archive/std/std-fs-dirmeta-v1.md"
 MANIFEST="tests/baseline/std-fs-dirmeta-manifest.tsv"
 MOD_X="std/fs/mod.x"
 FS_IMPL="std/fs/posix.x"

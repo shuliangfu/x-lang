@@ -1,7 +1,7 @@
 # STD-146 std.atomic 16/64 扩展 manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 目标	analysis/std-atomic-widen-v1.md
-api_doc	section	## 2. 16/64 API	analysis/std-atomic-widen-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-atomic-widen-v1.md
+api_doc	section	## 2. 16/64 API	analysis/archive/std/std-atomic-widen-v1.md
 api_load_i16	api	load	std/atomic/mod.x	i16 load overload
 api_compare_i64	api	compare_exchange	std/atomic/mod.x	i64 CAS overload
 api_fetch_u64	api	fetch_add	std/atomic/mod.x	u64 fetch overload

@@ -2,10 +2,13 @@
 # STD-071：std.context 门禁（F-context v2：纯 context.x）
 #
 # 用法：./tests/run-std-context-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_CONTEXT_DOC:-analysis/std-context-v1.md}"
+DOC="${XLANG_STD_CONTEXT_DOC:-analysis/archive/std/std-context-v1.md}"
 MANIFEST="${XLANG_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
 MOD_X="std/context/mod.x"
 CTX_X="std/context/context.x"

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-138：Windows/macOS 深度边界向量门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-xplat-deep-boundary-v1.md"
+DOC="analysis/archive/std/std-xplat-deep-boundary-v1.md"
 MANIFEST="tests/baseline/std-xplat-deep-boundary.tsv"
 LIB="tests/lib/std-xplat-deep-boundary.sh"
 SMOKE="tests/xplat/deep_boundary.x"

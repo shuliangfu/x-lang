@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-test v2：std.test 逻辑下沉 + F-ZC 纯 .x。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TEST_V2_FAIL:-0}
-DOC="analysis/phase-f-test-v2.md"
+DOC="analysis/archive/phase/phase-f-test-v2.md"
 MANIFEST="tests/baseline/f-test-v2-closure.tsv"
 die() { echo "f-test-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-test v2: test logic → test.x (F-ZC zero glue) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-test v2' "$DOC" || die "doc marker"
 [ -f std/test/test.x ] || die "missing test.x"
@@ -30,7 +36,6 @@ grep -q 'test_fuzz_next_c' std/test/test.x || die "test.x missing fuzz_next"
 grep -q 'test_f_test_v2_marker_c' std/test/test.x || die "test.x missing v2 marker"
 grep -q 'test_io_bench_line_c' std/test/test.x || die "test.x missing IO bench"
 grep -q 'test_f_zero_c_marker_c' std/test/test.x || die "test.x missing F-ZC marker"
-grep -q 'runtime_test_fn_invoke' compiler/Makefile || die "Makefile missing runtime_test_fn_invoke.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make runtime_test_fn_invoke.o ../std/test/test.o >/dev/null 2>&1 || die "ensure test.o failed (xlang_compiler_make)"
 else

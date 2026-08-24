@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-url v2：std.url 逻辑下沉（parse/build/query/resolve → url.x；F-ZC 纯 .x 无 inet glue）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_URL_V2_FAIL:-0}
-DOC="analysis/phase-f-url-v2.md"
+DOC="analysis/archive/phase/phase-f-url-v2.md"
 MANIFEST="tests/baseline/f-url-v2-closure.tsv"
 die() { echo "f-url-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-url v2: URL logic → url.x (F-ZC zero C) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-url v2' "$DOC" || die "doc marker"
 [ -f std/url/url.x ] || die "missing url.x"
@@ -29,7 +35,6 @@ grep -q 'url_f_url_v2_marker_c' std/url/url.x || die "url.x missing v2 marker"
 grep -q 'url_f_zero_c_marker_c' std/url/url.x || die "url.x missing zero-c marker"
 grep -q 'url_inet_pton6_c' std/url/url.x || die "url.x missing inet_pton"
 grep -q 'inet_ntop' std/url/url.x || die "url.x missing inet_ntop extern"
-grep -q 'url.x' compiler/Makefile || die "Makefile missing url.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/url/url.o >/dev/null 2>&1 || die "ensure url.o failed (xlang_compiler_make)"
 else

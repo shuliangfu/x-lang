@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-config v2：std.config 逻辑下沉（TOML/YAML/ENV → config.x；F-ZC 纯 .x 无 io glue）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CONFIG_V2_FAIL:-0}
-DOC="analysis/phase-f-config-v2.md"
+DOC="analysis/archive/phase/phase-f-config-v2.md"
 MANIFEST="tests/baseline/f-config-v2-closure.tsv"
 die() { echo "f-config-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-config v2: config logic → config.x (F-ZC zero C) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-config v2' "$DOC" || die "doc marker"
 [ -f std/config/config.x ] || die "missing config.x"
@@ -29,7 +35,6 @@ grep -q 'config_f_config_v2_marker_c' std/config/config.x || die "config.x missi
 grep -q 'config_f_zero_c_marker_c' std/config/config.x || die "config.x missing zero-c marker"
 grep -q 'config_read_file_c' std/config/config.x || die "config.x missing read_file"
 grep -q 'fs_open_read_c' std/config/config.x || die "config.x missing fs IO"
-grep -q 'config.x' compiler/Makefile || die "Makefile missing config.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/config/config.o >/dev/null 2>&1 || die "ensure config.o failed (xlang_compiler_make)"
 else

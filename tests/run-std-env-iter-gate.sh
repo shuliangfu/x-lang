@@ -2,12 +2,15 @@
 # STD-025：std.env env_iter / args_iter 门禁
 #
 # 用法：./tests/run-std-env-iter-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_ENV_ITER_DOC:-analysis/std-env-iter-v1.md}"
+DOC="${XLANG_STD_ENV_ITER_DOC:-analysis/archive/std/std-env-iter-v1.md}"
 MANIFEST="${XLANG_STD_ENV_ITER_TSV:-tests/baseline/std-env-iter.tsv}"
 ENV_X="std/env/mod.x"
 ENV_IMPL="std/env/env.x"

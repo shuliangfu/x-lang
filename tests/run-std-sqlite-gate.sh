@@ -2,10 +2,13 @@
 # STD-057：std.db.sqlite SQLite3 后端门禁
 #
 # 用法：./tests/run-std-sqlite-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_SQLITE_DOC:-analysis/std-sqlite-v1.md}"
+DOC="${XLANG_STD_SQLITE_DOC:-analysis/archive/std/std-sqlite-v1.md}"
 MANIFEST="${XLANG_STD_SQLITE_TSV:-tests/baseline/std-sqlite.tsv}"
 VECTORS="${XLANG_STD_SQLITE_VECTORS:-tests/baseline/std-sqlite-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -14,7 +17,7 @@ LIB="tests/lib/std-sqlite-gate.sh"
 SMOKE_X="tests/std-sqlite/exec_roundtrip.x"
 SMOKE_IMPORT_X="tests/std-sqlite/import_smoke.x"
 SMOKE_C="tests/std-sqlite/exec_roundtrip_ok.c"
-PREREQ_DOC="analysis/std-sqlite-prereq-v1.md"
+PREREQ_DOC="analysis/archive/std/std-sqlite-prereq-v1.md"
 MIN_APIS=4
 
 # shellcheck source=tests/lib/std-sqlite-gate.sh

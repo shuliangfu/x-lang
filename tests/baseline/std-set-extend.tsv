@@ -9,5 +9,5 @@ set_u64_remove	symbol	set_u64_remove	std/set/mod.x
 set_str_remove	symbol	set_str_remove	std/set/mod.x
 hash_link	symbol	hash_bytes	std/set/mod.x	std.hash 联动
 test_smoke	file	tests/set/extend.x		边界烟测
-doc	file	std-set-extend-v1.md	analysis/std-set-extend-v1.md	RFC
+doc	file	std-set-extend-v1.md	analysis/archive/std/std-set-extend-v1.md	RFC
 gate	script	run-std-set-extend-gate.sh	tests/run-std-set-extend-gate.sh	manifest

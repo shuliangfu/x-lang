@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # STD-130：std.random 可复现 PRNG 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
-DOC="analysis/std-random-rng-v1.md"
+DOC="analysis/archive/std/std-random-rng-v1.md"
 MANIFEST="tests/baseline/std-random-rng-manifest.tsv"
 MOD_X="std/random/mod.x"
 RANDOM_X="${XLANG_STD_RANDOM_IMPL:-std/random/random.x}"

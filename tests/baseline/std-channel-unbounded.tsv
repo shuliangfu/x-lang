@@ -1,9 +1,9 @@
 # STD-044 std.channel unbounded manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 阅读路径	analysis/std-channel-unbounded-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-channel-unbounded-v1.md
 unbounded_api	section	## 2. 无界模式语义	send_unbounded
 close_api	section	## 2.3 关闭语义	try_recv_unbounded
-verify	section	## 4. 验证与门禁	analysis/std-channel-unbounded-v1.md
+verify	section	## 4. 验证与门禁	analysis/archive/std/std-channel-unbounded-v1.md
 api_send_u	api	send_unbounded	std/channel/mod.x	无界 send
 api_try_u	api	try_recv_unbounded	std/channel/mod.x	无界 try
 api_close_u	api	unbounded_close	std/channel/mod.x	无界 close

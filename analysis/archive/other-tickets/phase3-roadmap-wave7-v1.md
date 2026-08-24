@@ -44,10 +44,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-026 | 自举 | parser C4 全量 X bootstrap | P0 | `run-boot-026-parser-c4-bootstrap-gate.sh` |
-| COMP-020 | 编译器 | incr-compile 二次编译烟测扩面 | P1 | `run-comp-incr-compile-wave-gate.sh` |
-| STD-068 | 标准库 | `std.db` row_col_text 文本列 | P2 | `run-std-db-row-col-text-gate.sh` |
-| PLAN-007 | 治理 | Phase 3 第七批路线图定版 | P2 | `run-phase3-roadmap-wave7-gate.sh` |
+| BOOT-026 | 自举 | parser C4 全量 X bootstrap | P0 | ✅ | `run-boot-026-parser-c4-bootstrap-gate.sh` |
+| COMP-020 | 编译器 | incr-compile 二次编译烟测扩面 | P1 | ✅ | `run-comp-incr-compile-wave-gate.sh` |
+| STD-068 | 标准库 | `std.db` row_col_text 文本列 | P2 | ✅ | `run-std-db-row-col-text-gate.sh` |
+| PLAN-007 | 治理 | Phase 3 第七批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave7-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.18。
 

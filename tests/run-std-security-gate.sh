@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # STD-079：std.security 门禁（F-security v1 + F-ZC：纯 security.x）
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_SECURITY_DOC:-analysis/std-security-v1.md}"
+DOC="${XLANG_STD_SECURITY_DOC:-analysis/archive/std/std-security-v1.md}"
 MANIFEST="${XLANG_STD_SECURITY_MANIFEST:-tests/baseline/std-security-manifest.tsv}"
 VECTORS="${XLANG_STD_SECURITY_VECTORS:-tests/baseline/std-security-vectors.tsv}"
 MOD_X="std/security/mod.x"

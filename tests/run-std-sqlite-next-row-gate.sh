@@ -2,10 +2,13 @@
 # STD-067：std.db.sqlite next_row 列值游标门禁
 #
 # 用法：./tests/run-std-sqlite-next-row-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD067_DOC:-analysis/std-sqlite-next-row-v1.md}"
+DOC="${XLANG_STD067_DOC:-analysis/archive/std/std-sqlite-next-row-v1.md}"
 MANIFEST="${XLANG_STD067_TSV:-tests/baseline/std-sqlite-next-row.tsv}"
 VECTORS="${XLANG_STD067_VECTORS:-tests/baseline/std-sqlite-next-row-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
@@ -21,7 +24,7 @@ std_sqlite_next_row_source_sqlite
 
 echo "=== STD-067: db next_row manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
-  analysis/std-sqlite-query-rows-v1.md tests/run-std-sqlite-query-rows-gate.sh; do
+  analysis/archive/std/std-sqlite-query-rows-v1.md tests/run-std-sqlite-query-rows-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-next-row gate FAIL: missing $f" >&2
     exit 1

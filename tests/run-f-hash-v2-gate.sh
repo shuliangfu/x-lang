@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # F-hash v2：std.hash 逻辑全量 .x（删除 hash_glue.c）。
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 FAIL=${XLANG_F_HASH_V2_FAIL:-0}
-DOC="analysis/phase-f-hash-v2.md"
+DOC="analysis/archive/phase/phase-f-hash-v2.md"
 MANIFEST="tests/baseline/f-hash-v2-closure.tsv"
 die() { echo "f-hash-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-hash v2: SipHash/xxHash/FNV → hash.x (zero glue) ==="
+# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
+if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+[ -f xbuild ] || die "missing xbuild"
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-hash v2' "$DOC" || die "doc marker"
 [ -f std/hash/hash.x ] || die "missing hash.x"
@@ -26,7 +32,6 @@ grep -q 'hash_sip_new_c' std/hash/hash.x || die "hash.x missing sip new"
 grep -q 'hash_xxhash64_bytes_c' std/hash/hash.x || die "hash.x missing xxhash"
 grep -q 'hash_hasher_switch_smoke_c' std/hash/hash.x || die "hash.x missing smoke"
 grep -q 'hash_f_hash_v2_marker_c' std/hash/hash.x || die "hash.x missing v2 marker"
-grep -q 'F-hash v2' compiler/Makefile || die "Makefile missing F-hash v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   xlang_compiler_make ../std/hash/hash.o >/dev/null 2>&1 || die "ensure hash.o failed (xlang_compiler_make)"
 else

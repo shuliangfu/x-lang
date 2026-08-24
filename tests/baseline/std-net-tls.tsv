@@ -27,4 +27,4 @@ smoke_openssl_c	smoke	tests/net/tls_openssl_smoke_ok.c	OpenSSL烟测
 cross_std029	cross_ref	tests/baseline/std-net-dns.tsv	STD-029
 lib	script	lib/std-net-tls.sh	tests/lib/std-net-tls.sh
 gate	script	run-std-net-tls-gate.sh	tests/run-std-net-tls-gate.sh
-doc	file	analysis/std-net-tls-v1.md	analysis/std-net-tls-v1.md	RFC
+doc	file	analysis/archive/std/std-net-tls-v1.md	analysis/archive/std/std-net-tls-v1.md	RFC

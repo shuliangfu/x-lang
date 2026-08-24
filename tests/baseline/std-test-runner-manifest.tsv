@@ -1,7 +1,7 @@
 # STD-145 std.test 统一 runner manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 目标	analysis/std-test-runner-v1.md
-api_doc	section	## 2. Runner API	analysis/std-test-runner-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-test-runner-v1.md
+api_doc	section	## 2. Runner API	analysis/archive/std/std-test-runner-v1.md
 api_runner_reset	api	runner_reset	std/test/mod.x	重置计数
 api_runner_case	api	runner_case	std/test/mod.x	报告用例
 api_runner_skip	api	runner_skip	std/test/mod.x	报告 skip
