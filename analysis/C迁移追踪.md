@@ -1,3 +1,4 @@
+> **2026-08-25**：COMP-011 Windows COFF cross-emit 硬绿 @ **`f1fb6a13b`**（seed bridge 真 writer＋OutBuf CAP 9MiB；闸硬；**不升钉**；双端 coff 156B＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega `asm_wpo`／点名）。
 > **2026-08-25**：TOOL-005 -O0 skip dead_strip／gc 硬绿 @ **`82303b057`**（invoke_cc＋Darwin bare-ld；hooks 硬；nsyms 阈 50；**不升钉**；双端 TOOL-005＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP check 路径／Windows COFF CG002。
 > **2026-08-25**：phase-f soft FAIL→硬绿 @ **`4b953d9f4`**（F §9.2 DOC／Makefile／xbuild 诚实；formal_surface 入 NHC／zero-c；README D+E+F；**不升钉**；双端 FAIL=1 9／9＋L2 5／5）。残：L6 unused（须点名 check）。
 > **2026-08-25**：CORE-010/011 fmt to_buf 硬绿 @ **`719c6de8e`**（formal_mod `core/fmt/mod.o`＋labi g24×12；金样 live `fmt_*_to_buf`；usize→u64；闸 run=1 skip=0；**不升钉**；双端 gate＋L2 5／5）。残：L6 unused／phase-f。
