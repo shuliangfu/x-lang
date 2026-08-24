@@ -113,8 +113,7 @@ export extern function driver_diagnostic_asm_var_not_found(name: *u8, name_len: 
 export extern function driver_diagnostic_asm_set_current_func(name: *u8, name_len: i32): void;
 /* See implementation. */
 export extern function driver_freestanding_get(): i32;
-/** build_xlang_asmï¼å¤§æ¨¡åæ¡© emit å¤å®ï¼ast_pool.cï¼é¡»å
- asm_skip_heavy_set_pipeline_ctxï¼ã */
+/** build_xlang_asm: heavy-module emit gate (runtime_pipeline_abi; call asm_skip_heavy_set_pipeline_ctx first). Historical ast_pool.c left wave309. */
 export extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTArena, func_index: i32): i32;
 /** XLANG_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
 export extern function asm_diag_start_func_skip(): i32;
@@ -124,13 +123,12 @@ export extern function parser_get_module_import_path(mod: *Module, i: i32, out_b
 export extern function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
 /** codegenï¼é¨å std/c shim è°ç¨å¨ AST ä¸­ä¸çå® C ååå®åä¸ªæ°ä¸ä¸è´ï¼ç± codegen.x æ ¡æ­£ã */
 export extern function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
-/** Module import è·¯å¾/ç»å® sidecarï¼ast_pool.cï¼ã */
+/** Module import path/binding sidecar (runtime_pipeline_abi). Historical ast_pool.c left wave309. */
 export extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
 /**
- * å° module é¡¶å± let/const æåºå¹¶å
-¥ main å½æ°ä½ï¼åå
- letï¼ï¼ä¾ asm å¨æ æ§½åå§åã
- * ä¸ C codegen ç static+init_globals ç­ä»·ï¼é¡»å¨ asm_codegen_ast* ç¼å½æ°åè°ç¨ï¼ast_pool.cï¼ã
+ * Hoist module top-level let/const into main as block lets for asm stack init.
+ * Equivalent to C codegen static+init_globals; call before asm_codegen_ast*.
+ * G.7: runtime_pipeline_abi (historical ast_pool.c left wave309).
  */
 export extern function pipeline_module_hoist_top_level_lets_into_main(module: *Module, arena: *ASTArena): void;
 
@@ -150,7 +148,7 @@ export extern function pipeline_module_import_path_byte_at(module: *Module, idx:
 export extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
 export extern function pipeline_module_import_binding_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx: i32, off: i32): u8;
-/** Expr call/match/struct_lit/array_lit sidecarï¼ast_pool.cï¼ã */
+/** Expr call/match/struct_lit/array_lit sidecar (runtime_pipeline_abi). Historical ast_pool.c left wave309. */
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -188,8 +186,7 @@ export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_re
 export extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *ASTArena, expr_ref: i32): i32;
-/** C åæ­¥åä½ stmt_order åå°ï¼pipeline_glue.cï¼å¿å¨ X å
- while æ« stmt_orderï¼ã */
+/** C-synced block-body stmt_order emit (runtime_pipeline_abi / backend seed; do not scan stmt_order in X while). Historical pipeline_glue.c left wave309. */
 export extern function backend_emit_block_body_sync_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 /* See implementation. */
 export extern function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module): i32;
@@ -291,8 +288,7 @@ export extern function pipeline_block_const_init_ref(arena: *ASTArena, br: i32, 
 export extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
 export extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
 export extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li: i32): i32;
-/** asm ä¸»å¾ªç¯è¯» Func æ± ï¼pipeline_glue.c è½¬åï¼é¿å
- codegen_ åç¼ï¼ã */
+/** Asm main-loop Func pool readers (runtime_pipeline_abi forwarders; avoid codegen_ prefix). Historical pipeline_glue.c left wave309. */
 export extern function pipeline_asm_module_func_is_extern_at(mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_module_func_body_ref_at(mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_module_func_name_len_at(mod: *Module, func_index: i32): i32;
@@ -301,14 +297,13 @@ export extern function pipeline_asm_module_func_num_params_at(mod: *Module, func
 export extern function pipeline_asm_module_func_param_name_len_at(mod: *Module, func_index: i32, param_index: i32): i32;
 export extern function pipeline_asm_module_func_param_name_copy32(mod: *Module, func_index: i32, param_index: i32, dst: *u8): void;
 export extern function pipeline_asm_get_return_expr_ref_at(arena: *ASTArena, module: *Module, func_index: i32): i32;
-/** import éå®ç¬¦å· field å± scratchï¼ast_pool.cï¼ä¸ typeck.x å
-±ç¨ï¼ã */
+/** Import-qualified symbol field-layer scratch (runtime_pipeline_abi; shared with typeck.x). Historical ast_pool.c left wave309. */
 export extern function asm_qual_sym_layer_reset(): void;
 export extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
 export extern function asm_qual_sym_layer_count(): i32;
 export extern function asm_qual_sym_layer_len(i: i32): i32;
 export extern function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
-/** AsmFuncCtx å±é¨æ§½ sidecarï¼ast_pool.cï¼é® = ctx æéï¼ã */
+/** AsmFuncCtx local-slot sidecar (runtime_pipeline_abi; key = ctx pointer). Historical ast_pool.c left wave309. */
 export extern function asm_ctx_local_reset(ctx: *u8): void;
 export extern function asm_ctx_local_count(ctx: *u8): i32;
 export extern function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
@@ -3628,9 +3623,10 @@ export function emit_for_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, blo
 
 
 /**
- * ELF è·¯å¾ï¼æ stmt_order åå°åä½ï¼ç» pipeline_glue.c ç C for å¾ªç¯ + expr å¿«è·¯å¾ï¼ã
- * èªä¸¾ xlang_asm ä¸ X ç while(i<nso) ç» xlang-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä»
- emit å·¦æä½æ°ã
+ * ELF path: emit block body by stmt_order via backend_emit_block_body_sync_elf
+ * (runtime_pipeline_abi / backend seed; historical pipeline_glue.c C for-loop
+ * left wave309). X while(i<nso) under selfhost xlang-c -E may run only one
+ * iteration and drop the return 1+2 left operand — prefer the C sync path.
  */
 export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.

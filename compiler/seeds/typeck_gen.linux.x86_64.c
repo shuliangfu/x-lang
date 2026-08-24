@@ -17165,7 +17165,8 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    *
    *      We resolve the chicken-and-egg by pre-marking here using the
    *      global g_typeck_active_module, which is set at module typeck
-   *      entry (ast_pool.c L6428 / pipeline_glue.c L22027) before any
+   *      entry (runtime_pipeline_abi pipeline_typeck_active_module_set_c;
+   *      historical ast_pool.c/pipeline_glue.c L* left wave309) before any
    *      block-level typeck runs. The marker is idempotent — early-
    *      returns if already marked — so re-marking at L6850 is a no-op.
    *
@@ -17194,7 +17195,8 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    * `if cond { then } else { else }` is a const expression iff cond, then,
    * and else are all const expressions. EXPR_IF and EXPR_TERNARY share the
    * same field layout (if_cond_ref / if_then_ref / if_else_ref, see
-   * ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844), so one
+   * runtime_pipeline_abi.x::asm_wpo_collect_edges_from_expr;
+   * historical ast_pool.c L14836-14844 left wave309), so one
    * branch covers both kinds.
    *
    * Why: Lets `const Y: i32 = (X == 2) ? 100 : 200;` and
@@ -17221,7 +17223,9 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    *           (~24 bytes). Also unlocks parent binop folds.
    *
    * PLATFORM: SHARED — EXPR_IF / EXPR_TERNARY field layout is identical on
-   *           macOS arm64 and Ubuntu x86_64 (ast_pool.c L14836).
+   *           macOS arm64 and Ubuntu x86_64 (runtime_pipeline_abi.x
+   *           asm_wpo_collect_edges_from_expr; historical ast_pool.c
+   *           L14836 left wave309).
    */
   if (kd == ast_ExprKind_EXPR_TERNARY || kd == ast_ExprKind_EXPR_IF) {
     int32_t cond_ref = pipeline_expr_if_cond_ref_at(a, expr_ref);
@@ -17650,12 +17654,15 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    * PLATFORM: SHARED — C5-enum-variant CTFE (TypeName.Variant folds to tag).
    *
    * Why: Enum variants are statically assigned a discriminator tag at parse
-   *      time via pipeline_module_enum_variant_tag_for_names (ast_pool.c
-   *      L4204). The same source feeds both:
-   *        - MatchArmEntry.variant_index (pipeline_expr_append_match_arm,
-   *          ast_pool.c L5200) — drives arm comparison in EXPR_MATCH fold.
-   *        - Expr.enum_variant_tag (set by pipeline_expr_try_mark_enum_field_access,
-   *          ast_pool.c L4312) — drives emit's `mov w0,#tag` fast path.
+   *      time via pipeline_module_enum_variant_tag_for_names
+   *      (runtime_pipeline_abi.x; historical ast_pool.c L4204 left wave309).
+   *      The same source feeds both:
+   *        - MatchArmEntry.variant_index (pipeline_expr_append_match_arm in
+   *          runtime_pipeline_abi; historical ast_pool.c L5200 left wave309)
+   *          — drives arm comparison in EXPR_MATCH fold.
+   *        - Expr.enum_variant_tag (set by pipeline_expr_try_mark_enum_field_access
+   *          in runtime_pipeline_abi; historical ast_pool.c L4312 left wave309)
+   *          — drives emit's `mov w0,#tag` fast path.
    *      Folding Color.Red into const_folded_val=tag enables two key wins:
    *        (1) `const X: Color = Color.Red;` stamps X with the tag so
    *            downstream `match X { Color.Red => ... }` folds to a single
@@ -17670,7 +17677,9 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *            field_access_is_enum_variant=0, so this branch correctly
    *            skips stamping (const_folded_valid stays 0, set at L13664).
    *            The marker needs the active module — g_typeck_active_module
-   *            is set at module typeck entry (ast_pool.c L6428 / glue L22027)
+   *            is set at module typeck entry
+   *            (runtime_pipeline_abi pipeline_typeck_active_module_set_c;
+   *            historical ast_pool.c/glue L* left wave309)
    *            and remains live throughout block-level typeck.
    *
    * Asm/Perf: Replaces runtime tag-load sequence (`adrp xN, .enum_table;
@@ -17988,7 +17997,8 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    * C5-ternary-if: fold `cond ? then : else` and `if cond { then } else { else }`
    * to the selected branch's constant when cond folds. EXPR_IF and EXPR_TERNARY
    * share the if_cond_ref / if_then_ref / if_else_ref field layout (see
-   * ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844), so one branch
+   * runtime_pipeline_abi.x::asm_wpo_collect_edges_from_expr;
+   * historical ast_pool.c L14836-14844 left wave309), so one branch
    * covers both kinds.
    *
    * Why: Pure-const ternaries/if-exprs (`const Y = (X==2) ? 100 : 200;` or
@@ -18078,7 +18088,8 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *
    * PLATFORM: SHARED — Mirrors whitelist case in glue_is_const_expr_ref
    *           above. ast_ast_block_final_expr_ref returns Block.final_expr_ref
-   *           directly (verified at pipeline_glue.c L23405-23411).
+   *           directly (runtime_pipeline_abi / Block.final_expr_ref;
+   *           historical pipeline_glue.c L23405-23411 left wave309).
    */
   if (kd == ast_ExprKind_EXPR_BLOCK) {
     int32_t block_ref = pipeline_expr_block_ref_at(a, expr_ref);
