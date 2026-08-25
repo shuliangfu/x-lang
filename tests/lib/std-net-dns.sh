@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# std-net-dns.sh — STD-029 manifest 与烟测辅助
+# std-net-dns.sh — STD-029 manifest + smoke helpers
 #
-# 用法（source 后）：
-#   std_net_dns_symbols_ok MOD_X NET_C TSV
+# Usage (after source):
+#   std_net_dns_symbols_ok MOD_X NET_DNS_X TSV
 #   std_net_dns_run_smoke XLANG_BIN X TAG
-#   std_net_dns_emit_report status resolve_ok main_ok skip
+#   std_net_dns_emit_report status check_ok resolve_ok main_ok skip
+# 2026-08-26: report check=/resolve=/main=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_NET_DNS_PREFIX="${XLANG_STD_NET_DNS_PREFIX:-xlang: [XLANG_STD_NET_DNS]}"
 
-# 校验 manifest symbol/file/api；echo 缺失数。
+# Validate manifest symbol/file/api; echo miss count; return 0 iff miss==0.
 std_net_dns_symbols_ok() {
   local mod_x="$1"
   local net_c="$2"
@@ -42,25 +44,30 @@ std_net_dns_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section|script|gate|anchor|hook_script|cross_ref)
+        # DOC ## 5. Gate / script anchors validated by the gate script.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x（须已 ensure net.o）。
+# Compile and run a smoke .x (net.o must already be ensured by the gate).
+# Honors XLANG / XLANG_LINK_XLANG when the caller pinned prefer-asm.
 std_net_dns_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_net_dns_${tag}_$$"
+  local run_xlang="${XLANG:-$xlang}"
   if [ ! -f "$src" ]; then
     echo "std-net-dns FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$run_xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-net-dns FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$run_xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -76,11 +83,13 @@ std_net_dns_run_smoke() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: check=/resolve=/main=/skip=).
+# Hard-green signal = resolve= + main=; check observational.
 std_net_dns_emit_report() {
   local status="$1"
-  local resolve_ok="$2"
-  local main_ok="$3"
-  local skip="$4"
-  echo "${STD_NET_DNS_PREFIX} status=${status} resolve=${resolve_ok} main=${main_ok} skip=${skip}"
+  local check_ok="$2"
+  local resolve_ok="$3"
+  local main_ok="$4"
+  local skip="$5"
+  echo "${STD_NET_DNS_PREFIX} status=${status} check=${check_ok} resolve=${resolve_ok} main=${main_ok} skip=${skip}"
 }
