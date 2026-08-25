@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-cmp-ordering-gate.sh
 # wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
 # check smoke observational SKIP (check gate paused 2026-08-05).
+# 2026-08-25: runnable hard-green (formal_mod core/cmp/mod.o + labi g25);
+# check stays observational.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -59,7 +61,8 @@ stdlib_cm_native_xlang() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
     if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
@@ -72,30 +75,34 @@ CHECK_OK=0
 RUN_OK=0
 SKIP=1
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-005: smoke (XLANG=$XLANG_BIN; check observational) ==="
+  echo "=== CORE-005: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
-    echo "core-cmp-ordering gate SKIP check smoke (paused / typeck debt)" >&2
+    echo "core-cmp-ordering gate SKIP check smoke (paused 2026-08-05)" >&2
   fi
   xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_core_cmp 2>/tmp/xlang_core_cmp_build.log; then
+  OUT="/tmp/xlang_core_cmp_$$"
+  LOG="/tmp/xlang_core_cmp_build_$$.log"
+  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
     exitcode=0
-    /tmp/xlang_core_cmp >/dev/null 2>&1 || exitcode=$?
+    "$OUT" >/dev/null 2>&1 || exitcode=$?
+    rm -f "$OUT"
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
-      CHECK_OK=1
       SKIP=0
     else
-      echo "core-cmp-ordering gate SKIP runnable exit=$exitcode" >&2
-      SKIP=1
+      echo "core-cmp-ordering gate FAIL runnable exit=$exitcode" >&2
+      core_cmp_emit_report "fail" "$CHECK_OK" 0 0
+      exit 1
     fi
   else
-    echo "core-cmp-ordering gate SKIP runnable link" >&2
-    tail -5 /tmp/xlang_core_cmp_build.log 2>/dev/null >&2 || true
-    SKIP=1
+    echo "core-cmp-ordering gate FAIL runnable link" >&2
+    tail -20 "$LOG" 2>/dev/null >&2 || true
+    core_cmp_emit_report "fail" "$CHECK_OK" 0 0
+    exit 1
   fi
 else
   echo "core-cmp-ordering gate SKIP typeck (no native xlang)" >&2

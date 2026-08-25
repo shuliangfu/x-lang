@@ -155,8 +155,9 @@ int labi_od_simple_group_count(void) {
    * g21: core.str formal (cookbook core_str_index unique UNDEF).
    * g22: core.iterator formal (cookbook iter_slice_sum unique UNDEF).
    * g23: std.bytes formal (tests/std-bytes/arena_external unique UNDEF).
-   * g24: core.fmt formal (CORE-010/011 direct import). */
-  return 25;
+   * g24: core.fmt formal (CORE-010/011 direct import).
+   * g25: core.cmp formal (CORE-005 direct import Ordering/cmp_*). */
+  return 26;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -223,6 +224,9 @@ int labi_od_simple_group_sym_count(int g) {
     return 29;
   /* PLATFORM: SHARED — core.fmt formal (CORE-010/011). Count 12. G.7 one table. */
   if (g == 24)
+    return 12;
+  /* PLATFORM: SHARED — core.cmp formal (CORE-005). Count 12. G.7 one table. */
+  if (g == 25)
     return 12;
   return 0;
 }
@@ -807,6 +811,36 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_fmt_fmt_i32";
     return NULL;
   }
+  /* PLATFORM: SHARED — exact UNDEF needles for core/cmp/mod.o (g==25).
+   * CORE-005 unique fire: cmp_i32 / cmp_u8 / cmp_ptr / is_lt/eq/gt / then / reverse.
+   * Rest = ordering_* constructors so sole-call smokes also fire. G.7: one table. */
+  if (g == 25) {
+    if (i == 0)
+      return "core_cmp_cmp_i32";
+    if (i == 1)
+      return "core_cmp_cmp_u8";
+    if (i == 2)
+      return "core_cmp_cmp_ptr";
+    if (i == 3)
+      return "core_cmp_is_lt";
+    if (i == 4)
+      return "core_cmp_is_eq";
+    if (i == 5)
+      return "core_cmp_is_gt";
+    if (i == 6)
+      return "core_cmp_then";
+    if (i == 7)
+      return "core_cmp_reverse";
+    if (i == 8)
+      return "core_cmp_ordering_less";
+    if (i == 9)
+      return "core_cmp_ordering_equal";
+    if (i == 10)
+      return "core_cmp_ordering_greater";
+    if (i == 11)
+      return "core_cmp_ordering_from_i32";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -868,6 +902,9 @@ const char *labi_od_simple_group_rel(int g) {
   /* PLATFORM: SHARED — core.fmt formal product .o (CORE-010/011). */
   if (g == 24)
     return "core/fmt/mod.o";
+  /* PLATFORM: SHARED — core.cmp formal product .o (CORE-005). */
+  if (g == 25)
+    return "core/cmp/mod.o";
   return NULL;
 }
 
