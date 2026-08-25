@@ -465,6 +465,9 @@ extern int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCo
 extern int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 extern int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                        int32_t arg_ref, int32_t pty);
+extern int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
+extern int32_t glue_arm64_mov_x8_to_x0_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 extern int32_t pipeline_asm_emit_call_sret_reg_shift_c(void);
@@ -684,23 +687,62 @@ static int32_t glue_sysv_arg_stack_words_c(int32_t sz, int32_t gp_units) {
 
 /**
  * Byte size of a call/method arg for SysV packing.
- * Prefer pipeline authority (VAR decl + dep layout); fallback formal/resolved only.
+ * Take max of call_arg_value / formal / resolved / nested CALL return size.
+ * Root (ErrorChain nested CALL-as-MEMORY Cap): call_arg_value floors to 8 for
+ * non-VAR args and early-return blocked formal ErrorChain (20B) → is_mem≠2 → SEGV.
+ * G.7: one packer; max() not first-wins. PLATFORM: SHARED freestanding dual-GP.
  */
 static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t pty,
                                          int32_t arg_ref) {
-  int32_t sz;
-  if (arena) {
+  int32_t sz = 0;
+  int32_t alt = 0;
+  int32_t ko = 0;
+  int32_t tr = 0;
+  if (arena)
     sz = pipeline_asm_call_arg_value_byte_size_c(arena, ctx, arg_ref, pty);
-    if (sz > 0)
-      return sz;
-  }
-  sz = 0;
-  if (pty > 0 && arena)
+  /*
+   * Preserve call_arg SLICE/ARRAY→8 pointer packing for VAR/FIELD/etc.
+   * Only widen nested CALL/METHOD when soft (≤16): formal/resolved named
+   * layout + callee return (ErrorChain 20B). Do NOT max named_layout on all
+   * args — that regressed slice_oob (fat layout undid E* pack).
+   * PLATFORM: SHARED freestanding · MACOS|ARM64 host-indirect · LINUX SysV.
+   */
+  if (arg_ref > 0 && arena) {
+    ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if (ko == 48 || ko == 49) {
+      if (sz <= 16) {
+        if (pty > 0) {
+          alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
+          if (alt > sz)
+            sz = alt;
+          alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+          if (alt > sz)
+            sz = alt;
+        }
+        tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        if (tr > 0) {
+          alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
+          if (alt > sz)
+            sz = alt;
+          alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+          if (alt > sz)
+            sz = alt;
+        }
+        alt = glue_call_return_byte_size_c(arena, arg_ref);
+        if (alt > sz)
+          sz = alt;
+      }
+    } else if (sz <= 0) {
+      if (pty > 0)
+        sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
+      if (sz <= 0) {
+        tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        if (tr > 0)
+          sz = pipeline_asm_type_ref_byte_size_c(arena, tr);
+      }
+    }
+  } else if (sz <= 0 && pty > 0 && arena) {
     sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
-  if (sz <= 0 && arg_ref > 0 && arena) {
-    int32_t tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (tr > 0)
-      sz = pipeline_asm_type_ref_byte_size_c(arena, tr);
   }
   if (sz <= 0)
     return 8;
@@ -2662,9 +2704,10 @@ extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t v);
 
 /**
  * PLATFORM: MACOS|ARM64 — address of host-indirect MEMORY arg into rax/x0.
- * VAR: lea. Nested CALL/METHOD (or other non-lvalue): sret into frame temp, then lea.
+ * VAR: lea. Nested CALL/METHOD: sret into frame temp (save/restore outer x8), then lea.
  * Root (ErrorChain nested chain_wrap SEGV): bare lvalue_eff_addr on CALL fails;
- * export wrappers need &temp. G.7: one materialize for CALL host + METHOD is_mem=2.
+ * outer let sret in x8 must survive inner materialize (≡ store_memory_by_value).
+ * G.7: one materialize for CALL host + METHOD is_mem=2.
  */
 static int32_t glue_emit_arm64_host_mem_arg_addr_to_rax_c(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -2673,6 +2716,8 @@ static int32_t glue_emit_arm64_host_mem_arg_addr_to_rax_c(struct ast_ASTArena *a
   int32_t ko;
   int32_t nbytes;
   int32_t off;
+  int32_t save_off;
+  int32_t ret_sz;
   struct glue_AsmFuncCtxCall *ly;
   if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 1)
     return -1;
@@ -2682,22 +2727,44 @@ static int32_t glue_emit_arm64_host_mem_arg_addr_to_rax_c(struct ast_ASTArena *a
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   nbytes = (sz + 7) & ~7;
-  off = ly->next_offset + nbytes;
-  if (off < nbytes)
-    off = nbytes;
-  ly->next_offset = off;
+  off = ly->next_offset;
+  if (off < 16)
+    off = 16;
+  save_off = off + nbytes;
+  if (save_off + 8 < off)
+    return -1;
+  ly->next_offset = save_off + 8;
+  /* Save incoming x8 (outer let/call sret dest) before inner IRLR overwrite. */
+  if (glue_arm64_mov_x8_to_x0_elf_c(elf_ctx) != 0)
+    return -1;
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0)
+    return -1;
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
     return -1;
   if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0)
     return -1;
+  if (ko == 48 || ko == 49) {
+    ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+    if (ret_sz <= 16)
+      ret_sz = sz;
+  } else {
+    ret_sz = sz;
+  }
+  if (ret_sz <= 16)
+    return -1;
   pipeline_asm_emit_ctx_sret_active_set(1);
   pipeline_asm_emit_ctx_sret_home_off_set(off);
-  pipeline_asm_emit_ctx_sret_ret_sz_set(sz);
+  pipeline_asm_emit_ctx_sret_ret_sz_set(ret_sz);
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
     pipeline_asm_emit_ctx_sret_active_set(0);
     return -1;
   }
   pipeline_asm_emit_ctx_sret_active_set(0);
+  /* Restore outer x8, then lea temp for host-indirect arg pointer. */
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0)
+    return -1;
+  if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0)
+    return -1;
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
 }
 

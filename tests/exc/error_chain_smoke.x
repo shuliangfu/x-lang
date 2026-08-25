@@ -20,11 +20,14 @@ function main(): i32 {
   let bad: Result_i32 = result.err(fs_err_not_found());
   let from_r: ErrorChain = err.chain_from_result(bad);
   if (err.chain_leaf(from_r) != fs_err_not_found()) { return 9; }
-  /* Nested wrap CALL-as-MEMORY still Cap; lets keep VAR lvalues. */
-  let w1: ErrorChain = err.chain_wrap(leaf, io_err_generic());
-  let w2: ErrorChain = err.chain_wrap(w1, io_err_timeout());
-  let w3: ErrorChain = err.chain_wrap(w2, io_err_cancelled());
-  let deep: ErrorChain = err.chain_wrap(w3, code_invalid());
+  /* Nested CALL-as-MEMORY (host-indirect + x8 save) — no intermediate lets. */
+  let deep: ErrorChain = err.chain_wrap(
+    err.chain_wrap(
+      err.chain_wrap(
+        err.chain_wrap(leaf, io_err_generic()),
+        io_err_timeout()),
+      io_err_cancelled()),
+    code_invalid());
   if (err.chain_depth(deep) != err.chain_max_depth()) { return 10; }
   if (err.chain_root(deep) != code_invalid()) { return 11; }
   let out: Result_i32 = result.err(err.chain_root(wrapped));

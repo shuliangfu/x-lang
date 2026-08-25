@@ -143,6 +143,21 @@ export extern function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32,
 export extern function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
 /** wave195 pure authority — call-arg value byte size (VAR/layout preferred). */
 export extern function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, arg_ref: i32, pty: i32): i32;
+/**
+ * Nested CALL/METHOD return byte size (resolve callee → return type).
+ * Used when call_arg_value_byte_size floors to 8 for non-VAR MEMORY args.
+ * PLATFORM: SHARED — wave194 pure leave.
+ */
+export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
+/**
+ * Cross-module named layout size (ErrorChain 20B when size_simple is soft).
+ * PLATFORM: SHARED — wave191 pure leave.
+ */
+export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+/** AAPCS64: mov x8, x0 (set Indirect Result Location). PLATFORM: MACOS|ARM64. */
+export extern function glue_arm64_mov_x0_to_x8_elf_c(elf: *u8): i32;
+/** AAPCS64: mov x0, x8 (save incoming sret dest). PLATFORM: MACOS|ARM64. */
+export extern function glue_arm64_mov_x8_to_x0_elf_c(elf: *u8): i32;
 export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
 /** Process-local AsmFuncCtx dep_pipe (set by pipeline_asm_emit_set_dep_pipe). PLATFORM: SHARED. */
@@ -633,32 +648,123 @@ function glue_sysv_arg_stack_words_c(sz: i32, gp_units: i32): i32 {
 
 /**
  * Byte size of a call/method arg for SysV packing.
- * Prefer pipeline_asm_call_arg_value_byte_size_c; fallback type_ref / resolved.
- * PLATFORM: SHARED freestanding dual-GP packing.
+ * Take max of call_arg_value / formal / resolved / nested CALL return size.
+ * Root (ErrorChain nested CALL-as-MEMORY Cap): call_arg_value floors to 8 for
+ * non-VAR args and early-return blocked formal ErrorChain (20B) → is_mem≠2 → SEGV.
+ * G.7: one packer; max() not first-wins. PLATFORM: SHARED freestanding dual-GP.
  */
 function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32 {
   let sz: i32 = 0;
+  let alt: i32 = 0;
+  let ko: i32 = 0;
+  let tr: i32 = 0;
   if (arena != 0 as *u8) {
     sz = pipeline_asm_call_arg_value_byte_size_c(arena, ctx, arg_ref, pty);
-    if (sz > 0) { return sz; }
   }
-  if (pty > 0) {
+  // Preserve call_arg SLICE/ARRAY→8 pointer packing for VAR/FIELD/etc.
+  // Only widen nested CALL/METHOD when soft (≤16): formal/resolved named
+  // layout + callee return (ErrorChain 20B). Do NOT max named_layout on all
+  // args — that regressed slice_oob (fat layout undid E* pack).
+  // PLATFORM: SHARED freestanding · MACOS|ARM64 host-indirect · LINUX SysV.
+  if (arg_ref > 0) {
     if (arena != 0 as *u8) {
-      sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
-    }
-  }
-  if (sz <= 0) {
-    if (arg_ref > 0) {
-      if (arena != 0 as *u8) {
-        let tr: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
-        if (tr > 0) {
-          sz = pipeline_asm_type_ref_byte_size_c(arena, tr);
+      ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+      if (ko == 48 || ko == 49) {
+        if (sz <= 16) {
+          if (pty > 0) {
+            alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
+            if (alt > sz) { sz = alt; }
+            alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+            if (alt > sz) { sz = alt; }
+          }
+          tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+          if (tr > 0) {
+            alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
+            if (alt > sz) { sz = alt; }
+            alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+            if (alt > sz) { sz = alt; }
+          }
+          alt = glue_call_return_byte_size_c(arena, arg_ref);
+          if (alt > sz) { sz = alt; }
         }
+      } else {
+        // Non-CALL: formal/resolved fallback only when call_arg soft/zero.
+        if (sz <= 0) {
+          if (pty > 0) {
+            sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
+          }
+          if (sz <= 0) {
+            tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+            if (tr > 0) {
+              sz = pipeline_asm_type_ref_byte_size_c(arena, tr);
+            }
+          }
+        }
+      }
+    }
+  } else if (sz <= 0) {
+    if (pty > 0) {
+      if (arena != 0 as *u8) {
+        sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
       }
     }
   }
   if (sz <= 0) { return 8; }
   return sz;
+}
+
+/**
+ * PLATFORM: MACOS|ARM64 — address of host-indirect MEMORY arg into rax/x0.
+ * VAR: lea. Nested CALL/METHOD: sret into frame temp (save/restore outer x8), then lea.
+ * Root (ErrorChain nested chain_wrap SEGV): bare lvalue_eff_addr on CALL fails;
+ * outer let sret in x8 must survive inner materialize (≡ store_memory_by_value).
+ * G.7: one materialize for import METHOD is_mem=2. @return 0 ok; -1 fail.
+ */
+function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
+    arena: *u8, elf_ctx: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32 {
+  let ko: i32 = 0;
+  let nbytes: i32 = 0;
+  let off: i32 = 0;
+  let save_off: i32 = 0;
+  let cur: i32 = 0;
+  let sum: i32 = 0;
+  let ret_sz: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arg_ref <= 0 || sz <= 16 || ta != 1) {
+    return 0 - 1;
+  }
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  // EXPR_VAR = 3
+  if (ko == 3) {
+    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
+  }
+  // Nested CALL/METHOD (48/49) or other non-lvalue: materialize then lea.
+  nbytes = (sz + 7) & (0 - 8);
+  cur = call_dispatch_load_i32_le(ctx, 4);
+  off = cur;
+  if (off < 16) { off = 16; }
+  save_off = off + nbytes;
+  sum = save_off + 8;
+  if (sum < off) { return 0 - 1; }
+  call_dispatch_store_i32_le(ctx, 4, sum);
+  // Save incoming x8 (outer let/call sret dest) before inner IRLR overwrite.
+  if (glue_arm64_mov_x8_to_x0_elf_c(elf_ctx) != 0) { return 0 - 1; }
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0) { return 0 - 1; }
+  if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) { return 0 - 1; }
+  if (ko == 48 || ko == 49) {
+    ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+    if (ret_sz <= 16) { ret_sz = sz; }
+  } else {
+    ret_sz = sz;
+  }
+  if (ret_sz <= 16) { return 0 - 1; }
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+    return 0 - 1;
+  }
+  // Restore outer x8, then lea temp for host-indirect arg pointer.
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+  if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) { return 0 - 1; }
+  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
 }
 
 /**
@@ -2559,8 +2665,10 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                           let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                           if (arg_ref_m != 0) {
                             if (is_mem_m[i_m] == 2) {
-                              // PLATFORM: MACOS|ARM64 — host-C large POD lea into GP.
-                              if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref_m, ctx, ta) != 0) {
+                              // PLATFORM: MACOS|ARM64 — host-C large POD addr into GP
+                              // (VAR lea / nested CALL sret→temp+lea; save outer x8).
+                              if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
+                                    arena, elf_ctx, ctx, arg_ref_m, arg_sz_m[i_m], ta) != 0) {
                                 return 0 - 1;
                               }
                             } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
@@ -2954,7 +3062,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
           }
           if (arg_rg != 0) {
             if (is_mem_u[i_u] == 2) {
-              if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_rg, ctx, ta) != 0) {
+              // PLATFORM: MACOS|ARM64 — host-indirect (nested CALL safe).
+              if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
+                    arena, elf_ctx, ctx, arg_rg, arg_sz_u[i_u], ta) != 0) {
                 return 0 - 1;
               }
             } else if (has_recv != 0) {

@@ -15,10 +15,10 @@ case_expect_branch	recovery/r_expect_branch.x	run	0	R1-unwrap-or	expect_i32 Ok
 case_err_fs_code	recovery/r_err_fs_code.x	run	0	R4-layer-c	fs 码默认 404
 case_io_err_recover	recovery/r_io_err_recover.x	run	0	R4-layer-c	io 码 unwrap_or
 case_global_invalid	recovery/r_global_invalid.x	run	0	R1-unwrap-or	global invalid 默认
-case_root_from_chain	recovery/r_root_from_chain.x	run	0	R5-chain	ErrorChain host-indirect + no cross-module field inline
+case_root_from_chain	recovery/r_root_from_chain.x	run	0	R5-chain	ErrorChain nested CALL-as-MEMORY host-indirect
 case_recoverable_result	recoverable_result.x	run	0	R1-unwrap-or	EXC-002 Layer A
 case_layer_c_recoverable	layer_c_recoverable.x	run	0	R4-layer-c	EXC-002 Layer C fs
-case_error_chain_smoke	error_chain_smoke.x	run	0	R5-chain	EXC-004 ErrorChain (lets for nested wrap)
+case_error_chain_smoke	error_chain_smoke.x	run	0	R5-chain	EXC-004 ErrorChain nested CALL-as-MEMORY
 case_code_layer	error_code_layer.x	run	0	R4-layer-c	EXC-003 分层
 case_expect_or_panic_ok	expect_or_panic_ok.x	run	0	R3-branch	expect 必成功
 case_runtime_ready	runtime_ready.x	run	0	R6-suite	runtime ready
