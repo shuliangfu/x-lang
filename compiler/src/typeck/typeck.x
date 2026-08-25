@@ -518,6 +518,8 @@ elem_ref: i32, array_size: i32): i32;
  * PLATFORM: SHARED freestanding typeck coerce Cap leave.
  */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
+/** Forward: defined near mono/pattern-unify leave (LANG-009 named-inst equality). */
+export extern function typeck_named_num_type_args(arena: *ASTArena, ty: i32): i32;
 /**
  * wave234: call_arg_repr_compatible residual face retired → typeck authority.
  * Keep historical pipeline_*_c name only as Cap residual thin (check_expr).
@@ -7473,6 +7475,163 @@ export function typeck_named_unqual_start(buf: *u8, len: i32): i32 {
 * See implementation.
 * See implementation.
 */
+/**
+ * Map one type_ref to a C-safe mangle suffix (LANG-009 / CORE-016).
+ * Mirrors codegen_type_ref_to_suffix / parser_asm_type_ref_mangle_suffix_c.
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32 — bytes written, or 0
+ * PLATFORM: SHARED — typeck-local copy; no parser/codegen link edge.
+ */
+function typeck_type_ref_mangle_suffix(arena: *ASTArena, type_ref: i32, buf: *u8, buf_cap: i32): i32 {
+  // PLATFORM: SHARED — STRUCT_LIT / named-inst equality suffix.
+  unsafe {
+    let tk: i32 = 0;
+    let n: i32 = 0;
+    let elem: i32 = 0;
+    if (arena == 0 as *ASTArena || type_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
+      return 0;
+    }
+    tk = pipeline_type_kind_ord_at(arena, type_ref);
+    if (tk == 9) {
+      /* TYPE_PTR → elem + "_ptr" */
+      elem = pipeline_type_elem_ref_at(arena, type_ref);
+      n = typeck_type_ref_mangle_suffix(arena, elem, buf, buf_cap);
+      if (n > 0 && n + 4 < buf_cap) {
+        buf[n] = 95;
+        buf[n + 1] = 112;
+        buf[n + 2] = 116;
+        buf[n + 3] = 114;
+        return n + 4;
+      }
+      return n;
+    }
+    if (tk == 8) {
+      n = pipeline_type_named_name_into(arena, type_ref, buf);
+      if (n <= 0 || n >= buf_cap) {
+        return 0;
+      }
+      return n;
+    }
+    if (tk == 0) {
+      if (buf_cap < 3) { return 0; }
+      buf[0] = 105; buf[1] = 51; buf[2] = 50; return 3;
+    }
+    if (tk == 5) {
+      if (buf_cap < 3) { return 0; }
+      buf[0] = 105; buf[1] = 54; buf[2] = 52; return 3;
+    }
+    if (tk == 2) {
+      if (buf_cap < 2) { return 0; }
+      buf[0] = 117; buf[1] = 56; return 2;
+    }
+    if (tk == 3) {
+      if (buf_cap < 3) { return 0; }
+      buf[0] = 117; buf[1] = 51; buf[2] = 50; return 3;
+    }
+    if (tk == 4) {
+      if (buf_cap < 3) { return 0; }
+      buf[0] = 117; buf[1] = 54; buf[2] = 52; return 3;
+    }
+    if (tk == 1) {
+      if (buf_cap < 4) { return 0; }
+      buf[0] = 98; buf[1] = 111; buf[2] = 111; buf[3] = 108; return 4;
+    }
+    if (tk == 6) {
+      if (buf_cap < 5) { return 0; }
+      buf[0] = 117; buf[1] = 115; buf[2] = 105; buf[3] = 122; buf[4] = 101; return 5;
+    }
+    if (tk == 7) {
+      if (buf_cap < 5) { return 0; }
+      buf[0] = 105; buf[1] = 115; buf[2] = 105; buf[3] = 122; buf[4] = 101; return 5;
+    }
+    return 0;
+  }
+}
+
+/**
+ * LANG-009 / CORE-016: `Name` + type-pos args → `Name_suf0[_suf1…]`.
+ * Result&lt;T,i32&gt; compresses to Result_T (drop E=i32).
+ * @return i32 — mangled length, or 0
+ * PLATFORM: SHARED — sole typeck named-inst spelling for equality.
+ */
+function typeck_named_inst_mangle_into(arena: *ASTArena, ty: i32, out: *u8, out_cap: i32): i32 {
+  // PLATFORM: SHARED — Option<i32>≡Option_i32 / Result compress equality.
+  unsafe {
+    let base: u8[128] = [];
+    let base_len: i32 = 0;
+    let n_args: i32 = 0;
+    let pos: i32 = 0;
+    let ai: i32 = 0;
+    let is_result: i32 = 0;
+    let e_is_i32: i32 = 0;
+    let arg: i32 = 0;
+    let suf: u8[64] = [];
+    let sl: i32 = 0;
+    let sj: i32 = 0;
+    if (arena == 0 as *ASTArena || ty <= 0 || out == 0 as *u8 || out_cap <= 0) {
+      return 0;
+    }
+    n_args = typeck_named_num_type_args(arena, ty);
+    if (n_args <= 0) {
+      return 0;
+    }
+    base_len = pipeline_type_named_name_into(arena, ty, &base[0]);
+    if (base_len <= 0 || base_len >= out_cap) {
+      return 0;
+    }
+    pos = 0;
+    while (pos < base_len) {
+      out[pos] = base[pos];
+      pos = pos + 1;
+    }
+    if (base_len == 6 && base[0] == 82 && base[1] == 101 && base[2] == 115 && base[3] == 117
+        && base[4] == 108 && base[5] == 116) {
+      is_result = 1;
+    }
+    if (is_result != 0 && n_args >= 2) {
+      arg = pipeline_type_type_arg_ref_at(arena, ty, 1);
+      if (arg > 0 && pipeline_type_kind_ord_at(arena, arg) == 0) {
+        e_is_i32 = 1;
+      }
+    }
+    ai = 0;
+    while (ai < n_args && ai < 8) {
+      if (is_result != 0 && e_is_i32 != 0 && ai == 1) {
+        ai = ai + 1;
+      } else {
+        arg = pipeline_type_type_arg_ref_at(arena, ty, ai);
+        if (arg <= 0) {
+          return 0;
+        }
+        sl = typeck_type_ref_mangle_suffix(arena, arg, &suf[0], 64);
+        if (sl <= 0 || pos + 1 + sl >= out_cap) {
+          return 0;
+        }
+        out[pos] = 95;
+        pos = pos + 1;
+        sj = 0;
+        while (sj < sl) {
+          out[pos] = suf[sj];
+          pos = pos + 1;
+          sj = sj + 1;
+        }
+        ai = ai + 1;
+      }
+    }
+    if (pos <= base_len) {
+      return 0;
+    }
+    return pos;
+  }
+}
+
+/**
+ * TYPE_NAMED equality: bare names, unqualified tails, or LANG-009 inst mangle
+ * (`Option&lt;i32&gt;` ≡ `Option_i32`; CORE-016 Result compress).
+ */
 export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7485,6 +7644,10 @@ export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
     let tb: i32 = 0;
     let ua: i32 = 0;
     let ub: i32 = 0;
+    let mangled: u8[128] = [];
+    let ml: i32 = 0;
+    let na_args: i32 = 0;
+    let nb_args: i32 = 0;
     if (na <= 0 || nb <= 0) {
       return false;
     }
@@ -7498,7 +7661,57 @@ export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
         i = i + 1;
       }
       if (i == na) {
-        return true;
+        /* Same base spelling: if both have type-args, pairwise-equal them. */
+        na_args = typeck_named_num_type_args(arena, a);
+        nb_args = typeck_named_num_type_args(arena, b);
+        if (na_args == 0 && nb_args == 0) {
+          return true;
+        }
+        if (na_args > 0 && nb_args > 0 && na_args == nb_args) {
+          i = 0;
+          while (i < na_args) {
+            if (!type_refs_equal(arena, pipeline_type_type_arg_ref_at(arena, a, i),
+                pipeline_type_type_arg_ref_at(arena, b, i))) {
+              return false;
+            }
+            i = i + 1;
+          }
+          return true;
+        }
+        /* One side bare Name, other Name&lt;…&gt; — fall through to inst mangle. */
+      }
+    }
+    /* LANG-009 / CORE-016: Name&lt;Args&gt; ≡ Name_Args mangled spelling. */
+    na_args = typeck_named_num_type_args(arena, a);
+    nb_args = typeck_named_num_type_args(arena, b);
+    if (na_args > 0 && nb_args == 0) {
+      ml = typeck_named_inst_mangle_into(arena, a, &mangled[0], 128);
+      if (ml > 0 && ml == nb) {
+        i = 0;
+        while (i < ml) {
+          if (mangled[i] != buf_b[i]) {
+            break;
+          }
+          i = i + 1;
+        }
+        if (i == ml) {
+          return true;
+        }
+      }
+    }
+    if (nb_args > 0 && na_args == 0) {
+      ml = typeck_named_inst_mangle_into(arena, b, &mangled[0], 128);
+      if (ml > 0 && ml == na) {
+        i = 0;
+        while (i < ml) {
+          if (mangled[i] != buf_a[i]) {
+            break;
+          }
+          i = i + 1;
+        }
+        if (i == ml) {
+          return true;
+        }
       }
     }
     /* See implementation. */
@@ -11499,8 +11712,8 @@ ctx: *PipelineDepCtx): i32 {
           pipeline_type_kind_ord_at(arena, pty_c),
           pipeline_expr_kind_ord_at(arena, arg_ref));
           /* Anonymous `{ fields }` call-arg: same dest backfill as let.
-           * Named `Type { fields }` is rejected in struct_lit check.
-           * PLATFORM: SHARED — classify({ x: 0, y: 0 }) needs formal Point. */
+           * Named `Type { fields }` is also accepted (LANG-009); coerce is no-op
+           * when already named. PLATFORM: SHARED — classify({ x: 0, y: 0 }). */
           typeck_coerce_init_struct_lit_to_decl(module, arena, arg_ref, pty_c);
           /*
            * ARRAY_LIT extras of NAMED elems (`[{a:2,b:3},{a:4,b:4}]` →
@@ -16740,34 +16953,14 @@ export function typeck_check_expr_struct_lit(
     let name_buf: u8[128] = [];
     let tr: i32 = 0;
     let ord_named: i32 = 8;
-    let err_line: i32 = 0;
-    let err_col: i32 = 0;
-    let expect_msg: u8[10] = [];
     name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
-    /* Named `Type { fields }` is not allowed as a value. Dest type
-     * already names the struct: `let x: Type = { fields }`.
-     * Match-arm patterns (`Type { fields } =>` or dest-typed
-     * `{ fields } =>`) are not EXPR_STRUCT_LIT values and do not
-     * enter this function.
-     * PLATFORM: SHARED — one form for AI / product .x. */
-    if (name_len > 0) {
-      pipeline_expr_struct_lit_type_name_into(arena, expr_ref, &name_buf[0]);
-      err_line = pipeline_expr_line_at(arena, expr_ref);
-      err_col = pipeline_expr_col_at(arena, expr_ref);
-      /* "{ fields }" */
-      expect_msg[0] = 123;
-      expect_msg[1] = 32;
-      expect_msg[2] = 102;
-      expect_msg[3] = 105;
-      expect_msg[4] = 101;
-      expect_msg[5] = 108;
-      expect_msg[6] = 100;
-      expect_msg[7] = 115;
-      expect_msg[8] = 32;
-      expect_msg[9] = 125;
-      driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, &expect_msg[0], 10, &name_buf[0], name_len);
-      return 0 - 1;
-    }
+    /**
+     * LANG-009: named `Type { fields }` / `Type<Args> { fields }` (parse-mangled
+     * to Type_Args) are values again. Anonymous `{ fields }` with dest type still
+     * preferred for AI-facing lets; both forms must typeck.
+     * Prior ban soft-dropped LANG-009/010 goldens (expected "{ fields }", found Name).
+     * PLATFORM: SHARED — G.7 restore named path below (ensure layout + resolve).
+     */
     if (typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx, 0,
     num_fields) != 0) {
       return - 1;

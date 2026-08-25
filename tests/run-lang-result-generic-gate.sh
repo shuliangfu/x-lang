@@ -5,6 +5,7 @@
 # wave honesty (2026-08-24 #10): DOC → analysis/archive/lang/;
 # typeck_generic_struct.c/parser.c retired — live = typeck.x / codegen.x;
 # check smoke observational SKIP (check gate paused 2026-08-05).
+# 2026-08-25: runnable hard-green (STRUCT_LIT type-inst mangle + named lit typeck).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -79,16 +80,17 @@ stdlib_cm_native_xlang() {
   esac
 }
 
-if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
-  :
-elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
-  :
-else
-  XLANG_BIN=""
-fi
+XLANG_BIN=""
+for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+  [ -n "$cand" ] || continue
+  if stdlib_cm_native_xlang "$cand"; then
+    XLANG_BIN="$cand"
+    break
+  fi
+done
 
 if [ -n "$XLANG_BIN" ]; then
-  echo "=== LANG-010: smoke (XLANG=$XLANG_BIN; check observational) ==="
+  echo "=== LANG-010: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
   xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if "$XLANG_BIN" check -L . "$SMOKE1" >/dev/null 2>&1 \
     && "$XLANG_BIN" check -L . "$SMOKE2" >/dev/null 2>&1; then
@@ -102,32 +104,27 @@ if [ -n "$XLANG_BIN" ]; then
     link_log=$("$XLANG_BIN" -L . "$x" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
-      echo "lang-result-generic gate SKIP runnable link ($x)" >&2
-      echo "$link_log" | tail -5 >&2 || true
-      SKIP=1
-      break
+      echo "lang-result-generic gate FAIL: runnable link ($x)" >&2
+      echo "$link_log" | tail -20 >&2 || true
+      exit 1
     fi
     "$exe" >/dev/null 2>&1
     run_ec=$?
     rm -f "$exe"
     if [ "$run_ec" -ne 0 ]; then
-      echo "lang-result-generic gate SKIP run $x exit=$run_ec" >&2
-      SKIP=1
-      break
+      echo "lang-result-generic gate FAIL: run $x exit=$run_ec" >&2
+      exit 1
     fi
     GOLDEN_OK=$((GOLDEN_OK + 1))
     TYPECK_OK=1
     SKIP=0
   done
-  if [ "$GOLDEN_OK" -lt "$MIN_GOLDEN" ] && [ "$SKIP" -eq 0 ]; then
+  if [ "$GOLDEN_OK" -lt "$MIN_GOLDEN" ]; then
     echo "lang-result-generic gate FAIL: golden=$GOLDEN_OK < min $MIN_GOLDEN" >&2
     exit 1
   fi
-  if [ "$SKIP" -eq 1 ]; then
-    GOLDEN_OK=0
-  fi
 else
-  echo "lang-result-generic gate SKIP smoke (no native xlang-c)" >&2
+  echo "lang-result-generic gate SKIP smoke (no native xlang)" >&2
 fi
 
 lang_result_generic_emit_report "ok" "$GOLDEN_OK" "$TYPECK_OK" "$SKIP"

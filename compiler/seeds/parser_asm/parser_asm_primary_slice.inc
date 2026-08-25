@@ -168,6 +168,10 @@ extern int32_t pipeline_expr_append_method_call_arg(void *arena, int32_t expr_re
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex);
+/* LANG-009 M8: type_ref → mangle suffix (G.7 with codegen_type_ref_to_suffix semantics). */
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t type_ref, uint8_t *out);
 extern int32_t ast_ast_arena_block_alloc(void *arena);
 extern int32_t pipeline_block_append_unsafe(void *arena, int32_t block_ref, int32_t body_ref);
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t block_ref, uint8_t kind, int32_t idx);
@@ -413,6 +417,192 @@ static int32_t parser_asm_primary_empty_ident_braces_prefer_block_c(
   }
   /* Bare if/while empty body: next is return/else/ident/rbrace/if/… → then-block. */
   return 1;
+}
+
+/**
+ * TypeKind ordinals for STRUCT_LIT type-inst mangle (≡ ast.x / type_ref_slice).
+ * PLATFORM: SHARED — keep in lockstep with PARSER_ASM_TYPE_* in type_ref_slice.inc.
+ */
+enum {
+  PARSER_ASM_PRIM_TYPE_I32 = 0,
+  PARSER_ASM_PRIM_TYPE_BOOL = 1,
+  PARSER_ASM_PRIM_TYPE_U8 = 2,
+  PARSER_ASM_PRIM_TYPE_U32 = 3,
+  PARSER_ASM_PRIM_TYPE_U64 = 4,
+  PARSER_ASM_PRIM_TYPE_I64 = 5,
+  PARSER_ASM_PRIM_TYPE_USIZE = 6,
+  PARSER_ASM_PRIM_TYPE_ISIZE = 7,
+  PARSER_ASM_PRIM_TYPE_NAMED = 8,
+  PARSER_ASM_PRIM_TYPE_PTR = 9
+};
+
+/**
+ * Map one type_ref to a C-safe mangle suffix into buf.
+ * Mirrors codegen_type_ref_to_suffix for the STRUCT_LIT parse path (LANG-009 M8).
+ * Examples: i32→"i32", u8→"u8", *u8→"u8_ptr", bool→"bool", Named→name.
+ * @return bytes written, or 0 on failure
+ * PLATFORM: SHARED — G.7 single suffix spelling with codegen; parser-local copy avoids
+ * parser→codegen link edge on the thin primary TU.
+ */
+static int32_t parser_asm_type_ref_mangle_suffix_c(void *arena, int32_t type_ref, uint8_t *buf, int32_t buf_cap) {
+  int32_t tk;
+  int32_t n;
+  int32_t elem;
+  if (!arena || type_ref <= 0 || !buf || buf_cap <= 0)
+    return 0;
+  tk = pipeline_type_kind_ord_at(arena, type_ref);
+  if (tk == PARSER_ASM_PRIM_TYPE_PTR) {
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+    n = parser_asm_type_ref_mangle_suffix_c(arena, elem, buf, buf_cap);
+    if (n > 0 && n + 4 < buf_cap) {
+      buf[n] = 95;     /* _ */
+      buf[n + 1] = 112; /* p */
+      buf[n + 2] = 116; /* t */
+      buf[n + 3] = 114; /* r */
+      return n + 4;
+    }
+    return n;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_NAMED) {
+    n = pipeline_type_named_name_into(arena, type_ref, buf);
+    if (n <= 0 || n >= buf_cap)
+      return 0;
+    return n;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_I32) {
+    if (buf_cap < 3)
+      return 0;
+    buf[0] = 105;
+    buf[1] = 51;
+    buf[2] = 50;
+    return 3;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_I64) {
+    if (buf_cap < 3)
+      return 0;
+    buf[0] = 105;
+    buf[1] = 54;
+    buf[2] = 52;
+    return 3;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_U8) {
+    if (buf_cap < 2)
+      return 0;
+    buf[0] = 117;
+    buf[1] = 56;
+    return 2;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_U32) {
+    if (buf_cap < 3)
+      return 0;
+    buf[0] = 117;
+    buf[1] = 51;
+    buf[2] = 50;
+    return 3;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_U64) {
+    if (buf_cap < 3)
+      return 0;
+    buf[0] = 117;
+    buf[1] = 54;
+    buf[2] = 52;
+    return 3;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_BOOL) {
+    if (buf_cap < 4)
+      return 0;
+    buf[0] = 98;
+    buf[1] = 111;
+    buf[2] = 111;
+    buf[3] = 108;
+    return 4;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_USIZE) {
+    if (buf_cap < 5)
+      return 0;
+    buf[0] = 117;
+    buf[1] = 115;
+    buf[2] = 105;
+    buf[3] = 122;
+    buf[4] = 101;
+    return 5;
+  }
+  if (tk == PARSER_ASM_PRIM_TYPE_ISIZE) {
+    if (buf_cap < 5)
+      return 0;
+    buf[0] = 105;
+    buf[1] = 115;
+    buf[2] = 105;
+    buf[3] = 122;
+    buf[4] = 101;
+    return 5;
+  }
+  return 0;
+}
+
+/**
+ * LANG-009 M8 / DOC `parser_append_type_inst_mangle`:
+ * `Name` + type_arg refs → `Name_suf0[_suf1…]` (cap 127 content).
+ * CORE-016: `Result<T,i32>` compresses to `Result_T` (drop trailing `_i32` for E=i32).
+ * @return mangled length, or 0 on failure
+ * PLATFORM: SHARED — sole parse-time STRUCT_LIT type-inst mangle authority.
+ */
+static int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *base, int32_t base_len,
+                                                     const int32_t *type_refs, int32_t nrefs, uint8_t *out,
+                                                     int32_t out_cap) {
+  int32_t pos;
+  int32_t ai;
+  int32_t is_result;
+  int32_t e_is_i32;
+  if (!arena || !base || base_len <= 0 || !type_refs || nrefs <= 0 || !out || out_cap <= 0)
+    return 0;
+  if (base_len >= out_cap)
+    return 0;
+  pos = 0;
+  while (pos < base_len) {
+    out[pos] = base[pos];
+    pos = pos + 1;
+  }
+  is_result = 0;
+  if (base_len == 6 && base[0] == 82 && base[1] == 101 && base[2] == 115 && base[3] == 117 && base[4] == 108
+      && base[5] == 116) {
+    /* "Result" */
+    is_result = 1;
+  }
+  e_is_i32 = 0;
+  if (is_result != 0 && nrefs >= 2 && type_refs[1] > 0
+      && pipeline_type_kind_ord_at(arena, type_refs[1]) == PARSER_ASM_PRIM_TYPE_I32) {
+    e_is_i32 = 1;
+  }
+  ai = 0;
+  while (ai < nrefs && ai < 8) {
+    uint8_t suf[64];
+    int32_t sl;
+    int32_t sj;
+    if (is_result != 0 && e_is_i32 != 0 && ai == 1) {
+      ai = ai + 1;
+      continue;
+    }
+    if (type_refs[ai] <= 0)
+      return 0;
+    sl = parser_asm_type_ref_mangle_suffix_c(arena, type_refs[ai], suf, 64);
+    if (sl <= 0)
+      return 0;
+    if (pos + 1 + sl >= out_cap)
+      return 0;
+    out[pos] = 95; /* _ */
+    pos = pos + 1;
+    sj = 0;
+    while (sj < sl) {
+      out[pos] = suf[sj];
+      pos = pos + 1;
+      sj = sj + 1;
+    }
+    ai = ai + 1;
+  }
+  if (pos <= base_len)
+    return 0;
+  return pos;
 }
 
 /** IDENT 后 `.field` / `[idx]` / `(args)` 后缀链；失败时写 out.ok=0 或仅写 out.next_lex 后返回。 */
@@ -691,6 +881,60 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         memset(&after_angle_tok, 0, sizeof(after_angle_tok));
         after_angle_tok.next_lex = after_angle;
         lexer_next_into(&after_angle_tok, after_angle, source);
+        /**
+         * LANG-009 M8: `Name<T,…> { fields }` is STRUCT_LIT with parse-time mangle
+         * (Option<i32>→Option_i32), not a failed turbofish call. Prior path only
+         * accepted `(` after angles → left lex at `<` → let-init fail → whole
+         * function soft-drop (P001 no functions) → ld undefined `_main`.
+         * G.7: reuse finish_struct_lit + prefer-block gates; mangle authority =
+         * parser_asm_append_type_inst_mangle_c. PLATFORM: SHARED.
+         */
+        if (after_angle_tok.tok.kind == (int32_t)TOKEN_LBRACE) {
+          struct parser_asm_ast_expr be;
+          uint8_t mangled[128];
+          int32_t mlen;
+          int32_t bi;
+          int32_t prefer_block;
+          be = parser_asm_arena_expr_get_c(arena, out->expr_ref);
+          if (be.kind != PARSER_ASM_EXPR_VAR || be.var_name_len <= 0) {
+            out->next_lex = *lex;
+            return;
+          }
+          prefer_block = 0;
+          if (parser_asm_primary_lbrace_looks_like_block_c(after_angle_tok.next_lex, source) != 0) {
+            prefer_block = 1;
+          } else if (parser_asm_primary_empty_ident_braces_prefer_block_c(after_angle_tok.next_lex, source)
+                     == 1) {
+            prefer_block = 1;
+          }
+          if (prefer_block != 0) {
+            out->next_lex = *lex;
+            return;
+          }
+          mlen = parser_asm_append_type_inst_mangle_c(arena, be.var_name, be.var_name_len, parsed_refs,
+                                                       parsed_n, mangled, 128);
+          if (mlen <= 0 || mlen > 127) {
+            out->ok = 0;
+            return;
+          }
+          be.var_name_len = mlen;
+          bi = 0;
+          while (bi < 128) {
+            be.var_name[bi] = (bi < mlen) ? mangled[bi] : (uint8_t)0;
+            bi = bi + 1;
+          }
+          parser_asm_arena_expr_set_c(arena, out->expr_ref, be);
+          parser_finish_struct_lit_from_type_ident_into_glue(arena, out->expr_ref,
+                                                              after_angle_tok.next_lex, source, out);
+          if (!out->ok)
+            return;
+          *lex = out->next_lex;
+          lexer_next_into(r, *lex, source);
+          pending_call_num_type_args = 0;
+          for (pi = 0; pi < 8; pi++)
+            pending_call_type_arg_refs[pi] = 0;
+          continue;
+        }
         if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
           out->next_lex = *lex;
           return;
@@ -707,6 +951,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         memset(&after_angle_tok, 0, sizeof(after_angle_tok));
         after_angle_tok.next_lex = after_angle;
         lexer_next_into(&after_angle_tok, after_angle, source);
+        /* STRUCT_LIT type-inst needs real type_refs for mangle; count-only cannot. */
         if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
           out->next_lex = *lex;
           return;
