@@ -7,16 +7,16 @@ verify	section	## 3. Gate	analysis/archive/std/std-security-v1.md
 api_ct	api	ct_compare	std/security/mod.x	常量时间
 api_key	api	random_key	std/security/mod.x	密钥
 api_salt	api	random_salt	std/security/mod.x	盐
-api_hkdf	api	hkdf_sha256	std/security/mod.x	HKDF
+api_hkdf	api	hkdf	std/security/mod.x	HKDF-SHA256（命名规范精简名）
 api_zero	api	secure_zero	std/security/mod.x	清零
 api_lock	api	sensitive_lock	std/security/mod.x	mlock
 api_unlock	api	sensitive_unlock	std/security/mod.x	munlock
 api_buf_init	api	sensitive_buf_init	std/security/mod.x	缓冲
 api_buf_wipe	api	sensitive_buf_wipe	std/security/mod.x	释放
-api_err	api	security_err_ok	std/security/mod.x	错误码
+api_err	api	err_ok	std/security/mod.x	错误码
 symbol_smoke	symbol	security_smoke_c	std/security/security.x	C烟测
 impl_x	file	std/security/security.x	std/security/security.x
 smoke_x	smoke	tests/std-security/roundtrip.x	.x烟测
 vectors	file	tests/baseline/std-security-vectors.tsv	向量
-lib	script	lib/std-security.sh	tests/lib/std-security.sh
-gate	script	run-std-security-gate.sh	tests/run-std-security-gate.sh
+lib	script	tests/lib/std-security.sh	tests/lib/std-security.sh
+gate	script	tests/run-std-security-gate.sh	tests/run-std-security-gate.sh

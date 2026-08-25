@@ -88,6 +88,10 @@ int xlang_ensure_runtime_process_argv_o(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
 int xlang_ensure_runtime_time_os_o(const char *argv0);
 const char *xlang_runtime_time_os_o_path(const char *argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_queue_contention_o(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
@@ -2673,8 +2677,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 23; +url (=heavy return 24). */
-  return 24;
+  /* PLATFORM: SHARED — was 24; +security (=heavy return 25). */
+  return 25;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -2732,6 +2736,9 @@ const char *labi_fk0_rel_at(int k) {
   /* PLATFORM: SHARED — mirror heavy k23 (STD-076 std_url_*). */
   if (k == 23)
     return "std/url/url.o";
+  /* PLATFORM: SHARED — mirror heavy k24 (STD-079 std_security_*). */
+  if (k == 24)
+    return "std/security/security.o";
   return NULL;
 }
 
@@ -2800,6 +2807,9 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — url formal public surface (mirror heavy). */
   if (k == 23)
     return 10;
+  /* PLATFORM: SHARED — security formal public surface (mirror heavy). */
+  if (k == 24)
+    return 16;
   return 0;
 }
 
@@ -3555,6 +3565,42 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_url_host_is_ipv6";
     if (i == 9)
       return "std_url_ipv6_host_smoke";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/security/security.o exact UNDEF needles (fk0 k==24; mirror heavy). */
+  if (k == 24) {
+    if (i == 0)
+      return "std_security_key_len";
+    if (i == 1)
+      return "std_security_salt_len_default";
+    if (i == 2)
+      return "std_security_min_secret_len";
+    if (i == 3)
+      return "std_security_err_ok";
+    if (i == 4)
+      return "std_security_err_invalid";
+    if (i == 5)
+      return "std_security_err_random";
+    if (i == 6)
+      return "std_security_err_buffer";
+    if (i == 7)
+      return "std_security_ct_compare";
+    if (i == 8)
+      return "std_security_random_key";
+    if (i == 9)
+      return "std_security_random_salt";
+    if (i == 10)
+      return "std_security_hkdf";
+    if (i == 11)
+      return "std_security_secure_zero";
+    if (i == 12)
+      return "std_security_sensitive_lock";
+    if (i == 13)
+      return "std_security_sensitive_unlock";
+    if (i == 14)
+      return "std_security_sensitive_buf_init";
+    if (i == 15)
+      return "std_security_sensitive_buf_wipe";
     return NULL;
   }
   return NULL;
@@ -4482,6 +4528,66 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             if (xlang_ensure_runtime_time_os_o(link_argv0) == 0)
                 link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
                     labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — std/security/security.o (fk0) U std_crypto_mem_eq /
+     * crypto_hmac_sha256_c / std_random_fill_bytes after push; user.o only has
+     * std_security_* so fk4 crypto / random gates never fire. G.7: mirror
+     * process_argv / time_os complement (STD-079 roundtrip).
+     */
+    if (argv && la) {
+        int need_crypto = 0;
+        int need_hmac = 0;
+        int need_rand = 0;
+        int have_crypto = 0;
+        int have_hmac = 0;
+        int have_rand = 0;
+        int ci;
+        for (ci = 0; ci < *la && argv[ci]; ci++) {
+            const char *e = argv[ci];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "std/crypto/crypto.o"))
+                have_crypto = 1;
+            if (strstr(e, "runtime_crypto_inc_glue.o"))
+                have_hmac = 1;
+            if (strstr(e, "std/random/random.o"))
+                have_rand = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "std_crypto_mem_eq")
+                || xlang_link_obj_needs_undef_sym(e, "crypto_mem_eq_c"))
+                need_crypto = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "crypto_hmac_sha256_c"))
+                need_hmac = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "std_random_fill_bytes"))
+                need_rand = 1;
+        }
+        if (need_crypto && !have_crypto) {
+            const char *root_c = xlang_repo_root_from_argv0(link_argv0);
+            if (root_c && root_c[0])
+                (void)xlang_ensure_formal_std_make_o(root_c, "std/crypto/crypto.o",
+                                                    "../std/crypto/crypto.o");
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/crypto/crypto.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (need_hmac && !have_hmac) {
+            /* CRYPTO_PAIR: ed25519_ref10 (sha512) + crypto_inc (hmac_sha256_c). */
+            (void)xlang_ensure_runtime_ed25519_ref10_glue_o(link_argv0);
+            link_abi_asm_ld_push_obj(xlang_runtime_ed25519_ref10_glue_o_path(link_argv0),
+                link_argv0, "compiler/runtime_ed25519_ref10_glue.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            (void)xlang_ensure_runtime_crypto_inc_glue_o(link_argv0);
+            link_abi_asm_ld_push_obj(xlang_runtime_crypto_inc_glue_o_path(link_argv0),
+                link_argv0, "compiler/runtime_crypto_inc_glue.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (need_rand && !have_rand) {
+            const char *root_r = xlang_repo_root_from_argv0(link_argv0);
+            if (root_r && root_r[0])
+                (void)xlang_ensure_formal_std_make_o(root_r, "std/random/random.o",
+                                                    "../std/random/random.o");
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/random/random.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_time_sym_count(), labi_od_time_sym_at)) {

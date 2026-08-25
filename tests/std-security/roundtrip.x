@@ -43,7 +43,8 @@ function main(): i32 {
   let b: u8[4] = [1, 2, 3, 4];
   let c: u8[4] = [1, 2, 3, 5];
 
-  if (security.hkdf_sha256(&salt[0], 13, &ikm[0], 22, &info[0], 10, &okm[0], 42) != security.security_err_ok()) {
+  // Product API: hkdf / err_ok (naming-spec rename; not fossil hkdf_sha256 / security_err_ok).
+  if (security.hkdf(&salt[0], 13, &ikm[0], 22, &info[0], 10, &okm[0], 42) != security.err_ok()) {
     return 1;
   }
   if (bytes_eq(&okm[0], 42, &expect[0], 42) == 0) { return 2; }
@@ -51,7 +52,7 @@ function main(): i32 {
   if (security.ct_compare(&a[0], &b[0], 4) != 1) { return 3; }
   if (security.ct_compare(&a[0], &c[0], 4) != 0) { return 4; }
 
-  if (security.sensitive_buf_init(&sb, &secret[0], 16, 0) != security.security_err_ok()) { return 5; }
+  if (security.sensitive_buf_init(&sb, &secret[0], 16, 0) != security.err_ok()) { return 5; }
   security.sensitive_buf_wipe(&sb);
   if (secret[0] != 0 || secret[15] != 0) { return 6; }
 

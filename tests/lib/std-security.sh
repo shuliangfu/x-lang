@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
 # std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.x）
+# 2026-08-26: report check=/run=/skip= (honesty; C smoke observational).
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -44,7 +44,7 @@ std_security_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：security_smoke_ok.c + security.o + crypto.o。
+# C 烟测：security_smoke_ok.c + security.o + crypto.o（仅观测，非硬绿）。
 std_security_run_c_smoke() {
   local sec_x="$1"
   local src="tests/std-security/security_smoke_ok.c"
@@ -100,8 +100,8 @@ std_security_run_smoke() {
 
 std_security_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_SECURITY_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_SECURITY_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

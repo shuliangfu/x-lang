@@ -77,6 +77,8 @@ export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
 export extern function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 export extern function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 export extern function xlang_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
@@ -96,6 +98,8 @@ export extern function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
 
 /* wave134: bulk TASK_SPECIAL pure table + orch (std_task / task.o gate).
@@ -298,17 +302,17 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 24 (was 23; +url STD-076 roundtrip residual 2026-08-26)
+ * @return i32 — 25 (was 24; +security STD-079 roundtrip residual 2026-08-26)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
  * run-unicode / cli_subcommand / datetime_iana / std_config_* / std_cache_* /
- * std_url_* history: formal .o existed or bare impl only, plan step present,
- * fk0 table missed).
+ * std_url_* / std_security_* history: formal .o existed or bare impl only, plan
+ * step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 23 (+cache); +k23 std/url/url.o.
-  return 24;
+  // PLATFORM: SHARED — was 24 (+url); +k24 std/security/security.o.
+  return 25;
 }
 
 /**
@@ -438,6 +442,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/url/url.o";
     return p;
   }
+  // PLATFORM: SHARED — std/security/security.o is OP_STD flag_kind=0 but was
+  // missing from fk0 → never push formal security.o even after formal_mod
+  // exported std_security_* (STD-079 roundtrip BLD001 UNDEF).
+  if (k == 24) {
+    let p: *u8 = "std/security/security.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -548,6 +559,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // Count 10 = full export surface in std/url/mod.x (G.7 complete one table).
   if (k == 23) {
     return 10;
+  }
+  // PLATFORM: SHARED — security formal public surface (std_security_*).
+  // Count 16 = full export surface in std/security/mod.x (G.7 complete one table).
+  if (k == 24) {
+    return 16;
   }
   return 0;
 }
@@ -1978,6 +1994,77 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 9) {
         let p: *u8 = "std_url_ipv6_host_smoke";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/security/security.o exact UNDEF needles (fk0 k==24).
+    // Exact match only; roundtrip sole UNDEFs open the gate.
+    // Count 16 = full export surface in std/security/mod.x (G.7 complete one table).
+    // Product API names follow 标准库api命名规范 (hkdf / err_ok; not fossil hkdf_sha256).
+    if (k == 24) {
+      if (i == 0) {
+        let p: *u8 = "std_security_key_len";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_security_salt_len_default";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_security_min_secret_len";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_security_err_ok";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_security_err_invalid";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_security_err_random";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_security_err_buffer";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_security_ct_compare";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_security_random_key";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_security_random_salt";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_security_hkdf";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_security_secure_zero";
+        return p;
+      }
+      if (i == 12) {
+        let p: *u8 = "std_security_sensitive_lock";
+        return p;
+      }
+      if (i == 13) {
+        let p: *u8 = "std_security_sensitive_unlock";
+        return p;
+      }
+      if (i == 14) {
+        let p: *u8 = "std_security_sensitive_buf_init";
+        return p;
+      }
+      if (i == 15) {
+        let p: *u8 = "std_security_sensitive_buf_wipe";
         return p;
       }
       return 0 as *u8;
@@ -4759,6 +4846,120 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           let _et2: i32 = xlang_ensure_runtime_time_os_o(link_argv0);
           top2 = xlang_runtime_time_os_o_path(link_argv0);
           let _pt2: i32 = link_abi_asm_ld_push_obj(top2, link_argv0, torel2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+
+    // --- crypto/random complement scan after on_demand pushes ---
+    // PLATFORM: SHARED — std/security/security.o (fk0) U std_crypto_mem_eq /
+    // crypto_hmac_sha256_c / std_random_fill_bytes after push; user.o only has
+    // std_security_* so fk4 crypto / random gates never fire. G.7: mirror
+    // process_argv / time_os complement (STD-079 roundtrip).
+    let need_crypto: i32 = 0;
+    let need_hmac: i32 = 0;
+    let need_rand: i32 = 0;
+    let have_crypto: i32 = 0;
+    let have_hmac: i32 = 0;
+    let have_rand: i32 = 0;
+    let ci: i32 = 0;
+    let la_c: i32 = la[0];
+    while (ci < la_c) {
+      let ec: *u8 = argv[ci];
+      if (ec == 0 as *u8) {
+        ci = la_c;
+      }
+      if (ec != 0 as *u8) {
+        let is_oc: i32 = 0;
+        unsafe {
+          is_oc = link_abi_ld_argv_entry_is_obj(ec);
+        }
+        if (is_oc != 0) {
+          let has_c: i32 = labi_od_cstr_contains(ec, "std/crypto/crypto.o");
+          let has_cg: i32 = labi_od_cstr_contains(ec, "runtime_crypto_inc_glue.o");
+          let has_r: i32 = labi_od_cstr_contains(ec, "std/random/random.o");
+          if (has_c != 0) {
+            have_crypto = 1;
+          }
+          if (has_cg != 0) {
+            have_hmac = 1;
+          }
+          if (has_r != 0) {
+            have_rand = 1;
+          }
+          let u_c1: i32 = 0;
+          let u_c2: i32 = 0;
+          let u_h: i32 = 0;
+          let u_r: i32 = 0;
+          unsafe {
+            u_c1 = xlang_link_obj_needs_undef_sym(ec, "std_crypto_mem_eq");
+            u_c2 = xlang_link_obj_needs_undef_sym(ec, "crypto_mem_eq_c");
+            u_h = xlang_link_obj_needs_undef_sym(ec, "crypto_hmac_sha256_c");
+            u_r = xlang_link_obj_needs_undef_sym(ec, "std_random_fill_bytes");
+          }
+          if (u_c1 != 0) {
+            need_crypto = 1;
+          }
+          if (u_c2 != 0) {
+            need_crypto = 1;
+          }
+          if (u_h != 0) {
+            need_hmac = 1;
+          }
+          if (u_r != 0) {
+            need_rand = 1;
+          }
+        }
+      }
+      ci = ci + 1;
+    }
+    if (need_crypto != 0) {
+      if (have_crypto == 0) {
+        let root_c: *u8 = 0 as *u8;
+        unsafe {
+          root_c = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_c != 0 as *u8) {
+          if (root_c[0] != 0) {
+            unsafe {
+              let _ecr: i32 = xlang_ensure_formal_std_make_o(root_c, "std/crypto/crypto.o", "../std/crypto/crypto.o");
+            }
+          }
+        }
+        unsafe {
+          let _pcr: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/crypto/crypto.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    if (need_hmac != 0) {
+      if (have_hmac == 0) {
+        // CRYPTO_PAIR: ed25519_ref10 (sha512) + crypto_inc (hmac_sha256_c).
+        let p_ed: *u8 = 0 as *u8;
+        let p_ci: *u8 = 0 as *u8;
+        unsafe {
+          let _eed: i32 = xlang_ensure_runtime_ed25519_ref10_glue_o(link_argv0);
+          p_ed = xlang_runtime_ed25519_ref10_glue_o_path(link_argv0);
+          let _ped: i32 = link_abi_asm_ld_push_obj(p_ed, link_argv0, "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          let _eci: i32 = xlang_ensure_runtime_crypto_inc_glue_o(link_argv0);
+          p_ci = xlang_runtime_crypto_inc_glue_o_path(link_argv0);
+          let _pci: i32 = link_abi_asm_ld_push_obj(p_ci, link_argv0, "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    if (need_rand != 0) {
+      if (have_rand == 0) {
+        let root_r: *u8 = 0 as *u8;
+        unsafe {
+          root_r = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_r != 0 as *u8) {
+          if (root_r[0] != 0) {
+            unsafe {
+              let _ernd: i32 = xlang_ensure_formal_std_make_o(root_r, "std/random/random.o", "../std/random/random.o");
+            }
+          }
+        }
+        unsafe {
+          let _prnd: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/random/random.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
       }
     }
