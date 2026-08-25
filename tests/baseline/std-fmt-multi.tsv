@@ -2,6 +2,7 @@
 # 列：item_id	kind	anchor	mod_path	notes
 min_format2_new	7
 min_format3	2
+verify	section	## 4. Gate	analysis/archive/std/std-fmt-multi-v1.md
 fmt2_u64	overload	format.*a: u64.*b: u64	std/fmt/mod.x
 fmt2_usize	overload	format.*a: usize.*b: usize	std/fmt/mod.x
 fmt2_isize	overload	format.*a: isize.*b: i32	std/fmt/mod.x
@@ -12,7 +13,8 @@ fmt2_i32_usize	overload	format.*a: i32.*b: usize	std/fmt/mod.x
 fmt3_i32	overload	format.*a: i32.*b: i32.*c: i32	std/fmt/mod.x
 fmt3_mix	overload	format.*a: i32.*b: u32.*c: usize	std/fmt/mod.x
 core_ptr	symbol	ptr_to_buf	std/fmt/mod.x	重导出
-test_smoke	file	tests/fmt-std/format_multi.x		烟测
-runner	script	run-fmt-std.sh	tests/run-fmt-std.sh	回归
-doc	file	std-fmt-multi-v1.md	analysis/archive/std/std-fmt-multi-v1.md	RFC
-gate	script	run-std-fmt-multi-gate.sh	tests/run-std-fmt-multi-gate.sh	manifest
+test_smoke	smoke	tests/fmt-std/format_multi.x		烟测
+runner	script	tests/run-fmt-std.sh	tests/run-fmt-std.sh	回归
+doc	file	analysis/archive/std/std-fmt-multi-v1.md	analysis/archive/std/std-fmt-multi-v1.md	RFC
+gate	script	tests/run-std-fmt-multi-gate.sh	tests/run-std-fmt-multi-gate.sh	manifest
+lib	script	tests/lib/std-fmt-multi.sh	tests/lib/std-fmt-multi.sh
