@@ -1427,7 +1427,79 @@ export function typeck_resolve_type_alias_ref(arena: *ASTArena, type_ref: i32): 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let mod: *Module = pipeline_typeck_active_module_c();
-    return typeck_resolve_type_alias_ref_local(mod, arena, type_ref, 0);
+    let peeled: i32 = typeck_resolve_type_alias_ref_local(mod, arena, type_ref, 0);
+    /* CORE-016: Name&lt;Args&gt; → existing mangled family (Result_i32) when present. */
+    return typeck_canonicalize_named_inst_if_present(arena, peeled);
+  }
+}
+
+/**
+ * CORE-016 / LANG-009: rewrite `Name&lt;Args&gt;` to the mangled family spelling
+ * (`Result_i32`, `Option_i32`, …) via find_or_alloc. Layout still resolves by
+ * name across modules (family structs / any-module named_layout). Prefer an
+ * already-present bare or `module.Family` type_ref when the arena has one.
+ * @param arena *ASTArena
+ * @param ty i32 — candidate type_ref
+ * @return i32 — family type_ref, or ty unchanged when mangle fails
+ * PLATFORM: SHARED — sole named-inst → family layout canonicalize.
+ */
+export function typeck_canonicalize_named_inst_if_present(arena: *ASTArena, ty: i32): i32 {
+  // PLATFORM: SHARED — Result&lt;T,i32&gt;/Option&lt;T&gt; family layout rewrite.
+  unsafe {
+    let mangled: u8[128] = [];
+    let ml: i32 = 0;
+    let k: i32 = 0;
+    let ko: i32 = 0;
+    let exist_len: i32 = 0;
+    let nm_scr: *u8 = typeck_scratch64_slot(13);
+    let uq: i32 = 0;
+    let ul: i32 = 0;
+    let i: i32 = 0;
+    let ord_named: i32 = 8;
+    let fam: i32 = 0;
+    if (arena == 0 as *ASTArena || ty <= 0) {
+      return ty;
+    }
+    if (pipeline_type_kind_ord_at(arena, ty) != ord_named) {
+      return ty;
+    }
+    if (typeck_named_num_type_args(arena, ty) <= 0) {
+      return ty;
+    }
+    ml = typeck_named_inst_mangle_into(arena, ty, &mangled[0], 128);
+    if (ml <= 0) {
+      return ty;
+    }
+    k = 1;
+    while (k <= arena.num_types) {
+      ko = pipeline_type_kind_ord_at(arena, k);
+      if (ko == ord_named && typeck_named_num_type_args(arena, k) == 0) {
+        exist_len = pipeline_type_named_name_into(arena, k, nm_scr);
+        if (exist_len == ml && name_equal(nm_scr, exist_len, &mangled[0], ml)) {
+          return k;
+        }
+        uq = typeck_named_unqual_start(nm_scr, exist_len);
+        ul = exist_len - uq;
+        if (ul == ml && ul > 0) {
+          i = 0;
+          while (i < ml) {
+            if (nm_scr[uq + i] != mangled[i]) {
+              break;
+            }
+            i = i + 1;
+          }
+          if (i == ml) {
+            return k;
+          }
+        }
+      }
+      k = k + 1;
+    }
+    fam = find_or_alloc_named_type_ref(arena, &mangled[0], ml);
+    if (fam > 0) {
+      return fam;
+    }
+    return ty;
   }
 }
 
@@ -7681,36 +7753,70 @@ export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
         /* One side bare Name, other Name&lt;…&gt; — fall through to inst mangle. */
       }
     }
-    /* LANG-009 / CORE-016: Name&lt;Args&gt; ≡ Name_Args mangled spelling. */
+    /* LANG-009 / CORE-016: Name&lt;Args&gt; ≡ Name_Args mangled spelling.
+     * Also match module-qualified bare names (option.Option_i32 ≡ Option&lt;i32&gt;).
+     * PLATFORM: SHARED — sole named-inst ↔ family equality path. */
     na_args = typeck_named_num_type_args(arena, a);
     nb_args = typeck_named_num_type_args(arena, b);
     if (na_args > 0 && nb_args == 0) {
       ml = typeck_named_inst_mangle_into(arena, a, &mangled[0], 128);
-      if (ml > 0 && ml == nb) {
-        i = 0;
-        while (i < ml) {
-          if (mangled[i] != buf_b[i]) {
-            break;
+      if (ml > 0) {
+        if (ml == nb) {
+          i = 0;
+          while (i < ml) {
+            if (mangled[i] != buf_b[i]) {
+              break;
+            }
+            i = i + 1;
           }
-          i = i + 1;
+          if (i == ml) {
+            return true;
+          }
         }
-        if (i == ml) {
-          return true;
+        tb = typeck_named_unqual_start(buf_b, nb);
+        ub = nb - tb;
+        if (ml == ub && ub > 0) {
+          i = 0;
+          while (i < ml) {
+            if (mangled[i] != buf_b[tb + i]) {
+              break;
+            }
+            i = i + 1;
+          }
+          if (i == ml) {
+            return true;
+          }
         }
       }
     }
     if (nb_args > 0 && na_args == 0) {
       ml = typeck_named_inst_mangle_into(arena, b, &mangled[0], 128);
-      if (ml > 0 && ml == na) {
-        i = 0;
-        while (i < ml) {
-          if (mangled[i] != buf_a[i]) {
-            break;
+      if (ml > 0) {
+        if (ml == na) {
+          i = 0;
+          while (i < ml) {
+            if (mangled[i] != buf_a[i]) {
+              break;
+            }
+            i = i + 1;
           }
-          i = i + 1;
+          if (i == ml) {
+            return true;
+          }
         }
-        if (i == ml) {
-          return true;
+        ta = typeck_named_unqual_start(buf_a, na);
+        ua = na - ta;
+        if (ml == ua && ua > 0) {
+          i = 0;
+          while (i < ml) {
+            if (mangled[i] != buf_a[ta + i]) {
+              break;
+            }
+            i = i + 1;
+          }
+          if (i == ml) {
+            return true;
+          }
         }
       }
     }
@@ -17817,6 +17923,20 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let lname_buf: u8[128];
     let lname_len: i32 = 0;
     let func_ix_l: i32 = 0;
+    let canon_tr: i32 = 0;
+    /*
+     * CORE-016: stamp Name&lt;Args&gt; let types to mangled family (Result_i32)
+     * so slot layout matches core family ABI (not hollow generic-inst size).
+     * PLATFORM: SHARED — sole let-decl family canonicalize write-back.
+     */
+    if (!ast.ref_is_null(ld_tr)) {
+      canon_tr = typeck_resolve_type_alias_ref(arena, ld_tr);
+      if (canon_tr > 0 && canon_tr != ld_tr) {
+        if (pipeline_block_set_let_type_ref(arena, block_ref, idx, canon_tr) == 0) {
+          ld_tr = canon_tr;
+        }
+      }
+    }
     /*
      * wave680 Cap residual: same-block let redecl / clash with const / body-param.
      * Host-C BLD001 redefinition soft residual. Nested shadow OK.

@@ -5,6 +5,8 @@
 # wave honesty (2026-08-24 #10): DOC → analysis/archive/core/;
 # typeck_generic_struct.c/parser.c retired — live = typeck.x / core;
 # check smoke observational SKIP (check gate paused 2026-08-05).
+# 2026-08-25: runnable hard-green (Option<i32>≡option.Option_i32 via named-inst
+# mangle + unqualified family spelling; Result compress unchanged).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -101,29 +103,27 @@ if [ -n "$XLANG_BIN" ]; then
     link_log=$("$XLANG_BIN" -L . "$x" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
-      echo "core-option-result-unify gate SKIP runnable link ($x)" >&2
+      echo "core-option-result-unify gate FAIL: runnable link ($x)" >&2
       echo "$link_log" | tail -5 >&2 || true
-      SKIP=1
-      break
+      core016_emit_report "fail" 0 "$TYPECK_OK" 0
+      exit 1
     fi
     "$exe" >/dev/null 2>&1
     run_ec=$?
     rm -f "$exe"
     if [ "$run_ec" -ne 0 ]; then
-      echo "core-option-result-unify gate SKIP run $x exit=$run_ec" >&2
-      SKIP=1
-      break
+      echo "core-option-result-unify gate FAIL: run $x exit=$run_ec" >&2
+      core016_emit_report "fail" "$GOLDEN_OK" "$TYPECK_OK" 0
+      exit 1
     fi
     GOLDEN_OK=$((GOLDEN_OK + 1))
     TYPECK_OK=1
     SKIP=0
   done
-  if [ "$GOLDEN_OK" -lt "$MIN_GOLDEN" ] && [ "$SKIP" -eq 0 ]; then
+  if [ "$GOLDEN_OK" -lt "$MIN_GOLDEN" ]; then
     echo "core-option-result-unify gate FAIL: golden=$GOLDEN_OK < min $MIN_GOLDEN" >&2
+    core016_emit_report "fail" "$GOLDEN_OK" "$TYPECK_OK" 0
     exit 1
-  fi
-  if [ "$SKIP" -eq 1 ]; then
-    GOLDEN_OK=0
   fi
 else
   echo "core-option-result-unify gate SKIP smoke (no native xlang-c)" >&2
