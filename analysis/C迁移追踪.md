@@ -344,6 +344,7 @@
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名才动 |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
+| CORE-016 Option／Result 泛型↔族 unify | ✅ | named-inst mangle 等式＋let 族 canonicalize；闸 run hard |
 | CORE／lang runnable soft SKIP | 🟡 | 余例择优 |
 | nest 冻 64 | ✅ 纪律 | — |
 | 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
