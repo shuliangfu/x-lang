@@ -415,15 +415,23 @@ int32_t std_fmt_println_u64(uint64_t x) {
 /**
  * PLATFORM: SHARED — pure-asm fmt.println(u8[]) / print(u8[]) overload mid.
  * Call sites mangle to std_fmt_println_u8_slc (glue_asm_type_ref_to_suffix_c TYPE_SLICE).
- * G.7: complete stub surface with scalar + ptr+len (wave687); XlangSliceU8 below.
- * Used by print_any.x u8[5]→u8[] coerce and any println(s: u8[]).
+ *
+ * ABI (G.7 single authority with host-C codegen + asm call_arg):
+ *   TYPE_SLICE formals lower as `struct xlang_slice_* *` / fat-pointer address
+ *   (call_arg packs SLICE→8; locals stay by-value). Stub MUST take a pointer —
+ *   by-value XlangSliceU8 here made asm pass &fat into x0 while C expected
+ *   {data,length} in x0/x1 → empty/err print (u8_slc by-value soft residual).
  */
-int32_t std_fmt_print_u8_slc(XlangSliceU8 s) {
-  return std_fmt_print(s.data, s.length);
+int32_t std_fmt_print_u8_slc(const XlangSliceU8 *s) {
+  if (s == NULL)
+    return -1;
+  return std_fmt_print(s->data, s->length);
 }
 
-int32_t std_fmt_println_u8_slc(XlangSliceU8 s) {
-  return std_fmt_println(s.data, s.length);
+int32_t std_fmt_println_u8_slc(const XlangSliceU8 *s) {
+  if (s == NULL)
+    return -1;
+  return std_fmt_println(s->data, s->length);
 }
 
 /* ---- std.fmt / std.debug JSON "print any" (schema interpreter) ----

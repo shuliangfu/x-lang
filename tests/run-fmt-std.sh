@@ -13,7 +13,7 @@ xlang_compiler_make -q 2>/dev/null || xlang_compiler_make xlang-c
 
 run_one() {
   local x="$1"
-  local exe="/tmp/xlang_fmt_std_$$_${su##*/}"
+  local exe="/tmp/xlang_fmt_std_$$_${x##*/}"
   if ! $RUN_XLANG build -L . "$x" -o "$exe" 2>&1; then
     echo "fmt-std test: compile failed ($x)"
     rm -f "$exe"
@@ -32,4 +32,5 @@ run_one tests/fmt-std/main.x
 run_one tests/fmt-std/format_multi.x
 run_one tests/fmt-std/print_scalar.x
 run_one tests/fmt-std/print_any.x
-echo "fmt-std test OK (incl. print_any.x JSON println)"
+run_one tests/fmt-std/print_u8_slc.x
+echo "fmt-std test OK (incl. print_any JSON + print_u8_slc pointer ABI)"

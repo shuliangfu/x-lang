@@ -3893,7 +3893,7 @@ int32_t glue_asm_try_emit_fmt_any_import_call_elf_c(struct ast_ASTArena *arena,
   atk = pipeline_type_kind_ord_at(arena, arg_ty);
   if (atk != 8 && atk != 10)
     return 0;
-  /* u8[N] also via schema (u@off,len) — slice-by-value ABI for u8_slc is soft residual. */
+  /* u8[N]/NAMED via schema (JSON). TYPE_SLICE→u8_slc mid uses pointer ABI (io stubs). */
   if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) /* VAR */
     return 0;
   ly = (struct glue_AsmFuncCtxCall *)ctx;

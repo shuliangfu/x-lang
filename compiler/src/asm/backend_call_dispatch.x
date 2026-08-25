@@ -1839,7 +1839,7 @@ export function glue_asm_try_emit_fmt_any_import_call_elf_c(
     let atk: i32 = pipeline_type_kind_ord_at(arena, arg_ty);
     /* Scalars / slices → normal overload mangle + stubs. */
     if (atk != 8 && atk != 10) { return 0; }
-    /* u8[N] via schema u@off,len (slice-by-value u8_slc soft residual). */
+    /* u8[N]/NAMED via schema (JSON product). TYPE_SLICE→u8_slc mid (pointer ABI). */
     /* Only VAR lvalues for address (print_any shapes). */
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
