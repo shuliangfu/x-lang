@@ -1,7 +1,7 @@
 # STD-036 std.csv 整行解析与 write_row v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · Gate honesty soft→硬绿  
 > 关联：`next_field` / `escape` / `unescape`（既有）、RFC 4180
 
 ---
@@ -11,7 +11,7 @@
 | ID | 交付 |
 |----|------|
 | STD-036 | `parse_row` 整行解析 + `write_row` 行写入 |
-| 验收 | RFC 4180 边界金样 + `run-std-csv-row-gate.sh` 全绿 |
+| 验收 | RFC 4180 边界金样 + `run-std-csv-row-gate.sh` 全绿（`check=`／`run=`／`skip=`） |
 
 ---
 
@@ -25,6 +25,8 @@
 | `escape` / `unescape` | 字段级转义（既有） |
 
 `write_row` 在字段含 `,` `"` 或换行时自动调用 `csv_escape_c` 引号包裹。
+
+实现：`std/csv/csv.x`（F-csv v1 纯 .x）；`.x` 门面 `std/csv/mod.x` extern；链接与既有 `csv.o` 相同。
 
 ---
 
@@ -40,18 +42,21 @@
 
 ---
 
-## 4. 实现
-
-- 实现：`std/csv/csv.x`（F-csv v1 纯 .x）
-- `.x`：`std/csv/mod.x` extern 门面
-- 链接：与既有 `csv.o` 相同（`ensure_std_c_o`）
-
----
-
-## 5. Gate
+## 4. Gate
 
 ```bash
 ./tests/run-std-csv-row-gate.sh
 ```
 
+Honesty（2026-08-26）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `row_roundtrip.x` + `main.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
+- 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`；两路烟测都过才 `run=1`）
+
 manifest：`tests/baseline/std-csv-row.tsv`
+
+### Changelog
+
+- 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；未啃产品 `std/csv`）。

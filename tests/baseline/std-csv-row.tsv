@@ -1,5 +1,7 @@
 # STD-036 std.csv 整行解析与 write_row manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
+# report check=/run=/skip=. Section ## 4. Gate in archive DOC.
 min_syms	4
 parse_row	symbol	parse_row	std/csv/mod.x
 write_row	symbol	write_row	std/csv/mod.x
@@ -8,6 +10,6 @@ csv_write_row_c	symbol	csv_write_row_c	std/csv/csv.x
 roundtrip_doc	anchor	row_roundtrip	analysis/archive/std/std-csv-row-v1.md	RFC
 test_rt	file	tests/csv/row_roundtrip.x		金样
 test_main	file	tests/csv/main.x		回归
-runner	script	run-csv.sh	tests/run-csv.sh
+runner	script	tests/run-csv.sh	tests/run-csv.sh
 doc	file	analysis/archive/std/std-csv-row-v1.md	analysis/archive/std/std-csv-row-v1.md	RFC
-gate	script	run-std-csv-row-gate.sh	tests/run-std-csv-row-gate.sh	manifest
+gate	script	tests/run-std-csv-row-gate.sh	tests/run-std-csv-row-gate.sh	## 4. Gate
