@@ -1,7 +1,7 @@
 # STD-140：std.path 极端路径规范化向量 v1
 
-> 状态：**定版（v1）**  
-> 关联：`NEXT.md` std.path「复杂路径规范化策略」、`STD-021` Windows 路径
+> 状态：**定版（v1）** · soft→硬绿 honesty（2026-08-25）  
+> 关联：`STD-021` Windows 路径；live roadmap = `analysis/自举进度.md`（勿复活顶层 NEXT.md）
 
 ---
 
@@ -21,7 +21,7 @@
 |------|----------|---------|------|
 | 连续斜杠 | `//a///b` | `/a/b` | 折叠重复分隔符 |
 | 尾随斜杠 | `/foo/bar/` | `/foo/bar` | 去掉末尾 `/` |
-| 相对 dot 消段 | `foo/./bar/../baz` | `foo//baz` | pop 后可能留双 `/`（已知 v1  artifact） |
+| 相对 dot 消段 | `foo/./bar/../baz` | `foo//baz` | pop 后可能留双 `/`（已知 v1 artifact） |
 | 根上卷 | `/..` | `/` | 保留根 |
 | 混合分隔符 | `a\\b` | `a/b` | 解析认 `\`，输出用 `path_sep()` |
 | 四点段 | `x/..../y` | `x/..../y` | 非 `..` token，保留 |
@@ -35,14 +35,21 @@
 ## 3. 向量与烟测
 
 - 注册表：`tests/baseline/std-path-extreme.tsv`
-- 烟测：`tests/path/extreme_clean.x`
+- 烟测：`tests/path/extreme_clean.x`（asm 产品路径 exit 0）
 - 门禁：`./tests/run-std-path-extreme-gate.sh`
 
 ---
 
 ## 4. Gate
 
+Honesty（2026-08-25）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
+- `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
+- 产品烟测 `extreme_clean.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
+- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
+
 ```
-xlang: [XLANG_STD140_PATH_EXTREME] status=ok x=1 skip=0
+xlang: [XLANG_STD140_PATH_EXTREME] status=ok check=0|1 run=1 skip=0
 std-path-extreme gate OK
 ```
