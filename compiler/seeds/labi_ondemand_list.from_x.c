@@ -1669,9 +1669,11 @@ int link_abi_user_o_needs_std_test(const char *user_o) {
   return 0;
 }
 
-/* wave123: product core.mem exact UNDEF table + needs_core_mem pure orch.
- * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_core_mem_sym_count(void) { return 7; }
+/* wave123 + CORE-017: product core.mem exact UNDEF table + needs_core_mem pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes).
+ * Was 7 (align/mem_* only): sole volatile/fence UNDEF never opened mem.o → BLD001.
+ * Count 31 = full core/mem/mod.x export surface (G.7 one table; seed twin of .x). */
+int labi_od_core_mem_sym_count(void) { return 31; }
 const char *labi_od_core_mem_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1689,6 +1691,54 @@ const char *labi_od_core_mem_sym_at(int i) {
     return "core_mem_mem_move";
   if (i == 6)
     return "core_mem_mem_compare";
+  if (i == 7)
+    return "core_mem_mem_swap";
+  if (i == 8)
+    return "core_mem_is_alignment_power_of_two";
+  if (i == 9)
+    return "core_mem_placeholder";
+  if (i == 10)
+    return "core_mem_align_of_i32";
+  if (i == 11)
+    return "core_mem_align_of_bool";
+  if (i == 12)
+    return "core_mem_align_of_u8";
+  if (i == 13)
+    return "core_mem_align_of_u32";
+  if (i == 14)
+    return "core_mem_align_of_u64";
+  if (i == 15)
+    return "core_mem_align_of_i64";
+  if (i == 16)
+    return "core_mem_align_of_usize";
+  if (i == 17)
+    return "core_mem_align_of_isize";
+  if (i == 18)
+    return "core_mem_align_of_f32";
+  if (i == 19)
+    return "core_mem_align_of_f64";
+  if (i == 20)
+    return "core_mem_align_of_pointer";
+  if (i == 21)
+    return "core_mem_volatile_load_u8";
+  if (i == 22)
+    return "core_mem_volatile_store_u8";
+  if (i == 23)
+    return "core_mem_volatile_load_u16";
+  if (i == 24)
+    return "core_mem_volatile_store_u16";
+  if (i == 25)
+    return "core_mem_volatile_load_u32";
+  if (i == 26)
+    return "core_mem_volatile_store_u32";
+  if (i == 27)
+    return "core_mem_compiler_fence";
+  if (i == 28)
+    return "core_mem_fence_acquire";
+  if (i == 29)
+    return "core_mem_fence_release";
+  if (i == 30)
+    return "core_mem_fence_seq_cst";
   return NULL;
 }
 

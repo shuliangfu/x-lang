@@ -3343,19 +3343,21 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
 /**
  * Count of core.mem on_demand UNDEF probes (product core/mem/mem.o gate).
  * Exact symbol names only (no prefix/strstr probes).
- * @return i32 — 7
- * PLATFORM: SHARED — must match formal core/mem export surface
+ * @return i32 — 31 (was 7; +volatile/fence + align_of_* + mem_swap/placeholder/is_alignment)
+ * PLATFORM: SHARED — must match formal core/mem/mod.x export surface (CORE-017)
  */
 #[no_mangle]
 export function labi_od_core_mem_sym_count(): i32 {
-  return 7;
+  /* PLATFORM: SHARED — full core/mem/mem.o export surface (CORE-017 volatile/fence). */
+  return 31;
 }
 
 /**
  * Product core.mem on_demand UNDEF symbol at index (needs_core_mem probe table).
- * @param i i32 — index in [0, 7)
+ * @param i i32 — index in [0, 31)
  * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED — G.7 complete needs_core_mem authority (no second hard-coded list)
+ * PLATFORM: SHARED — G.7 complete needs_core_mem authority (no second hard-coded list).
+ * Was 7 (align/mem_* only): sole volatile/fence UNDEF never opened mem.o → BLD001.
  */
 #[no_mangle]
 export function labi_od_core_mem_sym_at(i: i32): *u8 {
@@ -3388,6 +3390,103 @@ export function labi_od_core_mem_sym_at(i: i32): *u8 {
   }
   if (i == 6) {
     let p: *u8 = "core_mem_mem_compare";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "core_mem_mem_swap";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "core_mem_is_alignment_power_of_two";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "core_mem_placeholder";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "core_mem_align_of_i32";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "core_mem_align_of_bool";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "core_mem_align_of_u8";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "core_mem_align_of_u32";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "core_mem_align_of_u64";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "core_mem_align_of_i64";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "core_mem_align_of_usize";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "core_mem_align_of_isize";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "core_mem_align_of_f32";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "core_mem_align_of_f64";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "core_mem_align_of_pointer";
+    return p;
+  }
+  /* CORE-017 fire points: volatile load/store + fences. */
+  if (i == 21) {
+    let p: *u8 = "core_mem_volatile_load_u8";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "core_mem_volatile_store_u8";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "core_mem_volatile_load_u16";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "core_mem_volatile_store_u16";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "core_mem_volatile_load_u32";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "core_mem_volatile_store_u32";
+    return p;
+  }
+  if (i == 27) {
+    let p: *u8 = "core_mem_compiler_fence";
+    return p;
+  }
+  if (i == 28) {
+    let p: *u8 = "core_mem_fence_acquire";
+    return p;
+  }
+  if (i == 29) {
+    let p: *u8 = "core_mem_fence_release";
+    return p;
+  }
+  if (i == 30) {
+    let p: *u8 = "core_mem_fence_seq_cst";
     return p;
   }
   return 0 as *u8;
