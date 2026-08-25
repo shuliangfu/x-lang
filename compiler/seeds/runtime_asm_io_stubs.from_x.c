@@ -439,11 +439,13 @@ int32_t std_fmt_println_u8_slc(const XlangSliceU8 *s) {
  *   i@OFF          i32 at base+OFF
  *   b@OFF          bool (uint8) at base+OFF → true/false
  *   u@OFF,LEN      u8[LEN] as JSON string
- *   a@OFF,LEN      i32[LEN] as JSON array
+ *   a@OFF,LEN      i32[LEN] as JSON array (inline / fixed T[N])
+ *   A@OFF          i32[] fat at base+OFF ({data,len} 16B) → JSON array via data
  *   ?SOFF:VAL      if *(uint8*)(base+SOFF)==0 → null; else VAL
  *   {k:VAL,k:VAL}  JSON object (keys are identifiers)
  * Asm emit builds schema from type layout; G.7 single interpreter authority.
  * PLATFORM: SHARED — pairs with glue_asm_try_emit_fmt_any_import_call_elf_c.
+ * u8[] (TYPE_SLICE of u8) stays mid std_fmt_*_u8_slc (raw bytes, not JSON).
  */
 
 static void fmt_json_escape_byte(unsigned char c) {
@@ -534,6 +536,29 @@ static const char *fmt_json_emit_val(const uint8_t *base, const char *sch) {
     putchar(']');
     return sch;
   }
+  /* A@OFF — TYPE_SLICE of i32: fat {data,len} at base+OFF (PLATFORM: SHARED ABI). */
+  if (*sch == 'A' && sch[1] == '@') {
+    const uint8_t *fat;
+    const int32_t *arr;
+    uint64_t n64;
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    putchar('[');
+    if (base) {
+      fat = base + off;
+      arr = *(const int32_t *const *)fat;
+      n64 = *(const uint64_t *)(fat + 8);
+      if (arr != NULL && n64 > 0 && n64 <= 1000000u) {
+        len = (int32_t)n64;
+        for (i = 0; i < len; i++) {
+          if (i)
+            putchar(',');
+          printf("%d", (int)arr[i]);
+        }
+      }
+    }
+    putchar(']');
+    return sch;
+  }
   if (*sch == '?') {
     sch = fmt_json_parse_dec(sch + 1, &off);
     if (*sch == ':')
@@ -552,7 +577,7 @@ static const char *fmt_json_emit_val(const uint8_t *base, const char *sch) {
         } while (*sch && depth > 0);
         return sch;
       }
-      if (*sch == 'i' || *sch == 'b' || *sch == 'u' || *sch == 'a') {
+      if (*sch == 'i' || *sch == 'b' || *sch == 'u' || *sch == 'a' || *sch == 'A') {
         /* Re-enter skip by emitting into a discarded path — parse only. */
         const char *save = sch;
         /* Use a throwaway: parse structure without printing via recurse on null base for atoms. */
@@ -562,6 +587,10 @@ static const char *fmt_json_emit_val(const uint8_t *base, const char *sch) {
           return sch;
         }
         if (*sch == 'b' && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          return sch;
+        }
+        if (*sch == 'A' && sch[1] == '@') {
           sch = fmt_json_parse_dec(sch + 2, &off);
           return sch;
         }

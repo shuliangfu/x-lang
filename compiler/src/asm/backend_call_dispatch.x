@@ -1589,7 +1589,8 @@ function glue_asm_fmt_any_find_layout(m: *u8, nm: *u8, nlen: i32): i32 {
 /**
  * Build JSON schema for type_ref into out (no trailing NUL). Returns length, or -1.
  * Offsets are absolute from the value base (base_off added for nested structs).
- * Supports i32/bool fields, nested NAMED, i32[N], u8[N], Option_* {is_some,value}.
+ * Supports i32/bool fields, nested NAMED, i32[N], u8[N], i32[] (fat A@OFF),
+ * Option_* {is_some,value}. u8[] returns -1 so emit falls through to u8_slc mid.
  * PLATFORM: SHARED — print_any product shapes; schema max fits jmp_skip 126.
  */
 function glue_asm_fmt_any_build_schema(m: *u8, arena: *u8, ty: i32, out: *u8, cap: i32,
@@ -1665,6 +1666,23 @@ base_off: i32, depth: i32): i32 {
       out[pos] = 44;
       pos = pos + 1;
       return glue_asm_fmt_any_append_dec(out, cap, pos, asz);
+    }
+    return 0 - 1;
+  }
+  /* TYPE_SLICE=11 — i32[] → A@off (fat {data,len}); u8[] → -1 (u8_slc mid). */
+  if (tk == 11) {
+    elem = pipeline_type_elem_ref_at(arena, ty);
+    if (elem <= 0) { return 0 - 1; }
+    etk = pipeline_type_kind_ord_at(arena, elem);
+    /* u8=2: keep product mid std_fmt_*_u8_slc (raw bytes). */
+    if (etk == 2) { return 0 - 1; }
+    /* i32=0 → A@off */
+    if (etk == 0) {
+      if (pos + 2 >= cap) { return 0 - 1; }
+      out[pos] = 65; /* A */
+      out[pos + 1] = 64; /* @ */
+      pos = pos + 2;
+      return glue_asm_fmt_any_append_dec(out, cap, pos, base_off);
     }
     return 0 - 1;
   }
@@ -1754,7 +1772,7 @@ base_off: i32, depth: i32): i32 {
     fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
     foff = pipeline_module_struct_layout_field_offset_at(m, li, j);
     ftk = pipeline_type_kind_ord_at(arena, fty);
-    if (ftk == 0 || ftk == 1 || ftk == 8 || ftk == 10) {
+    if (ftk == 0 || ftk == 1 || ftk == 8 || ftk == 10 || ftk == 11) {
       let scratch2: u8[128] = [];
       let sj: i32 = 0;
       sub = glue_asm_fmt_any_build_schema(m, arena, fty, &scratch2[0], 128,
@@ -1837,9 +1855,9 @@ export function glue_asm_try_emit_fmt_any_import_call_elf_c(
     let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
     if (arg_ty <= 0) { return 0; }
     let atk: i32 = pipeline_type_kind_ord_at(arena, arg_ty);
-    /* Scalars / slices → normal overload mangle + stubs. */
-    if (atk != 8 && atk != 10) { return 0; }
-    /* u8[N]/NAMED via schema (JSON product). TYPE_SLICE→u8_slc mid (pointer ABI). */
+    /* Scalars → normal overload. NAMED/ARRAY/SLICE(non-u8) → schema; u8[] mid. */
+    if (atk != 8 && atk != 10 && atk != 11) { return 0; }
+    /* u8[N]/NAMED/i32[N]/i32[] via schema. u8[] build_schema -1 → u8_slc mid. */
     /* Only VAR lvalues for address (print_any shapes). */
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);

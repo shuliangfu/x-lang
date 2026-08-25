@@ -3772,6 +3772,23 @@ static int32_t glue_asm_fmt_any_build_schema_c(struct ast_Module *m, struct ast_
     }
     return -1;
   }
+  /* TYPE_SLICE=11 — i32[] → A@off (fat); u8[] → -1 (u8_slc mid). PLATFORM: SHARED. */
+  if (tk == 11) {
+    elem = pipeline_type_elem_ref_at(arena, ty);
+    if (elem <= 0)
+      return -1;
+    etk = pipeline_type_kind_ord_at(arena, elem);
+    if (etk == 2) /* u8[] keeps mid std_fmt_*_u8_slc */
+      return -1;
+    if (etk == 0) { /* i32[] */
+      if (pos + 2 >= cap)
+        return -1;
+      out[pos++] = 'A';
+      out[pos++] = '@';
+      return glue_asm_fmt_any_append_dec_c(out, cap, pos, base_off);
+    }
+    return -1;
+  }
   if (tk != 8) /* NAMED */
     return -1;
   nlen = pipeline_type_named_name_into(arena, ty, nm);
@@ -3838,7 +3855,7 @@ static int32_t glue_asm_fmt_any_build_schema_c(struct ast_Module *m, struct ast_
     fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
     foff = pipeline_module_struct_layout_field_offset_at(m, li, j);
     ftk = pipeline_type_kind_ord_at(arena, fty);
-    if (ftk != 0 && ftk != 1 && ftk != 8 && ftk != 10)
+    if (ftk != 0 && ftk != 1 && ftk != 8 && ftk != 10 && ftk != 11)
       return -1;
     sub = glue_asm_fmt_any_build_schema_c(m, arena, fty, scratch, 128, base_off + foff, depth + 1);
     if (sub < 0 || pos + sub > cap)
@@ -3891,9 +3908,9 @@ int32_t glue_asm_try_emit_fmt_any_import_call_elf_c(struct ast_ASTArena *arena,
   if (arg_ty <= 0)
     return 0;
   atk = pipeline_type_kind_ord_at(arena, arg_ty);
-  if (atk != 8 && atk != 10)
+  /* NAMED/ARRAY/SLICE(non-u8) → schema; u8[] build_schema -1 → u8_slc mid. */
+  if (atk != 8 && atk != 10 && atk != 11)
     return 0;
-  /* u8[N]/NAMED via schema (JSON). TYPE_SLICE→u8_slc mid uses pointer ABI (io stubs). */
   if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) /* VAR */
     return 0;
   ly = (struct glue_AsmFuncCtxCall *)ctx;
