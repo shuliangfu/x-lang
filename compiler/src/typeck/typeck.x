@@ -1303,6 +1303,15 @@ export extern function pipeline_typeck_hot_reorder_warn_layout(module: *Module, 
  * PLATFORM: SHARED — authority pipeline_typeck_unused_binding_hints.
  */
 export extern function pipeline_typeck_unused_binding_hints(module: *Module, arena: *ASTArena): i32;
+/**
+ * WPO-S1 callgraph dump (XLANG_WPO_DUMP_CALLGRAPH=path|"-"). Info only; never fails typeck.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx — reserved (v1 single-module)
+ * @return i32 — 1 dumped, 0 skipped
+ * PLATFORM: SHARED — authority pipeline_typeck_wpo_dump_callgraph.
+ */
+export extern function pipeline_typeck_wpo_dump_callgraph(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 export extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_set_allow_padding(module: *Module, idx: i32,
@@ -18981,9 +18990,10 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     }
     num_funcs = pipeline_module_num_funcs(module);
     let rc_funcs: i32 = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
-    // L6 unused-binding hints after successful entry typeck (opt-in env).
+    // L6 unused-binding hints + WPO_DUMP_CALLGRAPH after successful entry typeck.
     if (rc_funcs == 0) {
       pipeline_typeck_unused_binding_hints(module, arena);
+      pipeline_typeck_wpo_dump_callgraph(module, arena, ctx);
     }
     return rc_funcs;
   }
@@ -19008,9 +19018,10 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
     }
     num_funcs = pipeline_module_num_funcs(module);
     let rc_lib: i32 = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
-    // L6 unused-binding hints after successful library typeck (opt-in env).
+    // L6 unused-binding hints + WPO_DUMP_CALLGRAPH after successful library typeck.
     if (rc_lib == 0) {
       pipeline_typeck_unused_binding_hints(module, arena);
+      pipeline_typeck_wpo_dump_callgraph(module, arena, ctx);
     }
     return rc_lib;
   }

@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-comp-wpo-gate.sh
 # wave honesty (2026-08-24 #6): monofile seeds/runtime.from_x.c retired wave321;
-# XLANG_WPO_DUMP_CALLGRAPH contract lives in codegen.h (dump API);
+# XLANG_WPO_DUMP_CALLGRAPH product = pipeline_typeck_wpo_dump_callgraph (thin);
 # live WPO env peers (MONO/NO_FOLD/…) in runtime_pipeline_abi / labi.
 # DOC remains analysis/comp-wpo-v1.md (still top-level; not archived).
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
@@ -17,7 +17,7 @@ PROTO="${XLANG_COMP_WPO_PROTO:-tests/baseline/comp-wpo-prototype.tsv}"
 MIN_STAGES=6
 MIN_CASES=4
 MIN_CAPS=6
-DUMP_SRC="${XLANG_COMP_WPO_DUMP_SRC:-compiler/src/codegen/codegen.h}"
+DUMP_SRC="${XLANG_COMP_WPO_DUMP_SRC:-compiler/src/runtime_pipeline_abi_wpo_dump_thin.x}"
 
 # shellcheck source=tests/lib/comp-wpo.sh
 . tests/lib/comp-wpo.sh
