@@ -1,7 +1,7 @@
 # STD-109：std.base64 流式编解码 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-25  
+> 状态：**定版（v1）** · 假权威闸诚实化  
 > 关联：`tests/baseline/std-base64-stream.tsv`
 
 ---
@@ -10,7 +10,7 @@
 
 | 步骤 | 动作 |
 |------|------|
-| 1 | 读本文 §2–§3 |
+| 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-base64-stream.tsv` |
 | 3 | `./tests/run-std-base64-stream-gate.sh` |
 
@@ -40,9 +40,18 @@
 
 ---
 
-## 4. 门禁
+## 4. Gate
 
-```bash
-make -C compiler ../std/base64/base64.o
-./tests/run-std-base64-stream-gate.sh
+### 假权威诚实验收（2026-08-25）
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
+- `xlang check` **观测**（自举期 check 闸门暂停 2026-08-05）；不硬失败。
+- 可跑烟测 `tests/std-base64/stream.x` exit **0** 硬失败；有原生 xlang 时 **禁 soft SKIP**。
+- C smoke 仅观测（archaeology host-C；非硬绿信号）。
+- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
+- 构建入口：`./xbuild`／闸脚本（**拒** `make -C compiler` 复活为活权威）。
+
+```
+xlang: [XLANG_STD109_BASE64_STREAM] status=ok check=0|1 run=1 skip=0
+std-base64-stream gate OK
 ```

@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# std-base64-stream.sh — STD-109 manifest 与烟测辅助
+# std-base64-stream.sh — STD-109 manifest helpers (stream enc/dec).
+#
+# Usage (after source):
+#   std_base64_stream_symbols_ok MOD_X B64_X TSV [DOC]
+#   std_base64_stream_run_c_smoke B64_X
+#   std_base64_stream_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_BASE64_STREAM_PREFIX="${XLANG_STD109_BASE64_STREAM_PREFIX:-xlang: [XLANG_STD109_BASE64_STREAM]}"
 
-# 校验 manifest 中 api/symbol/file。
+# Validate manifest api/symbol/file/smoke/script/section anchors.
+# Echo miss count; return 0 when miss=0.
+# Optional DOC overrides archive path for section checks (default archived RFC).
 std_base64_stream_symbols_ok() {
   local mod_x="$1"
-  local b64_c="$2"
+  local b64_x="$2"
   local tsv="$3"
+  local doc="${4:-analysis/archive/std/std-base64-stream-v1.md}"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -23,7 +32,7 @@ std_base64_stream_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/base64/base64.c|std/base64/base64.x) path="$b64_c" ;;
+          std/base64/base64.c|std/base64/base64.x) path="$b64_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-base64-stream FAIL: missing '$anchor' in $path" >&2
@@ -36,41 +45,34 @@ std_base64_stream_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      script)
+        # Prefer tests/… path in anchor (honesty); fall back to mod_path.
+        local sp="$anchor"
+        if [ ! -f "$sp" ] && [ -n "${mod_path:-}" ] && [ -f "$mod_path" ]; then
+          sp="$mod_path"
+        fi
+        if [ ! -f "$sp" ]; then
+          echo "std-base64-stream FAIL: missing script '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      section)
+        if ! grep -qF -- "$anchor" "$doc" 2>/dev/null; then
+          echo "std-base64-stream FAIL: doc missing section '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
-std_base64_stream_run_x_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-stream}"
-  local exe="/tmp/xlang_std_b64_stream_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-base64-stream FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-base64-stream FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# C 烟测：stream_smoke_ok.c + base64.o。
+# Observational C smoke: stream_smoke_ok.c + base64.o (not hard green).
 std_base64_stream_run_c_smoke() {
   local b64_c="$1"
   local src="tests/std-base64/stream_smoke_ok.c"
-  local out="/tmp/xlang_std_base64_stream_$$"
+  local out="/tmp/xlang_std_base64_stream_c_$$"
   local b64_o
   b64_o="$(dirname "$b64_c")/base64.o"
   if [ ! -f "$b64_o" ]; then
@@ -93,11 +95,11 @@ std_base64_stream_run_c_smoke() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report line (check observational; run hard; skip only when no binary path).
 std_base64_stream_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_BASE64_STREAM_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_BASE64_STREAM_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
