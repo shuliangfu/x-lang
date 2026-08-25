@@ -1126,12 +1126,13 @@ const char *labi_od_arrow_glue_rel(void) {
   return "compiler/runtime_arrow_simd_glue.o";
 }
 
-/* PLATFORM: SHARED — cookbook async_mod_import / drain_idle / scheduler_reset unique-first.
+/* PLATFORM: SHARED — cookbook async_mod_import / drain_idle / scheduler_reset /
+ * net_fs_async_smoke unique-first.
  * Distinct from labi_od_async_scheduler_sym_* (C ABI ×35 for scheduler.o
  * skip-missing; never unique import METHOD std_async_*). Matcher is exact.
  * Produce path is formal_mod c_face std/async/async.o (not host-cc of mod.x). */
 int labi_od_async_sym_count(void) {
-  return 3;
+  return 4;
 }
 
 const char *labi_od_async_sym_at(int i) {
@@ -1144,6 +1145,9 @@ const char *labi_od_async_sym_at(int i) {
   /* import("std.async").scheduler_reset → mangled unique METHOD. */
   if (i == 2)
     return "std_async_scheduler_reset";
+  /* import("std.async").net_fs_async_smoke → mangled unique METHOD. */
+  if (i == 3)
+    return "std_async_net_fs_async_smoke";
   return NULL;
 }
 
@@ -4205,11 +4209,12 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_async_sym_count(), labi_od_async_sym_at)) {
         /* PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder /
-         * std_async_drain_idle / std_async_scheduler_reset. No async.o existed;
-         * scheduler C ABI table never fires unique import METHOD.
-         * Produce path is formal_mod c_face. drain_idle / scheduler_reset U
-         * xlang_async_* → scheduler glue ensure. G.7 complete unique table;
-         * do not dump unique names into labi_od_async_scheduler_sym_*. */
+         * std_async_drain_idle / std_async_scheduler_reset /
+         * std_async_net_fs_async_smoke. No async.o existed; scheduler C ABI
+         * table never fires unique import METHOD. Produce path is formal_mod
+         * c_face. drain_idle / scheduler_reset / net_fs U xlang_async_* →
+         * scheduler glue ensure (async_net_fs #include). G.7 complete unique
+         * table; do not dump unique names into labi_od_async_scheduler_sym_*. */
         {
             const char *include_root = xlang_repo_root_from_argv0(link_argv0);
             if (include_root && include_root[0])
