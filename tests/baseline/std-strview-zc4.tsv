@@ -1,6 +1,12 @@
 # STD-016 StrView + ZC-4 manifest
-# 列：item_id	kind	anchor	mod_path	notes
+# Columns: item_id	kind	anchor	mod_path	notes
+# 2026-08-26 honesty: add ## 6. Gate; prefer asm + LINK; check observational;
+# runnable view_lifecycle / view_subview / arena_concat / stack_sso exit0 hard;
+# run-zc4-gate observational; report check=/life=/sub=/arena=/sso=/zc4=/skip=;
+# DOC live = analysis/archive/std/.
 min_lifecycle_rules	4
+section_lifecycle	section	## 3. 生命周期规则	analysis/archive/std/std-strview-zc4-v1.md	RFC
+section_gate	section	## 6. Gate	analysis/archive/std/std-strview-zc4-v1.md	gate honesty
 api_from_string	symbol	string_view_from_string	std/string/mod.x	STD-016
 api_subview	symbol	string_view_subview	std/string/mod.x	ZC-4
 api_concat_arena	symbol	string_view_concat_arena	std/string/mod.x	ZC-4
@@ -9,10 +15,10 @@ lifecycle_doc	anchor	## 3. 生命周期规则	analysis/archive/std/std-strview-z
 lifecycle_string	anchor	string_view_from_string	analysis/archive/std/std-strview-zc4-v1.md	RFC
 lifecycle_arena	anchor	arena64_deinit	analysis/archive/std/std-strview-zc4-v1.md	RFC
 lifecycle_stack	anchor	stack_str_view	analysis/archive/std/std-strview-zc4-v1.md	RFC
-test_lifecycle	file	tests/string/view_lifecycle.x		整合烟测
-test_xbview	file	tests/string/view_subview_smoke.x		ZC-4
-test_arena	file	tests/string/arena_concat_smoke.x		ZC-4
-test_sso	file	tests/string/stack_str_sso_smoke.x		ZC-4
-zc4_gate	script	run-zc4-gate.sh	tests/run-zc4-gate.sh	深度回归
+test_lifecycle	file	tests/string/view_lifecycle.x		整合烟测 hard
+test_xbview	file	tests/string/view_subview_smoke.x		ZC-4 hard
+test_arena	file	tests/string/arena_concat_smoke.x		ZC-4 hard
+test_sso	file	tests/string/stack_str_sso_smoke.x		ZC-4 hard
+zc4_gate	script	run-zc4-gate.sh	tests/run-zc4-gate.sh	深度回归 observational
 doc	file	analysis/archive/std/std-strview-zc4-v1.md	analysis/archive/std/std-strview-zc4-v1.md	RFC
-gate	script	run-std-strview-zc4-gate.sh	tests/run-std-strview-zc4-gate.sh	manifest
+gate	script	run-std-strview-zc4-gate.sh	tests/run-std-strview-zc4-gate.sh	## 6. Gate
