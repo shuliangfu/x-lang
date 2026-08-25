@@ -1,7 +1,11 @@
 # STD-129 std.set Set_i32 ops manifest
+# Columns: item_id	kind	anchor	mod_path	notes
+# 2026-08-25: anchors aligned to product overload names (union_into /
+# intersect_into / difference_into), not legacy set_i32_*_into names that
+# never existed in std/set/mod.x.
 min_apis	3
-api_union	api	set_i32_union_into	std/set/mod.x
-api_intersect	api	set_i32_intersect_into	std/set/mod.x
-api_difference	api	set_i32_difference_into	std/set/mod.x
+api_union	api	union_into	std/set/mod.x	Set_i32 overload (product)
+api_intersect	api	intersect_into	std/set/mod.x	Set_i32 overload (product)
+api_difference	api	difference_into	std/set/mod.x	Set_i32 overload (product)
 smoke_x	smoke	tests/set/ops.x
 gate	script	run-std-set-ops-gate.sh	tests/run-std-set-ops-gate.sh

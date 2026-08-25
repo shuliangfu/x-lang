@@ -1,26 +1,14 @@
-// See implementation.
+// STD-129 smoke: Set_i32 union_into / intersect_into / difference_into.
+// PLATFORM: SHARED — product path via std.set overload names (not set_i32_*_into).
+// Note: avoid helper that takes Set_i32 by-value plus stack-array &i32[N]
+// (that pattern currently SIGSEGV on Darwin/Linux product link; separate residual).
 const set = import("std.set");
 
-/** Internal function `set_has_keys`.
- * Implements `set_has_keys`.
- * @param dst Set_i32
- * @param expect *i32
- * @param n i32
- * @return i32
- */
-function set_has_keys(dst: Set_i32, expect: *i32, n: i32): i32 {
-  if (set.length(dst) != n) { return 0; }
-  let i: i32 = 0;
-  while (i < n) {
-    if (set.contains_key(dst, expect[i]) == 0) { return 0; }
-    i = i + 1;
-  }
-  return 1;
-}
-
-/** Internal function `main`.
- * Program/test entry point.
- * @return i32
+/**
+ * Program entry for STD-129 set ops smoke.
+ * Builds two Set_i32 values, exercises union/intersect/difference into a
+ * destination set, and asserts membership via contains_key / length.
+ * @return i32 0 on success; nonzero step code on first failure
  */
 function main(): i32 {
   let a: Set_i32 = set.new(0);
@@ -35,18 +23,31 @@ function main(): i32 {
   if (set.insert(&b, 2) != 0) { return 7; }
   if (set.insert(&b, 3) != 0) { return 8; }
   if (set.insert(&b, 4) != 0) { return 9; }
+
+  // dst = a ∪ b → {1,2,3,4}
   if (set.union_into(&dst, a, b) != 0) { return 10; }
-  let u: i32[4] = [1, 2, 3, 4];
-  if (set_has_keys(dst, &u[0], 4) == 0) { return 11; }
-  if (set.intersect_into(&dst, a, b) != 0) { return 12; }
-  let ic: i32[2] = [2, 3];
-  if (set_has_keys(dst, &ic[0], 2) == 0) { return 13; }
-  if (set.difference_into(&dst, a, b) != 0) { return 14; }
-  let d: i32[1] = [1];
-  if (set_has_keys(dst, &d[0], 1) == 0) { return 15; }
-  if (set.difference_into(&dst, b, a) != 0) { return 16; }
-  let d2: i32[1] = [4];
-  if (set_has_keys(dst, &d2[0], 1) == 0) { return 17; }
+  if (set.length(dst) != 4) { return 11; }
+  if (set.contains_key(dst, 1) == 0) { return 12; }
+  if (set.contains_key(dst, 2) == 0) { return 13; }
+  if (set.contains_key(dst, 3) == 0) { return 14; }
+  if (set.contains_key(dst, 4) == 0) { return 15; }
+
+  // dst = a ∩ b → {2,3}
+  if (set.intersect_into(&dst, a, b) != 0) { return 16; }
+  if (set.length(dst) != 2) { return 17; }
+  if (set.contains_key(dst, 2) == 0) { return 18; }
+  if (set.contains_key(dst, 3) == 0) { return 19; }
+
+  // dst = a \ b → {1}
+  if (set.difference_into(&dst, a, b) != 0) { return 20; }
+  if (set.length(dst) != 1) { return 21; }
+  if (set.contains_key(dst, 1) == 0) { return 22; }
+
+  // dst = b \ a → {4}
+  if (set.difference_into(&dst, b, a) != 0) { return 23; }
+  if (set.length(dst) != 1) { return 24; }
+  if (set.contains_key(dst, 4) == 0) { return 25; }
+
   set.deinit(&a);
   set.deinit(&b);
   set.deinit(&dst);

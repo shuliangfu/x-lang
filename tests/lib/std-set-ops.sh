@@ -1,21 +1,29 @@
 #!/usr/bin/env bash
-# std-set-ops.sh — STD-129 manifest 与烟测辅助
+# std-set-ops.sh — STD-129：Set_i32 union/intersect/difference manifest helpers
+#
+# Usage (after source):
+#   std_set_ops_symbols_ok MOD_X TSV
+#   std_set_ops_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_SET_OPS_PREFIX="${XLANG_STD129_SET_OPS_PREFIX:-xlang: [XLANG_STD129_SET_OPS]}"
 
-# 校验 manifest 条目。
+# Validate manifest api/smoke/script anchors against product std/set/mod.x.
+# Function anchors require `function <name>(` so product surface names
+# (union_into / intersect_into / difference_into) match after API rename.
+# Echo miss count; return 0 when miss=0.
 std_set_ops_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor
-  while IFS=$'\t' read -r item_id kind anchor _rest; do
+  while IFS=$'\t' read -r item_id kind anchor _mod_path _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
-          echo "std-set-ops FAIL: missing '$anchor'" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-set-ops FAIL: missing function '${anchor}(' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -31,25 +39,11 @@ std_set_ops_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
-std_set_ops_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std_set_ops_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-set-ops FAIL: compile $src" >&2
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  [ "$ec" -eq 0 ]
-}
-
-# 输出 gate 报告。
+# Structured report line (check observational; run hard; skip only when no binary path).
 std_set_ops_emit_report() {
-  echo "${STD_SET_OPS_PREFIX} status=$1 x=$2 skip=$3"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_SET_OPS_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
