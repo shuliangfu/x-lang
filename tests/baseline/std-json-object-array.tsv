@@ -1,5 +1,7 @@
-# STD-034 std.json object/array manifest
+# json-object-array (cursor/parse) manifest — archive historical STD-034
 # 列：item_id	kind	anchor	mod_path	notes
+# 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational;
+# runnable object_array_parse.x exit0 hard; report check=/oa=/skip=.
 min_syms	6
 skip_value	symbol	skip_value	std/json/mod.x
 cursor_init	symbol	cursor_init	std/json/mod.x
@@ -9,6 +11,9 @@ cursor_skip_value	symbol	cursor_skip_value	std/json/mod.x
 json_cursor_c	symbol	json_cursor_object_next_c	std/json/json.x
 zc_doc	anchor	大对象 ZC 策略	analysis/archive/std/std-json-object-array-v1.md	RFC
 object_array	anchor	object_array_parse	analysis/archive/std/std-json-object-array-v1.md	RFC
+verify	section	## 5. Gate		gate
 test_oa	file	tests/json/object_array_parse.x		金样
+smoke_oa	smoke	tests/json/object_array_parse.x
 doc	file	analysis/archive/std/std-json-object-array-v1.md	analysis/archive/std/std-json-object-array-v1.md	RFC
-gate	script	run-std-json-object-array-gate.sh	tests/run-std-json-object-array-gate.sh	manifest
+gate	script	tests/run-std-json-object-array-gate.sh	tests/run-std-json-object-array-gate.sh	## 5. Gate
+lib	script	tests/lib/std-json-object-array.sh	tests/lib/std-json-object-array.sh	helpers
