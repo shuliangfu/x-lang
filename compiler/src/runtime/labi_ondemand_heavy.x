@@ -298,16 +298,16 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 22 (was 21; +config STD-086 layer/yaml .x smoke residual 2026-08-25)
+ * @return i32 — 23 (was 22; +cache STD-087 lru_pool_smoke residual 2026-08-25)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
- * run-unicode / cli_subcommand / datetime_iana / std_config_* history: formal .o
- * existed or bare impl only, plan step present, fk0 table missed).
+ * run-unicode / cli_subcommand / datetime_iana / std_config_* / std_cache_*
+ * history: formal .o existed or bare impl only, plan step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 21 (+datetime); +k21 std/config/config.o.
-  return 22;
+  // PLATFORM: SHARED — was 22 (+config); +k22 std/cache/cache.o.
+  return 23;
 }
 
 /**
@@ -423,6 +423,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/config/config.o";
     return p;
   }
+  // PLATFORM: SHARED — std/cache/cache.o is OP_STD flag_kind=0 but was missing
+  // from fk0 → never push formal cache.o even after formal_mod exported
+  // std_cache_* (STD-087 lru_pool_smoke BLD001 UNDEF).
+  if (k == 22) {
+    let p: *u8 = "std/cache/cache.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -523,6 +530,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // Count 31 = full export surface in std/config/mod.x (G.7 complete one table).
   if (k == 21) {
     return 31;
+  }
+  // PLATFORM: SHARED — cache formal public surface (std_cache_*).
+  // Count 20 = full export surface in std/cache/mod.x (G.7 complete one table).
+  if (k == 22) {
+    return 20;
   }
   return 0;
 }
@@ -1821,6 +1833,92 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 30) {
         let p: *u8 = "std_config_yaml_smoke";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/cache/cache.o exact UNDEF needles (fk0 k==22).
+    // Exact match only; lru_pool_smoke sole UNDEFs open the gate.
+    // Count 20 = full export surface in std/cache/mod.x (G.7 complete one table).
+    if (k == 22) {
+      if (i == 0) {
+        let p: *u8 = "std_cache_err_ok";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_cache_err_null";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_cache_err_not_found";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_cache_err_full";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_cache_err_invalid";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_cache_new_lru";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_cache_free_LruCache_ptr";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_cache_get";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_cache_put";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_cache_remove";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_cache_purge";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_cache_stats_LruCache_ptr_CacheStats_ptr";
+        return p;
+      }
+      if (i == 12) {
+        let p: *u8 = "std_cache_new";
+        return p;
+      }
+      if (i == 13) {
+        let p: *u8 = "std_cache_free_ObjPool_ptr";
+        return p;
+      }
+      if (i == 14) {
+        let p: *u8 = "std_cache_add";
+        return p;
+      }
+      if (i == 15) {
+        let p: *u8 = "std_cache_acquire";
+        return p;
+      }
+      if (i == 16) {
+        let p: *u8 = "std_cache_release";
+        return p;
+      }
+      if (i == 17) {
+        let p: *u8 = "std_cache_mark_unhealthy";
+        return p;
+      }
+      if (i == 18) {
+        let p: *u8 = "std_cache_idle";
+        return p;
+      }
+      if (i == 19) {
+        let p: *u8 = "std_cache_stats_ObjPool_ptr_PoolStats_ptr";
         return p;
       }
       return 0 as *u8;
@@ -4554,6 +4652,54 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           let _ep2: i32 = xlang_ensure_runtime_process_argv_o(link_argv0);
           pav2 = xlang_runtime_process_argv_o_path(link_argv0);
           let _pp2: i32 = link_abi_asm_ld_push_obj(pav2, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+
+    // --- time_os complement scan after on_demand pushes ---
+    // PLATFORM: SHARED — std/cache/cache.o (and similar formal monofiles) U
+    // time_now_monotonic_ns_c after fk0 push; user.o only has std_cache_* so
+    // labi_user_needs_runtime_time_os / time-table gate never fire. Mirror the
+    // process_argv complement: scan argv objs for the C face UNDEF, then ensure
+    // + push runtime_time_os.o. G.7 complete existing companion pattern (STD-087).
+    let need_tos: i32 = 0;
+    let have_tos: i32 = 0;
+    let ti: i32 = 0;
+    let la_t: i32 = la[0];
+    while (ti < la_t) {
+      let et: *u8 = argv[ti];
+      if (et == 0 as *u8) {
+        ti = la_t;
+      }
+      if (et != 0 as *u8) {
+        let is_ot: i32 = 0;
+        unsafe {
+          is_ot = link_abi_ld_argv_entry_is_obj(et);
+        }
+        if (is_ot != 0) {
+          let has_tos: i32 = labi_od_cstr_contains(et, "runtime_time_os.o");
+          if (has_tos != 0) {
+            have_tos = 1;
+          }
+          let ut: i32 = 0;
+          unsafe {
+            ut = xlang_link_obj_needs_undef_sym(et, "time_now_monotonic_ns_c");
+          }
+          if (ut != 0) {
+            need_tos = 1;
+          }
+        }
+      }
+      ti = ti + 1;
+    }
+    if (need_tos != 0) {
+      if (have_tos == 0) {
+        let torel2: *u8 = labi_od_time_os_rel();
+        let top2: *u8 = 0 as *u8;
+        unsafe {
+          let _et2: i32 = xlang_ensure_runtime_time_os_o(link_argv0);
+          top2 = xlang_runtime_time_os_o_path(link_argv0);
+          let _pt2: i32 = link_abi_asm_ld_push_obj(top2, link_argv0, torel2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
       }
     }

@@ -103,6 +103,9 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — STD-086 layer_smoke unique UNDEF (std_config_*).
     # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
+    # PLATFORM: SHARED — STD-087 lru_pool_smoke unique UNDEF (std_cache_*).
+    # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
+    ../std/cache/cache.o|std/cache/cache.o|*std/cache/cache.o) printf '%s' "std/cache/cache.o" ;;
     # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
     # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
     ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
@@ -210,6 +213,10 @@ formal_mod_spec_for_key() {
     # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
     std/config/config.o) printf '%s' "mod|1|../std/config/mod.x|../std/config/config.x" ;;
+    # PLATFORM: SHARED — std.cache product face (STD-087 lru_pool_smoke).
+    # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/config: mod.x prefix + --bare-impl *_c.
+    std/cache/cache.o) printf '%s' "mod|1|../std/cache/mod.x|../std/cache/cache.x" ;;
     # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
@@ -304,6 +311,7 @@ formal_mod_all_keys() {
     std/csv/csv.o \
     std/cli/cli.o \
     std/config/config.o \
+    std/cache/cache.o \
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \

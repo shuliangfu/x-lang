@@ -2673,8 +2673,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 21; +config (=heavy return 22). */
-  return 22;
+  /* PLATFORM: SHARED — was 22; +cache (=heavy return 23). */
+  return 23;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -2726,6 +2726,9 @@ const char *labi_fk0_rel_at(int k) {
   /* PLATFORM: SHARED — mirror heavy k21 (STD-086 std_config_*). */
   if (k == 21)
     return "std/config/config.o";
+  /* PLATFORM: SHARED — mirror heavy k22 (STD-087 std_cache_*). */
+  if (k == 22)
+    return "std/cache/cache.o";
   return NULL;
 }
 
@@ -2788,6 +2791,9 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — config formal public surface (mirror heavy). */
   if (k == 21)
     return 31;
+  /* PLATFORM: SHARED — cache formal public surface (mirror heavy). */
+  if (k == 22)
+    return 20;
   return 0;
 }
 
@@ -3475,6 +3481,50 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_config_load_yaml_file";
     if (i == 30)
       return "std_config_yaml_smoke";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/cache/cache.o exact UNDEF needles (fk0 k==22; mirror heavy). */
+  if (k == 22) {
+    if (i == 0)
+      return "std_cache_err_ok";
+    if (i == 1)
+      return "std_cache_err_null";
+    if (i == 2)
+      return "std_cache_err_not_found";
+    if (i == 3)
+      return "std_cache_err_full";
+    if (i == 4)
+      return "std_cache_err_invalid";
+    if (i == 5)
+      return "std_cache_new_lru";
+    if (i == 6)
+      return "std_cache_free_LruCache_ptr";
+    if (i == 7)
+      return "std_cache_get";
+    if (i == 8)
+      return "std_cache_put";
+    if (i == 9)
+      return "std_cache_remove";
+    if (i == 10)
+      return "std_cache_purge";
+    if (i == 11)
+      return "std_cache_stats_LruCache_ptr_CacheStats_ptr";
+    if (i == 12)
+      return "std_cache_new";
+    if (i == 13)
+      return "std_cache_free_ObjPool_ptr";
+    if (i == 14)
+      return "std_cache_add";
+    if (i == 15)
+      return "std_cache_acquire";
+    if (i == 16)
+      return "std_cache_release";
+    if (i == 17)
+      return "std_cache_mark_unhealthy";
+    if (i == 18)
+      return "std_cache_idle";
+    if (i == 19)
+      return "std_cache_stats_ObjPool_ptr_PoolStats_ptr";
     return NULL;
   }
   return NULL;
@@ -4377,6 +4427,31 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             (void)xlang_ensure_runtime_process_argv_o(link_argv0);
             link_abi_asm_ld_push_obj(xlang_runtime_process_argv_o_path(link_argv0), link_argv0,
                 "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — std/cache/cache.o (fk0) U time_now_monotonic_ns_c after
+     * push; user.o only has std_cache_* so time-table / need_time_os never fire.
+     * G.7: mirror process_argv complement — scan argv objs for the C face UNDEF,
+     * then ensure + push runtime_time_os.o (STD-087 lru_pool_smoke).
+     */
+    if (argv && la) {
+        int need_tos = 0;
+        int have_tos = 0;
+        int ti;
+        for (ti = 0; ti < *la && argv[ti]; ti++) {
+            const char *e = argv[ti];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "runtime_time_os.o"))
+                have_tos = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "time_now_monotonic_ns_c"))
+                need_tos = 1;
+        }
+        if (need_tos && !have_tos) {
+            if (xlang_ensure_runtime_time_os_o(link_argv0) == 0)
+                link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                    labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_time_sym_count(), labi_od_time_sym_at)) {
