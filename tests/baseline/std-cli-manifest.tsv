@@ -14,5 +14,5 @@ symbol_smoke	symbol	cli_smoke_c	std/cli/cli.x	C烟测
 impl_x	file	std/cli/cli.x	std/cli/cli.x
 smoke_x	smoke	tests/std-cli/roundtrip.x	.x烟测
 cookbook	smoke	examples/cookbook/cli_subcommand.x	cookbook
-lib	script	lib/std-cli.sh	tests/lib/std-cli.sh
-gate	script	run-std-cli-gate.sh	tests/run-std-cli-gate.sh
+lib	script	tests/lib/std-cli.sh	tests/lib/std-cli.sh
+gate	script	tests/run-std-cli-gate.sh	tests/run-std-cli-gate.sh
