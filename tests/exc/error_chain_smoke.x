@@ -32,5 +32,11 @@ function main(): i32 {
   if (err.chain_root(deep) != code_invalid()) { return 11; }
   let out: Result_i32 = result.err(err.chain_root(wrapped));
   if (!result.is_err(out)) { return 12; }
+  /* Bare free-CALL formal size (ErrorChain 20B SysV MEMORY; not lea→rdi). */
+  if (chain_depth(leaf) != 1) { return 13; }
+  let bare_w: ErrorChain = chain_wrap(leaf, io_err_timeout());
+  if (chain_depth(bare_w) != 2) { return 14; }
+  if (chain_root(bare_w) != io_err_timeout()) { return 15; }
+  if (chain_leaf(bare_w) != fs_err_not_found()) { return 16; }
   return 0;
 }

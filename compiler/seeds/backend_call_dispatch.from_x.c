@@ -690,6 +690,11 @@ static int32_t glue_sysv_arg_stack_words_c(int32_t sz, int32_t gp_units) {
  * Take max of call_arg_value / formal / resolved / nested CALL return size.
  * Root (ErrorChain nested CALL-as-MEMORY Cap): call_arg_value floors to 8 for
  * non-VAR args and early-return blocked formal ErrorChain (20B) → is_mem≠2 → SEGV.
+ * Root (bare CALL formal size): x86 slot/n_stack classifiers pass ctx=NULL, so
+ * call_arg cannot recover VAR decl; soft sz=8 → lea→rdi while callee expects
+ * SysV stack MEMORY. Widen non-CALL soft sizes only when formal/resolved
+ * named_layout (or type_ref size) is true MEMORY (>16). Do NOT max ≤16 layouts
+ * (SLICE fat=16 would undo E* pack → slice_oob).
  * G.7: one packer; max() not first-wins. PLATFORM: SHARED freestanding dual-GP.
  */
 static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t pty,
@@ -702,9 +707,8 @@ static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct back
     sz = pipeline_asm_call_arg_value_byte_size_c(arena, ctx, arg_ref, pty);
   /*
    * Preserve call_arg SLICE/ARRAY→8 pointer packing for VAR/FIELD/etc.
-   * Only widen nested CALL/METHOD when soft (≤16): formal/resolved named
-   * layout + callee return (ErrorChain 20B). Do NOT max named_layout on all
-   * args — that regressed slice_oob (fat layout undid E* pack).
+   * Widen nested CALL/METHOD when soft (≤16): formal/resolved named layout +
+   * callee return (ErrorChain 20B). Widen non-CALL soft only to MEMORY (>16).
    * PLATFORM: SHARED freestanding · MACOS|ARM64 host-indirect · LINUX SysV.
    */
   if (arg_ref > 0 && arena) {
@@ -732,13 +736,23 @@ static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct back
         if (alt > sz)
           sz = alt;
       }
-    } else if (sz <= 0) {
-      if (pty > 0)
-        sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
-      if (sz <= 0) {
-        tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-        if (tr > 0)
-          sz = pipeline_asm_type_ref_byte_size_c(arena, tr);
+    } else if (sz <= 16) {
+      /*
+       * Non-CALL VAR/FIELD/…: MEMORY-class widen when soft (ctx may be null).
+       * Only TYPE_NAMED named_layout >16 (ErrorChain 20B). Do NOT use
+       * type_ref_byte_size — ARRAY payload (e.g. [2]Wide=40) would undo E*
+       * pack (ret_idx(a) / slice_oob). PLATFORM: SHARED · LINUX SysV gold.
+       */
+      if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 8) {
+        alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+        if (alt > 16 && alt > sz)
+          sz = alt;
+      }
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 8) {
+        alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+        if (alt > 16 && alt > sz)
+          sz = alt;
       }
     }
   } else if (sz <= 0 && pty > 0 && arena) {
