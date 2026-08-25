@@ -1,16 +1,18 @@
 # STD-043 std.thread pool + named thread manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
+# 2026-08-26 honesty: API anchors = product short names (set_name_self/start/…);
+# verify section → ## 5. Gate. Fossil thread_pool_* / thread_set_name_self retired.
 read_path	section	## 1. 阅读路径	15min
-name_api	section	## 2. 命名线程	thread_set_name_self
-pool_api	section	## 3. 固定 worker 线程池	thread_pool_start
-verify	section	## 4. 验证与门禁	gate
-api_set_name	api	thread_set_name_self	std/thread/mod.x	命名
-api_pool_start	api	thread_pool_start	std/thread/mod.x	启动池
-api_pool_submit	api	thread_pool_submit	std/thread/mod.x	提交
-api_pool_drain	api	thread_pool_drain	std/thread/mod.x	排空
-api_pool_stop	api	thread_pool_stop	std/thread/mod.x	停止
-api_pool_pending	api	thread_pool_pending	std/thread/mod.x	观测
+name_api	section	## 2. 命名线程	set_name_self
+pool_api	section	## 3. 固定 worker 线程池	start
+verify	section	## 5. Gate	gate
+api_set_name	api	set_name_self	std/thread/mod.x	命名
+api_pool_start	api	start	std/thread/mod.x	启动池
+api_pool_submit	api	submit	std/thread/mod.x	提交
+api_pool_drain	api	drain	std/thread/mod.x	排空
+api_pool_stop	api	stop	std/thread/mod.x	停止
+api_pool_pending	api	pending	std/thread/mod.x	观测
 symbol_name_c	symbol	thread_set_name_self_c	compiler/seeds/runtime_thread_glue.from_x.c	C 命名
 symbol_pool_start_c	symbol	thread_pool_start_c	compiler/seeds/runtime_thread_glue.from_x.c	C 池
 symbol_pool_drain_c	symbol	thread_pool_drain_c	compiler/seeds/runtime_thread_glue.from_x.c	C drain
