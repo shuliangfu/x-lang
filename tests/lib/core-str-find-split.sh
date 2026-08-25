@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # core-str-find-split.sh — STD-131 manifest 与烟测辅助
+# Honesty 2026-08-25: runnable hard-green via gate prefer asm + pin LINK;
+# designed success score = 0 (tests/str/find_split.x). No Darwin soft SKIP.
 
 CORE_STR_FIND_SPLIT_PREFIX="${XLANG_STD131_CORE_STR_FIND_SPLIT_PREFIX:-xlang: [XLANG_STD131_CORE_STR_FIND_SPLIT]}"
 
@@ -31,7 +33,8 @@ core_str_find_split_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Compile+run find/split smoke. Prefer unique temp out; expect exit 0.
+# Kept for standalone callers; gate uses RUN_XLANG build + hard-fail path.
 core_str_find_split_run_smoke() {
   local xlang="$1"
   local src="$2"

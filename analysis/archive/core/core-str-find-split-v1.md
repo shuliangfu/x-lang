@@ -2,6 +2,7 @@
 
 > 状态：**定版（v1，零拷贝子视图）**
 > **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
+> **Honesty 2026-08-25:** runnable hard-green — prefer `xlang_asm` + pin `XLANG_LINK_XLANG`; `tests/str/find_split.x` exit 0 hard-fail (no Darwin soft SKIP). Formal surface `core/str/mod.o`.
 
 ## API
 
