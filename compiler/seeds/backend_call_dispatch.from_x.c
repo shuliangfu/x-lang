@@ -2633,6 +2633,74 @@ int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform
 
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-377 call：实现体始终 seed；public PREFER 时 thin forward */
+
+/*
+ * PLATFORM: MACOS|ARM64 AAPCS64 — when set, emit_call_args treats >16B MEMORY
+ * args as host-indirect (lea into GP), matching import METHOD / std_* export
+ * wrappers. Pure→pure local calls leave this 0 (stack MEMORY ↔ param_home).
+ * Set only around glue_asm_emit_call_with_cleanup for std_/core_ symbols.
+ */
+static int32_t g_emit_call_args_arm64_host_mem = 0;
+
+static int32_t glue_asm_call_sym_is_host_export_c(const uint8_t *cname, int32_t clen) {
+  if (!cname || clen < 4)
+    return 0;
+  /* "std_" */
+  if (cname[0] == 115 && cname[1] == 116 && cname[2] == 100 && cname[3] == 95)
+    return 1;
+  /* "core_" */
+  if (clen >= 5 && cname[0] == 99 && cname[1] == 111 && cname[2] == 114 && cname[3] == 101 &&
+      cname[4] == 95)
+    return 1;
+  return 0;
+}
+
+extern int32_t glue_arm64_mov_x0_to_x8_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern void pipeline_asm_emit_ctx_sret_active_set(int32_t v);
+extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t v);
+extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t v);
+
+/**
+ * PLATFORM: MACOS|ARM64 — address of host-indirect MEMORY arg into rax/x0.
+ * VAR: lea. Nested CALL/METHOD (or other non-lvalue): sret into frame temp, then lea.
+ * Root (ErrorChain nested chain_wrap SEGV): bare lvalue_eff_addr on CALL fails;
+ * export wrappers need &temp. G.7: one materialize for CALL host + METHOD is_mem=2.
+ */
+static int32_t glue_emit_arm64_host_mem_arg_addr_to_rax_c(struct ast_ASTArena *arena,
+                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                           void *ctx, int32_t arg_ref, int32_t sz,
+                                                           int32_t ta) {
+  int32_t ko;
+  int32_t nbytes;
+  int32_t off;
+  struct glue_AsmFuncCtxCall *ly;
+  if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 1)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  /* EXPR_VAR = 3 */
+  if (ko == 3)
+    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
+  ly = (struct glue_AsmFuncCtxCall *)ctx;
+  nbytes = (sz + 7) & ~7;
+  off = ly->next_offset + nbytes;
+  if (off < nbytes)
+    off = nbytes;
+  ly->next_offset = off;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+    return -1;
+  if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0)
+    return -1;
+  pipeline_asm_emit_ctx_sret_active_set(1);
+  pipeline_asm_emit_ctx_sret_home_off_set(off);
+  pipeline_asm_emit_ctx_sret_ret_sz_set(sz);
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+    pipeline_asm_emit_ctx_sret_active_set(0);
+    return -1;
+  }
+  pipeline_asm_emit_ctx_sret_active_set(0);
+  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+}
+
 int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                           int32_t nargs) {
@@ -2674,19 +2742,28 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       /*
        * wave603: AAPCS64 stack words include MEMORY multi-word (≡ x86 wave601),
        * not nargs-reg_max alone. Align 16 for arm64 SP.
+       * Host-export (g_emit_call_args_arm64_host_mem): MEMORY is lea→GP, not
+       * stack — skip MEMORY words in reserve (matches import METHOD is_mem=2).
        */
       int32_t nw = 0;
       int32_t gp_tmp = 0;
       int32_t j;
+      int32_t host_mem = g_emit_call_args_arm64_host_mem;
       for (j = 0; j < nargs; j++) {
         int32_t ar_j = pipeline_expr_call_arg_ref(arena, expr_ref, j);
         int32_t pty_j = glue_call_param_type_ref_at(arena, expr_ref, j);
         int32_t sz_j = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
         int32_t u_j = glue_sysv_arg_gp_units_from_size_c(sz_j);
         int32_t w_j = glue_sysv_arg_stack_words_c(sz_j, u_j);
-        if (glue_sysv_arg_is_memory_by_value_c(sz_j))
-          nw += w_j;
-        else if (u_j > 0 && gp_tmp + u_j <= reg_max)
+        if (glue_sysv_arg_is_memory_by_value_c(sz_j)) {
+          if (host_mem) {
+            /* host-indirect: 1 GP, no stack words */
+            if (gp_tmp + 1 <= reg_max)
+              gp_tmp += 1;
+          } else {
+            nw += w_j;
+          }
+        } else if (u_j > 0 && gp_tmp + u_j <= reg_max)
           gp_tmp += u_j;
         else
           nw += w_j > 0 ? w_j : 1;
@@ -2761,13 +2838,17 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       int32_t gp_units_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t spill_off_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t arg_sz_a64[GLUE_ASM_MAX_CALL_ARGS];
+      /* is_mem_a64: 0=reg/int, 1=stack MEMORY, 2=host-indirect lea (std_/core_ exports). */
       int32_t is_mem_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t gp_cur_a64 = 0; /* AAPCS64 sret uses x8 — no GP shift */
       int32_t stk_slot = 0;
+      int32_t host_mem = g_emit_call_args_arm64_host_mem;
       /*
-       * wave603: MEMORY (sz>16) is stack-only (units=0) — do NOT coerce to u=1
-       * (that forced lea/pointer in x0 while param_home expects by-value words).
-       * G.7: same classification as x86 wave601 / glue_sysv_arg_gp_units_from_size.
+       * wave603: MEMORY (sz>16) is stack-only for pure→pure (units=0) — do NOT
+       * coerce to u=1 (lea while param_home expects by-value words).
+       * Host-export (std_/core_): match import METHOD is_mem=2 lea→GP — export
+       * wrappers copy from [x0] (ErrorChain 20B bare CALL residual / SEGV).
+       * G.7: one discipline with METHOD host-indirect for host ABI symbols.
        */
       for (i = 0; i < nargs; i++) {
         int32_t pty_i;
@@ -2778,12 +2859,25 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
         sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
         arg_sz_a64[i] = sz_i;
-        is_mem_a64[i] = glue_sysv_arg_is_memory_by_value_c(sz_i);
+        is_mem_a64[i] = 0;
+        spill_off_a64[i] = -1;
         u = glue_sysv_arg_gp_units_from_size_c(sz_i);
-        if (is_mem_a64[i]) {
-          gp_start_a64[i] = -1;
-          gp_units_a64[i] = 0;
-          spill_off_a64[i] = -1;
+        if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+          if (host_mem) {
+            is_mem_a64[i] = 2;
+            if (gp_cur_a64 + 1 <= reg_max) {
+              gp_start_a64[i] = gp_cur_a64;
+              gp_units_a64[i] = 1;
+              gp_cur_a64 += 1;
+            } else {
+              gp_start_a64[i] = -1;
+              gp_units_a64[i] = 0;
+            }
+          } else {
+            is_mem_a64[i] = 1;
+            gp_start_a64[i] = -1;
+            gp_units_a64[i] = 0;
+          }
           continue;
         }
         if (u < 1)
@@ -2792,7 +2886,6 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
           u = 2;
         gp_start_a64[i] = gp_cur_a64;
         gp_units_a64[i] = u;
-        spill_off_a64[i] = -1;
         if (gp_cur_a64 + u <= reg_max)
           gp_cur_a64 += u;
         else
@@ -2805,8 +2898,14 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
-        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+        if (is_mem_a64[i] == 2) {
+          /* PLATFORM: MACOS|ARM64 — host export large POD addr into GP. */
+          if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(arena, elf_ctx, ctx, arg_ref, arg_sz_a64[i],
+                                                          ta) != 0)
+            return -1;
+        } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
           return -1;
+        }
         so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_a64[i]);
         if (so < 0)
           return -1;
@@ -2814,10 +2913,7 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       }
       /*
        * Stage 12.0.5: materialize stack/MEMORY places *before* final GP load.
-       * Root (rt_eq6 9-arg / AAPCS x0..x7 + 1 stack): after high→low load of spills,
-       * placing stack arg via emit→x0 + str [sp] clobbered arg0 (x0 ended as last imm
-       * 0x3e='>', SEGV on c[p]). x86 pushes stack first then loads GPs — same order.
-       * PLATFORM: MACOS|ARM64 AAPCS64 · SHARED freestanding multi-arg >8.
+       * Skip is_mem==2 (already lea'd into GP). PLATFORM: MACOS|ARM64 AAPCS64.
        */
       for (i = 0; i < nargs; i++) {
         int32_t words;
@@ -2827,7 +2923,9 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
-        if (is_mem_a64[i]) {
+        if (is_mem_a64[i] == 2)
+          continue;
+        if (is_mem_a64[i] == 1) {
           /* wave603: multi-word MEMORY by-value at [sp+stk*8]. */
           stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
                                                                    arg_sz_a64[i], ta, stk_slot * 8);
@@ -3562,8 +3660,20 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
                                                int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                int32_t nargs, uint8_t *cname, int32_t clen) {
   int32_t cleanup;
-  if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0)
+  int32_t host_mem = 0;
+  /*
+   * PLATFORM: MACOS|ARM64 — bare import CALL to std_ / core_ export wrappers
+   * must use host-indirect MEMORY (lea into GP), same as import METHOD. Local
+   * pure-to-pure keeps stack MEMORY (flag 0).
+   */
+  if (ta == 1 && glue_asm_call_sym_is_host_export_c(cname, clen))
+    host_mem = 1;
+  g_emit_call_args_arm64_host_mem = host_mem;
+  if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0) {
+    g_emit_call_args_arm64_host_mem = 0;
     return -1;
+  }
+  g_emit_call_args_arm64_host_mem = 0;
   if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0)
     return -1;
   /*
@@ -3576,7 +3686,8 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     if (nw > 0 && (nw & 1))
       cleanup += 8;
   } else if (ta == 1 && arena && expr_ref > 0) {
-    /* wave603: arm64 cleanup twin of MEMORY-aware reserve (16-aligned). */
+    /* wave603: arm64 cleanup twin of MEMORY-aware reserve (16-aligned).
+     * Host-export: MEMORY is GP lea — omit MEMORY stack words. */
     int32_t nw = 0;
     int32_t gp_tmp = 0;
     int32_t j;
@@ -3587,9 +3698,14 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
       int32_t sz_j = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
       int32_t u_j = glue_sysv_arg_gp_units_from_size_c(sz_j);
       int32_t w_j = glue_sysv_arg_stack_words_c(sz_j, u_j);
-      if (glue_sysv_arg_is_memory_by_value_c(sz_j))
-        nw += w_j;
-      else if (u_j > 0 && gp_tmp + u_j <= reg_max_a)
+      if (glue_sysv_arg_is_memory_by_value_c(sz_j)) {
+        if (host_mem) {
+          if (gp_tmp + 1 <= reg_max_a)
+            gp_tmp += 1;
+        } else {
+          nw += w_j;
+        }
+      } else if (u_j > 0 && gp_tmp + u_j <= reg_max_a)
         gp_tmp += u_j;
       else
         nw += w_j > 0 ? w_j : 1;
@@ -4419,8 +4535,9 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               if (arg_ref == 0 || is_mem[i] == 1 || is_stk[i])
                 continue;
               if (is_mem[i] == 2) {
-                /* >16B host-C: pass &arg in GP (AAPCS large composite / std_string_* wrappers). */
-                if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+                /* >16B host-C: pass &arg in GP (nested CALL sret→temp then lea). */
+                if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(arena, elf_ctx, ctx, arg_ref, arg_sz[i],
+                                                                ta) != 0)
                   return -1;
               } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
                 return -1;

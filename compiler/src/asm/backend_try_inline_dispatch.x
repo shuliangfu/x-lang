@@ -96,6 +96,7 @@ export extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: 
 export extern "C" function backend_fold_func_x_plus_k_chain(arena: *u8, mod: *u8, fi: i32, depth: i32): i32;
 export extern "C" function pipeline_asm_emit_expr_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, ta: i32): i32;
+export extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
 export extern "C" function backend_fold_func_returns_param0_single_field(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_fold_func_returns_param0_field_sum(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf: *u8, ta: i32): i32;
@@ -1765,6 +1766,14 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
     if (callee_arena == 0) { return 0; }
     if (callee_mod == 0) { return 0; }
+    /*
+     * PLATFORM: SHARED — refuse single-field inline across import/dep modules.
+     * Bare CALL to std_* must emit the real symbol (seed twin).
+     */
+    let caller_mod: *u8 = glue_asm_ctx_module_ref_c(ctx);
+    if (caller_mod != 0 as *u8) {
+      if (callee_mod != caller_mod) { return 0; }
+    }
     // PLATFORM: SHARED — fold returns 1=match, 0=no-match, -1=stub/error.
     // Historic: ==0 treated weak return-(-1) stubs as match → field0-only emit.
     if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0) { return 0; }

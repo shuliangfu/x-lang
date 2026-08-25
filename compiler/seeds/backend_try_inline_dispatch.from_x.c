@@ -1381,6 +1381,15 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
   }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
+  /*
+   * PLATFORM: SHARED — do not single-field-inline across import/dep modules.
+   * Import METHOD already returns before try_inline; bare CALL to std_* looked
+   * up the dep module and could fold the wrong helper (chain_leaf/root → depth
+   * load). G.7: same-module only; host CALL emits the real symbol (arm64
+   * host-indirect MEMORY via emit_call_with_cleanup).
+   */
+  if (ctx && ctx->module_ref && callee_mod && callee_mod != ctx->module_ref)
+    return 0;
   /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
   if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0)
     return 0;

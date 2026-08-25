@@ -120,24 +120,22 @@ fi
 
 OUT=/tmp/xlang_exc_error_chain
 echo "=== EXC-004: chain smoke (XLANG=$XLANG_BIN) ==="
-# 2026-08-25: needles hard (fk0 k==8); ErrorChain 20B asm ABI still residual.
-# DOC/manifest hard; runnable observe until sret/field Cap closes.
+# 2026-08-25: host-indirect for std_* MEMORY + refuse cross-module single-field
+# inline; nested CALL-as-MEMORY still Cap (smoke uses lets). Hard-fail runnable.
 set +e
 "$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_exc_chain_compile.log 2>&1
 _comp_ec=$?
 set -e
 if [ "$_comp_ec" -ne 0 ]; then
-  echo "exc-error-chain SKIP smoke compile ec=$_comp_ec (ErrorChain ABI residual; DOC+manifest OK)" >&2
+  echo "exc-error-chain FAIL smoke compile ec=$_comp_ec" >&2
   cat /tmp/xlang_exc_chain_compile.log >&2 || true
-  echo "exc-error-chain gate OK"
-  exit 0
+  exit 1
 fi
 EC=0
 "$OUT" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -ne 0 ]; then
-  echo "exc-error-chain SKIP smoke exit=$EC (ErrorChain 20B asm ABI residual; DOC+manifest OK)" >&2
-  echo "exc-error-chain gate OK"
-  exit 0
+  echo "exc-error-chain FAIL smoke exit=$EC" >&2
+  exit 1
 fi
 echo "exc-error-chain smoke OK"
 

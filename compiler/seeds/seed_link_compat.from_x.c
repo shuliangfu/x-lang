@@ -275,15 +275,16 @@ int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod
   body_ref = pipeline_module_func_body_ref_at(mod, func_idx);
   if (body_ref <= 0)
     return 0;
-  fin = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
-  if (fin != 0) {
-    if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
-      op_e = pipeline_expr_unary_operand_ref_at(arena, fin);
-      if (op_e != 0)
-        return op_e;
-    }
-    return fin;
-  }
+  /*
+   * PLATFORM: SHARED — unique-return only for single-field / x+k folds.
+   * Historic: final_expr short-circuit returned the last `return` (or even a
+   * bare FIELD_ACCESS) while earlier return stmts still existed. That made
+   * multi-return helpers like std.error.chain_leaf match as
+   * `return param0.<one field>` and try_inline emitted a wrong offset-0 load
+   * (depth) → EXC error_chain_smoke exit=2. G.7: count every RETURN first;
+   * final_expr RETURN only fills when stmts had none; bare final only when
+   * the body is expression-shaped (zero returns).
+   */
   nes = ast_ast_block_num_expr_stmts(arena, body_ref);
   found = 0;
   op_ref = 0;
@@ -295,6 +296,27 @@ int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod
         found = found + 1;
         op_ref = op_e;
       }
+    }
+  }
+  fin = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
+  if (fin != 0) {
+    if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
+      op_e = pipeline_expr_unary_operand_ref_at(arena, fin);
+      if (op_e != 0) {
+        if (found == 0) {
+          found = 1;
+          op_ref = op_e;
+        } else {
+          /* final return + earlier returns → multi-return; refuse fold. */
+          return 0;
+        }
+      }
+    } else if (found == 0) {
+      /* Expression-bodied function (no return keyword). */
+      return fin;
+    } else {
+      /* Non-return final with return stmts — ambiguous; refuse. */
+      return 0;
     }
   }
   return found == 1 ? op_ref : 0;

@@ -2065,14 +2065,11 @@ export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, fun
 
     let body_ref: i32 = pipeline_asm_module_func_body_ref_at(mod, func_idx);
     if (body_ref <= 0) { return 0; }
-    let fin: i32 = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
-    if (fin != 0) {
-      if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
-        let op_f: i32 = pipeline_expr_unary_operand_ref_at(arena, fin);
-        if (op_f != 0) { return op_f; }
-      }
-      return fin;
-    }
+    /*
+     * PLATFORM: SHARED — unique-return only (seed twin seed_link_compat).
+     * Historic final_expr short-circuit ignored earlier RETURNs → multi-return
+     * helpers (e.g. chain_leaf) falsely matched single-field inline.
+     */
     let nes: i32 = ast.ast_block_num_expr_stmts(arena, body_ref);
     let found: i32 = 0;
     let op_ref: i32 = 0;
@@ -2087,6 +2084,24 @@ export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, fun
         }
       }
       ei = ei + 1;
+    }
+    let fin: i32 = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
+    if (fin != 0) {
+      if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
+        let op_f: i32 = pipeline_expr_unary_operand_ref_at(arena, fin);
+        if (op_f != 0) {
+          if (found == 0) {
+            found = 1;
+            op_ref = op_f;
+          } else {
+            return 0;
+          }
+        }
+      } else if (found == 0) {
+        return fin;
+      } else {
+        return 0;
+      }
     }
     if (found == 1) { return op_ref; }
     return 0;
