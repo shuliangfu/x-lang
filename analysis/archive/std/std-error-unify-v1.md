@@ -34,15 +34,28 @@
 - 矩阵：`tests/baseline/std-error-unify.tsv`
 - 分层：`tests/baseline/exc-error-code-layer.tsv`
 - last_error 扩展：`tests/baseline/std-error-map.tsv`（STD-020）
+- EXC 分层 / Result RFC（已归档）：`analysis/archive/exc/exc-error-code-layer-v1.md` · `analysis/archive/exc/exc-result-error-v1-rfc.md`（**勿**再依赖顶层 `analysis/exc-*.md` 化石）
 
 ---
 
-## 4. 验收
+## 4. Gate
+
+### 假权威诚实验收（2026-08-25）
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
+- `xlang check` **观测**（自举期 check 闸门暂停 2026-08-05）；不硬失败。
+- 可跑烟测 `tests/std/error_unify_smoke.x` exit **0** 硬失败；有原生 xlang 时 **禁 soft SKIP**。
+- EXC DOC 依赖指向 `analysis/archive/exc/`（顶层化石已迁走）。
+- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
+
+```
+xlang: [XLANG_STD_ERROR_UNIFY] status=ok check=0|1 run=1 skip=0
+std-error-unify gate OK
+```
 
 - API：`std/error/mod.x`（`error_base_*` / `<mod>_err_*` / helper）
 - 烟测：`tests/std/error_unify_smoke.x`
-- 门禁：`tests/run-std-error-unify-gate.sh`
-- 报告：`std-error-unify gate OK`
+- 门禁：`tests/run-std-error-unify-gate.sh` · lib：`tests/lib/std-error-unify.sh`
 
 ---
 
