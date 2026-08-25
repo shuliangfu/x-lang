@@ -391,7 +391,8 @@
 | STD-029 net-dns soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`resolve_dns.x`／`main.x` exit0 硬失败；双端 L2 |
 | STD-043 thread-pool soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate` honesty；API 锚对齐产品 `set_name_self`／`start`／`submit`／`drain`／`stop`／`pending`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`pool_roundtrip.x`／`main.x` exit0 硬失败；双端 L2 |
 | STD-091 io-context soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`context_read_write.x` exit0 硬失败；报告 `check=`／`run=`／`skip=`；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | STD-091 闭后仍有同型假权威：backtrace-symbolicate 等 prefer-c 已探针 asm 绿；channel-unbounded／http-reqresp／async-context 仍 UNDEF／产品红；mac512 产品 UNDEF 非软。另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
+| STD-052 backtrace-symbolicate soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate`；smoke_c→seed；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；format_hex 按字节；C gold＋`.x` exit0 硬失败（`.x` 接受 hex 名槽）；报告 `check=`／`c_gold=`／`x=`／`skip=`；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | prefer-c 已绿闸已空；仍跳过 UNDEF／产品红（channel-unbounded／http-reqresp／async-context／mac512）。另残 asm ld `--export-dynamic`（backtrace 具名；非软）＋by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
