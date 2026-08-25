@@ -1,7 +1,7 @@
 # STD-098/STD-102/STD-104/STD-108：std.channel select v1
 
-> 更新时间：2026-06-27  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · Gate honesty soft→硬绿  
 > 关联：`tests/baseline/std-channel-select.tsv`、`tests/channel/select_*.x`
 
 ---
@@ -87,15 +87,32 @@
 
 ## 3. 实现要点
 
-- C 层：`channel_select_*_c`（`compiler/src/asm/runtime_channel_glue.c`）
+- C 层：`channel_select_*_c`（`compiler/seeds/runtime_channel_glue.from_x.c`）
 - 阻塞路径：轮询 try + `pthread_cond_timedwait`（`SELECT_TIMEDWAIT_MS = 5`），避免多 mutex 死锁
 - Unix 需 `-lpthread`（与现有 channel 一致）；**Windows 为 stub**（返回 `-1`，烟测 skip）
 
 ---
 
-## 4. 验证与门禁
+## 4. Gate
 
 ```bash
-make -C compiler ../std/channel/channel.o
 ./tests/run-std-channel-select-gate.sh
 ```
+
+Honesty（2026-08-26）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- 六路 `select_*.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
+- 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
+
+manifest：`tests/baseline/std-channel-select.tsv`
+
+```
+xlang: [XLANG_STD_CHANNEL_SELECT] status=ok check=0|1 run=1 skip=0
+```
+
+### Changelog
+
+- 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 4. Gate`；未啃产品 `std/channel`）。
+- 2026-06-27：v1 select recv／send／mixed 双路＋N 路定版。

@@ -1,9 +1,11 @@
 # STD-098/102/104/108 std.channel select manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
+# report check=/run=/skip=. Section ## 4. Gate in archive DOC.
 # min_apis	13
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-channel-select-v1.md
 select_api	section	## 2. select 语义	select_try_recv
-verify	section	## 4. 验证与门禁	analysis/archive/std/std-channel-select-v1.md
+verify	section	## 4. Gate	analysis/archive/std/std-channel-select-v1.md
 api_try2	api	select_try_recv	std/channel/mod.x	非阻塞双路 recv
 api_recv2	api	select_recv	std/channel/mod.x	阻塞双路 recv
 api_try_n	api	select_try_recv_n	std/channel/mod.x	非阻塞 N 路 recv
@@ -36,4 +38,4 @@ symbol_mixed2_c	symbol	channel_select_mixed_2_c	compiler/seeds/runtime_channel_g
 symbol_try_mixed_n_c	symbol	channel_select_try_mixed_n_c	compiler/seeds/runtime_channel_glue.from_x.c	C 混合 N try
 symbol_mixed_n_c	symbol	channel_select_mixed_n_c	compiler/seeds/runtime_channel_glue.from_x.c	C 混合 N block
 symbol_dirs_c	symbol	channel_select_dirs_set_c	compiler/seeds/runtime_channel_glue.from_x.c	方向 C
-gate	script	run-std-channel-select-gate.sh	tests/run-std-channel-select-gate.sh
+gate	script	run-std-channel-select-gate.sh	tests/run-std-channel-select-gate.sh	## 4. Gate
