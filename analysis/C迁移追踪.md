@@ -381,7 +381,8 @@
 | STD-035 json-serialize soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`object_array_roundtrip.x` exit0 硬失败；双端 L2 |
 | STD-036 csv-row soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`row_roundtrip.x`＋`main.x` exit0 硬失败；双端 L2 |
 | STD-135 datetime-timezone soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`timezone.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | STD-135 闭后仍有同型假权威：crypto／channel／http／async-context 等 prefer-c 闸。另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
+| STD-098 channel-select soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；六路 `select_*.x` exit0 硬失败；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | STD-098 闭后仍有同型假权威：crypto／channel-unbounded／http／async-context 等 prefer-c 闸。另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
