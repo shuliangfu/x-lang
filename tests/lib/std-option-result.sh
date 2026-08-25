@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # std-option-result.sh — STD-080/081 manifest 与烟测辅助
+# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
 
 STD_OPTION_RESULT_PREFIX="${XLANG_STD_OPTION_RESULT_PREFIX:-xlang: [XLANG_STD_OPTION_RESULT]}"
 
@@ -55,9 +56,10 @@ std_option_result_run_smoke() {
 
 std_option_result_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD_OPTION_RESULT_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_OPTION_RESULT_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
 
 std_option_result_check_manifest() {

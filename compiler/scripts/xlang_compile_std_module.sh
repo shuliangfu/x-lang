@@ -112,6 +112,10 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — STD-079 roundtrip unique UNDEF (std_security_*).
     # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
+    # PLATFORM: SHARED — STD-080/081 roundtrip unique UNDEF (std_option_* / std_result_*).
+    # Was missing formal_mod → import METHOD UNDEF (core/option alone exports core_option_*).
+    ../std/option/option.o|std/option/option.o|*std/option/option.o) printf '%s' "std/option/option.o" ;;
+    ../std/result/result.o|std/result/result.o|*std/result/result.o) printf '%s' "std/result/result.o" ;;
     # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
     # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
     ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
@@ -231,6 +235,11 @@ formal_mod_spec_for_key() {
     # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/url: mod.x prefix + --bare-impl *_c.
     std/security/security.o) printf '%s' "mod|1|../std/security/mod.x|../std/security/security.x" ;;
+    # PLATFORM: SHARED — std.option / std.result product faces (STD-080/081 roundtrip).
+    # Wrappers over core.option / core.result; mod.x only (co-emits core bodies).
+    # G.7: mod|0 like channel/core.option (no bare-impl second file).
+    std/option/option.o) printf '%s' "mod|0|../std/option/mod.x" ;;
+    std/result/result.o) printf '%s' "mod|0|../std/result/mod.x" ;;
     # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
@@ -328,6 +337,8 @@ formal_mod_all_keys() {
     std/cache/cache.o \
     std/url/url.o \
     std/security/security.o \
+    std/option/option.o \
+    std/result/result.o \
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \

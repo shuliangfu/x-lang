@@ -57,6 +57,8 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/cache/cache.o \
 	../std/url/url.o \
 	../std/security/security.o \
+	../std/option/option.o \
+	../std/result/result.o \
 	../std/datetime/datetime.o \
 	../std/db/sqlite/sqlite.o \
 	../std/db/kv/kv.o \

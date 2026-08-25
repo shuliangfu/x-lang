@@ -2677,8 +2677,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 24; +security (=heavy return 25). */
-  return 25;
+  /* PLATFORM: SHARED — was 25; +option +result (=heavy return 27). */
+  return 27;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -2739,6 +2739,12 @@ const char *labi_fk0_rel_at(int k) {
   /* PLATFORM: SHARED — mirror heavy k24 (STD-079 std_security_*). */
   if (k == 24)
     return "std/security/security.o";
+  /* PLATFORM: SHARED — mirror heavy k25 (STD-080 std_option_*). */
+  if (k == 25)
+    return "std/option/option.o";
+  /* PLATFORM: SHARED — mirror heavy k26 (STD-081 std_result_*). */
+  if (k == 26)
+    return "std/result/result.o";
   return NULL;
 }
 
@@ -2810,6 +2816,12 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — security formal public surface (mirror heavy). */
   if (k == 24)
     return 16;
+  /* PLATFORM: SHARED — option formal public surface (mirror heavy). */
+  if (k == 25)
+    return 11;
+  /* PLATFORM: SHARED — result formal public surface (mirror heavy). */
+  if (k == 26)
+    return 11;
   return 0;
 }
 
@@ -3601,6 +3613,58 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_security_sensitive_buf_init";
     if (i == 15)
       return "std_security_sensitive_buf_wipe";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/option/option.o exact UNDEF needles (fk0 k==25; mirror heavy). */
+  if (k == 25) {
+    if (i == 0)
+      return "std_option_none";
+    if (i == 1)
+      return "std_option_some";
+    if (i == 2)
+      return "std_option_unwrap_or";
+    if (i == 3)
+      return "std_option_is_some";
+    if (i == 4)
+      return "std_option_is_none";
+    if (i == 5)
+      return "std_option_map";
+    if (i == 6)
+      return "std_option_and_then";
+    if (i == 7)
+      return "std_option_or";
+    if (i == 8)
+      return "std_option_from_result_Result_i32";
+    if (i == 9)
+      return "std_option_from_result_Result_u8";
+    if (i == 10)
+      return "std_option_to_result";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/result/result.o exact UNDEF needles (fk0 k==26; mirror heavy). */
+  if (k == 26) {
+    if (i == 0)
+      return "std_result_ok";
+    if (i == 1)
+      return "std_result_err";
+    if (i == 2)
+      return "std_result_is_ok";
+    if (i == 3)
+      return "std_result_is_err";
+    if (i == 4)
+      return "std_result_unwrap_or";
+    if (i == 5)
+      return "std_result_map";
+    if (i == 6)
+      return "std_result_and_then";
+    if (i == 7)
+      return "std_result_or_else";
+    if (i == 8)
+      return "std_result_from_error_code";
+    if (i == 9)
+      return "std_result_from_value";
+    if (i == 10)
+      return "std_result_err_code";
     return NULL;
   }
   return NULL;
@@ -4587,6 +4651,33 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 (void)xlang_ensure_formal_std_make_o(root_r, "std/random/random.o",
                                                     "../std/random/random.o");
             link_abi_asm_ld_push_obj(NULL, link_argv0, "std/random/random.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — std/result/result.o (fk0) U std_error_ok after push;
+     * user.o may only have std_result_* so fk0 k8 error gate never fires.
+     * G.7: mirror security→crypto (STD-080/081 roundtrip).
+     */
+    if (argv && la) {
+        int need_err = 0;
+        int have_err = 0;
+        int ei;
+        for (ei = 0; ei < *la && argv[ei]; ei++) {
+            const char *e = argv[ei];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "std/error/error.o"))
+                have_err = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "std_error_ok"))
+                need_err = 1;
+        }
+        if (need_err && !have_err) {
+            const char *root_e = xlang_repo_root_from_argv0(link_argv0);
+            if (root_e && root_e[0])
+                (void)xlang_ensure_formal_std_make_o(root_e, "std/error/error.o",
+                                                    "../std/error/error.o");
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o",
                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }

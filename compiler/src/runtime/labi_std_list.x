@@ -15,15 +15,16 @@
 // MATH=17 SQLITE=18 DYNLIB=19 HTTP=20 TASK_SPECIAL=30
 
 /** Return the number of default std link plan steps (must match step_at cases).
- * PLATFORM: SHARED — pure table; seed labi_std_list.from_x.c must stay in sync. */
+ * PLATFORM: SHARED — pure table; seed labi_std_list.from_x.c must stay in sync.
+ * @return i32 — 62 (was 60; +std/option + std/result STD-080/081 2026-08-26) */
 #[no_mangle]
 export function labi_std_plan_count(): i32 {
-  return 60;
+  return 62;
 }
 
 /** Fill one plan step: op / rel path / flag_kind. Returns 1 if i is in range.
  * out: C int* / const char** / int*; .x writes via *i32 + *usize + *i32.
- * PLATFORM: SHARED — includes std/vec + std/fs (fk0) formal; task remains last. */
+ * PLATFORM: SHARED — includes std/vec + std/fs + option/result (fk0) formal; task remains last. */
 #[no_mangle]
 export function labi_std_plan_step_at(
   i: i32, op_out: *i32, rel_out: *usize, flag_kind_out: *i32
@@ -31,7 +32,7 @@ export function labi_std_plan_step_at(
   if (i < 0) {
     return 0;
   }
-  if (i >= 60) {
+  if (i >= 62) {
     return 0;
   }
   if (i == 0) {
@@ -803,7 +804,35 @@ export function labi_std_plan_step_at(
     }
     return 1;
   }
+  // PLATFORM: SHARED — std/option/option.o (STD-080); fk0 gated std_option_*.
   if (i == 59) {
+    if (op_out != 0 as *i32) {
+      op_out[0] = 1;
+    }
+    if (rel_out != 0 as *usize) {
+      let p: *u8 = "std/option/option.o";
+      rel_out[0] = p as usize;
+    }
+    if (flag_kind_out != 0 as *i32) {
+      flag_kind_out[0] = 0;
+    }
+    return 1;
+  }
+  // PLATFORM: SHARED — std/result/result.o (STD-081); fk0 gated std_result_*.
+  if (i == 60) {
+    if (op_out != 0 as *i32) {
+      op_out[0] = 1;
+    }
+    if (rel_out != 0 as *usize) {
+      let p: *u8 = "std/result/result.o";
+      rel_out[0] = p as usize;
+    }
+    if (flag_kind_out != 0 as *i32) {
+      flag_kind_out[0] = 0;
+    }
+    return 1;
+  }
+  if (i == 61) {
     if (op_out != 0 as *i32) {
       op_out[0] = 30;
     }
@@ -820,10 +849,11 @@ export function labi_std_plan_step_at(
 }
 
 /** Pure: count of OP_STD entries with std/ prefix (audit / unit).
- * PLATFORM: SHARED — includes std/vec/vec.o + std/fs/fs.o. */
+ * PLATFORM: SHARED — includes std/vec/vec.o + std/fs/fs.o + option/result.
+ * @return i32 — 45 (was 43; +option +result STD-080/081) */
 #[no_mangle]
 export function labi_std_default_std_rel_count(): i32 {
-  return 43;
+  return 45;
 }
 
 /** Exported function `labi_std_default_std_rel_at`.
@@ -1006,6 +1036,14 @@ export function labi_std_default_std_rel_at(j: i32): *u8 {
   }
   if (j == 42) {
     let p: *u8 = "std/fs/fs.o";
+    return p;
+  }
+  if (j == 43) {
+    let p: *u8 = "std/option/option.o";
+    return p;
+  }
+  if (j == 44) {
+    let p: *u8 = "std/result/result.o";
     return p;
   }
   return 0 as *u8;

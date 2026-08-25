@@ -3,16 +3,19 @@
 # min_apis	8
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-option-result-v1.md
 api_doc	section	## 2. API	analysis/archive/std/std-option-result-v1.md
-api_ok	api	ok_i32	std/result/mod.x	构造
-api_err	api	err_i32	std/result/mod.x	构造
-api_is_ok	api	is_ok_i32	std/result/mod.x	判定
-api_map	api	result_map_i32	std/result/mod.x	组合
-api_and_then	api	result_and_then_i32	std/result/mod.x	组合
-api_or_else	api	result_or_else_i32	std/result/mod.x	组合
-api_from_err	api	result_from_code	std/result/mod.x	error桥
-api_from_val	api	result_from_value_i32	std/result/mod.x	error桥
-api_err_code	api	result_err_code	std/result/mod.x	提取码
+gate_doc	section	## 3. Gate	analysis/archive/std/std-option-result-v1.md
+api_ok	api	ok	std/result/mod.x	构造（产品短名；非化石 ok_i32）
+api_err	api	err	std/result/mod.x	构造
+api_is_ok	api	is_ok	std/result/mod.x	判定
+api_is_err	api	is_err	std/result/mod.x	判定
+api_unwrap	api	unwrap_or	std/result/mod.x	解包
+api_map	api	map	std/result/mod.x	组合
+api_and_then	api	and_then	std/result/mod.x	组合
+api_or_else	api	or_else	std/result/mod.x	组合
+api_from_err	api	from_error_code	std/result/mod.x	error 桥
+api_from_val	api	from_value	std/result/mod.x	error 桥
+api_err_code	api	err_code	std/result/mod.x	提取码
 impl_x	file	std/result/mod.x	std/result/mod.x
 smoke_x	smoke	tests/std-option-result/roundtrip.x	round-trip
-lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh
-gate	script	run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh
+lib	script	tests/lib/std-option-result.sh	tests/lib/std-option-result.sh
+gate	script	tests/run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh

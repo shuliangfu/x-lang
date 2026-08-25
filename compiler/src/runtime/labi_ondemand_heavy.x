@@ -302,17 +302,17 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 25 (was 24; +security STD-079 roundtrip residual 2026-08-26)
+ * @return i32 — 27 (was 25; +option/+result STD-080/081 roundtrip residual 2026-08-26)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
  * run-unicode / cli_subcommand / datetime_iana / std_config_* / std_cache_* /
- * std_url_* / std_security_* history: formal .o existed or bare impl only, plan
- * step present, fk0 table missed).
+ * std_url_* / std_security_* / std_option_* / std_result_* history: formal .o
+ * existed or bare impl only, plan step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 24 (+url); +k24 std/security/security.o.
-  return 25;
+  // PLATFORM: SHARED — was 25 (+security); +k25 option +k26 result.
+  return 27;
 }
 
 /**
@@ -449,6 +449,18 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/security/security.o";
     return p;
   }
+  // PLATFORM: SHARED — std/option/option.o was missing from plan+fk0 →
+  // never push formal option.o (STD-080 roundtrip BLD001 UNDEF std_option_*).
+  if (k == 25) {
+    let p: *u8 = "std/option/option.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std/result/result.o was missing from plan+fk0 →
+  // never push formal result.o (STD-081 roundtrip BLD001 UNDEF std_result_*).
+  if (k == 26) {
+    let p: *u8 = "std/result/result.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -564,6 +576,16 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // Count 16 = full export surface in std/security/mod.x (G.7 complete one table).
   if (k == 24) {
     return 16;
+  }
+  // PLATFORM: SHARED — option formal public surface (std_option_*).
+  // Count 11 = full export surface in std/option/mod.x (incl. from_result overloads).
+  if (k == 25) {
+    return 11;
+  }
+  // PLATFORM: SHARED — result formal public surface (std_result_*).
+  // Count 11 = full export surface in std/result/mod.x (G.7 complete one table).
+  if (k == 26) {
+    return 11;
   }
   return 0;
 }
@@ -2065,6 +2087,104 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 15) {
         let p: *u8 = "std_security_sensitive_buf_wipe";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/option/option.o exact UNDEF needles (fk0 k==25).
+    // Count 11 = full export surface (from_result overloads mangled).
+    if (k == 25) {
+      if (i == 0) {
+        let p: *u8 = "std_option_none";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_option_some";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_option_unwrap_or";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_option_is_some";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_option_is_none";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_option_map";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_option_and_then";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_option_or";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_option_from_result_Result_i32";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_option_from_result_Result_u8";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_option_to_result";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/result/result.o exact UNDEF needles (fk0 k==26).
+    // Count 11 = full export surface in std/result/mod.x.
+    if (k == 26) {
+      if (i == 0) {
+        let p: *u8 = "std_result_ok";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_result_err";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_result_is_ok";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_result_is_err";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_result_unwrap_or";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_result_map";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_result_and_then";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_result_or_else";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_result_from_error_code";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_result_from_value";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_result_err_code";
         return p;
       }
       return 0 as *u8;
@@ -4960,6 +5080,59 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
         }
         unsafe {
           let _prnd: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/random/random.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+
+    // --- error companion after result.o push ---
+    // PLATFORM: SHARED — std/result/result.o (fk0) U std_error_ok after push;
+    // user.o may only have std_result_* so fk0 k8 error gate never fires.
+    // G.7: mirror security→crypto / cache→time_os (STD-080/081 roundtrip).
+    let need_err: i32 = 0;
+    let have_err: i32 = 0;
+    let ei: i32 = 0;
+    let la_e: i32 = la[0];
+    while (ei < la_e) {
+      let ee: *u8 = argv[ei];
+      if (ee == 0 as *u8) {
+        ei = la_e;
+      }
+      if (ee != 0 as *u8) {
+        let is_oe: i32 = 0;
+        unsafe {
+          is_oe = link_abi_ld_argv_entry_is_obj(ee);
+        }
+        if (is_oe != 0) {
+          let has_e: i32 = labi_od_cstr_contains(ee, "std/error/error.o");
+          if (has_e != 0) {
+            have_err = 1;
+          }
+          let u_e: i32 = 0;
+          unsafe {
+            u_e = xlang_link_obj_needs_undef_sym(ee, "std_error_ok");
+          }
+          if (u_e != 0) {
+            need_err = 1;
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    if (need_err != 0) {
+      if (have_err == 0) {
+        let root_e: *u8 = 0 as *u8;
+        unsafe {
+          root_e = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_e != 0 as *u8) {
+          if (root_e[0] != 0) {
+            unsafe {
+              let _eerr: i32 = xlang_ensure_formal_std_make_o(root_e, "std/error/error.o", "../std/error/error.o");
+            }
+          }
+        }
+        unsafe {
+          let _perr: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/error/error.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
       }
     }
