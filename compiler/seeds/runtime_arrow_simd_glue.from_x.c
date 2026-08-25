@@ -20,14 +20,17 @@
 #define ARROW_HAVE_NEON 1
 #endif
 
-/** 列内存布局（与 arrow.x ArrowColumnMem ABI 一致）。 */
+/* PLATFORM: SHARED — column header ABI twin of std/db/arrow/arrow.x ArrowColumnMem.
+ * Pack is exactly 32 bytes: data_owned before pointers so calloc(1,32) in arrow.x
+ * covers the owned flag. Old order (owned after pointers) put owned at offset 32
+ * (OOB) → destroy free()'d adopt/stack buffers on Darwin. */
 typedef struct {
     int32_t type_id;
     int32_t length;
     int32_t capacity;
+    int32_t data_owned;
     void *data;
     uint8_t *null_bitmap;
-    int32_t data_owned;
 } arrow_column_t;
 
 #define ARROW_TYPE_I32 1
