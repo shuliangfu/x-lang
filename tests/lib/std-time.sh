@@ -1,45 +1,76 @@
 #!/usr/bin/env bash
-# std-time.sh — STD-005 共享：std.time API 与烟测辅助
+# std-time.sh — STD-005 manifest helpers (precision / timezone)
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_time_api_count [manifest_tsv]
 #   std_time_has_api MOD_X fn_name
-#   std_time_run_smoke XLANG_BIN smoke_x
+#   std_time_run_smoke XLANG_BIN smoke_x tag
+#   std_time_emit_report status check_ok main_ok precision_ok skip
+# 2026-08-26: report check=/main=/precision=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology.
 
-# 统计 manifest 中 api 行数（不含注释）。
+STD_TIME_PREFIX="${XLANG_STD005_TIME_PREFIX:-xlang: [XLANG_STD005_TIME]}"
+
+# Count api rows in manifest (comments excluded).
 std_time_api_count() {
   local man="${1:-tests/baseline/std-time-manifest.tsv}"
   awk -F'\t' '$2=="api" && $1 !~ /^#/ { n++ } END { print n+0 }' "$man"
 }
 
-# 检查 mod.x 是否导出指定函数。
+# Check that mod.x exports the named function.
 std_time_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 编译并运行烟测 .x；期望退出码 0。
+# Compile and run smoke .x; expect exit 0.
+# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
+# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# PLATFORM: SHARED archaeology — product honesty path.
 std_time_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_time_${tag}_$$"
+  local log="/tmp/xlang_std_time_build_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-time FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-time FAIL: compile $src" >&2
+      tail -12 "$log" 2>/dev/null >&2 || true
+      rm -f "$exe" "$log"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-time FAIL: compile $src" >&2
+      tail -12 "$log" 2>/dev/null >&2 || true
+      rm -f "$exe" "$log"
+      return 1
+    fi
   fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
+  set +e
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
-    echo "std-time FAIL: $tag exit=$ec ($src)" >&2
+    echo "std-time FAIL: run $src exit=$ec" >&2
     return 1
   fi
   return 0
+}
+
+# Structured report line (honesty: check=/main=/precision=/skip=).
+std_time_emit_report() {
+  local status="$1"
+  local check_ok="$2"
+  local main_ok="$3"
+  local precision_ok="$4"
+  local skip="$5"
+  echo "${STD_TIME_PREFIX} status=${status} check=${check_ok} main=${main_ok} precision=${precision_ok} skip=${skip}"
 }
