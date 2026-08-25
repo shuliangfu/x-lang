@@ -1,5 +1,14 @@
 # STD-130 std.random PRNG manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	5
+# 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational;
+# runnable rt/main exit0 hard; report check=/rt=/main=/skip=.
 min_apis	5
+goal	section	## 1. 目标		PRNG SplitMix64
+boundary	section	## 2. 与 CSPRNG 的边界		CSPRNG vs PRNG
+legacy_gate	section	## 3. 门禁		legacy
+link	section	## 4. 链接		on-demand random.o
+verify	section	## 5. Gate		gate
 api_init	api	seed	std/random/mod.x
 api_next_u64	api	step	std/random/mod.x
 api_fill	api	fill	std/random/mod.x
@@ -8,4 +17,6 @@ api_smoke	api	rng_smoke	std/random/mod.x
 struct_rng	symbol	Rng	std/random/mod.x
 symbol_smoke_c	symbol	random_rng_smoke_c	std/random/random.x
 smoke_x	smoke	tests/random/rng_roundtrip.x
+smoke_main	smoke	tests/random/main.x
+lib	script	lib/std-random-rng.sh	tests/lib/std-random-rng.sh
 gate	script	run-std-random-rng-gate.sh	tests/run-std-random-rng-gate.sh

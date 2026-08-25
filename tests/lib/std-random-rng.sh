@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # std-random-rng.sh — STD-130 manifest 与烟测辅助
+#
+# 用法（source 后）：
+#   std_random_rng_symbols_ok MOD_X RANDOM_X TSV
+#   std_random_rng_run_smoke XLANG_BIN X TAG
+#   std_random_rng_run_c_smoke RANDOM_O
+#   std_random_rng_emit_report status check_ok rt_ok main_ok skip
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -38,23 +44,43 @@ std_random_rng_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section|script)
+        # Gate script verifies section anchors in DOC; scripts listed for inventory.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测；失败时打印 build.log 尾部。
+# Compile and run smoke .x; expect exit 0.
+# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
+# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# PLATFORM: SHARED archaeology — product honesty path.
 std_random_rng_run_smoke() {
   local xlang="$1"
   local src="$2"
-  local exe="/tmp/xlang_std_random_rng_$$"
-  local log="/tmp/xlang_std_random_rng_build_$$.log"
-  if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
-    echo "std-random-rng FAIL: compile $src" >&2
-    tail -12 "$log" 2>/dev/null >&2 || true
-    rm -f "$exe" "$log"
+  local tag="${3:-smoke}"
+  local exe="/tmp/xlang_std_random_rng_${tag}_$$"
+  local log="/tmp/xlang_std_random_rng_build_${tag}_$$.log"
+  if [ ! -f "$src" ]; then
+    echo "std-random-rng FAIL: missing $src" >&2
     return 1
+  fi
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-random-rng FAIL: compile $src" >&2
+      tail -12 "$log" 2>/dev/null >&2 || true
+      rm -f "$exe" "$log"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-random-rng FAIL: compile $src" >&2
+      tail -12 "$log" 2>/dev/null >&2 || true
+      rm -f "$exe" "$log"
+      return 1
+    fi
   fi
   set +e
   "$exe" >/dev/null 2>&1
@@ -68,7 +94,7 @@ std_random_rng_run_smoke() {
   return 0
 }
 
-# 链接 random.o + runtime_random_fill.o 运行 C smoke。
+# 链接 random.o + runtime_random_fill.o 运行 C smoke（观测；非硬绿）。
 std_random_rng_run_c_smoke() {
   local random_o="$1"
   local src="tests/random/rng_smoke_ok.c"
@@ -107,7 +133,11 @@ std_random_rng_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# 输出 gate 报告。
 std_random_rng_emit_report() {
-  echo "${STD_RANDOM_RNG_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local check_ok="$2"
+  local rt_ok="$3"
+  local main_ok="$4"
+  local skip="$5"
+  echo "${STD_RANDOM_RNG_PREFIX} status=${status} check=${check_ok} rt=${rt_ok} main=${main_ok} skip=${skip}"
 }
