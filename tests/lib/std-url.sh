@@ -67,8 +67,8 @@ std_url_run_smoke() {
 
 std_url_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_URL_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_URL_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

@@ -106,6 +106,9 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — STD-087 lru_pool_smoke unique UNDEF (std_cache_*).
     # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
     ../std/cache/cache.o|std/cache/cache.o|*std/cache/cache.o) printf '%s' "std/cache/cache.o" ;;
+    # PLATFORM: SHARED — STD-076 roundtrip unique UNDEF (std_url_*).
+    # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
+    ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
     # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
     # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
     ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
@@ -217,6 +220,10 @@ formal_mod_spec_for_key() {
     # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/config: mod.x prefix + --bare-impl *_c.
     std/cache/cache.o) printf '%s' "mod|1|../std/cache/mod.x|../std/cache/cache.x" ;;
+    # PLATFORM: SHARED — std.url product face (STD-076 roundtrip).
+    # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/cache: mod.x prefix + --bare-impl *_c.
+    std/url/url.o) printf '%s' "mod|1|../std/url/mod.x|../std/url/url.x" ;;
     # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
@@ -312,6 +319,7 @@ formal_mod_all_keys() {
     std/cli/cli.o \
     std/config/config.o \
     std/cache/cache.o \
+    std/url/url.o \
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \

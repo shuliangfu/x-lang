@@ -298,16 +298,17 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 23 (was 22; +cache STD-087 lru_pool_smoke residual 2026-08-25)
+ * @return i32 — 24 (was 23; +url STD-076 roundtrip residual 2026-08-26)
  * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
  * be the sole user UNDEF must appear here or the gate never opens (run-tar /
- * run-unicode / cli_subcommand / datetime_iana / std_config_* / std_cache_*
- * history: formal .o existed or bare impl only, plan step present, fk0 table missed).
+ * run-unicode / cli_subcommand / datetime_iana / std_config_* / std_cache_* /
+ * std_url_* history: formal .o existed or bare impl only, plan step present,
+ * fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  // PLATFORM: SHARED — was 22 (+config); +k22 std/cache/cache.o.
-  return 23;
+  // PLATFORM: SHARED — was 23 (+cache); +k23 std/url/url.o.
+  return 24;
 }
 
 /**
@@ -430,6 +431,13 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/cache/cache.o";
     return p;
   }
+  // PLATFORM: SHARED — std/url/url.o is OP_STD flag_kind=0 but was missing
+  // from fk0 → never push formal url.o even after formal_mod exported
+  // std_url_* (STD-076 roundtrip BLD001 UNDEF).
+  if (k == 23) {
+    let p: *u8 = "std/url/url.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -535,6 +543,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // Count 20 = full export surface in std/cache/mod.x (G.7 complete one table).
   if (k == 22) {
     return 20;
+  }
+  // PLATFORM: SHARED — url formal public surface (std_url_*).
+  // Count 10 = full export surface in std/url/mod.x (G.7 complete one table).
+  if (k == 23) {
+    return 10;
   }
   return 0;
 }
@@ -1919,6 +1932,52 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 19) {
         let p: *u8 = "std_cache_stats_ObjPool_ptr_PoolStats_ptr";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/url/url.o exact UNDEF needles (fk0 k==23).
+    // Exact match only; roundtrip sole UNDEFs open the gate.
+    // Count 10 = full export surface in std/url/mod.x (G.7 complete one table).
+    if (k == 23) {
+      if (i == 0) {
+        let p: *u8 = "std_url_parse";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_url_build";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_url_stringify";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_url_query_encode";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_url_query_decode";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_url_resolve";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_url_host_to_ipv6";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_url_format_ipv6_host";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_url_host_is_ipv6";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_url_ipv6_host_smoke";
         return p;
       }
       return 0 as *u8;

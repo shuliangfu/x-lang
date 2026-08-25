@@ -2673,8 +2673,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 22; +cache (=heavy return 23). */
-  return 23;
+  /* PLATFORM: SHARED — was 23; +url (=heavy return 24). */
+  return 24;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -2729,6 +2729,9 @@ const char *labi_fk0_rel_at(int k) {
   /* PLATFORM: SHARED — mirror heavy k22 (STD-087 std_cache_*). */
   if (k == 22)
     return "std/cache/cache.o";
+  /* PLATFORM: SHARED — mirror heavy k23 (STD-076 std_url_*). */
+  if (k == 23)
+    return "std/url/url.o";
   return NULL;
 }
 
@@ -2794,6 +2797,9 @@ int labi_fk0_sym_count(int k) {
   /* PLATFORM: SHARED — cache formal public surface (mirror heavy). */
   if (k == 22)
     return 20;
+  /* PLATFORM: SHARED — url formal public surface (mirror heavy). */
+  if (k == 23)
+    return 10;
   return 0;
 }
 
@@ -3525,6 +3531,30 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_cache_idle";
     if (i == 19)
       return "std_cache_stats_ObjPool_ptr_PoolStats_ptr";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/url/url.o exact UNDEF needles (fk0 k==23; mirror heavy). */
+  if (k == 23) {
+    if (i == 0)
+      return "std_url_parse";
+    if (i == 1)
+      return "std_url_build";
+    if (i == 2)
+      return "std_url_stringify";
+    if (i == 3)
+      return "std_url_query_encode";
+    if (i == 4)
+      return "std_url_query_decode";
+    if (i == 5)
+      return "std_url_resolve";
+    if (i == 6)
+      return "std_url_host_to_ipv6";
+    if (i == 7)
+      return "std_url_format_ipv6_host";
+    if (i == 8)
+      return "std_url_host_is_ipv6";
+    if (i == 9)
+      return "std_url_ipv6_host_smoke";
     return NULL;
   }
   return NULL;
