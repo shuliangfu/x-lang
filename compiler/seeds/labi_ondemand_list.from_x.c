@@ -183,8 +183,9 @@ int labi_od_simple_group_sym_count(int g) {
     return 10;
   if (g == 8)
     return 6;
+  /* PLATFORM: SHARED — full core/slice/mod.o export surface (CORE-004). */
   if (g == 9)
-    return 13; /* core.slice — +subslice/split_at/chunks_len u64 cookbook unique UNDEF */
+    return 28;
   if (g == 10)
     return 14;
   if (g == 11)
@@ -441,7 +442,14 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_debug_debug_assert";
     return NULL;
   }
-  /* PLATFORM: SHARED — core.slice formal API (tests/slice/length.x BLD001 residual). */
+  /*
+   * PLATFORM: SHARED — full core.slice formal API (mod.o) for CORE-004.
+   * Glue from_ptr/subslice_*_c stays in core/slice/slice.o (labi_od_core_slice).
+   * Prior g9 (13) covered len/get/subslice + u64 split/chunks only; sole UNDEF
+   * for is_empty/first/last/split_at_i32|u8/chunks_len_i32|u8/chunk_* never
+   * opened mod.o. Matcher is exact — complete one table (G.7); .x twin same
+   * commit.
+   */
   if (g == 9) {
     if (i == 0)
       return "core_slice_len_i32";
@@ -450,32 +458,55 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     if (i == 2)
       return "core_slice_get_i32_unchecked";
     if (i == 3)
-      return "core_slice_len_u8";
+      return "core_slice_is_empty_i32";
     if (i == 4)
-      return "core_slice_get_u8";
+      return "core_slice_first_i32";
     if (i == 5)
-      return "core_slice_get_u8_unchecked";
+      return "core_slice_last_i32";
     if (i == 6)
       return "core_slice_subslice_i32";
     if (i == 7)
-      return "core_slice_subslice_u8";
+      return "core_slice_split_at_i32";
     if (i == 8)
-      return "core_slice_len_u64";
+      return "core_slice_chunks_len_i32";
     if (i == 9)
-      return "core_slice_get_u64";
-    /*
-     * Cookbook slice_u64_subslice unique names. Matcher is exact: len_u64 /
-     * get_u64 / subslice_i32 do not cover subslice_u64 / split_at_u64 /
-     * chunks_len_u64. T lives in core/slice/mod.o (g9 rel); glue slice.o
-     * only has *_c. Without these needles g9 never ensures mod.o.
-     * PLATFORM: SHARED — same complete-table pattern as g14/g15.
-     */
+      return "core_slice_chunk_i32";
     if (i == 10)
-      return "core_slice_subslice_u64";
+      return "core_slice_len_u8";
     if (i == 11)
-      return "core_slice_split_at_u64";
+      return "core_slice_get_u8";
     if (i == 12)
+      return "core_slice_get_u8_unchecked";
+    if (i == 13)
+      return "core_slice_is_empty_u8";
+    if (i == 14)
+      return "core_slice_first_u8";
+    if (i == 15)
+      return "core_slice_subslice_u8";
+    if (i == 16)
+      return "core_slice_split_at_u8";
+    if (i == 17)
+      return "core_slice_chunks_len_u8";
+    if (i == 18)
+      return "core_slice_chunk_u8";
+    if (i == 19)
+      return "core_slice_len_u64";
+    if (i == 20)
+      return "core_slice_get_u64";
+    if (i == 21)
+      return "core_slice_is_empty_u64";
+    if (i == 22)
+      return "core_slice_first_u64";
+    if (i == 23)
+      return "core_slice_last_u64";
+    if (i == 24)
+      return "core_slice_subslice_u64";
+    if (i == 25)
+      return "core_slice_split_at_u64";
+    if (i == 26)
       return "core_slice_chunks_len_u64";
+    if (i == 27)
+      return "core_slice_chunk_u64";
     return NULL;
   }
   /* PLATFORM: SHARED — core.builtin formal (tests/builtin pure-asm UNDEF residual). */

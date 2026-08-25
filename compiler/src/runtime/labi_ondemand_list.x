@@ -317,10 +317,9 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   if (g == 8) {
     return 6;
   }
-  // core.slice formal API surface (tests/slice/length.x, subslice_split_chunks.x).
-  // Count 10→13: cookbook slice_u64_subslice unique UNDEF (subslice/split_at/chunks_len u64).
+  /* PLATFORM: SHARED — full core/slice/mod.o export surface (CORE-004; was 13). */
   if (g == 9) {
-    return 13;
+    return 28;
   }
   // PLATFORM: SHARED — core.builtin formal (tests/builtin/main.x pure-asm UNDEF residual).
   // G-01: C-path still never hard-links builtin.o (bitops → __builtin_*); pure-asm emits
@@ -808,7 +807,14 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
-  // PLATFORM: SHARED — core.slice formal API (mod.o). Glue from_ptr/subslice in slice.o.
+  /*
+   * PLATFORM: SHARED — full core.slice formal API (mod.o) for CORE-004.
+   * Glue from_ptr/subslice_*_c stays in core/slice/slice.o (labi_od_core_slice).
+   * Prior g9 (13) covered len/get/subslice + u64 split/chunks only; sole UNDEF
+   * for is_empty/first/last/split_at_i32|u8/chunks_len_i32|u8/chunk_* never
+   * opened mod.o. Matcher is exact — complete one table (G.7); seed twin same
+   * commit.
+   */
   if (g == 9) {
     if (i == 0) {
       let p: *u8 = "core_slice_len_i32";
@@ -823,15 +829,15 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
       return p;
     }
     if (i == 3) {
-      let p: *u8 = "core_slice_len_u8";
+      let p: *u8 = "core_slice_is_empty_i32";
       return p;
     }
     if (i == 4) {
-      let p: *u8 = "core_slice_get_u8";
+      let p: *u8 = "core_slice_first_i32";
       return p;
     }
     if (i == 5) {
-      let p: *u8 = "core_slice_get_u8_unchecked";
+      let p: *u8 = "core_slice_last_i32";
       return p;
     }
     if (i == 6) {
@@ -839,34 +845,87 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
       return p;
     }
     if (i == 7) {
-      let p: *u8 = "core_slice_subslice_u8";
+      let p: *u8 = "core_slice_split_at_i32";
       return p;
     }
     if (i == 8) {
-      let p: *u8 = "core_slice_len_u64";
+      let p: *u8 = "core_slice_chunks_len_i32";
       return p;
     }
     if (i == 9) {
-      let p: *u8 = "core_slice_get_u64";
+      let p: *u8 = "core_slice_chunk_i32";
       return p;
     }
-    /*
-     * Cookbook slice_u64_subslice unique names. Matcher is exact: len_u64 /
-     * get_u64 / subslice_i32 do not cover subslice_u64 / split_at_u64 /
-     * chunks_len_u64. Those T live in core/slice/mod.o (g9 rel); glue
-     * slice.o only has *_c. Without these needles g9 never ensures mod.o.
-     * PLATFORM: SHARED — same complete-table pattern as g14/g15.
-     */
     if (i == 10) {
-      let p: *u8 = "core_slice_subslice_u64";
+      let p: *u8 = "core_slice_len_u8";
       return p;
     }
     if (i == 11) {
-      let p: *u8 = "core_slice_split_at_u64";
+      let p: *u8 = "core_slice_get_u8";
       return p;
     }
     if (i == 12) {
+      let p: *u8 = "core_slice_get_u8_unchecked";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "core_slice_is_empty_u8";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "core_slice_first_u8";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "core_slice_subslice_u8";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "core_slice_split_at_u8";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "core_slice_chunks_len_u8";
+      return p;
+    }
+    if (i == 18) {
+      let p: *u8 = "core_slice_chunk_u8";
+      return p;
+    }
+    if (i == 19) {
+      let p: *u8 = "core_slice_len_u64";
+      return p;
+    }
+    if (i == 20) {
+      let p: *u8 = "core_slice_get_u64";
+      return p;
+    }
+    if (i == 21) {
+      let p: *u8 = "core_slice_is_empty_u64";
+      return p;
+    }
+    if (i == 22) {
+      let p: *u8 = "core_slice_first_u64";
+      return p;
+    }
+    if (i == 23) {
+      let p: *u8 = "core_slice_last_u64";
+      return p;
+    }
+    if (i == 24) {
+      let p: *u8 = "core_slice_subslice_u64";
+      return p;
+    }
+    if (i == 25) {
+      let p: *u8 = "core_slice_split_at_u64";
+      return p;
+    }
+    if (i == 26) {
       let p: *u8 = "core_slice_chunks_len_u64";
+      return p;
+    }
+    if (i == 27) {
+      let p: *u8 = "core_slice_chunk_u64";
       return p;
     }
     return 0 as *u8;
