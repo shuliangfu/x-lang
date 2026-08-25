@@ -386,7 +386,8 @@
 | STD-033 http-chunked soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`chunked_keepalive.x` exit0 硬失败；bench→`i08_*`；双端 L2 |
 | STD-034 http-https soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`https_smoke.x` exit0 硬失败；C/OpenSSL 仅观测；双端 L2 |
 | STD-050 crypto sha512-hmac soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；sha512＋hmac exit0 硬失败；mac512 仅观测（产品 UNDEF）；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | STD-050 闭后仍有同型假权威或产品红：channel-unbounded／http-reqresp／async-context 等 UNDEF／产品红；mac512 产品 UNDEF 非软。另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
+| STD-038 tar-ustar soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`ustar_roundtrip.x`／`main.x` exit0 硬失败；恢复 `MOD_X`／`TAR_X`；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | STD-038 闭后仍有同型假权威：sync-rwlock-condvar／net-dns／thread-pool／io-context／backtrace-symbolicate 等 prefer-c 已探针 asm 绿；channel-unbounded／http-reqresp／async-context 仍 UNDEF／产品红；mac512 产品 UNDEF 非软。另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
