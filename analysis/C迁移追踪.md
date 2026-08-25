@@ -341,7 +341,8 @@
 |----|------|------|
 | L6 unused-hint | ✅ | `pipeline_typeck_unused_binding_hints`＋thin；闸 hard（无 soft SKIP） |
 | WPO_DUMP_CALLGRAPH | ✅ | `pipeline_typeck_wpo_dump_callgraph`＋thin；S1／comp-wpo 闸 hard（无 soft SKIP） |
-| `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动 |
+| async_net_fs unique UNDEF | ✅ | labi async 针 ×4＋formal_surface → `xlang_async_net_fs_smoke_c`；Ubuntu gold cookbook／L2 |
+| `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
 | CORE-016 Option／Result 泛型↔族 unify | ✅ | named-inst mangle 等式＋let 族 canonicalize；闸 run hard |
