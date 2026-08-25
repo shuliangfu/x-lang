@@ -4,10 +4,14 @@
 # 用法（source 后）：
 #   std_set_extend_symbols_ok SET_X TSV
 #   std_set_extend_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_SET_EXTEND_PREFIX="${XLANG_STD_SET_EXTEND_PREFIX:-xlang: [XLANG_STD_SET_EXTEND]}"
 
-# 校验 manifest symbol 锚点；echo 缺失数，成功返回 0。
+# Validate manifest symbol anchors against product std/set/mod.x.
+# Struct anchors (Set_*) use fixed-string presence; function anchors require
+# `function <name>(` so overload surface names (insert/remove/str_*) match.
+# Echo miss count; return 0 when miss=0.
 std_set_extend_symbols_ok() {
   local set_x="$1"
   local tsv="$2"
@@ -17,10 +21,20 @@ std_set_extend_symbols_ok() {
     [ -z "${item_id:-}" ] && continue
     case "$kind" in
       symbol)
-        if ! grep -qF "$anchor" "$set_x" 2>/dev/null; then
-          echo "std-set-extend FAIL: missing '$anchor' in $set_x" >&2
-          miss=$((miss + 1))
-        fi
+        case "$anchor" in
+          Set_*|set_str_key_cap)
+            if ! grep -qF "$anchor" "$set_x" 2>/dev/null; then
+              echo "std-set-extend FAIL: missing '$anchor' in $set_x" >&2
+              miss=$((miss + 1))
+            fi
+            ;;
+          *)
+            if ! grep -qE "function ${anchor}\\(" "$set_x" 2>/dev/null; then
+              echo "std-set-extend FAIL: missing function '${anchor}(' in $set_x" >&2
+              miss=$((miss + 1))
+            fi
+            ;;
+        esac
         ;;
     esac
   done < "$tsv"

@@ -34,12 +34,15 @@
 
 ## 3. 边界行为（金样）
 
+> 2026-08-25: scenario names use **product** symbols (`insert` / `str_insert` /
+> `remove` / `str_remove`); legacy `set_u64_insert`-style labels were TSV drift.
+
 | 场景 | 期望 |
 |------|------|
-| `set_u64_insert` 重复键 | len 不变 |
-| `set_u64_remove` 不存在 | 返回 0 |
-| `set_str_insert` 前缀键 | 与不同 len 区分 |
-| `set_str_insert` len=33 | -1 |
+| `insert`（Set_u64）重复键 | len 不变 |
+| `remove`（Set_u64）不存在 | 返回 0 |
+| `str_insert` 前缀键 | 与不同 len 区分 |
+| `str_insert` len=33 | -1 |
 | 扩容后 contains 仍命中 | rehash 正确 |
 
 ---
