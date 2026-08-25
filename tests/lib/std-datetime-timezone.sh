@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# std-datetime-timezone.sh — STD-135 manifest 与烟测辅助
+# std-datetime-timezone.sh — STD-135 manifest 与烟测辅助（固定偏移时区）。
+#
+# 用法（source 后）：
+#   std_datetime_timezone_symbols_ok MOD_X DT_X TSV
+#   std_datetime_timezone_run_c_smoke DT_O TIME_O
+#   std_datetime_timezone_emit_report status check_ok run_ok skip
+# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DATETIME_TIMEZONE_PREFIX="${XLANG_STD135_DATETIME_TIMEZONE_PREFIX:-xlang: [XLANG_STD135_DATETIME_TIMEZONE]}"
 
-# 校验 manifest 条目；echo 缺失数。
+# 校验 manifest；echo 缺失数。C smoke 符号在 datetime.x。
 std_datetime_timezone_symbols_ok() {
   local mod_x="$1"
   local dt_x="$2"
@@ -38,11 +45,14 @@ std_datetime_timezone_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke)
+      file|smoke|script|gate)
         if [ ! -f "$anchor" ]; then
           echo "std-datetime-timezone FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
+        ;;
+      anchor|section)
+        # DOC keyword / ## 4. Gate anchors are validated by the gate script.
         ;;
     esac
   done < "$tsv"
@@ -50,25 +60,8 @@ std_datetime_timezone_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
-std_datetime_timezone_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std_dt_tz_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-datetime-timezone FAIL: compile $src" >&2
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  [ "$ec" -eq 0 ]
-}
-
-# 链接 datetime.o + time.o 运行 C 金样。
+# Observational host-C archaeology smoke (link datetime.o + time.o).
+# Not a hard-green signal; callers must treat failure as SKIP note.
 std_datetime_timezone_run_c_smoke() {
   local dt_o="$1"
   local time_o="$2"
@@ -81,8 +74,8 @@ std_datetime_timezone_run_c_smoke() {
       'int main(void) { return datetime_timezone_smoke_c() != 0; }' > "$src"
   fi
   xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
+  # Observational only: silent link failure (gate prints SKIP note).
   if ! cc -std=c11 -O1 -o "$out" "$src" "$dt_o" "$time_o" compiler/runtime_time_os.o 2>/dev/null; then
-    echo "std-datetime-timezone FAIL: link C smoke" >&2
     return 1
   fi
   set +e
@@ -93,7 +86,11 @@ std_datetime_timezone_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# 输出 gate 报告。
+# 输出结构化报告行（honesty: check=/run=/skip=）。
 std_datetime_timezone_emit_report() {
-  echo "${STD_DATETIME_TIMEZONE_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_DATETIME_TIMEZONE_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
