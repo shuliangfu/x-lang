@@ -1,8 +1,10 @@
 # STD-026 std.io 非 Linux io_uring 回退统一文档 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
-> 关联：`NEXT.md` STD-026、`std/io/io.c`、`STD-042` async IO
+> 更新时间：2026-08-26（v1.1 honesty）· 定版正文 2026-06-18  
+> 状态：**定版（v1）+ Gate honesty**  
+> 关联：`analysis/自举进度.md`／`C迁移追踪.md` STD-026、`std/io/backend.x`、`STD-042` async IO  
+> **live DOC** = 本归档路径；禁止顶层 `analysis/std-io-fallback-v1.md` 复活  
+> **产品权威**：`std/io/backend.x`（replaces io.c + io.o）+ `sync.x`（POSIX）+ `win32.x`（Windows）；**`io.c` 已退役**
 
 ---
 
@@ -12,7 +14,7 @@
 |----|------|
 | STD-026 | 统一描述 Linux io_uring 与 **macOS / Windows** read/write 回退路径 |
 
-实现锚点：`std/io/io.c` 文件头 — *io_uring（Linux）/ kqueue（macOS）/ IOCP（Windows）；失败或不可用时回退到 read/write*。
+实现锚点：`std/io/backend.x` 按 `target_os` 选 `std.io.sync`／`std.io.win32`；探测面 `xlang_io_uring_is_available_c`；批量／等待走 `io_libc_readv`／`io_libc_poll`；Windows 走 `ReadFile`／`WSAStartup`。
 
 ---
 
@@ -21,34 +23,36 @@
 ```
 std.io API（read_fd / read_batch_fd / read_async …）
         ↓
-std.io.driver → std.io.core → io.c
+std.io.driver → std.io.core → std.io.backend
         ↓
 ┌─────────────┬──────────────────┬─────────────────────┐
 │ Linux       │ macOS            │ Windows             │
-│ io_uring    │ kqueue + readv   │ IOCP + ReadFile     │
+│ sync.x      │ sync.x           │ win32.x             │
+│ io_uring*   │ readv + poll     │ ReadFile + WSA      │
 │ ↓ fallback  │ ↓ fallback       │ ↓ fallback          │
 │ read/write  │ read/write       │ ReadFile 同步       │
 └─────────────┴──────────────────┴─────────────────────┘
+* io_uring 探测：stubs／backend `xlang_io_uring_is_available_c`；不可用时同 POSIX 回退。
 ```
 
-**铁律**：非 Linux **无** io_uring；`register_provided_buffers` / `read_provided_fd` 仅 Linux 5.19+；macOS/Windows 须回退 `read_fixed_fd` 或 `read_batch_fd`。
+**铁律**：非 Linux **无** io_uring 主路径；`register_provided_buffers` / `read_provided_fd` 仅 Linux 5.19+；macOS/Windows 须回退 `read_fixed_fd` 或 `read_batch_fd`。
 
 ---
 
 ## 3. 三平台 read/write 矩阵
 
-| API（io.c / mod.x） | Linux 主路径 | Linux 回退 | macOS 主路径 | macOS 回退 | Windows 主路径 | Windows 回退 |
+| API（backend／mod.x） | Linux 主路径 | Linux 回退 | macOS 主路径 | macOS 回退 | Windows 主路径 | Windows 回退 |
 |----------------------|-------------|-----------|-------------|-----------|---------------|-------------|
-| `io_read` / `read_fd` | `io_uring_prep_read` | `FALLBACK_READ` → `read(2)` | `kqueue` + `EVFILT_READ`（fd≥3） | `FALLBACK_READ` | `IOCP` + `ReadFile` overlapped | `FALLBACK_READ` |
-| `io_write` / `write_fd` | `io_uring_prep_write` | `FALLBACK_WRITE` → `write(2)` | `kqueue` + `EVFILT_WRITE`（fd≥3） | `FALLBACK_WRITE` | `IOCP` + `WriteFile` | `FALLBACK_WRITE` |
-| `io_read_batch` / `read_batch_fd` | `io_uring` multi-SQE / `prep_readv` | 逐段 `io_read` | `readv`（`io_readv_all`） | 逐段 `io_read` | `IOCP` 批量 `ReadFile` | 逐段 `io_read` |
-| `io_write_batch` / `write_batch_fd` | `prep_writev` / multi-SQE | 逐段 `io_write` | `writev`（`io_writev_all`） | 逐段 `io_write` | `IOCP` 批量 `WriteFile` | 逐段 `io_write` |
-| `io_read_fixed` / `read_fixed_fd` | `io_uring_prep_read_fixed` | `FALLBACK_READ` | TLS `fixed_pool_t` → `io_read` | — | TLS `win_fixed_pool_t` → `io_read` | — |
-| `io_write_fixed` / `write_fixed_fd` | `io_uring_prep_write_fixed` | `FALLBACK_WRITE` | TLS iov 池 → `io_write` | — | TLS 池 → `io_write` | — |
-| `register_provided_buffers` | `IORING_OP_PROVIDE_BUFFERS` | 失败返回 0 | **不支持**（mod.x 文档：回退 read_fixed_fd） | — | **不支持** | — |
-| `read_async` / `complete_read_async_slot` | `io_uring` 异步 SQE | — | `complete` 时 **同步** `io_read` | — | `complete` 时 **同步** `io_read` | — |
-| `io_read_ptr` | `mmap` 文件视图 | TLS `g_io_read_ptr_buf` | `dispatch_data` 文件视图 | TLS 缓冲 | TLS 缓冲（无 mmap/dispatch） | TLS 缓冲 |
-| `io_wait_readable` | `poll` | — | `kqueue` `EVFILT_READ` | — | `select` / `WSA` `FD_SET` | — |
+| `io_read` / `read_fd` | sync `io_read`（io_uring 探测） | POSIX `read` | sync `io_read`（kqueue 历史路径） | POSIX `read` | win32 `ReadFile` | 同步 `ReadFile` |
+| `io_write` / `write_fd` | sync `io_write` | POSIX `write` | sync `io_write` | POSIX `write` | win32 `WriteFile` | 同步写 |
+| `io_read_batch` / `read_batch_fd` | `io_libc_readv`／逐段 | 逐段 `io_read` | `io_libc_readv`（readv） | 逐段 `io_read` | win32 `io_read_batch` | 逐段 `io_read` |
+| `io_write_batch` / `write_batch_fd` | writev／逐段 | 逐段 `io_write` | writev／逐段 | 逐段 `io_write` | win32 `io_write_batch` | 逐段 `io_write` |
+| `io_read_fixed` / `read_fixed_fd` | sync fixed → `io_read` | `io_read` | sync fixed → `io_read` | — | win32 fixed → `io_read` | — |
+| `io_write_fixed` / `write_fixed_fd` | sync fixed → `io_write` | `io_write` | sync fixed → `io_write` | — | win32 fixed → `io_write` | — |
+| `register_provided_buffers` | Linux provided（IORING） | 失败返回 0 | **不支持**（回退 read_fixed_fd） | — | **不支持** | — |
+| `read_async` / `complete_read_async_slot` | submit／complete stubs | — | complete **同步** `io_read` | — | complete **同步** `io_read` | — |
+| `io_read_ptr` | TLS／mmap 视图 | TLS `g_io_read_ptr_buf` | TLS（dispatch 历史） | TLS 缓冲 | TLS 缓冲 | TLS 缓冲 |
+| `io_wait_readable` | `io_libc_poll` | — | poll／kqueue 历史 | — | WSA／select 历史 | — |
 
 ### 3.1 macOS 特例
 
@@ -82,15 +86,38 @@ std.io.driver → std.io.core → io.c
 
 ---
 
-## 5. 验收
+## 5. 验收（考古索引）
 
 - manifest：`tests/baseline/std-io-fallback.tsv`
-- 烟测：`tests/io/fallback_matrix.x`（`read_fd`/`write_fd` typeck）
+- 烟测：`tests/io/fallback_matrix.x`（`read_fd`/`write_fd`）
 - 回归：`tests/run-io.sh`
-- 报告：`xlang: [XLANG_STD_IO_FALLBACK] status=ok`
+- 闸：`tests/run-std-io-fallback-gate.sh`
+- 报告：见 **§6 Gate**（`check=`／`run=`／`skip=`）
 
 ---
 
-## 6. 演进
+## 6. Gate
+
+Honesty template（2026-08-26 · soft→硬绿）：
+
+| 字段 | 含义 |
+|------|------|
+| prefer | `xlang_asm`（再 `xlang-c`／`xlang`）；钉 `XLANG_LINK_XLANG` |
+| check | **观测**（自举期 check 闸门暂停；CHK 红不硬失败） |
+| run | `fallback_matrix.x` **exit 0 硬失败**（有 native 时禁止 soft SKIP→OK） |
+| skip | 仅 `MANIFEST_ONLY=1` 时可 1；有 native 跑烟测时必须 0 |
+| refuse | 顶层 `analysis/std-io-fallback-v1.md` 复活 → FAIL |
+
+报告行：
+
+```text
+xlang: [XLANG_STD_IO_FALLBACK] status=ok matrix=1 code=1 readme=1 check=? run=1 skip=0
+```
+
+Changelog v1.1：DOC／TSV→`## 6. Gate`；权威改锚 `backend.x`／`sync.x`／`win32.x`（`io.c` 退役）；闸 prefer asm＋LINK；check 观测；`fallback_matrix` exit0 硬失败；报告 `check=`／`run=`／`skip=`。
+
+---
+
+## 7. 演进
 
 - Windows IOCP 与 std.net accept 路径统一文档；BSD / 嵌入式 freestanding 矩阵扩展。

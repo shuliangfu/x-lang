@@ -1,26 +1,27 @@
-# STD-026 std.io 非 Linux 回退矩阵 manifest
-# 列：item_id	kind	doc_anchor	code_anchor	src	notes
-min_matrix_rows	meta	12	-	-	12 rows
+# STD-026 std.io non-Linux fallback matrix manifest (honesty 2026-08-26)
+# cols: item_id	kind	doc_anchor	code_anchor	src	notes
+# Authority = live .x (io.c retired). Gate section must be ## 6. Gate.
+min_matrix_rows	meta	8	-	-	8 live matrix rows
 section_matrix	section	## 3. 三平台 read/write 矩阵	-	analysis/archive/std/std-io-fallback-v1.md	RFC
 section_macos	section	### 3.1 macOS 特例	-	analysis/archive/std/std-io-fallback-v1.md	§3.1
 section_win	section	### 3.2 Windows 特例	-	analysis/archive/std/std-io-fallback-v1.md	§3.2
-readme_link	readme	std-io-fallback-v1.md	-	std/io/README.md	链接
-code_header	code	-	io_uring（Linux）/ kqueue（macOS）/ IOCP（Windows）	std/io/io.c	文件头
-linux_read	matrix	io_uring_prep_read	FALLBACK_READ	std/io/io.c	io_read
-macos_read	matrix	kqueue	kq_get	std/io/io.c	io_read
-win_read	matrix	IOCP	GetQueuedCompletionStatus	std/io/io.c	io_read
-macos_batch	matrix	readv	io_readv_all	std/io/io.c	io_read_batch
-win_batch	matrix	GetQueuedCompletionStatusEx	ReadFile	std/io/io.c	io_read_batch
-linux_provided	matrix	IORING_OP_PROVIDE	io_uring_prep_provide_buffers	std/io/io.c	provided
-macos_async	matrix	read_async	io_read((int)st->handle	std/io/io.c	complete sync
-macos_read_ptr	matrix	dispatch_data	io_read_ptr_try_dispatch_data	std/io/io.c	read_ptr
-linux_read_ptr	matrix	mmap	io_read_ptr_try_mmap	std/io/io.c	read_ptr
-macos_wait	matrix	EVFILT_READ	EVFILT_READ	std/io/io.c	io_wait_readable
-win_wait	matrix	FD_SET	FD_SET	std/io/io.c	io_wait_readable
-linux_wait	matrix	poll	poll(pfd	std/io/io.c	io_wait_readable
+section_gate	section	## 6. Gate	-	analysis/archive/std/std-io-fallback-v1.md	honesty
+readme_link	readme	std-io-fallback-v1.md	-	std/io/README.md	archive link
+code_backend_replaces	code	-	replaces io.c + io.o	std/io/backend.x	authority note
+code_backend_linux	code	-	target_os = "linux"	std/io/backend.x	cfg
+code_backend_macos	code	-	target_os = "macos"	std/io/backend.x	cfg
+code_backend_win	code	-	target_os = "windows"	std/io/backend.x	cfg
+posix_read	matrix	io_read	export function io_read(	std/io/sync.x	POSIX path
+posix_readv	matrix	readv	export function io_libc_readv(	std/io/sync.x	batch fallback
+posix_poll	matrix	poll	export function io_libc_poll(	std/io/sync.x	wait readable
+win_readfile	matrix	ReadFile	ReadFile(h, buf, want	std/io/win32.x	Win sync read
+win_batch	matrix	IOCP	export function io_read_batch(	std/io/win32.x	Win batch
+win_wsa	matrix	Windows	WSAStartup(514	std/io/win32.x	Win init
+linux_uring_probe	matrix	io_uring	export function xlang_io_uring_is_available_c(	std/io/stubs.x	Linux probe
+read_ptr_live	matrix	mmap	export function io_read_ptr(	std/io/read_ptr.x	ZC read_ptr
 api_read_fd	symbol	-	read_fd	std/io/mod.x	API
 api_read_batch	symbol	-	read_batch_fd	std/io/mod.x	API
-test_smoke	file	-	fallback_matrix.x	tests/io/fallback_matrix.x	烟测
-runner	script	-	run-io.sh	tests/run-io.sh	回归
+test_smoke	file	-	fallback_matrix.x	tests/io/fallback_matrix.x	smoke
+runner	script	-	run-io.sh	tests/run-io.sh	regress
 doc	file	-	std-io-fallback-v1.md	analysis/archive/std/std-io-fallback-v1.md	RFC
-gate	script	-	run-std-io-fallback-gate.sh	tests/run-std-io-fallback-gate.sh	manifest
+gate	script	-	run-std-io-fallback-gate.sh	tests/run-std-io-fallback-gate.sh	gate
