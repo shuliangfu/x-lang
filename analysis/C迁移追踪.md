@@ -347,6 +347,7 @@
 | CORE-016 Option／Result 泛型↔族 unify | ✅ | named-inst mangle 等式＋let 族 canonicalize；闸 run hard |
 | CORE-013 i16／u16 size／align formal | ✅ | labi g1 全表针＋闸 run hard |
 | CORE-017 core.mem volatile／fence formal | ✅ | labi_od_core_mem×31＋闸 run hard |
+| CORE-004 core.slice API formal | ✅ | labi g9×28＋闸 run hard |
 | CORE／lang runnable soft SKIP | 🟡 | 余例择优 |
 | nest 冻 64 | ✅ 纪律 | — |
 | 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
