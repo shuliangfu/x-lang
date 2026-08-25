@@ -361,7 +361,8 @@
 | STD-071 context soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`cancel_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-155 bytes-arena soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`arena_external.x` exit0 硬失败；化石 `arena_init`→`arena64_init`；双端 L2 |
 | STD-150 sort-key-cmp soft→硬绿 | ✅ | TSV／archive／README 锚对齐产品 `stable_by_key`／`cmp_key_fn`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`key_stable.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（cache／security／**STD-060 sort-stable-cmp**／url／option-result 等）；下一刀自主；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
+| STD-060 sort-stable-cmp soft→硬绿 | ✅ | TSV／archive 锚对齐产品 `stable`／`cmp`／`cmp_desc_fn`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`stable_i32.x`／`cmp_desc.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（cache／security／url／option-result 等）；下一刀自主；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
