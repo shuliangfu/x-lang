@@ -356,7 +356,8 @@
 | STD-158 error_semantics soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
 | STD-015 set-extend soft→硬绿 | ✅ | TSV 锚对齐产品 overload；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
 | STD-112 heap-allocator soft→硬绿 | ✅ | TSV 锚对齐产品 `with_alloc`／`push`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
-| STD soft SKIP 邻域续（set-ops） | 🟡 | 同假权威类；下一刀自主（TSV `set_i32_*_into`→产品面；闸偏 `xlang-c`／硬 check） |
+| STD-129 set-ops soft→硬绿 | ✅ | TSV 锚对齐产品 `union_into`／`intersect_into`／`difference_into`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；`ops.x` 避 by-value+栈数组 helper；双端 L2 |
+| STD soft SKIP 邻域续（cookbook／其它闸） | 🟡 | 同假权威类；下一刀自主；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
