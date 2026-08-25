@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# std-bytes-arena.sh — STD-155 manifest 与烟测辅助
+# std-bytes-arena.sh — STD-155 manifest helpers (bytes ↔ Arena collaboration).
 #
-# 用法（source 后）：
-#   std_bytes_arena_symbols_ok MOD_X TSV
-#   std_bytes_arena_run_smoke XLANG_BIN X
-#   std_bytes_arena_emit_report status su_ok skip
+# Usage (after source):
+#   std_bytes_arena_symbols_ok MOD_X TSV [DOC]
+#   std_bytes_arena_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD155_PREFIX="${XLANG_STD155_BYTES_ARENA_PREFIX:-xlang: [XLANG_STD155_BYTES_ARENA]}"
 
-# 校验 manifest；echo 缺失数。
+# Validate manifest api/symbol/file/smoke/section anchors.
+# Echo miss count; return 0 when miss=0.
+# Optional DOC overrides archive path for section checks (default archived RFC).
 std_bytes_arena_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
+  local doc="${3:-analysis/archive/std/std-bytes-arena-v1.md}"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -37,8 +40,8 @@ std_bytes_arena_symbols_ok() {
         fi
         ;;
       section)
-        if ! grep -qF "$anchor" "analysis/std-bytes-arena-v1.md" 2>/dev/null; then
-          echo "std-bytes-arena FAIL: missing section '$anchor' in RFC" >&2
+        if ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-bytes-arena FAIL: missing section '$anchor' in $doc" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -48,37 +51,11 @@ std_bytes_arena_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
-std_bytes_arena_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std155_bytes_arena_$$"
-  if [ ! -f "$src" ]; then
-    echo "std-bytes-arena FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-bytes-arena FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-bytes-arena FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 输出结构化报告行。
+# Structured report line (check observational; run hard; skip only when no binary path).
 std_bytes_arena_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD155_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD155_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

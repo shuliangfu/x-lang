@@ -50,7 +50,8 @@ arena64_deinit(&arena)        // 一次释放整块 chunk
 ./tests/run-std-bytes-arena-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD155_BYTES_ARENA]`
+报告：`xlang: [XLANG_STD155_BYTES_ARENA] status=ok check=N run=1 skip=0`  
+（2026-08-25 honesty：prefer asm＋`XLANG_LINK_XLANG`；check 观测；`arena_external.x` exit0 硬失败；无 soft SKIP。）
 
 回归：保留 `run-std-bytes-gate.sh`（STD-072 堆路径不破）。
 
