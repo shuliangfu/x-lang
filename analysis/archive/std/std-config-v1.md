@@ -35,8 +35,20 @@
 
 ## 3. Gate
 
+Honesty（2026-08-25）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
+- `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
+- 产品烟测 `layer_smoke.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
+- C smoke（`config_smoke_ok.c`）**仅观测**（archaeology host-C；非硬绿信号）。
+- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
+
+```bash
+./tests/run-std-config-gate.sh
 ```
-xlang: [XLANG_STD_CONFIG] status=ok c_smoke=1 x=1 skip=0
+
+```
+xlang: [XLANG_STD_CONFIG] status=ok check=0|1 run=1 skip=0
 std-config gate OK
 ```
 
@@ -44,6 +56,13 @@ std-config gate OK
 
 ## 4. 后续（非 v1 阻塞）
 
-- YAML 可选后端（文档化链入策略）  
+- YAML 可选后端（STD-119；闸仍偏 xlang-c／C smoke 硬绿＝假权威残债）  
 - 嵌套 TOML 表 / 数组  
 - 与 `std.cli` flag 自动绑定  
+
+## 5. 变更记录
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v1 | 2026-06-18 | TOML 子集 + ENV + merge + meta + gate |
+| v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable 硬失败／C smoke 观测 |

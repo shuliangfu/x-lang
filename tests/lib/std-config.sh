@@ -65,11 +65,12 @@ std_config_run_smoke() {
   return 0
 }
 
-# 输出 gate 报告行。
+# Structured report line (check observational; run hard; skip only when no binary).
+# PLATFORM: SHARED archaeology — gate path no longer hard-fails on c_smoke / check.
 std_config_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_CONFIG_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_CONFIG_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
