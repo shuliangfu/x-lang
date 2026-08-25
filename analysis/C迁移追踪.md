@@ -1,3 +1,4 @@
+> **2026-08-25**：嵌套 CALL-as-MEMORY 硬绿 @ **`3116bf25f`**（CALL/METHOD soft size＋x8 保还；金样嵌套 METHOD；**不升钉**；双端 EXC-004／recovery＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）／裸名 CALL 形参 size。
 > **2026-08-25**：EXC-004 ErrorChain soft→硬绿 @ **`46fa0217b`**（arm64 host-indirect＋拒跨模块 field-inline；金样 METHOD；**不升钉**；双端 EXC-004／recovery＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）／嵌套 CALL-as-MEMORY／裸名 CALL 形参 size。
 > **2026-08-25**：EXC-002/003/006 soft→硬绿 @ **`39983e83c`**（fk0 k8 `std_error_*`×57＋g7 Result 短名针；金样短 API；ErrorChain observe；**不升钉**；双端 EXC＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）／ErrorChain 20B ABI。
 > **2026-08-25**：COMP-011 Windows COFF cross-emit 硬绿 @ **`f1fb6a13b`**（seed bridge 真 writer＋OutBuf CAP 9MiB；闸硬；**不升钉**；双端 coff 156B＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega `asm_wpo`／点名）。
