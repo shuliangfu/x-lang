@@ -46,7 +46,7 @@ v1 **不**解析 GNU longname / pax；路径 ≤100 字节（UStar name 字段�
 
 ---
 
-## 5. 验证与门禁
+## 5. Gate
 
 ```bash
 ./tests/run-std-tar-ustar-gate.sh
@@ -54,10 +54,12 @@ v1 **不**解析 GNU longname / pax；路径 ≤100 字节（UStar name 字段�
 
 manifest：`tests/baseline/std-tar-ustar.tsv`
 
+**Honesty (2026-08-26)**：prefer `xlang_asm`＋`XLANG_LINK_XLANG`；`check` 观测（闸门暂停 2026-08-05）；`ustar_roundtrip.x`／`main.x` exit0 硬失败（无 soft SKIP）；报告 `check=`／`rt=`／`main=`／`skip=`。闸内恢复 `MOD_X=std/tar/mod.x` 与 `TAR_X=std/tar/tar.x`（旧闸二次赋值覆盖 → API 对 `tar.x` 假红）。
+
 **report** 示例：
 
 ```
-xlang: [XLANG_STD_TAR_USTAR] status=ok rt=1 main=1 skip=0
+xlang: [XLANG_STD_TAR_USTAR] status=ok check=1 rt=1 main=1 skip=0
 ```
 
 回归：`tests/tar/main.x`（头读写）、`tests/run-tar.sh`

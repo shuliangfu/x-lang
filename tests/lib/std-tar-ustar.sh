@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# std-tar-ustar.sh — STD-038 manifest 与烟测辅助
+# std-tar-ustar.sh — STD-038 manifest + smoke helpers
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_tar_ustar_symbols_ok MOD_X TAR_X TSV
 #   std_tar_ustar_run_smoke XLANG_BIN X TAG
-#   std_tar_ustar_emit_report status rt_ok main_ok skip
+#   std_tar_ustar_emit_report status check_ok rt_ok main_ok skip
+# 2026-08-26: report check=/rt=/main=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_TAR_USTAR_PREFIX="${XLANG_STD_TAR_USTAR_PREFIX:-xlang: [XLANG_STD_TAR_USTAR]}"
 
-# 校验 manifest symbol/file/api；echo 缺失数。
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_tar_ustar_symbols_ok() {
   local mod_x="$1"
   local tar_x="$2"
@@ -42,13 +44,19 @@ std_tar_ustar_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section|script|gate|anchor|hook_script)
+        # DOC ## 5. Gate / script anchors validated by the gate script.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x（须已 ensure tar.o）。
+# Compile and run smoke .x; expect exit 0.
+# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
+# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# PLATFORM: SHARED archaeology — product honesty path.
 std_tar_ustar_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -58,11 +66,20 @@ std_tar_ustar_run_smoke() {
     echo "std-tar-ustar FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-tar-ustar FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-tar-ustar FAIL: compile $src" >&2
+      $RUN_XLANG build -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-tar-ustar FAIL: compile $src" >&2
+      "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
   fi
   set +e
   "$exe" >/dev/null 2>&1
@@ -76,11 +93,13 @@ std_tar_ustar_run_smoke() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: check=/rt=/main=/skip=).
+# Hard-green signal = rt= + main=; check observational.
 std_tar_ustar_emit_report() {
   local status="$1"
-  local rt_ok="$2"
-  local main_ok="$3"
-  local skip="$4"
-  echo "${STD_TAR_USTAR_PREFIX} status=${status} rt=${rt_ok} main=${main_ok} skip=${skip}"
+  local check_ok="$2"
+  local rt_ok="$3"
+  local main_ok="$4"
+  local skip="$5"
+  echo "${STD_TAR_USTAR_PREFIX} status=${status} check=${check_ok} rt=${rt_ok} main=${main_ok} skip=${skip}"
 }
