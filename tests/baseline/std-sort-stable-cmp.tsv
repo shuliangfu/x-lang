@@ -1,19 +1,21 @@
 # STD-060 std.sort stable/cmp manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Fossil→product (2026-08-25): sort_stable_i32→stable, sort_stable_u8→stable(*u8),
+# sort_i32_cmp→cmp, sort_stable_i32_c/sort_i32_cmp_c→stable/cmp bodies in sort.x.
 # min_apis	3
 read_path	section	## 1. 阅读路径	15min
-api_doc	section	## 2. API	sort_stable_i32
+api_doc	section	## 2. API	stable
 cmp_rfc	section	### 2.1 比较器 RFC	usize
 verify	section	## 4. 门禁	gate
-api_stable	api	sort_stable_i32	std/sort/mod.x	稳定
-api_stable_u8	api	sort_stable_u8	std/sort/mod.x	u8
-api_cmp	api	sort_i32_cmp	std/sort/mod.x	比较器
-symbol_stable_c	symbol	sort_stable_i32_c	std/sort/sort.x	.x 稳定
-symbol_cmp_c	symbol	sort_i32_cmp_c	std/sort/sort.x	.x cmp
+api_stable	api	stable	std/sort/mod.x	稳定升序
+api_cmp	api	cmp	std/sort/mod.x	自定义比较器
+api_cmp_desc	api	cmp_desc_fn	std/sort/mod.x	降序 fn
+symbol_stable	symbol	export function stable(	std/sort/sort.x	.x 稳定
+symbol_cmp	symbol	export function cmp(	std/sort/sort.x	.x cmp
 symbol_smoke_c	symbol	sort_stable_smoke_c	std/sort/sort.x	烟测
 sort_c_absent	absent	std/sort/sort.c		F-sort v1 已删
 smoke_c	file	tests/std-sort/stable_smoke_ok.c	C 入口
 smoke_stable	smoke	tests/std-sort/stable_i32.x	稳定
 smoke_cmp	smoke	tests/std-sort/cmp_desc.x	降序
-lib	script	lib/std-sort-stable-cmp.sh	tests/lib/std-sort-stable-cmp.sh
-gate	script	run-std-sort-stable-cmp-gate.sh	tests/run-std-sort-stable-cmp-gate.sh
+lib	script	tests/lib/std-sort-stable-cmp.sh	tests/lib/std-sort-stable-cmp.sh
+gate	script	tests/run-std-sort-stable-cmp-gate.sh	tests/run-std-sort-stable-cmp-gate.sh
