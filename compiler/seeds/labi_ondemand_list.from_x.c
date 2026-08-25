@@ -176,8 +176,9 @@ int labi_od_simple_group_sym_count(int g) {
     return 3;
   if (g == 6)
     return 4;
+  /* PLATFORM: SHARED — core.result short API + *_i32 aliases (mirror list.x; was 4). */
   if (g == 7)
-    return 4;
+    return 10;
   if (g == 8)
     return 6;
   if (g == 9)
@@ -341,6 +342,7 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     return NULL;
   }
   if (g == 7) {
+    /* PLATFORM: SHARED — prefer short Result_i32 overloads (mirror list.x). */
     if (i == 0)
       return "core_result_ok_i32";
     if (i == 1)
@@ -349,6 +351,18 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_result_err_i32";
     if (i == 3)
       return "core_result_ok";
+    if (i == 4)
+      return "core_result_err";
+    if (i == 5)
+      return "core_result_is_ok";
+    if (i == 6)
+      return "core_result_is_err";
+    if (i == 7)
+      return "core_result_unwrap_or";
+    if (i == 8)
+      return "core_result_unwrap_or_i32";
+    if (i == 9)
+      return "core_result_is_err_i32";
     return NULL;
   }
   /* PLATFORM: SHARED — core.debug formal surface (tests/sort assert_eq_*). */
@@ -2549,8 +2563,11 @@ int labi_fk0_sym_count(int k) {
     return 12;
   if (k == 7)
     return 7;
+  /* PLATFORM: SHARED — error.o fk0 complete (mirror heavy.x; was 4).
+   * EXC soft SKIP: sole code_invalid/io_err_generic/chain_* never opened gate.
+   * G.7: every public std_error_* export ×57. */
   if (k == 8)
-    return 4;
+    return 57;
   if (k == 9)
     return 4;
   if (k == 10)
@@ -2713,14 +2730,123 @@ const char *labi_fk0_sym_at(int k, int i) {
     return NULL;
   }
   if (k == 8) {
+    /* PLATFORM: SHARED — std/error/error.o exact UNDEF (mirror heavy.x).
+     * Was 4 needles; sole code_invalid/io_err_generic/chain_* never opened gate
+     * (EXC soft SKIP). G.7 complete: every public std_error_* export ×57. */
     if (i == 0)
-      return "std_error_http_err_timeout";
-    if (i == 1)
       return "std_error_ok";
+    if (i == 1)
+      return "std_error_code_alloc_fail";
     if (i == 2)
-      return "std_error_io_err_timeout";
+      return "std_error_code_invalid";
     if (i == 3)
+      return "std_error_code_not_found";
+    if (i == 4)
+      return "std_error_ok_value";
+    if (i == 5)
+      return "std_error_from_code";
+    if (i == 6)
+      return "std_error_code";
+    if (i == 7)
+      return "std_error_is_ok";
+    if (i == 8)
+      return "std_error_is_err";
+    if (i == 9)
+      return "std_error_base_io";
+    if (i == 10)
+      return "std_error_io_err_timeout";
+    if (i == 11)
       return "std_error_io_err_cancelled";
+    if (i == 12)
+      return "std_error_io_err_generic";
+    if (i == 13)
+      return "std_error_base_net";
+    if (i == 14)
+      return "std_error_net_err_timeout";
+    if (i == 15)
+      return "std_error_net_err_cancelled";
+    if (i == 16)
+      return "std_error_net_err_generic";
+    if (i == 17)
+      return "std_error_base_async";
+    if (i == 18)
+      return "std_error_async_err_generic";
+    if (i == 19)
+      return "std_error_base_coll";
+    if (i == 20)
+      return "std_error_coll_err_generic";
+    if (i == 21)
+      return "std_error_base_fs";
+    if (i == 22)
+      return "std_error_fs_err_not_found";
+    if (i == 23)
+      return "std_error_mod_tag_io";
+    if (i == 24)
+      return "std_error_mod_tag_fs";
+    if (i == 25)
+      return "std_error_mod_tag_db";
+    if (i == 26)
+      return "std_error_sidecar_none";
+    if (i == 27)
+      return "std_error_sidecar_errno";
+    if (i == 28)
+      return "std_error_sidecar_db_struct";
+    if (i == 29)
+      return "std_error_code_to_module_base";
+    if (i == 30)
+      return "std_error_code_in_global_range";
+    if (i == 31)
+      return "std_error_code_in_module_span";
+    if (i == 32)
+      return "std_error_code_is_platform_errno";
+    if (i == 33)
+      return "std_error_mod_tag_from_base";
+    if (i == 34)
+      return "std_error_mod_base_from_tag";
+    if (i == 35)
+      return "std_error_module_sidecar_kind";
+    if (i == 36)
+      return "std_error_sem_none";
+    if (i == 37)
+      return "std_error_sem_timeout";
+    if (i == 38)
+      return "std_error_sem_cancelled";
+    if (i == 39)
+      return "std_error_sem_not_found";
+    if (i == 40)
+      return "std_error_http_err_timeout";
+    if (i == 41)
+      return "std_error_http_err_cancelled";
+    if (i == 42)
+      return "std_error_semantic_class";
+    if (i == 43)
+      return "std_error_is_timeout";
+    if (i == 44)
+      return "std_error_is_cancelled";
+    if (i == 45)
+      return "std_error_is_not_found";
+    if (i == 46)
+      return "std_error_recommend_retry";
+    if (i == 47)
+      return "std_error_chain_max_depth";
+    if (i == 48)
+      return "std_error_chain_empty";
+    if (i == 49)
+      return "std_error_chain_from_code";
+    if (i == 50)
+      return "std_error_chain_from_result";
+    if (i == 51)
+      return "std_error_chain_depth";
+    if (i == 52)
+      return "std_error_chain_root";
+    if (i == 53)
+      return "std_error_chain_code_at";
+    if (i == 54)
+      return "std_error_chain_leaf";
+    if (i == 55)
+      return "std_error_chain_wrap";
+    if (i == 56)
+      return "std_error_error_module_anchor";
     return NULL;
   }
   if (k == 9) {

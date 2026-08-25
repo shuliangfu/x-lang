@@ -73,7 +73,7 @@ while IFS=$'\t' read -r case_id script policy want_ec category notes; do
     case_*)
       FOUND=$((FOUND + 1))
       case "$policy" in
-        run)
+        run|observe)
           src="tests/exc/${script}"
           if [ ! -f "$src" ]; then
             echo "exc-error-recovery FAIL: missing $src ($case_id)" >&2
@@ -131,10 +131,11 @@ if [ -z "$XLANG_BIN" ]; then
 fi
 
 echo "=== EXC-006: runnable report (XLANG=$XLANG_BIN) ==="
+# 2026-08-25: runnable hard-green (fk0 k==8 std_error_* complete surface).
+# Observational SKIP was soft-green while sole code_invalid/io_err_generic UNDEF.
 if XLANG="$XLANG_BIN" "$RUNNER"; then
   echo "exc-error-recovery gate OK"
 else
-  # Honesty: DOC/manifest hard; full recovery runner is product debt.
-  echo "exc-error-recovery SKIP runner (observational product debt; DOC+manifest OK)" >&2
-  echo "exc-error-recovery gate OK"
+  echo "exc-error-recovery gate FAIL: runnable report (XLANG=$XLANG_BIN)" >&2
+  exit 1
 fi

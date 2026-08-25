@@ -101,11 +101,12 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
   echo "── $case_id: $notes ──"
   case "$policy" in
     run)
+      # 2026-08-25: runnable hard-green (fk0 k==8 std_error_* complete surface).
       if run_x_case "$script" "${want_ec:-0}"; then
         echo "exc OK $case_id"
       else
-        # Honesty: DOC/manifest hard; Layer A/C runnable residual observational.
-        echo "exc SKIP $case_id ($script; observational product debt)" >&2
+        echo "exc FAIL $case_id ($script)" >&2
+        FAILS=$((FAILS + 1))
       fi
       ;;
     hook)

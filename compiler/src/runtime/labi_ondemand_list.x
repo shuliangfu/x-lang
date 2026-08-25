@@ -307,8 +307,11 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   if (g == 6) {
     return 4;
   }
+  // PLATFORM: SHARED — core.result short API (is_ok/is_err/unwrap_or/err/ok) + *_i32 aliases.
+  // Was 4 (ok_i32/is_ok_i32/err_i32/ok): sole is_err/unwrap_or/err never opened gate → BLD001.
+  // G.7: prefer suffix-free overloads; keep *_i32 needles for legacy callers.
   if (g == 7) {
-    return 4;
+    return 10;
   }
   if (g == 8) {
     return 6;
@@ -620,6 +623,7 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     return 0 as *u8;
   }
   if (g == 7) {
+    // PLATFORM: SHARED — prefer short Result_i32 overloads (is_ok/is_err/unwrap_or/ok/err).
     if (i == 0) {
       let p: *u8 = "core_result_ok_i32";
       return p;
@@ -634,6 +638,30 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     if (i == 3) {
       let p: *u8 = "core_result_ok";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_result_err";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_result_is_ok";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_result_is_err";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_result_unwrap_or";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_result_unwrap_or_i32";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_result_is_err_i32";
       return p;
     }
     return 0 as *u8;

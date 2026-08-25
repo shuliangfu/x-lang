@@ -120,18 +120,14 @@ fi
 
 OUT=/tmp/xlang_exc_error_chain
 echo "=== EXC-004: chain smoke (XLANG=$XLANG_BIN) ==="
+# 2026-08-25: needles hard (fk0 k==8); ErrorChain 20B asm ABI still residual.
+# DOC/manifest hard; runnable observe until sret/field Cap closes.
 set +e
 "$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_exc_chain_compile.log 2>&1
 _comp_ec=$?
 set -e
 if [ "$_comp_ec" -ne 0 ]; then
-  # Docker/xlang-c -o 偶发 SIGSEGV；check 通过则视为 typeck 烟测 OK
-  if [ "$_comp_ec" -eq 139 ] && "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    echo "exc-error-chain smoke OK (check-only, compile SIGSEGV)"
-    echo "exc-error-chain gate OK"
-    exit 0
-  fi
-  echo "exc-error-chain SKIP smoke compile ec=$_comp_ec (observational; DOC+manifest OK)" >&2
+  echo "exc-error-chain SKIP smoke compile ec=$_comp_ec (ErrorChain ABI residual; DOC+manifest OK)" >&2
   cat /tmp/xlang_exc_chain_compile.log >&2 || true
   echo "exc-error-chain gate OK"
   exit 0
@@ -139,8 +135,7 @@ fi
 EC=0
 "$OUT" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -ne 0 ]; then
-  # Honesty: DOC/manifest hard; runnable smoke is product/typeck debt (exit=2).
-  echo "exc-error-chain SKIP smoke exit=$EC (observational; DOC+manifest OK)" >&2
+  echo "exc-error-chain SKIP smoke exit=$EC (ErrorChain 20B asm ABI residual; DOC+manifest OK)" >&2
   echo "exc-error-chain gate OK"
   exit 0
 fi

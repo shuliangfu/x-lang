@@ -468,8 +468,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 7) {
     return 7;
   }
+  // PLATFORM: SHARED — error.o fk0 complete (was 4: http/ok/io timeout/cancel).
+  // EXC-006 sole code_invalid/io_err_generic/chain_* never opened gate → soft SKIP.
+  // G.7: every public std_error_* export (mod.x ×57).
   if (k == 8) {
-    return 4;
+    return 57;
   }
   if (k == 9) {
     return 4;
@@ -762,20 +765,237 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       return 0 as *u8;
     }
     if (k == 8) {
+      // PLATFORM: SHARED — std/error/error.o exact UNDEF needles (fk0 k==8).
+      // Was only http_err_timeout/ok/io_err_timeout/io_err_cancelled (4).
+      // Sole callers of code_invalid/io_err_generic/chain_*/fs_err_* never
+      // opened the gate → BLD001; EXC-006/002/003/004 soft SKIP falsified green.
+      // G.7 complete surface: every public std_error_* export (mod.x ×57).
       if (i == 0) {
-        let p: *u8 = "std_error_http_err_timeout";
-        return p;
-      }
-      if (i == 1) {
         let p: *u8 = "std_error_ok";
         return p;
       }
+      if (i == 1) {
+        let p: *u8 = "std_error_code_alloc_fail";
+        return p;
+      }
       if (i == 2) {
-        let p: *u8 = "std_error_io_err_timeout";
+        let p: *u8 = "std_error_code_invalid";
         return p;
       }
       if (i == 3) {
+        let p: *u8 = "std_error_code_not_found";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_error_ok_value";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_error_from_code";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_error_code";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_error_is_ok";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_error_is_err";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_error_base_io";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_error_io_err_timeout";
+        return p;
+      }
+      if (i == 11) {
         let p: *u8 = "std_error_io_err_cancelled";
+        return p;
+      }
+      if (i == 12) {
+        let p: *u8 = "std_error_io_err_generic";
+        return p;
+      }
+      if (i == 13) {
+        let p: *u8 = "std_error_base_net";
+        return p;
+      }
+      if (i == 14) {
+        let p: *u8 = "std_error_net_err_timeout";
+        return p;
+      }
+      if (i == 15) {
+        let p: *u8 = "std_error_net_err_cancelled";
+        return p;
+      }
+      if (i == 16) {
+        let p: *u8 = "std_error_net_err_generic";
+        return p;
+      }
+      if (i == 17) {
+        let p: *u8 = "std_error_base_async";
+        return p;
+      }
+      if (i == 18) {
+        let p: *u8 = "std_error_async_err_generic";
+        return p;
+      }
+      if (i == 19) {
+        let p: *u8 = "std_error_base_coll";
+        return p;
+      }
+      if (i == 20) {
+        let p: *u8 = "std_error_coll_err_generic";
+        return p;
+      }
+      if (i == 21) {
+        let p: *u8 = "std_error_base_fs";
+        return p;
+      }
+      if (i == 22) {
+        let p: *u8 = "std_error_fs_err_not_found";
+        return p;
+      }
+      if (i == 23) {
+        let p: *u8 = "std_error_mod_tag_io";
+        return p;
+      }
+      if (i == 24) {
+        let p: *u8 = "std_error_mod_tag_fs";
+        return p;
+      }
+      if (i == 25) {
+        let p: *u8 = "std_error_mod_tag_db";
+        return p;
+      }
+      if (i == 26) {
+        let p: *u8 = "std_error_sidecar_none";
+        return p;
+      }
+      if (i == 27) {
+        let p: *u8 = "std_error_sidecar_errno";
+        return p;
+      }
+      if (i == 28) {
+        let p: *u8 = "std_error_sidecar_db_struct";
+        return p;
+      }
+      if (i == 29) {
+        let p: *u8 = "std_error_code_to_module_base";
+        return p;
+      }
+      if (i == 30) {
+        let p: *u8 = "std_error_code_in_global_range";
+        return p;
+      }
+      if (i == 31) {
+        let p: *u8 = "std_error_code_in_module_span";
+        return p;
+      }
+      if (i == 32) {
+        let p: *u8 = "std_error_code_is_platform_errno";
+        return p;
+      }
+      if (i == 33) {
+        let p: *u8 = "std_error_mod_tag_from_base";
+        return p;
+      }
+      if (i == 34) {
+        let p: *u8 = "std_error_mod_base_from_tag";
+        return p;
+      }
+      if (i == 35) {
+        let p: *u8 = "std_error_module_sidecar_kind";
+        return p;
+      }
+      if (i == 36) {
+        let p: *u8 = "std_error_sem_none";
+        return p;
+      }
+      if (i == 37) {
+        let p: *u8 = "std_error_sem_timeout";
+        return p;
+      }
+      if (i == 38) {
+        let p: *u8 = "std_error_sem_cancelled";
+        return p;
+      }
+      if (i == 39) {
+        let p: *u8 = "std_error_sem_not_found";
+        return p;
+      }
+      if (i == 40) {
+        let p: *u8 = "std_error_http_err_timeout";
+        return p;
+      }
+      if (i == 41) {
+        let p: *u8 = "std_error_http_err_cancelled";
+        return p;
+      }
+      if (i == 42) {
+        let p: *u8 = "std_error_semantic_class";
+        return p;
+      }
+      if (i == 43) {
+        let p: *u8 = "std_error_is_timeout";
+        return p;
+      }
+      if (i == 44) {
+        let p: *u8 = "std_error_is_cancelled";
+        return p;
+      }
+      if (i == 45) {
+        let p: *u8 = "std_error_is_not_found";
+        return p;
+      }
+      if (i == 46) {
+        let p: *u8 = "std_error_recommend_retry";
+        return p;
+      }
+      if (i == 47) {
+        let p: *u8 = "std_error_chain_max_depth";
+        return p;
+      }
+      if (i == 48) {
+        let p: *u8 = "std_error_chain_empty";
+        return p;
+      }
+      if (i == 49) {
+        let p: *u8 = "std_error_chain_from_code";
+        return p;
+      }
+      if (i == 50) {
+        let p: *u8 = "std_error_chain_from_result";
+        return p;
+      }
+      if (i == 51) {
+        let p: *u8 = "std_error_chain_depth";
+        return p;
+      }
+      if (i == 52) {
+        let p: *u8 = "std_error_chain_root";
+        return p;
+      }
+      if (i == 53) {
+        let p: *u8 = "std_error_chain_code_at";
+        return p;
+      }
+      if (i == 54) {
+        let p: *u8 = "std_error_chain_leaf";
+        return p;
+      }
+      if (i == 55) {
+        let p: *u8 = "std_error_chain_wrap";
+        return p;
+      }
+      if (i == 56) {
+        let p: *u8 = "std_error_error_module_anchor";
         return p;
       }
       return 0 as *u8;

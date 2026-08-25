@@ -131,18 +131,17 @@ fi
 
 OUT=/tmp/xlang_exc_code_layer
 echo "=== EXC-003: layer smoke (XLANG=$XLANG_BIN) ==="
+# 2026-08-25: runnable hard-green (fk0 k==8 std_error_* complete surface).
 if ! "$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_exc_code_layer_compile.log 2>&1; then
-  echo "exc-error-code-layer SKIP smoke compile (observational typeck debt; DOC+manifest OK)" >&2
+  echo "exc-error-code-layer gate FAIL: smoke compile (XLANG=$XLANG_BIN)" >&2
   cat /tmp/xlang_exc_code_layer_compile.log >&2 || true
-  echo "exc-error-code-layer gate OK"
-  exit 0
+  exit 1
 fi
 EC=0
 "$OUT" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -ne 0 ]; then
-  echo "exc-error-code-layer SKIP smoke exit=$EC (observational; DOC+manifest OK)" >&2
-  echo "exc-error-code-layer gate OK"
-  exit 0
+  echo "exc-error-code-layer gate FAIL: smoke exit=$EC want=0" >&2
+  exit 1
 fi
 echo "exc-error-code-layer smoke OK"
 
