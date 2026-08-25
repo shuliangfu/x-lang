@@ -378,6 +378,39 @@ std_x_compile_one() {
     } >"$_gen.fcntl" && mv "$_gen.fcntl" "$_gen"
   }
 
+  # PLATFORM: SHARED — std/net/tcp_pool.x (and peers) call calloc/free/malloc via
+  # extern "C", but -E host-C may omit <stdlib.h>. Apple clang then fails
+  # "call to undeclared library function 'calloc'" → tcp_pool.o never built →
+  # net_merge keeps weak create stubs that return 0 (cookbook net_tcp_pool run=1).
+  # G.7: inject header when body uses heap libc and include is missing.
+  xlang_inject_stdlib_header() {
+    _gen="$1"
+    [ -f "$_gen" ] || return 0
+    if ! grep -qE '\b(calloc|malloc|realloc|free)\s*\(' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -qE '#include\s*[<"]stdlib\.h[>"]' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -q '^#include' "$_gen" 2>/dev/null; then
+      last_inc_line=$(grep -n '^#include' "$_gen" | tail -1 | cut -d: -f1)
+    else
+      last_inc_line=0
+    fi
+    {
+      if [ "$last_inc_line" -gt 0 ]; then
+        head -n "$last_inc_line" "$_gen"
+      fi
+      echo '/* PLATFORM: SHARED injected by xlang_compile_std_x — libc heap for tcp_pool */'
+      echo '#include <stdlib.h>'
+      if [ "$last_inc_line" -gt 0 ]; then
+        tail -n +"$((last_inc_line + 1))" "$_gen"
+      else
+        cat "$_gen"
+      fi
+    } >"$_gen.stdlib" && mv "$_gen.stdlib" "$_gen"
+  }
+
   case "$(basename "$xlang_bin")" in
     xlang-c)
       # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
@@ -398,6 +431,7 @@ std_x_compile_one() {
       xlang_strip_conflicting_weak_args_iter "$gen_c"
       xlang_inject_errno_externs "$gen_c"
       xlang_inject_fcntl_header "$gen_c"
+      xlang_inject_stdlib_header "$gen_c"
       # PLATFORM: SHARED — function/data sections so product -dead_strip/--gc-sections
       # can drop unused net/tls/pool residual U (net.o is one ld -r unit).
       cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
@@ -428,6 +462,7 @@ std_x_compile_one() {
           xlang_strip_conflicting_weak_args_iter "$gen_c"
           xlang_inject_errno_externs "$gen_c"
           xlang_inject_fcntl_header "$gen_c"
+          xlang_inject_stdlib_header "$gen_c"
           cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
           rm -f "$gen_c"
         else

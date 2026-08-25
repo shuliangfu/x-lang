@@ -1207,8 +1207,9 @@ const char *labi_od_queue_contention_rel(void) {
   return "compiler/runtime_queue_contention.o";
 }
 
-/* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED. */
-int labi_od_net_sym_count(void) { return 28; }
+/* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED.
+ * Count 32: +new/smoke/acquire/release unique tcp_pool wrappers. */
+int labi_od_net_sym_count(void) { return 32; }
 const char *labi_od_net_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1282,6 +1283,16 @@ const char *labi_od_net_sym_at(int i) {
    * user.o would miss. G.7 complete the single net probe table. */
   if (i == 27)
     return "std_net_close_listener";
+  /* PLATFORM: SHARED — tcp_pool unique wrappers (new/smoke/acquire/release).
+   * Twin of labi_ondemand_list.x. Matcher is exact. */
+  if (i == 28)
+    return "std_net_tcp_pool_new";
+  if (i == 29)
+    return "std_net_tcp_pool_smoke";
+  if (i == 30)
+    return "std_net_tcp_pool_acquire";
+  if (i == 31)
+    return "std_net_tcp_pool_release";
   return NULL;
 }
 

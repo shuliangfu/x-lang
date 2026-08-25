@@ -4792,7 +4792,7 @@ ensure_std_core_prefer_one() {
         ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x \
         ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x \
         ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x \
-        ../std/net/udp_batch.x ../std/net/workers.x \
+        ../std/net/udp_batch.x ../std/net/workers.x ../std/net/tcp_pool.x \
         seeds/runtime_net_dns_fast.from_x.c \
         seeds/runtime_net_io_batch_fast.from_x.c \
         seeds/runtime_net_addr_fast.from_x.c \
@@ -4894,9 +4894,14 @@ ensure_std_core_prefer_one() {
       ;;
 
     net_merge)
-      # PLATFORM: SHARED net.o — mod.x + alpn/udp/tcp/udp_batch/workers + five fast
-      # pieces. PLATFORM: MACOS — force xlang-c for net submodules (post-wave102
-      # pure-asm arm64 leaves tls_stub/tcp_pool UNDEFs under product -dead_strip).
+      # PLATFORM: SHARED net.o — mod.x + alpn/udp/tcp/udp_batch/workers/tls_stub/tcp_pool
+      # + five fast pieces. PLATFORM: MACOS — force xlang-c for net submodules
+      # (post-wave102 pure-asm arm64 left tls_stub UNDEFs under product -dead_strip).
+      # F-04 tcp_pool.x must be in this merge: before this leaf, only weak
+      # std_net_tcp_pool_net_tcp_pool_*_c stubs (return 0) were merged, so
+      # cookbook net_tcp_pool built but create handle was always 0 (run=1).
+      # G.7: complete net_merge with real tcp_pool.o + strong import aliases
+      # (≡ tls_stub); do not keep a second weak body. PLATFORM: SHARED.
       xlang="${XLANG:-}"
       if [ -z "$xlang" ] || [ ! -x "$xlang" ]; then
         if [ -x ./xlang_asm ]; then xlang=./xlang_asm
@@ -4918,21 +4923,22 @@ ensure_std_core_prefer_one() {
           ;;
       esac
       objs=""
-      # PLATFORM: SHARED — include tls_stub (mod.x import std.net.tls_stub).
+      # PLATFORM: SHARED — include tls_stub + tcp_pool (mod.x import both).
       # OpenSSL/mbedTLS variants remain separate product overlays.
-      for x in alpn udp tcp udp_batch workers tls_stub; do
+      for x in alpn udp tcp udp_batch workers tls_stub tcp_pool; do
         sh scripts/xlang_compile_std_x.sh "$net_sub_xlang" "../std/net/$x.x" "../std/net/$x.o" || return 1
         objs="$objs ../std/net/$x.o"
       done
-      # Import-binding face: bare net_tls_*_c → std_net_tls_stub_net_tls_*_c.
+      # Import-binding face: bare net_tls_*_c → std_net_tls_stub_net_tls_*_c
+      # and bare net_tcp_pool_*_c → std_net_tcp_pool_net_tcp_pool_*_c.
       # xlang_compile_std_x emits bare C symbols; mod.x import path prefixes both
-      # leaf and name. G.7: single alias .o after stub compile (no second TLS body).
-      if [ -f ../std/net/tls_stub.o ]; then
+      # leaf and name. G.7: single alias .o after stub/pool compile (no second body).
+      if [ -f ../std/net/tls_stub.o ] || [ -f ../std/net/tcp_pool.o ]; then
         # Keep alias .o under std/net/ (not TMPDIR) so ld -r sees a stable path.
         _tls_alias_c="../std/net/tls_stub_import_alias.c"
         _tls_alias_o="../std/net/tls_stub_import_alias.o"
         {
-          echo '/* net_merge: import-binding aliases for std.net.tls_stub */'
+          echo '/* net_merge: import-binding aliases for std.net.tls_stub + tcp_pool */'
           echo '#include <stdint.h>'
           echo '#include <stddef.h>'
           cat <<'TEOF'
@@ -4956,8 +4962,8 @@ int32_t std_net_tls_stub_net_tls_write_c(int64_t h, uint8_t *buf, int32_t len) {
 int32_t std_net_tls_stub_net_tls_last_error_c(void) { return net_tls_last_error_c(); }
 int32_t std_net_tls_stub_net_tls_alpn_selected_c(int64_t h, uint8_t *out, int32_t out_cap) { return net_tls_alpn_selected_c(h, out, out_cap); }
 int32_t std_net_tls_stub_net_tls_alpn_is_h2_c(int64_t h) { return net_tls_alpn_is_h2_c(h); }
-/* Residual faces pulled by alpn/pool co-emit when product only needs connect_ctx.
- * Weak so real io/tcp_pool .o can override when linked. PLATFORM: SHARED. */
+/* Residual io faces when product only needs connect_ctx.
+ * Weak so real io .o can override when linked. PLATFORM: SHARED. */
 __attribute__((weak)) int32_t std_io_read_fixed_fd(int32_t a, uint32_t b, size_t c, size_t d, uint32_t e) {
   (void)a;(void)b;(void)c;(void)d;(void)e; return -1;
 }
@@ -4967,24 +4973,35 @@ __attribute__((weak)) int32_t std_io_write_fixed_fd(int32_t a, uint32_t b, size_
 __attribute__((weak)) uint8_t *xlang_io_read_ptr_len(size_t h, size_t *out_len) {
   (void)h; if (out_len) *out_len = 0; return (uint8_t *)0;
 }
-__attribute__((weak)) int64_t std_net_tcp_pool_net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c) {
-  (void)a;(void)b;(void)c; return 0;
+/* Strong import aliases for std.net.tcp_pool (≡ tls_stub). Bare bodies live in
+ * tcp_pool.o from tcp_pool.x. Do NOT weaken these — weak return-0 stubs were the
+ * net_tcp_pool cookbook run=1 root cause. PLATFORM: SHARED. */
+extern int64_t net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c);
+extern int32_t net_tcp_pool_acquire_c(int64_t h, uint32_t t);
+extern int32_t net_tcp_pool_release_c(int64_t h, int32_t fd);
+extern void net_tcp_pool_drain_c(int64_t h);
+extern void net_tcp_pool_destroy_c(int64_t h);
+extern int32_t net_tcp_pool_connect_count_c(int64_t h);
+extern int32_t net_tcp_pool_idle_count_c(int64_t h);
+extern int32_t net_tcp_pool_smoke_c(void);
+int64_t std_net_tcp_pool_net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c) {
+  return net_tcp_pool_create_c(a, b, c);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_acquire_c(int64_t h, uint32_t t) {
-  (void)h;(void)t; return -1;
+int32_t std_net_tcp_pool_net_tcp_pool_acquire_c(int64_t h, uint32_t t) {
+  return net_tcp_pool_acquire_c(h, t);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_release_c(int64_t h, int32_t fd) {
-  (void)h;(void)fd; return -1;
+int32_t std_net_tcp_pool_net_tcp_pool_release_c(int64_t h, int32_t fd) {
+  return net_tcp_pool_release_c(h, fd);
 }
-__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_drain_c(int64_t h) { (void)h; }
-__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_destroy_c(int64_t h) { (void)h; }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_connect_count_c(int64_t h) {
-  (void)h; return 0;
+void std_net_tcp_pool_net_tcp_pool_drain_c(int64_t h) { net_tcp_pool_drain_c(h); }
+void std_net_tcp_pool_net_tcp_pool_destroy_c(int64_t h) { net_tcp_pool_destroy_c(h); }
+int32_t std_net_tcp_pool_net_tcp_pool_connect_count_c(int64_t h) {
+  return net_tcp_pool_connect_count_c(h);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_idle_count_c(int64_t h) {
-  (void)h; return 0;
+int32_t std_net_tcp_pool_net_tcp_pool_idle_count_c(int64_t h) {
+  return net_tcp_pool_idle_count_c(h);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_smoke_c(void) { return 0; }
+int32_t std_net_tcp_pool_net_tcp_pool_smoke_c(void) { return net_tcp_pool_smoke_c(); }
 /* Fast-path addr helpers sometimes only on asm leaves; weak for pure host-C net.o. */
 __attribute__((weak)) int64_t net_tcp_local_addr_c(int32_t fd) { (void)fd; return 0; }
 __attribute__((weak)) int64_t net_tcp_peer_addr_c(int32_t fd) { (void)fd; return 0; }

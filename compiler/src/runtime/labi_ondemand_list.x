@@ -2277,12 +2277,12 @@ export function labi_od_queue_contention_rel(): *u8 {
  */
 #[no_mangle]
 export function labi_od_net_sym_count(): i32 {
-  return 28;
+  return 32;
 }
 
 /**
  * Net on_demand UNDEF symbol at index (product probe table for needs_std_net).
- * @param i i32 — index in [0, 28)
+ * @param i i32 — index in [0, 32)
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED
  */
@@ -2418,6 +2418,29 @@ export function labi_od_net_sym_at(i: i32): *u8 {
    */
   if (i == 27) {
     let p: *u8 = "std_net_close_listener";
+    return p;
+  }
+  /*
+   * PLATFORM: SHARED — tcp_pool unique wrappers (new/smoke/acquire/release).
+   * connect_count/destroy/drain/idle_count already in the table; sole
+   * tcp_pool_new / tcp_pool_smoke user.o still missed need_net. Matcher is
+   * exact. G.7 complete this single net probe table (net_merge carries real
+   * tcp_pool.o bodies). Do not add a second group.
+   */
+  if (i == 28) {
+    let p: *u8 = "std_net_tcp_pool_new";
+    return p;
+  }
+  if (i == 29) {
+    let p: *u8 = "std_net_tcp_pool_smoke";
+    return p;
+  }
+  if (i == 30) {
+    let p: *u8 = "std_net_tcp_pool_acquire";
+    return p;
+  }
+  if (i == 31) {
+    let p: *u8 = "std_net_tcp_pool_release";
     return p;
   }
   return 0 as *u8;
