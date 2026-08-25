@@ -56,7 +56,8 @@ std-config gate OK
 
 ## 4. 后续（非 v1 阻塞）
 
-- YAML 可选后端（STD-119；闸仍偏 xlang-c／C smoke 硬绿＝假权威残债）  
+- YAML 可选后端（STD-119；同波 honesty 见 `std-config-yaml-v1.md`）  
+
 - 嵌套 TOML 表 / 数组  
 - 与 `std.cli` flag 自动绑定  
 

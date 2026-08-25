@@ -13,5 +13,5 @@ symbol_smoke	symbol	config_yaml_smoke_c	std/config/config.x	C 烟测
 impl_x	file	std/config/config.x	std/config/config.x
 smoke_x	smoke	tests/std-config/yaml_smoke.x	.x烟测
 vectors	file	tests/baseline/std-config-yaml-vectors.tsv	向量
-lib	script	lib/std-config-yaml.sh	tests/lib/std-config-yaml.sh
-gate	script	run-std-config-yaml-gate.sh	tests/run-std-config-yaml-gate.sh
+lib	script	tests/lib/std-config-yaml.sh	helpers
+gate	script	tests/run-std-config-yaml-gate.sh	gate

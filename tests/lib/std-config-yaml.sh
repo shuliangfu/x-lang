@@ -74,6 +74,12 @@ std_config_yaml_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
+# Structured report line (check observational; run hard; skip only when no binary).
+# PLATFORM: SHARED archaeology — gate path no longer hard-fails on c_smoke / check.
 std_config_yaml_emit_report() {
-  echo "${STD_CONFIG_YAML_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_CONFIG_YAML_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
