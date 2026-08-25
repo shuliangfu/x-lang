@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` CORE-012、`core/debug/mod.x`
 > **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
+> **Honesty 2026-08-25:** runnable hard-green — gate prefers `xlang_asm`, pins `XLANG_LINK_XLANG`, hard-fails `tests/debug/assert_extend.x` exit 0 (`core/debug/debug.o` formal surface already green). No Darwin soft SKIP. Report: `status=ok x=1 skip=0`.
 
 ---
 
@@ -47,8 +48,9 @@
 ## 4. Gate
 
 - manifest：`tests/baseline/core-debug-assert-extend.tsv`
-- typeck：`xlang check tests/debug/assert_extend.x`
-- 报告：`xlang: [XLANG_CORE_DEBUG_ASSERT_EXTEND] status=ok`
+- typeck：`xlang check tests/debug/assert_extend.x`（observational；check 闸门暂停）
+- runnable：`$XLANG build -L . tests/debug/assert_extend.x` → exit **0**（硬失败；prefer asm + pin LINK）
+- 报告：`xlang: [XLANG_CORE_DEBUG_ASSERT_EXTEND] status=ok x=1 skip=0`
 
 ---
 

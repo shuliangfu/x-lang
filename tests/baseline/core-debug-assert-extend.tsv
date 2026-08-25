@@ -1,5 +1,6 @@
 # CORE-012 core.debug 断言类型扩展 manifest
 # honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
+# honesty 2026-08-25: runnable hard-green (assert_extend exit 0; prefer asm + pin LINK)
 # 列：item_id	kind	anchor	mod_path	notes
 # min_symbols	6
 assert_eq_u64	symbol	assert_eq_u64	core/debug/mod.x	u64 相等

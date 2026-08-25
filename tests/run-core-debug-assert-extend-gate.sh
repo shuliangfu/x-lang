@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-debug-assert-extend-gate.sh
 # wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
 # check smoke observational SKIP (check gate paused 2026-08-05).
+# 2026-08-25: runnable hard-green (core/debug/debug.o assert_eq_u64/ptr/ne_bool surface);
+# Prefer xlang_asm; assert_extend.x exit 0 hard-fail (no Darwin soft SKIP).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -17,11 +19,13 @@ LIB="tests/lib/core-debug-assert-extend.sh"
 SMOKE="tests/debug/assert_extend.x"
 REGRESS="tests/debug/main.x"
 MIN_SYMBOLS=6
+# Designed success score (tests/debug/assert_extend.x returns 0 on all checks).
+SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/core-debug-assert-extend.sh
 . tests/lib/core-debug-assert-extend.sh
 
-native_xlang() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -31,6 +35,17 @@ native_xlang() {
     Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
     *) return 0 ;;
   esac
+}
+resolve_shu() {
+  local cand
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    if stdlib_cm_native_xlang "$cand"; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== CORE-012: debug assert extend manifest (archive DOC) ==="
@@ -93,29 +108,50 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "core-debug-assert-extend manifest OK (symbols=${SYM_N})"
 
-SKIP=1
 CHECK_OK=0
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== CORE-012: smoke (XLANG=$XLANG_BIN; check observational) ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make 2>/dev/null || true
+X_OK=0
+SKIP=1
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== CORE-012: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
-    SKIP=0
   else
-    echo "core-debug-assert-extend gate SKIP check smoke (paused / typeck debt)" >&2
+    echo "core-debug-assert-extend gate SKIP check smoke (paused 2026-08-05)" >&2
+  fi
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
+  # Pin product link to resolved compiler (prefer asm). Avoid Darwin-arm64
+  # bootstrap remap of xlang_asm → xlang-c that hides pure-asm UNDEF / hangs host-cc.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  export XLANG="$XLANG_BIN"
+  export XLANG_LINK_XLANG="$XLANG_BIN"
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+
+  OUT="/tmp/xlang_core_debug_assert_extend_$$"
+  LOG="/tmp/xlang_core_debug_assert_extend_build_$$.log"
+  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
+    exitcode=0
+    "$OUT" >/dev/null 2>&1 || exitcode=$?
+    rm -f "$OUT"
+    if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
+      X_OK=1
+      SKIP=0
+    else
+      echo "core-debug-assert-extend gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
+      core_debug_assert_extend_emit_report "fail" 0 0
+      exit 1
+    fi
+  else
+    echo "core-debug-assert-extend gate FAIL runnable link" >&2
+    tail -20 "$LOG" 2>/dev/null >&2 || true
+    core_debug_assert_extend_emit_report "fail" 0 0
+    exit 1
   fi
 else
   echo "core-debug-assert-extend gate SKIP typeck (no native xlang)" >&2
 fi
 
-core_debug_assert_extend_emit_report "ok" "$CHECK_OK" "$SKIP"
+# check stays observational; hard-green signal is x= (runnable).
+echo "core-debug-assert-extend check_ok=${CHECK_OK} (observational)"
+core_debug_assert_extend_emit_report "ok" "$X_OK" "$SKIP"
 echo "core-debug-assert-extend gate OK"
