@@ -1,5 +1,11 @@
 # STD-032：std.http POST/HEAD 与响应状态行解析
 
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · Gate honesty soft→硬绿  
+> 关联：`tests/baseline/std-http-methods.tsv`、`tests/http/methods_status.x`
+
+---
+
 ## 1. 阅读路径
 
 15 分钟速览：`std/http/mod.x` → `std/http/http_glue.c` → `tests/http/methods_status.x`。
@@ -24,12 +30,29 @@ C 实现：`http_*_c`、`http_request_method_c`；共用 `http_request_ex_c`（�
 - 成功：返回 `0`，`*out_code` 为 100–599。
 - 失败：返回 `-1`（版本非法、无空格、非三位数字等）。
 
-## 4. 验证与门禁
+## 4. Gate
 
-- manifest：`tests/baseline/std-http-methods.tsv`
-- 烟测：`tests/http/methods_status.x`（离线 204/404 + 可选网络 HEAD/POST）
-- 门禁：`tests/run-std-http-methods-gate.sh`（`XLANG_STD_HTTP_METHODS`）
-- 与 STD-009 关系：GET/server bench 不变；本 RFC 仅扩展客户端方法与解析。
+```bash
+./tests/run-std-http-methods-gate.sh
+```
+
+Honesty（2026-08-26）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `methods_status.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
+- 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
+
+manifest：`tests/baseline/std-http-methods.tsv`
+
+```
+xlang: [XLANG_STD_HTTP_METHODS] status=ok check=0|1 run=1 skip=0
+```
+
+### Changelog
+
+- 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 4. Gate`；未啃产品 `std/http`）。
+- 历史：v1 POST／HEAD／PUT／DELETE／PATCH／OPTIONS＋`parse_status_line` 定版。
 
 ## 5. 非目标（v2+）
 

@@ -4,7 +4,9 @@
 # 用法（source 后）：
 #   std_http_methods_symbols_ok MOD_X HTTP_C TSV
 #   std_http_methods_run_smoke XLANG_BIN X TAG
-#   std_http_methods_emit_report status methods_ok skip
+#   std_http_methods_emit_report status check_ok run_ok skip
+# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_HTTP_METHODS_PREFIX="${XLANG_STD_HTTP_METHODS_PREFIX:-xlang: [XLANG_STD_HTTP_METHODS]}"
 
@@ -41,13 +43,19 @@ std_http_methods_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section|script|gate|anchor|hook_script|cross_ref)
+        # DOC ## 4. Gate / script anchors validated by the gate script.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x（须已 ensure http.o）。
+# Compile and run methods smoke .x; expect exit 0.
+# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
+# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# PLATFORM: SHARED archaeology — product honesty path.
 std_http_methods_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -57,11 +65,20 @@ std_http_methods_run_smoke() {
     echo "std-http-methods FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-http-methods FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-http-methods FAIL: compile $src" >&2
+      $RUN_XLANG build -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-http-methods FAIL: compile $src" >&2
+      "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
   fi
   set +e
   "$exe" >/dev/null 2>&1
@@ -75,10 +92,11 @@ std_http_methods_run_smoke() {
   return 0
 }
 
-# 输出结构化报告行。
+# 输出结构化报告行（honesty: check=/run=/skip=）。
 std_http_methods_emit_report() {
   local status="$1"
-  local methods_ok="$2"
-  local skip="$3"
-  echo "${STD_HTTP_METHODS_PREFIX} status=${status} methods=${methods_ok} skip=${skip}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_HTTP_METHODS_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
