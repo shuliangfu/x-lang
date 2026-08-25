@@ -352,7 +352,8 @@
 | CORE-007 core.str BytesView formal | ✅ | 闸 prefer asm＋smoke／cookbook run hard |
 | CORE-002/003 Option／Result combinators | ✅ | 闸 prefer asm＋option102／result173 run hard |
 | STD-131 core.str find／split | ✅ | 闸 prefer asm＋find_split exit0 run hard（无 Darwin soft SKIP） |
-| CORE／lang runnable soft SKIP | 🟡 | 余例：CORE-012 |
+| CORE-012 core.debug assert extend | ✅ | 闸 prefer asm＋assert_extend exit0 run hard（无 Darwin soft SKIP） |
+| CORE／lang runnable soft SKIP | ✅ | 余例已空（本类收口） |
 | nest 冻 64 | ✅ 纪律 | — |
 | 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
 
