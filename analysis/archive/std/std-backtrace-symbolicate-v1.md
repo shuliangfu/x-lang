@@ -38,7 +38,7 @@ C 烟测入口 `backtrace_symbolicate_smoke_c` 位于 `compiler/seeds/runtime_ba
 | ID | 类型 | 期望 |
 |----|------|------|
 | `gold_anchor_direct` | C 烟测 | `symbolicate` 解析锚点地址，名含 `gold_anchor` |
-| `capture_symbolicate` | C / `.x` | `capture` 后 `symbolicate` 至少 1 帧有符号 |
+| `capture_symbolicate` | C / `.x` | `capture` 后写入至少 1 个 name 槽（具名 **或** hex 回退；具名需产品 ld `--export-dynamic`） |
 
 编译烟测二进制建议 `-g`；Linux 另加 `-rdynamic -ldl`。
 
@@ -65,10 +65,11 @@ Honesty（2026-08-26）：
 
 - Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
 - `xlang check` **观测**（自举期暂停闸门，2026-08-05）；CHK 红不硬失败。
-- `symbolicate_known.x` **exit 0 硬失败**（有 native xlang 时 **无 soft SKIP**）。
-- C gold（`symbolicate_gold.c`）在 execinfo 宿主上硬失败；Alpine/musl 无 execinfo 时仅跳过 C gold。
+- `symbolicate_known.x` **exit 0 硬失败**（有 native xlang 时 **无 soft SKIP**）；接受具名 **或** hex 名槽（裸 `ld` 缺 `--export-dynamic` 时 Linux 常走 hex）。
+- C gold（`symbolicate_gold.c`）在 execinfo 宿主上硬失败；Alpine/musl 无 execinfo 时仅跳过 C gold；C gold 仍要求 `gold_anchor` **具名**。
 - C gold 链入 `runtime_process_argv.o`＋`runtime_link_abi_user_env.o`（backtrace／crash-evidence 依赖；化石 symbol_miss 曾掩盖 UNDEF）。
 - TSV `symbol_smoke_c` 路径对齐 seed（化石曾指 `backtrace.x`）。
+- 产品残债（**非软**）：asm 裸 `ld` 链 backtrace 时未传 `--export-dynamic`（cc 路径的 `-rdynamic` 对裸 ld 无效）。
 
 期望报告：
 
@@ -86,4 +87,4 @@ xlang: [XLANG_STD_BACKTRACE_SYM] status=ok check=? c_gold=1 x=1 skip=0 host=…
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-17 | symbolicate 实装 + gold_anchor 金样 |
-| honesty | 2026-08-26 | soft→硬绿：prefer asm；`## 5. Gate`；smoke_c→seed；check 观测 |
+| honesty | 2026-08-26 | soft→硬绿：prefer asm；`## 5. Gate`；smoke_c→seed；check 观测；format_hex 按字节；.x 烟测接受 hex 名槽 |
