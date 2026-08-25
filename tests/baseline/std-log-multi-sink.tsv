@@ -4,7 +4,7 @@
 read_path	section	## 1. 阅读路径	15min
 api_doc	section	## 2. API	SINK_STDERR
 cookbook	section	## 3. Cookbook	structured_kv
-verify	section	## 5. 门禁	gate
+verify	section	## 5. Gate	gate
 api_min	api	set_min_level	std/log/mod.x	过滤
 api_log	api	log	std/log/mod.x	人类行
 api_struct	api	structured_kv	std/log/mod.x	结构化
@@ -18,5 +18,5 @@ symbol_file_c	symbol	log_set_file_sink_c	compiler/seeds/runtime_log_os.from_x.c	
 symbol_smoke_c	symbol	log_multi_sink_smoke_c	compiler/seeds/runtime_log_os.from_x.c	C 烟测
 smoke_c	file	tests/std-log/multi_sink_ok.c	C 入口
 smoke_level	smoke	tests/std-log/level_filter.x	级别
-lib	script	lib/std-log-multi-sink.sh	tests/lib/std-log-multi-sink.sh
-gate	script	run-std-log-multi-sink-gate.sh	tests/run-std-log-multi-sink-gate.sh
+lib	script	tests/lib/std-log-multi-sink.sh	helpers
+gate	script	tests/run-std-log-multi-sink-gate.sh	gate

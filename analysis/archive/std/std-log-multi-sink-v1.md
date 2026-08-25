@@ -1,8 +1,8 @@
 # STD-053：std.log 多 sink 与级别过滤 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
-> 关联：OBS-003（结构化行格式）、`std/log/log.c`
+> 状态：**定版（v1）** · soft→硬绿 honesty（2026-08-25）  
+> 关联：OBS-003（结构化行格式）、`std/log/log.x`
 
 ---
 
@@ -82,14 +82,23 @@ INFO 被丢弃（返回 0、无输出）。烟测金样：`filtered` 在 `min=WA
 
 ---
 
-## 5. 门禁
+## 5. Gate
+
+Honesty（2026-08-25）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
+- `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
+- 产品烟测 `level_filter.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
+- C smoke（`multi_sink_ok.c`）**仅观测**（archaeology host-C；非硬绿信号）。
+- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
 
 ```bash
 ./tests/run-std-log-multi-sink-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_LOG_MULTI_SINK] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_LOG_MULTI_SINK] status=ok check=0|1 run=1 skip=0
+std-log-multi-sink gate OK
 ```
 
 ---
@@ -99,3 +108,4 @@ xlang: [XLANG_STD_LOG_MULTI_SINK] status=ok c_smoke=1 x=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-17 | 多 sink + XLANG_LOG_MIN_LEVEL + Cookbook |
+| v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable 硬失败／C smoke 观测 |
