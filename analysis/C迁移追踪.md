@@ -339,7 +339,7 @@
 
 | 项 | 状态 | 备注 |
 |----|------|------|
-| L6 unused-hint | ⬜ 自主择优 | check 闸仍暂停；优先级到则开（无需点名） |
+| L6 unused-hint | ✅ | `pipeline_typeck_unused_binding_hints`＋thin；闸 hard（无 soft SKIP） |
 | WPO_DUMP_CALLGRAPH | ⬜ 自主择优 | 产品 dump；优先级到则开（可涉 mega） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动 |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
