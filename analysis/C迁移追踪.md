@@ -366,7 +366,8 @@
 | STD-074 std-datetime soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-077 std-cli soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-011 error-unify soft→硬绿 | ✅ | EXC DOC→`analysis/archive/exc/`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`error_unify_smoke.x` exit0 硬失败；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（cache／security／url／option-result 等仍产品红）；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
+| STD-109 base64-stream soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`stream.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（fmt-multi／dynlib-last-error 产品已绿优先；cache／security／url／option-result 仍产品红）；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
