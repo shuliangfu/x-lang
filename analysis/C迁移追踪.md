@@ -350,7 +350,8 @@
 | CORE-004 core.slice API formal | ✅ | labi g9×28＋闸 run hard |
 | CORE-006 iterator protocol formal | ✅ | 闸 prefer asm＋smoke／cookbook run hard |
 | CORE-007 core.str BytesView formal | ✅ | 闸 prefer asm＋smoke／cookbook run hard |
-| CORE／lang runnable soft SKIP | 🟡 | 余例：002／STD-131／012 |
+| CORE-002/003 Option／Result combinators | ✅ | 闸 prefer asm＋option102／result173 run hard |
+| CORE／lang runnable soft SKIP | 🟡 | 余例：STD-131／012 |
 | nest 冻 64 | ✅ 纪律 | — |
 | 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
 
