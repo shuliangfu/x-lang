@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` Phase 2 CORE-007、`analysis/std-strview-zc4-v1.md`（STD-016）
 > **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
+> **Honesty 2026-08-25:** runnable hard-green — prefer `xlang_asm`; smoke exit 0 + Cookbook `core_str_index` exit 0 hard-fail (no soft SKIP on product path).
 
 ---
 
@@ -46,15 +47,22 @@
 
 ---
 
-## 4. 验收
+## 4. Cookbook
 
-- manifest：`tests/baseline/core-str-view.tsv`
-- typeck + runnable：`tests/str/bytes_view.x`
-- 报告：`xlang: [XLANG_CORE_STR_VIEW] status=ok`
+- `examples/cookbook/core_str_index.x`（CSTR-01）：`bytes_view_index_of` / `index_of_byte` / `starts_with`；成功分 **0**
 
 ---
 
-## 5. 演进
+## 5. 验收
+
+- manifest：`tests/baseline/core-str-view.tsv`
+- typeck（观测）+ runnable hard：`tests/str/bytes_view.x`（exit 0）
+- Cookbook runnable hard：`core_str_index.x`（exit 0）
+- 报告：`xlang: [XLANG_CORE_STR_VIEW] status=ok check=… run=… cookbook=… skip=…`
+
+---
+
+## 6. 演进
 
 - `std.string` 可选薄封装转调 `core.str`（避免重复逻辑）。
 - UTF-8 校验/码点遍历留在 `std.unicode`。
