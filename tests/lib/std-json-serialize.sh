@@ -2,8 +2,9 @@
 # std-json-serialize.sh — STD-035 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_jsz_symbols_ok JSON_X JSON_C TSV
-#   std_jsz_emit_report status rt_ok skip
+#   std_jsz_symbols_ok MOD_X JSON_X TSV
+#   std_jsz_emit_report status check_ok run_ok skip
+# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
 
 STD_JSZ_PREFIX="${XLANG_STD_JSON_SERIALIZE_PREFIX:-xlang: [XLANG_STD_JSON_SERIALIZE]}"
 
@@ -34,16 +35,26 @@ std_jsz_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      script)
+        if [ ! -f "$anchor" ]; then
+          echo "std-json-serialize FAIL: missing script '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      anchor)
+        # DOC keyword anchors are validated by the gate script, not here.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# 输出结构化报告行（honesty: check=/run=/skip=）。
 std_jsz_emit_report() {
   local status="$1"
-  local rt_ok="$2"
-  local skip="$3"
-  echo "${STD_JSZ_PREFIX} status=${status} rt=${rt_ok} skip=${skip}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_JSZ_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

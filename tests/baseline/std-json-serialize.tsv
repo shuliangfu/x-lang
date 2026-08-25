@@ -1,5 +1,7 @@
 # STD-035 std.json object/array 序列化 manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
+# report check=/run=/skip=. Section ## 4. Gate in archive DOC.
 min_syms	8
 append_object	symbol	append_object	std/json/mod.x
 append_array	symbol	append_array	std/json/mod.x
@@ -11,4 +13,4 @@ json_append_array_c	symbol	json_append_array_c	std/json/json.x
 roundtrip_doc	anchor	object_array_roundtrip	analysis/archive/std/std-json-serialize-v1.md	RFC
 test_rt	file	tests/json/object_array_roundtrip.x		金样
 doc	file	analysis/archive/std/std-json-serialize-v1.md	analysis/archive/std/std-json-serialize-v1.md	RFC
-gate	script	tests/run-std-json-serialize-gate.sh	tests/run-std-json-serialize-gate.sh	manifest
+gate	script	tests/run-std-json-serialize-gate.sh	tests/run-std-json-serialize-gate.sh	## 4. Gate
