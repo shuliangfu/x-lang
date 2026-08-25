@@ -342,8 +342,9 @@
 | L6 unused-hint | ⬜ 须点名 check | 自举期 check 闸暂停 |
 | WPO_DUMP_CALLGRAPH | ⬜ 须 mega／点名 | 产品 dump 路径 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名才动 |
-| LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard；多 mono／多 let 布局残 → CORE-016 |
-| CORE／lang runnable soft SKIP | 🟡 | 余例：CORE-016 多 mono 布局等 |
+| LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
+| CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
+| CORE／lang runnable soft SKIP | 🟡 | 余例择优 |
 | nest 冻 64 | ✅ 纪律 | — |
 | 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
 

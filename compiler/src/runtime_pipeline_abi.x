@@ -53141,8 +53141,13 @@ export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_re
  * FIELD_ACCESS load width (base-layout / resolved / is_some|is_none heuristic).
  *
  * Order (G.7 typed-first — do not scan all layouts by bare field name):
- *  1. Base TYPE_NAMED layout match then field type width (Option_u8.value → 1).
- *  2. Field expr resolved scalar type width.
+ *  1. Field expr resolved scalar type width (typeck mono stamp).
+ *     CORE-016: must beat generic-layout `T`/`U` (TYPE_NAMED → 8) so
+ *     `Option<i32>.value` / `Wrap<i32>.v` emit `ldr w` not `ldr x0` with
+ *     garbage high bits (multi-let / multi-mono compare false-red).
+ *  2. Base TYPE_NAMED layout match then field type width (Option_u8.value → 1).
+ *     When layout field is free TYPE_NAMED (type-param), fall through rather
+ *     than returning 8 from glue_field_access_load_bytes_for_type_ref.
  *  3. is_some / is_none name → 1.
  *  4. Default 8.
  *
@@ -53170,6 +53175,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let j: i32 = 0;
   let ftr: i32 = 0;
   let kind_ord: i32 = 0;
+  let ftr_kind: i32 = 0;
   let nsl: i32 = 0;
   let nf: i32 = 0;
   let fnlen: i32 = 0;
@@ -53193,7 +53199,26 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
   }
-  // 1) Typed base: match layout by base TYPE_NAMED name, then field type width.
+  /*
+   * CORE-016: prefer typeck-resolved scalar (mono stamp) before generic layout
+   * field TYPE_NAMED T/U. glue_field_access_load_bytes_for_type_ref maps any
+   * TYPE_NAMED → 8, which made Option<i32>.value / Wrap<i32>.v load 64-bit and
+   * fail compares when high bytes were dirty (multi-let same frame).
+   * Skip NAMED/ARRAY/SLICE/VECTOR — those stay on layout / default paths.
+   * PLATFORM: SHARED.
+   */
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(a, expr_ref);
+  }
+  if (tr > 0) {
+    unsafe {
+      kind_ord = pipeline_type_kind_ord_at(a, tr);
+    }
+    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
+      return glue_field_access_load_bytes_for_type_ref(a, tr);
+    }
+  }
+  // 2) Typed base: match layout by base TYPE_NAMED name, then field type width.
   unsafe {
     base_tr = pipeline_expr_resolved_type_ref(a, base_ref);
   }
@@ -53257,6 +53282,14 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
               if (feq != 0) {
                 unsafe {
                   ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
+                  ftr_kind = pipeline_type_kind_ord_at(a, ftr);
+                }
+                /*
+                 * Free type-param fields are TYPE_NAMED — do not return 8 here;
+                 * fall through to is_some heuristic / default. Concrete layout
+                 * field types (i32/u8/…) still use layout width.
+                 */
+                if (ftr_kind != 8) {
                   return glue_field_access_load_bytes_for_type_ref(a, ftr);
                 }
               }
@@ -53266,18 +53299,6 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
           k = k + 1;
         }
       }
-    }
-  }
-  // 2) Field expr resolved scalar type (typeck stamp).
-  unsafe {
-    tr = pipeline_expr_resolved_type_ref(a, expr_ref);
-  }
-  if (tr > 0) {
-    unsafe {
-      kind_ord = pipeline_type_kind_ord_at(a, tr);
-    }
-    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
-      return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
   }
   // 3) Option tag fields (bool byte).
