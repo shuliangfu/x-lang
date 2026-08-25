@@ -165,8 +165,9 @@ int labi_od_simple_group_sym_count(int g) {
     return 0;
   if (g == 0)
     return 13; /* std.string — +concat_arena/view_get/length_StrView cookbook unique UNDEF */
+  /* PLATFORM: SHARED — full core/types/types.o export surface (CORE-013 i16/u16). */
   if (g == 1)
-    return 2;
+    return 27;
   if (g == 2)
     return 6;
   if (g == 3)
@@ -277,10 +278,65 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_string_length_StrView";
     return NULL;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/types/types.o (g==1).
+   * CORE-013 unique: size_of/align_of i16/u16. Rest = full scalar size/align
+   * surface so sole-call smokes also fire. G.7: one table (was only i32+placeholder).
+   */
   if (g == 1) {
     if (i == 0)
-      return "core_types_size_of_i32";
+      return "core_types_size_of_i16";
     if (i == 1)
+      return "core_types_size_of_u16";
+    if (i == 2)
+      return "core_types_align_of_i16";
+    if (i == 3)
+      return "core_types_align_of_u16";
+    if (i == 4)
+      return "core_types_size_of_i32";
+    if (i == 5)
+      return "core_types_size_of_bool";
+    if (i == 6)
+      return "core_types_size_of_u8";
+    if (i == 7)
+      return "core_types_size_of_u32";
+    if (i == 8)
+      return "core_types_size_of_u64";
+    if (i == 9)
+      return "core_types_size_of_i64";
+    if (i == 10)
+      return "core_types_size_of_usize";
+    if (i == 11)
+      return "core_types_size_of_isize";
+    if (i == 12)
+      return "core_types_size_of_f32";
+    if (i == 13)
+      return "core_types_size_of_f64";
+    if (i == 14)
+      return "core_types_size_of_pointer";
+    if (i == 15)
+      return "core_types_align_of_i32";
+    if (i == 16)
+      return "core_types_align_of_bool";
+    if (i == 17)
+      return "core_types_align_of_u8";
+    if (i == 18)
+      return "core_types_align_of_u32";
+    if (i == 19)
+      return "core_types_align_of_u64";
+    if (i == 20)
+      return "core_types_align_of_i64";
+    if (i == 21)
+      return "core_types_align_of_usize";
+    if (i == 22)
+      return "core_types_align_of_isize";
+    if (i == 23)
+      return "core_types_align_of_f32";
+    if (i == 24)
+      return "core_types_align_of_f64";
+    if (i == 25)
+      return "core_types_align_of_pointer";
+    if (i == 26)
       return "core_types_placeholder";
     return NULL;
   }

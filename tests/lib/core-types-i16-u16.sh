@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   core_types_i16_u16_symbols_ok TYPES_X TSV
-#   core_types_i16_u16_emit_report status check_ok skip
+#   core_types_i16_u16_emit_report status check_ok run_ok skip
 
 CORE_TYPES_I16_U16_PREFIX="${XLANG_CORE_TYPES_I16_U16_PREFIX:-xlang: [XLANG_CORE_TYPES_I16_U16]}"
 
@@ -30,10 +30,11 @@ core_types_i16_u16_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# 输出结构化报告行（runnable hard；check stays observational）。
 core_types_i16_u16_emit_report() {
   local status="$1"
   local check_ok="$2"
-  local skip="$3"
-  echo "${CORE_TYPES_I16_U16_PREFIX} status=${status} check=${check_ok} skip=${skip}"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${CORE_TYPES_I16_U16_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

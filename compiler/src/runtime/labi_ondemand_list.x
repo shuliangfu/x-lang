@@ -290,7 +290,8 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 13;
   }
   if (g == 1) {
-    return 2;
+    /* PLATFORM: SHARED — full core/types/types.o export surface (CORE-013 i16/u16). */
+    return 27;
   }
   if (g == 2) {
     return 6;
@@ -513,12 +514,117 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/types/types.o (g==1).
+   * CORE-013 unique: size_of/align_of i16/u16. Rest = full scalar size/align
+   * surface so sole-call smokes also fire. G.7: one table (was only i32+placeholder).
+   */
   if (g == 1) {
     if (i == 0) {
-      let p: *u8 = "core_types_size_of_i32";
+      let p: *u8 = "core_types_size_of_i16";
       return p;
     }
     if (i == 1) {
+      let p: *u8 = "core_types_size_of_u16";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_types_align_of_i16";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_types_align_of_u16";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_types_size_of_i32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_types_size_of_bool";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_types_size_of_u8";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_types_size_of_u32";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_types_size_of_u64";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_types_size_of_i64";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "core_types_size_of_usize";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "core_types_size_of_isize";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "core_types_size_of_f32";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "core_types_size_of_f64";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "core_types_size_of_pointer";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "core_types_align_of_i32";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "core_types_align_of_bool";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "core_types_align_of_u8";
+      return p;
+    }
+    if (i == 18) {
+      let p: *u8 = "core_types_align_of_u32";
+      return p;
+    }
+    if (i == 19) {
+      let p: *u8 = "core_types_align_of_u64";
+      return p;
+    }
+    if (i == 20) {
+      let p: *u8 = "core_types_align_of_i64";
+      return p;
+    }
+    if (i == 21) {
+      let p: *u8 = "core_types_align_of_usize";
+      return p;
+    }
+    if (i == 22) {
+      let p: *u8 = "core_types_align_of_isize";
+      return p;
+    }
+    if (i == 23) {
+      let p: *u8 = "core_types_align_of_f32";
+      return p;
+    }
+    if (i == 24) {
+      let p: *u8 = "core_types_align_of_f64";
+      return p;
+    }
+    if (i == 25) {
+      let p: *u8 = "core_types_align_of_pointer";
+      return p;
+    }
+    if (i == 26) {
       let p: *u8 = "core_types_placeholder";
       return p;
     }
