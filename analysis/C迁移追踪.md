@@ -376,7 +376,8 @@
 | STD-119 config-yaml soft→硬绿 | ✅ | DOC／TSV→`## 3. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`yaml_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-087 std.cache soft→硬绿 | ✅ | formal_mod `mod|1`＋fk0 k22＋time_os companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`lru_pool_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-076 std.url soft→硬绿 | ✅ | formal_mod `mod|1`＋fk0 k23×10；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（security／option-result 仍产品红）；另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
+| STD-079 std.security soft→硬绿 | ✅ | formal_mod `mod|1`＋fk0 k24×16＋crypto／random／CRYPTO_PAIR companion；API 锚 `hkdf`／`err_ok`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（option-result 仍 arity 产品红）；另残 by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
