@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# std-http-https.sh — STD-HTTP-HTTPS manifest 与烟测辅助
+# std-http-https.sh — STD-034 (STD-HTTP-HTTPS) manifest + smoke helpers
+#
+# Usage (after source):
+#   std_http_https_symbols_ok MOD_X HTTP_C TSV
+#   std_http_https_run_smoke XLANG_BIN X TAG
+#   std_http_https_run_c_smoke HTTP_O NET_O LDFLAGS   # observational
+#   std_http_https_emit_report status check_ok run_ok skip
+# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_HTTP_HTTPS_PREFIX="${XLANG_STD_HTTP_HTTPS_PREFIX:-xlang: [XLANG_STD_HTTP_HTTPS]}"
 
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_http_https_symbols_ok() {
   local mod_x="$1"
   local http_c="$2"
@@ -14,16 +23,29 @@ std_http_https_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-http-https FAIL: missing api '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
         ;;
       symbol)
-        case "$mod_path" in
-          compiler/seeds/runtime_http_glue.from_x.c) mod_path="$http_c" ;;
+        local target="${mod_path:-$http_c}"
+        case "$target" in
+          compiler/seeds/runtime_http_glue.from_x.c) target="$http_c" ;;
         esac
-        grep -qF "$anchor" "$mod_path" 2>/dev/null || miss=$((miss + 1))
+        if ! grep -qF "$anchor" "$target" 2>/dev/null; then
+          echo "std-http-https FAIL: missing '$anchor' in $target" >&2
+          miss=$((miss + 1))
+        fi
         ;;
       file|smoke)
-        [ -f "$anchor" ] || miss=$((miss + 1))
+        if [ ! -f "$anchor" ]; then
+          echo "std-http-https FAIL: missing file '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      section|script|gate|anchor|hook_script)
+        # DOC ## 4. Gate / script anchors validated by the gate script.
         ;;
     esac
   done < "$tsv"
@@ -31,19 +53,48 @@ std_http_https_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_http_https_run_x_smoke() {
+# Compile and run https smoke .x; expect exit 0.
+# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
+# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# PLATFORM: SHARED archaeology — product honesty path.
+std_http_https_run_smoke() {
   local xlang="$1"
   local src="$2"
-  local exe="/tmp/xlang_std_http_https_$$"
-  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local tag="${3:-smoke}"
+  local exe="/tmp/xlang_std_http_https_${tag}_$$"
+  if [ ! -f "$src" ]; then
+    echo "std-http-https FAIL: missing $src" >&2
+    return 1
+  fi
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-http-https FAIL: compile $src" >&2
+      $RUN_XLANG build -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-http-https FAIL: compile $src" >&2
+      "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
+  fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
   rm -f "$exe"
-  [ "$ec" -eq 0 ]
+  if [ "$ec" -ne 0 ]; then
+    echo "std-http-https FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
+# Observational C smoke (OpenSSL / stub); never the hard-green signal.
+# PLATFORM: SHARED archaeology — optional host-TLS probe only.
 std_http_https_run_c_smoke() {
   local http_o="$1"
   local net_o="$2"
@@ -59,6 +110,11 @@ std_http_https_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
+# Structured report line (honesty: check=/run=/skip=).
 std_http_https_emit_report() {
-  echo "${STD_HTTP_HTTPS_PREFIX} status=$1 c=$2 x=$3 skip=$4 openssl=$5"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_HTTP_HTTPS_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

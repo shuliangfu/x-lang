@@ -1,9 +1,9 @@
-# STD-HTTP-HTTPS std.http HTTPS manifest
+# STD-034 (STD-HTTP-HTTPS) std.http HTTPS manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_apis	2
 read_path	section	## 1. 阅读路径	15min
 https_api	section	## 2. HTTPS 语义	https_is_available
-verify	section	## 4. 验证与门禁	gate
+verify	section	## 4. Gate	gate
 api_avail	api	https_is_available	std/http/mod.x	TLS 探测
 api_smoke	api	https_smoke	std/http/mod.x	C 烟测
 symbol_avail_c	symbol	http_is_https_available_c	compiler/seeds/runtime_http_glue.from_x.c	C 探测
@@ -11,6 +11,6 @@ symbol_smoke_c	symbol	http_https_smoke_c	compiler/seeds/runtime_http_glue.from_x
 symbol_tls_bridge	file	compiler/seeds/http/http_tls_bridge.inc	weak 桩
 impl_https	file	compiler/seeds/runtime_http_glue.from_x.c	parse_http_url https
 smoke_x	smoke	tests/http/https_smoke.x	桩/offline
-smoke_c	smoke	tests/http/https_smoke_ok.c	C 入口
+smoke_c	smoke	tests/http/https_smoke_ok.c	C 入口（观测）
 lib	script	lib/std-http-https.sh	tests/lib/std-http-https.sh
 gate	script	run-std-http-https-gate.sh	tests/run-std-http-https-gate.sh
