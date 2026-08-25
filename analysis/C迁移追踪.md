@@ -339,12 +339,13 @@
 
 | 项 | 状态 | 备注 |
 |----|------|------|
-| L6 unused-hint | ⬜ 须点名 check | 自举期 check 闸暂停 |
-| WPO_DUMP_CALLGRAPH | ⬜ 须 mega／点名 | 产品 dump 路径 |
-| `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名才动 |
+| L6 unused-hint | ⬜ 自主择优 | check 闸仍暂停；优先级到则开（无需点名） |
+| WPO_DUMP_CALLGRAPH | ⬜ 自主择优 | 产品 dump；优先级到则开（可涉 mega） |
+| `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动 |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
 | CORE-016 Option／Result 泛型↔族 unify | ✅ | named-inst mangle 等式＋let 族 canonicalize；闸 run hard |
+| CORE-013 i16／u16 size／align formal | ✅ | labi g1 全表针＋闸 run hard |
 | CORE／lang runnable soft SKIP | 🟡 | 余例择优 |
 | nest 冻 64 | ✅ 纪律 | — |
 | 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
