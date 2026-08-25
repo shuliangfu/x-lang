@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# std-context-cookbook.sh — STD-156 Cookbook manifest 与 runnable 辅助
+# std-context-cookbook.sh — STD-156：std.context Cookbook manifest helpers
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_context_cookbook_symbols_ok MOD_X TSV
-#   std_context_cookbook_run_smoke RUN_XLANG RECIPE
-#   std_context_cookbook_emit_report status run_ok skip
+#   std_context_cookbook_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CTX_CB_PREFIX="${XLANG_STD_CTX_CB_PREFIX:-xlang: [XLANG_STD_CONTEXT_COOKBOOK]}"
 
-# 校验 manifest 中 symbol/recipe 锚点；echo 缺失数。
+# Validate manifest symbol/recipe/file anchors against product std/context/mod.x.
+# Function anchors require `function <name>(` so export function surface names match.
+# Echo miss count; return 0 when miss=0.
 std_context_cookbook_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -30,35 +32,24 @@ std_context_cookbook_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      cross_ref)
+        # Cookbook expand DOC must live under archive after honesty waves.
+        if [ ! -f "$anchor" ]; then
+          echo "std-context-cookbook FAIL: missing cross_ref '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 Cookbook 食谱；成功返回 0。
-std_context_cookbook_run_smoke() {
-  local run_shu="$1"
-  local recipe="$2"
-  local out="/tmp/xlang_std_context_cookbook"
-  if ! $run_shu -L . "$recipe" -o "$out" 2>/tmp/xlang_std_context_cookbook_build.log; then
-    echo "std-context-cookbook gate FAIL: link" >&2
-    tail -8 /tmp/xlang_std_context_cookbook_build.log 2>/dev/null >&2 || true
-    return 1
-  fi
-  local ec=0
-  "$out" >/dev/null 2>&1 || ec=$?
-  if [ "$ec" -ne 0 ]; then
-    echo "std-context-cookbook gate FAIL: exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 输出结构化报告行。
+# Structured report line (check observational; run hard; skip only when no binary path).
 std_context_cookbook_emit_report() {
   local status="$1"
-  local run_ok="$2"
-  local skip="$3"
-  echo "${STD_CTX_CB_PREFIX} status=${status} run=${run_ok} skip=${skip}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_CTX_CB_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
