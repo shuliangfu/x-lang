@@ -22,9 +22,12 @@ _option_native_xlang() {
   esac
 }
 
+# Prefer product asm (CORE-002 honesty 2026-08-25); then xlang-c / xlang.
+# PLATFORM: SHARED — pure-asm product path; host-cc only with XLANG_ALLOW_HOST_CC /
+# XLANG_FORCE_LINK_BACKEND.
 XLANG="${XLANG:-}"
 if [ -z "$XLANG" ] || ! _option_native_xlang "$XLANG"; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     if _option_native_xlang "$cand"; then
       XLANG="$cand"
       break
@@ -36,13 +39,13 @@ if [ -z "$XLANG" ] || ! _option_native_xlang "$XLANG"; then
   exit 1
 fi
 
+# Pin link to resolved product compiler (avoid Darwin-arm64 asm→c remap).
+export XLANG_LINK_XLANG="${XLANG_LINK_XLANG:-$XLANG}"
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
 # 产品路径：必须用 $XLANG（或 RUN_XLANG）真 -o + 运行；禁止 check-only 假绿。
 # Prefer the product compiler itself over bootstrap wrap (which may inject -backend).
-# Pure-asm product default; host-cc -backend c only with XLANG_ALLOW_HOST_CC /
-# XLANG_FORCE_LINK_BACKEND. PLATFORM: SHARED pure-asm product path.
 LINK_XLANG="${XLANG:-${RUN_XLANG}}"
 case "$(basename "${LINK_XLANG:-}")" in
   xlang-backend-wrap.sh|xlang-min-link.sh)
@@ -50,6 +53,7 @@ case "$(basename "${LINK_XLANG:-}")" in
     ;;
 esac
 
+_OPTION_OUT="/tmp/xlang_option_$$"
 _option_try_compile() {
   local comp="$1"
   local be_args=()
@@ -57,7 +61,7 @@ _option_try_compile() {
   if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
     be_args=(-backend "${XLANG_FORCE_LINK_BACKEND}")
   fi
-  "$comp" "${be_args[@]}" -L . tests/option/main.x -o /tmp/xlang_option 2>&1
+  "$comp" "${be_args[@]}" -L . tests/option/main.x -o "$_OPTION_OUT" 2>&1
 }
 
 set +e
@@ -70,7 +74,8 @@ if [ "$_compile_ec" -ne 0 ]; then
   exit "$_compile_ec"
 fi
 
-exitcode=0; /tmp/xlang_option >/dev/null 2>&1 || exitcode=$?
+exitcode=0; "$_OPTION_OUT" >/dev/null 2>&1 || exitcode=$?
+rm -f "$_OPTION_OUT"
 # 10+42+7 + unwrap_or_u8(some_u8(3),0)=3 + unwrap_or_u8(none_u8(),5)=5 + map/and_then/generic/ptr extra=35 → 102
 [ "$exitcode" -ne 102 ] && { echo "expected exit 102, got $exitcode"; exit 1; }
 

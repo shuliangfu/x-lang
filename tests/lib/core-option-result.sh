@@ -4,6 +4,7 @@
 # 用法（source 后）：
 #   core_or_symbols_ok OPTION_X RESULT_X TSV
 #   core_or_emit_report status option_ok result_ok skip
+# 2026-08-25: gate emits option/result hard-green (skip=0); check stays observational.
 
 CORE_OR_PREFIX="${XLANG_CORE_OPTION_RESULT_PREFIX:-xlang: [XLANG_CORE_OPTION_RESULT]}"
 

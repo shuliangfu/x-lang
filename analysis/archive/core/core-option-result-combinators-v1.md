@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` Phase 2、`analysis/exc-result-error-v1-rfc.md`（EXC-001）
 > **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
+> **Honesty 2026-08-25:** runnable hard-green — prefer `xlang_asm`; `tests/option/main.x` exit **102** + `tests/result/main.x` exit **173** hard-fail (no soft SKIP). Product surface = `core/option/option.o` + `core/result/result.o`.
 
 ---
 
