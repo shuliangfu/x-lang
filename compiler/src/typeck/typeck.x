@@ -17854,21 +17854,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
      * wave680 Cap residual: same-block const redecl / clash with let / body-param.
      * Host-C BLD001 redefinition soft residual. Nested shadow OK.
      * G.7: pipeline_block_local_name_redecl_c + diag duplicate_local.
+     *
+     * Discard binding `const _` (parser TOKEN_UNDERSCORE → name "_", len=1):
+     * multiple discards in one block are intentional and must not T001.
+     * Aligns with parser is_discard_name and L6 unused-hint skip of `_`.
+     * Mega pipeline_abi redecl helper is hard-banned this wave; complete the
+     * typeck gate here (sole emit site of duplicate_local for consts).
+     * PLATFORM: SHARED typeck.
      */
     cname_len = pipeline_block_const_name_len(arena, block_ref, idx);
     if (cname_len > 0 && cname_len < 128) {
       pipeline_block_const_name_copy64(arena, block_ref, idx, &cname_buf[0]);
-      func_ix = pipeline_dep_ctx_current_func_index(ctx);
-      if (pipeline_block_local_name_redecl_c(arena, block_ref, &cname_buf[0], cname_len, 1, idx, module,
-          func_ix) != 0) {
-        let err_line: i32 = 0;
-        let err_col: i32 = 0;
-        if (!ast.ref_is_null(cd_ir)) {
-          err_line = pipeline_expr_line_at(arena, cd_ir);
-          err_col = pipeline_expr_col_at(arena, cd_ir);
+      /* Exact discard `_` only — `_foo` still participates in redecl. */
+      if (!(cname_len == 1 && cname_buf[0] == 95)) {
+        func_ix = pipeline_dep_ctx_current_func_index(ctx);
+        if (pipeline_block_local_name_redecl_c(arena, block_ref, &cname_buf[0], cname_len, 1, idx, module,
+            func_ix) != 0) {
+          let err_line: i32 = 0;
+          let err_col: i32 = 0;
+          if (!ast.ref_is_null(cd_ir)) {
+            err_line = pipeline_expr_line_at(arena, cd_ir);
+            err_col = pipeline_expr_col_at(arena, cd_ir);
+          }
+          driver_diagnostic_typeck_duplicate_local(err_line, err_col);
+          return -1;
         }
-        driver_diagnostic_typeck_duplicate_local(err_line, err_col);
-        return -1;
       }
     }
     /* See implementation. */
@@ -17958,21 +17968,32 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
      * wave680 Cap residual: same-block let redecl / clash with const / body-param.
      * Host-C BLD001 redefinition soft residual. Nested shadow OK.
      * G.7: pipeline_block_local_name_redecl_c + diag duplicate_local.
+     *
+     * Discard binding `let _` (parser TOKEN_UNDERSCORE → name "_", len=1):
+     * multiple discards in one block are intentional (side-effect inits kept;
+     * name never read). Must not T001 — closes view_lifecycle / print_any.
+     * Aligns with parser is_discard_name and L6 unused-hint skip of `_`.
+     * Mega pipeline_abi redecl helper is hard-banned this wave; complete the
+     * typeck gate here (sole emit site of duplicate_local for lets).
+     * PLATFORM: SHARED typeck.
      */
     lname_len = pipeline_block_let_name_len(arena, block_ref, idx);
     if (lname_len > 0 && lname_len < 128) {
       pipeline_block_let_name_copy64(arena, block_ref, idx, &lname_buf[0]);
-      func_ix_l = pipeline_dep_ctx_current_func_index(ctx);
-      if (pipeline_block_local_name_redecl_c(arena, block_ref, &lname_buf[0], lname_len, 0, idx, module,
-          func_ix_l) != 0) {
-        let err_line: i32 = 0;
-        let err_col: i32 = 0;
-        if (!ast.ref_is_null(ld_ir)) {
-          err_line = pipeline_expr_line_at(arena, ld_ir);
-          err_col = pipeline_expr_col_at(arena, ld_ir);
+      /* Exact discard `_` only — `_foo` still participates in redecl. */
+      if (!(lname_len == 1 && lname_buf[0] == 95)) {
+        func_ix_l = pipeline_dep_ctx_current_func_index(ctx);
+        if (pipeline_block_local_name_redecl_c(arena, block_ref, &lname_buf[0], lname_len, 0, idx, module,
+            func_ix_l) != 0) {
+          let err_line: i32 = 0;
+          let err_col: i32 = 0;
+          if (!ast.ref_is_null(ld_ir)) {
+            err_line = pipeline_expr_line_at(arena, ld_ir);
+            err_col = pipeline_expr_col_at(arena, ld_ir);
+          }
+          driver_diagnostic_typeck_duplicate_local(err_line, err_col);
+          return -1;
         }
-        driver_diagnostic_typeck_duplicate_local(err_line, err_col);
-        return -1;
       }
     }
     /* See implementation. */
