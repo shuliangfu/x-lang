@@ -4,7 +4,7 @@ min_apis	5
 min_layers	3
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-crypto-min-v1.md	-	10min
 layers_doc	section	## 2. 安全层 K1–K3	analysis/archive/std/std-crypto-min-v1.md	-	K1-K3
-verify	section	## 4. Gate 与 report	analysis/archive/std/std-crypto-min-v1.md	-	gate
+verify	section	## 5. Gate	analysis/archive/std/std-crypto-min-v1.md	-	gate honesty
 layer_k1	layers	K1-hash	analysis/archive/std/std-crypto-min-v1.md	v1	SHA/HMAC
 layer_k2	layers	K2-rand	analysis/archive/std/std-crypto-min-v1.md	v1	CSPRNG
 layer_k3	layers	K3-sig	analysis/archive/std/std-crypto-min-v1.md	v1	MAC
@@ -20,11 +20,12 @@ impl_random_runtime	file	compiler/seeds/runtime_random_fill.from_x.c	compiler/se
 vectors	file	std-crypto-vectors.tsv	tests/baseline/std-crypto-vectors.tsv	-	golden
 lib	script	lib/std-crypto.sh	tests/lib/std-crypto.sh	-	共享库
 gate	script	run-std-crypto-gate.sh	tests/run-std-crypto-gate.sh	-	manifest
-hook_crypto	hook_script	run-crypto.sh	tests/run-crypto.sh	-	回归
-hook_random	hook_script	run-random.sh	tests/run-random.sh	-	回归
-smoke_sha256_abc	smoke	tests/std-crypto/sha256_abc.x	tests/std-crypto/sha256_abc.x	-	FIPS abc
-smoke_hmac	smoke	tests/std-crypto/hmac_key_msg.x	tests/std-crypto/hmac_key_msg.x	-	HMAC golden
-smoke_mac	smoke	tests/std-crypto/mac_verify_smoke.x	tests/std-crypto/mac_verify_smoke.x	-	MAC 闭环
-smoke_mem_eq	smoke	tests/std-crypto/mem_eq_ct.x	tests/std-crypto/mem_eq_ct.x	-	mem_eq
-smoke_rand	smoke	tests/std-crypto/rand_fill_smoke.x	tests/std-crypto/rand_fill_smoke.x	-	fill_bytes
+hook_crypto	hook_script	run-crypto.sh	tests/run-crypto.sh	-	回归 observational
+hook_random	hook_script	run-random.sh	tests/run-random.sh	-	回归 observational
+smoke_sha256_abc	smoke	tests/std-crypto/sha256_abc.x	tests/std-crypto/sha256_abc.x	-	FIPS abc hard
+smoke_hmac	smoke	tests/std-crypto/hmac_key_msg.x	tests/std-crypto/hmac_key_msg.x	-	HMAC golden hard
+smoke_mac	smoke	tests/std-crypto/mac_verify_smoke.x	tests/std-crypto/mac_verify_smoke.x	-	MAC observational UNDEF
+smoke_mem_eq	smoke	tests/std-crypto/mem_eq_ct.x	tests/std-crypto/mem_eq_ct.x	-	mem_eq hard
+smoke_rand	smoke	tests/std-crypto/rand_fill_smoke.x	tests/std-crypto/rand_fill_smoke.x	-	fill_bytes hard
+smoke_main	smoke	tests/crypto/main.x	tests/crypto/main.x	-	legacy hard
 cross_readme	cross_ref	std/crypto/README.md	std/crypto/README.md	-	README
