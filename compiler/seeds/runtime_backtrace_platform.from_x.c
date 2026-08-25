@@ -118,23 +118,31 @@ int32_t backtrace_copy_sym_name_c(uint8_t *out, int32_t name_cap, const uint8_t 
 }
 #endif
 
-/** Format address as hex string into output buffer. */
+/** Format address as "0x" + hex digits into out[0..cap).
+ * PLATFORM: SHARED — walk address bytes and call backtrace_u8_hex2_impl per
+ * byte (two digits). Do NOT pass a nibble to u8_hex2: that writes two digits
+ * per nibble and overruns a 18-byte scratch (Ubuntu stack-smash in
+ * symbolicate fallback when dladdr misses). Scratch holds "0x" + 16 digits.
+ */
 void backtrace_format_hex_addr_impl(uint8_t *out, int32_t cap, void *addr) {
-  uint8_t tmp[18];
+  uint8_t tmp[19];
   uintptr_t v = (uintptr_t)addr;
   int32_t i;
   int32_t pos = 2;
+  int32_t ncopy;
   if (!out || cap <= 0) return;
   tmp[0] = '0';
   tmp[1] = 'x';
-  for (i = 15; i >= 0; i--) {
-    uint8_t nib = (uint8_t)((v >> (i * 4)) & 15u);
-    backtrace_u8_hex2_impl(nib, &tmp[pos]);
+  /* sizeof(void*) bytes → 2*sizeof(void*) hex digits; 64-bit → pos ends at 18. */
+  for (i = (int32_t)sizeof(void *) - 1; i >= 0; i--) {
+    uint8_t b = (uint8_t)((v >> (i * 8)) & 0xffu);
+    backtrace_u8_hex2_impl(b, &tmp[pos]);
     pos += 2;
   }
-  if (pos >= cap) pos = cap - 1;
-  memcpy(out, tmp, (size_t)pos);
-  out[pos] = '\0';
+  ncopy = pos;
+  if (ncopy >= cap) ncopy = cap - 1;
+  if (ncopy > 0) memcpy(out, tmp, (size_t)ncopy);
+  out[ncopy] = '\0';
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
@@ -163,6 +171,8 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 
 /* === Platform-specific _impl functions === */
 
+/* PLATFORM: POSIX — stdio above pulls features.h on glibc so __GLIBC__ is set.
+ * Musl/Alpine typically lack execinfo.h → leave HAVE_EXECINFO undefined. */
 #if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
 #include <execinfo.h>
 #define HAVE_EXECINFO 1

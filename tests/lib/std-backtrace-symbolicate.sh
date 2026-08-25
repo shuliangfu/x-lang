@@ -13,17 +13,15 @@
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_BACKTRACE_SYM_PREFIX="${XLANG_STD_BACKTRACE_SYM_PREFIX:-xlang: [XLANG_STD_BACKTRACE_SYM]}"
 
-# Probe whether the host supports execinfo/backtrace (Alpine/musl lacks glibc execinfo).
-# PLATFORM: POSIX — Linux glibc + Darwin; musl/Alpine → unsupported.
+# Probe whether the host supports execinfo/backtrace (Alpine/musl lacks execinfo.h).
+# PLATFORM: POSIX — compile+run against <execinfo.h>; do NOT gate on predefined
+# __GLIBC__ alone (glibc only defines it after features.h — bare probe always
+# took the #else on Ubuntu and falsely SKIP C gold).
 std_backtrace_sym_gold_supported() {
   local probe="/tmp/xlang_bt_probe_$$"
   if ! cc -std=c11 -x c - -o "$probe" 2>/dev/null <<'EOF'
-#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
 #include <execinfo.h>
 int main(void) { void *a[4]; return backtrace(a, 4) >= 0 ? 0 : 1; }
-#else
-int main(void) { return 2; }
-#endif
 EOF
   then
     rm -f "$probe"
