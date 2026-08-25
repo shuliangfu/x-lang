@@ -6594,7 +6594,8 @@ int32_t codegen_generic_struct_mangled_name_into(struct ast_ASTArena * arena, ui
     if ((((((arena ==0) || (layout_nm ==0)) || (layout_nl <=0)) || (mono_tys ==0)) || (out_nm ==0))) {
       return 0;
     }
-    if (((ntp <=0) || (out_cap <=(layout_nl + 2)))) {
+    /* PLATFORM: SHARED — single `_` joiner (= typeck named-inst; was `__`). */
+    if (((ntp <=0) || (out_cap <=(layout_nl + 1)))) {
       return 0;
     }
     int32_t o = 0;
@@ -6604,11 +6605,9 @@ int32_t codegen_generic_struct_mangled_name_into(struct ast_ASTArena * arena, ui
       (void)((o = (o + 1)));
       (void)((bi = (bi + 1)));
     }
-    if (((o + 2) >=out_cap)) {
+    if (((o + 1) >=out_cap)) {
       return 0;
     }
-    (void)(((out_nm)[o] = 95));
-    (void)((o = (o + 1)));
     (void)(((out_nm)[o] = 95));
     (void)((o = (o + 1)));
     int32_t mi = 0;
@@ -6865,8 +6864,8 @@ int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module * module,
       }
       (void)((tj = (tj + 1)));
     }
-    uint8_t sep[2] = {95, 95};
-    if ((codegen_emit_bytes_from_ptr(out, &((sep)[0]), 2) !=0)) {
+    /* PLATFORM: SHARED — single `_` joiner (= typeck named-inst; was `__`). */
+    if ((codegen_append_byte(out, 95) !=0)) {
       return -1;
     }
     int32_t first = 1;
@@ -6952,8 +6951,8 @@ int32_t codegen_emit_generic_struct_mono_suffix(struct codegen_CodegenOutBuf * o
     if (((((out ==0) || (arena ==0)) || (mono_tys ==0)) || (ntp <=0))) {
       return -1;
     }
-    uint8_t sep[2] = {95, 95};
-    if ((codegen_emit_bytes_from_ptr(out, &((sep)[0]), 2) !=0)) {
+    /* PLATFORM: SHARED — single `_` joiner (= typeck named-inst; was `__`). */
+    if ((codegen_append_byte(out, 95) !=0)) {
       return -1;
     }
     int32_t mi = 0;

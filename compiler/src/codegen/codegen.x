@@ -4886,9 +4886,10 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         ci = ci + 1;
       }
       /*
-       * wave481: generic struct multi mono C tag — append `__A` / `__i32_i32` when
-       * TYPE_NAMED carries concrete type-pos args (Wrap&lt;A&gt;). Matches mangled defs
-       * from codegen_emit_module_struct_definitions. PLATFORM: SHARED host-C.
+       * wave481 + tag unify: generic struct multi mono C tag — append `_A` /
+       * `_i32_i32` when TYPE_NAMED carries concrete type-pos args (Wrap&lt;A&gt;).
+       * Matches typeck named-inst + mangled defs from
+       * codegen_emit_module_struct_definitions. PLATFORM: SHARED host-C.
        */
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
         if (codegen_maybe_emit_generic_struct_mono_suffix_for_type(ctx.current_codegen_module, arena, out, type_ref, ctx) != 0) {
@@ -7764,7 +7765,10 @@ export function codegen_generic_struct_fill_concrete_args(module: *Module, arena
 }
 
 /**
- * wave481: build mangled generic struct tag `Name__suf0[_suf1…]` into out_nm.
+ * wave481 + host-C STRUCT_LIT tag unify: build mangled generic struct tag
+ * `Name_suf0[_suf1…]` into out_nm (single `_`, same spelling as typeck
+ * `typeck_named_inst_mangle_into` / LANG-009 `Box_i32` / `Option_i32`).
+ * Prior `__` outer joiner dual-emitted `Box__i32` beside typeck `Box_i32`.
  * @param arena *ASTArena
  * @param layout_nm *u8
  * @param layout_nl i32
@@ -7773,7 +7777,7 @@ export function codegen_generic_struct_fill_concrete_args(module: *Module, arena
  * @param out_nm *u8 — capacity out_cap
  * @param out_cap i32
  * @return i32 — mangled length, or 0 on failure
- * PLATFORM: SHARED — reuses codegen_type_ref_to_suffix (function mono authority)
+ * PLATFORM: SHARED — G.7 one host-C mono tag authority with typeck named-inst
  */
 function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *u8, layout_nl: i32, mono_tys: *i32, ntp: i32, out_nm: *u8, out_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7781,7 +7785,7 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
     if (arena == 0 as *ASTArena || layout_nm == 0 as *u8 || layout_nl <= 0 || mono_tys == 0 as *i32 || out_nm == 0 as *u8) {
       return 0;
     }
-    if (ntp <= 0 || out_cap <= layout_nl + 2) {
+    if (ntp <= 0 || out_cap <= layout_nl + 1) {
       return 0;
     }
     let o: i32 = 0;
@@ -7791,12 +7795,11 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
       o = o + 1;
       bi = bi + 1;
     }
-    // "__"
-    if (o + 2 >= out_cap) {
+    // Single `_` — matches typeck named-inst (`Box_i32`); try_claim then
+    // dedupes phase-1 mono against phase-0 mangled layouts.
+    if (o + 1 >= out_cap) {
       return 0;
     }
-    out_nm[o] = 95;
-    o = o + 1;
     out_nm[o] = 95;
     o = o + 1;
     let mi: i32 = 0;
@@ -7992,10 +7995,11 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
 }
 
 /**
- * wave484/485: emit STRUCT_LIT mono `__suf…` from field structure (not ambient type).
+ * wave484/485 + tag unify: emit STRUCT_LIT mono `_suf…` from field structure
+ * (not ambient type). Single `_` matches typeck named-inst / mangled defs.
  * @param ctx *PipelineDepCtx — mono map for leaf free type params
  * @return i32 — 1 emitted, 0 not applicable, -1 fail
- * PLATFORM: SHARED host-C
+ * PLATFORM: SHARED host-C — G.7 one mono tag authority with typeck
  */
 export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8081,9 +8085,8 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
       }
       tj = tj + 1;
     }
-    // Emit __suf0[_suf1…]
-    let sep: u8[2] = [95, 95];
-    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+    // Emit _suf0[_suf1…] (single `_`; was `__`)
+    if (append_byte(out, 95) != 0) {
       return -1;
     }
     let first: i32 = 1;
@@ -8166,13 +8169,14 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
 }
 
 /**
- * wave481: emit mono suffix `__suf0[_suf1…]` after a base C struct tag name.
+ * wave481 + tag unify: emit mono suffix `_suf0[_suf1…]` after a base C struct
+ * tag name. Single `_` matches typeck named-inst / STRUCT_LIT (`Box_i32`).
  * @param out *CodegenOutBuf
  * @param arena *ASTArena
  * @param mono_tys *i32
  * @param ntp i32
  * @return i32 — 0 ok, -1 fail
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — G.7 one host-C mono tag authority with typeck
  */
 export function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, arena: *ASTArena, mono_tys: *i32, ntp: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8180,8 +8184,8 @@ export function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, are
     if (out == 0 as *CodegenOutBuf || arena == 0 as *ASTArena || mono_tys == 0 as *i32 || ntp <= 0) {
       return -1;
     }
-    let sep: u8[2] = [95, 95];
-    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+    /* Single `_` joiner (was `__`); aligns emit_type + STRUCT_LIT with typeck. */
+    if (append_byte(out, 95) != 0) {
       return -1;
     }
     let mi: i32 = 0;
@@ -8888,7 +8892,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
      * `Box&lt;i32&gt;` uses). fill_concrete fails on free T; mono_active map is off when
      * emitting the free function signature (impl methods hoist as free fns, not under
      * generic-function mono). Reuse collect authority: if unique combo, append that
-     * suffix so host-C matches monomorphized receivers (`struct Box__i32`) instead of
+     * suffix so host-C matches monomorphized receivers (`struct Box_i32`) instead of
      * incomplete bare `struct Box` BLD001.
      * Multi-combo `impl for Box<T>` with Box<A>+Box<B>: wave498 fixed via per-combo
      * mangled methods emitted by codegen_try_emit_generic_impl_method_mono + call-side
@@ -18281,7 +18285,8 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
     /*
      * TYPE_NAMED: base name, then nested type-pos args as `_` + recursive suffixes.
      * Examples: A → "A"; Wrap&lt;A&gt; → "Wrap_A"; Wrap&lt;Wrap&lt;A&gt;&gt; → "Wrap_Wrap_A";
-     * Pair&lt;A,B&gt; → "Pair_A_B". Outer mono tags still use Name__… (double underscore).
+     * Pair&lt;A,B&gt; → "Pair_A_B". Outer mono tags also use Name_… (single `_`;
+     * same as typeck named-inst — no dual `Name__…` authority).
      * PLATFORM: SHARED — uses pipeline_type_type_arg_ref_at (wave466/467 sidecar).
      */
     if (tk == (TypeKind.TYPE_NAMED as i32)) {
