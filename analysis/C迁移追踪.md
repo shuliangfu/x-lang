@@ -364,7 +364,8 @@
 | STD-060 sort-stable-cmp soft→硬绿 | ✅ | TSV／archive 锚对齐产品 `stable`／`cmp`／`cmp_desc_fn`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`stable_i32.x`／`cmp_desc.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-072 std-bytes soft→硬绿 | ✅ | DOC／TSV 锚对齐产品 `length`＋`## 5. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；双端 L2 |
 | STD-074 std-datetime soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（cli／error-unify／cache／security／url／option-result 等）；下一刀自主；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
+| STD-077 std-cli soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（error-unify／cache／security／url／option-result 等）；下一刀自主优先 **error-unify**（产品已绿）；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
