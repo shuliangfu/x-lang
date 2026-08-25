@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# std-datetime.sh — STD-074 manifest 与烟测辅助
+# std-datetime.sh — STD-074 manifest helpers (DateTime / RFC3339 / Duration).
+#
+# Usage (after source):
+#   std_datetime_symbols_ok MOD_X DT_X TSV [DOC]
+#   std_datetime_run_smoke XLANG SRC [TAG]
+#   std_datetime_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_DATETIME_PREFIX="${XLANG_STD_DATETIME_PREFIX:-xlang: [XLANG_STD_DATETIME]}"
 
-# 遍历 manifest 校验 symbol/file/smoke。
+# Validate manifest api/symbol/file/smoke/script/section/vectors anchors.
+# Echo miss count; return 0 when miss=0.
+# Optional DOC overrides archive path for section checks (default archived RFC).
 std_datetime_symbols_ok() {
   local mod_x="$1"
   local dt_x="$2"
   local tsv="$3"
+  local doc="${4:-analysis/archive/std/std-datetime-v1.md}"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -30,9 +39,15 @@ std_datetime_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke|vectors)
+      file|smoke|vectors|script|gate)
         if [ ! -f "$anchor" ]; then
           echo "std-datetime FAIL: missing '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      section)
+        if ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-datetime FAIL: missing section '$anchor' in $doc" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -42,7 +57,8 @@ std_datetime_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Compile and run .x round-trip smoke; exit 0 required.
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
 std_datetime_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -66,10 +82,11 @@ std_datetime_run_smoke() {
   return 0
 }
 
+# Structured report line (check observational; run hard; skip only when no binary path).
 std_datetime_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_DATETIME_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_DATETIME_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

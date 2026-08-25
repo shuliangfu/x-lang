@@ -20,5 +20,5 @@ impl_x	file	std/datetime/datetime.x	std/datetime/datetime.x
 symbol_local_offset	symbol	datetime_local_offset_min_c	std/datetime/datetime.x
 smoke_x	smoke	tests/std-datetime/roundtrip.x	.x烟测
 vectors	file	tests/baseline/std-datetime-vectors.tsv	向量
-lib	script	lib/std-datetime.sh	tests/lib/std-datetime.sh
-gate	script	run-std-datetime-gate.sh	tests/run-std-datetime-gate.sh
+lib	script	tests/lib/std-datetime.sh	tests/lib/std-datetime.sh
+gate	script	tests/run-std-datetime-gate.sh	tests/run-std-datetime-gate.sh
