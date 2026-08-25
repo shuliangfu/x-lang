@@ -1,3 +1,4 @@
+> **2026-08-25**：CORE-005 cmp Ordering soft→硬绿 @ **`63ed80954`**（formal_mod `core/cmp/mod.o`＋labi g25×12；闸 run=1 skip=0；**不升钉**；双端 gate＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）／其它 CORE／lang soft SKIP。
 > **2026-08-25**：裸名 CALL 形参 size 硬绿 @ **`4aa98a4f0`**（非 CALL soft 仅 TYPE_NAMED named_layout>16；禁 type_ref_byte_size／ARRAY E*；金样裸 `chain_*`；**不升钉**；双端裸 CALL＋IMW＋EXC／recovery＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）。
 > **2026-08-25**：嵌套 CALL-as-MEMORY 硬绿 @ **`3116bf25f`**（CALL/METHOD soft size＋x8 保还；金样嵌套 METHOD；**不升钉**；双端 EXC-004／recovery＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）／裸名 CALL 形参 size。
 > **2026-08-25**：EXC-004 ErrorChain soft→硬绿 @ **`46fa0217b`**（arm64 host-indirect＋拒跨模块 field-inline；金样 METHOD；**不升钉**；双端 EXC-004／recovery＋L2 5／5）。残：L6 unused（须点名 check）／WPO_DUMP（须 mega）／嵌套 CALL-as-MEMORY／裸名 CALL 形参 size。
