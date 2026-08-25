@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   std_atomic_ord_symbols_ok MOD_X ATOMIC_C TSV
 #   std_atomic_ord_run_smoke XLANG_BIN X TAG
-#   std_atomic_ord_emit_report status fence_ok main_ok skip
+#   std_atomic_ord_emit_report status check_ok fence_ok main_ok skip
 
 STD_ATOMIC_ORD_PREFIX="${XLANG_STD_ATOMIC_ORDERING_PREFIX:-xlang: [XLANG_STD_ATOMIC_ORDERING]}"
 
@@ -46,6 +46,10 @@ std_atomic_ord_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# Compile and run smoke .x; expect exit 0.
+# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
+# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# PLATFORM: SHARED archaeology — product honesty path.
 std_atomic_ord_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -55,11 +59,20 @@ std_atomic_ord_run_smoke() {
     echo "std-atomic-ordering FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-atomic-ordering FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-atomic-ordering FAIL: compile $src" >&2
+      $RUN_XLANG build -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+      echo "std-atomic-ordering FAIL: compile $src" >&2
+      "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
+      rm -f "$exe"
+      return 1
+    fi
   fi
   set +e
   "$exe" >/dev/null 2>&1
@@ -75,8 +88,9 @@ std_atomic_ord_run_smoke() {
 
 std_atomic_ord_emit_report() {
   local status="$1"
-  local fence_ok="$2"
-  local main_ok="$3"
-  local skip="$4"
-  echo "${STD_ATOMIC_ORD_PREFIX} status=${status} fence=${fence_ok} main=${main_ok} skip=${skip}"
+  local check_ok="$2"
+  local fence_ok="$3"
+  local main_ok="$4"
+  local skip="$5"
+  echo "${STD_ATOMIC_ORD_PREFIX} status=${status} check=${check_ok} fence=${fence_ok} main=${main_ok} skip=${skip}"
 }

@@ -1,18 +1,20 @@
 # STD-046 std.atomic ordering / fence manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	3
-read_path	section	## 1. 阅读路径	15min
-lang_model	section	## 2. LANG 内存模型对齐	memory_order_seq_cst
-ordering_const	section	## 3. Ordering 常量	ORDER_SEQ_CST
-fence_api	section	## 4. Fence API	fence_seq_cst
-verify	section	## 5. 门禁	gate
+# 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational;
+# runnable fence/main exit0 hard; report check=/fence=/main=/skip=.
+read_path	section	## 1. 阅读路径		15min
+lang_model	section	## 2. LANG 内存模型对齐		memory_order_seq_cst
+ordering_const	section	## 3. Ordering 常量		ORDER_SEQ_CST
+fence_api	section	## 4. Fence API		fence_seq_cst
+verify	section	## 5. Gate		gate
 api_fence_sc	api	fence_seq_cst	std/atomic/mod.x	全序栅栏
 api_fence_acq	api	fence_acquire	std/atomic/mod.x	获取栅栏
 api_fence_rel	api	fence_release	std/atomic/mod.x	释放栅栏
 const_relaxed	const	ORDER_RELAXED	std/atomic/mod.x	0
 const_seq_cst	const	ORDER_SEQ_CST	std/atomic/mod.x	4
 symbol_fence_sc	symbol	atomic_fence_seq_cst_c	compiler/seeds/runtime_atomic_glue.from_x.c	C fence
-smoke_ordering	smoke	tests/atomic/ordering_fence.x	烟测
-smoke_main	smoke	tests/atomic/main.x	回归
-lib	script	lib/std-atomic-ordering.sh	tests/lib/std-atomic-ordering.sh
-gate	script	run-std-atomic-ordering-gate.sh	tests/run-std-atomic-ordering-gate.sh
+smoke_ordering	smoke	tests/atomic/ordering_fence.x		烟测
+smoke_main	smoke	tests/atomic/main.x		回归
+lib	script	lib/std-atomic-ordering.sh	tests/lib/std-atomic-ordering.sh	
+gate	script	run-std-atomic-ordering-gate.sh	tests/run-std-atomic-ordering-gate.sh	

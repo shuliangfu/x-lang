@@ -73,14 +73,18 @@ v1 烟测验证 fence 可链接、常量与文档一致；`tests/atomic/main.x` 
 
 ---
 
-## 5. 门禁
+## 5. Gate
 
 ```bash
 ./tests/run-std-atomic-ordering-gate.sh
 ```
 
+**Honesty (2026-08-26)**：prefer `xlang_asm`＋`XLANG_LINK_XLANG`；`check` 观测（闸门暂停 2026-08-05）；`ordering_fence.x`／`main.x` exit0 硬失败（无 soft SKIP）；报告 `check=`／`fence=`／`main=`／`skip=`。旧闸偏 `xlang-c`／硬 check（CHK002）／无 native 则 soft SKIP／section `## 5. 门禁`＝portable 假红；产品 asm 烟测本绿。
+
+**report** 示例：
+
 ```
-xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok fence=1 main=1 skip=0
+xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok check=1 fence=1 main=1 skip=0
 ```
 
 ---
@@ -90,3 +94,4 @@ xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok fence=1 main=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-18 | Ordering 常量 + fence API + LANG 对齐文档 |
+| v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 5. Gate`；报告 `check=` |
