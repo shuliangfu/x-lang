@@ -346,6 +346,7 @@
 | zc_arena_concat T001 | ✅ | `string_view_concat_arena(*heap.Arena64)`＋`heap.arena64_alloc`；Ubuntu gold 成功分 8／L2 |
 | view_lifecycle discard `_` | ✅ | typeck one_let／one_const 豁免精确 `"_"` redecl；Ubuntu／Darwin `view_lifecycle` run=0／L2 |
 | print_any JSON println | ✅ | typeck fmt-any 放行＋asm schema emit＋`std_fmt_json_*_schema`／`u8_slc` stubs；fmt-std 纳 print_any；双端 L2 |
+| u8_slc fat-pointer ABI | ✅ | io stubs `std_fmt_*_u8_slc(const XlangSliceU8 *)` 对齐 TYPE_SLICE 形参权威；fmt-std 纳 print_u8_slc；双端 L2 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
