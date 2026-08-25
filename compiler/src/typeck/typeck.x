@@ -11718,6 +11718,83 @@ formal_ty: i32, arg_ty: i32, depth: i32): i32 {
  * @return i32 — 0 ok, -1 type mismatch (diagnostic emitted)
  * PLATFORM: SHARED — G.7 single gate; product path also from pipeline_typeck_check_expr_call_c.
  */
+
+/**
+ * True when a resolved 1-arg call is std.fmt / std.debug `print` / `println`.
+ * Product contract (std.fmt README): composite args that miss scalar overloads are
+ * accepted as compiler JSON "print any" specialization (not T001).
+ * Detects by func name + dep import path (`std.fmt` / `std.debug`).
+ * @param mod *Module — resolved callee module (often the dep module)
+ * @param fi i32 — resolved function index in mod
+ * @param dep i32 — resolved dep index (−1 = local; then not fmt/debug import)
+ * @param ctx *PipelineDepCtx — dep import paths
+ * @param num_args i32 — call arity (must be 1)
+ * @return i32 — 1 when fmt/debug print/println 1-arg; else 0
+ * PLATFORM: SHARED — G.7 single gate with asm glue_asm_prefix_is_fmt_or_debug.
+ */
+export function typeck_call_is_fmt_debug_print_any(mod: *Module, fi: i32, dep: i32,
+ctx: *PipelineDepCtx, num_args: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let nlen: i32 = 0;
+    let plen: i32 = 0;
+    let print_nm: u8[8] = [];
+    let println_nm: u8[8] = [];
+    if (num_args != 1) {
+      return 0;
+    }
+    if (mod == 0 as *Module || fi < 0) {
+      return 0;
+    }
+    if (dep < 0 || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    nlen = pipeline_module_func_name_len_at(mod, fi);
+    if (nlen != 5 && nlen != 7) {
+      return 0;
+    }
+    /* Avoid copy64 into undersized locals — use name_equal (G.7 existing face). */
+    print_nm[0] = 112; print_nm[1] = 114; print_nm[2] = 105; print_nm[3] = 110; print_nm[4] = 116;
+    println_nm[0] = 112; println_nm[1] = 114; println_nm[2] = 105; println_nm[3] = 110;
+    println_nm[4] = 116; println_nm[5] = 108; println_nm[6] = 110;
+    if (nlen == 5) {
+      if (pipeline_module_func_name_equal_at(mod, fi, &print_nm[0], 5) == 0) {
+        return 0;
+      }
+    } else {
+      if (pipeline_module_func_name_equal_at(mod, fi, &println_nm[0], 7) == 0) {
+        return 0;
+      }
+    }
+    plen = pipeline_dep_ctx_import_path_len(ctx, dep);
+    if (plen != 7 && plen != 9) {
+      return 0;
+    }
+    /*
+     * copy64 APIs actually memset/write 128 bytes (wave577 AST name[128]).
+     * Never use a smaller local — prior u8[64] → __stack_chk_fail.
+     */
+    {
+      let pb: u8[128] = [];
+      pipeline_dep_ctx_import_path_copy64(ctx, dep, &pb[0]);
+      if (plen == 7) {
+        if (pb[0] == 115 && pb[1] == 116 && pb[2] == 100 && pb[3] == 46
+            && pb[4] == 102 && pb[5] == 109 && pb[6] == 116) {
+          return 1;
+        }
+        return 0;
+      }
+      if (pb[0] == 115 && pb[1] == 116 && pb[2] == 100 && pb[3] == 46
+          && pb[4] == 100 && pb[5] == 101 && pb[6] == 98 && pb[7] == 117
+          && pb[8] == 103) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+
 export function typeck_check_call_arg_types(module: *Module, arena: *ASTArena, expr_ref: i32,
 ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -11864,6 +11941,16 @@ ctx: *PipelineDepCtx): i32 {
            * PLATFORM: SHARED.
            */
           if (arg_ref > 0 && typeck_call_arg_repr_compatible_ok(mod, arena, param_raw, arg_ref) != 0) {
+            ai = ai + 1;
+            continue;
+          }
+          /*
+           * std.fmt / std.debug print/println(composite): product JSON "print any".
+           * first_idx may bind a scalar overload; score fails — do not T001.
+           * Emit (asm try_emit_fmt_any / host-C) specializes; G.7 complete this gate.
+           * PLATFORM: SHARED — closes print_any.x arg-type T001.
+           */
+          if (typeck_call_is_fmt_debug_print_any(mod, fi, dep, ctx, num_args) != 0) {
             ai = ai + 1;
             continue;
           }

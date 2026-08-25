@@ -87,6 +87,7 @@ int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platf
 int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t callee_ref, struct ast_Module *mod, struct ast_PipelineDepCtx *dep_pipe, uint8_t *out, int32_t out_cap);
 int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, const uint8_t *pre_buf, int32_t pre_len, const uint8_t *field_name, int32_t field_len);
+int32_t glue_asm_try_emit_fmt_any_import_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, const uint8_t *pre_buf, int32_t pre_len, const uint8_t *field_name, int32_t field_len);
 void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
 void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap);
 void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64);
@@ -418,6 +419,19 @@ extern int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTAre
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
 /* wave359: freestanding i32.double → x*2 (mov+add self). */
 extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
+extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
+extern void pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, uint8_t *out);
+extern int32_t pipeline_module_struct_layout_num_fields(struct ast_Module *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out);
+extern int32_t pipeline_module_struct_layout_field_type_ref(struct ast_Module *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_offset_at(struct ast_Module *m, int32_t li, int32_t j);
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t tr, uint8_t *out);
+extern int32_t pipeline_type_array_size_at(struct ast_ASTArena *a, int32_t tr);
+extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *a, int32_t tr);
+extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *a, int32_t tr);
 extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
@@ -3670,6 +3684,262 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   return 1;
 }
 
+/* ---- fmt-any JSON schema emit (print_any) — G.7 twin of backend_call_dispatch.x ---- */
+
+static int32_t glue_asm_fmt_any_append_dec_c(uint8_t *out, int32_t cap, int32_t pos, int32_t v) {
+  char digs[12];
+  int nd = 0;
+  int i;
+  if (!out || cap <= 0 || pos < 0 || v < 0)
+    return -1;
+  if (v == 0) {
+    if (pos >= cap)
+      return -1;
+    out[pos] = '0';
+    return pos + 1;
+  }
+  while (v > 0 && nd < 11) {
+    digs[nd++] = (char)('0' + (v % 10));
+    v /= 10;
+  }
+  for (i = nd - 1; i >= 0; i--) {
+    if (pos >= cap)
+      return -1;
+    out[pos++] = (uint8_t)digs[i];
+  }
+  return pos;
+}
+
+static int32_t glue_asm_fmt_any_find_layout_c(struct ast_Module *m, const uint8_t *nm, int32_t nlen) {
+  int32_t n, k, ln, i;
+  uint8_t buf[128];
+  if (!m || !nm || nlen <= 0)
+    return -1;
+  n = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < n; k++) {
+    ln = pipeline_module_struct_layout_name_len(m, k);
+    if (ln == nlen && ln > 0 && ln <= 127) {
+      pipeline_module_struct_layout_name_into(m, k, buf);
+      for (i = 0; i < nlen; i++) {
+        if (buf[i] != nm[i])
+          break;
+      }
+      if (i == nlen)
+        return k;
+    }
+  }
+  return -1;
+}
+
+static int32_t glue_asm_fmt_any_build_schema_c(struct ast_Module *m, struct ast_ASTArena *arena, int32_t ty,
+                                              uint8_t *out, int32_t cap, int32_t base_off, int32_t depth) {
+  int32_t tk, pos = 0, elem, asz, etk, nlen, li, nf, j, fnl, fty, foff, ftk, sub;
+  int32_t is_some_j = -1, value_j = -1, is_opt = 0;
+  uint8_t nm[128], fnm[64], scratch[128];
+  if (!m || !arena || !out || ty <= 0 || cap <= 0 || depth > 4)
+    return -1;
+  tk = pipeline_type_kind_ord_at(arena, ty);
+  if (tk == 0) { /* I32 */
+    if (pos + 2 >= cap)
+      return -1;
+    out[pos++] = 'i';
+    out[pos++] = '@';
+    return glue_asm_fmt_any_append_dec_c(out, cap, pos, base_off);
+  }
+  if (tk == 1) { /* BOOL */
+    if (pos + 2 >= cap)
+      return -1;
+    out[pos++] = 'b';
+    out[pos++] = '@';
+    return glue_asm_fmt_any_append_dec_c(out, cap, pos, base_off);
+  }
+  if (tk == 10) { /* ARRAY */
+    elem = pipeline_type_elem_ref_at(arena, ty);
+    asz = pipeline_type_array_size_at(arena, ty);
+    if (elem <= 0 || asz <= 0)
+      return -1;
+    etk = pipeline_type_kind_ord_at(arena, elem);
+    if (etk == 2 || etk == 0) {
+      if (pos + 2 >= cap)
+        return -1;
+      out[pos++] = (etk == 2) ? 'u' : 'a';
+      out[pos++] = '@';
+      pos = glue_asm_fmt_any_append_dec_c(out, cap, pos, base_off);
+      if (pos < 0 || pos >= cap)
+        return -1;
+      out[pos++] = ',';
+      return glue_asm_fmt_any_append_dec_c(out, cap, pos, asz);
+    }
+    return -1;
+  }
+  if (tk != 8) /* NAMED */
+    return -1;
+  nlen = pipeline_type_named_name_into(arena, ty, nm);
+  if (nlen <= 0 || nlen > 127)
+    return -1;
+  li = glue_asm_fmt_any_find_layout_c(m, nm, nlen);
+  if (li < 0)
+    return -1;
+  nf = pipeline_module_struct_layout_num_fields(m, li);
+  if (nf <= 0)
+    return -1;
+  if (nlen >= 7 && memcmp(nm, "Option_", 7) == 0)
+    is_opt = 1;
+  if (is_opt) {
+    for (j = 0; j < nf; j++) {
+      fnl = pipeline_module_struct_layout_field_name_len(m, li, j);
+      if (fnl > 0 && fnl <= 63) {
+        pipeline_module_struct_layout_field_name_into(m, li, j, fnm);
+        if (fnl == 7 && memcmp(fnm, "is_some", 7) == 0)
+          is_some_j = j;
+        if (fnl == 5 && memcmp(fnm, "value", 5) == 0)
+          value_j = j;
+      }
+    }
+    if (is_some_j >= 0 && value_j >= 0) {
+      int si;
+      foff = pipeline_module_struct_layout_field_offset_at(m, li, is_some_j);
+      if (pos >= cap)
+        return -1;
+      out[pos++] = '?';
+      pos = glue_asm_fmt_any_append_dec_c(out, cap, pos, base_off + foff);
+      if (pos < 0 || pos >= cap)
+        return -1;
+      out[pos++] = ':';
+      fty = pipeline_module_struct_layout_field_type_ref(m, li, value_j);
+      foff = pipeline_module_struct_layout_field_offset_at(m, li, value_j);
+      sub = glue_asm_fmt_any_build_schema_c(m, arena, fty, scratch, 128, base_off + foff, depth + 1);
+      if (sub < 0 || pos + sub > cap)
+        return -1;
+      for (si = 0; si < sub; si++)
+        out[pos++] = scratch[si];
+      return pos;
+    }
+  }
+  if (pos >= cap)
+    return -1;
+  out[pos++] = '{';
+  for (j = 0; j < nf; j++) {
+    int ci, sj;
+    if (j > 0) {
+      if (pos >= cap)
+        return -1;
+      out[pos++] = ',';
+    }
+    fnl = pipeline_module_struct_layout_field_name_len(m, li, j);
+    if (fnl <= 0 || fnl > 63)
+      return -1;
+    pipeline_module_struct_layout_field_name_into(m, li, j, fnm);
+    if (pos + fnl + 1 >= cap)
+      return -1;
+    for (ci = 0; ci < fnl; ci++)
+      out[pos++] = fnm[ci];
+    out[pos++] = ':';
+    fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
+    foff = pipeline_module_struct_layout_field_offset_at(m, li, j);
+    ftk = pipeline_type_kind_ord_at(arena, fty);
+    if (ftk != 0 && ftk != 1 && ftk != 8 && ftk != 10)
+      return -1;
+    sub = glue_asm_fmt_any_build_schema_c(m, arena, fty, scratch, 128, base_off + foff, depth + 1);
+    if (sub < 0 || pos + sub > cap)
+      return -1;
+    for (sj = 0; sj < sub; sj++)
+      out[pos++] = scratch[sj];
+  }
+  if (pos >= cap)
+    return -1;
+  out[pos++] = '}';
+  return pos;
+}
+
+/**
+ * PLATFORM: SHARED — print_any JSON emit. Calls std_fmt_json_println_schema / _print_schema.
+ * G.7 twin of glue_asm_try_emit_fmt_any_import_call_elf_c in backend_call_dispatch.x.
+ */
+int32_t glue_asm_try_emit_fmt_any_import_call_elf_c(struct ast_ASTArena *arena,
+                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t call_expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                     int32_t ta, const uint8_t *pre_buf, int32_t pre_len,
+                                                     const uint8_t *field_name, int32_t field_len) {
+  int32_t is_ln, nargs, arg_ref, expr_ko, arg_ty, atk, slen, sn;
+  uint8_t sch[128], sym[40];
+  struct glue_AsmFuncCtxCall *ly;
+  struct ast_Module *mod_ref;
+  if (!arena || !elf_ctx || !ctx || call_expr_ref <= 0 || (ta != 0 && ta != 1))
+    return 0;
+  if (!glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len))
+    return 0;
+  if (field_len == 7 && memcmp(field_name, "println", 7) == 0)
+    is_ln = 1;
+  else if (field_len == 5 && memcmp(field_name, "print", 5) == 0)
+    is_ln = 0;
+  else
+    return 0;
+  expr_ko = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+  if (expr_ko == GLUE_EXPR_METHOD_CALL_ORD) {
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_expr_ref);
+    arg_ref = (nargs == 1) ? pipeline_expr_method_call_arg_ref(arena, call_expr_ref, 0) : 0;
+  } else {
+    nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    arg_ref = (nargs == 1) ? pipeline_expr_call_arg_ref(arena, call_expr_ref, 0) : 0;
+  }
+  if (nargs != 1 || arg_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, arg_ref) == GLUE_EXPR_STRING_LIT_ORD)
+    return 0;
+  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (arg_ty <= 0)
+    return 0;
+  atk = pipeline_type_kind_ord_at(arena, arg_ty);
+  if (atk != 8 && atk != 10)
+    return 0;
+  /* u8[N] also via schema (u@off,len) — slice-by-value ABI for u8_slc is soft residual. */
+  if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) /* VAR */
+    return 0;
+  ly = (struct glue_AsmFuncCtxCall *)ctx;
+  mod_ref = ly ? ly->module_ref : 0;
+  if (!mod_ref)
+    return 0;
+  slen = glue_asm_fmt_any_build_schema_c(mod_ref, arena, arg_ty, sch, 126, 0, 0);
+  if (slen <= 0 || slen > 126)
+    return 0;
+  /*
+   * Spill base to frame: aarch64 mov_rax_to_rbx also writes x1, and
+   * mov_rax_to_arg_reg(1) overwrites x1 — mov_rbx_to_rax reads x1, not x19.
+   * Frame spill is SHARED-safe (x86_64 + aarch64).
+   */
+  {
+    int32_t spill;
+    int32_t cur = (int32_t)ly->next_offset;
+    if (cur < 16)
+      cur = 16;
+    spill = cur;
+    ly->next_offset = cur + 8;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill, ta) != 0)
+      return -1;
+    if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 1, sch, slen) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+  }
+  if (is_ln) {
+    memcpy(sym, "std_fmt_json_println_schema", 27);
+    sn = 27;
+  } else {
+    memcpy(sym, "std_fmt_json_print_schema", 25);
+    sn = 25;
+  }
+  if (glue_asm_enc_call_redirected(elf_ctx, sym, sn, ta) != 0)
+    return -1;
+  return 1;
+}
+
 #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -3947,6 +4217,19 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       return -1;
     if (fa_lit > 0)
       return 0;
+    /* print_any composite JSON (hardcoded std_fmt_ prefix path). */
+    fa_lit = glue_asm_try_emit_fmt_any_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
+                                                         (const uint8_t *)"std_fmt_", 8, (const uint8_t *)"println", 7);
+    if (fa_lit < 0)
+      return -1;
+    if (fa_lit > 0)
+      return 0;
+    fa_lit = glue_asm_try_emit_fmt_any_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
+                                                         (const uint8_t *)"std_fmt_", 8, (const uint8_t *)"print", 5);
+    if (fa_lit < 0)
+      return -1;
+    if (fa_lit > 0)
+      return 0;
   }
 
   /** import binding + `binding.field(args)` callee。 */
@@ -3984,6 +4267,12 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                 int32_t fmt_lit =
                     glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta, pre_buf,
                                                                        pre_len, field_name, field_len);
+                if (fmt_lit < 0)
+                  return -1;
+                if (fmt_lit > 0)
+                  return 0;
+                fmt_lit = glue_asm_try_emit_fmt_any_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta, pre_buf,
+                                                                      pre_len, field_name, field_len);
                 if (fmt_lit < 0)
                   return -1;
                 if (fmt_lit > 0)
@@ -4414,6 +4703,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
            */
           {
             int32_t fmt_lit = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
+                arena, elf_ctx, expr_ref, ctx, ta, pre_buf, pre_len, name, name_len);
+            if (fmt_lit < 0)
+              return -1;
+            if (fmt_lit > 0)
+              return 0;
+            fmt_lit = glue_asm_try_emit_fmt_any_import_call_elf_c(
                 arena, elf_ctx, expr_ref, ctx, ta, pre_buf, pre_len, name, name_len);
             if (fmt_lit < 0)
               return -1;

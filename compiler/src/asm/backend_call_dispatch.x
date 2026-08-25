@@ -80,6 +80,15 @@ export extern function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta:
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
 export extern function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf: *u8, ta: i32): i32;
+export extern function pipeline_module_num_struct_layouts_at(m: *u8): i32;
+export extern function pipeline_module_struct_layout_name_len(m: *u8, idx: i32): i32;
+export extern function pipeline_module_struct_layout_name_into(m: *u8, idx: i32, out: *u8): void;
+export extern function pipeline_module_struct_layout_num_fields(m: *u8, li: i32): i32;
+export extern function pipeline_module_struct_layout_field_name_len(m: *u8, li: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_field_name_into(m: *u8, li: i32, j: i32, out: *u8): void;
+export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, li: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_field_offset_at(m: *u8, li: i32, j: i32): i32;
 export extern function backend_enc_add_rax_rbx_arch(elf: *u8, ta: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
@@ -1517,6 +1526,385 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
   return 0;
 }
 
+/**
+ * Append decimal digits of v (>=0) into out[pos..). Returns new pos, or -1 on overflow.
+ * PLATFORM: SHARED — fmt-any schema builder helper.
+ */
+function glue_asm_fmt_any_append_dec(out: *u8, cap: i32, pos: i32, v: i32): i32 {
+  let digs: u8[12] = [];
+  let nd: i32 = 0;
+  let x: i32 = v;
+  let i: i32 = 0;
+  if (out == 0 as *u8 || cap <= 0 || pos < 0) { return 0 - 1; }
+  if (x < 0) { return 0 - 1; }
+  if (x == 0) {
+    if (pos >= cap) { return 0 - 1; }
+    out[pos] = 48;
+    return pos + 1;
+  }
+  while (x > 0) {
+    if (nd >= 11) { return 0 - 1; }
+    digs[nd] = ((x % 10) + 48) as u8;
+    nd = nd + 1;
+    x = x / 10;
+  }
+  i = nd;
+  while (i > 0) {
+    i = i - 1;
+    if (pos >= cap) { return 0 - 1; }
+    out[pos] = digs[i];
+    pos = pos + 1;
+  }
+  return pos;
+}
+
+/**
+ * Find struct layout index by type name in module. Returns -1 if missing.
+ * PLATFORM: SHARED — G.7 twin of typeck_find_layout_idx_by_type_name (pipeline face).
+ */
+function glue_asm_fmt_any_find_layout(m: *u8, nm: *u8, nlen: i32): i32 {
+  let n: i32 = 0;
+  let k: i32 = 0;
+  let ln: i32 = 0;
+  let buf: u8[128] = [];
+  let i: i32 = 0;
+  if (m == 0 as *u8 || nm == 0 as *u8 || nlen <= 0) { return 0 - 1; }
+  n = pipeline_module_num_struct_layouts_at(m);
+  while (k < n) {
+    ln = pipeline_module_struct_layout_name_len(m, k);
+    if (ln == nlen && ln > 0 && ln <= 127) {
+      pipeline_module_struct_layout_name_into(m, k, &buf[0]);
+      i = 0;
+      while (i < nlen) {
+        if (buf[i] != nm[i]) { break; }
+        i = i + 1;
+      }
+      if (i == nlen) { return k; }
+    }
+    k = k + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Build JSON schema for type_ref into out (no trailing NUL). Returns length, or -1.
+ * Offsets are absolute from the value base (base_off added for nested structs).
+ * Supports i32/bool fields, nested NAMED, i32[N], u8[N], Option_* {is_some,value}.
+ * PLATFORM: SHARED — print_any product shapes; schema max fits jmp_skip 126.
+ */
+function glue_asm_fmt_any_build_schema(m: *u8, arena: *u8, ty: i32, out: *u8, cap: i32,
+base_off: i32, depth: i32): i32 {
+  let tk: i32 = 0;
+  let pos: i32 = 0;
+  let elem: i32 = 0;
+  let asz: i32 = 0;
+  let etk: i32 = 0;
+  let nm: u8[128] = [];
+  let nlen: i32 = 0;
+  let li: i32 = 0;
+  let nf: i32 = 0;
+  let j: i32 = 0;
+  let fnm: u8[64] = [];
+  let fnl: i32 = 0;
+  let fty: i32 = 0;
+  let foff: i32 = 0;
+  let ftk: i32 = 0;
+  let is_some_j: i32 = 0 - 1;
+  let value_j: i32 = 0 - 1;
+  let sub: i32 = 0;
+  let is_opt: i32 = 0;
+  if (m == 0 as *u8 || arena == 0 as *u8 || out == 0 as *u8 || ty <= 0 || cap <= 0) {
+    return 0 - 1;
+  }
+  if (depth > 4) { return 0 - 1; }
+  tk = pipeline_type_kind_ord_at(arena, ty);
+  /* TYPE_I32=0 */
+  if (tk == 0) {
+    if (pos + 2 >= cap) { return 0 - 1; }
+    out[pos] = 105; /* i */
+    out[pos + 1] = 64; /* @ */
+    pos = pos + 2;
+    return glue_asm_fmt_any_append_dec(out, cap, pos, base_off);
+  }
+  /* TYPE_BOOL=1 */
+  if (tk == 1) {
+    if (pos + 2 >= cap) { return 0 - 1; }
+    out[pos] = 98; /* b */
+    out[pos + 1] = 64;
+    pos = pos + 2;
+    return glue_asm_fmt_any_append_dec(out, cap, pos, base_off);
+  }
+  /* TYPE_ARRAY=10 */
+  if (tk == 10) {
+    elem = pipeline_type_elem_ref_at(arena, ty);
+    asz = pipeline_type_array_size_at(arena, ty);
+    if (elem <= 0 || asz <= 0) { return 0 - 1; }
+    etk = pipeline_type_kind_ord_at(arena, elem);
+    /* u8=2 → u@off,len */
+    if (etk == 2) {
+      if (pos + 2 >= cap) { return 0 - 1; }
+      out[pos] = 117;
+      out[pos + 1] = 64;
+      pos = pos + 2;
+      pos = glue_asm_fmt_any_append_dec(out, cap, pos, base_off);
+      if (pos < 0) { return 0 - 1; }
+      if (pos >= cap) { return 0 - 1; }
+      out[pos] = 44; /* , */
+      pos = pos + 1;
+      return glue_asm_fmt_any_append_dec(out, cap, pos, asz);
+    }
+    /* i32=0 → a@off,len */
+    if (etk == 0) {
+      if (pos + 2 >= cap) { return 0 - 1; }
+      out[pos] = 97;
+      out[pos + 1] = 64;
+      pos = pos + 2;
+      pos = glue_asm_fmt_any_append_dec(out, cap, pos, base_off);
+      if (pos < 0) { return 0 - 1; }
+      if (pos >= cap) { return 0 - 1; }
+      out[pos] = 44;
+      pos = pos + 1;
+      return glue_asm_fmt_any_append_dec(out, cap, pos, asz);
+    }
+    return 0 - 1;
+  }
+  /* TYPE_NAMED=8 */
+  if (tk != 8) { return 0 - 1; }
+  nlen = pipeline_type_named_name_into(arena, ty, &nm[0]);
+  if (nlen <= 0 || nlen > 127) { return 0 - 1; }
+  li = glue_asm_fmt_any_find_layout(m, &nm[0], nlen);
+  if (li < 0) { return 0 - 1; }
+  nf = pipeline_module_struct_layout_num_fields(m, li);
+  if (nf <= 0) { return 0 - 1; }
+  /* Option_* with is_some + value → ?soff:val_schema */
+  if (nlen >= 7) {
+    if (nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105
+        && nm[4] == 111 && nm[5] == 110 && nm[6] == 95) {
+      is_opt = 1;
+    }
+  }
+  if (is_opt != 0) {
+    j = 0;
+    while (j < nf) {
+      fnl = pipeline_module_struct_layout_field_name_len(m, li, j);
+      if (fnl > 0 && fnl <= 63) {
+        pipeline_module_struct_layout_field_name_into(m, li, j, &fnm[0]);
+        if (fnl == 7 && fnm[0] == 105 && fnm[1] == 115 && fnm[2] == 95
+            && fnm[3] == 115 && fnm[4] == 111 && fnm[5] == 109 && fnm[6] == 101) {
+          is_some_j = j;
+        }
+        if (fnl == 5 && fnm[0] == 118 && fnm[1] == 97 && fnm[2] == 108
+            && fnm[3] == 117 && fnm[4] == 101) {
+          value_j = j;
+        }
+      }
+      j = j + 1;
+    }
+    if (is_some_j >= 0 && value_j >= 0) {
+      foff = pipeline_module_struct_layout_field_offset_at(m, li, is_some_j);
+      if (pos >= cap) { return 0 - 1; }
+      out[pos] = 63; /* ? */
+      pos = pos + 1;
+      pos = glue_asm_fmt_any_append_dec(out, cap, pos, base_off + foff);
+      if (pos < 0) { return 0 - 1; }
+      if (pos >= cap) { return 0 - 1; }
+      out[pos] = 58; /* : */
+      pos = pos + 1;
+      fty = pipeline_module_struct_layout_field_type_ref(m, li, value_j);
+      foff = pipeline_module_struct_layout_field_offset_at(m, li, value_j);
+      {
+        let scratch: u8[128] = [];
+        let si: i32 = 0;
+        sub = glue_asm_fmt_any_build_schema(m, arena, fty, &scratch[0], 128,
+          base_off + foff, depth + 1);
+        if (sub < 0) { return 0 - 1; }
+        if (pos + sub > cap) { return 0 - 1; }
+        while (si < sub) {
+          out[pos] = scratch[si];
+          pos = pos + 1;
+          si = si + 1;
+        }
+        return pos;
+      }
+    }
+  }
+  /* Generic struct object */
+  if (pos >= cap) { return 0 - 1; }
+  out[pos] = 123; /* { */
+  pos = pos + 1;
+  j = 0;
+  while (j < nf) {
+    if (j > 0) {
+      if (pos >= cap) { return 0 - 1; }
+      out[pos] = 44;
+      pos = pos + 1;
+    }
+    fnl = pipeline_module_struct_layout_field_name_len(m, li, j);
+    if (fnl <= 0 || fnl > 63) { return 0 - 1; }
+    pipeline_module_struct_layout_field_name_into(m, li, j, &fnm[0]);
+    if (pos + fnl + 1 >= cap) { return 0 - 1; }
+    let ci: i32 = 0;
+    while (ci < fnl) {
+      out[pos] = fnm[ci];
+      pos = pos + 1;
+      ci = ci + 1;
+    }
+    out[pos] = 58;
+    pos = pos + 1;
+    fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
+    foff = pipeline_module_struct_layout_field_offset_at(m, li, j);
+    ftk = pipeline_type_kind_ord_at(arena, fty);
+    if (ftk == 0 || ftk == 1 || ftk == 8 || ftk == 10) {
+      let scratch2: u8[128] = [];
+      let sj: i32 = 0;
+      sub = glue_asm_fmt_any_build_schema(m, arena, fty, &scratch2[0], 128,
+        base_off + foff, depth + 1);
+      if (sub < 0) { return 0 - 1; }
+      if (pos + sub > cap) { return 0 - 1; }
+      while (sj < sub) {
+        out[pos] = scratch2[sj];
+        pos = pos + 1;
+        sj = sj + 1;
+      }
+    } else {
+      return 0 - 1;
+    }
+    j = j + 1;
+  }
+  if (pos >= cap) { return 0 - 1; }
+  out[pos] = 125; /* } */
+  pos = pos + 1;
+  return pos;
+}
+
+/**
+ * Emit std.fmt/std.debug print/println(composite) as JSON via schema stub.
+ * Sibling of glue_asm_try_emit_fmt_string_lit_import_call_elf_c.
+ * @return i32 — 1 emitted, 0 not applicable, -1 hard fail
+ * PLATFORM: SHARED — print_any; calls std_fmt_json_println_schema / _print_schema.
+ */
+#[no_mangle]
+export function glue_asm_try_emit_fmt_any_import_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
+  pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
+): i32 {
+  if (arena == 0 as *u8) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
+  if (call_expr_ref <= 0) { return 0; }
+  if (ta != 0) {
+    if (ta != 1) { return 0; }
+  }
+  unsafe {
+    if (glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len) == 0) { return 0; }
+    let is_ln: i32 = 0;
+    if (field_len == 7) {
+      if (field_name[0]==112&&field_name[1]==114&&field_name[2]==105&&field_name[3]==110
+          &&field_name[4]==116&&field_name[5]==108&&field_name[6]==110) {
+        is_ln = 1;
+      } else {
+        return 0;
+      }
+    } else {
+      if (field_len == 5) {
+        if (field_name[0]==112&&field_name[1]==114&&field_name[2]==105&&field_name[3]==110&&field_name[4]==116) {
+          is_ln = 0;
+        } else {
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    }
+    let expr_ko: i32 = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+    let nargs: i32 = 0;
+    let arg_ref: i32 = 0;
+    if (expr_ko == 49) {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_expr_ref);
+      if (nargs == 1) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, call_expr_ref, 0);
+      }
+    } else {
+      nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+      if (nargs == 1) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
+      }
+    }
+    if (nargs != 1) { return 0; }
+    if (arg_ref <= 0) { return 0; }
+    /* String lit → sibling path. */
+    if (pipeline_expr_kind_ord_at(arena, arg_ref) == 59) { return 0; }
+    let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (arg_ty <= 0) { return 0; }
+    let atk: i32 = pipeline_type_kind_ord_at(arena, arg_ty);
+    /* Scalars / slices → normal overload mangle + stubs. */
+    if (atk != 8 && atk != 10) { return 0; }
+    /* u8[N] via schema u@off,len (slice-by-value u8_slc soft residual). */
+    /* Only VAR lvalues for address (print_any shapes). */
+    if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
+    let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
+    if (mod_ref == 0 as *u8) { return 0; }
+    let sch: u8[128] = [];
+    let slen: i32 = glue_asm_fmt_any_build_schema(mod_ref, arena, arg_ty, &sch[0], 126, 0, 0);
+    if (slen <= 0) { return 0; }
+    if (slen > 126) { return 0; }
+    /*
+     * Spill base to frame (SHARED): aarch64 mov_rax_to_rbx also writes x1;
+     * mov_rax_to_arg_reg(1) clobbers x1; mov_rbx_to_rax reads x1 not x19.
+     */
+    let spill: i32 = call_dispatch_load_i32_le(ctx, 4);
+    if (spill < 16) { spill = 16; }
+    call_dispatch_store_i32_le(ctx, 4, spill + 8);
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill, ta) != 0) { return 0 - 1; }
+    if (glue_asm_emit_jmp_skip_string_then_lea(elf_ctx, ta, 1, &sch[0], slen) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    let sym: u8[40] = [];
+    let sn: i32 = 0;
+    /* std_fmt_json_println_schema / std_fmt_json_print_schema */
+    let pfx: u8[16] = [];
+    pfx[0]=115;pfx[1]=116;pfx[2]=100;pfx[3]=95;pfx[4]=102;pfx[5]=109;pfx[6]=116;pfx[7]=95;
+    pfx[8]=106;pfx[9]=115;pfx[10]=111;pfx[11]=110;pfx[12]=95;
+    sn = 0;
+    while (sn < 13) {
+      sym[sn] = pfx[sn];
+      sn = sn + 1;
+    }
+    if (is_ln != 0) {
+      /* println_schema */
+      let t1: u8[16] = [];
+      t1[0]=112;t1[1]=114;t1[2]=105;t1[3]=110;t1[4]=116;t1[5]=108;t1[6]=110;
+      t1[7]=95;t1[8]=115;t1[9]=99;t1[10]=104;t1[11]=101;t1[12]=109;t1[13]=97;
+      let ti: i32 = 0;
+      while (ti < 14) {
+        sym[sn] = t1[ti];
+        sn = sn + 1;
+        ti = ti + 1;
+      }
+    } else {
+      /* print_schema */
+      let t0: u8[16] = [];
+      t0[0]=112;t0[1]=114;t0[2]=105;t0[3]=110;t0[4]=116;t0[5]=95;
+      t0[6]=115;t0[7]=99;t0[8]=104;t0[9]=101;t0[10]=109;t0[11]=97;
+      let tj: i32 = 0;
+      while (tj < 12) {
+        sym[sn] = t0[tj];
+        sn = sn + 1;
+        tj = tj + 1;
+      }
+    }
+    if (glue_asm_enc_call_redirected(elf_ctx, &sym[0], sn, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+  return 0;
+}
+
 // glue_asm_enc_call_redirected: see function docblock below.
 /** Exported function `glue_asm_enc_call_redirected`.
  * Implements `glue_asm_enc_call_redirected`.
@@ -2509,6 +2897,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
                     if (fmt_lit < 0) { return 0 - 1; }
                     if (fmt_lit > 0) { return 0; }
+                    /* PLATFORM: SHARED — fmt.println(composite) JSON any (print_any). */
+                    let fmt_any: i32 = glue_asm_try_emit_fmt_any_import_call_elf_c(
+                      arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
+                    if (fmt_any < 0) { return 0 - 1; }
+                    if (fmt_any > 0) { return 0; }
                     let sym_flat: u8[128] = [];
                     /*
                      * PLATFORM: SHARED — import METHOD mangle (G.7 ≡ seed).
@@ -3396,6 +3789,11 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
                           );
                           if (fmt_lit < 0) { return 0 - 1; }
                           if (fmt_lit > 0) { return 0; }
+                          let fmt_any_c: i32 = glue_asm_try_emit_fmt_any_import_call_elf_c(
+                            arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &field_name[0], field_len
+                          );
+                          if (fmt_any_c < 0) { return 0 - 1; }
+                          if (fmt_any_c > 0) { return 0; }
                           let call_nargs: i32 = pipeline_expr_call_num_args_at(arena, expr_ref);
                           let n_ov: i32 = pipeline_codegen_call_num_args_override(
                             &pre_buf[0], pre_len, &field_name[0], field_len, call_nargs

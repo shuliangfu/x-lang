@@ -355,6 +355,15 @@ int32_t std_fmt_println_u8_ptr_i32(uint8_t *ptr, int32_t len) {
   return std_fmt_println(ptr, (size_t)len);
 }
 
+/** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。
+ * Hoisted above fmt println_u8_slc so the overload mid can use the typedef.
+ * PLATFORM: SHARED.
+ */
+typedef struct XlangSliceU8 {
+  uint8_t *data;
+  size_t length;
+} XlangSliceU8;
+
 /**
  * PLATFORM: SHARED — pure-asm scalar fmt.print/println when std.fmt is not co-emitted.
  * Call sites mangle to std_fmt_println_i32 / std_fmt_print_u32 / … (codegen + glue mid;
@@ -400,6 +409,220 @@ int32_t std_fmt_print_u64(uint64_t x) {
 
 int32_t std_fmt_println_u64(uint64_t x) {
   (void)printf("%llu\n", (unsigned long long)x);
+  return 0;
+}
+
+/**
+ * PLATFORM: SHARED — pure-asm fmt.println(u8[]) / print(u8[]) overload mid.
+ * Call sites mangle to std_fmt_println_u8_slc (glue_asm_type_ref_to_suffix_c TYPE_SLICE).
+ * G.7: complete stub surface with scalar + ptr+len (wave687); XlangSliceU8 below.
+ * Used by print_any.x u8[5]→u8[] coerce and any println(s: u8[]).
+ */
+int32_t std_fmt_print_u8_slc(XlangSliceU8 s) {
+  return std_fmt_print(s.data, s.length);
+}
+
+int32_t std_fmt_println_u8_slc(XlangSliceU8 s) {
+  return std_fmt_println(s.data, s.length);
+}
+
+/* ---- std.fmt / std.debug JSON "print any" (schema interpreter) ----
+ * Schema (ASCII, NUL-terminated), offsets decimal relative to base:
+ *   i@OFF          i32 at base+OFF
+ *   b@OFF          bool (uint8) at base+OFF → true/false
+ *   u@OFF,LEN      u8[LEN] as JSON string
+ *   a@OFF,LEN      i32[LEN] as JSON array
+ *   ?SOFF:VAL      if *(uint8*)(base+SOFF)==0 → null; else VAL
+ *   {k:VAL,k:VAL}  JSON object (keys are identifiers)
+ * Asm emit builds schema from type layout; G.7 single interpreter authority.
+ * PLATFORM: SHARED — pairs with glue_asm_try_emit_fmt_any_import_call_elf_c.
+ */
+
+static void fmt_json_escape_byte(unsigned char c) {
+  if (c == '\\' || c == '"') {
+    putchar('\\');
+    putchar((int)c);
+  } else if (c == '\n') {
+    fputs("\\n", stdout);
+  } else if (c == '\r') {
+    fputs("\\r", stdout);
+  } else if (c == '\t') {
+    fputs("\\t", stdout);
+  } else if (c < 32) {
+    printf("\\x%02x", (unsigned)c);
+  } else {
+    putchar((int)c);
+  }
+}
+
+static const char *fmt_json_parse_dec(const char *p, int32_t *out) {
+  int32_t v = 0;
+  int neg = 0;
+  if (p == NULL || out == NULL)
+    return p;
+  if (*p == '-') {
+    neg = 1;
+    p++;
+  }
+  while (*p >= '0' && *p <= '9') {
+    v = v * 10 + (int32_t)(*p - '0');
+    p++;
+  }
+  *out = neg ? -v : v;
+  return p;
+}
+
+static const char *fmt_json_emit_val(const uint8_t *base, const char *sch);
+
+static const char *fmt_json_emit_val(const uint8_t *base, const char *sch) {
+  int32_t off = 0;
+  int32_t len = 0;
+  int32_t i;
+  if (sch == NULL)
+    return sch;
+  if (*sch == 'i' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (base)
+      printf("%d", (int)(*(const int32_t *)(base + off)));
+    else
+      fputs("0", stdout);
+    return sch;
+  }
+  if (*sch == 'b' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (base && base[off])
+      fputs("true", stdout);
+    else
+      fputs("false", stdout);
+    return sch;
+  }
+  if (*sch == 'u' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (*sch == ',')
+      sch++;
+    sch = fmt_json_parse_dec(sch, &len);
+    putchar('"');
+    if (base && len > 0) {
+      for (i = 0; i < len; i++)
+        fmt_json_escape_byte(base[off + i]);
+    }
+    putchar('"');
+    return sch;
+  }
+  if (*sch == 'a' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (*sch == ',')
+      sch++;
+    sch = fmt_json_parse_dec(sch, &len);
+    putchar('[');
+    if (base && len > 0) {
+      const int32_t *arr = (const int32_t *)(base + off);
+      for (i = 0; i < len; i++) {
+        if (i)
+          putchar(',');
+        printf("%d", (int)arr[i]);
+      }
+    }
+    putchar(']');
+    return sch;
+  }
+  if (*sch == '?') {
+    sch = fmt_json_parse_dec(sch + 1, &off);
+    if (*sch == ':')
+      sch++;
+    if (base == NULL || base[off] == 0) {
+      fputs("null", stdout);
+      /* Skip VAL without emitting: walk nested braces / atoms. */
+      if (*sch == '{') {
+        int depth = 0;
+        do {
+          if (*sch == '{')
+            depth++;
+          else if (*sch == '}')
+            depth--;
+          sch++;
+        } while (*sch && depth > 0);
+        return sch;
+      }
+      if (*sch == 'i' || *sch == 'b' || *sch == 'u' || *sch == 'a') {
+        /* Re-enter skip by emitting into a discarded path — parse only. */
+        const char *save = sch;
+        /* Use a throwaway: parse structure without printing via recurse on null base for atoms. */
+        (void)save;
+        if (*sch == 'i' && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          return sch;
+        }
+        if (*sch == 'b' && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          return sch;
+        }
+        if ((*sch == 'u' || *sch == 'a') && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          if (*sch == ',')
+            sch++;
+          sch = fmt_json_parse_dec(sch, &len);
+          return sch;
+        }
+      }
+      return sch;
+    }
+    return fmt_json_emit_val(base, sch);
+  }
+  if (*sch == '{') {
+    sch++;
+    putchar('{');
+    int first = 1;
+    while (*sch && *sch != '}') {
+      if (*sch == ',') {
+        sch++;
+        continue;
+      }
+      /* key until ':' */
+      char key[64];
+      int ki = 0;
+      while (*sch && *sch != ':' && *sch != '}' && *sch != ',' && ki < 63) {
+        key[ki++] = *sch++;
+      }
+      key[ki] = 0;
+      if (*sch == ':')
+        sch++;
+      if (!first)
+        putchar(',');
+      first = 0;
+      putchar('"');
+      fputs(key, stdout);
+      putchar('"');
+      putchar(':');
+      sch = fmt_json_emit_val(base, sch);
+    }
+    if (*sch == '}')
+      sch++;
+    putchar('}');
+    return sch;
+  }
+  return sch;
+}
+
+/**
+ * Print JSON for `base` per `schema`, then newline. Returns 0.
+ * @param base value address (struct / array storage)
+ * @param schema NUL-terminated schema (see above)
+ * PLATFORM: SHARED — print_any / fmt-any product path.
+ */
+int32_t std_fmt_json_println_schema(const uint8_t *base, const char *schema) {
+  if (schema == NULL)
+    schema = "null";
+  (void)fmt_json_emit_val(base, schema);
+  putchar('\n');
+  return 0;
+}
+
+/** Same without trailing newline (fmt.print). */
+int32_t std_fmt_json_print_schema(const uint8_t *base, const char *schema) {
+  if (schema == NULL)
+    schema = "null";
+  (void)fmt_json_emit_val(base, schema);
   return 0;
 }
 
@@ -511,11 +734,7 @@ int32_t std_io_register_provided(uint32_t nr, uint32_t bufsz) {
 void std_io_unregister_provided(void) {
 }
 
-/** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。 */
-typedef struct XlangSliceU8 {
-  uint8_t *data;
-  size_t length;
-} XlangSliceU8;
+/* XlangSliceU8 typedef: see above (hoisted for std_fmt_*_u8_slc). */
 
 /** 零拷贝读 stdin slice；转发 io_read_ptr(0,0) 打包为 slice。 */
 XlangSliceU8 std_io_read_stdin_ptr_slice(void) {
