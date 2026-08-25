@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# std-context.sh — STD-071 manifest 与烟测辅助（F-context v2：纯 context.x）
+# std-context.sh — STD-071 manifest helpers (F-context v2: pure context.x)
+#
+# Usage (after source):
+#   std_context_symbols_ok MOD_X CTX_X TSV
+#   std_context_run_c_smoke CTX_X   # observational host-C archaeology only
+#   std_context_emit_report status check_ok run_ok skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_CONTEXT_PREFIX="${XLANG_STD_CONTEXT_PREFIX:-xlang: [XLANG_STD_CONTEXT]}"
 
-# 遍历 manifest 校验 symbol/file/smoke；symbol 在 context.x。
+# Validate manifest api/symbol/file/smoke anchors; symbols live in context.x.
+# Echo miss count; return 0 when miss=0.
 std_context_symbols_ok() {
   local mod_x="$1"
   local ctx_x="$2"
@@ -44,7 +51,8 @@ std_context_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：context.o + time.o（需 xlang-c 产出 context.o）。
+# Observational C smoke: context.o + time.o (host-C archaeology; not hard green).
+# PLATFORM: SHARED archaeology — product honesty is cancel_smoke.x via prefer-asm.
 std_context_run_c_smoke() {
   local ctx_x="$1"
   local src="tests/std-context/context_smoke_ok.c"
@@ -76,34 +84,11 @@ std_context_run_c_smoke() {
   return 0
 }
 
-# 编译并运行 .x 烟测。
-std_context_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-ctx}"
-  local exe="/tmp/xlang_std_context_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-context FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-context FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (check observational; run hard; skip only when no binary path).
 std_context_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_CONTEXT_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_CONTEXT_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

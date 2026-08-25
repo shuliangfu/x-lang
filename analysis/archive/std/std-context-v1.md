@@ -36,8 +36,12 @@
 
 ## 3. Gate
 
+> Honesty (2026-08-25): prefer `xlang_asm`; `check` observational; hard green =
+> `cancel_smoke.x` runnable exit 0 (`check=` / `run=` / `skip=`). C smoke is
+> observational archaeology only. PLATFORM: SHARED.
+
 ```
-xlang: [XLANG_STD_CONTEXT] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_CONTEXT] status=ok check=1 run=1 skip=0
 std-context gate OK
 ```
 

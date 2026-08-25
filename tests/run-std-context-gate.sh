@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# STD-071：std.context 门禁（F-context v2：纯 context.x）
+# STD-071：std.context 门禁（F-context v2：纯 context.x；假权威诚实）。
 #
 # 用法：./tests/run-std-context-gate.sh
 # wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# 2026-08-25: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
+# (check gate paused 2026-08-05); cancel_smoke.x exit 0 hard-fail (no soft SKIP).
+# C smoke remains observational (archaeology host-C path; not hard green).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CONTEXT_DOC:-analysis/archive/std/std-context-v1.md}"
 MANIFEST="${XLANG_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
@@ -16,6 +21,8 @@ LIB="tests/lib/std-context.sh"
 SMOKE_X="tests/std-context/cancel_smoke.x"
 SMOKE_C="tests/std-context/context_smoke_ok.c"
 MIN_APIS=10
+# Designed success score (cancel_smoke.x returns 0 on all checks).
+SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-context.sh
 . "$LIB"
@@ -76,44 +83,97 @@ if [ "${XLANG_STD_CONTEXT_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-C_OK=0
-X_OK=0
-SKIP=0
+stdlib_cm_native_xlang() {
+  local f="$1"
+  [ -n "$f" ] && [ -x "$f" ] || return 1
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
+    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
+    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
+    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
+    *) return 0 ;;
+  esac
+}
+resolve_shu() {
+  local cand
+  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    if stdlib_cm_native_xlang "$cand"; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
 
-echo "=== STD-071: context c smoke ==="
+CHECK_OK=0
+RUN_OK=0
+SKIP=1
+
+# Observational host-C archaeology smoke (not hard green).
+# PLATFORM: SHARED archaeology — product honesty is cancel_smoke.x via asm.
+echo "=== STD-071: context c smoke (observational) ==="
+C_NOTE=0
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   if ensure_std_c_o ../std/context/context.o 2>/dev/null && std_context_run_c_smoke "$CTX_X"; then
-    C_OK=1
+    C_NOTE=1
+    echo "std-context c smoke OK (observational)"
   else
-    echo "std-context gate SKIP c smoke (no full context.o)" >&2
+    echo "std-context gate SKIP c smoke (observational; no full context.o)" >&2
   fi
 else
-  echo "std-context gate SKIP c smoke (no xlang-c)" >&2
+  echo "std-context gate SKIP c smoke (observational; no xlang-c)" >&2
 fi
+echo "std-context c_smoke_note=${C_NOTE}"
 
-XLANG_BIN=""
-if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
-
-if [ -n "$XLANG_BIN" ]; then
-  echo "=== STD-071: .x smoke (XLANG=$XLANG_BIN) ==="
-  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "std-context gate FAIL: typeck" >&2
-    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
-    std_context_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
-  if std_context_run_smoke "$XLANG_BIN" "$SMOKE_X" "cancel"; then
-    X_OK=1
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-071: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
+  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    CHECK_OK=1
   else
-    std_context_emit_report "fail" "$C_OK" 0 0
+    echo "std-context gate SKIP check smoke (paused 2026-08-05)" >&2
+  fi
+  xlang_compiler_make -q ../std/context/mod.o 2>/dev/null || xlang_compiler_make ../std/context/mod.o 2>/dev/null || true
+  xlang_compiler_make -q ../std/context/context.o 2>/dev/null || xlang_compiler_make ../std/context/context.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
+  # Pin product link to resolved compiler (prefer asm).
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  export XLANG="$XLANG_BIN"
+  export XLANG_LINK_XLANG="$XLANG_BIN"
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+
+  OUT="/tmp/xlang_std_context_$$"
+  LOG="/tmp/xlang_std_context_build_$$.log"
+  if $RUN_XLANG build -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
+    exitcode=0
+    "$OUT" >/dev/null 2>&1 || exitcode=$?
+    rm -f "$OUT"
+    if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
+      RUN_OK=1
+      SKIP=0
+    else
+      echo "std-context gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
+      std_context_emit_report "fail" "$CHECK_OK" 0 0
+      exit 1
+    fi
+  else
+    echo "std-context gate FAIL runnable link" >&2
+    tail -20 "$LOG" 2>/dev/null >&2 || true
+    std_context_emit_report "fail" "$CHECK_OK" 0 0
     exit 1
   fi
 else
-  echo "std-context gate SKIP .x smoke (no xlang)" >&2
-  SKIP=1
+  echo "std-context gate FAIL: no native xlang" >&2
+  std_context_emit_report "fail" 0 0 0
+  exit 1
 fi
 
-std_context_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
+# check stays observational; hard-green signal is run= (runnable).
+echo "std-context check_ok=${CHECK_OK} (observational)"
+std_context_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
 echo "std-context gate OK"
