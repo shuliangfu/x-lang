@@ -1,6 +1,6 @@
 # STD-045：std.sync RwLock/Condvar 最小 API v1
 
-> 更新时间：2026-06-18  
+> 更新时间：2026-08-26  
 > 状态：**定版（v1）**  
 > 关联：既有 `mutex_*`、SAFE-006 TSAN 探针
 
@@ -21,10 +21,11 @@
 
 | API | 说明 |
 |-----|------|
-| `rwlock_new` / `rwlock_free` | 创建/销毁 |
-| `rwlock_read_lock` / `rwlock_read_unlock` | 共享读锁 |
-| `rwlock_write_lock` / `rwlock_write_unlock` | 独占写锁 |
-| `rwlock_try_read_lock` / `rwlock_try_write_lock` | 非阻塞；0 成功，1 忙 |
+| `new_rwlock` / `free_rwlock` | 创建/销毁 |
+| `read_lock` / `read_unlock` | 共享读锁 |
+| `write_lock` / `write_unlock` | 独占写锁 |
+
+产品短名在 `std/sync/mod.x`；C 实现 `sync_rwlock_*_c`（`runtime_sync_os.from_x.c`）。
 
 | 平台 | 实现 |
 |------|------|
@@ -37,11 +38,12 @@
 
 | API | 说明 |
 |-----|------|
-| `condvar_new` / `condvar_free` | 创建/销毁 |
-| `condvar_wait(cv, mutex)` | **已持有** `mutex` 时调用；唤醒后重新持有 |
-| `condvar_signal` / `condvar_broadcast` | 唤醒一个/全部 |
+| `new_condvar` / `free_condvar` | 创建/销毁 |
+| `wait(cv, mutex)` | **已持有** `mutex` 时调用；唤醒后重新持有 |
+| `notify_one` / `notify_all` | 唤醒一个/全部 |
 
-配对 `mutex_*` 句柄（同模块 `sync_mutex_new_c`）。
+配对 `mutex_*` 句柄（同模块 `sync_mutex_new_c`）。  
+化石名 `condvar_wait`／`condvar_signal`／`condvar_broadcast` 已对齐为产品 `wait`／`notify_one`／`notify_all`。
 
 ---
 
@@ -50,21 +52,27 @@
 | 用例 | 说明 |
 |------|------|
 | `rwlock_contention_smoke` | 2×500 写锁递增 → counter==1000 |
-| `condvar_contention_smoke` | waiter `condvar_wait` + signaler `condvar_signal` |
+| `condvar_contention_smoke` | waiter `wait` + signaler `notify_one` |
 | `tests/sync/sync_tsan_ok.c` | RwLock 保护共享计数；**TSAN 下 exit 0**（正例） |
 
-门禁在检测到 TSAN 工具链时编译运行 `sync_tsan_ok.c`；无 TSAN 时 `tsan=skip`。
+门禁在检测到 TSAN 工具链时编译运行 `sync_tsan_ok.c`；无 TSAN 时 `tsan=0`（观测，非硬失败）。
 
 ---
 
-## 5. 门禁
+## 5. Gate
 
 ```bash
 ./tests/run-std-sync-rwlock-condvar-gate.sh
 ```
 
+manifest：`tests/baseline/std-sync-rwlock-condvar.tsv`
+
+**Honesty (2026-08-26)**：prefer `xlang_asm`＋`XLANG_LINK_XLANG`；`check` 观测（闸门暂停 2026-08-05）；`rwlock_condvar.x`／`main.x` exit0 硬失败（无 soft SKIP）；TSV／DOC API 锚对齐产品 `new_rwlock`／`wait`／`notify_*`（旧 `rwlock_new`／`condvar_wait`＝portable 假红）；报告 `check=`／`rwlock=`／`condvar=`／`main=`／`tsan=`／`skip=`。
+
+**report** 示例：
+
 ```
-xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok rwlock=1 condvar=1 main=1 tsan=1 skip=0
+xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok check=1 rwlock=1 condvar=1 main=1 tsan=0 skip=0
 ```
 
 ---
@@ -74,3 +82,4 @@ xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok rwlock=1 condvar=1 main=1 tsan=
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-18 | RwLock/Condvar + 竞争烟测 + TSAN 正例 |
+| v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；API 锚对齐产品短名；`## 5. Gate` |

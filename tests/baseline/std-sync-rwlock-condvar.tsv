@@ -1,23 +1,25 @@
 # STD-045 std.sync RwLock/Condvar manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	12
+# 2026-08-26 honesty: API anchors aligned to product mod.x (new_rwlock/wait/notify_*);
+# verify section → ## 5. Gate. Fossil rwlock_new/condvar_wait were portable false-red.
 read_path	section	## 1. 阅读路径	15min
-rwlock_api	section	## 2. RwLock API	rwlock_new
-condvar_api	section	## 3. Condvar API	condvar_wait
+rwlock_api	section	## 2. RwLock API	new_rwlock
+condvar_api	section	## 3. Condvar API	wait
 tsan	section	## 4. 竞争烟测与 TSAN	sync_tsan_ok
-verify	section	## 5. 门禁	gate
-api_rwlock_new	api	rwlock_new	std/sync/mod.x	创建
-api_rwlock_rlock	api	rwlock_read_lock	std/sync/mod.x	读锁
-api_rwlock_wlock	api	rwlock_write_lock	std/sync/mod.x	写锁
-api_rwlock_runlock	api	rwlock_read_unlock	std/sync/mod.x	释读
-api_rwlock_wrunlock	api	rwlock_write_unlock	std/sync/mod.x	释写
-api_cond_new	api	condvar_new	std/sync/mod.x	创建
-api_cond_wait	api	condvar_wait	std/sync/mod.x	等待
-api_cond_signal	api	condvar_signal	std/sync/mod.x	唤醒
-api_cond_broadcast	api	condvar_broadcast	std/sync/mod.x	广播
+verify	section	## 5. Gate	gate
+api_rwlock_new	api	new_rwlock	std/sync/mod.x	创建
+api_rwlock_rlock	api	read_lock	std/sync/mod.x	读锁
+api_rwlock_wlock	api	write_lock	std/sync/mod.x	写锁
+api_rwlock_runlock	api	read_unlock	std/sync/mod.x	释读
+api_rwlock_wrunlock	api	write_unlock	std/sync/mod.x	释写
+api_cond_new	api	new_condvar	std/sync/mod.x	创建
+api_cond_wait	api	wait	std/sync/mod.x	等待
+api_cond_signal	api	notify_one	std/sync/mod.x	唤醒
+api_cond_broadcast	api	notify_all	std/sync/mod.x	广播
 api_rw_smoke	api	rwlock_contention_smoke	std/sync/mod.x	竞争
 api_cv_smoke	api	condvar_contention_smoke	std/sync/mod.x	cond
-api_cond_free	api	condvar_free	std/sync/mod.x	释放
+api_cond_free	api	free_condvar	std/sync/mod.x	释放
 symbol_rwlock_c	symbol	sync_rwlock_new_c	compiler/seeds/runtime_sync_os.from_x.c	C rwlock
 symbol_cond_c	symbol	sync_condvar_wait_c	compiler/seeds/runtime_sync_os.from_x.c	C condvar
 smoke_contention	smoke	tests/sync/rwlock_condvar.x	烟测
