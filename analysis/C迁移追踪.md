@@ -396,7 +396,8 @@
 | STD-130 random-rng soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`rng_roundtrip.x`／`main.x` exit0 硬失败；C smoke 仅观测；报告 `check=`／`rt=`／`main=`／`skip=`；双端 L2 |
 | json-object-array soft→硬绿 | ✅ | 历史 archive ID＝游标 STD-034（与 http-https STD-034 撞号，tracker 用本名）；DOC／TSV→`## 5. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`object_array_parse.x` exit0 硬失败；修复 `MOD_X` 被覆盖；报告 `check=`／`oa=`／`skip=`；双端 L2 |
 | STD-005 std-time soft→硬绿 | ✅ | DOC／TSV→`## 6. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`main.x`／`precision_smoke.x` exit0 硬失败；报告 `check=`／`main=`／`precision=`／`skip=`；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | runtime-panic-hook（`panic_hook_align.x`／`runtime_ready.x` 已探针 asm 绿）／strview-zc4 等 prefer-c；仍跳过产品红／UNDEF（process-pipe XT001／mem-boundary UNDEF／encoding-hex-b64／xxhash／json-zc／unicode-nfc／map-vec／channel-unbounded／http-reqresp／async-context／mac512／codec／atomic-widen 等）。另残 asm ld `--export-dynamic`（backtrace 具名；非软）＋by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
+| STD-028 runtime-panic-hook soft→硬绿 | ✅ | DOC／TSV→`## 6. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`panic_hook_align.x`／`runtime_ready.x` exit0 硬失败；EXC-002 观测；弱锚 `XLANG_WEAK`；EXC RFC live=`archive/exc/`；报告 `check=`／`hook=`／`ready=`／`exc=`／`skip=`；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | strview-zc4 等 prefer-c（烟测已探针 asm 绿）；仍跳过产品红／UNDEF（process-pipe XT001／mem-boundary UNDEF／encoding-hex-b64／xxhash／json-zc／unicode-nfc／map-vec／channel-unbounded／http-reqresp／async-context／mac512／codec／atomic-widen 等）。另残 asm ld `--export-dynamic`（backtrace 具名；非软）＋by-value `Set_i32`+MEMORY 邻参 ABI（非软） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
