@@ -359,7 +359,8 @@
 | STD-129 set-ops soft→硬绿 | ✅ | TSV 锚对齐产品 `union_into`／`intersect_into`／`difference_into`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；`ops.x` 避 by-value+栈数组 helper；双端 L2 |
 | STD-156 context-cookbook soft→硬绿 | ✅ | expand DOC／TSV→archive；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；CTX-01 exit0 硬失败；拒顶层 DOC 复活；双端 L2 |
 | STD-071 context soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`cancel_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（cache／security／bytes-arena／sort／url／option-result 等）；下一刀自主；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
+| STD-155 bytes-arena soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`arena_external.x` exit0 硬失败；化石 `arena_init`→`arena64_init`；双端 L2 |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | 同假权威类（cache／security／sort／url／option-result 等）；下一刀自主；另残 by-value `Set_i32`+栈数组 helper SIGSEGV |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
