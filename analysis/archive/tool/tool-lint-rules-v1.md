@@ -59,7 +59,7 @@ v1 **不新增** `xlang lint` 子命令；分层通过 **`xlang check`** + 环�
 | **L3-pad-fields** | warn | `XLANG_PAD_FIELDS=1` + 相邻字段同 cache line | `runtime.c` `typeck_pad_fields_warn` |
 | **L4-hot-reorder** | warn | `XLANG_HOT_REORDER=1` + 热字段置后 | `runtime.c` `typeck_hot_reorder_warn` |
 | **L5-fmt-style** | info | 未格式化 `.x` | `driver_run_fmt` `--check`（TOOL-001） |
-| **L6-unused-hint** | info | `XLANG_UNUSED_HINT=1` + 未使用 let/const/import 绑定 | `typeck.c` `typeck_unused_hints_module` |
+| **L6-unused-hint** | info | `XLANG_UNUSED_HINT=1` + 未使用 let/const 绑定 | `pipeline_typeck_unused_binding_hints`（abi.x＋unused_hints thin；typeck 成功尾调用） |
 | **L7-unused-private** | warn | 未 `export` 且本模块内不可达函数；check 与 LSP 默认开 | `ast_pool.c` `pipeline_typeck_unused_private_funcs` |
 
 ---

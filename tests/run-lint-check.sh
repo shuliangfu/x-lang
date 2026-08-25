@@ -22,14 +22,19 @@ native_xlang() {
   esac
 }
 
+# Prefer product asm (honest runnable/check path). Pin LINK to avoid Darwin
+# bootstrap remapping asm→c on non-x86_64. PLATFORM: SHARED archaeology.
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang ./compiler/xlang-c; do
     if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
+fi
+if [ -n "$XLANG_BIN" ] && [ -z "${XLANG_LINK_XLANG:-}" ]; then
+  export XLANG_LINK_XLANG="$XLANG_BIN"
 fi
 
 if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then

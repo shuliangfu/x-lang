@@ -104,19 +104,19 @@ tool_lint_expect_warn_reorder() {
 }
 
 # XLANG_UNUSED_HINT=1：期望含 unused binding info 且 exit 0。
-# Observational when check gate paused / L6 unused-hint not emitted (2026-08-05).
+# Honesty 2026-08-25: L6 product path hard-green (no soft SKIP).
 tool_lint_expect_info_unused() {
   local xlang="$1"
   local src="$2"
   local out
   out=$(XLANG_UNUSED_HINT=1 "$xlang" check "$src" 2>&1) && ec=0 || ec=$?
   if ! echo "$out" | grep -qE 'unused binding| - info: unused'; then
-    echo "tool-lint SKIP unused hint (check gate paused / L6 debt) on $src" >&2
-    return 0
+    echo "tool-lint FAIL: missing unused hint on $src out=$out" >&2
+    return 1
   fi
   if [ "$ec" -ne 0 ]; then
-    echo "tool-lint SKIP unused hint non-zero ec=$ec (check gate paused)" >&2
-    return 0
+    echo "tool-lint FAIL: unused hint should not fail check ec=$ec out=$out" >&2
+    return 1
   fi
   return 0
 }

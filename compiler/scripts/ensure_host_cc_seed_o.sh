@@ -3152,6 +3152,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
       pipeline_abi_inject_slot_bytes_thin "$o" || true
       pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_unused_hints_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
@@ -3167,6 +3168,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
       pipeline_abi_inject_slot_bytes_thin "$o" || true
       pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_unused_hints_thin "$o" || true
       # ttc-thin merge-fail is pre-existing (already-strong dup); do not
       # abort before blkpeel (same as arrcopy || true before ttc).
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
@@ -3219,6 +3221,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
     pipeline_abi_inject_slot_bytes_thin "$o" || true
     pipeline_abi_inject_field_load_sz_thin "$o" || true
+    pipeline_abi_inject_unused_hints_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
@@ -3238,6 +3241,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
     pipeline_abi_inject_slot_bytes_thin "$o" || true
     pipeline_abi_inject_field_load_sz_thin "$o" || true
+    pipeline_abi_inject_unused_hints_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
@@ -3256,6 +3260,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_fixed_array_copy_thin "$o" || true
   pipeline_abi_inject_slot_bytes_thin "$o" || true
   pipeline_abi_inject_field_load_sz_thin "$o" || true
+  pipeline_abi_inject_unused_hints_thin "$o" || true
   pipeline_abi_inject_type_to_c_repr_thin "$o" || true
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
   pipeline_abi_inject_param_ptr_slot_thin "$o" || true
@@ -3335,6 +3340,13 @@ pipeline_abi_inject_slot_bytes_thin() {
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_field_load_sz_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_field_load_sz_thin.x" "fieldloadsz-thin"
+}
+
+# L6 unused-binding hints (XLANG_UNUSED_HINT=1). G.7: thin body matches
+# runtime_pipeline_abi.x pipeline_typeck_unused_binding_hints.
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_unused_hints_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_unused_hints_thin.x" "unusedhints-thin"
 }
 
 

@@ -1295,6 +1295,14 @@ new_field_type_ref: i32, field_align_req: i32): i32;
 export extern function pipeline_typeck_pad_fields_warn_layout(module: *Module, arena: *ASTArena, li: i32): void;
 /* See implementation. */
 export extern function pipeline_typeck_hot_reorder_warn_layout(module: *Module, arena: *ASTArena, li: i32): void;
+/**
+ * L6 unused-binding hints (XLANG_UNUSED_HINT=1). Info only; never fails typeck.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @return i32 — hint count
+ * PLATFORM: SHARED — authority pipeline_typeck_unused_binding_hints.
+ */
+export extern function pipeline_typeck_unused_binding_hints(module: *Module, arena: *ASTArena): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 export extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_set_allow_padding(module: *Module, idx: i32,
@@ -18972,7 +18980,12 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
       return -5;
     }
     num_funcs = pipeline_module_num_funcs(module);
-    return typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
+    let rc_funcs: i32 = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
+    // L6 unused-binding hints after successful entry typeck (opt-in env).
+    if (rc_funcs == 0) {
+      pipeline_typeck_unused_binding_hints(module, arena);
+    }
+    return rc_funcs;
   }
 }
 
@@ -18994,7 +19007,12 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
       return -5;
     }
     num_funcs = pipeline_module_num_funcs(module);
-    return typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
+    let rc_lib: i32 = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, 0, num_funcs);
+    // L6 unused-binding hints after successful library typeck (opt-in env).
+    if (rc_lib == 0) {
+      pipeline_typeck_unused_binding_hints(module, arena);
+    }
+    return rc_lib;
   }
 }
 

@@ -4,8 +4,8 @@
 # 用法：./tests/run-tool-lint-gate.sh
 # wave honesty (2026-08-24 #9): DOC → analysis/archive/tool/;
 # live = lsp_diag.h + fmt_check_cmd.from_x.c. Refuse lsp_diag.c resurrect.
-# L6 unused-hint check smoke observational (check gate paused 2026-08-05).
-# PLATFORM: SHARED archaeology.
+# L6 unused-hint hard-green (2026-08-25): XLANG_UNUSED_HINT=1 must emit
+# "unused binding"; prefer xlang_asm. PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -150,13 +150,17 @@ echo "tool-lint manifest OK (rules=${RULE_N} cases=${CASE_N} profile=${PROFILE_N
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang ./compiler/xlang-c; do
     if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
+if [ -n "$XLANG_BIN" ] && [ -z "${XLANG_LINK_XLANG:-}" ]; then
+  export XLANG_LINK_XLANG="$XLANG_BIN"
+fi
+export XLANG="$XLANG_BIN"
 
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== TOOL-002: lint hooks (XLANG=$XLANG_BIN) ==="

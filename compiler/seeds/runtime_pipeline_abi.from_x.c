@@ -9833,6 +9833,123 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
   return nwarn;
 }
 
+/* L6 unused-binding hints — cold seed twin of runtime_pipeline_abi.x /
+ * unused_hints_thin.x. Gated by XLANG_UNUSED_HINT=1. PLATFORM: SHARED. */
+extern int32_t pipe_load_i32_le(void *base, int32_t off);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t let_idx);
+extern void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t let_idx, uint8_t *dst);
+extern int32_t ast_pipeline_block_const_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void ast_pipeline_block_const_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+extern char *link_abi_getenv(const char *name);
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+static int32_t wave_l6_unused_hint_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_UNUSED_HINT");
+  return (e && e[0] == '1' && e[1] == '\0') ? 1 : 0;
+}
+
+static int32_t wave_l6_name_eq(const uint8_t *name, int32_t nlen, const uint8_t *buf) {
+  int32_t i;
+  if (!name || !buf || nlen <= 0)
+    return 0;
+  for (i = 0; i < nlen; i++) {
+    if (name[i] != buf[i])
+      return 0;
+  }
+  return 1;
+}
+
+static int32_t wave_l6_binding_is_used(void *a, const uint8_t *name, int32_t nlen) {
+  int32_t nexpr;
+  int32_t er;
+  int32_t ko;
+  int32_t vlen;
+  uint8_t vbuf[128];
+  if (!a || !name || nlen <= 0)
+    return 1;
+  /* ASTArena.num_exprs @ offset 4 */
+  nexpr = pipe_load_i32_le(a, 4);
+  for (er = 1; er <= nexpr; er++) {
+    ko = pipeline_expr_kind_ord_at(a, er);
+    if (ko == 3) {
+      vlen = pipeline_expr_var_name_len(a, er);
+      if (vlen == nlen && vlen > 0 && vlen < 128) {
+        pipeline_expr_var_name_into(a, er, vbuf);
+        if (wave_l6_name_eq(name, nlen, vbuf))
+          return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static int32_t wave_l6_maybe_report(void *a, uint8_t *name, int32_t nlen) {
+  if (!name || nlen <= 0)
+    return 0;
+  if (name[0] == '_')
+    return 0;
+  if (wave_l6_binding_is_used(a, name, nlen))
+    return 0;
+  driver_diagnostic_hint_unused_binding(1, 1, name, nlen);
+  return 1;
+}
+
+static int32_t wave_l6_scan_block(void *a, int32_t br) {
+  int32_t n;
+  int32_t i;
+  int32_t nlen;
+  uint8_t name[128];
+  int32_t nh = 0;
+  if (!a || br <= 0)
+    return 0;
+  n = ast_ast_block_num_lets(a, br);
+  for (i = 0; i < n; i++) {
+    nlen = pipeline_block_let_name_len(a, br, i);
+    if (nlen > 0 && nlen < 128) {
+      pipeline_block_let_name_copy64(a, br, i, name);
+      nh += wave_l6_maybe_report(a, name, nlen);
+    }
+  }
+  n = ast_ast_block_num_consts(a, br);
+  for (i = 0; i < n; i++) {
+    nlen = ast_pipeline_block_const_name_len(a, br, i);
+    if (nlen > 0 && nlen < 128) {
+      ast_pipeline_block_const_name_copy64(a, br, i, name);
+      nh += wave_l6_maybe_report(a, name, nlen);
+    }
+  }
+  return nh;
+}
+
+int32_t pipeline_typeck_unused_binding_hints(void *m, void *a) {
+  int32_t nfuncs;
+  int32_t fi;
+  int32_t br;
+  int32_t nh = 0;
+  if (!m || !a)
+    return 0;
+  if (!wave_l6_unused_hint_enabled())
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0)
+    return 0;
+  for (fi = 0; fi < nfuncs; fi++) {
+    br = pipeline_module_func_body_ref_at(m, fi);
+    if (br > 0)
+      nh += wave_l6_scan_block(a, br);
+  }
+  return nh;
+}
+#else
+/* FROM_X: pure/thin owns pipeline_typeck_unused_binding_hints. */
+#endif
+
 void pipeline_strict_parse_into_init(void *arena, void *module) {
   wave121_ModuleHdr *h = (wave121_ModuleHdr *)module;
   ast_ast_arena_init(arena);

@@ -1306,6 +1306,7 @@ export extern "C" function driver_diagnostic_typeck_struct_padding_before(sname:
 export extern "C" function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void;
 export extern "C" function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void;
 export extern "C" function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void;
+export extern "C" function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, name_len: i32): void;
 export extern "C" function driver_diagnostic_warn_hot_reorder_field(sname: *u8, sname_len: i32, hot: *u8, hot_len: i32, cold: *u8, cold_len: i32): void;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -22399,6 +22400,209 @@ export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
     free(used);
   }
   return nwarn;
+}
+
+/**
+ * Whether L6 unused-binding hint is enabled (XLANG_UNUSED_HINT=1).
+ * @return i32 - 1 enabled
+ * PLATFORM: SHARED — opt-in info lint; default off.
+ */
+function pipeline_unused_hint_enabled(): i32 {
+  let e: *u8 = 0 as *u8;
+  unsafe {
+    e = link_abi_getenv("XLANG_UNUSED_HINT");
+  }
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (e[0] == 49 && e[1] == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Compare name[0..nlen) to buf[0..nlen); 1 if equal.
+ * @param name *u8
+ * @param nlen i32
+ * @param buf *u8
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function pipeline_l6_name_eq(name: *u8, nlen: i32, buf: *u8): i32 {
+  let i: i32 = 0;
+  if (name == 0 as *u8 || buf == 0 as *u8 || nlen <= 0) {
+    return 0;
+  }
+  while (i < nlen) {
+    unsafe {
+      if (name[i] != buf[i]) {
+        return 0;
+      }
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * True if any EXPR_VAR in the arena spells the binding name.
+ * @param a *u8 - ASTArena*
+ * @param name *u8
+ * @param nlen i32
+ * @return i32 - 1 used
+ * PLATFORM: SHARED — EXPR_VAR kind_ord == 3.
+ */
+function pipeline_l6_binding_is_used(a: *u8, name: *u8, nlen: i32): i32 {
+  let nexpr: i32 = 0;
+  let er: i32 = 1;
+  let ko: i32 = 0;
+  let vlen: i32 = 0;
+  let vbuf: u8[128];
+  if (a == 0 as *u8 || name == 0 as *u8 || nlen <= 0) {
+    return 1;
+  }
+  nexpr = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+  while (er <= nexpr) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(a, er);
+    }
+    if (ko == 3) {
+      unsafe {
+        vlen = pipeline_expr_var_name_len(a, er);
+      }
+      if (vlen == nlen && vlen > 0 && vlen < 128) {
+        unsafe {
+          pipeline_expr_var_name_into(a, er, &vbuf[0]);
+        }
+        if (pipeline_l6_name_eq(name, nlen, &vbuf[0]) != 0) {
+          return 1;
+        }
+      }
+    }
+    er = er + 1;
+  }
+  return 0;
+}
+
+/**
+ * Report one unused binding if not '_' prefixed and never used as VAR.
+ * @param a *u8
+ * @param name *u8
+ * @param nlen i32
+ * @return i32 - 1 if reported
+ * PLATFORM: SHARED — '_' prefix intentional unused.
+ */
+function pipeline_l6_maybe_report(a: *u8, name: *u8, nlen: i32): i32 {
+  let c0: u8 = 0;
+  if (name == 0 as *u8 || nlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    c0 = name[0];
+  }
+  if (c0 == 95) {
+    return 0;
+  }
+  if (pipeline_l6_binding_is_used(a, name, nlen) != 0) {
+    return 0;
+  }
+  unsafe {
+    driver_diagnostic_hint_unused_binding(1, 1, name, nlen);
+  }
+  return 1;
+}
+
+/**
+ * Scan one block's let + const bindings for unused names.
+ * @param a *u8
+ * @param br i32
+ * @return i32 - hint count
+ * PLATFORM: SHARED.
+ */
+function pipeline_l6_scan_block(a: *u8, br: i32): i32 {
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let nlen: i32 = 0;
+  let name: u8[128];
+  let nh: i32 = 0;
+  if (a == 0 as *u8 || br <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = ast_ast_block_num_lets(a, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      nlen = pipeline_block_let_name_len(a, br, i);
+    }
+    if (nlen > 0 && nlen < 128) {
+      unsafe {
+        pipeline_block_let_name_copy64(a, br, i, &name[0]);
+      }
+      nh = nh + pipeline_l6_maybe_report(a, &name[0], nlen);
+    }
+    i = i + 1;
+  }
+  unsafe {
+    n = ast_ast_block_num_consts(a, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      nlen = ast_pipeline_block_const_name_len(a, br, i);
+    }
+    if (nlen > 0 && nlen < 128) {
+      unsafe {
+        ast_pipeline_block_const_name_copy64(a, br, i, &name[0]);
+      }
+      nh = nh + pipeline_l6_maybe_report(a, &name[0], nlen);
+    }
+    i = i + 1;
+  }
+  return nh;
+}
+
+/**
+ * L6 unused-binding hints for a typed module (info; never fails typeck).
+ * Gated by XLANG_UNUSED_HINT=1. Walks each function body block's let/const
+ * and emits driver_diagnostic_hint_unused_binding for names with no EXPR_VAR use.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @return i32 - number of hints emitted
+ * G.7 sole product authority; thin twin runtime_pipeline_abi_unused_hints_thin.x.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_typeck_unused_binding_hints(m: *u8, a: *u8): i32 {
+  let nfuncs: i32 = 0;
+  let fi: i32 = 0;
+  let br: i32 = 0;
+  let nh: i32 = 0;
+  if (m == 0 as *u8 || a == 0 as *u8) {
+    return 0;
+  }
+  if (pipeline_unused_hint_enabled() == 0) {
+    return 0;
+  }
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0) {
+    return 0;
+  }
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      br = pipeline_module_func_body_ref_at(m, fi);
+    }
+    if (br > 0) {
+      nh = nh + pipeline_l6_scan_block(a, br);
+    }
+    fi = fi + 1;
+  }
+  return nh;
 }
 
 /**
