@@ -635,8 +635,19 @@ extern "C" function fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32;
 #[cfg(target_os = "macos")]
 extern "C" function sendfile(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32;
 
-/* See implementation. */
+/**
+ * Byte offset of `d_name` within libc `struct dirent`.
+ *
+ * PLATFORM: LINUX — glibc/x86_64 dirent lays `d_type` at 18 and `d_name` at 19.
+ * PLATFORM: MACOS|DARWIN — Darwin dirent lays `d_type` at 20 and `d_name` at 21.
+ * Hardcoding Linux-only 19 made Darwin `fs_dir_read_c` skip past the real name
+ * (STD-123 dirmeta_roundtrip returned 14). Keep in sync with seed preamble
+ * `DIRENT_D_NAME_OFF` ifdef (__APPLE__→21, else→19) in rt_preamble.from_x.c.
+ */
+#[cfg(target_os = "linux")]
 export const DIRENT_D_NAME_OFF: usize = 19;
+#[cfg(target_os = "macos")]
+export const DIRENT_D_NAME_OFF: usize = 21;
 
 export const FS_IOV_BUF_MAX: i32 = 16;
 export const O_RDONLY: i32 = 0;
@@ -1323,13 +1334,17 @@ export function fs_dir_open_c(path: *u8): i64 {
   return h as i64;
 }
 
-/** Exported function `fs_dir_read_c`.
- * Read path helper `fs_dir_read_c`.
- * @param handle i64
- * @param name_out *u8
- * @param name_cap i32
- * @param is_dir_out *i32
- * @return i32
+/**
+ * Read the next directory entry into `name_out`.
+ *
+ * Skips `.` / `..`. Uses `DIRENT_D_NAME_OFF` (PLATFORM LINUX=19 / MACOS=21) to
+ * locate `d_name` inside the libc `struct dirent` returned by `readdir`.
+ *
+ * @param handle Directory handle from `fs_dir_open_c` (negative = invalid).
+ * @param name_out Caller buffer for the NUL-terminated entry name.
+ * @param name_cap Capacity of `name_out` in bytes (must fit name + NUL).
+ * @param is_dir_out Optional; currently always written 0 (d_type not wired).
+ * @return 1 on entry, 0 at end-of-dir, -1 on error (errno noted).
  */
 export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
   let h: *FsDirHandlePosix;
@@ -1351,6 +1366,7 @@ export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_
       }
       return 0;
     }
+    // PLATFORM: SHARED — offset is cfg'd (linux 19 / macos 21); see DIRENT_D_NAME_OFF.
     name = (de as *u8) + DIRENT_D_NAME_OFF;
     if (name[0] == 46 && (name[1] == 0 || (name[1] == 46 && name[2] == 0))) {
       continue;

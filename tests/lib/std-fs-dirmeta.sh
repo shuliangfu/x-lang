@@ -58,6 +58,7 @@ std_fs_dirmeta_run_x_smoke() {
   [ "$ec" -eq 0 ]
 }
 
+# Report fields: status check run skip (retired c=/x= seal after honesty).
 std_fs_dirmeta_emit_report() {
-  echo "${STD_FS_DIRMETA_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  echo "${STD_FS_DIRMETA_PREFIX} status=$1 check=$2 run=$3 skip=$4"
 }
