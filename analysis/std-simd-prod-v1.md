@@ -1,7 +1,7 @@
 # STD-061：std.simd shuffle/select 生产级 bench v1
 
-> 更新时间：2026-08-13
-> 状态：**活文档**（产品 bench 权威 = `bench/r04_simd_shuffle_select.x`；闸门 `run-std-simd-prod-gate.sh`）
+> 更新时间：2026-08-26
+> 状态：**活文档**（产品 bench 权威 = `bench/r04_simd_shuffle_select.x`；闸门 `run-std-simd-prod-gate.sh`；archive 镜像 honesty）
 > 前置：STD-047 `std-simd-shuffle-select-v1.md`
 > 关联：`run-perf-simd-dot.sh`、SIMD-S4、STD-SIMD-INTRINSIC
 > PLATFORM: SHARED — Ubuntu gold for link/run; Darwin L2 same fixture names
@@ -41,15 +41,18 @@
 ```
 
 ```
-xlang: [XLANG_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1.05
+xlang: [XLANG_STD061_SIMD_PROD] status=ok check=0|1 bench=0|1 skip=0|1 ratio=…
 ```
 
-无 native `xlang_asm` 时 manifest 仍须绿；perf runnable **SKIP**。
-自举期 check 闸门暂停（2026-08-05）：产品验收以 `-L . -o` 真链 + run 为准。
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
+- `xlang check` 观测（自举期暂停闸门 2026-08-05）
+- Manifest 硬失败；perf ratio **soft SKIP**（perf soft residual）
+- 无 native `xlang_asm` → 闸门硬失败（不再 soft SKIP→OK）
 
 2026-08-13：peel 已跨 while 外层 comptime mask，热循环 `shuffle` 走 `pshufd`。
 2026-08-13：`try_inline_select` 补 fold `select(splat(k),a,b)`＋嵌套 splat 物化；同族 `try_inline_splat`。Ubuntu L2 r04 UNDEF **NONE** · ratio **2.42**（stub 0.029s／Xlang 0.012s）硬过 1.0 · `bench_ok=1`。**不**改门槛。
 2026-08-13：129 `run-perf-simd-xlangffle-select.sh` 改薄 `exec` 权威 `run-perf-simd-shuffle-select.sh`；删除无引用 `r04_simd_xlangffle_select*`／dual smoke。Ubuntu L2 xffle／ss 同走权威 r04 · ratio **2.3／2.08**。
+2026-08-26：honesty — archive／闸 prefer asm＋check 观测＋报告 `check=`／`bench=`／`skip=`／`ratio=`。
 
 ---
 

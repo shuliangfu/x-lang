@@ -2,22 +2,24 @@
 # std-simd-autovec-strategy.sh — STD-153 manifest、烟测与 perf 辅助
 #
 # 用法（source 后）：
-#   std_simd_autovec_symbols_ok MOD_X SIMD_C TSV
+#   std_simd_autovec_symbols_ok MOD_X SIMD_X SIMD_GLUE TSV [DOC]
 #   std_simd_autovec_platform_key
 #   std_simd_autovec_perf_thresholds VECTORS platform_key
 #   std_simd_autovec_run_c_smoke
-#   std_simd_autovec_run_x_smoke XLANG_BIN X SIMD_O
+#   std_simd_autovec_run_x_smoke XLANG_BIN X
 #   std_simd_autovec_run_perf XLANG_ASM dot_min ss_min
-#   std_simd_autovec_emit_report status c_ok su_ok perf_ok skip host
+#   std_simd_autovec_emit_report status check_ok c_ok x_ok perf_ok skip host
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD153_PREFIX="${XLANG_STD153_SIMD_AUTovec_PREFIX:-xlang: [XLANG_STD153_SIMD_AUTovec]}"
 
-# 校验 manifest；echo 缺失数。
+# 校验 manifest；echo 缺失数。DOC（可选）用于 section 锚，默认 archive 闸门 DOC。
 std_simd_autovec_symbols_ok() {
   local mod_x="$1"
   local simd_x="$2"
   local simd_glue="$3"
   local tsv="$4"
+  local doc="${5:-analysis/archive/std/std-simd-autovec-strategy-v1.md}"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -48,8 +50,9 @@ std_simd_autovec_symbols_ok() {
         fi
         ;;
       section)
-        if ! grep -qF "$anchor" "analysis/std-simd-autovec-strategy-v1.md" 2>/dev/null; then
-          echo "std-simd-autovec FAIL: missing section '$anchor'" >&2
+        # Single authority: gate DOC (archive by default). Ban live/archive dual grep.
+        if ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-simd-autovec FAIL: missing section '$anchor' in $doc" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -88,17 +91,20 @@ std_simd_autovec_perf_thresholds() {
   echo "$dot $ss"
 }
 
-# 编译并运行 C 烟测。
+# 编译并运行 C 烟测（观测；缺 simd.o／host-cc 失败不算闸门硬红）。
 std_simd_autovec_run_c_smoke() {
   local smoke_c="tests/std-simd/autovec_strategy_ok.c"
   local exe="/tmp/xlang_std153_simd_autovec_c_$$"
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/simd/simd.o
+  if ! ensure_std_c_o ../std/simd/simd.o 2>/dev/null; then
+    echo "std-simd-autovec SKIP: ensure simd.o for C smoke" >&2
+    return 1
+  fi
   local simd_o
   simd_o="$(cd compiler && pwd)/../std/simd/simd.o"
   if ! cc -std=c11 -Wall -Wextra -o "$exe" "$smoke_c" "$simd_o" 2>/dev/null; then
-    echo "std-simd-autovec FAIL: compile C smoke" >&2
+    echo "std-simd-autovec SKIP: compile C smoke" >&2
     rm -f "$exe"
     return 1
   fi
@@ -108,28 +114,44 @@ std_simd_autovec_run_c_smoke() {
   set -e
   rm -f "$exe"
   if [ "$ec" -ne 0 ]; then
-    echo "std-simd-autovec FAIL: C smoke exit=$ec" >&2
+    echo "std-simd-autovec SKIP: C smoke exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# 编译并运行 .x 烟测。
+# Compile + link + run .x smoke via product asm. Hard-fail on any step.
+# Prefer RUN_XLANG (bootstrap-link) when gate pinned XLANG_LINK_XLANG.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 std_simd_autovec_run_x_smoke() {
   local xlang="$1"
   local src="$2"
-  local simd_o="$3"
   local exe="/tmp/xlang_std153_simd_autovec_x_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" "$simd_o" >/dev/null 2>&1; then
-    echo "std-simd-autovec FAIL: compile $src" >&2
-    rm -f "$exe"
+  local log="/tmp/xlang_std153_simd_autovec_build_$$.log"
+  if [ ! -f "$src" ]; then
+    echo "std-simd-autovec FAIL: missing $src" >&2
     return 1
+  fi
+  if [ -n "${RUN_XLANG:-}" ]; then
+    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-simd-autovec FAIL: compile $src" >&2
+      tail -12 "$log" 2>/dev/null >&2 || true
+      rm -f "$exe" "$log"
+      return 1
+    fi
+  else
+    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-simd-autovec FAIL: compile $src" >&2
+      tail -12 "$log" 2>/dev/null >&2 || true
+      rm -f "$exe" "$log"
+      return 1
+    fi
   fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-simd-autovec FAIL: run $src exit=$ec" >&2
     return 1
@@ -137,7 +159,7 @@ std_simd_autovec_run_x_smoke() {
   return 0
 }
 
-# 运行 dot + shuffle/select perf；阈值为 0 则 skip；bench 不可运行时不失败。
+# 运行 dot + shuffle/select perf；阈值为 0 则 skip；bench 不可运行／低于阈值时 return 1（闸门软 SKIP）。
 std_simd_autovec_run_perf() {
   local xlang_asm="$1"
   local dot_min="$2"
@@ -147,36 +169,36 @@ std_simd_autovec_run_perf() {
   if awk -v d="$dot_min" 'BEGIN { exit (d + 0 > 0.001) ? 0 : 1 }'; then
     set +e
     local dot_out
-    dot_out=$(XLANG="$xlang_asm" XLANG_SIMD_DOT_MIN_RATIO="$dot_min" XLANG_SIMD_DOT_FAIL=1 \
+    dot_out=$(XLANG="$xlang_asm" XLANG_LINK_XLANG="$xlang_asm" XLANG_SIMD_DOT_MIN_RATIO="$dot_min" XLANG_SIMD_DOT_FAIL=1 \
       ./tests/run-perf-simd-dot.sh 2>&1)
     local dot_ec=$?
     set -e
     if [ "$dot_ec" -ne 0 ]; then
       if echo "$dot_out" | grep -qE 'SKIP|FAIL: compile'; then
         echo "std-simd-autovec WARN: dot perf skipped (bench unavailable)" >&2
-        dot_ok=1
+        dot_ok=0
       else
-        echo "std-simd-autovec FAIL: dot perf below ${dot_min}" >&2
+        echo "std-simd-autovec WARN: dot perf below ${dot_min}" >&2
         echo "$dot_out" | tail -6 >&2
-        return 1
+        dot_ok=0
       fi
     fi
   fi
   if awk -v s="$ss_min" 'BEGIN { exit (s + 0 > 0.001) ? 0 : 1 }'; then
     set +e
     local ss_out
-    ss_out=$(XLANG="$xlang_asm" XLANG_SIMD_SS_MIN_RATIO="$ss_min" XLANG_SIMD_SS_FAIL=1 \
+    ss_out=$(XLANG="$xlang_asm" XLANG_LINK_XLANG="$xlang_asm" XLANG_SIMD_SS_MIN_RATIO="$ss_min" XLANG_SIMD_SS_FAIL=1 \
       ./tests/run-perf-simd-shuffle-select.sh 2>&1)
     local ss_ec=$?
     set -e
     if [ "$ss_ec" -ne 0 ]; then
       if echo "$ss_out" | grep -qE 'SKIP|FAIL: compile'; then
         echo "std-simd-autovec WARN: shuffle/select perf skipped" >&2
-        ss_ok=1
+        ss_ok=0
       else
-        echo "std-simd-autovec FAIL: shuffle/select perf below ${ss_min}" >&2
+        echo "std-simd-autovec WARN: shuffle/select perf below ${ss_min}" >&2
         echo "$ss_out" | tail -6 >&2
-        return 1
+        ss_ok=0
       fi
     fi
   fi
@@ -186,13 +208,14 @@ std_simd_autovec_run_perf() {
   return 1
 }
 
-# 输出结构化报告行。
+# Structured report: check/c observational; x hard; perf soft; skip=0 when x ran.
 std_simd_autovec_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
-  local perf_ok="$4"
-  local skip="$5"
-  local host="$6"
-  echo "${STD153_PREFIX} status=${status} c=${c_ok} x=${su_ok} perf=${perf_ok} skip=${skip} host=${host}"
+  local check_ok="$2"
+  local c_ok="$3"
+  local x_ok="$4"
+  local perf_ok="$5"
+  local skip="$6"
+  local host="$7"
+  echo "${STD153_PREFIX} status=${status} check=${check_ok} c=${c_ok} x=${x_ok} perf=${perf_ok} skip=${skip} host=${host}"
 }

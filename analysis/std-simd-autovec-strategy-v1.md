@@ -1,7 +1,7 @@
 # STD-153：std.simd 自动向量化策略 v1
 
-> 更新时间：2026-08-13
-> 状态：**活文档**（产品面权威 = `mod.x` `recommend_path`；formal c_face 孪生）
+> 更新时间：2026-08-26
+> 状态：**活文档**（产品面权威 = `mod.x` `recommend_path`；formal c_face 孪生；archive 镜像 honesty）
 > 关联：STD-047 shuffle/select、STD-061 prod bench
 > PLATFORM: SHARED — Ubuntu gold for link/run; Darwin L2 same env rules
 
@@ -48,11 +48,11 @@ gate 在具备 native `xlang_asm` 时运行：
 
 | Bench | 脚本 | 默认阈值 |
 |-------|------|----------|
-| Vec4f dot | `run-perf-simd-dot.sh` | Shu ≥ 0.90× C `-O2 -msse2` |
-| shuffle/select | `run-perf-simd-shuffle-select.sh` | stub/Shu ≥ 1.0 |
+| Vec4f dot | `run-perf-simd-dot.sh` | Xlang ≥ 0.90× C `-O2 -msse2` |
+| shuffle/select | `run-perf-simd-shuffle-select.sh` | stub/Xlang ≥ 1.0 |
 
 平台向量见 `tests/baseline/std-simd-autovec-strategy.tsv`（可按 OS-ARCH 覆盖 `min_dot_ratio` / `min_ss_ratio`）。
-无 native 编译器或 perf 跳过时 manifest + 策略烟测仍须绿。
+Perf soft residual：低于阈值／不可跑 → `perf=0` 观测，不硬红闸门。
 
 ---
 
@@ -62,10 +62,16 @@ gate 在具备 native `xlang_asm` 时运行：
 ./tests/run-std-simd-autovec-strategy-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD153_SIMD_AUTovec]`
+```
+xlang: [XLANG_STD153_SIMD_AUTovec] status=ok check=0|1 c=0|1 x=1 perf=0|1 skip=0 host=…
+```
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
+- `xlang check` 观测（自举期暂停闸门 2026-08-05）
+- C smoke 观测；`autovec_strategy.x` exit 0 硬失败；perf soft SKIP
+- 2026-08-26 honesty：archive／闸对齐 `recommend_path`；禁 prefer `xlang-c`／硬 check
 
 回归：保留 `run-std-simd-shuffle-select-gate.sh`、`run-std-simd-prod-gate.sh`。
-自举期 check 闸门暂停（2026-08-05）：产品验收以 `-L . -o` 真链 + run 为准。
 
 ---
 

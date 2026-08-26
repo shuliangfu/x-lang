@@ -3,7 +3,8 @@
 #
 # 用法（source 后）：
 #   std_simd_prod_native_asm XLANG_BIN
-#   std_simd_prod_emit_report status bench_ok bench_skip skip ratio
+#   std_simd_prod_emit_report status check_ok bench_ok bench_skip skip [ratio]
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_SIMD_PROD_PREFIX="${XLANG_STD061_PREFIX:-xlang: [XLANG_STD061_SIMD_PROD]}"
 
@@ -23,16 +24,18 @@ std_simd_prod_native_asm() {
   esac
 }
 
-# 输出结构化报告行（ratio 可为空）。
+# Structured report: check observational; bench hard-green when ratio ok;
+# bench_skip/skip mark honest perf soft residual (not fossil DOC false-red).
 std_simd_prod_emit_report() {
   local status="$1"
-  local bench_ok="$2"
-  local bench_skip="$3"
-  local skip="$4"
-  local ratio="${5:-}"
+  local check_ok="$2"
+  local bench_ok="$3"
+  local bench_skip="$4"
+  local skip="$5"
+  local ratio="${6:-}"
   if [ -n "$ratio" ]; then
-    echo "${STD_SIMD_PROD_PREFIX} status=${status} bench_ok=${bench_ok} bench_skip=${bench_skip} skip=${skip} ratio=${ratio}"
+    echo "${STD_SIMD_PROD_PREFIX} status=${status} check=${check_ok} bench=${bench_ok} skip=${skip} ratio=${ratio}"
   else
-    echo "${STD_SIMD_PROD_PREFIX} status=${status} bench_ok=${bench_ok} bench_skip=${bench_skip} skip=${skip}"
+    echo "${STD_SIMD_PROD_PREFIX} status=${status} check=${check_ok} bench=${bench_ok} skip=${skip}"
   fi
 }
