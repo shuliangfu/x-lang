@@ -10,14 +10,14 @@
 | 文件 IO / smoke setenv | glue 内联 | `config_io_glue.c` | **`.x` + fs/env extern** |
 | `config.o` | `ld -r` glue + x | `ld -r` io glue + x | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CONFIG_V2_FAIL` retired. Delegates STD-086 config + STD-119 config-yaml hard.
 
 ```bash
-XLANG_F_CONFIG_V2_FAIL=1 ./tests/run-f-config-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-config-v2-gate.sh
 ./tests/run-std-config-gate.sh
 ./tests/run-std-config-yaml-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```
 
 ## 下一项

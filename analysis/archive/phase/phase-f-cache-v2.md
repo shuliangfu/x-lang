@@ -10,12 +10,13 @@
 | `cache.o` | `ld -r` glue + x | **纯 xlang → cache.o** |
 | 单调时钟 | glue 链 time.o | `extern time_now_monotonic_ns_c` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CACHE_V2_FAIL` retired. Delegates STD-087 cache hard.
 
 ```bash
-XLANG_F_CACHE_V2_FAIL=1 ./tests/run-f-cache-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-cache-v2-gate.sh
 ./tests/run-std-cache-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

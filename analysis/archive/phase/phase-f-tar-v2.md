@@ -10,14 +10,14 @@
 | `tar.o` | `ld -r` glue + x | **仅 x（`tar_main.o`）** |
 | mod.x | extern tar_*_c | **不变** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_TAR_V2_FAIL` retired. Delegates STD-038 ustar + STD-152 extended hard.
 
 ```bash
-XLANG_F_TAR_V2_FAIL=1 ./tests/run-f-tar-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-tar-v2-gate.sh
 ./tests/run-std-tar-ustar-gate.sh
 ./tests/run-std-tar-extended-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
 ## 下一项
