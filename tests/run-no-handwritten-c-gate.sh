@@ -8,13 +8,15 @@
 #   XLANG_NO_HANDWRITTEN_C_STRICT=1     — 终局零 C 模式（当前必 FAIL，供 CI 预留）
 #   XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY=1 — 仅 manifest + 存量对比，跳过子 gate
 #
-# wave honesty (2026-08-25): DOC → analysis/archive/phase/；
+# wave honesty (2026-08-25 / 2026-08-26): DOC → analysis/archive/phase/;
 # compiler/Makefile deleted — refuse resurrect (use ./xbuild).
-# PLATFORM: SHARED archaeology.
+# 2026-08-26: Soft XLANG_NO_HANDWRITTEN_C_FAIL retired (hard die for own
+# audit + inventory). Product dogfood subgates still soft unless
+# XLANG_F09_PRODUCT_FAIL=1 (archaeology knife must not absorb unrelated
+# product residuals). PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_NO_HANDWRITTEN_C_FAIL:-0}
 UPDATE=${XLANG_NO_HANDWRITTEN_C_UPDATE:-0}
 STRICT=${XLANG_NO_HANDWRITTEN_C_STRICT:-0}
 MANIFEST_ONLY=${XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY:-0}
@@ -29,15 +31,14 @@ BASELINE="${XLANG_NO_HANDWRITTEN_C_TSV:-tests/baseline/no-handwritten-c-whitelis
 
 die() {
   echo "no-handwritten-c gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 run_sub() {
   local script="$1"
-  local env_var="$2"
   chmod +x "$script"
-  if ! env "${env_var}=${FAIL}" "$script"; then
+  # Hard-delegate inventory; soft XLANG_STD_C_INVENTORY_FAIL retired.
+  if ! "$script"; then
     die "sub-gate failed: $script"
   fi
 }
@@ -74,8 +75,8 @@ if [ "$MANIFEST_ONLY" = "1" ]; then
   exit 0
 fi
 
-echo "=== F-09 v1: delegate run-std-c-inventory-gate ==="
-run_sub tests/run-std-c-inventory-gate.sh XLANG_STD_C_INVENTORY_FAIL
+echo "=== F-09 v1: delegate run-std-c-inventory-gate (hard) ==="
+run_sub tests/run-std-c-inventory-gate.sh
 
 if [ -f tests/run-f04-std-crypto-closure-gate.sh ]; then
   # F-04 crypto honesty (2026-08-26): child always hard; retired

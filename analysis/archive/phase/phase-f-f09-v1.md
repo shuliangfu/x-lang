@@ -29,12 +29,18 @@
 - `run-f05-std-db-closure-gate.sh` — db 模块闭合
 - `run-e-soft-retire-gate.sh`（manifest only）— 编译器 C 软退役跟踪
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): hard-fail own whitelist audit + F-01
+inventory. No soft `die→exit 0`. Soft `XLANG_NO_HANDWRITTEN_C_FAIL`
+retired. Product dogfood children still soft unless
+`XLANG_F09_PRODUCT_FAIL=1`.
 
 ```bash
 ./tests/run-no-handwritten-c-gate.sh
-XLANG_NO_HANDWRITTEN_C_FAIL=1 ./tests/run-no-handwritten-c-gate.sh
 XLANG_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh   # 迁移后刷新
+XLANG_NO_HANDWRITTEN_C_STRICT=1 XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY=1 \
+  ./tests/run-no-handwritten-c-gate.sh
 ```
 
 ## 下一项

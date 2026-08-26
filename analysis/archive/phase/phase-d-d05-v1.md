@@ -13,11 +13,16 @@
 | 日常 compile | `XLANG=./compiler/xlang check …` **不**设 `XLANG_LINK_XLANG=xlang-c` | 同上（x86_64 native） |
 | 文档 | README / SELFHOST / bootstrap.sh 区分「日常 xlang」与「考古 xlang-c」 | 同上 manifest |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): hard-fail (soft `XLANG_D05_FAIL` retired).
+Live entry = `./xbuild bootstrap-driver-bstrict` (Makefile deleted).
+Smoke uses `-backend asm` (check gate paused unless
+`XLANG_D05_REQUIRE_CHECK=1`).
 
 ```bash
-make -C compiler bootstrap-driver-bstrict   # xlang ← xlang_asm
-XLANG_D05_FAIL=1 ./tests/run-d05-single-xlang-release-gate.sh
+./xbuild bootstrap-driver-bstrict   # xlang ← xlang_asm
+./tests/run-d05-single-xlang-release-gate.sh
 XLANG=./compiler/xlang ./tests/run-hello.sh
 ```
 

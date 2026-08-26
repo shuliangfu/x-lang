@@ -7,10 +7,11 @@
 #   XLANG_D05_MANIFEST_ONLY=1  — 仅 manifest
 #   XLANG=./compiler/xlang      — 默认发布二进制
 #
-# wave honesty (2026-08-24 #12 / 2026-08-25): DOC → analysis/archive/phase/；
-# compiler/Makefile deleted — refuse resurrect; live entry = ./xbuild
-# bootstrap-driver-bstrict（G.7）. check gate paused — smoke uses -backend asm
-# unless XLANG_D05_REQUIRE_CHECK=1.
+# wave honesty (2026-08-24 #12 / 2026-08-25 / 2026-08-26): DOC →
+# analysis/archive/phase/; compiler/Makefile deleted — refuse resurrect;
+# live entry = ./xbuild bootstrap-driver-bstrict (G.7). check gate paused —
+# smoke uses -backend asm unless XLANG_D05_REQUIRE_CHECK=1.
+# 2026-08-26: Soft XLANG_D05_FAIL retired (hard die; f11 hard-delegate).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -22,7 +23,6 @@ fi
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-FAIL=${XLANG_D05_FAIL:-0}
 DOC="analysis/archive/phase/phase-d-d05-v1.md"
 MANIFEST="tests/baseline/d05-single-xlang-release.tsv"
 BOOT="compiler/bootstrap.sh"
@@ -31,8 +31,7 @@ XLANG_ASM="./compiler/xlang_asm"
 
 die() {
   echo "d05 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 # 探测二进制是否为当前宿主可执行格式。

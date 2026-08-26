@@ -2,6 +2,18 @@
 
 > **D-06 v1**：`SELFHOST.md` / `README.md` 声明 **Stage2 黄金自举**（D-03 SHA256 + D-04 扩面）及 **可复现命令**；**不含**最终「完全自举」（须 D+E+F）。
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
+> **honesty 2026-08-26**：hard die; live bilingual README needles (`D Stage2` ✅ / SHA256); soft `XLANG_D06_FAIL` retired; fossil `Stage2 哈希金标准` not required on EN root.
+
+## Gate
+
+Honesty gate (2026-08-26): hard-fail SELFHOST keywords + bilingual
+README Stage2 status + manifest. No soft `die→exit 0`. Soft
+`XLANG_D06_FAIL` retired. Report `doc=` / `selfhost=` / `readme=` /
+`manifest=` / `skip=`.
+
+```bash
+./tests/run-d06-selfhost-doc-gate.sh
+```
 
 ## v1 完成（✅）
 
