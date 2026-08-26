@@ -45,14 +45,19 @@
 
 ---
 
-## 5. 门禁
+## 5. Gate
+
+Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `check` observational
+(check gate paused); `tests/crypto/main.x` exit 0 hard-fail (no soft SKIP when native
+present); `aes_gcm_nist2.x` observational (product RUN≠0). Report
+`check=`/`main=`/`nist2=`/`skip=`. Refuse top-level DOC resurrect.
 
 ```bash
 ./tests/run-std-crypto-aes-gcm-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok seal=1 open=1 main=1 skip=0
+xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok check=0|1 main=1 nist2=0|1 skip=0
 ```
 
 ---
@@ -62,3 +67,4 @@ xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok seal=1 open=1 main=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-18 | AES-128-GCM seal/open + NIST TC2 金样 |
+| v1.1 | 2026-08-26 | Gate honesty：prefer asm；main 硬绿；nist2 观测 |

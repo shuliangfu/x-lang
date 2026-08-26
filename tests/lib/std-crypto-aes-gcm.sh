@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# std-crypto-aes-gcm.sh — STD-049 manifest 与烟测辅助
+# std-crypto-aes-gcm.sh — STD-049 manifest + smoke helpers (honesty report).
+# Report fields: check=/main=/nist2=/skip= (seal/open retired; nist2 observational).
+# PLATFORM: SHARED archaeology.
 
 STD_CRYPTO_AES_GCM_PREFIX="${XLANG_STD_CRYPTO_AES_GCM_PREFIX:-xlang: [XLANG_STD_CRYPTO_AES_GCM]}"
 # shellcheck source=tests/lib/std-crypto.sh
@@ -71,10 +73,11 @@ std_crypto_aes_gcm_run_smoke() {
 }
 
 std_crypto_aes_gcm_emit_report() {
+  # Honesty report: check observational; main hard; nist2 observational; skip.
   local status="$1"
-  local seal_ok="$2"
-  local open_ok="$3"
-  local main_ok="$4"
+  local check_ok="$2"
+  local main_ok="$3"
+  local nist2_ok="$4"
   local skip="$5"
-  echo "${STD_CRYPTO_AES_GCM_PREFIX} status=${status} seal=${seal_ok} open=${open_ok} main=${main_ok} skip=${skip}"
+  echo "${STD_CRYPTO_AES_GCM_PREFIX} status=${status} check=${check_ok} main=${main_ok} nist2=${nist2_ok} skip=${skip}"
 }
