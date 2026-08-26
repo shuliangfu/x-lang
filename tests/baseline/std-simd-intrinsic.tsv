@@ -4,7 +4,7 @@
 min_apis	11
 read_path	section	## 1. 阅读路径	15min
 binop_api	section	## 2. binop intrinsic	mul
-verify	section	## 3. 验证与门禁	gate
+verify	section	## 3. Gate	gate
 api_v4_mul	api	mul	std/simd/mod.x	f32 mul
 api_v4_sub	api	sub	std/simd/mod.x	f32 sub
 api_v4_dot	api	dot	std/simd/mod.x	dot
