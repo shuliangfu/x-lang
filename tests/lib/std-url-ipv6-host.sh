@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# std-url-ipv6-host.sh — STD-134 manifest 与烟测辅助
+# std-url-ipv6-host.sh — STD-134 manifest and smoke helpers (honesty).
+# PLATFORM: SHARED archaeology.
 
 STD_URL_IPV6_HOST_PREFIX="${XLANG_STD134_URL_IPV6_HOST_PREFIX:-xlang: [XLANG_STD134_URL_IPV6_HOST]}"
 
-# 校验 manifest 条目；echo 缺失数。
+# Validate manifest entries; echo missing count.
+# @param $1 mod_x — std/url/mod.x
+# @param $2 url_x — std/url/url.x
+# @param $3 tsv — baseline manifest
 std_url_ipv6_host_symbols_ok() {
   local mod_x="$1"
   local url_x="$2"
@@ -31,7 +35,13 @@ std_url_ipv6_host_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke)
+      section)
+        if ! grep -qF "$anchor" "${XLANG_STD_URL_IPV6_HOST_DOC:-analysis/archive/std/std-url-ipv6-host-v1.md}" 2>/dev/null; then
+          echo "std-url-ipv6-host FAIL: doc missing section '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|script)
         if [ ! -f "$anchor" ]; then
           echo "std-url-ipv6-host FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
@@ -43,7 +53,9 @@ std_url_ipv6_host_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Compile and run .x smoke with given compiler.
+# @param $1 xlang — compiler binary
+# @param $2 src — .x smoke path
 std_url_ipv6_host_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -61,7 +73,8 @@ std_url_ipv6_host_run_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# 链接 url.o 运行 C 金样。
+# Link url.o and run host-C archaeology smoke (observational only).
+# @param $1 url_o — path to url.o
 std_url_ipv6_host_run_c_smoke() {
   local url_o="$1"
   local src="tests/std-url/ipv6_host_smoke_ok.c"
@@ -84,7 +97,15 @@ std_url_ipv6_host_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# 输出 gate 报告。
+# Emit structured report line (honesty: check=/run=/skip=).
+# @param $1 status — ok|fail
+# @param $2 check_ok — observational check (0/1; not hard green)
+# @param $3 run_ok — runnable .x smoke exit0 (hard green signal)
+# @param $4 skip — 1 only for manifest-only / no-native paths
 std_url_ipv6_host_emit_report() {
-  echo "${STD_URL_IPV6_HOST_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_URL_IPV6_HOST_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }

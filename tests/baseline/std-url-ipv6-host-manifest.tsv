@@ -5,5 +5,6 @@ api_format	api	format_ipv6_host	std/url/mod.x
 api_is_ipv6	api	host_is_ipv6	std/url/mod.x
 api_smoke	api	ipv6_host_smoke	std/url/mod.x
 symbol_smoke_c	symbol	url_ipv6_host_smoke_c	std/url/url.x
-smoke_x	smoke	tests/std-url/ipv6_host.x
-gate	script	run-std-url-ipv6-host-gate.sh	tests/run-std-url-ipv6-host-gate.sh
+smoke_x	smoke	tests/std-url/ipv6_host.x	-
+section_gate	section	## 3. Gate	analysis/archive/std/std-url-ipv6-host-v1.md
+gate	script	tests/run-std-url-ipv6-host-gate.sh	-

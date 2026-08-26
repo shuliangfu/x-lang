@@ -22,7 +22,17 @@
 // See implementation.
 
 export const AF_INET: i32 = 2;
+/**
+ * Address family for IPv6 DNS hints (`AF_INET6`).
+ * PLATFORM: LINUX=10 / MACOS=30 / WINDOWS=23 — same ABI table as std.url /
+ * std.net.ipv6; Linux-only 10 breaks Darwin getaddrinfo IPv6 family checks.
+ */
+#[cfg(target_os = "linux")]
 export const AF_INET6: i32 = 10;
+#[cfg(target_os = "macos")]
+export const AF_INET6: i32 = 30;
+#[cfg(target_os = "windows")]
+export const AF_INET6: i32 = 23;
 export const SOCK_STREAM: i32 = 1;
 
 /* See implementation. */
