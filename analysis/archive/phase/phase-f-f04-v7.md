@@ -21,10 +21,27 @@
 | compress.o 残留引用 | runtime.c 仍传 compress_o 路径（缺失则 skip） |
 | 旧 C 烟测 | 经 compress.o 的路径已废弃，改 .x 烟测 |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + STD-007 compress. No soft
+`die→exit 0`. Soft `XLANG_F04_COMPRESS_ZSTD_FAIL` retired. brotli/zstd
+stream smoke is **observational** (`bz_stream=`; product-red residual — not
+soft false-green). Report `static=` / `inventory=` / `compress=` /
+`bz_stream=` / `skip=`.
 
 ```bash
-XLANG_F04_COMPRESS_ZSTD_FAIL=1 ./tests/run-f04-std-compress-zstd-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=97
+./tests/run-f04-std-compress-zstd-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-compress-zstd-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F04_COMPRESS_ZSTD_FAIL` path retired; gate
+always hard). Neighbor inventory / STD-007 still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ./tests/run-std-compress-gate.sh
 ```

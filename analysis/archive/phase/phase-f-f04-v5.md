@@ -20,11 +20,28 @@
 | ZStream 布局 | 依赖 64 位 hosted ABI（与 zlib z_stream 一致） |
 | 无 libz | gzip API 链接需 -lz（runtime 扫描 deflate/inflate 符号） |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + STD-007 compress. No soft
+`die→exit 0`. Soft `XLANG_F04_COMPRESS_GZIP_FAIL` retired. compress-stream
+smoke is **observational** (`stream=`; product-red residual — not soft
+false-green). Report `static=` / `inventory=` / `compress=` / `stream=` /
+`skip=`.
 
 ```bash
-XLANG_F04_COMPRESS_GZIP_FAIL=1 ./tests/run-f04-std-compress-gzip-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=99
+./tests/run-f04-std-compress-gzip-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-compress-gzip-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F04_COMPRESS_GZIP_FAIL` path retired; gate
+always hard). Neighbor inventory / STD-007 still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ./tests/run-std-compress-gate.sh
 ./tests/run-std-compress-stream-gate.sh
 ```
