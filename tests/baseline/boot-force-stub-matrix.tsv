@@ -1,9 +1,13 @@
 # BOOT-010 force_stub 6 风险处置矩阵
 # 列：stub_id	symbol	root_cause	strategy	regression_src	regression_hook	notes
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; matrix reg_src link+run hard;
+# check_only observational; no soft SKIP→OK; report link=/skip=.
+# want_exit map (lib/boot-force-stub.sh): simple=10 no_else=42 f32_f64=0 allow_padding_ok=2
+# doc_gate: DOC must contain "## 7. Gate" (enforced by gate script, not a stub row)
 # min_stub_rows	6
-wrap_block	wrap_block_ref_as_expr	if_expr块包装SU emit失败	keep_stub+C_slice_if_expr	tests/if-expr/simple.x	run-if-expr.sh	parser_asm_if_expr_slice.inc
-alloc_bool	parser_alloc_true_bool_lit	深循环bool节点alloc	keep_stub+glue_path	tests/if-expr/no_else.x	run-if-expr.sh	true分支/无else
-alloc_float	parser_alloc_float_lit	primary浮点alloc	keep_stub+C_slice_primary	tests/float/f32_f64.x	run-float.sh	parser_asm_primary_slice.inc
+wrap_block	wrap_block_ref_as_expr	if_expr块包装SU emit失败	keep_stub+C_slice_if_expr	tests/if-expr/simple.x	run-if-expr.sh	want_exit=10;parser_asm_if_expr_slice.inc
+alloc_bool	parser_alloc_true_bool_lit	深循环bool节点alloc	keep_stub+glue_path	tests/if-expr/no_else.x	run-if-expr.sh	want_exit=42;true分支/无else
+alloc_float	parser_alloc_float_lit	primary浮点alloc	keep_stub+C_slice_primary	tests/float/f32_f64.x	run-float.sh	want_exit=0;parser_asm_primary_slice.inc
 wrap_return	parser_expr_wrap_in_return	单expr函数RETURN包装	keep_stub+C_seed_slice	tests/parser/if_expr_return.x	check_only	return if 表达式
 skip_padding	try_skip_allow_padding_struct	allow(padding)深循环elf_ec=-1	extern_glue+force_stub	tests/struct/padding_allow.x	check_only	parser_try_skip_allow_padding_struct_glue
-skip_padding_buf	try_skip_allow_padding_struct_buf	buf路径padding skip	extern_buf_glue+force_stub	tests/unsafe/allow_padding_ok.x	run-lang-unsafe-gate.sh	U1 allow(padding)
+skip_padding_buf	try_skip_allow_padding_struct_buf	buf路径padding skip	extern_buf_glue+force_stub	tests/unsafe/allow_padding_ok.x	run-lang-unsafe-gate.sh	want_exit=2;U1 allow(padding)

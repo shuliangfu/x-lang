@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# BOOT-010：force_stub 6 风险处置 manifest 门禁
+# BOOT-010: force_stub 6 风险处置 manifest + honesty gate
+# (false-authority honesty).
+#
 # wave309 honesty: ast_pool.c left — live PARSER_STUB_EQ =
 # seeds/runtime_pipeline_abi.from_x.c. DOC archived under analysis/archive/boot/.
 # Selfhost pause (2026-08-05): do NOT run xlang check as gate smoke.
+# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; matrix reg_src link+run
+# hard-fail (no soft SKIP→OK when no native; do not call full check-mixed
+# hooks — those were portable-false-red under paused check). check_only
+# observational. Report link=/skip=. Gate was portable-false-red
+# (prefer xlang-c / soft SKIP→OK when no native / full run-float +
+# run-lang-unsafe hooks hard on check negatives / DOC ## 4 without Gate).
 # PLATFORM: SHARED archaeology.
-#
-# 1) archived boot-force-stub-v1.md + matrix + runtime_pipeline_abi seed
-# 2) 6 符号在 parser.x 且 PARSER_STUB_EQ 在 abi seed
-# 3) padding glue 锚点存在
-# 4) 回归源存在；hooks 仍跑（check_only 自举期 SKIP）
 #
 # 用法：./tests/run-boot-force-stub-gate.sh
 set -e
@@ -21,10 +24,14 @@ PARSER_X="compiler/src/parser/parser.x"
 # Historical name AST_POOL; live body = runtime_pipeline_abi seed (wave309).
 ABI_SEED="compiler/seeds/runtime_pipeline_abi.from_x.c"
 THIN_C="compiler/seeds/parser_asm_thin_c.from_x.c"
+LIB="tests/lib/boot-force-stub.sh"
+OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 MIN_STUB=6
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
+# shellcheck source=tests/lib/boot-force-stub.sh
+. "$LIB"
 
 native_xlang() {
   local f="$1"
@@ -39,13 +46,36 @@ native_xlang() {
   esac
 }
 
+# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+boot010_resolve_shu() {
+  local cand
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    if native_xlang "$cand"; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== BOOT-010: force_stub manifest ==="
+
+# Refuse resurrected top-level DOC (live = archive/boot/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/boot-force-stub-v1.md ]; then
+  echo "boot-force-stub gate FAIL: top-level DOC resurrected (live = archive/boot/)" >&2
+  exit 1
+fi
+
 for f in \
   "$DOC" \
   "$MEGA7_DOC" \
   "$MATRIX" \
   "$PARSER_X" \
-  "$ABI_SEED"; do
+  "$ABI_SEED" \
+  "$LIB"; do
   if [ ! -f "$f" ]; then
     echo "boot-force-stub gate FAIL: missing $f" >&2
     exit 1
@@ -55,6 +85,12 @@ if [ -f compiler/ast_pool.c ]; then
   echo "boot-force-stub gate FAIL: compiler/ast_pool.c resurrected (wave309 left; dual authority)" >&2
   exit 1
 fi
+
+if ! grep -qF '## 7. Gate' "$DOC" 2>/dev/null; then
+  echo "boot-force-stub gate FAIL: doc missing '## 7. Gate'" >&2
+  exit 1
+fi
+
 echo "boot-force-stub manifest OK (host=$(ci_host_summary))"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -64,7 +100,8 @@ done < "$MATRIX"
 # ── 6 项符号 + PARSER_STUB_EQ ──
 MISS=0
 N=0
-HOOKS=""
+LINK_SRCS=""
+SKIP_CHECK=0
 echo "=== BOOT-010: force_stub symbol check ==="
 while IFS=$'\t' read -r stub_id sym _cause strategy reg_src reg_hook notes; do
   [ -z "${stub_id:-}" ] && continue
@@ -82,10 +119,15 @@ while IFS=$'\t' read -r stub_id sym _cause strategy reg_src reg_hook notes; do
     echo "boot-force-stub FAIL: missing regression $reg_src ($stub_id)" >&2
     MISS=$((MISS + 1))
   fi
-  if [ -n "${reg_hook:-}" ] && [ "$reg_hook" != "check_only" ]; then
-    case " $HOOKS " in
-      *" $reg_hook "*) ;;
-      *) HOOKS="$HOOKS $reg_hook" ;;
+  if [ "${reg_hook:-}" = "check_only" ]; then
+    # Observational: selfhost check gate paused 2026-08-05.
+    SKIP_CHECK=$((SKIP_CHECK + 1))
+    echo "boot-force-stub SKIP check_only $stub_id ($reg_src)"
+  else
+    # Unique reg_src for link+run hard path.
+    case " $LINK_SRCS " in
+      *" $reg_src "*) ;;
+      *) LINK_SRCS="$LINK_SRCS $reg_src" ;;
     esac
   fi
 done < "$MATRIX"
@@ -98,7 +140,7 @@ if [ "$MISS" -gt 0 ]; then
   echo "boot-force-stub gate FAIL: missing=${MISS}" >&2
   exit 1
 fi
-echo "boot-force-stub symbols OK (${N} stubs)"
+echo "boot-force-stub symbols OK (${N} stubs; link_srcs=$(echo $LINK_SRCS | wc -w | tr -d ' ') check_only=${SKIP_CHECK})"
 
 # ── padding glue 锚点 ──
 echo "=== BOOT-010: padding glue anchors ==="
@@ -112,48 +154,58 @@ for g in \
 done
 echo "boot-force-stub glue OK"
 
-# ── check_only：自举期暂停 xlang check 闸门（2026-08-05）──
-# Manifest / PARSER_STUB_EQ / padding / non-check hooks remain hard.
-echo "=== BOOT-010: check-only regression ==="
-echo "boot-force-stub SKIP check-only (selfhost check gate paused 2026-08-05)"
-
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
-
-if [ -z "$XLANG_BIN" ]; then
-  echo "boot-force-stub SKIP hooks (no native xlang)"
-  echo "boot-force-stub gate OK"
+if [ "${XLANG_BOOT010_MANIFEST_ONLY:-0}" = "1" ]; then
+  boot010_emit_report "ok" 0 "$SKIP_CHECK"
+  echo "boot-force-stub gate OK (manifest only)"
   exit 0
 fi
 
-FAILS=0
-for hook in $HOOKS; do
-  script="tests/${hook}"
-  if [ ! -f "$script" ]; then
-    echo "boot-force-stub FAIL: missing hook $script" >&2
-    FAILS=$((FAILS + 1))
-    continue
-  fi
-  echo "── hook: $hook ──"
-  chmod +x "$script" 2>/dev/null || true
-  if XLANG="$XLANG_BIN" "$script"; then
-    echo "boot-force-stub hook OK $hook"
-  else
-    echo "boot-force-stub hook FAIL $hook" >&2
-    FAILS=$((FAILS + 1))
-  fi
-done
+LINK_OK=0
+SKIP=1
 
-if [ "$FAILS" -gt 0 ]; then
-  echo "boot-force-stub gate FAIL: ${FAILS} hook(s)" >&2
-  exit 1
+if XLANG_BIN="$(boot010_resolve_shu 2>/dev/null)"; then
+  echo "=== BOOT-010: matrix reg_src link+run (XLANG=$XLANG_BIN; check_only observational) ==="
+  # Pin product link to resolved compiler (prefer asm).
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  export XLANG="$XLANG_BIN"
+  export XLANG_LINK_XLANG="$XLANG_BIN"
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh" 2>/dev/null || true
+  mkdir -p "$OUT_DIR"
+  FAILS=0
+  for reg_src in $LINK_SRCS; do
+    if ! want="$(boot010_want_exit "$reg_src")"; then
+      echo "boot-force-stub FAIL: no want_exit map for $reg_src" >&2
+      FAILS=$((FAILS + 1))
+      continue
+    fi
+    out="$OUT_DIR/boot010_$(basename "$reg_src" .x)"
+    rm -f "$out"
+    if boot010_link_run_one "$XLANG_BIN" "$reg_src" "$out" "$want"; then
+      echo "boot-force-stub link+run OK $reg_src (exit=$want)"
+      LINK_OK=$((LINK_OK + 1))
+    else
+      FAILS=$((FAILS + 1))
+    fi
+  done
+  if [ "$FAILS" -gt 0 ]; then
+    echo "boot-force-stub gate FAIL: ${FAILS} link+run" >&2
+    boot010_emit_report "fail" "$LINK_OK" "$SKIP_CHECK"
+    exit 1
+  fi
+  # Expect 4 unique link sources (simple / no_else / f32_f64 / allow_padding_ok).
+  if [ "$LINK_OK" -lt 4 ]; then
+    echo "boot-force-stub gate FAIL: link_ok=${LINK_OK} < 4" >&2
+    boot010_emit_report "fail" "$LINK_OK" "$SKIP_CHECK"
+    exit 1
+  fi
+  SKIP=0
+else
+  echo "boot-force-stub gate FAIL: no native xlang" >&2
+  boot010_emit_report "fail" 0 "$SKIP_CHECK"
+  exit 2
 fi
 
+echo "boot-force-stub link_ok=${LINK_OK} check_only_skip=${SKIP_CHECK}"
+boot010_emit_report "ok" "$LINK_OK" "$SKIP_CHECK"
 echo "boot-force-stub gate OK"
