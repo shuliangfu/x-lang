@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# STD-009：std.http 服务器基准 manifest 门禁
+# STD-009：std.http 服务器基准 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-std-http-gate.sh
 # wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
+# (check gate paused 2026-08-05); tests/http/main.x exit 0 hard-fail (no soft SKIP
+# when native xlang present). Report check=/run=/skip=.
+# Product surface already green under asm; gate was portable-false-red
+# (prefer xlang-c / soft SKIP when no native / ## 6. 验证与门禁 /
+# fossil bench/http_get_bench.x). Bench anchors → bench/i08_http_*.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -14,12 +20,14 @@ DOC="${XLANG_STD_HTTP_DOC:-analysis/archive/std/std-http-bench-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
 MOD_X="${XLANG_STD_HTTP_MOD:-std/http/mod.x}"
 HTTP_C="${XLANG_STD_HTTP_C:-compiler/seeds/runtime_http_glue.from_x.c}"
+SMOKE_X="tests/http/main.x"
 MIN_APIS=2
+PREFIX="xlang: [XLANG_STD_HTTP]"
 
 # shellcheck source=tests/lib/perf-http.sh
 . tests/lib/perf-http.sh
 
-native_xlang() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -53,8 +61,30 @@ std_http_run_smoke() {
   [ "$ec" -eq 0 ]
 }
 
+std_http_emit_report() {
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+}
+
+resolve_shu() {
+  local cand
+  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    if stdlib_cm_native_xlang "$cand"; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== STD-009: std.http bench manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_X" "$HTTP_C" \
+for f in "$DOC" "$MANIFEST" "$MOD_X" "$HTTP_C" "$SMOKE_X" \
   tests/baseline/http-perf.tsv tests/baseline/http-perf-latency.tsv; do
   if [ ! -f "$f" ]; then
     echo "std-http gate FAIL: missing $f" >&2
@@ -68,6 +98,11 @@ while IFS=$'\t' read -r c1 c2 _rest; do
     min_apis) MIN_APIS="$c2" ;;
   esac
 done < "$MANIFEST"
+
+if ! grep -qF '## 6. Gate' "$DOC" 2>/dev/null; then
+  echo "std-http gate FAIL: doc missing '## 6. Gate'" >&2
+  exit 1
+fi
 
 MISS=0
 API_N=0
@@ -156,29 +191,53 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-http manifest OK (apis=${API_N})"
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
+if [ "${XLANG_STD_HTTP_MANIFEST_ONLY:-0}" = "1" ]; then
+  std_http_emit_report "ok" 0 0 1
+  echo "std-http gate OK (manifest only)"
+  exit 0
 fi
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+CHECK_OK=0
+RUN_OK=0
+SKIP=1
+
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-009: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
+  if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
+    export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
+  fi
+  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
+  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    CHECK_OK=1
+  else
+    echo "std-http gate SKIP check smoke (paused 2026-08-05)" >&2
+  fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  if std_http_run_smoke "$XLANG_BIN" tests/http/main.x main; then
-    echo "std-http smoke OK main"
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+  # Pin product link to resolved compiler (prefer asm).
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  export XLANG="$XLANG_BIN"
+  export XLANG_LINK_XLANG="$XLANG_BIN"
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+
+  if std_http_run_smoke "$XLANG_BIN" "$SMOKE_X" "main"; then
+    RUN_OK=1
+    SKIP=0
   else
+    std_http_emit_report "fail" "$CHECK_OK" 0 0
     echo "std-http gate FAIL: main smoke" >&2
     exit 1
   fi
 else
-  echo "std-http gate SKIP smoke (no native xlang)" >&2
+  echo "std-http gate FAIL: no native xlang" >&2
+  std_http_emit_report "fail" 0 0 0
+  exit 1
 fi
 
+# check stays observational; hard-green signal is run= (runnable).
+echo "std-http check_ok=${CHECK_OK} (observational)"
+std_http_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
 echo "std-http gate OK"

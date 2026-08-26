@@ -70,13 +70,15 @@ SERVER_BIN="/tmp/http_bench_server_$$"
 CLIENT_BIN="/tmp/http_get_bench_$$"
 bench_cleanup
 
-if ! cc -O2 -Icompiler/src/asm/http bench/http_bench_server.c compiler/seeds/runtime_http_glue.from_x.c -o "$SERVER_BIN" 2>/tmp/http_bench_server_build.log; then
+# Live bench paths (relocated i08_*); refuse fossil bench/http_get_bench.x / http_bench_server.c.
+# PLATFORM: SHARED archaeology — same honesty as STD-009 gate.
+if ! cc -O2 -Icompiler/src/asm/http bench/i08_http_bench_server.c compiler/seeds/runtime_http_glue.from_x.c -o "$SERVER_BIN" 2>/tmp/http_bench_server_build.log; then
   cat /tmp/http_bench_server_build.log >&2
   exit 1
 fi
 
 port="$(pick_free_port)"
-sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" bench/http_get_bench.x >"/tmp/http_get_bench_${port}.x"
+sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" bench/i08_http_get_bench.x >"/tmp/http_get_bench_${port}.x"
 if ! "$XLANG_BIN" -L . "/tmp/http_get_bench_${port}.x" -o "$CLIENT_BIN" >/tmp/http_bench_compile.log 2>&1; then
   cat /tmp/http_bench_compile.log >&2
   exit 1

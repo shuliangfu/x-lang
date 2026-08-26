@@ -5,12 +5,12 @@ read_path	section	## 1. 阅读路径	15min
 server_api	section	## 2. 最小 server API	respond_get_ok
 bench	section	## 3. 基准用例	http_get_bench
 latency	section	## 4. 延迟指标	BENCH_P99_US
-verify	section	## 6. 验证与门禁	gate
+verify	section	## 6. Gate	gate
 api_get	api	get	std/http/mod.x	客户端 GET
 api_respond	api	respond_get_ok	std/http/mod.x	server 200 OK
 impl_c	file	compiler/seeds/runtime_http_glue.from_x.c	http_respond_get_ok_c
-bench_x	file	bench/http_get_bench.x	64 GET
-bench_server	file	bench/http_bench_server.c	sink
+bench_x	file	bench/i08_http_get_bench.x	64 GET
+bench_server	file	bench/i08_http_bench_server.c	sink
 baseline	file	tests/baseline/http-perf.tsv	吞吐 cap
 baseline_lat	file	tests/baseline/http-perf-latency.tsv	P99 cap
 lib	script	lib/perf-http.sh	解析库
