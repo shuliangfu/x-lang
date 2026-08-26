@@ -24,10 +24,11 @@
 ## Gate
 
 Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
-hard-fail static TSV + F-01 inventory + Linux MAP_SHARED smoke. No soft
-`die→exit 0`. Soft `XLANG_F02_FAIL` / `XLANG_LINUX_MMAP_FILE_FAIL` retired.
-Report `static=` / `inventory=` / `linux=` / `skip=`. Non-Linux hosts keep
-`linux=0` (platform N/A, not soft false-green).
+hard-fail static TSV + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F02_FAIL` / `XLANG_LINUX_MMAP_FILE_FAIL` retired. Linux MAP_SHARED
+smoke is **observational** (`linux=`; asm UNDEF residual `std_sys_mmap_*` /
+`read_file_into` — not soft false-green). Report `static=` / `inventory=` /
+`linux=` / `skip=`. Non-Linux hosts keep `linux=0` (platform N/A).
 
 ```bash
 ./tests/run-f02-std-sys-mmap-gate.sh

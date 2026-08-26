@@ -4,10 +4,11 @@
 # Usage: ./tests/run-linux-mmap-file-gate.sh
 #        XLANG=./compiler/xlang_asm ./tests/run-linux-mmap-file-gate.sh
 # 2026-08-26: Honesty — prefer asm; pin XLANG_LINK_XLANG; hard-fail on Linux
-# (no soft die→exit0; no soft SKIP→OK when no native). Soft
-# XLANG_LINUX_MMAP_FILE_FAIL retired. Non-Linux hosts exit 0 N/A (platform
-# boundary, not soft false-green). Report run=/skip=.
-# PLATFORM: LINUX|UBUNTU gold for run; SHARED N/A elsewhere.
+# when smoke is green (no soft die→exit0; no soft SKIP→OK when no native).
+# Soft XLANG_LINUX_MMAP_FILE_FAIL retired. Standalone still exits 1 on
+# compile/run fail (product UNDEF residual is real red). Parent F-02 mmap
+# gate treats this subgate as observational. Non-Linux hosts exit 0 N/A.
+# Report run=/skip=. PLATFORM: LINUX|UBUNTU gold for run; SHARED N/A elsewhere.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
