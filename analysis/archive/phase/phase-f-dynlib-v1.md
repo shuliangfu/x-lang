@@ -9,10 +9,12 @@
 | 实现 | `dynlib.c`（173 行） | `dynlib.x` + `dynlib_glue.c` |
 | `dynlib.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_DYNLIB_V1_FAIL` retired. Delegates STD-027 dynlib-windows + STD-096 last-error hard.
 
 ```bash
-XLANG_F_DYNLIB_V1_FAIL=1 ./tests/run-f-dynlib-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-dynlib-v1-gate.sh
 ./tests/run-std-dynlib-windows-gate.sh
 ./tests/run-std-dynlib-last-error-gate.sh
 ```

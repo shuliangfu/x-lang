@@ -10,13 +10,13 @@
 | 回调 invoke | C fn-ptr | `ffi_cb_glue.c` | **handle dispatch** |
 | `ffi.o` | `cc -c ffi.c` | `ld -r` | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_FFI_V1_FAIL` retired. Delegates STD-055 ffi-cstring hard (embeds SAFE-004). STD-151 struct-callback observational (DOC residual).
 
 ```bash
-XLANG_F_FFI_V1_FAIL=1 ./tests/run-f-ffi-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-ffi-v1-gate.sh
 ./tests/run-std-ffi-cstring-lifecycle-gate.sh
-./tests/run-std-ffi-struct-callback-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```
 
 ## 备注

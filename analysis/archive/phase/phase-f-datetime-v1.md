@@ -10,10 +10,12 @@
 | 实现 | `datetime.c`（441 行） | `datetime.x` + `datetime_glue.c` |
 | `datetime.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_DATETIME_V1_FAIL` retired. Delegates STD-074 datetime + STD-136 iana hard.
 
 ```bash
-XLANG_F_DATETIME_V1_FAIL=1 ./tests/run-f-datetime-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-datetime-v1-gate.sh
 ./tests/run-std-datetime-gate.sh
 ./tests/run-std-datetime-iana-gate.sh
 ```
