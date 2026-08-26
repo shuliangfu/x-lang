@@ -10,14 +10,14 @@
 | IPv6 文本转换 | glue 内联 | `url_glue.c` | **`.x` + libc extern** |
 | `url.o` | `ld -r` glue + x | `ld -r` inet glue + x | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_URL_V2_FAIL` retired. Delegates STD-076 url + STD-134 ipv6-host hard.
 
 ```bash
-XLANG_F_URL_V2_FAIL=1 ./tests/run-f-url-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-url-v2-gate.sh
 ./tests/run-std-url-gate.sh
 ./tests/run-std-url-ipv6-host-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```
 
 ## 下一项

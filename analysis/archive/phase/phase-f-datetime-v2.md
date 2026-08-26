@@ -10,13 +10,15 @@
 | 本地时区偏移 | glue 内联 | `datetime_tz_glue.c` | **`.x` → std.time extern** |
 | `datetime.o` | `ld -r` glue + x | `ld -r` tz glue + x | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_DATETIME_V2_FAIL` retired. Delegates STD-074 datetime + STD-135 timezone + STD-136 iana hard.
 
 ```bash
-XLANG_F_DATETIME_V2_FAIL=1 ./tests/run-f-datetime-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-datetime-v2-gate.sh
 ./tests/run-std-datetime-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
+./tests/run-std-datetime-timezone-gate.sh
+./tests/run-std-datetime-iana-gate.sh
 ```
 
 ## 下一项

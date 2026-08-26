@@ -10,12 +10,13 @@
 | `context.o` | `ld -r` glue + x | **纯 xlang → context.o** |
 | cancelled | C11 atomic | `extern atomic_load/store_i32_c` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CONTEXT_V2_FAIL` retired. Delegates STD-071 context hard.
 
 ```bash
-XLANG_F_CONTEXT_V2_FAIL=1 ./tests/run-f-context-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-context-v2-gate.sh
 ./tests/run-std-context-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

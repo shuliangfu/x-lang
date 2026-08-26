@@ -15,10 +15,12 @@
 - `dynlib_os_*_c` — compiler runtime（POSIX `-ldl` / Win32 API）
 - `dynlib_open_c` / `dynlib_last_error_copy_c` — `dynlib.x`
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_DYNLIB_V2_FAIL` retired. Delegates STD-027 dynlib-windows + STD-096 last-error hard.
 
 ```bash
-XLANG_F_DYNLIB_V2_FAIL=1 ./tests/run-f-dynlib-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-dynlib-v2-gate.sh
 ./tests/run-std-dynlib-windows-gate.sh
 ./tests/run-std-dynlib-last-error-gate.sh
 ```
