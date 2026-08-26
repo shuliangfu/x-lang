@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   std_queue_conc_symbols_ok MOD_X QUEUE_C TSV
 #   std_queue_conc_run_smoke XLANG_BIN X TAG
-#   std_queue_conc_emit_report status sync_ok main_ok smoke_ok skip
+#   std_queue_conc_emit_report status check_ok main_ok sync_ok c_ok skip
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -110,9 +110,10 @@ std_queue_conc_run_c_smoke() {
 
 std_queue_conc_emit_report() {
   local status="$1"
-  local sync_ok="$2"
+  local check_ok="$2"
   local main_ok="$3"
-  local smoke_ok="$4"
-  local skip="$5"
-  echo "${STD_QUEUE_CONC_PREFIX} status=${status} sync=${sync_ok} main=${main_ok} smoke=${smoke_ok} skip=${skip}"
+  local sync_ok="$4"
+  local c_ok="$5"
+  local skip="$6"
+  echo "${STD_QUEUE_CONC_PREFIX} status=${status} check=${check_ok} main=${main_ok} sync=${sync_ok} c=${c_ok} skip=${skip}"
 }

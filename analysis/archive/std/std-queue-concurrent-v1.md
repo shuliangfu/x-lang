@@ -26,8 +26,8 @@
 | `sync_new` / `sync_deinit` | 创建/销毁 |
 | `sync_push` | 加锁 `push_back` |
 | `sync_try_pop` | 加锁弹出；0 成功，1 空，-1 失败 |
-| `sync_queue_len` / `sync_queue_is_empty` | 加锁读状态 |
-| `sync_queue_contention_smoke` | C 层双线程 push 烟测 |
+| `length` / `is_empty`（`SyncQueue_i32` overload） | 加锁读状态（旧名 `sync_queue_len` / `sync_queue_is_empty`） |
+| `sync_smoke` | 门面；委托 C `sync_queue_contention_smoke_c` 双线程 push 烟测 |
 
 v1 **无阻塞 pop**；需阻塞等待请用 `std.channel`。
 
@@ -51,14 +51,20 @@ v1 **无阻塞 pop**；需阻塞等待请用 `std.channel`。
 
 ---
 
-## 4. 门禁
+## 4. Gate
 
 ```bash
 ./tests/run-std-queue-concurrent-gate.sh
 ```
 
+Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `check` observational
+(check gate paused 2026-08-05); `tests/queue/main.x` (`Queue_i32`) exit 0 hard-fail;
+`sync_queue_roundtrip.x` + C contention observational (SyncQueue / queue-sync product
+UNDEF residual — not soft); no native xlang → **FAIL** (not soft SKIP→OK).
+Report `check=` / `main=` / `sync=` / `c=` / `skip=`.
+
 ```
-xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok sync=1 main=1 smoke=1 skip=0
+xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok check=1 main=1 sync=0 c=1 skip=0
 ```
 
 ---
@@ -68,3 +74,4 @@ xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok sync=1 main=1 smoke=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-18 | SyncQueue_i32 + 选型文档 + 竞争烟测 |
+| v1.1 | 2026-08-26 | Gate honesty：`## 4. Gate`；prefer asm；main 硬绿；sync／C 观测 |
