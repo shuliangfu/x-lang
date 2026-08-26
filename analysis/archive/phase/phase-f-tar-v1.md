@@ -9,13 +9,16 @@
 | 实现 | `tar.c`（479 行） | `tar.x` + `tar_glue.c` |
 | `tar.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_TAR_V1_FAIL` retired. Delegates STD-tar ustar + extended hard.
 
 ```bash
-XLANG_F_TAR_V1_FAIL=1 ./tests/run-f-tar-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-tar-v1-gate.sh
 ./tests/run-std-tar-ustar-gate.sh
 ./tests/run-std-tar-extended-gate.sh
 ```
+
 
 ## 下一项
 

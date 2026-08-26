@@ -9,12 +9,15 @@
 | 实现 | `queue.c`（142 行，仅 C 烟测） | `queue.x` + `queue_glue.c` |
 | `queue.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_QUEUE_V1_FAIL` retired. Delegates STD-048 queue-concurrent hard.
 
 ```bash
-XLANG_F_QUEUE_V1_FAIL=1 ./tests/run-f-queue-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-queue-v1-gate.sh
 ./tests/run-std-queue-concurrent-gate.sh
 ```
+
 
 ## 下一项
 

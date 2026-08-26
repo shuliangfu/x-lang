@@ -11,13 +11,16 @@
 | OS 胶层 | `std/log/log_os_glue.c` | `compiler/runtime_log_os.o`（与 log.o 同链） |
 | 存量 | std 83 `.c` | std **54** `.c`（log_os_glue 已迁出 std） |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_LOG_V1_FAIL` retired. Delegates STD-log multi-sink + rotate-async hard.
 
 ```bash
-XLANG_F_LOG_V1_FAIL=1 ./tests/run-f-log-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-log-v1-gate.sh
 ./tests/run-std-log-multi-sink-gate.sh
 ./tests/run-std-log-rotate-async-gate.sh
 ```
+
 
 ## 下一项
 
