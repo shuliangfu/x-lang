@@ -1,39 +1,112 @@
 #!/usr/bin/env bash
-# F-thread v1：std.thread 去 C（thread.x + seeds/runtime_thread_glue.from_x.c）。
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# F-thread v1: std.thread de-C (thread.x + seeds/runtime_thread_glue.from_x.c).
+#
+# Usage: ./tests/run-f-thread-v1-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f-thread-v1-gate.sh
+# 2026-08-27: Honesty — hard-fail static TSV + ## Gate + prefer-asm ensure +
+# STD-043 thread-pool hard delegate. Soft XLANG_F_THREAD_V1_FAIL retired.
+# Root: soft die→exit0 + pool `|| true` = portable false-green
+# (static+STD-043 already green). Report static=/ensure=/glue=/pool=/skip=.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
-FAIL=${XLANG_F_THREAD_V1_FAIL:-0}
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
+
 DOC="analysis/archive/phase/phase-f-thread-v1.md"
 MANIFEST="tests/baseline/f-thread-v1-closure.tsv"
-die() { echo "f-thread-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-thread v1: thread.c → thread.x ==="
-# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
-if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
-[ -f xbuild ] || die "missing xbuild"
+PREFIX="xlang: [XLANG_F_THREAD_V1]"
+
+resolve_shu() {
+  local cand abs
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$(pwd)/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+die() {
+  echo "f-thread-v1 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail static=${STATIC_OK:-0} ensure=${ENSURE_OK:-0} glue=${GLUE_OK:-0} pool=${POOL_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+STATIC_OK=0
+ENSURE_OK=0
+GLUE_OK=0
+POOL_OK=0
+SKIP=1
+
+echo "=== F-thread v1: std.thread thread.c → thread.x (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
-[ -f "$MANIFEST" ] || die "missing manifest"
-[ -f std/thread/thread.x ] || die "missing thread.x"
-[ -f compiler/seeds/runtime_thread_glue.from_x.c ] || die "missing runtime_thread_glue.inc"
+grep -q 'F-thread v1' "$DOC" || die "doc missing F-thread v1 marker"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
+[ -f "$MANIFEST" ] || die "missing $MANIFEST"
+[ -f xbuild ] || die "missing xbuild"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f std/thread/thread.x ] || die "missing std/thread/thread.x"
+[ -f compiler/seeds/runtime_thread_glue.from_x.c ] || die "missing runtime_thread_glue.from_x.c"
 [ ! -f std/thread/thread_glue.c ] || die "thread_glue.c should be deleted"
 [ ! -f std/thread/thread.c ] || die "thread.c should be deleted"
-while IFS=$'\t' read -r item_id kind anchor _n; do
+
+while IFS=$'\t' read -r item_id kind anchor _notes; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*) continue ;; esac
   case "$kind" in
-    file|doc|gate|makefile) [ -f "$anchor" ] || die "missing $anchor ($item_id)" ;;
-    absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
+    file|doc|gate|makefile)
+      [ -f "$anchor" ] || die "missing $anchor ($item_id)"
+      ;;
+    absent)
+      [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)"
+      ;;
+    *)
+      die "manifest unknown kind '$kind' for $item_id"
+      ;;
   esac
 done < "$MANIFEST"
-xlang_compiler_make -q runtime_thread_glue.o 2>/dev/null || xlang_compiler_make runtime_thread_glue.o >/dev/null 2>&1 || die "runtime_thread_glue.o build failed"
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/thread/thread.o >/dev/null 2>&1 || die "ensure thread.o failed (xlang_compiler_make)"
-else
-  echo "f-thread-v1 SKIP thread.o build (no xlang-c)" >&2
+STATIC_OK=1
+
+if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  die "no native xlang"
 fi
-[ -f tests/run-std-thread-pool-gate.sh ] && chmod +x tests/run-std-thread-pool-gate.sh && tests/run-std-thread-pool-gate.sh || true
-echo "f-thread-v1 gate OK"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
+SKIP=0
+
+xlang_compiler_make -q runtime_thread_glue.o 2>/dev/null \
+  || xlang_compiler_make runtime_thread_glue.o >/dev/null 2>&1 \
+  || die "runtime_thread_glue.o build failed"
+GLUE_OK=1
+
+xlang_compiler_make ../std/thread/thread.o >/dev/null 2>&1 \
+  || die "ensure thread.o failed (xlang_compiler_make; prefer asm)"
+ENSURE_OK=1
+
+if [ -f tests/run-std-thread-pool-gate.sh ]; then
+  echo "=== F-thread v1: delegate run-std-thread-pool-gate ==="
+  chmod +x tests/run-std-thread-pool-gate.sh
+  if ! tests/run-std-thread-pool-gate.sh; then
+    die "std-thread-pool sub-gate failed"
+  fi
+  POOL_OK=1
+fi
+
+echo "${PREFIX} status=ok static=${STATIC_OK} ensure=${ENSURE_OK} glue=${GLUE_OK} pool=${POOL_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "f-thread-v1 std.thread gate OK (F-thread v1; honesty)"

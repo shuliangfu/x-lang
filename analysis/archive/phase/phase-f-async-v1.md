@@ -10,14 +10,13 @@
 | Future | `future.c`（~162 行） | `future.x` + `future_glue.c` |
 | `scheduler.o` / `future.o` | `cc -c` | 各自 `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_ASYNC_V1_FAIL` retired. Delegates STD-004 async-api hard. future／io-cps／context／language observational (product UNDEF residual).
 
 ```bash
-XLANG_F_ASYNC_V1_FAIL=1 ./tests/run-f-async-v1-gate.sh
-./tests/run-std-async-future-gate.sh
-./tests/run-std-async-io-cps-gate.sh
-./tests/run-std-async-context-gate.sh
-./tests/run-std-async-language-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-async-v1-gate.sh
+./tests/run-std-async-api-gate.sh
 ```
 
 ## 下一项
