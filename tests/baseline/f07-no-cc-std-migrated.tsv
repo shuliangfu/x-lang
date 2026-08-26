@@ -1,14 +1,20 @@
-# F-07 v1：已迁移纯 .x 模块硬禁 cc -c 清单
-# 列：module_id	c_path	o_path	phase
-io	std/io/io.c	std/io/io.o	F-03
-fs	std/fs/fs.c	std/fs/fs.o	F-03
-heap	std/heap/heap.c	std/heap/heap.o	F-03
-compress	std/compress/compress.c	std/compress/compress.o	F-04 v7
-zlib	std/compress/zlib/zlib.c	std/compress/zlib/zlib.o	F-04 v4
-gzip	std/compress/gzip/gzip.c	std/compress/gzip/gzip.o	F-04 v5
-brotli	std/compress/brotli/brotli.c	std/compress/brotli/brotli.o	F-04 v6
-zstd	std/compress/zstd/zstd.c	std/compress/zstd/zstd.o	F-04 v7
-net	std/net/net.c	std/net/net.o	F-04 v14
-guard_script	script	tests/lib/build-std-c-o.sh	grep	F-07 forbidden guard
-f06_gate	gate_ref	tests/run-f06-runtime-std-o-cleanup-gate.sh	gate_ref	F-06 bootstrap cleanup
-doc	doc	analysis/archive/phase/phase-f-f07-v1.md	grep	F-07 v1
+# F-07: forbid cc -c on migrated pure-.x std modules
+# 列：item_id	kind	anchor	mod_path	notes
+deleted_io_c	absent	std/io/io.c		must not exist
+deleted_fs_c	absent	std/fs/fs.c		must not exist
+deleted_heap_c	absent	std/heap/heap.c		must not exist
+deleted_compress_c	absent	std/compress/compress.c		must not exist
+deleted_zlib_c	absent	std/compress/zlib/zlib.c		must not exist
+deleted_gzip_c	absent	std/compress/gzip/gzip.c		must not exist
+deleted_brotli_c	absent	std/compress/brotli/brotli.c		must not exist
+deleted_zstd_c	absent	std/compress/zstd/zstd.c		must not exist
+deleted_net_c	absent	std/net/net.c		must not exist
+deleted_path_c	absent	std/path/path.c		must not exist
+deleted_uuid_c	absent	std/uuid/uuid.c		must not exist
+deleted_sort_c	absent	std/sort/sort.c		must not exist
+guard_forbidden	symbol	_std_c_o_forbidden_migrated	tests/lib/build-std-c-o.sh	F-07 ensure reject
+gate_f06	script	tests/run-f06-runtime-std-o-cleanup-gate.sh		child
+gate_f03_core	script	tests/run-f03-std-core-gate.sh		child
+gate_self	script	tests/run-f07-no-cc-std-migrated-gate.sh		aggregate
+doc_v1	script	analysis/archive/phase/phase-f-f07-v1.md		archive DOC
+doc_v2	script	analysis/archive/phase/phase-f-f07-v2.md		archive DOC

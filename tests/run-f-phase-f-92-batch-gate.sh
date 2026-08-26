@@ -44,7 +44,8 @@ for g in "${GATES[@]}"; do
       if ! XLANG_F06_RUNTIME_CLEANUP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f07-no-cc-std-migrated-gate.sh)
-      if ! XLANG_F07_NO_CC_MIGRATED_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      # f07 is honesty-hard (soft XLANG_F07_NO_CC_MIGRATED_FAIL retired).
+      if ! "tests/$g"; then die "$g failed"; fi
       ;;
     run-f08-core-inventory-gate.sh)
       if ! XLANG_F08_CORE_INVENTORY_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi

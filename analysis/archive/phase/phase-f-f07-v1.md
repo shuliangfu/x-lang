@@ -16,7 +16,7 @@
 
 | 项 | 说明 |
 |----|------|
-| `compiler/Makefile` | 仍 `cc -c` 其余 std（process/net/json/…） |
+| `compiler/Makefile` | 已删；`./xbuild` 权威；gate refuse resurrect |
 | bench C harness | 部分仍直接 `cc … std/io/io.o`（非 ensure_std_c_o 路径） |
 | 全仓库零 `cc -c std/` | F-07 v2+ 随 F-04/F-05 模块迁移逐步硬禁 |
 
@@ -25,10 +25,20 @@
 - `std/io`, `std/fs`, `std/heap`
 - `std/compress`（含 zlib/gzip/brotli/zstd 子目录）
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static manifest + forbidden `ensure_std_c_o` + f06 (forced
+`XLANG_F06_RUNTIME_CLEANUP_FAIL=1`) + f03-core (already honesty-hard).
+No soft `die→exit 0`. Soft `XLANG_F07_NO_CC_MIGRATED_FAIL` retired.
+Report `static=` / `forbidden=` / `f06=` / `f03_core=` / `skip=`.
 
 ```bash
-XLANG_F07_NO_CC_MIGRATED_FAIL=1 ./tests/run-f07-no-cc-std-migrated-gate.sh
-XLANG_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
-XLANG_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh
+./tests/run-f07-no-cc-std-migrated-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f07-no-cc-std-migrated-gate.sh
 ```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F07_NO_CC_MIGRATED_FAIL` path retired;
+gate always hard). Nested f06 still has its own soft knife until honesty.
