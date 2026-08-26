@@ -113,13 +113,16 @@ import("std.fs")          ← 用户稳定面（本文档 §3）
 
 ---
 
-## 5. 跨平台对齐测试（v1）
+## 5. Gate
+
+跨平台对齐测试（v1）+ honesty（2026-08-26）。
 
 | 资源 | 说明 |
 |------|------|
 | 矩阵 | `tests/baseline/std-fs-crossplatform.tsv` |
 | 统一 .x | `tests/fs/crossplatform_core.x` |
 | 门禁 | `tests/run-std-fs-crossplatform-gate.sh` |
+| helpers | `tests/lib/std-fs-crossplatform.sh` |
 | CI | `run-portable-suite.sh` 全 job 调用 |
 
 策略：
@@ -129,6 +132,14 @@ import("std.fs")          ← 用户稳定面（本文档 §3）
 | **must** | 当前平台必须 exit 0 |
 | **skip** | 不跑（如 Linux-only splice） |
 | **optional** | 跑但失败仅 WARN（v1 未用） |
+
+Honesty（STD-003 soft→硬绿）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）
+- `xlang check` 仅观测（check 闸门暂停 2026-08-05）；不硬失败
+- must-policy `.x` 与 `run-fs.sh` **exit 0 硬失败**；无 native 时 **FAIL**（禁止 soft SKIP→OK）
+- 平台 `skip` 仍按矩阵策略（splice／win_path 等）；报告 `check=`／`x=`／`skip=`
+- 硬绿信号 = `x=`；§4 仍为兼容矩阵（勿把 Gate 锚撞到 `## 4`）
 
 ---
 
