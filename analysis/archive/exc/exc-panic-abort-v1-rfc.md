@@ -1,10 +1,11 @@
 # panic / abort / 可恢复错误边界 v1（EXC-002）
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 状态：**soft→硬绿（假权威诚实 · 2026-08-26）**  
 > 关联：`EXC-001`（Result/Error 三层模型）、`std/runtime`、`core/debug`
 
-> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path. Runnable smoke observational (typeck/product residual).
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; matrix run+hook exit0／non-zero hard-fail (no soft SKIP→OK).
 
 ---
 
@@ -90,13 +91,29 @@
 
 ---
 
-## 7. 门禁
+## 7. Gate
+
+| 脚本 | 覆盖 |
+|------|------|
+| `tests/run-exc-panic-abort-gate.sh` | manifest + honesty smoke（prefer asm） |
+| `tests/baseline/exc-panic-abort.tsv` | 7 case：4× `.x` run + 3× hook |
+| `tests/exc/recoverable_result.x` 等 | Layer A/C／runtime／expect Ok 路径 exit0 hard |
+| `tests/run-result.sh`／`run-error.sh`／`run-panic.sh` | hook 邻域 |
+
+**Honesty contract（2026-08-26）**
+
+| 项 | 规则 |
+|----|------|
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| check | observational only（check gate paused 2026-08-05） |
+| runnable | TSV `policy=run` exit match **hard-fail**；`policy=hook` exit0 **hard-fail** |
+| no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
+| report | `check=`／`run=`／`skip=` |
+| DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 
 ```bash
 ./tests/run-exc-panic-abort-gate.sh
 ```
-
-矩阵：`tests/baseline/exc-panic-abort.tsv`（7 case）
 
 | case | 验证 |
 |------|------|
@@ -110,7 +127,7 @@
 
 | 项 | EXC-002 | EXC-003 |
 |----|---------|---------|
-| panic 边界 | ✅ v1 | — |
+| panic 边界 | ✅ soft→硬绿 | — |
 | 错误码分段 | 引用 EXC-001 §5 | 模块码表细化 |
 | IO_Result 映射 | 占位 | 稳定后 → `err_i32` |
 
@@ -120,8 +137,9 @@
 
 | 资源 | 路径 |
 |------|------|
-| Result/Error | `analysis/exc-result-error-v1-rfc.md` |
+| Result/Error | `analysis/archive/exc/exc-result-error-v1-rfc.md` |
 | std.runtime | `std/runtime/mod.x` |
 | 门禁 | `tests/run-exc-panic-abort-gate.sh` |
+| 矩阵 | `tests/baseline/exc-panic-abort.tsv` |
 
-**EXC-002 状态：定版 ✅**
+**EXC-002 状态：soft→硬绿 ✅（假权威诚实 · 2026-08-26）**

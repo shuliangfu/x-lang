@@ -1,6 +1,8 @@
 # EXC-002 panic/abort 边界烟测矩阵
 # Format: case_id<TAB>script<TAB>policy<TAB>expected_exit<TAB>notes
 # policy: run = 编译并运行；hook = 调用已有 run-*.sh
+# honesty 2026-08-26: Gate section + prefer-asm hard-green (no soft SKIP→OK)
+docs	-	section	## 7. Gate	honesty
 recoverable_result	recoverable_result.x	run	0	Layer A unwrap_or
 layer_c_recoverable	layer_c_recoverable.x	run	0	Layer C fs 失败
 runtime_ready	runtime_ready.x	run	0	std.runtime ready
