@@ -21,6 +21,18 @@
 | `net_map_gai_error` | 按 linux/macos/windows `#[cfg]` 硬编码 EAI 值 |
 | io_uring 批量 | Linux connect/accept 仍 net.c + io.o |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_DNS_ALPN_FAIL` retired. STD-029 hard-delegated.
+Report `static=` / `dns=` / `skip=`. Live authority = ensure net merge
+list (`alpn.x` / `dns.x`) + mk (Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-dns-alpn-gate.sh
+```
+
 ## 复现
 
 ```bash

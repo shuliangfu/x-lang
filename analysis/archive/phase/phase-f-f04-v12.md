@@ -20,6 +20,17 @@
 | io_uring | Linux TCP 仍 net.c + io.o |
 | Windows UDP poll | v12 recv 超时路径为桩 |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_SLICE_V12_FAIL` retired. Report `static=` / `v11=` /
+`skip=`. Live authority = ensure (`sock.x` / `udp.x`) + mk.
+
+```bash
+./tests/run-f04-std-net-slice-v12-gate.sh
+```
+
 ## 复现
 
 ```bash

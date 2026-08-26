@@ -22,6 +22,19 @@
 | `tls_mbedtls.inc.c` | 已删；v9 迁 `.x` + `tls_mbedtls_bio.c` |
 | Windows | OpenSSL 烟测依赖 `net_tcp_connect_blocking_c`（Unix 路径） |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static archaeology + F-01 inventory. No soft `die→exit 0`.
+Soft `XLANG_F04_NET_TLS_OPENSSL_FAIL` retired. Product TLS
+observational (net-tls residual). Report `static=` / `inventory=` /
+`tls=` / `skip=`. Live authority = `archaeology_host_pick_phony.sh` +
+`labi_invoke_ld_list` (Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-tls-openssl-gate.sh
+```
+
 ## 复现
 
 ```bash

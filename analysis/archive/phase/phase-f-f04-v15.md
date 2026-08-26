@@ -31,6 +31,21 @@
 
 `net.o` = 10× `.x`（`ld -r`）；`runtime_net_udp_batch.o` + `runtime_net_workers.o` 与 `net.o` 同链；TLS OpenSSL/mbedTLS 为独立 `tls_*.o`。
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + child gates + F-01 inventory. No soft
+`die→exit 0`; no soft child FAIL pass-through. Soft
+`XLANG_F04_NET_CLOSURE_FAIL` retired. Report `v14=` / `dns=` /
+`tcp_pool=` / `tls_stub=` / `ws=` / `static=` / `inventory=` / `skip=`.
+Live authority = `./xbuild` + mk + ensure (Makefile deleted; TSV no
+longer points at `compiler/Makefile`).
+
+```bash
+./tests/run-f04-std-net-closure-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-closure-gate.sh
+```
+
 ## 复现
 
 ```bash

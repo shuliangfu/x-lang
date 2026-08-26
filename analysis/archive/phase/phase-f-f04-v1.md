@@ -20,6 +20,21 @@
 | runtime auto TLS | `tls_runtime_link_smoke.x` 在 mod 固定 import stub 时 **暂不绿** → F-04 v2 |
 | ws.inc.c | 仍于 net.c；链接时解析 `net_tls_*_c` 自 tls_stub.x 或 openssl net.o |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_TLS_STUB_FAIL` retired. Product `run-std-net-tls-gate`
+observational (net-tls residual). Report `static=` / `inventory=` /
+`tls=` / `skip=`. Live authority = `./xbuild` +
+`compiler/mk/std_and_panic_objs.mk` + `ensure_host_cc_seed_o.sh`
+(Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-tls-stub-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-tls-stub-gate.sh
+```
+
 ## 复现
 
 ```bash

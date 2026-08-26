@@ -20,6 +20,20 @@
 | socketpair 烟测 | 客户端/服务端 fork 集成烟测 v3 离线化（同 Windows 跳过策略） |
 | WSS runtime | 仍依赖 tls_stub（OpenSSL 链入待 F-04 v4） |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_WS_FAIL` retired. STD-031 `run-std-net-ws-gate`
+observational (still prefers `xlang-c` check; check gate paused).
+Report `static=` / `inventory=` / `ws=` / `skip=`. Live authority =
+`./xbuild` + mk + ensure (Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-ws-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-ws-gate.sh
+```
+
 ## 复现
 
 ```bash

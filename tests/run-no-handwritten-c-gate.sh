@@ -90,6 +90,19 @@ if [ -f tests/run-f04-std-crypto-closure-gate.sh ]; then
   fi
 fi
 
+if [ -f tests/run-f04-std-net-closure-gate.sh ]; then
+  # F-04 net honesty (2026-08-26): child always hard; retired
+  # XLANG_F04_NET_*_FAIL must not be re-exported. Soft WARN only when
+  # XLANG_F09_PRODUCT_FAIL!=1.
+  # PLATFORM: SHARED archaeology.
+  echo "=== F-09 v1: delegate run-f04-std-net-closure-gate ==="
+  chmod +x tests/run-f04-std-net-closure-gate.sh
+  if ! tests/run-f04-std-net-closure-gate.sh; then
+    if [ "$PROD_FAIL" = "1" ]; then die "f04 net closure sub-gate failed"; fi
+    echo "f09 WARN: f04 net soft (XLANG_F09_PRODUCT_FAIL=1 to hard)" >&2
+  fi
+fi
+
 if [ -f tests/run-f05-std-db-closure-gate.sh ]; then
   # F-05 honesty (2026-08-26): child always hard; retired XLANG_F05_DB_*_FAIL
   # must not be re-exported. Soft WARN only when XLANG_F09_PRODUCT_FAIL!=1.

@@ -23,6 +23,19 @@
 | Windows | BIO / 烟测依赖 Unix socket 路径 |
 | struct 尺寸 | ssl/conf/x509/pk 字节数组按 Homebrew mbedtls 4.x + margin |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static archaeology + F-01 inventory. No soft `die→exit 0`.
+Soft `XLANG_F04_NET_TLS_MBEDTLS_FAIL` retired. Product TLS
+observational (net-tls residual). Report `static=` / `inventory=` /
+`tls=` / `skip=`. Live authority = `archaeology_host_pick_phony.sh` +
+`runtime_tls_mbedtls_bio` seed + `labi_invoke_ld_list` (Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-tls-mbedtls-gate.sh
+```
+
 ## 复现
 
 ```bash

@@ -19,6 +19,19 @@
 | fork 集成烟测 | C 版 `net_tcp_pool_fork_smoke_c` 未迁；离线 smoke 仍 0 通过 |
 | ws.inc.c | 仍于 net.c → **F-04 v3** |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_TCP_POOL_FAIL` retired. `xlang check` observational
+(check gate paused). Report `static=` / `inventory=` / `check=` /
+`skip=`. Live authority = `./xbuild` + mk + ensure (Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-tcp-pool-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-tcp-pool-gate.sh
+```
+
 ## 复现
 
 ```bash

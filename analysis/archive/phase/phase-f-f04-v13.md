@@ -19,6 +19,17 @@
 | UDP batch | **F-04 v13b ✅** 见 `udp_batch.x` |
 | Windows TCP poll | connect/accept 超时路径 poll 仍为桩（与 v12 UDP 同类） |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_SLICE_V13_FAIL` retired. Report `static=` / `v12=` /
+`skip=`. Live authority = ensure (`tcp.x`) + mk.
+
+```bash
+./tests/run-f04-std-net-slice-v13-gate.sh
+```
+
 ## 复现
 
 ```bash

@@ -21,6 +21,18 @@
 | io_uring | Linux connect/accept 仍走 net.c + io.o |
 | 无 xlang | `net.o` 缺 v10/v11 符号 |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_SLICE_V11_FAIL` retired. File needles = `addr.x` /
+`ipv6.x` / `io_batch.x` (not fossil `net_addr.x`). Report `static=` /
+`dns_alpn=` / `skip=`. Live authority = ensure net merge (Makefile deleted).
+
+```bash
+./tests/run-f04-std-net-slice-v11-gate.sh
+```
+
 ## 复现
 
 ```bash
