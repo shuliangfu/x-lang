@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # std-sqlite-stub.sh — STD-139 manifest 与 stub 烟测辅助
+# Honesty 2026-08-26: report check=/run=/stub_c=/skip=; prefer asm gate.
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -103,11 +104,17 @@ std_sqlite_stub_run_c_smoke() {
   return 0
 }
 
-# 输出门禁报告行。
+# Emit structured report line (honesty: check=/run=/stub_c=/skip=).
+# @param status ok|fail
+# @param check_ok 0|1 observational xlang check
+# @param run_ok 0|1 hard runnable exit0 (stub_behavior.x)
+# @param stub_c 0|1 observational C stub smoke
+# @param skip 0|1 residual skip bit (0 when runnable hard-green)
 std_sqlite_stub_emit_report() {
   local status="$1"
-  local stub_c="$2"
-  local stub_x="$3"
-  local doc="$4"
-  echo "${STD_DB_STUB_PREFIX} status=${status} stub_c=${stub_c} stub_x=${stub_x} doc=${doc}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local stub_c="$4"
+  local skip="$5"
+  echo "${STD_DB_STUB_PREFIX} status=${status} check=${check_ok} run=${run_ok} stub_c=${stub_c} skip=${skip}"
 }
