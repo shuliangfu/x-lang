@@ -1,3 +1,7 @@
+# F-math v1 std.math 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fmath_doc	doc	analysis/archive/phase/phase-f-math-v1.md	F-math v1
+fmath_gate	gate	tests/run-f-math-v1-gate.sh	聚合门禁
 math_x	file	std/math/math.x	常量/signum/special
 math_runtime	file	compiler/seeds/runtime_math_libm.from_x.c	libm fenv
 math_glue_absent	absent	std/math/math_libm_glue.c	F-ZC 已迁入 compiler

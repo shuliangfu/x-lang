@@ -26,17 +26,19 @@
 ## 构建
 
 ```bash
-make -C compiler ../std/uuid/uuid.o   # 自动先链 random.o + time.o
+./xbuild  # was: make -C compiler ../std/uuid/uuid.o
 ```
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail static＋ensure＋STD-075 manifest; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_UUID_V1_FAIL` retired. Full uuid product smoke observational (asm UNDEF residual).
 
 ```bash
-XLANG_F_UUID_V1_FAIL=1 ./tests/run-f-uuid-v1-gate.sh
-./tests/run-std-uuid-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-uuid-v1-gate.sh
+XLANG_STD_UUID_MANIFEST_ONLY=1 ./tests/run-std-uuid-gate.sh
 ```
 
 ## 下一项
 
-- **F-process v1**：`process.c` → `.x` + OS FFI 胶层
-- **random/time 去 C**：解除 uuid 对 C 的间接依赖
+- **uuid 产品 UNDEF**：full STD-075 smoke 仍观测
+- **random/time 去 C**：解除 uuid 对 C 的间接依赖（已部分完成）
