@@ -9,19 +9,18 @@
 | 实现 | `http.c`（~1000 行 + inc） | `http.x` + `http_glue.c` |
 | `http.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_HTTP_V1_FAIL` retired. Delegates STD-009 http + chunked + methods + https hard. Observational residuals: server-pool / reqresp / h2 / context (listed skip).
 
 ```bash
-XLANG_F_HTTP_V1_FAIL=1 ./tests/run-f-http-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-http-v1-gate.sh
 ./tests/run-std-http-gate.sh
 ./tests/run-std-http-chunked-gate.sh
 ./tests/run-std-http-methods-gate.sh
-./tests/run-std-http-server-pool-gate.sh
-./tests/run-std-http-reqresp-gate.sh
 ./tests/run-std-http-https-gate.sh
-./tests/run-std-http-h2-gate.sh
-./tests/run-std-http-context-gate.sh
 ```
+
 
 ## 下一项
 

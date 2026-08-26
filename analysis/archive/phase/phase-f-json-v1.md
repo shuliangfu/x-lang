@@ -9,15 +9,17 @@
 | 实现 | `json.c`（884 行） | `json.x` + `json_parse_glue.c` |
 | `json.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_JSON_V1_FAIL` retired. Delegates STD-008 json + object-array + serialize hard. Observational residual: typed-decode (listed skip).
 
 ```bash
-XLANG_F_JSON_V1_FAIL=1 ./tests/run-f-json-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-json-v1-gate.sh
 ./tests/run-std-json-gate.sh
 ./tests/run-std-json-object-array-gate.sh
 ./tests/run-std-json-serialize-gate.sh
-./tests/run-std-json-typed-decode-gate.sh
 ```
+
 
 ## 下一项
 
