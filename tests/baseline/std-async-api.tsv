@@ -2,6 +2,8 @@
 # One symbol per line; run-std-async-api-gate.sh greps std/async/mod.x
 # Matches: function NAME( or extern function NAME(
 # Updated: 2026-06-28 (S9 API 简写)
+# Gate honesty 2026-08-26: ## 10. Gate; hard smokes = i06_async_switch +
+# cookbook async_mod_import / async_drain_idle; coop/1m observational.
 wait_completion
 submit_read_sync
 submit_write_sync

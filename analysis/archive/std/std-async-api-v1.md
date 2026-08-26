@@ -139,4 +139,23 @@ XLANG_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench
 | 1M 压测 | `tests/run-std-async-1m-gate.sh` |
 | 全量烟测 | `tests/run-async.sh` |
 
-**STD-004 状态：定版 ✅**
+---
+
+## 10. Gate
+
+```bash
+./tests/run-std-async-api-gate.sh
+```
+
+Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `check` observational
+(check gate paused 2026-08-05); `bench/i06_async_switch.x` + cookbook
+`async_mod_import.x` / `async_drain_idle.x` exit 0 hard-fail; `i06_async_1m_coop`
+(`coop_pingpong*`) observational (product UNDEF residual — not soft); no native
+xlang → **FAIL** (not soft SKIP→OK). Report `check=` / `switch=` / `imp=` /
+`drain=` / `coop=` / `skip=`.
+
+```
+xlang: [XLANG_STD_ASYNC_API] status=ok check=1 switch=1 imp=1 drain=1 coop=0 skip=0
+```
+
+**STD-004 状态：定版 ✅**（Gate honesty soft→硬绿 2026-08-26）
