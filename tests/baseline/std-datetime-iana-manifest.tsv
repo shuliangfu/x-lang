@@ -1,5 +1,9 @@
 # STD-136 std.datetime IANA DST manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
+# C smoke observational; report check=/run=/skip=. Section ## 4. Gate in archive DOC.
+# Refuse top-level analysis/std-datetime-iana-v1.md resurrect.
+min_apis	3
 api_iana	api	timezone_iana	std/datetime/mod.x
 api_offset_at	api	timezone_offset_at	std/datetime/mod.x
 api_smoke	api	iana_dst_smoke	std/datetime/mod.x
@@ -7,4 +11,5 @@ symbol_from_name_c	symbol	datetime_iana_from_name_c	std/datetime/datetime.x
 symbol_offset_at_c	symbol	datetime_iana_offset_at_c	std/datetime/datetime.x
 symbol_dst_smoke_c	symbol	datetime_iana_dst_smoke_c	std/datetime/datetime.x
 smoke_x	smoke	tests/std-datetime/iana_dst_smoke.x
-gate	script	run-std-datetime-iana-gate.sh	tests/run-std-datetime-iana-gate.sh
+doc	file	analysis/archive/std/std-datetime-iana-v1.md	analysis/archive/std/std-datetime-iana-v1.md	## 4. Gate
+gate	script	tests/run-std-datetime-iana-gate.sh	tests/run-std-datetime-iana-gate.sh	## 4. Gate
