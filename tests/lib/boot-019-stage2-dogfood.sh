@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# boot-019-stage2-dogfood.sh — BOOT-019：Stage2 parser/typeck dogfood 辅助
+# boot-019-stage2-dogfood.sh — BOOT-019: Stage2 parser/typeck dogfood helpers
 #
-# 用法（source 后）：
+# Usage (after source):
 #   boot019_check_one XLANG tests/parser/two_functions.x
 #   boot019_link_run_one XLANG tests/option/main.x OUT_PATH [EXPECTED_EXIT]
-#   boot019_expected_exit tests/option/main.x  # 烟测约定退出码
+#   boot019_expected_exit tests/option/main.x  # smoke exit contract
 #   boot019_emit_report status check_ok link_ok skip
+#
+# honesty 2026-08-26: report fields check=/link=/skip=; check observational
+# at gate; link+run hard (6/6). PLATFORM: SHARED archaeology.
 
 BOOT019_PREFIX="${XLANG_BOOT019_PREFIX:-xlang: [XLANG_BOOT019]}"
 
-# 对单个 .x 跑 xlang check；失败返回 1。
+# Run xlang check on one .x; return 1 on failure.
+# Observational at gate (check paused 2026-08-05); callers may soft-note.
 boot019_check_one() {
   local xlang="$1"
   local src="$2"
@@ -23,7 +27,8 @@ boot019_check_one() {
   return 1
 }
 
-# 返回烟测 src 的约定进程退出码（与 run-option/run-result/run-generic 一致）。
+# Return the contracted process exit code for a smoke src
+# (aligned with run-option / run-result / run-generic).
 boot019_expected_exit() {
   case "$1" in
     tests/parser/binary_expr_return.x) echo 3 ;;
@@ -34,7 +39,7 @@ boot019_expected_exit() {
   esac
 }
 
-# 尝试 -o 链接并运行；成功返回 0，链接失败返回 2，运行 exit 不符返回 1。
+# Try -o link and run; 0=ok, 2=link fail, 1=run exit mismatch.
 boot019_link_run_one() {
   local xlang="$1"
   local src="$2"
@@ -55,11 +60,11 @@ boot019_link_run_one() {
   return 0
 }
 
-# 输出结构化报告行。
+# Emit structured report line: check=/link=/skip=.
 boot019_emit_report() {
   local status="$1"
   local check_ok="$2"
   local link_ok="$3"
   local skip="$4"
-  echo "${BOOT019_PREFIX} status=${status} check_ok=${check_ok} link_ok=${link_ok} skip=${skip}"
+  echo "${BOOT019_PREFIX} status=${status} check=${check_ok} link=${link_ok} skip=${skip}"
 }

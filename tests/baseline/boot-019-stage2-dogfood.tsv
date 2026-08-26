@@ -1,9 +1,12 @@
 # BOOT-019 Stage2 parser/typeck dogfood manifest
-# 列：item_id	kind	anchor	notes
+# columns: item_id	kind	anchor	notes
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; check observational;
+# 6 smoke link+run hard; no soft SKIP→OK; report check=/link=/skip=.
 # min_smoke	6
+doc_gate	section	## 7. Gate	honesty
 section_goal	section	## 1. 目标	bootstrap-verify 扩面
 section_subset	section	## 2. bootstrap-verify 子集	parser typeck
-section_gate	section	## 4. Gate	boot-019 gate
+section_gate	section	## 4. Gate	historical entry (see §7)
 smoke_parser_semi	smoke	tests/parser/semicolon_required.x	分号正例
 smoke_parser_two	smoke	tests/parser/two_functions.x	多函数
 smoke_parser_bin	smoke	tests/parser/binary_expr_return.x	二元表达式
