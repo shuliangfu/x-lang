@@ -5,13 +5,13 @@
 # wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
 # 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); stub_behavior.x exit 0 hard-fail (no soft
-# SKIP when native xlang present). C stub smoke observational. Report
-# check=/run=/stub_c=/skip=.
-# Product surface already green under asm; gate was portable-false-red
-# (prefer xlang-c / soft SKIP on typeck fail / always OK with stub_x=0 +
-# report stub_c=/stub_x=/doc= + TSV fossil sqlite_is_available vs product
-# is_available).
+# (check gate paused 2026-08-05); stub_behavior.x exit 0 hard-fail on
+# is_available + stub backend_name (soft-scoped; no soft SKIP when native
+# present). C stub smoke observational. Report check=/run=/stub_c=/skip=.
+# Gate was portable-false-red (prefer xlang-c / soft SKIP on typeck fail /
+# always OK with stub_x=0 + report stub_c=/stub_x=/doc= + TSV fossil
+# sqlite_is_available vs product is_available). Product residual: stub open /
+# last_error segfault on Ubuntu no-libsqlite3 (Darwin masked via av==1).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
