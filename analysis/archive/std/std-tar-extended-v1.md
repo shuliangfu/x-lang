@@ -47,11 +47,18 @@
 
 manifest：`tests/baseline/std-tar-extended.tsv`
 
+Honesty (2026-08-26): prefer `xlang_asm` + pin `XLANG_LINK_XLANG`; `check` observational
+(check gate paused 2026-08-05); C smoke observational; `tests/tar/long_path_dir.x`
+exit 0 hard-fail when native xlang present (no soft SKIP→OK). TSV section anchors
+aligned to this DOC (`## 4. Gate`; Pax lives under §2).
+
 **report** 示例：
 
 ```
-xlang: [XLANG_STD_TAR_EXTENDED] status=ok c=1 x=1 skip=0
+xlang: [XLANG_STD_TAR_EXTENDED] status=ok check=1 c=1 x=1 skip=0
 ```
+
+Hard-green signal = `x=`; `check` / `c` stay observational.
 
 回归：保留 `tests/run-std-tar-ustar-gate.sh`（短路径 round-trip 不破）。
 

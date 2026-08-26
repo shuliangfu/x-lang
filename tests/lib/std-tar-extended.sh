@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# std-tar-extended.sh — STD-152 manifest 与烟测辅助
+# std-tar-extended.sh — STD-152 manifest + smoke helpers
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_tar_extended_symbols_ok MOD_X TAR_X TSV
 #   std_tar_extended_run_c_smoke
 #   std_tar_extended_run_x_smoke XLANG_BIN X TAR_O
-#   std_tar_extended_emit_report status c_ok su_ok skip
+#   std_tar_extended_emit_report status check_ok c_ok x_ok skip
+# 2026-08-26: report check=/c=/x=/skip= (honesty; prefer asm runnable hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_TAR_EXTENDED_PREFIX="${XLANG_STD_TAR_EXTENDED_PREFIX:-xlang: [XLANG_STD_TAR_EXTENDED]}"
 
-# 校验 manifest symbol/file/api；echo 缺失数。
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_tar_extended_symbols_ok() {
   local mod_x="$1"
   local tar_x="$2"
@@ -44,13 +46,17 @@ std_tar_extended_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section|script|gate|anchor|hook_script)
+        # DOC ## 4. Gate / script anchors validated by the gate script.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 C 烟测（tar.o + extended_ok.c；须已 ensure tar.o）。
+# Compile and run C smoke (tar.o + extended_ok.c; ensure tar.o first).
+# Observational under honesty gate (hard-green = .x runnable).
 std_tar_extended_run_c_smoke() {
   local smoke_c="tests/std-tar/extended_ok.c"
   local exe="/tmp/xlang_std_tar_extended_c_$$"
@@ -80,7 +86,7 @@ std_tar_extended_run_c_smoke() {
   return 0
 }
 
-# 编译并运行 .x 烟测（须链 tar.o）。
+# Compile and run .x smoke (must link tar.o). Hard-green under honesty gate.
 std_tar_extended_run_x_smoke() {
   local xlang="$1"
   local src="$2"
@@ -108,11 +114,13 @@ std_tar_extended_run_x_smoke() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: check=/c=/x=/skip=).
+# Hard-green signal = x=; check + c observational.
 std_tar_extended_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
-  local skip="$4"
-  echo "${STD_TAR_EXTENDED_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
+  local check_ok="$2"
+  local c_ok="$3"
+  local x_ok="$4"
+  local skip="$5"
+  echo "${STD_TAR_EXTENDED_PREFIX} status=${status} check=${check_ok} c=${c_ok} x=${x_ok} skip=${skip}"
 }

@@ -2,10 +2,9 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	1
 read_path	section	## 1. 阅读路径	15min
-long_path	section	## 2. 长路径策略	prefix
-pax	section	## 3. Pax path	'x'
-dir_walk	section	## 4. 目录遍历	is_dir
-verify	section	## 5. Gate	gate
+long_path	section	## 2. 长路径策略	prefix/Pax
+dir_walk	section	## 3. 目录遍历	is_dir
+verify	section	## 4. Gate	gate
 api_path_max	api	path_max	std/tar/mod.x	最大路径
 symbol_max_ustar	symbol	TAR_MAX_PATH_USTAR	std/tar/mod.x	常量
 symbol_path_max_c	symbol	tar_path_max_c	std/tar/tar.x	路径上限
