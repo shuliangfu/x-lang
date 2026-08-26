@@ -1,63 +1,122 @@
 #!/usr/bin/env bash
-# F-05 v1：std.db.arrow 去 C 门禁。
+# F-05 v1: std.db.arrow remove arrow.c (arrow.x + runtime SIMD glue).
 #
-# 用法：./tests/run-f05-std-db-arrow-v1-gate.sh
-# 环境：XLANG_F05_DB_ARROW_V1_FAIL=1 — 失败时硬退出
+# Usage: ./tests/run-f05-std-db-arrow-v1-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-arrow-v1-gate.sh
+# 2026-08-26: Honesty — hard-fail static TSV + inventory + kv-arrow product
+# (no soft die→exit0). Soft XLANG_F05_DB_ARROW_V1_FAIL retired. Prefer asm;
+# pin XLANG_LINK_XLANG. Host-c nm/cc smoke retired (product path = kv-arrow
+# honesty gate). Report static=/inventory=/kv_arrow=/skip=. Gate was
+# portable-false-green (DOC still pointed at top-level
+# analysis/phase-f-f05-v1.md after archive; soft FAIL printed then exit0;
+# Makefile fossil greps after Makefile deleted). PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_F05_DB_ARROW_V1_FAIL:-0}
-DOC="analysis/phase-f-f05-v1.md"
+DOC="${XLANG_F05_ARROW_DOC:-analysis/archive/phase/phase-f-f05-v1.md}"
+MANIFEST="tests/baseline/f05-std-db-arrow-v1.tsv"
+PREFIX="xlang: [XLANG_F05_ARROW]"
+
+resolve_shu() {
+  local cand abs
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$(pwd)/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
 die() {
   echo "f05-db-arrow-v1 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  echo "${PREFIX} status=fail static=${STATIC_OK:-0} inventory=${INVENTORY_OK:-0} kv_arrow=${KV_ARROW_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== F-05 v1: std.db.arrow remove arrow.c ==="
+STATIC_OK=0
+INVENTORY_OK=0
+KV_ARROW_OK=0
+SKIP=1
+
+echo "=== F-05 v1: std.db.arrow remove arrow.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
+[ -f "$MANIFEST" ] || die "missing $MANIFEST"
 grep -q 'F-05 v1' "$DOC" || die "doc missing F-05 v1 marker"
-[ ! -f std/db/arrow/arrow.c ] || die "arrow.c should be deleted"
-[ -f std/db/arrow/arrow.x ] || die "missing arrow.x"
-[ -f compiler/seeds/runtime_arrow_simd_glue.from_x.c ] || die "missing arrow_simd_glue.c"
-grep -q 'arrow_column_i32_create_c' std/db/arrow/arrow.x || die "arrow.x missing create"
-grep -q 'arrow_smoke_c' std/db/arrow/arrow.x || die "arrow.x missing smoke"
-[ ! -f std/db/arrow/arrow_simd_glue.c ] || die "arrow_simd_glue.c should be deleted (F-ZC)"
-grep -q 'runtime_arrow_simd_glue' compiler/Makefile || die "Makefile missing runtime_arrow_simd_glue"
-grep -q 'arrow_column_f32_sum_c' compiler/seeds/runtime_arrow_simd_glue.from_x.c || die "glue missing f32 sum"
-grep -q 'arrow.x' compiler/Makefile || die "Makefile missing arrow.x build"
-if grep -q 'std/db/arrow/arrow\.c' compiler/Makefile 2>/dev/null; then
-  die "Makefile still references arrow.c"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
+if [ -f analysis/phase-f-f05-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/phase/)"
 fi
-
-xlang_compiler_make ../std/db/arrow/arrow.o runtime_arrow_simd_glue.o >/dev/null 2>&1 || die "ensure arrow.o failed (xlang_compiler_make)"
-
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-if nm std/db/arrow/arrow.o 2>/dev/null | grep -q ' arrow_smoke_c'; then
-  cat >"$TMP/arrow_smoke_main.c" <<'EOF'
-#include <stdint.h>
-extern int32_t arrow_smoke_c(void);
-int main(void) { return arrow_smoke_c() == 0 ? 0 : 1; }
-EOF
-  if ! cc -o "$TMP/arrow_smoke" "$TMP/arrow_smoke_main.c" std/db/arrow/arrow.o compiler/runtime_arrow_simd_glue.o 2>/dev/null; then
-    die "arrow smoke compile failed"
-  fi
-  "$TMP/arrow_smoke" || die "arrow smoke run failed"
-  echo "f05 arrow smoke OK"
-else
-  echo "f05 arrow smoke SKIP (arrow.o missing .x symbols; need xlang-c)"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
 fi
+[ -f xbuild ] || die "missing xbuild"
 
-if [ -f tests/run-std-db-kv-arrow-gate.sh ]; then
-  echo "=== F-05 v1: delegate kv+arrow gate ==="
-  chmod +x tests/run-std-db-kv-arrow-gate.sh
-  if ! ./tests/run-std-db-kv-arrow-gate.sh; then
-    die "kv+arrow sub-gate failed"
-  fi
+while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
+  [ -z "${item_id:-}" ] && continue
+  case "$item_id" in
+    \#*) continue ;;
+  esac
+  case "$kind" in
+    symbol)
+      target="$mod_path"
+      [ -n "$target" ] || die "manifest symbol missing mod_path for $item_id"
+      [ -f "$target" ] || die "manifest target missing: $target"
+      grep -qF "$anchor" "$target" || die "manifest missing '$anchor' in $target"
+      ;;
+    absent)
+      [ ! -f "$anchor" ] || die "manifest absent file still exists: $anchor"
+      ;;
+    file)
+      [ -f "$anchor" ] || die "manifest missing file: $anchor"
+      ;;
+    *)
+      die "manifest unknown kind '$kind' for $item_id"
+      ;;
+  esac
+done < "$MANIFEST"
+echo "f05-arrow manifest OK"
+STATIC_OK=1
+
+if [ ! -f tests/run-std-c-inventory-gate.sh ]; then
+  die "missing tests/run-std-c-inventory-gate.sh"
 fi
+echo "=== F-05 v1: delegate run-std-c-inventory-gate (F-01; hard) ==="
+chmod +x tests/run-std-c-inventory-gate.sh
+if ! XLANG_STD_C_INVENTORY_FAIL=1 tests/run-std-c-inventory-gate.sh; then
+  die "std-c-inventory sub-gate failed"
+fi
+INVENTORY_OK=1
 
-echo "f05 std.db.arrow v1 gate OK (F-05 v1)"
+if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  die "no native xlang"
+fi
+echo "=== F-05 v1: kv+arrow product (XLANG=$XLANG_BIN; hard) ==="
+# Pin product link to resolved compiler (prefer asm).
+# PLATFORM: SHARED — product path honesty.
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
+if [ ! -f tests/run-std-db-kv-arrow-gate.sh ]; then
+  die "missing tests/run-std-db-kv-arrow-gate.sh"
+fi
+chmod +x tests/run-std-db-kv-arrow-gate.sh
+if ! tests/run-std-db-kv-arrow-gate.sh; then
+  die "kv+arrow sub-gate failed"
+fi
+KV_ARROW_OK=1
+SKIP=0
+
+echo "${PREFIX} status=ok static=${STATIC_OK} inventory=${INVENTORY_OK} kv_arrow=${KV_ARROW_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "f05 std.db.arrow v1 gate OK (F-05 v1; honesty)"

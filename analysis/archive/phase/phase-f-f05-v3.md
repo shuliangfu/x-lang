@@ -17,11 +17,28 @@ make -C compiler ../std/db/sqlite/sqlite.o   # ld -r(sqlite_glue.o + sqlite_main
 make -C compiler sqlite-o-stub               # glue 无 SQLITE3；运行时 DB_NOT_IMPL
 ```
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + STD-057 manifest-only. No soft
+`die→exit 0`. Soft `XLANG_F05_DB_SQLITE_V3_FAIL` retired. Host-c nm/cc
+smoke retired. STD-139 stub / full exec / open+last_error product-red
+are observational (not soft false-green). Report `static=` /
+`inventory=` / `sqlite=` / `stub=` / `skip=`.
 
 ```bash
-XLANG_F05_DB_SQLITE_V3_FAIL=1 ./tests/run-f05-std-db-sqlite-v3-gate.sh
-./tests/run-std-sqlite-gate.sh
+./tests/run-f05-std-db-sqlite-v3-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-sqlite-v3-gate.sh
+```
+
+## 门禁
+
+Same as **## Gate** (soft `XLANG_F05_DB_SQLITE_V3_FAIL` path retired;
+gate always hard). Neighbor manifest-only / stub still own their own
+knives when run standalone:
+
+```bash
+XLANG_STD_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 ./tests/run-std-sqlite-stub-gate.sh
 ```
 

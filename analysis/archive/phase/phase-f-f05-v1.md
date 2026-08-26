@@ -19,13 +19,30 @@
 | `std/db/sqlite/sqlite.c` | ~1539 行，仍 C + libsqlite3 |
 | 无 xlang | `arrow.o` 仅胶层符号 |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + kv-arrow product. No soft
+`die→exit 0`. Soft `XLANG_F05_DB_ARROW_V1_FAIL` retired. Host-c nm/cc
+smoke retired. Report `static=` / `inventory=` / `kv_arrow=` / `skip=`.
 
 ```bash
-XLANG_F05_DB_ARROW_V1_FAIL=1 ./tests/run-f05-std-db-arrow-v1-gate.sh
+./tests/run-f05-std-db-arrow-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-arrow-v1-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F05_DB_ARROW_V1_FAIL` path retired; gate
+always hard). Neighbor inventory / kv-arrow still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ./tests/run-std-db-kv-arrow-gate.sh
 ```
 
 ## 下一步
 
-- **F-05 v2**：`std/db/kv/kv.c` 分批迁 `.x`（mmap/WAL 可复用 std.sys.mmap）
+- **F-05 v2 ✅**：`std/db/kv/kv.c` → `kv.x` + runtime mmap glue
+- **F-05 v3 ✅** / **F-05 v4 ✅**：见 `phase-f-f05-v3.md` / `phase-f-f05-v4-closure.md`

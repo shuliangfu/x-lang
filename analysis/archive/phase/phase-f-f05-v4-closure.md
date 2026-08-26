@@ -35,10 +35,27 @@ make -C compiler ../std/db/sqlite/sqlite.o # ld -r(sqlite_glue.o + sqlite_main.o
 make -C compiler sqlite-o-stub             # glue 无 XLANG_DB_USE_SQLITE3
 ```
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + three child honesty gates + kv-arrow + STD-057
+manifest-only + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F05_DB_CLOSURE_FAIL` / child `XLANG_F05_DB_{ARROW_V1,KV_V2,SQLITE_V3}_FAIL`
+retired (do not export). Report `arrow=` / `kv=` / `sqlite=` /
+`kv_arrow=` / `sqlite_m=` / `inventory=` / `skip=`.
 
 ```bash
-XLANG_F05_DB_CLOSURE_FAIL=1 ./tests/run-f05-std-db-closure-gate.sh
+./tests/run-f05-std-db-closure-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-closure-gate.sh
+```
+
+## 门禁
+
+Same as **## Gate** (soft `XLANG_F05_DB_CLOSURE_FAIL` path retired; gate
+always hard):
+
+```bash
+./tests/run-f05-std-db-closure-gate.sh
 ./tests/run-std-db-kv-arrow-gate.sh
 XLANG_STD_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 ```
@@ -47,3 +64,4 @@ XLANG_STD_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 
 - **F-04 crypto v21 ✅** 模块闭合；见 `phase-f-f04-v21-closure.md`
 - **F-09 v1 ✅**：全仓库手写 C 审计门禁；见 `phase-f-f09-v1.md`
+- **残**：f04-crypto／net／e-soft soft FAIL 续扫；sqlite stub open／last_error 产品红跳

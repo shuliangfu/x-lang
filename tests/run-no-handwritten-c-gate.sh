@@ -90,8 +90,12 @@ if [ -f tests/run-f04-std-crypto-closure-gate.sh ]; then
 fi
 
 if [ -f tests/run-f05-std-db-closure-gate.sh ]; then
+  # F-05 honesty (2026-08-26): child always hard; retired XLANG_F05_DB_*_FAIL
+  # must not be re-exported. Soft WARN only when XLANG_F09_PRODUCT_FAIL!=1.
+  # PLATFORM: SHARED archaeology.
   echo "=== F-09 v1: delegate run-f05-std-db-closure-gate ==="
-  if ! env "XLANG_F05_DB_CLOSURE_FAIL=$PROD_FAIL" tests/run-f05-std-db-closure-gate.sh; then
+  chmod +x tests/run-f05-std-db-closure-gate.sh
+  if ! tests/run-f05-std-db-closure-gate.sh; then
     if [ "$PROD_FAIL" = "1" ]; then die "f05 db closure sub-gate failed"; fi
     echo "f09 WARN: f05 db soft (XLANG_F09_PRODUCT_FAIL=1 to hard)" >&2
   fi

@@ -1,0 +1,9 @@
+# F-05 v2 std.db.kv C-removal manifest
+# cols: item_id	kind	anchor	mod_path	notes
+symbol_open	symbol	db_kv_open_c	std/db/kv/kv.x	kv open ABI
+symbol_smoke	symbol	db_kv_smoke_c	std/db/kv/kv.x	kv smoke ABI
+symbol_mmap	symbol	xlang_kv_mmap_file_c	compiler/seeds/runtime_kv_mmap_glue.from_x.c	mmap glue
+absent_c	absent	std/db/kv/kv.c		deleted kv.c
+absent_mmap_glue	absent	std/db/kv/kv_mmap_glue.c		moved to runtime seed
+glue_runtime	file	compiler/seeds/runtime_kv_mmap_glue.from_x.c		runtime mmap glue
+x_kv	file	std/db/kv/kv.x		kv pure .x
