@@ -10,13 +10,13 @@
 | `future.o` | `ld -r` glue + x | **纯 xlang → future.o** |
 | wait 依赖 | glue 内 weak drain/poll | **`extern` 弱桩**（scheduler 链入时覆盖） |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_ASYNC_FUTURE_V2_FAIL` retired. STD-041 async-future product residual observational (c smoke).
 
 ```bash
-XLANG_F_ASYNC_FUTURE_V2_FAIL=1 ./tests/run-f-async-future-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-async-future-v2-gate.sh
 ./tests/run-std-async-future-gate.sh
-XLANG_F_ASYNC_V1_FAIL=1 ./tests/run-f-async-v1-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项
