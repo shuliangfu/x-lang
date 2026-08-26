@@ -31,24 +31,34 @@
 
 ---
 
-## 3. 烟测与门禁
+## 3. Smokes
 
-| 用例 | 路径 |
+| Case | Path |
 |------|------|
-| 聚合 | `tests/process/xplat_behavior.x` |
-| 边界 | `tests/process/boundary.x`（TST-002） |
-| Windows spawn | `tests/process/spawn_wait_win.x` |
-| pipe 重定向 | `tests/process/spawn_pipe_echo.x` |
+| Aggregate | `tests/process/xplat_behavior.x` (hard green) |
+| Boundary | `tests/process/boundary.x` (TST-002; hard green) |
+| Windows spawn | `tests/process/spawn_wait_win.x` (observational; XT001) |
+| Pipe redirect | `tests/process/spawn_pipe_echo.x` (observational; XT001) |
+
+---
+
+## 4. Gate
+
+Honesty (2026-08-26): prefer `xlang_asm` + pin `XLANG_LINK_XLANG`; check
+observational (paused 2026-08-05); `xplat_behavior.x` + `boundary.x` exit 0
+hard-fail (no soft SKIP when native present). `spawn_wait_win` /
+`spawn_pipe_echo` observational only (product XT001; not soft). Report
+`check=` / `xplat=` / `boundary=` / `skip=`.
 
 ```bash
 ./tests/run-std-process-xplat-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD142_PROCESS_XPLAT]`
+Report prefix: `xlang: [XLANG_STD142_PROCESS_XPLAT]`
 
 ---
 
-## 4. 演进
+## 5. Evolution
 
-- Windows `spawn_simple` 默认可执行探测（`where.exe`）
-- 子进程环境块继承与 `std.env` 编码联动（STD-132）
+- Windows `spawn_simple` default executable probe (`where.exe`)
+- Child env-block inheritance linked with `std.env` encoding (STD-132)

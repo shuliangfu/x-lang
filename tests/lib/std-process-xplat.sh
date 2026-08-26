@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# std-process-xplat.sh — STD-142 manifest 与烟测辅助
+# std-process-xplat.sh — STD-142 manifest and smoke helpers (honesty).
+# PLATFORM: SHARED archaeology.
 
 STD_PROC_XPLAT_PREFIX="${XLANG_STD142_PROCESS_XPLAT_PREFIX:-xlang: [XLANG_STD142_PROCESS_XPLAT]}"
 
-# 校验 manifest 锚点；echo 缺失数。
+# Validate manifest anchors; echo miss count; return 0 iff miss==0.
+# Section/file rows use the TSV mod_path column (archive DOC live path).
 std_process_xplat_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
   local miss=0
-  local item_id kind anchor mod_path
+  local item_id kind anchor mod_path _notes
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$item_id" in \#*|min_*) continue ;; esac
@@ -19,21 +21,16 @@ std_process_xplat_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      smoke|gate)
-        if [ ! -f "$anchor" ]; then
-          echo "std-process-xplat FAIL: missing '$anchor'" >&2
-          miss=$((miss + 1))
-        fi
-        ;;
-      file|script)
+      smoke|gate|file|script)
         if [ ! -f "$anchor" ]; then
           echo "std-process-xplat FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       section)
-        if ! grep -qF "$anchor" "analysis/std-process-xplat-v1.md" 2>/dev/null; then
-          echo "std-process-xplat FAIL: missing section '$anchor'" >&2
+        local path="${mod_path:-analysis/archive/std/std-process-xplat-v1.md}"
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-process-xplat FAIL: missing section '$anchor' in $path" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -43,7 +40,7 @@ std_process_xplat_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 校验向量 TSV 最少行数。
+# Validate vector TSV has at least min_rows data rows.
 std_process_xplat_vectors_ok() {
   local tsv="$1"
   local min_rows="${2:-10}"
@@ -62,7 +59,7 @@ std_process_xplat_vectors_ok() {
   return 0
 }
 
-# 编译并运行烟测 .x。
+# Compile and run one .x smoke; hard-fail on non-zero exit.
 std_process_xplat_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -85,9 +82,17 @@ std_process_xplat_run_smoke() {
   return 0
 }
 
+# Emit structured report line (honesty: check=/xplat=/boundary=/skip=).
+# @param $1 status — ok|fail
+# @param $2 check_ok — observational check (0/1; not hard green)
+# @param $3 xplat_ok — xplat_behavior.x exit0 (hard)
+# @param $4 boundary_ok — boundary.x exit0 (hard)
+# @param $5 skip — 1 only when no native xlang / manifest-only
 std_process_xplat_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD_PROC_XPLAT_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local check_ok="$2"
+  local xplat_ok="$3"
+  local boundary_ok="$4"
+  local skip="$5"
+  echo "${STD_PROC_XPLAT_PREFIX} status=${status} check=${check_ok} xplat=${xplat_ok} boundary=${boundary_ok} skip=${skip}"
 }
