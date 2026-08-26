@@ -4,8 +4,11 @@
 # dead get_*_o_path → "-" (E-04); live xlang_runtime_*_o_path kept; Makefile → mk/std_and_panic_objs.mk;
 # on-demand-only compiler glues (queue/db_*) kind=std_on_demand (not in STD_AND_PANIC_O);
 # core_mem trigger → live labi needle core_mem_mem_copy (mem_compiler_fence_c retired).
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; json always smoke hard; no soft SKIP→OK;
+# on_demand async/core_mem observational; report always=/on_demand=/smoke=/skip=.
 min_always	42
 min_on_demand	2
+doc_gate	section	## 7. Gate	-	-	-	honesty
 io	std_x	-	-	-lc	F-03 v2/v3 pure .x	
 asm_stubs	compiler	-	runtime_asm_io_stubs.o	-	-	ASM IO
 process_argv	compiler	xlang_runtime_process_argv_o_path	runtime_process_argv.o	-	-	F-ZC argc/argv

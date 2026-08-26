@@ -1,10 +1,11 @@
 # BOOT-014 std 模块链接契约 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）** · **honesty 2026-08-24 #3**  
+> 状态：**硬绿 ✅（soft→硬绿）** · **honesty 2026-08-26**  
 > 关联（历史）：`compiler/src/runtime.c`、`compiler/Makefile`、`BOOT-013`  
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).  
-> **honesty 2026-08-24 #3**：monofile `seeds/runtime.from_x.c` retired wave321; `get_*_o_path` retired E-04; `compiler/Makefile` deleted MG wave941. Live authorities below.
+> **honesty 2026-08-24 #3**：monofile `seeds/runtime.from_x.c` retired wave321; `get_*_o_path` retired E-04; `compiler/Makefile` deleted MG wave941. Live authorities below.  
+> **honesty 2026-08-26**：gate prefer asm + `XLANG_LINK_XLANG`; json always smoke hard-fail (no soft SKIP→OK); on_demand observational; DOC `## 7. Gate`.
 
 ---
 
@@ -83,19 +84,13 @@ C 后端：`generated_c_needs_async_scheduler` 等扫描生成 `.c` 后链入。
 
 ---
 
-## 5. 门禁
+## 5. 门禁（历史入口）
+
+见 **§7 Gate**（honesty 权威）。历史口令仍可用：
 
 ```bash
 ./tests/run-boot-std-link-contract-gate.sh
 ```
-
-manifest：`tests/baseline/boot-std-link-contract.tsv`
-
-校验项：
-
-1. 每个非 `-` 的 `getter` / `obj_rel` / 非 flag `trigger` 在 live labi 并集存在  
-2. `STD_AND_PANIC_O`（mk）与 manifest always 条目一致  
-3. 可选：native `xlang-c` 链接烟测  
 
 ---
 
@@ -108,3 +103,49 @@ manifest：`tests/baseline/boot-std-link-contract.tsv`
 3. 若 always-linked：`compiler/mk/std_and_panic_objs.mk`  
 4. `tests/baseline/boot-std-link-contract.tsv` 一行  
 5. 跑 `run-boot-std-link-contract-gate.sh` 全绿  
+
+---
+
+## 7. Gate
+
+| 脚本 | 覆盖 |
+|------|------|
+| `tests/run-boot-std-link-contract-gate.sh` | labi／mk／manifest + honesty smoke（prefer asm） |
+| `tests/baseline/boot-std-link-contract.tsv` | always／on_demand／freestanding／hook + `doc_gate` |
+| `tests/json/object_array_parse.x` | always-path link smoke exit0 **hard** |
+| `tests/async/await_scheduler_mod.x` | on_demand observational（mangle residual deferred） |
+| `tests/core-mem/volatile_fence.x` | on_demand observational（ensure residual deferred） |
+
+**Honesty contract（2026-08-26）**
+
+| 项 | 规则 |
+|----|------|
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| inventory | live labi union + `STD_AND_PANIC_O`（mk）与 TSV **hard-fail** |
+| always smoke | `object_array_parse.x` build+run exit0 **hard-fail** |
+| on_demand | async／core_mem **observational**（产品 mangle／ensure 另债） |
+| no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
+| report | `always=`／`on_demand=`／`smoke=`／`skip=` |
+| DOC | refuse top-level resurrect；live = `analysis/archive/boot/` |
+
+```bash
+./tests/run-boot-std-link-contract-gate.sh
+```
+
+矩阵：`tests/baseline/boot-std-link-contract.tsv`
+
+报告示例：`xlang: [XLANG_BOOT_STD_LINK_CONTRACT] status=ok always=1 on_demand=0|1|2 smoke=1|2|3 skip=0`
+
+**BOOT-014 状态：硬绿 ✅（soft→硬绿）**
+
+---
+
+## 8. 索引
+
+| 资源 | 路径 |
+|------|------|
+| 矩阵 | `tests/baseline/boot-std-link-contract.tsv` |
+| 门禁 | `tests/run-boot-std-link-contract-gate.sh` |
+| helpers | `tests/lib/boot-std-link-contract.sh` |
+| mk authority | `compiler/mk/std_and_panic_objs.mk` |
+| labi path union | `compiler/seeds/labi_{std,ondemand,ensure,path_pure,freestanding}_list*.from_x.c` |
