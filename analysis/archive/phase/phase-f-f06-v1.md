@@ -22,10 +22,25 @@
 | `verify-selfhost-stage2.sh` | 仍列 legacy fs/io/heap .o |
 | F-07 | Makefile 全面禁止 `cc -c std/*.c` 硬禁 |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static manifest + link_abi + bootstrap scripts + stage2 + boot
+contract. No soft `die→exit 0`. Soft `XLANG_F06_RUNTIME_CLEANUP_FAIL`
+retired. Report `static=` / `link_abi=` / `bootstrap=` / `stage2=` /
+`contract=` / `skip=`.
 
 ```bash
-XLANG_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
+./tests/run-f06-runtime-std-o-cleanup-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f06-runtime-std-o-cleanup-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F06_RUNTIME_CLEANUP_FAIL` path retired;
+gate always hard). Neighbor gates still own their own FAIL knives:
+
+```bash
 XLANG_BOOT_LINK_CONTRACT_FAIL=1 ./tests/run-boot-std-link-contract-gate.sh
 XLANG_E04_RUNTIME_SOFT_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 XLANG_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh

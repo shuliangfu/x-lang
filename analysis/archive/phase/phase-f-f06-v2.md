@@ -9,11 +9,22 @@
 | `verify-selfhost-stage2.sh` | Step 4 链接行移除 legacy fs/io/heap `.o` |
 | `run-f06-runtime-std-o-cleanup-gate.sh` | 校验 stage2 脚本无 legacy 路径 |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): same as v1 — prefer `xlang_asm`, pin
+`XLANG_LINK_XLANG`, hard-fail static + link_abi + bootstrap + stage2 +
+boot contract. Soft `XLANG_F06_RUNTIME_CLEANUP_FAIL` retired. Report
+`static=` / `link_abi=` / `bootstrap=` / `stage2=` / `contract=` /
+`skip=`.
 
 ```bash
-XLANG_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
+./tests/run-f06-runtime-std-o-cleanup-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f06-runtime-std-o-cleanup-gate.sh
 ```
+
+## 复现
+
+Same as **## Gate** (soft FAIL path retired; gate always hard).
 
 ## 下一项（终局）
 

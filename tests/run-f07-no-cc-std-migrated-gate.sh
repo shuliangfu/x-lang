@@ -5,11 +5,11 @@
 #        XLANG=./compiler/xlang_asm ./tests/run-f07-no-cc-std-migrated-gate.sh
 # 2026-08-26: Honesty — hard-fail static + forbidden ensure + f06 + f03-core
 # (no soft die→exit0). Soft XLANG_F07_NO_CC_MIGRATED_FAIL retired. Prefer asm;
-# pin XLANG_LINK_XLANG for child dogfood. Force f06 FAIL=1 so soft-child
-# die→exit0 cannot portable-false-green this aggregator. f03-core already
-# honesty-hard. Report static=/forbidden=/f06=/f03_core=/skip=. Gate was
-# portable-false-green (soft FAIL exit0 + soft FAIL pass-through to f06
-# while static + children already green under honesty).
+# pin XLANG_LINK_XLANG for child dogfood. f06 + f03-core already honesty-hard
+# (soft F06 FAIL retired same wave as f06 knife). Report
+# static=/forbidden=/f06=/f03_core=/skip=. Gate was portable-false-green
+# (soft FAIL exit0 + soft FAIL pass-through to f06 while static + children
+# already green under honesty).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -148,13 +148,12 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
 
-# Hard-delegate f06 with FAIL=1. f06 itself remains soft for its own knife,
-# but this aggregator must not hide soft die→exit0.
+# f06 is honesty-hard (soft XLANG_F06_RUNTIME_CLEANUP_FAIL retired).
 # PLATFORM: SHARED archaeology.
 if [ -f tests/run-f06-runtime-std-o-cleanup-gate.sh ]; then
-  echo "=== F-07: delegate run-f06-runtime-std-o-cleanup-gate (hard FAIL=1) ==="
+  echo "=== F-07: delegate run-f06-runtime-std-o-cleanup-gate (hard) ==="
   chmod +x tests/run-f06-runtime-std-o-cleanup-gate.sh
-  if ! XLANG_F06_RUNTIME_CLEANUP_FAIL=1 tests/run-f06-runtime-std-o-cleanup-gate.sh; then
+  if ! tests/run-f06-runtime-std-o-cleanup-gate.sh; then
     die "f06 sub-gate failed"
   fi
   F06_OK=1

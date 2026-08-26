@@ -41,7 +41,8 @@ for g in "${GATES[@]}"; do
   echo "--- $g ---"
   case "$g" in
     run-f06-runtime-std-o-cleanup-gate.sh)
-      if ! XLANG_F06_RUNTIME_CLEANUP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      # f06 is honesty-hard (soft XLANG_F06_RUNTIME_CLEANUP_FAIL retired).
+      if ! "tests/$g"; then die "$g failed"; fi
       ;;
     run-f07-no-cc-std-migrated-gate.sh)
       # f07 is honesty-hard (soft XLANG_F07_NO_CC_MIGRATED_FAIL retired).

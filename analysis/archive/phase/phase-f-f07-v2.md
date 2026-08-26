@@ -14,7 +14,7 @@
 ## Gate
 
 Honesty gate (2026-08-26): same aggregator as v1 — prefer asm, hard-fail
-static + forbidden ensure + f06 (FAIL=1) + f03-core. Soft
+static + forbidden ensure + f06 + f03-core (both honesty-hard). Soft
 `XLANG_F07_NO_CC_MIGRATED_FAIL` retired. Report `static=` / `forbidden=` /
 `f06=` / `f03_core=` / `skip=`.
 

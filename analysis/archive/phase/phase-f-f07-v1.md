@@ -28,9 +28,8 @@
 ## Gate
 
 Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
-hard-fail static manifest + forbidden `ensure_std_c_o` + f06 (forced
-`XLANG_F06_RUNTIME_CLEANUP_FAIL=1`) + f03-core (already honesty-hard).
-No soft `die→exit 0`. Soft `XLANG_F07_NO_CC_MIGRATED_FAIL` retired.
+hard-fail static manifest + forbidden `ensure_std_c_o` + f06 + f03-core
+(both honesty-hard; soft F06/F07 FAIL retired). No soft `die→exit 0`.
 Report `static=` / `forbidden=` / `f06=` / `f03_core=` / `skip=`.
 
 ```bash
@@ -41,4 +40,4 @@ XLANG=./compiler/xlang_asm ./tests/run-f07-no-cc-std-migrated-gate.sh
 ## 复现
 
 Same as **## Gate** (soft `XLANG_F07_NO_CC_MIGRATED_FAIL` path retired;
-gate always hard). Nested f06 still has its own soft knife until honesty.
+gate always hard). Nested f06 is honesty-hard too.
