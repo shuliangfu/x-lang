@@ -4,7 +4,8 @@
 # 用法（source 后）：
 #   stbl_import_std_resolve_probe LIB_ROOT IMPORT EXPECTED_RELPATH
 #   stbl_import_std_sections_ok DOC TSV
-#   stbl_import_std_emit_report status resolve_ok check_ok skip
+#   stbl_import_std_emit_report status resolve_ok check_ok run_ok skip
+# Honesty 2026-08-26: report adds run=; check observational; prefer asm.
 
 STBL_IMPORT_STD_PREFIX="${XLANG_STBL_IMPORT_STD_PREFIX:-xlang: [XLANG_STBL_IMPORT_STD]}"
 
@@ -60,11 +61,13 @@ stbl_import_std_sections_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Emit structured report line (resolve=/check=/run=/skip=).
+# PLATFORM: SHARED archaeology — honesty contract shared with other soft gates.
 stbl_import_std_emit_report() {
   local status="$1"
   local resolve_ok="$2"
   local check_ok="$3"
-  local skip="$4"
-  echo "${STBL_IMPORT_STD_PREFIX} status=${status} resolve=${resolve_ok} check=${check_ok} skip=${skip}"
+  local run_ok="$4"
+  local skip="$5"
+  echo "${STBL_IMPORT_STD_PREFIX} status=${status} resolve=${resolve_ok} check=${check_ok} run=${run_ok} skip=${skip}"
 }

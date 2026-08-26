@@ -7,7 +7,7 @@ lib_layout	section	## 3. `-L` 库根布局	-	bundled
 physical_map	section	## 4. 物理路径映射（Tier-S 样例）	-	tier-s
 abi_link	section	## 5. C `.o` 按需链接（ABI）	-	extern
 tool_cross	section	## 6. TOOL-007/008 联动	-	pkgmgr
-verify	section	## 7. 验证与门禁	-	gate
+verify	section	## 7. Gate	-	gate
 resolve_std.io	resolve	std.io	std/io/mod.x	mod.x
 resolve_std.fs	resolve	std.fs	std/fs/mod.x	mod.x
 resolve_std.net	resolve	std.net	std/net/mod.x	mod.x

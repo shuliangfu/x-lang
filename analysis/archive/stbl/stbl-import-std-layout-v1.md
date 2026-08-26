@@ -1,8 +1,11 @@
 # STBL-004：`import std.*` 解析与 `-L` 布局 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 状态：**soft→硬绿（假权威诚实 · 2026-08-26）**  
 > 关联：STBL-001（Tier-S 注册表）、TOOL-007（包管理器）、TOOL-008（依赖锁定）、`resolve_import_file_path_multi`
+
+> **Honesty 2026-08-24 #7:** top-level DOC retired; live = this archive path.
+> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; `check_imports.x` exit0 hard-fail (no soft SKIP→OK).
 
 ---
 
@@ -104,18 +107,32 @@ v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
 
 ---
 
-## 7. 验证与门禁
+## 7. Gate
+
+| 脚本 | 覆盖 |
+|------|------|
+| `tests/run-stbl-004-import-std-layout-gate.sh` | manifest resolve + honesty smoke（prefer asm） |
+| `tests/baseline/stbl-import-std-layout.tsv` | section／resolve／cross_ref／smoke |
+| `tests/import-std-layout/check_imports.x` | 多 `std.*`／`core.*` import + `main` exit0 hard |
+
+**Honesty contract（2026-08-26）**
+
+| 项 | 规则 |
+|----|------|
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| check | observational only（check gate paused 2026-08-05） |
+| resolve | TSV `kind=resolve` 路径命中 **hard-fail**（≥ `min_resolve`） |
+| runnable | `check_imports.x` build+run exit0 **hard-fail** |
+| no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
+| report | `resolve=`／`check=`／`run=`／`skip=` |
+| DOC | refuse top-level resurrect；live = `analysis/archive/stbl/` |
 
 ```bash
 ./tests/run-stbl-004-import-std-layout-gate.sh
 ```
 
-manifest：`tests/baseline/stbl-import-std-layout.tsv`
-
-烟测：`tests/import-std-layout/check_imports.x`（多 `std.*` import + `xlang check -L .`）
-
 **report** 示例：
 
 ```
-xlang: [XLANG_STBL_IMPORT_STD] status=ok resolve=12 check=1 skip=0
+xlang: [XLANG_STBL_IMPORT_STD] status=ok resolve=12 check=0 run=1 skip=0
 ```
