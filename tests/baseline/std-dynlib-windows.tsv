@@ -2,21 +2,22 @@
 # 列：item_id	kind	doc_anchor	code_anchor	src	notes
 min_symbols	3
 win_open	code	-	LoadLibraryA	compiler/seeds/runtime_dynlib_os.from_x.c	Windows open
-win_open_w	code	-	LoadLibraryW	compiler/seeds/runtime_dynlib_os.from_x.c	STD-097 UTF-8 回退
+win_open_w	code	-	LoadLibraryW	compiler/seeds/runtime_dynlib_os.from_x.c	STD-097 UTF-8 fallback
 win_norm	code	-	dynlib_win_normalize_path	compiler/seeds/runtime_dynlib_os.from_x.c	STD-097 /→\\
 win_sym	code	-	GetProcAddress	compiler/seeds/runtime_dynlib_os.from_x.c	Windows sym
 win_close	code	-	FreeLibrary	compiler/seeds/runtime_dynlib_os.from_x.c	Windows close
 posix_open	code	-	dlopen	compiler/seeds/runtime_dynlib_os.from_x.c	POSIX open
 posix_sym	code	-	dlsym	compiler/seeds/runtime_dynlib_os.from_x.c	POSIX sym
-api_open	symbol	-	open	std/dynlib/mod.x	用户 API
-api_sym	symbol	-	sym	std/dynlib/mod.x	用户 API
-api_close	symbol	-	close	std/dynlib/mod.x	用户 API
+api_open	symbol	-	open	std/dynlib/mod.x	user API
+api_sym	symbol	-	sym	std/dynlib/mod.x	user API
+api_close	symbol	-	close	std/dynlib/mod.x	user API
 section_win	section	LoadLibraryA	-	analysis/archive/std/std-dynlib-windows-v1.md	§3
 section_posix	section	dlopen(RTLD_NOW)	-	analysis/archive/std/std-dynlib-windows-v1.md	POSIX
+section_gate	section	## 5. Gate	-	analysis/archive/std/std-dynlib-windows-v1.md	honesty Gate
 test_null	file	-	main.x	tests/dynlib/main.x	open null
 test_osc	file	-	open_sym_close.x	tests/dynlib/open_sym_close.x	open/sym/close
-test_win_path	file	-	win_path.x	tests/dynlib/win_path.x	STD-097 typeck
-test_win_path_c	file	-	win_path_smoke.c	tests/dynlib/win_path_smoke.c	STD-097 C 烟测
-runner	script	-	run-dynlib.sh	tests/run-dynlib.sh	回归
+test_win_path	file	-	win_path.x	tests/dynlib/win_path.x	STD-097 typeck/run
+test_win_path_c	file	-	win_path_smoke.c	tests/dynlib/win_path_smoke.c	STD-097 C observational
+runner	script	-	run-dynlib.sh	tests/run-dynlib.sh	regression
 doc	file	-	std-dynlib-windows-v1.md	analysis/archive/std/std-dynlib-windows-v1.md	RFC
 gate	script	-	run-std-dynlib-windows-gate.sh	tests/run-std-dynlib-windows-gate.sh	manifest

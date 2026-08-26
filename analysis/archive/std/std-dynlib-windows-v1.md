@@ -59,14 +59,21 @@
 
 ---
 
-## 5. 验收
+## 5. Gate
 
-- manifest：`tests/baseline/std-dynlib-windows.tsv`
-- 烟测：`tests/dynlib/open_sym_close.x`；回归：`tests/run-dynlib.sh`
-- 报告：`xlang: [XLANG_STD_DYNLIB_WIN] status=ok`
+Honesty gate (2026-08-26; soft→hard):
+
+- Prefer `./compiler/xlang_asm`; pin `XLANG_LINK_XLANG` (no soft SKIP when native present).
+- `xlang check` observational only (check gate paused 2026-08-05).
+- Hard runnable exit 0: `tests/dynlib/open_sym_close.x`, `tests/dynlib/main.x`, `tests/dynlib/win_path.x`.
+- Observational: `tests/dynlib/win_path_smoke.c` (host-C archaeology; not hard green).
+- Manifest: `tests/baseline/std-dynlib-windows.tsv`
+- Runner: `tests/run-std-dynlib-windows-gate.sh` (+ `tests/run-dynlib.sh` regression)
+- Report: `xlang: [XLANG_STD_DYNLIB_WIN] status=ok check=/osc=/null=/win_path=/skip=`
+- Refuse resurrecting top-level `analysis/std-dynlib-windows-v1.md` (live DOC = archive).
 
 ---
 
-## 6. 演进
+## 6. Evolution
 
-- `LoadLibraryW` / UTF-16 路径（v2）；`dynlib_last_error` 已交付（STD-096）。
+- `LoadLibraryW` / UTF-16 path (v2 residual); `dynlib_last_error` delivered (STD-096).
