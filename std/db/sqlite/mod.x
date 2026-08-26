@@ -128,7 +128,8 @@ extern "C" function db_pool_idle_c(pool: i64): i32;
  * @return DbConn
  */
 export function open(path: *u8): DbConn {
-  let _rc: DbConn = 0;
+  // STRUCT_LIT: never `DbConn = 0` (B1); zero via field literal.
+  let _rc: DbConn = { handle: 0 };
   unsafe { _rc = { handle: db_open_c(path) }; }
   return _rc;
 }
@@ -172,7 +173,8 @@ export function rows(conn: DbConn, sql: *u8): i32 {
  * @return DbRowCursor
  */
 export function begin(conn: DbConn, sql: *u8): DbRowCursor {
-  let _rc: DbRowCursor = 0;
+  // STRUCT_LIT: never `DbRowCursor = 0` (B1); zero via field literal.
+  let _rc: DbRowCursor = { cursor: 0 };
   unsafe { _rc = { cursor: db_query_begin_c(conn.handle, sql) }; }
   return _rc;
 }
@@ -294,7 +296,8 @@ export function rollback(conn: DbConn): i32 {
  * @return DbError
  */
 export function last_error(): DbError {
-  let _rc: DbError = 0;
+  // STRUCT_LIT: never `DbError = 0` (B1); zero via field literal.
+  let _rc: DbError = { code: 0, msg: 0 as *u8 };
   unsafe { _rc = {
       code: db_last_code_c(),
       msg: db_last_error_msg_c(),
@@ -328,7 +331,8 @@ export function changes(conn: DbConn): i32 {
  * @return DbStmt
  */
 export function prepare(conn: DbConn, sql: *u8): DbStmt {
-  let _rc: DbStmt = 0;
+  // STRUCT_LIT: never `DbStmt = 0` (B1); zero via field literal.
+  let _rc: DbStmt = { handle: 0 };
   unsafe { _rc = { handle: db_prepare_c(conn.handle, sql) }; }
   return _rc;
 }
@@ -340,7 +344,8 @@ export function prepare(conn: DbConn, sql: *u8): DbStmt {
  * @return DbStmt
  */
 export function prepare_cached(conn: DbConn, sql: *u8): DbStmt {
-  let _rc: DbStmt = 0;
+  // STRUCT_LIT: never `DbStmt = 0` (B1); zero via field literal.
+  let _rc: DbStmt = { handle: 0 };
   unsafe { _rc = { handle: db_prepare_cached_c(conn.handle, sql) }; }
   return _rc;
 }
@@ -465,7 +470,8 @@ export function col_blob_read(stmt: DbStmt, col: i32, offset: i32, out: *u8, cap
  * @return DbPool
  */
 export function open(path: *u8, max_conns: i32): DbPool {
-  let _rc: DbPool = 0;
+  // STRUCT_LIT: never `DbPool = 0` (B1); zero via field literal.
+  let _rc: DbPool = { handle: 0 };
   unsafe { _rc = { handle: db_pool_open_c(path, max_conns) }; }
   return _rc;
 }
@@ -486,7 +492,8 @@ export function close(pool: DbPool): i32 {
  * @return DbConn
  */
 export function acquire(pool: DbPool): DbConn {
-  let _rc: DbConn = 0;
+  // STRUCT_LIT: never `DbConn = 0` (B1); zero via field literal.
+  let _rc: DbConn = { handle: 0 };
   unsafe { _rc = { handle: db_pool_acquire_c(pool.handle) }; }
   return _rc;
 }

@@ -67,18 +67,17 @@ std_sqlite_stub_symbols_ok() {
 }
 
 # Restore product sqlite.o after sqlite-o-stub overwrite.
-# Stub leaves mtime-fresh object; plain make is a no-op and hides mod face
-# exports (std_db_sqlite_*), so always rm stub-marked .o then ensure rebuild.
-# PLATFORM: SHARED — Ubuntu gold exposes UNDEF when restore is skipped.
+# Face-less stub (no std_db_sqlite_*) must be deleted so -L . rebuilds via
+# formal_mod mod|1. Do NOT call ensure_std_c_o here when host lacks libsqlite3:
+# it re-runs sqlite-o-stub and recreates a face-less object (Ubuntu gold UNDEF).
+# PLATFORM: SHARED — Ubuntu without libsqlite3-dev is the gold stub path.
 std_sqlite_stub_restore_product_o() {
   local sqlite_o="std/db/sqlite/sqlite.o"
-  if [ -f "$sqlite_o" ] && strings "$sqlite_o" 2>/dev/null | grep -qF 'stub backend'; then
-    rm -f "$sqlite_o"
+  if [ -f "$sqlite_o" ]; then
+    if ! nm "$sqlite_o" 2>/dev/null | grep -q 'std_db_sqlite_is_available'; then
+      rm -f "$sqlite_o" std/db/sqlite/sqlite_main.o
+    fi
   fi
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/build-std-c-o.sh"
-  ensure_std_c_o "$sqlite_o" >/dev/null 2>&1 || \
-    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
 }
 
 # Build stub sqlite.o and run C smoke (no libsqlite3). Observational only.
