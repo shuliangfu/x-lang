@@ -10,10 +10,12 @@
 | `cli.o` | `cc -c cli.c` | `xlang -backend asm cli.x` |
 | 存量 | std 84 `.c` | std **83** `.c` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CLI_V1_FAIL` retired. Delegates STD-077 std-cli hard.
 
 ```bash
-XLANG_F_CLI_V1_FAIL=1 ./tests/run-f-cli-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-cli-v1-gate.sh
 ./tests/run-std-cli-gate.sh
 ```
 

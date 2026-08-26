@@ -11,10 +11,12 @@
 | OS 胶层 | `std/env/env_os_glue.c` | `compiler/runtime_env_os.o`（与 env.o 同链） |
 | 存量 | std 83 `.c` | std **56** `.c`（env_os_glue 已迁出 std） |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_ENV_V1_FAIL` retired. Delegates STD-025 env-iter + STD-132 env-platform-encoding hard.
 
 ```bash
-XLANG_F_ENV_V1_FAIL=1 ./tests/run-f-env-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-env-v1-gate.sh
 ./tests/run-std-env-iter-gate.sh
 ./tests/run-std-env-platform-encoding-gate.sh
 ```
