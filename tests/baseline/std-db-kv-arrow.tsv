@@ -1,0 +1,24 @@
+# std.db kv+arrow manifest (F-05 / soft residual honesty)
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	8
+gate_section	section	## 4. Gate	analysis/archive/std/std-db-kv-arrow-v1.md
+api_mmap	api	mmap_available	std/db/kv/mod.x	能力探测
+api_kv_open	api	open	std/db/kv/mod.x	打开
+api_append_ts	api	append_ts	std/db/kv/mod.x	时序写
+api_get	api	get	std/db/kv/mod.x	读
+api_wal_flush	api	wal_flush	std/db/kv/mod.x	WAL
+api_compact	api	compact	std/db/kv/mod.x	压缩
+api_sst	api	sst_level_count	std/db/kv/mod.x	SST 级数
+api_arrow_new_f32	api	new_f32	std/db/arrow/mod.x	F32 列
+api_adopt	api	adopt	std/db/arrow/mod.x	零拷贝
+api_sum	api	sum	std/db/arrow/mod.x	归约
+api_dot	api	dot	std/db/arrow/mod.x	点积
+symbol_kv_smoke_c	symbol	db_kv_smoke_c	std/db/kv/kv.x	C 烟测（观测）
+symbol_arrow_smoke_c	symbol	arrow_smoke_c	std/db/arrow/arrow.x	C 烟测（观测）
+smoke_kv	smoke	tests/std-db/kv_tick_smoke.x		kv 硬绿
+smoke_arrow	smoke	tests/std-db/arrow_column_smoke.x		arrow 硬绿
+smoke_cb	smoke	examples/cookbook/db_kv_arrow.x		cookbook DB-03 硬绿
+readme	file	std/db/README.md		产品 README
+doc	file	analysis/archive/std/std-db-kv-arrow-v1.md	analysis/archive/std/std-db-kv-arrow-v1.md	RFC
+lib	script	tests/lib/std-db-kv-arrow.sh	tests/lib/std-db-kv-arrow.sh
+gate	script	tests/run-std-db-kv-arrow-gate.sh	tests/run-std-db-kv-arrow-gate.sh
