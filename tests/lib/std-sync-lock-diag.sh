@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # std-sync-lock-diag.sh — STD-111 manifest 与烟测辅助（F-sync-lock-diag v2：逻辑在 sync.x）
+# Honesty 2026-08-26: report check=/run=/skip=; TSV anchors = product lock_diag_*.
 
 STD_SYNC_LOCK_DIAG_PREFIX="${XLANG_STD111_SYNC_LOCK_DIAG_PREFIX:-xlang: [XLANG_STD111_SYNC_LOCK_DIAG]}"
 
-# 校验 manifest 中 api/symbol/file；symbol 可在 sync.x 或 tls glue。
+# Validate manifest entries against product mod.x / sync.x; echo miss count.
+# @param mod_x path to std/sync/mod.x
+# @param sync_diag_x path to std/sync/sync.x (symbol anchors)
+# @param tsv path to baseline TSV
+# @return 0 when miss==0
 std_sync_lock_diag_symbols_ok() {
   local mod_x="$1"
   local sync_diag_x="$2"
@@ -36,13 +41,20 @@ std_sync_lock_diag_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      script)
+        : # gate path checked by gate itself
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Compile and run .x smoke (legacy helper; gate prefers RUN_XLANG build).
+# @param xlang compiler binary
+# @param src .x smoke path
+# @param tag temp exe tag
+# @return 0 on exit 0
 std_sync_lock_diag_run_x_smoke() {
   local xlang="$1"
   local src="$2"
@@ -66,47 +78,15 @@ std_sync_lock_diag_run_x_smoke() {
   return 0
 }
 
-# C 烟测：lock_diag_smoke_ok.c + sync.o（需 xlang-c 产出 sync.o）。
-std_sync_lock_diag_run_c_smoke() {
-  local sync_tls_glue="$1"
-  local src="tests/sync/lock_diag_smoke_ok.c"
-  local out="/tmp/xlang_std_sync_lock_diag_c_$$"
-  local sync_o="std/sync/sync.o"
-  local rt_os="compiler/runtime_sync_os.o"
-  local rt_tls="compiler/runtime_sync_lock_diag_tls.o"
-  if [ ! -f "$sync_o" ]; then
-    # shellcheck source=tests/lib/build-std-c-o.sh
-    . tests/lib/build-std-c-o.sh
-    ensure_std_c_o ../std/sync/sync.o 2>/dev/null || true
-  fi
-  ensure_runtime_sync_os_o 2>/dev/null || true
-  ensure_runtime_sync_lock_diag_tls_o 2>/dev/null || true
-  if [ ! -f "$sync_o" ] || [ ! -f "$rt_os" ] || [ ! -f "$rt_tls" ]; then
-    echo "std-sync-lock-diag FAIL: missing sync.o or runtime sync .o" >&2
-    return 1
-  fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$sync_o" "$rt_os" "$rt_tls" -lpthread 2>/dev/null; then
-    if ! cc -std=c11 -O1 -o "$out" "$src" "$sync_o" "$rt_os" "$rt_tls" 2>/dev/null; then
-      echo "std-sync-lock-diag FAIL: compile C smoke" >&2
-      return 1
-    fi
-  fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-sync-lock-diag FAIL: C smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Emit structured report line (honesty: check=/run=/skip=).
+# @param status ok|fail
+# @param check_ok 0|1 observational xlang check
+# @param run_ok 0|1 hard runnable exit0
+# @param skip 0|1 residual skip bit (0 when runnable hard-green)
 std_sync_lock_diag_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local check_ok="$2"
+  local run_ok="$3"
   local skip="$4"
-  echo "${STD_SYNC_LOCK_DIAG_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_SYNC_LOCK_DIAG_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
