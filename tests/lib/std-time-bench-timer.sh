@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # std-time-bench-timer.sh — STD-133 manifest 与烟测辅助
+# Honesty 2026-08-26: report check=/run=/skip=; TSV anchors = product short names.
 
 STD_TIME_BENCH_TIMER_PREFIX="${XLANG_STD133_TIME_BENCH_TIMER_PREFIX:-xlang: [XLANG_STD133_TIME_BENCH_TIMER]}"
 
-# 校验 manifest 条目；echo 缺失数。
+# Validate manifest entries against product mod.x; echo miss count.
+# @param mod_x path to std/time/mod.x
+# @param tsv path to baseline TSV
+# @return 0 when miss==0
 std_time_bench_timer_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -19,7 +23,7 @@ std_time_bench_timer_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      struct_timer)
+      struct|struct_timer)
         if ! grep -qE "struct ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-time-bench-timer FAIL: missing struct '$anchor'" >&2
           miss=$((miss + 1))
@@ -31,13 +35,21 @@ std_time_bench_timer_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      script)
+        if [ ! -f "$mod_path" ] && [ ! -f "tests/$anchor" ] && [ ! -f "$anchor" ]; then
+          : # gate path checked by gate itself
+        fi
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Compile and run .x smoke (legacy helper; gate prefers RUN_XLANG build).
+# @param xlang compiler binary
+# @param src .x smoke path
+# @return 0 on exit 0
 std_time_bench_timer_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -59,7 +71,15 @@ std_time_bench_timer_run_smoke() {
   return 0
 }
 
-# 输出 gate 报告。
+# Emit structured report line (honesty: check=/run=/skip=).
+# @param status ok|fail
+# @param check_ok 0|1 observational xlang check
+# @param run_ok 0|1 hard runnable exit0
+# @param skip 0|1 residual skip bit (0 when runnable hard-green)
 std_time_bench_timer_emit_report() {
-  echo "${STD_TIME_BENCH_TIMER_PREFIX} status=$1 x=$2 skip=$3"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_TIME_BENCH_TIMER_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
