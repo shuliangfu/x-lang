@@ -10,14 +10,15 @@
 | `hash.o` | `ld -r` glue + x | **纯 xlang → hash.o** |
 | 依赖 | libc malloc/free/strcmp/getenv | `extern` 同上 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_HASH_V2_FAIL` retired. STD-056 hasher／STD-105 xxhash／STD-148 default-strategy product residual observational.
 
 ```bash
-XLANG_F_HASH_V2_FAIL=1 ./tests/run-f-hash-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-hash-v2-gate.sh
 ./tests/run-std-hash-hasher-trait-gate.sh
 ./tests/run-std-hash-xxhash-gate.sh
 ./tests/run-std-hash-default-strategy-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

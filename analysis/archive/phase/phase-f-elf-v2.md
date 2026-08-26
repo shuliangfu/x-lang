@@ -10,14 +10,14 @@
 | fixture IO | glue 内联 fopen | `elf_io_glue.c` | **`.x` + fs extern** |
 | `elf.o` | `ld -r` glue + x | `ld -r` io glue + x | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_ELF_V2_FAIL` retired. STD-058 parse／deep product residual observational (host-c smoke).
 
 ```bash
-XLANG_F_ELF_V2_FAIL=1 ./tests/run-f-elf-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-elf-v2-gate.sh
 ./tests/run-std-elf-parse-gate.sh
 ./tests/run-std-elf-deep-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```
 
 ## 下一项
