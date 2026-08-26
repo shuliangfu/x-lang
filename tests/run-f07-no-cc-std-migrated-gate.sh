@@ -85,7 +85,8 @@ fi
 if [ -f tests/run-f03-std-core-gate.sh ]; then
   echo "=== F-07 v1: delegate run-f03-std-core-gate ==="
   chmod +x tests/run-f03-std-core-gate.sh
-  if ! XLANG_F03_CORE_FAIL="$FAIL" tests/run-f03-std-core-gate.sh; then
+  # f03-core is honesty-hard (soft XLANG_F03_CORE_FAIL retired).
+  if ! tests/run-f03-std-core-gate.sh; then
     die "f03-core sub-gate failed"
   fi
 fi

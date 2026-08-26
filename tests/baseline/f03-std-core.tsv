@@ -1,0 +1,11 @@
+# F-03 aggregate std.heap+fs+io manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_core_apis	5
+deleted_heap_c	absent	std/heap/heap.c		must not exist
+deleted_fs_c	absent	std/fs/fs.c		must not exist
+deleted_io_c	absent	std/io/io.c		must not exist
+gate_heap_ops	script	tests/run-f03-std-heap-ops-gate.sh		child
+gate_heap_libc	script	tests/run-f03-std-heap-libc-gate.sh		child
+gate_fs	script	tests/run-f03-std-fs-gate.sh		child
+gate_io	script	tests/run-f03-std-io-gate.sh		child
+gate_self	script	tests/run-f03-std-core-gate.sh		aggregate

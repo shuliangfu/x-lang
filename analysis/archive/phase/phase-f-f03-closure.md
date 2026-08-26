@@ -19,11 +19,26 @@ XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=104
 
 （较 F-02 后 107 减 3：`heap.c` + `fs.c` + `io.c`）
 
-## 聚合复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static manifest + four child gates (`heap-ops` / `heap-libc` /
+`fs` / `io`) + F-01 inventory (no soft `die→exit 0`, no soft
+`XLANG_F03_PRODUCT_FAIL`, no export of retired child
+`XLANG_F03_{HEAP_OPS,HEAP_LIBC,FS,IO}_FAIL`). Soft `XLANG_F03_CORE_FAIL` /
+`XLANG_F03_PRODUCT_FAIL` retired. Report `heap_ops=` / `heap_libc=` /
+`fs=` / `io=` / `inventory=` / `skip=`. Children already honesty-hard.
 
 ```bash
-XLANG_F03_CORE_FAIL=1 ./tests/run-f03-std-core-gate.sh
+./tests/run-f03-std-core-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f03-std-core-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
+
+## 聚合复现
+
+Same as **## Gate** (soft `XLANG_F03_CORE_FAIL` / `XLANG_F03_PRODUCT_FAIL`
+paths retired; gate always hard).
 
 ## v1 限制（io）
 
