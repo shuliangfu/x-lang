@@ -41,7 +41,8 @@ XLANG_D05_FAIL="$FAIL" tests/run-d05-single-xlang-release-gate.sh || die "d05 fa
 # E-soft：软退役 + G-02a hard_retired（文件不存在）
 if [ -f tests/run-e-soft-retire-gate.sh ]; then
   chmod +x tests/run-e-soft-retire-gate.sh
-  XLANG_E_SOFT_FAIL="$FAIL" XLANG_E_SOFT_MANIFEST_ONLY=1 \
+  # Hard-delegate; soft XLANG_E_SOFT_FAIL retired (2026-08-26 honesty).
+  XLANG_E_SOFT_MANIFEST_ONLY=1 \
     tests/run-e-soft-retire-gate.sh || die "e-soft-retire failed"
 fi
 

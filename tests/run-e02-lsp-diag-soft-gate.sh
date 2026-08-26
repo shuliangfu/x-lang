@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-e02-lsp-diag-soft-gate.sh
 # 环境：
-#   XLANG_E02_FAIL=1              — 失败时硬退出
+# 2026-08-26: soft XLANG_E02_FAIL retired (die always hard).
 #   XLANG_E02_MANIFEST_ONLY=1     — 仅 manifest（跳过 C-05 委托）
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
@@ -13,7 +13,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_E02_FAIL:-0}
 DOC="${XLANG_E02_DOC:-analysis/archive/phase/phase-e-e02-v1.md}"
 MK_PICKS="${XLANG_E02_MK_PICKS:-compiler/mk/driver_seed_link_picks.mk}"
 BUILD="compiler/scripts/build_xlang_asm.sh"
@@ -22,8 +21,7 @@ LSP_X="compiler/src/lsp/lsp_diag.x"
 
 die() {
   echo "e02 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== E-02: lsp_diag soft-retire (c deleted; live LSP_DIAG_LINK_O) ==="
@@ -55,7 +53,8 @@ fi
 if [ -f tests/run-c05-lsp-x-gate.sh ]; then
   echo "=== E-02: delegate run-c05-lsp-x-gate (manifest) ==="
   chmod +x tests/run-c05-lsp-x-gate.sh
-  XLANG_C05_MANIFEST_ONLY=1 XLANG_C05_FAIL="$FAIL" ./tests/run-c05-lsp-x-gate.sh || die "C-05 manifest failed"
+  # Hard-delegate; soft XLANG_C05_FAIL retired with honesty wave.
+  XLANG_C05_MANIFEST_ONLY=1 ./tests/run-c05-lsp-x-gate.sh || die "C-05 manifest failed"
 fi
 
 echo "e02 lsp-diag soft-retire gate OK (archive DOC + mk LSP_DIAG_LINK_O; c deleted)"

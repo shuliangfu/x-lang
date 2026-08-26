@@ -14,10 +14,24 @@
 | E-05 | 头文件 inventory + runtime NO_C include 守卫 | `run-e05-include-soft-gate.sh` |
 | E-06 | B-strict 段无 `cc -c` 编译器前端 `.c` | `run-e06-no-compiler-frontend-cc-gate.sh` |
 
-## 一键复现（全绿）
+## Gate
+
+Honesty gate (2026-08-26): archive DOC + mk DRIVER_SEED audit + hard-delegate
+E-01 / E-03-lexer / C-06 / C-09 / C-03 / C-04 / E-02. No soft `die→exit 0`.
+Soft `XLANG_E_SOFT_FAIL` retired. Report `manifest=` / `e01=` / `e02=` /
+`e03_lexer=` / `c06=` / `c09=` / `c03=` / `c04=` / `skip=`.
 
 ```bash
-XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
+./tests/run-e-soft-retire-gate.sh
+XLANG_E_SOFT_MANIFEST_ONLY=1 ./tests/run-e-soft-retire-gate.sh
+```
+
+## 一键复现（全绿）
+
+Same as **## Gate** (soft `XLANG_E_SOFT_FAIL` path retired; gate always hard):
+
+```bash
+./tests/run-e-soft-retire-gate.sh
 ```
 
 ## 刻意 **不在** 阶段 E 的范围（勿与 E 全绿混淆）

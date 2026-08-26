@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-e04-runtime-soft-gate.sh
 # 环境：
-#   XLANG_E04_FAIL=1              — 失败时硬退出
+# 2026-08-26: soft XLANG_E04_FAIL retired (die always hard).
 #   XLANG_E04_MANIFEST_ONLY=1     — 仅 manifest / 活面存在性
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
@@ -15,7 +15,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_E04_FAIL:-0}
 DOC_DIR="${XLANG_E04_DOC_DIR:-analysis/archive/phase}"
 DOC="$DOC_DIR/phase-e-e04-v35.md"
 ABI_MF="tests/baseline/e04-runtime-abi.tsv"
@@ -41,8 +40,7 @@ CRT0_MINGW="compiler/seeds/crt0_mingw.from_x.c"
 
 die() {
   echo "e04 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== E-04: live runtime_*_abi faces (monofile/Makefile retired) ==="

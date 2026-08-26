@@ -2,7 +2,7 @@
 # C-06：默认 bootstrap/relink 仅链 *_x.o 前端，不链 C parser/typeck/codegen.o。
 #
 # 用法：./tests/run-c06-x-frontend-default-gate.sh
-# 环境：XLANG_C06_FAIL=1 失败时硬退出
+# 2026-08-26: soft XLANG_C06_FAIL retired (die always hard).
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
 # Makefile deleted MG wave941 → compiler/mk/driver_seed_composites.mk +
@@ -11,15 +11,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_C06_FAIL:-0}
 DOC="${XLANG_C06_DOC:-analysis/archive/phase/phase-c-c06-v1.md}"
 MK_COMPOSITES="${XLANG_C06_MK_COMPOSITES:-compiler/mk/driver_seed_composites.mk}"
 MK_MODE="${XLANG_C06_MK_MODE:-compiler/mk/driver_seed_mode_objs.mk}"
 
 die() {
   echo "c06 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== C-06: x frontend default (no C parser.o in DRIVER_SEED_OBJS) ==="

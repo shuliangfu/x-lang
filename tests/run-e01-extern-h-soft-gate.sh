@@ -2,20 +2,18 @@
 # E-01：LSP extern .h 软退役门禁（文件不删 / 不参与 -include 编译）。
 #
 # 用法：./tests/run-e01-extern-h-soft-gate.sh
-# 环境：XLANG_E01_FAIL=1 — 失败时硬退出
+# 2026-08-26: soft XLANG_E01_FAIL retired (die always hard).
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/。
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_E01_FAIL:-0}
 DOC="${XLANG_E01_DOC:-analysis/archive/phase/phase-e-soft-v1.md}"
 LSP_EXTERN_C="compiler/seeds/runtime_driver_strict_glue_stubs.from_x.c"
 
 die() {
   echo "e01 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== E-01: LSP extern .h soft-retire (no -include) ==="

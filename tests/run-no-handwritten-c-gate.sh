@@ -148,7 +148,8 @@ fi
 if [ -f tests/run-e-soft-retire-gate.sh ]; then
   echo "=== F-09 v1: delegate run-e-soft-retire-gate (compiler C track) ==="
   chmod +x tests/run-e-soft-retire-gate.sh
-  if ! XLANG_E_SOFT_FAIL="$FAIL" XLANG_E_SOFT_MANIFEST_ONLY=1 tests/run-e-soft-retire-gate.sh; then
+  # Hard-delegate; soft XLANG_E_SOFT_FAIL retired (2026-08-26 honesty).
+  if ! XLANG_E_SOFT_MANIFEST_ONLY=1 tests/run-e-soft-retire-gate.sh; then
     die "e-soft manifest sub-gate failed"
   fi
 fi

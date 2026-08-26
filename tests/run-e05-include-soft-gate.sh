@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-e05-include-soft-gate.sh
 # 环境：
-#   XLANG_E05_FAIL=1              — 失败时硬退出
+# 2026-08-26: soft XLANG_E05_FAIL retired (die always hard).
 #   XLANG_E05_MANIFEST_ONLY=1     — 仅 manifest
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
@@ -13,7 +13,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_E05_FAIL:-0}
 DOC="${XLANG_E05_DOC:-analysis/archive/phase/phase-e-e05-v2.md}"
 DOC_V1="${XLANG_E05_DOC_V1:-analysis/archive/phase/phase-e-e05-v1.md}"
 MF="tests/baseline/e05-include-inventory.tsv"
@@ -23,8 +22,7 @@ RT_NO_C="${XLANG_E05_RT_NO_C:-compiler/seeds/rt_dispatch_impl.from_x.c compiler/
 
 die() {
   echo "e05 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 e05_any_has() {
@@ -118,7 +116,8 @@ fi
 if [ -f tests/run-e01-extern-h-soft-gate.sh ]; then
   echo "=== E-05: delegate E-01 extern .h ==="
   chmod +x tests/run-e01-extern-h-soft-gate.sh
-  XLANG_E01_MANIFEST_ONLY=1 XLANG_E01_FAIL="$FAIL" ./tests/run-e01-extern-h-soft-gate.sh || die "E-01 delegate failed"
+  # Hard-delegate; soft XLANG_E01_FAIL retired with honesty wave.
+  XLANG_E01_MANIFEST_ONLY=1 ./tests/run-e01-extern-h-soft-gate.sh || die "E-01 delegate failed"
 fi
 
 # shellcheck source=tests/lib/phase-e-soft-audit.sh

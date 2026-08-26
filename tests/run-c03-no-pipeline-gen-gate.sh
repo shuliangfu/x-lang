@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-c03-no-pipeline-gen-gate.sh
 # 环境：
-#   XLANG_C03_FAIL=1              — 失败时硬退出
+# 2026-08-26: soft XLANG_C03_FAIL retired (die always hard).
 #   XLANG_C03_BUILD_LOG=/path     — 可选，审计已有 bstrict 构建日志
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
@@ -13,7 +13,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_C03_FAIL:-0}
 DOC="${XLANG_C03_DOC:-analysis/archive/phase/phase-c-c03-v1.md}"
 DOC_V2="${XLANG_C03_DOC_V2:-analysis/archive/phase/phase-c-c03-v2.md}"
 MANIFEST="tests/baseline/c03-no-pipeline-gen.tsv"
@@ -24,8 +23,7 @@ PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
 die() {
   echo "c03 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== C-03 v2: Windows B-strict track (optional) ==="

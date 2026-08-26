@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-e03-preprocess-soft-gate.sh
 # 环境：
-#   XLANG_E03_PREPROCESS_FAIL=1       — 失败时硬退出
+# 2026-08-26: soft XLANG_E03_PREPROCESS_FAIL retired (die always hard).
 #   XLANG_E03_PREPROCESS_MANIFEST_ONLY=1 — 仅 manifest
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
@@ -14,7 +14,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_E03_PREPROCESS_FAIL:-0}
 DOC="${XLANG_E03_PREPROCESS_DOC:-analysis/archive/phase/phase-e-e03-v2-preprocess.md}"
 MK_PICKS="${XLANG_E03_MK_PICKS:-compiler/mk/driver_seed_link_picks.mk}"
 PIPELINE_ABI_C="compiler/seeds/runtime_pipeline_abi.from_x.c"
@@ -22,8 +21,7 @@ PREPROCESS_X="compiler/src/preprocess/preprocess.x"
 
 die() {
   echo "e03-preprocess gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== E-03 v2 preprocess: soft-retire (live mk PREPROCESS_LINK_O) ==="

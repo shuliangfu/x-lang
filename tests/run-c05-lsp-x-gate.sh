@@ -3,7 +3,7 @@
 #
 # 用法：./tests/run-c05-lsp-x-gate.sh
 # 环境：
-#   XLANG_C05_FAIL=1           — 失败时硬退出
+# 2026-08-26: soft XLANG_C05_FAIL retired (die always hard).
 #   XLANG_C05_MANIFEST_ONLY=1  — 仅 manifest，不跑 LSP 烟测
 #   XLANG=./compiler/xlang      — 默认 bootstrap seed xlang
 #
@@ -15,7 +15,6 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-FAIL=${XLANG_C05_FAIL:-0}
 DOC="${XLANG_C05_DOC:-analysis/archive/phase/phase-c-c05-v1.md}"
 MANIFEST="tests/baseline/c05-lsp-x-manifest.tsv"
 MK_EXPORT="${XLANG_C05_MK_EXPORT:-compiler/mk/driver_seed_export_lists.mk}"
@@ -25,8 +24,7 @@ XLANG_BIN="${XLANG:-./compiler/xlang}"
 
 die() {
   echo "c05 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 native_xlang() {

@@ -2,7 +2,7 @@
 # C-04 v5：parser_gen.c / lsp_diag_gen.c 生成禁止 perl 回退（须 codegen C-04 marker）。
 #
 # 用法：./tests/run-c04-no-perl-fallback-gate.sh
-# 环境：XLANG_C04_NO_PERL_FAIL=1 失败时硬退出
+# 2026-08-26: soft XLANG_C04_NO_PERL_FAIL retired (die always hard).
 #
 # wave honesty (2026-08-24 #5): Makefile deleted MG wave941 —
 # live authority = compiler/scripts/ensure_lsp_pipeline_gen.sh +
@@ -11,14 +11,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_C04_NO_PERL_FAIL:-0}
 ENSURE_LSP="compiler/scripts/ensure_lsp_pipeline_gen.sh"
 ENSURE_MIGRATE="compiler/scripts/ensure_migrate_gen.sh"
 
 die() {
   echo "c04-no-perl gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== C-04 v5: no perl fallback (parser + lsp_diag ensure scripts) ==="

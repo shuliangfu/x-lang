@@ -4,7 +4,7 @@
 # v1 不要求 mega7 七函数全部 X emit；生产仍 C glue 见 archive boot-mega7-gap.md。
 #
 # 用法：./tests/run-c09-parser-no-c-fallback-gate.sh
-# 环境：XLANG_C09_FAIL=1 失败时硬退出（CI 默认）
+# 2026-08-26: soft XLANG_C09_FAIL retired (die always hard).
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
 # Makefile → compiler/mk/pipeline_x_objs.mk；boot docs → analysis/archive/boot/。
@@ -12,7 +12,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_C09_FAIL:-0}
 DOC="${XLANG_C09_DOC:-analysis/archive/phase/phase-c-c09-v1.md}"
 MANIFEST="tests/baseline/c09-parser-no-c-fallback.tsv"
 MK_PIPELINE="${XLANG_C09_MK_PIPELINE:-compiler/mk/pipeline_x_objs.mk}"
@@ -25,8 +24,7 @@ FORCE_DOC="${XLANG_C09_FORCE_DOC:-analysis/archive/boot/boot-force-stub-v1.md}"
 
 die() {
   echo "c09 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 echo "=== C-09: parser no C fallback (v1 manifest) ==="
@@ -42,7 +40,8 @@ grep -q 'C-09 v1' "$DOC" || die "doc missing C-09 v1 marker"
 
 echo "=== C-09: delegate C-06 x frontend default ==="
 chmod +x tests/run-c06-x-frontend-default-gate.sh
-XLANG_C06_FAIL="$FAIL" ./tests/run-c06-x-frontend-default-gate.sh || die "C-06 sub-gate failed"
+# Hard-delegate; soft XLANG_C06_FAIL retired with honesty wave.
+./tests/run-c06-x-frontend-default-gate.sh || die "C-06 sub-gate failed"
 
 echo "=== C-09: strict link ensure_parser_x_o ==="
 grep -q 'ensure_parser_x_o_for_strict_link()' "$BUILD_ASM" || die "build_xlang_asm missing ensure_parser_x_o_for_strict_link"

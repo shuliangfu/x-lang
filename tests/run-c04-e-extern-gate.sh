@@ -2,7 +2,7 @@
 # C-04 v1：-E-extern 聚合门禁（委托子 gate + manifest 审计）。
 #
 # 用法：./tests/run-c04-e-extern-gate.sh
-# 环境：XLANG_C04_FAIL=1 失败时硬退出
+# 2026-08-26: soft XLANG_C04_FAIL retired (die always hard).
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
 # Makefile deleted MG wave941 — perl/fix audit lives in ensure_migrate_gen.sh
@@ -11,7 +11,6 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${XLANG_C04_FAIL:-0}
 DOC="${XLANG_C04_DOC:-analysis/archive/phase/phase-c-c04-v1.md}"
 MANIFEST="tests/baseline/c04-e-extern-manifest.tsv"
 ENSURE_MIGRATE="compiler/scripts/ensure_migrate_gen.sh"
@@ -30,8 +29,7 @@ c04_native_xlang() {
 
 die() {
   echo "c04 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  exit 1
 }
 
 run_sub() {
@@ -80,8 +78,8 @@ else
   # Still refuse perl resurrect in the dedicated no-perl gate when it only audits scripts.
   if [ -f tests/run-c04-no-perl-fallback-gate.sh ]; then
     chmod +x tests/run-c04-no-perl-fallback-gate.sh
-    # Observational: Makefile gone; gate may soft-exit — do not block e-soft.
-    XLANG_C04_NO_PERL_FAIL=0 ./tests/run-c04-no-perl-fallback-gate.sh || true
+    # Hard: no-perl audits ensure scripts (Makefile retired); soft FAIL retired.
+    ./tests/run-c04-no-perl-fallback-gate.sh || die "c04-no-perl sub-gate failed"
   fi
   echo "c04 e-extern gate OK (archive DOC + mk refuse extern.h; -E-extern deferred to C frontend bin)"
   exit 0
