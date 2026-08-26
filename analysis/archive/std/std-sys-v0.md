@@ -30,9 +30,24 @@
 ./tests/run-std-sys-gate.sh
 ```
 
-Linux x86_64 + `xlang -freestanding -backend asm`：编译运行 stdout 烟测。  
-Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。  
-其他宿主：manifest + typeck OK，runtime SKIP。
+Honesty（2026-08-26 soft→硬绿）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
+- `xlang check` 仅观测（check 闸门暂停 2026-08-05）
+- 硬绿：`sys_write_freestanding.x` → `write_stdout` exit0 + stdout `Hello Xlang!\n`
+  - **LINUX|UBUNTU x86_64**：`-freestanding -backend asm`
+  - **MACOS|DARWIN**：常规 `-o`（hosted `write_stdout`）
+- 无 native xlang → **FAIL**（禁止 soft SKIP→OK）
+- 观测：`linux_syscall_nr_smoke.x`（Linux）；`macos_posix_write_smoke.x`（Darwin thin `macos_write_*` — 产品 UNDEF：labi `needs_std_sys` needles 缺 mod 层 `std_sys_macos_write_*`）
+- 报告：`check=`／`run=`／`skip=`
+
+```text
+xlang: [XLANG_BOOT029_STD_SYS] status=ok check=1 run=1 skip=0
+```
+
+Changelog：
+
+- **v0.2（2026-08-26）**：soft→硬绿 — 闸 prefer asm＋LINK pin；check 观测；`write_stdout` run 硬绿；Darwin 硬路径从 thin `macos_write_*` 收口到 facade `write_stdout`；thin macos 仅观测；报告 `check=`／`run=`／`skip=`。
 
 ---
 
@@ -76,4 +91,17 @@ Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。
 | `extern write` | libSystem POSIX write(2) |
 
 烟测：`tests/sys/macos_posix_write_smoke.x`（Darwin `-o exe` 运行）。  
-与 `os_write`（freestanding Linux）并存；无 `#[cfg]` 时由调用方选择路径。
+与 `os_write`（freestanding Linux）并存；无 `#[cfg]` 时由调用方选择路径。  
+Honesty note（2026-08-26）：thin `macos_write_*` 在 asm 产品链上仍可能 UNDEF（labi needles 缺 mod 层 `std_sys_macos_write_*`）；闸硬绿改走 facade `write_stdout`，本烟测仅观测。
+
+---
+
+## 8. v3（FreeBSD POSIX write）
+
+| API | 说明 |
+|-----|------|
+| `import("std.sys.freebsd")` | `freebsd_write` / `freebsd_write_stdout` |
+| `freebsd_write_available()` | mod + freebsd 子模块探测 |
+
+烟测：`tests/sys/freebsd_posix_write_smoke.x`（FreeBSD host）。  
+与 Linux freestanding / macOS POSIX 并存；门禁在非 FreeBSD 宿主不硬跑本烟测。
