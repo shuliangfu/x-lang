@@ -20,12 +20,28 @@ make -C compiler ../std/crypto/crypto.o   # ld -r(glue.o + crypto_main.o + aes_g
 
 无 xlang-c 时仅链 glue.o（缺 .x 符号；AEAD 烟测 SKIP）。
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + STD-006 manifest-only. No soft
+`die→exit 0`. Soft `XLANG_F04_CRYPTO_V18_FAIL` retired. Host-c chacha
+smoke observational. Report `static=` / `inventory=` / `crypto=` /
+`smoke=` / `skip=`.
 
 ```bash
-XLANG_F04_CRYPTO_V18_FAIL=1 ./tests/run-f04-std-crypto-v18-gate.sh
+./tests/run-f04-std-crypto-v18-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-crypto-v18-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F04_CRYPTO_V18_FAIL` path retired; gate
+always hard). Neighbor inventory / STD-006 still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
-XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-chacha20-poly1305-gate.sh
 ```
 
 ## 下一项

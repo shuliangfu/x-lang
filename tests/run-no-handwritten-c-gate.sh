@@ -78,12 +78,13 @@ echo "=== F-09 v1: delegate run-std-c-inventory-gate ==="
 run_sub tests/run-std-c-inventory-gate.sh XLANG_STD_C_INVENTORY_FAIL
 
 if [ -f tests/run-f04-std-crypto-closure-gate.sh ]; then
-  echo "=== F-09 v1: delegate run-f04-std-crypto-closure-gate (manifest track) ==="
+  # F-04 crypto honesty (2026-08-26): child always hard; retired
+  # XLANG_F04_CRYPTO_*_FAIL must not be re-exported. Soft WARN only when
+  # XLANG_F09_PRODUCT_FAIL!=1.
+  # PLATFORM: SHARED archaeology.
+  echo "=== F-09 v1: delegate run-f04-std-crypto-closure-gate ==="
   chmod +x tests/run-f04-std-crypto-closure-gate.sh
-  if ! XLANG_F04_CRYPTO_CLOSURE_FAIL="$PROD_FAIL" \
-    XLANG_F04_CRYPTO_V16_FAIL=0 XLANG_F04_CRYPTO_V17_FAIL=0 \
-    XLANG_F04_CRYPTO_V18_FAIL=0 XLANG_F04_CRYPTO_V19_FAIL=0 \
-    tests/run-f04-std-crypto-closure-gate.sh; then
+  if ! tests/run-f04-std-crypto-closure-gate.sh; then
     if [ "$PROD_FAIL" = "1" ]; then die "f04 crypto closure sub-gate failed"; fi
     echo "f09 WARN: f04 crypto soft (XLANG_F09_PRODUCT_FAIL=1 to hard)" >&2
   fi

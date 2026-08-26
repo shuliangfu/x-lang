@@ -19,15 +19,31 @@ make -C compiler ../std/crypto/crypto.o   # ld -r(glue.o + crypto_main.o + aes_g
 
 无 xlang-c 时仅链 glue.o（缺 .x 符号；AEAD 烟测 SKIP）。
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + STD-006 manifest-only. No soft
+`die→exit 0`. Soft `XLANG_F04_CRYPTO_V17_FAIL` retired. Host-c aes_gcm
+smoke observational (aes-gcm nist2 product residual not this knife).
+Report `static=` / `inventory=` / `crypto=` / `smoke=` / `skip=`.
 
 ```bash
-XLANG_F04_CRYPTO_V17_FAIL=1 ./tests/run-f04-std-crypto-v17-gate.sh
+./tests/run-f04-std-crypto-v17-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-crypto-v17-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F04_CRYPTO_V17_FAIL` path retired; gate
+always hard). Neighbor inventory / STD-006 still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
-XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-aes-gcm-gate.sh
 ```
 
 ## 下一项
 
 - **F-04 v18 ✅**：`chacha20_poly1305.inc.c` → `chacha20_poly1305.x`（见 `phase-f-f04-v18.md`）
-- **F-04 v19**：`ed25519.inc.c` → `.x` 或分平台 FFI
+- **F-04 v19 ✅**：`ed25519.inc.c` → `.x`（见 `phase-f-f04-v19.md`）

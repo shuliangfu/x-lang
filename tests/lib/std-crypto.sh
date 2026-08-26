@@ -113,7 +113,7 @@ std_crypto_resolve_impl_path() {
     std/crypto/crypto_inc_glue.c|compiler/seeds/runtime_crypto_inc_glue.from_x.c)
       echo "compiler/seeds/runtime_crypto_inc_glue.from_x.c"
       ;;
-    std/crypto/ed25519.x|std/crypto/ed25519.inc.c|std/crypto/aes_gcm.x|std/crypto/chacha20_poly1305.x)
+    std/crypto/ed25519.x|std/crypto/ed25519.inc.c|std/crypto/aes_gcm.x|std/crypto/chacha20_poly1305.x|std/crypto/chacha20_aead.x)
       echo "std/crypto/$(basename "$mod_path")"
       ;;
     std/crypto/ed25519_ref10_glue.c|compiler/seeds/runtime_ed25519_ref10_glue.from_x.c)

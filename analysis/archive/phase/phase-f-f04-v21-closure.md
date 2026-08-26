@@ -36,10 +36,29 @@ make -C compiler ../std/crypto/crypto.o
 # ld -r(crypto_inc_glue.o + ed25519_ref10_glue.o + 4× .x main.o)
 ```
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + v16～v19 child gates + F-01 inventory + STD-006
+manifest-only. No soft `die→exit 0`. Soft `XLANG_F04_CRYPTO_CLOSURE_FAIL`
+(and leaf `XLANG_F04_CRYPTO_V{16,17,18,19}_FAIL`) retired. Report
+`v16=` / `v17=` / `v18=` / `v19=` / `crypto=` / `inventory=` / `skip=`.
+Live authority = `./xbuild` + `compiler/mk/*` + `xlang_compile_std_module.sh`
+(Makefile deleted; TSV no longer lists `compiler/Makefile`).
 
 ```bash
-XLANG_F04_CRYPTO_CLOSURE_FAIL=1 ./tests/run-f04-std-crypto-closure-gate.sh
+./tests/run-f04-std-crypto-closure-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-crypto-closure-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F04_CRYPTO_CLOSURE_FAIL` path retired; gate
+always hard). Neighbor inventory / STD-006 still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
 ```
 
