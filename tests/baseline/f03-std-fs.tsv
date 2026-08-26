@@ -1,0 +1,8 @@
+# F-03 v2 std.fs manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_fs_apis	4
+fs_open_read	symbol	fs_open_read_c	std/fs/posix.x	POSIX open read
+fs_mmap_ro	symbol	fs_mmap_ro_c	std/fs/win32.x	Win32 mmap
+mod_posix	symbol	import("std.fs.posix")	std/fs/mod.x	posix import
+deleted_c	absent	std/fs/fs.c		must not exist
+gate	script	run-f03-std-fs-gate.sh	tests/run-f03-std-fs-gate.sh	manifest

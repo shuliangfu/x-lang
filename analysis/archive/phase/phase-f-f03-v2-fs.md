@@ -20,12 +20,27 @@
 | `struct stat` 布局 | `fs_posix` 使用平台 cfg 近似布局；非常规 libc 可能需微调 |
 | `readdir` d_type | 非 Linux DT_DIR 时 `is_dir_out` 可能为 0 |
 | Windows `fs_open_write_c` | v2 新增（原 fs.c Win 分支缺失）；CREATE_ALWAYS 截断 |
-| asm 路径 | `fs_*_c` 由 `std_fs.o`（mod.x 编译）提供，非独立 fs.o |
+| asm 路径 | 正式产品名仍为 `std/fs/fs.o`（`xlang_compile_std_fs_formal`／LABI on-demand）；权威源是 `posix.x`／`win32.x`，**不是**已删的 `fs.c` |
+
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`, hard-fail
+static manifest + F-01 inventory + `tests/run-fs.sh` + STD-123
+`run-std-fs-dirmeta-gate.sh` + STD-003 `run-std-fs-crossplatform-gate.sh`
+(no soft `die→exit 0`, no prefer-c, no SKIP→OK when no native). Soft
+`XLANG_F03_FS_FAIL` retired. Report `inventory=` / `run=` / `dirmeta=` /
+`xplat=` / `skip=`. Dirmeta no longer bans formal product `std/fs/fs.o`
+presence (only `fs.c`).
+
+```bash
+./tests/run-f03-std-fs-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f03-std-fs-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-fs.sh
+XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-std-fs-dirmeta-gate.sh
+XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-std-fs-crossplatform-gate.sh
+```
 
 ## 复现
 
-```bash
-XLANG_F03_FS_FAIL=1 ./tests/run-f03-std-fs-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=105
-./tests/run-std-fs-dirmeta-gate.sh
-```
+Same as **## Gate** (soft `XLANG_F03_FS_FAIL` path retired; gate always hard).

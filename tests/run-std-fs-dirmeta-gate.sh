@@ -71,14 +71,13 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$FS_IMPL" "$SMOKE_X"; do
   fi
 done
 
-# F-03 v2: host C fs.c must stay deleted; refuse stale fs.o that can poison link.
-# PLATFORM: SHARED — dual-authority ban; posix.x is the product path.
+# F-03 v2: host C fs.c must stay deleted. Formal product std/fs/fs.o (from
+# mod.x+posix.x via xlang_compile_std_fs_formal.sh / LABI_STD_OP_STD) is the
+# on-demand object name — do NOT ban its presence (that conflates deleted C
+# with the formal .o path and false-reds after product smoke).
+# PLATFORM: SHARED — dual-authority ban is on fs.c only; posix.x is authority.
 [ ! -f std/fs/fs.c ] || {
   echo "std-fs-dirmeta gate FAIL: fs.c should be deleted (F-03 v2)" >&2
-  exit 1
-}
-[ ! -f std/fs/fs.o ] || {
-  echo "std-fs-dirmeta gate FAIL: stale fs.o present (F-03 v2; use posix.x)" >&2
   exit 1
 }
 
