@@ -1,11 +1,13 @@
 # EXC-005 CLI/LSP 错误显示统一 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-08-26  
 > **Honesty 2026-08-24 #8: lsp_diag.c retired; hubs live in lsp_diag.h + runtime_lsp_glue.**
-> 状态：**定版（v1）**  
+> 状态：**硬绿（v1 honesty）** — soft→硬绿 2026-08-26（prefer asm；无 soft SKIP→OK）  
 > 关联：`EXC-004`（ErrorChain 展示 v2）、`lsp_diag.h`、`run-check.sh`
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+> **Honesty 2026-08-26:** DOC `## 7. Gate`；gate prefer `xlang_asm` + `XLANG_LINK_XLANG`；
+> check observational；golden compile hard；no native → FAIL；report `check=`／`compile=`／`skip=`.
 
 ---
 
@@ -91,13 +93,32 @@
 
 ---
 
-## 7. 门禁
+## 7. Gate
+
+| 脚本 | 覆盖 |
+|------|------|
+| `tests/run-exc-cli-lsp-error-gate.sh` | manifest + honesty smoke（prefer asm） |
+| `tests/baseline/exc-cli-lsp-error.tsv` | hub／format／2× golden compile + check hook |
+| `tests/typeck/type_mismatch_assign.x` 等 | compile stderr phrase+kind+line:col hard |
+
+**Honesty contract（2026-08-26）**
+
+| 项 | 规则 |
+|----|------|
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| check | observational only（check gate paused 2026-08-05） |
+| golden compile | TSV `kind=golden` stderr phrase + CLI kind + `line:col` **hard-fail** |
+| no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
+| report | `check=`／`compile=`／`skip=` |
+| DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 
 ```bash
 ./tests/run-exc-cli-lsp-error-gate.sh
 ```
 
 矩阵：`tests/baseline/exc-cli-lsp-error.tsv`
+
+报告示例：`exc-cli-lsp-error status=ok check=0|1 compile=1 skip=0`
 
 ---
 
@@ -110,4 +131,4 @@
 | LSP API | `compiler/src/lsp/lsp_diag.h` |
 | check 烟测 | `tests/run-check.sh` |
 
-**EXC-005 状态：定版 ✅**
+**EXC-005 状态：硬绿 ✅（soft→硬绿）**

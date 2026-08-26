@@ -2,7 +2,11 @@
 # 列：item_id	kind	anchor	src	notes
 # honesty 2026-08-24 #8: DOC → analysis/archive/exc/; lsp_diag.c retired;
 # hubs live = lsp_diag.h / runtime_lsp_glue.from_x.c / parser.x / diag.from_x.c.
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; check observational; golden compile hard;
+# no soft SKIP→OK; report check=/compile=/skip=.
 # min_items	10
+doc_gate	section	## 7. Gate	exc-cli-lsp-error-v1.md	honesty
+
 doc_model	section	## 2. 三态模型	exc-cli-lsp-error-v1.md	-
 doc_hub	section	## 3. 统一入口	Hub 表	-
 doc_golden	section	## 4. Golden 用例	golden	-
