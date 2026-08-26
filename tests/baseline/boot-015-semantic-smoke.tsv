@@ -1,9 +1,12 @@
-# BOOT-015 语义自举 smoke（vec/map/heap）manifest
-# 列：item_id	kind	anchor	notes
+# BOOT-015 semantic smoke (vec/map/heap) manifest
+# columns: item_id	kind	anchor	notes
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; check observational;
+# vec/map/heap link+run hard; no soft SKIP→OK; report check=/link=/skip=.
 # min_smoke	3
+doc_gate	section	## 7. Gate	honesty
 section_goal	section	## 1. 目标	bootstrap-verify 子集
 section_subset	section	## 2. bootstrap-verify 子集	vec map heap
-section_gate	section	## 4. Gate	boot-015 gate
+section_gate	section	## 4. Gate	historical entry (see §7)
 smoke_vec	smoke	tests/vec/main.x	vec_len_empty
 smoke_map	smoke	tests/map/main.x	empty_size
 smoke_heap	smoke	tests/heap/main.x	alloc_size_zero
