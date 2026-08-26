@@ -53,7 +53,9 @@ export function test_f_zero_c_marker_c(): i32 {
 }
 
 /* See implementation. */
-export const TST_LIT_SUMMARY: u8[34] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 84, 69, 83, 84, 95, 83, 85, 77, 77, 65, 82, 89, 93, 32, 116, 111, 116, 97, 108, 61, 0];
+/* "xlang: [XLANG_TEST_SUMMARY] total=" + NUL — size must be 35 so append_cstr stops.
+ * u8[34] truncated the NUL and spilled into TST_LIT_PASS (" pass="), garbling SUMMARY. */
+export const TST_LIT_SUMMARY: u8[35] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 84, 69, 83, 84, 95, 83, 85, 77, 77, 65, 82, 89, 93, 32, 116, 111, 116, 97, 108, 61, 0];
 export const TST_LIT_PASS: u8[7] = [32, 112, 97, 115, 115, 61, 0];
 export const TST_LIT_FAIL: u8[7] = [32, 102, 97, 105, 108, 61, 0];
 export const TST_LIT_SKIP: u8[7] = [32, 115, 107, 105, 112, 61, 0];
@@ -249,7 +251,8 @@ export function test_fuzz_seed_c(): u32 {
 export function test_io_bench_line_c(name: *u8, len: i32, ns: i64): i32 {
   let line: u8[256];
   let pos: i32 = 0;
-  let pfx: u8[26] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 66, 69, 78, 67, 72, 93, 32, 110, 97, 109, 101, 61];
+  /* "xlang: [XLANG_BENCH] name=" + NUL — prior u8[26] omitted NUL; append_cstr spilled. */
+  let pfx: u8[27] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 66, 69, 78, 67, 72, 93, 32, 110, 97, 109, 101, 61, 0];
   let mid: u8[5] = [32, 110, 115, 61, 0];
   if (name == 0 || len <= 0) { return -1; }
   pos = test_io_append_cstr(&line[0], 0, 256, &pfx[0]);
@@ -279,7 +282,9 @@ export function test_io_runner_case_line_c(name: *u8, len: i32, exit_code: i32):
   let pfx: u8[26] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 84, 69, 83, 84, 93, 32, 110, 97, 109, 101, 61, 0];
   let st_pass: u8[5] = [112, 97, 115, 115, 0];
   let st_fail: u8[5] = [102, 97, 105, 108, 0];
-  let mid: u8[8] = [32, 115, 116, 97, 116, 117, 115, 61];
+  /* " status=" + NUL — prior u8[8] omitted NUL; append_cstr spilled into neighbors
+   * and garbled status=… lines under asm (e.g. status=xlang: [XLANG_TEST] name=pass). */
+  let mid: u8[9] = [32, 115, 116, 97, 116, 117, 115, 61, 0];
   let mid2: u8[7] = [32, 99, 111, 100, 101, 61, 0];
   test_io_copy_name(&nbuf[0], 128, name, len);
   pos = test_io_append_cstr(&line[0], 0, 256, &pfx[0]);

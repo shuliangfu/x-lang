@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # std-test-runner.sh — STD-145 manifest 与烟测辅助
+# Honesty 2026-08-26: report check=/run=/skip=; section anchors use TSV mod_path
+# (archive DOC); refuse top-level DOC resurrect via gate.
 
 STD145_PREFIX="${XLANG_STD145_TEST_RUNNER_PREFIX:-xlang: [XLANG_STD145_TEST_RUNNER]}"
 
-# 校验 manifest；echo 缺失数。
+# Validate manifest entries against product mod.x / test.x / files; echo miss count.
+# @param mod_x path to std/test/mod.x
+# @param test_x path to std/test/test.x (symbol anchors)
+# @param tsv path to baseline TSV
+# @return 0 when miss==0
 std_test_runner_symbols_ok() {
   local mod_x="$1"
-  local test_c="$2"
+  local test_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -22,28 +28,25 @@ std_test_runner_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/test/test_glue.c" ]; then path="std/test/test.x"; fi
-        if [ "$path" = "std/test/test.x" ]; then path="std/test/test.x"; fi
+        case "$path" in
+          std/test/test_glue.c|std/test/test.c|std/test/test.x) path="$test_x" ;;
+        esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-test-runner FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
         fi
         ;;
-      smoke|gate)
-        if [ ! -f "$anchor" ]; then
-          echo "std-test-runner FAIL: missing '$anchor'" >&2
-          miss=$((miss + 1))
-        fi
-        ;;
-      script)
+      smoke|gate|script|file)
         if [ ! -f "$anchor" ]; then
           echo "std-test-runner FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       section)
-        if ! grep -qF "$anchor" "analysis/std-test-runner-v1.md" 2>/dev/null; then
-          echo "std-test-runner FAIL: missing section '$anchor'" >&2
+        # Use TSV mod_path (archive DOC); do not hardcode top-level fossil path.
+        local doc_path="${mod_path:-analysis/archive/std/std-test-runner-v1.md}"
+        if ! grep -qF "$anchor" "$doc_path" 2>/dev/null; then
+          echo "std-test-runner FAIL: missing section '$anchor' in $doc_path" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -53,21 +56,25 @@ std_test_runner_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 runner_smoke；校验 stderr 含 XLANG_TEST 与 SUMMARY。
-std_test_runner_run_smoke() {
+# Compile and run .x smoke (legacy helper; gate prefers RUN_XLANG build).
+# @param xlang compiler binary
+# @param src .x smoke path
+# @param tag temp exe tag
+# @return 0 on exit 0 with expected report lines on stderr
+std_test_runner_run_x_smoke() {
   local xlang="$1"
   local src="$2"
-  local test_o="$3"
-  local exe="/tmp/xlang_std_test_runner_$$"
-  local err="/tmp/xlang_std_test_runner_err_$$.log"
-  if ! "$xlang" -L . "$src" -o "$exe" "$test_o" >/dev/null 2>&1; then
+  local tag="${3:-runner_smoke}"
+  local exe="/tmp/xlang_std_test_runner_${tag}_$$"
+  local err="/tmp/xlang_std_test_runner_${tag}_err_$$.log"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-test-runner FAIL: compile $src" >&2
-    "$xlang" -L . "$src" -o "$exe" "$test_o" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe" "$err"
     return 1
   fi
   set +e
-  "$exe" 2>"$err"
+  "$exe" >/dev/null 2>"$err"
   local ec=$?
   set -e
   rm -f "$exe"
@@ -83,7 +90,7 @@ std_test_runner_run_smoke() {
     echo "std-test-runner FAIL: missing pass line" >&2
     return 1
   fi
-  if ! grep -qF 'xlang: [XLANG_TEST_SUMMARY]' "$err" 2>/dev/null; then
+  if ! grep -qF 'xlang: [XLANG_TEST_SUMMARY] total=2 pass=1 fail=0 skip=1' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-test-runner FAIL: missing summary" >&2
@@ -93,9 +100,15 @@ std_test_runner_run_smoke() {
   return 0
 }
 
+# Emit structured report line (honesty: check=/run=/skip=).
+# @param status ok|fail
+# @param check_ok 0|1 observational xlang check
+# @param run_ok 0|1 hard runnable exit0 + report lines
+# @param skip 0|1 residual skip bit (0 when runnable hard-green)
 std_test_runner_emit_report() {
   local status="$1"
-  local exec_ok="$2"
-  local skip="$3"
-  echo "${STD145_PREFIX} status=${status} exec=${exec_ok} skip=${skip}"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD145_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
