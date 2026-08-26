@@ -200,14 +200,22 @@ close_stream(stream);
 
 ---
 
-## 8. CI 门禁
+## 8. Gate
 
 | 脚本 | 作用 |
 |------|------|
-| `tests/run-std-net-api-gate.sh` | Tier-S manifest + `run-net.sh` |
+| `tests/run-std-net-api-gate.sh` | Tier-S manifest + `run-net.sh`（honesty：prefer asm／`XLANG_LINK_XLANG`／check 观测／run-net exit0 硬失败／报告 `check=`／`run=`／`skip=`） |
 | `tests/run-net.sh` | listen + UDP batch smoke |
 | `tests/run-perf-net.sh` | echo 吞吐基准 |
 | `tests/run-zc1-gate.sh` | net + provided 路径 |
+
+### 8.1 Gate honesty（2026-08-26）
+
+- Prefer `./compiler/xlang_asm`；钉 `XLANG_LINK_XLANG`；无 native → **FAIL**（禁止 soft SKIP→OK）
+- `xlang check` 仅观测（自举期暂停闸门）；`run-net.sh` exit 0 硬失败
+- 去掉化石 `addr_to_packed`∈`tests/net/main.x`（产品 `main.x` 用 `net_tcp_listen_c`）；rename 符号仍在 `std/net/mod.x` 硬核
+- 报告：`xlang: [XLANG_STD002_NET_API] status=… check=… run=… skip=…`
+- **未**改产品 `std/net` labi；禁顶层 DOC 复活（live = `analysis/archive/std/`）
 
 ---
 

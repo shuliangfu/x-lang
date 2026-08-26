@@ -1,6 +1,7 @@
 # std.io Tier-S stable public API (import std.io)
 # One symbol per line; run-std-io-api-gate.sh greps std/io/mod.x
 # Updated: 2026-06-27 (API short names)
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; run-io hard; no soft SKIP
 stdin
 stdout
 stderr
