@@ -4,6 +4,7 @@
 doc_model	section	## 2. 数据模型	ErrorChain
 doc_api	section	## 3. API	std.error
 doc_wrap	section	### 4.1 手动 wrap	用法
+doc_gate	section	## 6. Gate	honesty
 type_chain	symbol	ErrorChain	std/error/mod.x	结构体
 fn_empty	symbol	chain_empty	std/error/mod.x
 fn_from_code	symbol	chain_from_code	std/error/mod.x
