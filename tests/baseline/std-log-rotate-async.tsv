@@ -1,10 +1,14 @@
 # STD-106 std.log rotate + async manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
+# C smoke observational; report check=/run=/skip=. Section ## 5. Gate in archive DOC.
+# Refuse top-level analysis/std-log-rotate-async-v1.md resurrect.
 min_apis	3
 read_path	section	## 1. 阅读路径	15min
 rotate_api	section	## 2. 轮转语义	set_rotate_limit
 async_api	section	## 3. 异步缓冲	set_async_enabled
-verify	section	## 4. 验证与门禁	gate
+gold	section	## 4. 金样	async1
+gate_sec	section	## 5. Gate	honesty
 api_rotate	api	set_rotate_limit	std/log/mod.x	轮转
 api_async_en	api	set_async_enabled	std/log/mod.x	异步开
 api_async_flush	api	async_flush	std/log/mod.x	刷盘
@@ -14,5 +18,6 @@ symbol_flush_c	symbol	log_async_flush_c	compiler/seeds/runtime_log_os.from_x.c	C
 symbol_smoke_c	symbol	log_rotate_async_smoke_c	compiler/seeds/runtime_log_os.from_x.c	C 烟测
 smoke_c	file	tests/std-log/rotate_async_smoke_ok.c	C 入口
 smoke_x	smoke	tests/std-log/rotate_async.x	.x 烟测
-lib	script	lib/std-log-rotate-async.sh	tests/lib/std-log-rotate-async.sh
-gate	script	run-std-log-rotate-async-gate.sh	tests/run-std-log-rotate-async-gate.sh
+doc	file	analysis/archive/std/std-log-rotate-async-v1.md	analysis/archive/std/std-log-rotate-async-v1.md	## 5. Gate
+lib	script	tests/lib/std-log-rotate-async.sh	tests/lib/std-log-rotate-async.sh
+gate	script	tests/run-std-log-rotate-async-gate.sh	tests/run-std-log-rotate-async-gate.sh	## 5. Gate
