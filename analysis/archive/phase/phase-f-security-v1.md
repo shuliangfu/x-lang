@@ -9,10 +9,11 @@
 | 实现 | `security.c` | `security.x` + glue | **纯 `.x`** |
 | mlock | C 内联 | `security_os_glue.c` | **libc extern** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_SECURITY_V1_FAIL` retired. Delegates STD-079 security hard.
 
 ```bash
-XLANG_F_SECURITY_V1_FAIL=1 ./tests/run-f-security-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-security-v1-gate.sh
 ./tests/run-std-security-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```

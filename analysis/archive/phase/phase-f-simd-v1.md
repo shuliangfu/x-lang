@@ -10,12 +10,16 @@
 | HW/烟测 | C #if | `simd_os_glue.c` | **`.x` 内** |
 | `simd.o` | `cc -c` | `ld -r` | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_SIMD_V1_FAIL` retired. Delegates STD-153 autovec + STD-061 prod + intrinsic + shuffle-select hard.
 
 ```bash
-XLANG_F_SIMD_V1_FAIL=1 ./tests/run-f-simd-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-simd-v1-gate.sh
 ./tests/run-std-simd-autovec-strategy-gate.sh
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
+./tests/run-std-simd-prod-gate.sh
+./tests/run-std-simd-intrinsic-gate.sh
+./tests/run-std-simd-shuffle-select-gate.sh
 ```
 
 ## 下一项
