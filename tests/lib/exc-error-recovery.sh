@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# EXC-006：错误恢复单 case / 全量 runner（供 gate 与本地调试）
+# EXC-006: error recovery single-case / full suite runner (gate + local debug).
 #
-# 用法：
-#   ./tests/lib/exc-error-recovery.sh              # 全量 runnable（需 native xlang）
-#   ./tests/lib/exc-error-recovery.sh case_id      # 单 case
-#   XLANG=./compiler/xlang-c ./tests/lib/exc-error-recovery.sh
+# Usage:
+#   ./tests/lib/exc-error-recovery.sh              # full runnable (needs native xlang)
+#   ./tests/lib/exc-error-recovery.sh case_id      # single case
+#   XLANG=./compiler/xlang_asm ./tests/lib/exc-error-recovery.sh
+#
+# 2026-08-26 honesty: prefer xlang_asm then xlang-c/xlang; pin XLANG_LINK_XLANG
+# when resolving; hard-fail compile/run (no soft SKIP→OK).
+# PLATFORM: SHARED archaeology.
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -14,7 +18,8 @@ cd "$(dirname "$0")/../.."
 MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
 ONE_CASE="${1:-}"
 
-# 判断本机可执行的 xlang 二进制格式
+# Detect native (same-arch) xlang binary.
+# PLATFORM: SHARED — Darwin/Linux ELF|Mach-O arch check.
 native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -27,13 +32,12 @@ native_xlang() {
   esac
 }
 
+# Prefer product asm; fall back to xlang-c / xlang.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  if [ -n "${XLANG:-}" ] && native_xlang "$XLANG"; then
-    echo "$XLANG"
-    return 0
-  fi
   local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
     if native_xlang "$cand"; then
       echo "$cand"
       return 0
@@ -53,8 +57,15 @@ exc_recovery_run_x() {
     echo "exc-recovery FAIL: missing $src" >&2
     return 1
   fi
+  # Compile with resolved product compiler (prefer asm; LINK pin is for hooks).
+  # PLATFORM: SHARED
   set +e
-  "$xlang" -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
+  if [ -n "${RUN_XLANG:-}" ]; then
+    # shellcheck disable=SC2086
+    $RUN_XLANG -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
+  else
+    "$xlang" -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
+  fi
   local comp_ec=$?
   set -e
   if [ "$comp_ec" -ne 0 ]; then
@@ -64,6 +75,7 @@ exc_recovery_run_x() {
   fi
   local ec=0
   "$out" >/dev/null 2>&1 || ec=$?
+  rm -f "$out"
   if [ "$ec" -ne "$want_ec" ]; then
     echo "exc-recovery FAIL $tag: exit=$ec want=$want_ec" >&2
     return 1
@@ -118,11 +130,20 @@ XLANG_BIN=""
 if XLANG_BIN="$(resolve_shu)"; then
   :
 else
-  echo "exc-error-recovery: no native xlang (SKIP runnable)" >&2
+  # Hard residual: gate owns FAIL when no native; runner exit 2 for local debug.
+  echo "exc-error-recovery: no native xlang" >&2
   exit 2
 fi
 
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Pin product link to resolved compiler (prefer asm; avoid Darwin asm→c remap).
+# PLATFORM: SHARED
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+# shellcheck source=bootstrap-link-xlang.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/bootstrap-link-xlang.sh"
+
+# Quiet ensure; resolve already found a native binary so make failure is soft.
+xlang_compiler_make -q 2>/dev/null || true
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 FAILS=0

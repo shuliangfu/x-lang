@@ -1,10 +1,11 @@
 # EXC-006 错误恢复测试集 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
-> 关联：`analysis/exc-result-error-v1-rfc.md`、`analysis/exc-panic-abort-v1-rfc.md`
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）· soft→硬绿（假权威诚实）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
+> 关联：`analysis/archive/exc/exc-result-error-v1-rfc.md`、`analysis/archive/exc/exc-panic-abort-v1-rfc.md`
 
-> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path. Runnable smoke observational (typeck/product residual).
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
+> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; recovery suite runnable hard-fail (no soft SKIP→OK).
 
 ---
 
@@ -40,20 +41,31 @@
 
 ---
 
-## 3. Gate 与 report
+## 3. Gate
 
 | 组件 | 路径 | 说明 |
 |------|------|------|
 | manifest | `tests/baseline/exc-error-recovery-cases.tsv` | `min_cases` + `case_*` |
 | runner | `tests/lib/exc-error-recovery.sh` | 单 case / 全量 **runnable** |
-| gate | `tests/run-exc-error-recovery-gate.sh` | manifest + 烟测；无 native `xlang` 时 **SKIP** bench |
-| report | gate stdout | `exc-error-recovery gate OK` / 失败 case 列表 |
+| gate | `tests/run-exc-error-recovery-gate.sh` | manifest + honesty smoke |
+| report | gate stdout | `check=`／`run=`／`skip=` |
 
 `policy`：
 
 - `run` — 编译运行 `tests/exc/<script>`
 - `run_path` — 编译运行仓库根相对路径
 - `hook` — 调用 `tests/<script>`
+- `observe` — 观测残债（不硬红闸门）
+
+**Honesty contract（2026-08-26）**
+
+| 项 | 规则 |
+|----|------|
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| check | observational only（check gate paused 2026-08-05；smoke=`recovery/r_or_fallback.x`） |
+| runnable | recovery suite via `exc-error-recovery.sh` **hard-fail**（native present → no soft SKIP→OK） |
+| report | `check=`／`run=`／`skip=` |
+| DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 
 ---
 
@@ -74,4 +86,6 @@
 - [x] RFC 本文 + manifest **≥30** case
 - [x] `tests/exc/recovery/*.x` 专项用例
 - [x] `run-exc-error-recovery-gate.sh` 纳入 `run-portable-suite.sh`
-- [x] Darwin 无 native `xlang` 时 manifest 仍通过
+- [x] soft→硬绿：prefer asm＋无 native **FAIL**（禁 soft SKIP→OK）
+
+**EXC-006 状态：soft→硬绿 ✅（假权威诚实 · 2026-08-26）**
