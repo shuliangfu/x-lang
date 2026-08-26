@@ -1,4 +1,6 @@
 # STD-132 std.env platform encoding manifest
+# Honesty 2026-08-26: prefer asm + XLANG_LINK_XLANG; check observational;
+# platform_encoding.x exit0 hard-fail; C smoke observational; report check=/run=/skip=.
 min_apis	3
 api_getenv	api	getenv	std/env/mod.x
 api_setenv	api	setenv	std/env/mod.x

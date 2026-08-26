@@ -49,3 +49,26 @@ POSIX 与 Windows 共用 `env_parse_kv_entry`；Windows 环境块来源 `GetEnvi
 | Windows | `GetEnvironmentStringsA` / `GetEnvironmentVariableA`（系统 ANSI） |
 
 非 ASCII 环境变量值的行为以 OS 编码为准；v1 仅保证解析语义一致、不崩溃。
+
+---
+
+## 5. Gate
+
+```bash
+./tests/run-std-env-platform-encoding-gate.sh
+```
+
+Honesty（2026-08-26）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `platform_encoding.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
+- C smoke **仅观测**（archaeology host-C；非硬绿信号）
+- 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
+- 拒顶层 DOC 复活（live = `analysis/archive/std/`）
+
+manifest：`tests/baseline/std-env-platform-encoding-manifest.tsv`
+
+### 5.1 Changelog
+
+- 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；C smoke 观测；未啃产品 `std/env`）。

@@ -91,7 +91,15 @@ std_env_platform_encoding_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# 输出 gate 报告。
+# Emit structured report line (honesty: check=/run=/skip=).
+# @param $1 status — ok|fail
+# @param $2 check_ok — observational check (0/1; not hard green)
+# @param $3 run_ok — runnable .x smoke exit0 (hard green signal)
+# @param $4 skip — 1 only for manifest-only / no-native paths
 std_env_platform_encoding_emit_report() {
-  echo "${STD_ENV_PLATFORM_ENCODING_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local check_ok="$2"
+  local run_ok="$3"
+  local skip="$4"
+  echo "${STD_ENV_PLATFORM_ENCODING_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
 }
