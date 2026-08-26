@@ -69,23 +69,25 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 
 ---
 
-## 5. 验证与门禁
+## 5. Gate
+
+假权威诚实（2026-08-26）：闸优先 `xlang_asm`，钉 `XLANG_LINK_XLANG`；`xlang check` 仅观测（check 闸门 2026-08-05 暂停）；`examples/hello.x` + `examples/cookbook/io_batch_rw.x` 可运行 exit0 硬失败；无 native 编译器 **FAIL**（禁 soft SKIP→OK）；报告 `check=`／`x=`／`skip=`。产品面 asm 本绿；旧闸仅 prefer `xlang-c` + cookbook/core 硬 typeck＝portable 假红。
 
 ```bash
-# manifest + 路径 + catalog≥30
+# manifest + 路径 + catalog≥30 + hello/io runnable hard
 ./tests/run-std-examples-gate.sh
 
 # 打印 Markdown 索引表
 ./tests/run-std-examples.sh
 
-# 单示例 typeck
-./compiler/xlang-c check -L . examples/hello.x
+# 单示例 check（观测；非门禁硬绿）
+./compiler/xlang_asm check -L . examples/hello.x
 ```
 
 | 脚本 | 角色 |
 |------|------|
-| `tests/lib/std-examples.sh` | `std_ex_validate_paths` / `std_ex_check_example` |
-| `tests/run-std-examples-gate.sh` | manifest + catalog 路径 + cookbook typeck |
+| `tests/lib/std-examples.sh` | `std_ex_validate_paths` / `std_ex_check_example` / `std_ex_run_x_smoke` / `std_ex_emit_report` |
+| `tests/run-std-examples-gate.sh` | manifest + catalog 路径 + check 观测 + hello/io runnable hard |
 | `tests/run-doc-stdlib-cookbook-gate.sh` | Cookbook 子集（DOC-001） |
 
 新增示例流程：
@@ -101,13 +103,13 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/std-examples-v1.md` |
+| 本文 | `analysis/archive/std/std-examples-v1.md` |
 | catalog | `tests/baseline/std-examples-catalog.tsv` |
 | manifest | `tests/baseline/std-examples-manifest.tsv` |
 | 库 | `tests/lib/std-examples.sh` |
 | runner | `tests/run-std-examples.sh` |
 | 门禁 | `tests/run-std-examples-gate.sh` |
-| Cookbook | `analysis/doc-stdlib-cookbook-v1.md` |
+| Cookbook | `analysis/archive/doc/doc-stdlib-cookbook-v1.md`（若仍顶层则拒复活） |
 | Cookbook manifest | `tests/baseline/doc-stdlib-cookbook.tsv` |
 
-**STD-012 状态：定版 ✅**
+**STD-012 状态：定版 ✅**（Gate honesty 2026-08-26）
