@@ -4,6 +4,7 @@
 layer_L	doc_anchor	## 2. 三层模型	analysis/archive/exc/exc-error-code-layer-v1.md	Language
 layer_B	doc_anchor	## 4. 区间表	analysis/archive/exc/exc-error-code-layer-v1.md	Library
 layer_S	doc_anchor	## 3. 命名规范	analysis/archive/exc/exc-error-code-layer-v1.md	System 侧车
+doc_gate	section	## 7. Gate	analysis/archive/exc/exc-error-code-layer-v1.md	honesty
 naming_global	naming_rule	code_	std/error/mod.x	L 层前缀
 naming_module	naming_rule	_err_	std/error/mod.x	B 层后缀
 naming_base	naming_rule	base_	std/error/mod.x	段起点
