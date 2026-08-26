@@ -136,20 +136,9 @@ RUN_OK=0
 STUB_C=0
 SKIP=1
 
-# C stub smoke is observational (sqlite-o-stub / host cc); not the hard-green signal.
-echo "=== STD-139: stub C smoke (observational) ==="
-set +e
-std_sqlite_stub_run_c_smoke "$DB_C"
-stub_ec=$?
-set -e
-if [ "$stub_ec" -eq 0 ]; then
-  STUB_C=1
-elif [ "$stub_ec" -eq 2 ]; then
-  echo "std-sqlite-stub gate SKIP stub C smoke (need full sqlite.o symbols)" >&2
-else
-  echo "std-sqlite-stub gate SKIP stub C smoke (build/run residual)" >&2
-fi
-
+# Hard path first: .x smoke must not see a stub-overwritten sqlite.o.
+# C stub smoke mutates shared sqlite.o; run it after hard-green + restore.
+# PLATFORM: SHARED — Ubuntu UNDEF when stub .o hides std_db_sqlite_* face.
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-139: .x stub behavior smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
   if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
@@ -157,8 +146,8 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   else
     echo "std-sqlite-stub gate SKIP check smoke (paused 2026-08-05)" >&2
   fi
-  xlang_compiler_make -q ../std/db/sqlite/mod.o 2>/dev/null || xlang_compiler_make ../std/db/sqlite/mod.o 2>/dev/null || true
-  xlang_compiler_make -q ../std/db/sqlite/sqlite.o 2>/dev/null || xlang_compiler_make ../std/db/sqlite/sqlite.o 2>/dev/null || true
+  # Ensure product (non-stub) sqlite.o before link.
+  std_sqlite_stub_restore_product_o
   xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   # Pin product link to resolved compiler (prefer asm).
   # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
@@ -178,19 +167,31 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
       SKIP=0
     else
       echo "std-sqlite-stub gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
-      std_sqlite_stub_emit_report "fail" "$CHECK_OK" 0 "$STUB_C" 0
+      std_sqlite_stub_emit_report "fail" "$CHECK_OK" 0 0 0
       exit 1
     fi
   else
     echo "std-sqlite-stub gate FAIL runnable link" >&2
     tail -20 "$LOG" 2>/dev/null >&2 || true
-    std_sqlite_stub_emit_report "fail" "$CHECK_OK" 0 "$STUB_C" 0
+    std_sqlite_stub_emit_report "fail" "$CHECK_OK" 0 0 0
     exit 1
   fi
 else
   echo "std-sqlite-stub gate FAIL: no native xlang" >&2
-  std_sqlite_stub_emit_report "fail" 0 0 "$STUB_C" 0
+  std_sqlite_stub_emit_report "fail" 0 0 0 0
   exit 1
+fi
+
+# C stub smoke is observational (sqlite-o-stub / host cc); not the hard-green signal.
+echo "=== STD-139: stub C smoke (observational; after hard .x) ==="
+set +e
+std_sqlite_stub_run_c_smoke "$DB_C"
+stub_ec=$?
+set -e
+if [ "$stub_ec" -eq 0 ]; then
+  STUB_C=1
+else
+  echo "std-sqlite-stub gate SKIP stub C smoke (observational residual ec=$stub_ec)" >&2
 fi
 
 # check/stub_c stay observational; hard-green signal is run=.

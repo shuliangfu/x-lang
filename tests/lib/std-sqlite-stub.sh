@@ -66,7 +66,23 @@ std_sqlite_stub_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 构建 stub sqlite.o 并运行 C 烟测（不链 libsqlite3）。
+# Restore product sqlite.o after sqlite-o-stub overwrite.
+# Stub leaves mtime-fresh object; plain make is a no-op and hides mod face
+# exports (std_db_sqlite_*), so always rm stub-marked .o then ensure rebuild.
+# PLATFORM: SHARED — Ubuntu gold exposes UNDEF when restore is skipped.
+std_sqlite_stub_restore_product_o() {
+  local sqlite_o="std/db/sqlite/sqlite.o"
+  if [ -f "$sqlite_o" ] && strings "$sqlite_o" 2>/dev/null | grep -qF 'stub backend'; then
+    rm -f "$sqlite_o"
+  fi
+  # shellcheck source=tests/lib/build-std-c-o.sh
+  . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/build-std-c-o.sh"
+  ensure_std_c_o "$sqlite_o" >/dev/null 2>&1 || \
+    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+}
+
+# Build stub sqlite.o and run C smoke (no libsqlite3). Observational only.
+# Always restores product sqlite.o before return (stub overwrites shared .o).
 std_sqlite_stub_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/stub_behavior_ok.c"
@@ -74,21 +90,23 @@ std_sqlite_stub_run_c_smoke() {
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if ! xlang_compiler_make sqlite-o-stub >/dev/null 2>&1; then
-    echo "std-sqlite-stub FAIL: xlang_compiler_make sqlite-o-stub" >&2
-    return 1
+    echo "std-sqlite-stub SKIP c smoke (sqlite-o-stub residual)" >&2
+    std_sqlite_stub_restore_product_o
+    return 2
   fi
   if [ ! -f "$sqlite_o" ]; then
-    echo "std-sqlite-stub FAIL: missing $sqlite_o after stub build" >&2
-    return 1
+    echo "std-sqlite-stub SKIP c smoke (missing stub sqlite.o)" >&2
+    std_sqlite_stub_restore_product_o
+    return 2
   fi
   if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
-    echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols; need xlang-c)" >&2
-    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+    echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols)" >&2
+    std_sqlite_stub_restore_product_o
     return 2
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" 2>/dev/null; then
     echo "std-sqlite-stub SKIP c smoke (compile residual)" >&2
-    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+    std_sqlite_stub_restore_product_o
     return 2
   fi
   # Observational only: never enable set -e here (would bleed to caller under
@@ -97,7 +115,7 @@ std_sqlite_stub_run_c_smoke() {
   local ec=0
   "$out" >/dev/null 2>&1 || ec=$?
   rm -f "$out"
-  xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+  std_sqlite_stub_restore_product_o
   if [ "$ec" -ne 0 ]; then
     echo "std-sqlite-stub SKIP c smoke (run residual exit=$ec)" >&2
     return 2
