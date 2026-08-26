@@ -1,8 +1,8 @@
 # STD-021/022 path/fs Windows 对齐 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
-> 关联：`NEXT.md` Phase 2 P0、`tests/run-std-fs-crossplatform-gate.sh`
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · soft→硬绿 honesty（2026-08-26）  
+> 关联：`tests/run-std-fs-crossplatform-gate.sh`；live roadmap = `analysis/自举进度.md`（勿复活顶层 NEXT.md）
 
 ---
 
@@ -52,14 +52,24 @@ Windows 分支（`fs.c`）已用 `CreateFileA`；Win32 接受 `/` 与 `\`。
 
 路径字面量使用 `tests\fs\.win_xplat_tmp`（反斜杠），验证 open/read/write/mmap 句柄路径。
 
+Honesty 闸对 `windows_path_smoke.x` 在双端均可 runnable 硬绿（POSIX 将 `\` 当文件名字节；矩阵 skip 仍留给 fs-crossplatform 策略层）。
+
 ---
 
-## 4. 验收
+## 4. Gate
 
-- manifest：`tests/baseline/std-path-fs-windows.tsv`
-- 门禁：`tests/run-std-path-fs-windows-gate.sh`
-- 报告：`xlang: [XLANG_STD_PATH_FS_WIN] status=ok`
-- CI：`tests/run-portable-suite.sh`
+Honesty（2026-08-26）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
+- `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
+- 产品烟测 `windows_abs_join.x` + `windows_path_smoke.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
+- `run-std-fs-crossplatform-gate.sh` 委托仅观测（不顶硬绿）。
+- 报告：`check=`／`path=`／`fs=`／`skip=`（`path=1`＋`fs=1` 为硬绿信号）。
+
+```
+xlang: [XLANG_STD_PATH_FS_WIN] status=ok check=0|1 path=1 fs=1 skip=0
+std-path-fs-windows gate OK
+```
 
 ---
 
@@ -68,3 +78,4 @@ Windows 分支（`fs.c`）已用 `CreateFileA`；Win32 接受 `/` 与 `\`。
 - `path_clean` 输出规范化盘符大小写；`..` 跨盘符语义
 - `fs` 长路径 `\\?\` 前缀
 - `path` 与 `std.process` 参数路径互转
+- soft residual：aes-gcm nist2／brotli ld／产品红／UNDEF 邻域仍跳；by-value `Set_i32`+MEMORY／asm ld `--export-dynamic` 非软；禁 mega
