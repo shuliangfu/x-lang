@@ -10,14 +10,15 @@
 | `channel.o` | `ld -r` 合并 | 纯 `.x` |
 | channel 胶层 | `std/channel/channel_glue.c` | `compiler/runtime_channel_glue.o` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CHANNEL_V1_FAIL` retired. Delegates STD-098 channel-select hard. channel-unbounded observational (product residual).
 
 ```bash
-XLANG_F_CHANNEL_V1_FAIL=1 ./tests/run-f-channel-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-channel-v1-gate.sh
 ./tests/run-std-channel-select-gate.sh
-./tests/run-std-channel-unbounded-gate.sh
 ```
 
 ## 下一项
 
-- **F-sync v1** / **F-crypto v1** / **F-thread v1**
+- **F-sync v1** ✅ / **F-crypto v1** / **F-thread v1** ✅

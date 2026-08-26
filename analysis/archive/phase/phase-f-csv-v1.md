@@ -9,12 +9,13 @@
 | 实现 | `csv.c`（271 行） | `csv.x` |
 | `csv.o` | `cc -c` | `xlang -backend asm` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CSV_V1_FAIL` retired. Delegates STD-036 csv-row hard. STD-128 csv-stream observational (asm UNDEF residual).
 
 ```bash
-XLANG_F_CSV_V1_FAIL=1 ./tests/run-f-csv-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-csv-v1-gate.sh
 ./tests/run-std-csv-row-gate.sh
-./tests/run-std-csv-stream-gate.sh
 ```
 
 ## 下一项

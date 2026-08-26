@@ -9,10 +9,12 @@
 | 实现 | `context.c`（253 行） | `context.x` + `context_node_glue.c` |
 | `context.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CONTEXT_V1_FAIL` retired. Delegates STD-context hard. http-context is a separate listed skip (not this gate).
 
 ```bash
-XLANG_F_CONTEXT_V1_FAIL=1 ./tests/run-f-context-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-context-v1-gate.sh
 ./tests/run-std-context-gate.sh
 ```
 

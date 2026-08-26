@@ -9,10 +9,12 @@
 | 实现 | `config.c`（1070 行） | `config.x` + `config_glue.c` |
 | `config.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CONFIG_V1_FAIL` retired. Delegates STD-config + yaml hard.
 
 ```bash
-XLANG_F_CONFIG_V1_FAIL=1 ./tests/run-f-config-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-config-v1-gate.sh
 ./tests/run-std-config-gate.sh
 ./tests/run-std-config-yaml-gate.sh
 ```
