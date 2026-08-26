@@ -10,13 +10,13 @@
 | IO | glue 内联 `http_get` / `net_ws_*` | **`extern` 声明于 socketio.x** |
 | `socketio.o` | `ld -r` glue + x | **仅 x（`socketio_main.o`）** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_SOCKETIO_V2_FAIL` retired. STD-SOCKETIO-001 product residual observational (prefer-c / eio_packet).
 
 ```bash
-XLANG_F_SOCKETIO_V2_FAIL=1 ./tests/run-f-socketio-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-socketio-v2-gate.sh
 ./tests/run-std-socketio-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
 ## 下一项

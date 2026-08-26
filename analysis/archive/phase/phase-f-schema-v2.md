@@ -10,14 +10,15 @@
 | `schema.o` | `ld -r` glue + x | **纯 xlang → schema.o** |
 | JSON/CSV 依赖 | glue 链 json.o/csv.o | `extern json_*` / `parse_row` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_SCHEMA_V2_FAIL` retired. STD-090 schema product residual observational (fossil `schema_new` / smoke).
 
 ```bash
-XLANG_F_SCHEMA_V2_FAIL=1 ./tests/run-f-schema-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-schema-v2-gate.sh
 ./tests/run-std-schema-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项
 
-- **F-config v2**（TOML/YAML/ENV 逻辑下沉）
+- 继续阶段 F std 去 C（其它模块 v2）

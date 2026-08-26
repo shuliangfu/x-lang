@@ -10,13 +10,13 @@
 | `task.o` | `ld -r` glue + x | **纯 xlang → task.o** |
 | `task_echo_fn_ptr_c` | glue 内 C 取址 | **`xlang_async_task_echo_fn_ptr_c`**（scheduler 链 task.o 时解析；待 .x 支持同模块 fn 址后内联） |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_TASK_V2_FAIL` retired. STD-089 task product residual observational (fossil `task_group_new` / asm UNDEF).
 
 ```bash
-XLANG_F_TASK_V2_FAIL=1 ./tests/run-f-task-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-task-v2-gate.sh
 ./tests/run-std-task-gate.sh
-XLANG_F_TASK_V1_FAIL=1 ./tests/run-f-task-v1-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项
