@@ -20,13 +20,16 @@
 ## 构建
 
 ```bash
-make -C compiler ../std/base64/base64.o
+./xbuild  # was: make -C compiler ../std/base64/base64.o
 ```
 
-## 门禁
+## Gate
+
+Honesty (2026-08-26): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_BASE64_V1_FAIL` retired. Orphan Makefile `die/fi` syntax fixed.
+
 
 ```bash
-XLANG_F_BASE64_V1_FAIL=1 ./tests/run-f-base64-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-base64-v1-gate.sh
 ./tests/run-base64.sh
 ./tests/run-std-base64-stream-gate.sh
 ```

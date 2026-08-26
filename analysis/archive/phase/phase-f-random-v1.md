@@ -15,10 +15,13 @@
 - `random_fill_bytes_c` — compiler runtime（getrandom / getentropy / BCryptGenRandom）
 - `random_u32_c` / `random_u64_c` / `random_rng_smoke_c` — `random.x`
 
-## 门禁
+## Gate
+
+Honesty (2026-08-26): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_RANDOM_V1_FAIL` retired. Orphan Makefile `die/fi` syntax fixed.
+
 
 ```bash
-XLANG_F_RANDOM_V1_FAIL=1 ./tests/run-f-random-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-random-v1-gate.sh
 ./tests/run-std-random-rng-gate.sh
 ```
 

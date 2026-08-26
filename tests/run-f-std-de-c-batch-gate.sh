@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# F 阶段 std 去 C 聚合门禁：…/cache/url v2。
+# F-phase std de-C batch: path/uuid/…/socketio v1–v2 archaeology aggregate.
 #
-# 用法：./tests/run-f-std-de-c-batch-gate.sh
-# 环境：XLANG_F_STD_DE_C_BATCH_FAIL=1 — 任一子 gate 失败时硬退出
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
-# PLATFORM: SHARED archaeology.
+# Usage: ./tests/run-f-std-de-c-batch-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f-std-de-c-batch-gate.sh
+# 2026-08-26: Honesty — hard-fail when any child RC≠0 (no soft die→exit0).
+# Soft XLANG_F_STD_DE_C_BATCH_FAIL retired. Root: soft batch swallowed syntax-
+# broken children (orphan Makefile die/fi) → portable false-green. Prefer asm;
+# pin XLANG_LINK_XLANG. Report ok=/fail=/skip=. PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_F_STD_DE_C_BATCH_FAIL:-0}
 GATES=(
   run-f-path-v1-gate.sh
   run-f-uuid-v1-gate.sh
@@ -78,24 +82,67 @@ GATES=(
   run-f-socketio-v2-gate.sh
 )
 
-die() {
-  echo "f-std-de-c-batch FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+PREFIX="xlang: [XLANG_F_STD_DE_C_BATCH]"
+
+resolve_shu() {
+  local cand abs
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$(pwd)/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
-echo "=== F std de-C batch: ${#GATES[@]} gates ==="
-# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
-if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+die() {
+  echo "f-std-de-c-batch FAIL: $*" >&2
+  echo "${PREFIX} status=fail ok=${OK:-0} fail=${FAIL_N:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+OK=0
+FAIL_N=0
+SKIP=1
+
+echo "=== F std de-C batch: ${#GATES[@]} gates (honesty) ==="
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
 [ -f xbuild ] || die "missing xbuild"
+
+if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  die "no native xlang"
+fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
+SKIP=0
+
 for g in "${GATES[@]}"; do
   if [ ! -f "tests/$g" ]; then
     die "missing tests/$g"
   fi
+  # Catch bash syntax errors early (historical orphan Makefile die/fi).
+  if ! bash -n "tests/$g" 2>/tmp/f_de_c_syn.err; then
+    die "syntax error in tests/$g: $(head -1 /tmp/f_de_c_syn.err)"
+  fi
   chmod +x "tests/$g"
   echo "--- $g ---"
-  if ! "tests/$g"; then
+  if "tests/$g"; then
+    OK=$((OK + 1))
+  else
+    FAIL_N=$((FAIL_N + 1))
     die "$g failed"
   fi
 done
-echo "f-std-de-c-batch OK (${#GATES[@]} gates)"
+
+echo "${PREFIX} status=ok ok=${OK} fail=${FAIL_N} skip=${SKIP} host=$(ci_host_summary)"
+echo "f-std-de-c-batch OK (${OK}/${#GATES[@]} gates; honesty)"

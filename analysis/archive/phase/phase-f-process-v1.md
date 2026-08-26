@@ -22,13 +22,16 @@
 ## 构建
 
 ```bash
-make -C compiler ../std/process/process.o
+./xbuild  # was: make -C compiler ../std/process/process.o
 ```
 
-## 门禁
+## Gate
+
+Honesty (2026-08-26): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_PROCESS_V1_FAIL` retired. Orphan Makefile `die/fi` syntax fixed.
+
 
 ```bash
-XLANG_F_PROCESS_V1_FAIL=1 ./tests/run-f-process-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-process-v1-gate.sh
 ./tests/run-std-process-xplat-gate.sh
 ```
 

@@ -20,15 +20,18 @@
 ## 构建
 
 ```bash
-make -C compiler ../std/encoding/encoding.o
+./xbuild  # was: make -C compiler ../std/encoding/encoding.o
 ```
 
-## 门禁
+## Gate
+
+Honesty (2026-08-26): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_ENCODING_V1_FAIL` retired. Orphan Makefile `die/fi` syntax fixed.
+
 
 ```bash
-XLANG_F_ENCODING_V1_FAIL=1 ./tests/run-f-encoding-v1-gate.sh
-./tests/run-std-encoding-hex-base64-gate.sh
-./tests/run-std-encoding-extra-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-encoding-v1-gate.sh
+./tests/run-std-encoding-hex-base64-gate.sh  # observational (product residual)
+./tests/run-std-encoding-extra-gate.sh      # observational (product residual)
 ```
 
 ## 下一项
