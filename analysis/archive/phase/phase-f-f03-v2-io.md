@@ -27,10 +27,19 @@
 | fixed buffer 池 | 模块级静态，非真 TLS；多线程并发注册不隔离 |
 | Win32 wait_readable | v1 返回 -1；需后续 FD_SET/select 完整布局 |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`, hard-fail
+static manifest + F-01 inventory + `tests/run-io.sh` (no soft `die→exit 0`, no
+prefer-c, no SKIP→OK when no native). Report `inventory=` / `run=` / `skip=`.
 
 ```bash
-XLANG_F03_IO_FAIL=1 ./tests/run-f03-std-io-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=104
-./tests/run-io.sh
+./tests/run-f03-std-io-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f03-std-io-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-io.sh
 ```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F03_IO_FAIL` path retired; gate always hard).
