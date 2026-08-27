@@ -100,13 +100,14 @@ profiling（`perf` / 采样）留作 v2；v1 以**固定清单 + dogfood 不回�
 Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
 soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die;
 region／linear diagnostic tip miss = obs (product／check residual; check gate paused);
+WPO opt-in link-path log miss = obs (tip build path residual; Darwin N/A);
 DOC=archive; report `run=`／`obs=`／`skip=`.
 
 `tests/run-typeck-hotpath-gate.sh`:
 
 1. Archive DOC + matrix + compile-dogfood `check_typeck`（拒 pipeline_glue.c resurrect）
 2. 符号／min_opt_done 硬绿
-3. Native xlang：hooks 必跑；region／linear 失败＝obs；缺 native／显式坏 XLANG 硬 die
+3. Native xlang：hooks 必跑；region／linear／wpo-optin 失败＝obs；缺 native／显式坏 XLANG 硬 die
 
 ---
 

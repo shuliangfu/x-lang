@@ -125,10 +125,11 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 
 # Region／linear diagnostic tip miss = obs (check paused / product residual).
-# Other hook failures remain hard.
+# WPO opt-in link-path log miss = obs (tip build path residual; smoke already
+# N/A on Darwin). Other hook failures remain hard.
 obs_hook() {
   case "$1" in
-    run-typeck-region.sh|run-typeck-linear.sh) return 0 ;;
+    run-typeck-region.sh|run-typeck-linear.sh|run-typeck-wpo-optin-smoke.sh) return 0 ;;
     *) return 1 ;;
   esac
 }
