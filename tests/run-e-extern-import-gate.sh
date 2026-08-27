@@ -1,108 +1,57 @@
 #!/usr/bin/env bash
-# C-04 v0/v1：-E-extern 入口按 import 自动生成 extern（lsp_io / lsp_gen 烟测）。
-# 用法：./tests/run-e-extern-import-gate.sh
-# 环境：XLANG_E_EXTERN_IMPORT_FAIL=1 失败时硬退出
+# C-04 e-extern-import archaeology honesty under product NO_C_FRONTEND.
+#
+# Usage: ./tests/run-e-extern-import-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-e-extern-import-gate.sh
+# 2026-08-27: Honesty — hard-fail structural + prefer-asm probe that product
+# refuses -E-extern with BLD001/NO_C_FRONTEND. Soft XLANG_E_EXTERN_IMPORT_FAIL
+# retired. Root: soft die→exit0 + lsp_io/lsp -E-extern+cc batch while every
+# product binary refuses -E-extern = portable false-green / prefer-c dual
+# authority. Full -E-extern+cc batch retired. Report refuse=/skip=.
+# Authority: tests/lib/prefer-asm-e-extern-refuse.sh
+# PLATFORM: SHARED archaeology.
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/compiler"
+cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/prefer-asm-e-extern-refuse.sh
+source "$(dirname "$0")/lib/prefer-asm-e-extern-refuse.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_E_EXTERN_IMPORT_FAIL:-0}
-XLANG="${XLANG:-./xlang-c}"
-LSP_DIRS="-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen"
+DOC="analysis/archive/phase/phase-c-c04-v1.md"
+PREFIX="xlang: [XLANG_E_EXTERN_IMPORT]"
+PROBE="compiler/src/lsp/lsp_io.x"
 
-if [ ! -x "$XLANG" ]; then
-  XLANG="./xlang"
-fi
-if [ ! -x "$XLANG" ]; then
-  echo "e-extern-import-gate: SKIP (no xlang/xlang-c)"
-  exit 0
-fi
+REFUSE_OK=0
+SKIP=1
 
-# --- lsp_io.x ---
-GEN_IO="/tmp/xlang_lsp_io_gen_$$.c"
-OBJ_IO="/tmp/xlang_lsp_io_gen_$$.o"
-rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
+die() {
+  echo "e-extern-import-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail refuse=${REFUSE_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
 
-if ! "$XLANG" $LSP_DIRS src/lsp/lsp_io.x -E -E-extern >"$GEN_IO" 2>/tmp/xlang_e_extern_io.log; then
-  echo "e-extern-import-gate FAIL: -E-extern lsp_io.x" >&2
-  tail -n 10 /tmp/xlang_e_extern_io.log 2>/dev/null || true
-  rm -f "$GEN_IO" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+echo "=== e-extern-import archaeology (honesty; NO_C_FRONTEND refuse) ==="
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
+grep -q 'C-04' "$DOC" || die "doc missing C-04 marker"
+[ -f xbuild ] || die "missing xbuild"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
 fi
+[ -f "$PROBE" ] || die "missing $PROBE"
 
-if ! grep -q 'extern int32_t std_io_read' "$GEN_IO"; then
-  echo "e-extern-import-gate FAIL: missing auto extern std_io_read" >&2
-  rm -f "$GEN_IO" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+if ! XLANG_BIN="$(prefer_asm_resolve_xlang 2>/dev/null)"; then
+  die "no native xlang"
 fi
-if grep -q 'lsp_io -E-extern stubs (io.o' "$GEN_IO"; then
-  echo "e-extern-import-gate FAIL: deprecated full lsp_io extern block" >&2
-  rm -f "$GEN_IO" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if grep -q '^extern void std_heap_free' "$GEN_IO"; then
-  echo "e-extern-import-gate FAIL: duplicate wrong std_heap_free extern" >&2
-  rm -f "$GEN_IO" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! cc -c -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -o "$OBJ_IO" "$GEN_IO" 2>/tmp/xlang_e_extern_io_cc.log; then
-  echo "e-extern-import-gate FAIL: cc -c lsp_io_gen" >&2
-  tail -n 10 /tmp/xlang_e_extern_io_cc.log 2>/dev/null || true
-  rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+SKIP=0
 
-# --- lsp.x (C-04 v1：lsp_io import 自动 typeck extern + inline wrapper) ---
-GEN_LSP="/tmp/xlang_lsp_gen_$$.c"
-OBJ_LSP="/tmp/xlang_lsp_gen_$$.o"
-rm -f "$GEN_LSP" "$OBJ_LSP" 2>/dev/null || true
+prefer_asm_assert_e_extern_refuse "$XLANG_BIN" "$PROBE" \
+  || die "product refuse probe failed for $PROBE"
+REFUSE_OK=1
 
-if ! "$XLANG" $LSP_DIRS src/lsp/lsp.x -E -E-extern >"$GEN_LSP" 2>/tmp/xlang_e_extern_lsp.log; then
-  echo "e-extern-import-gate FAIL: -E-extern lsp.x" >&2
-  tail -n 10 /tmp/xlang_e_extern_lsp.log 2>/dev/null || true
-  rm -f "$GEN_LSP" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
-if grep -q 'lsp.x -E-extern stubs (lsp_io_x' "$GEN_LSP"; then
-  echo "e-extern-import-gate FAIL: deprecated lsp_gen extern block still present" >&2
-  rm -f "$GEN_LSP" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -q 'extern ptrdiff_t typeck_read_message' "$GEN_LSP"; then
-  echo "e-extern-import-gate FAIL: missing auto typeck_read_message extern" >&2
-  rm -f "$GEN_LSP" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -q 'static inline ptrdiff_t lsp_io_read_message' "$GEN_LSP"; then
-  echo "e-extern-import-gate FAIL: missing auto lsp_io_read_message inline wrapper" >&2
-  rm -f "$GEN_LSP" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if grep -q '^extern ptrdiff_t lsp_io_read_message' "$GEN_LSP"; then
-  echo "e-extern-import-gate FAIL: wrong bare extern lsp_io_read_message (need wrapper)" >&2
-  rm -f "$GEN_LSP" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! cc -c -I. -o "$OBJ_LSP" "$GEN_LSP" 2>/tmp/xlang_e_extern_lsp_cc.log; then
-  echo "e-extern-import-gate FAIL: cc -c lsp_gen" >&2
-  tail -n 10 /tmp/xlang_e_extern_lsp_cc.log 2>/dev/null || true
-  rm -f "$GEN_LSP" "$OBJ_LSP" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-rm -f "$GEN_LSP" "$OBJ_LSP" 2>/dev/null || true
-
-echo "e-extern-import-gate OK (lsp_io + lsp_gen -E-extern auto import extern)"
-exit 0
+echo "e-extern-import-gate OK (refuse=${REFUSE_OK}; -E-extern+cc batch retired)"
+echo "${PREFIX} status=ok refuse=${REFUSE_OK} skip=${SKIP} host=$(ci_host_summary)"

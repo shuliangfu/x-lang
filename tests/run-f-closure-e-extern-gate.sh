@@ -10,11 +10,14 @@
 # -E-extern (C frontend gone) = portable false-green / prefer-c archaeology
 # dual authority. Full -E-extern+cc batch retired (cannot green on product
 # pure-asm). Report refuse=/mods=/skip=.
+# Authority refuse: tests/lib/prefer-asm-e-extern-refuse.sh (G.7 single path).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/prefer-asm-e-extern-refuse.sh
+source "$(dirname "$0")/lib/prefer-asm-e-extern-refuse.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
@@ -25,24 +28,6 @@ PROBE_MOD="std/cli/mod.x"
 REFUSE_OK=0
 MODS=0
 SKIP=1
-
-resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    case "$cand" in
-      /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
-    esac
-    if dod_native_exe "$abs"; then
-      echo "$abs"
-      return 0
-    fi
-  done
-  return 1
-}
 
 die() {
   echo "f-closure-e-extern-gate FAIL: $*" >&2
@@ -63,33 +48,15 @@ fi
 MODS=$(find std -name "mod.x" -type f 2>/dev/null | wc -l | tr -d ' ')
 [ "$MODS" -gt 0 ] || die "no std/**/mod.x found"
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+if ! XLANG_BIN="$(prefer_asm_resolve_xlang 2>/dev/null)"; then
   die "no native xlang"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 SKIP=0
 
-# Product pure-asm (NO_C_FRONTEND) must refuse -E-extern. Accepting success
-# would resurrect prefer-c dual authority. PLATFORM: SHARED archaeology.
-LOG="/tmp/xlang_f_closure_refuse.$$.log"
-GEN="/tmp/xlang_f_closure_refuse.$$.c"
-rm -f "$LOG" "$GEN"
-set +e
-"$XLANG_BIN" build -E-extern -L . "$PROBE_MOD" >"$GEN" 2>"$LOG"
-RC=$?
-set -e
-if [ "$RC" -eq 0 ]; then
-  rm -f "$LOG" "$GEN"
-  die "product $XLANG_BIN accepted -E-extern (NO_C_FRONTEND expected refuse; prefer-c resurrected)"
-fi
-if ! grep -qE 'NO_C_FRONTEND|-E-extern requires C parser/codegen|BLD001' "$LOG"; then
-  echo "f-closure-e-extern-gate: refuse log:" >&2
-  tail -n 20 "$LOG" >&2 || true
-  rm -f "$LOG" "$GEN"
-  die "product refused -E-extern without NO_C_FRONTEND/BLD001 marker"
-fi
-rm -f "$LOG" "$GEN"
+prefer_asm_assert_e_extern_refuse "$XLANG_BIN" "$PROBE_MOD" \
+  || die "product refuse probe failed for $PROBE_MOD"
 REFUSE_OK=1
 
 echo "f-closure-e-extern-gate OK (refuse=${REFUSE_OK} mods=${MODS}; -E-extern+cc batch retired)"

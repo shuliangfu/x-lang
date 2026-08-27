@@ -30,6 +30,7 @@ Under Stage12.0.5 prefer pure-asm product default, shipping a soft-green
 ./tests/run-f-closure-e-extern-gate.sh
 # Report: refuse=/mods=/skip=
 # Soft XLANG_F_CLOSURE_FAIL retired (die always hard).
+# Authority refuse: tests/lib/prefer-asm-e-extern-refuse.sh
 ```
 
 PLATFORM: SHARED archaeology.

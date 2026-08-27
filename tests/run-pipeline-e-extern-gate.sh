@@ -1,92 +1,57 @@
 #!/usr/bin/env bash
-# C-04 v4：pipeline.x -E-extern 纯 codegen 产出，无 perl 后处理，须 cc -c 通过。
-# 用法：./tests/run-pipeline-e-extern-gate.sh
-# 环境：XLANG_PIPELINE_E_EXTERN_FAIL=1 失败时硬退出
+# C-04 pipeline -E-extern archaeology honesty under product NO_C_FRONTEND.
+#
+# Usage: ./tests/run-pipeline-e-extern-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-pipeline-e-extern-gate.sh
+# 2026-08-27: Honesty — hard-fail structural + prefer-asm probe that product
+# refuses -E-extern with BLD001/NO_C_FRONTEND. Soft XLANG_PIPELINE_E_EXTERN_FAIL
+# retired. Root: soft die→exit0 + -E-extern+cc batch while every product
+# binary refuses -E-extern = portable false-green / prefer-c dual authority.
+# Full -E-extern+cc batch retired. Report refuse=/skip=.
+# Authority: tests/lib/prefer-asm-e-extern-refuse.sh
+# PLATFORM: SHARED archaeology.
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/compiler"
+cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/prefer-asm-e-extern-refuse.sh
+source "$(dirname "$0")/lib/prefer-asm-e-extern-refuse.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PIPELINE_E_EXTERN_FAIL:-0}
-XLANG="${XLANG:-./xlang-c}"
-DIRS="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess"
-GEN="/tmp/xlang_pipeline_e_extern_$$.c"
-OBJ="/tmp/xlang_pipeline_e_extern_$$.o"
+DOC="analysis/archive/phase/phase-c-c04-v1.md"
+PREFIX="xlang: [XLANG_PIPELINE_E_EXTERN]"
+PROBE="compiler/src/pipeline/pipeline.x"
 
-# 与 Makefile PIPELINE_GEN_CFLAGS 对齐（Clang 追加 discards-qualifiers 等）
-PIPE_CFLAGS="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
-if cc -v 2>&1 | grep -q clang; then
-  PIPE_CFLAGS="$PIPE_CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers"
-fi
+REFUSE_OK=0
+SKIP=1
 
-if [ ! -x "$XLANG" ]; then
-  XLANG="./xlang"
-fi
-if [ ! -x "$XLANG" ]; then
-  echo "pipeline-e-extern-gate: SKIP (no xlang/xlang-c)"
-  exit 0
-fi
+die() {
+  echo "pipeline-e-extern-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail refuse=${REFUSE_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
 
-rm -f "$GEN" "$OBJ" 2>/dev/null || true
+echo "=== pipeline -E-extern archaeology (honesty; NO_C_FRONTEND refuse) ==="
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
+grep -q 'C-04' "$DOC" || die "doc missing C-04 marker"
+[ -f xbuild ] || die "missing xbuild"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f "$PROBE" ] || die "missing $PROBE"
 
-if ! "$XLANG" $DIRS src/pipeline/pipeline.x -E -E-extern >"$GEN" 2>/tmp/xlang_pipeline_e_extern_gen.log; then
-  echo "pipeline-e-extern-gate FAIL: pipeline -E-extern" >&2
-  tail -n 10 /tmp/xlang_pipeline_e_extern_gen.log 2>/dev/null || true
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+if ! XLANG_BIN="$(prefer_asm_resolve_xlang 2>/dev/null)"; then
+  die "no native xlang"
 fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+SKIP=0
 
-if [ "$(grep -c '^struct xlang_slice_uint8_t' "$GEN" 2>/dev/null || echo 0)" -ne 1 ]; then
-  echo "pipeline-e-extern-gate FAIL: expected exactly one xlang_slice_uint8_t definition" >&2
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
+prefer_asm_assert_e_extern_refuse "$XLANG_BIN" "$PROBE" \
+  || die "product refuse probe failed for $PROBE"
+REFUSE_OK=1
 
-if ! grep -q 'extern struct parser_ParseIntoResult parser_parse_into_buf' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: missing auto extern parser_parse_into_buf" >&2
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -q 'extern int32_t typeck_typeck_x_ast' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: missing auto extern typeck_typeck_x_ast" >&2
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -q 'extern int32_t xlang_io_register' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: missing auto extern xlang_io_register" >&2
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -q 'extern int32_t parser_copy_module_import_path64.*out\[64\]' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: parser_copy_module_import_path64 must use out[64]" >&2
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-# wave309: xlang_emit_pipeline_glue_include is a no-op — must NOT emit
-# #include "pipeline_glue.c" (shell deleted). Resurrected include = dual authority.
-if grep -q '#include "pipeline_glue.c"' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: resurrected #include pipeline_glue.c (wave309 left; emit must be no-op)" >&2
-  rm -f "$GEN" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
-if ! cc -I.. -I. -Iinclude -Isrc $PIPE_CFLAGS \
-  -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
-  -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
-  -c "$GEN" -o "$OBJ" 2>/tmp/xlang_pipeline_e_extern_cc.log; then
-  echo "pipeline-e-extern-gate FAIL: cc -c pipeline_gen (post bootstrap-pipeline fixes)" >&2
-  tail -n 15 /tmp/xlang_pipeline_e_extern_cc.log 2>/dev/null || true
-  rm -f "$GEN" "$OBJ" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
-rm -f "$GEN" "$OBJ" 2>/dev/null || true
-echo "pipeline-e-extern-gate OK (pipeline -E-extern auto import extern + cc -c)"
-exit 0
+echo "pipeline-e-extern-gate OK (refuse=${REFUSE_OK}; -E-extern+cc batch retired)"
+echo "${PREFIX} status=ok refuse=${REFUSE_OK} skip=${SKIP} host=$(ci_host_summary)"

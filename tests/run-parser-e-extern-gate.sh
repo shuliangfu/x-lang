@@ -1,87 +1,57 @@
 #!/usr/bin/env bash
-# C-04 parser：parser.x -E-extern codegen TU 别名 + cc -c（无 fix_slim/fix_parser_pool perl 时亦须过）。
-# 用法：./tests/run-parser-e-extern-gate.sh
-# 环境：XLANG_PARSER_E_EXTERN_FAIL=1 失败时硬退出
-# 注：fix_slim_arena 仍须 parser_gen.c 文件名（内部 TU 别名扫描）；gate 在临时目录生成该名。
+# C-04 parser -E-extern archaeology honesty under product NO_C_FRONTEND.
+#
+# Usage: ./tests/run-parser-e-extern-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-parser-e-extern-gate.sh
+# 2026-08-27: Honesty — hard-fail structural + prefer-asm probe that product
+# refuses -E-extern with BLD001/NO_C_FRONTEND. Soft XLANG_PARSER_E_EXTERN_FAIL
+# retired. Root: soft die→exit0 + parser -E-extern+cc batch while every
+# product binary refuses -E-extern = portable false-green / prefer-c dual
+# authority. Full -E-extern+cc batch retired. Report refuse=/skip=.
+# Authority: tests/lib/prefer-asm-e-extern-refuse.sh
+# PLATFORM: SHARED archaeology.
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/compiler"
+cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/prefer-asm-e-extern-refuse.sh
+source "$(dirname "$0")/lib/prefer-asm-e-extern-refuse.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PARSER_E_EXTERN_FAIL:-0}
-XLANG="${XLANG:-./xlang-c}"
-DIRS="-L .. -L src/lexer -L src/ast"
-GENDIR="/tmp/xlang_parser_eextern_$$"
-GEN="$GENDIR/parser_gen.c"
-OBJ="$GENDIR/parser_gen.o"
+DOC="analysis/archive/phase/phase-c-c04-v1.md"
+PREFIX="xlang: [XLANG_PARSER_E_EXTERN]"
+PROBE="compiler/src/parser/parser.x"
 
-PIPE_CFLAGS="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
-if cc -v 2>&1 | grep -q clang; then
-  PIPE_CFLAGS="$PIPE_CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers"
-fi
+REFUSE_OK=0
+SKIP=1
 
-if [ ! -x "$XLANG" ]; then
-  XLANG="./xlang"
-fi
-if [ ! -x "$XLANG" ]; then
-  echo "parser-e-extern-gate: SKIP (no xlang/xlang-c)"
-  exit 0
-fi
+die() {
+  echo "parser-e-extern-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail refuse=${REFUSE_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
 
-rm -rf "$GENDIR" 2>/dev/null || true
-mkdir -p "$GENDIR"
+echo "=== parser -E-extern archaeology (honesty; NO_C_FRONTEND refuse) ==="
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
+grep -q 'C-04' "$DOC" || die "doc missing C-04 marker"
+[ -f xbuild ] || die "missing xbuild"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f "$PROBE" ] || die "missing $PROBE"
 
-GEN_OK=0
-if [ -x "./xlang-x" ] && ./xlang-x -x -E $DIRS -E-extern src/parser/parser.x >"$GEN" 2>/tmp/xlang_parser_e_extern_x.log \
-  && grep -q 'lexer_advance_one' "$GEN"; then
-  GEN_OK=1
+if ! XLANG_BIN="$(prefer_asm_resolve_xlang 2>/dev/null)"; then
+  die "no native xlang"
 fi
-if [ "$GEN_OK" = "0" ]; then
-  if ! "$XLANG" $DIRS src/parser/parser.x -E -E-extern >"$GEN" 2>/tmp/xlang_parser_e_extern_gen.log; then
-    echo "parser-e-extern-gate FAIL: parser -E-extern" >&2
-    tail -n 10 /tmp/xlang_parser_e_extern_gen.log 2>/dev/null || true
-    rm -rf "$GENDIR" 2>/dev/null || true
-    [ "$FAIL" = "1" ] && exit 1
-    exit 0
-  fi
-fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+SKIP=0
 
-if ! grep -q 'C-04 -E-extern TU aliases' "$GEN"; then
-  echo "parser-e-extern-gate FAIL: missing codegen TU aliases block" >&2
-  rm -rf "$GENDIR" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -q '#define ast_arena_expr_set ast_ast_arena_expr_set' "$GEN"; then
-  echo "parser-e-extern-gate FAIL: missing ast_arena TU alias" >&2
-  rm -rf "$GENDIR" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-if ! grep -qE '#define lexer_init lexer_lexer_init' "$GEN"; then
-  echo "parser-e-extern-gate FAIL: missing lexer_init TU alias" >&2
-  rm -rf "$GENDIR" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
+prefer_asm_assert_e_extern_refuse "$XLANG_BIN" "$PROBE" \
+  || die "product refuse probe failed for $PROBE"
+REFUSE_OK=1
 
-if ! grep -q 'C-04 parser: ast_expr_init_match_enum after struct ast_Expr' "$GEN" 2>/dev/null; then
-  echo "parser-e-extern-gate FAIL: missing C-04 parser pool marker (no perl fallback)" >&2
-  rm -rf "$GENDIR" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
-if ! cc -I.. -I. -Iinclude -Isrc $PIPE_CFLAGS \
-  -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
-  -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
-  -c "$GEN" -o "$OBJ" 2>/tmp/xlang_parser_e_extern_cc.log; then
-  echo "parser-e-extern-gate FAIL: cc -c parser_gen" >&2
-  tail -n 15 /tmp/xlang_parser_e_extern_cc.log 2>/dev/null || true
-  rm -rf "$GENDIR" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
-rm -rf "$GENDIR" 2>/dev/null || true
-echo "parser-e-extern-gate OK (parser -E-extern codegen TU aliases + cc -c)"
-exit 0
+echo "parser-e-extern-gate OK (refuse=${REFUSE_OK}; -E-extern+cc batch retired)"
+echo "${PREFIX} status=ok refuse=${REFUSE_OK} skip=${SKIP} host=$(ci_host_summary)"
