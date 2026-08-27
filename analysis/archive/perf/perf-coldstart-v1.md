@@ -97,3 +97,8 @@ XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh   # Linu
 | cap | `tests/baseline/coldstart-perf.tsv` |
 
 **PERF-010 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON:-0 silent OK; over-cap = obs; report run=/obs=/skip=.
+

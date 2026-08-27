@@ -11,14 +11,14 @@ meta	reference_date	2026-06-17
 meta	runs	3
 meta	xlang_compile_shu	./compiler/xlang-c
 meta	notes	CI 安装见 tests/run-ci-full-suite.sh ci_install_zig；本地 tarball XLANG_CI_ZIG_VERSION=0.13.0
-case	loop_i32	microbench	loop_i32.zig		15	P0 microbench
-case	mem_copy	microbench	mem_copy.zig		15	P0 microbench
-case	struct_param	microbench	struct_param.zig		15	P0 microbench
-case	call_boundary	microbench	call_boundary.zig		15	P0 microbench
-case	io_mmap_throughput	io	io_mmap_throughput.zig		20	XLANG_IO_BENCH_MB=16
-case	io_batch_readv	io	io_batch_readv.zig		20	4×readv batch
-case	io_random_pread	io	io_random_pread.zig		20	1024×4KiB random pread
-case	io_write_throughput	io	io_write_throughput.zig		20	seq write
-case	zero_copy_sendfile	io	zero_copy_sendfile.zig		25	Linux sendfile
-case	net_echo_throughput	net	net_echo_throughput.zig		20	4×4KiB×1024 echo client
-case	net_mixed_conns_requests	net	net_mixed_conns_requests.zig		25	256×16×512B mixed + P99
+case	loop_i32	microbench	r01_loop_i32.zig		15	P0 microbench
+case	mem_copy	microbench	m03_mem_copy.zig		15	P0 microbench
+case	struct_param	microbench	r10_struct_param.zig		15	P0 microbench
+case	call_boundary	microbench	a01_call_boundary.zig		15	P0 microbench
+case	io_mmap_throughput	io	i01_io_mmap_throughput.zig		20	XLANG_IO_BENCH_MB=16
+case	io_batch_readv	io	i05_io_batch_readv.zig		20	4×readv batch
+case	io_random_pread	io	i01_io_random_pread.zig		20	1024×4KiB random pread
+case	io_write_throughput	io	i01_io_write_throughput.zig		20	seq write
+case	zero_copy_sendfile	io	i07_zero_copy_sendfile.zig		25	Linux sendfile
+case	net_echo_throughput	net	i03_net_echo_throughput.zig		20	4×4KiB×1024 echo client
+case	net_mixed_conns_requests	net	i04_net_mixed_conns_requests.zig		25	256×16×512B mixed + P99

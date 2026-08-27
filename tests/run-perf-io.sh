@@ -1,26 +1,80 @@
 #!/usr/bin/env bash
-# I/O 性能基线（NEXT I1/I2/I3/I4）：mmap / read_batch_fd(4段) / write，对比 Xlang / C -O2 / Zig -O2
-# 用法：./tests/run-perf-io.sh [--bench]
-# 门禁（可选）：
-#   XLANG_PERF_FAIL_ON_IO_ZIG=1 — Xlang default asm ≤ Zig -O2
-#   XLANG_PERF_FAIL_ON_IO_REGRESSION=1 — Xlang default asm ≤ tests/baseline/io-perf.tsv
-#   XLANG_PERF_UPDATE_BASELINE=1 — 用本次 median 刷新 io-perf.tsv
+# I/O perf baseline (mmap / read_batch_fd / write vs C -O2 / Zig -O2).
+#
+# Honesty: soft XLANG_PERF_FAIL_ON_IO_*: -0 previously left over-cap /
+# Zig-loss unchecked (silent OK = portable false-green). Soft auto-make
+# before resolve retired. Prefer product xlang_asm. Over-cap / Zig-loss =
+# obs (FAIL_ON=1 still hard). Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-perf-io.sh [--bench]
+# Env:
+#   XLANG_PERF_FAIL_ON_IO_ZIG=1 — Xlang ≤ Zig -O2 hard
+#   XLANG_PERF_FAIL_ON_IO_REGRESSION=1 — Xlang ≤ io-perf.tsv hard
+#   XLANG_PERF_UPDATE_BASELINE=1 — refresh io-perf.tsv
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-xlang_compiler_make ../std/io/io.o ../std/net/net.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o ../std/net/net.o
-
-# PERF-001：Zig 对标基线共享工具
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/zig-baseline.sh
-. "$(dirname "$0")/lib/zig-baseline.sh"
+. tests/lib/zig-baseline.sh
+# Honesty: do NOT auto-make before resolve.
 
-# CI make all 产出 C-only xlang；perf 编译统一用 xlang-c，避免 -backend 在 C-only xlang 上报错。
-PERF_COMPILE_XLANG=./compiler/xlang
-if [ -x ./compiler/xlang-c ]; then
-  PERF_COMPILE_XLANG=./compiler/xlang-c
-fi
+PREFIX="xlang: [XLANG_PERF_IO]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "io perf FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  # Explicit XLANG must be native — refuse soft fallthrough.
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+XLANG_RESOLVED="$(resolve_shu)" || die "no native xlang_asm/xlang-c/xlang (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_RESOLVED"
+export XLANG_LINK_XLANG="$XLANG_RESOLVED"
+# PLATFORM: DARWIN — hosted io benches need xlang-c (asm link __TEXT not r-x).
+# PLATFORM: LINUX — product asm is the compile authority.
+PERF_COMPILE_XLANG="$XLANG_RESOLVED"
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    if [ -x ./compiler/xlang-c ] && dod_native_exe "$(pwd)/compiler/xlang-c"; then
+      PERF_COMPILE_XLANG="$(pwd)/compiler/xlang-c"
+    fi
+    ;;
+esac
+echo "io perf: resolve=$XLANG_RESOLVED compile=$PERF_COMPILE_XLANG"
 
 BENCH_MMAP_FILE="bench/.io_mmap_bench_tmp"
 BENCH_WRITE_FILE="bench/.io_write_bench_tmp"
@@ -69,7 +123,7 @@ SENDFILE_SINK_BIN="/tmp/bench_io_sendfile_sink"
 
 # 预编译 sendfile sink（计时循环外一次，避免 cc 冷启动污染 median）。
 ensure_sendfile_sink() {
-  cc -O2 bench/zero_copy_sendfile_sink.c -o "$SENDFILE_SINK_BIN" 2>/dev/null || return 1
+  cc -O2 bench/i07_zero_copy_sendfile_sink.c -o "$SENDFILE_SINK_BIN" 2>/dev/null || return 1
   [ -x "$SENDFILE_SINK_BIN" ]
 }
 
@@ -98,7 +152,7 @@ compile_shu_sendfile() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      bench/zero_copy_sendfile.x >"/tmp/bench_io_sendfile.x"
+      bench/i07_zero_copy_sendfile.x >"/tmp/bench_io_sendfile.x"
   if ! $PERF_COMPILE_XLANG -L . "/tmp/bench_io_sendfile.x" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
     cat /tmp/bench_io_compile.log >&2
     return 1
@@ -134,7 +188,7 @@ median_shu_sendfile() {
 median_c_sendfile() {
   local i vals med port exe="/tmp/bench_io_c_sendfile"
   vals=""
-  cc -O2 bench/zero_copy_sendfile.c -o "$exe" 2>/dev/null || { echo "nan"; return 1; }
+  cc -O2 bench/i07_zero_copy_sendfile.c -o "$exe" 2>/dev/null || { echo "nan"; return 1; }
   ensure_sendfile_sink || { echo "nan"; return 1; }
   port=$(pick_free_port)
   time_sendfile_client "$exe" "$port" >/dev/null 2>&1 || true
@@ -154,7 +208,7 @@ median_c_sendfile() {
 median_zig_sendfile() {
   local i vals med port exe="/tmp/bench_io_zig_sendfile"
   vals=""
-  zig_build_exe_o2 bench/zero_copy_sendfile.zig "$exe" || { echo "nan"; return 0; }
+  zig_build_exe_o2 bench/i07_zero_copy_sendfile.zig "$exe" || { echo "nan"; return 0; }
   ensure_sendfile_sink || { echo "nan"; return 0; }
   port=$(pick_free_port)
   time_sendfile_client "$exe" "$port" >/dev/null 2>&1 || true
@@ -194,7 +248,7 @@ bench_io_sendfile_case() {
     echo "C -O2 ${name} median real: ${C_MED}s"
   fi
 
-  if command -v zig >/dev/null 2>&1 && [ -f bench/zero_copy_sendfile.zig ]; then
+  if command -v zig >/dev/null 2>&1 && [ -f bench/i07_zero_copy_sendfile.zig ]; then
     ZIG_MED=$(median_zig_sendfile)
     echo "Zig -O2 ${name} median real: ${ZIG_MED}s"
   fi
@@ -207,15 +261,7 @@ bench_io_sendfile_case() {
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
-  if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
-    if awk -v xlang="$XLANG_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "io perf gate OK: ${name} Xlang asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
-    else
-      echo "io perf gate FAIL: ${name} Xlang asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
-      PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
-    fi
-  fi
-
+  check_io_zig_regress "$name" "$XLANG_ASM_MED" "$ZIG_MED"
   check_io_baseline_regress "$name" "$XLANG_ASM_MED" "nan"
 
   IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${XLANG_ASM_MED};"
@@ -226,7 +272,7 @@ compile_shu_splice() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      bench/zero_copy_splice.x >"/tmp/bench_io_splice.x"
+      bench/i07_zero_copy_splice.x >"/tmp/bench_io_splice.x"
   if ! $PERF_COMPILE_XLANG -L . "/tmp/bench_io_splice.x" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
     cat /tmp/bench_io_splice_compile.log >&2
     return 1
@@ -302,15 +348,34 @@ io_baseline_cap() {
   awk -F'\t' -v n="$name" '$1==n && $1 !~ /^#/ { print $2; exit }' "${XLANG_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
 }
 
-# 门禁：Xlang median（asm 或 c）须 ≤ baseline cap。
+# Zig check: always compare when both medians exist. Loss = obs when
+# PERF_FAIL_IO=0; FAIL=1 still hard.
+check_io_zig_regress() {
+  local name="$1"
+  local xlang_med="$2"
+  local zig_med="$3"
+  if [ "$xlang_med" = "nan" ] || [ "$zig_med" = "nan" ] || [ -z "$zig_med" ]; then
+    return 0
+  fi
+  if awk -v xlang="$xlang_med" -v zig="$zig_med" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
+    echo "io perf zig OK: ${name} Xlang asm ${xlang_med}s <= Zig ${zig_med}s"
+  else
+    echo "io perf OBS: ${name} Xlang asm ${xlang_med}s > Zig ${zig_med}s" >&2
+    OBS=$((OBS + 1))
+    PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
+    if [ "$PERF_FAIL_IO" -eq 1 ]; then
+      : # hard exit deferred to end summary
+    fi
+  fi
+}
+
+# Cap check: always compare when measured. Over-cap = obs when
+# PERF_FAIL_REGRESS=0; FAIL=1 still hard. Refuse soft FAIL_ON:-0 silent OK.
 check_io_baseline_regress() {
   local name="$1"
   local xlang_asm_med="$2"
   local xlang_c_med="$3"
   local med_gate cap
-  if [ "$PERF_FAIL_REGRESS" -ne 1 ]; then
-    return 0
-  fi
   med_gate="$xlang_asm_med"
   if [ "$med_gate" = "nan" ] && [ "$xlang_c_med" != "nan" ]; then
     med_gate="$xlang_c_med"
@@ -320,19 +385,22 @@ check_io_baseline_regress() {
   fi
   cap=$(io_baseline_cap "$name")
   [ -z "$cap" ] && return 0
-  # CI 虚拟机抖动：与 compile-dogfood 一致给 40% 余量。
+  # CI VM jitter: 40% slack (same as compile-dogfood).
   if [ "$(echo "${CI:-}" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "${CI:-}" = "1" ]; then
     cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 1.4 }')
   fi
-  # Docker bind-mount（尤其 macOS 宿主）：bench 写放大，再放宽 cap。
+  # Docker bind-mount write amplification slack.
   if [ -f /.dockerenv ] || [ -n "${XLANG_CI_DOCKER:-}" ]; then
     cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 3.5 }')
   fi
   if awk -v xlang="$med_gate" -v cap="$cap" 'BEGIN { exit (xlang <= cap + 0.000001) ? 0 : 1 }'; then
     echo "io perf baseline OK: ${name} ${med_gate}s <= cap ${cap}s"
   else
-    echo "io perf baseline FAIL: ${name} ${med_gate}s > cap ${cap}s" >&2
-    exit 1
+    echo "io perf OBS: ${name} ${med_gate}s > cap ${cap}s" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL_REGRESS" -eq 1 ]; then
+      die "${name} ${med_gate}s > cap ${cap}s (XLANG_PERF_FAIL_ON_IO_REGRESSION=1)"
+    fi
   fi
 }
 
@@ -434,15 +502,7 @@ bench_io_case() {
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
-  if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
-    if awk -v xlang="$XLANG_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "io perf gate OK: ${name} Xlang asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
-    else
-      echo "io perf gate FAIL: ${name} Xlang asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
-      PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
-    fi
-  fi
-
+  check_io_zig_regress "$name" "$XLANG_ASM_MED" "$ZIG_MED"
   check_io_baseline_regress "$name" "$XLANG_ASM_MED" "$XLANGXX_C_MED"
 
   IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${XLANG_ASM_MED};"
@@ -452,19 +512,20 @@ ensure_io_mmap_bench_file
 
 if [ "$DO_BENCH" -eq 0 ]; then
   echo "run-perf-io: use --bench to run io_mmap_throughput + io_batch_readv + io_random_pread + io_write_throughput + zero_copy_sendfile + zero_copy_splice"
+  echo "${PREFIX} status=ok run=0 obs=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
 BASELINE="${XLANG_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
-bench_io_case io_mmap_throughput bench/io_mmap_throughput "${BENCH_MB}MiB mmap scan"
+bench_io_case io_mmap_throughput bench/i01_io_mmap_throughput "${BENCH_MB}MiB mmap scan"
 rm -f "$BENCH_MMAP_FILE"
 ensure_io_mmap_bench_file
-bench_io_case io_batch_readv bench/io_batch_readv "${BENCH_MB}MiB read_batch_fd 4×4KiB×1024"
+bench_io_case io_batch_readv bench/i05_io_batch_readv "${BENCH_MB}MiB read_batch_fd 4×4KiB×1024"
 rm -f "$BENCH_MMAP_FILE"
 ensure_io_mmap_bench_file
-bench_io_case io_random_pread bench/io_random_pread "${BENCH_MB}MiB fs_pread random 4KiB×1024"
+bench_io_case io_random_pread bench/i01_io_random_pread "${BENCH_MB}MiB fs_pread random 4KiB×1024"
 rm -f "$BENCH_MMAP_FILE"
-bench_io_case io_write_throughput bench/io_write_throughput "${BENCH_MB}MiB write (4KiB×4096)"
+bench_io_case io_write_throughput bench/i01_io_write_throughput "${BENCH_MB}MiB write (4KiB×4096)"
 rm -f "$BENCH_WRITE_FILE"
 bench_io_sendfile_case
 rm -f "$BENCH_MMAP_FILE"
@@ -499,8 +560,10 @@ if [ "${XLANG_PERF_UPDATE_BASELINE:-0}" = "1" ]; then
 fi
 
 if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$PERF_IO_FAILS" -gt 0 ]; then
-  echo "io perf FAIL: ${PERF_IO_FAILS} case(s) slower than Zig -O2" >&2
-  exit 1
+  die "${PERF_IO_FAILS} case(s) slower than Zig -O2 (XLANG_PERF_FAIL_ON_IO_ZIG=1)"
 fi
 
+RUN_OK=1
 echo "=== io perf OK ==="
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+exit 0

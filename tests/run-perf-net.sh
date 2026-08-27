@@ -1,22 +1,88 @@
 #!/usr/bin/env bash
-# L0 网络性能基线（NEXT N1/N2/N3/N4 + PERF-003）：accept_many + echo + mixed + UDP
-# 用法：./tests/run-perf-net.sh [--bench]
-# 门禁（可选）：
-#   XLANG_PERF_FAIL_ON_NET_REGRESSION=1 — Xlang default asm ≤ tests/baseline/net-perf.tsv
-#   XLANG_PERF_FAIL_ON_NET_ZIG=1 — Xlang client median ≤ Zig -O2（echo + mixed）
-#   XLANG_PERF_FAIL_ON_NET_P99=1 — mixed P99 ≤ tests/baseline/net-perf-latency.tsv
-#   XLANG_PERF_FAIL_ON_ZC1=1 — Linux：provided echo 须比 batch 中位数快 ≥10%
-#   XLANG_PERF_UPDATE_NET_BASELINE=1 — 用本次 median 刷新 net-perf.tsv / net-perf-latency.tsv
+# L0 network perf baseline (accept_many + echo + mixed + UDP; PERF-003).
+#
+# Honesty: soft XLANG_PERF_FAIL_ON_NET_*: -0 previously left over-cap /
+# Zig-loss / P99 unchecked (silent OK = portable false-green). Soft
+# auto-make before resolve retired. Prefer product xlang_asm. Over-cap =
+# obs (FAIL_ON=1 still hard). Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-perf-net.sh [--bench]
+# Env:
+#   XLANG_PERF_FAIL_ON_NET_REGRESSION=1 — ≤ net-perf.tsv hard
+#   XLANG_PERF_FAIL_ON_NET_ZIG=1 — ≤ Zig -O2 hard
+#   XLANG_PERF_FAIL_ON_NET_P99=1 — ≤ net-perf-latency.tsv hard
+#   XLANG_PERF_FAIL_ON_ZC1=1 — Linux provided echo ≥10% faster than batch
+#   XLANG_PERF_UPDATE_NET_BASELINE=1 — refresh baselines
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/zig-baseline.sh
-. "$(dirname "$0")/lib/zig-baseline.sh"
+. tests/lib/zig-baseline.sh
 # shellcheck source=tests/lib/perf-net-zc.sh
-. "$(dirname "$0")/lib/perf-net-zc.sh"
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-xlang_compiler_make ../std/net/net.o ../std/thread/thread.o -q 2>/dev/null || xlang_compiler_make ../std/net/net.o ../std/thread/thread.o
+. tests/lib/perf-net-zc.sh
+# Honesty: do NOT auto-make before resolve.
+
+PREFIX="xlang: [XLANG_PERF_NET]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "net perf FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  # Explicit XLANG must be native — refuse soft fallthrough.
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang_asm/xlang-c/xlang (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+# PLATFORM: DARWIN — hosted net benches prefer xlang-c (asm __TEXT not r-x).
+# PLATFORM: LINUX — product asm / xlang build.
+NET_BUILD_XLANG="$XLANG_BIN"
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    if [ -x ./compiler/xlang-c ] && dod_native_exe "$(pwd)/compiler/xlang-c"; then
+      NET_BUILD_XLANG="$(pwd)/compiler/xlang-c"
+    fi
+    ;;
+esac
+echo "net perf: resolve=$XLANG_BIN build=$NET_BUILD_XLANG"
+# Historical "net_build" → NET_BUILD (thin wrapper).
+net_build() {
+  "$NET_BUILD_XLANG" build "$@"
+}
 
 NET_BENCH_PORT_DEFAULT=38456
 NET_ECHO_PORT_DEFAULT=38457
@@ -54,7 +120,7 @@ compile_xlang_x() {
   local out="$4"
   rm -f "$out"
   sed -e "s/${port_marker}/${port}/g" "$src_template" >"/tmp/bench_net_src_${port}.x"
-  if ! ./compiler/xlang build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  if ! net_build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -70,7 +136,7 @@ compile_shu_accept() {
   sed -e "s/${NET_BENCH_PORT_DEFAULT}/${port}/g" \
       -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
       "$src_template" >"/tmp/bench_net_src_${port}.x"
-  if ! ./compiler/xlang build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  if ! net_build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -87,7 +153,7 @@ compile_shu_udp() {
       -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
       -e "s/batch, 5000/batch, 200/" \
       "$src_template" >"/tmp/bench_net_src_${port}.x"
-  if ! ./compiler/xlang build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  if ! net_build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -142,7 +208,7 @@ median_accept_pair() {
   xlang_exe="/tmp/bench_net_shu_${tag}"
   sed -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
       "$su_template" >"/tmp/bench_net_accept.x"
-  if ! ./compiler/xlang build -L . "/tmp/bench_net_accept.x" -o "$xlang_exe" >/tmp/bench_net_compile.log 2>&1; then
+  if ! net_build -L . "/tmp/bench_net_accept.x" -o "$xlang_exe" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     echo "nan"
     return 1
@@ -211,15 +277,25 @@ net_case_median_from_meds() {
 check_net_regress() {
   local name="$1"
   local xlang_med="$2"
-  if [ "$PERF_FAIL_REGRESS" -eq 1 ] && [ "$xlang_med" != "nan" ]; then
-    cap=$(net_baseline_cap "$name")
-    if [ -n "$cap" ]; then
-      if awk -v xlang="$xlang_med" -v cap="$cap" 'BEGIN { exit (xlang <= cap + 0.000001) ? 0 : 1 }'; then
-        echo "net perf baseline OK: ${name} ${xlang_med}s <= cap ${cap}s"
-      else
-        echo "net perf baseline FAIL: ${name} ${xlang_med}s > cap ${cap}s" >&2
-        exit 1
-      fi
+  local cap
+  if [ "$xlang_med" = "nan" ] || [ -z "$xlang_med" ]; then
+    # Compile/run failure must not soft-silence as plain OK.
+    echo "net perf OBS: ${name} xlang median nan (compile/run residual)" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL_REGRESS" -eq 1 ]; then
+      die "${name} xlang median nan (XLANG_PERF_FAIL_ON_NET_REGRESSION=1)"
+    fi
+    return 0
+  fi
+  cap=$(net_baseline_cap "$name")
+  [ -n "$cap" ] || return 0
+  if awk -v xlang="$xlang_med" -v cap="$cap" 'BEGIN { exit (xlang <= cap + 0.000001) ? 0 : 1 }'; then
+    echo "net perf baseline OK: ${name} ${xlang_med}s <= cap ${cap}s"
+  else
+    echo "net perf OBS: ${name} ${xlang_med}s > cap ${cap}s" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL_REGRESS" -eq 1 ]; then
+      die "${name} ${xlang_med}s > cap ${cap}s (XLANG_PERF_FAIL_ON_NET_REGRESSION=1)"
     fi
   fi
 }
@@ -238,15 +314,19 @@ net_latency_cap() {
 check_net_p99_regress() {
   local name="$1"
   local p99_us="$2"
-  if [ "$PERF_FAIL_P99" -eq 1 ] && [ -n "$p99_us" ] && [ "$p99_us" != "nan" ]; then
-    cap=$(net_latency_cap "$name")
-    if [ -n "$cap" ]; then
-      if awk -v p="$p99_us" -v cap="$cap" 'BEGIN { exit (p <= cap + 0.5) ? 0 : 1 }'; then
-        echo "net p99 baseline OK: ${name} ${p99_us}us <= cap ${cap}us"
-      else
-        echo "net p99 baseline FAIL: ${name} ${p99_us}us > cap ${cap}us" >&2
-        exit 1
-      fi
+  local cap
+  if [ -z "$p99_us" ] || [ "$p99_us" = "nan" ]; then
+    return 0
+  fi
+  cap=$(net_latency_cap "$name")
+  [ -n "$cap" ] || return 0
+  if awk -v p="$p99_us" -v cap="$cap" 'BEGIN { exit (p <= cap + 0.5) ? 0 : 1 }'; then
+    echo "net p99 baseline OK: ${name} ${p99_us}us <= cap ${cap}us"
+  else
+    echo "net p99 OBS: ${name} ${p99_us}us > cap ${cap}us" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL_P99" -eq 1 ]; then
+      die "${name} ${p99_us}us > cap ${cap}us (XLANG_PERF_FAIL_ON_NET_P99=1)"
     fi
   fi
 }
@@ -255,12 +335,16 @@ check_net_zig() {
   local name="$1"
   local xlang_med="$2"
   local zig_med="$3"
-  if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$xlang_med" != "nan" ] && [ "$zig_med" != "nan" ]; then
-    if awk -v xlang="$xlang_med" -v zig="$zig_med" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "net zig OK: ${name} Xlang ${xlang_med}s <= Zig ${zig_med}s"
-    else
-      echo "net zig FAIL: ${name} Xlang ${xlang_med}s > Zig ${zig_med}s" >&2
-      exit 1
+  if [ "$xlang_med" = "nan" ] || [ "$zig_med" = "nan" ] || [ -z "$zig_med" ]; then
+    return 0
+  fi
+  if awk -v xlang="$xlang_med" -v zig="$zig_med" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
+    echo "net zig OK: ${name} Xlang ${xlang_med}s <= Zig ${zig_med}s"
+  else
+    echo "net zig OBS: ${name} Xlang ${xlang_med}s > Zig ${zig_med}s" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL_ZIG" -eq 1 ]; then
+      die "${name} Xlang ${xlang_med}s > Zig ${zig_med}s (XLANG_PERF_FAIL_ON_NET_ZIG=1)"
     fi
   fi
 }
@@ -276,7 +360,7 @@ bench_net_accept_case() {
 
   echo "=== bench/${name} (${NET_BENCH_CONNS} conns @ 127.0.0.1:<dynamic>, default ${NET_BENCH_PORT_DEFAULT}) ==="
 
-  if ! cc -O2 bench/net_accept_many_client.c -o "$CLIENT" 2>/dev/null; then
+  if ! cc -O2 bench/i04_net_accept_many_client.c -o "$CLIENT" 2>/dev/null; then
     echo "run-perf-net: failed to build client" >&2
     exit 1
   fi
@@ -329,7 +413,7 @@ median_echo_pair() {
   cc -O2 "$c_server" -o "$srv" 2>/dev/null || return 1
   if [ "$use_shu" -eq 1 ]; then
     exe="/tmp/bench_net_shu_${tag}"
-    if ! ./compiler/xlang build -L . "$su_template" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
+    if ! net_build -L . "$su_template" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
       cat /tmp/bench_net_compile.log >&2
       return 1
     fi
@@ -366,7 +450,8 @@ bench_net_echo_case() {
   local XLANG_MED="nan"
   local C_MED="nan"
   local ZIG_MED="nan"
-  local zig_src="bench/${name}.zig"
+  # Derive zig from remapped .x path (i03_/i04_…); refuse stale bench/${name}.zig.
+  local zig_src="${su_client%.x}.zig"
 
   echo "=== bench/${name} (4×4KiB×1024 echo @ 127.0.0.1:<dynamic>, default ${NET_ECHO_PORT_DEFAULT}) ==="
 
@@ -486,11 +571,12 @@ bench_net_mixed_case() {
   local C_PAIR="nan:nan"
   local ZIG_PAIR="nan:nan"
   local XLANG_MED C_MED ZIG_MED XLANG_P99 C_P99 ZIG_P99
-  local zig_src="bench/${name}.zig"
+  # Derive zig from remapped .x path (i03_/i04_…); refuse stale bench/${name}.zig.
+  local zig_src="${su_client%.x}.zig"
 
   echo "=== bench/${name} (256×16×512B connect+echo @ 127.0.0.1:<dynamic>, default ${NET_MIXED_PORT_DEFAULT}) ==="
 
-  if ! ./compiler/xlang build -L . "$su_client" -o "/tmp/bench_net_shu_${tag}" >/tmp/bench_net_compile.log 2>&1; then
+  if ! net_build -L . "$su_client" -o "/tmp/bench_net_shu_${tag}" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
   elif [ -x "/tmp/bench_net_shu_${tag}" ]; then
     XLANG_PAIR=$(median_mixed_client "/tmp/bench_net_shu_${tag}" "$c_server" "${tag}s_")
@@ -543,7 +629,7 @@ bench_net_echo_provided_case() {
 
   echo "=== bench/${name} (ZC-1 provided read + batch write @ 127.0.0.1:<dynamic>) ==="
 
-  XLANG_MED=$(median_echo_pair "$su_client" "$c_server" bench/net_echo_throughput.c "$tag" 1)
+  XLANG_MED=$(median_echo_pair "$su_client" "$c_server" bench/i03_net_echo_throughput.c "$tag" 1)
   echo "Xlang (stream_read_batch_provided) ${name} median real: ${XLANG_MED}s"
 
   BATCH_MED=$(net_case_median_from_meds net_echo_throughput || true)
@@ -556,10 +642,10 @@ bench_net_echo_provided_case() {
     if awk -v r="$ratio" 'BEGIN { exit (r + 0 >= 10.0) ? 0 : 1 }'; then
       echo "ZC-1 provided vs batch OK (${ratio}% faster)"
     else
-      echo "ZC-1 provided vs batch: ${ratio}% (stretch target -10%)"
+      echo "ZC-1 OBS: provided vs batch ${ratio}% (stretch target -10%)" >&2
+      OBS=$((OBS + 1))
       if [ "$PERF_FAIL_ZC1" -eq 1 ]; then
-        echo "ZC-1 FAIL: provided echo not ≥10% faster than batch" >&2
-        exit 1
+        die "provided echo not ≥10% faster than batch (XLANG_PERF_FAIL_ON_ZC1=1)"
       fi
     fi
   fi
@@ -584,7 +670,7 @@ bench_net_echo_provided_case() {
         prov_cycles="$perf_nz_cycles"
         nz_cpm_prov=$(perf_nz_cycles_per_mib "$prov_cycles" 33554432)
         batch_exe="/tmp/bench_net_shu_nz_batch_$$"
-        if ./compiler/xlang build -L . bench/net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
+        if net_build -L . bench/i03_net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
           && [ -x "$batch_exe" ]; then
           port=$(pick_free_port)
           if perf_nz_run_echo_cycles "$batch_exe" "$c_server" "$port"; then
@@ -642,7 +728,7 @@ median_udp_pair() {
     sed -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
         -e "s/batch, 5000/batch, 200/" \
         "$su_template" >"/tmp/bench_udp.x"
-    if ! ./compiler/xlang build -L . "/tmp/bench_udp.x" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
+    if ! net_build -L . "/tmp/bench_udp.x" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
       cat /tmp/bench_net_compile.log >&2
       echo "nan"
       return 1
@@ -682,7 +768,7 @@ bench_net_udp_case() {
 
   echo "=== bench/${name} (${NET_UDP_PKTS} pkts×${NET_UDP_PKT_LEN}B batch=${NET_UDP_BATCH} @ 127.0.0.1:<dynamic>) ==="
 
-  if ! cc -O2 bench/net_udp_many_client.c -o "$CLIENT" 2>/dev/null; then
+  if ! cc -O2 bench/i04_net_udp_many_client.c -o "$CLIENT" 2>/dev/null; then
     echo "run-perf-net: failed to build udp client" >&2
     exit 1
   fi
@@ -706,29 +792,31 @@ bench_net_udp_case() {
 
 if [ "$DO_BENCH" -eq 0 ]; then
   echo "run-perf-net: use --bench to run net_accept_many + net_echo_throughput + net_mixed + net_udp_many"
+  echo "${PREFIX} status=ok run=0 obs=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
 BASELINE="${XLANG_PERF_NET_BASELINE:-tests/baseline/net-perf.tsv}"
 LAT_BASELINE="${XLANG_PERF_NET_LATENCY_BASELINE:-tests/baseline/net-perf-latency.tsv}"
-bench_net_accept_case net_accept_many bench/net_accept_many.x bench/net_accept_many_server.c
-bench_net_echo_case net_echo_throughput bench/net_echo_throughput.x \
-  bench/net_echo_throughput_server.c bench/net_echo_throughput.c
-bench_net_mixed_case net_mixed_conns_requests bench/net_mixed_conns_requests.x \
-  bench/net_mixed_conns_requests_server.c bench/net_mixed_conns_requests.c
+bench_net_accept_case net_accept_many bench/i04_net_accept_many.x bench/i04_net_accept_many_server.c
+bench_net_echo_case net_echo_throughput bench/i03_net_echo_throughput.x \
+  bench/i03_net_echo_throughput_server.c bench/i03_net_echo_throughput.c
+bench_net_mixed_case net_mixed_conns_requests bench/i04_net_mixed_conns_requests.x \
+  bench/i04_net_mixed_conns_requests_server.c bench/i04_net_mixed_conns_requests.c
 if [ "$(uname -s)" = "Linux" ]; then
   # shellcheck source=tests/lib/io-uring-probe.sh
   . tests/lib/io-uring-probe.sh
   if io_uring_available; then
     chmod +x tests/run-provided-buffers.sh 2>/dev/null || true
     ./tests/run-provided-buffers.sh
-    bench_net_echo_provided_case net_echo_throughput_provided bench/net_echo_throughput_provided.x \
-      bench/net_echo_throughput_server.c
+    bench_net_echo_provided_case net_echo_throughput_provided bench/i03_net_echo_throughput_provided.x \
+      bench/i03_net_echo_throughput_server.c
   else
     echo "ZC-1 provided bench SKIP (io_uring unavailable on this kernel; e.g. Mac Docker linuxkit)"
+    SKIP=$((SKIP + 1))
   fi
 fi
-bench_net_udp_case net_udp_many bench/net_udp_many.x bench/net_udp_many_server.c
+bench_net_udp_case net_udp_many bench/i04_net_udp_many.x bench/i04_net_udp_many_server.c
 
 if [ "${XLANG_PERF_UPDATE_NET_BASELINE:-0}" = "1" ]; then
   {
@@ -776,4 +864,7 @@ if [ "${XLANG_PERF_UPDATE_NET_BASELINE:-0}" = "1" ] && [ -n "$NET_CASE_P99S" ]; 
   echo "run-perf-net: updated $LAT_BASELINE"
 fi
 
+RUN_OK=1
 echo "=== net perf OK ==="
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+exit 0

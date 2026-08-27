@@ -104,3 +104,8 @@ XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench
 | Zig pin | `analysis/perf-zig-baseline-v1.md` |
 
 **PERF-002 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON:-0 silent OK; over-cap = obs; report run=/obs=/skip=.
+
