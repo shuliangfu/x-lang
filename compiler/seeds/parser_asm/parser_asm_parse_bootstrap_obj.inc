@@ -9,12 +9,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "token.h"
 #include "ast.h"
-/* PLATFORM: SHARED — <stdio.h> required: seed_parse_into_buf_slice.inc uses
- * fprintf(stderr) debug paths; thin_c.from_x.c already includes stdio. */
+/* PLATFORM: SHARED — <stdio.h>/<stdlib.h> required: seed_parse_into_buf_slice.inc
+ * uses fprintf(stderr) and getenv("XLANG_DBG_FUNC"); thin_c.from_x.c already has both. */
 
 /** 与 parser_asm_thin_c.c / token.x 布局一致。 */
 struct parser_asm_token {
