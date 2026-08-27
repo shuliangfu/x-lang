@@ -1,6 +1,8 @@
 # 阶段 C-07 完成标准 v1（NEXT §6）
 
 > **目标**：`.x` 前端编译器（xlang / xlang_asm）与 C 前端（xlang-c）对**同一输入**行为一致（v1 不测二进制像素级 / AST 字节级）。
+>
+> **Honesty 2026-08-27:** top-level DOC + soft `XLANG_C07_FAIL` + soft SKIP-when-no-REF/CAND retired (missing DOC was portable false-green). Live = this archive path.
 
 ## v1 完成（✅）
 
@@ -19,6 +21,20 @@
 - **run 用例**：`tests/c07/minimal_*.x`（无 std import）
 - **compile_fail 用例**：`tests/typeck/*` 类型错误
 - **默认**：typeck-only（无 `-o`）；完整 `-o` run 需 `XLANG_C07_TRY_RUN=1` + liburing
+
+## Gate
+
+```bash
+./tests/run-c07-frontend-parity-gate.sh
+# Optional run parity:
+#   XLANG_C07_TRY_RUN=1 ./tests/run-c07-frontend-parity-gate.sh
+# Report: ref=/pass=/obs=/parity=/skip=
+# Soft XLANG_C07_FAIL + soft SKIP-when-missing-compiler + soft die on missing DOC retired.
+# Hard: archive DOC + ## Gate + both native REF/CAND + REF typeck_ok / compile_fail.
+# Observational: CAND `-backend c` parity (tip may SEGV / diverge; parity=0).
+```
+
+PLATFORM: SHARED archaeology.
 
 ## 延后（C-07 v2+）
 

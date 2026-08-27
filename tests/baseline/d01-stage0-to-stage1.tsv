@@ -1,9 +1,10 @@
 # D-01 Stage0→Stage1 盘点（manifest）
 # 列：item_id	layer	anchor	check_type	gate_or_notes
-stage0_seed	makefile	bootstrap-driver-seed	grep	Stage 0 seed xlang
-stage1_bstrict	makefile	bootstrap-driver-bstrict	grep	XLANG_ASM_EXPERIMENTAL_SKIP_GEN
-build_asm	script	compiler/scripts/build_xlang_asm.sh	grep	SKIP_GEN strict
-stage1_binary	artifact	compiler/xlang_asm	exists	Stage 1 output
+# honesty 2026-08-27: Makefile retired → xbuild + bootstrap_driver_bstrict.sh.
+stage0_seed	script	compiler/scripts/build_xlang_asm.sh	grep	seed reference
+stage1_bstrict	script	compiler/scripts/bootstrap_driver_bstrict.sh	grep	XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1
+build_asm	script	compiler/scripts/build_xlang_asm.sh	grep	SKIP_GEN
+stage1_xbuild	script	xlang-build.sh	grep	bootstrap-driver-bstrict
 d01_gate	gate	tests/run-d01-stage0-to-stage1-gate.sh	gate_ref	phase D closure
 d05_release	cross_ref	tests/run-d05-single-xlang-release-gate.sh	gate_ref	xlang = xlang_asm
 c03_no_pipeline	cross_ref	tests/run-c03-no-pipeline-gen-gate.sh	gate_ref	no pipeline_gen cc

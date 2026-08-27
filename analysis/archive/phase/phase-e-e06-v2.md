@@ -1,6 +1,8 @@
 # 阶段 E-06 v2（experimental 链跳过 asm_driver_seed 前端 cc -c）
 
-> **E-06 v2**：`XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1` 且 `parser_x.o` 等 X 前端就绪时，**experimental bootstrap** 不再 `cc -c` / 链接 `asm_driver_seed` 内 E-03 软退役前端 `.c`；strict 第二遍见 **E-06 v3**（`analysis/phase-e-e06-v3.md`）。
+> **E-06 v2**：`XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1` 且 `parser_x.o` 等 X 前端就绪时，**experimental bootstrap** 不再 `cc -c` / 链接 `asm_driver_seed` 内 E-03 软退役前端 `.c`；strict 第二遍见 **E-06 v3**（`analysis/archive/phase/phase-e-e06-v3.md`）。
+>
+> **Honesty 2026-08-27:** top-level DOC + soft `XLANG_E06_FAIL` retired (missing DOC/Makefile was portable false-green). Live = this archive path + `bootstrap_driver_bstrict.sh` + `./xbuild`.
 
 ## v2 完成（✅）
 
@@ -16,14 +18,20 @@
 
 | 路径 | 说明 |
 |------|------|
-| ~~strict 第二遍~~ | ✅ E-06 v3：`analysis/phase-e-e06-v3.md` |
+| ~~strict 第二遍~~ | ✅ E-06 v3：`analysis/archive/phase/phase-e-e06-v3.md` |
 | gen_driver 回退 | 全量 `ensure_asm_driver_seed_c_objs` |
 | Windows B-strict | 硬禁 `pipeline_gen.c`（C-03 v2） |
 
-## 复现
+## Gate
 
 ```bash
-XLANG_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
-make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
-XLANG_E06_BUILD_LOG=/tmp/build_bstrict.log XLANG_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+./tests/run-e06-no-compiler-frontend-cc-gate.sh
+# Optional full audit after bstrict:
+#   ./xbuild bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
+#   XLANG_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+# Report: doc=/bstrict=/build=/c03=/c06=/skip=
+# Soft XLANG_E06_FAIL + top-level DOC/Makefile anchors retired (die always hard).
+# Delegates: C-03 no-pipeline-gen + C-06 x-frontend-default (already hard).
 ```
+
+PLATFORM: SHARED archaeology.

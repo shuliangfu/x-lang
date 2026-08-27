@@ -26,6 +26,21 @@
 - **main.c**：3 行有效代码 + 文件头注释
 - **fmt_check_cmd.c** 等 driver C 实现（driver.x 为薄委托）
 
+## Gate
+
+```bash
+./tests/run-c08-runtime-driver-gate.sh
+# Children (also runnable alone):
+#   ./tests/run-c08-main-entry-gate.sh
+#   ./tests/run-c08-driver-x-gate.sh
+#   ./tests/run-c08-build-x-gate.sh
+#   ./tests/run-c08-runtime-inventory-gate.sh
+# Report: ok=/skip= (aggregate)
+# Soft XLANG_C08_FAIL retired (incomplete ok<4 was portable false-green; die always hard).
+```
+
+PLATFORM: SHARED archaeology.
+
 ## 延后（C-08 v2+）
 
 - runtime.c 删至仅 ABI（程度 4 / 阶段 E）
