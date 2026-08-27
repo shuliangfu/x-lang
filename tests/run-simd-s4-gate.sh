@@ -1,47 +1,80 @@
 #!/usr/bin/env bash
-# SIMD-S4 门禁：shuffle（pshufd）+ select（pcmpgtd/pand/por）；无 objdump 时仅编译 smoke。
-# 用法：
-#   ./tests/run-simd-s4-gate.sh
-#   XLANG=./compiler/xlang_asm ./tests/run-simd-s4-gate.sh
+# SIMD-S4 gate: shuffle (pshufd) + select (pcmpgtd/pand/por); no objdump → compile smoke.
+#
+# Honesty: soft SKIP→OK when no native xlang retired; prefer-c / force -backend c
+# on non-x86 (BLD001 host-cc-requires-allow false-red) retired — product asm -o.
+# Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die. Missing HW insn (non-strict / non-x86) = obs. Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-simd-s4-gate.sh
+# 2026-08-27: soft SKIP→OK / prefer-c →硬绿.
+# PLATFORM: SHARED — Ubuntu x86_64 hard HW; Darwin/ARM observational HW.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-XLANG_BIN="${XLANG:-}"
-case "$XLANG_BIN" in
-  /*) XLANG_ABS="$XLANG_BIN" ;;
-  "") XLANG_ABS="" ;;
-  *) XLANG_ABS="$(pwd)/$XLANG_BIN" ;;
-esac
+PREFIX="${XLANG_SIMD_S4_PREFIX:-xlang: [XLANG_SIMD_S4]}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-simd_s4_native_exe() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "simd-s4 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-if [ -z "$XLANG_ABS" ] || ! simd_s4_native_exe "$XLANG_ABS"; then
-  XLANG_ABS=""
-  for cand in ./compiler/xlang ./compiler/xlang_asm; do
-    case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
-    if simd_s4_native_exe "$abs"; then
-      XLANG_ABS="$abs"
-      break
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
   done
-fi
+  return 1
+}
+
+hw_check() {
+  local disasm="$1" re="$2" label="$3" obj="$4"
+  if echo "$disasm" | grep -qE "$re"; then
+    echo "simd-s4: $label"
+    RUN_OK=$((RUN_OK + 1))
+  elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
+    die "no match /$re/ in $obj ($label)"
+  else
+    echo "simd-s4 WARN: no match /$re/ in $label (obs)"
+    OBS=$((OBS + 1))
+  fi
+}
 
 echo "=== SIMD-S4: comptime shuffle + select smoke ==="
-
-if [ -z "$XLANG_ABS" ] || ! simd_s4_native_exe "$XLANG_ABS"; then
-  echo "simd-s4 gate SKIP (no native xlang/xlang_asm)"
-  exit 0
-fi
+XLANG_ABS="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_ABS"
+export XLANG_LINK_XLANG="$XLANG_ABS"
 
 VEC4F_SRC="tests/simd/vec4f_shuffle_smoke.x"
 VEC8I_SRC="tests/simd/vec8i_shuffle_smoke.x"
@@ -59,54 +92,33 @@ rm -f "$VEC4F_O" "$VEC8I_O" "$VEC8I_SEL_O" "$VEC4F_SEL_O" "$AT_O" "$DOT_O"
 
 ARCH="$(uname -m 2>/dev/null || echo unknown)"
 
-# Compile one smoke to $2. PLATFORM: SHARED harness.
-# - x86_64: default backend (asm) so later objdump can see pshufd/pcmpgtd.
-# - other (e.g. Darwin arm64): -backend c — pure asm -o *.o can CG002 on Vec4f mul
-#   benches while HW insn checks are already skipped off-x86.
-# Bare `xlang file.x -o out` is product CLI (main_entry); keep that form on x86.
+# Product asm -o *.o on all hosts. Prior -backend c on non-x86 hit BLD001
+# host-cc-requires-allow (portable false-red). PLATFORM: SHARED.
 simd_s4_compile() {
   local src="$1"
   local out="$2"
-  if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
-    XLANG="$XLANG_ABS" "$XLANG_ABS" "$src" -o "$out"
-  else
-    XLANG="$XLANG_ABS" "$XLANG_ABS" build -backend c "$src" -o "$out"
-  fi
+  [ -f "$src" ] || die "missing $src"
+  "$XLANG_ABS" "$src" -o "$out"
 }
 
-if ! simd_s4_compile "$VEC4F_SRC" "$VEC4F_O"; then
-  echo "simd-s4 FAIL: compile $VEC4F_SRC" >&2
-  exit 1
-fi
-
-if ! simd_s4_compile "$VEC8I_SRC" "$VEC8I_O"; then
-  echo "simd-s4 FAIL: compile $VEC8I_SRC" >&2
-  exit 1
-fi
-
-if ! simd_s4_compile "$VEC8I_SEL_SRC" "$VEC8I_SEL_O"; then
-  echo "simd-s4 FAIL: compile $VEC8I_SEL_SRC" >&2
-  exit 1
-fi
-
-if ! simd_s4_compile "$VEC4F_SEL_SRC" "$VEC4F_SEL_O"; then
-  echo "simd-s4 FAIL: compile $VEC4F_SEL_SRC" >&2
-  exit 1
-fi
-
-if ! simd_s4_compile "$AT_SRC" "$AT_O"; then
-  echo "simd-s4 FAIL: compile $AT_SRC" >&2
-  exit 1
-fi
-
-if ! simd_s4_compile "$DOT_SRC" "$DOT_O"; then
-  echo "simd-s4 FAIL: compile $DOT_SRC" >&2
-  exit 1
-fi
+for pair in \
+  "$VEC4F_SRC|$VEC4F_O" \
+  "$VEC8I_SRC|$VEC8I_O" \
+  "$VEC8I_SEL_SRC|$VEC8I_SEL_O" \
+  "$VEC4F_SEL_SRC|$VEC4F_SEL_O" \
+  "$AT_SRC|$AT_O" \
+  "$DOT_SRC|$DOT_O"
+do
+  src="${pair%%|*}"
+  obj="${pair##*|}"
+  if ! simd_s4_compile "$src" "$obj"; then
+    die "compile $src"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+done
 
 if [ ! -f "$VEC4F_O" ] || [ ! -f "$VEC8I_O" ] || [ ! -f "$VEC8I_SEL_O" ] || [ ! -f "$VEC4F_SEL_O" ] || [ ! -f "$AT_O" ] || [ ! -f "$DOT_O" ]; then
-  echo "simd-s4 FAIL: missing object file" >&2
-  exit 1
+  die "missing object file"
 fi
 
 if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
@@ -115,41 +127,14 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     V8_DISAS="$(objdump -d "$VEC8I_O" 2>/dev/null || true)"
     V8_SEL_DISAS="$(objdump -d "$VEC8I_SEL_O" 2>/dev/null || true)"
     V4_SEL_DISAS="$(objdump -d "$VEC4F_SEL_O" 2>/dev/null || true)"
-    if echo "$V4_DISAS" | grep -qE 'pshufd'; then
-      echo "simd-s4: vec4f_shuffle pshufd insn present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no pshufd in $VEC4F_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no pshufd in vec4f shuffle smoke (rebuild xlang_asm with simd_enc.o)"
-    fi
-    if echo "$V8_DISAS" | grep -qE 'vpshufd|pshufd'; then
-      echo "simd-s4: vec8i_shuffle vpshufd/pshufd insn present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no vpshufd/pshufd in $VEC8I_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no vpshufd/pshufd in vec8i shuffle smoke"
-    fi
-    if echo "$V8_SEL_DISAS" | grep -qE 'pcmpgtd|vpcmpgtd'; then
-      echo "simd-s4: vec8i_select pcmpgtd/vpcmpgtd insn present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no pcmpgtd/vpcmpgtd in $VEC8I_SEL_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no pcmpgtd/vpcmpgtd in vec8i select smoke"
-    fi
+    hw_check "$V4_DISAS" 'pshufd' 'vec4f_shuffle pshufd insn present' "$VEC4F_O"
+    hw_check "$V8_DISAS" 'vpshufd|pshufd' 'vec8i_shuffle vpshufd/pshufd insn present' "$VEC8I_O"
+    hw_check "$V8_SEL_DISAS" 'pcmpgtd|vpcmpgtd' 'vec8i_select pcmpgtd/vpcmpgtd insn present' "$VEC8I_SEL_O"
     # cmpps $6 / cmpnleps is the SSE mnemonic for cmpgtps (0F C2 /r /6).
-    if echo "$V4_SEL_DISAS" | grep -qE 'cmpgtps|vcmpgtps|cmpnleps|cmpps'; then
-      echo "simd-s4: vec4f_select cmpgtps/cmpnleps insn present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no cmpgtps/cmpnleps in $VEC4F_SEL_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no cmpgtps/cmpnleps in vec4f select smoke"
-    fi
+    hw_check "$V4_SEL_DISAS" 'cmpgtps|vcmpgtps|cmpnleps|cmpps' 'vec4f_select cmpgtps/cmpnleps insn present' "$VEC4F_SEL_O"
   else
-    echo "simd-s4: objdump missing; compile-only OK"
+    echo "simd-s4: objdump missing; compile-only observational"
+    OBS=$((OBS + 1))
   fi
 else
   echo "simd-s4: non-x86_64 host ($ARCH)"
@@ -158,41 +143,17 @@ else
     V8_DISAS="$(otool -tV "$VEC8I_O" 2>/dev/null || true)"
     V8_SEL_DISAS="$(otool -tV "$VEC8I_SEL_O" 2>/dev/null || true)"
     V4_SEL_DISAS="$(otool -tV "$VEC4F_SEL_O" 2>/dev/null || true)"
-    if echo "$V4_DISAS" | grep -qE 'mov\.s|ld1\.4s'; then
-      echo "simd-s4: vec4f_shuffle NEON ins/ld1 present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no NEON shuffle in $VEC4F_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no NEON shuffle in vec4f smoke (rebuild xlang_asm with simd_enc.o)"
-    fi
-    if echo "$V8_DISAS" | grep -qE 'mov\.s|ld1\.4s'; then
-      echo "simd-s4: vec8i_shuffle NEON ins/ld1 present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no NEON shuffle in $VEC8I_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no NEON shuffle in vec8i smoke"
-    fi
-    if echo "$V8_SEL_DISAS" | grep -qE 'cmgt|bsl\.16b|bit\.16b'; then
-      echo "simd-s4: vec8i_select cmgt/bsl present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no cmgt/bsl in $VEC8I_SEL_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no cmgt/bsl in vec8i select smoke"
-    fi
-    if echo "$V4_SEL_DISAS" | grep -qE 'fcmgt|bit\.16b'; then
-      echo "simd-s4: vec4f_select fcmgt/bit present"
-    elif [ -n "${XLANG_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s4 FAIL: no fcmgt/bit in $VEC4F_SEL_O" >&2
-      exit 1
-    else
-      echo "simd-s4 WARN: no fcmgt/bit in vec4f select smoke"
-    fi
+    # Non-x86 HW is observational unless XLANG_SIMD_HW_STRICT=1 (parent std-simd
+    # shuffle-select sets STRICT only on x86_64).
+    hw_check "$V4_DISAS" 'mov\.s|ld1\.4s' 'vec4f_shuffle NEON ins/ld1 present' "$VEC4F_O"
+    hw_check "$V8_DISAS" 'mov\.s|ld1\.4s' 'vec8i_shuffle NEON ins/ld1 present' "$VEC8I_O"
+    hw_check "$V8_SEL_DISAS" 'cmgt|bsl\.16b|bit\.16b' 'vec8i_select cmgt/bsl present' "$VEC8I_SEL_O"
+    hw_check "$V4_SEL_DISAS" 'fcmgt|bit\.16b' 'vec4f_select fcmgt/bit present' "$VEC4F_SEL_O"
   else
-    echo "simd-s4: compile-only OK (otool missing)"
+    echo "simd-s4: compile-only OK (otool missing; obs)"
+    OBS=$((OBS + 1))
   fi
 fi
 
 echo "simd-s4 gate OK"
+ok_report
