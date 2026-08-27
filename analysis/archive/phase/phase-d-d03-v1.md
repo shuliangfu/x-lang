@@ -4,7 +4,7 @@
 
 ## v1 完成（✅）
 
-> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+> **Honesty 2026-08-24 #12 / 2026-08-27:** top-level DOC + soft `XLANG_D03_FAIL` retired (early Darwin "OOM" soft exit0 skipped DOC/manifest = portable false-green). Live = this archive path + `## Gate` + `run-stage2-hash-gate` when stage bins exist.
 
 | 项 | 标准 | Gate |
 |----|------|------|
@@ -14,18 +14,18 @@
 | Docker 复现 | Linux x86_64 全链 build → hash 一致 | `run-linux-a09-a11-gate.sh` Step A-09 |
 | 登记 | `bootstrap-repro.tsv` `stage2_hash` 行 | portable / bstrict CI |
 
-## 复现命令
+## Gate
 
 ```bash
-# 全链（含 gen1/gen2 build + 行为 + SHA256）
-make -C compiler bootstrap-verify-stage2-bstrict
-
-# 仅哈希（须已有 stage1/stage2）
-XLANG_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh compiler/xlang_asm_stage1 compiler/xlang_asm2
-
-# Docker Linux 金标准（A-09 + L5 + typeck）
-./tests/run-linux-a09-a11-gate.sh
+./tests/run-d03-stage2-hash-gate.sh
+# Optional (bins must exist for live hash):
+#   XLANG_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh compiler/xlang_asm_stage1 compiler/xlang_asm2
+# Report: doc=/static=/hash=/skip=
+# Soft XLANG_D03_FAIL + early Darwin OOM soft-exit retired (die always hard).
+# Missing stage bins after static → honest skip=1 (not soft die on missing DOC).
 ```
+
+PLATFORM: SHARED archaeology (SHA256 works on Mach-O + ELF).
 
 ## 与 A-09 / A-14 关系
 
@@ -37,7 +37,7 @@ XLANG_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh compiler/xlang_asm_st
 
 | 项 | 说明 |
 |----|------|
-| macOS 宿主 | hash gate N/A（ELF 链 SKIP）；Docker `run-linux-a09-a11-gate.sh` 覆盖 |
+| 无 stage 产物 | static 硬审计后 skip=1（须先跑 verify-selfhost-stage2-bstrict） |
 | 行为 ≠ 哈希 | `verify-selfhost` 42/hello/struct_mk 通过 **不** 蕴含 SHA256 一致 |
 
 ## 延后（D-03 v2+ / D-04+）

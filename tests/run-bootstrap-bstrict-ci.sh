@@ -219,12 +219,12 @@ else
   chmod +x tests/run-d02-stage1-to-stage2-gate.sh tests/run-stage2-bstrict-gate.sh \
     compiler/verify-selfhost-stage2-bstrict.sh tests/run-d03-stage2-hash-gate.sh
   echo "bootstrap-bstrict-ci: D-02 Stage1 → Stage2 self-host ..."
-  XLANG_D02_FAIL=1 XLANG_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+  XLANG_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
   echo "bootstrap-bstrict-ci: D-03 Stage2 SHA256 golden standard ..."
-  XLANG_D03_FAIL=1 XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
+  XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
   echo "bootstrap-bstrict-ci: D-04 Stage2 portable two-gen diff ..."
   chmod +x tests/run-d04-stage2-portable-diff-gate.sh tests/lib/d04-stage2-portable-diff.sh
-  XLANG_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+  ./tests/run-d04-stage2-portable-diff-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: ensure WPO build_asm artifacts (五模块) ..."

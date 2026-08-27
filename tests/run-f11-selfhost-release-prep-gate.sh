@@ -102,7 +102,7 @@ fi
 
 # Stage2 hash / portable (hard when present; d03 may SKIP on Darwin).
 chmod +x tests/run-d03-stage2-hash-gate.sh
-if ! XLANG_D03_FAIL=0 tests/run-d03-stage2-hash-gate.sh; then
+if ! tests/run-d03-stage2-hash-gate.sh; then
   die "d03 failed"
 fi
 D03_OK=1

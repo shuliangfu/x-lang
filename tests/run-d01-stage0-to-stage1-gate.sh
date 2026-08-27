@@ -60,7 +60,7 @@ for f in "$DOC" "$MANIFEST" "$BUILD_ASM" "$BSTRICT" "$XBUILD_SH" compiler/bootst
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'D-01 v1' "$DOC" || die "doc missing D-01 v1 marker"
-grep -qE '^## Gate' "$DOC" || die "phase-d-d01-v1.md missing ## Gate honesty section"
+grep -qE '^## Gate$' "$DOC" || die "phase-d-d01-v1.md missing ## Gate honesty section"
 DOC_OK=1
 
 grep -q 'bootstrap-driver-seed\|bootstrap_driver_seed' "$BUILD_ASM" \

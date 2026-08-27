@@ -4,7 +4,7 @@
 
 ## v1 完成（✅）
 
-> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+> **Honesty 2026-08-24 #12 / 2026-08-27:** top-level DOC + soft `XLANG_D02_FAIL` retired (missing `compiler/Makefile` was portable false-green). Live = this archive path + `verify-selfhost-stage2-bstrict` + `run-stage2-bstrict-gate` + `bootstrap_verify_bstrict.sh`.
 
 | 项 | 标准 | Gate |
 |----|------|------|
@@ -13,20 +13,26 @@
 | 产物 | `xlang_asm_stage1` / `xlang_asm2` 存在 | 同上 |
 | 哈希 | 委托 D-03 | `run-d03-stage2-hash-gate.sh` |
 
-## 复现
+## Gate
 
 ```bash
-make -C compiler bootstrap-verify-stage2-bstrict
-# 或
-XLANG_D02_FAIL=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+./tests/run-d02-stage1-to-stage2-gate.sh
+# Optional:
+#   XLANG_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+#   XLANG_D02_MANIFEST_ONLY=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+# Report: doc=/static=/live=/skip=
+# Soft XLANG_D02_FAIL + Makefile anchors retired (die always hard).
+# Darwin: static audited + skip=1 (Linux gold covers live Stage2).
 ```
+
+PLATFORM: SHARED archaeology · LINUX live Stage2 · DARWIN static+skip.
 
 ## 平台
 
 | 宿主 | 说明 |
 |------|------|
 | **Linux x86_64** | 硬门禁（GHA / Docker） |
-| **macOS** | gate N/A；Docker `run-linux-a09-a11-gate.sh` 覆盖 |
+| **macOS** | static + honest skip；Docker `run-linux-a09-a11-gate.sh` 覆盖 live |
 
 ## 延后（D-02 v2）
 

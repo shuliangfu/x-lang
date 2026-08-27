@@ -67,7 +67,7 @@ run_tier "T1 bootstrap-driver-bstrict" "$LOG_DIR/t1-bstrict.log" \
 
 # Tier 2：Stage2 SHA256 金标准（须 Tier 1 产物）
 run_tier "T2 d03 stage2 hash" "$LOG_DIR/t2-d03.log" \
-  env XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
+  ./tests/run-d03-stage2-hash-gate.sh
 
 # Tier 3：E-soft 编译器 C 软退役审计
 run_tier "T3 e-soft retire" "$LOG_DIR/t3-e-soft.log" \

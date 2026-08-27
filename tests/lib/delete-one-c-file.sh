@@ -59,13 +59,13 @@ run_regress() {
       fi
       chmod +x ./xbuild ./xlang-build.sh
       ./xbuild bootstrap-driver-bstrict
-      XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
+      ./tests/run-d03-stage2-hash-gate.sh
     '
   else
     progress "regress bootstrap-driver-bstrict via ./xbuild (host) ..."
     ./xbuild bootstrap-driver-bstrict
     progress "regress D-03 ..."
-    XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
+    ./tests/run-d03-stage2-hash-gate.sh
   fi
 }
 

@@ -4,7 +4,7 @@
 
 ## v1 完成（✅）
 
-> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+> **Honesty 2026-08-24 #12 / 2026-08-27:** top-level DOC + soft `XLANG_D04_FAIL` retired (early Darwin "OOM" soft exit0 skipped DOC/matrix = portable false-green). Live portable = Linux gold; Darwin = matrix audit + honest skip=1.
 
 | 项 | 标准 | Gate |
 |----|------|------|
@@ -19,18 +19,25 @@
 - **BOOT-019**：6 条 parser/typeck dogfood（3 check + 3 link_run）
 - **BOOT-015**：vec / map / heap（check）
 
-## 复现命令
+## Gate
 
 ```bash
-# 须已有 stage1/stage2（verify-selfhost-stage2-bstrict 或 run-linux-a09-a11-gate）
-XLANG_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+# Live portable requires native Linux stage1/stage2
+./tests/run-d04-stage2-portable-diff-gate.sh
+# Optional:
+#   XLANG_D04_MANIFEST_ONLY=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+# Report: doc=/matrix=/cases_ok=/cases_fail=/skip=
+# Soft XLANG_D04_FAIL + early Darwin OOM soft-exit retired (die always hard).
+# Darwin / missing bins: static+matrix audited + skip=1.
 ```
+
+PLATFORM: SHARED archaeology · LINUX live portable · DARWIN static+skip.
 
 ## track-only / 平台
 
 | 项 | 说明 |
 |----|------|
-| macOS 宿主 | gate N/A；Docker Linux 覆盖 |
+| macOS 宿主 | static + honest skip；Docker Linux 覆盖 live |
 | link_run | 非 x86_64 / 无 liburing 时两代可同时 `link:skip`，仍算一致 |
 | 全量 portable | **延后 D-04 v2**（完整 `run-portable-suite` 两代 diff） |
 
