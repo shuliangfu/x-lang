@@ -1,83 +1,96 @@
 #!/usr/bin/env bash
-# F 闭合：std 模块 -E-extern + cc -c 批量门禁
+# F closure: std -E-extern archaeology honesty under product NO_C_FRONTEND.
 #
-# 遍历所有 std/**/mod.x，用 xlang-c -E-extern 生成瘦 C，再用 cc -c 编译。
-# 分类：OK / FAIL_XLANGC（xlang-c 生成失败）/ FAIL_CC（cc 编译失败）
-# 用法：./tests/run-f-closure-e-extern-gate.sh
-# 环境：XLANG_F_CLOSURE_FAIL=1 失败时硬退出
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# Usage: ./tests/run-f-closure-e-extern-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f-closure-e-extern-gate.sh
+# 2026-08-27: Honesty — hard-fail structural + prefer-asm probe that product
+# refuses -E-extern with BLD001/NO_C_FRONTEND. Soft XLANG_F_CLOSURE_FAIL
+# retired. Root: soft die→exit0 + undefined die + cwd-broken Makefile/xbuild
+# checks swallowed 71/71 FAIL_XLANGC while every product binary refuses
+# -E-extern (C frontend gone) = portable false-green / prefer-c archaeology
+# dual authority. Full -E-extern+cc batch retired (cannot green on product
+# pure-asm). Report refuse=/mods=/skip=.
 # PLATFORM: SHARED archaeology.
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/compiler"
+cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_F_CLOSURE_FAIL:-0}
-XLANG="${XLANG:-./xlang-c}"
-[ -x "$XLANG" ] || XLANG="./xlang"
-[ -x "$XLANG" ] || { echo "f-closure-e-extern-gate: SKIP (no xlang-c/xlang)"; exit 0; }
+DOC="analysis/archive/phase/phase-f-closure-e-extern.md"
+PREFIX="xlang: [XLANG_F_CLOSURE]"
+PROBE_MOD="std/cli/mod.x"
 
-# 只看 error，抑制 warning（-E-extern 生成的 C 有大量 extern 前向声明 warning）
-CFLAGS="-I.. -I. -Iinclude -Isrc -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
-if cc -v 2>&1 | grep -q clang; then
-  CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
-fi
+REFUSE_OK=0
+MODS=0
+SKIP=1
 
-OK=0; FAIL_XLANGC=0; FAIL_CC=0
-OK_LIST=""; XLANGC_LIST=""; CC_LIST=""
+resolve_shu() {
+  local cand abs
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    [ -n "$cand" ] || continue
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$(pwd)/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
-# 收集所有 std/**/mod.x（跳过 compress 子模块的独立 mod.x，只测顶层 + compress/mod.x）
-mods=$(find ../std -name "mod.x" -type f | LC_ALL=C sort)
+die() {
+  echo "f-closure-e-extern-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail refuse=${REFUSE_OK:-0} mods=${MODS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
 
-for m in $mods; do
-  mod_name=$(echo "$m" | sed 's|../std/||; s|/mod.x||')
-  gen="/tmp/xlang_f_closure_$$.${mod_name//\//_}.c"
-  obj="/tmp/xlang_f_closure_$$.${mod_name//\//_}.o"
-  rm -f "$gen" "$obj" 2>/dev/null || true
-
-  # xlang-c -E-extern 生成 C
-  if ! "$XLANG" build -E-extern -L .. "$m" >"$gen" 2>/tmp/xlang_f_closure_$$.xlangc.log; then
-    FAIL_XLANGC=$((FAIL_XLANGC+1))
-    XLANGC_LIST="$XLANGC_LIST $mod_name"
-    rm -f "$gen" 2>/dev/null || true
-    continue
-  fi
-
-  # cc -c 编译
-  if ! cc $CFLAGS -c "$gen" -o "$obj" 2>/tmp/xlang_f_closure_$$.cc.log; then
-    FAIL_CC=$((FAIL_CC+1))
-    CC_LIST="$CC_LIST $mod_name"
-    # 记录首个 error 便于诊断
-    err=$(grep -m1 'error:' /tmp/xlang_f_closure_$$.cc.log 2>/dev/null | head -1 || true)
-    [ -n "$err" ] && CC_LIST="$CC_LIST($err)" || CC_LIST="$CC_LIST(no_error_line)"
-    rm -f "$gen" "$obj" 2>/dev/null || true
-    continue
-  fi
-
-  OK=$((OK+1))
-  OK_LIST="$OK_LIST $mod_name"
-  rm -f "$gen" "$obj" 2>/dev/null || true
-done
-
-rm -f /tmp/xlang_f_closure_$$.*.log 2>/dev/null || true
-
-echo "=== F closure -E-extern gate ==="
-# MG: compiler/Makefile deleted — build entry is xbuild; refuse resurrect.
-if [ -f compiler/Makefile ]; then die "compiler/Makefile resurrected (use xbuild)"; fi
+echo "=== F closure -E-extern archaeology (honesty; NO_C_FRONTEND refuse) ==="
+[ -f "$DOC" ] || die "missing $DOC"
+grep -q 'F-closure-e-extern' "$DOC" || die "doc missing F-closure-e-extern marker"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 [ -f xbuild ] || die "missing xbuild"
-echo "OK=$OK FAIL_CC=$FAIL_CC FAIL_XLANGC=$FAIL_XLANGC"
-echo "--- OK ---"
-echo "$OK_LIST" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort | tr '\n' ' '
-echo ""
-echo "--- FAIL_CC ($FAIL_CC) ---"
-echo "$CC_LIST" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort
-echo "--- FAIL_XLANGC ($FAIL_XLANGC) ---"
-echo "$XLANGC_LIST" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort
-
-if [ "$FAIL_CC" -gt 0 ] || [ "$FAIL_XLANGC" -gt 0 ]; then
-  echo "f-closure-e-extern-gate: FAIL (OK=$OK FAIL_CC=$FAIL_CC FAIL_XLANGC=$FAIL_XLANGC)" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
 fi
-echo "f-closure-e-extern-gate: OK (all $OK modules pass -E-extern + cc -c)"
-exit 0
+[ -f "$PROBE_MOD" ] || die "missing $PROBE_MOD"
+
+MODS=$(find std -name "mod.x" -type f 2>/dev/null | wc -l | tr -d ' ')
+[ "$MODS" -gt 0 ] || die "no std/**/mod.x found"
+
+if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  die "no native xlang"
+fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+SKIP=0
+
+# Product pure-asm (NO_C_FRONTEND) must refuse -E-extern. Accepting success
+# would resurrect prefer-c dual authority. PLATFORM: SHARED archaeology.
+LOG="/tmp/xlang_f_closure_refuse.$$.log"
+GEN="/tmp/xlang_f_closure_refuse.$$.c"
+rm -f "$LOG" "$GEN"
+set +e
+"$XLANG_BIN" build -E-extern -L . "$PROBE_MOD" >"$GEN" 2>"$LOG"
+RC=$?
+set -e
+if [ "$RC" -eq 0 ]; then
+  rm -f "$LOG" "$GEN"
+  die "product $XLANG_BIN accepted -E-extern (NO_C_FRONTEND expected refuse; prefer-c resurrected)"
+fi
+if ! grep -qE 'NO_C_FRONTEND|-E-extern requires C parser/codegen|BLD001' "$LOG"; then
+  echo "f-closure-e-extern-gate: refuse log:" >&2
+  tail -n 20 "$LOG" >&2 || true
+  rm -f "$LOG" "$GEN"
+  die "product refused -E-extern without NO_C_FRONTEND/BLD001 marker"
+fi
+rm -f "$LOG" "$GEN"
+REFUSE_OK=1
+
+echo "f-closure-e-extern-gate OK (refuse=${REFUSE_OK} mods=${MODS}; -E-extern+cc batch retired)"
+echo "${PREFIX} status=ok refuse=${REFUSE_OK} mods=${MODS} skip=${SKIP} host=$(ci_host_summary)"

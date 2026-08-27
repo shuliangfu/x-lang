@@ -52,24 +52,25 @@
 - [ ] `f-std-zero-c-track.tsv` 删行；`no-handwritten-c-whitelist` 刷新  
 - [ ] `XLANG_F_STD_ZERO_C_STRICT=1` 仍红直到 total=0（预期）
 
-## 5. 门禁
+## Gate
 
 ```bash
-# 跟踪（默认：禁止新增未登记 std C/H）
+# Track (hard-fail new unlisted std C/H; soft XLANG_F_STD_ZERO_C_FAIL retired)
 ./tests/run-f-std-zero-c-track-gate.sh
+# Report: c=/h=/new=/gone=/inv=/strict=/skip=
 
-# 终局硬绿（当前必 FAIL，std>0 时）
+# Endgame STRICT (currently FAIL while formal_surface.c residual >0)
 XLANG_F_STD_ZERO_C_STRICT=1 ./tests/run-f-std-zero-c-track-gate.sh
 
-# 迁移后刷新清单
+# Refresh manifest after migrations
 XLANG_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh
 
-# 聚合
-XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
-XLANG_F_PHASE_F_92_FAIL=1 ./tests/run-f-phase-f-92-batch-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+# Aggregates (children honesty-hard; retired soft *_FAIL envs unused)
+./tests/run-f-phase-f-92-batch-gate.sh
+./tests/run-f-std-de-c-batch-gate.sh
 ```
 
+PLATFORM: SHARED archaeology.
 ## 6. 首项清场（v1）
 
 | 项 | 说明 |
