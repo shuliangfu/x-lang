@@ -20,6 +20,14 @@ PREFIX="xlang: [XLANG_PERF_WEEKLY]"
 RUN_OK=0
 OBS=0
 SKIP=0
+SIMD_OK=0
+IO_OK=0
+NET_OK=0
+DB_OK=0
+STD_OK=0
+
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
 die() {
   echo "perf-weekly gate FAIL: $*" >&2
@@ -31,9 +39,41 @@ ok_report() {
   echo "${PREFIX} status=ok simd=${SIMD_OK} io=${IO_OK} net=${NET_OK} db=${DB_OK} std=${STD_OK} run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 }
 
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Refuse resurrecting top-level DOC (archive is authority).
 if [ -f analysis/perf-weekly-v1.md ]; then
   die "refuse top-level analysis/perf-weekly-v1.md (use archive/perf)"
+fi
+
+# Explicit bad XLANG hard-dies before pillar fan-out.
+if [ -n "${XLANG:-}" ]; then
+  resolve_shu >/dev/null || die "XLANG=${XLANG} not native (refuse soft SKIP→OK)"
 fi
 
 echo "=== PERF-169: weekly perf manifest ==="
@@ -78,12 +118,6 @@ if [ "$MISS" -gt 0 ]; then
   die "missing=${MISS}"
 fi
 echo "perf-weekly manifest OK (pillars=${PILLARS})"
-
-SIMD_OK=0
-IO_OK=0
-NET_OK=0
-DB_OK=0
-STD_OK=0
 
 absorb_status() {
   # Parse child status line for obs=/skip=; never soft-swallow non-zero rc.
