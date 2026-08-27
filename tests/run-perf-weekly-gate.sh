@@ -1,27 +1,50 @@
 #!/usr/bin/env bash
-# PERF-169：SIMD/IO/NET/DB 每周性能基线汇总门禁
+# PERF-169: weekly perf baseline aggregator gate.
 #
-# 四支柱 + STD 扩展：
-#   1) SIMD — std-simd-autovec-strategy + 可选 shuffle/select perf
-#   2) IO   — perf-io-zig（无 native xlang 时 SKIP）
-#   3) NET  — perf-net-zc manifest + perf-net-zig（无 xlang 时 SKIP）
-#   4) DB   — perf-sqlite manifest + stub/loop 烟测
+# Honesty: soft SKIP→OK when child prints SKIP / soft FAIL=0 simd swallow /
+# missing top-level DOC retired. Prefer product paths via child gates
+# (io-zig / net-zig / simd already honesty-rewritten). Child hard fail =
+# hard fail (no grep-SKIP soft green). Child obs=/skip= propagated.
+# DOC authority = archive/perf. Report run=/obs=/skip=.
 #
-# 用法：./tests/run-perf-weekly-gate.sh
+# Usage: ./tests/run-perf-weekly-gate.sh
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-DOC="${XLANG_PERF_WEEKLY_DOC:-analysis/perf-weekly-v1.md}"
+DOC="${XLANG_PERF_WEEKLY_DOC:-analysis/archive/perf/perf-weekly-v1.md}"
 MANIFEST="${XLANG_PERF_WEEKLY_TSV:-tests/baseline/perf-weekly.tsv}"
 PREFIX="xlang: [XLANG_PERF_WEEKLY]"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "perf-weekly gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok simd=${SIMD_OK} io=${IO_OK} net=${NET_OK} db=${DB_OK} std=${STD_OK} run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/perf-weekly-v1.md ]; then
+  die "refuse top-level analysis/perf-weekly-v1.md (use archive/perf)"
+fi
 
 echo "=== PERF-169: weekly perf manifest ==="
 for f in "$DOC" "$MANIFEST"; do
   if [ ! -f "$f" ]; then
-    echo "perf-weekly gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
   fi
 done
+if ! grep -q '^## Gate$' "$DOC" 2>/dev/null; then
+  die "doc missing ## Gate ($DOC)"
+fi
 
 MISS=0
 PILLARS=0
@@ -49,12 +72,10 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
 done < "$MANIFEST"
 
 if [ "$PILLARS" -lt 5 ]; then
-  echo "perf-weekly gate FAIL: pillars=${PILLARS} < 5" >&2
-  exit 1
+  die "pillars=${PILLARS} < 5"
 fi
 if [ "$MISS" -gt 0 ]; then
-  echo "perf-weekly gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "perf-weekly manifest OK (pillars=${PILLARS})"
 
@@ -63,7 +84,27 @@ IO_OK=0
 NET_OK=0
 DB_OK=0
 STD_OK=0
-SKIP=0
+
+absorb_status() {
+  # Parse child status line for obs=/skip=; never soft-swallow non-zero rc.
+  local log="$1"
+  local ec="$2"
+  local label="$3"
+  if [ "$ec" -ne 0 ]; then
+    echo "perf-weekly ${label} FAIL (rc=${ec})" >&2
+    tail -12 "$log" >&2 || true
+    die "${label} child rc=${ec}"
+  fi
+  if grep -qE 'obs=[1-9]' "$log" 2>/dev/null; then
+    OBS=1
+  fi
+  if grep -qE 'OBS:' "$log" 2>/dev/null; then
+    OBS=1
+  fi
+  if grep -qE 'skip=[1-9]' "$log" 2>/dev/null; then
+    SKIP=$((SKIP + 1))
+  fi
+}
 
 echo "=== PERF-169: pillar SIMD ==="
 chmod +x tests/run-std-simd-autovec-strategy-gate.sh
@@ -73,15 +114,12 @@ if [ -x ./compiler/xlang_asm ] || [ -x ./compiler/xlang_asm.strict ]; then
   chmod +x tests/run-perf-simd-shuffle-select.sh 2>/dev/null || true
   if [ -f tests/run-perf-simd-shuffle-select.sh ]; then
     set +e
-    XLANG_SIMD_SS_FAIL=0 ./tests/run-perf-simd-shuffle-select.sh >/tmp/perf_weekly_simd.log 2>&1
+    # Child honesty: FAIL=0 → under-ratio = obs (not soft SKIP).
+    ./tests/run-perf-simd-shuffle-select.sh >/tmp/perf_weekly_simd.log 2>&1
     simd_ec=$?
     set -e
-    if [ "$simd_ec" -eq 0 ]; then
-      echo "perf-weekly SIMD shuffle/select OK"
-    else
-      echo "perf-weekly SIMD shuffle/select SKIP (see /tmp/perf_weekly_simd.log)" >&2
-      SKIP=$((SKIP + 1))
-    fi
+    absorb_status /tmp/perf_weekly_simd.log "$simd_ec" "SIMD shuffle/select"
+    echo "perf-weekly SIMD shuffle/select OK"
   fi
 fi
 
@@ -91,38 +129,24 @@ set +e
 ./tests/run-perf-io-zig-gate.sh >/tmp/perf_weekly_io.log 2>&1
 io_ec=$?
 set -e
-if [ "$io_ec" -eq 0 ]; then
-  IO_OK=1
-  echo "perf-weekly IO OK"
-elif grep -q 'SKIP' /tmp/perf_weekly_io.log 2>/dev/null; then
-  IO_OK=1
-  SKIP=$((SKIP + 1))
-  echo "perf-weekly IO SKIP (no native xlang)"
-else
-  echo "perf-weekly IO FAIL" >&2
-  tail -8 /tmp/perf_weekly_io.log >&2 || true
-  exit 1
-fi
+absorb_status /tmp/perf_weekly_io.log "$io_ec" "IO"
+IO_OK=1
+echo "perf-weekly IO OK"
 
 echo "=== PERF-169: pillar NET ==="
 chmod +x tests/run-perf-net-zc-gate.sh tests/run-perf-net-zig-gate.sh
-./tests/run-perf-net-zc-gate.sh
+set +e
+./tests/run-perf-net-zc-gate.sh >/tmp/perf_weekly_net_zc.log 2>&1
+nzc_ec=$?
+set -e
+absorb_status /tmp/perf_weekly_net_zc.log "$nzc_ec" "NET-ZC"
 set +e
 ./tests/run-perf-net-zig-gate.sh >/tmp/perf_weekly_net.log 2>&1
 net_ec=$?
 set -e
-if [ "$net_ec" -eq 0 ]; then
-  NET_OK=1
-  echo "perf-weekly NET OK"
-elif grep -q 'SKIP' /tmp/perf_weekly_net.log 2>/dev/null; then
-  NET_OK=1
-  SKIP=$((SKIP + 1))
-  echo "perf-weekly NET SKIP (no native xlang)"
-else
-  echo "perf-weekly NET FAIL" >&2
-  tail -8 /tmp/perf_weekly_net.log >&2 || true
-  exit 1
-fi
+absorb_status /tmp/perf_weekly_net.log "$net_ec" "NET"
+NET_OK=1
+echo "perf-weekly NET OK"
 
 echo "=== PERF-169: pillar DB ==="
 chmod +x tests/run-perf-sqlite-gate.sh
@@ -134,5 +158,7 @@ chmod +x tests/run-perf-phase3-gate.sh tests/lib/perf-phase3.sh
 ./tests/run-perf-phase3-gate.sh
 STD_OK=1
 
-echo "${PREFIX} status=ok simd=${SIMD_OK} io=${IO_OK} net=${NET_OK} db=${DB_OK} std=${STD_OK} skip=${SKIP}"
+RUN_OK=1
 echo "perf-weekly gate OK"
+ok_report
+exit 0

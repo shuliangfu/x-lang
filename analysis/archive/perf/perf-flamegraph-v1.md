@@ -44,9 +44,9 @@
 
 | case_id | 命令 | 用途 |
 |---------|------|------|
-| `check_typeck` | `xlang check compiler/src/typeck/typeck.x` | typeck dogfood（gate 烟测） |
-| `loop_i32_compile` | `xlang compile tests/bench/loop_i32.x` | 微基准全链路 |
-| `check_parser` | `xlang check compiler/src/parser/parser.x` | parser 体量热点 |
+| `loop_i32_compile` | `xlang bench/r01_loop_i32.x -o …` | 微基准全链路（**gate 烟测**；避 check 暂停闸门） |
+| `check_typeck` | `xlang check compiler/src/typeck/typeck.x` | typeck dogfood（profile；check 闸门自举期暂停） |
+| `check_parser` | `xlang check compiler/src/parser/parser.x` | parser 体量热点（profile） |
 
 与 `compile-dogfood.tsv` 中 `check_typeck` / `check_parser` 对齐，便于 PERF-004 回归后对照 flamegraph。
 
@@ -86,7 +86,7 @@ xlang: [XLANG_PERF_FLAMEGRAPH] case=check_typeck report=/tmp/xlang-perf-flamegra
 ./tests/run-perf-flamegraph.sh
 
 # 单用例
-XLANG=./compiler/xlang-c XLANG_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-flamegraph.sh
+XLANG=./compiler/xlang_asm XLANG_PERF_FLAMEGRAPH_CASE=loop_i32_compile ./tests/run-perf-flamegraph.sh
 
 # 门禁
 ./tests/run-perf-flamegraph-gate.sh
@@ -100,14 +100,20 @@ XLANG=./compiler/xlang-c XLANG_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-per
 
 ---
 
-## 6. 门禁
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c / fossil `bench/loop_i32.x` + top-level DOC/cross-refs;
+explicit bad XLANG = hard die; no-perf host = skip=1; partial Top-N = obs;
+smoke=`loop_i32_compile` (check-bound profile cases left; check gate paused);
+DOC=archive; report `run=`／`obs=`／`skip=`.
 
 `tests/run-perf-flamegraph-gate.sh`：
 
-1. RFC + manifest + `tests/lib/perf-flamegraph.sh` + runner 存在  
+1. Archive DOC + manifest + `tests/lib/perf-flamegraph.sh` + runner（拒顶层 `analysis/perf-flamegraph-v1.md`）  
 2. 文档含 `perf record`、`Top20`、`XLANG_PERF_FLAMEGRAPH`  
-3. profile_case ≥ `min_cases`；cross-ref 文件存在  
-4. Linux + perf + native xlang：`check_typeck` 烟测须 `top20_done rows=20`  
+3. profile_case ≥ `min_cases`；cross-ref → archive 路径  
+4. Linux + perf + native xlang：`loop_i32_compile` 烟测须 `top20_done`；其它平台 skip=1  
 
 ---
 
@@ -119,8 +125,8 @@ XLANG=./compiler/xlang-c XLANG_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-per
 | 共享库 | `tests/lib/perf-flamegraph.sh` |
 | runner | `tests/run-perf-flamegraph.sh` |
 | 门禁 | `tests/run-perf-flamegraph-gate.sh` |
-| typeck 热路径 | `analysis/comp-typeck-hotpath-v1.md` |
-| compile dogfood | `analysis/perf-compile-dogfood-v1.md` |
-| 阶段耗时 | `analysis/obs-compile-phase-timing-v1.md` |
+| typeck 热路径 | `analysis/archive/comp/comp-typeck-hotpath-v1.md` |
+| compile dogfood | `analysis/archive/perf/perf-compile-dogfood-v1.md` |
+| 阶段耗时 | `analysis/archive/obs/obs-compile-phase-timing-v1.md` |
 
 **PERF-005 状态：定版 ✅**

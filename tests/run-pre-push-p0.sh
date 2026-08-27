@@ -19,8 +19,9 @@ XLANG="$XLANG" ./tests/run-bootstrap-bstrict-ci.sh
 echo "=== P0: asm compute gate (binop + vector + call-inline) ==="
 XLANG="$XLANG" ./tests/run-asm-73-gate.sh
 
-echo "=== P0: perf P1 gate ==="
-./tests/run-perf-p1-gate.sh
+echo "=== P0: perf P1 gate (HARD=1) ==="
+# P1 archaeology default is FAIL soft→obs; pre-push restores hard FAIL_ON_*=1.
+XLANG_PERF_P1_HARD=1 ./tests/run-perf-p1-gate.sh
 
 echo "pre-push P0 OK (bootstrap-ci + asm-73 + perf-p1)"
 # 提示：未 push 时 GHA 不会跑；显示当前分支与 origin 差异（若有 git）。

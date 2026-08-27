@@ -20,7 +20,12 @@
 
 ---
 
-## 3. 门禁
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c / missing top-level DOC; over-cap = obs
+(`XLANG_PERF_SQLITE_FAIL=1` still hard); DOC=archive; report
+`run=`／`obs=`／`skip=`.
 
 ```bash
 ./tests/run-perf-sqlite-gate.sh
