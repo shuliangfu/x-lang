@@ -30,12 +30,13 @@ fi
 
 echo "=== wpo strict link gate (pipeline_wpo reach + abi-covered strict_glue) ==="
 
-XLANG_WPO_PIPELINE_REACH_FAIL="$FAIL" ./tests/run-wpo-pipeline-reach-gate.sh "$PIPE_WPO" || exit 1
+# Soft XLANG_WPO_*_REACH_FAIL retired — reach gates hard-die on miss/U.
+./tests/run-wpo-pipeline-reach-gate.sh "$PIPE_WPO" || exit 1
 if [ -f compiler/build_asm/typeck_wpo.o ]; then
-  XLANG_WPO_TYPECK_REACH_FAIL="$FAIL" ./tests/run-wpo-typeck-reach-gate.sh compiler/build_asm/typeck_wpo.o || exit 1
+  ./tests/run-wpo-typeck-reach-gate.sh compiler/build_asm/typeck_wpo.o || exit 1
 fi
 if [ -f compiler/build_asm/backend_wpo.o ]; then
-  XLANG_WPO_BACKEND_REACH_FAIL="$FAIL" ./tests/run-wpo-backend-reach-gate.sh compiler/build_asm/backend_wpo.o || exit 1
+  ./tests/run-wpo-backend-reach-gate.sh compiler/build_asm/backend_wpo.o || exit 1
 fi
 
 # Capture relink rc: set -e must not abort before FAIL=0 soft residual path.

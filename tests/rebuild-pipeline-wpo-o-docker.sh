@@ -26,7 +26,7 @@ else
   XLANG_WPO_REBUILD_ARTIFACTS_ONLY=1 ./scripts/build_xlang_asm.sh 2>&1 | tail -20
 fi
 cd /src
-XLANG_WPO_PIPELINE_REACH_FAIL=1 ./tests/run-wpo-pipeline-reach-gate.sh
+./tests/run-wpo-pipeline-reach-gate.sh
 ./tests/run-wpo-pipeline-o-gate.sh
 XLANG_WPO_ENSURE_ARTIFACTS=0 XLANG_WPO_CHAIN_FAIL=1 ./tests/run-wpo-build-asm-chain-gate.sh
 XLANG_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh 2>/dev/null || echo \"rebuild-pipeline-wpo-o-docker: strict link gate skipped (need ubuntu+liburing-dev)\"

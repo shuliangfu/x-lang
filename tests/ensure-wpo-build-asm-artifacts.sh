@@ -54,17 +54,15 @@ run_wpo_reach_gates() {
   chmod +x tests/run-wpo-pipeline-reach-gate.sh \
     tests/run-wpo-typeck-reach-gate.sh \
     tests/run-wpo-backend-reach-gate.sh 2>/dev/null || true
+  # Soft XLANG_WPO_*_REACH_FAIL retired — reach gates hard-die on miss/U.
   if [ -s "$BUILD_ASM/pipeline_wpo.o" ] && [ -x tests/run-wpo-pipeline-reach-gate.sh ]; then
-    XLANG_WPO_PIPELINE_REACH_FAIL="${XLANG_WPO_PIPELINE_REACH_FAIL:-1}" \
-      ./tests/run-wpo-pipeline-reach-gate.sh "$BUILD_ASM/pipeline_wpo.o" || return 1
+    ./tests/run-wpo-pipeline-reach-gate.sh "$BUILD_ASM/pipeline_wpo.o" || return 1
   fi
   if [ -f "$BUILD_ASM/typeck_wpo.o" ] && [ -x tests/run-wpo-typeck-reach-gate.sh ]; then
-    XLANG_WPO_TYPECK_REACH_FAIL="${XLANG_WPO_TYPECK_REACH_FAIL:-1}" \
-      ./tests/run-wpo-typeck-reach-gate.sh "$BUILD_ASM/typeck_wpo.o" || return 1
+    ./tests/run-wpo-typeck-reach-gate.sh "$BUILD_ASM/typeck_wpo.o" || return 1
   fi
   if [ -f "$BUILD_ASM/backend_wpo.o" ] && [ -x tests/run-wpo-backend-reach-gate.sh ]; then
-    XLANG_WPO_BACKEND_REACH_FAIL="${XLANG_WPO_BACKEND_REACH_FAIL:-1}" \
-      ./tests/run-wpo-backend-reach-gate.sh "$BUILD_ASM/backend_wpo.o" || return 1
+    ./tests/run-wpo-backend-reach-gate.sh "$BUILD_ASM/backend_wpo.o" || return 1
   fi
   return 0
 }
