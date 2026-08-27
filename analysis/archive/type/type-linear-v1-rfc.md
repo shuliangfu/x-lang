@@ -185,6 +185,21 @@ TYPE-002 实装范围见 M-3 测试集 `tests/run-typeck-region.sh`；linear 与
 
 ---
 
+
+## Gate
+
+Honesty gate for M-4 linear typeck (`tests/run-typeck-linear.sh`):
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG /
+  missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Negatives (`double_move` / `call_double` / `addr_of` / `return_branch`):
+  product `-o` compile_fail with T001 linear diag = hard green.
+- Positive `move_ok.x`: product `-o` + run exit 0 = hard green.
+- `xlang check` CHK002 / paused = obs (not soft silence).
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.
+- Live DOC = this archive file; top-level `analysis/type-linear-v1-rfc.md`
+  may remain as narrative mirror but Gate authority is here.
+
 ## 9. 审阅结论
 
 - **语义**：v1 采用 **use-once move + 禁止取址 + 与 T 同布局**，满足内存安全子集内「防二次释放/误用」目标。

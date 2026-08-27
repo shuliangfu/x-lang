@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# tst-004-std-sanitize.sh — TST-004：std ASAN 夜跑辅助
+# tst-004-std-sanitize.sh — TST-004: std ASAN nightly helpers (honesty soft→硬绿).
 #
-# 用法（source 后）：
+# Usage (source):
 #   tst004_sanitize_ensure_o rel_o
 #   tst004_sanitize_run_case XLANG_BIN src tag
-#   tst004_sanitize_verify_manifest TSV
-#   tst004_sanitize_emit_report status cases_ok cases_fail skip
+#   tst004_sanitize_verify_manifest TSV DOC
+#   tst004_sanitize_emit_report status run obs skip
+# PLATFORM: LINUX ASAN primary; Darwin/Windows = skip (platform N/A).
 
 TST004_SAN_PREFIX="${XLANG_TST004_SANITIZE_PREFIX:-xlang: [XLANG_TST004_SANITIZE]}"
+TST004_DOC_DEFAULT="analysis/archive/tst/tst-004-std-sanitize-v1.md"
 
 # shellcheck source=tests/lib/safe-leak.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/safe-leak.sh"
 
-# 按需构建 std C .o（相对 compiler/Makefile）。
+# Build std C .o on demand (relative to compiler/).
 tst004_sanitize_ensure_o() {
   local rel="$1"
   [ -z "$rel" ] || [ "$rel" = "-" ] && return 0
@@ -21,7 +23,7 @@ tst004_sanitize_ensure_o() {
   ensure_std_c_o "$rel"
 }
 
-# 以 ASAN 编译并运行单个 .x；成功 0，失败 1。
+# Compile and run one .x under ASAN; success 0, failure 1.
 tst004_sanitize_run_case() {
   local xlang="$1"
   local src="$2"
@@ -29,9 +31,12 @@ tst004_sanitize_run_case() {
   safe_leak_run_x "$xlang" "$src" "$tag"
 }
 
-# 校验 manifest 文件与 case 行；echo 缺失数。
+# Verify manifest files and case rows; echo miss count.
+# @param tsv path
+# @param doc path (archive DOC; default TST004_DOC_DEFAULT)
 tst004_sanitize_verify_manifest() {
   local tsv="$1"
+  local doc="${2:-$TST004_DOC_DEFAULT}"
   local miss=0
   local item_id kind anchor src needs_o
   while IFS=$'\t' read -r item_id kind anchor src needs_o _notes; do
@@ -41,7 +46,7 @@ tst004_sanitize_verify_manifest() {
     esac
     case "$kind" in
       section)
-        if ! grep -qF "$anchor" "analysis/tst-004-std-sanitize-v1.md" 2>/dev/null; then
+        if ! grep -qF "$anchor" "$doc" 2>/dev/null; then
           echo "tst-004-sanitize FAIL: doc missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -70,11 +75,11 @@ tst004_sanitize_verify_manifest() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Emit structured report line (honesty: run=/obs=/skip=).
 tst004_sanitize_emit_report() {
   local status="$1"
-  local cases_ok="$2"
-  local cases_fail="$3"
-  local skip="$4"
-  echo "${TST004_SAN_PREFIX} status=${status} cases_ok=${cases_ok} cases_fail=${cases_fail} skip=${skip}"
+  local run="${2:-0}"
+  local obs="${3:-0}"
+  local skip="${4:-0}"
+  echo "${TST004_SAN_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip}"
 }

@@ -25,7 +25,7 @@
 | 运行 | `ASAN_OPTIONS=detect_leaks=1:exitcode=23:halt_on_error=1` |
 | 探测器 | 复用 `tests/lib/safe-leak.sh`（与 SAFE-005 一致） |
 | 与 M-6 | `tests/run-sanitize-gate.sh` 管 **INDEX 边界插桩**；本任务管 **std 模块运行时泄漏** |
-| SKIP | cc 不支持 ASAN 或无 native `xlang-c` 时 gate 仅验 manifest |
+| SKIP | cc 不支持 ASAN / 非 Linux = `skip=`（platform N/A）；缺 native = 硬 die |
 
 v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.ffi` 等行。
 
@@ -46,14 +46,15 @@ v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.f
 ## 4. 报告格式
 
 ```
-xlang: [XLANG_TST004_SANITIZE] status=ok cases_ok=2 cases_fail=0 skip=0
+xlang: [XLANG_TST004_SANITIZE] status=ok run=2 obs=0 skip=0
 ```
 
 | status | 含义 |
 |--------|------|
 | `ok` | 全部 case 通过 |
 | `fail` | 编译失败、ASAN 泄漏或崩溃 |
-| `skip` | 无 ASAN / 无 xlang |
+| `skip` | 无 ASAN / 非 Linux（platform N/A）；缺 native 硬 die |
+| `obs` | ASAN/product tip residual（拒 soft SKIP→OK） |
 
 ---
 
@@ -69,6 +70,19 @@ xlang: [XLANG_TST004_SANITIZE] status=ok cases_ok=2 cases_fail=0 skip=0
 - 交叉引用：SAFE-005 `safe-leak-nightly.tsv`、M-6 `run-sanitize-gate.sh`
 
 ---
+
+
+## Gate
+
+Honesty gate for TST-004 (`tests/run-tst-004-std-sanitize-gate.sh`):
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG /
+  missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + cases + archive DOC = hard.
+- Linux+ASAN smoke = hard run; tip residual under ASAN = obs.
+- Non-Linux / no ASAN = `skip=` (platform N/A).
+- Report `run=` / `obs=` / `skip=`. PLATFORM: LINUX ASAN primary.
+- Live DOC = this archive file; refuse top-level `analysis/tst-004-std-sanitize-v1.md`.
 
 ## 6. 维护
 
