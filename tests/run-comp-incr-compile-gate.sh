@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# COMP-007：增量编译策略 manifest 门禁（假权威诚实）。
+# COMP-007: incremental compile strategy manifest gate (false-authority honesty).
 #
-# 用法：./tests/run-comp-incr-compile-gate.sh
+# Honesty: soft SKIP→OK / prefer-c in run-comp-incr-compile.sh retired
+# (2026-08-27). Prefer product xlang_asm via child; DOC→archive with ## Gate;
+# refuse top-level DOC resurrect. Check benches = obs; ratio over-cap = obs
+# (FAIL=1 still hard). Report inherits child run=/obs=/skip=.
+#
+# Usage: ./tests/run-comp-incr-compile-gate.sh
 # wave honesty (2026-08-24 #7): DOC under analysis/archive/;
 # monofile / lsp_diag.c retired — C2=lsp_diag.h, C4=labi_path_pure
 # (xlang_rel_o_path_from_argv0); OBS DOC=analysis/archive/obs/.
@@ -9,6 +14,8 @@
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 DOC="${XLANG_COMP_INCR_COMPILE_DOC:-analysis/archive/comp/comp-incr-compile-v1.md}"
 MANIFEST="${XLANG_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
@@ -20,6 +27,18 @@ PRELINK_SRC="${XLANG_COMP_INCR_PRELINK_SRC:-compiler/seeds/labi_path_pure.from_x
 MIN_LAYERS=6
 MIN_PROTOS=6
 MIN_BENCHES=4
+PREFIX="xlang: [XLANG_COMP_INCR_COMPILE]"
+
+die() {
+  echo "comp-incr-compile gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail host=$(ci_host_summary)"
+  exit 1
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/comp-incr-compile-v1.md ]; then
+  die "refuse top-level analysis/comp-incr-compile-v1.md (use archive/comp)"
+fi
 
 # shellcheck source=tests/lib/comp-incr-compile.sh
 . tests/lib/comp-incr-compile.sh
@@ -28,12 +47,10 @@ echo "=== COMP-007: incremental compile manifest (monofile/lsp.c retired) ==="
 
 # wave321 / E-02: refuse resurrect of retired authorities.
 if [ -f compiler/seeds/runtime.from_x.c ]; then
-  echo "comp-incr-compile gate FAIL: seeds/runtime.from_x.c resurrected (std prelink live = labi_path_pure)" >&2
-  exit 1
+  die "seeds/runtime.from_x.c resurrected (std prelink live = labi_path_pure)"
 fi
 if [ -f compiler/src/lsp/lsp_diag.c ]; then
-  echo "comp-incr-compile gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h / lsp_diag.x)" >&2
-  exit 1
+  die "lsp_diag.c resurrected (live = lsp_diag.h / lsp_diag.x)"
 fi
 
 for f in "$DOC" "$MANIFEST" "$PROTOS" "$BENCH" \
@@ -41,10 +58,13 @@ for f in "$DOC" "$MANIFEST" "$PROTOS" "$BENCH" \
   "$OBS_DOC" tests/run-obs-compile-phase-timing-gate.sh \
   compiler/src/pipeline/pipeline.x "$LSP_SRC" "$PRELINK_SRC"; do
   if [ ! -f "$f" ]; then
-    echo "comp-incr-compile gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
   fi
 done
+
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -142,28 +162,23 @@ while IFS=$'\t' read -r pid _cap status sym src _notes; do
 done < "$PROTOS"
 
 if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "comp-incr-compile gate FAIL: layers=${LAYER_N} < min ${MIN_LAYERS}" >&2
-  exit 1
+  die "layers=${LAYER_N} < min ${MIN_LAYERS}"
 fi
 if [ "$PROTO_N" -lt "$MIN_PROTOS" ]; then
-  echo "comp-incr-compile gate FAIL: protos=${PROTO_N} < min ${MIN_PROTOS}" >&2
-  exit 1
+  die "protos=${PROTO_N} < min ${MIN_PROTOS}"
 fi
 if [ "$BENCH_N" -lt "$MIN_BENCHES" ]; then
-  echo "comp-incr-compile gate FAIL: benches=${BENCH_N} < min ${MIN_BENCHES}" >&2
-  exit 1
+  die "benches=${BENCH_N} < min ${MIN_BENCHES}"
 fi
 
 for kw in incremental compile cache second report runnable; do
   if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "comp-incr-compile gate FAIL: doc missing keyword $kw" >&2
-    exit 1
+    die "doc missing keyword $kw"
   fi
 done
 
 if [ "$MISS" -gt 0 ]; then
-  echo "comp-incr-compile gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "comp-incr-compile manifest OK (layers=${LAYER_N} protos=${PROTO_N} benches=${BENCH_N})"
 

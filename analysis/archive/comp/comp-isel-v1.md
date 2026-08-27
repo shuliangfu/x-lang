@@ -95,12 +95,24 @@ P0 波次详情见 `analysis/comp-isel-p0-v1.md`（COMP-014）。
 ./tests/run-bcmp-gate.sh             # microbench（Linux CI）
 ```
 
-**gate report**：stdout 须含 `comp-isel gate OK`；失败打印 `comp-isel FAIL:` 行。
+**gate report**：stdout 须含 `comp-isel gate OK` + `status=ok`；失败打印 `comp-isel FAIL:` 行。
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/comp-isel-v1.md` |
+| 本文 | `analysis/archive/comp/comp-isel-v1.md` |
 | manifest | `tests/baseline/comp-isel.tsv` |
 | bench | `tests/baseline/comp-isel-bench.tsv` |
 
 **COMP-006 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
+hard die; DOC=archive; report `run=`／`skip=`.
+
+```bash
+./tests/run-comp-isel-gate.sh   # runnable：manifest + isel hooks
+./tests/run-comp-isel.sh        # asm binop 烟测（缺 native 硬 die）
+```
+

@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# COMP-005：寄存器分配策略 manifest 门禁
+# COMP-005: register-allocation strategy manifest gate (false-authority honesty).
 # wave309 honesty: live glue_asm73_* in runtime_pipeline_abi.x;
 # DOC default = analysis/archive/comp/comp-regalloc-v1.md (archived).
-# PLATFORM: SHARED archaeology.
 #
-# 用法：./tests/run-comp-regalloc-gate.sh
+# Honesty: soft SKIP→OK in run-comp-regalloc.sh retired (2026-08-27). Prefer
+# product xlang_asm via child; DOC→archive with ## Gate; refuse top-level
+# DOC resurrect. Report inherits child run=/skip=; greppable gate OK kept.
+#
+# Usage: ./tests/run-comp-regalloc-gate.sh
 # wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 DOC="${XLANG_COMP_REGALLOC_DOC:-analysis/archive/comp/comp-regalloc-v1.md}"
 MANIFEST="${XLANG_COMP_REGALLOC_MANIFEST:-tests/baseline/comp-regalloc.tsv}"
@@ -17,6 +22,18 @@ QUALITY="${XLANG_COMP_REGALLOC_QUALITY:-tests/baseline/comp-regalloc-quality.tsv
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_METRICS=9
+PREFIX="xlang: [XLANG_COMP_REGALLOC]"
+
+die() {
+  echo "comp-regalloc gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail host=$(ci_host_summary)"
+  exit 1
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/comp-regalloc-v1.md ]; then
+  die "refuse top-level analysis/comp-regalloc-v1.md (use archive/comp)"
+fi
 
 # shellcheck source=tests/lib/comp-regalloc.sh
 . tests/lib/comp-regalloc.sh
@@ -30,10 +47,13 @@ for f in "$DOC" "$MANIFEST" "$QUALITY" \
   tests/asm/binop_return_fourteen_add.x tests/asm/binop_if_return_twelve_add.x \
   tests/run-asm-73-gate.sh; do
   if [ ! -f "$f" ]; then
-    echo "comp-regalloc gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
   fi
 done
+
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -141,28 +161,23 @@ while IFS=$'\t' read -r metric_id arch _strategy _threshold script _notes; do
 done < "$QUALITY"
 
 if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "comp-regalloc gate FAIL: layers=${LAYER_N} < min ${MIN_LAYERS}" >&2
-  exit 1
+  die "layers=${LAYER_N} < min ${MIN_LAYERS}"
 fi
 if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "comp-regalloc gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
+  die "cases=${CASE_N} < min ${MIN_CASES}"
 fi
 if [ "$METRIC_N" -lt "$MIN_METRICS" ]; then
-  echo "comp-regalloc gate FAIL: metrics=${METRIC_N} < min ${MIN_METRICS}" >&2
-  exit 1
+  die "metrics=${METRIC_N} < min ${MIN_METRICS}"
 fi
 
 for kw in register allocation regalloc quality runnable report; do
   if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "comp-regalloc gate FAIL: doc missing keyword $kw" >&2
-    exit 1
+    die "doc missing keyword $kw"
   fi
 done
 
 if [ "$MISS" -gt 0 ]; then
-  echo "comp-regalloc gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "comp-regalloc manifest OK (layers=${LAYER_N} cases=${CASE_N} metrics=${METRIC_N})"
 

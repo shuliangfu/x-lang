@@ -75,7 +75,8 @@ comp_incr_compile_effective_cap() {
 # 探测 xlang check 是否输出 XLANG_COMPILE_PHASE_TIMING（C-only xlang-c 无 pipeline 时不输出）。
 comp_incr_compile_phase_timing_available() {
   local xlang="$1"
-  local fix="${2:-bench/loop_i32.x}"
+  # Fossil bench/loop_i32.x retired (2026-08-24 #7 / 2026-08-27 honesty).
+  local fix="${2:-examples/hello.x}"
   local log=""
   [ -x "$xlang" ] && [ -f "$fix" ] || return 1
   log="$(XLANG_COMPILE_PHASE_TIMING=1 "$xlang" check "$fix" 2>&1)" || true

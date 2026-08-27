@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# COMP-006：指令选择优化 manifest 门禁
+# COMP-006: instruction-selection manifest gate (false-authority honesty).
 #
-# 用法：./tests/run-comp-isel-gate.sh
+# Honesty: soft SKIP→OK in run-comp-isel.sh retired (2026-08-27). Prefer
+# product xlang_asm via child; DOC→archive with ## Gate; refuse top-level
+# DOC resurrect. Report inherits child run=/skip=; greppable gate OK kept.
+#
+# Usage: ./tests/run-comp-isel-gate.sh
 # wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 DOC="${XLANG_COMP_ISEL_DOC:-analysis/archive/comp/comp-isel-v1.md}"
 MANIFEST="${XLANG_COMP_ISEL_MANIFEST:-tests/baseline/comp-isel.tsv}"
@@ -14,6 +20,18 @@ BENCH="${XLANG_COMP_ISEL_BENCH:-tests/baseline/comp-isel-bench.tsv}"
 MIN_LAYERS=6
 MIN_CASES=8
 MIN_BENCHES=9
+PREFIX="xlang: [XLANG_COMP_ISEL]"
+
+die() {
+  echo "comp-isel gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail host=$(ci_host_summary)"
+  exit 1
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/comp-isel-v1.md ]; then
+  die "refuse top-level analysis/comp-isel-v1.md (use archive/comp)"
+fi
 
 # shellcheck source=tests/lib/comp-isel.sh
 . tests/lib/comp-isel.sh
@@ -24,10 +42,13 @@ for f in "$DOC" "$MANIFEST" "$BENCH" \
   tests/asm/binop_var_fast.x tests/asm/binop_index_lit_fast.x \
   bench/r01_loop_i32.x tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
-    echo "comp-isel gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
   fi
 done
+
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -134,28 +155,23 @@ while IFS=$'\t' read -r bench_id x_file _rest; do
 done < "$BENCH"
 
 if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "comp-isel gate FAIL: layers=${LAYER_N} < min ${MIN_LAYERS}" >&2
-  exit 1
+  die "layers=${LAYER_N} < min ${MIN_LAYERS}"
 fi
 if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "comp-isel gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
+  die "cases=${CASE_N} < min ${MIN_CASES}"
 fi
 if [ "$BENCH_N" -lt "$MIN_BENCHES" ]; then
-  echo "comp-isel gate FAIL: benches=${BENCH_N} < min ${MIN_BENCHES}" >&2
-  exit 1
+  die "benches=${BENCH_N} < min ${MIN_BENCHES}"
 fi
 
 for kw in instruction selection peephole microbench runnable report; do
   if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "comp-isel gate FAIL: doc missing keyword $kw" >&2
-    exit 1
+    die "doc missing keyword $kw"
   fi
 done
 
 if [ "$MISS" -gt 0 ]; then
-  echo "comp-isel gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "comp-isel manifest OK (layers=${LAYER_N} cases=${CASE_N} benches=${BENCH_N})"
 

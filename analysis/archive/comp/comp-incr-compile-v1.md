@@ -94,13 +94,28 @@ comp-incr-compile: bench_double_check ratio=0.92 first_ms=120 second_ms=110 OK
 ./tests/run-obs-compile-phase-timing-gate.sh  # 阶段计时联动
 ```
 
-**gate report**：stdout 须含 `comp-incr-compile gate OK`；失败打印 `comp-incr-compile FAIL:` 行。
+**gate report**：stdout 须含 `comp-incr-compile gate OK` + `status=ok`；失败打印 `comp-incr-compile FAIL:` 行。
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/comp-incr-compile-v1.md` |
+| 本文 | `analysis/archive/comp/comp-incr-compile-v1.md` |
 | manifest | `tests/baseline/comp-incr-compile.tsv` |
 | prototype | `tests/baseline/comp-incr-compile-prototype.tsv` |
 | bench | `tests/baseline/comp-incr-compile-bench.tsv` |
 
 **COMP-007 状态：定版 ✅（v1 策略）**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c when no native; explicit bad XLANG / missing
+native = hard die after proto registry; `xlang check` benches = obs (check
+gate paused 2026-08-05); ratio over-cap = obs (`XLANG_INCR_COMPILE_FAIL=1`
+still hard); fossil `bench/loop_i32.x` → `examples/hello.x`; DOC=archive;
+report `run=`／`obs=`／`skip=`.
+
+```bash
+./tests/run-comp-incr-compile-gate.sh   # runnable：manifest + prototype + bench
+./tests/run-comp-incr-compile.sh        # 二次编译烟测（缺 native 硬 die）
+```
+
