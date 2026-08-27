@@ -1,17 +1,39 @@
 #!/usr/bin/env bash
-# S5：compiler self WPO __text 门禁（call graph dead% + 多库 asm D/B proxy）。
-# 用法：
+# S5: compiler-self WPO __text gate (call-graph dead% + multi-lib asm A/B proxy).
+#
+# Honesty: soft XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT:-0 under-min still
+# printed FAIL then OK / exit 0 was portable false-green. Missing xlang_asm
+# soft SKIP→OK for the asm proxy half retired. Compile failure with a present
+# compiler is hard die. Under-min save = obs (perf residual;
+# FAIL_ON_WPO_COMPILER_SELF_TEXT=1 still hard). Prefer product xlang_asm.
+# Report run=/obs=/skip=.
+#
+# Usage:
 #   ./tests/run-perf-wpo-dce-compiler-self-text.sh
 #   XLANG=./compiler/xlang_asm XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 #   XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . "$(dirname "$0")/lib/wpo-ab-proxy.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 text_bytes() { wpo_ab_text_bytes "$@"; }
+
+PREFIX="xlang: [XLANG_PERF_WPO_COMPILER_SELF_TEXT]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "run-perf-wpo-dce-compiler-self-text FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
 XLANG_ASM="${XLANG:-./compiler/xlang_asm}"
 case "$XLANG_ASM" in
@@ -88,17 +110,20 @@ sum_wpo_eligible_text() {
 
 echo "=== wpo compiler self __text (graph + asm proxy) ==="
 
-# ── 1) main.x 全程序 call graph dead export %（C WPO，与 run-wpo-compiler-self 同语义）──
+# ── 1) main.x whole-program call-graph dead export % (C WPO; same as run-wpo-compiler-self) ──
 rm -f "$GRAPH"
-XLANG_WPO_DUMP_CALLGRAPH="$GRAPH" "$XLANG_C" check compiler/src/main.x >/dev/null
-[ -s "$GRAPH" ] || { echo "wpo compiler self text: graph missing"; exit 1; }
+if ! XLANG_WPO_DUMP_CALLGRAPH="$GRAPH" "$XLANG_C" check compiler/src/main.x >/dev/null; then
+  die "xlang-c check/callgraph failed for compiler/src/main.x"
+fi
+[ -s "$GRAPH" ] || die "graph missing after xlang-c check"
 perl compiler/scripts/wpo_dce.pl "$GRAPH" --min-dead-pct "$MIN_GRAPH_PCT" | tee /tmp/wpo_compiler_self_text_graph.log
-grep -q 'wpo_dce OK' /tmp/wpo_compiler_self_text_graph.log
+grep -q 'wpo_dce OK' /tmp/wpo_compiler_self_text_graph.log || die "wpo_dce.pl graph gate failed"
 
 GRAPH_DEAD_PCT=$(grep '^wpo_dce:' /tmp/wpo_compiler_self_text_graph.log | sed -n 's/.*(\([0-9.]*\)%).*/\1/p')
 echo "compiler self graph: dead_export_pct=${GRAPH_DEAD_PCT:-?}% (min=${MIN_GRAPH_PCT}%)"
+RUN_OK=1
 
-# ── 2) asm __text A/B：多库 proxy（需 xlang_asm）──
+# ── 2) asm __text A/B multi-lib proxy (requires product xlang_asm) ──
 
 compile_ab() {
   local src="$1"
@@ -116,31 +141,35 @@ MULTI_SAVE=0
 MULTI_PCT=0
 
 if [ ! -x "$XLANG_ASM_ABS" ]; then
-  echo "wpo compiler self text: asm proxy SKIP (no xlang_asm)"
-else
-  if compile_ab tests/wpo/dead_multi_user.x "$MULTI_OFF" "$MULTI_ON"; then
-    OFF=$(text_bytes "$MULTI_OFF") || { echo "cannot read multi off .text"; exit 1; }
-    ON=$(text_bytes "$MULTI_ON") || { echo "cannot read multi on .text"; exit 1; }
-    if [ "$OFF" -le "$ON" ]; then
-      echo "WPO compiler self text FAIL: multi DCE on ($ON) not smaller than off ($OFF)"
-      nm "$MULTI_OFF" 2>/dev/null | grep -E 'dead_export|live_export' || true
-      exit 1
-    fi
-    MULTI_SAVE=$((OFF - ON))
-    MULTI_PCT=$((MULTI_SAVE * 100 / OFF))
-    echo "| proxy | dce_off | dce_on | save (B) | save (%) |"
-    echo "| dead_multi_user | $OFF | $ON | $MULTI_SAVE | ${MULTI_PCT}% |"
-    if [ "$MULTI_SAVE" -lt "$MIN_MULTI_BYTES" ]; then
-      echo "WPO compiler self text FAIL: multi save ${MULTI_SAVE}B < min ${MIN_MULTI_BYTES}B" >&2
-      [ "$FAIL_REGRESS" = 1 ] && exit 1
-    fi
-    if [ "$MULTI_PCT" -lt "$MIN_MULTI_PCT" ]; then
-      echo "WPO compiler self text FAIL: multi save ${MULTI_PCT}% < min ${MIN_MULTI_PCT}%" >&2
-      [ "$FAIL_REGRESS" = 1 ] && exit 1
-    fi
-  else
-    echo "wpo compiler self text: asm proxy FAIL (dead_multi_user compile failed)" >&2
-    [ "$FAIL_REGRESS" = 1 ] && exit 1
+  die "need xlang_asm at $XLANG_ASM_ABS for asm proxy (refuse soft SKIP→OK)"
+fi
+
+if ! compile_ab tests/wpo/dead_multi_user.x "$MULTI_OFF" "$MULTI_ON"; then
+  die "asm compile failed for tests/wpo/dead_multi_user.x (refuse soft SKIP→OK)"
+fi
+OFF=$(text_bytes "$MULTI_OFF") || die "cannot read multi off .text"
+ON=$(text_bytes "$MULTI_ON") || die "cannot read multi on .text"
+if [ "$OFF" -le "$ON" ]; then
+  echo "WPO compiler self text FAIL: multi DCE on ($ON) not smaller than off ($OFF)" >&2
+  nm "$MULTI_OFF" 2>/dev/null | grep -E 'dead_export|live_export' || true
+  die "multi DCE on ($ON) not smaller than off ($OFF)"
+fi
+MULTI_SAVE=$((OFF - ON))
+MULTI_PCT=$((MULTI_SAVE * 100 / OFF))
+echo "| proxy | dce_off | dce_on | save (B) | save (%) |"
+echo "| dead_multi_user | $OFF | $ON | $MULTI_SAVE | ${MULTI_PCT}% |"
+if [ "$MULTI_SAVE" -lt "$MIN_MULTI_BYTES" ]; then
+  echo "WPO compiler self text OBS: multi save ${MULTI_SAVE}B < min ${MIN_MULTI_BYTES}B (perf residual)" >&2
+  OBS=1
+  if [ "$FAIL_REGRESS" = 1 ]; then
+    die "multi save ${MULTI_SAVE}B < min ${MIN_MULTI_BYTES}B (XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1)"
+  fi
+fi
+if [ "$MULTI_PCT" -lt "$MIN_MULTI_PCT" ]; then
+  echo "WPO compiler self text OBS: multi save ${MULTI_PCT}% < min ${MIN_MULTI_PCT}% (perf residual)" >&2
+  OBS=1
+  if [ "$FAIL_REGRESS" = 1 ]; then
+    die "multi save ${MULTI_PCT}% < min ${MIN_MULTI_PCT}% (XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1)"
   fi
 fi
 
@@ -230,8 +259,11 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$XLANG_ASM_ABS" ]; then
     echo "| main.x | dce_off | dce_on | save (B) | save (%) |"
     echo "| compiler/src/main.x | $MOFF | $MON | $MAIN_SAVE | ${MAIN_PCT}% |"
     if [ "$MAIN_PCT" -lt "$MIN_MAIN_PCT" ]; then
-      echo "WPO compiler self text FAIL: main save ${MAIN_PCT}% < min ${MIN_MAIN_PCT}%" >&2
-      [ "$FAIL_REGRESS" = "1" ] && exit 1
+      echo "WPO compiler self text OBS: main save ${MAIN_PCT}% < min ${MIN_MAIN_PCT}% (perf residual)" >&2
+      OBS=1
+      if [ "$FAIL_REGRESS" = "1" ]; then
+        die "main save ${MAIN_PCT}% < min ${MIN_MAIN_PCT}% (XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1)"
+      fi
     fi
   else
     echo "wpo compiler self text: main.x asm A/B inconclusive (off=$MOFF on=$MON)"
@@ -356,29 +388,31 @@ if [ -d "$BUILD_ASM_DIR" ] && [ -f "$BUILD_ASM_DIR/main.o" ]; then
       CHAIN_PCT=$((CHAIN_SAVE * 100 / CHAIN_OFF))
       echo "| build_asm chain | dce_off | dce_on | save (B) | save (%) |"
       echo "| wpo-eligible (main+driver+pipeline+typeck+backend) | $CHAIN_OFF | $CHAIN_ON | $CHAIN_SAVE | ${CHAIN_PCT}% |"
-      chain_fail=0
       if [ "$CHAIN_SAVE" -lt "$MIN_CHAIN_BYTES" ]; then
-        echo "WPO compiler self text FAIL: build_asm chain save ${CHAIN_SAVE}B < min ${MIN_CHAIN_BYTES}B" >&2
-        chain_fail=1
+        echo "WPO compiler self text OBS: build_asm chain save ${CHAIN_SAVE}B < min ${MIN_CHAIN_BYTES}B (perf residual)" >&2
+        OBS=1
+        if [ "$FAIL_REGRESS" = 1 ]; then
+          die "build_asm chain save ${CHAIN_SAVE}B < min ${MIN_CHAIN_BYTES}B (XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1)"
+        fi
       fi
       if [ "$CHAIN_PCT" -lt "$MIN_CHAIN_PCT" ]; then
-        echo "WPO compiler self text FAIL: build_asm chain save ${CHAIN_PCT}% < min ${MIN_CHAIN_PCT}%" >&2
-        chain_fail=1
-      fi
-      if [ "$chain_fail" -eq 1 ] && [ "$FAIL_REGRESS" = 1 ]; then
-        exit 1
+        echo "WPO compiler self text OBS: build_asm chain save ${CHAIN_PCT}% < min ${MIN_CHAIN_PCT}% (perf residual)" >&2
+        OBS=1
+        if [ "$FAIL_REGRESS" = 1 ]; then
+          die "build_asm chain save ${CHAIN_PCT}% < min ${MIN_CHAIN_PCT}% (XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1)"
+        fi
       fi
     fi
   elif [ "$MAIN_SAVE" = "" ]; then
-    echo "wpo compiler self text: build_asm chain SKIP (main.x A/B unavailable)"
+    echo "wpo compiler self text: build_asm chain inconclusive (main.x A/B unavailable)"
   fi
 fi
 
 if [ "$UPDATE_BASELINE" = 1 ] && [ "$MULTI_SAVE" -gt 0 ]; then
   cat > "$BASELINE" <<EOF
-# WPO compiler self __text proxy：dead_multi_user 三库 dead export A/B 相对 XLANG_ASM_WPO_DCE=0 的节省
-# main.x call graph dead% 下限（与 run-wpo-compiler-self.sh 一致）
-# 更新：XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
+# WPO compiler-self __text proxy: dead_multi_user multi-lib A/B vs XLANG_ASM_WPO_DCE=0
+# main.x call-graph dead% floor (same as run-wpo-compiler-self.sh)
+# Update: XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 min_dead_pct_graph	${MIN_GRAPH_PCT}
 dead_multi_min_text_save_bytes	$((MULTI_SAVE > 16 ? MULTI_SAVE - 16 : MULTI_SAVE))
 dead_multi_min_text_save_pct	$((MULTI_PCT > 3 ? MULTI_PCT - 3 : MULTI_PCT))
@@ -388,4 +422,5 @@ EOF
   echo "updated baseline: $BASELINE"
 fi
 
-echo "wpo compiler self text OK (graph dead>=${MIN_GRAPH_PCT}%; multi save=${MULTI_SAVE}B/${MULTI_PCT}%; main save=${MAIN_SAVE:-SKIP}B/${MAIN_PCT:-SKIP}%; driver save=${DRIVER_SAVE:-SKIP}B/${DRIVER_PCT:-SKIP}%; pipeline save=${PIPE_SAVE:-SKIP}B/${PIPE_PCT:-SKIP}%; chain save=${CHAIN_SAVE:-SKIP}B/${CHAIN_PCT:-SKIP}%)"
+echo "wpo compiler self text OK (graph dead>=${MIN_GRAPH_PCT}%; multi save=${MULTI_SAVE}B/${MULTI_PCT}%; main save=${MAIN_SAVE:-n/a}B/${MAIN_PCT:-n/a}%; driver save=${DRIVER_SAVE:-n/a}B/${DRIVER_PCT:-n/a}%; pipeline save=${PIPE_SAVE:-n/a}B/${PIPE_PCT:-n/a}%; chain save=${CHAIN_SAVE:-n/a}B/${CHAIN_PCT:-n/a}%; obs=${OBS})"
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} multi_save=${MULTI_SAVE} multi_pct=${MULTI_PCT} host=$(ci_host_summary)"
