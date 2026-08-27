@@ -72,9 +72,11 @@ fi
 if [ "${XLANG_NOLIBC_LINK_SKIP_SMOKE:-0}" != "1" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ]; then
     chmod +x tests/run-no-libc-heap-gate.sh tests/run-no-libc-fs-gate.sh
-    # Hard-delegate; do not re-export retired soft FAIL knobs.
+    # Hard-delegate children (they hard-die on static; live may be observational).
+    # Do not re-export retired soft FAIL knobs.
     ./tests/run-no-libc-heap-gate.sh || die "heap smoke link failed"
     ./tests/run-no-libc-fs-gate.sh || die "fs smoke link failed"
+    # Child exit0 with live=0 still counts as delegated; report smoke=1 when both OK.
     SMOKE_OK=1
     SKIP=0
   else

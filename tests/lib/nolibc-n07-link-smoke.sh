@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# nolibc-n07-link-smoke.sh — NL-07 v3：bootstrap nostdlib 最小链入烟测（Linux x86_64）。
+# nolibc-n07-link-smoke.sh — NL-07 v3: bootstrap nostdlib minimal link smoke
+# (Linux x86_64).
 #
-# 用法（source 后调用）：
+# Usage (source then call):
 #   . tests/lib/nolibc-n07-link-smoke.sh
 #   nolibc_n07_run_bootstrap_link_smoke || exit 1
 #
-# 环境：
-#   XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=1 — 额外链入 runtime_panic.o
-
-# 在 Linux x86_64 上编译并链入 crt0 + freestanding_io + bootstrap 桩 + smoke main_entry。
+# Env:
+#   XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=1 — also link runtime_panic.o (default)
+#
+# Honesty (2026-08-27): do NOT rely on xlang_compiler_make alone for
+# bootstrap_nostdlib_stubs.o — post-MG try-heat can return 0 without creating
+# the leaf (portable false-green under soft die). Live authority =
+# bootstrap_nostdlib_shared.sh ensure_* + verify files exist.
+# PLATFORM: LINUX freestanding smoke.
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
+
 nolibc_n07_run_bootstrap_link_smoke() {
   local cc="${CC:-cc}"
   local compiler_dir="${1:-compiler}"
@@ -20,6 +26,7 @@ nolibc_n07_run_bootstrap_link_smoke() {
   local build_dir
   local rc=0
   local with_panic="${XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC:-1}"
+  local shared="scripts/bootstrap_nostdlib_shared.sh"
 
   if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
     echo "nolibc-n07-link-smoke: SKIP (need Linux x86_64)" >&2
@@ -30,21 +37,47 @@ nolibc_n07_run_bootstrap_link_smoke() {
   # shellcheck disable=SC2064
   trap "rm -rf '$build_dir'" RETURN
 
-  # 强制在本机架构重编，避免 macOS 宿主 .o 混入 Docker/Linux 链。
+  # Force rebuild on this host arch (avoid macOS .o mixed into Linux link).
+  # PLATFORM: LINUX.
   rm -f \
     "$compiler_dir/src/asm/bootstrap_nostdlib_stubs.o" \
     "$compiler_dir/src/asm/freestanding_io_x86_64.o" \
     "$compiler_dir/src/asm/crt0_x86_64.o" \
     "$compiler_dir/runtime_panic.o" 2>/dev/null || true
 
-  if ! XLANG_COMPILER_DIR="$compiler_dir" xlang_compiler_make \
-    src/asm/crt0_x86_64.o \
-    src/asm/freestanding_io_x86_64.o \
-    src/asm/bootstrap_nostdlib_stubs.o \
-    runtime_panic.o >/dev/null 2>&1; then
-    echo "nolibc-n07-link-smoke FAIL: xlang_compiler_make bootstrap objects" >&2
+  # G.7: stubs + freestanding_io live in bootstrap_nostdlib_shared.sh.
+  if [ ! -f "$compiler_dir/$shared" ]; then
+    echo "nolibc-n07-link-smoke FAIL: missing $compiler_dir/$shared" >&2
     return 1
   fi
+  (
+    cd "$compiler_dir" || exit 1
+    # shellcheck disable=SC1090
+    . "$shared"
+    ensure_freestanding_io_x86_64_obj
+    ensure_bootstrap_nostdlib_stubs_obj
+  ) || {
+    echo "nolibc-n07-link-smoke FAIL: shared ensure freestanding_io/stubs" >&2
+    return 1
+  }
+
+  # crt0 + runtime_panic via 0-make hub; verify leaves exist (no false OK).
+  if ! XLANG_COMPILER_DIR="$compiler_dir" xlang_compiler_make \
+    src/asm/crt0_x86_64.o runtime_panic.o; then
+    echo "nolibc-n07-link-smoke FAIL: xlang_compiler_make crt0/runtime_panic" >&2
+    return 1
+  fi
+
+  for f in \
+    "$compiler_dir/src/asm/crt0_x86_64.o" \
+    "$compiler_dir/src/asm/freestanding_io_x86_64.o" \
+    "$compiler_dir/src/asm/bootstrap_nostdlib_stubs.o" \
+    "$compiler_dir/runtime_panic.o"; do
+    if [ ! -f "$f" ]; then
+      echo "nolibc-n07-link-smoke FAIL: missing object after ensure: $f" >&2
+      return 1
+    fi
+  done
 
   if [ ! -f "$smoke_c" ]; then
     echo "nolibc-n07-link-smoke FAIL: missing $smoke_c" >&2
