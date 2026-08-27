@@ -201,8 +201,10 @@ if [ "$EMIT_HEAVY" = "1" ] && [ -f "$TMP" ]; then
   NM_BAD=0
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
+    # Families: thin/glue, ast_*/ast_ast_*, pipeline_*, fs_*/std_fs_*,
+    # lexer_*/lexer_lexer_*, libc mem*, xlang_panic*/trait_*. Comments must
+    # not sit between | continuations (bash case syntax).
     case "$sym" in
-      # thin / glue / stretch / parse bootstrap delegates
       parser_*_glue|\
       parser_asm_*|\
       parser_lex_from_*|\
@@ -210,19 +212,14 @@ if [ "$EMIT_HEAVY" = "1" ] && [ -f "$TMP" ]; then
       parser_slice_from_buf|\
       parser_diagnostic_*|\
       parser_report_*|\
-      # ast arena / pool (short + module-prefixed ast_ast_*)
       ast_arena_*|\
       ast_pool_*|\
       ast_*|\
-      # pipeline / onefunc / compound-assign glue
       pipeline_*|\
       compound_assign_token_to_expr_kind_from_glue|\
-      # fs C companions (seed short + std_fs product surface)
       fs_*|\
       std_fs_*|\
-      # lexer (short + module-prefixed lexer_lexer_*)
       lexer_*|\
-      # libc / runtime helpers expected on partial .o
       memcpy|memmove|memset|memcmp|\
       ref_is_null|\
       xlang_panic*|\
