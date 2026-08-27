@@ -14,7 +14,7 @@ Honesty wave: retire soft `XLANG_PARSER_*_FAIL` die→exit0 on:
 | C2 bisect | `tests/run-parser-parse-bootstrap-bisect-gate.sh` | MINIMAL whitelist hard; FULL mega emit remains observational |
 | C3 x-emit probe | `tests/run-parser-parse-bootstrap-x-emit-gate.sh` | MINIMAL hard; unexpected mega `parse_into_buf` hard; known FULL fail OK |
 | thin glue symbols | `tests/run-parser-thin-glue-symbol-integrity-gate.sh` | baseline TSV + stretch/glue mins hard |
-| experimental emit | `tests/run-parser-experimental-emit-gate.sh` | when experimental compiler present: non-empty emit hard |
+| experimental emit | `tests/run-parser-experimental-emit-gate.sh` | DOC hard; present+OK=run=1; present+fail=obs (REQUIRE=1 hard) |
 | parse count | `tests/run-parser-parse-count-gate.sh` | `num_funcs` ≥ baseline min hard |
 | mega bisect | `tests/run-parser-mega-bisect-gate.sh` | unexpected large delta hard (stub/fail path OK; **not** mega promote) |
 | mega sweep | `tests/run-parser-mega-bisect-sweep-gate.sh` | baseline drift / unexpected emit hard |

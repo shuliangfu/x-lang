@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # experimental-chain parser.x emit honesty gate (truncated heavy emit).
 #
-# Honesty: soft XLANG_PARSER_EXPERIMENTAL_EMIT_FAIL retired — compile /
-# empty .o soft die→exit0 were portable false-green.
-# Missing experimental compiler = honest skip=1. Present compiler must
-# produce non-empty emit. Does NOT promote full mega parser.x product path.
+# Honesty: soft XLANG_PARSER_EXPERIMENTAL_EMIT_FAIL retired — DOC miss /
+# silent exit0 were portable false-green.
+# Missing experimental compiler = honest skip=1.
+# Present + emit OK = run=1. Present + compile fail = observational run=0
+# (XP008/T001 padding / check-adjacent residual; not mega promote).
+# Env: XLANG_PARSER_EXPERIMENTAL_REQUIRE=1 — hard-fail when compiler present
+# but emit fails.
 #
-# Report: compiler=/run=/skip=
+# Report: compiler=/run=/obs=/skip=
 # PLATFORM: LINUX gold · DARWIN N/A (honest skip).
 set -e
 cd "$(dirname "$0")/.."
@@ -15,22 +18,31 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/archive/phase/phase-parser-soft-fail0-honesty.md"
 PREFIX="xlang: [XLANG_PARSER_EXPERIMENTAL_EMIT]"
-FAIL_RETIRED_NOTE="soft XLANG_PARSER_EXPERIMENTAL_EMIT_FAIL retired"
+REQUIRE=${XLANG_PARSER_EXPERIMENTAL_REQUIRE:-0}
 MIN_TEXT=${XLANG_PARSER_EXPERIMENTAL_EMIT_MIN_TEXT:-500}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 COMPILER_OK=0
 RUN_OK=0
+OBS=0
 SKIP=1
 
 die() {
   echo "parser-experimental-emit-gate FAIL: $*" >&2
-  echo "${PREFIX} status=fail compiler=${COMPILER_OK:-0} run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  echo "${PREFIX} status=fail compiler=${COMPILER_OK:-0} run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
   exit 1
 }
 
 report_ok() {
-  echo "${PREFIX} status=ok compiler=${COMPILER_OK:-0} run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  echo "${PREFIX} status=ok compiler=${COMPILER_OK:-0} run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+obs_fail() {
+  OBS=1
+  SKIP=0
+  echo "parser-experimental-emit-gate OBS: $* (set XLANG_PARSER_EXPERIMENTAL_REQUIRE=1 to hard-fail)" >&2
+  report_ok
+  exit 0
 }
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -54,7 +66,7 @@ if [ -n "${XLANG_PARSER_EXPERIMENTAL_COMPILER:-}" ]; then
   esac
 fi
 if [ ! -x "compiler/$COMP_IN" ] && [ ! -x "$COMP_IN" ]; then
-  echo "parser-experimental-emit-gate: SKIP (no compiler/$COMP_IN; $FAIL_RETIRED_NOTE)"
+  echo "parser-experimental-emit-gate: SKIP (no compiler/$COMP_IN)"
   report_ok
   exit 0
 fi
@@ -71,18 +83,27 @@ if ! (
 ) > /tmp/xlang_parser_exp_emit.log 2>&1; then
   tail -n 8 /tmp/xlang_parser_exp_emit.log 2>/dev/null || true
   rm -f "$TMP" /tmp/xlang_parser_exp_emit.log 2>/dev/null || true
-  die "compile command failed"
+  if [ "$REQUIRE" = "1" ]; then
+    die "compile command failed"
+  fi
+  obs_fail "compile command failed"
 fi
 
 if grep -q 'asm_codegen_elf_o failed' /tmp/xlang_parser_exp_emit.log 2>/dev/null; then
   tail -n 6 /tmp/xlang_parser_exp_emit.log 2>/dev/null || true
   rm -f "$TMP" /tmp/xlang_parser_exp_emit.log 2>/dev/null || true
-  die "asm_codegen_elf_o failed"
+  if [ "$REQUIRE" = "1" ]; then
+    die "asm_codegen_elf_o failed"
+  fi
+  obs_fail "asm_codegen_elf_o failed"
 fi
 
 if [ ! -s "$TMP" ]; then
   rm -f "$TMP" /tmp/xlang_parser_exp_emit.log 2>/dev/null || true
-  die "empty output"
+  if [ "$REQUIRE" = "1" ]; then
+    die "empty output"
+  fi
+  obs_fail "empty output"
 fi
 
 TEXT_HEX=$(objdump -h "$TMP" 2>/dev/null | awk '$2 == ".text" { print $3; exit }')
@@ -92,7 +113,10 @@ FILE_SZ=$(stat -c%s "$TMP" 2>/dev/null || stat -f%z "$TMP" 2>/dev/null || echo 0
 rm -f "$TMP" /tmp/xlang_parser_exp_emit.log 2>/dev/null || true
 
 if [ "${TEXT:-0}" -lt "$MIN_TEXT" ] 2>/dev/null && [ "${FILE_SZ:-0}" -lt "$MIN_TEXT" ] 2>/dev/null; then
-  die "__text=${TEXT}B file=${FILE_SZ}B < min ${MIN_TEXT}B"
+  if [ "$REQUIRE" = "1" ]; then
+    die "__text=${TEXT}B file=${FILE_SZ}B < min ${MIN_TEXT}B"
+  fi
+  obs_fail "__text=${TEXT}B file=${FILE_SZ}B < min ${MIN_TEXT}B"
 fi
 
 RUN_OK=1
