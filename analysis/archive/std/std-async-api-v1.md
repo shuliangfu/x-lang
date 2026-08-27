@@ -163,3 +163,10 @@ xlang: [XLANG_STD_ASYNC_API] status=ok check=1 switch=1 imp=1 drain=1 coop=0 ski
 ## Gate
 
 Honesty soft→硬绿 (2026-08-27) `run-perf-async.sh`: prefer xlang_asm; refuse soft auto-make / soft FAIL_ON_ASYNC_REGRESSION:-0 silent OK; over-cap = obs; bench→`i06_async_switch*`; report run=/obs=/skip=.
+
+Honesty soft→硬绿 (2026-08-27) `run-std-async-1m-gate.sh`: prefer `xlang_asm` +
+`XLANG_LINK_XLANG`; refuse soft SKIP→OK / silent asm→c fallback; fossil
+`async_switch.x`／`async_switch_sched.x` → live `i06_*`; `async_1m_coop`
+(`coop_pingpong*`) UNDEF = obs (product residual — not soft); platform
+must/skip from TSV stays honest; missing native／显式坏 XLANG = hard die;
+report `run=`／`obs=`／`skip=`.

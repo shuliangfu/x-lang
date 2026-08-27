@@ -1,48 +1,70 @@
 #!/usr/bin/env bash
-# LANG-001：edition / feature gate 烟测。
+# LANG-001: edition / feature gate smoke.
 #
-# 用法：./tests/run-lang-feature-gate.sh
+# Honesty: soft SKIP→OK when no native xlang (bare "gate OK") + prefer
+# xlang-c before xlang_asm retired. Prefer product xlang_asm. Explicit
+# bad XLANG = hard die. Missing native = hard die (edition/feature hooks
+# are the live face). Report run=/edition=/feature=/skip=.
+#
+# Usage: ./tests/run-lang-feature-gate.sh
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-# shellcheck source=tests/lib/ci-host.sh
-. tests/lib/ci-host.sh
+PREFIX="xlang: [XLANG_LANG_FEATURE]"
+RUN_OK=0
+EDITION_OK=0
+FEATURE_OK=0
+SKIP=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "lang-feature-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} edition=${EDITION_OK} feature=${FEATURE_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} edition=${EDITION_OK} feature=${FEATURE_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
   done
-fi
+  return 1
+}
 
-if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
-  echo "lang-feature-gate SKIP (no native xlang, host=$(ci_host_summary))" >&2
-  echo "lang-feature-gate OK"
-  exit 0
-fi
-
-# G.7: edition wrapper defaults to compiler/xlang; always export the picked binary
-# so hosts with only xlang-c / xlang_asm (no bare xlang) stay honest.
-# wave honesty (2026-08-24 #6): Ubuntu gold exposed missing XLANG passthrough.
-# PLATFORM: SHARED archaeology.
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
 export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
 xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 chmod +x scripts/xlang-lang-edition.sh
@@ -61,25 +83,29 @@ run_expect() {
   echo "$ec"
 }
 
-# edition：默认稳定 0
+# edition: default stable 0
 ec=$(run_expect edition_stable ./scripts/xlang-lang-edition.sh 2024 "$ED_STABLE")
-[ "$ec" -eq 0 ] || { echo "lang-feature FAIL edition stable want 0 got $ec" >&2; exit 1; }
+[ "$ec" -eq 0 ] || die "edition stable want 0 got $ec"
 
-# edition：无 2025 flag 亦为 0
+# edition: no 2025 flag also 0
 ec=$(run_expect edition_default "$XLANG_BIN" "$ED_STABLE")
-[ "$ec" -eq 0 ] || { echo "lang-feature FAIL edition default want 0 got $ec" >&2; exit 1; }
+[ "$ec" -eq 0 ] || die "edition default want 0 got $ec"
 
-# edition：2025 experimental 99
+# edition: 2025 experimental 99
 ec=$(run_expect edition_2025 ./scripts/xlang-lang-edition.sh 2025 "$ED_STABLE")
-[ "$ec" -eq 99 ] || { echo "lang-feature FAIL edition 2025 want 99 got $ec" >&2; exit 1; }
+[ "$ec" -eq 99 ] || die "edition 2025 want 99 got $ec"
+EDITION_OK=1
 
-# feature：off 0
+# feature: off 0
 ec=$(run_expect feature_off "$XLANG_BIN" "$FEAT")
-[ "$ec" -eq 0 ] || { echo "lang-feature FAIL feature off want 0 got $ec" >&2; exit 1; }
+[ "$ec" -eq 0 ] || die "feature off want 0 got $ec"
 
-# feature：on 42
+# feature: on 42
 ec=$(run_expect feature_on ./scripts/xlang-lang-edition.sh feature MATCH_STMT "$FEAT")
-[ "$ec" -eq 42 ] || { echo "lang-feature FAIL feature on want 42 got $ec" >&2; exit 1; }
+[ "$ec" -eq 42 ] || die "feature on want 42 got $ec"
+FEATURE_OK=1
+RUN_OK=1
 
 echo "lang-feature-gate report edition=OK feature=OK host=$(ci_host_summary)"
+ok_report
 echo "lang-feature-gate OK"

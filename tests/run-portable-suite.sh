@@ -771,12 +771,12 @@ grep -q 'lang-generic gate OK' /tmp/lang_generic_gate.log
 echo "── LANG-001 feature gate manifest ──"
 chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/xlang-lang-edition.sh
 ./tests/run-lang-feature-gate-gate.sh | tee /tmp/lang_feature_gate.log
-grep -q 'lang-feature-gate gate OK' /tmp/lang_feature_gate.log
+grep -qE 'lang-feature-gate gate OK|status=ok' /tmp/lang_feature_gate.log
 
 echo "── LANG-002 import cross-platform ──"
 chmod +x tests/run-lang-import-gate.sh
 ./tests/run-lang-import-gate.sh | tee /tmp/lang_import_gate.log
-grep -q 'lang-import gate OK' /tmp/lang_import_gate.log
+grep -qE 'lang-import gate OK|status=ok' /tmp/lang_import_gate.log
 
 echo "── LANG-006 const eval / CTFE ──"
 chmod +x tests/run-lang-const-eval-gate.sh tests/run-lang-const-eval.sh tests/lib/lang-const-eval.sh

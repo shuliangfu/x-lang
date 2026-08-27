@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# LANG-001：语法版本化 feature gate manifest 门禁（假权威诚实）。
+# LANG-001: edition / feature gate manifest gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-lang-feature-gate-gate.sh
-# wave honesty (2026-08-24 #6): DOC → analysis/archive/lang/；
+# Honesty: soft SKIP→OK / prefer-c retired in child smoke. Prefer
+# product xlang_asm via run-lang-feature-gate.sh. Explicit bad XLANG /
+# missing native = hard die. DOC authority = archive/lang. Report
+# delegated to child (run=/edition=/feature=/skip=).
+#
+# Usage: ./tests/run-lang-feature-gate-gate.sh
+# wave honesty (2026-08-24 #6): DOC → analysis/archive/lang/;
 # monofile seeds/runtime.from_x.c retired wave321 — -D / defines live in
 # runtime_driver_abi (driver_argv_collect_defines); refuse resurrect.
 # Override: XLANG_LANG_FEATURE_DOC=…
@@ -28,6 +33,10 @@ if [ -f compiler/seeds/runtime.from_x.c ]; then
   echo "lang-feature-gate gate FAIL: seeds/runtime.from_x.c resurrected (defines live = runtime_driver_abi)" >&2
   exit 1
 fi
+if [ -f analysis/lang-feature-gate-v1.md ]; then
+  echo "lang-feature-gate gate FAIL: top-level DOC resurrected (live = archive/lang/)" >&2
+  exit 1
+fi
 
 for f in "$DOC" "$MANIFEST" "$CATALOG" docs/01-关键字.md \
   "$DRIVER_SRC" scripts/xlang-lang-edition.sh \
@@ -37,6 +46,10 @@ for f in "$DOC" "$MANIFEST" "$CATALOG" docs/01-关键字.md \
     exit 1
   fi
 done
+if ! grep -qE '^## Gate' "$DOC"; then
+  echo "lang-feature-gate gate FAIL: doc missing ## Gate section" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

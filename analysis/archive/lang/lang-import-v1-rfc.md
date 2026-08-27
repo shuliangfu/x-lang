@@ -120,3 +120,17 @@
 | 同步状态 | `compiler/docs/X与C流水线同步状态.md` |
 
 **LANG-002 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / force-xlang-c LINK; explicit bad XLANG = hard die;
+missing native = hard die (import smoke is the live face); `observe`
+policy = obs (product debt — not soft silence); DOC=archive; report
+`run=`／`hooks=`／`obs=`／`skip=`.
+
+`tests/run-lang-import-gate.sh`:
+
+1. Archive DOC + matrix（拒 top-level DOC resurrect）
+2. Native xlang：hook／run 硬绿；observe 失败＝obs
+3. 缺 native／显式坏 XLANG 硬 die

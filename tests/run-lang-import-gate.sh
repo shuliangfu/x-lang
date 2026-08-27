@@ -1,39 +1,74 @@
 #!/usr/bin/env bash
-# LANG-002：import 解析跨平台一致性门禁（假权威诚实）。
+# LANG-002: import resolution cross-platform consistency gate.
 #
-# 同一套 .x / run-*.sh 在 Linux / macOS / Windows MSYS 须行为一致。
-# 用法：./tests/run-lang-import-gate.sh
-# wave honesty (2026-08-24 #9): DOC → analysis/archive/lang/;
-# live = archive + import smoke matrix.
+# Honesty: soft SKIP→OK when no native xlang + prefer-c LINK (force
+# xlang-c over resolved XLANG) retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG = hard die. Missing native =
+# hard die (import smoke is the live face). observe policy = obs
+# (product debt — not soft silence). DOC authority = archive/lang.
+# Report run=/hooks=/obs=/skip=.
+#
+# Usage: ./tests/run-lang-import-gate.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
-
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "$0")/lib/ci-host.sh"
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
 DOC="${XLANG_LANG_IMPORT_DOC:-analysis/archive/lang/lang-import-v1-rfc.md}"
 MATRIX="${XLANG_LANG_IMPORT_TSV:-tests/baseline/lang-import-crossplatform.tsv}"
+PREFIX="xlang: [XLANG_LANG_IMPORT]"
+RUN_OK=0
+HOOKS_OK=0
+OBS=0
+SKIP=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "lang-import gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} hooks=${HOOKS_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} hooks=${HOOKS_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== LANG-002: import cross-platform manifest (archive DOC) ==="
 if [ -f analysis/lang-import-v1-rfc.md ]; then
-  echo "lang-import gate FAIL: top-level DOC resurrected (live = archive/lang/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/lang/)"
 fi
 for f in \
   "$DOC" \
@@ -41,37 +76,22 @@ for f in \
   tests/import/main.x \
   tests/import/missing_module.x \
   tests/parser/import_std_async.x; do
-  if [ ! -f "$f" ]; then
-    echo "lang-import gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 echo "lang-import manifest OK (host=$(ci_host_summary))"
+RUN_OK=1
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+# Link follows resolved product path (prefer asm); refuse force-xlang-c.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+LINK_XLANG="$XLANG_BIN"
 
 xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null \
   || xlang_compiler_make ../std/async/scheduler.o
-
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
-
-if [ -z "$XLANG_BIN" ]; then
-  echo "lang-import gate SKIP bench (no native xlang)" >&2
-  exit 0
-fi
-
-# 链接优先 xlang-c（与 run-stdlib-import 一致，跨平台稳定）。
-LINK_XLANG="$XLANG_BIN"
-if [ -x ./compiler/xlang-c ] && native_xlang ./compiler/xlang-c; then
-  LINK_XLANG=./compiler/xlang-c
-fi
 
 run_x_case() {
   local script="$1"
@@ -112,8 +132,9 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      if XLANG="$XLANG_BIN" "$hook"; then
+      if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$LINK_XLANG" "$hook"; then
         echo "lang-import OK $case_id"
+        HOOKS_OK=1
       else
         echo "lang-import FAIL $case_id ($script)" >&2
         FAILS=$((FAILS + 1))
@@ -122,27 +143,27 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
     run)
       if run_x_case "$script" "${want_ec:-0}"; then
         echo "lang-import OK $case_id"
+        HOOKS_OK=1
       else
         FAILS=$((FAILS + 1))
       fi
       ;;
     observe)
-      # Product-debt smoke: keep matrix row, do not hard-red archaeology gate.
+      # Product-debt smoke: keep matrix row; count obs (not soft silence).
       if run_x_case "$script" "${want_ec:-0}"; then
         echo "lang-import OK $case_id"
+        HOOKS_OK=1
       else
-        echo "lang-import SKIP $case_id ($script; observational product debt)" >&2
+        echo "lang-import OBS $case_id ($script; observational product debt)" >&2
+        OBS=1
       fi
       ;;
     *)
-      echo "lang-import WARN: unknown policy $policy" >&2
+      die "unknown policy $policy"
       ;;
   esac
 done < "$MATRIX"
 
-if [ "$FAILS" -gt 0 ]; then
-  echo "lang-import gate FAIL: ${FAILS} case(s)" >&2
-  exit 1
-fi
-
+[ "$FAILS" -eq 0 ] || die "${FAILS} case(s)"
+ok_report
 echo "lang-import gate OK"

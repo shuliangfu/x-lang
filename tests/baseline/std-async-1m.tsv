@@ -1,5 +1,7 @@
 # STD-004 async 1M task stress matrix
+# Honesty 2026-08-27: fossil async_switch.x / async_switch_sched.x → live i06_*;
+# coop_pingpong* UNDEF = obs in gate (not soft); prefer asm; refuse soft SKIP→OK.
 # Format: case_id<TAB>script<TAB>linux<TAB>macos<TAB>windows<TAB>expected_exit<TAB>notes
-async_switch	async_switch.x	must	must	must	0	2M steps manual frames
-async_1m_coop	async_1m_coop.x	must	must	must	0	4M steps via std.async
-async_switch_sched	async_switch_sched.x	must	skip	skip	0	jmp extern Linux x86_64 asm
+async_switch	i06_async_switch.x	must	must	must	0	2M steps manual frames (live)
+async_1m_coop	i06_async_1m_coop.x	must	must	must	0	4M steps via std.async (obs if UNDEF)
+async_switch_sched	i06_async_switch_sched.x	must	skip	skip	0	jmp extern Linux x86_64 asm
