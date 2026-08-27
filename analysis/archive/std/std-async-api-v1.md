@@ -170,3 +170,9 @@ Honesty soft→硬绿 (2026-08-27) `run-std-async-1m-gate.sh`: prefer `xlang_asm
 (`coop_pingpong*`) UNDEF = obs (product residual — not soft); platform
 must/skip from TSV stays honest; missing native／显式坏 XLANG = hard die;
 report `run=`／`obs=`／`skip=`.
+
+Honesty soft→硬绿 (2026-08-27) `run-std-async-future-gate.sh`: prefer
+`xlang_asm` + `XLANG_LINK_XLANG`; refuse soft SKIP→OK / prefer-c; missing
+native／显式坏 XLANG = hard die; host-c smoke UNDEF (drain/io_poll) = obs;
+`xlang check` = obs (paused); .x link/run UNDEF = obs; `-E` hard + CPS
+marker drift = obs; report `c=`／`x=`／`emit=`／`obs=`／`skip=`.

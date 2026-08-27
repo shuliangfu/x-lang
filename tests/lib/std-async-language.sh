@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# std-async-language.sh — STD-041 manifest 与烟测辅助
+# std-async-language.sh — STD-041 manifest + smoke helpers
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_alang_symbols_ok MOD_X TSV
-#   std_alang_emit_report status run_ok mod_ok skip_1m
+#   std_alang_emit_report status run_ok mod_ok skip_1m [obs]
 #   std_alang_run_smoke XLANG_BIN X OUT
 
 STD_ALANG_PREFIX="${XLANG_STD_ASYNC_LANGUAGE_PREFIX:-xlang: [XLANG_STD_ASYNC_LANGUAGE]}"
 
-# 校验 manifest symbol/file；echo 缺失数，成功返回 0。
+# Validate manifest symbol/file rows; echo miss count; return 0 on success.
 std_alang_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -36,7 +36,7 @@ std_alang_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测；成功返回 0。
+# Compile and run smoke; return 0 on success.
 std_alang_run_smoke() {
   local xlang="$1"
   local x="$2"
@@ -55,11 +55,12 @@ std_alang_run_smoke() {
   return 0
 }
 
-# 输出结构化报告行。
+# Emit structured report line (obs optional; default 0).
 std_alang_emit_report() {
   local status="$1"
   local run_ok="$2"
   local mod_ok="$3"
   local skip_1m="$4"
-  echo "${STD_ALANG_PREFIX} status=${status} run=${run_ok} mod=${mod_ok} skip_1m=${skip_1m}"
+  local obs="${5:-0}"
+  echo "${STD_ALANG_PREFIX} status=${status} run=${run_ok} mod=${mod_ok} obs=${obs} skip_1m=${skip_1m}"
 }

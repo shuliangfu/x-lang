@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# LANG-004：trait/接口约束 manifest 门禁（假权威诚实）。
+# LANG-004: trait/interface manifest gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-lang-trait-gate.sh
+# Honesty: soft SKIP→OK / prefer-c retired in child smoke. Prefer
+# product xlang_asm via run-lang-trait.sh. Explicit bad XLANG /
+# missing native = hard die. DOC authority = archive/lang. Report
+# delegated to child (run=/neg=/skip=).
+#
+# Usage: ./tests/run-lang-trait-gate.sh
 # wave honesty (2026-08-24 #9): DOC → analysis/archive/lang/;
 # typeck.c/parser.c retired — live = typeck.x / parser.x;
 # find_trait_def → xlang_trait_check_impls_complete_c.
@@ -42,6 +47,10 @@ for f in "$DOC" "$MANIFEST" "$TYPECK" \
     exit 1
   fi
 done
+if ! grep -qE '^## Gate' "$DOC"; then
+  echo "lang-trait gate FAIL: doc missing ## Gate section" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

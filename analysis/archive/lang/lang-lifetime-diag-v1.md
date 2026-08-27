@@ -86,3 +86,16 @@ typeck error: slice region escape: cannot assign <ra> slice to unbound T[] at 8:
 | region RFC | `analysis/type-region-v1-rfc.md` |
 
 **LANG-008 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
+die (manifest face is live); `xlang check` line/substr smoke = obs (check
+gate paused 2026-08-05); DOC=archive; report `run=`／`obs=`／`skip=`.
+
+`tests/run-lang-lifetime-diag-gate.sh` + `tests/run-lang-lifetime-diag.sh`:
+
+1. Archive DOC + manifest + cases TSV（拒 lsp_diag.c／typeck.c resurrect）
+2. Native xlang：matrix 烟测；check 格式债 → obs（非 soft silence）
+3. 缺 native／显式坏 XLANG 硬 die

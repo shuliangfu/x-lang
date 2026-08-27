@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# LANG-008：生命周期错误友好化 manifest 门禁（假权威诚实）。
+# LANG-008: lifetime diagnostic manifest gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-lang-lifetime-diag-gate.sh
+# Honesty: soft SKIP→OK / prefer-c retired in child smoke. Prefer
+# product xlang_asm via run-lang-lifetime-diag.sh. Explicit bad XLANG /
+# missing native = hard die. check smoke = obs (check paused). DOC
+# authority = archive/lang. Report delegated to child (run=/obs=/skip=).
+#
+# Usage: ./tests/run-lang-lifetime-diag-gate.sh
 # wave honesty (2026-08-24 #8): DOC → analysis/archive/lang/;
 # lsp_diag.c / typeck.c retired — live = lsp_diag.h + typeck.x.
 # PLATFORM: SHARED archaeology.
@@ -37,6 +42,10 @@ for f in "$DOC" "$MANIFEST" "$MATRIX" \
     exit 1
   fi
 done
+if ! grep -qE '^## Gate' "$DOC"; then
+  echo "lang-lifetime-diag gate FAIL: doc missing ## Gate section" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

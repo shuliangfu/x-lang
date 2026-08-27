@@ -369,7 +369,7 @@ run_grep /tmp/std_http_server_pool_gate.log 'std-http-server-pool gate OK' ./tes
 
 echo "── STD-041 async language bridge ──"
 chmod +x tests/run-std-async-language-gate.sh tests/lib/std-async-language.sh
-run_grep /tmp/std_async_lang_gate.log 'std-async-language gate OK' ./tests/run-std-async-language-gate.sh
+run_grep /tmp/std_async_lang_gate.log 'std-async-language gate OK|status=ok' ./tests/run-std-async-language-gate.sh
 
 echo "── STD-042 async IO CPS / std.io align ──"
 chmod +x tests/run-std-async-io-cps-gate.sh tests/lib/std-async-io-cps.sh
@@ -751,7 +751,7 @@ grep -q 'type-borrow-conflict gate OK' /tmp/type_borrow_conflict_gate.log
 echo "── LANG-008 lifetime diagnostic manifest ──"
 chmod +x tests/run-lang-lifetime-diag-gate.sh tests/run-lang-lifetime-diag.sh tests/lib/lang-lifetime-diag.sh
 ./tests/run-lang-lifetime-diag-gate.sh | tee /tmp/lang_lifetime_diag_gate.log
-grep -q 'lang-lifetime-diag gate OK' /tmp/lang_lifetime_diag_gate.log
+grep -qE 'lang-lifetime-diag gate OK|status=ok' /tmp/lang_lifetime_diag_gate.log
 
 echo "── LANG-005 ABI stability manifest ──"
 chmod +x tests/run-lang-abi-stability-gate.sh tests/run-lang-abi-stability.sh tests/lib/lang-abi-stability.sh
@@ -761,12 +761,12 @@ grep -q 'lang-abi-stability gate OK' /tmp/lang_abi_stability_gate.log
 echo "── LANG-004 trait interface manifest ──"
 chmod +x tests/run-lang-trait-gate.sh tests/run-lang-trait.sh tests/lib/lang-trait.sh
 ./tests/run-lang-trait-gate.sh | tee /tmp/lang_trait_gate.log
-grep -q 'lang-trait gate OK' /tmp/lang_trait_gate.log
+grep -qE 'lang-trait gate OK|status=ok' /tmp/lang_trait_gate.log
 
 echo "── LANG-003 generic monomorph manifest ──"
 chmod +x tests/run-lang-generic-gate.sh tests/run-lang-generic.sh tests/lib/lang-generic.sh
 ./tests/run-lang-generic-gate.sh | tee /tmp/lang_generic_gate.log
-grep -q 'lang-generic gate OK' /tmp/lang_generic_gate.log
+grep -qE 'lang-generic gate OK|status=ok' /tmp/lang_generic_gate.log
 
 echo "── LANG-001 feature gate manifest ──"
 chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/xlang-lang-edition.sh

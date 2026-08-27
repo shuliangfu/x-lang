@@ -82,6 +82,19 @@ function main(): i32 { return 21.double(); }  // → exit 42
 
 ---
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
+die (trait hooks are the live face); DOC=archive; report
+`run=`／`neg=`／`skip=`.
+
+`tests/run-lang-trait-gate.sh` + `tests/run-lang-trait.sh`:
+
+1. Archive DOC + manifest + typeck TSV（拒 top-level DOC／typeck.c／parser.c resurrect）
+2. Native xlang：`run-trait` + `impl_missing_method` 负例硬绿
+3. 缺 native／显式坏 XLANG 硬 die
+
 ## 6. 验证与门禁
 
 ```bash
