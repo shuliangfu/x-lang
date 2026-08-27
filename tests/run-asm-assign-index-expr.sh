@@ -1,306 +1,163 @@
 #!/usr/bin/env bash
-# asm 7.3：arr[i+lit] assign scratch 寻址；return INDEX 加法链。
-set -e
+# asm 7.3: INDEX expr assign/read (var±lit/var, mul, nested) + add-chain; no mov x2.
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+#   - hard: product -o + expected exits for all expr fixtures
+#   - hard (Darwin+otool): main has no `mov x2` when forbid_x2=1
+#   - skip: non-Darwin / no otool disasm N/A
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required; Darwin arm64 disasm.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-XLANG=${XLANG:-./compiler/xlang}
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-$XLANG build tests/asm/assign_index_var_plus_lit.x -o /tmp/xlang_asm_assign_index_var_plus_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_plus_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: var+lit expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_plus_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: var+lit assign still uses mov x2"
+PREFIX="${XLANG_ASM_ASSIGN_INDEX_EXPR_PREFIX:-xlang: [XLANG_ASM_ASSIGN_INDEX_EXPR]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "asm-assign-index-expr FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
-fi
-
-$XLANG build tests/asm/binop_index_add_chain.x -o /tmp/xlang_asm_binop_index_add_chain 2>&1
-exitcode=0
-/tmp/xlang_asm_binop_index_add_chain >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 30 ] && { echo "run-asm-assign-index-expr FAIL: index add chain expected 30, got $exitcode"; exit 1; }
-
-$XLANG build tests/asm/assign_index_var_plus_var.x -o /tmp/xlang_asm_assign_index_var_plus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_plus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i+j expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_plus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i+j assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_plus_var_copy.x -o /tmp/xlang_asm_assign_index_var_plus_var_copy 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_plus_var_copy >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 15 ] && { echo "run-asm-assign-index-expr FAIL: i+j=arr[k] expected 15, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_plus_var_copy 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i+j=arr[k] still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_minus_lit.x -o /tmp/xlang_asm_assign_index_var_minus_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i-lit expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i-lit assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_minus_var.x -o /tmp/xlang_asm_assign_index_var_minus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i-j expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i-j assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_mul_lit.x -o /tmp/xlang_asm_assign_index_var_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_lit_mul_var.x -o /tmp/xlang_asm_assign_index_lit_mul_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_lit_mul_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 88 ] && { echo "run-asm-assign-index-expr FAIL: 2*i expected 88, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_lit_mul_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: 2*i assign still uses mov x2"
-  exit 1
-fi
-
-run_read_one() {
-  local src="$1"
-  local out="$2"
-  local want="$3"
-  local tag="$4"
-  $XLANG build "$src" -o "$out" 2>&1
-  local exitcode=0
-  "$out" >/dev/null 2>&1 || exitcode=$?
-  [ "$exitcode" -ne "$want" ] && {
-    echo "run-asm-assign-index-expr FAIL: $tag expected exit $want, got $exitcode"
-    exit 1
-  }
-  if otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-    echo "run-asm-assign-index-expr FAIL: $tag still uses mov x2"
-    exit 1
-  fi
 }
 
-run_read_one tests/asm/index_read_var_mul_lit.x /tmp/xlang_asm_index_read_var_mul_lit 30 "read i*2"
-run_read_one tests/asm/index_read_var_plus_lit.x /tmp/xlang_asm_index_read_var_plus_lit 10 "read i+1"
-run_read_one tests/asm/index_read_var_minus_lit.x /tmp/xlang_asm_index_read_var_minus_lit 10 "read i-1"
-run_read_one tests/asm/index_read_var_plus_var.x /tmp/xlang_asm_index_read_var_plus_var 15 "read i+j"
-run_read_one tests/asm/index_read_var_mul_var.x /tmp/xlang_asm_index_read_var_mul_var 30 "read i*j"
-run_read_one tests/asm/index_read_var_plus_var_plus_var.x /tmp/xlang_asm_index_read_var_plus_var_plus_var 40 "read i+j+k"
-run_read_one tests/asm/index_read_var_plus_var_mul_lit.x /tmp/xlang_asm_index_read_var_plus_var_mul_lit 30 "read (i+j)*2"
-run_read_one tests/asm/index_read_var_plus_paren_var_plus_var.x /tmp/xlang_asm_index_read_var_plus_paren_var_plus_var 40 "read i+(j+k)"
-run_read_one tests/asm/index_read_var_add3_mul_lit.x /tmp/xlang_asm_index_read_var_add3_mul_lit 30 "read (i+j+k)*2"
-run_read_one tests/asm/index_read_var_minus_var_plus_var.x /tmp/xlang_asm_index_read_var_minus_var_plus_var 30 "read i-j+k"
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
-$XLANG build tests/asm/assign_index_var_minus_var_plus_var.x -o /tmp/xlang_asm_assign_index_var_minus_var_plus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_var_plus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i-j+k assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_var_plus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i-j+k assign still uses mov x2"
-  exit 1
-fi
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
-$XLANG build tests/asm/assign_read_index_var_minus_var_plus_var.x -o /tmp/xlang_asm_assign_read_index_var_minus_var_plus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_minus_var_plus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read i-j+k expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_minus_var_plus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read i-j+k still uses mov x2"
-  exit 1
-fi
+run_case() {
+  local tag="$1" src="$2" want="$3" forbid_x2="$4"
+  local exe="/tmp/xlang_asm_assign_index_expr_${tag}_$$"
+  local log="/tmp/xlang_asm_assign_index_expr_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  if [ "$r_ec" -eq 124 ]; then
+    rm -f "$exe"
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    rm -f "$exe"
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  if [ "$forbid_x2" = "1" ]; then
+    # PLATFORM: DARWIN — otool arm64 main disasm. Non-Darwin = skip= honesty.
+    if [ "$(uname -s)" = Darwin ] && command -v otool >/dev/null 2>&1; then
+      if otool -tv "$exe" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
+        rm -f "$exe"
+        die "$tag main still uses mov x2"
+      fi
+      RUN_OK=$((RUN_OK + 1))
+    else
+      SKIP=$((SKIP + 1))
+    fi
+  fi
+  rm -f "$exe"
+}
 
-run_read_one tests/asm/index_read_var_minus_var_minus_var.x /tmp/xlang_asm_index_read_var_minus_var_minus_var 30 "read (i-j)-k"
-run_read_one tests/asm/index_read_var_minus_add3.x /tmp/xlang_asm_index_read_var_minus_add3 20 "read i-(j+k)"
-run_read_one tests/asm/index_read_var_minus_var_mul_lit.x /tmp/xlang_asm_index_read_var_minus_var_mul_lit 30 "read (i-j)*2"
+echo "=== asm-assign-index-expr gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
-$XLANG build tests/asm/assign_index_var_minus_var_minus_var.x -o /tmp/xlang_asm_assign_index_var_minus_var_minus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_var_minus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i-j)-k assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_var_minus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i-j)-k assign still uses mov x2"
-  exit 1
-fi
+run_case assign_index_var_plus_lit tests/asm/assign_index_var_plus_lit.x 99 1
+run_case binop_index_add_chain tests/asm/binop_index_add_chain.x 30 0
+run_case assign_index_var_plus_var tests/asm/assign_index_var_plus_var.x 99 1
+run_case assign_index_var_plus_var_copy tests/asm/assign_index_var_plus_var_copy.x 15 1
+run_case assign_index_var_minus_lit tests/asm/assign_index_var_minus_lit.x 99 1
+run_case assign_index_var_minus_var tests/asm/assign_index_var_minus_var.x 99 1
+run_case assign_index_var_mul_lit tests/asm/assign_index_var_mul_lit.x 99 1
+run_case assign_index_lit_mul_var tests/asm/assign_index_lit_mul_var.x 88 1
+run_case index_read_var_mul_lit tests/asm/index_read_var_mul_lit.x 30 1
+run_case index_read_var_plus_lit tests/asm/index_read_var_plus_lit.x 10 1
+run_case index_read_var_minus_lit tests/asm/index_read_var_minus_lit.x 10 1
+run_case index_read_var_plus_var tests/asm/index_read_var_plus_var.x 15 1
+run_case index_read_var_mul_var tests/asm/index_read_var_mul_var.x 30 1
+run_case index_read_var_plus_var_plus_var tests/asm/index_read_var_plus_var_plus_var.x 40 1
+run_case index_read_var_plus_var_mul_lit tests/asm/index_read_var_plus_var_mul_lit.x 30 1
+run_case index_read_var_plus_paren_var_plus_var tests/asm/index_read_var_plus_paren_var_plus_var.x 40 1
+run_case index_read_var_add3_mul_lit tests/asm/index_read_var_add3_mul_lit.x 30 1
+run_case index_read_var_minus_var_plus_var tests/asm/index_read_var_minus_var_plus_var.x 30 1
+run_case assign_index_var_minus_var_plus_var tests/asm/assign_index_var_minus_var_plus_var.x 99 1
+run_case assign_read_index_var_minus_var_plus_var tests/asm/assign_read_index_var_minus_var_plus_var.x 99 1
+run_case index_read_var_minus_var_minus_var tests/asm/index_read_var_minus_var_minus_var.x 30 1
+run_case index_read_var_minus_add3 tests/asm/index_read_var_minus_add3.x 20 1
+run_case index_read_var_minus_var_mul_lit tests/asm/index_read_var_minus_var_mul_lit.x 30 1
+run_case assign_index_var_minus_var_minus_var tests/asm/assign_index_var_minus_var_minus_var.x 99 1
+run_case assign_index_var_minus_add3 tests/asm/assign_index_var_minus_add3.x 99 1
+run_case assign_index_var_minus_var_mul_lit tests/asm/assign_index_var_minus_var_mul_lit.x 99 1
+run_case assign_read_index_var_minus_add3 tests/asm/assign_read_index_var_minus_add3.x 99 1
+run_case assign_index_var_plus_paren_var_plus_var tests/asm/assign_index_var_plus_paren_var_plus_var.x 99 1
+run_case assign_index_var_add3_mul_lit tests/asm/assign_index_var_add3_mul_lit.x 99 1
+run_case assign_index_var_plus_var_plus_var tests/asm/assign_index_var_plus_var_plus_var.x 99 1
+run_case assign_index_var_plus_var_mul_lit tests/asm/assign_index_var_plus_var_mul_lit.x 99 1
+run_case assign_index_var_mul_var tests/asm/assign_index_var_mul_var.x 99 1
+run_case assign_read_index_var_mul_lit tests/asm/assign_read_index_var_mul_lit.x 99 1
+run_case assign_read_index_var_mul_var tests/asm/assign_read_index_var_mul_var.x 99 1
+run_case assign_read_index_var_plus_var_mul_lit tests/asm/assign_read_index_var_plus_var_mul_lit.x 99 1
+run_case assign_read_index_var_add3_mul_lit tests/asm/assign_read_index_var_add3_mul_lit.x 99 1
+run_case index_read_var_subadd3_mul_lit tests/asm/index_read_var_subadd3_mul_lit.x 30 1
+run_case assign_index_var_subadd3_mul_lit tests/asm/assign_index_var_subadd3_mul_lit.x 99 1
+run_case assign_read_index_var_subadd3_mul_lit tests/asm/assign_read_index_var_subadd3_mul_lit.x 99 1
+run_case index_read_var_subsub3_mul_lit tests/asm/index_read_var_subsub3_mul_lit.x 30 1
+run_case assign_index_var_subsub3_mul_lit tests/asm/assign_index_var_subsub3_mul_lit.x 99 1
+run_case assign_read_index_var_subsub3_mul_lit tests/asm/assign_read_index_var_subsub3_mul_lit.x 99 1
+run_case index_read_var_minus_add3_mul_lit tests/asm/index_read_var_minus_add3_mul_lit.x 30 1
+run_case assign_index_var_minus_add3_mul_lit tests/asm/assign_index_var_minus_add3_mul_lit.x 99 1
+run_case assign_read_index_var_minus_add3_mul_lit tests/asm/assign_read_index_var_minus_add3_mul_lit.x 99 1
 
-$XLANG build tests/asm/assign_index_var_minus_add3.x -o /tmp/xlang_asm_assign_index_var_minus_add3 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_add3 >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i-(j+k) assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_add3 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i-(j+k) assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_minus_var_mul_lit.x -o /tmp/xlang_asm_assign_index_var_minus_var_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_var_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i-j)*2 assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_var_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i-j)*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_minus_add3.x -o /tmp/xlang_asm_assign_read_index_var_minus_add3 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_minus_add3 >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read i-(j+k) expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_minus_add3 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read i-(j+k) still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_plus_paren_var_plus_var.x -o /tmp/xlang_asm_assign_index_var_plus_paren_var_plus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_plus_paren_var_plus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i+(j+k) assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_plus_paren_var_plus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i+(j+k) assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_add3_mul_lit.x -o /tmp/xlang_asm_assign_index_var_add3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_add3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i+j+k)*2 assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_add3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i+j+k)*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_plus_var_plus_var.x -o /tmp/xlang_asm_assign_index_var_plus_var_plus_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_plus_var_plus_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i+j+k assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_plus_var_plus_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i+j+k assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_plus_var_mul_lit.x -o /tmp/xlang_asm_assign_index_var_plus_var_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_plus_var_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i+j)*2 assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_plus_var_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i+j)*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_index_var_mul_var.x -o /tmp/xlang_asm_assign_index_var_mul_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_mul_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: i*j assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_mul_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: i*j assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_mul_lit.x -o /tmp/xlang_asm_assign_read_index_var_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read i*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read i*2 still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_mul_var.x -o /tmp/xlang_asm_assign_read_index_var_mul_var 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_mul_var >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read i*j expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_mul_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read i*j still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_plus_var_mul_lit.x -o /tmp/xlang_asm_assign_read_index_var_plus_var_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_plus_var_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read (i+j)*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_plus_var_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read (i+j)*2 still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_add3_mul_lit.x -o /tmp/xlang_asm_assign_read_index_var_add3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_add3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read (i+j+k)*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_add3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read (i+j+k)*2 still uses mov x2"
-  exit 1
-fi
-
-run_read_one tests/asm/index_read_var_subadd3_mul_lit.x /tmp/xlang_asm_index_read_var_subadd3_mul_lit 30 "read (i-j+k)*2"
-
-$XLANG build tests/asm/assign_index_var_subadd3_mul_lit.x -o /tmp/xlang_asm_assign_index_var_subadd3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_subadd3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i-j+k)*2 assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_subadd3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i-j+k)*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_subadd3_mul_lit.x -o /tmp/xlang_asm_assign_read_index_var_subadd3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_subadd3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read (i-j+k)*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_subadd3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read (i-j+k)*2 still uses mov x2"
-  exit 1
-fi
-
-run_read_one tests/asm/index_read_var_subsub3_mul_lit.x /tmp/xlang_asm_index_read_var_subsub3_mul_lit 30 "read (i-j-k)*2"
-
-$XLANG build tests/asm/assign_index_var_subsub3_mul_lit.x -o /tmp/xlang_asm_assign_index_var_subsub3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_subsub3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i-j-k)*2 assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_subsub3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i-j-k)*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_subsub3_mul_lit.x -o /tmp/xlang_asm_assign_read_index_var_subsub3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_subsub3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read (i-j-k)*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_subsub3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read (i-j-k)*2 still uses mov x2"
-  exit 1
-fi
-
-run_read_one tests/asm/index_read_var_minus_add3_mul_lit.x /tmp/xlang_asm_index_read_var_minus_add3_mul_lit 30 "read (i-(j+k))*2"
-
-$XLANG build tests/asm/assign_index_var_minus_add3_mul_lit.x -o /tmp/xlang_asm_assign_index_var_minus_add3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_index_var_minus_add3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: (i-(j+k))*2 assign expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_index_var_minus_add3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: (i-(j+k))*2 assign still uses mov x2"
-  exit 1
-fi
-
-$XLANG build tests/asm/assign_read_index_var_minus_add3_mul_lit.x -o /tmp/xlang_asm_assign_read_index_var_minus_add3_mul_lit 2>&1
-exitcode=0
-/tmp/xlang_asm_assign_read_index_var_minus_add3_mul_lit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-expr FAIL: assign+read (i-(j+k))*2 expected 99, got $exitcode"; exit 1; }
-if otool -tv /tmp/xlang_asm_assign_read_index_var_minus_add3_mul_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-  echo "run-asm-assign-index-expr FAIL: assign+read (i-(j+k))*2 still uses mov x2"
-  exit 1
-fi
-
+ok_report
 echo "asm assign index expr OK"
+
