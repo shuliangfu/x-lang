@@ -45,3 +45,8 @@ cd compiler && XLANG_BOOTSTRAP_NOSTDLIB=1 ./scripts/build_xlang_asm.sh
 
 - ~~Linux x86_64 烟测硬绿~~ → 见 `analysis/phase-f-n07-v3.md` ✅
 - **NL-07 v4 track**：全链 `XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm` → `run-nolibc-n07-v4-build-gate.sh`
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n07-v3-link-gate.sh`.
+Soft `XLANG_NOLIBC_N07_V3_FAIL` retired — hard die on missing DOC/manifest;
+Linux x86_64 link smoke live; other hosts static+skip=1. PLATFORM: SHARED archaeology / LINUX smoke.

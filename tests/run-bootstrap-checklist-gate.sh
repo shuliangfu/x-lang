@@ -247,7 +247,8 @@ run_section_8() {
     record_warn 8 "G gates" "inventory gate missing"
   fi
   gate_progress "G-03 nostdlib 哨兵（当前预期 FAIL/WARN）..."
-  if XLANG_NOLIBC_N07_V5_FAIL=1 gate_progress_run "G-03 nolibc" \
+  # Soft XLANG_NOLIBC_N07_V5_FAIL retired (2026-08-27 honesty); child hard-dies.
+  if gate_progress_run "G-03 nolibc" \
       gate_run_timeout 120 ./tests/run-nolibc-n07-v5-gate.sh; then
     record_ok 8 "G-03 nostdlib"
   else

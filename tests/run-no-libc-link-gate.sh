@@ -1,34 +1,43 @@
 #!/usr/bin/env bash
-# NL-05：freestanding 用户链接策略门禁（runtime 块无 -lc；编译器 bootstrap track-only）。
+# NL-05: freestanding user link policy (runtime block no -lc; bootstrap track-only).
 #
-# 用法：./tests/run-no-libc-link-gate.sh
-# 环境：
-#   XLANG_NOLIBC_LINK_FAIL=1           — 失败时硬退出
-#   XLANG_NOLIBC_LINK_MANIFEST_ONLY=1  — 仅 manifest + runtime 审计
-#   XLANG_NOLIBC_LINK_SKIP_SMOKE=1     — 跳过 heap/fs 烟测（聚合 gate 已跑时）
-# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/;
-# monofile retired — hosted -lc track = runtime_link_abi / build_xlang_asm.
-# live product strategy prose = analysis/零libc产品策略.md (not this gate DOC).
+# Usage: ./tests/run-no-libc-link-gate.sh
+#        XLANG_NOLIBC_LINK_MANIFEST_ONLY=1 ./tests/run-no-libc-link-gate.sh
+#        XLANG_NOLIBC_LINK_SKIP_SMOKE=1 ./tests/run-no-libc-link-gate.sh
+# Honesty: soft XLANG_NOLIBC_LINK_FAIL retired — die→exit0 was portable false-green.
+# Hard-delegate NL-03/04 smokes (no soft FAIL re-export). Refuse Makefile /
+# runtime.from_x.c resurrect. Report doc=/audit=/smoke=/skip=.
 # PLATFORM: SHARED archaeology / LINUX smoke.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_NOLIBC_LINK_FAIL:-0}
 DOC="${XLANG_NOLIBC_LINK_DOC:-analysis/archive/phase/phase-f-no-libc-v1.md}"
 POLICY="tests/baseline/no-libc-link-policy.tsv"
 RT="compiler/seeds/runtime_link_abi.from_x.c"
 DRIVER="compiler/src/driver/compile.x"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
+PREFIX="xlang: [XLANG_NOLIBC_LINK]"
+
+DOC_OK=0
+AUDIT_OK=0
+SMOKE_OK=0
+SKIP=1
 
 die() {
   echo "nolibc-link gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  echo "${PREFIX} status=fail doc=${DOC_OK} audit=${AUDIT_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== NL-05: freestanding link policy (no -lc for user programs) ==="
-
-# wave321: monofile retired — refuse resurrect.
+echo "=== NL-05: freestanding link policy (honesty) ==="
+if [ -f analysis/phase-f-no-libc-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/phase/)"
+fi
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
 if [ -f compiler/seeds/runtime.from_x.c ]; then
   die "seeds/runtime.from_x.c resurrected (hosted -lc track = runtime_link_abi)"
 fi
@@ -37,6 +46,8 @@ for f in "$DOC" "$POLICY" "$RT" "$DRIVER" "$BUILD_ASM"; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'NL-05' "$DOC" || die "phase doc missing NL-05"
+grep -qE '^## Gate$' "$DOC" || die "phase-f-no-libc-v1.md missing ## Gate honesty section"
+DOC_OK=1
 
 # shellcheck source=tests/lib/no-libc-link-audit.sh
 . tests/lib/no-libc-link-audit.sh
@@ -44,6 +55,7 @@ if ! nolibc_audit_runtime_freestanding_block "$RT"; then
   die "runtime freestanding block audit failed"
 fi
 echo "nolibc-link OK: runtime NL-05 block has -nostdlib, no -lc"
+AUDIT_OK=1
 
 grep -q 'freestanding' "$DRIVER" || die "driver compile.x missing -freestanding"
 
@@ -51,19 +63,28 @@ TRACK=$(nolibc_track_compiler_lc_mentions)
 echo "nolibc-link track: compiler bootstrap files with -lc mentions = $TRACK (expected until F-07; not blocking v1)"
 
 if [ "${XLANG_NOLIBC_LINK_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=0
   echo "nolibc-link gate OK (manifest + runtime audit)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} audit=${AUDIT_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
-# 委托 NL-03/04 烟测：实际链接产物无 libc.so（聚合 gate 可设 SKIP_SMOKE=1）
 if [ "${XLANG_NOLIBC_LINK_SKIP_SMOKE:-0}" != "1" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ]; then
     chmod +x tests/run-no-libc-heap-gate.sh tests/run-no-libc-fs-gate.sh
-    XLANG_NOLIBC_HEAP_FAIL="$FAIL" ./tests/run-no-libc-heap-gate.sh || die "heap smoke link failed"
-    XLANG_NOLIBC_FS_FAIL="$FAIL" ./tests/run-no-libc-fs-gate.sh || die "fs smoke link failed"
+    # Hard-delegate; do not re-export retired soft FAIL knobs.
+    ./tests/run-no-libc-heap-gate.sh || die "heap smoke link failed"
+    ./tests/run-no-libc-fs-gate.sh || die "fs smoke link failed"
+    SMOKE_OK=1
+    SKIP=0
   else
-    echo "nolibc-link gate: SKIP runtime smokes (need Linux x86_64)"
+    SKIP=1
+    echo "nolibc-link gate: runtime smokes skip (need Linux x86_64)"
   fi
+else
+  SKIP=0
+  echo "nolibc-link gate: smoke skipped (XLANG_NOLIBC_LINK_SKIP_SMOKE=1)"
 fi
 
 echo "nolibc-link gate OK (user freestanding nostdlib; compiler -lc track-only)"
+echo "${PREFIX} status=ok doc=${DOC_OK} audit=${AUDIT_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"

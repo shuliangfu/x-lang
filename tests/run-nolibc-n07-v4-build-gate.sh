@@ -1,34 +1,49 @@
 #!/usr/bin/env bash
-# NL-07 v4：bootstrap nostdlib 全链试跑门禁（track / 可选硬绿）。
+# NL-07 v4: bootstrap nostdlib full-chain try gate (manifest; TRY_BUILD opt-in).
 #
-# 用法：./tests/run-nolibc-n07-v4-build-gate.sh
-# 环境：
-#   XLANG_NOLIBC_N07_V4_FAIL=1           — 失败时硬退出
-#   XLANG_NOLIBC_N07_V4_MANIFEST_ONLY=1  — 仅 manifest
-#   XLANG_NOLIBC_N07_V4_TRY_BUILD=1      — xlang_asm 存在时试跑 XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm
+# Usage: ./tests/run-nolibc-n07-v4-build-gate.sh
+#        XLANG_NOLIBC_N07_V4_MANIFEST_ONLY=1 ./tests/run-nolibc-n07-v4-build-gate.sh
+#        XLANG_NOLIBC_N07_V4_TRY_BUILD=1 ./tests/run-nolibc-n07-v4-build-gate.sh
+# Honesty: soft XLANG_NOLIBC_N07_V4_FAIL retired — die→exit0 was portable false-green.
+# Report doc=/manifest=/try=/skip=.
+# PLATFORM: SHARED archaeology / LINUX try.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_NOLIBC_N07_V4_FAIL:-0}
-# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/
 DOC="${XLANG_NOLIBC_N07_V4_DOC:-analysis/archive/phase/phase-f-n07-v4.md}"
 MANIFEST="tests/baseline/nolibc-n07-v4-build.tsv"
 BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 XLANG_ASM="compiler/xlang_asm"
+PREFIX="xlang: [XLANG_NOLIBC_N07_V4]"
+
+DOC_OK=0
+MANIFEST_OK=0
+TRY_OK=0
+SKIP=1
 
 die() {
   echo "nolibc-n07-v4 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  echo "${PREFIX} status=fail doc=${DOC_OK} manifest=${MANIFEST_OK} try=${TRY_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== NL-07 v4: bootstrap nostdlib full-chain try (track) ==="
+echo "=== NL-07 v4: bootstrap nostdlib full-chain try (honesty) ==="
+if [ -f analysis/phase-f-n07-v4.md ]; then
+  die "top-level DOC resurrected (live = archive/phase/)"
+fi
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'NL-07 v4' "$DOC" || die "doc missing NL-07 v4 marker"
+grep -qE '^## Gate$' "$DOC" || die "phase-f-n07-v4.md missing ## Gate honesty section"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f "$BUILD_ASM" ] || die "missing $BUILD_ASM"
 grep -q 'bootstrap_link_tail_driver' "$BUILD_ASM" || die "build_xlang_asm missing bootstrap_link_tail_driver"
-[ -f compiler/seeds/runtime_driver_strict_glue_stubs.from_x.c ] || die "missing runtime_driver_strict_glue_stubs.inc"
+[ -f compiler/seeds/runtime_driver_strict_glue_stubs.from_x.c ] || die "missing runtime_driver_strict_glue_stubs"
+DOC_OK=1
 
 while IFS=$'\t' read -r item_id category anchor check_type notes; do
   [ -z "${item_id:-}" ] && continue
@@ -47,26 +62,33 @@ while IFS=$'\t' read -r item_id category anchor check_type notes; do
       ;;
   esac
 done < "$MANIFEST"
+MANIFEST_OK=1
 
 if [ "${XLANG_NOLIBC_N07_V4_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=0
   echo "nolibc-n07-v4 gate OK (manifest only)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} try=${TRY_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ "${XLANG_NOLIBC_N07_V4_TRY_BUILD:-0}" != "1" ]; then
+  SKIP=0
   echo "nolibc-n07-v4 gate OK (manifest; set XLANG_NOLIBC_N07_V4_TRY_BUILD=1 + xlang_asm for full try)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} try=${TRY_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
-  echo "nolibc-n07-v4 SKIP build try (need Linux x86_64)" >&2
-  echo "nolibc-n07-v4 gate OK (manifest; build try skipped)"
+  SKIP=1
+  echo "nolibc-n07-v4 gate OK (manifest; build try skip — need Linux x86_64)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} try=${TRY_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ ! -x "$XLANG_ASM" ]; then
-  echo "nolibc-n07-v4 SKIP build try (no $XLANG_ASM; run bootstrap-driver-bstrict first)" >&2
-  echo "nolibc-n07-v4 gate OK (manifest; no xlang_asm)"
+  SKIP=1
+  echo "nolibc-n07-v4 gate OK (manifest; build try skip — no xlang_asm)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} try=${TRY_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
@@ -86,7 +108,10 @@ elif [ "$RC" -eq 0 ] && [ -x "$XLANG_ASM" ]; then
 else
   echo "nolibc-n07-v4: build failed rc=$RC" >&2
   grep "undefined reference" "$LOG" 2>/dev/null | sed 's/.*undefined reference to /  /' | sort -u | head -30 >&2 || true
-  die "nostdlib full-chain try failed (track)"
+  die "nostdlib full-chain try failed"
 fi
+TRY_OK=1
+SKIP=0
 
 echo "nolibc-n07-v4 gate OK (full-chain try completed)"
+echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} try=${TRY_OK} skip=${SKIP} host=$(ci_host_summary)"

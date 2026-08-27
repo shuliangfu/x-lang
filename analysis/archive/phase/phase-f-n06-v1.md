@@ -47,3 +47,8 @@ XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 - 编译器 bootstrap 改链 freestanding `.x` 对象并启用 `-nostdlib`（NL-07 v2）
 - `std/io` freestanding 路径（stdout 已由 `std.sys` 覆盖；io_uring 仍 C）
 - 按 F-01 inventory 逐模块删除或软退役 `.c`（阶段 F 清场）
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n06-std-track-gate.sh`.
+Soft `XLANG_NOLIBC_N06_FAIL` retired — hard die on missing DOC/manifest;
+hard-delegate F-01 inventory. PLATFORM: SHARED archaeology.

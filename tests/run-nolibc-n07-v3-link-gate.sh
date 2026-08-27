@@ -1,33 +1,44 @@
 #!/usr/bin/env bash
-# NL-07 v3：编译器 bootstrap nostdlib 链入烟测（Linux x86_64 硬绿；其它平台 SKIP）。
+# NL-07 v3: bootstrap nostdlib link smoke (Linux x86_64 live; else static+skip).
 #
-# 用法：./tests/run-nolibc-n07-v3-link-gate.sh
-# 环境：
-#   XLANG_NOLIBC_N07_V3_FAIL=1              — 失败时硬退出
-#   XLANG_NOLIBC_N07_V3_MANIFEST_ONLY=1    — 仅 manifest 审计
-#   XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=0 — 不链 runtime_panic.o
+# Usage: ./tests/run-nolibc-n07-v3-link-gate.sh
+#        XLANG_NOLIBC_N07_V3_MANIFEST_ONLY=1 ./tests/run-nolibc-n07-v3-link-gate.sh
+# Honesty: soft XLANG_NOLIBC_N07_V3_FAIL retired — die→exit0 was portable false-green.
+# Report doc=/manifest=/smoke=/skip=.
+# PLATFORM: SHARED archaeology / LINUX smoke.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_NOLIBC_N07_V3_FAIL:-0}
-# wave honesty (2026-08-24 #7): DOC → analysis/archive/phase/
 DOC="${XLANG_NOLIBC_N07_V3_DOC:-analysis/archive/phase/phase-f-n07-v3.md}"
 MANIFEST="tests/baseline/nolibc-n07-v3-link.tsv"
 SMOKE_LIB="tests/lib/nolibc-n07-link-smoke.sh"
 SMOKE_C="tests/fixtures/nolibc-n07-bootstrap-smoke.c"
+PREFIX="xlang: [XLANG_NOLIBC_N07_V3]"
+
+DOC_OK=0
+MANIFEST_OK=0
+SMOKE_OK=0
+SKIP=1
 
 die() {
   echo "nolibc-n07-v3 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  echo "${PREFIX} status=fail doc=${DOC_OK} manifest=${MANIFEST_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== NL-07 v3: bootstrap nostdlib link smoke (Linux x86_64) ==="
+echo "=== NL-07 v3: bootstrap nostdlib link smoke (honesty) ==="
+if [ -f analysis/phase-f-n07-v3.md ]; then
+  die "top-level DOC resurrected (live = archive/phase/)"
+fi
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'NL-07 v3' "$DOC" || die "doc missing NL-07 v3 marker"
+grep -qE '^## Gate$' "$DOC" || die "phase-f-n07-v3.md missing ## Gate honesty section"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f "$SMOKE_LIB" ] || die "missing $SMOKE_LIB"
 [ -f "$SMOKE_C" ] || die "missing $SMOKE_C"
+DOC_OK=1
 
 while IFS=$'\t' read -r item_id category anchor check_type notes; do
   [ -z "${item_id:-}" ] && continue
@@ -46,15 +57,19 @@ while IFS=$'\t' read -r item_id category anchor check_type notes; do
       ;;
   esac
 done < "$MANIFEST"
+MANIFEST_OK=1
 
 if [ "${XLANG_NOLIBC_N07_V3_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=0
   echo "nolibc-n07-v3 gate OK (manifest only)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
-  echo "nolibc-n07-v3 SKIP link smoke (need Linux x86_64; use Docker: XLANG_DOCKER_PLATFORM=linux/amd64)" >&2
-  echo "nolibc-n07-v3 gate OK (manifest; link smoke skipped)"
+  SKIP=1
+  echo "nolibc-n07-v3 gate OK (manifest; link smoke skip — need Linux x86_64)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
@@ -63,5 +78,8 @@ fi
 if ! nolibc_n07_run_bootstrap_link_smoke; then
   die "bootstrap nostdlib link smoke failed"
 fi
+SMOKE_OK=1
+SKIP=0
 
 echo "nolibc-n07-v3 gate OK (nostdlib link smoke hard green on Linux x86_64)"
+echo "${PREFIX} status=ok doc=${DOC_OK} manifest=${MANIFEST_OK} smoke=${SMOKE_OK} skip=${SKIP} host=$(ci_host_summary)"

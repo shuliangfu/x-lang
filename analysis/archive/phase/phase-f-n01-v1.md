@@ -54,3 +54,9 @@ XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 
 - **NL-07 v1**：编译器 bootstrap 去 `-lc` 准备 → `analysis/phase-f-n07-v1.md`
 - **NL-06 v2+ / NL-07 v2**：全 std `.c` 迁移 + 启用 bootstrap nostdlib 链
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n01-preparation-gate.sh`.
+Soft `XLANG_NOLIBC_N01_FAIL` retired — hard die on missing DOC/manifest/infra.
+Live authority = archive DOC + baseline TSV + `runtime_link_abi` freestanding block
+(refuse `compiler/Makefile` / `runtime.from_x.c` resurrect). PLATFORM: SHARED archaeology.

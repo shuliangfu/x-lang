@@ -50,3 +50,9 @@ cd compiler && XLANG_BOOTSTRAP_NOSTDLIB=1 ./scripts/build_xlang_asm.sh
 - pthread / io_uring 去系统库（或自研 stub）
 - 默认启用 nostdlib（`-lc` 基线降至 0）
 - `getenv` 真实环境块（当前桩恒 NULL）
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n07-v2-prep-gate.sh`.
+Soft `XLANG_NOLIBC_N07_V2_FAIL` retired — hard die; refuse `compiler/Makefile`
+resurrect (live = `build_xlang_asm` + `xlang_compiler_make` 0-make hub).
+PLATFORM: SHARED archaeology.

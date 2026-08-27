@@ -43,3 +43,8 @@ XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 - `ensure_std_fs_io_heap_objs` 改为编译 freestanding `.x` 模块
 - `bootstrap-driver-seed` Makefile 改链 `.x` 产物
 - 与阶段 F **F-06/F-07**（runtime 按需链、禁止 cc 编 std）对齐
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n07-bootstrap-prep-gate.sh`.
+Soft `XLANG_NOLIBC_N07_FAIL` retired — hard die on missing DOC/manifest/lc track.
+PLATFORM: SHARED archaeology.
