@@ -21,4 +21,4 @@ hook_string_arena	hook_script	run-perf-string-arena.sh	ZC-4 bench + emit
 hook_runner	script	run-perf-alloc-hotspot.sh	统一 runner
 gate	script	run-perf-alloc-hotspot-gate.sh	manifest 门禁
 cross_zc4	cross_ref	tests/run-zc4-gate.sh	ZC-4 正确性
-cross_obs003	cross_ref	analysis/obs-structured-log-v1.md	结构化日志
+cross_obs003	cross_ref	analysis/archive/obs/obs-structured-log-v1.md	结构化日志

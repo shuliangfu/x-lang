@@ -19,4 +19,4 @@ hook_zc1	hook_script	run-zc1-gate.sh	ZC-1 正确性
 gate	script	run-perf-net-zc-gate.sh	manifest 门禁
 cross_zc1	cross_ref	tests/run-zc1-gate.sh	provided buffers
 cross_perf003	cross_ref	tests/run-perf-net-zig-gate.sh	NET 吞吐
-cross_obs003	cross_ref	analysis/obs-structured-log-v1.md	结构化日志
+cross_obs003	cross_ref	analysis/archive/obs/obs-structured-log-v1.md	结构化日志

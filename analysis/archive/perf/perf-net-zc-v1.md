@@ -25,14 +25,14 @@
 |----|------|
 | 工具 | Linux `perf stat -e cycles,instructions` |
 | 指标 | `cycles_per_mib = cycles × 1048576 / bytes_xfer` |
-| ZC-1 echo | `net_echo_throughput_provided` vs `net_echo_throughput`（各 32MiB） |
-| 高并发 | `net_mixed_conns_requests`（256×16×512B×2 ≈ 4MiB） |
+| ZC-1 echo | `i03_net_echo_throughput_provided` vs `i03_net_echo_throughput`（各 32MiB） |
+| 高并发 | `i04_net_mixed_conns_requests`（256×16×512B×2 ≈ 4MiB） |
 
 环境：
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `XLANG_NET_ZC_FAIL` | `0` | `1` 时超 cap 或 zc≥ref 硬失败 |
+| `XLANG_NET_ZC_FAIL` | `0` | `1` 时超 cap 或 zc≥ref 硬失败；默认超 cap／zc≥ref＝obs（非静默 OK） |
 | `XLANG_NET_ZC_REQUIRE_PERF` | `0` | CI Linux 可设 `1` 禁止 SKIP |
 | `XLANG_NET_ZC_PREFIX` | `xlang: [XLANG_NET_ZC]` | 报告前缀 |
 | `XLANG_NET_ZC_BASELINE` | `tests/baseline/net-zc-perf.tsv` | cap 表 |
@@ -80,6 +80,10 @@ xlang: [XLANG_NET_ZC] case=net_echo_throughput_provided cycles=1234567890 bytes=
 | ZC-1 | `tests/run-zc1-gate.sh` |
 | NET perf | `tests/run-perf-net.sh` |
 | PERF-003 | `tests/run-perf-net-zig-gate.sh` |
-| 结构化日志 | `analysis/obs-structured-log-v1.md` |
+| 结构化日志 | `analysis/archive/obs/obs-structured-log-v1.md` |
 
 **PERF-009 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL:-0 silent OK / soft auto-make; over-cap / zc≥ref / compile-fail = obs; bench→`i03_`／`i04_`; DOC=archive; zc3/zc4/zc5 host-c 后置; report run=/obs=/skip=.

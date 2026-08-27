@@ -47,7 +47,7 @@ else
     fi
   fi
 fi
-BENCH_SRC="bench/string_arena_concat.x"
+BENCH_SRC="bench/r08_string_arena_concat.x"
 BENCH_EXE="/tmp/xlang_string_arena_bench"
 EXPECT_N="${XLANG_STRING_BENCH_N:-128}"
 
