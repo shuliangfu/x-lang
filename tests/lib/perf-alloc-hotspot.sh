@@ -32,9 +32,12 @@ perf_ah_count_from_strace_log() {
   perf_ah_calloc=0
   perf_ah_realloc=0
   [ -f "$log" ] || return 1
-  perf_ah_malloc=$(grep -cE 'malloc\(' "$log" 2>/dev/null || echo 0)
-  perf_ah_calloc=$(grep -cE 'calloc\(' "$log" 2>/dev/null || echo 0)
-  perf_ah_realloc=$(grep -cE 'realloc\(' "$log" 2>/dev/null || echo 0)
+  # grep -c prints 0 but exits 1 on no match — never `|| echo 0` (that
+  # yields "0\n0" and breaks integer compare = false over-cap obs).
+  perf_ah_malloc=$(grep -cE 'malloc\(' "$log" 2>/dev/null) || true
+  perf_ah_calloc=$(grep -cE 'calloc\(' "$log" 2>/dev/null) || true
+  perf_ah_realloc=$(grep -cE 'realloc\(' "$log" 2>/dev/null) || true
+  : "${perf_ah_malloc:=0}" "${perf_ah_calloc:=0}" "${perf_ah_realloc:=0}"
   return 0
 }
 
