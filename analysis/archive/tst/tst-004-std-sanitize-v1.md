@@ -35,8 +35,8 @@ v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.f
 
 | case_id | 模块 | 烟测 | needs_o |
 |---------|------|------|---------|
-| `case_heap_std` | `std.heap` | `tests/sanitize/std_heap_asan.x` | `../std/heap/heap.o` |
-| `case_channel_std` | `std.channel` | `tests/sanitize/std_channel_asan.x` | `../std/channel/channel.o` |
+| `case_heap_std` | `std.heap` | `tests/sanitize/std_heap_asan.x` | `-` (pure .x) |
+| `case_channel_std` | `std.channel` | `tests/sanitize/std_channel_asan.x` | `-` (pure .x) |
 
 **heap**：`alloc` / `alloc_zero` / `realloc` / `Arena64` 成对释放。  
 **channel**：有界 `send`/`recv`/`close`/`free`；Windows stub 创建失败时返回 0（与 `tests/channel/main.x` 一致）。
