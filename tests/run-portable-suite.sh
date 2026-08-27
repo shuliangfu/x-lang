@@ -926,7 +926,7 @@ grep -q 'eng-security-audit gate OK' /tmp/eng_security_audit_gate.log
 echo "── COMP-003 codegen regression ──"
 chmod +x tests/run-codegen-regression-gate.sh
 ./tests/run-codegen-regression-gate.sh | tee /tmp/codegen_regression.log
-grep -qE 'codegen-regression gate OK|codegen-regression gate SKIP bench' /tmp/codegen_regression.log
+grep -qE 'codegen-regression gate OK|status=ok' /tmp/codegen_regression.log
 
 echo "── COMP-002 typeck hotpath ──"
 chmod +x tests/run-typeck-hotpath-gate.sh

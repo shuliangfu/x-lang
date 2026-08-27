@@ -2,10 +2,12 @@
 # Format: case_id<TAB>source_or_hook<TAB>arch<TAB>policy<TAB>expected_exit<TAB>notes
 # arch: any | x86_64 | arm64 | !docker
 # policy: run = 编译+运行 .x；hook = 调用 tests/run-*.sh
-loop_i32	bench/loop_i32.x	any	run	0	标量循环 -o
-mem_copy	bench/mem_copy.x	any	run	0	内存拷贝
-struct_param	bench/struct_param.x	any	run	0	结构体传参/返回
-call_boundary	bench/call_boundary.x	any	run	0	调用边界
+# honesty 2026-08-27: fossil bench/{loop_i32,mem_copy,struct_param,call_boundary}.x
+#   → live bench/r01_loop_i32.x / m03_mem_copy.x / r10_struct_param.x / a01_call_boundary.x
+loop_i32	bench/r01_loop_i32.x	any	run	0	标量循环 -o
+mem_copy	bench/m03_mem_copy.x	any	run	0	内存拷贝
+struct_param	bench/r10_struct_param.x	any	run	0	结构体传参/返回
+call_boundary	bench/a01_call_boundary.x	any	run	0	调用边界
 float_f64	tests/float/f32_f64.x	any	run	0	浮点 codegen
 match_expr	tests/match/main.x	any	run	2	match  lowering
 slice_view	tests/slice/main.x	any	run	20	slice codegen s[1]
