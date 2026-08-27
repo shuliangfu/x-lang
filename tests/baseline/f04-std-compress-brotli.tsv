@@ -1,7 +1,8 @@
-# F-04 v6 std.compress brotli manifest
-# 列：item_id	kind	anchor	mod_path	notes
+# F-04 v6 std.compress brotli manifest (honesty: archive DOC)
+# columns: item_id	kind	anchor	mod_path	notes
+doc_archive	doc	analysis/archive/phase/phase-f-f04-v6.md	-	live DOC (refuse top-level resurrect)
 symbol_compress	symbol	compress_brotli_compress_c	std/compress/brotli/lib.x	块压
 symbol_stream	symbol	compress_brotli_stream_compress_c	std/compress/brotli/lib.x	流压
 symbol_marker	symbol	xlang_compress_brotli_marker	std/compress/brotli/lib.x	-lbrotli*
 import_lib	symbol	import("std.compress.brotli.lib")	std/compress/brotli/mod.x	import 转发
-absent_c	absent	std/compress/brotli/brotli.c	删除 brotli.c
+absent_c	absent	std/compress/brotli/brotli.c	-	删除 brotli.c
