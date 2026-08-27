@@ -50,3 +50,14 @@
 ```
 
 报告：`xlang: [XLANG_STD141_DOC07_PHASE2_SYNC]`
+
+## Gate
+
+Honesty gate for STD-141 (`tests/run-doc-07-phase2-sync-gate.sh`):
+
+- Live DOC = this archive file; refuse top-level resurrect.
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG /
+  missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + Phase 2 recipe product `-o` = hard green.
+- `xlang check` CHK002 / paused = obs.
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.

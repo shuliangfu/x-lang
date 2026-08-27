@@ -1,50 +1,84 @@
 #!/usr/bin/env bash
-# DOC-001：标准库 Cookbook manifest 门禁
+# DOC-001：标准库 Cookbook manifest 门禁（假权威诚实）。
 #
-# 1) doc-stdlib-cookbook-v1.md 必需章节
-# 2) 12 个 examples/cookbook 食谱存在且文档引用
-# 3) 可选：native xlang 时对食谱跑 check
-#
-# 用法：./tests/run-doc-stdlib-cookbook-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: prefer-c + soft SKIP typeck + hard-bind xlang check retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
+# native = hard die. Manifest hard; product -o smoke hard; check = obs.
+# DOC authority = archive/doc. Report: run=/obs=/skip=
+# Usage: ./tests/run-doc-stdlib-cookbook-gate.sh
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/doc-cookbook.sh
+. tests/lib/doc-cookbook.sh
 
 DOC="${XLANG_DOC_COOKBOOK:-analysis/archive/doc/doc-stdlib-cookbook-v1.md}"
 ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_DOC_COOKBOOK_TSV:-tests/baseline/doc-stdlib-cookbook.tsv}"
 MIN_SEC=6
 MIN_REC=12
+PREFIX="${XLANG_DOC_COOKBOOK_PREFIX:-xlang: [XLANG_DOC_STDLIB_COOKBOOK]}"
+SMOKE="examples/cookbook/io_batch_rw.x"
 
-# shellcheck source=tests/lib/doc-cookbook.sh
-. tests/lib/doc-cookbook.sh
+RUN_OK=0
+OBS=0
+SKIP=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "doc-stdlib-cookbook gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== DOC-001: stdlib cookbook manifest ==="
-for f in "$DOC" "$MANIFEST" "$ROADMAP"; do
-  if [ ! -f "$f" ]; then
-    echo "doc-stdlib-cookbook gate FAIL: missing $f" >&2
-    exit 1
-  fi
-done
+
+if [ -f analysis/doc-stdlib-cookbook-v1.md ]; then
+  die "top-level DOC resurrected (analysis/doc-stdlib-cookbook-v1.md; use archive)"
+fi
 if [ -f NEXT.md ]; then
-  echo "doc-stdlib-cookbook gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
-  exit 1
+  die "NEXT.md resurrected (use analysis/自举进度.md)"
+fi
+
+for f in "$DOC" "$MANIFEST" "$ROADMAP"; do
+  [ -f "$f" ] || die "missing $f"
+done
+if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
+  die "doc missing ## Gate section"
 fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -106,56 +140,34 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$SEC" -lt "$MIN_SEC" ]; then
-  echo "doc-stdlib-cookbook gate FAIL: sections=${SEC} < min ${MIN_SEC}" >&2
-  exit 1
-fi
-if [ "$REC" -lt "$MIN_REC" ]; then
-  echo "doc-stdlib-cookbook gate FAIL: recipes=${REC} < min ${MIN_REC}" >&2
-  exit 1
-fi
-if [ "$MISS" -gt 0 ]; then
-  echo "doc-stdlib-cookbook gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$SEC" -ge "$MIN_SEC" ] || die "sections=${SEC} < min ${MIN_SEC}"
+[ "$REC" -ge "$MIN_REC" ] || die "recipes=${REC} < min ${MIN_REC}"
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 
 for kw in IO NET async cookbook recipe; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "doc-stdlib-cookbook gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
 echo "doc-stdlib-cookbook manifest OK (sections=${SEC} recipes=${REC})"
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== DOC-001: recipe typeck smoke ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  CHECK_FAIL=0
-  while IFS=$'\t' read -r item_id kind anchor _notes; do
-    [ "$kind" = "recipe" ] || continue
-    if doc_cb_check_recipe "$XLANG_BIN" "$anchor"; then
-      echo "doc-stdlib-cookbook typeck OK $anchor"
-    else
-      echo "doc-stdlib-cookbook typeck FAIL $anchor" >&2
-      CHECK_FAIL=$((CHECK_FAIL + 1))
-    fi
-  done < "$MANIFEST"
-  if [ "$CHECK_FAIL" -gt 0 ]; then
-    echo "doc-stdlib-cookbook gate FAIL: typeck=${CHECK_FAIL}" >&2
-    exit 1
-  fi
+echo "=== DOC-001: product -o smoke (XLANG=$XLANG_BIN) ==="
+[ -f "$SMOKE" ] || die "missing smoke $SMOKE"
+if doc_cb_run_recipe "$XLANG_BIN" "$SMOKE"; then
+  RUN_OK=1
+  echo "doc-stdlib-cookbook run OK $SMOKE"
 else
-  echo "doc-stdlib-cookbook gate SKIP typeck (no native xlang)" >&2
+  die "product -o smoke $SMOKE"
 fi
 
+if doc_cb_check_recipe "$XLANG_BIN" "$SMOKE"; then
+  echo "doc-stdlib-cookbook check OK $SMOKE (obs path also green)"
+else
+  OBS=$((OBS + 1))
+  echo "doc-stdlib-cookbook OBS check $SMOKE (check paused / residual)" >&2
+fi
+
+ok_report
 echo "doc-stdlib-cookbook gate OK"

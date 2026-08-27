@@ -113,7 +113,7 @@ Xlang（`.x`）面向**高性能系统编程**：在 C 的执行模型上，用�
 | 自举架构 | `analysis/doc-selfhost-architecture-v1.md` |
 | 性能对标 | `analysis/archive/perf/perf-zig-baseline-v1.md` |
 | 零拷贝语义 | `analysis/archive/zc/zc-semantics-v1.md` |
-| 内存安全实践 | `analysis/doc-memory-safety-error-v1.md` |
+| 内存安全实践 | `analysis/archive/doc/doc-memory-safety-error-v1.md` |
 | 内部深度路线图 | `analysis/自举进度.md` |
 | Q3 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q3-v1.md` |
 | Q1 2027 刷新记录 | `analysis/archive/doc/doc-public-roadmap-q1-v1.md`（2027-Q1） |

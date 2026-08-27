@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# doc-phase2-close.sh — DOC-008 manifest 校验与报告
+# doc-phase2-close.sh — DOC-008 manifest helpers.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   doc_phase2_close_check MANIFEST
-#   doc_phase2_close_emit_report status anchors_ok cookbook_ok skip
+#   doc_phase2_close_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
 
 DOC_PHASE2_CLOSE_PREFIX="${XLANG_DOC08_PREFIX:-xlang: [XLANG_DOC08_PHASE2_CLOSE]}"
 
-# 校验 manifest 锚点；echo 缺失数。
+# Validate manifest anchors; echo miss count; return 0 when miss=0.
 doc_phase2_close_check() {
   local tsv="$1"
   local miss=0
@@ -59,11 +60,11 @@ doc_phase2_close_check() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run=/obs=/skip= (honesty wave 2026-08-28).
 doc_phase2_close_emit_report() {
   local status="$1"
-  local anchors_ok="$2"
-  local cookbook_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${DOC_PHASE2_CLOSE_PREFIX} status=${status} anchors=${anchors_ok} cookbook=${cookbook_ok} skip=${skip}"
+  echo "${DOC_PHASE2_CLOSE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

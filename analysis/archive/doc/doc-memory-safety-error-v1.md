@@ -33,7 +33,7 @@ Xlang **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe
 
 **原则**：业务逻辑应留在 S0；只有 FFI、C 布局镜像、裸地址算术才考虑 U1–U3。
 
-详见 `analysis/lang-unsafe-v1-rfc.md` §2–§3.1。
+详见 `analysis/archive/lang/lang-unsafe-v1-rfc.md` §2–§3.1。
 
 ---
 
@@ -72,7 +72,7 @@ Xlang **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe
 └─ 否 → assert / unreachable / panic（§5）
 ```
 
-决策树详 `analysis/exc-panic-abort-v1-rfc.md` §2。
+决策树详 `analysis/archive/exc/exc-panic-abort-v1-rfc.md` §2。
 
 ### 4.2 返回风格（EXC-001）
 
@@ -94,7 +94,7 @@ Xlang **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe
 
 **铁律**：`Result_i32.err` **不得**写入正数 errno；Layer C 查侧车。
 
-详 `analysis/exc-error-code-layer-v1.md`。
+详 `analysis/archive/exc/exc-error-code-layer-v1.md`。
 
 ### 4.4 代码片段
 
@@ -202,12 +202,24 @@ let t: Result_i32 = err_i32(io_err_timeout());
 
 | 主题 | 文档 |
 |------|------|
-| unsafe 模式 | `analysis/lang-unsafe-v1-rfc.md` |
-| Result/Error | `analysis/exc-result-error-v1-rfc.md` |
-| panic 边界 | `analysis/exc-panic-abort-v1-rfc.md` |
-| 错误码分层 | `analysis/exc-error-code-layer-v1.md` |
-| API 清单 | `analysis/safe-unsafe-api-v1.md` |
-| 审计流程 | `analysis/safe-unsafe-audit-v1.md` |
-| region/linear | `analysis/type-region-v1-rfc.md`、`analysis/type-linear-v1-rfc.md` |
+| unsafe 模式 | `analysis/archive/lang/lang-unsafe-v1-rfc.md` |
+| Result/Error | `analysis/archive/exc/exc-result-error-v1-rfc.md` |
+| panic 边界 | `analysis/archive/exc/exc-panic-abort-v1-rfc.md` |
+| 错误码分层 | `analysis/archive/exc/exc-error-code-layer-v1.md` |
+| API 清单 | `analysis/archive/safe/safe-unsafe-api-v1.md` |
+| 审计流程 | `analysis/archive/safe/safe-unsafe-audit-v1.md` |
+| region/linear | `analysis/archive/type/type-region-v1-rfc.md`、`analysis/archive/type/type-linear-v1-rfc.md` |
 
 **DOC-004 状态：定版 ✅**（实践指南；RFC 细节以各 EXC/LANG/SAFE 文档为准。）
+
+## Gate
+
+Honesty gate for DOC-004 (`tests/run-doc-memory-safety-error-gate.sh`):
+
+- Live DOC = this archive file; refuse top-level `analysis/doc-memory-safety-error-v1.md` resurrect.
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG / missing
+  native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest sections / archive cross-refs / examples / hook scripts = hard green.
+- Hook script existence = hard; hook execution opt-in via
+  `XLANG_DOC_MEM_SAFE_RUN_HOOKS=1` (lang-unsafe check-bound＝obs; not soft silence).
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.

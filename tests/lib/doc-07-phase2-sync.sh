@@ -54,9 +54,11 @@ doc07_phase2_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# Structured report: run=/obs=/skip= (honesty wave 2026-08-28).
 doc07_phase2_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local skip="$3"
-  echo "${STD141_PREFIX} status=${status} check=${check_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD141_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

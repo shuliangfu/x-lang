@@ -16,7 +16,7 @@ cross_docs_readme	cross_ref	docs/README.md	语言参考
 cross_selfhost	cross_ref	analysis/doc-selfhost-architecture-v1.md	DOC-002
 cross_perf	cross_ref	analysis/archive/perf/perf-zig-baseline-v1.md	PERF-001
 cross_zc	cross_ref	analysis/archive/zc/zc-semantics-v1.md	ZC-006
-cross_memsafe	cross_ref	analysis/doc-memory-safety-error-v1.md	DOC-004
+cross_memsafe	cross_ref	analysis/archive/doc/doc-memory-safety-error-v1.md	DOC-004
 internal_trace	file	analysis/自举进度.md	内部深度表
 quarter_template	template	tests/templates/doc-public-roadmap-quarter.txt	季度 checklist
 lib	script	lib/doc-public-roadmap.sh	共享库

@@ -46,3 +46,15 @@
 ```
 
 报告：`xlang: [XLANG_STD171_DOC07_PHASE3_SYNC]`
+
+## Gate
+
+Honesty gate for STD-171 (`tests/run-doc-07-phase3-sync-gate.sh`):
+
+- Live DOC = this archive file; refuse top-level resurrect.
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG /
+  missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest = hard green. Recipe product `-o` → `run=` or tip residual `obs=`
+  (sqlite / compress-stream etc.; not soft silence).
+- `xlang check` CHK002 / paused = obs.
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.
