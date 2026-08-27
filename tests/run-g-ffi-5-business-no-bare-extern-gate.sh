@@ -1,32 +1,61 @@
 #!/usr/bin/env bash
-# G-FFI-5：业务 tests 无「裸 extern 调用」——含 extern 的业务测试须有 unsafe 包裹调用，
-# 或列入 tests/baseline/g-ffi-5-business-extern-allowlist.tsv。
+# G-FFI-5: business tests no bare extern + §8 std business unsafe freeze.
 #
-# 排除：tests/unsafe、tests/probes、tests/kernel、tests/ffi（专项/探针）。
+# Honesty: soft XLANG_G_FFI5_FAIL retired — missing allowlist/baseline was
+# portable false-green (soft die→exit0). Live authority: archive DOC + TSV
+# baselines + hard-delegate wrap gate. Refuse compiler/Makefile resurrect.
+# LANG-007 / xlang check residual stays deferred (tip skip; check gate paused).
 #
-# 安全路线 §8「业务层零 unsafe」可验证策略：
-#   - 默认：freeze 基线 tests/baseline/g-ffi-5-std-business-unsafe-baseline.tsv
-#     · 基线内文件允许仍含 unsafe（既有债务）
-#     · 基线外 std 业务 .x 新增 unsafe → 硬失败（债务不得扩张）
-#   - XLANG_G_FFI5_STRICT_ZERO_UNSAFE=1：要求 std 业务层 unsafe 计数为 0（终局）
+# Usage: ./tests/run-g-ffi-5-business-no-bare-extern-gate.sh
+# Env:
+#   XLANG_G_FFI5_MANIFEST_ONLY=1       — DOC + TSV + static scans only (no wrap)
+#   XLANG_G_FFI5_STRICT_ZERO_UNSAFE=1  — require zero std business unsafe (end-state)
 #
-# 用法：./tests/run-g-ffi-5-business-no-bare-extern-gate.sh
-#   XLANG_G_FFI5_FAIL=1  — 失败硬退出（CI）
+# Report: doc=/allow=/baseline=/bare=/freeze=/wrap=/skip=
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${XLANG_G_FFI5_FAIL:-0}
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
+
+DOC="analysis/archive/phase/phase-g-ffi-5.md"
 ALLOW="tests/baseline/g-ffi-5-business-extern-allowlist.tsv"
 STD_BASE="tests/baseline/g-ffi-5-std-business-unsafe-baseline.tsv"
+PREFIX="xlang: [XLANG_G_FFI5]"
+
+DOC_OK=0
+ALLOW_OK=0
+BASELINE_OK=0
+BARE_OK=0
+FREEZE_OK=0
+WRAP_OK=0
+SKIP=1
+
 die() {
   echo "g-ffi-5 business FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  echo "${PREFIX} status=fail doc=${DOC_OK:-0} allow=${ALLOW_OK:-0} baseline=${BASELINE_OK:-0} bare=${BARE_OK:-0} freeze=${FREEZE_OK:-0} wrap=${WRAP_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== G-FFI-5: business tests no bare extern calls ==="
-[ -f "$ALLOW" ] || die "missing $ALLOW"
+echo "=== G-FFI-5: business no bare extern + §8 freeze (honesty) ==="
+# Refuse top-level DOC resurrect (live = archive/phase/).
+if [ -f analysis/phase-g-ffi-5.md ]; then
+  die "top-level analysis/phase-g-ffi-5.md resurrected (live = archive/phase/)"
+fi
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+
+for f in "$DOC" "$ALLOW" "$STD_BASE"; do
+  [ -f "$f" ] || die "missing $f"
+done
+grep -q 'G-FFI-5' "$DOC" || die "doc missing G-FFI-5 marker"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate honesty section"
+DOC_OK=1
+
 [ -f tests/run-g-ffi-5-std-wrap-gate.sh ] || die "missing std wrap gate"
-[ -f "$STD_BASE" ] || die "missing $STD_BASE"
+ALLOW_OK=1
+BASELINE_OK=1
 
 is_allowlisted() {
   local f="$1"
@@ -40,6 +69,7 @@ is_allowlisted() {
 }
 
 # ── business tests: extern 文件必须含 unsafe 或在 allowlist ──
+echo "=== G-FFI-5: business tests no bare extern calls ==="
 MISS=0
 while IFS= read -r f; do
   [ -n "$f" ] || continue
@@ -61,6 +91,7 @@ $(find tests -name '*.x' 2>/dev/null | sort)
 EOF
 
 [ "$MISS" -eq 0 ] || die "$MISS business test(s) have extern without unsafe (add unsafe or allowlist)"
+BARE_OK=1
 echo "g-ffi-5 business tests: no bare extern OK"
 
 # ── 安全路线 §8：std **业务层** unsafe 债务冻结 / 终局清零 ──
@@ -137,9 +168,20 @@ else
   done < "$BASE_TMP"
   echo "g-ffi-5 §8 freeze OK (debt frozen; cleared_scan=$CLEARED; STRICT_ZERO_UNSAFE=1 for end-state)"
 fi
+FREEZE_OK=1
 
-# ── 挂接既有 std wrap ──
+if [ "${XLANG_G_FFI5_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=0
+  echo "g-ffi-5 business-no-bare-extern gate OK (manifest only)"
+  echo "${PREFIX} status=ok doc=${DOC_OK} allow=${ALLOW_OK} baseline=${BASELINE_OK} bare=${BARE_OK} freeze=${FREEZE_OK} wrap=0 skip=${SKIP} host=$(ci_host_summary) mode=manifest"
+  exit 0
+fi
+
+# ── 挂接既有 std wrap（hard）──
 chmod +x tests/run-g-ffi-5-std-wrap-gate.sh
 ./tests/run-g-ffi-5-std-wrap-gate.sh || die "std wrap gate failed"
+WRAP_OK=1
+SKIP=0
 
 echo "g-ffi-5 business-no-bare-extern gate OK"
+echo "${PREFIX} status=ok doc=${DOC_OK} allow=${ALLOW_OK} baseline=${BASELINE_OK} bare=${BARE_OK} freeze=${FREEZE_OK} wrap=${WRAP_OK} skip=${SKIP} host=$(ci_host_summary)"

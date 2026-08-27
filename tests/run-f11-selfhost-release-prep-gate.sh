@@ -128,7 +128,9 @@ if [ -f tests/run-g-ffi-5-release-ci-gate.sh ]; then
   echo "=== F-11: delegate g-ffi-5 release-ci (hard policy) ==="
   chmod +x tests/run-g-ffi-5-release-ci-gate.sh
   if [ "${XLANG_F11_RUN_G_FFI5_RUNTIME:-0}" = "1" ]; then
-    if ! tests/run-g-ffi-5-release-ci-gate.sh; then
+    # Opt-in LANG-007: check gate paused → often red; not archaeology soft knife.
+    if ! XLANG_G_FFI5_RUN_LANG_UNSAFE=1 XLANG_G_FFI5_SKIP_LANG_UNSAFE=0 \
+      tests/run-g-ffi-5-release-ci-gate.sh; then
       die "g-ffi-5 release-ci failed"
     fi
   else
