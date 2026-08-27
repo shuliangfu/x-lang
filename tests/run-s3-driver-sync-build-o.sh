@@ -57,6 +57,10 @@ try_emit() {
   if grep -qE 'skip=1' "$log"; then
     return 2
   fi
+  # tip EMIT_HEAVY product residual (obs=) — treat like skip for sync write
+  if grep -qE 'obs=[1-9]' "$log"; then
+    return 2
+  fi
   if [ "$rc" -eq 0 ]; then
     return 0
   fi

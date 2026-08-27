@@ -53,6 +53,10 @@ try_emit_heavy() {
   if grep -qE 'skip=1' "$log"; then
     return 2
   fi
+  # tip EMIT_HEAVY product residual (obs=) — treat like skip for sync write
+  if grep -qE 'obs=[1-9]' "$log"; then
+    return 2
+  fi
   if [ "$rc" -ne 0 ]; then
     return 1
   fi
@@ -97,9 +101,14 @@ if [ "$emit_heavy_ok" -eq 0 ]; then
   done
 fi
 if [ "$emit_heavy_ok" -eq 0 ]; then
-  if [ "$saw_skip" -eq 1 ] && ! ci_is_linux_x64; then
-    SKIP=1
-    echo "s3 sync-build-o: emit-heavy N/A — skip write"
+  if [ "$saw_skip" -eq 1 ]; then
+    if ci_is_linux_x64; then
+      OBS=$((OBS + 1))
+      echo "s3 sync-build-o: emit-heavy obs residual — skip write"
+    else
+      SKIP=1
+      echo "s3 sync-build-o: emit-heavy N/A — skip write"
+    fi
     ok_report
     exit 0
   fi

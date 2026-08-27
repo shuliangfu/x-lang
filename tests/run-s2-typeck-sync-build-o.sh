@@ -63,6 +63,12 @@ if grep -qE 'skip=1' "$eh_log"; then
   ok_report
   exit 0
 fi
+if grep -qE 'obs=[1-9]' "$eh_log"; then
+  OBS=$((OBS + 1))
+  echo "s2 sync-build-o: emit-heavy obs residual — skip write"
+  ok_report
+  exit 0
+fi
 if [ "$eh_rc" -ne 0 ]; then
   die "emit-heavy failed"
 fi

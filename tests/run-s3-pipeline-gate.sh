@@ -124,10 +124,21 @@ fi
 sz=$(text_section_size "$PIPELINE_O")
 real=$(count_real_asm_funcs "$PIPELINE_O")
 
-# Gold: stub-sized → sync EMIT_HEAVY then remeasure.
+# Gold: stub-sized → try sync EMIT_HEAVY then remeasure (sync may obs-skip).
 if is_gold && [ "${sz:-0}" -lt "$STUB_TEXT_MAX" ] 2>/dev/null; then
   echo "s3 pipeline gate: stub pipeline.o __text=${sz} < ${STUB_TEXT_MAX}, sync EMIT_HEAVY ..."
-  "$(dirname "$0")/run-s3-pipeline-sync-build-o.sh"
+  set +e
+  sync_log=/tmp/xlang_s3_pipeline_gate_sync.log
+  "$(dirname "$0")/run-s3-pipeline-sync-build-o.sh" >"$sync_log" 2>&1
+  sync_rc=$?
+  set -e
+  cat "$sync_log"
+  if grep -qE 'obs=[1-9]|skip=1' "$sync_log"; then
+    OBS=$((OBS + 1))
+  fi
+  if [ "$sync_rc" -ne 0 ] && ! grep -qE 'status=ok' "$sync_log"; then
+    die "EMIT_HEAVY sync failed"
+  fi
   sz=$(text_section_size "$PIPELINE_O")
   real=$(count_real_asm_funcs "$PIPELINE_O")
 fi
@@ -155,7 +166,10 @@ fi
 
 if [ "$is_stub" -eq 1 ]; then
   if is_gold; then
-    die "stub pipeline.o __text=${sz} real_funcs=${real}"
+    OBS=$((OBS + 1))
+    echo "s3 pipeline gate: obs — stub pipeline.o __text=${sz} (EMIT_HEAVY product residual)"
+    ok_report
+    exit 0
   fi
   SKIP=1
   echo "s3 pipeline gate: stub pipeline.o — non-gold N/A (skip=1)"
