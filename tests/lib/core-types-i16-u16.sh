@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# core-types-i16-u16.sh — CORE-013：i16/u16 宽度 manifest 辅助
+# core-types-i16-u16.sh — CORE-013 manifest helpers (honesty soft→硬绿).
 #
-# 用法（source 后）：
+# Usage (source):
 #   core_types_i16_u16_symbols_ok TYPES_X TSV
-#   core_types_i16_u16_emit_report status check_ok run_ok skip
+#   core_types_i16_u16_emit_report status run obs skip
+# PLATFORM: SHARED archaeology.
 
 CORE_TYPES_I16_U16_PREFIX="${XLANG_CORE_TYPES_I16_U16_PREFIX:-xlang: [XLANG_CORE_TYPES_I16_U16]}"
 
-# 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
+# Validate manifest symbol anchors; echo miss count; return 0 on clean.
 core_types_i16_u16_symbols_ok() {
   local types_x="$1"
   local tsv="$2"
@@ -30,11 +31,11 @@ core_types_i16_u16_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行（runnable hard；check stays observational）。
+# Structured report: run=/obs=/skip= (honesty 2026-08-28).
 core_types_i16_u16_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${CORE_TYPES_I16_U16_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${CORE_TYPES_I16_U16_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

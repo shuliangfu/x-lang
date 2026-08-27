@@ -51,6 +51,24 @@
 
 ---
 
+
+## Gate
+
+```bash
+./tests/run-core-fmt-widths-gate.sh
+```
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；产品 `-o` 硬绿（或 tip 残＝obs）；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
+
+**gate report**：stdout 须含 `core-fmt-widths gate OK`；失败打印 `core-fmt-widths gate FAIL:` 行。
+
+| 资源 | 路径 |
+|------|------|
+| 本文 | `analysis/archive/core/core-fmt-widths-v1.md` |
+| manifest | `tests/baseline/core-fmt-widths.tsv` |
+
+**状态：定版 ✅（honesty soft→硬绿）**
+
 ## 5. 演进
 
 - CORE-011：f64 NaN/Inf 与精度策略。

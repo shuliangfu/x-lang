@@ -54,14 +54,18 @@
 
 ---
 
-## 5. Gate
+## Gate
 
 ```bash
 ./tests/run-core-types-i16-u16-gate.sh
 ```
 
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make；产品 `-o` 硬绿；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
+
 manifest：`tests/baseline/core-types-i16-u16.tsv`  
-报告：`xlang: [XLANG_CORE_TYPES_I16_U16] status=ok`
+报告：`xlang: [XLANG_CORE_TYPES_I16_U16] status=ok run=… obs=… skip=…`
+
+**状态：定版 ✅（honesty soft→硬绿）**
 
 ---
 

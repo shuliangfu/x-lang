@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# std-process-pipe-spawn.sh — STD-023/024 manifest 与 typeck 辅助
+# std-process-pipe-spawn.sh — STD-023/024 manifest helpers (honesty soft→硬绿).
 #
-# 用法（source 后）：
+# Usage (source):
 #   std_pps_symbols_ok PROC_X TSV
-#   std_pps_emit_report status pipe_ok win_ok skip
+#   std_pps_emit_report status run obs skip
+# PLATFORM: SHARED archaeology.
 
 STD_PPS_PREFIX="${XLANG_STD_PROCESS_PIPE_SPAWN_PREFIX:-xlang: [XLANG_STD_PROCESS_PIPE_SPAWN]}"
 
-# 校验 manifest symbol/file；echo 缺失数，成功返回 0。
+# Validate manifest symbol/file anchors; echo miss count; return 0 on clean.
 std_pps_symbols_ok() {
   local proc_x="$1"
   local tsv="$2"
@@ -35,11 +36,11 @@ std_pps_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run=/obs=/skip= (honesty 2026-08-28).
 std_pps_emit_report() {
   local status="$1"
-  local pipe_ok="$2"
-  local win_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_PPS_PREFIX} status=${status} pipe=${pipe_ok} win=${win_ok} skip=${skip}"
+  echo "${STD_PPS_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

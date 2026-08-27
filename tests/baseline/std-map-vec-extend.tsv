@@ -8,8 +8,8 @@ map_insert	symbol	insert(m: *Map_u64_i32	std/map/mod.x
 map_remove	symbol	str_remove(m: *Map_str_i32	std/map/mod.x
 vec_u64	symbol	Vec_u64	std/vec/mod.x
 vec_f64	symbol	Vec_f64	std/vec/mod.x
-vec_append	symbol	vec_u64_append_slice	std/vec/mod.x
-vec_from	symbol	vec_f64_from_slice	std/vec/mod.x
+vec_append	symbol	extend(v: *Vec_u64	std/vec/mod.x
+vec_from	symbol	from_slice(ptr: *f64	std/vec/mod.x
 heap_u64	symbol	alloc_u64	std/heap/mod.x
 heap_f64	symbol	alloc_f64	std/heap/mod.x
 test_map	file	tests/map/boundary.x		烟测

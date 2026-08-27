@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# std-map-vec-extend.sh — STD-013/014 manifest 与 typeck 辅助
+# std-map-vec-extend.sh — STD-013/014 manifest helpers (honesty soft→硬绿).
 #
-# 用法（source 后）：
+# Usage (source):
 #   std_mve_symbols_ok MAP_X VEC_X HEAP_X TSV
-#   std_mve_emit_report status map_ok vec_ok skip
+#   std_mve_emit_report status run obs skip
+# PLATFORM: SHARED archaeology.
 
 STD_MVE_PREFIX="${XLANG_STD_MAP_VEC_EXTEND_PREFIX:-xlang: [XLANG_STD_MAP_VEC_EXTEND]}"
 
-# 校验 manifest symbol 锚点；echo 缺失数，成功返回 0。
+# Validate manifest symbol anchors; echo miss count; return 0 on clean.
 std_mve_symbols_ok() {
   local map_x="$1"
   local vec_x="$2"
   local heap_x="$3"
   local tsv="$4"
   local miss=0
-  local sym mod_path
+  local mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$kind" in
@@ -35,11 +36,11 @@ std_mve_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run=/obs=/skip= (honesty 2026-08-28).
 std_mve_emit_report() {
   local status="$1"
-  local map_ok="$2"
-  local vec_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_MVE_PREFIX} status=${status} map=${map_ok} vec=${vec_ok} skip=${skip}"
+  echo "${STD_MVE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

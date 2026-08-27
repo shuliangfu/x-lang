@@ -1,59 +1,86 @@
 #!/usr/bin/env bash
-# CORE-013：core.types i16/u16 与宽度表门禁（假权威诚实）。
+# CORE-013: core.types i16/u16 width gate — honesty soft→硬绿.
 #
-# 用法：./tests/run-core-types-i16-u16-gate.sh
-# wave honesty (2026-08-24 #8): DOC → analysis/archive/core/;
-# typeck.c/codegen.c retired — live = typeck.x / codegen.x;
-# cross_ref anchors → wave313 / int16_t (greppable live).
-# 2026-08-25: runnable hard-green (labi g1 full core.types needles; check observational).
-# PLATFORM: SHARED archaeology / formal_mod / labi.
-set -e
+# Honesty: soft SKIP→OK (no native) + soft auto-make xlang-c + check SKIP
+# narrative retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make). Product -o i16_u16_width.x exit0 = hard run; check = obs.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-core-types-i16-u16-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/core-types-i16-u16.sh
+. tests/lib/core-types-i16-u16.sh
 
 DOC="${XLANG_CORE_TYPES_I16_U16_DOC:-analysis/archive/core/core-types-i16-u16-v1.md}"
 MANIFEST="${XLANG_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
 TYPES_X="core/types/mod.x"
 TYPECK="compiler/src/typeck/typeck.x"
 CODEGEN="compiler/src/codegen/codegen.x"
-LIB="tests/lib/core-types-i16-u16.sh"
 SMOKE="tests/core-types-size/i16_u16_width.x"
 SCALAR="tests/core-types-size/main.x"
 MIN_SYMBOLS=4
 
-# shellcheck source=tests/lib/core-types-i16-u16.sh
-. tests/lib/core-types-i16-u16.sh
+RUN_OK=0
+OBS=0
+SKIP=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "core-types-i16-u16 gate FAIL: $*" >&2
+  core_types_i16_u16_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
 }
 
-echo "=== CORE-013: i16/u16 width manifest (c retired) ==="
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
+echo "=== CORE-013: i16/u16 width manifest (archive DOC) ==="
+if [ -f analysis/core-types-i16-u16-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/core/)"
+fi
 if [ -f compiler/src/typeck/typeck.c ]; then
-  echo "core-types-i16-u16 gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
-  exit 1
+  die "typeck.c resurrected (live = typeck.x)"
 fi
 if [ -f compiler/src/codegen/codegen.c ]; then
-  echo "core-types-i16-u16 gate FAIL: codegen.c resurrected (live = codegen.x)" >&2
-  exit 1
+  die "codegen.c resurrected (live = codegen.x)"
 fi
-
-for f in "$DOC" "$MANIFEST" "$LIB" "$TYPES_X" "$TYPECK" "$CODEGEN" "$SMOKE" "$SCALAR"; do
-  if [ ! -f "$f" ]; then
-    echo "core-types-i16-u16 gate FAIL: missing $f" >&2
-    exit 1
-  fi
+for f in "$DOC" "$MANIFEST" tests/lib/core-types-i16-u16.sh "$TYPES_X" "$TYPECK" "$CODEGEN" "$SMOKE" "$SCALAR"; do
+  [ -f "$f" ] || die "missing $f"
 done
+if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -63,10 +90,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
 done < "$MANIFEST"
 
 for kw in i16 u16 标量宽度表 CORE-013; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "core-types-i16-u16 gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
 
 MISS=0
@@ -100,67 +124,46 @@ while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$SYM_N" -lt "$MIN_SYMBOLS" ] || [ "$MISS" -gt 0 ]; then
-  echo "core-types-i16-u16 gate FAIL: symbols=${SYM_N} miss=${MISS}" >&2
-  exit 1
-fi
+[ "$SYM_N" -ge "$MIN_SYMBOLS" ] && [ "$MISS" -eq 0 ] || die "symbols=${SYM_N} miss=${MISS}"
 
 sym_miss="$(core_types_i16_u16_symbols_ok "$TYPES_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  core_types_i16_u16_emit_report "fail" 0 0 0
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "core-types-i16-u16 manifest OK (symbols=${SYM_N})"
 
-resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== CORE-013: smoke (XLANG=$XLANG_BIN) ==="
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-013: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
-    && "$XLANG_BIN" check -L . "$SCALAR" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "core-types-i16-u16 gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-  OUT="/tmp/xlang_core_types_i16_u16_$$"
-  LOG="/tmp/xlang_core_types_i16_u16_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq 0 ]; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "core-types-i16-u16 gate FAIL runnable exit=$exitcode" >&2
-      core_types_i16_u16_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  else
-    echo "core-types-i16-u16 gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    core_types_i16_u16_emit_report "fail" "$CHECK_OK" 0 0
-    exit 1
-  fi
-else
-  echo "core-types-i16-u16 gate SKIP typeck (no native xlang)" >&2
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_core_i16_check.log 2>&1
+chk_a=$?
+"$XLANG_BIN" check -L . "$SCALAR" >/tmp/xlang_core_i16_check_scalar.log 2>&1
+chk_b=$?
+set -e
+if [ "$chk_a" -ne 0 ] || [ "$chk_b" -ne 0 ]; then
+  echo "core-types-i16-u16 OBS check (paused / CHK residual a=$chk_a b=$chk_b; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-core_types_i16_u16_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+exe="/tmp/xlang_core_i16_$$"
+rm -f "$exe" 2>/dev/null || true
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >/tmp/xlang_core_i16_o.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  tail -n 12 /tmp/xlang_core_i16_o.log 2>/dev/null || true
+  rm -f "$exe"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$exe" >/dev/null 2>&1
+run_ec=$?
+set -e
+rm -f "$exe"
+[ "$run_ec" -eq 0 ] || die "runnable exit=$run_ec (expected 0)"
+RUN_OK=$((RUN_OK + 1))
+
 echo "core-types-i16-u16 gate OK"
+core_types_i16_u16_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
