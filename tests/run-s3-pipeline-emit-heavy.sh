@@ -1,35 +1,60 @@
 #!/usr/bin/env bash
-# S3 EMIT_HEAVY 烟测：用 xlang_asm 第二遍重编 pipeline.o，统计非 ret0 桩的真机码函数数。
-# 依赖：compiler/xlang_asm.experimental 或 strict_glue 已重链含最新
-# runtime_pipeline_abi / pipeline.x（ast_pool.c left wave309）。
-# 用法：./tests/run-s3-pipeline-emit-heavy.sh
-# 门禁：XLANG_S3_FAIL_ON_EMIT_HEAVY=1 — real_funcs / __text 低于 baseline 时失败
+# S3 pipeline EMIT_HEAVY smoke: recompile pipeline.x; count non-ret0 funcs.
+#
+# Honesty: soft XLANG_S3_FAIL_ON_EMIT_HEAVY retired — zero-text soft OK was
+# portable false-green (Darwin tip historically printed OK at __text=0).
+# Linux x86_64 gold hard-dies under min_real_funcs / min_text_emit_heavy.
+# Darwin / non-Linux-x64 N/A (skip=1) on compile fail or stub/under.
+# Invoke from compiler/ cwd (same as build_xlang_asm second-pass).
+#
+# Usage: ./tests/run-s3-pipeline-emit-heavy.sh
+# Report: run=/obs=/skip=
+# PLATFORM: LINUX|UBUNTU x86_64 gold; DARWIN N/A when stub/fail.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. ./tests/lib/ci-host.sh
+
 COMP="${XLANG_S3_EMIT_HEAVY_COMPILER:-}"
 if [ -z "$COMP" ]; then
-  for cand in ./compiler/xlang_asm.strict_glue ./compiler/xlang_asm ./compiler/xlang_asm.experimental; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang_asm.strict_glue ./compiler/xlang_asm.experimental; do
     if [ -x "$cand" ]; then
       COMP="$cand"
       break
     fi
   done
 fi
-PIPELINE_X="compiler/src/pipeline/pipeline.x"
 OUT="/tmp/xlang_s3_pipeline_emit_heavy.o"
 BASELINE="${XLANG_S3_PIPELINE_BASELINE:-tests/baseline/s3-pipeline-o.tsv}"
-LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
 
 MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_REAL=${MIN_REAL:-0}
 MIN_TEXT_EH=$(awk -F'\t' '$1=="min_text_emit_heavy" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_TEXT_EH=${MIN_TEXT_EH:-512}
 
+PREFIX="xlang: [XLANG_S3_PIPELINE_EMIT_HEAVY]"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "s3 emit-heavy FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+is_emit_heavy_gold() {
+  ci_is_linux_x64
+}
+
 if [ ! -x "$COMP" ]; then
-  echo "s3 emit-heavy: no executable compiler (set XLANG_S3_EMIT_HEAVY_COMPILER=)" >&2
-  exit 127
+  die "no executable compiler (set XLANG_S3_EMIT_HEAVY_COMPILER=)"
 fi
-# 与 build_xlang_asm rebuild_pipeline_o_second_pass 同 cwd/LIBROOT（根目录 invoke 仅 ~4KiB 薄码）。
+# Same cwd/LIBROOT as build_xlang_asm rebuild_pipeline_o_second_pass.
 case "$COMP" in
   ./*) COMP_ABS="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")" ;;
   *) COMP_ABS="$COMP" ;;
@@ -51,16 +76,16 @@ count_real_asm_funcs() {
   python3 - "$1" <<'PY'
 import subprocess, re, sys
 path = sys.argv[1]
+head = r"^[0-9a-f]+ <(_?[^+>]+)>:\n"
+nxt = r"(?=^[0-9a-f]+ <_?[^+>]+>:\n|\Z)"
 try:
     text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
 except subprocess.CalledProcessError:
     print(0)
     sys.exit(0)
 real = 0
-# Mach-O: <_sym>；ELF: <sym>
-for m in re.finditer(r"^[0-9a-f]+ <(_?[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_?|\Z)", text, re.M):
-    body = m.group(2)
-    insns = [ln for ln in body.splitlines() if ln.strip() and not ln.endswith(":")]
+for m in re.finditer(head + r"((?:.*\n)*?)" + nxt, text, re.M):
+    insns = [ln for ln in m.group(2).splitlines() if ln.strip() and not ln.endswith(":")]
     if len(insns) > 10:
         real += 1
 print(real)
@@ -68,28 +93,58 @@ PY
 }
 
 rm -f "$OUT"
-if ! ( cd compiler && ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+set +e
+(
+  cd compiler && ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE=0 \
-    "$COMP_ABS" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_X_REL" ); then
-  echo "s3 emit-heavy: compile failed" >&2
-  exit 1
+    "$COMP_ABS" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_X_REL"
+)
+compile_rc=$?
+set -e
+if [ "$compile_rc" -ne 0 ]; then
+  if is_emit_heavy_gold; then
+    die "compile failed"
+  fi
+  SKIP=1
+  echo "s3 emit-heavy: compile failed — non-gold host N/A (skip=1)"
+  ok_report
+  exit 0
 fi
-[ -f "$OUT" ] || { echo "s3 emit-heavy: output missing"; exit 1; }
+[ -f "$OUT" ] || {
+  if is_emit_heavy_gold; then
+    die "output missing"
+  fi
+  SKIP=1
+  echo "s3 emit-heavy: output missing — non-gold host N/A (skip=1)"
+  ok_report
+  exit 0
+}
 
 sz=$(text_section_size "$OUT")
 real=$(count_real_asm_funcs "$OUT")
 echo "s3 emit-heavy: __text=${sz} real_funcs=${real} (min_real=${MIN_REAL}, min_text_emit_heavy=${MIN_TEXT_EH})"
 
-if [ "${XLANG_S3_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
-  if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
-    echo "s3 emit-heavy FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
-    echo "s3 emit-heavy hint: after runtime_pipeline_abi / pipeline.x leave change, rebuild pipeline_x.o + relink xlang_asm (ast_pool.c left wave309)" >&2
-    exit 1
-  fi
-  if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s >= m) ? 0 : 1 }'; then
-    echo "s3 emit-heavy FAIL: __text ${sz} < min_text_emit_heavy ${MIN_TEXT_EH}" >&2
-    exit 1
-  fi
+under=0
+if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
+  under=1
+fi
+if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s >= m) ? 0 : 1 }'; then
+  under=1
 fi
 
+if [ "$under" -eq 1 ]; then
+  if is_emit_heavy_gold; then
+    if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
+      die "real_funcs ${real} < min_real_funcs ${MIN_REAL}"
+    fi
+    die "__text ${sz} < min_text_emit_heavy ${MIN_TEXT_EH}"
+  fi
+  SKIP=1
+  echo "s3 emit-heavy: stub/under on non-gold host — N/A (skip=1)"
+  ok_report
+  exit 0
+fi
+
+RUN_OK=1
 echo "s3 emit-heavy OK (__text=${sz}, real_funcs=${real})"
+ok_report

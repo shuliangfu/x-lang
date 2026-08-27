@@ -157,7 +157,8 @@ if [ "$(uname -s)" = "Linux" ]; then
     echo "=== P5: S3 pipeline X emit gate (parse_entry_do_parse + EMIT_HEAVY) ==="
     chmod +x tests/run-s3-pipeline-gate.sh tests/run-s3-pipeline-sync-build-o.sh
     ./tests/run-s3-pipeline-sync-build-o.sh
-    XLANG_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh
+    # Soft XLANG_S3_FAIL_ON_REGRESSION retired (2026-08-27 honesty); default hard on gold.
+    ./tests/run-s3-pipeline-gate.sh
     echo "=== P5: WPO xlang_asm binary .text proxy (Linux) ==="
     chmod +x tests/run-perf-wpo-dce-xlang-asm-text.sh tests/lib/wpo-ab-proxy.sh \
       tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-full-chain-gate.sh

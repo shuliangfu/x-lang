@@ -350,25 +350,29 @@ fi
 echo "── S2 typeck gate ──"
 chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
 if ci_is_linux && ci_is_x86_64_host; then
-  XLANG_S2_REQUIRE_TYPECK_O=1 XLANG_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
-  grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
+  # Soft XLANG_S2_FAIL_ON_REGRESSION retired (2026-08-27 honesty); default hard on gold.
+  ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
+  grep -qE 's2 typeck gate OK|status=ok' /tmp/s2_typeck_gate.log
   # Soft XLANG_S2_FAIL_ON_PARITY retired (2026-08-27 honesty); default hard.
   ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
   grep -qE 's2 parity OK|status=ok' /tmp/s2_typeck_parity.log
 else
-  echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_summary) (EMIT_HEAVY Linux x86_64 only)"
+  ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
+  grep -qE 'status=ok|s2 typeck gate OK' /tmp/s2_typeck_gate.log
+  echo "ci-full-suite: S2 typeck gate N/A-or-skip on $(ci_host_summary) (EMIT_HEAVY Linux x86_64 gold)"
 fi
 
 echo "── S3 pipeline gate ──"
 chmod +x tests/run-s3-pipeline-gate.sh tests/run-s3-pipeline-sync-build-o.sh
 if ci_is_linux && ci_is_x86_64_host && ! ci_skip_tier_a && [ -x compiler/xlang_asm ]; then
-  # CI fast 跳过 pipeline 第二遍时 build_asm/pipeline.o 为 ~1KiB 桩；门禁前 EMIT_HEAVY 同步。
+  # CI fast may leave ~1KiB stub pipeline.o; sync EMIT_HEAVY before floors.
   ./tests/run-s3-pipeline-sync-build-o.sh | tee /tmp/s3_pipeline_sync.log
-  XLANG_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
-  grep -q 's3 pipeline gate OK' /tmp/s3_pipeline_gate.log
+  # Soft XLANG_S3_FAIL_ON_REGRESSION retired (2026-08-27 honesty); default hard on gold.
+  ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
+  grep -qE 's3 pipeline gate OK|status=ok' /tmp/s3_pipeline_gate.log
 else
   ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
-  grep -qE 's3 pipeline gate OK|check only' /tmp/s3_pipeline_gate.log
+  grep -qE 's3 pipeline gate OK|status=ok' /tmp/s3_pipeline_gate.log
 fi
 
 echo "── xlang_asm smoke ──"
