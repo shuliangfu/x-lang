@@ -148,27 +148,27 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-lint manifest OK (rules=${RULE_N} cases=${CASE_N} profile=${PROFILE_N})"
 
+# Prefer product asm; refuse soft SKIP→OK when no native (hooks are hard).
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang_asm ./compiler/xlang ./compiler/xlang-c; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
-if [ -n "$XLANG_BIN" ] && [ -z "${XLANG_LINK_XLANG:-}" ]; then
-  export XLANG_LINK_XLANG="$XLANG_BIN"
+if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
+  echo "tool-lint gate FAIL: no native xlang (refuse soft SKIP→OK / soft auto-make)" >&2
+  exit 1
 fi
 export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== TOOL-002: lint hooks (XLANG=$XLANG_BIN) ==="
-  chmod +x tests/run-lint-check.sh
-  ./tests/run-lint-check.sh
-  echo "tool-lint hooks OK"
-else
-  echo "tool-lint gate SKIP hooks (no native xlang)" >&2
-fi
+echo "=== TOOL-002: lint hooks (XLANG=$XLANG_BIN) ==="
+chmod +x tests/run-lint-check.sh
+./tests/run-lint-check.sh
+echo "tool-lint hooks OK"
 
 echo "tool-lint gate OK"

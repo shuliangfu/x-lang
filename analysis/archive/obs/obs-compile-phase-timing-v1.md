@@ -63,7 +63,10 @@ Honesty 2026-08-24 #7：DOC archived；smoke fixture = `examples/hello.x`；chec
 
 ---
 
-## 6. 门禁
+## Gate
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／prefer-c／soft auto-make；phase timing tip miss＝obs；报告 `run=`／`obs=`／`skip=`。
+
 
 `tests/run-obs-compile-phase-timing-gate.sh`：
 

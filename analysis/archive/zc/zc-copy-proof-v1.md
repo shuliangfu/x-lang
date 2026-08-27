@@ -76,9 +76,11 @@ Gate 会 grep 这些键。
 
 ---
 
-## 6. 门禁
+## Gate
 
 `tests/run-zc-copy-proof-gate.sh`：
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；DOC/SEM→archive/zc；smoke tip residual＝obs；报告 `run=`／`obs=`／`skip=`。
 
 1. 本文 + 模板 + manifest  
 2. 模板含必需 metadata 键  
@@ -94,6 +96,7 @@ Gate 会 grep 这些键。
 | PR 模板 | `tests/templates/zc-pr-copy-declaration.txt` |
 | 测试模板 | `tests/templates/zc-copy-proof-test.x` |
 | 矩阵 | `tests/baseline/zc-copy-proof.tsv` |
-| 语义 | `analysis/zc-semantics-v1.md` |
+| 本文 | `analysis/archive/zc/zc-copy-proof-v1.md` |
+| 语义 | `analysis/archive/zc/zc-semantics-v1.md` |
 
 **ZC-007 状态：定版 ✅**
