@@ -105,6 +105,12 @@ XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh
 
 ---
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON_COMPILE_REGRESSION:-0 silent OK; over-cap / check_fail = obs; report run=/obs=/skip=.
+
+---
+
 ## 7. 索引
 
 | 资源 | 路径 |

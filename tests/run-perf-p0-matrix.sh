@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
-# run-perf-p0-matrix.sh — P0+P1 bench matrix: C/Zig/xlang 三语言 median + 体积 + 编译时间
+# run-perf-p0-matrix.sh — P0+P1 bench matrix: C/Zig/xlang median + size + compile time.
 #
-# 用法：
-#   ./tests/run-perf-p0-matrix.sh              # 默认 3 runs（快速看数字）
-#   ./tests/run-perf-p0-matrix.sh --bench      # 10 runs + 体积 + 编译时间（完整报告）
-#   XLANG_PERF_MIN_RUNS=30 ./tests/run-perf-p0-matrix.sh --bench  # 30 runs
+# Honesty: soft XLANG_PERF_FAIL_ON_C_O2:-0 previously left xlang slower than
+# C -O2 unchecked, and FAIL_ON=1 was a no-op stub ("gate check disabled") =
+# portable false-green. Soft prefer-xlang-c-only retired. Prefer product
+# xlang_asm (Darwin hosted build may use xlang-c). Slower-than-C / xlang
+# compile-fail = obs (FAIL_ON=1 still hard for vs_c>1). Explicit bad XLANG
+# = hard die. Report run=/obs=/skip=.
 #
-# 输出：
-#   stdout — markdown 表格（median 秒 / 体积字节 / 编译秒）
-#   /tmp/xlang_p0_matrix_report.md — 完整报告文件
-#
-# 门禁：本脚本默认不设硬门禁（只看结果数字）。
-#       XLANG_PERF_FAIL_ON_C_O2=1 时才检查 xlang ≤ C-O2。
+# Usage:
+#   ./tests/run-perf-p0-matrix.sh              # default 3 runs
+#   ./tests/run-perf-p0-matrix.sh --bench      # 10 runs + size + compile time
+#   XLANG_PERF_MIN_RUNS=30 ./tests/run-perf-p0-matrix.sh --bench
+# Env:
+#   XLANG_PERF_FAIL_ON_C_O2=1 — xlang median ≤ C -O2 hard
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -u
 cd "$(dirname "$0")/.."
 
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/perf-env.sh
 . tests/lib/perf-env.sh
 perf_env_setup
@@ -23,8 +30,70 @@ perf_env_setup
 # shellcheck source=tests/lib/zig-baseline.sh
 . "$(dirname "$0")/lib/zig-baseline.sh" 2>/dev/null || true
 
-PERF_COMPILE_XLANG="./compiler/xlang-c"
-[ -x ./compiler/xlang-c ] || PERF_COMPILE_XLANG="./compiler/xlang"
+PREFIX="xlang: [XLANG_PERF_P0_MATRIX]"
+OBS=0
+RUN_OK=0
+SKIP=0
+C_O2_FAILS=0
+
+die() {
+  echo "p0-matrix FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang_asm/xlang-c/xlang (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+
+# PLATFORM: DARWIN — hosted microbench prefer xlang-c (asm __TEXT not r-x).
+# PLATFORM: LINUX — product asm preferred; xlang-c still ok for B-CMP path.
+PERF_COMPILE_XLANG="$XLANG_BIN"
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    if [ -x ./compiler/xlang-c ] && dod_native_exe "$(pwd)/compiler/xlang-c"; then
+      PERF_COMPILE_XLANG="$(pwd)/compiler/xlang-c"
+    fi
+    ;;
+  *)
+    if [ -x ./compiler/xlang-c ] && dod_native_exe "$(pwd)/compiler/xlang-c"; then
+      PERF_COMPILE_XLANG="$(pwd)/compiler/xlang-c"
+    fi
+    ;;
+esac
+echo "p0-matrix: resolve=$XLANG_BIN compile=$PERF_COMPILE_XLANG"
+
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
 RUNS="${XLANG_PERF_MIN_RUNS:-3}"
@@ -140,11 +209,12 @@ run_case() {
       XLANG_SIZE=$(stripped_size "$out_xlang")
       echo "  xlang -O2:  median=${XLANG_MED}s  stripped=${XLANG_SIZE}B  compile=${XLANG_BT}s"
     else
-      echo "  xlang -O2:  COMPILE FAIL (expected during bootstrap; C/Zig refs still valid)"
+      # Honesty: soft "expected during bootstrap" silent OK retired → obs (counted in write_case_row).
+      echo "  xlang -O2:  COMPILE FAIL (obs; C/Zig refs still valid)"
       XLANG_BT="fail"
     fi
   elif [ -f "$x" ]; then
-    echo "  xlang:      compiler not found ($PERF_COMPILE_XLANG)"
+    die "compiler not executable ($PERF_COMPILE_XLANG)"
   fi
 }
 
@@ -167,8 +237,24 @@ write_case_row() {
   local name="$1"
   local vs_c="nan"
   local vs_zig="nan"
+  if [ "$XLANG_BT" = "fail" ]; then
+    echo "p0-matrix OBS: ${name} xlang compile fail" >&2
+    OBS=$((OBS + 1))
+  elif [ "$XLANG_MED" != "nan" ]; then
+    RUN_OK=$((RUN_OK + 1))
+  fi
   if [ "$XLANG_MED" != "nan" ] && [ "$C_MED" != "nan" ]; then
     vs_c=$(awk -v x="$XLANG_MED" -v c="$C_MED" 'BEGIN { if(c>0) printf "%.3f", x/c; else print "nan" }')
+    # Soft FAIL_ON_C_O2:-0 previously ignored vs_c>1; FAIL=1 was a stub.
+    if awk -v v="$vs_c" 'BEGIN { exit !(v+0 > 1.0) }'; then
+      if [ "$FAIL_ON_C_O2" = "1" ]; then
+        echo "p0-matrix FAIL: ${name} vs_c=${vs_c} (xlang slower than C -O2)" >&2
+        C_O2_FAILS=$((C_O2_FAILS + 1))
+      else
+        echo "p0-matrix OBS: ${name} vs_c=${vs_c} (xlang slower than C -O2; set XLANG_PERF_FAIL_ON_C_O2=1 to hard-fail)" >&2
+        OBS=$((OBS + 1))
+      fi
+    fi
   fi
   if [ "$XLANG_MED" != "nan" ] && [ "$ZIG_MED" != "nan" ]; then
     vs_zig=$(awk -v x="$XLANG_MED" -v z="$ZIG_MED" 'BEGIN { if(z>0) printf "%.3f", x/z; else print "nan" }')
@@ -290,16 +376,15 @@ fi
 
 echo "" | tee -a "$REPORT"
 echo "## Notes" | tee -a "$REPORT"
-echo "- xlang COMPILE FAIL is expected during bootstrap (self-hosting in progress)." | tee -a "$REPORT"
-echo "- C/Zig refs are always valid and show the target xlang should reach post-bootstrap." | tee -a "$REPORT"
+echo "- xlang COMPILE FAIL = obs (not soft silence); C/Zig refs remain valid." | tee -a "$REPORT"
+echo "- vs_c > 1.0 = obs by default; XLANG_PERF_FAIL_ON_C_O2=1 hard-fails." | tee -a "$REPORT"
 echo "- vs_c < 1.0 means xlang faster than C -O2; vs_zig < 1.0 means faster than Zig ReleaseFast." | tee -a "$REPORT"
 echo "- Concurrency cases (.x) use single-thread fallback (xlang thread API not yet available)." | tee -a "$REPORT"
 
 echo "" | tee -a "$REPORT"
 echo "=== P0+P1 matrix done. Report: $REPORT ==="
-echo "=== (C/Zig data always valid; xlang data shows bootstrap progress) ==="
 
-# Optional hard gate (default off).
-if [ "$FAIL_ON_C_O2" = "1" ]; then
-  echo "(gate check disabled — this script is for collecting numbers, not gating)"
+if [ "$C_O2_FAILS" -gt 0 ]; then
+  die "${C_O2_FAILS} case(s) slower than C -O2 (XLANG_PERF_FAIL_ON_C_O2=1)"
 fi
+ok_report
