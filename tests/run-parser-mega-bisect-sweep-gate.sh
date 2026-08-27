@@ -1,25 +1,53 @@
 #!/usr/bin/env bash
-# mega 7 项 bisect 扫描：逐项 XLANG_ASM_PARSER_MEGA_BISECT=<name>，记录 ec 与 __text delta（track-only）。
-# 用法：
-#   ./tests/run-parser-mega-bisect-sweep-gate.sh
-#   XLANG_PARSER_MEGA_BISECT_SWEEP_FAIL=1 ./tests/run-parser-mega-bisect-sweep-gate.sh
+# mega 7-item bisect sweep honesty gate (track stub vs unexpected emit).
+#
+# Honesty: soft XLANG_PARSER_MEGA_BISECT_SWEEP_FAIL retired — baseline drift /
+# unexpected emit soft die→exit0 were portable false-green.
+# Stub/fail rows OK; any emit status or TSV drift is hard. Not a mega promote.
+#
+# Report: rows=/stub=/skip=
+# PLATFORM: LINUX gold · DARWIN N/A (honest skip).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PARSER_MEGA_BISECT_SWEEP_FAIL:-0}
+DOC="analysis/archive/phase/phase-parser-soft-fail0-honesty.md"
+PREFIX="xlang: [XLANG_PARSER_MEGA_BISECT_SWEEP]"
 MIN_DELTA=${XLANG_PARSER_MEGA_BISECT_MIN_DELTA:-8192}
 BASELINE="${XLANG_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 MEGAS=(parse_into_buf parse_into parse parse_one_function_impl parse_expr_into parse_block_into parse_body_lets_into)
 
+ROWS_OK=0
+STUB_OK=0
+SKIP=1
+
+die() {
+  echo "parser-mega-bisect-sweep-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail rows=${ROWS_OK:-0} stub=${STUB_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+report_ok() {
+  echo "${PREFIX} status=ok rows=${ROWS_OK:-0} stub=${STUB_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate honesty section"
+
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "parser-mega-bisect-sweep-gate: N/A on Darwin"
+  SKIP=1
+  echo "parser-mega-bisect-sweep-gate: N/A on Darwin (Linux covers mega sweep track)"
+  report_ok
   exit 0
 fi
+
 
 COMP_IN="./xlang_asm"
 if [ ! -x "compiler/$COMP_IN" ]; then
   echo "parser-mega-bisect-sweep-gate: SKIP (no compiler/$COMP_IN)"
+  report_ok
   exit 0
 fi
 
@@ -65,6 +93,7 @@ TMP_BASELINE="/tmp/parser_mega_bisect_sweep.$$.tsv"
 } > "$TMP_BASELINE"
 
 ANY_EMIT=0
+ROW_N=0
 for name in "${MEGAS[@]}"; do
   read -r EC TEXT <<<"$(compile_one "$name")"
   DELTA=$((TEXT - BASE_TEXT))
@@ -75,25 +104,30 @@ for name in "${MEGAS[@]}"; do
     STATUS=emit
     ANY_EMIT=1
   fi
+  ROW_N=$((ROW_N + 1))
   echo "${name}	ec=${EC}	text=${TEXT}	delta=${DELTA}	status=${STATUS}"
   printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$EC" "$TEXT" "$DELTA" "$STATUS" >> "$TMP_BASELINE"
 done
+ROWS_OK=1
 
-if [ -f "$BASELINE" ]; then
-  if ! diff -q "$BASELINE" "$TMP_BASELINE" >/dev/null 2>&1; then
-    echo "parser-mega-bisect-sweep-gate: baseline drift (see $BASELINE)" >&2
-    diff -u "$BASELINE" "$TMP_BASELINE" 2>/dev/null | tail -n 20 || true
-    [ "$FAIL" = "1" ] && rm -f "$TMP_BASELINE" && exit 1
-  fi
-else
-  cp "$TMP_BASELINE" "$BASELINE"
-  echo "parser-mega-bisect-sweep-gate: wrote $BASELINE"
+if [ ! -f "$BASELINE" ]; then
+  rm -f "$TMP_BASELINE"
+  die "missing baseline $BASELINE (refuse silent write; commit baseline deliberately)"
+fi
+if ! diff -q "$BASELINE" "$TMP_BASELINE" >/dev/null 2>&1; then
+  echo "parser-mega-bisect-sweep-gate: baseline drift (see $BASELINE)" >&2
+  diff -u "$BASELINE" "$TMP_BASELINE" 2>/dev/null | tail -n 20 || true
+  rm -f "$TMP_BASELINE"
+  die "baseline drift vs $BASELINE"
 fi
 rm -f "$TMP_BASELINE" 2>/dev/null || true
 
 if [ "$ANY_EMIT" = "1" ]; then
-  echo "parser-mega-bisect-sweep-gate NOTE: at least one mega bisect showed emit delta >= ${MIN_DELTA}B"
-  [ "$FAIL" = "1" ] && exit 1
+  die "at least one mega bisect showed emit delta >= ${MIN_DELTA}B (not soft track)"
 fi
-echo "parser-mega-bisect-sweep-gate PASS (all mega items stub/fail path)"
+
+STUB_OK=1
+SKIP=0
+echo "parser-mega-bisect-sweep-gate PASS (all mega items stub/fail path; rows=${ROW_N})"
+report_ok
 exit 0

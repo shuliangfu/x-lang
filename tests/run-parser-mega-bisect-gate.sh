@@ -1,21 +1,47 @@
 #!/usr/bin/env bash
-# mega 单项 bisect 门禁：XLANG_ASM_PARSER_MEGA_BISECT=parse_into 时跳过 ret0 桩，探测 X 真 emit 是否可链。
-# 判定：与无 bisect 基线比 __text 增量 <8KB 视为仍桩化/不可迁（PASS）；编译失败亦 PASS。
-# 用法：
-#   ./tests/run-parser-mega-bisect-gate.sh
-#   XLANG_PARSER_MEGA_BISECT_FAIL=1 ./tests/run-parser-mega-bisect-gate.sh
+# mega single-item bisect honesty gate (track stub vs unexpected emit).
+#
+# Honesty: soft XLANG_PARSER_MEGA_BISECT_FAIL retired — unexpected large
+# delta soft die→exit0 was portable false-green. Stub / compile-fail paths
+# remain OK (NOT a mega promote knife; product still uses parser_x.o).
+#
+# Report: stub=/skip=
+# PLATFORM: LINUX gold · DARWIN N/A (honest skip).
+# Non-goal: open mega emit / assemble full parser.x as product default.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PARSER_MEGA_BISECT_FAIL:-0}
+DOC="analysis/archive/phase/phase-parser-soft-fail0-honesty.md"
+PREFIX="xlang: [XLANG_PARSER_MEGA_BISECT]"
 TARGET=${XLANG_PARSER_MEGA_BISECT_TARGET:-parse_into}
 MIN_DELTA=${XLANG_PARSER_MEGA_BISECT_MIN_DELTA:-8192}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
+STUB_OK=0
+SKIP=1
+
+die() {
+  echo "parser-mega-bisect-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail stub=${STUB_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+report_ok() {
+  echo "${PREFIX} status=ok stub=${STUB_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate honesty section"
+
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "parser-mega-bisect-gate: N/A on Darwin"
+  SKIP=1
+  echo "parser-mega-bisect-gate: N/A on Darwin (Linux covers mega bisect track)"
+  report_ok
   exit 0
 fi
+
 
 COMP_IN="./xlang_asm"
 if [ -n "${XLANG_PARSER_MEGA_BISECT_COMPILER:-}" ]; then
@@ -26,6 +52,7 @@ if [ -n "${XLANG_PARSER_MEGA_BISECT_COMPILER:-}" ]; then
 fi
 if [ ! -x "compiler/$COMP_IN" ] && [ ! -x "$COMP_IN" ]; then
   echo "parser-mega-bisect-gate: SKIP (no compiler/$COMP_IN)"
+  report_ok
   exit 0
 fi
 
@@ -75,18 +102,19 @@ DELTA=$((BISECT_TEXT - BASE_TEXT))
 echo "parser-mega-bisect-gate: baseline text=${BASE_TEXT}B bisect text=${BISECT_TEXT}B delta=${DELTA}B ec=${BISECT_EC}"
 
 if [ "$BISECT_EC" -ne 0 ]; then
+  STUB_OK=1
+  SKIP=0
   echo "parser-mega-bisect-gate PASS (known: mega $TARGET compile fail ec=$BISECT_EC)"
+  report_ok
   exit 0
 fi
 
 if [ "$DELTA" -lt "$MIN_DELTA" ]; then
+  STUB_OK=1
+  SKIP=0
   echo "parser-mega-bisect-gate PASS (mega $TARGET bisect delta=${DELTA}B < ${MIN_DELTA}B — still ret0/stub path)"
+  report_ok
   exit 0
 fi
 
-echo "parser-mega-bisect-gate NOTE: mega $TARGET bisect delta=${DELTA}B — consider promoting from ret0 stub"
-if [ "$FAIL" = "1" ]; then
-  echo "parser-mega-bisect-gate FAIL: unexpected mega bisect emit (set FAIL=0 to track-only)" >&2
-  exit 1
-fi
-exit 0
+die "unexpected mega $TARGET bisect emit delta=${DELTA}B >= ${MIN_DELTA}B (not a soft track; do not silent-promote)"

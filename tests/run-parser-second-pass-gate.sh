@@ -16,11 +16,10 @@ if [ "${XLANG_PARSER_SAFE_HELPER_LEN_GATE:-1}" = "1" ]; then
 fi
 
 # EMIT_HEAVY：符号完整性门禁（替代体积 ratchet；见 BOOT-008）。
+# soft XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL retired — child is hard-RC.
 if [ "${XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY:-1}" = "1" ]; then
   chmod +x tests/run-parser-thin-glue-symbol-integrity-gate.sh 2>/dev/null || true
-  SYM_FAIL=${XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL:-${XLANG_PARSER_SECOND_PASS_FAIL:-0}}
-  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL="$SYM_FAIL" \
-    ./tests/run-parser-thin-glue-symbol-integrity-gate.sh
+  ./tests/run-parser-thin-glue-symbol-integrity-gate.sh
 fi
 
 FAIL=${XLANG_PARSER_SECOND_PASS_FAIL:-1}

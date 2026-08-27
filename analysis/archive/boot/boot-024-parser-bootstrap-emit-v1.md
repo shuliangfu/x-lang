@@ -5,6 +5,15 @@
 > 前置：BOOT-023 mega7 7/7 emit、`comp-parser-mega7-matrix.tsv` C 阶段  
 > 关联：`boot-mega7-gap.md` 阶段 C2/C3、COMP-001
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
+> **honesty 2026-08-27**：child soft `XLANG_PARSER_PARSE_BOOTSTRAP_*_FAIL` retired — see `## Gate` + `analysis/archive/phase/phase-parser-soft-fail0-honesty.md`.
+
+---
+
+## Gate
+
+Soft die→exit0 on C1/C2/C3 child gates was portable false-green when CI omitted `*_FAIL=1`.
+Children are now hard-RC on Linux; Darwin reports `skip=1`. Parent `run-boot-024-parser-bootstrap-emit-gate.sh` still owns manifest + bisect aggregation.
+**Non-goal:** mega FULL `parse_into_buf` X emit promote.
 
 ---
 

@@ -5,6 +5,15 @@
 > 关联：`BOOT-007/008`、`ENG-001`、`COMP-003`
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+> **Honesty 2026-08-27:** soft `XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL` retired — see `## Gate`.
+
+---
+
+## Gate
+
+`run-parser-thin-glue-symbol-integrity-gate.sh` is Linux hard-RC (baseline TSV + stretch/glue mins).
+Darwin reports honest `skip=1`. Soft die→exit0 without `*_FAIL=1` was portable false-green.
+Cluster DOC: `analysis/archive/phase/phase-parser-soft-fail0-honesty.md`.
 
 ---
 

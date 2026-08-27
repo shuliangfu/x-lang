@@ -250,21 +250,21 @@ XLANG_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
 echo "bootstrap-bstrict-ci: parser x strict gate ..."
 chmod +x tests/run-parser-x-strict-gate.sh tests/run-parser-experimental-emit-gate.sh
 XLANG_PARSER_X_STRICT_FAIL=1 ./tests/run-parser-x-strict-gate.sh
+# soft XLANG_PARSER_EXPERIMENTAL_EMIT_FAIL retired (honesty hard / Darwin skip)
 ./tests/run-parser-experimental-emit-gate.sh
 
 echo "bootstrap-bstrict-ci: parser second pass gate ..."
 chmod +x tests/run-parser-second-pass-gate.sh tests/run-parser-thin-glue-symbol-integrity-gate.sh
+# thin-glue soft FAIL retired; second-pass still owns its own FAIL default
 XLANG_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
 XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
   XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
   XLANG_PARSER_SECOND_PASS_FAIL=1 \
-  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
   XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
   XLANG_PARSER_SECOND_PASS_WPO_DCE=1 \
   XLANG_PARSER_SECOND_PASS_FAIL=1 \
-  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 
 echo "bootstrap-bstrict-ci: typeck parse count baseline ..."
@@ -283,20 +283,21 @@ chmod +x tests/run-std-c-inventory-gate.sh
 XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 
 echo "bootstrap-bstrict-ci: parser parse bootstrap gate ..."
+# soft XLANG_PARSER_PARSE_BOOTSTRAP_*_FAIL / MEGA_BISECT_*_FAIL retired (honesty hard / Darwin skip)
 chmod +x tests/run-parser-parse-bootstrap-gate.sh tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-parser-parse-bootstrap-x-emit-gate.sh tests/run-parser-parse-bootstrap-bisect-gate.sh \
-  tests/run-parser-mega-bisect-gate.sh
-XLANG_PARSER_PARSE_BOOTSTRAP_FAIL=1 ./tests/run-parser-parse-bootstrap-gate.sh
-XLANG_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
-XLANG_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
-./tests/run-parser-mega-bisect-gate.sh || true
-chmod +x tests/run-parser-mega-bisect-sweep-gate.sh
-./tests/run-parser-mega-bisect-sweep-gate.sh || true
-./tests/run-parser-parse-bootstrap-x-emit-gate.sh || true
+  tests/run-parser-mega-bisect-gate.sh tests/run-parser-mega-bisect-sweep-gate.sh
+./tests/run-parser-parse-bootstrap-gate.sh
+./tests/run-parser-parse-bootstrap-link-smoke.sh
+./tests/run-parser-parse-bootstrap-bisect-gate.sh
+./tests/run-parser-mega-bisect-gate.sh
+./tests/run-parser-mega-bisect-sweep-gate.sh
+./tests/run-parser-parse-bootstrap-x-emit-gate.sh
 
 echo "bootstrap-bstrict-ci: parser parse count baseline ..."
 chmod +x tests/run-parser-parse-count-gate.sh
-XLANG_PARSER_PARSE_COUNT_FAIL=1 XLANG_PARSER_PARSE_COUNT_TARGET=466 XLANG=./compiler/xlang_asm \
+# soft XLANG_PARSER_PARSE_COUNT_FAIL retired
+XLANG_PARSER_PARSE_COUNT_TARGET=466 XLANG=./compiler/xlang_asm \
   ./tests/run-parser-parse-count-gate.sh
 
 echo "bootstrap-bstrict-ci: DOD-CL-S1 struct layout smoke ..."
