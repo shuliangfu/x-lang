@@ -1,115 +1,115 @@
 #!/usr/bin/env bash
-# 文件职责：验证 main 体二元加减乘除表达式（如 1+2、42-10、6*7、20/4）；编译并运行，检查退出码与表达式结果一致。
-# 与其它文件的关系：由 compiler/Makefile 的 test 目标调用；依赖 compiler/xlang、tests/binary-expr/*.x。
-# bootstrap -o：seed xlang/xlang-c 对简单 binop -o 链接易 SIGSEGV；与 run-panic/run-result 一致走 bootstrap-link-xlang → xlang_asm2。
-
-set -e
+# Binary / unary / bitwise / compare / logical expr gate
+# (bstrict catalog: run-binary-expr.sh).
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make + bootstrap-link
+# heritage (false authority) retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
+# (refuse soft SKIP→OK / soft auto-make / prefer-c).
+#   - hard: each fixture product -o run with expected exit code
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-fi
-XLANG=${XLANG:-./compiler/xlang}
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-LINK_XLANG="$RUN_XLANG"
-# PLATFORM: SHARED — product path prefers this-SHA xlang_asm; leftover xlang_asm2
-# only with XLANG_BSTRICT_USE_ASM2=1 (July-14 wrong-binary ban).
-if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ] &&
-    ci_native_xlang ./compiler/xlang_asm2; then
-  LINK_XLANG=./compiler/xlang_asm2
-elif [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm; then
-  LINK_XLANG=./compiler/xlang_asm
-fi
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# 测试 1+2 -> 退出码 3
-$LINK_XLANG build tests/binary-expr/main.x -o /tmp/xlang_binary_expr 2>&1
-exitcode=0
-/tmp/xlang_binary_expr >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 3 ]; then
-    echo "expected exit code 3 (1+2), got $exitcode"
-    exit 1
-fi
+PREFIX="${XLANG_BINEXPR_PREFIX:-xlang: [XLANG_BINEXPR]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# 测试 42-10 -> 退出码 32
-$LINK_XLANG build tests/binary-expr/sub.x -o /tmp/xlang_binary_sub 2>&1
-exitcode=0
-/tmp/xlang_binary_sub >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 32 ]; then
-    echo "expected exit code 32 (42-10), got $exitcode"
-    exit 1
-fi
+die() {
+  echo "binary-expr test FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-# 测试 6*7 -> 退出码 42
-$LINK_XLANG build tests/binary-expr/mul.x -o /tmp/xlang_binary_mul 2>&1
-exitcode=0
-/tmp/xlang_binary_mul >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 42 ]; then
-    echo "expected exit code 42 (6*7), got $exitcode"
-    exit 1
-fi
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
-# 测试 20/4 -> 退出码 5
-$LINK_XLANG build tests/binary-expr/div.x -o /tmp/xlang_binary_div 2>&1
-exitcode=0
-/tmp/xlang_binary_div >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 5 ]; then
-    echo "expected exit code 5 (20/4), got $exitcode"
-    exit 1
-fi
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
-# 测试优先级：1+2*3 = 7（乘除优先于加减）
-$LINK_XLANG build tests/binary-expr/precedence.x -o /tmp/xlang_binary_prec 2>&1
-exitcode=0
-/tmp/xlang_binary_prec >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 7 ]; then
-    echo "expected exit code 7 (1+2*3), got $exitcode"
-    exit 1
-fi
+run_expect() {
+  local label="$1" src="$2" expect="$3"
+  local out="/tmp/xlang_binexpr_${label}_$$" log="/tmp/xlang_binexpr_${label}_$$.log" o_ec r_ec
+  [ -f "$src" ] || die "missing $src"
+  rm -f "$out" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$out" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$label product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$out" ]; then
+    die "$label product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$out" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$out"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$label run timeout"
+  elif [ "$r_ec" -ne "$expect" ]; then
+    die "$label expected exit $expect, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  echo "binary-expr OK: $label exit=$expect"
+}
 
-# 测试括号：(1+2)*3 = 9
-$LINK_XLANG build tests/binary-expr/paren.x -o /tmp/xlang_binary_paren 2>&1
-exitcode=0
-/tmp/xlang_binary_paren >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 9 ]; then
-    echo "expected exit code 9 ((1+2)*3), got $exitcode"
-    exit 1
-fi
+echo "=== binary-expr gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
-# 测试一元负号：10 + -4 = 6
-$LINK_XLANG build tests/binary-expr/unary_neg.x -o /tmp/xlang_binary_neg 2>&1
-exitcode=0
-/tmp/xlang_binary_neg >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 6 ]; then
-    echo "expected exit code 6 (10+-4), got $exitcode"
-    exit 1
-fi
-
-# 取模 7%3=1、移位 1<<4=16
-$LINK_XLANG build tests/binary-expr/mod.x -o /tmp/xlang_mod 2>&1
-exitcode=0; /tmp/xlang_mod >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 1 ] && { echo "expected 1 (7%%3), got $exitcode"; exit 1; }
-$LINK_XLANG build tests/binary-expr/shift.x -o /tmp/xlang_shift 2>&1
-exitcode=0; /tmp/xlang_shift >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 16 ] && { echo "expected 16 (1<<4), got $exitcode"; exit 1; }
-
-# 按位 (12&7)|(4^2)=4|6=6
-$LINK_XLANG build tests/binary-expr/bitwise.x -o /tmp/xlang_bit 2>&1
-exitcode=0; /tmp/xlang_bit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 6 ] && { echo "expected 6 (bitwise), got $exitcode"; exit 1; }
-
-# 比较 (3==3)+(2<5)+(5>2)=1+1+1=3
-$LINK_XLANG build tests/binary-expr/compare.x -o /tmp/xlang_cmp 2>&1
-exitcode=0; /tmp/xlang_cmp >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 3 ] && { echo "expected 3 (compare), got $exitcode"; exit 1; }
-
-# 逻辑 (1&&1)+(0||1)=2、!0=1
-$LINK_XLANG build tests/binary-expr/logical.x -o /tmp/xlang_log 2>&1
-exitcode=0; /tmp/xlang_log >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 2 ] && { echo "expected 2 (logical), got $exitcode"; exit 1; }
-$LINK_XLANG build tests/binary-expr/lognot.x -o /tmp/xlang_lognot 2>&1
-exitcode=0; /tmp/xlang_lognot >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 1 ] && { echo "expected 1 (!0), got $exitcode"; exit 1; }
+run_expect "add" "tests/binary-expr/main.x" 3
+run_expect "sub" "tests/binary-expr/sub.x" 32
+run_expect "mul" "tests/binary-expr/mul.x" 42
+run_expect "div" "tests/binary-expr/div.x" 5
+run_expect "precedence" "tests/binary-expr/precedence.x" 7
+run_expect "paren" "tests/binary-expr/paren.x" 9
+run_expect "unary_neg" "tests/binary-expr/unary_neg.x" 6
+run_expect "mod" "tests/binary-expr/mod.x" 1
+run_expect "shift" "tests/binary-expr/shift.x" 16
+run_expect "bitwise" "tests/binary-expr/bitwise.x" 6
+run_expect "compare" "tests/binary-expr/compare.x" 3
+run_expect "logical" "tests/binary-expr/logical.x" 2
+run_expect "lognot" "tests/binary-expr/lognot.x" 1
 
 echo "binary expr test OK"
+ok_report
