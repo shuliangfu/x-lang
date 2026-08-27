@@ -17,7 +17,7 @@ symbol_smoke_c	symbol	ffi_cstring_lifecycle_smoke_c	std/ffi/ffi.x	C 烟测（观
 smoke_c	file	tests/std-ffi/cstring_lifecycle_ok.c	C 入口（观测）
 smoke_x	smoke	tests/std-ffi/cstring_try_new.x	try_new（硬绿）
 cross_type004	cross_ref	analysis/archive/type/type-ffi-bridge-v1.md	TYPE-004（已归档；拒顶层复活）
-cross_safe004	cross_ref	analysis/safe-ffi-contract-v1.md	SAFE-004
+cross_safe004	cross_ref	analysis/archive/safe/safe-ffi-contract-v1.md	SAFE-004
 hook_safe	hook_script	run-safe-ffi-contract-gate.sh	tests/run-safe-ffi-contract-gate.sh
 lib	script	lib/std-ffi-cstring-lifecycle.sh	tests/lib/std-ffi-cstring-lifecycle.sh
 gate	script	run-std-ffi-cstring-lifecycle-gate.sh	tests/run-std-ffi-cstring-lifecycle-gate.sh

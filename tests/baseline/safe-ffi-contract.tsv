@@ -1,10 +1,10 @@
 # SAFE-004 FFI 边界内存契约矩阵
 # 列：case_id	contract_rule	api	src	expect_rc	tier	notes
 # min_cases	8
-read_path	section	## 1. 阅读路径	analysis/safe-ffi-contract-v1.md	-	15min
-rules	section	## 2. 契约规则 C1–C7	analysis/safe-ffi-contract-v1.md	-	FFI 边界
+read_path	section	## 1. 阅读路径	analysis/archive/safe/safe-ffi-contract-v1.md	-	15min
+rules	section	## 2. 契约规则 C1–C7	analysis/archive/safe/safe-ffi-contract-v1.md	-	FFI 边界
 matrix	section	## 3. 回归矩阵	safe-ffi-contract.tsv	-	权威
-verify	section	## 5. 验证与门禁	analysis/safe-ffi-contract-v1.md	-	gate
+verify	section	## 5. 验证与门禁	analysis/archive/safe/safe-ffi-contract-v1.md	-	gate
 case_null_cstr	C1-null	cstr_len	tests/ffi/contract_null_cstr.x	0	core	null→-1
 case_cstr_empty	C2-empty	cstr_len	tests/ffi/contract_cstr_empty.x	0	core	空串 len=0
 case_cstring_null0	C3-owned	cstring_new	tests/ffi/contract_cstring_null_len0.x	0	core	null len0

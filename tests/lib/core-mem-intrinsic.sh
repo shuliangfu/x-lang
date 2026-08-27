@@ -4,7 +4,11 @@
 # 用法（source 后）：
 #   core_mem_intrinsic_mappings_ok CODEGEN_C TSV
 #   core_mem_intrinsic_emit_ok XLANG X_FILE TSV
-#   core_mem_intrinsic_emit_report status found total
+#   core_mem_intrinsic_emit_report status run obs skip
+#
+# Honesty soft→硬绿 (2026-08-28): prefer asm at gate; missing native = hard die;
+# __builtin_* emit undercount = obs. Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology.
 
 CORE_MEM_INTRINSIC_PREFIX="${XLANG_CORE_MEM_INTRINSIC_PREFIX:-xlang: [XLANG_CORE_MEM_INTRINSIC]}"
 
@@ -71,10 +75,11 @@ core_mem_intrinsic_emit_ok() {
   [ "$found" -eq "$total" ] && [ "$total" -gt 0 ]
 }
 
-# 输出结构化报告行。
+# Emit structured honesty report line (run=/obs=/skip=).
 core_mem_intrinsic_emit_report() {
-  local status="$1"
-  local found="$2"
-  local total="$3"
-  echo "${CORE_MEM_INTRINSIC_PREFIX} status=${status} emit=${found}/${total}"
+  local status="${1:-ok}"
+  local run="${2:-0}"
+  local obs="${3:-0}"
+  local skip="${4:-0}"
+  echo "${CORE_MEM_INTRINSIC_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip}"
 }

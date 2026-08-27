@@ -26,7 +26,7 @@
 | **C1-null** | `cstr_len` | 若传 null，接受 -1 | 不解引用 null |
 | **C2-empty** | `cstr_len` | 缓冲须 NUL 结尾 | 空串返回 0 |
 | **C3-owned** | `cstring_new` | `len≥0`；`ptr` 可 null 当 len=0 | 分配 len+1 字节并写 NUL |
-| **C4-copy** | `cstring_new` | `ptr[0..len)` 可读 | 复制后独立 owned |
+| **C4-copy** | `cstring_new` | `ptr[0..length)` 可读 | 复制后独立 owned |
 | **C5-free** | `cstring_free` | 仅释放 `cstring_new` 指针 | `null` 为 no-op |
 | **C6-lifetime** | new/free | 每条 owned 指针 **恰好 free 一次** | 不 double-free |
 | **C7-extern** | `extern` C 符号 | 调用方保证 ABI/参数合法 | 编译器不校验 C 侧 |
@@ -70,9 +70,28 @@ Tier-E `ffi_*_c` 符号登记见 `tests/baseline/safe-unsafe-extern.tsv`；审�
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/safe-ffi-contract-v1.md` |
+| 本文 | `analysis/archive/safe/safe-ffi-contract-v1.md` |
 | matrix | `tests/baseline/safe-ffi-contract.tsv` |
 | 库 | `tests/lib/safe-ffi.sh` |
 | 门禁 | `tests/run-safe-ffi-contract-gate.sh` |
 
 **SAFE-004 状态：定版 ✅**
+
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + case `.x` / API anchors = hard.
+- Product `-o` contract cases = hard run (UNDEF/ld residual = obs).
+- `run-ffi.sh` hook = hard when cases ran.
+- Report: `run=` / `obs=` / `skip=`.
+- Live DOC = `analysis/archive/safe/safe-ffi-contract-v1.md` (top-level resurrect = hard fail).
+
+```bash
+./tests/run-safe-ffi-contract-gate.sh
+```
+
+manifest: `tests/baseline/safe-ffi-contract.tsv`

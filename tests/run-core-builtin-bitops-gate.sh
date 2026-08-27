@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# CORE-009：core.builtin clz/ctz/popcount 内建门禁（假权威诚实；G-01：纯 .x）。
+# CORE-009: core.builtin clz/ctz/popcount — honesty soft→硬绿.
 #
-# 用法：./tests/run-core-builtin-bitops-gate.sh
-# wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
-# codegen.c retired — live = codegen.x + core/builtin/mod.x;
-# XLANG_DEBUG_C __builtin_* emit observational SKIP (intrinsic table retired with .c).
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft SKIP→OK (no native still gate OK) + prefer-c only + soft
+# auto-make retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make / prefer-c).
+#   - archive DOC + ## Gate + mapping / pure .x = hard.
+#   - product -o tests/builtin/main.x = hard run.
+#   - XLANG_DEBUG_C __builtin_* emit (table retired with codegen.c) = obs.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-core-builtin-bitops-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/core-builtin-bitops.sh
+. tests/lib/core-builtin-bitops.sh
 
 DOC="${XLANG_CORE_BUILTIN_DOC:-analysis/archive/core/core-builtin-bitops-v1.md}"
 MANIFEST="${XLANG_CORE_BUILTIN_TSV:-tests/baseline/core-builtin-bitops.tsv}"
@@ -18,32 +25,63 @@ BUILTIN_X="core/builtin/mod.x"
 LIB="tests/lib/core-builtin-bitops.sh"
 EMIT_X="tests/builtin/main.x"
 MIN_MAP=3
-PREFIX="xlang: [XLANG_CORE_BUILTIN_BITOPS]"
 
-# shellcheck source=tests/lib/core-builtin-bitops.sh
-. tests/lib/core-builtin-bitops.sh
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "core-builtin-bitops gate FAIL: $*" >&2
+  core_builtin_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
 echo "=== CORE-009: core.builtin bitops manifest (archive DOC; c retired) ==="
 if [ -f analysis/core-builtin-bitops-v1.md ]; then
-  echo "core-builtin-bitops gate FAIL: top-level DOC resurrected (live = archive/core/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/core/)"
 fi
 if [ -f compiler/src/codegen/codegen.c ]; then
-  echo "core-builtin-bitops gate FAIL: codegen.c resurrected (live = codegen.x / pure .x)" >&2
-  exit 1
+  die "codegen.c resurrected (live = codegen.x / pure .x)"
 fi
-for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$BUILTIN_X" "$EMIT_X"; do
-  if [ ! -f "$f" ]; then
-    echo "core-builtin-bitops gate FAIL: missing $f" >&2
-    exit 1
-  fi
+for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$BUILTIN_X" "$EMIT_X" \
+  tests/run-builtin.sh; do
+  [ -f "$f" ] || die "missing $f"
 done
+if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 for kw in __builtin_clz clz_u32 popcount_u32; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "core-builtin-bitops gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -56,51 +94,64 @@ done < "$MANIFEST"
 map_miss="$(core_builtin_mappings_ok "$CODEGEN" "$MANIFEST" "$BUILTIN_X" || true)"
 x_miss="$(core_builtin_x_impl_ok "$BUILTIN_X" || true)"
 if [ "${map_miss:-0}" -gt 0 ] || [ "${x_miss:-0}" -gt 0 ]; then
-  core_builtin_emit_report "fail" 0 "$MIN_MAP"
-  echo "core-builtin-bitops gate FAIL: mapping_miss=${map_miss:-0} x_miss=${x_miss:-0}" >&2
-  exit 1
+  die "mapping_miss=${map_miss:-0} x_miss=${x_miss:-0}"
 fi
 echo "core-builtin-bitops manifest OK"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-resolve_emit_shu() {
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-EMIT_TOTAL=3
-if XLANG_BIN="$(resolve_emit_shu 2>/dev/null)"; then
-  echo "=== CORE-009: XLANG_DEBUG_C emit observational (XLANG=$XLANG_BIN) ==="
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  found="$(core_builtin_emit_ok "$XLANG_BIN" "$EMIT_X" "$MANIFEST" || true)"
-  if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
-    echo "core-builtin-bitops gate SKIP emit ${found:-0}/${EMIT_TOTAL} (__builtin_* table retired with codegen.c; pure .x)" >&2
+echo "=== CORE-009: product -o runnable (XLANG=$XLANG_BIN) ==="
+EXE="/tmp/xlang_core_builtin_$$"
+LOG="/tmp/xlang_core_builtin_$$.log"
+set +e
+"$XLANG_BIN" -L . "$EMIT_X" -o "$EXE" >"$LOG" 2>&1
+bec=$?
+set -e
+if [ "$bec" -ne 0 ]; then
+  if grep -qE 'Undefined symbols|undefined reference|UNDEF|BLD001' "$LOG" 2>/dev/null; then
+    echo "core-builtin-bitops OBS runnable (product -o UNDEF/ld residual)" >&2
+    OBS=$((OBS + 1))
   else
-    echo "core-builtin-bitops emit OK ${found}/${EMIT_TOTAL}"
+    tail -n 12 "$LOG" >&2 || true
+    die "product -o $EMIT_X"
   fi
-  echo "=== CORE-009: runnable builtin smoke ==="
-  chmod +x tests/run-builtin.sh
-  ./tests/run-builtin.sh
-  core_builtin_emit_report "ok" "${found:-0}" "$EMIT_TOTAL"
 else
-  echo "core-builtin-bitops gate SKIP runnable (no xlang)" >&2
-  core_builtin_emit_report "ok" 0 "$EMIT_TOTAL"
+  set +e
+  "$EXE" >/dev/null 2>&1
+  rec=$?
+  set -e
+  rm -f "$EXE"
+  if [ "$rec" -ne 0 ]; then
+    die "runnable exit=$rec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  echo "core-builtin-bitops runnable OK"
+fi
+rm -f "$EXE" "$LOG"
+
+echo "=== CORE-009: XLANG_DEBUG_C emit observational ==="
+# __builtin_* table retired with codegen.c; pure .x path does not emit host
+# intrinsics — count under-emit as obs, never soft-silence the whole gate.
+found="$(core_builtin_emit_ok "$XLANG_BIN" "$EMIT_X" "$MANIFEST" || true)"
+EMIT_TOTAL=3
+if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
+  echo "core-builtin-bitops OBS emit ${found:-0}/${EMIT_TOTAL} (__builtin_* table retired; pure .x)" >&2
+  OBS=$((OBS + 1))
+else
+  RUN_OK=$((RUN_OK + 1))
+  echo "core-builtin-bitops emit OK ${found}/${EMIT_TOTAL}"
 fi
 
+echo "=== CORE-009: run-builtin.sh hook ==="
+chmod +x tests/run-builtin.sh
+if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" ./tests/run-builtin.sh; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "core-builtin-bitops hook OK"
+else
+  die "run-builtin.sh hook failed (refuse soft SKIP→OK)"
+fi
+
+core_builtin_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "core-builtin-bitops gate OK"

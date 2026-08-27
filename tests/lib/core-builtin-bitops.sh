@@ -5,7 +5,11 @@
 #   core_builtin_mappings_ok CODEGEN_C TSV
 #   core_builtin_c_impl_ok BUILTIN_C TSV
 #   core_builtin_emit_ok XLANG X_FILE TSV
-#   core_builtin_emit_report status found total
+#   core_builtin_emit_report status run obs skip
+#
+# Honesty soft→硬绿 (2026-08-28): prefer asm at gate; missing native = hard die;
+# __builtin_* emit undercount = obs. Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology.
 
 CORE_BUILTIN_PREFIX="${XLANG_CORE_BUILTIN_BITOPS_PREFIX:-xlang: [XLANG_CORE_BUILTIN_BITOPS]}"
 
@@ -102,8 +106,9 @@ core_builtin_emit_ok() {
 }
 
 core_builtin_emit_report() {
-  local status="$1"
-  local found="$2"
-  local total="$3"
-  echo "${CORE_BUILTIN_PREFIX} status=${status} emit=${found}/${total}"
+  local status="${1:-ok}"
+  local run="${2:-0}"
+  local obs="${3:-0}"
+  local skip="${4:-0}"
+  echo "${CORE_BUILTIN_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip}"
 }

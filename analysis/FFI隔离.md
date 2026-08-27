@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-28（§7.5 **G-FFI-3/4 gate ✅**；§7.2 阶段表同步）  
 > 状态：**分析定稿**（指导 LANG-007 v2 / SAFE-004 演进与阶段 G 排期）  
-> 关联：[安全路线.md](./安全路线.md) §6、[lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md)、[safe-ffi-contract-v1.md](./safe-ffi-contract-v1.md)、[type-ffi-bridge-v1.md](./type-ffi-bridge-v1.md)、[安全与性能.md](./安全与性能.md)、[与C互操作.md](./与C互操作.md)
+> 关联：[安全路线.md](./安全路线.md) §6、[lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md)、[safe-ffi-contract-v1.md](./archive/safe/safe-ffi-contract-v1.md)、[type-ffi-bridge-v1.md](./type-ffi-bridge-v1.md)、[安全与性能.md](./安全与性能.md)、[与C互操作.md](./与C互操作.md)
 
 ---
 
@@ -338,7 +338,7 @@ unsafe {
 |------|------|--------|
 | 1 | [安全与性能.md](./安全与性能.md) §一、§三 | 为何无「绝对安全」 |
 | 2 | [lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md) | S0 / U1–U4 分层 |
-| 3 | [safe-ffi-contract-v1.md](./safe-ffi-contract-v1.md) | C1–C7 契约 |
+| 3 | [safe-ffi-contract-v1.md](./archive/safe/safe-ffi-contract-v1.md) | C1–C7 契约 |
 | 4 | [type-ffi-bridge-v1.md](./type-ffi-bridge-v1.md) | F1–F6 类型桥 |
 | 5 | [安全路线.md](./安全路线.md) §6 | A 级隔离总览 |
 | 6 | [与C互操作.md](./与C互操作.md) | ABI 与语法 |

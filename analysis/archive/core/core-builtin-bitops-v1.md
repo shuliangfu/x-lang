@@ -52,3 +52,20 @@
 ## 5. 演进
 
 - `clz_u64`/`ctz_u64` 镜像族；自举 codegen 路径同步 intrinsic 表。
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Archive DOC + mapping / pure `.x` (`core/builtin/mod.x`) = hard.
+- Product `-o` `tests/builtin/main.x` + `run-builtin.sh` = hard run.
+- `XLANG_DEBUG_C` `__builtin_*` emit undercount (table retired with `codegen.c`) = obs.
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-core-builtin-bitops-gate.sh
+```
+
+manifest: `tests/baseline/core-builtin-bitops.tsv`

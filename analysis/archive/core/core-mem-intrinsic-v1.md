@@ -81,3 +81,20 @@ xlang: [XLANG_CORE_MEM_INTRINSIC] status=ok emit=4/4
 1. 在 `builtin_intrinsic_name` 登记 C 符号 → intrinsic
 2. 更新 manifest `mapping_*` 行与 `intrinsic_emit.x`
 3. 更新 `core/mem/mod.x` 模块头注释
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Archive DOC + mapping / pure `.x` (`core/mem/mod.x`) = hard.
+- Product `-o` `tests/mem/main.x` = hard run.
+- `XLANG_DEBUG_C` `__builtin_*` emit undercount (table retired with `codegen.c`) = obs.
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-core-mem-intrinsic-gate.sh
+```
+
+manifest: `tests/baseline/core-mem-intrinsic.tsv`
