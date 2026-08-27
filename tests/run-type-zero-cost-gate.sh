@@ -1,29 +1,77 @@
 #!/usr/bin/env bash
-# TYPE-005：零成本抽象 manifest 门禁
+# TYPE-005: zero-cost abstraction manifest + runnable gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-type-zero-cost-gate.sh
-set -e
+# Honesty: soft SKIP→OK when no native + prefer-c + soft auto-make + fossil
+# top-level DOC / bench/loop_i32.x / codegen.c retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die. DOC authority = archive/type. Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-type-zero-cost-gate.sh
+# wave honesty (2026-08-28): DOC → analysis/archive/type/;
+# fossil benches → r01_/m03_/r10_/a01_*; codegen.c retired → codegen.x.
+# PLATFORM: SHARED archaeology.
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-DOC="${XLANG_TYPE_ZC_DOC:-analysis/type-zero-cost-v1.md}"
+DOC="${XLANG_TYPE_ZC_DOC:-analysis/archive/type/type-zero-cost-v1.md}"
 MANIFEST="${XLANG_TYPE_ZC_MANIFEST:-tests/baseline/type-zero-cost.tsv}"
 BENCH="${XLANG_TYPE_ZC_BENCH:-tests/baseline/type-zero-cost-bench.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_BENCHES=6
+PREFIX="${XLANG_TYPE_ZC_PREFIX:-xlang: [XLANG_TYPE_ZERO_COST]}"
+
+RUN_OK=0
+OBS=0
+SKIP=0
 
 # shellcheck source=tests/lib/type-zero-cost.sh
 . tests/lib/type-zero-cost.sh
 
+die() {
+  echo "type-zero-cost gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
 echo "=== TYPE-005: zero-cost abstraction manifest ==="
+if [ -f analysis/type-zero-cost-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/type/)"
+fi
+if [ -f compiler/src/codegen/codegen.c ]; then
+  die "codegen.c resurrected (live = codegen.x)"
+fi
+for fossil in bench/loop_i32.x bench/mem_copy.x bench/struct_param.x bench/call_boundary.x; do
+  if [ -f "$fossil" ]; then
+    die "fossil bench resurrected: $fossil (live = r01_/m03_/r10_/a01_*)"
+  fi
+done
+
 for f in "$DOC" "$MANIFEST" "$BENCH" \
-  analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
-  bench/{loop_i32,mem_copy,struct_param,call_boundary}.x \
+  analysis/archive/type/type-linear-v1-rfc.md \
+  analysis/archive/type/type-region-v1-rfc.md \
+  analysis/archive/lang/lang-generic-v1.md \
+  bench/r01_loop_i32.x bench/m03_mem_copy.x bench/r10_struct_param.x bench/a01_call_boundary.x \
   bench/generic_id_i32.x tests/typeck/linear/move_ok.x \
+  compiler/src/codegen/codegen.x \
   tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
-    echo "type-zero-cost gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
+  fi
+done
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
+
+for kw in zero cost abstraction copy runnable report; do
+  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
+    die "doc missing keyword $kw"
   fi
 done
 
@@ -129,32 +177,37 @@ while IFS=$'\t' read -r bench_id x_file _rest; do
 done < "$BENCH"
 
 if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "type-zero-cost gate FAIL: layers=${LAYER_N} < min ${MIN_LAYERS}" >&2
-  exit 1
+  die "layers=${LAYER_N} < min ${MIN_LAYERS}"
 fi
 if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "type-zero-cost gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
+  die "cases=${CASE_N} < min ${MIN_CASES}"
 fi
 if [ "$BENCH_N" -lt "$MIN_BENCHES" ]; then
-  echo "type-zero-cost gate FAIL: benches=${BENCH_N} < min ${MIN_BENCHES}" >&2
-  exit 1
+  die "benches=${BENCH_N} < min ${MIN_BENCHES}"
 fi
-
-for kw in zero cost abstraction copy runnable report; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "type-zero-cost gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
-done
-
 if [ "$MISS" -gt 0 ]; then
-  echo "type-zero-cost gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "type-zero-cost manifest OK (layers=${LAYER_N} cases=${CASE_N} benches=${BENCH_N})"
 
 chmod +x tests/run-type-zero-cost.sh
-./tests/run-type-zero-cost.sh
+set +e
+out=$(./tests/run-type-zero-cost.sh 2>&1)
+ec=$?
+set -e
+printf '%s\n' "$out"
+# Propagate runner counters from status line when present.
+if printf '%s\n' "$out" | grep -qE 'status=ok.*run='; then
+  RUN_OK=$(printf '%s\n' "$out" | sed -nE 's/.*run=([0-9]+).*/\1/p' | tail -1)
+  OBS=$(printf '%s\n' "$out" | sed -nE 's/.*obs=([0-9]+).*/\1/p' | tail -1)
+  SKIP=$(printf '%s\n' "$out" | sed -nE 's/.*skip=([0-9]+).*/\1/p' | tail -1)
+  RUN_OK=${RUN_OK:-0}
+  OBS=${OBS:-0}
+  SKIP=${SKIP:-0}
+fi
+if [ "$ec" -ne 0 ]; then
+  die "runnable residual (ec=$ec)"
+fi
 
+ok_report
 echo "type-zero-cost gate OK"

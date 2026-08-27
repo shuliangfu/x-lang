@@ -1,7 +1,7 @@
 # TYPE-004 FFI 类型桥接规则 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 `codegen.c` `c_type_to_buf`、`SAFE-004` 对齐  
+> 状态：**定版（v1）** — 与 `codegen.x` `type_to_c_repr`、`SAFE-004` 对齐  
 > 关联：`LANG-005`（ABI）、`SAFE-002`（extern 清单）、`LANG-007`（unsafe extern）
 
 ---
@@ -24,7 +24,7 @@
 | 层级 | Shu 表面 | C / typeck | v1 |
 |------|----------|------------|-----|
 | **F1-scalar-map** | `i32`/`u64`/`f64`/`bool`… | `int32_t`/`uint64_t`/`double`/`int` | ✅ |
-| **F2-pointer-bridge** | `*T` | `T*`（递归 `c_type_to_buf`） | ✅ |
+| **F2-pointer-bridge** | `*T` | `T*`（递归 `type_to_c_repr`） | ✅ |
 | **F3-extern-syntax** | `extern function f(...)` | 无函数体；链接 C 符号 | ✅ |
 | **F4-struct-by-value** | 具名 struct | `struct Name` 同布局按值传递 | ✅ |
 | **F5-slice-codegen** | `T[]` | `struct xlang_slice_<elem>` | ✅（**非**直接 extern 参数） |
@@ -32,7 +32,7 @@
 
 **interop 原则**：
 
-1. **mapping** 以 `c_type_to_buf` 为准；变更须同步 TSV + gate。
+1. **mapping** 以 `type_to_c_repr` 为准；变更须同步 TSV + gate。
 2. `extern` 参数可用 `*u8` 表示 C 侧 **void\*** 语义（任意 `*T` 可传入）。
 3. `T[]` 仅在 Shu 内部与 C 生成代码间桥接；跨语言边界优先 `*u8`+`len` 或 `*T`。
 
@@ -62,7 +62,7 @@ extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
 | `*u8` | `uint8_t*` | yes | void\* 桥接目标 |
 | `T[]` | `struct xlang_slice_*` | no | 仅 codegen 内部 |
 
-实现锚点：`compiler/src/codegen/codegen.c` `c_type_to_buf`；typeck 放宽见 `typeck.c` call 实参路径。
+实现锚点：`compiler/src/codegen/codegen.x` `type_to_c_repr`；typeck 放宽见 `typeck.x` call 实参路径。
 
 ---
 
@@ -99,8 +99,29 @@ extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/type-ffi-bridge-v1.md` |
+| 本文 | `analysis/archive/type/type-ffi-bridge-v1.md` |
 | manifest | `tests/baseline/type-ffi-bridge.tsv` |
 | mapping | `tests/baseline/type-ffi-bridge-map.tsv` |
+
+
+
+---
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c / soft auto-make; explicit bad XLANG /
+missing native = hard die; DOC=archive/type; live mapping =
+`codegen.x` `type_to_c_repr`／`emit_type`; product `-o` putchar／cstr = hard
+run; report `run=`／`obs=`／`skip=`.
+
+| 组件 | 路径 |
+|------|------|
+| manifest | `tests/baseline/type-ffi-bridge.tsv` |
+| mapping | `tests/baseline/type-ffi-bridge-map.tsv` |
+| gate | `tests/run-type-ffi-bridge-gate.sh` |
+| hook | `tests/run-type-ffi-bridge.sh` |
+
+gate 输出 **`type-ffi-bridge gate OK`** + `status=ok run=…`; 缺 native／显式坏 XLANG **硬 die**（拒 soft SKIP→OK）；FFI bridge smoke 硬绿。
 
 **TYPE-004 状态：定版 ✅**

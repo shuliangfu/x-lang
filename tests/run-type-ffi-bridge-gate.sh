@@ -1,28 +1,71 @@
 #!/usr/bin/env bash
-# TYPE-004：FFI 类型桥接 manifest 门禁
+# TYPE-004: FFI type-bridge manifest + runnable gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-type-ffi-bridge-gate.sh
-set -e
+# Honesty: soft SKIP→OK when no native + prefer-c + soft auto-make + fossil
+# top-level DOC / codegen.c / c_type_to_buf retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die. DOC authority = archive/type. Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-type-ffi-bridge-gate.sh
+# wave honesty (2026-08-28): DOC → analysis/archive/type/;
+# codegen.c/typeck.c retired → codegen.x/typeck.x; mapping = type_to_c_repr.
+# PLATFORM: SHARED archaeology.
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-DOC="${XLANG_TYPE_FFI_DOC:-analysis/type-ffi-bridge-v1.md}"
+DOC="${XLANG_TYPE_FFI_DOC:-analysis/archive/type/type-ffi-bridge-v1.md}"
 MANIFEST="${XLANG_TYPE_FFI_MANIFEST:-tests/baseline/type-ffi-bridge.tsv}"
 MAP="${XLANG_TYPE_FFI_MAP:-tests/baseline/type-ffi-bridge-map.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_MAPPINGS=12
+PREFIX="${XLANG_TYPE_FFI_PREFIX:-xlang: [XLANG_TYPE_FFI_BRIDGE]}"
+
+RUN_OK=0
+OBS=0
+SKIP=0
 
 # shellcheck source=tests/lib/type-ffi-bridge.sh
 . tests/lib/type-ffi-bridge.sh
 
+die() {
+  echo "type-ffi-bridge gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
 echo "=== TYPE-004: FFI type bridge manifest ==="
+if [ -f analysis/type-ffi-bridge-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/type/)"
+fi
+if [ -f compiler/src/codegen/codegen.c ]; then
+  die "codegen.c resurrected (live = codegen.x)"
+fi
+if [ -f compiler/src/typeck/typeck.c ]; then
+  die "typeck.c resurrected (live = typeck.x)"
+fi
+
 for f in "$DOC" "$MANIFEST" "$MAP" \
-  compiler/src/codegen/codegen.c compiler/src/typeck/typeck.c \
+  compiler/src/codegen/codegen.x compiler/src/typeck/typeck.x \
   tests/ffi/putchar.x tests/ffi/main.x \
-  analysis/safe-ffi-contract-v1.md; do
+  analysis/archive/safe/safe-ffi-contract-v1.md; do
   if [ ! -f "$f" ]; then
-    echo "type-ffi-bridge gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
+  fi
+done
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
+
+for kw in ffi bridge mapping interop runnable report; do
+  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
+    die "doc missing keyword $kw"
   fi
 done
 
@@ -125,32 +168,36 @@ while IFS=$'\t' read -r xlang_type c_type extern_ok notes; do
 done < "$MAP"
 
 if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "type-ffi-bridge gate FAIL: layers=${LAYER_N} < min ${MIN_LAYERS}" >&2
-  exit 1
+  die "layers=${LAYER_N} < min ${MIN_LAYERS}"
 fi
 if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "type-ffi-bridge gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
+  die "cases=${CASE_N} < min ${MIN_CASES}"
 fi
 if [ "$MAP_N" -lt "$MIN_MAPPINGS" ]; then
-  echo "type-ffi-bridge gate FAIL: mappings=${MAP_N} < min ${MIN_MAPPINGS}" >&2
-  exit 1
+  die "mappings=${MAP_N} < min ${MIN_MAPPINGS}"
 fi
-
-for kw in ffi bridge mapping interop runnable report; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "type-ffi-bridge gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
-done
-
 if [ "$MISS" -gt 0 ]; then
-  echo "type-ffi-bridge gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "type-ffi-bridge manifest OK (layers=${LAYER_N} cases=${CASE_N} mappings=${MAP_N})"
 
 chmod +x tests/run-type-ffi-bridge.sh
-./tests/run-type-ffi-bridge.sh
+set +e
+out=$(./tests/run-type-ffi-bridge.sh 2>&1)
+ec=$?
+set -e
+printf '%s\n' "$out"
+if printf '%s\n' "$out" | grep -qE 'status=ok.*run='; then
+  RUN_OK=$(printf '%s\n' "$out" | sed -nE 's/.*run=([0-9]+).*/\1/p' | tail -1)
+  OBS=$(printf '%s\n' "$out" | sed -nE 's/.*obs=([0-9]+).*/\1/p' | tail -1)
+  SKIP=$(printf '%s\n' "$out" | sed -nE 's/.*skip=([0-9]+).*/\1/p' | tail -1)
+  RUN_OK=${RUN_OK:-0}
+  OBS=${OBS:-0}
+  SKIP=${SKIP:-0}
+fi
+if [ "$ec" -ne 0 ]; then
+  die "runnable residual (ec=$ec)"
+fi
 
+ok_report
 echo "type-ffi-bridge gate OK"

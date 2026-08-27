@@ -1,24 +1,26 @@
 # TYPE-005 zero-cost abstraction manifest
-# 列：item_id	kind	anchor	src	tier	notes
+# cols: item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-28: DOC → analysis/archive/type/; codegen.c retired →
+# codegen.x; fossil benches → r01_/m03_/r10_/a01_*; lang-generic → archive/lang.
 # min_layers	6
 # min_cases	4
-read_path	section	## 1. 阅读路径	analysis/type-zero-cost-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/type/type-zero-cost-v1.md	-	15min
 layers	section	## 2. 检查层 Z1–Z6	type-zero-cost.tsv	-	abstraction
 bench	section	## 3. 基准矩阵	type-zero-cost-bench.tsv	-	bench
-cases	section	## 4. Golden 用例	analysis/type-zero-cost-v1.md	-	cases
-verify	section	## 6. 验证与门禁	analysis/type-zero-cost-v1.md	-	gate
-layer_z1	layers	Z1-linear-abi	analysis/type-linear-v1-rfc.md	linear	ABI
-layer_z2	layers	Z2-generic-mono	analysis/lang-generic-v1.md	generic	monomorph
-layer_z3	layers	Z3-struct-byval	bench/struct_param.x	struct	bcmp
-layer_z4	layers	Z4-region-zero	analysis/type-region-v1-rfc.md	region	compile
-layer_z5	layers	Z5-call-depth	bench/call_boundary.x	call	bcmp
-layer_z6	layers	Z6-mem-hotpath	bench/mem_copy.x	mem	bcmp
-sym_linear	symbol	AST_TYPE_LINEAR	compiler/src/codegen/codegen.c	codegen	unwrap
-sym_mono	symbol	codegen_one_mono_instance	compiler/src/codegen/codegen.c	generic	单态化
+cases	section	## 4. Golden 用例	analysis/archive/type/type-zero-cost-v1.md	-	cases
+verify	section	## Gate	analysis/archive/type/type-zero-cost-v1.md	-	gate
+layer_z1	layers	Z1-linear-abi	analysis/archive/type/type-linear-v1-rfc.md	linear	ABI
+layer_z2	layers	Z2-generic-mono	analysis/archive/lang/lang-generic-v1.md	generic	monomorph
+layer_z3	layers	Z3-struct-byval	bench/r10_struct_param.x	struct	bcmp
+layer_z4	layers	Z4-region-zero	analysis/archive/type/type-region-v1-rfc.md	region	compile
+layer_z5	layers	Z5-call-depth	bench/a01_call_boundary.x	call	bcmp
+layer_z6	layers	Z6-mem-hotpath	bench/m03_mem_copy.x	mem	bcmp
+sym_linear	symbol	TYPE_LINEAR	compiler/src/codegen/codegen.x	codegen	unwrap
+sym_mono	symbol	codegen_collect_mono_combos_for_generic_func	compiler/src/codegen/codegen.x	generic	单态化
 case_linear	case	case_linear	tests/typeck/linear/move_ok.x	typeck	Linear
 case_generic	case	case_generic	bench/generic_id_i32.x	compile	mono
 case_region	case	case_region	tests/typeck/slice_lifetime/region_same_ok.x	region	ok
-case_loop	case	case_loop	bench/loop_i32.x	bcmp	loop
+case_loop	case	case_loop	bench/r01_loop_i32.x	bcmp	loop
 case_bcmp	hook_ref	run-bcmp-gate.sh	tests/run-bcmp-gate.sh	bcmp	CI
 gate	script	run-type-zero-cost-gate.sh	tests/run-type-zero-cost-gate.sh	-	manifest
-hook_zc	hook_script	run-type-zero-cost.sh	run-type-zero-cost.sh	-	烟测
+hook_zc	hook_script	run-type-zero-cost.sh	run-type-zero-cost.sh	-	smoke

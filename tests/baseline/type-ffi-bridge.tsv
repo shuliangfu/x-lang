@@ -1,25 +1,27 @@
 # TYPE-004 FFI type bridge manifest
-# 列：item_id	kind	anchor	src	tier	notes
+# cols: item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-28: DOC → analysis/archive/type/; codegen.c/typeck.c retired →
+# codegen.x/typeck.x; c_type_to_buf → type_to_c_repr; SAFE-004 cross_ref → archive/safe.
 # min_layers	6
 # min_cases	4
-read_path	section	## 1. 阅读路径	analysis/type-ffi-bridge-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/type/type-ffi-bridge-v1.md	-	15min
 layers	section	## 2. 桥接层 F1–F6	type-ffi-bridge.tsv	-	ffi
 mapping	section	## 3. 类型映射表	type-ffi-bridge-map.tsv	-	mapping
-cases	section	## 4. Golden 用例	analysis/type-ffi-bridge-v1.md	-	cases
-verify	section	## 6. 验证与门禁	analysis/type-ffi-bridge-v1.md	-	gate
-layer_f1	layers	F1-scalar-map	compiler/src/codegen/codegen.c	scalar	int32_t
-layer_f2	layers	F2-pointer-bridge	compiler/src/codegen/codegen.c	pointer	*T
-layer_f3	layers	F3-extern-syntax	analysis/type-ffi-bridge-v1.md	extern	声明
-layer_f4	layers	F4-struct-by-value	compiler/src/codegen/codegen.c	struct	按值
-layer_f5	layers	F5-slice-codegen	compiler/src/codegen/codegen.c	slice	xlang_slice
-layer_f6	layers	F6-coercion	compiler/src/typeck/typeck.c	coerce	*u8
-sym_ctype	symbol	c_type_to_buf	compiler/src/codegen/codegen.c	codegen	mapping
-sym_void_bridge	symbol	void*	compiler/src/typeck/typeck.c	typeck	*u8
+cases	section	## 4. Golden 用例	analysis/archive/type/type-ffi-bridge-v1.md	-	cases
+verify	section	## Gate	analysis/archive/type/type-ffi-bridge-v1.md	-	gate
+layer_f1	layers	F1-scalar-map	compiler/src/codegen/codegen.x	scalar	int32_t
+layer_f2	layers	F2-pointer-bridge	compiler/src/codegen/codegen.x	pointer	*T
+layer_f3	layers	F3-extern-syntax	analysis/archive/type/type-ffi-bridge-v1.md	extern	声明
+layer_f4	layers	F4-struct-by-value	compiler/src/codegen/codegen.x	struct	按值
+layer_f5	layers	F5-slice-codegen	compiler/src/codegen/codegen.x	slice	xlang_slice
+layer_f6	layers	F6-coercion	compiler/src/typeck/typeck.x	coerce	*u8
+sym_ctype	symbol	type_to_c_repr	compiler/src/codegen/codegen.x	codegen	mapping
+sym_void_bridge	symbol	*u8	compiler/src/typeck/typeck.x	typeck	*u8
 case_putchar	case	case_putchar	tests/ffi/putchar.x	i32	putchar
 case_extern	case	case_extern_abi	tests/ffi/contract_extern_putchar.x	extern	ABI
 case_cstr	case	case_cstr_u8	tests/ffi/contract_null_cstr.x	*u8	cstr_len
 case_main	case	case_ffi_main	tests/ffi/main.x	smoke	run-ffi
-cross_safe004	cross_ref	analysis/safe-ffi-contract-v1.md	SAFE-004	memory
+cross_safe004	cross_ref	analysis/archive/safe/safe-ffi-contract-v1.md	analysis/archive/safe/safe-ffi-contract-v1.md	SAFE-004	memory
 gate	script	run-type-ffi-bridge-gate.sh	tests/run-type-ffi-bridge-gate.sh	-	manifest
-hook_bridge	hook_script	run-type-ffi-bridge.sh	run-type-ffi-bridge.sh	-	烟测
+hook_bridge	hook_script	run-type-ffi-bridge.sh	run-type-ffi-bridge.sh	-	smoke
 hook_ffi	hook_script	run-ffi.sh	run-ffi.sh	-	回归

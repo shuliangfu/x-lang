@@ -25,10 +25,10 @@
 |------|------|------------|------|
 | **Z1-linear-abi** | `Linear(T)` | 与 `T` 同布局/ABI；无 drop 表 | `move_ok.x` + TYPE-001 |
 | **Z2-generic-mono** | `id<T>(x)` | 编译期单态化，无 vtable | `generic_id_i32.x` |
-| **Z3-struct-byval** | 小 struct 按值传参 | 栈拷贝 = C struct | `struct_param.x` B-CMP |
+| **Z3-struct-byval** | 小 struct 按值传参 | 栈拷贝 = C struct | `r10_struct_param.x` B-CMP |
 | **Z4-region-zero** | `region` / `T[]<label>` | 标签不进 ABI/runtime | TYPE-002 RFC |
-| **Z5-call-depth** | 多层函数调用 | 无额外间接层 | `call_boundary.x` B-CMP |
-| **Z6-mem-hotpath** | 循环 memcpy 热路径 | 无多余用户态 copy | `mem_copy.x` B-CMP |
+| **Z5-call-depth** | 多层函数调用 | 无额外间接层 | `a01_call_boundary.x` B-CMP |
+| **Z6-mem-hotpath** | 循环 memcpy 热路径 | 无多余用户态 copy | `m03_mem_copy.x` B-CMP |
 
 **copy 判定（v1）**：
 
@@ -44,10 +44,10 @@
 
 | bench_id | .x | 对标 | gate |
 |----------|-----|------|------|
-| `bench_loop` | `loop_i32.x` | `loop_i32.c` | bcmp |
-| `bench_mem` | `mem_copy.x` | `mem_copy.c` | bcmp |
-| `bench_struct` | `struct_param.x` | `struct_param.c` | bcmp |
-| `bench_call` | `call_boundary.x` | `call_boundary.c` | bcmp |
+| `bench_loop` | `r01_loop_i32.x` | `r01_loop_i32.c` | bcmp |
+| `bench_mem` | `m03_mem_copy.x` | `m03_mem_copy.c` | bcmp |
+| `bench_struct` | `r10_struct_param.x` | `r10_struct_param.c` | bcmp |
+| `bench_call` | `a01_call_boundary.x` | `a01_call_boundary.c` | bcmp |
 | `bench_generic` | `generic_id_i32.x` | — | compile smoke |
 | `bench_linear` | `move_ok.x` | — | typeck smoke |
 
@@ -60,7 +60,7 @@
 | `case_linear` | `Linear` 无额外字段 | `check` 通过 |
 | `case_generic` | 泛型单态化可编译 | `generic_id_i32.x` |
 | `case_region` | region 块正例 | `region_same_ok.x` |
-| `case_loop` | 标量循环 B-CMP 锚点 | `loop_i32.x` |
+| `case_loop` | 标量循环 B-CMP 锚点 | `r01_loop_i32.x` |
 | `case_bcmp` | 四件套 B-CMP | `perf baseline OK`（CI） |
 
 ---
@@ -85,8 +85,30 @@
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/type-zero-cost-v1.md` |
+| 本文 | `analysis/archive/type/type-zero-cost-v1.md` |
 | manifest | `tests/baseline/type-zero-cost.tsv` |
 | bench | `tests/baseline/type-zero-cost-bench.tsv` |
+
+
+
+---
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c (xlang-c before asm) / soft auto-make; explicit
+bad XLANG / missing native = hard die; DOC=archive/type; fossil benches →
+`r01_`／`m03_`／`r10_`／`a01_*`; `check`／typeck policy = obs (check gate
+paused 2026-08-05); product `-o` compile = hard run; bcmp rows = skip
+(delegated to `run-bcmp-gate.sh`); report `run=`／`obs=`／`skip=`.
+
+| 组件 | 路径 |
+|------|------|
+| manifest | `tests/baseline/type-zero-cost.tsv` |
+| bench | `tests/baseline/type-zero-cost-bench.tsv` |
+| gate | `tests/run-type-zero-cost-gate.sh` |
+| hook | `tests/run-type-zero-cost.sh` |
+
+gate 输出 **`type-zero-cost gate OK`** + `status=ok run=…`; 缺 native／显式坏 XLANG **硬 die**（拒 soft SKIP→OK）；compile smoke 硬绿；typeck／region check＝obs。
 
 **TYPE-005 状态：定版 ✅**
