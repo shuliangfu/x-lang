@@ -252,7 +252,8 @@ XLANG_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh
 
 echo "bootstrap-bstrict-ci: strict_glue measured .text A/B (pipeline WPO helpers) ..."
 chmod +x tests/run-wpo-strict-glue-text-gate.sh tests/lib/wpo-ab-proxy.sh
-XLANG_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
+# Soft XLANG_WPO_STRICT_GLUE_TEXT_FAIL retired — gate is hard by default.
+./tests/run-wpo-strict-glue-text-gate.sh
 
 echo "bootstrap-bstrict-ci: parser x strict gate ..."
 chmod +x tests/run-parser-x-strict-gate.sh tests/run-parser-experimental-emit-gate.sh
@@ -274,7 +275,8 @@ XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
 
 echo "bootstrap-bstrict-ci: typeck parse count baseline ..."
 chmod +x tests/run-typeck-parse-count-gate.sh tests/run-typeck-parse-bisect-gate.sh
-XLANG_TYPECK_PARSE_COUNT_FAIL=1 XLANG=./compiler/xlang_asm \
+# Soft XLANG_TYPECK_PARSE_COUNT_FAIL retired — gate is hard by default.
+XLANG=./compiler/xlang_asm \
   ./tests/run-typeck-parse-count-gate.sh
 ./tests/run-typeck-parse-bisect-gate.sh || true
 

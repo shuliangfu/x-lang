@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# A-11 track/CI：asm pipeline 编 typeck.x 时 after_entry_parse num_defined 须 ≥ min（146 为全量 defined）。
-# 用法：./tests/run-typeck-parse-count-gate.sh
-# 环境：XLANG_TYPECK_PARSE_COUNT_FAIL=1 低于 MIN 时硬失败
-#       XLANG_TYPECK_PARSE_COUNT_MIN / TARGET 覆盖 baseline
+# A-11 track/CI: asm pipeline typeck.x after_entry_parse num_defined >= min
+# (146 = full defined).
+#
+# Honesty: soft XLANG_TYPECK_PARSE_COUNT_FAIL retired — compile/metric
+# failure was portable false-green (soft die→exit0) and missing compiler
+# soft-SKIP→OK. Prefer xlang_asm. Missing compiler is hard die. Metric
+# under baseline is hard fail. Darwin stays N/A (Linux gold covers).
+#
+# Usage: ./tests/run-typeck-parse-count-gate.sh
+# Env: XLANG_TYPECK_PARSE_COUNT_MIN / TARGET override baseline
+# Report: run=/skip=
+# PLATFORM: LINUX|UBUNTU gold; DARWIN N/A.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
 BASELINE="${XLANG_TYPECK_PARSE_COUNT_TSV:-tests/baseline/typeck-parse-count.tsv}"
-FAIL=${XLANG_TYPECK_PARSE_COUNT_FAIL:-0}
 MIN_FUNCS=${XLANG_TYPECK_PARSE_COUNT_MIN:-$(awk -F'\t' '$1=="min_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
 TARGET_FUNCS=${XLANG_TYPECK_PARSE_COUNT_TARGET:-$(awk -F'\t' '$1=="target_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
 MIN_FUNCS=${MIN_FUNCS:-80}
@@ -17,9 +26,18 @@ TYPECK_X="compiler/src/typeck/typeck.x"
 OUT="/tmp/xlang_typeck_parse_count.$$.o"
 LOG="/tmp/xlang_typeck_parse_count.$$.log"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+PREFIX="xlang: [XLANG_TYPECK_PARSE_COUNT]"
 
+die() {
+  echo "typeck-parse-count-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=0 skip=0 host=$(ci_host_summary)"
+  exit 1
+}
+
+# PLATFORM: MACOS|DARWIN — A-11 parse metric is Linux gold; Darwin N/A.
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "typeck-parse-count-gate: N/A on Darwin"
+  echo "typeck-parse-count-gate: N/A on Darwin (Linux gold covers)"
+  echo "${PREFIX} status=ok run=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
@@ -27,8 +45,7 @@ if [ ! -x "$XLANG" ]; then
   XLANG="./compiler/xlang"
 fi
 if [ ! -x "$XLANG" ]; then
-  echo "typeck-parse-count-gate: SKIP (no compiler xlang/xlang_asm)"
-  exit 0
+  die "no compiler xlang/xlang_asm (refuse soft SKIP→OK)"
 fi
 
 src_count=$(grep -c '^function ' "$TYPECK_X" 2>/dev/null || echo 0)
@@ -95,11 +112,9 @@ if [ "$compile_ok" -eq 0 ] && [ "${XLANG_TYPECK_PARSE_COUNT_SOURCE_FALLBACK:-0}"
 fi
 
 if [ "$compile_ok" -eq 0 ]; then
-  echo "typeck-parse-count-gate FAIL: compile command failed" >&2
   tail -n 12 "$LOG" 2>/dev/null || true
   rm -f "$OUT" "$LOG" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "compile command failed"
 fi
 
 nf=$(sed -n 's/.*after_entry_parse num_funcs=\([0-9][0-9]*\).*/\1/p' "$LOG" | tail -1)
@@ -108,21 +123,20 @@ skip_count=$(grep -c 'parse skip at byte' "$LOG" 2>/dev/null || echo 0)
 commit_fail_count=$(grep -c 'parse commit fail at byte' "$LOG" 2>/dev/null || echo 0)
 first_skip=$(grep 'parse skip at byte' "$LOG" 2>/dev/null | head -1 || true)
 first_commit_fail=$(grep 'parse commit fail at byte' "$LOG" 2>/dev/null | head -1 || true)
-# 分块路径已在 try_chunked 中设置 metric；整文件成功时从 LOG 提取。
+# Chunked path sets metric in try_chunked; full-file success extracts from LOG.
 if [ -z "${metric:-}" ]; then
   metric=${ndef:-$nf}
 fi
 if [ -z "$nf" ] && [ -z "$ndef" ] && [ -z "${metric:-}" ]; then
-  echo "typeck-parse-count-gate: no after_entry_parse in log (skip metric)" >&2
   tail -n 8 "$LOG" 2>/dev/null || true
   rm -f "$OUT" "$LOG" 2>/dev/null || true
-  exit 0
+  die "no after_entry_parse in log (refuse soft skip metric)"
 fi
 
 if [ "${XLANG_TYPECK_PARSE_COUNT_UPDATE:-0}" = "1" ]; then
   {
-    echo "# typeck.x asm ENTRY_MODULE_ONLY parse 指标（A-11）"
-    echo "# 更新：XLANG_TYPECK_PARSE_COUNT_UPDATE=1 ./tests/run-typeck-parse-count-gate.sh"
+    echo "# typeck.x asm ENTRY_MODULE_ONLY parse metric (A-11)"
+    echo "# Update: XLANG_TYPECK_PARSE_COUNT_UPDATE=1 ./tests/run-typeck-parse-count-gate.sh"
     printf 'min_funcs\t%s\n' "$metric"
     printf 'target_funcs\t%s\n' "$metric"
     printf 'min_defined\t%s\n' "$metric"
@@ -139,8 +153,7 @@ if [ "$metric" -lt "$MIN_FUNCS" ] 2>/dev/null; then
   [ -n "$first_skip" ] && echo "typeck-parse-count-gate: first_skip: $first_skip" >&2
   [ -n "$first_commit_fail" ] && echo "typeck-parse-count-gate: first_commit_fail: $first_commit_fail" >&2
   grep -E 'parse skip at byte|parse commit fail at byte' "$LOG" 2>/dev/null | head -5 >&2 || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "num_defined=${metric} < baseline ${MIN_FUNCS}"
 fi
 
 if [ "$skip_count" -gt 0 ] 2>/dev/null || [ "$commit_fail_count" -gt 0 ] 2>/dev/null; then
@@ -151,8 +164,10 @@ fi
 
 if [ "$metric" -ge "$TARGET_FUNCS" ] 2>/dev/null; then
   echo "typeck-parse-count-gate OK (num_defined=${metric} num_funcs=${nf:-?} >= stretch ${TARGET_FUNCS}; full or chunked module parse)"
+  echo "${PREFIX} status=ok run=1 skip=0 host=$(ci_host_summary)"
   exit 0
 fi
 
 echo "typeck-parse-count-gate OK (num_defined=${metric} num_funcs=${nf:-?}; baseline ${MIN_FUNCS}; target ${TARGET_FUNCS} — partial parse, typeck_x.o may cover gap)"
+echo "${PREFIX} status=ok run=1 skip=0 host=$(ci_host_summary)"
 exit 0

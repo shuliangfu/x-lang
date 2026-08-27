@@ -1,23 +1,40 @@
 #!/usr/bin/env bash
-# S5：strict_glue 实二进制 .text A/B（pipeline WPO helpers on/off，同 strict_glue 链骨架）。
-# 与 proxy（run-perf-wpo-dce-xlang-asm-text.sh）互补：本脚本读最终 ELF .text，非 A/B 反推。
-# 用法：
+# S5: strict_glue real binary .text A/B (pipeline WPO helpers on/off).
+# Complements proxy (run-perf-wpo-dce-xlang-asm-text.sh): reads final ELF
+# .text, not A/B reverse inference.
+#
+# Honesty: soft XLANG_WPO_STRICT_GLUE_TEXT_FAIL retired — missing binary /
+# .text growth over max was portable false-green (soft die→exit0) and
+# missing pipeline_wpo.o soft-SKIP→OK. Missing artifacts after ensure is
+# hard die. Growth over max is hard fail. Darwin stays N/A (Linux gold).
+#
+# Usage:
 #   ./tests/run-wpo-strict-glue-text-gate.sh
-#   XLANG_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
 #   XLANG_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE=1 ./tests/run-wpo-strict-glue-text-gate.sh
+# Report: run=/skip=
+# PLATFORM: LINUX|UBUNTU gold; DARWIN N/A (helpers A/B soft-skipped when
+# abi on LD argv / multi-LC_SEGMENT).
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . "$(dirname "$0")/lib/wpo-ab-proxy.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
 text_bytes() { wpo_ab_text_bytes "$@"; }
 
 STRICT_GLUE="${XLANG_WPO_STRICT_GLUE:-compiler/xlang_asm.strict_glue}"
-FAIL=${XLANG_WPO_STRICT_GLUE_TEXT_FAIL:-0}
 UPDATE_BASELINE=${XLANG_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE:-0}
 BASELINE="${XLANG_WPO_STRICT_GLUE_TEXT_BASELINE:-tests/baseline/wpo-strict-glue-text.tsv}"
 MAX_GROWTH_BYTES=$(awk -F'\t' '$1=="max_text_growth_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)
 MAX_GROWTH_BYTES=${MAX_GROWTH_BYTES:-8192}
+PREFIX="xlang: [XLANG_WPO_STRICT_GLUE_TEXT]"
+
+die() {
+  echo "run-wpo-strict-glue-text-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=0 skip=0 host=$(ci_host_summary)"
+  exit 1
+}
 
 # PLATFORM: MACOS — A/B .text growth needs helpers on vs off. Tip soft-skips
 # helpers extract when abi is on LD argv (dual-authority / multi-LC_SEGMENT), so
@@ -26,6 +43,7 @@ MAX_GROWTH_BYTES=${MAX_GROWTH_BYTES:-8192}
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "run-wpo-strict-glue-text-gate: N/A on Darwin (helpers A/B soft-skipped when abi on argv; Linux covers)"
   echo "run-wpo-strict-glue-text-gate OK (Darwin N/A)"
+  echo "${PREFIX} status=ok run=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
@@ -39,8 +57,7 @@ if [ ! -f compiler/build_asm/pipeline_wpo.o ]; then
   ./tests/ensure-wpo-build-asm-artifacts.sh
 fi
 if [ ! -f compiler/build_asm/pipeline_wpo.o ]; then
-  echo "run-wpo-strict-glue-text-gate: SKIP (no pipeline_wpo.o)"
-  exit 0
+  die "no pipeline_wpo.o after ensure (refuse soft SKIP→OK)"
 fi
 
 # 强制重编 LSP/typeck_io 桩（strict_glue 链依赖）。
@@ -69,27 +86,19 @@ wpo_strict_glue_rm_pipeline_partials
 )
 
 if [ ! -x "$STRICT_GLUE" ]; then
-  echo "run-wpo-strict-glue-text-gate FAIL: missing $STRICT_GLUE (WPO off)" >&2
   tail -n 8 /tmp/wpo_strict_glue_text_off.log 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "missing $STRICT_GLUE (WPO off)"
 fi
 
-TEXT_OFF=$(text_bytes "$STRICT_GLUE") || {
-  echo "run-wpo-strict-glue-text-gate FAIL: cannot read .text (WPO off)" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-}
+TEXT_OFF=$(text_bytes "$STRICT_GLUE") || die "cannot read .text (WPO off)"
 
-# B：链 pipeline_wpo helpers + C orchestration（与 strict link gate 一致）
+# B: link pipeline_wpo helpers + C orchestration (same as strict link gate)
 wpo_strict_glue_rm_pipeline_partials
-XLANG_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh >/tmp/wpo_strict_glue_text_on.log 2>&1
+./tests/run-wpo-strict-link-gate.sh >/tmp/wpo_strict_glue_text_on.log 2>&1
 
 TEXT_ON=$(text_bytes "$STRICT_GLUE") || {
-  echo "run-wpo-strict-glue-text-gate FAIL: cannot read .text (WPO on)" >&2
   tail -n 8 /tmp/wpo_strict_glue_text_on.log 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "cannot read .text (WPO on)"
 }
 
 SAVE=0
@@ -136,18 +145,20 @@ if [ "$UPDATE_BASELINE" = "1" ]; then
 fi
 
 if [ "$DELTA" -gt "$MAX_GROWTH_BYTES" ]; then
-  echo "run-wpo-strict-glue-text-gate FAIL: WPO on .text growth ${DELTA}B > max ${MAX_GROWTH_BYTES}B" >&2
-  [ "$FAIL" = "1" ] && exit 1
+  die "WPO on .text growth ${DELTA}B > max ${MAX_GROWTH_BYTES}B"
 fi
 
 if [ "$DELTA" -gt 0 ]; then
   echo "run-wpo-strict-glue-text-gate OK (off=${TEXT_OFF}B on=${TEXT_ON}B delta=+${DELTA}B/${PCT}%, pipeline WPO helpers 略增 .text 实锤)"
+  echo "${PREFIX} status=ok run=1 skip=0 host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ "$SAVE" -gt 0 ]; then
   echo "run-wpo-strict-glue-text-gate OK (off=${TEXT_OFF}B on=${TEXT_ON}B save=${SAVE}B/${PCT}%)"
+  echo "${PREFIX} status=ok run=1 skip=0 host=$(ci_host_summary)"
   exit 0
 fi
 
 echo "run-wpo-strict-glue-text-gate OK (off=${TEXT_OFF}B on=${TEXT_ON}B, no measurable delta)"
+echo "${PREFIX} status=ok run=1 skip=0 host=$(ci_host_summary)"

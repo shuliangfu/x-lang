@@ -150,8 +150,8 @@ progress "=== A-11 typeck parse count strict ==="
 A11_LOG="${XLANG_W3_A11_LOG:-logs/a11-typeck-parse.log}"
 mkdir -p logs
 rm -f "$A11_LOG" logs/a11-typeck-parse.exit
+# Soft XLANG_TYPECK_PARSE_COUNT_FAIL retired — gate is hard by default.
 nohup bash -c "env XLANG=./compiler/xlang_asm2 \
-  XLANG_TYPECK_PARSE_COUNT_FAIL=1 \
   XLANG_TYPECK_PARSE_COUNT_SOURCE_FALLBACK=1 \
   XLANG_TYPECK_PARSE_CHUNK_FUNCS=\"${XLANG_TYPECK_PARSE_CHUNK_FUNCS:-5}\" \
   XLANG_TYPECK_PARSE_CHUNK_TIMEOUT=\"${XLANG_TYPECK_PARSE_CHUNK_TIMEOUT:-360}\" \

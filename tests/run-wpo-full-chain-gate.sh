@@ -49,7 +49,8 @@ else
 fi
 
 echo "=== wpo full-chain: strict_glue measured .text ==="
-XLANG_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
+# Soft XLANG_WPO_STRICT_GLUE_TEXT_FAIL retired — gate is hard by default.
+./tests/run-wpo-strict-glue-text-gate.sh
 
 echo "=== wpo full-chain: binary proxy baseline (0.8%) ==="
 XLANG="$XLANG" XLANG_PERF_FAIL_ON_WPO_XLANG_ASM_TEXT=1 ./tests/run-perf-wpo-dce-xlang-asm-text.sh
