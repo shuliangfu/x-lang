@@ -49,16 +49,40 @@
 ## 4. 验收
 
 ```bash
-# 任意宿主：manifest + cross -target
+# 任意宿主：manifest + host-arch FreeBSD -target hard -o
 chmod +x tests/run-freebsd-platform-gate.sh
 ./tests/run-freebsd-platform-gate.sh
-
-# FreeBSD 宿主：再加 posix write 运行烟测
-XLANG_FREEBSD_PLATFORM_FAIL=1 ./tests/run-freebsd-platform-gate.sh
 
 # 刷新种子（仅 FreeBSD）
 cd compiler && XLANG_LEGACY_C_FRONTEND=1 ./scripts/capture_bootstrap_seeds.sh
 ```
+
+---
+
+## Gate
+
+Honesty（2026-08-27 soft→硬绿）：
+
+- Live DOC = `analysis/archive/other-tickets/platform-freebsd-v1.md`（refuse top-level `analysis/platform-freebsd-v1.md` resurrect）
+- Soft `XLANG_FREEBSD_PLATFORM_FAIL` **retired**（缺 DOC／triple 失败曾 soft die→exit0 或顶层 DOC 化石硬红）
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
+- Manifest hard：`std/sys/freebsd.x`／smoke／`mod.x` freebsd cfg／`cfg_eval.x`
+- Host-arch FreeBSD triple **hard** `-o` + expected exit：
+  - host x86_64 → `x86_64-unknown-freebsd14.0` exit **31**（9+22）
+  - host aarch64/arm64 → `aarch64-unknown-freebsd14.0` exit **20**（9+11）
+- Foreign-arch FreeBSD triple：observational only（host ld cannot link foreign ISA；report `foreign=`）
+- FreeBSD 宿主 posix write smoke：hard when host is FreeBSD
+- 无 native xlang → **FAIL**（禁止 soft SKIP→OK）
+- Report：`doc=`／`manifest=`／`triple=`／`foreign=`／`host_run=`／`skip=`
+
+```text
+xlang: [XLANG_B21_FREEBSD_PLATFORM] status=ok doc=1 manifest=1 triple=1 foreign=1 host_run=0 skip=0
+```
+
+Changelog：
+
+- **v1.1（2026-08-27）**：soft→硬绿 — DOC→archive + `## Gate`；prefer asm；host-arch triple 硬绿；foreign 观测；退役 soft FAIL。
+- **v1.0**：初版 soft FAIL:-0；顶层 DOC 路径。
 
 ---
 

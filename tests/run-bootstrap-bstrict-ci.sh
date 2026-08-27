@@ -37,14 +37,16 @@ chmod +x tests/run-b30-stubs-runtime-os-inventory-gate.sh tests/run-b32-no-cc-st
 chmod +x tests/run-macos-read-file-gate.sh
 ./tests/run-b15-io-uring-sys-gate.sh
 ./tests/run-b18-win32-net-gate.sh
-XLANG_B19_FAIL=1 ./tests/run-b19-sys-mod-facade-gate.sh
+# B-19 facade: live write/read/mmap/exit/close (os_* fossil names retired).
+./tests/run-b19-sys-mod-facade-gate.sh
 ./tests/run-b30-stubs-runtime-os-inventory-gate.sh
 ./tests/run-b32-no-cc-std-gate.sh
 ./tests/run-b17-exit-process-gate.sh
 
-echo "bootstrap-bstrict-ci: B-19 std.sys platform write (xlang-c) ..."
+echo "bootstrap-bstrict-ci: B-19 std.sys platform write (honesty; prefer asm) ..."
 chmod +x tests/run-sys-platform-write-gate.sh tests/run-sys-mod-cfg-import-gate.sh tests/run-sys-read-file-gate.sh
-XLANG_SYS_PLATFORM_WRITE_FAIL=1 ./tests/run-sys-platform-write-gate.sh
+# soft XLANG_SYS_PLATFORM_WRITE_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-sys-platform-write-gate.sh
 XLANG_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
 XLANG_SYS_READ_FILE_FAIL=1 ./tests/run-sys-read-file-gate.sh
 
