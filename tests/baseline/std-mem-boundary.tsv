@@ -15,7 +15,7 @@ std_set	std_only	set	std/mem/mod.x	heap_mem_set_c
 std_compare	std_only	compare	std/mem/mod.x	heap_mem_compare_c
 std_buffer	std_only	register_buffer	std/mem/mod.x	IO ABI
 impl_heap_ref	cross_ref	copy_u8_at	std/heap/mod.x	std.mem 拷贝实现
-impl_intrinsic	cross_ref	__builtin_memcpy	compiler/src/codegen/codegen.c	core 内建
+impl_intrinsic	cross_ref	memcpy	compiler/src/codegen/codegen.x	core mem host emit (codegen.c retired)
 smoke_core	smoke	tests/mem/main.x	tests/mem/main.x	core 回归
 smoke_std	smoke	tests/mem/std_mem_boundary.x	tests/mem/std_mem_boundary.x	std 边界
 smoke_buffer	smoke	tests/mem/buffer.x	tests/mem/buffer.x	Buffer ABI

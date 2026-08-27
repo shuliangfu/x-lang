@@ -85,3 +85,19 @@ xlang fmt --check path.x      # 已格式化 → exit 0 无输出
 | 门禁 | `tests/run-tool-fmt-gate.sh` |
 
 **TOOL-001 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + cases/rules = hard.
+- `tests/run-fmt-cmd.sh` hooks = hard run.
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-tool-fmt-gate.sh
+```
+
+manifest: `tests/baseline/tool-fmt-style.tsv`

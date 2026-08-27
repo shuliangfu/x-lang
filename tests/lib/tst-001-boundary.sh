@@ -5,18 +5,21 @@
 #   tst001_count_cases X MIN
 #   tst001_verify_manifest TSV
 #   tst001_run_boundary XLANG_BIN X OUT
-#   tst001_emit_report status io_ok fs_ok net_ok str_ok skip
+#   tst001_emit_report status run obs skip
+# PLATFORM: SHARED archaeology.
 
 TST001_PREFIX="${XLANG_TST001_BOUNDARY_PREFIX:-xlang: [XLANG_TST001_BOUNDARY]}"
 
-# 统计「case N」注释行数；不足 min 时返回 1。
+# Count live boundary vectors: unique nonzero `return N` exit codes.
+# (Historical `// case N` markers were stripped; exit codes remain the authority.)
 tst001_count_cases() {
   local x="$1"
   local min="$2"
   local n
-  n="$(grep -cE '// case [0-9]+' "$x" 2>/dev/null || echo 0)"
+  n="$(grep -oE 'return [1-9][0-9]*' "$x" 2>/dev/null | sort -u | wc -l | tr -d '[:space:]')"
+  n="${n:-0}"
   if [ "$n" -lt "$min" ]; then
-    echo "TST-001 FAIL: $x has ${n} cases, want >= ${min}" >&2
+    echo "TST-001 FAIL: $x has ${n} unique nonzero returns, want >= ${min}" >&2
     return 1
   fi
   echo "$n"
@@ -69,13 +72,11 @@ tst001_run_boundary() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report: run=/obs=/skip= (honesty 2026-08-28).
 tst001_emit_report() {
   local status="$1"
-  local io_ok="$2"
-  local fs_ok="$3"
-  local net_ok="$4"
-  local str_ok="$5"
-  local skip="$6"
-  echo "${TST001_PREFIX} status=${status} io=${io_ok} fs=${fs_ok} net=${net_ok} str=${str_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${TST001_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
