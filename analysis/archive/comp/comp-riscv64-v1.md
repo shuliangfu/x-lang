@@ -98,4 +98,17 @@ QEMU user 仿真：`analysis/comp-riscv64-qemu-v1.md`（COMP-018；`run-comp-ris
 | manifest | `tests/baseline/comp-riscv64.tsv` |
 | matrix | `tests/baseline/comp-riscv64-matrix.tsv` |
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
+hard die; native without riscv64 asm = `skip=` (capability N/A); DOC=archive;
+report `run=`／`skip=`.
+
+```bash
+./tests/run-comp-riscv64-gate.sh   # runnable：manifest + riscv64 smoke
+./tests/run-comp-riscv64.sh        # 缺 native 硬 die；无 riscv64 asm＝skip
+./tests/run-comp-riscv64-qemu-smoke.sh  # 无 qemu＝skip；prefer asm
+```
+
 **COMP-012 状态：定版 ✅**

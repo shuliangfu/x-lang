@@ -108,4 +108,16 @@ comp-size-attrib: distribution total=27345678B artifacts=5 top=art_shu_c:45.2%
 | manifest | `tests/baseline/comp-size-attrib.tsv` |
 | matrix | `tests/baseline/comp-size-attrib-matrix.tsv` |
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no artifacts; explicit bad XLANG / missing native =
+hard die; required artifact miss = hard die; optional miss = `skip=`;
+empty measure after make = hard die; DOC=archive; report `run=`／`skip=`.
+
+```bash
+./tests/run-comp-size-attrib-gate.sh   # runnable：manifest + size smoke
+./tests/run-comp-size-attrib.sh       # 缺 native／空产物硬 die
+```
+
 **COMP-010 状态：定版 ✅**

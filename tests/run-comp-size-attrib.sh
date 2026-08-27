@@ -1,21 +1,77 @@
 #!/usr/bin/env bash
-# COMP-010：编译产物体积归因烟测
+# COMP-010: compile-artifact size attribution smoke (false-authority honesty).
 #
-# 用法：
+# Honesty: soft SKIP→OK when no artifacts retired. Prefer product xlang_asm
+# present; run compiler-make before measure. Explicit bad XLANG = hard die.
+# Missing native = hard die. Required artifact miss = hard die. Optional
+# missing = skip=. Empty measure after make = hard die (refuse soft
+# SKIP→OK). Report run=/skip=.
+#
+# Usage:
 #   ./tests/run-comp-size-attrib.sh
 #   XLANG_SIZE_ATTRIB_REPORT=/tmp/report.tsv ./tests/run-comp-size-attrib.sh
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
-
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/comp-size-attrib.sh
 . tests/lib/comp-size-attrib.sh
 
 MATRIX="${XLANG_SIZE_ATTRIB_MATRIX:-tests/baseline/comp-size-attrib-matrix.tsv}"
 REPORT="${XLANG_SIZE_ATTRIB_REPORT:-/tmp/comp_size_attrib_report.$$.tsv}"
+PREFIX="xlang: [XLANG_COMP_SIZE_ATTRIB]"
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "comp-size-attrib FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
 echo "=== COMP-010: size attribution smoke ==="
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 TOTAL=0
 COUNT=0
@@ -37,18 +93,21 @@ while IFS=$'\t' read -r art_id kind rel policy _notes; do
       read -r file_b text_b <<<"$(comp_size_attrib_rollup_build_asm "$dir" | tr '\t' ' ')"
       note="rollup *.o"
     else
-      [ "$policy" = "required" ] && { echo "comp-size-attrib FAIL: missing rollup $rel" >&2; exit 1; }
+      if [ "$policy" = "required" ]; then
+        die "missing rollup $rel"
+      fi
       echo "comp-size-attrib SKIP $art_id (no $rel)"
+      SKIP=$((SKIP + 1))
       continue
     fi
   else
     path="$(comp_size_attrib_resolve_path "$rel" 2>/dev/null || true)"
     if [ -z "$path" ]; then
       if [ "$policy" = "required" ]; then
-        echo "comp-size-attrib FAIL: missing required $rel" >&2
-        exit 1
+        die "missing required $rel"
       fi
       echo "comp-size-attrib SKIP $art_id (no $rel)"
+      SKIP=$((SKIP + 1))
       continue
     fi
     file_b="$(comp_size_attrib_file_bytes "$path")"
@@ -60,14 +119,14 @@ while IFS=$'\t' read -r art_id kind rel policy _notes; do
 
   TOTAL=$((TOTAL + file_b))
   COUNT=$((COUNT + 1))
+  RUN_OK=$((RUN_OK + 1))
   printf '%s\t%s\t%s\t%s\t%s\n' "$art_id" "$kind" "$file_b" "$text_b" "$note" >>"$TMP_ROWS"
   echo "comp-size-attrib: $art_id kind=$kind file=${file_b}B text=${text_b}B"
 done < "$MATRIX"
 
+# Refuse soft SKIP→OK when the measure set is empty after make.
 if [ "$COUNT" -lt 1 ]; then
-  echo "comp-size-attrib SKIP (no artifacts present; run xlang_compiler_make first?)"
-  echo "comp-size-attrib OK"
-  exit 0
+  die "no artifacts present after make (refuse soft SKIP→OK)"
 fi
 
 {
@@ -91,3 +150,4 @@ fi
 
 echo "comp-size-attrib: distribution total=${TOTAL}B artifacts=${COUNT} top=${TOP_ID}:${TOP_PCT}%"
 echo "comp-size-attrib OK"
+ok_report

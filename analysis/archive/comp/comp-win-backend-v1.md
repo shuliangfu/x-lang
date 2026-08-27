@@ -91,4 +91,16 @@
 | manifest | `tests/baseline/comp-win-backend.tsv` |
 | matrix | `tests/baseline/comp-win-backend-matrix.tsv` |
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
+hard die; native without Windows asm = `skip=` (capability N/A); capable
+COFF emit miss = hard fail; DOC=archive; report `run=`／`skip=`.
+
+```bash
+./tests/run-comp-win-backend-gate.sh   # runnable：manifest + COFF smoke
+./tests/run-comp-win-backend.sh       # 缺 native 硬 die；无 Windows asm＝skip
+```
+
 **COMP-011 状态：定版 ✅**

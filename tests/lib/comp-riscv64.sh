@@ -20,20 +20,31 @@ comp_riscv64_native_xlang() {
   esac
 }
 
-# 探测 xlang 是否支持 -backend asm -target riscv64（C-only seed 返回 not available）。
+# Probe whether xlang can emit non-empty riscv64 asm text.
+# PLATFORM: SHARED — exit 0 with codegen_bytes=0 (empty .s) is NOT capable;
+# that false-green previously let soft SKIP→OK hide tip empty-emit, then hard
+# fail asm_text on Darwin. Require .text + main + ret like check_asm_text.
 comp_riscv64_asm_capable() {
   local xlang="$1"
   local sample="${2:-$ROOT/tests/asm/riscv64_min.x}"
-  local err=""
+  local err="" out=""
   [ -x "$xlang" ] && [ -f "$sample" ] || return 1
-  err="$("$xlang" -backend asm -target "$RISCV_TARGET" "$sample" 2>&1 >/dev/null || true)"
+  out="$(mktemp /tmp/xlang_riscv_cap.XXXXXX)"
+  err="$("$xlang" -backend asm -target "$RISCV_TARGET" "$sample" 2>&1 >"$out" || true)"
   if echo "$err" | grep -qi 'not available'; then
+    rm -f "$out"
     return 1
   fi
-  if "$xlang" -backend asm -target "$RISCV_TARGET" "$sample" >/dev/null 2>&1; then
-    return 0
+  if [ ! -s "$out" ]; then
+    rm -f "$out"
+    return 1
   fi
-  return 1
+  if ! grep -q '\.text' "$out" || ! grep -q 'main' "$out" || ! grep -q 'ret' "$out"; then
+    rm -f "$out"
+    return 1
+  fi
+  rm -f "$out"
+  return 0
 }
 
 # 选择首个 native 且 asm-capable 的 xlang；无则返回 1。

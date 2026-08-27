@@ -32,19 +32,22 @@ comp_win_backend_native_xlang() {
   esac
 }
 
-# 探测 xlang 是否支持 -backend asm -target Windows MSVC（C-only seed 返回 not available）。
+# Probe whether xlang can emit a non-empty Windows COFF object.
+# PLATFORM: SHARED — stdout asm text may be empty (codegen_bytes=0) while the
+# COFF writer still works via user_asm_seed_bridge. Do not treat exit-0 empty
+# .s as capable; require a successful COFF emit (same as live smoke).
 comp_win_backend_asm_capable() {
   local xlang="$1"
   local sample="${2:-$ROOT/tests/asm/windows_min.x}"
-  local err=""
+  local tmp=""
   [ -x "$xlang" ] && [ -f "$sample" ] || return 1
-  err="$("$xlang" -backend asm -target "$WIN_TRIPLE" "$sample" 2>&1 >/dev/null || true)"
-  if echo "$err" | grep -qi 'not available'; then
-    return 1
-  fi
-  if "$xlang" -backend asm -target "$WIN_TRIPLE" "$sample" >/dev/null 2>&1; then
+  tmp="$(mktemp /tmp/xlang_win_cap.XXXXXX.obj)"
+  if comp_win_backend_emit_coff "$xlang" "$sample" "$tmp" >/dev/null 2>&1 \
+    && comp_win_backend_is_coff_obj "$tmp"; then
+    rm -f "$tmp"
     return 0
   fi
+  rm -f "$tmp"
   return 1
 }
 
