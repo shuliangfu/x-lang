@@ -120,3 +120,7 @@ XLANG_ZIG_BASELINE_RECORD=1 ./tests/run-zig-baseline-gate.sh --record
 | 路线图 | `NEXT.md` PERF-001 / PERF-002 |
 
 **PERF-001 状态：定版 ✅**（median 列由 Linux x86_64 + zig 0.13.0 `--record` 填充；manifest/版本/trace 已就绪。）
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON_ZIG|C_O3:-0 silent OK; slower-than Zig/C-O3 = obs; bench→`r01_`/`m03_`/`r10_`/`a01_`; report run=/obs=/skip=.

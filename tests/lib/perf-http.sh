@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# perf-http.sh — STD-009 共享：HTTP bench 解析与基线比较
+# perf-http.sh — STD-009 shared: HTTP bench parse + baseline compare.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   perf_http_read_cap case_id [baseline_tsv]
 #   perf_http_parse_bench_log logfile
-#   perf_http_within_cap case_id elapsed_s p99_us
+#   perf_http_within_cap case_id elapsed_s [baseline_tsv]
+#   perf_http_within_p99_cap case_id p99_us [latency_tsv]
+# PLATFORM: SHARED — single authority for HTTP cap helpers (G.7).
 
-# 从 baseline TSV 读取 case 上限（秒或微秒由调用方区分文件）。
+# Read case cap from baseline TSV (seconds or microseconds; caller picks file).
 perf_http_read_cap() {
   local case_id="$1"
   local tsv="${2:-tests/baseline/http-perf.tsv}"
   awk -F'\t' -v c="$case_id" '$1==c && $1 !~ /^#/ { print $2; exit }' "$tsv"
 }
 
-# 从 bench stderr 解析 BENCH_ELAPSED_NS 与 BENCH_P99_US。
+# Parse BENCH_ELAPSED_NS and BENCH_P99_US from bench stderr log.
 perf_http_parse_bench_log() {
   local log="$1"
   ELAPSED_NS=""
@@ -23,17 +25,19 @@ perf_http_parse_bench_log() {
   [ -n "$ELAPSED_NS" ] && [ -n "$P99_US" ]
 }
 
-# elapsed 秒数是否在 cap 内（median ≤ cap）。
+# elapsed seconds within throughput cap (median ≤ cap).
+# Optional $3 = baseline tsv (default http-perf.tsv). Authority accepts path.
 perf_http_within_cap() {
   local case_id="$1"
   local elapsed_s="$2"
+  local tsv="${3:-tests/baseline/http-perf.tsv}"
   local cap
-  cap="$(perf_http_read_cap "$case_id")"
+  cap="$(perf_http_read_cap "$case_id" "$tsv")"
   [ -n "$cap" ] || return 1
   awk -v e="$elapsed_s" -v c="$cap" 'BEGIN { exit !(e <= c + 1e-9) }'
 }
 
-# P99 微秒是否在 latency baseline cap 内。
+# P99 microseconds within latency baseline cap.
 perf_http_within_p99_cap() {
   local case_id="$1"
   local p99_us="$2"

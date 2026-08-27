@@ -102,3 +102,7 @@ xlang: [XLANG_STD_HTTP] status=ok check=0|1 run=1 skip=0
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 6. Gate`；bench 路径对齐活文件 `bench/i08_http_*`（拒化石 `bench/http_get_bench.x`／`http_bench_server.c`）；未啃产品 `std/http`）。
 
 **STD-009 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27) `run-perf-http.sh`: prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON_HTTP_REGRESSION:-0 silent OK; over-cap/over-p99 = obs; report run=/obs=/skip=.

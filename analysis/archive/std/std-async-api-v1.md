@@ -159,3 +159,7 @@ xlang: [XLANG_STD_ASYNC_API] status=ok check=1 switch=1 imp=1 drain=1 coop=0 ski
 ```
 
 **STD-004 状态：定版 ✅**（Gate honesty soft→硬绿 2026-08-26）
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27) `run-perf-async.sh`: prefer xlang_asm; refuse soft auto-make / soft FAIL_ON_ASYNC_REGRESSION:-0 silent OK; over-cap = obs; bench→`i06_async_switch*`; report run=/obs=/skip=.
