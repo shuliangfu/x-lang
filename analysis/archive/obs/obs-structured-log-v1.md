@@ -114,3 +114,13 @@ grep -F 'xlang: [XLANG_COMPILE_PHASE_TIMING]' build.log | sed 's/.*\] //'
 | async trace | `analysis/obs-async-runtime-trace-v1.md` |
 
 **OBS-003 状态：定版 ✅**
+
+---
+
+## Gate
+
+Authority gate: `tests/run-obs-structured-log-gate.sh`.
+
+- Live DOC = this archive file (`analysis/archive/obs/obs-structured-log-v1.md`); refuse top-level resurrect.
+- Manifest + smoke: `tests/baseline/obs-structured-log.tsv` + `bench/obs_structured_log_smoke.c`.
+- Honesty (2026-08-27): soft SKIP→OK / soft auto-make retired; missing `log.o` / `runtime_log_os.o` / `runtime_link_abi_user_env.o` / `runtime_process_argv.o` hard-die; report `run=`/`obs=`/`skip=`.
