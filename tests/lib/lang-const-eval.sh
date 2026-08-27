@@ -1,48 +1,58 @@
 #!/usr/bin/env bash
-# lang-const-eval.sh — LANG-006 CTFE 共享 runner
+# lang-const-eval.sh — LANG-006 CTFE shared runner (honesty soft→硬绿).
 #
-# 用法：
-#   ./tests/lib/lang-const-eval.sh           # 全量 case（需 native xlang）
-#   ./tests/lib/lang-const-eval.sh case_id   # 单 case（manifest item_id）
+# Honesty: soft SKIP→OK when no native xlang + prefer-c (xlang-c before
+# xlang_asm) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG = hard die. Missing native = hard die (CTFE face is
+# live). Report run=/skip= via caller gate.
+#
+# Usage:
+#   ./tests/lib/lang-const-eval.sh           # full cases (needs native xlang)
+#   ./tests/lib/lang-const-eval.sh case_id   # single case (manifest item_id)
+# PLATFORM: SHARED archaeology.
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
+# shellcheck source=dod-native-exe.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
 set -e
 cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.."
 
 MANIFEST="${XLANG_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
 ONE="${1:-}"
 
-# 判断本机能否直接执行给定 xlang 二进制
-lang_const_eval_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-# 解析可用 xlang；失败返回 2
+# Resolve product xlang; prefer asm. Explicit bad XLANG → return 1.
+# Missing native → return 1 (caller hard-dies; refuse soft SKIP→OK).
 lang_const_eval_resolve_shu() {
-  if [ -n "${XLANG:-}" ] && lang_const_eval_native_xlang "$XLANG"; then
-    echo "$XLANG"
-    return 0
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if lang_const_eval_native_xlang "$cand"; then
-      echo "$cand"
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
-  return 2
+  return 1
 }
 
-# 编译运行 .x 并校验退出码
+# Compile+run .x and check exit code.
 lang_const_eval_run_x() {
   local xlang="$1"
   local src="$2"
@@ -66,7 +76,7 @@ lang_const_eval_run_x() {
   return 0
 }
 
-# 从 manifest notes 解析 exit N
+# Parse "exit N" from manifest notes.
 lang_const_eval_want_exit() {
   local notes="$1"
   case "$notes" in
@@ -75,14 +85,16 @@ lang_const_eval_want_exit() {
   esac
 }
 
-# 主入口：全量或单 case runnable
+# Main: full or single-case runnable. Returns 0 ok / 1 fail / 2 no-native.
 lang_const_eval_main() {
   local ONE="${1:-}"
   local XLANG_BIN=""
   if ! XLANG_BIN="$(lang_const_eval_resolve_shu)"; then
-    echo "lang-const-eval: no native xlang (SKIP runnable)" >&2
+    echo "lang-const-eval: no native xlang/xlang_asm/xlang-c" >&2
     return 2
   fi
+  export XLANG="$XLANG_BIN"
+  export XLANG_LINK_XLANG="$XLANG_BIN"
 
   xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
@@ -113,7 +125,7 @@ lang_const_eval_main() {
         RAN=$((RAN + 1))
         echo "── lang-const-eval hook $item_id ──"
         chmod +x "$src" 2>/dev/null || true
-        if XLANG="$XLANG_BIN" "$src"; then
+        if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$src"; then
           echo "lang-const-eval OK $item_id"
         else
           FAILS=$((FAILS + 1))

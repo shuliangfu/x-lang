@@ -756,7 +756,7 @@ grep -qE 'lang-lifetime-diag gate OK|status=ok' /tmp/lang_lifetime_diag_gate.log
 echo "── LANG-005 ABI stability manifest ──"
 chmod +x tests/run-lang-abi-stability-gate.sh tests/run-lang-abi-stability.sh tests/lib/lang-abi-stability.sh
 ./tests/run-lang-abi-stability-gate.sh | tee /tmp/lang_abi_stability_gate.log
-grep -q 'lang-abi-stability gate OK' /tmp/lang_abi_stability_gate.log
+grep -qE 'lang-abi-stability gate OK|status=ok' /tmp/lang_abi_stability_gate.log
 
 echo "── LANG-004 trait interface manifest ──"
 chmod +x tests/run-lang-trait-gate.sh tests/run-lang-trait.sh tests/lib/lang-trait.sh
@@ -781,7 +781,7 @@ grep -qE 'lang-import gate OK|status=ok' /tmp/lang_import_gate.log
 echo "── LANG-006 const eval / CTFE ──"
 chmod +x tests/run-lang-const-eval-gate.sh tests/run-lang-const-eval.sh tests/lib/lang-const-eval.sh
 ./tests/run-lang-const-eval-gate.sh | tee /tmp/lang_const_eval_gate.log
-grep -q 'lang-const-eval gate OK' /tmp/lang_const_eval_gate.log
+grep -qE 'lang-const-eval gate OK|status=ok' /tmp/lang_const_eval_gate.log
 
 echo "── EXC-002 panic/abort boundary ──"
 chmod +x tests/run-exc-panic-abort-gate.sh
@@ -1162,12 +1162,12 @@ grep -q 'phase3-roadmap-wave8 gate OK' /tmp/phase3_roadmap_wave8.log
 echo "── LANG-009 Option<T> generic struct ──"
 chmod +x tests/run-lang-option-generic-gate.sh tests/lib/lang-option-generic.sh
 ./tests/run-lang-option-generic-gate.sh | tee /tmp/lang009_option.log
-grep -q 'lang-option-generic gate OK' /tmp/lang009_option.log
+grep -qE 'lang-option-generic gate OK|status=ok' /tmp/lang009_option.log
 
 echo "── LANG-010 Result<T,E> generic struct ──"
 chmod +x tests/run-lang-result-generic-gate.sh tests/lib/lang-result-generic.sh
 ./tests/run-lang-result-generic-gate.sh | tee /tmp/lang010_result.log
-grep -q 'lang-result-generic gate OK' /tmp/lang010_result.log
+grep -qE 'lang-result-generic gate OK|status=ok' /tmp/lang010_result.log
 
 echo "── CORE-016 Option/Result unify ──"
 chmod +x tests/run-core-option-result-unify-gate.sh tests/lib/core-option-result-unify.sh

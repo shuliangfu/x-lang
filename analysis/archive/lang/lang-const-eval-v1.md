@@ -71,7 +71,12 @@ return B * 2;  // → exit 10（见 tests/let-const/const_expr.x）
 
 ---
 
-## 4. Gate 与 report
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c (xlang-c before asm); explicit bad XLANG /
+missing native = hard die (CTFE face is live); DOC=archive; report
+`run=`／`skip=`.
 
 | 组件 | 路径 |
 |------|------|
@@ -80,7 +85,7 @@ return B * 2;  // → exit 10（见 tests/let-const/const_expr.x）
 | gate | `tests/run-lang-const-eval-gate.sh` |
 | hook | `tests/run-lang-const-eval.sh` |
 
-gate 输出 **`lang-const-eval gate OK`**；无 native `xlang` 时 manifest 仍过、bench **SKIP**；有 native `xlang` 时全量 **runnable** report。
+gate 输出 **`lang-const-eval gate OK`** + `status=ok run=…`；缺 native／显式坏 XLANG **硬 die**（拒 soft SKIP→OK）；全量 **runnable** report 硬绿。
 
 ---
 

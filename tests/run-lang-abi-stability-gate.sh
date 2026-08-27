@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# LANG-005：ABI 稳定承诺 manifest 门禁（假权威诚实）。
+# LANG-005: ABI stability manifest gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-lang-abi-stability-gate.sh
+# Honesty: soft SKIP→OK when no native xlang / f32 fail retired in child
+# smoke. Prefer product xlang_asm via run-lang-abi-stability.sh. Explicit
+# bad XLANG / missing native = hard die. DOC authority = archive/lang.
+# Report delegated to child (layout=/f32=/obs=/skip=).
+#
+# Usage: ./tests/run-lang-abi-stability-gate.sh
 # wave honesty (2026-08-24 #9): DOC → analysis/archive/lang/;
 # typeck.c retired — live = typeck.x
 # (typeck_validate_struct_layouts_zero_padding).
@@ -38,6 +43,10 @@ for f in "$DOC" "$MANIFEST" "$LEVELS" "$TYPECK_X" \
     exit 1
   fi
 done
+if ! grep -qE '^## Gate' "$DOC"; then
+  echo "lang-abi-stability gate FAIL: doc missing ## Gate section" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

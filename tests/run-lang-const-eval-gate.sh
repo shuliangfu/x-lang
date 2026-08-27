@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# LANG-006：编译期常量求值 manifest + runnable 门禁（假权威诚实）。
+# LANG-006: compile-time const eval manifest + runnable gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-lang-const-eval-gate.sh
+# Honesty: soft SKIP→OK when no native xlang + prefer-c retired. Prefer
+# product xlang_asm via lib resolve; pin XLANG_LINK_XLANG. Explicit bad
+# XLANG / missing native = hard die (CTFE face is live). DOC authority =
+# archive/lang. Report run=/skip=.
+#
+# Usage: ./tests/run-lang-const-eval-gate.sh
 # wave honesty (2026-08-24 #10): DOC → analysis/archive/lang/;
 # typeck.c/codegen.c retired — live CTFE = typeck.x / codegen.x.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 DOC="${XLANG_LANG_CONST_EVAL_DOC:-analysis/archive/lang/lang-const-eval-v1.md}"
 MANIFEST="${XLANG_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
@@ -15,34 +22,46 @@ TYPECK_X="compiler/src/typeck/typeck.x"
 CODEGEN_X="compiler/src/codegen/codegen.x"
 MIN_LAYERS=6
 MIN_CASES=10
+PREFIX="xlang: [XLANG_LANG_CONST_EVAL]"
+
+RUN_OK=0
+SKIP=0
 
 # shellcheck source=tests/lib/lang-const-eval.sh
 . tests/lib/lang-const-eval.sh
 
+die() {
+  echo "lang-const-eval gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
 echo "=== LANG-006: const eval manifest (c retired) ==="
 if [ -f analysis/lang-const-eval-v1.md ]; then
-  echo "lang-const-eval gate FAIL: top-level DOC resurrected (live = archive/lang/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/lang/)"
 fi
 if [ -f compiler/src/typeck/typeck.c ]; then
-  echo "lang-const-eval gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
-  exit 1
+  die "typeck.c resurrected (live = typeck.x)"
 fi
 if [ -f compiler/src/codegen/codegen.c ]; then
-  echo "lang-const-eval gate FAIL: codegen.c resurrected (live = codegen.x)" >&2
-  exit 1
+  die "codegen.c resurrected (live = codegen.x)"
 fi
 for f in "$DOC" "$MANIFEST" "$RUNNER" tests/lang-const "$TYPECK_X" "$CODEGEN_X"; do
   if [ ! -e "$f" ]; then
-    echo "lang-const-eval gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
   fi
 done
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 for kw in runnable report C1-literal C6-codegen; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "lang-const-eval gate FAIL: doc missing '$kw'" >&2
-    exit 1
+    die "doc missing '$kw'"
   fi
 done
 
@@ -98,32 +117,33 @@ while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
 done < "$MANIFEST"
 
 if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "lang-const-eval gate FAIL: layers=${LAYER_N} < min_layers=${MIN_LAYERS}" >&2
-  exit 1
+  die "layers=${LAYER_N} < min_layers=${MIN_LAYERS}"
 fi
 if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "lang-const-eval gate FAIL: cases=${CASE_N} < min_cases=${MIN_CASES}" >&2
-  exit 1
+  die "cases=${CASE_N} < min_cases=${MIN_CASES}"
 fi
 if [ "$MISS" -gt 0 ]; then
-  echo "lang-const-eval gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 echo "lang-const-eval manifest OK (layers=${LAYER_N} cases=${CASE_N})"
 
 chmod +x "$RUNNER" 2>/dev/null || true
 
-if lang_const_eval_resolve_shu >/dev/null 2>&1; then
-  echo "=== LANG-006: runnable report ==="
-  # Hard gate: goldens must match live product CTFE (C5 array-len coerce + match subject).
-  # Manifest + live typeck.x / codegen.x anchors remain required above.
-  if lang_const_eval_main; then
-    echo "lang-const-eval runnable OK"
-  else
-    echo "lang-const-eval gate FAIL runnable (CTFE residual)" >&2
-    exit 1
-  fi
-else
-  echo "lang-const-eval gate SKIP bench (no native xlang)" >&2
+echo "=== LANG-006: runnable report ==="
+# Hard gate: goldens must match live product CTFE. Refuse soft SKIP→OK.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+set +e
+lang_const_eval_main
+ec=$?
+set -e
+if [ "$ec" -eq 2 ]; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
 fi
+if [ "$ec" -ne 0 ]; then
+  die "runnable (CTFE residual)"
+fi
+RUN_OK=1
+echo "lang-const-eval runnable OK"
+
+ok_report
 echo "lang-const-eval gate OK"

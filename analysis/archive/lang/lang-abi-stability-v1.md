@@ -75,15 +75,20 @@
 
 ---
 
-## 6. 验证与门禁
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no native / f32 fail silent; explicit bad XLANG /
+missing native = hard die; layout (cc) hard; f32 xmm residual → `obs=`
+(not soft silence); DOC=archive; report `layout=`／`f32=`／`obs=`／`skip=`.
 
 ```bash
 ./tests/run-lang-abi-stability-gate.sh   # runnable：manifest + ABI hooks
-./tests/run-lang-abi-stability.sh        # layout + f32 xmm（可 SKIP）
+./tests/run-lang-abi-stability.sh        # layout hard + f32 (obs on residual)
 ./tests/run-abi-layout.sh                # 纯 C 布局断言
 ```
 
-**gate report**：stdout 须含 `lang-abi-stability gate OK`；失败打印 `lang-abi-stability FAIL:` 行。
+**gate report**：stdout 须含 `lang-abi-stability gate OK` + `status=ok`; 失败打印 `lang-abi-stability FAIL:` 行。
 
 | 资源 | 路径 |
 |------|------|
