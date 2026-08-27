@@ -18,8 +18,9 @@ Honesty wave: retire soft `XLANG_PARSER_*_FAIL` die→exit0 on:
 | parse count | `tests/run-parser-parse-count-gate.sh` | `num_funcs` ≥ baseline min hard |
 | mega bisect | `tests/run-parser-mega-bisect-gate.sh` | unexpected large delta hard (stub/fail path OK; **not** mega promote) |
 | mega sweep | `tests/run-parser-mega-bisect-sweep-gate.sh` | unexpected emit hard; absolute-size TSV drift = obs |
+| second-pass | `tests/run-parser-second-pass-gate.sh` | compile/empty/unexpected-U/`__text`/combined hard; stretch/baseline under = obs |
 
 **PLATFORM: LINUX** gold for nm/objdump/ELF; **DARWIN** honest `skip=1` (N/A), not soft PASS.
 **Non-goal:** mega product promote / assemble full `parser.x` as default / raise pin.
 
-Parent wrappers: BOOT-024 (`boot-024-parser-bootstrap-emit-v1.md`), ENG quality thin-glue (`eng-quality-gate-v1.md`).
+Parent wrappers: BOOT-024 (`boot-024-parser-bootstrap-emit-v1.md`), ENG quality thin-glue / second-pass (`eng-quality-gate-v1.md`).

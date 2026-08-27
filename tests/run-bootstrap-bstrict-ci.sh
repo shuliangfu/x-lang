@@ -255,16 +255,14 @@ XLANG_PARSER_X_STRICT_FAIL=1 ./tests/run-parser-x-strict-gate.sh
 
 echo "bootstrap-bstrict-ci: parser second pass gate ..."
 chmod +x tests/run-parser-second-pass-gate.sh tests/run-parser-thin-glue-symbol-integrity-gate.sh
-# thin-glue soft FAIL retired; second-pass still owns its own FAIL default
-XLANG_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
+# soft XLANG_PARSER_SECOND_PASS_FAIL retired (honesty hard / Darwin skip)
+./tests/run-parser-second-pass-gate.sh
 XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
   XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
-  XLANG_PARSER_SECOND_PASS_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
   XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
   XLANG_PARSER_SECOND_PASS_WPO_DCE=1 \
-  XLANG_PARSER_SECOND_PASS_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 
 echo "bootstrap-bstrict-ci: typeck parse count baseline ..."
