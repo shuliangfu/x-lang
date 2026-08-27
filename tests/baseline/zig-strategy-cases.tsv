@@ -1,9 +1,11 @@
 # PERF-011 战略看板 case 清单（Shu vs Zig -O2）
 # 列：case_id	category	su_src	zig_src	target_ahead_pct	notes
 # target_ahead_pct：目标领先 Zig 百分点（0=持平即可绿）
-loop_i32	microbench	loop_i32.x	loop_i32.zig	0	P0 microbench
-mem_copy	microbench	mem_copy.x	mem_copy.zig	0	P0 microbench
-struct_param	microbench	struct_param.x	struct_param.zig	0	P0 microbench
-call_boundary	microbench	call_boundary.x	call_boundary.zig	0	P0 microbench
-io_mmap_throughput	io	io_mmap_throughput.x	io_mmap_throughput.zig	0	16MiB mmap read
-net_echo_throughput	net	net_echo_throughput.x	net_echo_throughput.zig	0	需 echo server；runner 可 SKIP
+# Honesty soft→硬绿 (2026-08-27): bench paths remapped (r01_/m03_/r10_/a01_/i01_/i03_);
+# soft XLANG_ZIG_STRATEGY_FAIL:-0 retired — microbench behind = obs (FAIL=1 still hard).
+loop_i32	microbench	r01_loop_i32.x	r01_loop_i32.zig	0	P0 microbench
+mem_copy	microbench	m03_mem_copy.x	m03_mem_copy.zig	0	P0 microbench
+struct_param	microbench	r10_struct_param.x	r10_struct_param.zig	0	P0 microbench
+call_boundary	microbench	a01_call_boundary.x	a01_call_boundary.zig	0	P0 microbench
+io_mmap_throughput	io	i01_io_mmap_throughput.x	i01_io_mmap_throughput.zig	0	16MiB mmap read
+net_echo_throughput	net	i03_net_echo_throughput.x	i03_net_echo_throughput.zig	0	需 echo server；runner 可 skip

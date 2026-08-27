@@ -62,13 +62,19 @@ xlang: [XLANG_ZIG_STRATEGY] case=loop_i32 shu_sec=0.0079 zig_sec=0.0101 ahead_pc
 
 ---
 
-## 5. 月度更新流程
+## Gate
 
-1. 每月固定 host（`zig-perf.tsv` `reference_host`）跑：  
-   `./tests/run-perf-zig-strategy-dashboard.sh --record`
-2. 检查 sparkline 与 `ahead_pct` 是否达标。
-3. 提交更新后的 `zig-strategy-history.tsv`。
-4. 门禁：`./tests/run-perf-zig-strategy-dashboard-gate.sh`（CI 每日/每月 schedule 可挂）。
+Honesty (2026-08-27): soft `XLANG_ZIG_STRATEGY_FAIL:-0` microbench behind
+silent OK retired → **obs** (FAIL=1 still hard). Prefer `xlang_asm`. Refuse soft
+SKIP→OK / soft auto-make / fossil `bench/loop_i32.*`／`io_mmap_*`／`net_echo_*`.
+Bench→`r01_`／`m03_`／`r10_`／`a01_`／`i01_`／`i03_`. Explicit bad XLANG = hard
+die. Report `run=`／`obs=`／`skip=`.
+
+`tests/run-perf-zig-strategy-dashboard-gate.sh`：
+
+1. Archive DOC + manifest + cases + history + lib（拒顶层 `analysis/perf-zig-strategy-dashboard-v1.md`）  
+2. Sparkline 非空；有 zig 时 live smoke；无 zig = skip=1  
+3. 月度：`./tests/run-perf-zig-strategy-dashboard.sh --record`
 
 ---
 
@@ -84,6 +90,6 @@ xlang: [XLANG_ZIG_STRATEGY] case=loop_i32 shu_sec=0.0079 zig_sec=0.0101 ahead_pc
 | 门禁 | `tests/run-perf-zig-strategy-dashboard-gate.sh` |
 | Zig 基线 | `tests/baseline/zig-perf.tsv` |
 | PERF-001 | `tests/run-zig-baseline-gate.sh` |
-| 结构化日志 | `analysis/obs-structured-log-v1.md` |
+| 结构化日志 | `analysis/archive/obs/obs-structured-log-v1.md` |
 
 **PERF-011 状态：定版 ✅**

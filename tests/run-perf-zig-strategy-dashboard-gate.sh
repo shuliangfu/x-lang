@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
-# PERF-011：超越 Zig 战略看板 manifest 门禁
+# PERF-011: Zig strategy dashboard manifest gate.
 #
-# 用法：./tests/run-perf-zig-strategy-dashboard-gate.sh
+# Honesty: soft XLANG_ZIG_STRATEGY_FAIL:-0 smoke previously left microbench
+# behind unchecked; soft SKIP→OK / runner-non-fatal soft green / soft
+# auto-make retired. Prefer product xlang_asm. DOC authority = archive/perf.
+# Live smoke behind / compile-fail = obs via runner (FAIL=1 still hard).
+# Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-perf-zig-strategy-dashboard-gate.sh
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/zig-strategy-dashboard.sh
+. tests/lib/zig-strategy-dashboard.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_PERF_ZIG_STRATEGY_DOC:-analysis/perf-zig-strategy-dashboard-v1.md}"
+DOC="${XLANG_PERF_ZIG_STRATEGY_DOC:-analysis/archive/perf/perf-zig-strategy-dashboard-v1.md}"
 MANIFEST="${XLANG_PERF_ZIG_STRATEGY_TSV:-tests/baseline/perf-zig-strategy-dashboard.tsv}"
 CASES="${XLANG_ZIG_STRATEGY_CASES:-tests/baseline/zig-strategy-cases.tsv}"
 HISTORY="${XLANG_ZIG_STRATEGY_HISTORY:-tests/baseline/zig-strategy-history.tsv}"
@@ -15,17 +28,61 @@ ZIG_GATE="tests/run-zig-baseline-gate.sh"
 MIN_CASES=6
 MIN_MONTHS=2
 PREFIX="xlang: [XLANG_ZIG_STRATEGY]"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# shellcheck source=tests/lib/zig-strategy-dashboard.sh
-. tests/lib/zig-strategy-dashboard.sh
+die() {
+  echo "perf-zig-strategy gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/perf-zig-strategy-dashboard-v1.md ]; then
+  die "refuse top-level analysis/perf-zig-strategy-dashboard-v1.md (use archive/perf)"
+fi
 
 echo "=== PERF-011: Zig strategy dashboard manifest ==="
 for f in "$DOC" "$MANIFEST" "$CASES" "$HISTORY" "$LIB" "$RUNNER" "$ZIG_GATE"; do
   if [ ! -f "$f" ]; then
-    echo "perf-zig-strategy gate FAIL: missing $f" >&2
-    exit 1
+    die "missing $f"
   fi
 done
+if ! grep -q '^## Gate$' "$DOC" 2>/dev/null; then
+  die "doc missing ## Gate ($DOC)"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -97,20 +154,17 @@ fi
 
 HIST_MONTHS=$(zsd_history_months "$HISTORY")
 if [ "$HIST_MONTHS" -lt "$MIN_MONTHS" ]; then
-  echo "perf-zig-strategy gate FAIL: history months=${HIST_MONTHS} < min ${MIN_MONTHS}" >&2
-  exit 1
+  die "history months=${HIST_MONTHS} < min ${MIN_MONTHS}"
 fi
 
 if [ "$CASES_N" -lt "$MIN_CASES" ]; then
-  echo "perf-zig-strategy gate FAIL: cases=${CASES_N} < min ${MIN_CASES}" >&2
-  exit 1
+  die "cases=${CASES_N} < min ${MIN_CASES}"
 fi
 if [ "$MISS" -gt 0 ]; then
-  echo "perf-zig-strategy gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 
-# 趋势图烟测：每个 case 须有非空 sparkline。
+# Trend smoke: each case must have a non-empty sparkline.
 SPARK_FAIL=0
 while IFS=$'\t' read -r case_id _rest; do
   [ -z "${case_id:-}" ] && continue
@@ -125,33 +179,49 @@ while IFS=$'\t' read -r case_id _rest; do
 done < "$CASES"
 
 if [ "$SPARK_FAIL" -ne 0 ]; then
-  exit 1
+  die "sparkline missing for one or more cases"
 fi
 
 for kw in Zig strategy dashboard trend sparkline monthly; do
   if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "perf-zig-strategy gate FAIL: doc missing keyword $kw" >&2
-    exit 1
+    die "doc missing keyword $kw"
   fi
 done
 echo "perf-zig-strategy manifest OK (cases=${CASES_N} months=${HIST_MONTHS})"
+RUN_OK=1
 
+# Explicit bad XLANG still hard-dies even when live smoke is N/A.
+if [ -n "${XLANG:-}" ]; then
+  resolve_shu >/dev/null || die "XLANG=${XLANG} not native (refuse soft SKIP→OK)"
+fi
+
+chmod +x "$RUNNER"
 if command -v zig >/dev/null 2>&1; then
-  echo "=== PERF-011: dashboard live smoke (advisory) ==="
-  chmod +x "$RUNNER"
-  if XLANG_ZIG_STRATEGY_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_zig_strategy_smoke.log | tail -12; then
-    if grep -qF "$PREFIX" /tmp/perf_zig_strategy_smoke.log; then
-      echo "perf-zig-strategy live smoke OK"
-    elif grep -q 'zig-strategy dashboard SKIP' /tmp/perf_zig_strategy_smoke.log; then
-      echo "perf-zig-strategy gate SKIP live smoke (runner skipped)" >&2
-    else
-      echo "perf-zig-strategy gate SKIP live smoke (no XLANG_ZIG_STRATEGY lines; compile skip OK)" >&2
-    fi
-  else
-    echo "perf-zig-strategy gate SKIP live smoke (runner non-fatal)" >&2
+  echo "=== PERF-011: dashboard live smoke ==="
+  XLANG_GATE=""
+  if ! XLANG_GATE="$(resolve_shu)"; then
+    die "no native xlang for live smoke (refuse soft SKIP→OK)"
   fi
+  set +e
+  XLANG="$XLANG_GATE" XLANG_LINK_XLANG="$XLANG_GATE" XLANG_ZIG_STRATEGY_FAIL=0 \
+    ./"$RUNNER" >/tmp/perf_zig_strategy_smoke.log 2>&1
+  smoke_rc=$?
+  set -e
+  tail -20 /tmp/perf_zig_strategy_smoke.log || true
+  if [ "$smoke_rc" -ne 0 ]; then
+    die "zig-strategy smoke hard-fail rc=${smoke_rc}"
+  fi
+  grep -qF "$PREFIX" /tmp/perf_zig_strategy_smoke.log || \
+    die "missing $PREFIX in runner output"
+  if grep -q 'OBS:' /tmp/perf_zig_strategy_smoke.log; then
+    OBS=1
+    echo "perf-zig-strategy live smoke OBS (see runner log)" >&2
+  fi
+  echo "perf-zig-strategy live smoke OK"
 else
+  SKIP=1
   echo "perf-zig-strategy gate SKIP live smoke (no zig)" >&2
 fi
 
+ok_report
 echo "perf-zig-strategy gate OK"

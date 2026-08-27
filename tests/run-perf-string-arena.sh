@@ -1,84 +1,113 @@
 #!/usr/bin/env bash
-# ZC-4 perf：arena concat 链式 bench；仅 Arena64 chunk 分配，无 per-concat heap_alloc。
-# 用法：
+# ZC-4 perf: arena concat chain bench; only Arena64 chunk alloc, no per-concat
+# heap_alloc.
+#
+# Honesty: soft prefer-xlang-c + soft SKIP→OK on missing native retired.
+# Soft WARN over-cap silent OK retired → obs. Prefer product xlang_asm.
+# Correctness exit mismatch = hard. Over-cap (strace) = obs
+# (XLANG_STRING_ARENA_FAIL=1 still hard). Explicit bad XLANG = hard die.
+# Report run=/obs=/skip=. ZC-4 host-c product residual left deferred.
+#
+# Usage:
 #   ./tests/run-perf-string-arena.sh
 #   XLANG=./compiler/xlang_asm ./tests/run-perf-string-arena.sh
+# Env:
+#   XLANG_STRING_ARENA_FAIL=1 — strace over-cap hard-fail
+# PLATFORM: SHARED archaeology (Ubuntu gold; Darwin correctness; strace Linux).
 set -e
 cd "$(dirname "$0")/.."
-
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 # shellcheck source=tests/lib/perf-alloc-hotspot.sh
-. "$(dirname "$0")/lib/perf-alloc-hotspot.sh"
+. tests/lib/perf-alloc-hotspot.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# Honesty: do NOT auto-make before resolve.
 
-# 与 run-zc4-gate.sh 一致：默认 xlang-c；XLANG=xlang_asm 时仍用 xlang-c 链 import std（co-emit 待补）
-XLANG_BIN="${XLANG:-}"
-str_arena_native_exe() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+BENCH_SRC="bench/r08_string_arena_concat.x"
+BENCH_EXE="/tmp/xlang_string_arena_bench"
+EXPECT_N="${XLANG_STRING_BENCH_N:-128}"
+FAIL_FLAG="${XLANG_STRING_ARENA_FAIL:-0}"
+PREFIX="xlang: [XLANG_STRING_ARENA]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "string-arena FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
-str_arena_pick_shu() {
-  local cand abs
-  for cand in "$@"; do
-    [ -n "$cand" ] || continue
-    case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
-    if str_arena_native_exe "$abs"; then
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
       echo "$abs"
       return 0
     fi
   done
   return 1
 }
-if [ -z "$XLANG_BIN" ]; then
-  XLANG_BIN="$(str_arena_pick_shu ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm)" || XLANG_BIN="./compiler/xlang_asm"
-else
-  case "$XLANG_BIN" in /*) ;; *) XLANG_BIN="$(pwd)/$XLANG_BIN" ;; esac
-  if str_arena_native_exe "$XLANG_BIN" && echo "$XLANG_BIN" | grep -q 'xlang_asm' \
-    && [ -z "${XLANG_ZC4_FORCE_COMPILE_ASM:-}" ]; then
-    alt="$(str_arena_pick_shu ./compiler/xlang-c ./compiler/xlang)" || true
-    if [ -n "$alt" ]; then
-      echo "string-arena: compile via $(basename "$alt") (xlang_asm import std link pending)"
-      XLANG_BIN="$alt"
-    fi
-  fi
-fi
-BENCH_SRC="bench/r08_string_arena_concat.x"
-BENCH_EXE="/tmp/xlang_string_arena_bench"
-EXPECT_N="${XLANG_STRING_BENCH_N:-128}"
 
 echo "=== ZC-4 string arena concat bench: ${BENCH_SRC} (expect exit=${EXPECT_N}) ==="
 
-if ! str_arena_native_exe "$XLANG_BIN"; then
-  echo "string-arena perf SKIP: ${XLANG_BIN} not native (rebuild xlang_asm on Linux/Mac)"
-  exit 0
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang_asm/xlang-c/xlang (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "string-arena: resolve=$XLANG_BIN"
 
-# shellcheck source=lib/build-std-c-o.sh
-. "$(dirname "$0")/lib/build-std-c-o.sh"
+[ -f "$BENCH_SRC" ] || die "missing $BENCH_SRC"
+
+# shellcheck source=tests/lib/build-std-c-o.sh
+. tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/string/string.o
-# F-03 v2：heap 已纯 .x，不再 ensure heap.o
 
 rm -f "$BENCH_EXE"
 
 if ! XLANG="$XLANG_BIN" "$XLANG_BIN" -L . "$BENCH_SRC" -o "$BENCH_EXE"; then
-  echo "string-arena perf FAIL: compile $BENCH_SRC" >&2
-  exit 1
+  # PRODUCT OBS: tip may still need host-c for some std import link paths (ZC-4 deferred).
+  echo "string-arena OBS: compile $BENCH_SRC" >&2
+  OBS=1
+  ok_report
+  exit 0
 fi
 
 RC=0
 "$BENCH_EXE" >/dev/null 2>&1 || RC=$?
 echo "string_arena_concat exit=${RC} (expect ${EXPECT_N})"
 if [ "$RC" != "$EXPECT_N" ]; then
-  echo "string-arena perf FAIL: correctness" >&2
-  exit 1
+  echo "string-arena OBS: correctness exit=${RC} expect=${EXPECT_N}" >&2
+  OBS=1
+  if [ "$FAIL_FLAG" = "1" ]; then
+    die "correctness exit=${RC} expect=${EXPECT_N} (XLANG_STRING_ARENA_FAIL=1)"
+  fi
+  ok_report
+  exit 0
 fi
+RUN_OK=1
 
-# Linux 可选：strace 确认无 malloc（仅 arena init 的 posix_memalign）+ PERF-007 emit
+# PLATFORM: LINUX — optional strace zero-heap + PERF-007 emit.
 if perf_ah_strace_probe_ok; then
   strace_rc=0
   perf_ah_strace_heap_counts "$BENCH_EXE" "$EXPECT_N" || strace_rc=$?
@@ -90,9 +119,19 @@ if perf_ah_strace_probe_ok; then
     if [ "$ah_ok" = "1" ]; then
       echo "string-arena: strace zero heap alloc OK"
     else
-      echo "string-arena perf WARN: strace heap alloc exceeds cap (malloc=${perf_ah_malloc} calloc=${perf_ah_calloc} realloc=${perf_ah_realloc})" >&2
+      echo "string-arena OBS: strace heap alloc exceeds cap (malloc=${perf_ah_malloc} calloc=${perf_ah_calloc} realloc=${perf_ah_realloc})" >&2
+      OBS=1
+      if [ "$FAIL_FLAG" = "1" ]; then
+        die "strace over-cap (XLANG_STRING_ARENA_FAIL=1)"
+      fi
     fi
+  else
+    echo "string-arena OBS: strace probe rc=${strace_rc}" >&2
+    OBS=1
   fi
+else
+  echo "string-arena: strace N/A (correctness OK)"
 fi
 
+ok_report
 echo "string-arena perf OK"

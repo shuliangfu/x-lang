@@ -8,8 +8,8 @@ xplat_section	section	## 4. 三平台 xplat	analysis/archive/std/std-regex-perf-
 gate_section	section	## 5. Gate	analysis/archive/std/std-regex-perf-v1.md	-	runnable
 opt_literal	engine_opt	is_literal_only	std/regex/regex.x	literal	memcmp
 opt_first_lit	engine_opt	first_lit	std/regex/regex.x	skip	跳跃
-bench_engine	bench	bench_engine	bench/regex_match_bench.c	prod	500K
-bench_naive_stub	bench	bench_naive_stub	bench/regex_match_naive_stub.c	stub	朴素
+bench_engine	bench	bench_engine	bench/r08_regex_match_bench.c	prod	500K
+bench_naive_stub	bench	bench_naive_stub	bench/r08_regex_match_naive_stub.c	stub	朴素
 bench_hook	bench	bench_hook	tests/run-perf-regex-match.sh	hook	ratio
 parent_tsv	cross_ref	tests/baseline/std-regex.tsv	STD-051
 parent_xplat	cross_ref	tests/baseline/std-regex-xplat.tsv	STD-051

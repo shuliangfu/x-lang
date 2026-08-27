@@ -1,18 +1,43 @@
 #!/usr/bin/env bash
-# STD-062：regex 纯引擎 match perf vs 朴素桩基线
+# STD-062: regex pure-engine match perf vs naive stub baseline.
 #
-# ratio = stub_time / engine_time（≥ MIN_RATIO 即引擎不慢于桩）
-# 用法：./tests/run-perf-regex-match.sh
+# Honesty: soft XLANG_REGEX_PERF_FAIL:-0 previously left under-ratio
+# unchecked (silent OK = portable false-green). Soft SKIP→OK on missing cc /
+# nan retired. Fossil bench/regex_match_* → r08_*. Under-ratio / nan = obs
+# (FAIL=1 still hard). Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-perf-regex-match.sh
+# Env:
+#   XLANG_REGEX_PERF_FAIL=1 — under-ratio hard-fail
+#   XLANG_REGEX_PERF_MIN_RATIO — default 1.0
+# PLATFORM: SHARED archaeology (Ubuntu gold; Darwin L2 same rules).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-BENCH_SRC="bench/regex_match_bench.c"
-STUB_SRC="bench/regex_match_naive_stub.c"
-REGEX_X="std/regex/regex.x"
+# PLATFORM: SHARED — fixture names follow r08_ bench id (wave rename).
+BENCH_SRC="bench/r08_regex_match_bench.c"
+STUB_SRC="bench/r08_regex_match_naive_stub.c"
 BENCH_EXE="/tmp/xlang_regex_match_bench"
 STUB_EXE="/tmp/xlang_regex_match_stub_bench"
 RUNS="${XLANG_REGEX_PERF_RUNS:-3}"
 MIN_RATIO="${XLANG_REGEX_PERF_MIN_RATIO:-1.0}"
+FAIL_FLAG="${XLANG_REGEX_PERF_FAIL:-0}"
+PREFIX="xlang: [XLANG_REGEX_PERF]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "regex-match-perf FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
 extract_real_sec() {
   sed -n 's/^real[[:space:]]*\([0-9]*\)m\([0-9.]*\)s.*/\1 \2/p; s/^real[[:space:]]*\([0-9.]*\)s.*/0 \1/p' | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
@@ -36,10 +61,9 @@ median_real() {
 
 echo "=== STD-062 regex match perf: engine vs naive stub (min ratio ${MIN_RATIO}) ==="
 
-if ! command -v cc >/dev/null 2>&1; then
-  echo "regex-match-perf SKIP: cc missing"
-  exit 0
-fi
+command -v cc >/dev/null 2>&1 || die "cc missing (refuse soft SKIP→OK)"
+[ -f "$BENCH_SRC" ] || die "missing $BENCH_SRC"
+[ -f "$STUB_SRC" ] || die "missing $STUB_SRC"
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
@@ -48,12 +72,10 @@ REGEX_O="std/regex/regex.o"
 rm -f "$BENCH_EXE" "$STUB_EXE"
 
 if ! cc -std=c11 -O2 -o "$BENCH_EXE" "$BENCH_SRC" "$REGEX_O"; then
-  echo "regex-match-perf FAIL: compile $BENCH_SRC" >&2
-  exit 1
+  die "compile $BENCH_SRC"
 fi
 if ! cc -std=c11 -O2 -o "$STUB_EXE" "$STUB_SRC"; then
-  echo "regex-match-perf FAIL: compile $STUB_SRC" >&2
-  exit 1
+  die "compile $STUB_SRC"
 fi
 
 ENG_MED=$(median_real "$BENCH_EXE")
@@ -62,7 +84,9 @@ echo "engine median real: ${ENG_MED}s"
 echo "naive stub median:  ${STUB_MED}s"
 
 if [ "$ENG_MED" = "nan" ] || [ "$STUB_MED" = "nan" ]; then
-  echo "regex-match-perf SKIP: benchmark returned nan"
+  echo "regex-match-perf OBS: benchmark returned nan" >&2
+  OBS=1
+  ok_report
   exit 0
 fi
 
@@ -71,11 +95,14 @@ echo "regex-match-perf ratio (stub/engine): ${RATIO} (need >= ${MIN_RATIO})"
 
 if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1 }'; then
   echo "regex-match-perf OK"
+  RUN_OK=1
 else
-  echo "regex-match-perf FAIL: ratio ${RATIO} < ${MIN_RATIO}" >&2
-  if [ "${XLANG_REGEX_PERF_FAIL:-0}" = "1" ]; then
-    exit 1
+  echo "regex-match-perf OBS: ratio ${RATIO} < ${MIN_RATIO}" >&2
+  OBS=1
+  if [ "$FAIL_FLAG" = "1" ]; then
+    die "ratio ${RATIO} < ${MIN_RATIO} (XLANG_REGEX_PERF_FAIL=1)"
   fi
 fi
 
+ok_report
 echo "regex-match-perf gate OK"

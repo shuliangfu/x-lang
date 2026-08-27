@@ -19,4 +19,4 @@ runner	script	run-perf-zig-strategy-dashboard.sh	采集+趋势
 gate	script	run-perf-zig-strategy-dashboard-gate.sh	manifest 门禁
 cross_zig	cross_ref	tests/baseline/zig-perf.tsv	PERF-001
 cross_zig_gate	cross_ref	tests/run-zig-baseline-gate.sh	基线门禁
-cross_obs003	cross_ref	analysis/obs-structured-log-v1.md	结构化日志
+cross_obs003	cross_ref	analysis/archive/obs/obs-structured-log-v1.md	结构化日志
