@@ -24,12 +24,14 @@ if [ ! -f compiler/xlang ] || [ ! -x compiler/xlang ]; then
   exit 127
 fi
 
-echo "bootstrap-bstrict-ci: B-01 cfg attribute lex skip (xlang-c) ..."
+echo "bootstrap-bstrict-ci: B-01/B-02/B-03 cfg+repr honesty (prefer asm; soft FAIL retired) ..."
 chmod +x tests/run-cfg-attribute-skip-gate.sh tests/run-repr-c-attribute-skip-gate.sh tests/run-cfg-target-triple-gate.sh
-XLANG_CFG_ATTR_SKIP_FAIL=1 ./tests/run-cfg-attribute-skip-gate.sh
-XLANG_CFG_TARGET_TRIPLE_FAIL=1 ./tests/run-cfg-target-triple-gate.sh
-XLANG_REPR_C_ATTR_SKIP_FAIL=1 ./tests/run-repr-c-attribute-skip-gate.sh
+# soft XLANG_CFG_*_FAIL / XLANG_REPR_C_ATTR_SKIP_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-cfg-attribute-skip-gate.sh
+./tests/run-cfg-target-triple-gate.sh
+./tests/run-repr-c-attribute-skip-gate.sh
 XLANG_REPR_C_LAYOUT_FAIL=1 ./tests/run-repr-c-layout-gate.sh
+
 
 echo "bootstrap-bstrict-ci: B-15/B-18/B-19/B-30/B-32/B-17 phase-B manifest gates ..."
 chmod +x tests/run-b15-io-uring-sys-gate.sh tests/run-b18-win32-net-gate.sh tests/run-b19-sys-mod-facade-gate.sh
