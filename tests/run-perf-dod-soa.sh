@@ -261,6 +261,13 @@ if [ "$(uname -s)" = "Linux" ]; then
   else
     SOA_MISS=$(perf_cm_l1_miss_pct "$SOA_EXE")
     AOS_MISS=$(perf_cm_l1_miss_pct "$AOS_EXE")
+    # Honesty: only accept a single numeric token (sysctl leak historically produced multi-line garbage).
+    if ! [[ "$SOA_MISS" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+      SOA_MISS="nan"
+    fi
+    if ! [[ "$AOS_MISS" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+      AOS_MISS="nan"
+    fi
     echo "SoA L1 miss rate: ${SOA_MISS}%"
     echo "AoS L1 miss rate: ${AOS_MISS}%"
     soa_ok=0
@@ -273,6 +280,8 @@ if [ "$(uname -s)" = "Linux" ]; then
         maybe_hard "L1 miss SoA ${SOA_MISS}% > cap ${MAX_SOA_MISS_PCT}%"
       fi
       perf_cm_report_emit "dod_soa_sum_x" "soa" "$SOA_MISS" "$MAX_SOA_MISS_PCT" "$soa_ok"
+    else
+      echo "dod-soa: SoA L1 miss unavailable (nan; leave as skip/obs under REQUIRE_L1)"
     fi
     if [ "$SOA_MISS" != "nan" ] && [ "$AOS_MISS" != "nan" ]; then
       perf_cm_report_emit "dod_aos_sum_x" "aos" "$AOS_MISS" "$MAX_SOA_MISS_PCT" "0"
