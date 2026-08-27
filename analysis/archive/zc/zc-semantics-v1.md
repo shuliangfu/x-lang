@@ -186,4 +186,26 @@ ZC-007 PR 声明与证明测试模板见 `analysis/archive/zc/zc-copy-proof-v1.m
 | String ZC-4 | `std/string/mod.x` |
 | 内存安全指南 | `analysis/doc-memory-safety-error-v1.md` |
 
+---
+
+## Gate
+
+Honesty (2026-08-27): soft SKIP→OK / prefer-c / soft auto-make / check-bound
+green retired for **ZC-2** (`tests/run-zc2-gate.sh`).
+
+| Rule | Behavior |
+|------|----------|
+| Prefer | product `xlang_asm`; pin `XLANG_LINK_XLANG` |
+| Missing native / explicit bad `XLANG` | **hard die** (refuse soft SKIP→OK / soft auto-make) |
+| Product `-o` gen + slice / slice_param exit 0 | **hard run** |
+| mmap / view tip wrong exit | **obs** (product residual; not soft silence) |
+| `xlang check` CHK002 / paused | **obs** |
+| Windows mmap exit 9 | **skip** (capability N/A) |
+| Report | `run=` / `obs=` / `skip=` |
+| DOC authority | this archive path (`analysis/archive/zc/zc-semantics-v1.md`) |
+| Out of scope | zc3／zc4／zc5 host-c postponed; brotli ld; mega; pin raise |
+| Manifest gate | `run-zc-semantics-gate.sh` — DOC=archive; no NEXT.md fossil; hooks opt-in only |
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
+
 **ZC-006 状态：定版 ✅**

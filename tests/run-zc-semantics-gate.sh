@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # ZC-006：零拷贝语义白皮书 manifest 门禁
 #
+# Honesty: top-level analysis/zc-semantics-v1.md deleted — DOC
+# authority = archive/zc (refuse fossil hard-red / soft silence).
+# ZC-2 runnable honesty lives in run-zc2-gate.sh (this gate is
+# manifest-only unless XLANG_ZC_SEMANTICS_RUN_HOOKS=1).
+#
 # 1) zc-semantics-v1.md 必需章节与拷贝 catalog
 # 2) ZC-1..5 tier 与交叉引用
 # 3) 示例存在；可选跑 run-zc-gates.sh
@@ -9,7 +14,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
+DOC="${XLANG_ZC_SEMANTICS_DOC:-analysis/archive/zc/zc-semantics-v1.md}"
 MANIFEST="${XLANG_ZC_SEMANTICS_TSV:-tests/baseline/zc-semantics.tsv}"
 MIN_SEC=7
 MIN_ZC=5
@@ -32,12 +37,22 @@ native_xlang() {
 }
 
 echo "=== ZC-006: zero-copy semantics manifest ==="
-for f in "$DOC" "$MANIFEST" NEXT.md; do
+# Honesty: NEXT.md top-level fossil retired — live roadmap = 自举进度.md.
+# Require DOC + manifest only (refuse NEXT.md hard-red / soft silence).
+for f in "$DOC" "$MANIFEST"; do
   if [ ! -f "$f" ]; then
     echo "zc-semantics gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+# DOC must live under archive (top-level analysis/zc-semantics-v1.md deleted).
+case "$DOC" in
+  analysis/archive/zc/*) ;;
+  *)
+    echo "zc-semantics gate FAIL: DOC must be archive/zc (got $DOC)" >&2
+    exit 1
+    ;;
+esac
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   case "$c1" in
@@ -138,32 +153,35 @@ for kw in read_ptr StrView fs_mmap_ro fs_pipe_splice; do
 done
 echo "zc-semantics manifest OK (sections=${SEC}, zc_tiers=${ZC})"
 
-if [ "$RUN_HOOKS" -eq 0 ]; then
-  XLANG_BIN="${XLANG:-}"
-  if [ -z "$XLANG_BIN" ]; then
-    for cand in ./compiler/xlang-c ./compiler/xlang; do
+# Honesty: do NOT auto-enable RUN_HOOKS when native xlang is present.
+# Auto-hook previously pulled zc3／zc4／zc5 (host-c postponed) into this
+# manifest gate and mixed soft SKIP→OK / check-bound false-red with ZC-2.
+# Hooks are opt-in only: XLANG_ZC_SEMANTICS_RUN_HOOKS=1.
+# Prefer product asm when hooks are forced.
+if [ "$RUN_HOOKS" -eq 1 ] && [ -n "$HOOK" ]; then
+  echo "=== ZC-006: linked hook $HOOK (opt-in) ==="
+  chmod +x "$HOOK" 2>/dev/null || true
+  HOOK_XLANG="${XLANG:-}"
+  if [ -z "$HOOK_XLANG" ]; then
+    for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
       if native_xlang "$cand"; then
-        XLANG_BIN="$cand"
+        HOOK_XLANG="$cand"
         break
       fi
     done
   fi
-  if [ -n "$XLANG_BIN" ]; then
-    RUN_HOOKS=1
+  if [ -z "$HOOK_XLANG" ]; then
+    echo "zc-semantics gate FAIL: RUN_HOOKS=1 but no native xlang (refuse soft SKIP→OK)" >&2
+    exit 1
   fi
-fi
-
-if [ "$RUN_HOOKS" -eq 1 ] && [ -n "$HOOK" ]; then
-  echo "=== ZC-006: linked hook $HOOK ==="
-  chmod +x "$HOOK" 2>/dev/null || true
-  if XLANG="${XLANG:-}" "$HOOK"; then
+  if XLANG="$HOOK_XLANG" "$HOOK"; then
     echo "zc-semantics hook OK"
   else
     echo "zc-semantics gate FAIL: hook $(basename "$HOOK")" >&2
     exit 1
   fi
 else
-  echo "zc-semantics gate SKIP hook (no native xlang; XLANG_ZC_SEMANTICS_RUN_HOOKS=1 to force)" >&2
+  echo "zc-semantics gate skip hook (manifest-only; set XLANG_ZC_SEMANTICS_RUN_HOOKS=1 to force)"
 fi
 
 echo "zc-semantics gate OK"
