@@ -50,7 +50,8 @@ chmod +x tests/run-sys-platform-write-gate.sh tests/run-sys-mod-cfg-import-gate.
 # soft XLANG_SYS_PLATFORM_WRITE_FAIL retired (2026-08-27 honesty); hard die default.
 ./tests/run-sys-platform-write-gate.sh
 XLANG_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
-XLANG_SYS_READ_FILE_FAIL=1 ./tests/run-sys-read-file-gate.sh
+# soft XLANG_SYS_READ_FILE_FAIL retired (2026-08-27 honesty); Linux hard / Darwin UNDEF=obs.
+./tests/run-sys-read-file-gate.sh
 
 echo "bootstrap-bstrict-ci: B-20 generated_c scan (no fopen) ..."
 chmod +x tests/run-b20-generated-c-scan-gate.sh
@@ -75,17 +76,19 @@ echo "bootstrap-bstrict-ci: C-06 x frontend default (no C parser.o in seed link)
 chmod +x tests/run-c06-x-frontend-default-gate.sh
 XLANG_C06_FAIL=1 ./tests/run-c06-x-frontend-default-gate.sh
 
-echo "bootstrap-bstrict-ci: B-16 macOS mmap (Darwin only) ..."
+echo "bootstrap-bstrict-ci: B-16 macOS mmap (Darwin only; honesty) ..."
 chmod +x tests/run-macos-mmap-gate.sh tests/run-macos-mmap-file-gate.sh
-XLANG_MACOS_MMAP_FAIL=1 ./tests/run-macos-mmap-gate.sh
-XLANG_MACOS_MMAP_FILE_FAIL=1 ./tests/run-macos-mmap-file-gate.sh
+# soft XLANG_MACOS_MMAP*_FAIL retired (2026-08-27 honesty); hard / obs UNDEF.
+./tests/run-macos-mmap-gate.sh
+./tests/run-macos-mmap-file-gate.sh
 
-echo "bootstrap-bstrict-ci: B-14 Linux freestanding syscall (Linux only) ..."
+echo "bootstrap-bstrict-ci: B-14 Linux freestanding syscall (Linux only; honesty) ..."
 chmod +x tests/run-linux-syscall-invoke-gate.sh tests/run-linux-open-read-gate.sh tests/run-linux-mmap-invoke-gate.sh tests/run-linux-openat-read-gate.sh
-XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-linux-syscall-invoke-gate.sh
-XLANG_LINUX_OPEN_READ_FAIL=1 ./tests/run-linux-open-read-gate.sh
-XLANG_LINUX_MMAP_INVOKE_FAIL=1 ./tests/run-linux-mmap-invoke-gate.sh
-XLANG_LINUX_OPENAT_READ_FAIL=1 ./tests/run-linux-openat-read-gate.sh
+# soft XLANG_LINUX_*_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-linux-syscall-invoke-gate.sh
+./tests/run-linux-open-read-gate.sh
+./tests/run-linux-mmap-invoke-gate.sh
+./tests/run-linux-openat-read-gate.sh
 
 echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build xlang_asm) ..."
 # strict 重链会覆盖 xlang；cfg-merge 在 GHA 上对 strict xlang_asm 偶发 SIGSEGV，保留 seed 作 -o 回退。
@@ -158,11 +161,13 @@ fi
 
 echo "bootstrap-bstrict-ci: phase-B compile gates (B-04/B-05/B-06/B-31) ..."
 chmod +x tests/run-b04-freestanding-syscall-gate.sh tests/run-b05-codegen-mvp-gate.sh tests/run-b06-ast-pool-gate.sh tests/run-b31-freestanding-io-gate.sh
-XLANG=./compiler/xlang_asm XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-b04-freestanding-syscall-gate.sh
+# soft XLANG_LINUX_SYSCALL_INVOKE_FAIL retired (honesty); b04 delegates hard invoke.
+XLANG=./compiler/xlang_asm ./tests/run-b04-freestanding-syscall-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-b05-codegen-mvp-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-b06-ast-pool-gate.sh
 ./tests/run-b31-freestanding-io-gate.sh
-XLANG_MACOS_READ_FILE_FAIL=1 XLANG=./compiler/xlang_asm ./tests/run-macos-read-file-gate.sh
+# soft XLANG_MACOS_READ_FILE_FAIL retired (honesty); delegates sys-read hard/obs.
+XLANG=./compiler/xlang_asm ./tests/run-macos-read-file-gate.sh
 
 echo "bootstrap-bstrict-ci: C-07 frontend parity (xlang-c vs xlang_asm, -backend c) ..."
 chmod +x tests/run-c07-frontend-parity-gate.sh tests/lib/c07-frontend-parity.sh

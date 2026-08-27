@@ -36,9 +36,11 @@ if [ "$(uname -s)" = "Linux" ]; then
     XLANG="./compiler/xlang-c"
   fi
   if [ -x "$XLANG" ]; then
-    XLANG="$XLANG" XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-linux-syscall-invoke-gate.sh
+    # soft XLANG_LINUX_SYSCALL_INVOKE_FAIL retired (2026-08-27 honesty); hard die.
+    XLANG="$XLANG" ./tests/run-linux-syscall-invoke-gate.sh
   else
-    echo "b04 gate SKIP invoke (no xlang)"
+    echo "b04 gate FAIL: no native xlang for Linux invoke (refuse soft SKIP→OK)" >&2
+    exit 1
   fi
 else
   echo "b04 gate SKIP invoke (non-Linux)"

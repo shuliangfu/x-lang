@@ -152,10 +152,11 @@ else
   echo "bootstrap-bstrict-windows-gate OK (B-hybrid xlang_asm + return-value 42)"
 fi
 
-echo "bootstrap-bstrict-windows-gate: B-17 std.sys win32 WriteFile ..."
+echo "bootstrap-bstrict-windows-gate: B-17 std.sys win32 WriteFile (honesty) ..."
 chmod +x tests/run-win32-write-gate.sh tests/run-win32-read-file-gate.sh
-XLANG_WIN32_WRITE_FAIL=1 ./tests/run-win32-write-gate.sh
-XLANG_WIN32_READ_FILE_FAIL=1 ./tests/run-win32-read-file-gate.sh
+# soft XLANG_WIN32_*_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-win32-write-gate.sh
+./tests/run-win32-read-file-gate.sh
 
 PIPELINE_GEN_CC=$(grep -E "$PIPELINE_GEN_PAT" "$BOOT_LOG" 2>/dev/null | grep -vE 'info:.*no cc -c pipeline_gen' | wc -l | tr -d '[:space:]')
 if [ "$WIN_BSTRICT" = "1" ]; then
