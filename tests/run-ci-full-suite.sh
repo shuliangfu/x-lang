@@ -352,8 +352,9 @@ chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
 if ci_is_linux && ci_is_x86_64_host; then
   XLANG_S2_REQUIRE_TYPECK_O=1 XLANG_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
   grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-  XLANG_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
-  grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
+  # Soft XLANG_S2_FAIL_ON_PARITY retired (2026-08-27 honesty); default hard.
+  ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
+  grep -qE 's2 parity OK|status=ok' /tmp/s2_typeck_parity.log
 else
   echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_summary) (EMIT_HEAVY Linux x86_64 only)"
 fi
