@@ -275,10 +275,12 @@ XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
 
 echo "bootstrap-bstrict-ci: typeck parse count baseline ..."
 chmod +x tests/run-typeck-parse-count-gate.sh tests/run-typeck-parse-bisect-gate.sh
-# Soft XLANG_TYPECK_PARSE_COUNT_FAIL retired — gate is hard by default.
+# Soft XLANG_TYPECK_PARSE_COUNT_FAIL / XLANG_TYPECK_PARSE_BISECT_FAIL retired —
+# both gates are hard by default (Darwin N/A skip=1).
 XLANG=./compiler/xlang_asm \
   ./tests/run-typeck-parse-count-gate.sh
-./tests/run-typeck-parse-bisect-gate.sh || true
+XLANG=./compiler/xlang_asm \
+  ./tests/run-typeck-parse-bisect-gate.sh
 
 echo "bootstrap-bstrict-ci: A-12 cross-module symbols (track-only) ..."
 chmod +x tests/run-a12-cross-module-symbols-gate.sh

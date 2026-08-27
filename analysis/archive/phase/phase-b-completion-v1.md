@@ -26,6 +26,15 @@
 | B-31 | freestanding_io_x86_64.s 极薄 `.s` 登记 | `run-b31-freestanding-io-gate.sh` |
 | B-32 | bootstrap **track-only**：审计 `cc -c std/*.c` | `run-b32-no-cc-std-gate.sh` |
 
+## Gate
+
+Honesty (2026-08-27): soft `XLANG_B31_FAIL` retired. Gate
+`tests/run-b31-freestanding-io-gate.sh` hard-dies on missing
+`freestanding_io_x86_64.s` / archive DOC / hello script / missing
+`xlang_sys_{write,read}` needles; Linux x86_64 freestanding hello is hard
+green; non-Linux = static registration only (`skip=1`). Refuse top-level
+DOC / `compiler/Makefile` resurrect. Report `run=` / `skip=`.
+
 ## 延后（不阻塞 B v1 ✅）
 
 - **B-04 语法层 `asm { }`** → 阶段 C/E；v1 用 extern→`.s` 等价。

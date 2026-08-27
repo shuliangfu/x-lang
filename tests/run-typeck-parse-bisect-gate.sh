@@ -1,36 +1,57 @@
 #!/usr/bin/env bash
-# A-11 bisect：typeck.x 前缀 parse 指标，定位 num_defined 首次低于预期的 function 边界。
-# 用法：./tests/run-typeck-parse-bisect-gate.sh
-# 环境：XLANG_TYPECK_PARSE_BISECT_FAIL=1 任一步低于期望时硬失败（默认 track-only）
+# A-11 bisect: typeck.x prefix parse metric — find first defined-func under-count.
+#
+# Honesty: soft XLANG_TYPECK_PARSE_BISECT_FAIL retired — probe under-count was
+# portable false-green (soft die→exit0 / WARN+exit0) and missing compiler
+# soft-SKIP→OK. Prefer xlang_asm. Missing compiler is hard die. Probe
+# num_defined < want is hard fail. Darwin stays N/A (Linux gold covers).
+#
+# Usage: ./tests/run-typeck-parse-bisect-gate.sh
+# Env: XLANG_TYPECK_PARSE_BISECT_PROBES override probe list
+# Report: run=/skip=
+# PLATFORM: LINUX|UBUNTU gold; DARWIN N/A.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_TYPECK_PARSE_BISECT_FAIL:-0}
 XLANG="${XLANG:-./compiler/xlang_asm}"
 TYPECK_X="compiler/src/typeck/typeck.x"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
-# 探测点：defined function 序号（不含 extern）
 PROBES="${XLANG_TYPECK_PARSE_BISECT_PROBES:-20 40 60 80 100 120 146}"
+PREFIX="xlang: [XLANG_TYPECK_PARSE_BISECT]"
+RUN_OK=0
+SKIP=1
 
+die() {
+  echo "typeck-parse-bisect-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+# PLATFORM: MACOS|DARWIN — A-11 bisect metric is Linux gold; Darwin N/A.
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "typeck-parse-bisect-gate: N/A on Darwin"
+  echo "typeck-parse-bisect-gate: N/A on Darwin (Linux gold covers)"
+  echo "${PREFIX} status=ok run=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
+[ -f "$TYPECK_X" ] || die "missing $TYPECK_X"
 if [ ! -x "$XLANG" ]; then
-  echo "typeck-parse-bisect-gate: SKIP (no $XLANG)"
-  exit 0
+  XLANG="./compiler/xlang"
 fi
+[ -x "$XLANG" ] || die "no compiler xlang/xlang_asm (refuse soft SKIP→OK)"
 
 WORKDIR="/tmp/xlang_typeck_bisect.$$"
 mkdir -p "$WORKDIR"
 trap 'rm -rf "$WORKDIR"' EXIT
+SKIP=0
 
-# 提取文件头（首个 ^function 之前：import/extern/注释）
+# Extract file header (everything before first ^function: import/extern/comments).
 header_end=$(grep -n '^function ' "$TYPECK_X" | head -1 | cut -d: -f1)
 header_end=$((header_end - 1))
 
-# 按 defined function 序号截取前缀（保留 header + 前 N 个 function 块）
+# Slice prefix retaining header + first N defined function blocks.
 make_prefix() {
   local n="$1"
   local out="$2"
@@ -63,25 +84,20 @@ parse_defined_count() {
 }
 
 echo "typeck-parse-bisect-gate: probes defined func indices: ${PROBES}"
-prev_ok=0
 for want in $PROBES; do
   prefix="$WORKDIR/typeck_prefix_${want}.x"
   make_prefix "$want" "$prefix"
   got=$(parse_defined_count "$prefix" "$WORKDIR/log_${want}.log" "$WORKDIR/out_${want}.o")
-  # 前缀含 want 个 defined，num_defined 应 ≥ want（extern 另计）
+  # Prefix holds `want` defined funcs; num_defined must be ≥ want (externs extra).
   if [ "$got" -lt "$want" ] 2>/dev/null; then
     echo "typeck-parse-bisect-gate: probe defined<=${want} got num_defined=${got} (REGRESSION)" >&2
     grep -E 'parse skip at byte|parse commit fail at byte' "$WORKDIR/log_${want}.log" 2>/dev/null | head -3 >&2 || true
-    prev_ok=1
-    [ "$FAIL" = "1" ] && exit 1
-  else
-    echo "typeck-parse-bisect-gate: probe defined<=${want} OK (num_defined=${got})"
+    die "probe defined<=${want} num_defined=${got} under want"
   fi
+  RUN_OK=$((RUN_OK + 1))
+  echo "typeck-parse-bisect-gate: probe defined<=${want} OK (num_defined=${got})"
 done
 
-if [ "$prev_ok" = "0" ]; then
-  echo "typeck-parse-bisect-gate OK (all probes passed)"
-else
-  echo "typeck-parse-bisect-gate WARN (see REGRESSION lines; track-only unless FAIL=1)"
-fi
+echo "typeck-parse-bisect-gate OK (all probes passed; run=${RUN_OK})"
+echo "${PREFIX} status=ok run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
 exit 0
