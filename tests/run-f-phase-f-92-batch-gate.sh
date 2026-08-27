@@ -46,7 +46,7 @@ for g in "${GATES[@]}"; do
   echo "--- $g ---"
   # All children honesty-hard; do NOT re-export retired soft *_FAIL envs.
   # F-09: manifest-only — aggregate must not re-dogfood f04/f05/path
-  # product closures (those own their gates; PROD_FAIL still opt-in).
+  # product closures (those own their gates; F-09 full path is hard too).
   # PLATFORM: SHARED archaeology.
   case "$g" in
     run-no-handwritten-c-gate.sh)
