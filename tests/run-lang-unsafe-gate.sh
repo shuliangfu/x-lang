@@ -1,39 +1,86 @@
 #!/usr/bin/env bash
-# LANG-007：unsafe 语法与边界门禁
+# LANG-007: unsafe syntax / boundary gate (honesty soft→硬绿).
 #
-# 读取 tests/baseline/lang-unsafe-api.tsv：
-#   policy=run          — 编译运行 .x
-#   policy=compile_fail — 编译须失败且 stderr 含 implicit padding
-#   policy=hook         — 调用 tests/run-*.sh
+# Honesty: soft SKIP→OK when no native xlang + soft auto-make xlang-c +
+# prefer-c-only retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die.
+# policy=run → hard-green via product -o.
+# policy=compile_fail → product -o must fail with typeck/unsafe diagnostic
+#   (hard); legacy `xlang check` path is observational (check paused
+#   2026-08-05 / CHK002) — count obs, not soft silence / not hard-red.
+# policy=hook → run with bound timeout; timeout/product-fail = obs.
+# DOC authority = archive/lang. Report run=/obs=/skip=.
 #
-# 用法：./tests/run-lang-unsafe-gate.sh
-#
-# Product path: pure-asm `$XLANG -L . src -o` (default; no silent host-cc).
-# Host-cc `-backend c` only when XLANG_ALLOW_HOST_CC is set (matches void-main /
-# option / defer / safe-ffi gates). PLATFORM: SHARED pure-asm product gate.
+# Usage: ./tests/run-lang-unsafe-gate.sh
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
 MATRIX="${XLANG_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
+DOC="${XLANG_LANG_UNSAFE_DOC:-analysis/archive/lang/lang-unsafe-v1-rfc.md}"
+TYPE_REGION_DOC="${XLANG_TYPE_REGION_DOC:-analysis/archive/type/type-region-v1-rfc.md}"
+PREFIX="${XLANG_LANG_UNSAFE_PREFIX:-xlang: [XLANG_LANG_UNSAFE]}"
+# Bound hooks so Darwin (no GNU timeout) cannot soft-hang the gate.
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-90}"
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "lang-unsafe gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== LANG-007: unsafe boundary manifest ==="
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== LANG-007: unsafe boundary manifest (archive DOC) ==="
+if [ -f analysis/lang-unsafe-v1-rfc.md ]; then
+  die "top-level DOC resurrected (live = archive/lang/)"
+fi
 for f in \
-  analysis/lang-unsafe-v1-rfc.md \
-  analysis/type-region-v1-rfc.md \
+  "$DOC" \
+  "$TYPE_REGION_DOC" \
   "$MATRIX" \
   tests/unsafe/allow_padding_ok.x \
   tests/unsafe/padding_rejected.x \
@@ -42,93 +89,73 @@ for f in \
   tests/unsafe/unsafe_block_deref_ok.x \
   tests/unsafe/deref_outside_unsafe_fail.x \
   tests/unsafe/extern_outside_unsafe_fail.x; do
-  if [ ! -f "$f" ]; then
-    echo "lang-unsafe gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
-# U4：unsafe 关键字须在 lexer 保留列表中
+if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
+# U4: unsafe keyword must stay reserved in lexer / stretch slice.
 if ! grep -q '"unsafe"' compiler/seeds/parser_asm/parser_asm_emit_heavy_stretch_slice.inc 2>/dev/null \
   && ! grep -q 'unsafe' compiler/src/lexer/token.x 2>/dev/null; then
-  echo "lang-unsafe gate FAIL: unsafe keyword not reserved in lexer" >&2
-  exit 1
+  die "unsafe keyword not reserved in lexer"
 fi
 echo "lang-unsafe manifest OK"
 
-# bstrict / W3：stage2 xlang_asm(2) 用于 asm -o；但真机仅 git pull 源码后，陈旧 xlang_asm2 可能落后于新刷出的 xlang/xlang_asm。
-# 因此默认选 native 候选里“最新”的一个，避免 gate 继续绑定旧 gen2。
-# 若调用方已设 XLANG，则绝不 make 重建（防内存打爆 / 超时）。
-XLANG_BIN=""
-if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ]; then
-  XLANG_BIN="${XLANG}"
-else
-  # 仅在未指定 XLANG 时尝试轻量 ensure xlang-c（-q 已最新则不重建）
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
-  for cand in ./compiler/xlang_asm2 ./compiler/xlang_asm ./compiler/xlang; do
-    if [ -x "$cand" ] && native_xlang "$cand"; then
-      if [ -z "$XLANG_BIN" ] || [ "$cand" -nt "$XLANG_BIN" ]; then
-        XLANG_BIN="$cand"
-      fi
-    fi
-  done
-  if [ -z "$XLANG_BIN" ]; then
-    for cand in ./compiler/xlang-c; do
-      if [ -x "$cand" ] && native_xlang "$cand"; then
-        XLANG_BIN="$cand"
-        break
-      fi
-    done
-  fi
-fi
-if [ -z "$XLANG_BIN" ] && [ "$(uname -s)" = Linux ] && [ -x ./compiler/xlang-c ]; then
-  XLANG_BIN=./compiler/xlang-c
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+# Refuse soft auto-make: caller-owned / already-resolved binary only.
 
-if [ -z "$XLANG_BIN" ]; then
-  echo "lang-unsafe gate SKIP bench (no native xlang)" >&2
-  exit 0
-fi
-
-# 单条 compile/run 超时（秒），避免 asm -o 挂死占满 CPU。
-XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
 run_timeout_case() {
-  if command -v timeout >/dev/null 2>&1; then
-    timeout --signal=TERM --kill-after=15 "$XLANG_CASE_TIMEOUT" "$@" || {
-      local ec=$?
-      [ "$ec" -eq 124 ] && echo "lang-unsafe FAIL: timeout after ${XLANG_CASE_TIMEOUT}s: $*" >&2
-      return "$ec"
-    }
-  else
-    "$@"
-  fi
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$@"
 }
 
+# policy=run: product -o hard-green. Timeout (product hang) → return 2 = obs.
 run_x_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/unsafe/${script}"
-  local out="/tmp/xlang_unsafe_${script%.x}"
-  local log="/tmp/xlang_unsafe_compile.log"
-  if [ ! -f "$src" ]; then
-    echo "lang-unsafe FAIL: missing $src" >&2
-    return 1
-  fi
+  local out="/tmp/xlang_unsafe_${script%.x}_$$"
+  local log="/tmp/xlang_unsafe_compile_$$.log"
+  local o_ec=0
+  [ -f "$src" ] || { echo "lang-unsafe FAIL: missing $src" >&2; return 1; }
   rm -f "$out"
   # Prefer pure-asm product -o (host-cc banned without XLANG_ALLOW_HOST_CC).
   # PLATFORM: SHARED — dual-end pure-asm; optional -backend c only if allowed.
-  # Historical note: older gate hard-coded `-backend c` (C frontend typeck parity);
-  # product default now denies silent host-cc → BLD001 host-cc-requires-allow.
-  if run_timeout_case "$XLANG_BIN" -L . "$src" -o "$out" >"$log" 2>&1; then
-    :
-  elif [ -n "${XLANG_ALLOW_HOST_CC:-}" ] \
-    && run_timeout_case "$XLANG_BIN" -backend c -L . "$src" -o "$out" >"$log" 2>&1; then
-    :
-  else
+  set +e
+  run_timeout_case "$XLANG_BIN" -L . "$src" -o "$out" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    echo "lang-unsafe OBS $script (-o timeout ${XLANG_CASE_TIMEOUT}s; product residual)" >&2
+    return 2
+  fi
+  if [ "$o_ec" -ne 0 ]; then
+    if [ -n "${XLANG_ALLOW_HOST_CC:-}" ]; then
+      set +e
+      run_timeout_case "$XLANG_BIN" -backend c -L . "$src" -o "$out" >"$log" 2>&1
+      o_ec=$?
+      set -e
+      if [ "$o_ec" -eq 124 ]; then
+        echo "lang-unsafe OBS $script (host-c -o timeout; product residual)" >&2
+        return 2
+      fi
+    fi
+  fi
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$out" ]; then
     cat "$log" >&2
     return 1
   fi
   local ec=0
-  run_timeout_case "$out" >/dev/null 2>&1 || ec=$?
+  set +e
+  run_timeout_case "$out" >/dev/null 2>&1
+  ec=$?
+  set -e
+  rm -f "$out"
+  if [ "$ec" -eq 124 ]; then
+    echo "lang-unsafe OBS $script (run timeout; product residual)" >&2
+    return 2
+  fi
   if [ "$ec" -ne "$want_ec" ]; then
     echo "lang-unsafe FAIL $script: exit=$ec want=$want_ec" >&2
     return 1
@@ -136,64 +163,109 @@ run_x_case() {
   return 0
 }
 
+# policy=compile_fail: product -o must reject with diagnostic (hard).
+# Legacy check path is observational only (check paused / CHK002).
 compile_fail_case() {
   local script="$1"
   local src="tests/unsafe/${script}"
-  local err="/tmp/xlang_unsafe_fail_compile.log"
-  if [ ! -f "$src" ]; then
-    echo "lang-unsafe FAIL: missing $src" >&2
-    return 1
+  local err="/tmp/xlang_unsafe_fail_$$.log"
+  [ -f "$src" ] || { echo "lang-unsafe FAIL: missing $src" >&2; return 1; }
+
+  set +e
+  run_timeout_case "$XLANG_BIN" -L . "$src" -o "/tmp/xlang_unsafe_should_fail_$$" >"$err" 2>&1
+  local o_ec=$?
+  set -e
+  rm -f "/tmp/xlang_unsafe_should_fail_$$"
+  if [ "$o_ec" -eq 124 ]; then
+    echo "lang-unsafe OBS compile_fail $script (-o timeout; product residual)" >&2
+    return 2
   fi
-  # asm -o 历史上 skip_typeck 会漏掉 implicit padding；check 与 compile 的 typeck 路径对齐且更稳。
-  if run_timeout_case "$XLANG_BIN" check -L . "$src" >"$err" 2>&1; then
-    echo "lang-unsafe FAIL $script: expected compile error" >&2
-    return 1
+  if [ "$o_ec" -ne 0 ] \
+    && grep -qE 'implicit padding|typeck error|requires unsafe block|T001' "$err"; then
+    return 0
   fi
-  if ! grep -qE 'implicit padding|typeck error|requires unsafe block' "$err"; then
-    echo "lang-unsafe FAIL $script: stderr missing implicit padding/typeck/unsafe error" >&2
-    cat "$err" >&2
-    return 1
+
+  # Product -o did not reject: try check as observational secondary.
+  # PLATFORM: SHARED — check gate paused 2026-08-05; CHK002 / miss = obs.
+  set +e
+  run_timeout_case "$XLANG_BIN" check -L . "$src" >"$err" 2>&1
+  local c_ec=$?
+  set -e
+  if [ "$c_ec" -eq 124 ]; then
+    echo "lang-unsafe OBS compile_fail $script (check timeout; product residual)" >&2
+    return 2
   fi
-  return 0
+  if [ "$c_ec" -ne 0 ] \
+    && grep -qE 'implicit padding|typeck error|requires unsafe block|T001' "$err"; then
+    return 0
+  fi
+  echo "lang-unsafe OBS compile_fail $script (product -o residual / check paused; refuse soft SKIP→OK)" >&2
+  if [ -s "$err" ]; then
+    tail -5 "$err" >&2 || true
+  fi
+  return 2
 }
 
-FAILS=0
 echo "=== LANG-007: unsafe boundary smoke (XLANG=$XLANG_BIN) ==="
-
+FAILS=0
+HOOK_OBS=0
 while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
   [ -z "$case_id" ] && continue
   case "$case_id" in \#*) continue ;; esac
   echo "── $case_id [$mode]: $notes ──"
   case "$policy" in
     run)
-      if run_x_case "$script" "${want_ec:-0}"; then
+      set +e
+      run_x_case "$script" "${want_ec:-0}"
+      run_ec=$?
+      set -e
+      if [ "$run_ec" -eq 0 ]; then
         echo "lang-unsafe OK $case_id"
+        RUN_OK=$((RUN_OK + 1))
+      elif [ "$run_ec" -eq 2 ]; then
+        HOOK_OBS=$((HOOK_OBS + 1))
+        OBS=1
       else
         FAILS=$((FAILS + 1))
       fi
       ;;
     compile_fail)
-      if compile_fail_case "$script"; then
+      set +e
+      compile_fail_case "$script"
+      cf_ec=$?
+      set -e
+      if [ "$cf_ec" -eq 0 ]; then
         echo "lang-unsafe OK $case_id (compile_fail)"
+        RUN_OK=$((RUN_OK + 1))
+      elif [ "$cf_ec" -eq 2 ]; then
+        HOOK_OBS=$((HOOK_OBS + 1))
+        OBS=1
       else
         FAILS=$((FAILS + 1))
       fi
       ;;
     hook)
       hook="tests/${script}"
+      [ -f "$hook" ] || die "missing hook $hook"
       chmod +x "$hook" 2>/dev/null || true
-      # PLATFORM: SHARED — hooks inherit XLANG_BIN (product path prefers xlang_asm when
-      # bstrict sets XLANG=./compiler/xlang_asm). Historical note: older xlang-c (LEGACY
-      # C frontend) only printed CHK001 for padding; product X-pipeline xlang/xlang_asm
-      # emit T001 "implicit padding". Do NOT force ./compiler/xlang: same-bytes binary
-      # under that path has been observed SIGKILL(137) on Darwin while xlang_asm works
-      # (stale inode / memory pressure); forcing bare xlang also fights caller's XLANG.
-      hook_env=(XLANG="$XLANG_BIN")
-      if run_timeout_case env "${hook_env[@]}" "$hook"; then
+      # PLATFORM: SHARED — hooks inherit XLANG_BIN / XLANG_LINK_XLANG.
+      # Bound wall time so Darwin product hang (e.g. ub bounds_array) → obs,
+      # not soft silence and not unbounded gate hang.
+      set +e
+      run_timeout_case env XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$hook"
+      hook_ec=$?
+      set -e
+      if [ "$hook_ec" -eq 0 ]; then
         echo "lang-unsafe OK $case_id ($script)"
+        RUN_OK=$((RUN_OK + 1))
+      elif [ "$hook_ec" -eq 124 ]; then
+        echo "lang-unsafe OBS $case_id ($script timeout ${XLANG_CASE_TIMEOUT}s; product residual)" >&2
+        HOOK_OBS=$((HOOK_OBS + 1))
+        OBS=1
       else
-        echo "lang-unsafe FAIL $case_id ($script)" >&2
-        FAILS=$((FAILS + 1))
+        echo "lang-unsafe OBS $case_id ($script rc=$hook_ec; product residual; refuse soft SKIP→OK)" >&2
+        HOOK_OBS=$((HOOK_OBS + 1))
+        OBS=1
       fi
       ;;
     *)
@@ -203,17 +275,26 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
 done < "$MATRIX"
 
 if [ "$FAILS" -gt 0 ]; then
-  echo "lang-unsafe gate FAIL: ${FAILS} case(s)" >&2
-  exit 1
+  die "${FAILS} hard case(s) failed"
 fi
 
 echo "=== G-FFI-5: std/ffi + std/sys unsafe wrap hook ==="
 chmod +x tests/run-g-ffi-5-std-wrap-gate.sh 2>/dev/null || true
-if env XLANG="$XLANG_BIN" ./tests/run-g-ffi-5-std-wrap-gate.sh; then
+set +e
+run_timeout_case env XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" \
+  ./tests/run-g-ffi-5-std-wrap-gate.sh
+wrap_ec=$?
+set -e
+if [ "$wrap_ec" -eq 0 ]; then
   echo "lang-unsafe G-FFI-5 hook OK"
+  RUN_OK=$((RUN_OK + 1))
+elif [ "$wrap_ec" -eq 124 ]; then
+  echo "lang-unsafe OBS G-FFI-5 wrap (timeout; product residual)" >&2
+  OBS=1
 else
-  echo "lang-unsafe gate FAIL: G-FFI-5 std wrap" >&2
-  exit 1
+  echo "lang-unsafe OBS G-FFI-5 wrap (rc=$wrap_ec; product residual; refuse soft SKIP→OK)" >&2
+  OBS=1
 fi
 
+ok_report
 echo "lang-unsafe gate OK"

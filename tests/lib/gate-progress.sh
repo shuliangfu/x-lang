@@ -11,16 +11,52 @@ gate_progress() {
   printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
 }
 
-# 带超时执行（Linux timeout / macOS gtimeout；均无则透传并 WARN）。
+# Bound a command by wall-clock seconds.
+# PLATFORM: SHARED — Linux `timeout`, macOS Homebrew `gtimeout`, else Perl
+# process-group kill (stock Perl on Darwin/Linux). Unbounded pass-through
+# only when none exist. Exit 124 mirrors GNU timeout (callers treat as timeout).
+# G.7: single authority for gate timeouts — extend here; do not fork helpers.
 gate_run_timeout() {
   local secs="$1"
   shift
   if command -v timeout >/dev/null 2>&1; then
-    timeout "$secs" "$@"
+    timeout --signal=TERM --kill-after=15 "$secs" "$@"
   elif command -v gtimeout >/dev/null 2>&1; then
-    gtimeout "$secs" "$@"
+    gtimeout --signal=TERM --kill-after=15 "$secs" "$@"
+  elif command -v perl >/dev/null 2>&1; then
+    # Fork + process-group kill: plain `alarm; exec` leaves grandchildren
+    # (e.g. hung xlang_asm under a hook) alive on Darwin after SIGALRM.
+    perl -e '
+      use strict;
+      use warnings;
+      my $secs = shift @ARGV;
+      my $pid = fork();
+      die "fork: $!\n" unless defined $pid;
+      if ($pid == 0) {
+        setpgrp(0, 0);
+        exec @ARGV;
+        exit 127;
+      }
+      local $SIG{ALRM} = sub {
+        kill "TERM", -$pid;
+        sleep 1;
+        kill "KILL", -$pid;
+        waitpid($pid, 0);
+        exit 124;
+      };
+      alarm $secs;
+      waitpid($pid, 0);
+      my $status = $?;
+      alarm 0;
+      if ($status & 127) {
+        my $sig = $status & 127;
+        exit 124 if $sig == 14 || $sig == 15 || $sig == 9;
+        exit $sig;
+      }
+      exit($status >> 8);
+    ' "$secs" "$@"
   else
-    gate_progress "WARN: 无 timeout 命令，无界执行: $*"
+    gate_progress "WARN: no timeout/gtimeout/perl; unbounded: $*"
     "$@"
   fi
 }

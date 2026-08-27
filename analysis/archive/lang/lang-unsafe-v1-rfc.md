@@ -158,6 +158,32 @@ extern function putchar(c: i32): i32;
 
 ---
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / soft auto-make / prefer-c-only when no native;
+explicit bad XLANG / missing native = hard die; `policy=run` and
+product `-o` `compile_fail` hard-green; `xlang check` path observational
+(check gate paused 2026-08-05 / CHK002); hooks that timeout or product-fail
+= `obs=` (not soft silence); DOC=archive/lang; report `run=`／`obs=`／`skip=`.
+
+```bash
+./tests/run-lang-unsafe-gate.sh
+```
+
+```
+xlang: [XLANG_LANG_UNSAFE] status=ok run=N obs=0|1 skip=0
+```
+
+Negative (refuse soft SKIP→OK):
+
+```bash
+XLANG=/tmp/not-a-compiler ./tests/run-lang-unsafe-gate.sh   # → RC=1
+# strip ## Gate from this DOC → gate die
+```
+
+---
+
 ## 7. 变更流程（v1）
 
 1. 新增 U1~U3 构造 → 更新本文 + 增烟测 + SAFE-003 审计（上线后）

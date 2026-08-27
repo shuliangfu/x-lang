@@ -7,12 +7,11 @@
 #   3) SAFE-003 audit ledger (skip nested lang-unsafe)
 #
 # Runtime LANG-007:
-#   Default SKIP (2026-08-27 honesty): xlang check gate paused → U*/S0
-#   negative cases often CHK002. Soft false-green retired on policy path;
-#   do not absorb check residual into archaeology green.
+#   Default skip= (optional wall-clock); child gate is honesty soft→硬绿
+#   (run/-o compile_fail hard; check/hook residuals = obs, not soft silence).
 #   XLANG_G_FFI5_RUN_LANG_UNSAFE=1 → hard-run run-lang-unsafe-gate
 #   XLANG_G_FFI5_SKIP_LANG_UNSAFE=1 → explicit skip (default)
-#   XLANG_G_FFI5_LANG_UNSAFE_SOFT=1 → WARN only when RUN=1 fails
+# Soft XLANG_G_FFI5_LANG_UNSAFE_SOFT retired — RUN=1 + RC≠0 = hard die.
 #
 # Usage: ./tests/run-g-ffi-5-release-ci-gate.sh
 # Report: business=/audit=/lang_unsafe=/skip=
@@ -26,7 +25,7 @@ PREFIX="xlang: [XLANG_G_FFI5_RELEASE]"
 BUSINESS_OK=0
 AUDIT_OK=0
 LANG_UNSAFE_OK=0
-SKIP=1
+SKIP=0
 
 die() {
   echo "g-ffi-5 release-ci FAIL: $*" >&2
@@ -55,39 +54,27 @@ else
   die "missing run-safe-unsafe-audit-gate.sh"
 fi
 
-# 4：LANG-007 运行时（默认 skip；check 闸门暂停）
-# Run when RUN_LANG_UNSAFE=1 or SKIP_LANG_UNSAFE explicitly 0; else skip.
+# 4：LANG-007 运行时（默认 skip 保 release 墙钟；honesty 闸本身已硬绿+obs）
+# Run when RUN_LANG_UNSAFE=1 or SKIP_LANG_UNSAFE explicitly 0; else skip=.
 RUN_LU="${XLANG_G_FFI5_RUN_LANG_UNSAFE:-0}"
 SKIP_LU="${XLANG_G_FFI5_SKIP_LANG_UNSAFE:-1}"
 if [ "$RUN_LU" != "1" ] && [ "$SKIP_LU" != "0" ]; then
-  echo "g-ffi-5 release-ci: skip lang-unsafe (check gate paused; set XLANG_G_FFI5_RUN_LANG_UNSAFE=1 to run)"
+  echo "g-ffi-5 release-ci: skip lang-unsafe (set XLANG_G_FFI5_RUN_LANG_UNSAFE=1 to run)"
   LANG_UNSAFE_OK=0
-  SKIP=0
+  SKIP=$((SKIP + 1))
 else
   if [ -z "${XLANG:-}" ]; then
-    for cand in ./compiler/xlang_asm ./compiler/xlang ./compiler/xlang-c; do
+    for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
       if [ -x "$cand" ]; then
         export XLANG="$cand"
         break
       fi
     done
   fi
-  set +e
-  ./tests/run-lang-unsafe-gate.sh
-  lu_rc=$?
-  set -e
-  if [ "$lu_rc" -ne 0 ]; then
-    if [ "${XLANG_G_FFI5_LANG_UNSAFE_SOFT:-0}" = "1" ]; then
-      echo "g-ffi-5 release-ci: lang-unsafe soft-fail (rc=$lu_rc; SOFT=1)"
-      LANG_UNSAFE_OK=0
-    else
-      die "lang-unsafe (rc=$lu_rc)"
-    fi
-  else
-    echo "g-ffi-5 release-ci: lang-unsafe OK"
-    LANG_UNSAFE_OK=1
-  fi
-  SKIP=0
+  # Soft LANG_UNSAFE_SOFT retired — child gate reports obs=; RC≠0 is hard.
+  ./tests/run-lang-unsafe-gate.sh || die "lang-unsafe"
+  echo "g-ffi-5 release-ci: lang-unsafe OK"
+  LANG_UNSAFE_OK=1
 fi
 
 echo "g-ffi-5 release-ci gate OK"

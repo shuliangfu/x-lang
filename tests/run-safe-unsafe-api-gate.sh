@@ -13,9 +13,16 @@ API_TSV="${XLANG_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
 EXT_TSV="${XLANG_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
 
 echo "=== SAFE-002: unsafe API manifest ==="
+# LANG-007 DOC live = archive/lang (honesty soft→硬绿 2026-08-27).
+# Prefer archive SAFE DOC when present; accept top-level until SAFE soft knife.
+LANG_UNSAFE_DOC="analysis/archive/lang/lang-unsafe-v1-rfc.md"
+SAFE_API_DOC="analysis/safe-unsafe-api-v1.md"
+if [ -f analysis/archive/safe/safe-unsafe-api-v1.md ]; then
+  SAFE_API_DOC="analysis/archive/safe/safe-unsafe-api-v1.md"
+fi
 for f in \
-  analysis/safe-unsafe-api-v1.md \
-  analysis/lang-unsafe-v1-rfc.md \
+  "$SAFE_API_DOC" \
+  "$LANG_UNSAFE_DOC" \
   "$API_TSV" \
   "$EXT_TSV"; do
   if [ ! -f "$f" ]; then
@@ -23,6 +30,10 @@ for f in \
     exit 1
   fi
 done
+if [ -f analysis/lang-unsafe-v1-rfc.md ]; then
+  echo "safe-unsafe-api gate FAIL: top-level lang-unsafe DOC resurrected (live = archive/lang/)" >&2
+  exit 1
+fi
 echo "safe-unsafe-api manifest OK"
 
 tier_u_source_symbol() {
