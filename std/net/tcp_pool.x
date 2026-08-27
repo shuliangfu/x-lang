@@ -21,7 +21,7 @@
 // See implementation.
 //
 // See implementation.
-// net_tcp.x：net_tcp_connect_blocking_c、net_close_socket_c；libc：calloc/free。
+// Relies on std/net/tcp.x C surface: net_tcp_connect_blocking_c, net_close_socket_c; libc calloc/free.
 
 /* See implementation. */
 export const NET_TCP_POOL_MAX_IDLE: i32 = 8;
