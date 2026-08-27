@@ -374,10 +374,10 @@
 | STD-053 log-multi-sink soft→硬绿 | ✅ | DOC／TSV→`## 5. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`level_filter.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-086 std-config soft→硬绿 | ✅ | DOC／TSV→`## 3. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`layer_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-119 config-yaml soft→硬绿 | ✅ | DOC／TSV→`## 3. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`yaml_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD-087 std.cache soft→硬绿 | ✅ | formal_mod `mod|1`＋fk0 k22＋time_os companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`lru_pool_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD-076 std.url soft→硬绿 | ✅ | formal_mod `mod|1`＋fk0 k23×10；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD-079 std.security soft→硬绿 | ✅ | formal_mod `mod|1`＋fk0 k24×16＋crypto／random／CRYPTO_PAIR companion；API 锚 `hkdf`／`err_ok`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD-080/081 std.option／result soft→硬绿 | ✅ | 烟测 `err.*`＋bool `false`；formal_mod `mod|0`；plan +2；fk0 k25/k26×11；error companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；双端 L2 |
+| STD-087 std.cache soft→硬绿 | ✅ | formal_mod `mod\|1`＋fk0 k22＋time_os companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`lru_pool_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD-076 std.url soft→硬绿 | ✅ | formal_mod `mod\|1`＋fk0 k23×10；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD-079 std.security soft→硬绿 | ✅ | formal_mod `mod\|1`＋fk0 k24×16＋crypto／random／CRYPTO_PAIR companion；API 锚 `hkdf`／`err_ok`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
+| STD-080/081 std.option／result soft→硬绿 | ✅ | 烟测 `err.*`＋bool `false`；formal_mod `mod\|0`；plan +2；fk0 k25/k26×11；error companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；双端 L2 |
 | STD-035 json-serialize soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`object_array_roundtrip.x` exit0 硬失败；双端 L2 |
 | STD-036 csv-row soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`row_roundtrip.x`＋`main.x` exit0 硬失败；双端 L2 |
 | STD-135 datetime-timezone soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`timezone.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
