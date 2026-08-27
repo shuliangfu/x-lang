@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
-# TOOL-006：项目脚手架 manifest 门禁（假权威诚实）。
+# TOOL-006: project scaffold manifest gate.
 #
-# 用法：./tests/run-tool-scaffold-gate.sh
-# wave honesty (2026-08-24 #9): DOC → analysis/archive/tool/;
-# live = tests/templates/project-hello + scripts/xlang-new.sh.
+# Honesty: soft SKIP→OK when no native xlang (bare "gate OK") + prefer
+# xlang-c before xlang_asm retired. Prefer product xlang_asm. Explicit
+# bad XLANG = hard die. Missing native = hard die (hooks are the live
+# face). DOC authority = archive/tool. Report run=/hooks=/skip=.
+#
+# Usage: ./tests/run-tool-scaffold-gate.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/tool-scaffold.sh
+. tests/lib/tool-scaffold.sh
 
 DOC="${XLANG_TOOL_SCAFFOLD_DOC:-analysis/archive/tool/tool-project-scaffold-v1.md}"
 MANIFEST="${XLANG_TOOL_SCAFFOLD_MANIFEST:-tests/baseline/tool-project-scaffold.tsv}"
@@ -14,34 +23,58 @@ TEMPLATE="tests/templates/project-hello"
 MIN_RULES=5
 MIN_TEMPLATE_FILES=2
 EXPECT_EXIT=42
+PREFIX="xlang: [XLANG_TOOL_SCAFFOLD]"
+RUN_OK=0
+HOOKS_OK=0
+SKIP=0
 
-# shellcheck source=tests/lib/tool-scaffold.sh
-. tests/lib/tool-scaffold.sh
+die() {
+  echo "tool-scaffold gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*) return 0 ;;
-    *) return 0 ;;
-  esac
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== TOOL-006: project scaffold manifest (archive DOC) ==="
 if [ -f analysis/tool-project-scaffold-v1.md ]; then
-  echo "tool-scaffold gate FAIL: top-level DOC resurrected (live = archive/tool/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/tool/)"
 fi
 for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.x" "$TEMPLATE/README.md" scripts/xlang-new.sh; do
-  if [ ! -f "$f" ]; then
-    echo "tool-scaffold gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -105,63 +138,36 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
 done < "$MANIFEST"
 
 FILES_N=$(tool_scaffold_template_files "$TEMPLATE")
-if [ "$RULE_N" -lt "$MIN_RULES" ]; then
-  echo "tool-scaffold gate FAIL: rules=${RULE_N} < min ${MIN_RULES}" >&2
-  exit 1
-fi
+[ "$RULE_N" -ge "$MIN_RULES" ] || die "rules=${RULE_N} < min ${MIN_RULES}"
 if [ "$TPL_N" -lt "$MIN_TEMPLATE_FILES" ] || [ "${FILES_N:-0}" -lt "$MIN_TEMPLATE_FILES" ]; then
-  echo "tool-scaffold gate FAIL: template files=${FILES_N} tpl_rows=${TPL_N}" >&2
-  exit 1
+  die "template files=${FILES_N} tpl_rows=${TPL_N}"
 fi
-
-if ! grep -q 'function main(): i32' "$TEMPLATE/main.x" 2>/dev/null; then
-  echo "tool-scaffold gate FAIL: template missing main()" >&2
-  exit 1
-fi
-if ! grep -qi 'xlang run' "$TEMPLATE/README.md" 2>/dev/null; then
-  echo "tool-scaffold gate FAIL: README missing xlang run" >&2
-  exit 1
-fi
-
+grep -q 'function main(): i32' "$TEMPLATE/main.x" 2>/dev/null || die "template missing main()"
+grep -qi 'xlang run' "$TEMPLATE/README.md" 2>/dev/null || die "README missing xlang run"
 for kw in scaffold template runnable report; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "tool-scaffold gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
-
-if [ "$MISS" -gt 0 ]; then
-  echo "tool-scaffold gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "tool-scaffold manifest OK (rules=${RULE_N} files=${FILES_N} expect_exit=${EXPECT_EXIT})"
+RUN_OK=1
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== TOOL-006: scaffold hooks (XLANG=$XLANG_BIN) ==="
-  chmod +x tests/run-tool-scaffold.sh scripts/xlang-new.sh
-  XLANG="$XLANG_BIN" XLANG_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh
-  DEMO="/tmp/xlang_new_demo_$$"
+echo "=== TOOL-006: scaffold hooks (XLANG=$XLANG_BIN) ==="
+chmod +x tests/run-tool-scaffold.sh scripts/xlang-new.sh
+XLANG="$XLANG_BIN" XLANG_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh
+DEMO="/tmp/xlang_new_demo_$$"
+rm -rf "$DEMO"
+./scripts/xlang-new.sh "$DEMO"
+if [ ! -f "$DEMO/main.x" ]; then
   rm -rf "$DEMO"
-  ./scripts/xlang-new.sh "$DEMO"
-  if [ ! -f "$DEMO/main.x" ]; then
-    echo "tool-scaffold FAIL: xlang-new did not create main.x" >&2
-    rm -rf "$DEMO"
-    exit 1
-  fi
-  rm -rf "$DEMO"
-  echo "tool-scaffold hooks OK"
-else
-  echo "tool-scaffold gate SKIP hooks (no native xlang)" >&2
+  die "xlang-new did not create main.x"
 fi
+rm -rf "$DEMO"
+HOOKS_OK=1
+echo "tool-scaffold hooks OK"
 
+ok_report
 echo "tool-scaffold gate OK"

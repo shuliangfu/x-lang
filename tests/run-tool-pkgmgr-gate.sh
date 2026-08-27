@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
-# TOOL-007：包管理器方案 manifest 门禁（假权威诚实）。
+# TOOL-007: package manager design manifest gate.
 #
-# 用法：./tests/run-tool-pkgmgr-gate.sh
-# wave honesty (2026-08-24 #7): DOC → analysis/archive/tool/;
-# monofile seeds/runtime.from_x.c retired wave321 —
-# resolve live = xlang_resolve_import_file_path_multi (runtime_pipeline_abi.h).
-# Override: XLANG_TOOL_PKGMGR_DOC=…
+# Honesty: soft SKIP→OK when no native xlang (bare "gate OK") + prefer
+# xlang-c before xlang_asm retired. Prefer product xlang_asm. Explicit
+# bad XLANG = hard die. Missing native = hard die. DOC authority =
+# archive/tool. Report run=/hooks=/skip=.
+#
+# Usage: ./tests/run-tool-pkgmgr-gate.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/tool-pkgmgr.sh
+. tests/lib/tool-pkgmgr.sh
 
 DOC="${XLANG_TOOL_PKGMGR_DOC:-analysis/archive/tool/tool-pkgmgr-v1.md}"
 MANIFEST="${XLANG_TOOL_PKGMGR_MANIFEST:-tests/baseline/tool-pkgmgr.tsv}"
@@ -16,37 +23,62 @@ CATALOG="${XLANG_TOOL_PKGMGR_CATALOG:-tests/baseline/tool-pkgmgr-catalog.tsv}"
 RESOLVE_SRC="${XLANG_TOOL_PKGMGR_RESOLVE_SRC:-compiler/src/runtime_pipeline_abi.h}"
 MIN_RULES=6
 MIN_PACKAGES=8
+PREFIX="xlang: [XLANG_TOOL_PKGMGR]"
+RUN_OK=0
+HOOKS_OK=0
+SKIP=0
 
-# shellcheck source=tests/lib/tool-pkgmgr.sh
-. tests/lib/tool-pkgmgr.sh
+die() {
+  echo "tool-pkgmgr gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== TOOL-007: pkgmgr manifest (monofile retired) ==="
-
-# wave321: monofile retired — refuse resurrect.
 if [ -f compiler/seeds/runtime.from_x.c ]; then
-  echo "tool-pkgmgr gate FAIL: seeds/runtime.from_x.c resurrected (resolve live = runtime_pipeline_abi.h)" >&2
-  exit 1
+  die "seeds/runtime.from_x.c resurrected (resolve live = runtime_pipeline_abi.h)"
 fi
-
+if [ -f analysis/tool-pkgmgr-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/tool/)"
+fi
 for f in "$DOC" "$MANIFEST" "$CATALOG" "$RESOLVE_SRC" scripts/xlang-deps-resolve.sh \
   tests/fixtures/pkgmgr/xlang.pkg.tsv tests/fixtures/pkgmgr/main.x; do
-  if [ ! -f "$f" ]; then
-    echo "tool-pkgmgr gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -129,7 +161,6 @@ while IFS=$'\t' read -r pkg_id tier path_glob _notes; do
     echo "tool-pkgmgr FAIL: catalog missing $path_glob ($pkg_id)" >&2
     MISS=$((MISS + 1))
   elif ! tool_pkg_resolve_import "." "$pkg_id" >/dev/null 2>&1; then
-  # resolve from repo root
     if ! tool_pkg_resolve_import "$(pwd)" "$pkg_id" >/dev/null 2>&1; then
       echo "tool-pkgmgr FAIL: cannot resolve $pkg_id" >&2
       MISS=$((MISS + 1))
@@ -137,47 +168,26 @@ while IFS=$'\t' read -r pkg_id tier path_glob _notes; do
   fi
 done < "$CATALOG"
 
-if [ "$RULE_N" -lt "$MIN_RULES" ]; then
-  echo "tool-pkgmgr gate FAIL: rules=${RULE_N} < min ${MIN_RULES}" >&2
-  exit 1
-fi
-if [ "$PKG_N" -lt "$MIN_PACKAGES" ]; then
-  echo "tool-pkgmgr gate FAIL: packages=${PKG_N} < min ${MIN_PACKAGES}" >&2
-  exit 1
-fi
-
+[ "$RULE_N" -ge "$MIN_RULES" ] || die "rules=${RULE_N} < min ${MIN_RULES}"
+[ "$PKG_N" -ge "$MIN_PACKAGES" ] || die "packages=${PKG_N} < min ${MIN_PACKAGES}"
 for kw in package manager resolve prototype runnable report; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "tool-pkgmgr gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
-
-if [ "$MISS" -gt 0 ]; then
-  echo "tool-pkgmgr gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "tool-pkgmgr manifest OK (rules=${RULE_N} packages=${PKG_N})"
+RUN_OK=1
 
 chmod +x scripts/xlang-deps-resolve.sh tests/run-pkgmgr-resolve.sh
 ./scripts/xlang-deps-resolve.sh tests/fixtures/pkgmgr/xlang.pkg.tsv
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== TOOL-007: pkgmgr hooks (XLANG=$XLANG_BIN) ==="
-  XLANG="$XLANG_BIN" ./tests/run-pkgmgr-resolve.sh
-  echo "tool-pkgmgr hooks OK"
-else
-  echo "tool-pkgmgr gate SKIP compile hook (no native xlang)" >&2
-fi
+echo "=== TOOL-007: pkgmgr hooks (XLANG=$XLANG_BIN) ==="
+XLANG="$XLANG_BIN" ./tests/run-pkgmgr-resolve.sh
+HOOKS_OK=1
+echo "tool-pkgmgr hooks OK"
 
+ok_report
 echo "tool-pkgmgr gate OK"

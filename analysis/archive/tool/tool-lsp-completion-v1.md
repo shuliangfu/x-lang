@@ -88,4 +88,19 @@ v1 **命中率**定义为：对金样 `completion_symbols.x` 发 `textDocument/c
 | 门禁 | `tests/run-tool-lsp-completion-gate.sh` |
 | hook | `tests/run-lsp-completion.sh` |
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die;
+tip binary without `--lsp` = skip=1 (honest N/A, not silent OK); DOC=archive;
+report `run=`／`hooks=`／`skip=`.
+
+`tests/run-tool-lsp-completion-gate.sh`:
+
+1. Archive DOC + manifest + lsp_diag.h／runtime_lsp_glue（拒 lsp_diag.c resurrect）
+2. Manifest tiers／cases／expects 硬绿
+3. Native + `--lsp`：completion hook 硬跑；无 `--lsp` = skip=1
+
+---
+
 **TOOL-003 状态：定版 ✅**

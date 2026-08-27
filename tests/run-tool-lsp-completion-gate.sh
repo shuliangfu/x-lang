@@ -1,49 +1,83 @@
 #!/usr/bin/env bash
-# TOOL-003：LSP 补全质量 manifest 门禁（假权威诚实）。
+# TOOL-003: LSP completion quality manifest gate.
 #
-# 用法：./tests/run-tool-lsp-completion-gate.sh
-# wave honesty (2026-08-24 #8): DOC → analysis/archive/tool/;
-# lsp_diag.c hard-retired — live = lsp_diag.h + runtime_lsp_glue.from_x.c
-# (completionProvider / lsp_build_completion_response).
+# Honesty: soft SKIP→OK when no native / no --lsp (bare "gate OK") + prefer
+# xlang-c before xlang_asm retired. Prefer product xlang_asm. Explicit bad
+# XLANG = hard die. Missing native = hard die. Tip binary without --lsp =
+# skip=1 (honest N/A, not silent OK). DOC authority = archive/tool.
+# Report run=/hooks=/skip=.
+#
+# Usage: ./tests/run-tool-lsp-completion-gate.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/tool-lsp-completion.sh
+. tests/lib/tool-lsp-completion.sh
 
 DOC="${XLANG_TOOL_LSP_COMP_DOC:-analysis/archive/tool/tool-lsp-completion-v1.md}"
 MANIFEST="${XLANG_TOOL_LSP_COMP_MANIFEST:-tests/baseline/tool-lsp-completion.tsv}"
 MIN_TIERS=6
 MIN_CASES=1
 MIN_HITS=6
+PREFIX="xlang: [XLANG_TOOL_LSP_COMPLETION]"
+RUN_OK=0
+HOOKS_OK=0
+SKIP=0
 
-# shellcheck source=tests/lib/tool-lsp-completion.sh
-. tests/lib/tool-lsp-completion.sh
+die() {
+  echo "tool-lsp-completion gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*) return 0 ;;
-    *) return 0 ;;
-  esac
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== TOOL-003: LSP completion manifest (lsp_diag.c retired) ==="
-
 if [ -f compiler/src/lsp/lsp_diag.c ]; then
-  echo "tool-lsp-completion gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h / runtime_lsp_glue)" >&2
-  exit 1
+  die "lsp_diag.c resurrected (live = lsp_diag.h / runtime_lsp_glue)"
 fi
-
+if [ -f analysis/tool-lsp-completion-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/tool/)"
+fi
 for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.h compiler/seeds/runtime_lsp_glue.from_x.c; do
-  if [ ! -f "$f" ]; then
-    echo "tool-lsp-completion gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -131,49 +165,31 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$TIER_N" -lt "$MIN_TIERS" ]; then
-  echo "tool-lsp-completion gate FAIL: tiers=${TIER_N} < min ${MIN_TIERS}" >&2
-  exit 1
-fi
-if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "tool-lsp-completion gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
-fi
-if [ "$EXPECT_N" -lt "$MIN_HITS" ]; then
-  echo "tool-lsp-completion gate FAIL: expects=${EXPECT_N} < min ${MIN_HITS}" >&2
-  exit 1
-fi
-
+[ "$TIER_N" -ge "$MIN_TIERS" ] || die "tiers=${TIER_N} < min ${MIN_TIERS}"
+[ "$CASE_N" -ge "$MIN_CASES" ] || die "cases=${CASE_N} < min ${MIN_CASES}"
+[ "$EXPECT_N" -ge "$MIN_HITS" ] || die "expects=${EXPECT_N} < min ${MIN_HITS}"
 for kw in completion CompletionItem hit rate runnable report triggerCharacters; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "tool-lsp-completion gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
-
-if [ "$MISS" -gt 0 ]; then
-  echo "tool-lsp-completion gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "tool-lsp-completion manifest OK (tiers=${TIER_N} cases=${CASE_N} expects=${EXPECT_N})"
+RUN_OK=1
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN" && "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
+if "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
   echo "=== TOOL-003: LSP completion hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-lsp-completion.sh tests/run-lsp.sh
   XLANG="$XLANG_BIN" ./tests/run-lsp-completion.sh
+  HOOKS_OK=1
   echo "tool-lsp-completion hooks OK"
 else
-  echo "tool-lsp-completion gate SKIP hooks (no native xlang --lsp)" >&2
+  # Tip product binary help may omit --lsp; honest skip, not soft silence.
+  SKIP=1
+  echo "tool-lsp-completion gate SKIP hooks (no --lsp in XLANG help; skip=1)" >&2
 fi
 
+ok_report
 echo "tool-lsp-completion gate OK"

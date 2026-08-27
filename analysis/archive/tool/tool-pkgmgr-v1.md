@@ -101,4 +101,18 @@ tool-pkgmgr report requires=2/2 roots=1 resolve=OK
 | 原型 CLI | `scripts/xlang-deps-resolve.sh` |
 | 库 | `tests/lib/tool-pkgmgr.sh` |
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die;
+DOC=archive; report `run=`／`hooks=`／`skip=`.
+
+`tests/run-tool-pkgmgr-gate.sh`:
+
+1. Archive DOC + manifest + catalog + resolve live header（拒 monofile resurrect）
+2. Manifest／catalog 锚点硬绿；`xlang-deps-resolve` 硬跑
+3. Native xlang：`run-pkgmgr-resolve` 硬跑；缺 native／显式坏 XLANG 硬 die
+
+---
+
 **TOOL-007 状态：定版 ✅**

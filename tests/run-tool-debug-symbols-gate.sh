@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
-# TOOL-005：调试符号 manifest 门禁（假权威诚实）。
+# TOOL-005: debug symbols manifest gate.
 #
-# 用法：./tests/run-tool-debug-symbols-gate.sh
-# wave honesty (2026-08-24 #6): DOC → analysis/archive/tool/；
-# monofile seeds/runtime.from_x.c retired wave321 — strip/NDEBUG live in
-# labi_invoke_cc_list；backtrace stays runtime_backtrace_platform.
-# Override: XLANG_TOOL_DEBUG_DOC=…
+# Honesty: soft SKIP→OK when no native xlang (bare "gate OK") + prefer
+# xlang-c before xlang_asm retired. Prefer product xlang_asm. Explicit
+# bad XLANG = hard die. Missing native = hard die. DOC authority =
+# archive/tool. Report run=/hooks=/skip=.
+#
+# Usage: ./tests/run-tool-debug-symbols-gate.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/tool-debug-symbols.sh
+. tests/lib/tool-debug-symbols.sh
 
 DOC="${XLANG_TOOL_DEBUG_DOC:-analysis/archive/tool/tool-debug-symbols-v1.md}"
 MANIFEST="${XLANG_TOOL_DEBUG_MANIFEST:-tests/baseline/tool-debug-symbols.tsv}"
@@ -17,37 +24,61 @@ MIN_CASES=2
 STRIP_NDEBUG_SRC="${XLANG_TOOL_DEBUG_STRIP_SRC:-compiler/seeds/labi_invoke_cc_list.from_x.c}"
 BT_SRC="${XLANG_TOOL_DEBUG_BT_SRC:-compiler/seeds/runtime_backtrace_platform.from_x.c}"
 LSP_SRC="${XLANG_TOOL_DEBUG_LSP_SRC:-compiler/src/lsp/lsp_diag.h}"
+PREFIX="xlang: [XLANG_TOOL_DEBUG_SYMBOLS]"
+RUN_OK=0
+HOOKS_OK=0
+SKIP=0
 
-# shellcheck source=tests/lib/tool-debug-symbols.sh
-. tests/lib/tool-debug-symbols.sh
+die() {
+  echo "tool-debug-symbols gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*) return 0 ;;
-    *) return 0 ;;
-  esac
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} hooks=${HOOKS_OK} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== TOOL-005: debug symbols manifest (monofile retired) ==="
-
-# wave321: monofile retired — refuse resurrect.
 if [ -f compiler/seeds/runtime.from_x.c ]; then
-  echo "tool-debug-symbols gate FAIL: seeds/runtime.from_x.c resurrected (strip/NDEBUG live = labi_invoke_cc_list)" >&2
-  exit 1
+  die "seeds/runtime.from_x.c resurrected (strip/NDEBUG live = labi_invoke_cc_list)"
 fi
-
+if [ -f analysis/tool-debug-symbols-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/tool/)"
+fi
 for f in "$DOC" "$MANIFEST" "$STRIP_NDEBUG_SRC" "$BT_SRC" "$LSP_SRC"; do
-  if [ ! -f "$f" ]; then
-    echo "tool-debug-symbols gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -118,58 +149,36 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$RULE_N" -lt "$MIN_RULES" ]; then
-  echo "tool-debug-symbols gate FAIL: rules=${RULE_N} < min ${MIN_RULES}" >&2
-  exit 1
-fi
-if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "tool-debug-symbols gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
-fi
-
+[ "$RULE_N" -ge "$MIN_RULES" ] || die "rules=${RULE_N} < min ${MIN_RULES}"
+[ "$CASE_N" -ge "$MIN_CASES" ] || die "cases=${CASE_N} < min ${MIN_CASES}"
 for kw in debug symbol breakpoint stack runnable report; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "tool-debug-symbols gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
-
-if [ "$MISS" -gt 0 ]; then
-  echo "tool-debug-symbols gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "tool-debug-symbols manifest OK (rules=${RULE_N} cases=${CASE_N})"
+RUN_OK=1
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== TOOL-005: debug symbol hooks (XLANG=$XLANG_BIN) ==="
-  chmod +x tests/run-debug-symbols.sh tests/run-backtrace.sh
-  # Root fix (2026-08-25): -O 0 skips Darwin -dead_strip / Linux --gc-sections
-  # (invoke_cc + bare ld via xlang_link_capture_opt_level_from_argv). Hooks hard.
-  # PLATFORM: SHARED / MACOS|DARWIN nsyms / LINUX not-stripped.
-  set +e
-  XLANG="$XLANG_BIN" ./tests/run-debug-symbols.sh
-  dbg_ec=$?
-  XLANG="$XLANG_BIN" ./tests/run-backtrace.sh
-  bt_ec=$?
-  set -e
-  if [ "$dbg_ec" -eq 0 ] && [ "$bt_ec" -eq 0 ]; then
-    echo "tool-debug-symbols hooks OK"
-  else
-    echo "tool-debug-symbols FAIL hooks (dbg=$dbg_ec bt=$bt_ec host=$(uname -s))" >&2
-    exit 1
-  fi
+echo "=== TOOL-005: debug symbol hooks (XLANG=$XLANG_BIN) ==="
+chmod +x tests/run-debug-symbols.sh tests/run-backtrace.sh
+# Root fix (2026-08-25): -O 0 skips Darwin -dead_strip / Linux --gc-sections
+# (invoke_cc + bare ld via xlang_link_capture_opt_level_from_argv). Hooks hard.
+# PLATFORM: SHARED / MACOS|DARWIN nsyms / LINUX not-stripped.
+set +e
+XLANG="$XLANG_BIN" ./tests/run-debug-symbols.sh
+dbg_ec=$?
+XLANG="$XLANG_BIN" ./tests/run-backtrace.sh
+bt_ec=$?
+set -e
+if [ "$dbg_ec" -eq 0 ] && [ "$bt_ec" -eq 0 ]; then
+  HOOKS_OK=1
+  echo "tool-debug-symbols hooks OK"
 else
-  echo "tool-debug-symbols gate SKIP hooks (no native xlang)" >&2
+  die "hooks failed (dbg=$dbg_ec bt=$bt_ec host=$(uname -s))"
 fi
 
+ok_report
 echo "tool-debug-symbols gate OK"

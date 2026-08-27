@@ -931,7 +931,7 @@ grep -qE 'codegen-regression gate OK|codegen-regression gate SKIP bench' /tmp/co
 echo "── COMP-002 typeck hotpath ──"
 chmod +x tests/run-typeck-hotpath-gate.sh
 ./tests/run-typeck-hotpath-gate.sh | tee /tmp/typeck_hotpath.log
-grep -qE 'typeck-hotpath gate OK|typeck-hotpath gate SKIP hooks' /tmp/typeck_hotpath.log
+grep -qE 'typeck-hotpath gate OK|status=ok' /tmp/typeck_hotpath.log
 
 echo "── ENG-002 quality gate registry ──"
 chmod +x tests/run-eng-quality-gate-gate.sh
