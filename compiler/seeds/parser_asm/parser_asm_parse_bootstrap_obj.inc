@@ -8,10 +8,13 @@
  */
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "token.h"
 #include "ast.h"
+/* PLATFORM: SHARED — <stdio.h> required: seed_parse_into_buf_slice.inc uses
+ * fprintf(stderr) debug paths; thin_c.from_x.c already includes stdio. */
 
 /** 与 parser_asm_thin_c.c / token.x 布局一致。 */
 struct parser_asm_token {
