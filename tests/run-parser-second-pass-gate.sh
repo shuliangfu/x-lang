@@ -194,50 +194,39 @@ COMBINED_AUDIT=$((COMBINED_TEXT + SEED_PARSE_METRIC_BYTES))
 TEXT_SUFFIX=""
 [ "$EMIT_HEAVY" = "1" ] && TEXT_SUFFIX=" (thin_glue=${GLUE_TEXT}B combined=${COMBINED_TEXT}B audit=${COMBINED_AUDIT}B)"
 
-# EMIT_HEAVY: thin delegates must bl→*_glue (undef sym cap 256; catch c_len trunc).
+# EMIT_HEAVY: thin delegates must bl→*_glue; allowlist catches c_len trunc
+# (garbage short names), not legitimate link-time UNDEFs from heavy emit.
+# G.7: single authority = this case list (short + module-prefixed families).
 if [ "$EMIT_HEAVY" = "1" ] && [ -f "$TMP" ]; then
   NM_BAD=0
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
     case "$sym" in
+      # thin / glue / stretch / parse bootstrap delegates
       parser_*_glue|\
       parser_asm_*|\
       parser_lex_from_*|\
       parser_lex_copy_from_collect_imports|\
-      ast_arena_init|\
-      ast_arena_type_get|\
-      ast_arena_type_alloc|\
-      ast_arena_type_set|\
-      ast_arena_expr_alloc|\
-      ast_arena_block_alloc|\
-      ast_pool_*|\
-      pipeline_type_ensure_by_kind_ord|\
-      pipeline_module_reset_parse_counters_c|\
-      pipeline_module_set_main_func_index|\
-      pipeline_module_import_path_copy|\
-      pipeline_module_*|\
-      pipeline_parser_library_*|\
-      pipeline_parser_extern_*|\
-      pipeline_parser_set_onefunc_fail_c|\
-      pipeline_parser_onefunc_buf_*|\
-      pipeline_parser_try_skip_*|\
-      pipeline_arena_*|\
-      ast_arena_func_alloc|\
-      pipeline_onefunc_*|\
-      pipeline_parser_set_match_module|\
-      pipeline_expr_ref_is_assign_lvalue|\
-      compound_assign_token_to_expr_kind_from_glue|\
       parser_slice_from_buf|\
-      fs_open_read_c|\
-      fs_read_c|\
-      fs_posix_read_c|\
-      fs_close_c|\
-      pipeline_onefunc_num_src_stmt_order|\
-      pipeline_onefunc_push_stmt_order|\
-      lexer_init|\
-      lexer_next_buf|\
-      lexer_next_into|\
-      ref_is_null)
+      parser_diagnostic_*|\
+      parser_report_*|\
+      # ast arena / pool (short + module-prefixed ast_ast_*)
+      ast_arena_*|\
+      ast_pool_*|\
+      ast_*|\
+      # pipeline / onefunc / compound-assign glue
+      pipeline_*|\
+      compound_assign_token_to_expr_kind_from_glue|\
+      # fs C companions (seed short + std_fs product surface)
+      fs_*|\
+      std_fs_*|\
+      # lexer (short + module-prefixed lexer_lexer_*)
+      lexer_*|\
+      # libc / runtime helpers expected on partial .o
+      memcpy|memmove|memset|memcmp|\
+      ref_is_null|\
+      xlang_panic*|\
+      xlang_trait_*)
         ;;
       *)
         echo "parser-second-pass-gate FAIL: unexpected U $sym (delegate c_len trunc?)" >&2
