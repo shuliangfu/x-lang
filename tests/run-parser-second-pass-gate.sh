@@ -69,9 +69,15 @@ EMIT_HEAVY=${XLANG_PARSER_SECOND_PASS_EMIT_HEAVY:-0}
 WPO_DCE=${XLANG_PARSER_SECOND_PASS_WPO_DCE:-0}
 if [ "$EMIT_HEAVY" = "1" ]; then
   # parser.o: slice delegate + safe_helper real-emit floor.
+  # WPO_DCE=1 intentionally shrinks parser.o __text; keep a non-empty floor
+  # and rely on combined (parser.o + thin_glue) as the mass hard gate.
+  if [ "$WPO_DCE" = "1" ]; then
+    MIN_TEXT="${XLANG_PARSER_SECOND_PASS_MIN_TEXT:-2048}"
+  else
+    MIN_TEXT="${XLANG_PARSER_SECOND_PASS_MIN_TEXT:-10000}"
+  fi
   # combined: parser.o + thin_glue; after full parser_x link thin_glue no longer
   # carries seed parse_into_buf C (~9KB), so default combined floor is 125KB.
-  MIN_TEXT="${XLANG_PARSER_SECOND_PASS_MIN_TEXT:-10000}"
   MIN_COMBINED="${XLANG_PARSER_SECOND_PASS_MIN_COMBINED:-125000}"
   # stretch: audit bytes including parser_x-side parse_into_buf C (~9434B);
   # tracking only (not a link object).
