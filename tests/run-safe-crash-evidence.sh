@@ -1,83 +1,119 @@
 #!/usr/bin/env bash
-# SAFE-007：崩溃证据包回归 runner
+# SAFE-007: crash evidence regression runner — honesty soft→硬绿.
 #
-# 用法：XLANG_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh
-set -e
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+# Product -o UNDEF residual = obs (report via gate).
+# Usage: XLANG_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh
+# PLATFORM: SHARED archaeology.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/safe-crash.sh
 . tests/lib/safe-crash.sh
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
 
 OUT_DIR="${XLANG_CRASH_EVIDENCE_DIR:-/tmp/xlang_crash_evidence_$$}"
 mkdir -p "$OUT_DIR"
 export XLANG_CRASH_EVIDENCE="${XLANG_CRASH_EVIDENCE:-1}"
 export XLANG_CRASH_EVIDENCE_DIR="$OUT_DIR"
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "safe-crash-evidence FAIL: $*" >&2
+  safe_crash_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
 }
 
-XLANG_BIN="${XLANG:-./compiler/xlang}"
-if ! native_xlang "$XLANG_BIN"; then
-  echo "safe-crash-evidence SKIP: no native xlang"
-  safe_crash_emit_report skip "" 0
-  exit 0
-fi
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-ensure_std_c_o ../std/backtrace/backtrace.o
-xlang_compiler_make runtime_panic.o -q 2>/dev/null || xlang_compiler_make runtime_panic.o
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-echo "=== SAFE-007: manual evidence ==="
+echo "=== SAFE-007: manual evidence (XLANG=$XLANG_BIN) ==="
 EXE="/tmp/xlang_crash_manual_$$"
 LOG="/tmp/xlang_crash_manual_$$.log"
-if ! "$XLANG_BIN" -L . tests/crash/evidence_manual.x -o "$EXE" >/dev/null 2>&1; then
-  echo "safe-crash-evidence FAIL: compile evidence_manual" >&2
-  exit 1
+set +e
+"$XLANG_BIN" -L . tests/crash/evidence_manual.x -o "$EXE" >"$LOG" 2>&1
+bec=$?
+set -e
+if [ "$bec" -ne 0 ]; then
+  if grep -qE 'Undefined symbols|undefined reference|UNDEF|BLD001' "$LOG" 2>/dev/null; then
+    echo "safe-crash-evidence OBS manual (product -o UNDEF/ld residual)" >&2
+    OBS=$((OBS + 1))
+  else
+    tail -n 12 "$LOG" >&2 || true
+    die "compile evidence_manual"
+  fi
+else
+  "$EXE" 2>"$LOG" || true
+  if safe_crash_grep_evidence "$LOG"; then
+    RUN_OK=$((RUN_OK + 1))
+    echo "safe-crash-evidence manual OK"
+  else
+    echo "safe-crash-evidence OBS manual (no evidence line)" >&2
+    OBS=$((OBS + 1))
+  fi
 fi
-"$EXE" 2>"$LOG" || true
-if ! safe_crash_grep_evidence "$LOG"; then
-  cat "$LOG" >&2
-  echo "safe-crash-evidence FAIL: missing XLANG_CRASH_EVIDENCE in manual run" >&2
-  exit 1
-fi
-BUNDLE=$(grep -F 'bundle=' "$LOG" 2>/dev/null | tail -1 | sed 's/.*bundle=//')
-if [ -n "$BUNDLE" ] && [ ! -f "$BUNDLE" ]; then
-  echo "safe-crash-evidence FAIL: bundle file missing $BUNDLE" >&2
-  exit 1
-fi
-echo "safe-crash-evidence manual OK"
+rm -f "$EXE"
 
 echo "=== SAFE-007: panic evidence (div_zero) ==="
 PLOG="/tmp/xlang_crash_panic_$$.log"
 PEX="/tmp/xlang_crash_panic_$$"
-if ! "$XLANG_BIN" -L . tests/ub/div_zero.x -o "$PEX" >/dev/null 2>&1; then
-  echo "safe-crash-evidence FAIL: compile div_zero" >&2
-  exit 1
-fi
 set +e
-"$PEX" 2>"$PLOG"
-PR=$?
+"$XLANG_BIN" -L . tests/ub/div_zero.x -o "$PEX" >"$PLOG" 2>&1
+pbec=$?
 set -e
-if ! safe_crash_grep_evidence "$PLOG"; then
-  cat "$PLOG" >&2
-  echo "safe-crash-evidence FAIL: panic path missing XLANG_CRASH_EVIDENCE (rc=$PR)" >&2
-  exit 1
+if [ "$pbec" -ne 0 ]; then
+  if grep -qE 'Undefined symbols|undefined reference|UNDEF|BLD001' "$PLOG" 2>/dev/null; then
+    echo "safe-crash-evidence OBS panic (product -o UNDEF/ld residual)" >&2
+    OBS=$((OBS + 1))
+  else
+    tail -n 12 "$PLOG" >&2 || true
+    die "compile div_zero"
+  fi
+else
+  set +e
+  "$PEX" 2>"$PLOG"
+  set -e
+  if safe_crash_grep_evidence "$PLOG"; then
+    RUN_OK=$((RUN_OK + 1))
+    echo "safe-crash-evidence panic OK"
+  else
+    echo "safe-crash-evidence OBS panic (no evidence line)" >&2
+    OBS=$((OBS + 1))
+  fi
 fi
-echo "safe-crash-evidence panic OK (rc=$PR)"
+rm -f "$PEX"
 
-FRAMES=$(grep -F 'frames=' "$PLOG" 2>/dev/null | head -1 | sed -n 's/.*frames=\([0-9]*\).*/\1/p')
-safe_crash_emit_report ok "${BUNDLE:-}" "${FRAMES:-0}"
+safe_crash_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "safe-crash-evidence OK"

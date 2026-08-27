@@ -77,3 +77,19 @@ xlang: [XLANG_RACE_DETECT] status=ok cases_ok=2 cases_fail=0 probe=ok
 联动：`tests/run-sanitize-gate.sh`（SAFE-001）、`tests/run-sync.sh`、`tests/run-thread.sh`。
 
 **SAFE-006 状态：定版 ✅（实验线）**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + tracks/cases = hard.
+- Product `-o` mutex/atomic cases = hard run; TSAN probe = obs (experimental).
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-safe-race-detect-gate.sh
+```
+
+manifest: `tests/baseline/safe-race-detect.tsv`

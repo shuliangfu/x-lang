@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# safe-leak.sh — SAFE-005 共享：ASAN/LSAN 泄漏夜跑辅助
+# safe-leak.sh — SAFE-005 shared helpers (honesty soft→硬绿).
 #
-# 用法（source 后）：
+# Usage (source):
 #   safe_leak_asan_ok
 #   safe_leak_run_x XLANG_BIN src tag
 #   safe_leak_run_probe
-#   safe_leak_emit_report status cases_ok cases_fail leak_count
+#   safe_leak_emit_report status run obs skip
+# PLATFORM: LINUX ASAN primary; Darwin/Windows = skip (platform N/A).
 
 SAFE_LEAK_PREFIX="${XLANG_LEAK_NIGHTLY_PREFIX:-xlang: [XLANG_LEAK_NIGHTLY]}"
 
-# 检测当前 cc 是否支持 -fsanitize=address。
+# Detect whether host cc supports -fsanitize=address.
 safe_leak_asan_ok() {
   local tmp="/tmp/xlang_leak_asan_probe_$$.c"
   local out="/tmp/xlang_leak_asan_probe_$$"
@@ -24,7 +25,8 @@ EOF
   return 1
 }
 
-# 以 ASAN 编译并运行 .x；泄漏或崩溃返回 1。
+# Compile and run .x under ASAN; leak or crash returns 1.
+# PLATFORM: LINUX — ASAN/LSAN night path.
 safe_leak_run_x() {
   local xlang="$1"
   local src="$2"
@@ -50,12 +52,12 @@ safe_leak_run_x() {
   return 1
 }
 
-# 运行故意泄漏 probe；应被 ASAN 检出（非 0 退出）。
+# Intentional leak probe; ASAN must detect (non-zero exit).
 safe_leak_run_probe() {
   local exe="/tmp/xlang_leak_probe_$$"
   if ! cc -fsanitize=address tests/leak/leak_probe.c -o "$exe" 2>/dev/null; then
     echo "safe-leak probe SKIP: compile" >&2
-    return 0
+    return 2
   fi
   local ec=0
   ASAN_OPTIONS=detect_leaks=1:exitcode=23:halt_on_error=1 "$exe" >/dev/null 2>&1 || ec=$?
@@ -68,11 +70,11 @@ safe_leak_run_probe() {
   return 1
 }
 
-# 输出结构化夜跑报告行（OBS-003 bracket 兼容）。
+# Emit structured gate report line.
 safe_leak_emit_report() {
   local status="$1"
-  local cases_ok="$2"
-  local cases_fail="$3"
-  local leak_count="$4"
-  echo "${SAFE_LEAK_PREFIX} status=${status} cases_ok=${cases_ok} cases_fail=${cases_fail} leaks=${leak_count}"
+  local run="${2:-0}"
+  local obs="${3:-0}"
+  local skip="${4:-0}"
+  echo "${SAFE_LEAK_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip}"
 }

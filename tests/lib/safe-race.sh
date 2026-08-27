@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# safe-race.sh — SAFE-006 共享：TSAN 探测器与正例烟测辅助
+# safe-race.sh — SAFE-006 shared helpers (honesty soft→硬绿).
 #
-# 用法（source 后）：
+# Usage (source):
 #   safe_race_tsan_ok
 #   safe_race_run_x XLANG_BIN src tag
 #   safe_race_run_probe
-#   safe_race_emit_report status cases_ok cases_fail probe_status
+#   safe_race_emit_report status run obs skip
+# PLATFORM: SHARED product -o; LINUX TSAN probe experimental.
 
 SAFE_RACE_PREFIX="${XLANG_RACE_DETECT_PREFIX:-xlang: [XLANG_RACE_DETECT]}"
 
-# 检测 cc 是否支持 -fsanitize=thread。
+# Detect whether cc supports -fsanitize=thread.
+# PLATFORM: LINUX primary for TSAN; Darwin often N/A.
 safe_race_tsan_ok() {
   local tmp="/tmp/xlang_race_tsan_probe_$$.c"
   local out="/tmp/xlang_race_tsan_probe_$$"
@@ -30,7 +32,7 @@ EOF
   return 1
 }
 
-# 编译并运行正例 .x；期望退出码 0。
+# Compile and run positive .x case; expect exit 0.
 safe_race_run_x() {
   local xlang="$1"
   local src="$2"
@@ -55,7 +57,8 @@ safe_race_run_x() {
   return 0
 }
 
-# 运行故意竞争 probe；TSAN 应检出（非 0 退出）。
+# Intentional race probe; TSAN should detect (non-zero exit).
+# Returns 0=ok, 1=fail, 2=skip (toolchain).
 safe_race_run_probe() {
   local exe="/tmp/xlang_race_probe_$$"
   if ! cc -fsanitize=thread -pthread tests/safe/race_probe.c -o "$exe" 2>/dev/null; then
@@ -73,11 +76,11 @@ safe_race_run_probe() {
   return 1
 }
 
-# 输出结构化实验线报告行。
+# Emit structured gate report line.
 safe_race_emit_report() {
   local status="$1"
-  local cases_ok="$2"
-  local cases_fail="$3"
-  local probe_status="$4"
-  echo "${SAFE_RACE_PREFIX} status=${status} cases_ok=${cases_ok} cases_fail=${cases_fail} probe=${probe_status}"
+  local run="${2:-0}"
+  local obs="${3:-0}"
+  local skip="${4:-0}"
+  echo "${SAFE_RACE_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip}"
 }
