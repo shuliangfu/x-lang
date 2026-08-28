@@ -1,7 +1,9 @@
 # STD-106 std.log rotate + async manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
-# C smoke observational; report check=/run=/skip=. Section ## 5. Gate in archive DOC.
+# Gate honesty residual (2026-08-28): prefer asm + LINK; refuse XLANG
+# fallthrough / auto-make / bootstrap-link / ensure rebuild; check+host-C
+# observational; rotate_async.x product -o exit0 hard; report run=/obs=/skip=.
+# Section ## 5. Gate in archive DOC. Script anchors are full tests/… paths.
 # Refuse top-level analysis/std-log-rotate-async-v1.md resurrect.
 min_apis	3
 read_path	section	## 1. 阅读路径	15min
