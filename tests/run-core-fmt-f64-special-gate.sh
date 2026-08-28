@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
-# CORE-011：core.fmt f64 NaN/Inf 与精度策略门禁（假权威诚实）。
+# CORE-011: core.fmt f64 NaN/Inf/precision gate — honesty soft→硬绿.
 #
-# 用法：./tests/run-core-fmt-f64-special-gate.sh
-# wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
-# 2026-08-25: runnable hard-green (goldens call live fmt_f64_*); check observational.
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft SKIP→OK (no native still gate OK) + soft auto-make +
+# bootstrap-link wrap + check SKIP narrative retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die (refuse soft SKIP→OK / soft auto-make). Product -o
+# f64_special.x exit0 = hard run; check = obs. Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-core-fmt-f64-special-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/core-fmt-f64-special.sh
+. tests/lib/core-fmt-f64-special.sh
 
 DOC="${XLANG_CORE_FMT_F64_SPECIAL_DOC:-analysis/archive/core/core-fmt-f64-special-v1.md}"
 MANIFEST="${XLANG_CORE_FMT_F64_SPECIAL_TSV:-tests/baseline/core-fmt-f64-special.tsv}"
@@ -16,33 +23,60 @@ FMT_X="core/fmt/mod.x"
 STD_FMT_X="std/fmt/mod.x"
 LIB="tests/lib/core-fmt-f64-special.sh"
 SMOKE="tests/fmt/f64_special.x"
+SMOKE_EXPECT=0
 MIN_SYMBOLS=6
 
-# shellcheck source=tests/lib/core-fmt-f64-special.sh
-. tests/lib/core-fmt-f64-special.sh
+PREFIX="${XLANG_CORE_FMT_F64_SPECIAL_PREFIX:-xlang: [XLANG_CORE_FMT_F64_SPECIAL]}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "core-fmt-f64-special gate FAIL: $*" >&2
+  core_fmt_f64_special_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== CORE-011: f64 NaN/Inf/prec manifest (archive DOC) ==="
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== CORE-011: f64 NaN/Inf/prec (prefer asm; hard; refuse soft auto-make / soft SKIP→OK) ==="
 if [ -f analysis/core-fmt-f64-special-v1.md ]; then
-  echo "core-fmt-f64-special gate FAIL: top-level DOC resurrected (live = archive/core/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/core/)"
 fi
 for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_X" "$STD_FMT_X" "$SMOKE"; do
-  if [ ! -f "$f" ]; then
-    echo "core-fmt-f64-special gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -53,10 +87,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
 done < "$MANIFEST"
 
 for kw in NaN Inf fmt_f64_to_buf_prec FMT_F64_DEFAULT_PREC 截断; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "core-fmt-f64-special gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
 
 MISS=0
@@ -82,74 +113,54 @@ while IFS=$'\t' read -r item_id kind anchor _mod_path _notes; do
 done < "$MANIFEST"
 
 if [ "$SYM_N" -lt "$MIN_SYMBOLS" ] || [ "$MISS" -gt 0 ]; then
-  echo "core-fmt-f64-special gate FAIL: symbols=${SYM_N} miss=${MISS}" >&2
-  exit 1
+  die "symbols=${SYM_N} miss=${MISS}"
 fi
 
 sym_miss="$(core_fmt_f64_special_symbols_ok "$FMT_X" "$STD_FMT_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  core_fmt_f64_special_emit_report "fail" 0 1
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "core-fmt-f64-special manifest OK (symbols=${SYM_N})"
 
 # Goldens must call live core.fmt long names (not std.fmt short to_buf aliases).
 for kw in fmt_f64_to_buf fmt_f64_to_buf_prec; do
-  if ! grep -qF "fmt.$kw" "$SMOKE" 2>/dev/null; then
-    echo "core-fmt-f64-special gate FAIL: smoke missing live call fmt.$kw" >&2
-    exit 1
-  fi
+  grep -qF "fmt.$kw" "$SMOKE" 2>/dev/null || die "smoke missing live call fmt.$kw"
 done
 if grep -qE 'fmt\.(to_buf|to_buf_prec)\(' "$SMOKE" 2>/dev/null; then
-  echo "core-fmt-f64-special gate FAIL: smoke still uses std.fmt short aliases on core.fmt" >&2
-  exit 1
+  die "smoke still uses std.fmt short aliases on core.fmt"
 fi
 
-SKIP=1
-CHECK_OK=0
-RUN_OK=0
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== CORE-011: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make 2>/dev/null || true
-  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "core-fmt-f64-special gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-  OUT="/tmp/xlang_core_fmt_f64_$$"
-  LOG="/tmp/xlang_core_fmt_f64_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq 0 ]; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "core-fmt-f64-special gate FAIL runnable exit=$exitcode" >&2
-      core_fmt_f64_special_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  else
-    echo "core-fmt-f64-special gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    core_fmt_f64_special_emit_report "fail" "$CHECK_OK" 0 0
-    exit 1
-  fi
-else
-  echo "core-fmt-f64-special gate SKIP typeck (no native xlang)" >&2
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+# Observational check (paused) — never soft SKIP→OK / never soft auto-make.
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "core-fmt-f64-special OBS check (paused / CHK residual ec=$chk_ec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-core_fmt_f64_special_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+exe="/tmp/xlang_core_fmt_f64_$$"
+trap 'rm -f "$exe"' EXIT
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >/tmp/xlang_core_fmt_f64_o.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  tail -n 12 /tmp/xlang_core_fmt_f64_o.log 2>/dev/null || true
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$exe" >/dev/null 2>&1
+run_ec=$?
+set -e
+rm -f "$exe"
+[ "$run_ec" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$run_ec (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+
+core_fmt_f64_special_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "core-fmt-f64-special gate OK"
+ok_report
