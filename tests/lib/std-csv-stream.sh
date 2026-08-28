@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# std-csv-stream.sh — STD-128 manifest 与烟测辅助（F-csv v1：csv.x）
+# std-csv-stream.sh — STD-128 stream reader/writer helpers.
+#
+# Usage (after source):
+#   std_csv_stream_symbols_ok MOD_X CSV_X TSV
+#   std_csv_stream_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
 
 STD_CSV_STREAM_PREFIX="${XLANG_STD_CSV_STREAM_PREFIX:-xlang: [XLANG_STD_CSV_STREAM]}"
 
+# Validate manifest api/symbol/file anchors. Echo miss count; return 0 when miss=0.
 std_csv_stream_symbols_ok() {
   local mod_x="$1"
   local csv_x="$2"
@@ -41,57 +47,11 @@ std_csv_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_csv_stream_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std_csv_stream_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-csv-stream FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-csv-stream FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# C 烟测：直接调用 csv_stream_smoke_c（需 sync.o 来自 csv.o）。
-std_csv_stream_run_c_smoke() {
-  local csv_o="$1"
-  local src="tests/csv/stream_smoke_ok.c"
-  local out="/tmp/xlang_std_csv_stream_c_$$"
-  if [ ! -f "$csv_o" ]; then
-    echo "std-csv-stream FAIL: missing $csv_o" >&2
-    return 1
-  fi
-  if [ ! -f "$src" ]; then
-    echo "std-csv-stream SKIP c smoke (no $src)" >&2
-    return 1
-  fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$csv_o" 2>/dev/null; then
-    echo "std-csv-stream FAIL: compile C smoke" >&2
-    return 1
-  fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-csv-stream FAIL: C smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=; retired c=/x=).
 std_csv_stream_emit_report() {
-  echo "${STD_CSV_STREAM_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CSV_STREAM_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

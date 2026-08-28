@@ -12,6 +12,11 @@
 | `writer` / `append_row` / `len` | 写迭代 |
 | `smoke` | 多行 C 烟测 |
 
-## 门禁
+## Gate
 
 `./tests/run-std-csv-stream-gate.sh`
+
+Honesty soft→硬绿 (2026-08-28): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c / soft `ensure_std_c_o`; host-C archaeology
+(prebuilt `csv.o`)＋check＋tip product UNDEF = obs; report `run=`／`obs=`／`skip=`
+(retired `c=`／`x=`). PLATFORM: SHARED.

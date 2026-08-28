@@ -26,7 +26,7 @@ v1 仍默认 **seq_cst**；未新增带 Ordering 参数的重载。
 
 ---
 
-## 3. Gate
+## Gate
 
 ```bash
 ./tests/run-std-atomic-widen-gate.sh
@@ -34,4 +34,9 @@ v1 仍默认 **seq_cst**；未新增带 Ordering 参数的重载。
 
 烟测：`tests/atomic/widen_16_64.x`
 
-报告：`xlang: [XLANG_STD146_ATOMIC_WIDEN]`
+Honesty soft→硬绿 (2026-08-28): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c / soft `ensure_std_c_o`／`ensure_runtime_atomic_glue_o`;
+check＋tip product UNDEF = obs; report `run=`／`obs=`／`skip=` (retired `exec=`).
+PLATFORM: SHARED.
+
+报告：`xlang: [XLANG_STD146_ATOMIC_WIDEN] status=… run=… obs=… skip=…`
