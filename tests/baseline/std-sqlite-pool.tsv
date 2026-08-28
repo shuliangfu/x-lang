@@ -1,20 +1,20 @@
-# STD-084 std.db.sqlite pool manifest
-# 列：item_id	kind	anchor	mod_path	notes
+# STD-084 std.db.sqlite pool manifest (product API anchors)
+# columns: item_id	kind	anchor	mod_path	notes
 # min_pool_apis	4
 read_path	section	## 1. 目标	analysis/archive/std/std-sqlite-pool-v1.md
 api_doc	section	## 2. pool API（v1）	analysis/archive/std/std-sqlite-pool-v1.md
 vectors_doc	section	## 3. 金样向量	reuse_handle
-verify	section	## 4. Gate	analysis/archive/std/std-sqlite-pool-v1.md
-api_open	api	pool_open	std/db/sqlite/mod.x	开池
-api_acquire	api	pool_acquire	std/db/sqlite/mod.x	借连
-api_release	api	pool_release	std/db/sqlite/mod.x	归还
-api_close	api	pool_close	std/db/sqlite/mod.x	关池
+verify	section	## Gate	analysis/archive/std/std-sqlite-pool-v1.md
+api_open	api	open	std/db/sqlite/mod.x	开池（DbPool overload）
+api_acquire	api	acquire	std/db/sqlite/mod.x	借连
+api_release	api	release	std/db/sqlite/mod.x	归还
+api_close	api	close	std/db/sqlite/mod.x	关池（DbPool overload）
 symbol_pool_c	symbol	db_pool_open_c	std/db/sqlite/sqlite.x	开池
 symbol_acquire_c	symbol	db_pool_acquire_c	std/db/sqlite/sqlite.x	借连
 symbol_smoke_c	symbol	db_sqlite_pool_smoke_c	std/db/sqlite/sqlite.x	烟测
 smoke_c	file	tests/std-sqlite/pool_roundtrip_ok.c	C 入口
 smoke_x	smoke	tests/std-sqlite/pool_roundtrip.x	.x 往返
 vectors	file	tests/baseline/std-sqlite-pool-vectors.tsv	向量
-lib	script	lib/std-sqlite-pool.sh	tests/lib/std-sqlite-pool.sh
-gate	script	run-std-sqlite-pool-gate.sh	tests/run-std-sqlite-pool-gate.sh
+lib	script	tests/lib/std-sqlite-pool.sh	tests/lib/std-sqlite-pool.sh
+gate	script	tests/run-std-sqlite-pool-gate.sh	tests/run-std-sqlite-pool-gate.sh
 cross_std070	cross_ref	analysis/archive/std/std-sqlite-stmt-cache-v1.md	STD-070
