@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
-# STD-077: std.cli gate — honesty soft auto-make →硬绿.
+# STD-077: std.cli gate — honesty residual soft auto-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true` + soft
-# mod.o/cli.o make) + soft XLANG fallthrough (explicit-bad still picks another
-# binary) + check=/run=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product roundtrip.x -o exit0 = hard run.
-# check residual = obs (paused 2026-08-05). Host-C smoke remains observational
-# archaeology (not hard green). Report: run=/obs=/skip=.
+# Honesty: residual soft auto-make (`xlang_compiler_make … cli.o || true`
+# before host-C cc) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make / prefer-c). Product roundtrip.x -o exit0 = hard run.
+# check residual = obs (paused 2026-08-05). Host-C archaeology = obs only
+# (prebuilt cli.o; refuse rebuild). Report: run=/obs=/skip=.
+# Keep ## 3. Gate. Keep keywords STD-077 / parse_from_iter / subcommand /
+# write_usage / args_iter.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-cli-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/ci-host.sh
-. tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CLI_DOC:-analysis/archive/std/std-cli-v1.md}"
 MANIFEST="${XLANG_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
@@ -27,8 +24,8 @@ LIB="tests/lib/std-cli.sh"
 SMOKE_X="tests/std-cli/roundtrip.x"
 SMOKE_C="tests/std-cli/cli_smoke_ok.c"
 COOKBOOK="examples/cookbook/cli_subcommand.x"
+README="std/cli/README.md"
 MIN_APIS=6
-SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-cli.sh
 . "$LIB"
@@ -73,13 +70,18 @@ resolve_shu() {
 }
 
 echo "=== STD-077: std.cli manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CLI_IMPL" "$SMOKE_X" "$SMOKE_C" "$COOKBOOK" std/cli/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CLI_IMPL" "$SMOKE_X" "$SMOKE_C" "$COOKBOOK" "$README"; do
   [ -f "$f" ] || die "missing $f"
 done
+[ ! -f analysis/std-cli-v1.md ] || die "dual-authority fossil analysis/std-cli-v1.md (archive live)"
 
 for kw in STD-077 parse_from_iter subcommand write_usage args_iter; do
-  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null && ! grep -qF -- "$kw" "$MANIFEST" 2>/dev/null; then
+    die "doc/manifest missing '$kw'"
+  fi
 done
+
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -108,31 +110,28 @@ if [ "${XLANG_STD_CLI_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-# Observational host-C archaeology smoke (not hard green).
-# PLATFORM: SHARED archaeology — product honesty is roundtrip.x via asm.
-echo "=== STD-077: cli c smoke (observational) ==="
-C_NOTE=0
-xlang_compiler_make ../std/cli/cli.o >/dev/null 2>&1 || true
-if cc -std=c11 -O1 -o /tmp/xlang_cli_smoke "$SMOKE_C" std/cli/cli.o 2>/dev/null; then
-  if /tmp/xlang_cli_smoke >/dev/null 2>&1; then
-    C_NOTE=1
-    echo "std-cli c smoke OK (observational)"
-  fi
-  rm -f /tmp/xlang_cli_smoke
-fi
-if [ "$C_NOTE" -eq 0 ]; then
-  echo "std-cli OBS c smoke (archaeology; refuse soft SKIP→OK)" >&2
-  OBS=$((OBS + 1))
-fi
-echo "std-cli c_smoke_note=${C_NOTE}"
-
 XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-echo "=== STD-077: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+echo "=== STD-077: smoke (XLANG=$XLANG_BIN; host-C=obs; check=obs; product -o hard) ==="
+
+# Host-C archaeology = obs only; refuse soft ensure/auto-make.
+# PLATFORM: SHARED — missing prebuilt .o = obs, not soft SKIP→OK.
+set +e
+std_cli_host_c_obs "$SMOKE_C"
+c_rc=$?
+set -e
+# Presence / C-smoke success is not a green signal (product honesty is roundtrip.x).
+if [ "$c_rc" -ne 0 ]; then
+  echo "std-cli OBS host-C (rc=$c_rc; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
+else
+  echo "std-cli OBS host-C c smoke present (not a green signal; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
+fi
 
 set +e
-"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_cli_check.log 2>&1
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_cli_check_$$.log 2>&1
 chk=$?
 set -e
 if [ "$chk" -ne 0 ]; then
@@ -140,26 +139,14 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-OUT="/tmp/xlang_std_cli_$$"
-LOG="/tmp/xlang_std_cli_build_$$.log"
-rm -f "$OUT" "$LOG"
-set +e
-"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
-o_ec=$?
-set -e
-if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
-  tail -n 20 "$LOG" 2>/dev/null || true
-  rm -f "$OUT"
-  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+# Product roundtrip.x -o exit0 = hard (leave product UNDEF as a later knife).
+# PLATFORM: SHARED — refuse soft SKIP→OK. G.7: lib std_cli_run_smoke.
+if std_cli_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-cli OK: product roundtrip"
+else
+  die "product -o failed (refuse soft SKIP→OK)"
 fi
-set +e
-"$OUT" >/dev/null 2>&1
-exitcode=$?
-set -e
-rm -f "$OUT"
-[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
-RUN_OK=$((RUN_OK + 1))
-echo "std-cli OK: product -o"
 
 std_cli_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-cli gate OK"
