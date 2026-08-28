@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# std-url.sh — STD-076 manifest 与烟测辅助
+# std-url.sh — STD-076 manifest helpers (parse / build / query).
+#
+# Usage (after source):
+#   std_url_symbols_ok MOD_X URL_X TSV
+#   std_url_run_smoke XLANG SRC [TAG]
+#   std_url_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_URL_PREFIX="${XLANG_STD_URL_PREFIX:-xlang: [XLANG_STD_URL]}"
 
-# 遍历 manifest 校验 symbol/file/smoke。
+# Validate manifest api/symbol/file/smoke/vectors anchors.
+# Echo miss count; return 0 when miss=0.
 std_url_symbols_ok() {
   local mod_x="$1"
   local url_x="$2"
@@ -41,7 +48,8 @@ std_url_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Compile and run .x round-trip smoke; exit 0 required.
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
 std_url_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -65,10 +73,11 @@ std_url_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_url_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_URL_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_URL_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
