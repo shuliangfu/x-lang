@@ -62,10 +62,13 @@
 
 **Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make；产品 `-o` 硬绿；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
 
-manifest：`tests/baseline/core-types-i16-u16.tsv`  
-报告：`xlang: [XLANG_CORE_TYPES_I16_U16] status=ok run=… obs=… skip=…`
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-core-types.sh`（`xlang_compiler_make -q || xlang_compiler_make` + auto-make `std/base64/base64.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/core-types-size/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。SCALAR leftover runner is honesty-closed；do not resurrect auto-make / prefer-c wrap.
 
-**状态：定版 ✅（honesty soft→硬绿）**
+manifest：`tests/baseline/core-types-i16-u16.tsv`  
+报告：`xlang: [XLANG_CORE_TYPES_I16_U16] status=ok run=… obs=… skip=…`  
+leftover runner：`xlang: [CORE_TYPES] status=ok run=… obs=… skip=…`
+
+**状态：定版 ✅（honesty residual auto-make）**
 
 ---
 
