@@ -29,11 +29,11 @@ v1 **不含**完整链接器：无 symtab/rela/phdr 写入；仅最小 ET_REL �
 
 ---
 
-## 3. Gate
+## Gate
 
-```
-xlang: [XLANG_STD121_ELF_WRITE] status=ok c=1 x=1 skip=0
-std-elf-write gate OK
+```bash
+./tests/run-std-elf-write-gate.sh
 ```
 
-向量：`tests/baseline/std-elf-write-vectors.tsv`。
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/elf/elf.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
+

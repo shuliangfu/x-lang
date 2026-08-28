@@ -40,19 +40,13 @@
 
 ---
 
-## 4. Gate
+## Gate
 
 ```bash
 ./tests/run-std-elf-deep-gate.sh
 ```
 
-```
-xlang: [XLANG_STD063_ELF_DEEP] status=ok deep_c=1 deep_x=0 skip=1
-```
-
-无 native `xlang` 时 manifest 仍须绿；C 烟测须过。
-
----
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/elf/elf.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
 
 ## 5. 联动
 
