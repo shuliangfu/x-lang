@@ -1,37 +1,101 @@
 #!/usr/bin/env bash
+# std.random smoke: tests/random/main.x + rng_roundtrip.x product -o exit 0
 #
-# 【文件职责】std.random 模块的回归测试脚本；编译并运行 tests/random/*.x，校验退出码。
-# 【测试目的】覆盖 fill_bytes、u32、u64、range_u32、bool，确保 API 行为符合预期。
-# 【运行方式】在仓库根目录执行 ./tests/run-random.sh；可选环境变量 XLANG 指定编译器路径。
-#
-set -e
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-fi
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-XLANG="${XLANG:-./compiler/xlang}"
-run_one() {
-  local name="$1"
-  local src="$2"
-  local exe="/tmp/xlang_random_$$_${name}"
-  if ! $XLANG build -L . "$src" -o "$exe" 2>&1; then
-    echo "random test $name: compile failed"
-    return 1
-  fi
-  local exitcode=0
-  $exe >/dev/null 2>&1 || exitcode=$?
-  rm -f "$exe"
-  if [ "$exitcode" -ne 0 ]; then
-    echo "random test $name: expected exit 0, got $exitcode"
-    return 1
-  fi
-  return 0
+PREFIX="${XLANG_RANDOM_PREFIX:-xlang: [RANDOM]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "random FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-run_one "main" "tests/random/main.x" || exit 1
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_case() {
+  local tag="$1" src="$2"
+  local exe="/tmp/xlang_random_${tag}_$$"
+  local log="/tmp/xlang_random_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne 0 ]; then
+    die "$tag expected exit 0, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+}
+
+echo "=== random gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+run_case main tests/random/main.x
+run_case rng_roundtrip tests/random/rng_roundtrip.x
+ok_report
 echo "random test OK (all)"
-rm -f /tmp/xlang_random_$$_*
