@@ -1,6 +1,8 @@
 # STD-048 std.queue concurrent manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
+# 2026-08-26 honesty: verify section → ## 4. Gate.
+# 2026-08-28 honesty residual: report run=/obs=/skip= (retired check=/main=/sync=/c=).
 sync_api	section	## 2. SyncQueue_i32 API	sync_new
 api_sync_new	api	sync_new	std/queue/mod.x	创建
 api_sync_push	api	sync_push	std/queue/mod.x	入队

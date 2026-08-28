@@ -1,7 +1,7 @@
 # STD-048：std.queue 并发安全可选封装 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-28（honesty residual XLANG fallthrough／auto-make →硬绿）· 原稿 2026-06-18  
+> 状态：**定版（v1.2）** · Gate honesty residual XLANG fallthrough／auto-make →硬绿  
 > 关联：`Queue_i32`（单线程）、`std.sync`、`std.channel`
 
 ---
@@ -57,15 +57,33 @@ v1 **无阻塞 pop**；需阻塞等待请用 `std.channel`。
 ./tests/run-std-queue-concurrent-gate.sh
 ```
 
-Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `check` observational
-(check gate paused 2026-08-05); `tests/queue/main.x` (`Queue_i32`) exit 0 hard-fail;
-`sync_queue_roundtrip.x` + C contention observational (SyncQueue / queue-sync product
-UNDEF residual — not soft); no native xlang → **FAIL** (not soft SKIP→OK).
-Report `check=` / `main=` / `sync=` / `c=` / `skip=`.
+Honesty residual（2026-08-28）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- 显式坏 `XLANG`／缺 native **硬 die**（拒 XLANG fallthrough／soft auto-make／prefer-c／soft SKIP→OK／soft `ensure_std_c_o` 重建／extra CLI `.o`／C contention auto-make）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `tests/queue/main.x`（`Queue_i32`）产品 `-o` **exit 0 硬失败**（硬绿信号＝`run=`）
+- `sync_queue_roundtrip.x` **观测**（SyncQueue / queue-sync 产品 UNDEF residual — not soft）
+- Host-C archaeology **仅观测**（现成 `std/queue/queue.o`＋`std/sync/sync.o`＋`compiler/runtime_queue_contention.o` only；拒 ensure／auto-make 重建；不传 extra CLI `.o`；C smoke 文件存在仍 TSV 必有，compile/run 非绿）
+- 报告行：`run=`／`obs=`／`skip=`（退役 `check=`／`main=`／`sync=`／`c=` 当硬绿）
+- 禁顶层 DOC 复活（live = `analysis/archive/std/`）
+- 保留 `## 4. Gate`
+- 关键词：STD-048／SyncQueue_i32／std.channel／sync_smoke／sync_queue_contention_smoke_c
+
+manifest：`tests/baseline/std-queue-concurrent.tsv`
 
 ```
-xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok check=1 main=1 sync=0 c=1 skip=0
+xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok run=1 obs=0|1|2 skip=0
+std-queue-concurrent gate OK
 ```
+
+F-queue v1／v2 仍硬委托本闸（须保持 exit 0）。
+
+### 4.1 Changelog
+
+- 2026-06-18：v1 SyncQueue_i32 + 选型文档 + 竞争烟测。
+- 2026-08-26：Honesty v1.1（prefer asm；check／sync／C 观测；`## 4. Gate`；报告 `check=`／`main=`／`sync=`／`c=`）。
+- 2026-08-28：Honesty residual v1.2（拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建／C contention auto-make；报告 `run=`／`obs=`／`skip=`；未啃产品 `std/queue`）。
 
 ---
 
@@ -75,3 +93,4 @@ xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok check=1 main=1 sync=0 c=1 skip=0
 |------|------|------|
 | v1 | 2026-06-18 | SyncQueue_i32 + 选型文档 + 竞争烟测 |
 | v1.1 | 2026-08-26 | Gate honesty：`## 4. Gate`；prefer asm；main 硬绿；sync／C 观测 |
+| v1.2 | 2026-08-28 | Honesty residual：拒 XLANG fallthrough／auto-make／ensure；报告 `run=`／`obs=`／`skip=` |
