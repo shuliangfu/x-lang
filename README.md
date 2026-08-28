@@ -435,7 +435,7 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 | macOS L4 + full bstrict (pin) | ✅ **129/129** @ **`f7424ae47`** (wall ~63m38s) |
 | Residual tip (≠ pin) | inventory **present 0** · **prefer pure-asm product default** · TYPE_DYN/vtable **F1–F7** dual-end L2 green on `self-hosting` · dest extras nested dest-stamp closed through `[][2][]*T` · **no pin raise** on daily L2 leaves |
 | Windows hybrid / phys-del min-gate | ✅ re-proved green (wave922 lineage); tip drift still requires re-proof |
-| Gold host | **Ubuntu x86_64** (SSH lab often `ubuntu-remote-server`; LAN `ubuntu-server` may be off-site unreachable) |
+| Gold host | **Ubuntu x86_64** (SSH home LAN: `ubuntu-server`; off-site lab may use `ubuntu-remote-server` / frp) |
 | Product binary under test | This-wave `compiler/xlang_asm` (g05 / pure-ld relink) — **never** leftover Stage2 `xlang_asm2` or old `stage1` |
 | `xlang check` gates | **Paused** on default L2/L4 product rhythm during self-host close-out; not a default green/red for residual leaves |
 

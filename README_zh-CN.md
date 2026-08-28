@@ -435,7 +435,7 @@ xlang/
 | macOS L4 + 全量 bstrict（钉盘） | ✅ **129/129** @ **`f7424ae47`**（wall ~63m38s） |
 | residual tip（≠ 钉盘） | inventory **present 0** · **prefer pure-asm 产品默认** · TYPE_DYN／vtable **F1–F7** 双端 L2 绿（`self-hosting`）· dest extras 嵌套 dest-stamp 已收到 `[][2][]*T` · 日常 L2 **不升钉** |
 | Windows hybrid / phys-del min-gate | ✅ 已复证绿（wave922 谱系）；tip 漂移仍须复证 |
-| 金标主机 | **Ubuntu x86_64**（SSH 实验室常用 `ubuntu-remote-server`；局域网 `ubuntu-server` 外地可能不可达） |
+| 金标主机 | **Ubuntu x86_64**（回家局域网：`ubuntu-server`；外地实验室可用 `ubuntu-remote-server`／frp） |
 | 验收二进制 | 本波 g05 / pure-ld relink 的 `compiler/xlang_asm` — **禁止**残留 Stage2 `xlang_asm2` 或旧 stage1 |
 | `xlang check` 闸门 | 自举收口期间默认 L2/L4 产品节奏下 **暂停**；不是 residual 叶的默认绿/红判据 |
 
