@@ -13,7 +13,7 @@ layer_d4	layers	D4-backend	analysis/archive/std/std-sqlite-prereq-v1.md	draft	st
 api_open	api	open	std/db/sqlite/mod.x	draft	连接
 api_close	api	close	std/db/sqlite/mod.x	draft	关闭
 api_exec	api	exec	std/db/sqlite/mod.x	draft	执行
-api_query	api	query_rows	std/db/sqlite/mod.x	draft	查询
+api_query	api	rows	std/db/sqlite/mod.x	draft	查询
 api_begin	api	begin_tx	std/db/sqlite/mod.x	draft	事务
 api_commit	api	commit	std/db/sqlite/mod.x	draft	提交
 api_rollback	api	rollback	std/db/sqlite/mod.x	draft	回滚
@@ -25,5 +25,5 @@ lib	script	lib/std-sqlite.sh	tests/lib/std-sqlite.sh	-	共享库
 gate	script	run-std-sqlite-prereq-gate.sh	tests/run-std-sqlite-prereq-gate.sh	-	manifest
 runner	script	run-std-sqlite.sh	tests/run-std-sqlite.sh	-	typeck runner
 smoke_typeck	smoke	tests/std-sqlite/draft_typeck.x	tests/std-sqlite/draft_typeck.x	-	check 金样
-cross_exc	cross_ref	analysis/exc-error-code-layer-v1.md	analysis/exc-error-code-layer-v1.md	EXC-003	错误码
-cross_roadmap	cross_ref	analysis/doc-public-roadmap-v1.md	analysis/doc-public-roadmap-v1.md	DOC-005	路线图
+cross_exc	cross_ref	analysis/archive/exc/exc-error-code-layer-v1.md	analysis/archive/exc/exc-error-code-layer-v1.md	EXC-003	错误码
+cross_roadmap	cross_ref	analysis/archive/doc/doc-public-roadmap-v1.md	analysis/archive/doc/doc-public-roadmap-v1.md	DOC-005	路线图
