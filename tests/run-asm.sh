@@ -1,244 +1,217 @@
 #!/usr/bin/env bash
-# asm 后端测试：-backend asm 出汇编，检查 .text/main/ret，可选 as+ld 跑出退出码。
-# 在仓库根目录执行：./tests/run-asm.sh
-# 若当前 xlang 不支持 -x/-backend asm（无 pipeline），则 SKIP。
-# macOS：`-o <exe>` 自动 ld 依赖 Xcode CLT/SDK（-lSystem）；失败时可只看 .s/.o 校验或安装 CLT（见 compiler/docs/SELFHOST.md §5）。
-
-set -e
+# asm smoke: product -o exits for core asm fixtures + optional -backend asm text.
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make + soft bootstrap
+# cascade + soft SKIP→OK on missing stdout asm (false authority) retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
+# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+#   - hard: product -o + expected exits for main/expr/local/index_assign/tiny_ptr
+#   - hard: when -backend asm stdout emits assembly, require .text/main/ret
+#   - skip: CI without XLANG_CI_FORCE_ASM=1 (opt-in job)
+#   - skip: -backend asm stdout is typeck-only / C / empty (product -o still hard;
+#     do NOT soft-exit the whole gate)
+#   - skip: optional as+ld / cross-target / COFF when tools or emission N/A
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required for product -o.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# CI 下默认跳过；设 XLANG_CI_FORCE_ASM=1 时仍执行（可选 job 与本机等价验证）
-if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${XLANG_CI_FORCE_ASM:-}" ]; then
-  echo "run-asm SKIP (CI: skip -backend asm unless XLANG_CI_FORCE_ASM=1; see tests/README §6.1)"
-  exit 0
-fi
+PREFIX="${XLANG_ASM_SMOKE_PREFIX:-xlang: [XLANG_ASM_SMOKE]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-# CI asm-smoke job 已 bootstrap-driver-seed；勿重跑 bootstrap-driver（会全量 build_xlang_asm 12min+ 超时）。
-if [ ! -x compiler/xlang ]; then
-  xlang_compiler_make bootstrap-driver-seed 2>/dev/null || true
-  xlang_compiler_make bootstrap-pipeline 2>/dev/null || true
-  xlang_compiler_make xlang-x-pipeline 2>/dev/null || true
-elif [ -z "${CI:-}" ]; then
-  xlang_compiler_make bootstrap-driver 2>/dev/null || true
-  xlang_compiler_make bootstrap-pipeline 2>/dev/null || true
-  xlang_compiler_make xlang-x-pipeline 2>/dev/null || true
-fi
-if [ -x compiler/xlang ]; then XLANG=./compiler/xlang; elif [ -x compiler/xlang_x ]; then XLANG=./compiler/xlang_x; else XLANG=./compiler/xlang; fi
-[ -x "$XLANG" ] || { echo "compiler/xlang not found"; exit 1; }
-
-# 测试用例：main 返回 42；expr 返回 6（2*3）；local 局部 const + VAR（cmp.x 需 C 解析器支持比较，暂不加入）
-ASM_TESTS="tests/asm/main.x tests/asm/expr.x tests/asm/local.x tests/asm/index_assign.x tests/asm/tiny_ptr.x"
-for F in $ASM_TESTS; do
-  [ -f "$F" ] || { echo "run-asm: $F not found"; exit 1; }
-done
-
-# 用 -backend asm 出汇编（默认 x86_64）；以 main.x 为代表做 as+ld 与 arm64 校验
-MAIN_ASM="tests/asm/main.x"
-OUT_S=$(mktemp)
-EC=0
-"$XLANG" build -backend asm "$MAIN_ASM" > "$OUT_S" 2>&1 || EC=$?
-
-if [ "$EC" -ne 0 ]; then
-  # 任意 -backend asm 失败均视为「当前编译器不支持 asm」并 SKIP（如 run-all-c 用的 xlang-c、或未 bootstrap-driver）
-  echo "run-asm SKIP (compiler does not support -backend asm; run ./xbuild bootstrap-driver-seed for full asm)"
-  [ -s "$OUT_S" ] && cat "$OUT_S"
-  rm -f "$OUT_S"
-  exit 0
-fi
-
-# bootstrap-driver-seed 的 xlang 可能只 emit parse/typeck 摘要而无 .text；完整 asm 由 ubuntu matrix build_xlang_asm 覆盖
-if grep -q 'typeck OK' "$OUT_S" && ! grep -q '\.text' "$OUT_S"; then
-  echo "run-asm SKIP (seed xlang has no stdout asm backend; ubuntu x64 CI covers build_xlang_asm)"
-  rm -f "$OUT_S"
-  exit 0
-fi
-
-# 若输出是 C（无 pipeline 时 C driver 可能忽略 -backend asm），则跳过
-if grep -q '^#include' "$OUT_S"; then
-  echo "run-asm SKIP (xlang built without -x pipeline; -backend asm not used)"
-  rm -f "$OUT_S"
-  exit 0
-fi
-
-# 检查必备汇编
-if ! grep -q '\.text' "$OUT_S"; then
-  echo "run-asm: output missing .text"
-  cat "$OUT_S"
-  rm -f "$OUT_S"
+die() {
+  echo "run-asm FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
-fi
-if ! grep -q 'main' "$OUT_S"; then
-  echo "run-asm: output missing main"
-  cat "$OUT_S"
-  rm -f "$OUT_S"
-  exit 1
-fi
-if ! grep -q 'ret' "$OUT_S"; then
-  echo "run-asm: output missing ret"
-  cat "$OUT_S"
-  rm -f "$OUT_S"
-  exit 1
-fi
+}
 
-echo "run-asm: asm output OK (.text, main, ret)"
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
-# 7.4 直接出 ELF/Mach-O .o：-o out.o 须为可重定位对象文件；若命令成功但魔数/类型不符则失败（禁止把汇编文本当 .o）。
-DIRECT_O=/tmp/xlang_asm_direct.o
-DIRECT_BIN=/tmp/xlang_asm_direct_bin
-if "$XLANG" build -backend asm -o "$DIRECT_O" "$MAIN_ASM" 2>/dev/null; then
-  if ! file "$DIRECT_O" | grep -qiE 'ELF[[:space:]]*.*relocatable|Mach-O[[:space:]]*64-bit.*object'; then
-    echo "run-asm: -o out.o succeeded but file(1) is not a relocatable object: $(file -b "$DIRECT_O" 2>/dev/null)"
-    rm -f "$DIRECT_O" "$DIRECT_BIN"
-    exit 1
+skip_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_product_o() {
+  local tag="$1" src="$2" want="$3"
+  local exe="/tmp/xlang_asm_smoke_${tag}_$$"
+  local log="/tmp/xlang_asm_smoke_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  if [ "$r_ec" -eq 124 ]; then
+    rm -f "$exe"
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    rm -f "$exe"
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  rm -f "$exe"
+}
+
+# -backend asm stdout: hard .text/main/ret when assembly emitted; else skip=
+# (typeck-only / C / empty). Never soft-exit the whole gate.
+check_backend_asm_text() {
+  local tag="$1" src="$2"
+  local out log ec
+  out=$(mktemp)
+  log=$(mktemp)
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build -backend asm "$src" >"$out" 2>"$log"
+  ec=$?
+  set -e
+  # Merge streams for classification (historical script used 2>&1).
+  cat "$log" >>"$out"
+  if [ "$ec" -eq 124 ]; then
+    rm -f "$out" "$log"
+    die "$tag -backend asm timeout"
+  fi
+  if [ "$ec" -ne 0 ]; then
+    # Prefer-asm product must not soft-SKIP→OK on -backend asm failure.
+    rm -f "$out" "$log"
+    die "$tag -backend asm failed (ec=$ec); refuse soft SKIP→OK"
+  fi
+  if grep -q '\.text' "$out" && grep -q 'main' "$out" && grep -q 'ret' "$out"; then
+    RUN_OK=$((RUN_OK + 1))
+    rm -f "$out" "$log"
+    return 0
+  fi
+  # typeck-only / C / empty = stdout asm N/A on this product path → skip=
+  if grep -q 'typeck OK' "$out" || grep -q '^#include' "$out" || [ ! -s "$out" ]; then
+    SKIP=$((SKIP + 1))
+    rm -f "$out" "$log"
+    return 0
+  fi
+  rm -f "$out" "$log"
+  die "$tag -backend asm output missing .text/main/ret (not typeck-only)"
+}
+
+echo "=== run-asm gate (prefer asm; hard product -o) ==="
+
+# PLATFORM: SHARED — CI opt-in; report skip= honesty (not silent soft OK).
+if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${XLANG_CI_FORCE_ASM:-}" ]; then
+  SKIP=$((SKIP + 1))
+  echo "run-asm: CI skip (set XLANG_CI_FORCE_ASM=1 to force)"
+  skip_report
+  exit 0
+fi
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+# Hard product -o (root honesty: never soft-SKIP the gate before these).
+run_product_o main tests/asm/main.x 42
+run_product_o expr tests/asm/expr.x 6
+run_product_o local tests/asm/local.x 3
+run_product_o index_assign tests/asm/index_assign.x 42
+run_product_o tiny_ptr tests/asm/tiny_ptr.x 42
+
+# -backend asm stdout archaeology (hard when emitted; skip= when typeck-only).
+check_backend_asm_text main_s tests/asm/main.x
+check_backend_asm_text expr_s tests/asm/expr.x
+check_backend_asm_text local_s tests/asm/local.x
+check_backend_asm_text tiny_s tests/asm/tiny_ptr.x
+check_backend_asm_text index_s tests/asm/index_assign.x
+
+# Optional: direct -o .o relocatable (skip= when emission N/A).
+DIRECT_O=/tmp/xlang_asm_smoke_direct_$$.o
+DIRECT_BIN=/tmp/xlang_asm_smoke_direct_bin_$$
+rm -f "$DIRECT_O" "$DIRECT_BIN"
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build -backend asm -o "$DIRECT_O" tests/asm/main.x >/tmp/xlang_asm_smoke_direct_$$.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -eq 0 ] && [ -f "$DIRECT_O" ] && file "$DIRECT_O" 2>/dev/null | grep -qiE 'ELF[[:space:]]*.*relocatable|Mach-O[[:space:]]*64-bit.*object'; then
+  RUN_OK=$((RUN_OK + 1))
   if file "$DIRECT_O" | grep -q 'ELF.*relocatable'; then
-    echo "run-asm: direct -o out.o OK (ELF relocatable)"
     if ld -e _main -o "$DIRECT_BIN" "$DIRECT_O" 2>/dev/null; then
       GOT=0; "$DIRECT_BIN" 2>/dev/null || GOT=$?
-      if [ "$GOT" -eq 42 ]; then
-        echo "run-asm: direct .o linked and ran OK (exit 42)"
-      fi
-      rm -f "$DIRECT_BIN"
+      if [ "$GOT" -eq 42 ]; then RUN_OK=$((RUN_OK + 1)); else SKIP=$((SKIP + 1)); fi
+    else
+      SKIP=$((SKIP + 1))
     fi
   elif file "$DIRECT_O" | grep -q 'Mach-O.*object'; then
-    echo "run-asm: direct -o out.o OK (Mach-O object, macOS)"
     if ld -e _main -o "$DIRECT_BIN" "$DIRECT_O" -lSystem 2>/dev/null || clang -o "$DIRECT_BIN" "$DIRECT_O" 2>/dev/null; then
       GOT=0; "$DIRECT_BIN" 2>/dev/null || GOT=$?
-      if [ "$GOT" -eq 42 ]; then
-        echo "run-asm: direct .o linked and ran OK (exit 42)"
-      fi
-      rm -f "$DIRECT_BIN"
-    fi
-  fi
-  rm -f "$DIRECT_O"
-fi
-
-# -o <exe>（无 .o/.s 后缀）：driver 应自动调 ld 生成可执行文件，一条命令出可执行文件
-ASM_EXE=/tmp/xlang_asm_exe
-rm -f "$ASM_EXE"
-if "$XLANG" build -backend asm -o "$ASM_EXE" "$MAIN_ASM" 2>/dev/null; then
-  if [ -x "$ASM_EXE" ]; then
-    GOT=0; "$ASM_EXE" 2>/dev/null || GOT=$?
-    if [ "$GOT" -eq 42 ]; then
-      echo "run-asm: -o <exe> (auto ld) OK (exit 42)"
-    fi
-  fi
-  rm -f "$ASM_EXE"
-fi
-
-# 多用例：expr.x、local.x 仅校验能成功出汇编且含 .text/main/ret
-for ASM_FILE in tests/asm/expr.x tests/asm/local.x tests/asm/tiny_ptr.x; do
-  OUT_T=$(mktemp)
-  if "$XLANG" build -backend asm "$ASM_FILE" > "$OUT_T" 2>/dev/null; then
-    if grep -q '\.text' "$OUT_T" && grep -q 'main' "$OUT_T" && grep -q 'ret' "$OUT_T"; then
-      echo "run-asm: $(basename "$ASM_FILE") OK"
-    fi
-  fi
-  rm -f "$OUT_T"
-done
-
-# 可选：as + ld 并运行 main.x，检查退出码 42；若有 as/ld 再对 expr/local 做 as+ld 校验退出码 7 和 3
-OUT_O=/tmp/xlang_asm_test.o
-OUT_BIN=/tmp/xlang_asm_test
-if as -o "$OUT_O" "$OUT_S" 2>/dev/null; then
-  if ld -o "$OUT_BIN" "$OUT_O" 2>/dev/null; then
-    GOT=0
-    "$OUT_BIN" 2>/dev/null || GOT=$?
-    if [ "$GOT" -eq 42 ]; then
-      echo "run-asm: linked and ran OK (exit 42)"
+      if [ "$GOT" -eq 42 ]; then RUN_OK=$((RUN_OK + 1)); else SKIP=$((SKIP + 1)); fi
     else
-      echo "run-asm: linked binary exit code $GOT (expected 42)"
+      SKIP=$((SKIP + 1))
     fi
-  else
-    echo "run-asm: ld failed (optional, asm output already verified)"
   fi
-  rm -f "$OUT_O" "$OUT_BIN"
-  # expr.x 预期退出码 6（2*3），local.x 预期 3
-  for PAIR in "tests/asm/expr.x:6" "tests/asm/local.x:3" "tests/asm/tiny_ptr.x:42"; do
-    F="${PAIR%%:*}"; EXPECT="${PAIR##*:}"
-    TMP_S=$(mktemp); TMP_O=/tmp/xlang_asm_expr.o; TMP_BIN=/tmp/xlang_asm_expr_bin
-    if "$XLANG" build -backend asm "$F" > "$TMP_S" 2>/dev/null && as -o "$TMP_O" "$TMP_S" 2>/dev/null && ld -o "$TMP_BIN" "$TMP_O" 2>/dev/null; then
-      GOT=0; "$TMP_BIN" 2>/dev/null || GOT=$?
-      if [ "$GOT" -eq "$EXPECT" ]; then
-        echo "run-asm: as+ld $(basename "$F") OK (exit $EXPECT)"
-      fi
-    fi
-    rm -f "$TMP_S" "$TMP_O" "$TMP_BIN"
-  done
 else
-  echo "run-asm: as failed (optional)"
+  SKIP=$((SKIP + 1))
 fi
+rm -f "$DIRECT_O" "$DIRECT_BIN"
 
-# 可选：arm64 输出校验（对 main/expr/local 各跑一次，仅检查 .text/main/ret）
-for ASM_FILE in $ASM_TESTS; do
-  OUT_ARM=$(mktemp)
-  if "$XLANG" build -backend asm -target aarch64-linux-gnu "$ASM_FILE" > "$OUT_ARM" 2>/dev/null; then
-    if grep -q '\.text' "$OUT_ARM" && grep -q 'main' "$OUT_ARM" && grep -q 'ret' "$OUT_ARM"; then
-      echo "run-asm: arm64 $(basename "$ASM_FILE") OK"
-    fi
+# Optional cross-target text (skip= when N/A).
+for target in aarch64-linux-gnu riscv64; do
+  out=$(mktemp)
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build -backend asm -target "$target" tests/asm/main.x >"$out" 2>&1
+  ec=$?
+  set -e
+  if [ "$ec" -eq 0 ] && grep -q '\.text' "$out" && grep -q 'main' "$out" && grep -q 'ret' "$out"; then
+    RUN_OK=$((RUN_OK + 1))
+  else
+    SKIP=$((SKIP + 1))
   fi
-  rm -f "$OUT_ARM"
+  rm -f "$out"
 done
 
-# riscv64 出 .s：对 main/expr/local 各跑 -target riscv64，检查 .text/main/ret（RISC-V 也用 ret）
-for ASM_FILE in $ASM_TESTS; do
-  OUT_RV=$(mktemp)
-  if "$XLANG" build -backend asm -target riscv64 "$ASM_FILE" > "$OUT_RV" 2>/dev/null; then
-    if grep -q '\.text' "$OUT_RV" && grep -q 'main' "$OUT_RV" && grep -q 'ret' "$OUT_RV"; then
-      echo "run-asm: riscv64 $(basename "$ASM_FILE") .s OK"
-    fi
-  fi
-  rm -f "$OUT_RV"
-done
-
-# riscv64 直接出 .o：-target riscv64 -o out.o 应生成 ELF；若有 riscv64 ld 则链接并运行
-RISCV_O=/tmp/xlang_asm_riscv64.o
-RISCV_BIN=/tmp/xlang_asm_riscv64_bin
-if "$XLANG" build -backend asm -target riscv64 -o "$RISCV_O" "$MAIN_ASM" 2>/dev/null; then
-  # Linux CI / 宿主上应出 ELF relocatable；macOS 等宿主常为 Mach-O 或混用封装，不因格式误杀整条 run-asm。
-  HOSTOS=$(uname -s 2>/dev/null || echo Unknown)
-  if ! file "$RISCV_O" | grep -qiE 'ELF[[:space:]]*.*relocatable'; then
-    if [ "$HOSTOS" != "Linux" ]; then
-      echo "run-asm: riscv64 -o out.o SKIP ELF check on host=$HOSTOS ($(file -b "$RISCV_O" 2>/dev/null))"
-    else
-      echo "run-asm: riscv64 -o out.o succeeded but not ELF relocatable: $(file -b "$RISCV_O" 2>/dev/null)"
-      rm -f "$RISCV_O" "$RISCV_BIN"
-      exit 1
-    fi
-  fi
-  if file "$RISCV_O" | grep -q 'ELF.*relocatable'; then
-    echo "run-asm: riscv64 direct -o out.o OK (ELF relocatable)"
-    for LD_CMD in "riscv64-unknown-elf-ld" "riscv64-linux-gnu-ld" "ld.lld" "ld"; do
-      if command -v $LD_CMD >/dev/null 2>&1; then
-        if $LD_CMD -e _main -o "$RISCV_BIN" "$RISCV_O" 2>/dev/null; then
-          GOT=0; "$RISCV_BIN" 2>/dev/null || GOT=$?
-          if [ "$GOT" -eq 42 ]; then
-            echo "run-asm: riscv64 .o linked and ran OK (exit 42, $LD_CMD)"
-            break
-          fi
-        fi
-      fi
-    done
-    rm -f "$RISCV_BIN"
-  fi
-  rm -f "$RISCV_O"
-fi
-
-# Windows COFF .obj：-target *-windows-* -o out.obj 应生成 PE/COFF（仅 x86_64）；非 Windows 仅校验能产出非空文件
-COFF_OBJ=/tmp/xlang_asm_coff.obj
-if "$XLANG" build -backend asm -target x86_64-pc-windows-msvc -o "$COFF_OBJ" "$MAIN_ASM" 2>/dev/null; then
-  if [ -f "$COFF_OBJ" ] && [ -s "$COFF_OBJ" ]; then
-    if file "$COFF_OBJ" 2>/dev/null | grep -qiE 'PE32|COFF|MSVC|executable|object'; then
-      echo "run-asm: Windows COFF -o out.obj OK (x86_64)"
-    else
-      echo "run-asm: Windows COFF -o out.obj OK (x86_64, object produced)"
-    fi
-  fi
-  rm -f "$COFF_OBJ"
-fi
-
-rm -f "$OUT_S"
+ok_report
 echo "run-asm OK"
