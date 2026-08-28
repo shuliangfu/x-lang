@@ -61,15 +61,16 @@
 
 ## 5. Gate
 
-Honesty gate (2026-08-26; soft→hard):
+Honesty gate (2026-08-28 soft fallthrough residual):
 
-- Prefer `./compiler/xlang_asm`; pin `XLANG_LINK_XLANG` (no soft SKIP when native present).
+- Prefer `./compiler/xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Explicit-bad `XLANG` / missing native → hard die (refuse soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK).
 - `xlang check` observational only (check gate paused 2026-08-05).
-- Hard runnable exit 0: `tests/dynlib/open_sym_close.x`, `tests/dynlib/main.x`, `tests/dynlib/win_path.x`.
-- Observational: `tests/dynlib/win_path_smoke.c` (host-C archaeology; not hard green).
+- Hard runnable exit 0 (`run+=`): `open_sym_close.x`, `main.x`, `win_path.x`.
+- Observational (`obs+=`): `win_path_smoke.c` host-C archaeology (existing `.o` only; refuse soft ensure rebuild).
 - Manifest: `tests/baseline/std-dynlib-windows.tsv`
 - Runner: `tests/run-std-dynlib-windows-gate.sh` (+ `tests/run-dynlib.sh` regression)
-- Report: `xlang: [XLANG_STD_DYNLIB_WIN] status=ok check=/osc=/null=/win_path=/skip=`
+- Report: `xlang: [XLANG_STD_DYNLIB_WIN] status=ok run=/obs=/skip=`
 - Refuse resurrecting top-level `analysis/std-dynlib-windows-v1.md` (live DOC = archive).
 
 ---

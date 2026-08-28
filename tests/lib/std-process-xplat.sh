@@ -88,11 +88,15 @@ std_process_xplat_run_smoke() {
 # @param $3 xplat_ok — xplat_behavior.x exit0 (hard)
 # @param $4 boundary_ok — boundary.x exit0 (hard)
 # @param $5 skip — 1 only when no native xlang / manifest-only
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product xplat+boundary hard green count
+# @param $3 obs — check/win/pipe observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_process_xplat_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local xplat_ok="$3"
-  local boundary_ok="$4"
-  local skip="$5"
-  echo "${STD_PROC_XPLAT_PREFIX} status=${status} check=${check_ok} xplat=${xplat_ok} boundary=${boundary_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_PROC_XPLAT_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

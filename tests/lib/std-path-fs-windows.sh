@@ -4,8 +4,8 @@
 # Usage (after source):
 #   std_pfw_symbols_ok PATH_X TSV
 #   std_pfw_run_x_smoke XLANG_BIN SRC OUT_PREFIX EXPECT
-#   std_pfw_emit_report status check_ok path_ok fs_ok skip
-# 2026-08-26: report check=/path=/fs=/skip= (honesty; prefer asm runnable hard).
+#   std_pfw_emit_report status run_ok obs skip
+# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_PFW_PREFIX="${XLANG_STD_PATH_FS_WIN_PREFIX:-xlang: [XLANG_STD_PATH_FS_WIN]}"
@@ -89,11 +89,15 @@ std_pfw_run_x_smoke() {
 # @param $3 path_ok — windows_abs_join.x exit0 (hard green)
 # @param $4 fs_ok — windows_path_smoke.x exit0 (hard green)
 # @param $5 skip — 1 only for manifest-only / no-native paths
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product path+fs hard green count
+# @param $3 obs — check/xplat-delegate observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_pfw_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local path_ok="$3"
-  local fs_ok="$4"
-  local skip="$5"
-  echo "${STD_PFW_PREFIX} status=${status} check=${check_ok} path=${path_ok} fs=${fs_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_PFW_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

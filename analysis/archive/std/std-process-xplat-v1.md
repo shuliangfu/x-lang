@@ -44,11 +44,12 @@
 
 ## 4. Gate
 
-Honesty (2026-08-26): prefer `xlang_asm` + pin `XLANG_LINK_XLANG`; check
-observational (paused 2026-08-05); `xplat_behavior.x` + `boundary.x` exit 0
-hard-fail (no soft SKIP when native present). `spawn_wait_win` /
-`spawn_pipe_echo` observational only (product XT001; not soft). Report
-`check=` / `xplat=` / `boundary=` / `skip=`.
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). `xplat_behavior.x` + `boundary.x` exit 0
+hard-fail (`run+=`). `spawn_wait_win` / `spawn_pipe_echo` observational only
+(`obs+=`; product XT001; not soft). Report `run=` / `obs=` / `skip=`.
 
 ```bash
 ./tests/run-std-process-xplat-gate.sh

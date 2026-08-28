@@ -4,7 +4,8 @@
 # 用法（source 后）：
 #   std_dynlib_win_manifest_ok DOC DYNLIB_C MOD_X TSV
 #   std_dynlib_win_run_c_smoke
-#   std_dynlib_win_emit_report status check_ok osc_ok null_ok win_path_ok [skip]
+#   std_dynlib_win_emit_report status run_ok obs skip
+# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_DYNLIB_WIN_PREFIX="${XLANG_STD_DYNLIB_WIN_PREFIX:-xlang: [XLANG_STD_DYNLIB_WIN]}"
@@ -101,12 +102,15 @@ std_dynlib_win_run_c_smoke() {
 
 # Structured report: check observational; osc/null/win_path hard; skip=0 when runnable ran.
 # Accepts 5 or 6 args (legacy 4-arg callers map skip into 5th when win_path omitted — avoid).
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product osc+null+win_path hard green count
+# @param $3 obs — check/host-C observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_dynlib_win_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local osc_ok="$3"
-  local null_ok="$4"
-  local win_path_ok="$5"
-  local skip="${6:-0}"
-  echo "${STD_DYNLIB_WIN_PREFIX} status=${status} check=${check_ok} osc=${osc_ok} null=${null_ok} win_path=${win_path_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="${4:-0}"
+  echo "${STD_DYNLIB_WIN_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

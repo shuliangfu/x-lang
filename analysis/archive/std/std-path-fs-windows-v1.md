@@ -58,16 +58,17 @@ Honesty 闸对 `windows_path_smoke.x` 在双端均可 runnable 硬绿（POSIX �
 
 ## 4. Gate
 
-Honesty（2026-08-26）：
+Honesty（2026-08-28 soft fallthrough residual）：
 
 - Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
+- 显式坏 `XLANG`／缺 native → **硬 die**（禁 soft fallthrough／prefer-c／soft auto-make／soft SKIP→OK）。
 - `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
-- 产品烟测 `windows_abs_join.x` + `windows_path_smoke.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
-- `run-std-fs-crossplatform-gate.sh` 委托仅观测（不顶硬绿）。
-- 报告：`check=`／`path=`／`fs=`／`skip=`（`path=1`＋`fs=1` 为硬绿信号）。
+- 产品烟测 `windows_abs_join.x` + `windows_path_smoke.x` **exit 0 硬失败**（`run+=`）。
+- `run-std-fs-crossplatform-gate.sh` 委托仅观测（`obs+=`；不顶硬绿）。
+- 报告：`run=`／`obs=`／`skip=`（硬绿信号＝`run=`）。
 
 ```
-xlang: [XLANG_STD_PATH_FS_WIN] status=ok check=0|1 path=1 fs=1 skip=0
+xlang: [XLANG_STD_PATH_FS_WIN] status=ok run=2 obs=0|1 skip=0
 std-path-fs-windows gate OK
 ```
 
