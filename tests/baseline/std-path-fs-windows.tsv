@@ -1,5 +1,8 @@
 # STD-021/022 path/fs Windows manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# Honesty 2026-08-29 leftover wrap: leftover bootstrap-link wrap + lib
+# RUN_XLANG remap / fossil `$runner build` retired (product `-L . -o`
+# via std_pfw_run_x_smoke). Keep ## 4. Gate.
 min_path_syms	3
 goals	section	## 1. 目标	analysis/archive/std/std-path-fs-windows-v1.md	RFC
 path_sec	section	## 2. STD-021：`std.path`	analysis/archive/std/std-path-fs-windows-v1.md	RFC

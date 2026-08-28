@@ -1,6 +1,6 @@
 # STD-138：Windows/macOS 深度边界向量 v1
 
-> 状态：**定版（v1）** · Gate honesty 2026-08-26  
+> 状态：**定版（honesty residual leftover wrap）** · Gate honesty 2026-08-26 · leftover wrap 2026-08-29  
 > 关联：`ENG-003` CI 矩阵 · live roadmap = `analysis/自举进度.md`（勿复活顶层 DOC）
 
 ---
@@ -40,5 +40,10 @@
 - must-policy `.x` **exit0 硬失败**（`run+=`）；optional fail＝`obs+=`
 - 报告：`run=`／`obs=`／`skip=`
 - 产品面 asm 本绿；旧闸 prefer `xlang-c`／硬 typeck／无 native soft SKIP／显式坏仍回落＝portable 假红
+- leftover wrap：leftover `bootstrap-link-xlang.sh` + lib `RUN_XLANG` remap **retired**（产品 `"$xlang" -L . src -o`）。Keep `## 3. Gate`。
 
 报告前缀：`xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]`
+
+**Honesty (2026-08-29 leftover wrap)**：G.7 补全既有 `xplat_deep_run_smoke`；拒 leftover wrap／`RUN_XLANG` remap。
+
+**STD-138 状态：定版（honesty residual leftover wrap）**

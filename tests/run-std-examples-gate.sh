@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# STD-012: std examples manifest + runnable gate — honesty soft fallthrough →硬绿.
+# STD-012: std examples manifest + runnable gate — honesty leftover wrap →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + check=/x=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product hello.x + io_batch_rw.x -o
-# exit0 = hard run (run+=). check = obs. Report: run=/obs=/skip=.
-# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Honesty: leftover bootstrap-link wrap + lib RUN_XLANG remap in
+# std_ex_run_x_smoke retired (product path is `"$xlang" -L . -o`).
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse leftover wrap / RUN_XLANG remap /
+# soft SKIP→OK / soft auto-make / prefer-c). Product hello.x +
+# io_batch_rw.x -o exit0 = hard run (run=2). check = obs.
+# Report: run=/obs=/skip=. G.7: complete existing run_smoke; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-examples-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -14,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_EXAMPLES_DOC:-analysis/archive/std/std-examples-v1.md}"
 MANIFEST="${XLANG_STD_EXAMPLES_MANIFEST:-tests/baseline/std-examples-manifest.tsv}"
@@ -176,11 +176,8 @@ if ! std_ex_check_example "$XLANG_BIN" "$SMOKE_HELLO"; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap / RUN_XLANG remap (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_ex_run_x_smoke "$XLANG_BIN" "$SMOKE_HELLO" "/tmp/xlang_std_ex_hello_$$"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-examples OK: hello"

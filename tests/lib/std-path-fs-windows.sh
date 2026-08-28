@@ -5,8 +5,10 @@
 #   std_pfw_symbols_ok PATH_X TSV
 #   std_pfw_run_x_smoke XLANG_BIN SRC OUT_PREFIX EXPECT
 #   std_pfw_emit_report status run_ok obs skip
-# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
-# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
+# Honesty: leftover wrap / RUN_XLANG remap / fossil `$runner build` retired
+# (product `"$xlang" -L . -o`). Report: run=/obs=/skip= (check/xplat = obs;
+# path+fs product -o hard). PLATFORM: SHARED archaeology — must be sourced
+# under bash (zsh `.` breaks local).
 
 STD_PFW_PREFIX="${XLANG_STD_PATH_FS_WIN_PREFIX:-xlang: [XLANG_STD_PATH_FS_WIN]}"
 
@@ -49,6 +51,10 @@ std_pfw_symbols_ok() {
 }
 
 # Build+run one .x smoke; return 0 when exit code matches expect.
+# Product path is `"$xlang_bin" -L . src -o` (refuse leftover RUN_XLANG
+# remap / bootstrap-link wrap / fossil `$runner build`). Gate pins
+# XLANG_LINK_XLANG for hooks.
+# PLATFORM: SHARED archaeology — product honesty path.
 # @param $1 XLANG_BIN — resolved product compiler
 # @param $2 SRC — .x smoke path
 # @param $3 OUT_PREFIX — /tmp prefix for binary + build log
@@ -60,13 +66,9 @@ std_pfw_run_x_smoke() {
   local expect="${4:-0}"
   local out="${out_prefix}"
   local log="${out_prefix}.log"
-  # Prefer bootstrap-link RUN_XLANG when caller pinned XLANG_LINK_XLANG.
-  # PLATFORM: SHARED — product path honesty.
-  local runner="${RUN_XLANG:-}"
-  if [ -z "$runner" ]; then
-    runner="$xlang_bin"
-  fi
-  if ! $runner build -L . "$src" -o "$out" 2>"$log"; then
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap / fossil build.
+  # PLATFORM: SHARED
+  if ! "$xlang_bin" -L . "$src" -o "$out" 2>"$log"; then
     echo "std-path-fs-windows FAIL: link $src" >&2
     tail -20 "$log" 2>/dev/null >&2 || true
     rm -f "$out"

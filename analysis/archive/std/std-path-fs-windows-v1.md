@@ -1,7 +1,7 @@
 # STD-021/022 path/fs Windows 对齐 v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）** · soft→硬绿 honesty（2026-08-26）  
+> 更新时间：2026-08-29（leftover wrap honesty）· 定版正文 2026-08-26  
+> 状态：**定版（honesty residual leftover wrap）** · soft→硬绿 honesty（2026-08-26）  
 > 关联：`tests/run-std-fs-crossplatform-gate.sh`；live roadmap = `analysis/自举进度.md`（勿复活顶层 NEXT.md）
 
 ---
@@ -66,11 +66,16 @@ Honesty（2026-08-28 soft fallthrough residual）：
 - 产品烟测 `windows_abs_join.x` + `windows_path_smoke.x` **exit 0 硬失败**（`run+=`）。
 - `run-std-fs-crossplatform-gate.sh` 委托仅观测（`obs+=`；不顶硬绿）。
 - 报告：`run=`／`obs=`／`skip=`（硬绿信号＝`run=`）。
+- leftover wrap：leftover `bootstrap-link-xlang.sh` + lib `RUN_XLANG` remap／化石 `$runner build` **retired**（产品 `"$xlang" -L . src -o`）。Keep `## 4. Gate`。
 
 ```
 xlang: [XLANG_STD_PATH_FS_WIN] status=ok run=2 obs=0|1 skip=0
 std-path-fs-windows gate OK
 ```
+
+**Honesty (2026-08-29 leftover wrap)**：G.7 补全既有 `std_pfw_run_x_smoke`；拒 leftover wrap／`RUN_XLANG` remap／化石 `build`。
+
+**STD-021／022 状态：定版（honesty residual leftover wrap）**
 
 ---
 

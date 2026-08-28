@@ -6,8 +6,8 @@
 #   xplat_deep_verify_paths TSV MIN_ROWS
 #   xplat_deep_run_smoke XLANG_BIN SRC
 #   xplat_deep_emit_report status run_ok obs skip
-# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
-# 2026-08-26: report check=/x=/skip= (honesty; prefer asm runnable hard).
+# Honesty: leftover wrap / RUN_XLANG remap retired (product `"$xlang" -L . -o`).
+# Report: run=/obs=/skip= (check/optional = obs; must-policy product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_XPLAT_DEEP_PREFIX="${XLANG_STD138_XPLAT_DEEP_BOUNDARY_PREFIX:-xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]}"
@@ -76,7 +76,9 @@ xplat_deep_matrix_rows() {
 }
 
 # Build+run one .x smoke; return 0 when process exits 0.
-# Prefers RUN_XLANG when caller pinned XLANG_LINK_XLANG via bootstrap-link.
+# Product path is `"$xlang" -L . src -o` (refuse leftover RUN_XLANG
+# remap / bootstrap-link wrap). Gate pins XLANG_LINK_XLANG for hooks.
+# PLATFORM: SHARED archaeology — product honesty path.
 # @param $1 XLANG_BIN — resolved product compiler (prefer asm)
 # @param $2 SRC — .x smoke path
 xplat_deep_run_smoke() {
@@ -84,13 +86,9 @@ xplat_deep_run_smoke() {
   local src="$2"
   local exe="/tmp/xlang_xplat_deep_$$"
   local log="${exe}.log"
-  # Prefer bootstrap-link RUN_XLANG when caller pinned XLANG_LINK_XLANG.
-  # PLATFORM: SHARED — product path honesty.
-  local runner="${RUN_XLANG:-}"
-  if [ -z "$runner" ]; then
-    runner="$xlang"
-  fi
-  if ! $runner -L . "$src" -o "$exe" 2>"$log"; then
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap.
+  # PLATFORM: SHARED
+  if ! "$xlang" -L . "$src" -o "$exe" 2>"$log"; then
     echo "xplat-deep FAIL: compile $src" >&2
     tail -20 "$log" 2>/dev/null >&2 || true
     rm -f "$exe" "$log"

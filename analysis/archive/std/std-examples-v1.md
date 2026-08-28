@@ -1,7 +1,7 @@
 # STD-012 标准库示例工程体系 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29（leftover wrap honesty）· 定版正文 2026-06-17  
+> 状态：**定版（honesty residual leftover wrap）**  
 > 关联：`DOC-001`（Cookbook）、`STD-001/002/004`
 
 ---
@@ -72,6 +72,10 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 ## 5. Gate
 
 假权威诚实二过（2026-08-28）：拒 soft XLANG fallthrough／soft auto-make／prefer-c；闸优先 `xlang_asm`，钉 `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native **硬 die**；`xlang check`＝obs；`examples/hello.x` + `examples/cookbook/io_batch_rw.x` `-o` exit0＝硬 run；报告 `run=`／`obs=`／`skip=`。
+
+**Honesty (2026-08-29 leftover wrap)**：leftover `bootstrap-link-xlang.sh` + lib `RUN_XLANG` remap in `std_ex_run_x_smoke` retired. Product path = `"$xlang" -L . src -o`。Explicit-bad XLANG hard die；missing native FAIL；product `-o` `hello.x`／`io_batch_rw.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。
+
+**STD-012 状态：定版（honesty residual leftover wrap）**
 
 ```bash
 # manifest + 路径 + catalog≥30 + hello/io runnable hard

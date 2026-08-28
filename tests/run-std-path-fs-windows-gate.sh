@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# STD-021/022: std.path / std.fs Windows — honesty soft fallthrough →硬绿.
+# STD-021/022: std.path / std.fs Windows — honesty leftover wrap →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make (`xlang_compiler_make xlang-c … || true`) +
-# check=/path=/fs=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product windows_abs_join +
-# windows_path_smoke exit0 = hard run (run+=). check + fs-crossplatform
-# delegate = obs. Report: run=/obs=/skip=.
+# Honesty: leftover bootstrap-link wrap + lib RUN_XLANG remap / fossil
+# `$runner build` in std_pfw_run_x_smoke retired (product path is
+# `"$xlang" -L . -o`). Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap /
+# RUN_XLANG remap / fossil build / soft SKIP→OK / soft auto-make / prefer-c).
+# Product windows_abs_join + windows_path_smoke exit0 = hard run (run=2).
+# check + fs-crossplatform delegate = obs. Report: run=/obs=/skip=.
+# G.7: complete existing run_smoke; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-path-fs-windows-gate.sh
 set -euo pipefail
@@ -16,8 +17,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_PFW_DOC:-analysis/archive/std/std-path-fs-windows-v1.md}"
 MANIFEST="${XLANG_STD_PFW_TSV:-tests/baseline/std-path-fs-windows.tsv}"
@@ -131,11 +130,9 @@ if [ "$chk1" -ne 0 ] || [ "$chk2" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap / RUN_XLANG remap / fossil `$runner build`
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_pfw_run_x_smoke "$XLANG_BIN" "$PATH_TEST" "/tmp/xlang_std021_path_$$" "$SMOKE_EXPECT"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-path-fs-windows OK: path"

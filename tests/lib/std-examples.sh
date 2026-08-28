@@ -7,7 +7,8 @@
 #   std_ex_check_example XLANG_BIN path
 #   std_ex_run_x_smoke XLANG_BIN SRC OUT_PREFIX
 #   std_ex_emit_report status run obs skip
-# Honesty: run=/obs=/skip= (check = obs; hello+io product -o hard).
+# Honesty: leftover wrap / RUN_XLANG remap retired (product `"$xlang" -L . -o`).
+# Report: run=/obs=/skip= (check = obs; hello+io product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_EX_PREFIX="${XLANG_STD_EXAMPLES_PREFIX:-xlang: [XLANG_STD_EXAMPLES]}"
@@ -51,6 +52,9 @@ std_ex_check_example() {
 }
 
 # Build+run one .x smoke; return 0 when process exits 0.
+# Product path is `"$xlang_bin" -L . src -o` (refuse leftover RUN_XLANG
+# remap / bootstrap-link wrap). Gate pins XLANG_LINK_XLANG for hooks.
+# PLATFORM: SHARED archaeology — product honesty path.
 # @param $1 XLANG_BIN — resolved product compiler (prefer asm)
 # @param $2 SRC — .x smoke path
 # @param $3 OUT_PREFIX — /tmp prefix for binary + build log
@@ -60,13 +64,9 @@ std_ex_run_x_smoke() {
   local out_prefix="$3"
   local out="${out_prefix}"
   local log="${out_prefix}.log"
-  # Prefer bootstrap-link RUN_XLANG when caller pinned XLANG_LINK_XLANG.
-  # PLATFORM: SHARED — product path honesty.
-  local runner="${RUN_XLANG:-}"
-  if [ -z "$runner" ]; then
-    runner="$xlang_bin"
-  fi
-  if ! $runner -L . "$src" -o "$out" 2>"$log"; then
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap.
+  # PLATFORM: SHARED
+  if ! "$xlang_bin" -L . "$src" -o "$out" 2>"$log"; then
     echo "std-examples FAIL: link $src" >&2
     tail -20 "$log" 2>/dev/null >&2 || true
     rm -f "$out"

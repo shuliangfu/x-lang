@@ -1,5 +1,8 @@
 # STD-138 三平台深度边界向量注册表
 # 列：case_id	kind	path	linux	macos	windows	notes
+# Honesty 2026-08-29 leftover wrap: leftover bootstrap-link wrap + lib
+# RUN_XLANG remap retired (product `-L . -o` via xplat_deep_run_smoke).
+# Keep ## 3. Gate.
 min_rows	10
 min_smoke_cases	6
 deep_smoke	smoke	tests/xplat/deep_boundary.x	must	must	must	聚合烟测
