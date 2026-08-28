@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
-# STD-074: std.datetime gate — honesty soft auto-make →硬绿.
+# STD-074: std.datetime gate — honesty residual soft auto-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true` + soft
-# datetime/time .o make) + soft XLANG fallthrough (explicit-bad still picks
-# another binary) + check=/run=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product roundtrip.x -o exit0 = hard run.
-# check residual / host-C archaeology = obs (paused 2026-08-05). Report:
-# run=/obs=/skip=.
-# formal_mod: mod.x prefix + datetime.x --bare-impl.
+# Honesty: residual soft auto-make (`xlang_compiler_make … datetime.o/time.o/
+# runtime_time_os.o || true` before host-C cc) retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c). Product
+# roundtrip.x -o exit0 = hard run. check residual = obs (paused 2026-08-05).
+# Host-C archaeology = obs only (prebuilt .o; refuse rebuild). Report:
+# run=/obs=/skip=. Keep ## 3. Gate. Keep keywords STD-074 / RFC3339 /
+# DateTime / Duration / local_offset_min.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-datetime-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/ci-host.sh
-. tests/lib/ci-host.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
 
@@ -28,8 +24,8 @@ DT_X="std/datetime/datetime.x"
 LIB="tests/lib/std-datetime.sh"
 SMOKE_X="tests/std-datetime/roundtrip.x"
 SMOKE_C="tests/std-datetime/datetime_smoke_ok.c"
+README="std/datetime/README.md"
 MIN_APIS=10
-SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-datetime.sh
 . "$LIB"
@@ -74,19 +70,20 @@ resolve_shu() {
 }
 
 echo "=== STD-074: std.datetime manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DT_X" "$SMOKE_X" "$SMOKE_C" std/datetime/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DT_X" "$SMOKE_X" "$SMOKE_C" "$README"; do
   [ -f "$f" ] || die "missing $f"
 done
+[ ! -f analysis/std-datetime-v1.md ] || die "dual-authority fossil analysis/std-datetime-v1.md (archive live)"
 
 for kw in STD-074 RFC3339 DateTime Duration local_offset_min; do
   grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
 
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
+
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
-  case "$c1" in
-    min_apis) MIN_APIS="$c2" ;;
-  esac
+  case "$c1" in min_apis) MIN_APIS="$c2" ;; esac
 done < "$MANIFEST"
 
 API_N=0
@@ -111,37 +108,28 @@ if [ "${XLANG_STD_DATETIME_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-# Observational host-C archaeology smoke (not hard green).
-# PLATFORM: SHARED archaeology — product honesty is roundtrip.x via asm.
-# Refuse soft auto-make of xlang-c; module .o rebuild for host-C is best-effort.
-echo "=== STD-074: datetime c smoke (observational) ==="
-C_NOTE=0
-if dod_native_exe ./compiler/xlang-c || dod_native_exe ./compiler/xlang || dod_native_exe ./compiler/xlang_asm; then
-  xlang_compiler_make ../std/datetime/datetime.o ../std/time/time.o runtime_time_os.o >/dev/null 2>&1 || true
-  if nm std/time/time.o 2>/dev/null | grep -qF 'time_now_wall_sec_c'; then
-    if cc -std=c11 -O1 -o /tmp/xlang_dt_smoke \
-      "$SMOKE_C" std/datetime/datetime.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then
-      if /tmp/xlang_dt_smoke >/dev/null 2>&1; then
-        C_NOTE=1
-        echo "std-datetime c smoke OK (observational)"
-      fi
-      rm -f /tmp/xlang_dt_smoke
-    fi
-  fi
-fi
-if [ "$C_NOTE" -eq 0 ]; then
-  echo "std-datetime OBS c smoke (archaeology; time.o / link; refuse soft SKIP→OK)" >&2
-  OBS=$((OBS + 1))
-fi
-echo "std-datetime c_smoke_note=${C_NOTE}"
-
 XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-echo "=== STD-074: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+echo "=== STD-074: smoke (XLANG=$XLANG_BIN; host-C=obs; check=obs; product -o hard) ==="
+
+# Host-C archaeology = obs only; refuse soft ensure/auto-make.
+# PLATFORM: SHARED — missing prebuilt .o = obs, not soft SKIP→OK.
+set +e
+std_datetime_host_c_obs "$SMOKE_C"
+c_rc=$?
+set -e
+# Presence / C-smoke success is not a green signal (product honesty is roundtrip.x).
+if [ "$c_rc" -ne 0 ]; then
+  echo "std-datetime OBS host-C (rc=$c_rc; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
+else
+  echo "std-datetime OBS host-C c smoke present (not a green signal; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
+fi
 
 set +e
-"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_datetime_check.log 2>&1
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_datetime_check_$$.log 2>&1
 chk=$?
 set -e
 if [ "$chk" -ne 0 ]; then
@@ -149,26 +137,14 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-OUT="/tmp/xlang_std_datetime_$$"
-LOG="/tmp/xlang_std_datetime_build_$$.log"
-rm -f "$OUT" "$LOG"
-set +e
-"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
-o_ec=$?
-set -e
-if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
-  tail -n 20 "$LOG" 2>/dev/null || true
-  rm -f "$OUT"
-  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+# Product roundtrip.x -o exit0 = hard (leave product UNDEF as a later knife).
+# PLATFORM: SHARED — refuse soft SKIP→OK. G.7: lib std_datetime_run_smoke.
+if std_datetime_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-datetime OK: product roundtrip"
+else
+  die "product -o failed (refuse soft SKIP→OK)"
 fi
-set +e
-"$OUT" >/dev/null 2>&1
-exitcode=$?
-set -e
-rm -f "$OUT"
-[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
-RUN_OK=$((RUN_OK + 1))
-echo "std-datetime OK: product -o"
 
 std_datetime_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-datetime gate OK"
