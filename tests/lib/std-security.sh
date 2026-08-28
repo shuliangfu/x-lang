@@ -1,11 +1,19 @@
-# std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.x）
-# 2026-08-26: report check=/run=/skip= (honesty; C smoke observational).
+#!/usr/bin/env bash
+# std-security.sh — STD-079 manifest helpers (F-security v1 + F-ZC: pure security.x).
+#
+# Usage (after source):
+#   std_security_symbols_ok MOD_X SEC_X TSV
+#   std_security_run_c_smoke SEC_X
+#   std_security_run_smoke XLANG SRC [TAG]
+#   std_security_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_SECURITY_PREFIX="${XLANG_STD_SECURITY_PREFIX:-xlang: [XLANG_STD_SECURITY]}"
 
-# 遍历 manifest；symbol 在 security.x。
+# Validate manifest api/symbol/file/smoke/vectors anchors.
+# Echo miss count; return 0 when miss=0.
 std_security_symbols_ok() {
   local mod_x="$1"
   local sec_x="$2"
@@ -44,7 +52,8 @@ std_security_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：security_smoke_ok.c + security.o + crypto.o（仅观测，非硬绿）。
+# Host-C archaeology smoke (observational only; not hard green).
+# Prefer callers rebuild security.o best-effort; refuse soft SKIP→OK on fail.
 std_security_run_c_smoke() {
   local sec_x="$1"
   local src="tests/std-security/security_smoke_ok.c"
@@ -53,14 +62,14 @@ std_security_run_c_smoke() {
   sec_o="$(dirname "$sec_x")/security.o"
   crypto_o="std/crypto/crypto.o"
   if [ ! -f "$sec_o" ]; then
-    echo "std-security FAIL: missing $sec_o" >&2
+    echo "std-security OBS c smoke: missing $sec_o" >&2
     return 1
   fi
   if [ ! -f "$crypto_o" ]; then
     xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || true
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sec_o" "$crypto_o" 2>/dev/null; then
-    echo "std-security FAIL: compile c smoke" >&2
+    echo "std-security OBS c smoke: link failed" >&2
     return 1
   fi
   set +e
@@ -69,12 +78,14 @@ std_security_run_c_smoke() {
   set -e
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
-    echo "std-security FAIL: c smoke exit=$ec" >&2
+    echo "std-security OBS c smoke: exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
+# Compile and run .x round-trip smoke; exit 0 required.
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
 std_security_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -98,10 +109,11 @@ std_security_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_security_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_SECURITY_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_SECURITY_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-# STD-112：std.heap Allocator trait 门禁（假权威诚实）。
+# STD-112: std.heap Allocator trait gate — honesty soft auto-make →硬绿.
 #
-# 用法：./tests/run-std-heap-allocator-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-25: TSV anchors aligned to product (with_alloc / push);
-# Prefer xlang_asm; allocator_vec.x exit 0 hard-fail (no soft SKIP / no hard check).
-# check smoke observational SKIP (check gate paused 2026-08-05).
-# cookbook heap_trace_reset hard-fail neighborhood (same std.heap module).
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true` + soft
+# heap/vec .o make) + soft XLANG fallthrough (explicit-bad still picks another
+# binary) + check=/run=/skip= retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
+# SKIP→OK / soft auto-make / prefer-c). Product allocator_vec.x -o exit0 = hard
+# run; cookbook heap_trace_reset neighborhood also hard. check residual = obs
+# (paused 2026-08-05). Report: run=/obs=/skip=.
+# TSV anchors: with_alloc / push.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-heap-allocator-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
@@ -21,127 +27,125 @@ VEC_X="std/vec/mod.x"
 LIB="tests/lib/std-heap-allocator.sh"
 SMOKE="tests/heap/allocator_vec.x"
 COOKBOOK="examples/cookbook/heap_trace_reset.x"
-# Designed success score (tests/heap/allocator_vec.x returns 0 on all checks).
 SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-heap-allocator.sh
 . "$LIB"
 
-echo "=== STD-112: heap Allocator manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_X" "$VEC_X" "$SMOKE" "$COOKBOOK"; do
-  if [ ! -f "$f" ]; then
-    echo "std-heap-allocator gate FAIL: missing $f" >&2
-    exit 1
-  fi
-done
+RUN_OK=0
+OBS=0
+SKIP=0
 
-for kw in STD-112 heap_alloc from_arena with_alloc; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-heap-allocator gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
-done
-
-sym_miss="$(std_heap_alloc_symbols_ok "$HEAP_X" "$VEC_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_heap_alloc_emit_report "fail" 0 0 0
-  echo "std-heap-allocator gate FAIL: symbol_miss=${sym_miss}" >&2
+die() {
+  echo "std-heap-allocator gate FAIL: $*" >&2
+  std_heap_alloc_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
   exit 1
-fi
-echo "std-heap-allocator manifest OK"
-
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
 }
+
 resolve_shu() {
-  local cand
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
   # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
   return 1
 }
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-112: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-heap-allocator gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  xlang_compiler_make -q ../std/heap/mod.o 2>/dev/null || xlang_compiler_make ../std/heap/mod.o 2>/dev/null || true
-  xlang_compiler_make -q ../std/vec/mod.o 2>/dev/null || xlang_compiler_make ../std/vec/mod.o 2>/dev/null || true
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+echo "=== STD-112: heap Allocator manifest ==="
+for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_X" "$VEC_X" "$SMOKE" "$COOKBOOK"; do
+  [ -f "$f" ] || die "missing $f"
+done
 
-  OUT="/tmp/xlang_std_heap_alloc_$$"
-  LOG="/tmp/xlang_std_heap_alloc_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "std-heap-allocator gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
-      std_heap_alloc_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  else
-    echo "std-heap-allocator gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    std_heap_alloc_emit_report "fail" "$CHECK_OK" 0 0
-    exit 1
-  fi
+for kw in STD-112 heap_alloc from_arena with_alloc; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
 
-  # Neighborhood cookbook (std.heap trace surface) — same module; hard-fail.
-  if [ -f "$COOKBOOK" ]; then
-    CB_OUT="/tmp/xlang_std_heap_alloc_cb_$$"
-    CB_LOG="/tmp/xlang_std_heap_alloc_cb_$$.log"
-    if $RUN_XLANG build -L . "$COOKBOOK" -o "$CB_OUT" 2>"$CB_LOG"; then
-      cb_ec=0
-      "$CB_OUT" >/dev/null 2>&1 || cb_ec=$?
-      rm -f "$CB_OUT"
-      if [ "$cb_ec" -ne 0 ]; then
-        echo "std-heap-allocator gate FAIL cookbook heap_trace_reset exit=$cb_ec" >&2
-        std_heap_alloc_emit_report "fail" "$CHECK_OK" 0 0
-        exit 1
-      fi
-      echo "std-heap-allocator cookbook heap_trace_reset OK"
-    else
-      echo "std-heap-allocator gate FAIL cookbook heap_trace_reset link" >&2
-      tail -20 "$CB_LOG" 2>/dev/null >&2 || true
-      std_heap_alloc_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  fi
-else
-  echo "std-heap-allocator gate FAIL: no native xlang" >&2
-  std_heap_alloc_emit_report "fail" 0 0 0
-  exit 1
+sym_miss="$(std_heap_alloc_symbols_ok "$HEAP_X" "$VEC_X" "$MANIFEST" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+echo "std-heap-allocator manifest OK"
+
+if [ "${XLANG_STD112_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_heap_alloc_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-heap-allocator gate OK (manifest only)"
+  exit 0
 fi
 
-std_heap_alloc_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-112: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std_heap_alloc_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-heap-allocator OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+OUT="/tmp/xlang_std_heap_alloc_$$"
+LOG="/tmp/xlang_std_heap_alloc_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-heap-allocator OK: product -o"
+
+# Neighborhood cookbook (std.heap trace surface) — same module; hard.
+CB_OUT="/tmp/xlang_std_heap_alloc_cb_$$"
+CB_LOG="/tmp/xlang_std_heap_alloc_cb_$$.log"
+rm -f "$CB_OUT" "$CB_LOG"
+set +e
+"$XLANG_BIN" -L . "$COOKBOOK" -o "$CB_OUT" >"$CB_LOG" 2>&1
+cb_o=$?
+set -e
+if [ "$cb_o" -ne 0 ] || [ ! -x "$CB_OUT" ]; then
+  tail -n 20 "$CB_LOG" 2>/dev/null || true
+  rm -f "$CB_OUT"
+  die "cookbook heap_trace_reset -o failed (ec=$cb_o; refuse soft SKIP→OK)"
+fi
+set +e
+"$CB_OUT" >/dev/null 2>&1
+cb_ec=$?
+set -e
+rm -f "$CB_OUT"
+[ "$cb_ec" -eq 0 ] || die "cookbook heap_trace_reset exit=$cb_ec"
+echo "std-heap-allocator cookbook heap_trace_reset OK"
+
+std_heap_alloc_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-heap-allocator gate OK"
