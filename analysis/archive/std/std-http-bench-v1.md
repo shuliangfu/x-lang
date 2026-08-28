@@ -86,6 +86,8 @@ Gate honesty（2026-08-26 soft→硬绿）：
 - 无 native → **FAIL**（禁 soft SKIP→OK）
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-http.sh`（`xlang_compiler_make -q || make` + `ensure_std_c_o http.o` + default `./compiler/xlang` + fossil `$XLANG build`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/http/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [HTTP]`。Keep `## 6. Gate`。 Do not rewrite `run-perf-http.sh` here.
+
 ```text
 xlang: [XLANG_STD_HTTP] status=ok check=0|1 run=1 skip=0
 ```

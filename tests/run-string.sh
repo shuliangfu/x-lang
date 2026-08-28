@@ -1,48 +1,124 @@
 #!/usr/bin/env bash
-# 测试 std.string：string_empty、string_from_slice/eq/len、string_compare/append/find/starts_with/ends_with/copy_to
-set -e
+# std.string leftover runner: tests/string/{main,from_slice_eq,
+# compare_append_find,contains_trim_replace,view_zerocopy}.x product -o exit 0.
+#
+# Honesty: leftover hard make string.o if missing (`xlang_compiler_make
+# ../std/string/string.o`) + bootstrap-link wrap (prefer-c remap xlang_asm →
+# xlang-c) + fossil `$LINK_XLANG build` retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
+# SKIP→OK / leftover XLANG fallthrough / leftover auto-make / leftover wrap).
+# Check path = obs= (check gate paused 2026-08-05). Product `-o` each smoke
+# must exit 0. Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-string.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-# shellcheck source=lib/build-std-c-o.sh
-. "$(dirname "$0")/lib/build-std-c-o.sh"
-# MG: Makefile 已删。产品编排 = ./xbuild；叶 .o 走 compiler-make hub（0× make）
-# → formal_mod / std_x / try-heat shell 体（tests/lib/compiler-make.sh wave944）。
-# L4：本波从源编出 string.o；禁止 string.o.bak / 旧 .o 入链。
-# PLATFORM: SHARED
-if [ ! -f std/string/string.o ]; then
-  xlang_compiler_make ../std/string/string.o || {
-    echo "run-string FAIL: xlang_compiler_make ../std/string/string.o (product path, no bak)" >&2
-    exit 1
-  }
-fi
-XLANG=${XLANG:-./compiler/xlang}
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-LINK_XLANG="$RUN_XLANG"
-# MSYS2/Alpine 默认栈偏小，string 测试链 std/heap 后易 SIGSEGV。
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+
+PREFIX="${XLANG_STRING_PREFIX:-xlang: [STRING]}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "string FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+# G.7: complete the existing per-script resolve_shu family (dod_native_exe);
+# do not fork a third resolver. Explicit XLANG that is missing/non-native
+# returns 1 (caller hard-dies; refuse leftover XLANG fallthrough).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_product() {
+  local tag="$1" src="$2"
+  local exe="/tmp/xlang_string_$$_${tag}"
+  local log="/tmp/xlang_string_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    tail -n 12 "$log" 2>/dev/null || true
+    rm -f "$exe"
+    die "$tag product -o failed (ec=$o_ec; refuse leftover auto-make / bootstrap-link wrap)"
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  [ "$r_ec" -eq 0 ] || die "$tag runnable exit=$r_ec (expected 0)"
+  RUN_OK=$((RUN_OK + 1))
+}
+
+# MSYS2/Alpine default stack is small; leftover string smokes chain std/heap.
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-STRING_OUT="${TMPDIR:-/tmp}/xlang_string"
+echo "=== string leftover (prefer asm; hard; refuse leftover auto-make) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover wrap)"
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover wrap)"
+fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
-$LINK_XLANG build -L . tests/string/main.x -o "$STRING_OUT" 2>&1
-exitcode=0; "$STRING_OUT" >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (string_empty), got $exitcode"; exit 1; }
+set +e
+"$XLANG_BIN" check -L . tests/string/main.x >/tmp/xlang_string_check.log 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "string OBS check (paused / CHK residual ec=$chk_ec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
 
-$LINK_XLANG build -L . tests/string/from_slice_eq.x -o "${TMPDIR:-/tmp}/xlang_string_fs" 2>&1
-exitcode=0; "${TMPDIR:-/tmp}/xlang_string_fs" >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (from_slice_eq), got $exitcode"; exit 1; }
+run_product main tests/string/main.x
+run_product from_slice_eq tests/string/from_slice_eq.x
+run_product compare_append_find tests/string/compare_append_find.x
+run_product contains_trim_replace tests/string/contains_trim_replace.x
+run_product view_zerocopy tests/string/view_zerocopy.x
 
-$LINK_XLANG build -L . tests/string/compare_append_find.x -o "${TMPDIR:-/tmp}/xlang_string_caf" 2>&1
-exitcode=0; "${TMPDIR:-/tmp}/xlang_string_caf" >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (compare_append_find), got $exitcode"; exit 1; }
-
-$LINK_XLANG build -L . tests/string/contains_trim_replace.x -o "${TMPDIR:-/tmp}/xlang_string_ctr" 2>&1
-exitcode=0; "${TMPDIR:-/tmp}/xlang_string_ctr" >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (contains_trim_replace), got $exitcode"; exit 1; }
-
-$LINK_XLANG build -L . tests/string/view_zerocopy.x -o "${TMPDIR:-/tmp}/xlang_string_view" 2>&1
-exitcode=0; "${TMPDIR:-/tmp}/xlang_string_view" >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (view_zerocopy), got $exitcode"; exit 1; }
-
+ok_report
 echo "string test OK"
+rm -f /tmp/xlang_string_$$_*

@@ -43,6 +43,8 @@ Honesty（2026-08-26）：
 - `methods_status.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-http.sh`（`xlang_compiler_make -q || make` + `ensure_std_c_o http.o` + default `./compiler/xlang` + fossil `$XLANG build`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/http/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [HTTP]`。Keep `## 4. Gate`。
+
 manifest：`tests/baseline/std-http-methods.tsv`
 
 ```
