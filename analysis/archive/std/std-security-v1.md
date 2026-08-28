@@ -1,7 +1,7 @@
 # STD-079 std.security v1
 
-> 更新时间：2026-08-26  
-> 状态：**可用** — CT 比较 / HKDF / secure_zero / mlock + gate honesty
+> 更新时间：2026-08-29  
+> 状态：**可用** — CT 比较 / HKDF / secure_zero / mlock + gate honesty residual auto-make retired
 
 ---
 
@@ -33,17 +33,20 @@
 
 ## 3. Gate
 
-**Honesty（2026-08-26）**：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；`check` 仅观测（自举期暂停）；`roundtrip.x` exit 0 硬失败（native xlang 在场时禁 soft SKIP）；C smoke 仅观测。报告 `check=`／`run=`／`skip=`。
+**Honesty（2026-08-29 residual auto-make retired）**：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；`check` 仅观测（自举期暂停）；`roundtrip.x` exit 0 硬失败（native xlang 在场时禁 soft SKIP）；host-C archaeology 仅观测（现成 `security.o`＋`crypto.o`，拒 `xlang_compiler_make` 重建）。报告 `run=`／`obs=`／`skip=`。
 
 formal_mod：`mod.x` 前缀 + `security.x` `--bare-impl`；fk0 k24×16 `std_security_*`。
 
 ```
-xlang: [XLANG_STD_SECURITY] status=ok check=1 run=1 skip=0
+xlang: [XLANG_STD_SECURITY] status=ok run=1 obs=2 skip=0
 std-security gate OK
 ```
 
 向量：`tests/baseline/std-security-vectors.tsv`（RFC5869 HKDF TC1）。
 
-### Changelog
+---
 
+## 4. Changelog
+
+- 2026-08-29：残 auto-make 退役（闸 `security.o`＋lib `crypto.o` 的 `xlang_compiler_make … || true`）；host-C 现成 `.o` only＝obs；产品 `roundtrip.x` 仍硬绿；报告 `run=`／`obs=`／`skip=`。
 - 2026-08-26：API 锚对齐产品 `hkdf`／`err_ok`；formal_mod＋fk0；闸 honesty（STD-076 模板）。
