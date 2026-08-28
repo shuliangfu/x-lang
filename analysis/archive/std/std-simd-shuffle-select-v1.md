@@ -56,6 +56,8 @@ xlang: [XLANG_STD_SIMD_SHUFFLE_SELECT] status=ok check=0|1 shuffle=1 select=1 s4
 
 联动：`tests/run-simd-s4-gate.sh`（编译 + x86 objdump 探针）。
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-simd-shuffle-select-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `shuffle_select_roundtrip.x` hard；s4 x86 硬／非硬＝obs；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 5. Evolution
@@ -64,6 +66,7 @@ xlang: [XLANG_STD_SIMD_SHUFFLE_SELECT] status=ok check=0|1 shuffle=1 select=1 s4
 |------|------|------|
 | v1.1 | 2026-06-18 | arm64 NEON：`simd_enc.c` 实装 shuffle（ins）与 select（cmgt/fcmgt+bit）；Vec8i 双 128-bit 半幅 |
 | honesty | 2026-08-26 | soft→硬绿：`## 4. Gate`；DOC 补 `select_lane`；prefer asm；check 观测；roundtrip hard；报告 `check=`／`shuffle=`／`select=`／`s4=`／`skip=` |
+| honesty-2 | 2026-08-29 | leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 4. Gate` |
 
 ---
 

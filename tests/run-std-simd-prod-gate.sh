@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# STD-061: std.simd shuffle/select production bench gate — honesty soft fallthrough →硬绿.
+# STD-061: std.simd shuffle/select production bench gate — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + check=/bench=/skip=/ratio= retired. Prefer product xlang_asm;
-# pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native asm = hard die
-# (refuse soft SKIP→OK / soft auto-make / prefer-c). Product
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native asm = hard die (refuse leftover wrap
+# dead source / unused compiler-make / soft SKIP→OK / prefer-c). Product
 # bench/r04_simd_shuffle_select.x -o exit0 = hard run (run=1). check / perf
 # ratio = obs (perf soft residual — not hard-red on under-ratio / host-cc).
 # Report: run=/obs=/skip=.
 # SIMD Vec bodies need asm backend (skip xlang-c).
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-simd-prod-gate.sh
 set -euo pipefail
@@ -17,8 +18,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD061_DOC:-analysis/archive/std/std-simd-prod-v1.md}"
 WAVE="${XLANG_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
@@ -164,11 +163,9 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_simd_prod_run_smoke "$XLANG_BIN" "$BENCH_X" "r04"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-simd-prod OK: r04_simd_shuffle_select"

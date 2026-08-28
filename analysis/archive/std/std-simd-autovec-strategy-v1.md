@@ -68,6 +68,8 @@ xlang: [XLANG_STD153_SIMD_AUTovec] status=ok check=0|1 c=0|1 x=1 perf=0|1 skip=0
 
 回归：保留 `run-std-simd-shuffle-select-gate.sh`、`run-std-simd-prod-gate.sh`。
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-simd-autovec-strategy-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `autovec_strategy.x` hard；check／C／perf＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 5. Evolution
@@ -76,6 +78,7 @@ xlang: [XLANG_STD153_SIMD_AUTovec] status=ok check=0|1 c=0|1 x=1 perf=0|1 skip=0
 |------|------|------|
 | v1 | 2026-06-18 | 初版策略表 + 跨平台 perf |
 | honesty | 2026-08-26 | soft→硬绿：`## 4. Gate`；DOC 对齐 `recommend_path`；prefer asm；check 观测；x hard；C／perf soft；报告 `check=`／`c=`／`x=`／`perf=`／`skip=`；section 锚单权威 archive DOC |
+| honesty-2 | 2026-08-29 | leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 4. Gate` |
 
 ---
 

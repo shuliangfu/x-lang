@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# STD-153: std.simd autovec strategy + cross-platform perf gate — honesty soft fallthrough →硬绿.
+# STD-153: std.simd autovec strategy + cross-platform perf gate — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + soft ensure_std_c_o + check=/c=/x=/perf=/skip= retired.
-# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
-# native asm = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c /
-# soft ensure). Product autovec_strategy.x -o exit0 = hard run (run=1).
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native asm = hard die (refuse leftover wrap
+# dead source / unused compiler-make / soft SKIP→OK / prefer-c / soft ensure).
+# Product autovec_strategy.x -o exit0 = hard run (run=1).
 # check / C (existing .o only) / perf = obs. Report: run=/obs=/skip=.
 # SIMD Vec bodies need asm backend (skip xlang-c).
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-simd-autovec-strategy-gate.sh
 set -euo pipefail
@@ -16,8 +17,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD153_DOC:-analysis/archive/std/std-simd-autovec-strategy-v1.md}"
 MANIFEST="tests/baseline/std-simd-autovec-strategy-manifest.tsv"
@@ -130,11 +129,9 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make / soft ensure (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 # Observational C smoke (existing simd.o only; never soft rebuild).
 if std_simd_autovec_run_c_smoke; then
   echo "std-simd-autovec OK smoke_c (observational)"

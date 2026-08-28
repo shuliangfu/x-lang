@@ -52,6 +52,8 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok run=0|1 obs=N skip=0|1 [ratio=…]
 
 无 native `xlang_asm` 时闸门硬失败（不再 soft SKIP→OK）。
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-simd-prod-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `r04_simd_shuffle_select.x` hard；check／perf＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 4. 联动
@@ -70,6 +72,7 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok run=0|1 obs=N skip=0|1 [ratio=…]
 | v1 | 2026-06-18 | 初版 prod bench 矩阵 |
 | honesty | 2026-08-26 | soft→硬绿一过：`## 3. Gate`；DOC 对齐 `stub/Xlang`＋`r04`；prefer asm；check 观测；manifest hard；perf soft；报告 `check=`／`bench=`／`skip=`／`ratio=` |
 | honesty-2 | 2026-08-28 | 二过：拒 soft XLANG fallthrough／soft auto-make；删顶层双权威 DOC；产品 r04 `-o` 硬 run；check／perf＝obs；报告 `run=`／`obs=`／`skip=` |
+| honesty-3 | 2026-08-29 | leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 3. Gate` |
 
 ---
 

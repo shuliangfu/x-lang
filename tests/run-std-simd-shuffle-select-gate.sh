@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# STD-047: std.simd shuffle/select gate — honesty soft fallthrough →硬绿.
+# STD-047: std.simd shuffle/select gate — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + check=/shuffle=/select=/s4=/skip= retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native asm =
-# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c). Product
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native asm = hard die (refuse leftover wrap
+# dead source / unused compiler-make / soft SKIP→OK / prefer-c). Product
 # shuffle_select_roundtrip.x -o exit0 = hard run (run=1). check = obs.
 # simd-s4: hard on x86_64 (counts toward run=); observational elsewhere (obs+=1).
 # Report: run=/obs=/skip=.
 # SIMD Vec bodies need asm backend (skip xlang-c).
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-simd-shuffle-select-gate.sh
 set -euo pipefail
@@ -17,8 +18,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/archive/std/std-simd-shuffle-select-v1.md}"
 MANIFEST="${XLANG_STD_SIMD_SHUFFLE_SELECT_TSV:-tests/baseline/std-simd-shuffle-select.tsv}"
@@ -143,11 +142,9 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_simd_ss_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-simd-shuffle-select OK: shuffle_select_roundtrip"

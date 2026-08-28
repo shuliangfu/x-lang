@@ -1,6 +1,9 @@
 # STD-061 simd 生产级 bench manifest
 # 列：item_id	kind	anchor	src	tier	notes
 # min_benches	3
+# honesty 2026-08-29 leftover wrap dead source: run-std-simd-prod-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o r04 hard.
 read_path	section	## 1. 目标	analysis/archive/std/std-simd-prod-v1.md	-	15min
 bench_matrix	section	## 2. Bench 矩阵	analysis/archive/std/std-simd-prod-v1.md	-	3条
 gate_section	section	## 3. Gate	analysis/archive/std/std-simd-prod-v1.md	-	runnable
