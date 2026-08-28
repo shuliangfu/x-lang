@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# std-backtrace-xplat.sh — STD-147 manifest 与跨平台质量烟测辅助
+# std-backtrace-xplat.sh — STD-147 manifest + xplat quality helpers.
+#
+# Usage (after source):
+#   std_backtrace_xplat_symbols_ok BT_RUNTIME TSV
+#   std_backtrace_xplat_pick_vector VECTORS_TSV
+#   std_backtrace_xplat_run_smoke   # prebuilt .o only; refuse soft auto-make
+#   std_backtrace_xplat_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
+# Honesty: refuse soft auto-make / soft SKIP→OK; report run=/obs=/skip=.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD147_PREFIX="${XLANG_STD147_BACKTRACE_XPLAT_PREFIX:-xlang: [XLANG_STD147_BACKTRACE_XPLAT]}"
 
-# 校验 manifest；echo 缺失数。
+# Validate manifest anchors. Echo miss count; return 0 when miss=0.
+# section kind uses TSV mod_path (archive DOC); refuse fossil top-level path hardcode.
 std_backtrace_xplat_symbols_ok() {
   local bt_c="$1"
   local tsv="$2"
@@ -21,21 +28,15 @@ std_backtrace_xplat_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke|gate)
-        if [ ! -f "$anchor" ]; then
-          echo "std-backtrace-xplat FAIL: missing '$anchor'" >&2
-          miss=$((miss + 1))
-        fi
-        ;;
-      script)
-        if [ ! -f "$anchor" ]; then
-          echo "std-backtrace-xplat FAIL: missing '$anchor'" >&2
-          miss=$((miss + 1))
-        fi
-        ;;
       section)
-        if ! grep -qF "$anchor" "analysis/std-backtrace-xplat-v1.md" 2>/dev/null; then
-          echo "std-backtrace-xplat FAIL: missing section '$anchor'" >&2
+        if [ ! -f "$mod_path" ] || ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
+          echo "std-backtrace-xplat FAIL: missing section '$anchor' in $mod_path" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|gate|script)
+        if [ ! -f "$anchor" ]; then
+          echo "std-backtrace-xplat FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -45,12 +46,11 @@ std_backtrace_xplat_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 读取 TSV 中当前宿主匹配的向量行；echo "min_gold min_resolved min_total"。
+# Pick host vector row; echo "min_gold min_resolved min_total".
 std_backtrace_xplat_pick_vector() {
   local tsv="$1"
-  local os arch pat
+  local os
   os="$(uname -s 2>/dev/null || echo Unknown)"
-  arch="$(uname -m 2>/dev/null || echo unknown)"
   while IFS=$'\t' read -r _vid pat min_gold min_resolved min_total _notes; do
     [ -z "${pat:-}" ] && continue
     case "$pat" in \#*) continue ;; esac
@@ -79,23 +79,21 @@ std_backtrace_xplat_pick_vector() {
   return 1
 }
 
-# 编译并运行 xplat_quality.c；校验 stderr 质量行。
+# Compile+run xplat_quality.c against prebuilt .o only.
+# Refuse soft xlang_compiler_make / ensure rebuild. Return 0 on quality OK.
+# PLATFORM: SHARED — Darwin export_dynamic / Linux -rdynamic -ldl / Windows dbghelp.
 std_backtrace_xplat_run_smoke() {
-  local bt_platform_c="$1"
   local src="tests/backtrace/xplat_quality.c"
   local out="/tmp/xlang_backtrace_xplat_$$"
   local err="/tmp/xlang_backtrace_xplat_err_$$.log"
   local bt_o="std/backtrace/backtrace.o"
   local rt_o="compiler/runtime_backtrace_platform.o"
   if [ ! -f "$bt_o" ]; then
-    echo "std-backtrace-xplat FAIL: missing $bt_o" >&2
+    echo "std-backtrace-xplat OBS: missing prebuilt $bt_o (refuse soft ensure)" >&2
     return 1
   fi
   if [ ! -f "$rt_o" ]; then
-    xlang_compiler_make -q runtime_backtrace_platform.o 2>/dev/null || xlang_compiler_make runtime_backtrace_platform.o >/dev/null 2>&1 || true
-  fi
-  if [ ! -f "$rt_o" ]; then
-    echo "std-backtrace-xplat FAIL: missing $rt_o" >&2
+    echo "std-backtrace-xplat OBS: missing prebuilt $rt_o (refuse soft auto-make)" >&2
     return 1
   fi
   local extra=()
@@ -105,7 +103,7 @@ std_backtrace_xplat_run_smoke() {
     MINGW*|MSYS*|CYGWIN*) extra=(-ldbghelp) ;;
   esac
   if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "$rt_o" "${extra[@]}" 2>/dev/null; then
-    echo "std-backtrace-xplat FAIL: compile $src" >&2
+    echo "std-backtrace-xplat OBS: compile/link $src (UNDEF/residual; refuse soft ensure)" >&2
     return 1
   fi
   set +e
@@ -116,23 +114,24 @@ std_backtrace_xplat_run_smoke() {
   if [ "$ec" -ne 0 ]; then
     cat "$err" >&2 || true
     rm -f "$err"
-    echo "std-backtrace-xplat FAIL: smoke exit=$ec" >&2
+    echo "std-backtrace-xplat OBS: smoke exit=$ec" >&2
     return 1
   fi
   if ! grep -qF 'xlang: [XLANG_BT_XPLAT]' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
-    echo "std-backtrace-xplat FAIL: missing quality line" >&2
+    echo "std-backtrace-xplat OBS: missing quality line" >&2
     return 1
   fi
   rm -f "$err"
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; retired quality=/host=).
 std_backtrace_xplat_emit_report() {
   local status="$1"
-  local qual_ok="$2"
-  local skip="$3"
-  local host="$4"
-  echo "${STD147_PREFIX} status=${status} quality=${qual_ok} skip=${skip} host=${host}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD147_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

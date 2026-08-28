@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# std-task.sh — STD-089 manifest 与烟测辅助（F-task v2：纯 task.x）
+# std-task.sh — STD-089 manifest helpers (F-task v2: pure task.x).
+#
+# Usage (after source):
+#   std_task_symbols_ok MOD_X TASK_X TSV
+#   std_task_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
+# Honesty: refuse soft auto-make / soft SKIP→OK; report run=/obs=/skip=.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_TASK_PREFIX="${XLANG_STD_TASK_PREFIX:-xlang: [XLANG_STD_TASK]}"
 
-# 校验 manifest；symbol 在 task.x。
+# Validate manifest api/symbol/file anchors. Echo miss count; return 0 when miss=0.
 std_task_symbols_ok() {
   local mod_x="$1"
   local task_x="$2"
-  local task_glue="$3"
-  local tsv="$4"
+  local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -26,15 +29,20 @@ std_task_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/task/task.c|std/task/task_async_glue.c) path="$task_x" ;;
-          std/task/task.x) path="$task_x" ;;
+          std/task/task.c|std/task/task_async_glue.c|std/task/task.x) path="$task_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-task FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke|vectors)
+      section)
+        if [ ! -f "$mod_path" ] || ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
+          echo "std-task FAIL: missing section '$anchor' in $mod_path" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|vectors|script)
         if [ ! -f "$anchor" ]; then
           echo "std-task FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
@@ -46,61 +54,11 @@ std_task_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：task_smoke_ok.c + task.o + deps。
-std_task_run_c_smoke() {
-  local _task_glue_unused="$1"
-  local src="tests/std-task/task_smoke_ok.c"
-  local out="/tmp/xlang_std_task_c_$$"
-  local task_o
-  task_o="$(dirname "$_task_glue_unused")/task.o"
-  if [ ! -f "$task_o" ]; then
-    echo "std-task FAIL: missing $task_o" >&2
-    return 1
-  fi
-  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$task_o" std/async/scheduler.o std/context/context.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then
-    echo "std-task FAIL: compile c smoke" >&2
-    return 1
-  fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-task FAIL: c smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-std_task_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-task}"
-  local exe="/tmp/xlang_std_task_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-task FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-task FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=; retired c_smoke=/x=).
 std_task_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_TASK_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_TASK_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

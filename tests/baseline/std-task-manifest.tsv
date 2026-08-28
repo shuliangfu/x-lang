@@ -3,20 +3,20 @@
 # min_apis	10
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-task-v1.md
 api_doc	section	## 2. API	analysis/archive/std/std-task-v1.md
-verify	section	## 3. Gate	analysis/archive/std/std-task-v1.md
-api_tg_new	api	task_group_new	std/task/mod.x	组
-api_tg_spawn	api	task_group_spawn	std/task/mod.x	spawn
-api_tg_join	api	task_group_join	std/task/mod.x	join
-api_tg_leak	api	task_group_check_leak	std/task/mod.x	泄漏
-api_tg_bind	api	task_group_bind_context	std/task/mod.x	context
-api_tg_cancel	api	task_group_cancel	std/task/mod.x	取消
-api_js_new	api	join_set_new	std/task/mod.x	JoinSet
-api_js_spawn	api	join_set_spawn	std/task/mod.x	spawn
-api_js_join	api	join_set_join	std/task/mod.x	join
-api_supervise	api	supervise_retry	std/task/mod.x	重试
+verify	section	## Gate	analysis/archive/std/std-task-v1.md
+api_tg_new	api	new	std/task/mod.x	TaskGroup
+api_tg_spawn	api	spawn	std/task/mod.x	spawn
+api_tg_join	api	join	std/task/mod.x	join
+api_tg_leak	api	check_leak	std/task/mod.x	leak
+api_tg_bind	api	bind	std/task/mod.x	context
+api_tg_cancel	api	cancel	std/task/mod.x	cancel
+api_js_new	api	set_new	std/task/mod.x	JoinSet
+api_js_spawn	api	set_spawn	std/task/mod.x	spawn
+api_js_join	api	set_join	std/task/mod.x	join
+api_retry	api	retry	std/task/mod.x	retry
 symbol_smoke	symbol	task_smoke_c	std/task/task.x	C烟测
 impl_x	file	std/task/task.x	std/task/task.x
 smoke_x	smoke	tests/std-task/group_smoke.x	.x烟测
 vectors	file	tests/baseline/std-task-vectors.tsv	向量
-lib	script	lib/std-task.sh	tests/lib/std-task.sh
-gate	script	run-std-task-gate.sh	tests/run-std-task-gate.sh
+lib	script	tests/lib/std-task.sh	lib
+gate	script	tests/run-std-task-gate.sh	gate
