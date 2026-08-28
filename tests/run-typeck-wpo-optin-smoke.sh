@@ -1,28 +1,68 @@
 #!/usr/bin/env bash
-# typeck_wpo opt-in 链入后 struct_mk 须通过。
-# 自举 typeck.o（>8KiB）时链整颗 typeck.o（勿链 wpo partial — 会带入 WPO 内联 check_block 局部符号）；
-# 未自举时链 typeck_wpo layout helpers + typeck.o partial。
-# 用法：./tests/run-typeck-wpo-optin-smoke.sh
-# 前置：compiler/xlang_asm 已 bootstrap。
-set -e
+# typeck_wpo opt-in link smoke: after opt-in, struct_mk must pass.
+#
+# Honesty: soft SKIP→OK when no xlang_asm + bare Darwin "N/A" exit0
+# (false authority) retired. Prefer product xlang_asm. Explicit bad
+# XLANG / missing native on Linux = hard die (refuse soft SKIP→OK).
+# Darwin / non-Linux = skip= (platform N/A, not soft green). Rebuild
+# of xlang_asm is the gate under test (not soft auto-make of a missing
+# compiler). Report: run=/obs=/skip=
+# Usage: ./tests/run-typeck-wpo-optin-smoke.sh
+# Pre: compiler/xlang_asm already bootstrapped on Linux.
+# PLATFORM: LINUX|UBUNTU archaeology — Darwin skip=; Ubuntu gold.
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
+
+PREFIX="${XLANG_TYPECK_WPO_PREFIX:-xlang: [TYPECK_WPO_OPTIN]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-180}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "typeck-wpo-optin FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "typeck-wpo-optin: N/A on Darwin"
+# PLATFORM: LINUX|UBUNTU — opt-in link path is Linux gold only.
+if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
+  SKIP=$((SKIP + 1))
+  echo "typeck-wpo-optin: skip= (platform N/A on $(uname -s); not soft SKIP→OK)" >&2
+  ok_report
   exit 0
 fi
 
-if [ ! -x compiler/xlang_asm ]; then
-  echo "typeck-wpo-optin: SKIP (no xlang_asm)"
-  exit 0
+if [ -n "${XLANG:-}" ]; then
+  case "$XLANG" in
+    /*) abs="$XLANG" ;;
+    *) abs="$(pwd)/$XLANG" ;;
+  esac
+  dod_native_exe "$abs" || die "XLANG=$XLANG is not a native exe (refuse soft SKIP→OK)"
+fi
+
+if ! dod_native_exe ./compiler/xlang_asm; then
+  die "no compiler/xlang_asm (refuse soft SKIP→OK / soft auto-make)"
 fi
 
 chmod +x compiler/scripts/build_xlang_asm.sh
 SMK="tests/boundary/struct_mk_let_inline.x"
+[ -f "$SMK" ] || die "missing $SMK"
 
-# 二次 build 触发 typeck_wpo opt-in 链（与 gen1 二次 build 同路径）。
+# Second build triggers typeck_wpo opt-in link (same path as gen1 rebuild).
+# PLATFORM: LINUX|UBUNTU — this rebuild IS the gate (not soft auto-make).
 (
   cd compiler
   rm -f build_asm/typeck_strict_link_partial.o build_asm/typeck_strict_link_export.txt \
@@ -31,26 +71,36 @@ SMK="tests/boundary/struct_mk_let_inline.x"
 )
 
 if ! grep -qE 'typeck_wpo_helpers|whole typeck.o \(selfhosted|seed typeck.o' /tmp/typeck_wpo_smoke.log; then
-  echo "typeck-wpo-optin FAIL: log missing typeck_wpo opt-in link path" >&2
-  exit 1
+  die "log missing typeck_wpo opt-in link path"
 fi
 
 if ! grep -q 'STRICT_LINK_BUILD_ASM_TYPECK_WPO=1' /tmp/typeck_wpo_smoke.log; then
-  echo "typeck-wpo-optin FAIL: log missing STRICT_LINK_BUILD_ASM_TYPECK_WPO=1" >&2
-  exit 1
+  die "log missing STRICT_LINK_BUILD_ASM_TYPECK_WPO=1"
+fi
+RUN_OK=$((RUN_OK + 1))
+
+rm -f /tmp/typeck_wpo_smki
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" ./compiler/xlang_asm "$SMK" -o /tmp/typeck_wpo_smki >/tmp/typeck_wpo_smki.log 2>&1
+RC=$?
+set -e
+if [ "$RC" -eq 124 ]; then
+  die "struct_mk -o timeout"
+elif [ "$RC" -ne 0 ] || [ ! -x /tmp/typeck_wpo_smki ]; then
+  die "struct_mk compile rc=$RC; $(tail -5 /tmp/typeck_wpo_smki.log 2>/dev/null | tr '\n' ' ')"
 fi
 
-RC=0
-compiler/xlang_asm "$SMK" -o /tmp/typeck_wpo_smki 2>/dev/null || RC=$?
-if [ "$RC" -ne 0 ]; then
-  echo "typeck-wpo-optin FAIL: struct_mk compile rc=$RC" >&2
-  exit 1
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" /tmp/typeck_wpo_smki >/dev/null 2>&1
+RC=$?
+set -e
+rm -f /tmp/typeck_wpo_smki /tmp/typeck_wpo_smki.log
+if [ "$RC" -eq 124 ]; then
+  die "struct_mk run timeout"
+elif [ "$RC" -ne 10 ]; then
+  die "struct_mk run rc=$RC (expected 10)"
 fi
-/tmp/typeck_wpo_smki >/dev/null 2>&1 || RC=$?
-if [ "$RC" -ne 10 ]; then
-  echo "typeck-wpo-optin FAIL: struct_mk run rc=$RC (expected 10)" >&2
-  exit 1
-fi
+RUN_OK=$((RUN_OK + 1))
 
 if nm compiler/xlang_asm 2>/dev/null | grep -qE ' T check_block$'; then
   cb_src=$(nm compiler/xlang_asm 2>/dev/null | grep ' T check_block$' | awk '{print $1}')
@@ -58,3 +108,5 @@ if nm compiler/xlang_asm 2>/dev/null | grep -qE ' T check_block$'; then
 else
   echo "typeck-wpo-optin OK (struct_mk 10)"
 fi
+
+ok_report
