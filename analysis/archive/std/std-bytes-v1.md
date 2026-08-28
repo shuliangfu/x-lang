@@ -39,7 +39,7 @@ v1 堆路径见 §2；**STD-155**：`from_external` 绑定 `Arena64` bump slab�
 
 - `encode_into_bytes` / `decode_from_bytes` 通过 `clear` + `grow` 复用 cap（STD-139）。
 - 解码只读：`as_view`；写通道：`as_buffer` → `std.io`。
-- 策略全文见 archive codec 缓冲复用 RFC（勿在 `analysis/` 顶层复活）。
+- 策略全文见 `analysis/archive/std/std-codec-buffer-reuse-v1.md`（勿在 `analysis/` 顶层复活）。
 
 ---
 

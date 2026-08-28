@@ -1,7 +1,7 @@
 # STD-139：std.codec 缓冲复用与零拷贝策略 v1
 
 > 状态：**定版（v1）**  
-> 关联：`analysis/std-codec-v1.md`、`analysis/std-bytes-v1.md`、`NEXT.md` std.codec 🟡 项
+> 关联：`analysis/archive/std/std-codec-v1.md`、`analysis/archive/std/std-bytes-v1.md`（live roadmap = `analysis/自举进度.md`）
 
 ---
 
@@ -70,4 +70,14 @@
 
 烟测：`tests/std-codec/buffer_reuse.x`（连续两次 `encode_into_bytes` 验证 cap 复用）。
 
-报告：`xlang: [XLANG_STD139_CODEC_BUFFER_REUSE]`
+```
+xlang: [XLANG_STD139_CODEC_BUFFER_REUSE] status=ok run=0 obs=1 skip=0
+std-codec-buffer-reuse gate OK
+```
+
+### Gate honesty (2026-08-28)
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad / missing native = hard die.
+- Refuse soft prefer-c / soft auto-make / soft SKIP→OK / check-as-sole-green.
+- check residual = obs (paused 2026-08-05). tip product `-o` `std_codec_*` UNDEF = obs (product debt leave).
+- Report contract: `run=` / `obs=` / `skip=`. Archive DOC is live authority.
