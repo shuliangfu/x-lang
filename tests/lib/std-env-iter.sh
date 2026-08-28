@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# std-env-iter.sh — STD-025：env_iter manifest 辅助
+# std-env-iter.sh — STD-025: env_iter / args_iter manifest helpers.
 #
-# 用法（source 后）：
-#   std_env_iter_symbols_ok ENV_X ENV_C TSV
-#   std_env_iter_emit_report status check_ok run_ok skip
+# Usage (after source):
+#   std_env_iter_symbols_ok ENV_X ENV_IMPL ENV_GLUE TSV
+#   std_env_iter_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_ENV_ITER_PREFIX="${XLANG_STD_ENV_ITER_PREFIX:-xlang: [XLANG_STD_ENV_ITER]}"
 
-# 校验 manifest symbol 锚点；echo 缺失数。
+# Validate manifest symbol anchors. Echo miss count; return 0 when miss=0.
 std_env_iter_symbols_ok() {
   local mod_x="$1"
   local env_impl="$2"
@@ -36,11 +37,11 @@ std_env_iter_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_env_iter_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_ENV_ITER_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_ENV_ITER_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
