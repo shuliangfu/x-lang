@@ -1,11 +1,12 @@
 # STBL-004：`import std.*` 解析与 `-L` 布局 v1
 
-> 更新时间：2026-06-17  
-> 状态：**soft→硬绿（假权威诚实 · 2026-08-26）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — import `std.*`／`-L` 布局闭环；闸门假权威已收  
 > 关联：STBL-001（Tier-S 注册表）、TOOL-007（包管理器）、TOOL-008（依赖锁定）、`resolve_import_file_path_multi`
 
 > **Honesty 2026-08-24 #7:** top-level DOC retired; live = this archive path.
 > **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; `check_imports.x` exit0 hard-fail (no soft SKIP→OK).
+> **2026-08-29:** residual auto-make / XLANG fallthrough / bootstrap-link retired; report `run=`／`obs=`／`skip=`.
 
 ---
 
@@ -115,17 +116,18 @@ v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
 | `tests/baseline/stbl-import-std-layout.tsv` | section／resolve／cross_ref／smoke |
 | `tests/import-std-layout/check_imports.x` | 多 `std.*`／`core.*` import + `main` exit0 hard |
 
-**Honesty contract（2026-08-26）**
+**Honesty contract（2026-08-29 residual auto-make）**
 
 | 项 | 规则 |
 |----|------|
 | compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
 | check | observational only（check gate paused 2026-08-05） |
-| resolve | TSV `kind=resolve` 路径命中 **hard-fail**（≥ `min_resolve`） |
-| runnable | `check_imports.x` build+run exit0 **hard-fail** |
-| no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
-| report | `resolve=`／`check=`／`run=`／`skip=` |
-| DOC | refuse top-level resurrect；live = `analysis/archive/stbl/` |
+| resolve | TSV `kind=resolve` 路径命中 **hard-fail**（≥ `min_resolve`；pre-smoke walk） |
+| runnable | `check_imports.x` product `-o` exit0 **hard-fail** |
+| no native / explicit-bad XLANG | **FAIL** — 禁止 soft SKIP→OK／XLANG fallthrough |
+| auto-make | **拒** `xlang_compiler_make … \|\| true`／bootstrap-link remap |
+| report | `run=`／`obs=`／`skip=`（退役 `resolve=`／`check=`） |
+| DOC | refuse top-level resurrect；live = `analysis/archive/stbl/`；keep `## 7. Gate` |
 
 ```bash
 ./tests/run-stbl-004-import-std-layout-gate.sh
@@ -134,5 +136,5 @@ v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
 **report** 示例：
 
 ```
-xlang: [XLANG_STBL_IMPORT_STD] status=ok resolve=12 check=0 run=1 skip=0
+xlang: [XLANG_STBL_IMPORT_STD] status=ok run=1 obs=1 skip=0
 ```

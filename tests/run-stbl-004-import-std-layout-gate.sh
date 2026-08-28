@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# STBL-004: import std.* resolve + -L layout gate (false-authority honesty).
+# STBL-004: import std.* resolve + -L layout gate — honesty residual soft
+# auto-make / XLANG fallthrough / check=/resolve= report →硬绿.
 #
+# Honesty: residual soft auto-make (`xlang_compiler_make -q ||
+# xlang_compiler_make || true`) + `stbl_import_std_resolve_shu` XLANG
+# fallthrough (explicit bad XLANG continues to xlang_asm) + bootstrap-link
+# wrap + report resolve=/check=/run=/skip= retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / XLANG
+# fallthrough). check residual = obs (paused 2026-08-05). Product
+# check_imports.x -o exit0 = hard run (already green under asm).
+# Manifest resolve walk stays hard (min_resolve). Report: run=/obs=/skip=.
+# Keep ## 7. Gate. Keep keywords STBL-004 / import / std / -L / TOOL-007 /
+# TOOL-008 / mod.x. PLATFORM: SHARED archaeology — Ubuntu gold still
+# required.
 # Usage: ./tests/run-stbl-004-import-std-layout-gate.sh
-# wave honesty (2026-08-24 #7): DOC → analysis/archive/stbl/; TOOL-007 archive cross.
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); check_imports.x build+run exit0 hard-fail
-# (no soft SKIP→OK when no native). Report resolve=/check=/run=/skip=.
-# Gate was portable-false-red (prefer xlang-c / soft SKIP→OK when no native /
-# hard check / DOC ## 7. 验证与门禁 without Gate honesty). Ubuntu/Darwin asm
-# smoke already exit0. PLATFORM: SHARED archaeology.
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STBL_IMPORT_STD_DOC:-analysis/archive/stbl/stbl-import-std-layout-v1.md}"
 MANIFEST="${XLANG_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
@@ -27,71 +31,37 @@ LIB_ROOT="."
 # shellcheck source=tests/lib/stbl-import-std-layout.sh
 . "$LIB"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-stbl_import_std_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
+die() {
+  echo "stbl-import-std gate FAIL: $*" >&2
+  stbl_import_std_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
 }
 
 echo "=== STBL-004: import std layout manifest (archive DOC) ==="
 
 # Refuse resurrected top-level DOC (live = archive/stbl/).
 # PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
-if [ -f analysis/stbl-import-std-layout-v1.md ]; then
-  echo "stbl-import-std gate FAIL: top-level DOC resurrected (live = archive/stbl/)" >&2
-  exit 1
-fi
+[ ! -f analysis/stbl-import-std-layout-v1.md ] || die "dual-authority fossil analysis/stbl-import-std-layout-v1.md (archive live)"
 
 for f in "$DOC" "$MANIFEST" "$LIB" "$PKG_LIB" "$SMOKE_X"; do
-  if [ ! -f "$f" ]; then
-    echo "stbl-import-std gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 for kw in STBL-004 import std -L TOOL-007 TOOL-008 mod.x; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "stbl-import-std gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
-
-if ! grep -qF '## 7. Gate' "$DOC" 2>/dev/null; then
-  echo "stbl-import-std gate FAIL: doc missing '## 7. Gate'" >&2
-  exit 1
-fi
+grep -qF '## 7. Gate' "$DOC" 2>/dev/null || die "doc missing '## 7. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   case "$c1" in min_resolve) MIN_RESOLVE="$c2" ;; esac
 done < "$MANIFEST"
 
 sec_miss="$(stbl_import_std_sections_ok "$DOC" "$MANIFEST" || true)"
-if [ "${sec_miss:-0}" -gt 0 ]; then
-  stbl_import_std_emit_report "fail" 0 0 0 0
-  echo "stbl-import-std gate FAIL: sec_miss=${sec_miss}" >&2
-  exit 1
-fi
+[ "${sec_miss:-0}" -eq 0 ] || die "sec_miss=${sec_miss}"
 
 RESOLVE_OK=0
 while IFS=$'\t' read -r item_id kind import_path expected _notes; do
@@ -100,80 +70,49 @@ while IFS=$'\t' read -r item_id kind import_path expected _notes; do
   case "$kind" in
     resolve)
       if ! stbl_import_std_resolve_probe "$LIB_ROOT" "$import_path" "$expected"; then
-        stbl_import_std_emit_report "fail" "$RESOLVE_OK" 0 0 0
-        exit 1
+        die "resolve $import_path"
       fi
       RESOLVE_OK=$((RESOLVE_OK + 1))
       ;;
   esac
 done < "$MANIFEST"
 
-if [ "$RESOLVE_OK" -lt "$MIN_RESOLVE" ]; then
-  echo "stbl-import-std gate FAIL: resolve $RESOLVE_OK < min $MIN_RESOLVE" >&2
-  stbl_import_std_emit_report "fail" "$RESOLVE_OK" 0 0 0
-  exit 1
-fi
+[ "$RESOLVE_OK" -ge "$MIN_RESOLVE" ] || die "resolve $RESOLVE_OK < min $MIN_RESOLVE"
 echo "stbl-import-std resolve OK (${RESOLVE_OK}/${MIN_RESOLVE})"
 
 if [ "${XLANG_STBL_IMPORT_STD_MANIFEST_ONLY:-0}" = "1" ]; then
-  stbl_import_std_emit_report "ok" "$RESOLVE_OK" 0 0 1
+  SKIP=1
+  stbl_import_std_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "stbl-import-std-layout gate OK (manifest only)"
   exit 0
 fi
 
-# Best-effort quiet make (do not soft-SKIP the gate when make is noisy).
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make || true
+XLANG_BIN="$(stbl_import_std_resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make / XLANG fallthrough)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STBL-004: smoke (XLANG=$XLANG_BIN; check=obs; check_imports.x hard) ==="
+# Refuse soft xlang_compiler_make / bootstrap-link remap.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-
-if XLANG_BIN="$(stbl_import_std_resolve_shu 2>/dev/null)"; then
-  echo "=== STBL-004: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
-  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "stbl-import-std gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  out="/tmp/xlang_stbl004_import_$$"
-  compile_log="/tmp/xlang_stbl004_compile_$$.log"
-  ec=0
-  if $RUN_XLANG build -L . "$SMOKE_X" -o "$out" >"$compile_log" 2>&1 \
-    || "$XLANG_BIN" -L . "$SMOKE_X" -o "$out" >"$compile_log" 2>&1; then
-    "$out" >/dev/null 2>&1 || ec=$?
-    rm -f "$out"
-    if [ "$ec" -ne 0 ]; then
-      echo "stbl-import-std FAIL run $SMOKE_X: exit=$ec want=0" >&2
-      stbl_import_std_emit_report "fail" "$RESOLVE_OK" "$CHECK_OK" 0 0
-      rm -f "$compile_log"
-      exit 1
-    fi
-    RUN_OK=1
-    SKIP=0
-  else
-    echo "stbl-import-std FAIL compile $SMOKE_X" >&2
-    tail -20 "$compile_log" >&2 || true
-    rm -f "$out" "$compile_log"
-    stbl_import_std_emit_report "fail" "$RESOLVE_OK" "$CHECK_OK" 0 0
-    exit 1
-  fi
-  rm -f "$compile_log"
-else
-  echo "stbl-import-std gate FAIL: no native xlang" >&2
-  stbl_import_std_emit_report "fail" "$RESOLVE_OK" 0 0 0
-  exit 2
+# check residual = obs (paused 2026-08-05). Refuse hard-bind check.
+# PLATFORM: SHARED — CHK residual is not a green signal.
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_stbl004_check_$$.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "stbl-import-std OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-# check stays observational; hard-green signal is run= (smoke).
-echo "stbl-import-std check_ok=${CHECK_OK} (observational)"
-stbl_import_std_emit_report "ok" "$RESOLVE_OK" "$CHECK_OK" "$RUN_OK" "$SKIP"
+# Product check_imports.x -o exit0 is the hard-green signal.
+# PLATFORM: SHARED — refuse soft SKIP→OK / soft auto-make. G.7: stbl_import_std_run_smoke.
+if stbl_import_std_run_smoke "$XLANG_BIN" "$SMOKE_X" "check_imports"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "stbl-import-std OK: product check_imports"
+else
+  die "product -o $SMOKE_X failed (refuse soft SKIP→OK)"
+fi
+
+stbl_import_std_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "stbl-import-std-layout gate OK"
