@@ -4,7 +4,8 @@
 # Usage (after source):
 #   std_path_extreme_symbols_ok MOD_X TSV
 #   std_path_extreme_vectors_ok VECTORS_TSV [MIN_ROWS]
-#   std_path_extreme_emit_report status check_ok run_ok skip
+#   std_path_extreme_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check retired to obs; prefer asm product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_PATH_EXTREME_PREFIX="${XLANG_STD140_PATH_EXTREME_PREFIX:-xlang: [XLANG_STD140_PATH_EXTREME]}"
@@ -59,11 +60,12 @@ std_path_extreme_vectors_ok() {
   return 0
 }
 
-# Structured report line (check observational; run hard; skip only when no binary path).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o extreme_clean.x; check = obs.
 std_path_extreme_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_PATH_EXTREME_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_PATH_EXTREME_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

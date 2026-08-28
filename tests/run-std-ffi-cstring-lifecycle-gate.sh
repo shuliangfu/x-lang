@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# STD-055：std.ffi CString 生命周期与错误码门禁（假权威诚实）。
+# STD-055: std.ffi CString lifecycle + error-code gate — honesty soft auto-make →硬绿.
 #
-# 用法：./tests/run-std-ffi-cstring-lifecycle-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-25: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); cstring_try_new.x exit 0 hard-fail (no soft SKIP
-# when native xlang present). C smoke remains observational (archaeology host-C
-# path; not hard green). SAFE-004 regression stays hard. Report
-# check=/run=/safe004=/skip=.
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
+# soft ensure_std_c_o / soft auto-make (`xlang_compiler_make … || true`) +
+# check=/run=/safe004=/skip= retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse
+# soft SKIP→OK / soft auto-make / prefer-c / soft ensure rebuild). Product
+# cstring_try_new.x -o exit0 + SAFE-004 regression = hard run (both folded
+# into run=). check / host-C archaeology = obs. Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-ffi-cstring-lifecycle-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
@@ -25,31 +29,59 @@ SMOKE_X="tests/std-ffi/cstring_try_new.x"
 SMOKE_C="tests/std-ffi/cstring_lifecycle_ok.c"
 SAFE_HOOK="tests/run-safe-ffi-contract-gate.sh"
 MIN_APIS=4
-# Designed success score (cstring_try_new.x returns 0 on all checks).
 SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-ffi-cstring-lifecycle.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-ffi-cstring gate FAIL: $*" >&2
+  std_ffi_cstring_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== STD-055: ffi cstring lifecycle manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$FFI_IMPL" "$SMOKE_X" "$SMOKE_C" "$SAFE_HOOK"; do
-  if [ ! -f "$f" ]; then
-    echo "std-ffi-cstring gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 for kw in STD-055 FFI_ERR_OOM cstring_try_new TYPE-004; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-ffi-cstring gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
-
-if ! grep -qF '## 5. Gate' "$DOC" 2>/dev/null; then
-  echo "std-ffi-cstring gate FAIL: doc missing '## 5. Gate'" >&2
-  exit 1
-fi
+grep -qF '## 5. Gate' "$DOC" 2>/dev/null || die "doc missing '## 5. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -65,138 +97,84 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
-        echo "std-ffi-cstring gate FAIL: missing api $anchor" >&2
-        exit 1
-      fi
+      grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null || die "missing api $anchor"
       ;;
     section)
-      if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
-        echo "std-ffi-cstring gate FAIL: doc missing section $anchor" >&2
-        exit 1
-      fi
+      grep -qF "$anchor" "$DOC" 2>/dev/null || die "doc missing section $anchor"
       ;;
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-ffi-cstring gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
 sym_miss="$(std_ffi_cstring_symbols_ok "$MOD_X" "$FFI_IMPL" "$FFI_IMPL" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_ffi_cstring_emit_report "fail" 0 0 0 0
-  echo "std-ffi-cstring gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-ffi-cstring manifest OK"
 
 if [ "${XLANG_STD_FFI_CSTRING_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_ffi_cstring_emit_report "ok" 0 0 0 1
+  SKIP=1
+  std_ffi_cstring_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "std-ffi-cstring gate OK (manifest only)"
   exit 0
 fi
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-resolve_shu() {
-  local cand
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-055: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o + SAFE-004 hard) ==="
 
-CHECK_OK=0
-RUN_OK=0
-SAFE_OK=0
-SKIP=1
-
-# Observational host-C archaeology smoke (not hard green).
-# PLATFORM: SHARED archaeology — product honesty is cstring_try_new.x via asm.
-echo "=== STD-055: ffi c smoke (observational) ==="
-C_NOTE=0
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-if ensure_std_c_o ../std/ffi/ffi.o 2>/dev/null && std_ffi_cstring_run_c_smoke "$FFI_IMPL"; then
-  C_NOTE=1
+# Host-C archaeology = obs only; refuse soft ensure/auto-make rebuild.
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+if std_ffi_cstring_run_c_smoke "$FFI_IMPL"; then
   echo "std-ffi-cstring c smoke OK (observational)"
 else
-  echo "std-ffi-cstring gate SKIP c smoke (observational; no full ffi.o / link)" >&2
+  echo "std-ffi-cstring OBS c smoke (host-C archaeology; refuse soft ensure/auto-make)" >&2
+  OBS=$((OBS + 1))
 fi
-echo "std-ffi-cstring c_smoke_note=${C_NOTE}"
 
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-055: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-ffi-cstring gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  OUT="/tmp/xlang_std055_ffi_cstr_$$"
-  LOG="/tmp/xlang_std055_ffi_cstr_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "std-ffi-cstring gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
-      std_ffi_cstring_emit_report "fail" "$CHECK_OK" 0 0 0
-      exit 1
-    fi
-  else
-    echo "std-ffi-cstring gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    std_ffi_cstring_emit_report "fail" "$CHECK_OK" 0 0 0
-    exit 1
-  fi
-else
-  echo "std-ffi-cstring gate FAIL: no native xlang" >&2
-  std_ffi_cstring_emit_report "fail" 0 0 0 0
-  exit 1
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std055_ffi_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-ffi-cstring OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
+
+OUT="/tmp/xlang_std055_ffi_cstr_$$"
+LOG="/tmp/xlang_std055_ffi_cstr_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-ffi-cstring OK: product -o"
 
 echo "=== STD-055: SAFE-004 regression ==="
-if chmod +x "$SAFE_HOOK" && "$SAFE_HOOK" >/tmp/std_ffi_safe004_regress.log 2>&1; then
-  if grep -q 'safe-ffi-contract gate OK' /tmp/std_ffi_safe004_regress.log; then
-    SAFE_OK=1
-  fi
-fi
-if [ "$SAFE_OK" -ne 1 ]; then
+set +e
+chmod +x "$SAFE_HOOK"
+"$SAFE_HOOK" >/tmp/std_ffi_safe004_regress.log 2>&1
+safe_ec=$?
+set -e
+if [ "$safe_ec" -eq 0 ] && grep -q 'safe-ffi-contract gate OK' /tmp/std_ffi_safe004_regress.log; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-ffi-cstring OK: SAFE-004"
+else
   tail -15 /tmp/std_ffi_safe004_regress.log >&2 || true
-  std_ffi_cstring_emit_report "fail" "$CHECK_OK" "$RUN_OK" 0 "$SKIP"
-  echo "std-ffi-cstring gate FAIL: SAFE-004 regression" >&2
-  exit 1
+  die "SAFE-004 regression (refuse soft SKIP→OK)"
 fi
 
-# check stays observational; hard-green signals are run= + safe004=.
-echo "std-ffi-cstring check_ok=${CHECK_OK} (observational)"
-std_ffi_cstring_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SAFE_OK" "$SKIP"
+std_ffi_cstring_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-ffi-cstring gate OK"

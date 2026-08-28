@@ -3,8 +3,9 @@
 #
 # Usage (after source):
 #   std_dynlib_last_error_symbols_ok MOD_X DYNLIB_X TSV [DOC]
-#   std_dynlib_last_error_run_c_smoke
-#   std_dynlib_last_error_emit_report status check_ok run_ok skip
+#   std_dynlib_last_error_run_c_smoke   # existing .o only; no soft rebuild
+#   std_dynlib_last_error_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/host-C = obs; prefer asm product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_DYNLIB_LAST_ERROR_PREFIX="${XLANG_STD096_DYNLIB_ERR_PREFIX:-xlang: [XLANG_STD096_DYNLIB_ERR]}"
@@ -75,9 +76,9 @@ std_dynlib_last_error_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Observational C smoke: last_error_smoke.c + dynlib.o + runtime_dynlib_os.o.
-# Not hard green — dynlib.o may pull process argv symbols on some hosts.
-# PLATFORM: SHARED archaeology — product honesty is last_error.x via asm.
+# Host-C archaeology: last_error_smoke.c + existing dynlib.o + runtime_dynlib_os.o.
+# Refuse soft ensure_std_c_o / soft auto-make of missing .o (obs path only).
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
 std_dynlib_last_error_run_c_smoke() {
   local src="tests/dynlib/last_error_smoke.c"
   local out="/tmp/xlang_std096_dynlib_err_c_$$"
@@ -85,14 +86,13 @@ std_dynlib_last_error_run_c_smoke() {
   local rt_o="compiler/runtime_dynlib_os.o"
   local ld_extra=""
   if [ ! -f "$dyn_o" ] || [ ! -f "$rt_o" ]; then
-    echo "std-dynlib-last-error FAIL: missing $dyn_o or $rt_o" >&2
     return 1
   fi
   case "$(uname -s)" in
     Linux*) ld_extra="-ldl" ;;
   esac
+  # PLATFORM: LINUX — -ldl for dlopen family; MACOS has dl* in libSystem.
   if ! cc -Wall -Wextra -o "$out" "$src" "$dyn_o" "$rt_o" $ld_extra 2>/dev/null; then
-    echo "std-dynlib-last-error FAIL: compile C smoke" >&2
     return 1
   fi
   set +e
@@ -100,18 +100,15 @@ std_dynlib_last_error_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-dynlib-last-error FAIL: C smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
+  [ "$ec" -eq 0 ]
 }
 
-# Structured report line (check observational; run hard; skip only when no binary path).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o last_error.x; check/host-C = obs.
 std_dynlib_last_error_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_DYNLIB_LAST_ERROR_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_DYNLIB_LAST_ERROR_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
