@@ -5,7 +5,9 @@
 # wave honesty (2026-08-24 #12): DOC → analysis/archive/exc/;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
-# Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
+# Leftover bootstrap-link wrap + fossil `$RUN_XLANG build` retired (product
+# path is `"$XLANG_BIN" -L . smoke -o` via existing run_smoke). Prefer
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
 # = hard die. check observational (paused 2026-08-05); error_chain_smoke.x
 # exit 0 hard-fail. Report run=/obs=/skip= (keep check= extra). G.7: complete
 # existing exc_error_chain_resolve_shu; converge dod_native_exe; drop unused
@@ -146,42 +148,24 @@ echo "=== EXC-004: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) 
   fi
 
   # Pin product link to resolved compiler (prefer asm).
+  # Refuse leftover bootstrap-link wrap / fossil `$RUN_XLANG build`.
+  # Product path authority = existing exc_error_chain_run_smoke (`-L . -o`).
   # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
   export XLANG="$XLANG_BIN"
   export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
   # Host-indirect for std_* MEMORY + refuse cross-module single-field inline;
   # nested CALL-as-MEMORY still Cap (smoke uses lets). Hard-fail runnable.
   # PLATFORM: SHARED
-  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_exc_error_chain_gate_$$ 2>/tmp/xlang_exc_error_chain_gate_$$.log; then
-    OUT="/tmp/xlang_exc_error_chain_gate_$$"
-    if [ -x "$OUT" ] && "$OUT" >/dev/null 2>&1; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "exc-error-chain gate FAIL runnable exit" >&2
-      rm -f "$OUT"
-      if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
-      exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
-      exit 1
-    fi
-    rm -f "$OUT"
+  if exc_error_chain_run_smoke "$XLANG_BIN" "$SMOKE"; then
+    RUN_OK=1
+    SKIP=0
   else
-    # Fallback: direct -L . -o (same argv as Ubuntu probe that was already green).
-    if exc_error_chain_run_smoke "$XLANG_BIN" "$SMOKE"; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "exc-error-chain gate FAIL runnable link" >&2
-      tail -20 /tmp/xlang_exc_error_chain_gate_$$.log 2>/dev/null >&2 || true
-      if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
-      exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
-      exit 1
-    fi
+    echo "exc-error-chain gate FAIL runnable (refuse leftover wrap / fossil RUN_XLANG build)" >&2
+    if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
+    exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
+    exit 1
   fi
-  rm -f /tmp/xlang_exc_error_chain_gate_$$.log
 
 # check stays observational; hard-green signal is run= (error_chain_smoke).
 if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi

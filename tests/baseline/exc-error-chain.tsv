@@ -1,8 +1,9 @@
 # EXC-004 错误链 manifest
 # 列：item_id	kind	symbol_or_anchor	src	notes
 # Honesty 2026-08-29: residual XLANG fallthrough retired (explicit-bad XLANG
-# no longer continues to xlang_asm). script: tests/run-exc-error-chain-gate.sh
-# Keep ## 6. Gate.
+# no longer continues to xlang_asm). Leftover bootstrap-link wrap + fossil
+# `$RUN_XLANG build` retired (product `-L . -o` via run_smoke).
+# script: tests/run-exc-error-chain-gate.sh. Keep ## 6. Gate.
 # min_items	8
 doc_model	section	## 2. 数据模型	ErrorChain
 doc_api	section	## 3. API	std.error

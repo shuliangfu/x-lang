@@ -5,12 +5,13 @@
 # wave honesty (2026-08-24 #12): DOC → analysis/archive/exc/;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
-# Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
-# = hard die. check observational (paused 2026-08-05); recovery suite
-# runnable hard-fail via tests/lib/exc-error-recovery.sh. Report
-# run=/obs=/skip= (keep check= extra). G.7: complete existing
-# exc_error_recovery_resolve_shu; converge dod_native_exe; drop unused
-# compiler-make.sh. PLATFORM: SHARED archaeology.
+# Leftover bootstrap-link wrap retired (product path is `"$XLANG_BIN" -L . -o`
+# in the recovery runner; refuse `$RUN_XLANG` remap). Prefer xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die. check
+# observational (paused 2026-08-05); recovery suite runnable hard-fail via
+# tests/lib/exc-error-recovery.sh. Report run=/obs=/skip= (keep check= extra).
+# G.7: complete existing exc_error_recovery_resolve_shu; converge
+# dod_native_exe; drop unused compiler-make.sh. PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -189,13 +190,12 @@ else
 fi
 
 # Pin product link to resolved compiler (prefer asm).
+# Refuse leftover bootstrap-link wrap / leftover `$RUN_XLANG` remap.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
-# Hard-fail full suite via runner (no soft SKIP→OK).
+# Hard-fail full suite via runner (no soft SKIP→OK / leftover wrap).
 # PLATFORM: SHARED
 echo "=== EXC-006: runnable report (XLANG=$XLANG_BIN) ==="
 if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$RUNNER"; then

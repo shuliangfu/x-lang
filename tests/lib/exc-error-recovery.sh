@@ -7,10 +7,11 @@
 #   XLANG=./compiler/xlang_asm ./tests/lib/exc-error-recovery.sh
 #
 # Honesty 2026-08-29: leftover XLANG fallthrough retired; leftover
-# xlang_compiler_make auto-make retired. Prefer xlang_asm; pin
-# XLANG_LINK_XLANG; explicit-bad XLANG / missing native hard-die.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
-# PLATFORM: SHARED archaeology.
+# xlang_compiler_make auto-make retired. Leftover bootstrap-link wrap
+# + leftover `$RUN_XLANG` remap retired (product path is `"$xlang" -L . -o`).
+# Prefer xlang_asm; pin XLANG_LINK_XLANG; explicit-bad XLANG / missing
+# native hard-die. G.7: complete existing resolve_shu; converge
+# dod_native_exe. PLATFORM: SHARED archaeology.
 
 # shellcheck source=dod-native-exe.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
@@ -63,14 +64,10 @@ exc_recovery_run_x() {
     return 1
   fi
   # Compile with resolved product compiler (prefer asm; LINK pin is for hooks).
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap.
   # PLATFORM: SHARED
   set +e
-  if [ -n "${RUN_XLANG:-}" ]; then
-    # shellcheck disable=SC2086
-    $RUN_XLANG -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
-  else
-    "$xlang" -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
-  fi
+  "$xlang" -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
   local comp_ec=$?
   set -e
   if [ "$comp_ec" -ne 0 ]; then
@@ -143,12 +140,10 @@ elif ! XLANG_BIN="$(resolve_shu)"; then
 fi
 
 # Pin product link to resolved compiler (prefer asm; avoid Darwin asm→c remap).
-# Refuse leftover auto-make / leftover XLANG fallthrough.
+# Refuse leftover auto-make / leftover XLANG fallthrough / leftover wrap.
 # PLATFORM: SHARED
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-# shellcheck source=bootstrap-link-xlang.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/bootstrap-link-xlang.sh"
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 

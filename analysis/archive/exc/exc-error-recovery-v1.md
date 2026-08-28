@@ -1,12 +1,13 @@
 # EXC-006 错误恢复测试集 v1
 
 > 更新时间：2026-08-29  
-> 状态：**定版（honesty residual XLANG fallthrough）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
+> 状态：**定版（honesty residual leftover wrap）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
 > 关联：`analysis/archive/exc/exc-result-error-v1-rfc.md`、`analysis/archive/exc/exc-panic-abort-v1-rfc.md`
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
 > **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; recovery suite runnable hard-fail (no soft SKIP→OK).  
-> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; leftover runner auto-make retired; check remains obs. Keep `## 3. Gate`.
+> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; leftover runner auto-make retired; check remains obs. Keep `## 3. Gate`.  
+> **honesty 2026-08-29 leftover wrap:** leftover `bootstrap-link-xlang.sh` + leftover `$RUN_XLANG` remap retired. Product path = `"$xlang" -L . src -o` in `exc_recovery_run_x`. Keep `## 3. Gate`.
 
 ---
 
@@ -58,13 +59,13 @@
 - `hook` — 调用 `tests/<script>`
 - `observe` — 观测残债（不硬红闸门）
 
-**Honesty contract（2026-08-26／2026-08-29 residual XLANG fallthrough）**
+**Honesty contract（2026-08-26／2026-08-29 residual XLANG fallthrough／leftover wrap）**
 
 | 项 | 规则 |
 |----|------|
-| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough） |
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough／leftover wrap／leftover `$RUN_XLANG` remap） |
 | check | observational only（check gate paused 2026-08-05；smoke=`recovery/r_or_fallback.x`） |
-| runnable | recovery suite via `exc-error-recovery.sh` **hard-fail**（native present → no soft SKIP→OK；leftover runner auto-make retired） |
+| runnable | recovery suite via `exc-error-recovery.sh` **hard-fail**（native present → no soft SKIP→OK；leftover runner auto-make／leftover wrap retired） |
 | report | `run=`／`obs=`／`skip=`（keep `check=` extra） |
 | DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 

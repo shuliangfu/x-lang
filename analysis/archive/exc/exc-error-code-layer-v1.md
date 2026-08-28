@@ -1,12 +1,13 @@
 # EXC-003 错误码分层（语言 / 库 / 系统）v1
 
 > 更新时间：2026-08-29  
-> 状态：**定版（honesty residual XLANG fallthrough）**  
+> 状态：**定版（honesty residual leftover wrap）**  
 > 关联：`EXC-001`（Layer A/B/C）、`EXC-002`（panic 边界）、`STD-011`（std 统一）
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
 > **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; `error_code_layer.x` exit0 hard-fail (no soft SKIP→OK).  
-> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check remains obs. Keep `## 7. Gate`.
+> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check remains obs. Keep `## 7. Gate`.  
+> **honesty 2026-08-29 leftover wrap:** leftover `bootstrap-link-xlang.sh` + fossil `$RUN_XLANG build` retired. Product path = existing `exc_error_code_layer_run_smoke` (`"$XLANG_BIN" -L . smoke -o`). Keep `## 7. Gate`.
 
 ---
 
@@ -144,7 +145,7 @@ let t: Result_i32 = err_i32(io_err_timeout());
 
 | 项 | 规则 |
 |----|------|
-| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough） |
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough／leftover wrap／fossil `$RUN_XLANG build`） |
 | check | observational only（check gate paused 2026-08-05） |
 | runnable | `error_code_layer.x` exit0 **hard-fail**（native present → no soft SKIP→OK） |
 | report | `run=`／`obs=`／`skip=`（keep `check=` extra） |

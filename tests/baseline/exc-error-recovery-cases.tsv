@@ -1,8 +1,10 @@
 # EXC-006 错误恢复测试集矩阵
 # Format: case_id<TAB>script<TAB>policy<TAB>expected_exit<TAB>category<TAB>notes
 # Honesty 2026-08-29: residual XLANG fallthrough retired (explicit-bad XLANG
-# no longer continues to xlang_asm). scripts: tests/run-exc-error-recovery-gate.sh
-# / tests/lib/exc-error-recovery.sh. Keep ## 3. Gate.
+# no longer continues to xlang_asm). Leftover bootstrap-link wrap + leftover
+# `$RUN_XLANG` remap retired (product `-L . -o`). scripts:
+# tests/run-exc-error-recovery-gate.sh / tests/lib/exc-error-recovery.sh.
+# Keep ## 3. Gate.
 min_cases	30
 docs	exc-error-recovery-v1.md	section	R1-unwrap-or	RFC §2 R1
 docs	exc-error-recovery-v1.md	section	R2-or-and	RFC §2 R2
