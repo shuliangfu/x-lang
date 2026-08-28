@@ -3,6 +3,10 @@
 # min_apis	2
 # 2026-08-26 honesty: verify section → ## 5. Gate; symbol_smoke_c path → seed
 # (fossil pointed at std/backtrace/backtrace.x; smoke lives in runtime seed).
+# 2026-08-28 residual: report run=/obs=/skip= (retired check=/c_gold=/x=);
+# refuse XLANG fallthrough / auto-make / ensure rebuild / extra CLI .o /
+# C gold auto-make. C gold file existence remains required; compile/run
+# is not a green signal.
 read_path	section	## 1. 阅读路径	15min
 api_doc	section	## 2. API	SYM_NAME_LEN
 gold	section	## 3. 已知帧金样	gold_anchor

@@ -1,7 +1,7 @@
 # STD-052：std.backtrace 符号化 v1
 
-> 更新时间：2026-08-26（honesty soft→硬绿）· 原稿 2026-06-17  
-> 状态：**定版（v1）+ gate honesty**  
+> 更新时间：2026-08-28（honesty residual XLANG fallthrough／auto-make →硬绿）· 原稿 2026-06-17  
+> 状态：**定版（v1.2）** · Gate honesty residual XLANG fallthrough／auto-make →硬绿  
 > 关联：TOOL-005（调试符号）、SAFE-007（崩溃证据）
 
 ---
@@ -61,24 +61,33 @@ C 烟测入口 `backtrace_symbolicate_smoke_c` 位于 `compiler/seeds/runtime_ba
 ./tests/run-std-backtrace-symbolicate-gate.sh
 ```
 
-Honesty（2026-08-26）：
+Honesty residual（2026-08-28）：
 
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
-- `xlang check` **观测**（自举期暂停闸门，2026-08-05）；CHK 红不硬失败。
-- `symbolicate_known.x` **exit 0 硬失败**（有 native xlang 时 **无 soft SKIP**）；接受具名 **或** hex 名槽（裸 `ld` 缺 `--export-dynamic` 时 Linux 常走 hex）。
-- C gold（`symbolicate_gold.c`）在 execinfo 宿主上硬失败；Alpine/musl 无 execinfo 时仅跳过 C gold；C gold 仍要求 `gold_anchor` **具名**。
-- C gold 链入 `runtime_process_argv.o`＋`runtime_link_abi_user_env.o`（backtrace／crash-evidence 依赖；化石 symbol_miss 曾掩盖 UNDEF）。
-- TSV `symbol_smoke_c` 路径对齐 seed（化石曾指 `backtrace.x`）。
-- 产品残债（**非软**）：asm 裸 `ld` 链 backtrace 时未传 `--export-dynamic`（cc 路径的 `-rdynamic` 对裸 ld 无效）。
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- 显式坏 `XLANG`／缺 native **硬 die**（拒 XLANG fallthrough／soft auto-make／prefer-c／soft SKIP→OK／soft `ensure_std_c_o` 重建／`ensure_runtime_backtrace_platform_o`／extra CLI `.o`／C gold auto-make）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `symbolicate_known.x` 产品 `-o` **exit 0 硬失败**（硬绿信号＝`run=`；接受具名 **或** hex 名槽）
+- Host-C archaeology **仅观测**（现成 `std/backtrace/backtrace.o`＋`compiler/runtime_backtrace_platform.o` only；拒 ensure／auto-make 重建；不传 extra CLI `.o`；C gold 文件存在仍 TSV 必有，compile/run 非绿）
+- 报告行：`run=`／`obs=`／`skip=`（退役 `check=`／`c_gold=`／`x=` 当硬绿）
+- 禁顶层 DOC 复活（live = `analysis/archive/std/`）
+- 保留 `## 5. Gate`
+- 关键词：STD-052／gold_anchor／SYM_NAME_LEN／dladdr
+- 产品残债（**非软**）：asm 裸 `ld` 链 backtrace 时未传 `--export-dynamic`（cc 路径的 `-rdynamic` 对裸 ld 无效）
 
-期望报告：
+manifest：`tests/baseline/std-backtrace-symbolicate.tsv`
 
 ```
-xlang: [XLANG_STD_BACKTRACE_SYM] status=ok check=? c_gold=1 x=1 skip=0 host=…
+xlang: [XLANG_STD_BACKTRACE_SYM] status=ok run=1 obs=0|1|2 skip=0
+std-backtrace-symbolicate gate OK
 ```
 
-- `check=` 观测（Darwin 常 0／Ubuntu 常 1，均不挡硬绿）。
-- 硬绿信号 = `x=1` + `c_gold=1`（execinfo 宿主）+ `skip=0`。
+F-backtrace v1／v2 仍硬委托本闸（须保持 exit 0）。
+
+### 5.1 Changelog
+
+- 2026-06-17：v1 symbolicate 实装 + gold_anchor 金样。
+- 2026-08-26：Honesty v1.1（prefer asm；check 观测；smoke_c→seed；`## 5. Gate`；报告 `check=`／`c_gold=`／`x=`）。
+- 2026-08-28：Honesty residual v1.2（拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建／C gold auto-make；报告 `run=`／`obs=`／`skip=`；未啃产品 `std/backtrace`／`--export-dynamic`）。
 
 ---
 
@@ -87,4 +96,5 @@ xlang: [XLANG_STD_BACKTRACE_SYM] status=ok check=? c_gold=1 x=1 skip=0 host=…
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-17 | symbolicate 实装 + gold_anchor 金样 |
-| honesty | 2026-08-26 | soft→硬绿：prefer asm；`## 5. Gate`；smoke_c→seed；check 观测；format_hex 按字节；.x 烟测接受 hex 名槽 |
+| v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；smoke_c→seed；`## 5. Gate` |
+| v1.2 | 2026-08-28 | Honesty residual：拒 XLANG fallthrough／auto-make／ensure；报告 `run=`／`obs=`／`skip=` |
