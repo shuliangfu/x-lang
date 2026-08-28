@@ -1,7 +1,7 @@
 # STD-087 std.cache v1
 
-> 更新时间：2026-08-25  
-> 状态：**可用** — LRU + TTL + 对象池 + 统计 + gate honesty
+> 更新时间：2026-08-29  
+> 状态：**可用** — LRU + TTL + 对象池 + 统计 + gate honesty（残 auto-make 已退役）
 
 ---
 
@@ -32,19 +32,20 @@
 
 ## 3. Gate
 
-Honesty（2026-08-25）：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；`check` 观测；`lru_pool_smoke.x` exit0 硬失败；C smoke 仅观测；报告 `check=`／`run=`／`skip=`。
+Honesty（2026-08-29 残 auto-make）：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft `xlang_compiler_make` 重建 cache.o／time.o／runtime_time_os.o；host-C 仅现成 `.o`＝obs；`check` 观测；`lru_pool_smoke.x` exit0 硬失败；报告 `run=`／`obs=`／`skip=`。
 
 ```
-xlang: [XLANG_STD_CACHE] status=ok check=1 run=1 skip=0
+xlang: [XLANG_STD_CACHE] status=ok run=1 obs=2 skip=0
 std-cache gate OK
 ```
 
-（Darwin 上 `check=0` 观测亦可；硬绿信号是 `run=1`。）
+（Darwin 上 `check` CHK residual＝obs；host-C 现成 `.o` 或缺 `.o` 均为 obs。硬绿信号是 `run=1`。）
 
 ---
 
 ## 4. Changelog
 
+- 2026-08-29：残 soft auto-make（host-C 前 `xlang_compiler_make` 重建 `.o`）退役；host-C 仅现成 `.o`＝obs；报告 `run=`／`obs=`／`skip=`。
 - 2026-08-25：formal_mod 补全 `mod.x`+`cache.x`（根治 `std_cache_*` UNDEF）；闸／TSV／DOC 假权威诚实化；钉盘不升。
 - 2026-06-18：v1 初版（LRU + 池 + gate）。
 
