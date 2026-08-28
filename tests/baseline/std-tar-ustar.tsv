@@ -3,6 +3,7 @@
 # min_apis	5
 # 2026-08-26 honesty: verify section → ## 5. Gate; MOD_X=mod.x vs TAR_X=tar.x.
 # 2026-08-28 honesty residual: report run=/obs=/skip= (retired check=/rt=/main=).
+# honesty 2026-08-29 leftover runner: run-tar.sh auto-make / ensure_std_c_o tar.o / fossil `$XLANG build` retired (product -o).
 read_path	section	## 1. 阅读路径	15min
 traverse_api	section	## 2. 遍历 API	next_entry
 extract_api	section	## 3. 提取 API	read_entry_data

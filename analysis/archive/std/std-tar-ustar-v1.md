@@ -74,6 +74,8 @@ std-tar-ustar gate OK
 
 回归：`tests/tar/main.x`（头读写）、`tests/run-tar.sh`（观测 hook）。
 
+Honesty residual leftover runner（2026-08-29；keep `## 5. Gate`）：leftover `run-tar.sh` auto-make／`ensure_std_c_o tar.o`／化石 `$XLANG build` retired. Prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；产品 `-o` `tests/tar/main.x` exit 0 硬失败；check＝obs；报告 `run=`／`obs=`／`skip=`。Gate 本体仍 STD-038（不重开）。F-tar v1/v2 仍 hard-delegate 本闸（须 exit 0）。
+
 ### 5.1 Changelog
 
 - 2026-08-26：Honesty v1.1（prefer asm；check 观测；恢复 `MOD_X`／`TAR_X`；报告 `check=`／`rt=`／`main=`）。
