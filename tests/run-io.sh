@@ -1,76 +1,135 @@
 #!/usr/bin/env bash
-# 测试 std.io：print_i32 输出 42，print_u32 输出 100
-set -e
+# std.io gate: print_i32/u32/i64, write_stdout, write_with_timeout, print_str,
+# read_stdin_ptr / read_ptr_slice (+param) — honesty soft auto-make →硬绿.
+#
+# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true` + soft
+# process.o make) + soft default `./compiler/xlang` + soft prefer-c via
+# RUN_ALL_USE_C / non-asm first (false authority) retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c). RUN_ALL_USE_C=1
+# may bind native xlang-c when present; missing = hard die (no soft make).
+# Product -o cases = hard run. Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-io.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
+
+PREFIX="${XLANG_IO_PREFIX:-xlang: [XLANG_IO]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "io test FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in compiler/xlang_asm compiler/xlang-c compiler/xlang; do
+    abs="$root/$cand"
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Product -o then run; require stdout contains needle and exit 0 (unless
+# expect_exit set). Args: label src needle [expect_exit=0] [stdin_bytes]
+run_stdout() {
+  local label="$1" src="$2" needle="$3"
+  local expect_exit="${4:-0}"
+  local stdin_bytes="${5:-}"
+  local out="/tmp/xlang_io_${label}_$$" log="/tmp/xlang_io_${label}_$$.log" o_ec r_ec got
+  [ -f "$src" ] || die "missing $src"
+  rm -f "$out" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$out" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$label product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$out" ]; then
+    die "$label product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  if [ -n "$stdin_bytes" ]; then
+    got=$(printf '%s' "$stdin_bytes" | gate_run_timeout "$XLANG_CASE_TIMEOUT" "$out" 2>/dev/null)
+    r_ec=$?
+  else
+    got=$(gate_run_timeout "$XLANG_CASE_TIMEOUT" "$out" 2>/dev/null)
+    r_ec=$?
+  fi
+  set -e
+  rm -f "$out"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$label run timeout"
+  fi
+  if [ -n "$needle" ]; then
+    echo "$got" | grep -q "$needle" \
+      || die "$label expected stdout to contain '$needle', got: $got"
+  fi
+  if [ "$r_ec" -ne "$expect_exit" ]; then
+    die "$label expected exit $expect_exit, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  echo "io OK: $label exit=$expect_exit"
+}
+
+echo "=== io gate (prefer asm; hard; refuse soft auto-make / soft SKIP→OK) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+
+# run-all C pipeline: bind xlang-c when present; refuse soft auto-make.
+if [ -n "${RUN_ALL_USE_C:-}" ]; then
+  if dod_native_exe ./compiler/xlang-c; then
+    XLANG_BIN="$(pwd)/compiler/xlang-c"
+  else
+    die "RUN_ALL_USE_C=1 but no native xlang-c (refuse soft auto-make)"
+  fi
 fi
 
-# run-all 默认 C 流水线（RUN_ALL_USE_C=1）时用 xlang-c，避免 seed -o 在非 x86_64 挂起。
-if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/xlang-c ]; then
-  XLANG=./compiler/xlang-c
-elif [ -n "$XLANG" ]; then
-  :
-elif [ -x ./compiler/xlang ]; then
-  XLANG=./compiler/xlang
-elif [ -x ./compiler/xlang-c ]; then
-  XLANG=./compiler/xlang-c
-else
-  XLANG=./compiler/xlang-c
-fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q ../std/process/process.o 2>/dev/null \
-    || xlang_compiler_make ../std/process/process.o 2>/dev/null \
-    || true
-fi
-# F-03 v3：io 纯 .x，不再 build ../std/io/io.o
-
-$XLANG build -L . tests/io/main.x -o /tmp/xlang_io 2>&1
-out=$(/tmp/xlang_io 2>&1)
-echo "$out" | grep -q "42" || { echo "expected stdout to contain 42, got: $out"; exit 1; }
-
-$XLANG build -L . tests/io/print_u32.x -o /tmp/xlang_io_u32 2>&1
-out=$(/tmp/xlang_io_u32 2>&1)
-echo "$out" | grep -q "100" || { echo "expected stdout to contain 100 (print_u32), got: $out"; exit 1; }
-
-$XLANG build -L . tests/io/print_i64.x -o /tmp/xlang_io_i64 2>&1
-out=$(/tmp/xlang_io_i64 2>&1)
-echo "$out" | grep -q "123" || { echo "expected stdout to contain 123 (print_i64), got: $out"; exit 1; }
-
-$XLANG build -L . tests/io/write_stdout.x -o /tmp/xlang_io_write 2>&1
-out=$(/tmp/xlang_io_write 2>&1)
-echo "$out" | grep -q "Hi" || { echo "expected stdout to contain Hi (write_stdout), got: $out"; exit 1; }
-ec=0; /tmp/xlang_io_write >/dev/null 2>&1 || ec=$?
-[ "$ec" -ne 0 ] && { echo "expected exit 0 (write_stdout), got $ec"; exit 1; }
-
-$XLANG build -L . tests/io/write_with_timeout.x -o /tmp/xlang_io_wto 2>&1
-out=$(/tmp/xlang_io_wto 2>&1)
-echo "$out" | grep -q "Hi" || { echo "expected stdout to contain Hi (write_with_timeout), got: $out"; exit 1; }
-ec=0; /tmp/xlang_io_wto >/dev/null 2>&1 || ec=$?
-[ "$ec" -ne 0 ] && { echo "expected exit 0 (write_with_timeout), got $ec"; exit 1; }
-
-$XLANG build -L . tests/io/print_str.x -o /tmp/xlang_io_print_str 2>&1
-out=$(/tmp/xlang_io_print_str 2>&1)
-echo "$out" | grep -q "ok" || { echo "expected stdout to contain ok (print_str), got: $out"; exit 1; }
-
-# 零拷贝读 read_stdin_ptr / read_ptr_len（管道喂入 "AB"）
-$XLANG build -L . tests/io/read_ptr.x -o /tmp/xlang_io_read_ptr 2>&1
-echo -n "AB" | /tmp/xlang_io_read_ptr
-ec=$?
-[ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr), got $ec"; exit 1; }
-
-# M-5：read_ptr_slice / read_stdin_ptr_slice（管道喂入 "AB"）
-$XLANG build -L . tests/io/read_ptr_slice.x -o /tmp/xlang_io_read_ptr_slice 2>&1
-echo -n "AB" | /tmp/xlang_io_read_ptr_slice
-ec=$?
-[ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr_slice), got $ec"; exit 1; }
-
-$XLANG build -L . tests/io/read_ptr_slice_param.x -o /tmp/xlang_io_read_ptr_slice_param 2>&1
-echo -n "AB" | /tmp/xlang_io_read_ptr_slice_param
-ec=$?
-[ "$ec" -ne 0 ] && { echo "expected exit 0 (read_ptr_slice_param), got $ec"; exit 1; }
+# F-03 v3: io is pure .x — no soft make of io.o / process.o / xlang-c.
+run_stdout "print_i32" "tests/io/main.x" "42"
+run_stdout "print_u32" "tests/io/print_u32.x" "100"
+run_stdout "print_i64" "tests/io/print_i64.x" "123"
+run_stdout "write_stdout" "tests/io/write_stdout.x" "Hi"
+run_stdout "write_with_timeout" "tests/io/write_with_timeout.x" "Hi"
+run_stdout "print_str" "tests/io/print_str.x" "ok"
+run_stdout "read_stdin_ptr" "tests/io/read_ptr.x" "" 0 "AB"
+run_stdout "read_ptr_slice" "tests/io/read_ptr_slice.x" "" 0 "AB"
+run_stdout "read_ptr_slice_param" "tests/io/read_ptr_slice_param.x" "" 0 "AB"
 
 echo "io test OK"
+ok_report
