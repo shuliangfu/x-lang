@@ -1,8 +1,9 @@
 # LANG-002 import 跨平台一致性 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-08-29  
 > **Honesty 2026-08-24 #9: top-level DOC retired; live = archive + import smoke matrix.**
-> 状态：**定版（v1）**  
+> **2026-08-29:** residual auto-make (`xlang_compiler_make` / scheduler.o) retired.
+> 状态：**定版（honesty residual auto-make）**  
 > 关联：`compiler/docs/X与C流水线同步状态.md`、`tests/run-import.sh`
 
 ---
@@ -128,6 +129,7 @@ refuse soft SKIP→OK / force-xlang-c LINK; explicit bad XLANG = hard die;
 missing native = hard die (import smoke is the live face); `observe`
 policy = obs (product debt — not soft silence); DOC=archive; report
 `run=`／`hooks=`／`obs=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make` / scheduler.o) retired.
 
 `tests/run-lang-import-gate.sh`:
 

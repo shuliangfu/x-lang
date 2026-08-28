@@ -1,7 +1,7 @@
 # LANG-001 语法版本化与 feature gate v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）**  
 > 关联：`docs/01-关键字.md`（预处理）、`driver_argv_collect_defines`、`LANG-002`
 
 ---
@@ -102,6 +102,7 @@ Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
 soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die
 (edition/feature hooks are the live face); DOC=archive; report
 `run=`／`edition=`／`feature=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
 
 `tests/run-lang-feature-gate-gate.sh` + `tests/run-lang-feature-gate.sh`:
 

@@ -2,6 +2,7 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # honesty 2026-08-24 #9: DOC → analysis/archive/lang/; typeck.c/parser.c retired;
 # live = typeck.x / parser.x; find_trait_def → xlang_trait_check_impls_complete_c.
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # min_layers	6
 # min_cases	3
 read_path	section	## 1. 阅读路径	analysis/archive/lang/lang-trait-v1.md	-	15min

@@ -1,5 +1,6 @@
 # LANG-001 feature gate manifest
 # honesty 2026-08-24 #6: DOC → archive/lang/; monofile retired; defines = runtime_driver_abi
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # 列：item_id	kind	anchor	src	tier	notes
 # min_gates	6
 # min_cases	2

@@ -2,9 +2,10 @@
 # LANG-001: edition / feature gate smoke.
 #
 # Honesty: soft SKIP→OK when no native xlang (bare "gate OK") + prefer
-# xlang-c before xlang_asm retired. Prefer product xlang_asm. Explicit
-# bad XLANG = hard die. Missing native = hard die (edition/feature hooks
-# are the live face). Report run=/edition=/feature=/skip=.
+# xlang-c before xlang_asm + leftover auto-make retired. Prefer product
+# xlang_asm. Explicit bad XLANG = hard die. Missing native = hard die
+# (edition/feature hooks are the live face). Report
+# run=/edition=/feature=/skip=.
 #
 # Usage: ./tests/run-lang-feature-gate.sh
 # PLATFORM: SHARED archaeology.
@@ -14,8 +15,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 PREFIX="xlang: [XLANG_LANG_FEATURE]"
 RUN_OK=0
@@ -62,11 +61,11 @@ resolve_shu() {
   return 1
 }
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
 
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 chmod +x scripts/xlang-lang-edition.sh
 
 ED_STABLE=tests/lang-feature/edition_stable.x

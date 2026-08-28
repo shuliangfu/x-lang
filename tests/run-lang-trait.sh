@@ -2,16 +2,14 @@
 # LANG-004: trait/interface smoke (method call + typeck negative).
 #
 # Honesty: soft SKIP→OK when no native xlang + prefer-c (xlang-c before
-# xlang_asm) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG = hard die. Missing native = hard die (trait hooks
-# are the live face). Report run=/neg=/skip=.
+# xlang_asm) + leftover auto-make retired. Prefer product xlang_asm;
+# pin XLANG_LINK_XLANG. Explicit bad XLANG = hard die. Missing native
+# = hard die (trait hooks are the live face). Report run=/neg=/skip=.
 #
 # Usage: ./tests/run-lang-trait.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -63,11 +61,10 @@ resolve_shu() {
   return 1
 }
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
 
 echo "=== LANG-004: trait smoke (XLANG=$XLANG_BIN) ==="
 chmod +x tests/run-trait.sh

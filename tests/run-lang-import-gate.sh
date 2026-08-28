@@ -2,18 +2,16 @@
 # LANG-002: import resolution cross-platform consistency gate.
 #
 # Honesty: soft SKIP→OK when no native xlang + prefer-c LINK (force
-# xlang-c over resolved XLANG) retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG = hard die. Missing native =
-# hard die (import smoke is the live face). observe policy = obs
-# (product debt — not soft silence). DOC authority = archive/lang.
-# Report run=/hooks=/obs=/skip=.
+# xlang-c over resolved XLANG) + leftover auto-make retired. Prefer
+# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG = hard
+# die. Missing native = hard die (import smoke is the live face).
+# observe policy = obs (product debt — not soft silence). DOC
+# authority = archive/lang. Report run=/hooks=/obs=/skip=.
 #
 # Usage: ./tests/run-lang-import-gate.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -82,16 +80,13 @@ grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 echo "lang-import manifest OK (host=$(ci_host_summary))"
 RUN_OK=1
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 # Link follows resolved product path (prefer asm); refuse force-xlang-c.
+# Refuse leftover auto-make of compiler / std/async/scheduler.o.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null \
-  || xlang_compiler_make ../std/async/scheduler.o
 
 run_x_case() {
   local script="$1"

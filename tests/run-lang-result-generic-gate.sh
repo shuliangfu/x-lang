@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # LANG-010: Result<T,E> generic struct gate (honesty soft→硬绿).
 #
-# Honesty: soft SKIP→OK when no native xlang retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
-# hard die. `xlang check` is observational (check gate paused 2026-08-05)
-# — count as obs, not soft silence. Runnable -o path is hard-green.
-# DOC authority = archive/lang. Report run=/obs=/skip=.
+# Honesty: soft SKIP→OK when no native xlang + leftover auto-make
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit
+# bad XLANG / missing native = hard die. `xlang check` is observational
+# (check gate paused 2026-08-05) — count as obs, not soft silence.
+# Runnable -o path is hard-green. DOC authority = archive/lang.
+# Report run=/obs=/skip=.
 #
 # Usage: ./tests/run-lang-result-generic-gate.sh
 # wave honesty (2026-08-24 #10): DOC → analysis/archive/lang/;
@@ -14,8 +15,6 @@
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -114,11 +113,10 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "lang-result-generic manifest OK"
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
 
 echo "=== LANG-010: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
 # check gate paused — observational product/diag debt, not soft silence.

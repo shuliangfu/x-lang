@@ -1,8 +1,9 @@
 # LANG-004 trait / 接口约束语义 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-08-29  
 > **Honesty 2026-08-24 #9: typeck.c/parser.c retired; live = typeck.x / parser.x + xlang_trait_check_impls_complete_c.**
-> 状态：**定版（v1）** — 与 `typeck.c` 阶段 7.2、`tests/run-trait.sh` 对齐  
+> **2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
+> 状态：**定版（honesty residual auto-make）** — 与 `typeck.x` 阶段 7.2、`tests/run-trait.sh` 对齐  
 > 关联：`LANG-003`（泛型）、`std/io` Reader/Writer **interface**、`TYPE-004`（FFI）
 
 ---
@@ -88,6 +89,7 @@ Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
 die (trait hooks are the live face); DOC=archive; report
 `run=`／`neg=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
 
 `tests/run-lang-trait-gate.sh` + `tests/run-lang-trait.sh`:
 

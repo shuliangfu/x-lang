@@ -1,8 +1,9 @@
 # LANG-008 生命周期错误信息友好化 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-08-29  
 > **Honesty 2026-08-24 #8: lsp_diag.c/typeck.c retired; live = lsp_diag.h + typeck.x.**
-> 状态：**定版（v1）** — 与 `lsp_diag_report_typeck`、`tests/run-typeck-region.sh` 对齐  
+> **2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
+> 状态：**定版（honesty residual auto-make）** — 与 `lsp_diag_report_typeck`、`tests/run-typeck-region.sh` 对齐  
 > 关联：`TYPE-002`（region 检查）、`EXC-005`（CLI/LSP 错误显示）
 
 ---
@@ -93,6 +94,7 @@ Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
 die (manifest face is live); `xlang check` line/substr smoke = obs (check
 gate paused 2026-08-05); DOC=archive; report `run=`／`obs=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
 
 `tests/run-lang-lifetime-diag-gate.sh` + `tests/run-lang-lifetime-diag.sh`:
 

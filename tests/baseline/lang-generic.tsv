@@ -2,6 +2,7 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # honesty 2026-08-24 #10: DOC → analysis/archive/lang/; typeck.c/codegen.c retired;
 # live = typeck.x / codegen.x; codegen_one_mono_instance → codegen_emit_mono_mangled_name.
+# honesty 2026-08-29: leftover compiler-make.sh source retired (no auto-make).
 # min_layers	6
 # min_cases	3
 read_path	section	## 1. 阅读路径	analysis/archive/lang/lang-generic-v1.md	-	15min
