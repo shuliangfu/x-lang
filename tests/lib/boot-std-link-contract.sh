@@ -4,14 +4,15 @@
 # Usage (after source):
 #   boot_link_contract_verify_runtime RUNTIME_FILES TSV
 #   boot_link_contract_verify_makefile MK_FILE TSV
-#   boot_link_contract_emit_report status always_ok on_demand_ok smoke_ok skip
+#   boot_link_contract_emit_report status run_ok obs skip
 #
 # wave honesty (2026-08-24): RUNTIME_FILES is a space-separated live labi seed
 # union (std_list + ondemand + ensure + path_pure + freestanding). Monofile
 # seeds/runtime.from_x.c retired wave321. Dead get_*_o_path getters are "-";
 # live xlang_runtime_*_o_path getters stay. MK_FILE =
 # compiler/mk/std_and_panic_objs.mk (Makefile deleted MG wave941).
-# PLATFORM: SHARED archaeology.
+# honesty 2026-08-28: report fields run=/obs=/skip= (json always = hard run;
+# on_demand product residual = obs). PLATFORM: SHARED archaeology.
 
 BOOT_LINK_PREFIX="${XLANG_BOOT_STD_LINK_CONTRACT_PREFIX:-xlang: [XLANG_BOOT_STD_LINK_CONTRACT]}"
 
@@ -119,12 +120,11 @@ boot_link_contract_run_smoke() {
   return 0
 }
 
-# Emit structured report line.
+# Emit structured report line: run=/obs=/skip=.
 boot_link_contract_emit_report() {
   local status="$1"
-  local always_ok="$2"
-  local on_demand_ok="$3"
-  local smoke_ok="$4"
-  local skip="$5"
-  echo "${BOOT_LINK_PREFIX} status=${status} always=${always_ok} on_demand=${on_demand_ok} smoke=${smoke_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${BOOT_LINK_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
