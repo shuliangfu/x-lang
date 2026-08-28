@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# std-async-io-cps.sh — STD-042 manifest 与烟测辅助
+# std-async-io-cps.sh — STD-042 async IO + CPS suspend helpers.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_async_io_cps_symbols_ok MOD_X IO_X SCHED_C IO_C TSV
-#   std_async_io_cps_run_smoke XLANG_BIN X TAG
-#   std_async_io_cps_check_emit XLANG_BIN X
-#   std_async_io_cps_emit_report status align_ok io_uring_ok emit_ok skip
+#   std_async_io_cps_run_smoke XLANG SRC [TAG]
+#   std_async_io_cps_check_emit XLANG SRC
+#   std_async_io_cps_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_ASYNC_IO_CPS_PREFIX="${XLANG_STD_ASYNC_IO_CPS_PREFIX:-xlang: [XLANG_STD_ASYNC_IO_CPS]}"
 
-# 校验 manifest symbol/file；echo 缺失数。
+# Validate manifest symbol/file/smoke anchors.
+# Echo miss count; return 0 when miss=0.
 std_async_io_cps_symbols_ok() {
   local mod_x="$1"
   local io_x="$2"
@@ -27,7 +29,6 @@ std_async_io_cps_symbols_ok() {
           std/async/mod.x) mod_path="$mod_x" ;;
           std/io/mod.x) mod_path="$io_x" ;;
           compiler/seeds/runtime_scheduler_glue.from_x.c) mod_path="$sched_c" ;;
-          std/io/mod.x) mod_path="$io_x" ;;
           std/io/io.c) mod_path="$io_c" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
@@ -47,7 +48,9 @@ std_async_io_cps_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x。
+# Compile and run .x smoke.
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
+# Tip product UNDEF for std_async_* is gate-obs (not this helper's soft OK).
 std_async_io_cps_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -59,7 +62,7 @@ std_async_io_cps_run_smoke() {
   fi
   if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-async-io-cps FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -75,7 +78,8 @@ std_async_io_cps_run_smoke() {
   return 0
 }
 
-# 检查 await IO emit 含 suspend_io + async submit。
+# Check await IO emit contains suspend_io + async submit markers.
+# Return 1 on -E tool fail or missing markers (callers may map miss → obs).
 std_async_io_cps_check_emit() {
   local xlang="$1"
   local src="$2"
@@ -100,12 +104,11 @@ std_async_io_cps_check_emit() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: run=/obs=/skip=; retired align=/io_uring=/emit=).
 std_async_io_cps_emit_report() {
   local status="$1"
-  local align_ok="$2"
-  local io_uring_ok="$3"
-  local emit_ok="$4"
-  local skip="$5"
-  echo "${STD_ASYNC_IO_CPS_PREFIX} status=${status} align=${align_ok} io_uring=${io_uring_ok} emit=${emit_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_ASYNC_IO_CPS_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
