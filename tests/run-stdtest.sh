@@ -1,30 +1,115 @@
 #!/usr/bin/env bash
-set -e
+# std.test leftover runner: tests/stdtest/main.x product -o exit 0
+# (expect / expect_eq_i32 / expect_ne_i32).
+#
+# Honesty: leftover soft auto-make (`xlang_compiler_make -q || make` of
+# compiler / test.o / runtime_test_fn_invoke.o) + leftover bootstrap-link wrap
+# (prefer-c remap) + fossil `$RUN_XLANG build` retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard
+# die (refuse soft SKIP→OK / leftover auto-make / leftover wrap / leftover
+# XLANG fallthrough). Check path = obs= (check gate paused 2026-08-05).
+# Product `-o` must exit 0. Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-stdtest.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-# shellcheck source=lib/build-std-c-o.sh
-. "$(dirname "$0")/lib/build-std-c-o.sh"
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+
+PREFIX="${XLANG_STDTEST_PREFIX:-xlang: [STDTEST]}"
+SMOKE="tests/stdtest/main.x"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "stdtest test FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+# G.7: complete the existing per-script resolve_shu family (dod_native_exe);
+# do not fork a third resolver. Explicit XLANG that is missing/non-native
+# returns 1 (caller hard-dies; refuse leftover XLANG fallthrough).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+[ -f "$SMOKE" ] || die "missing $SMOKE"
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+
+echo "=== stdtest leftover (prefer asm; hard; refuse leftover wrap / auto-make) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover wrap)"
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover wrap)"
 fi
-# PLATFORM: SHARED — C backend prelinks test.o (std_test_expect*).
-# L4 cold mac: partial test.o can be mtime-fresh yet lack std_test_* (only bare
-# test_expect_c + preamble) → UNDEF. Force rebuild when symbol gate fails.
-xlang_compiler_make -q ../std/test/test.o 2>/dev/null \
-  || xlang_compiler_make ../std/test/test.o
-if ! nm std/test/test.o 2>/dev/null | grep -q 'std_test_expect'; then
-  echo "run-stdtest: test.o missing std_test_expect — force rebuild" >&2
-  rm -f std/test/test.o
-  xlang_compiler_make ../std/test/test.o
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_stdtest_check.log 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "stdtest OBS check (paused / CHK residual ec=$chk_ec; refuse leftover wrap)" >&2
+  OBS=$((OBS + 1))
 fi
-xlang_compiler_make -q runtime_test_fn_invoke.o 2>/dev/null \
-  || xlang_compiler_make runtime_test_fn_invoke.o
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+
 exe="/tmp/xlang_stdtest_$$"
-if ! $RUN_XLANG build -L . tests/stdtest/main.x -o "$exe" 2>&1; then echo "stdtest test: compile failed"; rm -f "$exe"; exit 1; fi
-exitcode=0; $exe 2>/dev/null || exitcode=$?
+rm -f "$exe" 2>/dev/null || true
+set +e
+# Refuse leftover wrap / fossil `$RUN_XLANG build` / leftover auto-make
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >/tmp/xlang_stdtest_o.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  tail -n 12 /tmp/xlang_stdtest_o.log 2>/dev/null || true
+  rm -f "$exe"
+  die "product -o failed (ec=$o_ec; refuse leftover wrap / fossil RUN_XLANG build / leftover auto-make)"
+fi
+set +e
+"$exe" >/dev/null 2>&1
+run_ec=$?
+set -e
 rm -f "$exe"
-if [ "$exitcode" -ne 0 ]; then echo "stdtest test: expected exit 0, got $exitcode"; exit 1; fi
+[ "$run_ec" -eq 0 ] || die "runnable exit=$run_ec (expected 0)"
+RUN_OK=$((RUN_OK + 1))
+
+ok_report
 echo "stdtest test OK"

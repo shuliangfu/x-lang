@@ -1,18 +1,43 @@
 #!/usr/bin/env bash
-# Compound assign: += -= *= /= %= &= |= ^= <<= >>=
+# Compound assign leftover runner: tests/compound-assign/main.x product -o
+# exit 0 (+= -= *= /= %= &= |= ^= <<= >>=).
 #
-# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# PLATFORM: SHARED pure-asm product; C/host-cc only with XLANG_ALLOW_HOST_CC /
-# XLANG_FORCE_LINK_BACKEND. Ubuntu gold still required.
+# Honesty: leftover bootstrap-link wrap (prefer-c remap xlang_asm → xlang-c /
+# Darwin backend wrap) + fossil `$LINK_XLANG build` + host-cc fallback after
+# product fail retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# leftover wrap / leftover XLANG fallthrough / prefer-c). Check path = obs=
+# (check gate paused 2026-08-05). Product `-o` must exit 0.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-compound-assign.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
+PREFIX="${XLANG_COMPOUND_ASSIGN_PREFIX:-xlang: [COMPOUND_ASSIGN]}"
+SMOKE="tests/compound-assign/main.x"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "compound-assign FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+# G.7: complete the existing per-script resolve_shu family (dod_native_exe);
+# do not fork a third resolver. Explicit XLANG that is missing/non-native
+# returns 1 (caller hard-dies; refuse leftover XLANG fallthrough).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
   local cand abs root
   root=$(pwd)
@@ -40,47 +65,49 @@ resolve_shu() {
   return 1
 }
 
-XLANG="$(resolve_shu)" || { echo "compound-assign FAIL: no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)" >&2; exit 1; }
-export XLANG
-export XLANG_LINK_XLANG="$XLANG"
-# Product pure-asm default (no forced -backend c). Prefer product XLANG over wrap.
-LINK_XLANG="${XLANG:-${RUN_XLANG}}"
-case "$(basename "${LINK_XLANG:-}")" in
-  xlang-backend-wrap.sh|xlang-min-link.sh)
-    LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-${XLANG:-./compiler/xlang}}}"
-    ;;
-esac
-LINK_BACKEND_ARGS=""
-if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-  LINK_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
+[ -f "$SMOKE" ] || die "missing $SMOKE"
+
+echo "=== compound-assign leftover (prefer asm; hard; refuse leftover wrap) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover wrap)"
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover wrap)"
 fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
 set +e
-# shellcheck disable=SC2086
-$LINK_XLANG build $LINK_BACKEND_ARGS tests/compound-assign/main.x -o /tmp/xlang_compound_assign 2>&1
-_compile_ec=$?
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_compound_assign_check.log 2>&1
+chk_ec=$?
 set -e
-set +e
-# Optional host-cc / seed-c fallback only when explicitly allowed.
-if [ "$_compile_ec" -ne 0 ] && [ -n "${XLANG_ALLOW_HOST_CC:-}" ]; then
-  ./compiler/xlang build -backend c tests/compound-assign/main.x -o /tmp/xlang_compound_assign 2>&1
-  _compile_ec=$?
-fi
-if [ "$_compile_ec" -ne 0 ] && [ -n "${XLANG_ALLOW_HOST_CC:-}" ] && [ -x ./compiler/xlang-c ]; then
-  ./compiler/xlang-c -E tests/compound-assign/main.x > /tmp/xlang_ca_fallback.c 2>&1
-  ${CC:-cc} -O2 -o /tmp/xlang_compound_assign /tmp/xlang_ca_fallback.c 2>&1
-  _compile_ec=$?
-fi
-set -e
-if [ "$_compile_ec" -ne 0 ]; then
-  echo "compound-assign: product pure-asm -o failed (exit $_compile_ec)" >&2
-  exit "$_compile_ec"
+if [ "$chk_ec" -ne 0 ]; then
+  echo "compound-assign OBS check (paused / CHK residual ec=$chk_ec; refuse leftover wrap)" >&2
+  OBS=$((OBS + 1))
 fi
 
-exitcode=0
-/tmp/xlang_compound_assign >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 0 ]; then
-  echo "compound-assign: expected exit 0, got $exitcode"
-  exit 1
+exe="/tmp/xlang_compound_assign_$$"
+rm -f "$exe" 2>/dev/null || true
+set +e
+# Refuse leftover wrap / fossil `$LINK_XLANG build` (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >/tmp/xlang_compound_assign_o.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  tail -n 12 /tmp/xlang_compound_assign_o.log 2>/dev/null || true
+  rm -f "$exe"
+  die "product -o failed (ec=$o_ec; refuse leftover wrap / fossil LINK_XLANG build)"
 fi
+set +e
+"$exe" >/dev/null 2>&1
+run_ec=$?
+set -e
+rm -f "$exe"
+[ "$run_ec" -eq 0 ] || die "runnable exit=$run_ec (expected 0)"
+RUN_OK=$((RUN_OK + 1))
+
+ok_report
 echo "compound-assign test OK"
