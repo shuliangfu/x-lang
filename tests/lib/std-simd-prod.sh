@@ -1,41 +1,61 @@
 #!/usr/bin/env bash
-# std-simd-prod.sh — STD-061 生产级 bench 共享辅助
+# std-simd-prod.sh — STD-061 production bench helpers.
 #
-# 用法（source 后）：
-#   std_simd_prod_native_asm XLANG_BIN
-#   std_simd_prod_emit_report status check_ok bench_ok bench_skip skip [ratio]
+# Usage (after source):
+#   std_simd_prod_run_smoke XLANG_BIN X [TAG]
+#   std_simd_prod_emit_report status run obs skip [ratio]
+# Honesty: run=/obs=/skip= (check/perf = obs; product r04 -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_SIMD_PROD_PREFIX="${XLANG_STD061_PREFIX:-xlang: [XLANG_STD061_SIMD_PROD]}"
 
-# 判断本机 xlang_asm 可执行 shuffle/select bench。
-std_simd_prod_native_asm() {
-  local f="${1:-./compiler/xlang_asm}"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$f" in
-    */xlang-c|*/xlang-x*) return 1 ;;
-  esac
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+# Compile and run product bench .x via XLANG_BIN -L . -o; expect exit 0.
+# Refuse soft RUN_XLANG remap / soft auto-make (gate pins XLANG_LINK_XLANG).
+# PLATFORM: SHARED archaeology — product honesty path; SIMD needs asm backend.
+std_simd_prod_run_smoke() {
+  local xlang="$1"
+  local src="$2"
+  local tag="${3:-r04}"
+  local exe="/tmp/xlang_std_simd_prod_${tag}_$$"
+  local log="/tmp/xlang_std_simd_prod_${tag}_$$.log"
+  if [ ! -f "$src" ]; then
+    echo "std-simd-prod FAIL: missing $src" >&2
+    return 1
+  fi
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-simd-prod FAIL: compile $src" >&2
+    tail -n 12 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-simd-prod FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
-# Structured report: check observational; bench hard-green when ratio ok;
-# bench_skip/skip mark honest perf soft residual (not fossil DOC false-red).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o bench/r04_simd_shuffle_select.x; check/perf = obs.
 std_simd_prod_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local bench_ok="$3"
-  local bench_skip="$4"
-  local skip="$5"
-  local ratio="${6:-}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  local ratio="${5:-}"
   if [ -n "$ratio" ]; then
-    echo "${STD_SIMD_PROD_PREFIX} status=${status} check=${check_ok} bench=${bench_ok} skip=${skip} ratio=${ratio}"
+    echo "${STD_SIMD_PROD_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip} ratio=${ratio}"
   else
-    echo "${STD_SIMD_PROD_PREFIX} status=${status} check=${check_ok} bench=${bench_ok} skip=${skip}"
+    echo "${STD_SIMD_PROD_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
   fi
 }

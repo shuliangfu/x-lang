@@ -1,7 +1,7 @@
 # STD-061：std.simd shuffle/select 生产级 bench v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）+ honesty**  
+> 更新时间：2026-08-28  
+> 状态：**定版（v1）+ honesty 二过**  
 > 前置：STD-047 `std-simd-shuffle-select-v1.md`  
 > 关联：`run-perf-simd-dot.sh`、SIMD-S4、STD-SIMD-INTRINSIC  
 > PLATFORM: SHARED — Ubuntu gold for link/run; Darwin L2 same fixture names
@@ -38,13 +38,17 @@
 ```
 
 ```
-xlang: [XLANG_STD061_SIMD_PROD] status=ok check=0|1 bench=0|1 skip=0|1 ratio=…
+xlang: [XLANG_STD061_SIMD_PROD] status=ok run=0|1 obs=N skip=0|1 [ratio=…]
 ```
 
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
-- `xlang check` 观测（自举期暂停闸门 2026-08-05）
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；拒 soft XLANG fallthrough／soft auto-make／prefer-c／xlang-c
+- 显式坏 XLANG／缺 native asm → 硬 die（refuse soft SKIP→OK）
+- `xlang check` 观测（自举期暂停闸门 2026-08-05；CHK＝obs）
 - Manifest（DOC／TSV／r04 fixture／README `STD-061`）硬失败
-- Perf ratio soft SKIP（perf soft residual；不因 ratio／host-cc 缺席假红）
+- 产品 `bench/r04_simd_shuffle_select.x` `-o` exit0＝硬 run（run=1）
+- Perf ratio＝obs（perf soft residual；不因 under-ratio／host-cc 缺席假红）
+- 报告：`run=`／`obs=`／`skip=`（可选 `ratio=`）
+- **禁止**顶层 `analysis/std-simd-prod-v1.md` 复活（活面＝本 archive）
 
 无 native `xlang_asm` 时闸门硬失败（不再 soft SKIP→OK）。
 
@@ -64,7 +68,8 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok check=0|1 bench=0|1 skip=0|1 ratio=…
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-18 | 初版 prod bench 矩阵 |
-| honesty | 2026-08-26 | soft→硬绿：`## 3. Gate`；DOC 对齐 `stub/Xlang`＋`r04_simd_shuffle_select`；prefer asm；check 观测；manifest hard；perf soft；报告 `check=`／`bench=`／`skip=`／`ratio=` |
+| honesty | 2026-08-26 | soft→硬绿一过：`## 3. Gate`；DOC 对齐 `stub/Xlang`＋`r04`；prefer asm；check 观测；manifest hard；perf soft；报告 `check=`／`bench=`／`skip=`／`ratio=` |
+| honesty-2 | 2026-08-28 | 二过：拒 soft XLANG fallthrough／soft auto-make；删顶层双权威 DOC；产品 r04 `-o` 硬 run；check／perf＝obs；报告 `run=`／`obs=`／`skip=` |
 
 ---
 
@@ -74,3 +79,4 @@ xlang: [XLANG_STD061_SIMD_PROD] status=ok check=0|1 bench=0|1 skip=0|1 ratio=…
 - 与 OpenSSL/Intel IPP 对标
 - 跨平台 ratio 硬门禁（Windows CI）
 - 第二套 `bench/simd_shuffle_select.x`／`r04_simd_xlangffle_select*` 旧路径
+- 把 129 的 `xlangffle-select` 薄包装当 STD-061 第二权威
