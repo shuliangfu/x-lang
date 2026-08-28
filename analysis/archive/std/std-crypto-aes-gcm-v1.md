@@ -47,17 +47,21 @@
 
 ## 5. Gate
 
-Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `check` observational
-(check gate paused); `tests/crypto/main.x` exit 0 hard-fail (no soft SKIP when native
-present); `aes_gcm_nist2.x` observational (product RUN≠0). Report
-`check=`/`main=`/`nist2=`/`skip=`. Refuse top-level DOC resurrect.
+Honesty (2026-08-28 residual): prefer `xlang_asm` + `XLANG_LINK_XLANG` +
+`dod_native_exe`. Refuse soft `xlang_compiler_make` auto-make, XLANG
+fallthrough (`std_crypto_resolve_shu` continues past explicit-bad XLANG),
+bootstrap-link remap, and soft SKIP→OK. Explicit bad XLANG / missing
+native = hard die. `check` observational (paused 2026-08-05).
+`tests/crypto/main.x` product `-o` exit 0 = hard run. `aes_gcm_nist2.x`
+observational (product RUN≠0 residual). Report `run=`/`obs=`/`skip=`
+(retired `check=`/`main=`/`nist2=`). Refuse top-level DOC resurrect.
 
 ```bash
 ./tests/run-std-crypto-aes-gcm-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok check=0|1 main=1 nist2=0|1 skip=0
+xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok run=1 obs=0|1|2 skip=0
 ```
 
 ---
@@ -68,3 +72,4 @@ xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok check=0|1 main=1 nist2=0|1 skip=0
 |------|------|------|
 | v1 | 2026-06-18 | AES-128-GCM seal/open + NIST TC2 金样 |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm；main 硬绿；nist2 观测 |
+| v1.2 | 2026-08-28 | Residual honesty：拒 soft auto-make／XLANG fallthrough；报告 `run=`／`obs=`／`skip=` |

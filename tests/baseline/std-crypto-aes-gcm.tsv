@@ -14,5 +14,5 @@ symbol_open_c	symbol	crypto_aes_gcm_open_c	std/crypto/aes_gcm.x	C open
 vectors_tsv	file	tests/baseline/std-crypto-aes-gcm-vectors.tsv	金样表
 smoke_nist2	smoke	tests/std-crypto/aes_gcm_nist2.x	烟测
 smoke_main	smoke	tests/crypto/main.x	回归
-lib	script	lib/std-crypto-aes-gcm.sh	tests/lib/std-crypto-aes-gcm.sh
-gate	script	run-std-crypto-aes-gcm-gate.sh	tests/run-std-crypto-aes-gcm-gate.sh
+lib	script	tests/lib/std-crypto-aes-gcm.sh	tests/lib/std-crypto-aes-gcm.sh
+gate	script	tests/run-std-crypto-aes-gcm-gate.sh	tests/run-std-crypto-aes-gcm-gate.sh
