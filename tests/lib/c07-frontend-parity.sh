@@ -1,49 +1,68 @@
 #!/usr/bin/env bash
-# C-07 前端 parity 辅助：xlang-c（C 前端 REF）vs xlang/xlang_asm（.x 前端 CAND）同输入比对。
+# C-07 frontend parity helpers: xlang-c (C frontend REF) vs xlang/xlang_asm
+# (.x frontend CAND) same-input compare.
 #
-# 用法：source tests/lib/c07-frontend-parity.sh
+# Honesty: native exe check converges on dod_native_exe (single authority;
+# c07_native_xlang retired as duplicate). Prefer CAND = xlang_asm → xlang.
+# Usage: source tests/lib/c07-frontend-parity.sh
+# PLATFORM: SHARED archaeology.
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/dod-native-exe.sh"
 
-# 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
-# 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。
-c07_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(ci_host_os)-$(ci_host_arch)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
-# 解析 REF/CAND 编译器路径；CAND 优先 xlang_asm → xlang。
-# 设置 C07_REF / C07_CAND；缺 REF 返回 1，缺 CAND 返回 2。
+# Resolve REF/CAND compiler paths; CAND prefers xlang_asm → xlang.
+# Sets C07_REF / C07_CAND. Missing/non-native REF → 1; missing CAND → 2.
+# Explicit C07_REF / C07_CAND env overrides are fail-fast (no soft fallback).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 c07_resolve_compilers() {
-  C07_REF="${C07_REF:-./compiler/xlang-c}"
-  if [ -z "${C07_CAND:-}" ]; then
-    for cand in ./compiler/xlang_asm ./compiler/xlang; do
-      if c07_native_xlang "$cand"; then
-        C07_CAND="$cand"
+  local root cand abs
+  root=$(pwd)
+  if [ -n "${C07_REF:-}" ]; then
+    case "$C07_REF" in
+      /*) abs="$C07_REF" ;;
+      *) abs="$root/$C07_REF" ;;
+    esac
+    if ! dod_native_exe "$abs"; then
+      return 1
+    fi
+    C07_REF="$abs"
+  else
+    C07_REF="${root}/compiler/xlang-c"
+    if ! dod_native_exe "$C07_REF"; then
+      return 1
+    fi
+  fi
+
+  if [ -n "${C07_CAND:-}" ]; then
+    case "$C07_CAND" in
+      /*) abs="$C07_CAND" ;;
+      *) abs="$root/$C07_CAND" ;;
+    esac
+    if ! dod_native_exe "$abs"; then
+      return 2
+    fi
+    C07_CAND="$abs"
+  else
+    C07_CAND=""
+    # Prefer product asm; refuse soft auto-make / prefer-c.
+    for cand in compiler/xlang_asm compiler/xlang; do
+      abs="$root/$cand"
+      if dod_native_exe "$abs"; then
+        C07_CAND="$abs"
         break
       fi
     done
-  fi
-  if ! c07_native_xlang "$C07_REF"; then
-    return 1
-  fi
-  if [ -z "${C07_CAND:-}" ] || ! c07_native_xlang "$C07_CAND"; then
-    return 2
+    if [ -z "${C07_CAND}" ]; then
+      return 2
+    fi
   fi
   return 0
 }
 
-# typeck-only 编译（无 -o）：CAND 加 -backend c 与 xlang-c 路径对齐。
-# 参数：$1=编译器 $2=源码 $3=日志文件；返回编译器退出码。
+# typeck-only compile (no -o): CAND adds -backend c to align with xlang-c path.
+# Args: $1=compiler $2=src $3=logfile; returns compiler exit code.
 c07_typeck_x() {
   local bin="$1" src="$2" log="$3"
   local args=(-L .)
@@ -53,8 +72,8 @@ c07_typeck_x() {
   "$bin" "${args[@]}" "$src" >"$log" 2>&1
 }
 
-# 编译并链接 -o（可选 run parity；需 liburing 等完整链接环境）。
-# 参数：$1=编译器 $2=源码 $3=输出可执行文件 $4=日志文件；返回编译器退出码。
+# Compile+link -o (optional run parity; needs full link env e.g. liburing).
+# Args: $1=compiler $2=src $3=out-exe $4=logfile; returns compiler exit code.
 c07_compile_x() {
   local bin="$1" src="$2" out="$3" log="$4"
   local args=(-L .)
@@ -65,8 +84,8 @@ c07_compile_x() {
   "$bin" "${args[@]}" "$src" -o "$out" >"$log" 2>&1
 }
 
-# 运行可执行文件并 echo 进程退出码（0～255）。
-# 参数：$1=可执行文件路径。
+# Run executable and echo process exit code (0..255).
+# Args: $1=executable path.
 c07_run_exit() {
   local exe="$1"
   local rc=0
@@ -74,14 +93,14 @@ c07_run_exit() {
   echo "$rc"
 }
 
-# 日志是否含 typeck OK（xlang-c / xlang 成功路径常见输出）。
-# 参数：$1=日志文件。
+# Log contains typeck OK (common success path for xlang-c / xlang).
+# Args: $1=logfile.
 c07_log_typeck_ok() {
   grep -q 'typeck OK' "$1" 2>/dev/null
 }
 
-# 日志是否含 typeck error（负例路径）。
-# 参数：$1=日志文件。
+# Log contains typeck error (negative-path cases).
+# Args: $1=logfile.
 c07_log_typeck_error() {
   grep -q 'typeck error' "$1" 2>/dev/null
 }

@@ -1,46 +1,44 @@
 #!/usr/bin/env bash
 # C-07: xlang-c (C frontend REF) vs xlang/xlang_asm (.x frontend CAND)
-# same-input typeck/run parity gate.
+# same-input typeck/run parity gate — honesty soft auto-make →硬绿.
 #
-# Honesty: soft XLANG_C07_FAIL + top-level DOC soft-SKIP retired (missing
-# analysis/phase-c-c07-v1.md was portable false-green after archive). Soft
-# SKIP when REF/CAND missing also retired — product path must ship both.
-#
-# Product residual (tip): CAND with `-backend c` may SEGV / diverge from REF
-# on Darwin/Ubuntu; that mismatch is **observational** (parity=0), not soft
-# exit0 on missing DOC. REF typeck_ok failures remain hard (C frontend face).
-#
+# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true`) + soft
+# XLANG_C07_FAIL + soft SKIP→OK (missing REF/CAND / missing DOC) retired.
+# REF = existing native xlang-c only (refuse soft make); CAND prefer
+# xlang_asm → xlang. Explicit bad C07_REF/C07_CAND = hard die (no soft
+# fallback). REF typeck_ok / compile_fail = hard; CAND `-backend c` diverge
+# / SEGV = observational (parity=0). Report: run=/obs=/skip= (+ ref/pass/parity).
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-c07-frontend-parity-gate.sh
 # Env: C07_REF / C07_CAND override; XLANG_C07_TRY_RUN=1 adds -o run after typeck.
-# PLATFORM: SHARED archaeology.
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
+# shellcheck source=tests/lib/c07-frontend-parity.sh
+. tests/lib/c07-frontend-parity.sh
 
 TRY_RUN=${XLANG_C07_TRY_RUN:-0}
 MATRIX="${XLANG_C07_MATRIX:-tests/baseline/c07-frontend-parity-matrix.tsv}"
 DOC="analysis/archive/phase/phase-c-c07-v1.md"
 PREFIX="xlang: [XLANG_C07]"
 
-# shellcheck source=tests/lib/c07-frontend-parity.sh
-. tests/lib/c07-frontend-parity.sh
-
-die() {
-  echo "c07 gate FAIL: $*" >&2
-  echo "${PREFIX} status=fail ref=${REF_OK:-0} pass=${PASS:-0} obs=${OBS_FAIL:-0} parity=${PARITY:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
-  exit 1
-}
-
 REF_OK=0
 PASS=0
 OBS_FAIL=0
 PARITY=0
-SKIP=1
+SKIP=0
+RUN_OK=0
 
-echo "=== C-07: frontend parity (xlang-c REF vs x CAND; honesty) ==="
+die() {
+  echo "c07 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} ref=${REF_OK} pass=${PASS} obs=${OBS_FAIL} parity=${PARITY} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+echo "=== C-07: frontend parity (prefer asm CAND; hard REF; refuse soft auto-make / soft SKIP→OK) ==="
+# Refuse resurrected top-level DOC (live = archive/phase/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
 if [ -f analysis/phase-c-c07-v1.md ]; then
   die "top-level phase-c-c07-v1.md resurrected (live = archive/phase/)"
 fi
@@ -50,12 +48,12 @@ done
 grep -q 'C-07' "$DOC" || die "doc missing C-07 marker"
 grep -qE '^## Gate' "$DOC" || die "phase-c-c07-v1.md missing ## Gate honesty section"
 
-xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-
+# Refuse soft auto-make of xlang-c: REF must already be a native product binary.
+# PLATFORM: SHARED — missing REF/CAND = hard die (soft SKIP→OK retired).
 rc_resolve=0
 c07_resolve_compilers || rc_resolve=$?
 if [ "$rc_resolve" -eq 1 ]; then
-  die "xlang-c REF not runnable on $(ci_host_summary) (soft SKIP retired)"
+  die "xlang-c REF not runnable on $(ci_host_summary) (soft auto-make / soft SKIP retired)"
 fi
 if [ "$rc_resolve" -eq 2 ]; then
   die "no runnable xlang/xlang_asm CAND on $(ci_host_summary) (soft SKIP retired)"
@@ -89,6 +87,7 @@ while IFS=$'\t' read -r case_id src policy expect_exit notes; do
       die "$case_id: REF expected typeck error in log — $notes"
     fi
     REF_OK=$((REF_OK + 1))
+    RUN_OK=$((RUN_OK + 1))
     if [ "$rc_cand" -eq 0 ] || ! c07_log_typeck_error "$log_cand"; then
       echo "c07 OBS compile_fail $case_id: CAND diverge (cand=$rc_cand) — $notes"
       OBS_FAIL=$((OBS_FAIL + 1))
@@ -144,6 +143,7 @@ while IFS=$'\t' read -r case_id src policy expect_exit notes; do
   fi
 
   REF_OK=$((REF_OK + 1))
+  RUN_OK=$((RUN_OK + 1))
   if [ "$cand_ok" -eq 1 ]; then
     echo "c07 OK typeck $case_id ($notes)"
     PASS=$((PASS + 1))
@@ -160,6 +160,5 @@ if [ "$OBS_FAIL" -eq 0 ]; then
 else
   PARITY=0
 fi
-SKIP=0
-echo "c07 frontend-parity gate OK (ref=$REF_OK pass=$PASS obs=$OBS_FAIL parity=$PARITY REF=$C07_REF CAND=$C07_CAND)"
-echo "${PREFIX} status=ok ref=${REF_OK} pass=${PASS} obs=${OBS_FAIL} parity=${PARITY} skip=${SKIP} host=$(ci_host_summary)"
+echo "c07 frontend-parity gate OK (run=$RUN_OK ref=$REF_OK pass=$PASS obs=$OBS_FAIL parity=$PARITY skip=$SKIP REF=$C07_REF CAND=$C07_CAND)"
+echo "${PREFIX} status=ok run=${RUN_OK} ref=${REF_OK} pass=${PASS} obs=${OBS_FAIL} parity=${PARITY} skip=${SKIP} host=$(ci_host_summary)"
