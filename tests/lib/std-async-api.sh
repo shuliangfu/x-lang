@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# std-async-api.sh — STD-004 manifest 与烟测辅助
+# std-async-api.sh — STD-004 manifest + smoke helpers.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_async_api_symbols_ok MOD_X TSV
 #   std_async_api_run_smoke XLANG_BIN X TAG
-#   std_async_api_emit_report status check_ok switch_ok imp_ok drain_ok coop_ok skip
+#   std_async_api_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/coop = obs; switch+imp+drain product -o hard,
+# all three folded into run=). Refuse soft RUN_XLANG / soft ensure.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_ASYNC_API_PREFIX="${XLANG_STD_ASYNC_API_PREFIX:-xlang: [XLANG_STD_ASYNC_API]}"
 
 # Count missing Tier-S symbols from one-symbol-per-line TSV against mod.x.
@@ -42,26 +43,35 @@ std_async_api_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# Compile and run smoke .x via product XLANG_BIN -L . -o; expect exit 0.
+# Refuse soft RUN_XLANG / soft ensure rebuild (gate pins XLANG_LINK_XLANG).
+# PLATFORM: SHARED archaeology — product honesty path.
 std_async_api_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_async_api_${tag}_$$"
+  local log="/tmp/xlang_std_async_api_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-async-api FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
     echo "std-async-api FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
+    tail -n 10 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-async-api FAIL: run $src exit=$ec" >&2
     return 1
@@ -69,13 +79,12 @@ std_async_api_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal = switch + imp + drain product -o (run=3); check/coop = obs.
 std_async_api_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local switch_ok="$3"
-  local imp_ok="$4"
-  local drain_ok="$5"
-  local coop_ok="$6"
-  local skip="$7"
-  echo "${STD_ASYNC_API_PREFIX} status=${status} check=${check_ok} switch=${switch_ok} imp=${imp_ok} drain=${drain_ok} coop=${coop_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_ASYNC_API_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
