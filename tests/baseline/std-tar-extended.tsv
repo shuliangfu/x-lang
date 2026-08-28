@@ -1,6 +1,8 @@
 # STD-152 std.tar 长路径/Pax/目录 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	1
+# 2026-08-26 honesty: verify section → ## 4. Gate; Pax lives under §2.
+# 2026-08-28 honesty residual: report run=/obs=/skip= (retired check=/c=/x=).
 read_path	section	## 1. 阅读路径	15min
 long_path	section	## 2. 长路径策略	prefix/Pax
 dir_walk	section	## 3. 目录遍历	is_dir

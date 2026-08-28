@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
-# std-tar-extended.sh — STD-152 manifest + smoke helpers
+# std-tar-extended.sh — STD-152 helpers (honesty prefer-asm).
 #
 # Usage (after source):
 #   std_tar_extended_symbols_ok MOD_X TAR_X TSV
-#   std_tar_extended_run_c_smoke
-#   std_tar_extended_run_x_smoke XLANG_BIN X TAR_O
-#   std_tar_extended_emit_report status check_ok c_ok x_ok skip
-# 2026-08-26: report check=/c=/x=/skip= (honesty; prefer asm runnable hard).
+#   std_tar_extended_run_smoke XLANG_BIN SRC [TAG]
+#   std_tar_extended_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / XLANG fallthrough /
+# bootstrap-link remap / soft ensure_std_c_o rebuild / extra CLI .o;
+# report run=/obs=/skip= (retired check=/c=/x=/skip=).
+# Keep MOD_X vs TAR_X: APIs live in mod.x; C symbols live in tar.x.
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_TAR_EXTENDED_PREFIX="${XLANG_STD_TAR_EXTENDED_PREFIX:-xlang: [XLANG_STD_TAR_EXTENDED]}"
 
-# Validate manifest; echo miss count; return 0 iff miss==0.
+# Validate manifest symbol/file/api; echo miss count; return 0 iff miss==0.
+# Kinds: api / symbol / impl_prefix / impl_pax / file / smoke / script / section.
+# Full-path TSV anchors preferred. Do not invoke make.
+# PLATFORM: SHARED archaeology — inventory only.
 std_tar_extended_symbols_ok() {
   local mod_x="$1"
   local tar_x="$2"
@@ -55,58 +60,34 @@ std_tar_extended_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Compile and run C smoke (tar.o + extended_ok.c; ensure tar.o first).
-# Observational under honesty gate (hard-green = .x runnable).
-std_tar_extended_run_c_smoke() {
-  local smoke_c="tests/std-tar/extended_ok.c"
-  local exe="/tmp/xlang_std_tar_extended_c_$$"
-  if [ ! -f "$smoke_c" ]; then
-    echo "std-tar-extended FAIL: missing $smoke_c" >&2
-    return 1
-  fi
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/tar/tar.o
-  local tar_o
-  tar_o="$(cd compiler && pwd)/../std/tar/tar.o"
-  if ! cc -std=c11 -Wall -Wextra -o "$exe" "$smoke_c" "$tar_o" 2>/dev/null; then
-    echo "std-tar-extended FAIL: compile C smoke" >&2
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-tar-extended FAIL: C smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# Compile and run .x smoke (must link tar.o). Hard-green under honesty gate.
-std_tar_extended_run_x_smoke() {
+# Product tip -o smoke. Caller treats failure as hard die (long_path_dir.x).
+# PLATFORM: SHARED archaeology — product honesty path.
+# Do not restore set -e between steps: return 1 must not trip the gate's set -e.
+# Refuse RUN_XLANG / bootstrap-link remap (Darwin must not silently asm→c).
+# Refuse extra CLI .o (product -o is the hard path; host-C archaeology is obs).
+std_tar_extended_run_smoke() {
   local xlang="$1"
   local src="$2"
-  local tar_o="$3"
-  local exe="/tmp/xlang_std_tar_extended_x_$$"
+  local tag="${3:-smoke}"
+  local exe="/tmp/xlang_std152_tar_ext_${tag}_$$"
+  local log="/tmp/xlang_std152_tar_ext_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-tar-extended FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" "$tar_o" >/dev/null 2>&1; then
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
     echo "std-tar-extended FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
+    tail -n 8 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
-  set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
-  set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-tar-extended FAIL: run $src exit=$ec" >&2
     return 1
@@ -114,13 +95,13 @@ std_tar_extended_run_x_smoke() {
   return 0
 }
 
-# Structured report line (honesty: check=/c=/x=/skip=).
-# Hard-green signal = x=; check + c observational.
+# Structured report line (honesty: run=/obs=/skip=; retired check=/c=/x=).
+# Hard-green signal = long_path_dir.x product -o (run=1);
+# check/host-C archaeology = obs.
 std_tar_extended_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local c_ok="$3"
-  local x_ok="$4"
-  local skip="$5"
-  echo "${STD_TAR_EXTENDED_PREFIX} status=${status} check=${check_ok} c=${c_ok} x=${x_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_TAR_EXTENDED_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
