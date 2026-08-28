@@ -1,4 +1,5 @@
 # COMP-010 size attribution manifest
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # 列：item_id	kind	anchor	src	tier	notes
 # min_layers	6
 # min_artifacts	8

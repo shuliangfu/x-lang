@@ -1,4 +1,5 @@
 # COMP-014 isel P0 回归波次 manifest
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # 列：item_id	kind	anchor	target	notes
 # min_p0_cases	4
 # min_p0_hooks	4

@@ -1,7 +1,7 @@
 # COMP-012 riscv64 回归 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 汇编文本 + ELF .o 烟测；Linux 上可选 link+run  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — 汇编文本 + ELF .o 烟测；Linux 上可选 link+run  
 > 关联：`compiler/src/asm/arch/riscv64.x`、`tests/run-asm.sh`、`COMP-006`（isel）
 
 ---
@@ -104,6 +104,7 @@ Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
 hard die; native without riscv64 asm = `skip=` (capability N/A); DOC=archive;
 report `run=`／`skip=`.
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired. Keep `## Gate`.
 
 ```bash
 ./tests/run-comp-riscv64-gate.sh   # runnable：manifest + riscv64 smoke

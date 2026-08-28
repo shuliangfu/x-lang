@@ -1,5 +1,6 @@
 # COMP-004 WPO v1 manifest
 # honesty 2026-08-25: WPO_DUMP_CALLGRAPH product = pipeline_typeck_wpo_dump_callgraph (thin)
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # 列：item_id	kind	anchor	src	tier	notes
 # min_stages	6
 # min_cases	4

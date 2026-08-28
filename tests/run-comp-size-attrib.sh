@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # COMP-010: compile-artifact size attribution smoke (false-authority honesty).
 #
-# Honesty: soft SKIP→OK when no artifacts retired. Prefer product xlang_asm
-# present; run compiler-make before measure. Explicit bad XLANG = hard die.
-# Missing native = hard die. Required artifact miss = hard die. Optional
-# missing = skip=. Empty measure after make = hard die (refuse soft
-# SKIP→OK). Report run=/skip=.
+# Honesty: leftover auto-make (`xlang_compiler_make -q || xlang_compiler_make`)
+# before measure retired. Prefer product xlang_asm present. Explicit bad
+# XLANG = hard die. Missing native = hard die. Required artifact miss =
+# hard die. Optional missing = skip=. Empty measure = hard die (refuse
+# soft SKIP→OK / leftover auto-make). Report run=/skip=.
 #
 # Usage:
 #   ./tests/run-comp-size-attrib.sh
@@ -13,8 +13,6 @@
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -67,11 +65,10 @@ resolve_shu() {
 
 echo "=== COMP-010: size attribution smoke ==="
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse leftover auto-make of missing compiler; measure existing artifacts only.
 
 TOTAL=0
 COUNT=0
@@ -124,7 +121,7 @@ while IFS=$'\t' read -r art_id kind rel policy _notes; do
   echo "comp-size-attrib: $art_id kind=$kind file=${file_b}B text=${text_b}B"
 done < "$MATRIX"
 
-# Refuse soft SKIP→OK when the measure set is empty after make.
+# Refuse soft SKIP→OK when the measure set is empty (no leftover auto-make).
 if [ "$COUNT" -lt 1 ]; then
   die "no artifacts present after make (refuse soft SKIP→OK)"
 fi

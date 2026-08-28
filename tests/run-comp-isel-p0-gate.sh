@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # COMP-014：isel P0 回归波次 runnable 门禁
 #
+# Honesty: leftover auto-make (`xlang_compiler_make -q || xlang_compiler_make`)
+# + explicit-bad XLANG SKIP runnable (gate OK) retired. Prefer product
+# xlang_asm. Explicit bad XLANG = hard die. Unset + missing native =
+# skip=1 (honest N/A; manifest still hard). Report p0_ok=/p0_skip=/skip=.
+#
 # 1) comp-isel-p0-v1.md + comp-isel-p0-wave.tsv + comp-isel.tsv P0 行
 # 2) 有 native xlang/xlang_asm 时逐条执行 P0 hook
 #
@@ -10,8 +15,6 @@
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_COMP014_DOC:-analysis/archive/comp/comp-isel-p0-v1.md}"
 WAVE="${XLANG_COMP014_WAVE_TSV:-tests/baseline/comp-isel-p0-wave.tsv}"
@@ -97,14 +100,32 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-isel-p0 manifest OK (p0_cases=${P0_CASE_N} p0_hooks=${P0_HOOK_N})"
 
-XLANG_ASM="${XLANG:-./compiler/xlang_asm}"
 P0_OK=0
 P0_SKIP=0
 SKIP=1
+RUNNABLE=0
+XLANG_ASM="./compiler/xlang_asm"
 
-if comp_isel_native_xlang "$XLANG_ASM"; then
+if [ -n "${XLANG:-}" ]; then
+  case "$XLANG" in
+    /*) XLANG_ASM="$XLANG" ;;
+    *) XLANG_ASM="$(pwd)/$XLANG" ;;
+  esac
+  if ! comp_isel_native_xlang "$XLANG_ASM"; then
+    echo "comp-isel-p0 gate FAIL: explicit XLANG not native (refuse soft SKIP→OK / leftover auto-make)" >&2
+    comp_isel_p0_emit_report "fail" 0 0 0
+    exit 1
+  fi
+  RUNNABLE=1
+elif comp_isel_native_xlang "$XLANG_ASM"; then
+  RUNNABLE=1
+fi
+
+if [ "$RUNNABLE" -eq 1 ]; then
   echo "=== COMP-014: run P0 hooks (XLANG=$XLANG_ASM) ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+  # Refuse leftover auto-make of missing compiler; resolved native must already exist.
+  export XLANG="$XLANG_ASM"
+  export XLANG_LINK_XLANG="$XLANG_ASM"
   while IFS=$'\t' read -r item_id kind anchor _src tier _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$item_id" in \#*|min_*) continue ;; esac
@@ -120,7 +141,7 @@ if comp_isel_native_xlang "$XLANG_ASM"; then
   done < "$MANIFEST"
   SKIP=0
 else
-  echo "comp-isel-p0 gate SKIP runnable (no native xlang_asm)" >&2
+  echo "comp-isel-p0 gate SKIP runnable (no native xlang_asm; honest N/A)" >&2
   P0_SKIP=$P0_HOOK_N
 fi
 

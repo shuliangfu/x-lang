@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # COMP-005: register-allocation strategy light smoke (false-authority honesty).
 #
-# Honesty: soft SKIP→OK when no native xlang_asm retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG = hard die. Missing
-# native = hard die (regalloc hooks are the live face). Non-arm64 block_var
-# disasm = skip= (platform N/A, not soft SKIP→OK). Report run=/skip=.
+# Honesty: leftover auto-make (`xlang_compiler_make -q || xlang_compiler_make`)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad
+# XLANG = hard die. Missing native = hard die (regalloc hooks are the live
+# face). Non-arm64 block_var disasm = skip= (platform N/A, not soft
+# SKIP→OK). Report run=/skip=.
 #
 # Usage: ./tests/run-comp-regalloc.sh
 # PLATFORM: SHARED archaeology (arm64 disasm optional).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -62,11 +61,10 @@ resolve_shu() {
   return 1
 }
 
-XLANG_ASM="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_ASM="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover auto-make)"
 export XLANG="$XLANG_ASM"
 export XLANG_LINK_XLANG="$XLANG_ASM"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
 
 echo "=== COMP-005: regalloc smoke (XLANG=$XLANG_ASM) ==="
 chmod +x tests/run-asm-binop-var.sh tests/run-asm-binop-block-var.sh

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # COMP-007: incremental compile second-pass smoke (false-authority honesty).
 #
-# Honesty: soft SKIP→OK when no native xlang + prefer-c (xlang-c before
-# xlang_asm) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Honesty: leftover auto-make (`xlang_compiler_make -q || xlang_compiler_make`)
+# before benches retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
 # Explicit bad XLANG = hard die. Missing native = hard die after proto
 # registry (proto face is live without a compiler). `xlang check` benches
 # = obs (check gate paused 2026-08-05). Ratio over-cap = obs
 # (XLANG_INCR_COMPILE_FAIL=1 still hard). Fossil fixture default →
-# examples/hello.x. Report run=/obs=/skip=.
+# examples/hello.x. Keep make_q bench as the live make -q face (not leftover
+# auto-make). Report run=/obs=/skip=.
 #
 # Usage: ./tests/run-comp-incr-compile.sh
 # PLATFORM: SHARED archaeology.
@@ -98,11 +99,11 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$BENCH"
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
+# make_q bench below still calls xlang_compiler_make -q as a live probe.
 
 echo "comp-incr-compile: XLANG=$XLANG_BIN"
 

@@ -4,6 +4,7 @@
 # max_second_first_ratio	1.0
 # target_ratio	0.85
 # honesty 2026-08-24 #7: retired bench/loop_i32.x → examples/hello.x
+# honesty 2026-08-29: residual auto-make before benches retired; keep make_q bench.
 bench_double_check	examples/hello.x	check	1.0	0.85	check x2（check 暂停可 SKIP）
 bench_double_o	examples/hello.x	-o	1.0	0.85	-o x2
 bench_timing	examples/hello.x	timing	1.0	0.85	phase timing

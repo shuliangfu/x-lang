@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # COMP-006: instruction-selection asm smoke (false-authority honesty).
 #
-# Honesty: soft SKIP→OK when no native xlang_asm retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG = hard die. Missing
-# native = hard die (isel hooks are the live face). Report run=/skip=.
+# Honesty: leftover auto-make (`xlang_compiler_make -q || xlang_compiler_make`)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad
+# XLANG = hard die. Missing native = hard die (isel hooks are the live
+# face). Report run=/skip=.
 #
 # Usage: ./tests/run-comp-isel.sh
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -61,11 +60,10 @@ resolve_shu() {
   return 1
 }
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
 
 echo "=== COMP-006: isel smoke (XLANG=$XLANG_BIN) ==="
 chmod +x tests/run-asm-binop-var.sh tests/run-asm-binop-index-lit.sh \

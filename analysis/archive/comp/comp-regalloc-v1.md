@@ -1,7 +1,7 @@
 # COMP-005 寄存器分配策略评估 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 asm **7.3**、`pipeline_glue.c` `glue_asm73_*`、`run-asm-73-gate.sh` 对齐  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — 与 asm **7.3**、`pipeline_glue.c` `glue_asm73_*`、`run-asm-73-gate.sh` 对齐  
 > 关联：`COMP-004`（WPO）、`compiler/src/asm/README.md` §7.3
 
 ---
@@ -107,6 +107,7 @@ Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
 hard die; non-arm64 block_var disasm = `skip=` (platform N/A); DOC=archive;
 report `run=`／`skip=`.
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired. Keep `## Gate`.
 
 ```bash
 ./tests/run-comp-regalloc-gate.sh   # runnable：manifest + regalloc hooks

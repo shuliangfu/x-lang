@@ -1,7 +1,7 @@
 # COMP-006 指令选择优化 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）** — 与 asm 7.3、`peephole.x`、`run-asm-binop-var.sh` 对齐  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — 与 asm 7.3、`peephole.x`、`run-asm-binop-var.sh` 对齐  
 > 关联：`COMP-005`（regalloc）、`COMP-014`（P0 wave）、`PERF-001`（bcmp microbench）、`compiler/src/asm/README.md`
 
 ---
@@ -110,6 +110,7 @@ P0 波次详情见 `analysis/comp-isel-p0-v1.md`（COMP-014）。
 Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
 hard die; DOC=archive; report `run=`／`skip=`.
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired. Keep `## Gate`.
 
 ```bash
 ./tests/run-comp-isel-gate.sh   # runnable：manifest + isel hooks

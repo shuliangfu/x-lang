@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # COMP-012: riscv64 regression smoke (false-authority honesty).
 #
-# Honesty: soft SKIP→OK when no asm-capable xlang retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG = hard die. Missing
-# native = hard die. Native present but riscv64 asm not available =
-# skip= (capability N/A, not soft SKIP→OK). Report run=/skip=.
+# Honesty: leftover auto-make (`xlang_compiler_make -q || xlang_compiler_make`)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad
+# XLANG = hard die. Missing native = hard die. Native present but riscv64
+# asm not available = skip= (capability N/A, not soft SKIP→OK). Report
+# run=/skip=.
 #
 # Usage: ./tests/run-comp-riscv64.sh
 # PLATFORM: SHARED archaeology (riscv ld / ELF optional).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -66,9 +65,10 @@ resolve_shu() {
 
 echo "=== COMP-012: riscv64 regression smoke ==="
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
+# Refuse leftover auto-make of missing compiler; resolved native must already exist.
 
 # Capability N/A (seed/C-only or no riscv64 asm) = skip=, not soft SKIP→OK.
 if ! comp_riscv64_asm_capable "$XLANG_BIN"; then
@@ -77,8 +77,6 @@ if ! comp_riscv64_asm_capable "$XLANG_BIN"; then
   ok_report
   exit 0
 fi
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 HOSTOS="$(uname -s 2>/dev/null || echo Unknown)"
 

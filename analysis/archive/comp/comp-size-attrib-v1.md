@@ -1,7 +1,7 @@
 # COMP-010 编译产物体积归因 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 `run-size-xlang-asm-gate.sh`（B-SIZE advisory）、`ENG-002` 对齐  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — 与 `run-size-xlang-asm-gate.sh`（B-SIZE advisory）、`ENG-002` 对齐  
 > 关联：`COMP-009`（FE/BE 契约）、`PERF-004`（dogfood）、`tests/baseline/xlang-asm-size.tsv`
 
 ---
@@ -113,7 +113,9 @@ comp-size-attrib: distribution total=27345678B artifacts=5 top=art_shu_c:45.2%
 Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK when no artifacts; explicit bad XLANG / missing native =
 hard die; required artifact miss = hard die; optional miss = `skip=`;
-empty measure after make = hard die; DOC=archive; report `run=`／`skip=`.
+empty measure = hard die (no leftover auto-make); DOC=archive; report `run=`／`skip=`.
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired;
+measure existing artifacts only. Keep `## Gate`.
 
 ```bash
 ./tests/run-comp-size-attrib-gate.sh   # runnable：manifest + size smoke

@@ -1,5 +1,6 @@
 # COMP-011 Windows backend manifest
 # honesty 2026-08-24 #6: monofile retired; windows triple = rt_run_asm_backend; lld-link = runtime_link_abi
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # 列：item_id	kind	anchor	src	tier	notes
 # min_layers	6
 # min_cases	6

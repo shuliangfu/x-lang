@@ -1,7 +1,7 @@
 # COMP-007 编译缓存 / 增量编译策略 v1
 
-> 更新时间：2026-06-17（honesty 2026-08-24 #7）  
-> 状态：**定版（v1 策略 + 原型登记）** — 可测量二次编译；全量 `.x.dep.o` 缓存为 v2  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — 可测量二次编译；全量 `.x.dep.o` 缓存为 v2  
 > 关联：`OBS-001`（阶段计时）、`PERF-004`（dogfood）、`PERF-010`（冷编译优化）、`COMP-009`（FE/BE 契约）  
 > **Honesty**：`seeds/runtime.from_x.c` / `lsp_diag.c` retired；C2 live = `lsp_diag.h`；  
 > C4 live = `labi_path_pure.from_x.c` (`xlang_rel_o_path_from_argv0`)；  
@@ -113,6 +113,8 @@ native = hard die after proto registry; `xlang check` benches = obs (check
 gate paused 2026-08-05); ratio over-cap = obs (`XLANG_INCR_COMPILE_FAIL=1`
 still hard); fossil `bench/loop_i32.x` → `examples/hello.x`; DOC=archive;
 report `run=`／`obs=`／`skip=`.
+Honesty 2026-08-29: residual auto-make before benches retired; keep
+`make_q` bench as the live make -q face. Keep `## Gate`.
 
 ```bash
 ./tests/run-comp-incr-compile-gate.sh   # runnable：manifest + prototype + bench

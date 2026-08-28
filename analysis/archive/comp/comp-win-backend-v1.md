@@ -1,7 +1,7 @@
 # COMP-011 Windows 目标后端验证 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — COFF 写出 + 跨主机烟测；MSYS 全链 link+run 为 Tier B  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — COFF 写出 + 跨主机烟测；MSYS 全链 link+run 为 Tier B  
 > 关联：`compiler/src/asm/README.md` §5、`tests/run-asm.sh`、`ci-platform-matrix.tsv`
 
 ---
@@ -97,6 +97,7 @@ Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
 refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
 hard die; native without Windows asm = `skip=` (capability N/A); capable
 COFF emit miss = hard fail; DOC=archive; report `run=`／`skip=`.
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired. Keep `## Gate`.
 
 ```bash
 ./tests/run-comp-win-backend-gate.sh   # runnable：manifest + COFF smoke
