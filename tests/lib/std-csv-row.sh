@@ -3,8 +3,8 @@
 #
 # 用法（source 后）：
 #   std_csv_row_symbols_ok MOD_X CSV_X TSV
-#   std_csv_row_emit_report status check_ok run_ok skip
-# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
+#   std_csv_row_emit_report status run obs skip
+# 2026-08-28: report run=/obs=/skip= (soft auto-make retired; prefer asm).
 
 STD_CSV_ROW_PREFIX="${XLANG_STD_CSV_ROW_PREFIX:-xlang: [XLANG_STD_CSV_ROW]}"
 
@@ -50,11 +50,11 @@ std_csv_row_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行（honesty: check=/run=/skip=）。
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_csv_row_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_CSV_ROW_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_CSV_ROW_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
