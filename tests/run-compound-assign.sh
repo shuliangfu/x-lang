@@ -1,16 +1,49 @@
 #!/usr/bin/env bash
-# 复合赋值运算符：+= -= *= /= %= &= |= ^= <<= >>=
-set -e
+# Compound assign: += -= *= /= %= &= |= ^= <<= >>=
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+# PLATFORM: SHARED pure-asm product; C/host-cc only with XLANG_ALLOW_HOST_CC /
+# XLANG_FORCE_LINK_BACKEND. Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-XLANG=${XLANG:-./compiler/xlang}
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+XLANG="$(resolve_shu)" || { echo "compound-assign FAIL: no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)" >&2; exit 1; }
+export XLANG
+export XLANG_LINK_XLANG="$XLANG"
 # Product pure-asm default (no forced -backend c). Prefer product XLANG over wrap.
-# PLATFORM: SHARED pure-asm product; C/host-cc only with XLANG_ALLOW_HOST_CC /
-# XLANG_FORCE_LINK_BACKEND.
 LINK_XLANG="${XLANG:-${RUN_XLANG}}"
 case "$(basename "${LINK_XLANG:-}")" in
   xlang-backend-wrap.sh|xlang-min-link.sh)
