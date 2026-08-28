@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-033: std.http chunked transfer + Keep-Alive gate — honesty soft fallthrough →硬绿.
+# STD-033: std.http chunked transfer + Keep-Alive gate — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + soft ensure_std_c_o + check=/run=/skip= retired. Prefer
-# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
-# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft ensure).
-# Product chunked_keepalive.x -o exit0 = hard run (run=1). check / bench check =
-# obs. Report: run=/obs=/skip=. Bench path = live i08_* (fossil removed).
-# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# chunked_keepalive.x -o exit0 = hard run (run=1). check / bench check = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-http-chunked-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -15,8 +15,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/archive/std/std-http-chunked-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
@@ -144,10 +142,9 @@ if [ "$chk_b" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make / soft ensure (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 if std_http_chunked_run_smoke "$XLANG_BIN" "$SMOKE" "chunked_keepalive"; then
   RUN_OK=$((RUN_OK + 1))

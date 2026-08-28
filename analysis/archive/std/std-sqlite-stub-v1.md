@@ -50,6 +50,8 @@ observational (paused 2026-08-05). `stub_behavior.x` exit 0 hard-fail (`run+=`).
 C stub smoke observational only (existing stub `.o`; no soft `sqlite-o-stub`
 rebuild; `obs+=`). Report `run=` / `obs=` / `skip=`.
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-sqlite-stub-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `stub_behavior.x` hard；check／C stub smoke＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ```bash
 ./tests/run-std-sqlite-stub-gate.sh
 ```

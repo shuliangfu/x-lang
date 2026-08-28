@@ -1,4 +1,7 @@
 # BOOT-029 std.sys manifest
+# honesty 2026-08-29 leftover wrap dead source: run-std-sys-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product write_stdout hard.
 # min_apis	5
 read_path	section	## 1. 目标	analysis/archive/std/std-sys-v0.md
 api_doc	section	## 2. API（v0）	os_write

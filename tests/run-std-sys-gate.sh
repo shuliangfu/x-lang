@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# BOOT-029: std.sys freestanding / platform write — honesty soft fallthrough →硬绿.
+# BOOT-029: std.sys freestanding / platform write — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make + check=/run=/skip= retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard
-# die (refuse soft SKIP→OK / soft auto-make / prefer-c). Product
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
 # write_stdout (Linux freestanding / Darwin hosted) = hard run (run+=).
 # check + linux_nr / macos_thin = obs. Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-sys-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SYS_DOC:-analysis/archive/std/std-sys-v0.md}"
 MANIFEST="${XLANG_STD_SYS_TSV:-tests/baseline/std-sys-manifest.tsv}"
@@ -140,10 +139,9 @@ if [ "$CHK_FAIL" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 OUT="/tmp/xlang_boot029_sys_write_$$"
 LOG="/tmp/xlang_boot029_sys_write_$$.log"

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-139: std.db.sqlite stub — honesty soft fallthrough →硬绿.
+# STD-139: std.db.sqlite stub — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make (`xlang-c` / product .o) + check=/stub_c=/skip=
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product stub_behavior.x -o exit0 = hard run (run+=). check + C stub smoke =
-# obs (no soft rebuild). Report: run=/obs=/skip=.
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# stub_behavior.x -o exit0 = hard run (run+=). check + C stub smoke = obs
+# (no soft rebuild). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-sqlite-stub-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD139_DOC:-analysis/archive/std/std-sqlite-stub-v1.md}"
 MANIFEST="${XLANG_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
@@ -131,11 +130,10 @@ if [ "$chk" -ne 0 ]; then
 fi
 
 # Hard path: restore product sqlite.o (face-less stub must not hide std_db_*).
-# Refuse soft auto-make of xlang-c / ensure_std.
-# PLATFORM: SHARED — Ubuntu UNDEF when stub .o hides face.
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 std_sqlite_stub_restore_product_o
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
 
 OUT="/tmp/xlang_std139_stub_$$"
 LOG="/tmp/xlang_std139_stub_build_$$.log"

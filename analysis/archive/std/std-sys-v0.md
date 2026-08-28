@@ -40,12 +40,15 @@ stdout `Hello Xlang!\n` (`run+=`) —
 `macos_posix_write_smoke.x` (Darwin labi needle gap; `obs+=`). Report
 `run=` / `obs=` / `skip=`.
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-sys-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `write_stdout` hard；check／linux_nr／macos_thin＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 ```text
 xlang: [XLANG_BOOT029_STD_SYS] status=ok run=1 obs=2 skip=0
 ```
 
 Changelog：
 
+- **2026-08-29**：leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 3. Gate`。
 - **v0.2（2026-08-26）**：soft→硬绿 — 闸 prefer asm＋LINK pin；check 观测；`write_stdout` run 硬绿；Darwin 硬路径从 thin `macos_write_*` 收口到 facade `write_stdout`；thin macos 仅观测；报告 `check=`／`run=`／`skip=`。
 
 ---

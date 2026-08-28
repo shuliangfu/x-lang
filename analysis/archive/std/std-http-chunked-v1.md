@@ -70,6 +70,8 @@ Honesty（2026-08-26）：
 - Bench 路径对齐活文件 `bench/i08_http_chunked_decode_bench.x`（拒化石 `http_chunked_decode_bench.x`）
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-http-chunked-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `chunked_keepalive.x` hard；check／bench check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-http-chunked.tsv`
 
 ```
@@ -78,6 +80,7 @@ xlang: [XLANG_STD_HTTP_CHUNKED] status=ok check=0|1 run=1 skip=0
 
 ### Changelog
 
+- 2026-08-29：leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 4. Gate`。
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 4. Gate`；bench→`i08_*`；未啃产品 `std/http`）。
 - 历史：v1 入站 chunked 解码 + keep-alive 检测定版。
 

@@ -2,6 +2,9 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
 # report check=/run=/skip=. Section ## 4. Gate in archive DOC. Bench → live i08_*.
+# honesty 2026-08-29 leftover wrap dead source: run-std-http-chunked-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o chunked_keepalive hard.
 min_apis	5
 read_path	section	## 1. 阅读路径	15min
 api_table	section	## 2. API（v1）	decode_chunked
