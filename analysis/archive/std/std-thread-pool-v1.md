@@ -1,7 +1,7 @@
 # STD-043：std.thread 线程池与命名线程 v1
 
-> 更新时间：2026-08-26（honesty soft→硬绿）· 原稿 2026-06-17  
-> 状态：**定版（v1）+ gate honesty**  
+> 更新时间：2026-08-28（honesty residual XLANG fallthrough／auto-make →硬绿）· 原稿 2026-06-17  
+> 状态：**定版（v1.2）** · Gate honesty residual XLANG fallthrough／auto-make →硬绿  
 > 关联：STD-041/042 async worker、`std.net` 多 worker
 
 ---
@@ -61,6 +61,7 @@
 |------|------|------|
 | v1 | 2026-06-17 | 命名线程 + POSIX 线程池 + gate |
 | honesty | 2026-08-26 | soft→硬绿：prefer asm；API 锚对齐短名；`## 5. Gate`；check 观测 |
+| honesty residual | 2026-08-28 | 拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建；报告 `run=`／`obs=`／`skip=` |
 
 ---
 
@@ -70,22 +71,28 @@
 ./tests/run-std-thread-pool-gate.sh
 ```
 
-Honesty（2026-08-26）：
+Honesty residual（2026-08-28）：
 
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
-- `xlang check` **观测**（自举期暂停闸门，2026-08-05）；CHK 红不硬失败。
-- `pool_roundtrip.x` + `main.x` **exit 0 硬失败**（有 native xlang 时 **无 soft SKIP**）。
-- API 锚 = 产品短名 `set_name_self`／`start`／`submit`／`drain`／`stop`／`pending`。
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- 显式坏 `XLANG`／缺 native **硬 die**（拒 XLANG fallthrough／soft auto-make／prefer-c／soft SKIP→OK／soft `ensure_std_c_o` 重建）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `pool_roundtrip.x` + `main.x` 产品 `-o` **exit 0 硬失败**（硬绿信号＝`run=`）
+- Host-C archaeology **仅观测**（现成 `std/thread/thread.o`／`compiler/runtime_thread_glue.o` only；拒 ensure／auto-make 重建；不传 extra CLI `.o`）
+- 报告行：`run=`／`obs=`／`skip=`（退役 `check=`／`pool=`／`name=`／`main=` 当硬绿）
+- 禁顶层 DOC 复活（live = `analysis/archive/std/`）
+- API 锚 = 产品短名 `set_name_self`／`start`／`submit`／`drain`／`stop`／`pending`
 
-期望报告：
+manifest：`tests/baseline/std-thread-pool.tsv`
 
 ```
-xlang: [XLANG_STD_THREAD_POOL] status=ok check=? pool=1 name=1 main=1 skip=0
+xlang: [XLANG_STD_THREAD_POOL] status=ok run=2 obs=0|1|2|3 skip=0
+std-thread-pool gate OK
 ```
-
-- `check=` 观测（Darwin 常 0／Ubuntu 常 1，均不挡硬绿）。
-- 硬绿信号 = `pool=1` + `main=1` + `skip=0`。
 
 烟测：`pool_roundtrip.x` — 2 worker × 8 submit + drain + stop；`set_name_self("shu-main")`。
 
 回归：`tests/thread/main.x`（spawn/join）。
+
+### 5.1 Changelog
+
+- 2026-08-28：Honesty residual v1.2（拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建；报告 `run=`／`obs=`／`skip=`；未啃产品 `std/thread`）。
