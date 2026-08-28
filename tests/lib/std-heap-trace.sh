@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# std-heap-trace.sh — STD-017：heap trace manifest 辅助
+# std-heap-trace.sh — STD-017: heap XLANG_HEAP_TRACE manifest helpers.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_heap_trace_symbols_ok HEAP_X HEAP_LIBC TSV
-#   std_heap_trace_emit_report status check_ok run_ok skip
+#   std_heap_trace_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_HEAP_TRACE_PREFIX="${XLANG_STD_HEAP_TRACE_PREFIX:-xlang: [XLANG_STD_HEAP_TRACE]}"
 
-# 校验 manifest symbol 锚点；echo 缺失数。
+# Validate manifest symbol anchors; echo miss count; return 0 when miss=0.
 std_heap_trace_symbols_ok() {
   local heap_x="$1"
   local heap_libc="$2"
@@ -34,11 +35,11 @@ std_heap_trace_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_heap_trace_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_HEAP_TRACE_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_HEAP_TRACE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
