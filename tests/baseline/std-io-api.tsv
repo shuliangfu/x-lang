@@ -8,6 +8,9 @@
 # explicit-bad XLANG hard-die; missing native FAIL; product -o
 # read_ptr_slice / batch_rw_smoke hard; check=obs; report run=/obs=/skip=.
 # io-multishot / provided-buffers still host-c leave.
+# honesty 2026-08-29 leftover wrap dead source: run-std-io-api-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product run-io hook hard.
 stdin
 stdout
 stderr

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-029: std.net DNS error codes + IPv6 gate — honesty soft fallthrough →硬绿.
+# STD-029: std.net DNS error codes + IPv6 gate — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + soft ensure_std_c_o + check=/resolve=/main=/skip= retired.
-# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
-# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft
-# ensure). Product resolve_dns.x + main.x -o exit0 = hard run (run=2).
-# check = obs. Report: run=/obs=/skip=.
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# resolve_dns.x + main.x -o exit0 = hard run (run=2). check = obs.
+# Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-net-dns-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_NET_DNS_DOC:-analysis/archive/std/std-net-dns-v1.md}"
 MANIFEST="${XLANG_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
@@ -136,11 +135,9 @@ if [ "$chk_r" -ne 0 ] || [ "$chk_m" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make / soft ensure (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_net_dns_run_smoke "$XLANG_BIN" "$RESOLVE_X" "resolve_dns"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-net-dns OK: resolve_dns"

@@ -83,6 +83,8 @@ Product C face: `net_resolve_ipv4_ex_c` / `net_resolve_ipv6_ex_c` in `std/net/dn
 
 Product API anchors unchanged and match `std/net/mod.x`: `resolve_ex` / `resolve_ipv6` / `ipv6_loopback` / `resolve_err_ok`.
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-net-dns-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `resolve_dns.x`＋`main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 非目标（v1）

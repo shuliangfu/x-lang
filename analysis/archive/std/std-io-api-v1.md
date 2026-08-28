@@ -182,6 +182,8 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-io-read-ptr-slice.sh`／`tests/run-io-unified-gate.sh`（`xlang_compiler_make -q || make` + `process.o`／`io.o` + bootstrap-link wrap + xlang-c-first prefer-c）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `read_ptr_slice`／`read_ptr_slice_param`／`batch_rw_smoke` hard；check＝obs；report `run=`／`obs=`／`skip=`。io-multishot／provided-buffers still host-c leave. leftover prefixes `xlang: [IO_READ_PTR_SLICE]`／`xlang: [IO_UNIFIED]`。Keep `## 7. Gate`。
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-io-api-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product leftover `run-io.sh` hook hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 7. Gate`。 Leave wrap body / ensure_std family / io-multishot / provided-buffers.
+
 ---
 
 ## 8. v2 预留

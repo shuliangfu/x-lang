@@ -7,6 +7,9 @@
 # compiler-make.sh) retired. Prefer asm; explicit-bad XLANG hard-die;
 # missing native FAIL; product -o main+udp_batch_buf hard; check=obs;
 # report run=/obs=/skip=.
+# honesty 2026-08-29 leftover wrap dead source: run-std-net-api-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product run-net hook hard.
 addr_to_packed
 packed_to_ipv4
 connect

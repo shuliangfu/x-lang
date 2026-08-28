@@ -219,6 +219,8 @@ close_stream(stream);
 
 **Honesty (2026-08-29 residual ensure)**：leftover `tests/run-net.sh`（`ensure_std_c_o` net.o／thread.o／random.o + leftover `ensure_runtime_*` + unused `compiler-make.sh`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/net/main.x`＋`udp_batch_buf.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [XLANG_NET]`。Keep `## 8. Gate`。 Do not rewrite `run-perf-net.sh`／`run-zc1-gate.sh` here.
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-net-api-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product leftover `run-net.sh` hook hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 8. Gate`。 Leave wrap body / ensure_std family / `run-perf-net.sh` / `run-zc1-gate.sh`.
+
 ---
 
 ## 9. v2 预留
