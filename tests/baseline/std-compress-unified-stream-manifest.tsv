@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	7
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-compress-unified-stream-v1.md
-verify	section	## 4. Gate	analysis/archive/std/std-compress-unified-stream-v1.md
+verify	section	## Gate	analysis/archive/std/std-compress-unified-stream-v1.md
 api_format	api	format_gzip	std/compress/mod.x	格式常量
 api_mode_c	api	mode_compress	std/compress/mod.x	压缩模式
 api_mode_d	api	mode_decompress	std/compress/mod.x	解压模式
@@ -11,4 +11,4 @@ api_init	api	compress_init	std/compress/mod.x	初始化
 api_process	api	compress_process	std/compress/mod.x	分块处理
 api_end	api	compress_end	std/compress/mod.x	结束
 smoke_x	smoke	tests/std-compress/unified_stream_roundtrip.x	.x烟测
-gate	script	run-std-compress-unified-stream-gate.sh	tests/run-std-compress-unified-stream-gate.sh
+gate	script	tests/run-std-compress-unified-stream-gate.sh	tests/run-std-compress-unified-stream-gate.sh

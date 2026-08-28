@@ -71,7 +71,7 @@ api_hub_sync_smoke	api	hub_sync_smoke	std/socketio/mod.x	跨进程同步烟测
 symbol_hub_sync_c	symbol	sio_hub_sync_smoke_c	std/socketio/socketio.x	跨进程烟测
 symbol_hub_rebind_c	symbol	sio_ws_hub_rebind_c	std/socketio/socketio.x	hub重绑
 smoke_hub_sync	smoke	tests/socketio/hub_sync.x	hub同步烟测
-npm_room_live_script	script	run-std-socketio-npm-room-live.sh	tests/run-std-socketio-npm-room-live.sh	npm room SKIP
+npm_room_live_script	script	tests/run-std-socketio-npm-room-live.sh	tests/run-std-socketio-npm-room-live.sh	npm room SKIP
 api_ws_hub_rebind_reg	api	ws_hub_register_or_rebind	std/socketio/mod.x	注册或重绑
 api_session_export	api	session_bundle_export	std/socketio/mod.x	session导出
 api_session_import	api	session_bundle_import	std/socketio/mod.x	session导入
@@ -81,14 +81,14 @@ api_mw_roundtrip	api	client_ws_fresh_ns_mw_roundtrip	std/socketio/mod.x	mw往返
 symbol_session_smoke_c	symbol	sio_session_sync_smoke_c	std/socketio/socketio.x	session烟测
 symbol_rebind_reg_c	symbol	sio_ws_hub_register_or_rebind_c	std/socketio/socketio.x	注册重绑
 smoke_session_sync	smoke	tests/socketio/session_sync.x	session烟测
-npm_mw_live_script	script	run-std-socketio-npm-mw-live.sh	tests/run-std-socketio-npm-mw-live.sh	npm mw SKIP
+npm_mw_live_script	script	tests/run-std-socketio-npm-mw-live.sh	tests/run-std-socketio-npm-mw-live.sh	npm mw SKIP
 api_cluster_sync	api	cluster_sync	std/socketio/mod.x	集群合并
 api_hub_append	api	ws_hub_append_from	std/socketio/mod.x	hub追加
 api_room_merge	api	room_registry_merge_offset	std/socketio/mod.x	room合并
 api_cluster_smoke	api	cluster_sync_smoke	std/socketio/mod.x	集群烟测
 symbol_cluster_smoke_c	symbol	sio_cluster_sync_smoke_c	std/socketio/socketio.x	集群烟测
 smoke_cluster_sync	smoke	tests/socketio/cluster_sync.x	集群烟测
-npm_plugin_live_script	script	run-std-socketio-npm-plugin-live.sh	tests/run-std-socketio-npm-plugin-live.sh	npm plugin SKIP
+npm_plugin_live_script	script	tests/run-std-socketio-npm-plugin-live.sh	tests/run-std-socketio-npm-plugin-live.sh	npm plugin SKIP
 api_cluster_adapter_init	api	cluster_adapter_init	std/socketio/mod.x	adapter init
 api_cluster_adapter_pub	api	cluster_adapter_publish_ns	std/socketio/mod.x	adapter publish
 api_cluster_adapter_drain	api	cluster_adapter_drain_apply	std/socketio/mod.x	adapter drain
@@ -102,11 +102,11 @@ api_cluster_adapter_snap	api	cluster_adapter_snapshot_bytes	std/socketio/mod.x	S
 api_cluster_ring_smoke	api	cluster_ring_sync_smoke	std/socketio/mod.x	ring烟测
 symbol_cluster_ring_c	symbol	sio_cluster_ring_sync_smoke_c	std/socketio/socketio.x	ring烟测
 smoke_cluster_ring	smoke	tests/socketio/cluster_ring.x	ring烟测
-cluster_ring_live_script	script	run-std-socketio-cluster-ring-live.sh	tests/run-std-socketio-cluster-ring-live.sh	ring SKIP
+cluster_ring_live_script	script	tests/run-std-socketio-cluster-ring-live.sh	tests/run-std-socketio-cluster-ring-live.sh	ring SKIP
 api_p3_complete	api	p3_complete_smoke	std/socketio/mod.x	P3收口烟测
 symbol_p3_complete_c	symbol	sio_p3_complete_smoke_c	std/socketio/socketio.x	P3收口烟测
 smoke_p3_complete	smoke	tests/socketio/p3_complete.x	P3收口烟测
-all_live_script	script	run-std-socketio-all-live.sh	tests/run-std-socketio-all-live.sh	all-live SKIP
+all_live_script	script	tests/run-std-socketio-all-live.sh	tests/run-std-socketio-all-live.sh	all-live SKIP
 api_node_smoke	api	node_golden_smoke	std/socketio/mod.x	Node金样
 api_srv_open	api	server_build_open_packet	std/socketio/mod.x	服务端open
 api_srv_http	api	server_build_http_open_response	std/socketio/mod.x	HTTP open
@@ -170,11 +170,11 @@ symbol_parse_ns_c	symbol	sio_parse_connect_ns_packet_c	std/socketio/socketio.x	�
 symbol_ns_rt_smoke_c	symbol	sio_ns_router_smoke_c	std/socketio/socketio.x	路由烟测
 symbol_ns_sess_smoke_c	symbol	sio_ns_sessions_smoke_c	std/socketio/socketio.x	会话烟测
 smoke_ns_sessions	smoke	tests/socketio/ns_sessions.x	会话烟测
-npm_ws_live_script	script	run-std-socketio-npm-ws-live.sh	tests/run-std-socketio-npm-ws-live.sh	npm WS SKIP
+npm_ws_live_script	script	tests/run-std-socketio-npm-ws-live.sh	tests/run-std-socketio-npm-ws-live.sh	npm WS SKIP
 smoke_ns_router	smoke	tests/socketio/ns_router.x	路由烟测
 smoke_ns_ack	smoke	tests/socketio/ns_ack.x	ns/ack烟测
-npm_live_script	script	run-std-socketio-npm-live.sh	tests/run-std-socketio-npm-live.sh	npm SKIP
-live_script	script	run-std-socketio-live.sh	tests/run-std-socketio-live.sh	live SKIP
-lib	script	lib/std-socketio.sh	tests/lib/std-socketio.sh
-gate	script	run-std-socketio-gate.sh	tests/run-std-socketio-gate.sh
+npm_live_script	script	tests/run-std-socketio-npm-live.sh	tests/run-std-socketio-npm-live.sh	npm SKIP
+live_script	script	tests/run-std-socketio-live.sh	tests/run-std-socketio-live.sh	live SKIP
+lib	script	tests/lib/std-socketio.sh	tests/lib/std-socketio.sh
+gate	script	tests/run-std-socketio-gate.sh	tests/run-std-socketio-gate.sh
 doc	file	analysis/archive/std/std-socketio-v1.md	analysis/archive/std/std-socketio-v1.md	P3草案

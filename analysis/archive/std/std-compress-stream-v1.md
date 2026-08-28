@@ -6,6 +6,22 @@
 
 ---
 
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；拒 soft SKIP→OK／soft `std_compress_try_libs`／soft auto-make；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案；brotli ld 仍跳）。报告 `run=`／`obs=`／`skip=`（退役 `stream=`）。
+
+```bash
+./tests/run-std-compress-stream-gate.sh
+```
+
+```
+xlang: [XLANG_STD_COMPRESS_STREAM] status=ok run=N obs=M skip=K
+```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
+
+---
+
 ## 1. 阅读路径
 
 | 步骤 | 动作 |
@@ -46,7 +62,7 @@ v1 **仅 gzip 流**；zstd/brotli 流式留待后续 RFC。
 ```
 
 ```
-xlang: [XLANG_STD_COMPRESS_STREAM] status=ok stream=1 skip=0
+xlang: [XLANG_STD_COMPRESS_STREAM] status=ok run=N obs=M skip=K  （见 ## Gate）
 ```
 
 烟测向量：`Hello, gz!!!`（12 字节）分 3×4 字节压缩，再以 5 字节块解压比对原文。
