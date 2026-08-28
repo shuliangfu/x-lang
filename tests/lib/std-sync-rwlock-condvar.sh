@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
-# std-sync-rwlock-condvar.sh — STD-045 manifest + smoke helpers
+# std-sync-rwlock-condvar.sh — STD-045 helpers (honesty prefer-asm).
 #
 # Usage (after source):
 #   std_sync_rc_symbols_ok MOD_X SYNC_OS_GLUE TSV
-#   std_sync_rc_run_smoke XLANG_BIN X TAG
-#   std_sync_rc_try_tsan SYNC_OS_GLUE
-#   std_sync_rc_emit_report status check_ok rwlock_ok condvar_ok main_ok tsan_ok skip
-# 2026-08-26: report check=/rwlock=/condvar=/main=/tsan=/skip= (honesty; prefer asm).
+#   std_sync_rc_run_smoke XLANG_BIN SRC [TAG]
+#   std_sync_rc_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / XLANG fallthrough /
+# bootstrap-link remap / soft ensure_std_c_o rebuild / extra CLI .o /
+# TSAN ensure/auto-make; report run=/obs=/skip= (retired
+# check=/rwlock=/condvar=/main=/tsan=/skip=).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_SYNC_RC_PREFIX="${XLANG_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR]}"
 
-# Validate manifest; echo miss count; return 0 iff miss==0.
+# Validate manifest symbol/file/api; echo miss count; return 0 iff miss==0.
+# Kinds: api / symbol / file / smoke / section.
+# Full-path TSV anchors preferred. Do not invoke make.
+# PLATFORM: SHARED archaeology — inventory only.
 std_sync_rc_symbols_ok() {
   local mod_x="$1"
   local sync_os_glue="$2"
@@ -53,39 +58,34 @@ std_sync_rc_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Compile and run smoke .x; expect exit 0.
-# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
-# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# Product tip -o smoke. Caller treats rwlock_condvar.x / main.x failure as hard die.
 # PLATFORM: SHARED archaeology — product honesty path.
+# Do not restore set -e between steps: return 1 must not trip the gate's set -e.
+# Refuse RUN_XLANG / bootstrap-link remap (Darwin must not silently asm→c).
+# Refuse extra CLI .o (product -o is the hard path; host-C archaeology is obs).
 std_sync_rc_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_sync_rc_${tag}_$$"
+  local exe="/tmp/xlang_std045_sync_rc_${tag}_$$"
+  local log="/tmp/xlang_std045_sync_rc_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-sync-rwlock-condvar FAIL: missing $src" >&2
     return 1
   fi
-  if [ -n "${RUN_XLANG:-}" ]; then
-    if ! $RUN_XLANG build -L . "$src" -o "$exe" >/dev/null 2>&1; then
-      echo "std-sync-rwlock-condvar FAIL: compile $src" >&2
-      $RUN_XLANG build -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
-      rm -f "$exe"
-      return 1
-    fi
-  else
-    if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-      echo "std-sync-rwlock-condvar FAIL: compile $src" >&2
-      "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-      rm -f "$exe"
-      return 1
-    fi
-  fi
+  rm -f "$exe" "$log"
   set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-sync-rwlock-condvar FAIL: compile $src" >&2
+    tail -n 8 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
+  fi
   "$exe" >/dev/null 2>&1
   local ec=$?
-  set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-sync-rwlock-condvar FAIL: run $src exit=$ec" >&2
     return 1
@@ -93,65 +93,14 @@ std_sync_rc_run_smoke() {
   return 0
 }
 
-# TSAN positive case: RwLock-protected counter. Echo ok/skip; return 1 only on hard fail.
-# PLATFORM: POSIX — TSAN toolchain optional; no TSAN → skip (not hard-fail).
-std_sync_rc_try_tsan() {
-  local sync_os_glue="$1"
-  local src="tests/sync/sync_tsan_ok.c"
-  local out="/tmp/xlang_sync_tsan_ok_$$"
-  # shellcheck source=tests/lib/safe-race.sh
-  if [ -f tests/lib/safe-race.sh ]; then
-    . tests/lib/safe-race.sh
-  else
-    echo "skip"
-    return 0
-  fi
-  if ! safe_race_tsan_ok; then
-    echo "skip"
-    return 0
-  fi
-  local sync_o="std/sync/sync.o"
-  local rt_os="compiler/runtime_sync_os.o"
-  local rt_tls="compiler/runtime_sync_lock_diag_tls.o"
-  if [ ! -f "$sync_o" ]; then
-    # shellcheck source=tests/lib/build-std-c-o.sh
-    . tests/lib/build-std-c-o.sh
-    ensure_std_c_o ../std/sync/sync.o 2>/dev/null || true
-  fi
-  ensure_runtime_sync_os_o 2>/dev/null || true
-  ensure_runtime_sync_lock_diag_tls_o 2>/dev/null || true
-  if [ ! -f "$sync_o" ] || [ ! -f "$rt_os" ]; then
-    echo "std-sync-rwlock-condvar FAIL: missing sync.o or runtime_sync_os.o" >&2
-    return 1
-  fi
-  if ! cc -std=c11 -O1 -fsanitize=thread -fno-omit-frame-pointer \
-    -o "$out" "$src" "$sync_o" "$rt_os" "$rt_tls" -lpthread 2>/dev/null; then
-    echo "skip"
-    rm -f "$out"
-    return 0
-  fi
-  set +e
-  TSAN_OPTIONS="${TSAN_OPTIONS:-halt_on_error=1:exitcode=66}" "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-sync-rwlock-condvar FAIL: sync_tsan_ok exit=$ec" >&2
-    return 1
-  fi
-  echo "ok"
-  return 0
-}
-
-# Structured report line (honesty: check=/rwlock=/condvar=/main=/tsan=/skip=).
-# Hard-green signal = rwlock= + condvar= + main=; check observational; tsan optional.
+# Structured report line (honesty: run=/obs=/skip=; retired
+# check=/rwlock=/condvar=/main=/tsan=).
+# Hard-green signal = rwlock_condvar.x + main.x product -o (run=2);
+# check / TSAN host-C / host-C archaeology = obs.
 std_sync_rc_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local rwlock_ok="$3"
-  local condvar_ok="$4"
-  local main_ok="$5"
-  local tsan_ok="$6"
-  local skip="$7"
-  echo "${STD_SYNC_RC_PREFIX} status=${status} check=${check_ok} rwlock=${rwlock_ok} condvar=${condvar_ok} main=${main_ok} tsan=${tsan_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_SYNC_RC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

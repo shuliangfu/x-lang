@@ -1,7 +1,7 @@
 # STD-045：std.sync RwLock/Condvar 最小 API v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-28（honesty residual XLANG fallthrough／auto-make →硬绿）· 原稿 2026-06-18  
+> 状态：**定版（v1.2）** · Gate honesty residual XLANG fallthrough／auto-make →硬绿  
 > 关联：既有 `mutex_*`、SAFE-006 TSAN 探针
 
 ---
@@ -55,7 +55,7 @@
 | `condvar_contention_smoke` | waiter `wait` + signaler `notify_one` |
 | `tests/sync/sync_tsan_ok.c` | RwLock 保护共享计数；**TSAN 下 exit 0**（正例） |
 
-门禁在检测到 TSAN 工具链时编译运行 `sync_tsan_ok.c`；无 TSAN 时 `tsan=0`（观测，非硬失败）。
+`tests/sync/sync_tsan_ok.c` 文件存在仍 TSV 必有；compile/run **不是**绿信号（观测；拒 `ensure_std_c_o`／auto-make）。
 
 ---
 
@@ -65,15 +65,32 @@
 ./tests/run-std-sync-rwlock-condvar-gate.sh
 ```
 
+Honesty residual（2026-08-28）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- 显式坏 `XLANG`／缺 native **硬 die**（拒 XLANG fallthrough／soft auto-make／prefer-c／soft SKIP→OK／soft `ensure_std_c_o` 重建／extra CLI `.o`／TSAN ensure／auto-make）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `rwlock_condvar.x` + `main.x` 产品 `-o` **exit 0 硬失败**（硬绿信号＝`run=`）
+- Host-C archaeology **仅观测**（现成 `std/sync/sync.o`＋`compiler/runtime_sync_os.o`＋`compiler/runtime_sync_lock_diag_tls.o` only；拒 ensure／auto-make 重建；不传 extra CLI `.o`；TSAN C 文件存在仍 TSV 必有，compile/run 非绿）
+- 报告行：`run=`／`obs=`／`skip=`（退役 `check=`／`rwlock=`／`condvar=`／`main=`／`tsan=` 当硬绿）
+- 禁顶层 DOC 复活（live = `analysis/archive/std/`）
+- 保留 `## 5. Gate`
+- 关键词：STD-045／new_rwlock／wait／sync_tsan_ok／rwlock_contention_smoke
+
 manifest：`tests/baseline/std-sync-rwlock-condvar.tsv`
 
-**Honesty (2026-08-26)**：prefer `xlang_asm`＋`XLANG_LINK_XLANG`；`check` 观测（闸门暂停 2026-08-05）；`rwlock_condvar.x`／`main.x` exit0 硬失败（无 soft SKIP）；TSV／DOC API 锚对齐产品 `new_rwlock`／`wait`／`notify_*`（旧 `rwlock_new`／`condvar_wait`＝portable 假红）；报告 `check=`／`rwlock=`／`condvar=`／`main=`／`tsan=`／`skip=`。
-
-**report** 示例：
-
 ```
-xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok check=1 rwlock=1 condvar=1 main=1 tsan=0 skip=0
+xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok run=2 obs=0|1|2 skip=0
+std-sync-rwlock-condvar gate OK
 ```
+
+F-sync v1 仍硬委托本闸（须保持 exit 0）。
+
+### 5.1 Changelog
+
+- 2026-06-18：v1 RwLock/Condvar + 竞争烟测 + TSAN 正例。
+- 2026-08-26：Honesty v1.1（prefer asm；check 观测；API 锚对齐产品短名；`## 5. Gate`；报告 `check=`／`rwlock=`／`condvar=`／`main=`／`tsan=`）。
+- 2026-08-28：Honesty residual v1.2（拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建／TSAN ensure；报告 `run=`／`obs=`／`skip=`；未啃产品 `std/sync`）。
 
 ---
 
@@ -83,3 +100,4 @@ xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok check=1 rwlock=1 condvar=1 main
 |------|------|------|
 | v1 | 2026-06-18 | RwLock/Condvar + 竞争烟测 + TSAN 正例 |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；API 锚对齐产品短名；`## 5. Gate` |
+| v1.2 | 2026-08-28 | Honesty residual：拒 XLANG fallthrough／auto-make／ensure；报告 `run=`／`obs=`／`skip=` |

@@ -3,6 +3,9 @@
 # min_apis	12
 # 2026-08-26 honesty: API anchors aligned to product mod.x (new_rwlock/wait/notify_*);
 # verify section → ## 5. Gate. Fossil rwlock_new/condvar_wait were portable false-red.
+# 2026-08-28 residual: report run=/obs=/skip= (retired check=/rwlock=/condvar=/main=/tsan=);
+# refuse XLANG fallthrough / auto-make / ensure rebuild / extra CLI .o / TSAN ensure.
+# TSAN C file existence remains required; compile/run is not a green signal.
 read_path	section	## 1. 阅读路径	15min
 rwlock_api	section	## 2. RwLock API	new_rwlock
 condvar_api	section	## 3. Condvar API	wait
