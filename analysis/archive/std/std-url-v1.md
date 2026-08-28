@@ -1,7 +1,7 @@
 # STD-076 std.url v1
 
-> 更新时间：2026-08-26  
-> 状态：**可用** — parse/build/query/resolve + gate honesty（formal_mod＋fk0）
+> 更新时间：2026-08-29  
+> 状态：**可用** — parse/build/query/resolve + gate honesty residual auto-make retired（formal_mod＋fk0）
 
 ---
 
@@ -31,22 +31,23 @@ IPv6 host 解析时去掉 `[` `]`，build 时自动加 bracket。
 
 ## 3. Gate
 
-**Honesty（2026-08-26）**：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；`check` 观测（自举期暂停闸门）；`roundtrip.x` exit0 硬失败（无 soft SKIP）；C smoke 仅观测；报告 `check=`／`run=`／`skip=`。
+**Honesty（2026-08-29 residual auto-make retired）**：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；`check` 仅观测（自举期暂停）；`roundtrip.x` exit 0 硬失败（native xlang 在场时禁 soft SKIP）；host-C archaeology 仅观测（现成 `url.o`，拒 `xlang_compiler_make` 重建）。报告 `run=`／`obs=`／`skip=`。
 
-根修：formal_mod `mod|1`（`mod.x`＋`url.x` bare-impl）＋fk0 k23×10 `std_url_*`（原 std_x bare → 仅 `url_*_c`，产品 `std_url_*` UNDEF）。
+formal_mod：`mod.x` 前缀 + `url.x` `--bare-impl`；fk0 k23×10 `std_url_*`（原 std_x bare → 仅 `url_*_c`，产品 `std_url_*` UNDEF）。
 
 ```
-xlang: [XLANG_STD_URL] status=ok check=1 run=1 skip=0
+xlang: [XLANG_STD_URL] status=ok run=1 obs=2 skip=0
 std-url gate OK
 ```
 
-（Darwin 上 check 常为 0＝观测跳过，仍以 `run=1` 为硬绿。）
+（Darwin 上 `check` CHK residual＝obs；host-C 现成 `.o` 或缺 `.o` 均为 obs。硬绿信号是 `run=1`。）
 
 向量：`tests/baseline/std-url-vectors.tsv`。
 
-### Changelog
+---
 
-| 日期 | 变更 |
-|------|------|
-| 2026-08-26 | Gate honesty + formal_mod/fk0；产品硬绿 `run=` |
-| 2026-06-18 | 初版 API／gate |
+## 4. Changelog
+
+- 2026-08-29：残 auto-make 退役（闸 host-C 前 `xlang_compiler_make … url.o`）；host-C 现成 `.o` only＝obs；产品 `roundtrip.x` 仍硬绿；报告 `run=`／`obs=`／`skip=`。
+- 2026-08-26：Gate honesty + formal_mod/fk0；产品硬绿 `run=`。
+- 2026-06-18：初版 API／gate。
