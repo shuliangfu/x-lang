@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
-# STD-060：std.sort 稳定排序与自定义比较器门禁（假权威诚实）。
+# STD-060: std.sort stable + custom cmp gate — honesty soft auto-make →硬绿.
 #
-# 用法：./tests/run-std-sort-stable-cmp-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-25: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); stable_i32.x + cmp_desc.x exit 0 hard-fail
-# (no soft SKIP when native xlang present). Fossil API anchors → product:
-# sort_stable_i32/sort_stable_u8→stable, sort_i32_cmp→cmp,
-# cmp_i32_desc_fn→cmp_desc_fn. C smoke observational only.
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft auto-make (`xlang_compiler_make … || true` / soft ensure_std_c_o)
+# + soft XLANG fallthrough (explicit-bad still picks another binary) +
+# check=/run=/skip= retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK / soft
+# auto-make / prefer-c / soft ensure rebuild). Product stable_i32.x + cmp_desc.x
+# -o exit0 = hard run (run=2). check / host-C archaeology = obs.
+# Report: run=/obs=/skip=.
+# Fossil API → product: stable / cmp / cmp_desc_fn.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-sort-stable-cmp-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
@@ -24,37 +29,61 @@ LIB="tests/lib/std-sort-stable-cmp.sh"
 SMOKE_STABLE="tests/std-sort/stable_i32.x"
 SMOKE_CMP="tests/std-sort/cmp_desc.x"
 SMOKE_C="tests/std-sort/stable_smoke_ok.c"
-# Designed success score (both product smokes return 0 on all checks).
 SMOKE_EXPECT=0
 MIN_APIS=3
 
 # shellcheck source=tests/lib/std-sort-stable-cmp.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-sort-stable-cmp gate FAIL: $*" >&2
+  std_sort_stable_cmp_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== STD-060: sort stable/cmp manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SORT_X" "$SMOKE_STABLE" "$SMOKE_CMP" "$SMOKE_C" std/sort/README.md; do
-  if [ ! -f "$f" ]; then
-    echo "std-sort-stable-cmp gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 for kw in STD-060 stable usize stable_dup; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-sort-stable-cmp gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
-
-if ! grep -qF 'cmp_desc' "$VECTORS" 2>/dev/null; then
-  echo "std-sort-stable-cmp gate FAIL: vectors missing cmp_desc" >&2
-  exit 1
-fi
-
-if ! grep -qF 'stable' std/sort/README.md 2>/dev/null; then
-  echo "std-sort-stable-cmp gate FAIL: README missing stable" >&2
-  exit 1
-fi
+grep -qF -- 'cmp_desc' "$VECTORS" 2>/dev/null || die "vectors missing cmp_desc"
+grep -qF -- 'stable' std/sort/README.md 2>/dev/null || die "README missing stable"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -70,146 +99,76 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
-        echo "std-sort-stable-cmp gate FAIL: missing api $anchor" >&2
-        exit 1
-      fi
+      grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null || die "missing api $anchor"
       ;;
     section)
-      if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
-        echo "std-sort-stable-cmp gate FAIL: doc missing section $anchor" >&2
-        exit 1
-      fi
+      grep -qF -- "$anchor" "$DOC" 2>/dev/null || die "doc missing section $anchor"
       ;;
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-sort-stable-cmp gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
-
-[ ! -f std/sort/sort.c ] || { echo "std-sort-stable-cmp gate FAIL: sort.c should be deleted" >&2; exit 1; }
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
+[ ! -f std/sort/sort.c ] || die "sort.c should be deleted"
 
 sym_miss="$(std_sort_stable_cmp_symbols_ok "$MOD_X" "$SORT_X" "$MANIFEST" "$DOC" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_sort_stable_cmp_emit_report "fail" 0 0 0
-  echo "std-sort-stable-cmp gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-sort-stable-cmp manifest OK"
 
 if [ "${XLANG_STD_SORT_STABLE_CMP_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_sort_stable_cmp_emit_report "ok" 0 0 1
+  SKIP=1
+  std_sort_stable_cmp_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "std-sort-stable-cmp gate OK (manifest only)"
   exit 0
 fi
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-resolve_shu() {
-  local cand
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-060: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-
-# Observational host-C archaeology smoke (not hard green).
-# PLATFORM: SHARED archaeology — product honesty is stable_i32.x / cmp_desc.x via asm.
-echo "=== STD-060: sort stable c smoke (observational) ==="
-C_NOTE=0
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  if ensure_std_c_o ../std/sort/sort.o 2>/dev/null && std_sort_stable_cmp_run_c_smoke "$SORT_X"; then
-    C_NOTE=1
-    echo "std-sort-stable-cmp c smoke OK (observational)"
-  else
-    echo "std-sort-stable-cmp gate SKIP c smoke (observational; no full sort.o)" >&2
-  fi
+# Host-C archaeology = obs only; refuse soft ensure_std rebuild.
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+if [ -f std/sort/sort.o ] && std_sort_stable_cmp_run_c_smoke "$SORT_X"; then
+  echo "std-sort-stable-cmp c smoke OK (observational)"
 else
-  echo "std-sort-stable-cmp gate SKIP c smoke (observational; no xlang-c)" >&2
-fi
-echo "std-sort-stable-cmp c_smoke_note=${C_NOTE}"
-
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-060: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  CHECK_N=0
-  for x in "$SMOKE_STABLE" "$SMOKE_CMP"; do
-    if "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
-      CHECK_N=$((CHECK_N + 1))
-    else
-      echo "std-sort-stable-cmp gate SKIP check $(basename "$x") (paused 2026-08-05)" >&2
-    fi
-  done
-  if [ "$CHECK_N" -eq 2 ]; then
-    CHECK_OK=1
-  fi
-
-  xlang_compiler_make -q ../std/sort/mod.o 2>/dev/null || xlang_compiler_make ../std/sort/mod.o 2>/dev/null || true
-  xlang_compiler_make -q ../std/sort/sort.o 2>/dev/null || xlang_compiler_make ../std/sort/sort.o 2>/dev/null || true
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  RUN_N=0
-  for x in "$SMOKE_STABLE" "$SMOKE_CMP"; do
-    tag="$(basename "$x" .x)"
-    OUT="/tmp/xlang_std_sort_stable_${tag}_$$"
-    LOG="/tmp/xlang_std_sort_stable_${tag}_build_$$.log"
-    if $RUN_XLANG build -L . "$x" -o "$OUT" 2>"$LOG"; then
-      exitcode=0
-      "$OUT" >/dev/null 2>&1 || exitcode=$?
-      rm -f "$OUT"
-      if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
-        RUN_N=$((RUN_N + 1))
-      else
-        echo "std-sort-stable-cmp gate FAIL runnable $x exit=$exitcode (expect $SMOKE_EXPECT)" >&2
-        std_sort_stable_cmp_emit_report "fail" "$CHECK_OK" 0 0
-        exit 1
-      fi
-    else
-      echo "std-sort-stable-cmp gate FAIL runnable link $x" >&2
-      tail -20 "$LOG" 2>/dev/null >&2 || true
-      std_sort_stable_cmp_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  done
-  if [ "$RUN_N" -eq 2 ]; then
-    RUN_OK=1
-    SKIP=0
-  fi
-else
-  echo "std-sort-stable-cmp gate FAIL: no native xlang" >&2
-  std_sort_stable_cmp_emit_report "fail" 0 0 0
-  exit 1
+  echo "std-sort-stable-cmp OBS c smoke (host-C archaeology; refuse soft ensure/auto-make)" >&2
+  OBS=$((OBS + 1))
 fi
 
-# check stays observational; hard-green signal is run= (runnable).
-echo "std-sort-stable-cmp check_ok=${CHECK_OK} (observational)"
-std_sort_stable_cmp_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_STABLE" >/tmp/xlang_std_sort_stable_check_a.log 2>&1
+chk_a=$?
+"$XLANG_BIN" check -L . "$SMOKE_CMP" >/tmp/xlang_std_sort_stable_check_b.log 2>&1
+chk_b=$?
+set -e
+if [ "$chk_a" -ne 0 ] || [ "$chk_b" -ne 0 ]; then
+  echo "std-sort-stable-cmp OBS check (paused / CHK residual a=$chk_a b=$chk_b; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+for x in "$SMOKE_STABLE" "$SMOKE_CMP"; do
+  tag="$(basename "$x" .x)"
+  OUT="/tmp/xlang_std_sort_stable_${tag}_$$"
+  LOG="/tmp/xlang_std_sort_stable_${tag}_build_$$.log"
+  rm -f "$OUT" "$LOG"
+  set +e
+  "$XLANG_BIN" -L . "$x" -o "$OUT" >"$LOG" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+    tail -n 20 "$LOG" 2>/dev/null || true
+    rm -f "$OUT"
+    die "product -o $x failed (ec=$o_ec; refuse soft SKIP→OK)"
+  fi
+  set +e
+  "$OUT" >/dev/null 2>&1
+  exitcode=$?
+  set -e
+  rm -f "$OUT"
+  [ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable $x exit=$exitcode (expect $SMOKE_EXPECT)"
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-sort-stable-cmp OK: product -o $tag"
+done
+
+std_sort_stable_cmp_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-sort-stable-cmp gate OK"
