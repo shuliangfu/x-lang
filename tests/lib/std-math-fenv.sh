@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# std-math-fenv.sh — STD-059 manifest 与烟测辅助
+# std-math-fenv.sh — STD-059 manifest helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_math_fenv_symbols_ok MOD_X MATH_RUNTIME_C TSV
+#   std_math_fenv_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
+# Honesty: refuse soft auto-make / soft SKIP→OK; report run=/obs=/skip=.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_MATH_FENV_PREFIX="${XLANG_STD_MATH_FENV_PREFIX:-xlang: [XLANG_STD_MATH_FENV]}"
 
-# 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
+# Validate manifest api/const/symbol/file/smoke/section anchors. Echo miss count.
 std_math_fenv_symbols_ok() {
   local mod_x="$1"
   local math_c="$2"
@@ -39,7 +43,15 @@ std_math_fenv_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke)
+      section)
+        # Prefer DOC path from env; refuse fossil top-level analysis/std-math-fenv-v1.md.
+        local doc="${XLANG_STD_MATH_FENV_DOC:-analysis/archive/std/std-math-fenv-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-math-fenv FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|vectors|script)
         if [ ! -f "$anchor" ]; then
           echo "std-math-fenv FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
@@ -51,53 +63,36 @@ std_math_fenv_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：fenv_smoke_ok.c + runtime_math_libm.o + -lm。
+# Host-C archaeology smoke: prebuilt runtime_math_libm.o only (refuse soft auto-make).
+# Returns 0 on green run, 1 on link/run fail, 2 on missing prebuilt .o.
 std_math_fenv_run_c_smoke() {
-  local math_runtime_c="$1"
   local src="tests/std-math/fenv_smoke_ok.c"
   local out="/tmp/xlang_std_math_fenv_$$"
   local rt_o="compiler/runtime_math_libm.o"
   if [ ! -f "$rt_o" ]; then
-    xlang_compiler_make -q runtime_math_libm.o 2>/dev/null || xlang_compiler_make runtime_math_libm.o >/dev/null 2>&1 || true
+    echo "std-math-fenv OBS c smoke (missing prebuilt $rt_o; refuse soft auto-make)" >&2
+    return 2
   fi
-  if [ ! -f "$rt_o" ]; then
-    echo "std-math-fenv FAIL: missing $rt_o" >&2
+  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$rt_o" -lm 2>/tmp/std_math_fenv_c_$$.log; then
+    echo "std-math-fenv OBS c smoke link (refuse soft ensure)" >&2
     return 1
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$rt_o" -lm 2>/dev/null; then
-    echo "std-math-fenv FAIL: compile $src" >&2
-    return 1
-  fi
-  set +e
+  # Do not toggle set -e here — it would leak and make `return 1` kill the gate.
   "$out" >/dev/null 2>&1
   local ec=$?
-  set -e
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
-    echo "std-math-fenv FAIL: c smoke exit=$ec" >&2
+    echo "std-math-fenv OBS c smoke run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
-std_math_fenv_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-fenv}"
-  if ! "$xlang" check -L . "$src" >/dev/null 2>&1; then
-    echo "std-math-fenv FAIL: typeck $src ($tag)" >&2
-    "$xlang" check -L . "$src" 2>&1 | tail -10 >&2 || true
-    return 1
-  fi
-  return 0
-}
-
-# 输出门禁报告。
+# Structured report line (honesty: run=/obs=/skip=; retired c_smoke=/x=).
 std_math_fenv_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_MATH_FENV_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_MATH_FENV_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

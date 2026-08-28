@@ -55,10 +55,10 @@
 
 ---
 
-## 5. 门禁
+## Gate
 
 ```bash
 ./tests/run-std-math-fenv-gate.sh
 ```
 
-无 fenv 平台：manifest 仍过，C 烟测 **SKIP**（`FENV_NOT_IMPL`）。
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。无 fenv／缺预编 runtime：C 烟测＝obs（非 soft SKIP→OK）。

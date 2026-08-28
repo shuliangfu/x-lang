@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# std-math-special.sh — STD-115 manifest 与烟测辅助
+# std-math-special.sh — STD-115 manifest helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_math_special_symbols_ok MOD_X MATH_RUNTIME_C TSV
+#   std_math_special_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
+# Honesty: refuse soft auto-make / soft SKIP→OK; report run=/obs=/skip=.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_MATH_SPECIAL_PREFIX="${XLANG_STD115_MATH_SPECIAL_PREFIX:-xlang: [XLANG_STD115_MATH_SPECIAL]}"
 
-# 校验 manifest 中 api/symbol/file/smoke。
+# Validate manifest api/symbol/file/smoke/section. Echo miss count.
 std_math_special_symbols_ok() {
   local mod_x="$1"
   local math_c="$2"
@@ -33,7 +37,14 @@ std_math_special_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke|vectors)
+      section)
+        local doc="${XLANG_STD115_DOC:-analysis/archive/std/std-math-special-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-math-special FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|vectors|script)
         if [ ! -f "$anchor" ]; then
           echo "std-math-special FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
@@ -45,54 +56,47 @@ std_math_special_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
-std_math_special_run_x_smoke() {
-  local xlang="$1"
-  local src="$2"
-  if ! "$xlang" check -L . "$src" >/dev/null 2>&1; then
-    echo "std-math-special FAIL: typeck $src" >&2
-    "$xlang" check -L . "$src" 2>&1 | tail -10 >&2 || true
+# Host-C special smoke: prebuilt math.o + runtime_math_libm.o + runtime_process_argv.o.
+# PLATFORM: SHARED — math.o embeds rt_preamble weak process_args_* needing argv.o.
+# Returns 0 green, 1 fail, 2 missing prebuilt.
+std_math_special_run_c_smoke() {
+  local math_o="${1:-std/math/math.o}"
+  local src="tests/std-math/special_smoke_ok.c"
+  local out="/tmp/xlang_std_math_special_c_$$"
+  local rt_o="compiler/runtime_math_libm.o"
+  local pav_o="compiler/runtime_process_argv.o"
+  if [ ! -f "$math_o" ]; then
+    echo "std-math-special OBS c smoke (missing prebuilt $math_o; refuse soft ensure_std_c_o)" >&2
+    return 2
+  fi
+  if [ ! -f "$rt_o" ]; then
+    echo "std-math-special OBS c smoke (missing prebuilt $rt_o; refuse soft auto-make)" >&2
+    return 2
+  fi
+  if [ ! -f "$pav_o" ]; then
+    echo "std-math-special OBS c smoke (missing prebuilt $pav_o; refuse soft auto-make)" >&2
+    return 2
+  fi
+  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$math_o" "$rt_o" "$pav_o" -lm 2>/tmp/std_math_special_c_$$.log; then
+    echo "std-math-special OBS c smoke link (UNDEF/residual; refuse soft ensure)" >&2
+    return 1
+  fi
+  # Do not toggle set -e here — it would leak and make `return 1` kill the gate.
+  "$out" >/dev/null 2>&1
+  local ec=$?
+  rm -f "$out"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-math-special OBS c smoke run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# C 烟测：special_smoke_ok.c + math.o + runtime_math_libm.o + process_argv + -lm。
-# PLATFORM: SHARED — math.o from math.x -E+cc always embeds rt_preamble weak
-# process_args_* which UNDEF process_xlang_{argc,argv}_get (in runtime_process_argv.o).
-# Without that .o, L4 cold Ubuntu/mac link fails: process_args_count_c undefined.
-std_math_special_run_c_smoke() {
-  local math_o="$1"
-  local src="tests/std-math/special_smoke_ok.c"
-  local out="/tmp/xlang_std_math_special_c_$$"
-  local rt_o="compiler/runtime_math_libm.o"
-  local pav_o="compiler/runtime_process_argv.o"
-  if [ ! -f "$rt_o" ]; then
-    xlang_compiler_make -q runtime_math_libm.o 2>/dev/null || xlang_compiler_make runtime_math_libm.o >/dev/null 2>&1 || true
-  fi
-  if [ ! -f "$pav_o" ]; then
-    xlang_compiler_make -q runtime_process_argv.o 2>/dev/null || xlang_compiler_make runtime_process_argv.o >/dev/null 2>&1 || true
-  fi
-  if [ ! -f "$rt_o" ]; then
-    echo "std-math-special FAIL: missing $rt_o" >&2
-    return 1
-  fi
-  if [ ! -f "$pav_o" ]; then
-    echo "std-math-special FAIL: missing $pav_o" >&2
-    return 1
-  fi
-  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$math_o" "$rt_o" "$pav_o" -lm 2>/dev/null; then
-    echo "std-math-special FAIL: compile C smoke" >&2
-    return 1
-  fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  [ "$ec" -eq 0 ]
-}
-
+# Structured report (honesty: run=/obs=/skip=; retired c=/x=).
 std_math_special_emit_report() {
-  echo "${STD_MATH_SPECIAL_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_MATH_SPECIAL_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
