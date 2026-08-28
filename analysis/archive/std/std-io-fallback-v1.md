@@ -92,7 +92,7 @@ std.io.driver → std.io.core → std.io.backend
 - 烟测：`tests/io/fallback_matrix.x`（`read_fd`/`write_fd`）
 - 回归：`tests/run-io.sh`
 - 闸：`tests/run-std-io-fallback-gate.sh`
-- 报告：见 **§6 Gate**（`check=`／`run=`／`skip=`）
+- 报告：见 **§6 Gate**（`run=`／`obs=`／`skip=`）
 
 ---
 
@@ -111,10 +111,11 @@ Honesty template（2026-08-26 · soft→硬绿）：
 报告行：
 
 ```text
-xlang: [XLANG_STD_IO_FALLBACK] status=ok matrix=1 code=1 readme=1 check=? run=1 skip=0
+xlang: [XLANG_STD_IO_FALLBACK] status=ok run=1 obs=? skip=0
 ```
 
-Changelog v1.1：DOC／TSV→`## 6. Gate`；权威改锚 `backend.x`／`sync.x`／`win32.x`（`io.c` 退役）；闸 prefer asm＋LINK；check 观测；`fallback_matrix` exit0 硬失败；报告 `check=`／`run=`／`skip=`。
+Changelog v1.1：DOC／TSV→`## 6. Gate`；权威改锚 `backend.x`／`sync.x`／`win32.x`（`io.c` 退役）；闸 prefer asm＋LINK；check 观测；`fallback_matrix` exit0 硬失败。  
+Changelog v1.2（2026-08-28）：honesty 二过——拒 soft XLANG fallthrough／soft auto-make；报告 `run=`／`obs=`／`skip=`。
 
 ---
 

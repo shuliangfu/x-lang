@@ -167,7 +167,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 
 | 脚本 | 作用 |
 |------|------|
-| `tests/run-std-io-api-gate.sh` | 稳定符号 manifest + `run-io.sh`（honesty：prefer asm／`XLANG_LINK_XLANG`／check 观测／run-io exit0 硬失败／报告 `check=`／`run=`／`skip=`） |
+| `tests/run-std-io-api-gate.sh` | 稳定符号 manifest + `run-io.sh`（honesty 二过：拒 soft fallthrough／soft auto-make；prefer asm／`XLANG_LINK_XLANG`；check＝obs；run-io exit0 硬失败；报告 `run=`／`obs=`／`skip=`） |
 | `tests/run-io-unified-gate.sh` | 跨平台 batch/read_ptr/ZC-1 smoke |
 | `tests/run-io-read-ptr-slice.sh` | M-5 slice 域 |
 | `tests/run-zc3-gate.sh` | region typeck + read_ptr |
@@ -177,7 +177,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 
 - Prefer `./compiler/xlang_asm`；钉 `XLANG_LINK_XLANG`；无 native → **FAIL**（禁止 soft SKIP→OK）
 - `xlang check` 仅观测（自举期暂停闸门）；`run-io.sh` exit 0 硬失败
-- 报告：`xlang: [XLANG_STD001_IO_API] status=… check=… run=… skip=…`
+- 报告：`xlang: [XLANG_STD001_IO_API] status=… run=… obs=… skip=…`
 - **未**改产品 `std/io` labi；禁顶层 DOC 复活（live = `analysis/archive/std/`）
 
 ---

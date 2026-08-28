@@ -6,8 +6,8 @@
 #   std_ex_validate_paths [catalog_tsv]
 #   std_ex_check_example XLANG_BIN path
 #   std_ex_run_x_smoke XLANG_BIN SRC OUT_PREFIX
-#   std_ex_emit_report status check_ok x_ok skip
-# 2026-08-26: report check=/x=/skip= (honesty; prefer asm runnable hard).
+#   std_ex_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check = obs; hello+io product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_EX_PREFIX="${XLANG_STD_EXAMPLES_PREFIX:-xlang: [XLANG_STD_EXAMPLES]}"
@@ -82,18 +82,18 @@ std_ex_run_x_smoke() {
   return 0
 }
 
-# Structured report line (check observational; x runnable hard; skip only
-# for manifest-only paths — never soft-OK when no native compiler).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o hello + io_batch; check = obs.
 # @param $1 status — ok|fail
-# @param $2 check_ok — observational check (0/1; not hard green)
-# @param $3 x_ok — must runnable exit0 (hard green)
+# @param $2 run_ok — hard product smoke count
+# @param $3 obs — observational residuals (check / …)
 # @param $4 skip — 1 only for manifest-only
 std_ex_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local x_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_EX_PREFIX} status=${status} check=${check_ok} x=${x_ok} skip=${skip}"
+  echo "${STD_EX_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
 
 # Print catalog Markdown index table (stdout).

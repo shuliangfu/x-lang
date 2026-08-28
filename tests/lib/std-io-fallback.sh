@@ -4,7 +4,7 @@
 # Usage (after source):
 #   std_io_fallback_manifest_ok DOC README TSV
 #   std_io_fallback_run_smoke XLANG_BIN smoke_x tag
-#   std_io_fallback_emit_report status matrix_ok code_ok readme_ok check_ok run_ok skip
+#   std_io_fallback_emit_report status run obs skip
 #
 # Authority after io.c retirement: std/io/backend.x + sync.x + win32.x + mod.x.
 # TSV code/matrix rows use src= live file; code_anchor grepped there (not deleted io.c).
@@ -129,14 +129,12 @@ std_io_fallback_run_smoke() {
   return 0
 }
 
-# Structured report line (honesty: matrix=/code=/readme=/check=/run=/skip=).
+# Structured report line (honesty: run=/obs=/skip=).
+# Manifest matrix/code/readme stay hard die before smoke; check = obs.
 std_io_fallback_emit_report() {
   local status="$1"
-  local matrix_ok="$2"
-  local code_ok="$3"
-  local readme_ok="$4"
-  local check_ok="$5"
-  local run_ok="$6"
-  local skip="$7"
-  echo "${STD_IO_FALLBACK_PREFIX} status=${status} matrix=${matrix_ok} code=${code_ok} readme=${readme_ok} check=${check_ok} run=${run_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_IO_FALLBACK_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

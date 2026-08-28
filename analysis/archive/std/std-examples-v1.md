@@ -71,7 +71,7 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 
 ## 5. Gate
 
-假权威诚实（2026-08-26）：闸优先 `xlang_asm`，钉 `XLANG_LINK_XLANG`；`xlang check` 仅观测（check 闸门 2026-08-05 暂停）；`examples/hello.x` + `examples/cookbook/io_batch_rw.x` 可运行 exit0 硬失败；无 native 编译器 **FAIL**（禁 soft SKIP→OK）；报告 `check=`／`x=`／`skip=`。产品面 asm 本绿；旧闸仅 prefer `xlang-c` + cookbook/core 硬 typeck＝portable 假红。
+假权威诚实二过（2026-08-28）：拒 soft XLANG fallthrough／soft auto-make／prefer-c；闸优先 `xlang_asm`，钉 `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native **硬 die**；`xlang check`＝obs；`examples/hello.x` + `examples/cookbook/io_batch_rw.x` `-o` exit0＝硬 run；报告 `run=`／`obs=`／`skip=`。
 
 ```bash
 # manifest + 路径 + catalog≥30 + hello/io runnable hard
