@@ -2,10 +2,10 @@
 # LANG-003: generic monomorph smoke (single-module + multi-file).
 #
 # Honesty: soft SKIP→OK when no native xlang + prefer-c (xlang-c before
-# xlang_asm) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG = hard die. Missing native = hard die (generic
-# hooks are the live face). Multi-file runs on resolved product path
-# (not force-xlang-c). Report run=/multi=/skip=.
+# xlang_asm) + soft auto-make retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
+# (refuse soft SKIP→OK / soft auto-make / prefer-c). Multi-file runs on
+# resolved product path (not force-xlang-c). Report run=/multi=/skip=.
 #
 # Usage: ./tests/run-lang-generic.sh
 # PLATFORM: SHARED archaeology.
@@ -64,11 +64,10 @@ resolve_shu() {
   return 1
 }
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# Refuse soft auto-make of missing compiler; resolved native must already exist.
 
 echo "=== LANG-003: generic smoke (XLANG=$XLANG_BIN) ==="
 chmod +x tests/run-generic.sh tests/run-multi-file-generic.sh
