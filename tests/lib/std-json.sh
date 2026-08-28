@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# std-json.sh — STD-008 shared: std.json API + smoke helpers
+# std-json.sh — STD-008: std.json zero-copy manifest helpers.
 #
 # Usage (after source):
 #   std_json_api_count [manifest_tsv]
 #   std_json_has_api MOD_X fn_name
 #   std_json_has_c_impl JSON_X sym_name
-#   std_json_run_smoke XLANG_BIN smoke_x tag
-#   std_json_emit_report status check_ok main_ok zc_ok skip
-# 2026-08-26: report check=/main=/zc=/skip= (honesty; prefer asm; main hard).
-# PLATFORM: SHARED archaeology.
+#   std_json_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_JSON_PREFIX="${XLANG_STD_JSON_PREFIX:-xlang: [XLANG_STD_JSON]}"
 
@@ -32,38 +30,13 @@ std_json_has_c_impl() {
   grep -qF "${sym}(" "$cfile" 2>/dev/null
 }
 
-# Compile and run smoke .x; expect exit code 0.
-std_json_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_json_${tag}_$$"
-  if [ ! -f "$src" ]; then
-    echo "std-json FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-json FAIL: $tag exit=$ec ($src)" >&2
-    return 1
-  fi
-  return 0
-}
-
-# Structured report line (honesty: check=/main=/zc=/skip=).
-# Hard-green signal is main=; zc is observational (Darwin needs_copy residual).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is main product -o; zc / check residuals = obs
+# (Darwin arm64 needs_copy residual on zc_parse_string_view).
 std_json_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local main_ok="$3"
-  local zc_ok="$4"
-  local skip="$5"
-  echo "${STD_JSON_PREFIX} status=${status} check=${check_ok} main=${main_ok} zc=${zc_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_JSON_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

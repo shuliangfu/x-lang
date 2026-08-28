@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# std-context-cookbook.sh — STD-156：std.context Cookbook manifest helpers
+# std-context-cookbook.sh — STD-156: std.context cookbook manifest helpers.
 #
 # Usage (after source):
 #   std_context_cookbook_symbols_ok MOD_X TSV
-#   std_context_cookbook_emit_report status check_ok run_ok skip
+#   std_context_cookbook_emit_report status run obs skip
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CTX_CB_PREFIX="${XLANG_STD_CTX_CB_PREFIX:-xlang: [XLANG_STD_CONTEXT_COOKBOOK]}"
 
-# Validate manifest symbol/recipe/file anchors against product std/context/mod.x.
-# Function anchors require `function <name>(` so export function surface names match.
+# Validate manifest symbol/recipe/file/cross_ref anchors against mod.x.
 # Echo miss count; return 0 when miss=0.
 std_context_cookbook_symbols_ok() {
   local mod_x="$1"
@@ -33,7 +32,6 @@ std_context_cookbook_symbols_ok() {
         fi
         ;;
       cross_ref)
-        # Cookbook expand DOC must live under archive after honesty waves.
         if [ ! -f "$anchor" ]; then
           echo "std-context-cookbook FAIL: missing cross_ref '$anchor'" >&2
           miss=$((miss + 1))
@@ -45,11 +43,11 @@ std_context_cookbook_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Structured report line (check observational; run hard; skip only when no binary path).
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_context_cookbook_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_CTX_CB_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_CTX_CB_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
