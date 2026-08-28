@@ -1,182 +1,202 @@
 #!/usr/bin/env bash
-# asm 7.3：if/while/for 汇合 live ∪；嵌套/混合/多轮/break/continue；ldur b 门禁。
-set -e
+# asm 7.3: if/while/for CFG merge live ∪; nested/mix/break/continue; ldur b gate.
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make + soft seed fallback
+# (xlang-x / xlang_asm73_seed / ASM73_FALLBACK_SHU) retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
+# (refuse soft SKIP→OK / soft auto-make / prefer-c / soft seed green).
+#   - hard: product -o + expected exits for all cfg-merge fixtures
+#   - hard (Linux aarch64 via wpo_asm_disasm_gate_host): optional max ldur x1 [b];
+#     fourteen-var cfg return must show #0x10 stack spill push
+#   - skip: Darwin / non-aarch64 disasm N/A (report skip=, not soft silent OK)
+#   - one product retry on SIGSEGV (139) only; never fall back to seed compilers
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required for product exits.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-XLANG=${XLANG:-./compiler/xlang}
+
+PREFIX="${XLANG_ASM_BINOP_CFG_MERGE_PREFIX:-xlang: [XLANG_ASM_BINOP_CFG_MERGE]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-180}"
+XLANG_RUN_TIMEOUT="${CFG_MERGE_RUN_TIMEOUT:-30}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "asm-binop-cfg-merge FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Product -o only (no seed fallback). One SIGSEGV retry on the same product binary.
+product_compile_o() {
+  local src="$1" exe="$2" tag="$3" log="$4"
+  local o_ec attempt=1
+  while [ "$attempt" -le 2 ]; do
+    rm -f "$exe" "$log"
+    set +e
+    gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+    o_ec=$?
+    set -e
+    if [ "$o_ec" -eq 0 ] && [ -x "$exe" ]; then
+      return 0
+    fi
+    if [ "$o_ec" -eq 124 ]; then
+      die "$tag product -o timeout"
+    fi
+    # 139 = SIGSEGV; one product retry only (refuse soft seed fallback).
+    if [ "$o_ec" -eq 139 ] && [ "$attempt" -eq 1 ]; then
+      echo "asm-binop-cfg-merge: warn: product SIGSEGV ($tag), retry once (no seed fallback)" >&2
+      attempt=2
+      continue
+    fi
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  done
+  die "$tag product -o failed after SIGSEGV retry"
+}
+
+# max_b_ldur empty = no ldur bound; require_spill=1 → must have #0x10 push (Linux aarch64)
+run_case() {
+  local tag="$1" src="$2" want="$3" max_b_ldur="${4:-}" require_spill="${5:-0}"
+  local exe="/tmp/xlang_asm_binop_cfg_merge_${tag}_$$"
+  local log="/tmp/xlang_asm_binop_cfg_merge_${tag}_$$.log"
+  local r_ec main_asm b_ldur
+  [ -f "$src" ] || die "missing $src ($tag)"
+  product_compile_o "$src" "$exe" "$tag" "$log"
+  set +e
+  gate_run_timeout "$XLANG_RUN_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  if [ "$r_ec" -eq 124 ]; then
+    rm -f "$exe"
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    rm -f "$exe"
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+
+  # PLATFORM: SHARED — ldur/spill shape only on Linux aarch64.
+  if ! wpo_asm_disasm_gate_host; then
+    if [ -n "$max_b_ldur" ] || [ "$require_spill" = "1" ]; then
+      SKIP=$((SKIP + 1))
+    fi
+    rm -f "$exe"
+    return 0
+  fi
+
+  if [ -n "$max_b_ldur" ] || [ "$require_spill" = "1" ]; then
+    main_asm=$(wpo_main_asm "$exe" 2>/dev/null || true)
+    if [ -n "$max_b_ldur" ]; then
+      b_ldur=$(echo "$main_asm" | grep -cE 'ldur[[:space:]]+x1,.*#-0x18' || true)
+      if [ "$b_ldur" -gt "$max_b_ldur" ]; then
+        rm -f "$exe"
+        die "$tag ldur x1 [b] count $b_ldur > $max_b_ldur (selective merge?)"
+      fi
+      RUN_OK=$((RUN_OK + 1))
+    fi
+    if [ "$require_spill" = "1" ]; then
+      if ! echo "$main_asm" | grep -q 'sub.*sp, sp, #0x10'; then
+        rm -f "$exe"
+        die "$tag missing cfg stack spill push"
+      fi
+      RUN_OK=$((RUN_OK + 1))
+    fi
+  fi
+  rm -f "$exe"
+}
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
-# ldur / AArch64 形态反汇编门禁（Darwin 产品 -o 走 C，见 wpo_asm_disasm_gate_host）。
-asm_disasm_gate_host() {
-  wpo_asm_disasm_gate_host
-}
+echo "=== asm-binop-cfg-merge gate (prefer asm; hard; no seed fallback) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make / soft seed)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
-# 提取 _main 反汇编（macOS otool / Linux objdump）。
-asm_main_disasm() {
-  wpo_main_asm "$1" 2>/dev/null || true
-}
+# tag src want [max_b_ldur] [require_spill]
+run_case if_merge tests/asm/binop_if_plus_eq_merge.x 13
+run_case if_both_a tests/asm/binop_if_both_assign_a.x 13
+run_case if_both_b tests/asm/binop_if_both_assign_keep_b.x 13 2
+run_case if_keep_b tests/asm/binop_if_merge_keep_b.x 13 2
+run_case if_after_b tests/asm/binop_if_after_use_b.x 13 2
+run_case if_nested tests/asm/binop_if_nested_after_b.x 8
+run_case if_nested_ldur tests/asm/binop_if_nested_after_b.x 8 2
+run_case while_merge tests/asm/binop_while_plus_eq_merge.x 3
+run_case while_merge_b tests/asm/binop_while_plus_eq_merge.x 3 2
+run_case while_twice tests/asm/binop_while_twice_merge.x 4
+run_case while_if tests/asm/binop_while_if_in_body.x 3
+run_case while_if2b tests/asm/binop_while_if_twice_keep_b.x 4 2
+run_case while_break tests/asm/binop_while_break_merge.x 3
+run_case while_break_b tests/asm/binop_while_break_keep_b.x 3 2
+run_case while_cont_br tests/asm/binop_while_continue_break.x 6
+run_case while_nest_cb tests/asm/binop_while_nested_cont_br.x 5 2
+run_case while_cont_b tests/asm/binop_while_continue_keep_b.x 6 2
+run_case while_let tests/asm/binop_while_let_in_body.x 3
+run_case if_while tests/asm/binop_if_while_in_then.x 3 2
+run_case while_nested_b tests/asm/binop_while_nested_after_b.x 3 2
+run_case while_nest_br tests/asm/binop_while_nested_inner_break.x 4
+run_case while_nest_br_b tests/asm/binop_while_nested_inner_break.x 4 2
+run_case while_after_b tests/asm/binop_while_after_use_b.x 3
+run_case while_keep_b tests/asm/binop_while_keep_b.x 3 3
+run_case for_merge tests/asm/binop_for_plus_eq_merge.x 3
+run_case for_twice tests/asm/binop_for_twice_merge.x 4
+run_case for_if tests/asm/binop_for_if_in_body.x 3
+run_case if_for tests/asm/binop_if_for_in_then.x 3 2
+run_case for_step tests/asm/binop_for_step_header.x 3
+run_case for_keep_b tests/asm/binop_for_keep_b.x 3 3
+run_case for_cont_br tests/asm/binop_for_continue_break.x 6
+run_case for_carried_b tests/asm/binop_for_carried_keep_b.x 3 2
+run_case if_ret_eight tests/asm/binop_if_return_eight_add.x 36
+run_case if_ret_twelve tests/asm/binop_if_return_twelve_add.x 78
+run_case if_ret_thirteen tests/asm/binop_if_return_thirteen_add.x 91
+run_case if_ret_fourteen tests/asm/binop_if_return_fourteen_add.x 105 "" 1
+run_case while_ret_fourteen tests/asm/binop_while_return_fourteen_add.x 105 "" 1
+run_case for_ret_fourteen tests/asm/binop_for_return_fourteen_add.x 105 "" 1
+run_case if_while_ret_fourteen tests/asm/binop_if_while_return_fourteen_add.x 105 "" 1
+run_case if_phi_ret_fourteen tests/asm/binop_if_phi_return_fourteen_add.x 105
+run_case while_phi_ret_fourteen tests/asm/binop_while_phi_return_fourteen_add.x 105
 
-# 编译 cfg-merge 用例 -o；strict xlang_asm 在 GHA 偶发 SIGSEGV 时回退 seed（xlang-x / xlang_asm73_seed）。
-cfg_merge_compile_o() {
-  local src="$1" out="$2" tag="$3"
-  local comp compile_ec=0 attempt=1
-  local fallbacks=("$XLANG")
-  local cand dup=0 c
-  local compile_log
-  local compile_timeout="${CFG_MERGE_COMPILE_TIMEOUT:-180}"
-
-  if [ -n "${ASM73_FALLBACK_SHU:-}" ] && [ -x "${ASM73_FALLBACK_SHU}" ]; then
-    fallbacks+=("$ASM73_FALLBACK_SHU")
-  fi
-  for cand in ./compiler/xlang-x ./compiler/xlang_asm73_seed; do
-    [ -x "$cand" ] || continue
-    dup=0
-    for c in "${fallbacks[@]}"; do
-      if [ "$c" = "$cand" ]; then dup=1; break; fi
-    done
-    [ "$dup" -eq 0 ] && fallbacks+=("$cand")
-  done
-
-  for comp in "${fallbacks[@]}"; do
-    attempt=1
-    while [ "$attempt" -le 2 ]; do
-      compile_ec=0
-      compile_log=$(mktemp)
-      if command -v timeout >/dev/null 2>&1; then
-        timeout "$compile_timeout" "$comp" build "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
-      else
-        "$comp" build "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
-      fi
-      if [ "$compile_ec" -eq 124 ]; then
-        echo "run-asm-binop-cfg-merge: FAIL: $tag compile timeout (${compile_timeout}s) via $comp" >&2
-        rm -f "$compile_log"
-        return 124
-      fi
-      grep -vE 'missing \.note\.GNU-stack|NOTE: This behaviour is deprecated' "$compile_log" >&2 || true
-      rm -f "$compile_log"
-      if [ "$compile_ec" -eq 0 ]; then
-        if [ "$comp" != "$XLANG" ]; then
-          echo "run-asm-binop-cfg-merge: note: used $comp for $tag ($XLANG build SIGSEGV/unstable)"
-        fi
-        return 0
-      fi
-      if [ "$compile_ec" -eq 139 ] && [ "$attempt" -eq 1 ]; then
-        echo "run-asm-binop-cfg-merge: warn: $comp SIGSEGV ($tag), retry once ..."
-        attempt=2
-        continue
-      fi
-      break
-    done
-    if [ "$compile_ec" -eq 139 ]; then
-      echo "run-asm-binop-cfg-merge: warn: $comp SIGSEGV ($tag), try next compiler ..."
-    else
-      return "$compile_ec"
-    fi
-  done
-  return "$compile_ec"
-}
-
-run_one() {
-  local src="$1"
-  local out="$2"
-  local want="$3"
-  local tag="$4"
-  local run_timeout="${CFG_MERGE_RUN_TIMEOUT:-30}"
-  echo "run-asm-binop-cfg-merge: [$tag] compile ..."
-  cfg_merge_compile_o "$src" "$out" "$tag"
-  local exitcode=0
-  echo "run-asm-binop-cfg-merge: [$tag] run (want exit $want) ..."
-  if command -v timeout >/dev/null 2>&1; then
-    timeout "$run_timeout" "$out" >/dev/null 2>&1 || exitcode=$?
-    if [ "$exitcode" -eq 124 ]; then
-      echo "run-asm-binop-cfg-merge FAIL: $tag run timeout (${run_timeout}s)"
-      exit 1
-    fi
-  else
-    "$out" >/dev/null 2>&1 || exitcode=$?
-  fi
-  if [ "$exitcode" -ne "$want" ]; then
-    echo "run-asm-binop-cfg-merge FAIL: $tag expected exit $want, got $exitcode"
-    exit 1
-  fi
-  echo "run-asm-binop-cfg-merge: [$tag] OK"
-}
-
-# 可选：检查 main 内 b 槽 ldur 次数上限（b 栈偏移 #-0x18，与 binop_block 用例一致）。
-run_one_ldur_b() {
-  local src="$1"
-  local out="$2"
-  local want="$3"
-  local tag="$4"
-  local max_b_ldur="$5"
-  run_one "$src" "$out" "$want" "$tag"
-  if ! asm_disasm_gate_host; then
-    return 0
-  fi
-  local main_asm b_ldur
-  main_asm=$(asm_main_disasm "$out")
-  b_ldur=$(echo "$main_asm" | grep -cE 'ldur[[:space:]]+x1,.*#-0x18' || true)
-  if [ "$b_ldur" -gt "$max_b_ldur" ]; then
-    echo "run-asm-binop-cfg-merge FAIL: $tag ldur x1 [b] count $b_ldur > $max_b_ldur (selective merge?)"
-    exit 1
-  fi
-}
-
-run_one tests/asm/binop_if_plus_eq_merge.x /tmp/xlang_asm_binop_if_merge 13 "if merge a+=10"
-run_one tests/asm/binop_if_both_assign_a.x /tmp/xlang_asm_binop_if_both_a 13 "if both branches a+="
-run_one_ldur_b tests/asm/binop_if_both_assign_keep_b.x /tmp/xlang_asm_binop_if_both_b 13 "if phi both-def keep b" 2
-run_one_ldur_b tests/asm/binop_if_merge_keep_b.x /tmp/xlang_asm_binop_if_keep_b 13 "if merge keep b cache" 2
-run_one_ldur_b tests/asm/binop_if_after_use_b.x /tmp/xlang_asm_binop_if_after_b 13 "if after ldur b" 2
-run_one tests/asm/binop_if_nested_after_b.x /tmp/xlang_asm_binop_if_nested_b 8 "nested if merge a+=5"
-run_one_ldur_b tests/asm/binop_if_nested_after_b.x /tmp/xlang_asm_binop_if_nested_ldur 8 "nested if ldur b" 2
-run_one tests/asm/binop_while_plus_eq_merge.x /tmp/xlang_asm_binop_while_merge 3 "while merge a+=1"
-run_one_ldur_b tests/asm/binop_while_plus_eq_merge.x /tmp/xlang_asm_binop_while_merge_b 3 "while carried phi keep b" 2
-run_one tests/asm/binop_while_twice_merge.x /tmp/xlang_asm_binop_while_twice 4 "while back-edge twice a+=1"
-run_one tests/asm/binop_while_if_in_body.x /tmp/xlang_asm_binop_while_if 3 "while body if a+=1"
-run_one_ldur_b tests/asm/binop_while_if_twice_keep_b.x /tmp/xlang_asm_binop_while_if2b 4 "while+if twice keep b" 2
-run_one tests/asm/binop_while_break_merge.x /tmp/xlang_asm_binop_while_break 3 "while break a=1"
-run_one_ldur_b tests/asm/binop_while_break_keep_b.x /tmp/xlang_asm_binop_while_break_b 3 "while break keep b" 2
-run_one tests/asm/binop_while_continue_break.x /tmp/xlang_asm_binop_while_cont_br 6 "while continue+break"
-run_one_ldur_b tests/asm/binop_while_nested_cont_br.x /tmp/xlang_asm_binop_while_nest_cb 5 "nested cont+br ldur b" 2
-run_one_ldur_b tests/asm/binop_while_continue_keep_b.x /tmp/xlang_asm_binop_while_cont_b 6 "while continue keep b" 2
-run_one tests/asm/binop_while_let_in_body.x /tmp/xlang_asm_binop_while_let 3 "while body let t a+=t"
-run_one_ldur_b tests/asm/binop_if_while_in_then.x /tmp/xlang_asm_binop_if_while 3 "if then while ldur b" 2
-run_one_ldur_b tests/asm/binop_while_nested_after_b.x /tmp/xlang_asm_binop_while_nested_b 3 "nested while after a+b" 2
-run_one tests/asm/binop_while_nested_inner_break.x /tmp/xlang_asm_binop_while_nest_br 4 "nested while inner break"
-run_one_ldur_b tests/asm/binop_while_nested_inner_break.x /tmp/xlang_asm_binop_while_nest_br_b 4 "nested inner break ldur b" 2
-run_one tests/asm/binop_while_after_use_b.x /tmp/xlang_asm_binop_while_after_b 3 "while after a+b"
-run_one_ldur_b tests/asm/binop_while_keep_b.x /tmp/xlang_asm_binop_while_keep_b 3 "while keep b ldur" 3
-run_one tests/asm/binop_for_plus_eq_merge.x /tmp/xlang_asm_binop_for_merge 3 "for merge a+=1"
-run_one tests/asm/binop_for_twice_merge.x /tmp/xlang_asm_binop_for_twice 4 "for twice a+=1"
-run_one tests/asm/binop_for_if_in_body.x /tmp/xlang_asm_binop_for_if 3 "for body if a+=1"
-run_one_ldur_b tests/asm/binop_if_for_in_then.x /tmp/xlang_asm_binop_if_for 3 "if then for ldur b" 2
-run_one tests/asm/binop_for_step_header.x /tmp/xlang_asm_binop_for_step 3 "for step header a+=1"
-run_one_ldur_b tests/asm/binop_for_keep_b.x /tmp/xlang_asm_binop_for_keep_b 3 "for keep b ldur" 3
-run_one tests/asm/binop_for_continue_break.x /tmp/xlang_asm_binop_for_cont_br 6 "for continue+break"
-run_one_ldur_b tests/asm/binop_for_carried_keep_b.x /tmp/xlang_asm_binop_for_carried_b 3 "for carried phi keep b" 2
-run_one tests/asm/binop_if_return_eight_add.x /tmp/xlang_asm_binop_if_ret_eight 36 "if cfg + eight-var return add"
-run_one tests/asm/binop_if_return_twelve_add.x /tmp/xlang_asm_binop_if_ret_twelve 78 "if cfg + twelve-var return add"
-run_one tests/asm/binop_if_return_thirteen_add.x /tmp/xlang_asm_binop_if_ret_thirteen 91 "if cfg + thirteen-var return add"
-run_one tests/asm/binop_if_return_fourteen_add.x /tmp/xlang_asm_binop_if_ret_fourteen 105 "if cfg + fourteen-var return add"
-run_one tests/asm/binop_while_return_fourteen_add.x /tmp/xlang_asm_binop_while_ret_fourteen 105 "while cfg + fourteen-var return add"
-run_one tests/asm/binop_for_return_fourteen_add.x /tmp/xlang_asm_binop_for_ret_fourteen 105 "for cfg + fourteen-var return add"
-run_one tests/asm/binop_if_while_return_fourteen_add.x /tmp/xlang_asm_binop_if_while_ret_fourteen 105 "nested if+while + fourteen-var return"
-run_one tests/asm/binop_if_phi_return_fourteen_add.x /tmp/xlang_asm_binop_if_phi_ret_fourteen 105 "if phi both-def a + fourteen-var return"
-run_one tests/asm/binop_while_phi_return_fourteen_add.x /tmp/xlang_asm_binop_while_phi_ret_fourteen 105 "while loop phi a+=1 + fourteen-var return"
-# 7.3：十四元 return（final_expr VAR≥12）须走栈帧 spill；φ 用例仅验 exit（双支写 a 后长链仍正确）。
-if asm_disasm_gate_host; then
-  for tag_bin in /tmp/xlang_asm_binop_if_ret_fourteen /tmp/xlang_asm_binop_while_ret_fourteen /tmp/xlang_asm_binop_for_ret_fourteen /tmp/xlang_asm_binop_if_while_ret_fourteen; do
-    main_asm=$(asm_main_disasm "$tag_bin")
-    if ! echo "$main_asm" | grep -q 'sub.*sp, sp, #0x10'; then
-      echo "run-asm-binop-cfg-merge FAIL: $tag_bin missing cfg stack spill push"
-      exit 1
-    fi
-  done
-fi
-
+ok_report
 echo "asm binop cfg merge OK"
