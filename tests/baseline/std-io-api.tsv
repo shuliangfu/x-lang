@@ -2,6 +2,12 @@
 # One symbol per line; run-std-io-api-gate.sh greps std/io/mod.x
 # Updated: 2026-06-27 (API short names)
 # honesty 2026-08-26: DOC ## 7. Gate; prefer asm; run-io hard; no soft SKIP
+# honesty 2026-08-29 residual auto-make: leftover tests/run-io-read-ptr-slice.sh
+# / tests/run-io-unified-gate.sh (xlang_compiler_make -q || make + process.o
+# / io.o + bootstrap-link wrap + xlang-c-first prefer-c) retired. Prefer asm;
+# explicit-bad XLANG hard-die; missing native FAIL; product -o
+# read_ptr_slice / batch_rw_smoke hard; check=obs; report run=/obs=/skip=.
+# io-multishot / provided-buffers still host-c leave.
 stdin
 stdout
 stderr

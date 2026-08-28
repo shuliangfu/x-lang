@@ -1,5 +1,10 @@
 # STD-027 std.dynlib Windows LoadLibrary manifest
 # 列：item_id	kind	doc_anchor	code_anchor	src	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-dynlib.sh
+# (xlang_compiler_make -q || make + dynlib.o + xlang-c + bootstrap-link wrap)
+# retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
+# product -o main/open_sym_close/last_error hard; check=obs;
+# report run=/obs=/skip=.
 min_symbols	3
 win_open	code	-	LoadLibraryA	compiler/seeds/runtime_dynlib_os.from_x.c	Windows open
 win_open_w	code	-	LoadLibraryW	compiler/seeds/runtime_dynlib_os.from_x.c	STD-097 UTF-8 fallback

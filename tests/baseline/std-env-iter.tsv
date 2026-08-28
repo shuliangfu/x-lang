@@ -1,5 +1,10 @@
 # STD-025 std.env env_iter / args_iter manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-env.sh
+# (xlang_compiler_make -q || make + env.o + xlang-c + bootstrap-link wrap)
+# retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
+# product -o main/env_iter/platform_encoding hard; check=obs;
+# report run=/obs=/skip=.
 min_iter_apis	4
 env_iter_struct	symbol	EnvIter	std/env/mod.x
 args_iter_struct	symbol	ArgsIter	std/env/mod.x

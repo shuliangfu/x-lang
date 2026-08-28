@@ -180,6 +180,8 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 - 报告：`xlang: [XLANG_STD001_IO_API] status=… run=… obs=… skip=…`
 - **未**改产品 `std/io` labi；禁顶层 DOC 复活（live = `analysis/archive/std/`）
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-io-read-ptr-slice.sh`／`tests/run-io-unified-gate.sh`（`xlang_compiler_make -q || make` + `process.o`／`io.o` + bootstrap-link wrap + xlang-c-first prefer-c）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `read_ptr_slice`／`read_ptr_slice_param`／`batch_rw_smoke` hard；check＝obs；report `run=`／`obs=`／`skip=`。io-multishot／provided-buffers still host-c leave. leftover prefixes `xlang: [IO_READ_PTR_SLICE]`／`xlang: [IO_UNIFIED]`。Keep `## 7. Gate`。
+
 ---
 
 ## 8. v2 预留

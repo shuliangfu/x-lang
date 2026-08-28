@@ -91,6 +91,8 @@ Honesty（2026-08-28 soft fallthrough residual）：
 
 旧闸偏 `xlang-c`／无 native 则 soft SKIP 却报 OK／钉死已归档 top-level EXC RFC／缺 `## 6. Gate`＝portable 假红；产品 asm 烟测本绿（runnable）。
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-runtime.sh`（`xlang_compiler_make -q || make` + `runtime.o` + `xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/runtime/main.x`／`tests/exc/panic_hook_align.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [RUNTIME]`。Keep `## 6. Gate`。
+
 **STD-028 状态：定版 ✅ · Gate honesty soft→硬绿**
 
 ### Changelog

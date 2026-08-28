@@ -98,6 +98,8 @@ vec/map/heap 主路径烟测变更时同步更新 manifest `smoke_*` 行与 `tes
 
 报告示例：`xlang: [XLANG_BOOT015] status=ok check=0|1|2|3 link=3 skip=0`
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-vec.sh`（`xlang_compiler_make -q || make` + bootstrap-link wrap + `vec_link_exe` gcc fallback）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/vec/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [VEC]`。Keep `## 7. Gate`。`vec-asm-gcc-link.sh` lib still exists for other callers — retired only from this leftover runner.
+
 **BOOT-015 状态：硬绿 ✅（soft→硬绿）**
 
 ---

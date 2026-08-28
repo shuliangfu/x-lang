@@ -73,6 +73,8 @@ Honesty gate (2026-08-28 soft fallthrough residual):
 - Report: `xlang: [XLANG_STD_DYNLIB_WIN] status=ok run=/obs=/skip=`
 - Refuse resurrecting top-level `analysis/std-dynlib-windows-v1.md` (live DOC = archive).
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-dynlib.sh`（`xlang_compiler_make -q || make` + `dynlib.o` + `xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`open_sym_close`／`last_error` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [DYNLIB]`。Keep `## 5. Gate`。
+
 ---
 
 ## 6. Evolution

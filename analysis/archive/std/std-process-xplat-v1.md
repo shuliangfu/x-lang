@@ -51,6 +51,8 @@ observational (paused 2026-08-05). `xplat_behavior.x` + `boundary.x` exit 0
 hard-fail (`run+=`). `spawn_wait_win` / `spawn_pipe_echo` observational only
 (`obs+=`; product XT001; not soft). Report `run=` / `obs=` / `skip=`.
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-process.sh`（`xlang_compiler_make -q xlang-c || make` + `ensure_std_c_o process.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` live smokes hard（`main.x` exit 99；POSIX spawn_wait hard；Windows spawn_wait skip＝N/A）；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [PROCESS]`。Keep `## 4. Gate`。
+
 ```bash
 ./tests/run-std-process-xplat-gate.sh
 ```

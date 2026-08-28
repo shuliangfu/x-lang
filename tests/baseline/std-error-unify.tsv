@@ -1,5 +1,9 @@
 # STD-011 标准库错误码统一矩阵
 # 列：module_id	exc_layer	base_fn	sidecar_fn	src	tier	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-error.sh
+# (xlang_compiler_make -q || make + error.o + fossil XLANG build) retired.
+# Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
+# product -o tests/error/main.x hard; check=obs; report run=/obs=/skip=.
 # min_modules	6
 std.io	Layer C+B	base_io	-	std/io/mod.x	core	read/write -1；B 层 io_err_*
 std.fs	Layer C+B	base_fs	last_error	std/fs/mod.x	core	fs_* -1 + errno 侧车

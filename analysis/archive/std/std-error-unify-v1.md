@@ -57,6 +57,8 @@ std-error-unify gate OK
 - 烟测：`tests/std/error_unify_smoke.x`
 - 门禁：`tests/run-std-error-unify-gate.sh` · lib：`tests/lib/std-error-unify.sh`
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-error.sh`（`xlang_compiler_make -q || make` + `error.o` + fossil `$XLANG build`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/error/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [ERROR]`。Keep `## 4. Gate`。
+
 ---
 
 ## 5. 演进

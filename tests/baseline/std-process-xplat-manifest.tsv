@@ -2,6 +2,11 @@
 # Honesty 2026-08-26: prefer asm + XLANG_LINK_XLANG; check observational;
 # xplat_behavior.x + boundary.x exit0 hard-fail; win/pipe observational;
 # report check=/xplat=/boundary=/skip=.
+# honesty 2026-08-29 residual auto-make: leftover tests/run-process.sh
+# (xlang_compiler_make -q xlang-c || make + ensure_std_c_o process.o +
+# bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o live smokes hard (main.x exit 99);
+# check=obs; report run=/obs=/skip=.
 # Columns: item_id	kind	anchor	mod_path	notes
 read_path	section	## 1. 目标	analysis/archive/std/std-process-xplat-v1.md
 matrix	section	## 2. 行为矩阵	analysis/archive/std/std-process-xplat-v1.md
