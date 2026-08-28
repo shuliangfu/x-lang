@@ -1,18 +1,26 @@
 # STD-118 std.trace hooks manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
+# 2026-08-28 honesty residual: API anchors → live product short names
+# (fossils hook_span_begin / hook_span_end / hook_io_read_ctx /
+# hook_io_write_ctx / hook_net_connect_ctx / hook_async_drain_ctx
+# retired). verify section stays ## 3. Gate. smoke_c file existence
+# required; C smoke compile/run is not a green signal. Report
+# run=/obs=/skip= (retired c=/x=). Refuse XLANG fallthrough / auto-make /
+# ensure rebuild / extra CLI .o / C smoke auto-make.
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-trace-hooks-v1.md
 api_doc	section	## 2. API	analysis/archive/std/std-trace-hooks-v1.md
 verify	section	## 3. Gate	analysis/archive/std/std-trace-hooks-v1.md
-api_begin	api	hook_span_begin	std/trace/mod.x	开始
-api_end	api	hook_span_end	std/trace/mod.x	结束
-api_io_rd	api	hook_io_read_ctx	std/trace/mod.x	io read
-api_io_wr	api	hook_io_write_ctx	std/trace/mod.x	io write
-api_net	api	hook_net_connect_ctx	std/trace/mod.x	net connect
-api_async	api	hook_async_drain_ctx	std/trace/mod.x	async drain
+api_begin	api	hook_begin	std/trace/mod.x	开始
+api_end	api	hook_end	std/trace/mod.x	结束
+api_io_rd	api	io_read	std/trace/mod.x	io read
+api_io_wr	api	io_write	std/trace/mod.x	io write
+api_net	api	net_connect	std/trace/mod.x	net connect
+api_async	api	async_drain	std/trace/mod.x	async drain
 symbol_smoke	symbol	trace_hooks_smoke_c	std/trace/trace.x	C烟测
 impl_x	file	std/trace/trace.x	std/trace/trace.x
 smoke_x	smoke	tests/std-trace/hooks_smoke.x	.x烟测
+smoke_c	file	tests/std-trace/hooks_smoke_ok.c	C烟测
 vectors	file	tests/baseline/std-trace-hooks-vectors.tsv	向量
-lib	script	lib/std-trace-hooks.sh	tests/lib/std-trace-hooks.sh
-gate	script	run-std-trace-hooks-gate.sh	tests/run-std-trace-hooks-gate.sh
+lib	script	tests/lib/std-trace-hooks.sh	tests/lib/std-trace-hooks.sh
+gate	script	tests/run-std-trace-hooks-gate.sh	tests/run-std-trace-hooks-gate.sh
