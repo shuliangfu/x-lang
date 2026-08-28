@@ -1,6 +1,6 @@
 # STD-137：std.db.sqlite 大 BLOB 分块读 v1
 
-> 更新时间：2026-06-19  
+> 更新时间：2026-08-28  
 > 状态：**可用**  
 > 前置：STD-069 `std-sqlite-row-col-blob-v1.md`
 
@@ -18,11 +18,11 @@
 
 | API | v1 行为 |
 |-----|---------|
-| `row_col_blob_len` | `sqlite3_column_bytes`；NULL/空返回 **0** |
-| `row_col_blob_read` | 从 `offset` 拷贝最多 `cap` 字节；`offset>=len` 返回 **0** |
-| `stmt_col_blob_len` / `stmt_col_blob_read` | 与游标 API 相同，作用于预编译语句当前行 |
+| `col_blob_len` | `sqlite3_column_bytes`；NULL/空返回 **0**（C：`db_row_col_blob_len_c`） |
+| `col_blob_read` | 从 `offset` 拷贝最多 `cap` 字节；`offset>=len` 返回 **0**（C：`db_row_col_blob_read_c`） |
+| overload on `DbStmt` | 与游标 API 相同，作用于预编译语句当前行 |
 
-小 BLOB 仍可用 `row_col_blob`；大对象推荐 `len` + 循环 `read`。
+小 BLOB 仍可用 `col_blob`／`row_col_blob`；大对象推荐 `col_blob_len` + 循环 `col_blob_read`。
 
 烟测：`db_sqlite_blob_stream_smoke_c`（96 字节、32×3 块）、`blob_stream_roundtrip.x`。
 
@@ -32,25 +32,27 @@
 
 | step_id | 操作 | 期望 |
 |---------|------|------|
-| `blob_len96` | `row_col_blob_len(0)` | **96** |
-| `blob_chunk32` | 三次 `read(offset=0/32/64, cap=32)` | 累计 96 字节，内容为 0..95 |
+| `blob_len96` | `col_blob_len(0)` | **96** |
+| `blob_chunk32` | 三次 `col_blob_read(offset=0/32/64, cap=32)` | 累计 96 字节，内容为 0..95 |
 | `blob_stream_done` | `query_end` + `close` | `DB_OK` |
 
 向量表：`tests/baseline/std-sqlite-blob-stream-vectors.tsv`。
 
 ---
 
-## 4. Gate
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；host-C 仅 prebuilt `std/db/sqlite/sqlite.o`＝obs（拒 soft `ensure_std_c_o`／`std_sqlite_build_o`／auto-make／prefer-c／SKIP→OK）；check＝obs（暂停）；tip 产品 `-o` SEGV／UNDEF＝obs（产品另案）。报告 `run=`／`obs=`／`skip=`（退役 `stream_c=`／`stream_x=`）。
 
 ```bash
 ./tests/run-std-sqlite-blob-stream-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD137_DB_BLOB_STREAM] status=ok stream_c=1 stream_x=0 skip=1
+xlang: [XLANG_STD137_DB_BLOB_STREAM] status=ok run=N obs=M skip=K
 ```
 
-无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
 ---
 

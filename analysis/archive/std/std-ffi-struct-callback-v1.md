@@ -26,10 +26,16 @@ v1 提供 **POD 结构体** 与 **usize 回调** 安全边界；复杂布局后�
 
 ---
 
-## 3. Gate
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；host-C 仅 prebuilt `std/ffi/ffi.o`＝obs（拒 soft `ensure_std_c_o`／auto-make／prefer-c／SKIP→OK）；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案）。报告 `run=`／`obs=`／`skip=`（退役 `c=`／`x=`）。
 
 ```bash
 ./tests/run-std-ffi-struct-callback-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD151_FFI_STRUCT_CALLBACK]`
+```
+xlang: [XLANG_STD151_FFI_STRUCT_CALLBACK] status=ok run=N obs=M skip=K
+```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.

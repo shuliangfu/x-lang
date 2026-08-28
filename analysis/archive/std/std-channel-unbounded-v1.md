@@ -66,15 +66,19 @@ v1 仅 **i32** channel；泛型 channel 留待后续 RFC。
 
 ---
 
-## 4. 验证与门禁
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；拒 soft `ensure_std_c_o`／auto-make／prefer-c／SKIP→OK；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案；unbounded leave）。报告 `run=`／`obs=`／`skip=`（退役 `unbounded=`／`main=`）。
 
 ```bash
 ./tests/run-std-channel-unbounded-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_CHANNEL_UNBOUNDED] status=ok unbounded=1 main=1 skip=0
+xlang: [XLANG_STD_CHANNEL_UNBOUNDED] status=ok run=N obs=M skip=K
 ```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
 ---
 
@@ -84,3 +88,4 @@ xlang: [XLANG_STD_CHANNEL_UNBOUNDED] status=ok unbounded=1 main=1 skip=0
 |------|------|------|
 | v1 | 2026-06-17 | 无界语义文档 + is_closed + gate |
 | v1.1 | 2026-06-27 | API 简写：unbounded/close/free 等 |
+| v1.2 | 2026-08-28 | Gate honesty：prefer-asm + run/obs/skip |

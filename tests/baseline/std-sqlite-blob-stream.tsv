@@ -1,16 +1,16 @@
 # STD-137 std.db.sqlite blob stream manifest
 # min_stream_apis	2
 read_path	section	## 1. 目标	analysis/archive/std/std-sqlite-blob-stream-v1.md
-api_doc	section	## 2. blob stream API（v1）	row_col_blob_len
-verify	section	## 4. Gate	gate
-api_blob_len	api	row_col_blob_len	std/db/sqlite/mod.x	长度
-api_blob_read	api	row_col_blob_read	std/db/sqlite/mod.x	分块
+api_doc	section	## 2. blob stream API（v1）	analysis/archive/std/std-sqlite-blob-stream-v1.md
+verify	section	## Gate	analysis/archive/std/std-sqlite-blob-stream-v1.md
+api_blob_len	api	col_blob_len	std/db/sqlite/mod.x	长度
+api_blob_read	api	col_blob_read	std/db/sqlite/mod.x	分块
 symbol_len_c	symbol	db_row_col_blob_len_c	std/db/sqlite/sqlite.x	列长
 symbol_read_c	symbol	db_row_col_blob_read_c	std/db/sqlite/sqlite.x	分块读
 symbol_stream_smoke_c	symbol	db_sqlite_blob_stream_smoke_c	std/db/sqlite/sqlite.x	烟测
 smoke_c	file	tests/std-sqlite/blob_stream_roundtrip_ok.c	C 入口
 smoke_x	smoke	tests/std-sqlite/blob_stream_roundtrip.x	.x 往返
 vectors	file	tests/baseline/std-sqlite-blob-stream-vectors.tsv	向量
-lib	script	lib/std-sqlite-blob-stream.sh	tests/lib/std-sqlite-blob-stream.sh
-gate	script	run-std-sqlite-blob-stream-gate.sh	tests/run-std-sqlite-blob-stream-gate.sh
+lib	script	tests/lib/std-sqlite-blob-stream.sh	lib
+gate	script	tests/run-std-sqlite-blob-stream-gate.sh	gate
 cross_std069	cross_ref	analysis/archive/std/std-sqlite-row-col-blob-v1.md	STD-069
