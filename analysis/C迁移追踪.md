@@ -377,7 +377,7 @@
 | STD-087 std.cache soft→硬绿 | ✅ | formal_mod `mod\|1`＋fk0 k22＋time_os companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`lru_pool_smoke.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-076 std.url soft→硬绿 | ✅ | formal_mod `mod\|1`＋fk0 k23×10；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-079 std.security soft→硬绿 | ✅ | formal_mod `mod\|1`＋fk0 k24×16＋crypto／random／CRYPTO_PAIR companion；API 锚 `hkdf`／`err_ok`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD-080/081 std.option／result soft→硬绿 | ✅ | 烟测 `err.*`＋bool `false`；formal_mod `mod\|0`；plan +2；fk0 k25/k26×11；error companion；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；双端 L2 |
+| STD-080/081 std.option／result soft→硬绿 | ✅ | 烟测 `err.*`＋bool `false`；formal_mod `mod\|0`；plan +2；fk0 k25/k26×11；error companion；闸 prefer asm＋`XLANG_LINK_XLANG`；退役 soft auto-make xlang-c／soft XLANG fallthrough／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check＝obs；`roundtrip.x` exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**option-result soft auto-make FAIL 池空** |
 | STD-035 json-serialize soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`object_array_roundtrip.x` exit0 硬失败；双端 L2 |
 | STD-036 csv-row soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`row_roundtrip.x`＋`main.x` exit0 硬失败；双端 L2 |
 | STD-135 datetime-timezone soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate` honesty；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`timezone.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
@@ -444,6 +444,7 @@
 | C-07 frontend-parity soft auto-make →硬绿 | ✅ | DOC→archive `## Gate`；拒 soft auto-make xlang-c；REF 须现成 native；CAND prefer asm；收敛 `dod_native_exe`（退役 `c07_native_xlang` 双权威）；显式坏 C07_REF／C07_CAND 硬 die；REF typeck_ok／compile_fail 硬；CAND `-backend c` SEGV／diverge＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**c07 soft auto-make FAIL 池空** |
 | io／net／queue soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；退役 soft auto-make xlang-c／soft 默认 xlang／prefer-c／net soft gcc fallback；显式坏 XLANG／缺 native 硬 die；io 9 案／queue main／net main＋udp_batch 产品 `-o` 硬绿；net 保留 ensure_std 族；报告 `run=`／`obs=`／`skip=`；双端 L2；**io＋net＋queue soft auto-make FAIL 池空** |
 | STD-077／087／086／036／072 cli／cache／config／csv-row／bytes soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；退役 soft auto-make xlang-c／soft XLANG fallthrough／`check=` 报告；显式坏 XLANG／缺 native 硬 die；产品 `-o` 硬绿（csv-row×2）；check／host-C smoke＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**cli＋cache＋config＋csv-row＋bytes soft auto-make FAIL 池空** |
+| STD-080／081 option-result soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；退役 soft auto-make xlang-c／soft XLANG fallthrough／`check=` 报告；显式坏 XLANG／缺 native 硬 die；产品 `roundtrip.x` `-o` 硬绿；check＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**option-result soft auto-make FAIL 池空**（codec 族仍产品红＝formal_mod／ondemand 缺叶，另案） |
 | BOOT-010 force-stub soft→硬绿 | ✅ | DOC→`## 7. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；matrix `reg_src` link+run 硬失败（4／4）；`check_only` 观测；报告 `link=`／`skip=`；双端 L2 |
 | DOD-CL-S1／S2 soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check／warn 观测；`cl_align64` exit64／`cl_arena64` exit0 硬失败；报告 `check=`／`warn=`／`run=`／`skip=`；双端 L2 |
 | f03-io soft→硬绿 | ✅ | DOC→`## Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；inventory＋`run-io` 硬失败；报告 `inventory=`／`run=`／`skip=`；双端 L2 |
