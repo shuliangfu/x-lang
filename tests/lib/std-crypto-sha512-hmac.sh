@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# std-crypto-sha512-hmac.sh — STD-050 manifest + smoke helpers
+# std-crypto-sha512-hmac.sh — STD-050 manifest + smoke helpers.
 #
 # Usage (after source):
 #   std_crypto_sha512_hmac_symbols_ok MOD_X CRYPTO_GLUE TSV
 #   std_crypto_sha512_hmac_run_smoke XLANG_BIN X TAG
-#   std_crypto_sha512_hmac_emit_report status check_ok sha512_ok hmac_ok mac_ok skip
-# 2026-08-26: report check=/sha512=/hmac=/mac512=/skip= (honesty; prefer asm;
-# sha512/hmac runnable hard; mac512 observational).
+#   std_crypto_sha512_hmac_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/mac512 = obs; sha512+hmac product -o hard,
+# both folded into run=). Refuse soft RUN_XLANG remap / soft ensure.
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CRYPTO_SHA512_HMAC_PREFIX="${XLANG_STD_CRYPTO_SHA512_HMAC_PREFIX:-xlang: [XLANG_STD_CRYPTO_SHA512_HMAC]}"
@@ -59,39 +59,35 @@ std_crypto_sha512_hmac_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Compile and run smoke .x; expect exit 0.
-# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
-# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# Compile and run smoke .x via product XLANG_BIN -L . -o; expect exit 0.
+# Refuse soft RUN_XLANG / soft ensure rebuild (gate pins XLANG_LINK_XLANG).
 # PLATFORM: SHARED archaeology — product honesty path.
 std_crypto_sha512_hmac_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_crypto_sha512_hmac_${tag}_$$"
+  local log="/tmp/xlang_std_crypto_sha512_hmac_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-crypto-sha512-hmac FAIL: missing $src" >&2
     return 1
   fi
-  if [ -n "${RUN_XLANG:-}" ]; then
-    if ! $RUN_XLANG build -L . "$src" -o "$exe" >/dev/null 2>&1; then
-      echo "std-crypto-sha512-hmac FAIL: compile $src" >&2
-      $RUN_XLANG build -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
-      rm -f "$exe"
-      return 1
-    fi
-  else
-    if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-      echo "std-crypto-sha512-hmac FAIL: compile $src" >&2
-      "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
-      rm -f "$exe"
-      return 1
-    fi
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-crypto-sha512-hmac FAIL: compile $src" >&2
+    tail -n 10 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-crypto-sha512-hmac FAIL: run $src exit=$ec" >&2
     return 1
@@ -99,14 +95,12 @@ std_crypto_sha512_hmac_run_smoke() {
   return 0
 }
 
-# Structured report line (honesty: check=/sha512=/hmac=/mac512=/skip=).
-# Hard-green signal = sha512= + hmac=; check + mac512 observational.
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal = sha512 + hmac product -o (run=2); check/mac512 = obs.
 std_crypto_sha512_hmac_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local sha512_ok="$3"
-  local hmac_ok="$4"
-  local mac_ok="$5"
-  local skip="$6"
-  echo "${STD_CRYPTO_SHA512_HMAC_PREFIX} status=${status} check=${check_ok} sha512=${sha512_ok} hmac=${hmac_ok} mac512=${mac_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CRYPTO_SHA512_HMAC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

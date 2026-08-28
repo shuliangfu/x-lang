@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# std-datetime-timezone.sh — STD-135 manifest 与烟测辅助（固定偏移时区）。
+# std-datetime-timezone.sh — STD-135 manifest helpers (fixed-offset timezone).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_datetime_timezone_symbols_ok MOD_X DT_X TSV
-#   std_datetime_timezone_run_c_smoke DT_O TIME_O
-#   std_datetime_timezone_emit_report status check_ok run_ok skip
-# 2026-08-26: report check=/run=/skip= (honesty; prefer asm runnable hard).
+#   std_datetime_timezone_run_c_smoke   # existing .o only; no soft rebuild
+#   std_datetime_timezone_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/host-C = obs; prefer asm product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DATETIME_TIMEZONE_PREFIX="${XLANG_STD135_DATETIME_TIMEZONE_PREFIX:-xlang: [XLANG_STD135_DATETIME_TIMEZONE]}"
 
-# 校验 manifest；echo 缺失数。C smoke 符号在 datetime.x。
+# Validate manifest; echo miss count; return 0 when miss=0.
+# C smoke symbol lives in datetime.x.
 std_datetime_timezone_symbols_ok() {
   local mod_x="$1"
   local dt_x="$2"
@@ -60,22 +59,25 @@ std_datetime_timezone_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Observational host-C archaeology smoke (link datetime.o + time.o).
-# Not a hard-green signal; callers must treat failure as SKIP note.
+# Host-C archaeology: timezone_smoke_ok.c + existing datetime.o/time.o/runtime_time_os.o.
+# Refuse soft ensure_std_c_o / soft auto-make of missing .o (obs path only).
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
 std_datetime_timezone_run_c_smoke() {
-  local dt_o="$1"
-  local time_o="$2"
+  local dt_o="std/datetime/datetime.o"
+  local time_o="std/time/time.o"
+  local rt_o="compiler/runtime_time_os.o"
   local src="tests/std-datetime/timezone_smoke_ok.c"
   local out="/tmp/xlang_std_dt_tz_c_$$"
-  if [ ! -f "$src" ]; then
-    printf '%s\n' \
-      '#include <stdint.h>' \
-      'extern int32_t datetime_timezone_smoke_c(void);' \
-      'int main(void) { return datetime_timezone_smoke_c() != 0; }' > "$src"
+  if [ ! -f "$dt_o" ] || [ ! -f "$time_o" ] || [ ! -f "$rt_o" ]; then
+    return 1
   fi
-  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
-  # Observational only: silent link failure (gate prints SKIP note).
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$dt_o" "$time_o" compiler/runtime_time_os.o 2>/dev/null; then
+  if ! nm "$dt_o" 2>/dev/null | grep -qF 'datetime_timezone_smoke_c'; then
+    return 1
+  fi
+  if [ ! -f "$src" ]; then
+    return 1
+  fi
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$dt_o" "$time_o" "$rt_o" 2>/dev/null; then
     return 1
   fi
   set +e
@@ -86,11 +88,12 @@ std_datetime_timezone_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# 输出结构化报告行（honesty: check=/run=/skip=）。
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o timezone.x; check/host-C = obs.
 std_datetime_timezone_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_DATETIME_TIMEZONE_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_DATETIME_TIMEZONE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

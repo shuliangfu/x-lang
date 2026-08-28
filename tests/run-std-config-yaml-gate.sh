@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# STD-119：std.config YAML 可选后端门禁（假权威诚实）。
+# STD-119: std.config YAML optional backend gate — honesty soft fallthrough →硬绿.
 #
-# 用法：./tests/run-std-config-yaml-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-25: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); yaml_smoke.x exit 0 hard-fail (no soft SKIP
-# when native xlang present). C smoke remains observational (archaeology host-C
-# path; not hard green). Report check=/run=/skip=.
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
+# soft auto-make (`xlang_compiler_make … || true`) + check=/run=/skip= retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
+# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft
+# ensure rebuild). Product yaml_smoke.x -o exit0 = hard run (run=1). check /
+# host-C archaeology = obs. Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-config-yaml-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
@@ -23,34 +27,64 @@ LIB="tests/lib/std-config-yaml.sh"
 SMOKE_X="tests/std-config/yaml_smoke.x"
 SMOKE_C="tests/std-config/yaml_smoke_ok.c"
 MIN_APIS=4
-# Designed success score (yaml_smoke.x returns 0 on all checks).
 SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-config-yaml.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-config-yaml gate FAIL: $*" >&2
+  std_config_yaml_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== STD-119: std.config YAML manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$CFG_X" "$SMOKE_X" "$SMOKE_C"; do
-  if [ ! -f "$f" ]; then
-    echo "std-config-yaml gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 for kw in STD-119 load_yaml_buf load_yaml_file backend_yaml yaml_smoke db.url; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null && ! grep -qF -- "$kw" "$VECTORS" 2>/dev/null; then
-    echo "std-config-yaml gate FAIL: doc/vectors missing '$kw'" >&2
-    exit 1
+    die "doc/vectors missing '$kw'"
   fi
 done
 
-grep -qF load_yaml_buf "$DOC" || { echo "std-config-yaml gate FAIL: doc missing load_yaml_buf" >&2; exit 1; }
-grep -qF db.url "$VECTORS" || { echo "std-config-yaml gate FAIL: vectors missing db.url" >&2; exit 1; }
-
-if ! grep -qF '## 3. Gate' "$DOC" 2>/dev/null; then
-  echo "std-config-yaml gate FAIL: doc missing '## 3. Gate'" >&2
-  exit 1
-fi
+grep -qF load_yaml_buf "$DOC" || die "doc missing load_yaml_buf"
+grep -qF db.url "$VECTORS" || die "vectors missing db.url"
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -63,130 +97,65 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
-    echo "std-config-yaml gate FAIL: missing api $anchor" >&2
-    exit 1
-  fi
+  grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null || die "missing api $anchor"
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-config-yaml gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
 sym_miss="$(std_config_yaml_symbols_ok "$MOD_X" "$CFG_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_config_yaml_emit_report "fail" 0 0 0
-  echo "std-config-yaml gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-config-yaml manifest OK"
 
 if [ "${XLANG_STD119_CONFIG_YAML_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_config_yaml_emit_report "ok" 0 0 1
+  SKIP=1
+  std_config_yaml_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "std-config-yaml gate OK (manifest only)"
   exit 0
 fi
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-resolve_shu() {
-  local cand
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-119: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-
-# Observational host-C archaeology smoke (not hard green).
-# PLATFORM: SHARED archaeology — product honesty is yaml_smoke.x via asm.
-# Same short-name fs_* + link_abi_getenv surface as STD-086; do NOT also link
-# std/process/process.o + runtime_process_os_glue.o (Ubuntu GNU ld multiple def).
-echo "=== STD-119: yaml c smoke (observational) ==="
-C_NOTE=0
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ] || [ -x ./compiler/xlang_asm ]; then
-  xlang_compiler_make ../std/config/config.o ../std/env/env.o \
-    runtime_process_argv.o runtime_env_os.o \
-    src/runtime_io_abi.o runtime_link_abi_user_env.o >/dev/null 2>&1 || true
-  if cc -std=c11 -O1 -o /tmp/xlang_config_yaml_smoke \
-    "$SMOKE_C" std/config/config.o std/env/env.o \
-    compiler/runtime_process_argv.o compiler/runtime_env_os.o \
-    compiler/src/runtime_io_abi.o compiler/runtime_link_abi_user_env.o 2>/tmp/xlang_config_yaml_smoke_link.err; then
-    if /tmp/xlang_config_yaml_smoke >/dev/null 2>&1; then
-      C_NOTE=1
-      echo "std-config-yaml c smoke OK (observational)"
-    fi
-    rm -f /tmp/xlang_config_yaml_smoke
-  else
-    echo "std-config-yaml gate SKIP c smoke (observational; link failed)" >&2
-    tail -n 10 /tmp/xlang_config_yaml_smoke_link.err 2>/dev/null || true
-  fi
+# Host-C archaeology = obs only; refuse soft ensure/auto-make rebuild.
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+if std_config_yaml_run_c_smoke; then
+  echo "std-config-yaml c smoke OK (observational)"
 else
-  echo "std-config-yaml gate SKIP c smoke (observational; no compiler)" >&2
-fi
-echo "std-config-yaml c_smoke_note=${C_NOTE}"
-
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-119: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-config-yaml gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  OUT="/tmp/xlang_std119_config_yaml_$$"
-  LOG="/tmp/xlang_std119_config_yaml_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "std-config-yaml gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
-      std_config_yaml_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  else
-    echo "std-config-yaml gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    std_config_yaml_emit_report "fail" "$CHECK_OK" 0 0
-    exit 1
-  fi
-else
-  echo "std-config-yaml gate FAIL: no native xlang" >&2
-  std_config_yaml_emit_report "fail" 0 0 0
-  exit 1
+  echo "std-config-yaml OBS c smoke (host-C archaeology; refuse soft ensure/auto-make)" >&2
+  OBS=$((OBS + 1))
 fi
 
-# check stays observational; hard-green signal is run= (runnable).
-echo "std-config-yaml check_ok=${CHECK_OK} (observational)"
-std_config_yaml_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std119_yaml_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-config-yaml OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+OUT="/tmp/xlang_std119_config_yaml_$$"
+LOG="/tmp/xlang_std119_config_yaml_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-config-yaml OK: product -o"
+
+std_config_yaml_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-config-yaml gate OK"
