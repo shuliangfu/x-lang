@@ -1,109 +1,120 @@
 #!/usr/bin/env bash
-# STD-131：core.str BytesView 查找/分割门禁（假权威诚实）。
+# STD-131: core.str BytesView find/split gate — honesty soft→硬绿.
 #
-# wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
-# check smoke observational SKIP (check gate paused 2026-08-05).
-# 2026-08-25: runnable hard-green (core/str/mod.o find/split surface);
-# Prefer xlang_asm; find_split.x exit 0 hard-fail (no Darwin soft SKIP).
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft SKIP→OK (no native still gate OK) + soft auto-make xlang-c +
+# check SKIP narrative retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make). Product -o find_split.x exit0 = hard run; check = obs.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-core-str-find-split-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/core-str-find-split.sh
+. tests/lib/core-str-find-split.sh
 
 DOC="${XLANG_CORE_STR_FIND_SPLIT_DOC:-analysis/archive/core/core-str-find-split-v1.md}"
 MANIFEST="tests/baseline/core-str-find-split-manifest.tsv"
 MOD_X="core/str/mod.x"
 LIB="tests/lib/core-str-find-split.sh"
 SMOKE_X="tests/str/find_split.x"
-# Designed success score (tests/str/find_split.x returns 0 on all checks).
 SMOKE_EXPECT=0
 
-# shellcheck source=tests/lib/core-str-find-split.sh
-. "$LIB"
+PREFIX="${XLANG_STD131_CORE_STR_FIND_SPLIT_PREFIX:-xlang: [XLANG_STD131_CORE_STR_FIND_SPLIT]}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-echo "=== STD-131: core.str find/split manifest (archive DOC) ==="
-if [ -f analysis/core-str-find-split-v1.md ]; then
-  echo "core-str-find-split gate FAIL: top-level DOC resurrected (live = archive/core/)" >&2
+die() {
+  echo "core-str-find-split gate FAIL: $*" >&2
+  core_str_find_split_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
-fi
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X"; do
-  [ -f "$f" ] || { echo "core-str-find-split gate FAIL: missing $f" >&2; exit 1; }
-done
-grep -qF STD-131 "$DOC" || { echo "core-str-find-split gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(core_str_find_split_symbols_ok "$MOD_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  core_str_find_split_emit_report "fail" 0 0
-  echo "core-str-find-split gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-fi
-echo "core-str-find-split manifest OK"
-
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
 }
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
 resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
   return 1
 }
 
-CHECK_OK=0
-X_OK=0
-SKIP=1
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-131: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "core-str-find-split gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # Pin product link to resolved compiler (prefer asm). Avoid Darwin-arm64
-  # bootstrap remap of xlang_asm → xlang-c that hides pure-asm UNDEF / hangs host-cc.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+echo "=== STD-131: core.str find/split (prefer asm; hard; refuse soft auto-make / soft SKIP→OK) ==="
+if [ -f analysis/core-str-find-split-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/core/)"
+fi
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X"; do
+  [ -f "$f" ] || die "missing $f"
+done
+grep -qF STD-131 "$DOC" || die "doc missing STD-131"
 
-  OUT="/tmp/xlang_core_str_find_split_$$"
-  LOG="/tmp/xlang_core_str_find_split_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq "$SMOKE_EXPECT" ]; then
-      X_OK=1
-      SKIP=0
-    else
-      echo "core-str-find-split gate FAIL runnable exit=$exitcode (expect $SMOKE_EXPECT)" >&2
-      core_str_find_split_emit_report "fail" 0 0
-      exit 1
-    fi
-  else
-    echo "core-str-find-split gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    core_str_find_split_emit_report "fail" 0 0
-    exit 1
-  fi
-else
-  echo "core-str-find-split gate SKIP typeck (no native xlang)" >&2
+sym_miss="$(core_str_find_split_symbols_ok "$MOD_X" "$MANIFEST" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+echo "core-str-find-split manifest OK"
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+# Observational check (paused) — never soft SKIP→OK / never soft auto-make.
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "core-str-find-split OBS check (paused / CHK residual ec=$chk_ec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-core_str_find_split_emit_report "ok" "$X_OK" "$SKIP"
+exe="/tmp/xlang_core_str_find_split_$$"
+trap 'rm -f "$exe"' EXIT
+set +e
+"$XLANG_BIN" -L . "$SMOKE_X" -o "$exe" >/tmp/xlang_core_str_find_split_o.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  tail -n 12 /tmp/xlang_core_str_find_split_o.log 2>/dev/null || true
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$exe" >/dev/null 2>&1
+run_ec=$?
+set -e
+rm -f "$exe"
+[ "$run_ec" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$run_ec (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+
+core_str_find_split_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "core-str-find-split gate OK"
+ok_report

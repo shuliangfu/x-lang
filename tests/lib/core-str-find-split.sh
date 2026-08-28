@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# core-str-find-split.sh — STD-131 manifest 与烟测辅助
-# Honesty 2026-08-25: runnable hard-green via gate prefer asm + pin LINK;
-# designed success score = 0 (tests/str/find_split.x). No Darwin soft SKIP.
+# core-str-find-split.sh — STD-131 find/split manifest helpers.
+# Honesty: emit_report uses run=/obs=/skip= (soft SKIP→OK / soft auto-make retired).
+# Designed success score = 0 (tests/str/find_split.x).
 
 CORE_STR_FIND_SPLIT_PREFIX="${XLANG_STD131_CORE_STR_FIND_SPLIT_PREFIX:-xlang: [XLANG_STD131_CORE_STR_FIND_SPLIT]}"
 
@@ -56,7 +56,11 @@ core_str_find_split_run_smoke() {
   return 0
 }
 
-# 输出 gate 报告。
+# Structured report: run= hard product; obs= check residual; skip= platform N/A.
 core_str_find_split_emit_report() {
-  echo "${CORE_STR_FIND_SPLIT_PREFIX} status=$1 x=$2 skip=$3"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${CORE_STR_FIND_SPLIT_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

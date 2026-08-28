@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# core-option-result.sh — CORE-002/003：Option/Result 类型族 manifest 辅助
+# core-option-result.sh — CORE-002/003 Option/Result combinator manifest helpers.
+# Honesty: emit_report uses run=/obs=/skip= (soft SKIP→OK / soft auto-make retired).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   core_or_symbols_ok OPTION_X RESULT_X TSV
-#   core_or_emit_report status option_ok result_ok skip
-# 2026-08-25: gate emits option/result hard-green (skip=0); check stays observational.
+#   core_or_emit_report status run_ok obs skip
 
 CORE_OR_PREFIX="${XLANG_CORE_OPTION_RESULT_PREFIX:-xlang: [XLANG_CORE_OPTION_RESULT]}"
 
@@ -40,11 +40,11 @@ core_or_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run= hard product (option+result); obs= check; skip= N/A.
 core_or_emit_report() {
   local status="$1"
-  local option_ok="$2"
-  local result_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${CORE_OR_PREFIX} status=${status} option=${option_ok} result=${result_ok} skip=${skip}"
+  echo "${CORE_OR_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
