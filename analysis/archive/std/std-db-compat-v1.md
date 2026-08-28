@@ -30,8 +30,10 @@
 
 ## 3. Gate
 
+Honesty soft→硬绿: prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`; explicit-bad / missing native hard die. Host-C prebuilt `std/db/sqlite/sqlite.o`＝obs (refuse soft `ensure_std_c_o` / auto-make). check＝obs (paused 2026-08-05). tip product `-o` UNDEF / SEGV / exit≠0＝obs (sqlite family product debt; leave). Report `run=`/`obs=`/`skip=` (retired `x=`/`skip=` as hard). Keep keywords `std.db.sqlite` / `is_deprecated` / `db_open_c`.
+
 ```
-xlang: [XLANG_STD120_DB_COMPAT] status=ok x=1 skip=0
+xlang: [XLANG_STD120_DB_COMPAT] status=ok run=N obs=M skip=0
 std-db-compat gate OK
 ```
 

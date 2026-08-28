@@ -13,5 +13,5 @@ impl_x	file	std/db/mod.x	std/db/mod.x
 impl_readme	file	std/db/README.md	std/db/README.md
 smoke_x	smoke	tests/std-db/compat_smoke.x	兼容烟测
 vectors	file	tests/baseline/std-db-compat-vectors.tsv	向量
-lib	script	lib/std-db-compat.sh	tests/lib/std-db-compat.sh
-gate	script	run-std-db-compat-gate.sh	tests/run-std-db-compat-gate.sh
+lib	script	tests/lib/std-db-compat.sh	tests/lib/std-db-compat.sh
+gate	script	tests/run-std-db-compat-gate.sh	tests/run-std-db-compat-gate.sh
