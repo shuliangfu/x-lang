@@ -4,16 +4,16 @@
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-schema-v1.md
 api_doc	section	## 2. API	analysis/archive/std/std-schema-v1.md
 verify	section	## 3. Gate	analysis/archive/std/std-schema-v1.md
-api_new	api	schema_new	std/schema/mod.x	创建
-api_free	api	schema_free	std/schema/mod.x	释放
-api_clear	api	schema_clear	std/schema/mod.x	清空
-api_add	api	schema_add_field	std/schema/mod.x	注册字段
+api_new	api	new	std/schema/mod.x	创建;live=new (was schema_new)
+api_free	api	free	std/schema/mod.x	释放;live=free (was schema_free)
+api_clear	api	clear	std/schema/mod.x	清空;live=clear (was schema_clear)
+api_add	api	add_field	std/schema/mod.x	注册字段;live=add_field (was schema_add_field)
 api_json	api	decode_json	std/schema/mod.x	JSON
 api_csv	api	decode_csv_row	std/schema/mod.x	CSV
 api_map	api	map_columns	std/schema/mod.x	列映射
 api_get_str	api	get_string	std/schema/mod.x	字符串
-api_get_i32	api	get_i32	std/schema/mod.x	整数
-api_get_bool	api	get_bool	std/schema/mod.x	布尔
+api_get_i32	api	get	std/schema/mod.x	整数;live=get (was get_i32)
+api_get_bool	api	get	std/schema/mod.x	布尔;live=get (was get_bool)
 api_err_field	api	last_error_field	std/schema/mod.x	错误字段
 api_err_msg	api	last_error_message	std/schema/mod.x	错误消息
 symbol_smoke	symbol	schema_smoke_c	std/schema/schema.x	C烟测

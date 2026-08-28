@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# std-metrics-obs.sh — STD-117 manifest 与烟测辅助
+# std-metrics-obs.sh — STD-117 ObservabilityCtx + log KV helpers.
+#
+# Usage (after source):
+#   std_metrics_obs_symbols_ok MOD_X TSV
+#   std_metrics_obs_run_x_smoke XLANG SRC
+#   std_metrics_obs_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_METRICS_OBS_PREFIX="${XLANG_STD117_METRICS_OBS_PREFIX:-xlang: [XLANG_STD117_METRICS_OBS]}"
 
-# 校验 manifest 中 api/file/smoke 符号。
+# Validate manifest api/file/smoke/vectors anchors.
+# Echo miss count; return 0 when miss=0.
 std_metrics_obs_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -14,10 +21,14 @@ std_metrics_obs_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          miss=$((miss + 1))
+        fi
         ;;
       file|smoke|vectors)
-        [ -f "$anchor" ] || miss=$((miss + 1))
+        if [ ! -f "$anchor" ]; then
+          miss=$((miss + 1))
+        fi
         ;;
     esac
   done < "$tsv"
@@ -25,7 +36,9 @@ std_metrics_obs_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测；失败时打印编译日志尾部。
+# Compile and run .x obs correlation smoke.
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
+# Tip product UNDEF for std_metrics_*/std_trace_* is gate-obs.
 std_metrics_obs_run_x_smoke() {
   local xlang="$1"
   local src="$2"
@@ -45,6 +58,11 @@ std_metrics_obs_run_x_smoke() {
   [ "$ec" -eq 0 ]
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check / tip UNDEF = obs).
 std_metrics_obs_emit_report() {
-  echo "${STD_METRICS_OBS_PREFIX} status=$1 x=$2 skip=$3"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_METRICS_OBS_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
