@@ -8,7 +8,8 @@
 #   std_simd_autovec_run_c_smoke
 #   std_simd_autovec_run_x_smoke XLANG_BIN X
 #   std_simd_autovec_run_perf XLANG_ASM dot_min ss_min
-#   std_simd_autovec_emit_report status check_ok c_ok x_ok perf_ok skip host
+#   std_simd_autovec_emit_report status run obs skip [host]
+# Honesty: run=/obs=/skip= (check/C/perf = obs; prefer asm product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD153_PREFIX="${XLANG_STD153_SIMD_AUTovec_PREFIX:-xlang: [XLANG_STD153_SIMD_AUTovec]}"
@@ -91,20 +92,17 @@ std_simd_autovec_perf_thresholds() {
   echo "$dot $ss"
 }
 
-# 编译并运行 C 烟测（观测；缺 simd.o／host-cc 失败不算闸门硬红）。
+# Observational C smoke against an existing simd.o only.
+# Refuse soft ensure_std_c_o rebuild (gate never rebuilds host .o).
+# PLATFORM: SHARED archaeology — host-C path is observational only.
 std_simd_autovec_run_c_smoke() {
   local smoke_c="tests/std-simd/autovec_strategy_ok.c"
   local exe="/tmp/xlang_std153_simd_autovec_c_$$"
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  if ! ensure_std_c_o ../std/simd/simd.o 2>/dev/null; then
-    echo "std-simd-autovec SKIP: ensure simd.o for C smoke" >&2
+  local simd_o="std/simd/simd.o"
+  if [ ! -f "$simd_o" ]; then
     return 1
   fi
-  local simd_o
-  simd_o="$(cd compiler && pwd)/../std/simd/simd.o"
   if ! cc -std=c11 -Wall -Wextra -o "$exe" "$smoke_c" "$simd_o" 2>/dev/null; then
-    echo "std-simd-autovec SKIP: compile C smoke" >&2
     rm -f "$exe"
     return 1
   fi
@@ -113,16 +111,12 @@ std_simd_autovec_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-simd-autovec SKIP: C smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
+  [ "$ec" -eq 0 ]
 }
 
-# Compile + link + run .x smoke via product asm. Hard-fail on any step.
-# Prefer RUN_XLANG (bootstrap-link) when gate pinned XLANG_LINK_XLANG.
-# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+# Compile and run .x smoke via product XLANG_BIN -L . -o; expect exit 0.
+# Refuse soft RUN_XLANG remap / soft ensure rebuild (gate pins XLANG_LINK_XLANG).
+# PLATFORM: SHARED archaeology — product honesty path; SIMD needs asm backend.
 std_simd_autovec_run_x_smoke() {
   local xlang="$1"
   local src="$2"
@@ -132,20 +126,16 @@ std_simd_autovec_run_x_smoke() {
     echo "std-simd-autovec FAIL: missing $src" >&2
     return 1
   fi
-  if [ -n "${RUN_XLANG:-}" ]; then
-    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-simd-autovec FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
-  else
-    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-simd-autovec FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-simd-autovec FAIL: compile $src" >&2
+    tail -n 12 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1
@@ -208,14 +198,18 @@ std_simd_autovec_run_perf() {
   return 1
 }
 
-# Structured report: check/c observational; x hard; perf soft; skip=0 when x ran.
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o autovec_strategy.x; check/C/perf = obs.
+# Optional host= kept for platform archaeology (not a hard-green field).
 std_simd_autovec_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local c_ok="$3"
-  local x_ok="$4"
-  local perf_ok="$5"
-  local skip="$6"
-  local host="$7"
-  echo "${STD153_PREFIX} status=${status} check=${check_ok} c=${c_ok} x=${x_ok} perf=${perf_ok} skip=${skip} host=${host}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  local host="${5:-}"
+  if [ -n "$host" ]; then
+    echo "${STD153_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip} host=${host}"
+  else
+    echo "${STD153_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
+  fi
 }
