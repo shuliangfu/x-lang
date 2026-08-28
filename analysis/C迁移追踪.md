@@ -351,10 +351,10 @@
 | TYPE_SLICE i32[] print_any schema A@ | ✅ | fat `A@OFF` JSON；u8[] 仍 u8_slc mid；fmt-std 内容硬闸；双端 L2 |
 | ArrowColumnMem 32B pack／db_kv_arrow | ✅ | `data_owned` 挪入 calloc(1,32) 头内；SIMD twin 同 commit；cookbook 8／8＋smoke；双端 L2 |
 | STD-025 env_iter soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
-| STD-017 heap_trace soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
+| STD-017 heap_trace soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check＝obs；`trace_stats.x`（含 `XLANG_HEAP_TRACE=1`）／cookbook exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**heap-trace soft auto-make FAIL 池空** |
 | STD-020 error_map soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
 | STD-158 error_semantics soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
-| STD-015 set-extend soft→硬绿 | ✅ | TSV 锚对齐产品 overload；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；runnable／cookbook exit0 硬失败；双端 L2 |
+| STD-015 set-extend soft→硬绿 | ✅ | TSV 锚对齐产品 overload；闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check＝obs；`extend.x`／cookbook exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**set-extend soft auto-make FAIL 池空** |
 | STD-112 heap-allocator soft→硬绿 | ✅ | TSV 锚对齐产品 `with_alloc`／`push`；闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check＝obs；`allocator_vec.x`／cookbook exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**heap-allocator soft auto-make FAIL 池空** |
 | STD-129 set-ops soft→硬绿 | ✅ | TSV 锚对齐产品 `union_into`／`intersect_into`／`difference_into`；闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check＝obs；`ops.x`／cookbook exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**set-ops soft auto-make FAIL 池空** |
 | STD-156 context-cookbook soft→硬绿 | ✅ | expand DOC／TSV→archive；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；CTX-01 exit0 硬失败；拒顶层 DOC 复活；双端 L2 |
@@ -365,7 +365,7 @@
 | STD-072 std-bytes soft→硬绿 | ✅ | DOC／TSV 锚对齐产品 `length`＋`## 5. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；双端 L2 |
 | STD-074 std-datetime soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft auto-make xlang-c／soft XLANG fallthrough／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check／host-C＝obs；`roundtrip.x` exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**datetime soft auto-make FAIL 池空** |
 | STD-077 std-cli soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`roundtrip.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
-| STD-011 error-unify soft→硬绿 | ✅ | EXC DOC→`analysis/archive/exc/`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`error_unify_smoke.x` exit0 硬失败；双端 L2 |
+| STD-011 error-unify soft→硬绿 | ✅ | EXC DOC→`analysis/archive/exc/`；闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；check＝obs；`error_unify_smoke.x` exit0 硬失败；报告 `run=`／`obs=`／`skip=`；双端 L2；**error-unify soft auto-make FAIL 池空** |
 | STD-109 base64-stream soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`stream.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
 | STD-019 fmt-multi soft→硬绿 | ✅ | DOC／TSV→`## 4. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`format_multi.x` exit0 硬失败；双端 L2 |
 | STD-096 dynlib-last-error soft→硬绿 | ✅ | 新 archive DOC／TSV→`## 4. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；check 观测；`last_error.x` exit0 硬失败；C smoke 仅观测；双端 L2 |
@@ -447,6 +447,7 @@
 | STD-080／081 option-result soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；退役 soft auto-make xlang-c／soft XLANG fallthrough／`check=` 报告；显式坏 XLANG／缺 native 硬 die；产品 `roundtrip.x` `-o` 硬绿；check＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**option-result soft auto-make FAIL 池空**（codec 族仍产品红＝formal_mod／ondemand 缺叶，另案） |
 | STD-155／074／076 bytes-arena／datetime／url soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft auto-make xlang-c／soft XLANG fallthrough／`check=` 报告；显式坏 XLANG／缺 native 硬 die；产品 `arena_external`／`roundtrip` `-o` 硬绿；check／host-C archaeology＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**bytes-arena＋datetime＋url soft auto-make FAIL 池空**（encoding-hex／uuid 仍产品 UNDEF／ensure，另案） |
 | STD-079／129／112 security／set-ops／heap-allocator soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；产品 `roundtrip`／`ops`／`allocator_vec` `-o` 硬绿；cookbook 邻域硬；check／host-C archaeology＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**security＋set-ops＋heap-allocator soft auto-make FAIL 池空** |
+| STD-015／017／011 set-extend／heap-trace／error-unify soft auto-make →硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make xlang-c／`check=` 报告；显式坏 XLANG／缺 native 硬 die；产品 `extend`／`trace_stats`（含 `XLANG_HEAP_TRACE=1`）／`error_unify_smoke` `-o` 硬绿；cookbook 邻域硬；check＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**set-extend＋heap-trace＋error-unify soft auto-make FAIL 池空** |
 | BOOT-010 force-stub soft→硬绿 | ✅ | DOC→`## 7. Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；matrix `reg_src` link+run 硬失败（4／4）；`check_only` 观测；报告 `link=`／`skip=`；双端 L2 |
 | DOD-CL-S1／S2 soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`；check／warn 观测；`cl_align64` exit64／`cl_arena64` exit0 硬失败；报告 `check=`／`warn=`／`run=`／`skip=`；双端 L2 |
 | f03-io soft→硬绿 | ✅ | DOC→`## Gate`；闸 prefer asm＋`XLANG_LINK_XLANG`；inventory＋`run-io` 硬失败；报告 `inventory=`／`run=`／`skip=`；双端 L2 |
