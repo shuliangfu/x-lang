@@ -217,6 +217,8 @@ close_stream(stream);
 - 报告：`xlang: [XLANG_STD002_NET_API] status=… check=… run=… skip=…`
 - **未**改产品 `std/net` labi；禁顶层 DOC 复活（live = `analysis/archive/std/`）
 
+**Honesty (2026-08-29 residual ensure)**：leftover `tests/run-net.sh`（`ensure_std_c_o` net.o／thread.o／random.o + leftover `ensure_runtime_*` + unused `compiler-make.sh`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/net/main.x`＋`udp_batch_buf.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [XLANG_NET]`。Keep `## 8. Gate`。 Do not rewrite `run-perf-net.sh`／`run-zc1-gate.sh` here.
+
 ---
 
 ## 9. v2 预留

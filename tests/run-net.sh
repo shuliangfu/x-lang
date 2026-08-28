@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# std.net gate: Ipv4Addr / TcpStream / TcpListener / UDP batch buf —
-# honesty soft auto-make →硬绿.
+# std.net leftover runner: tests/net/{main,udp_batch_buf}.x product -o exit 0.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true`) + soft
-# default `./compiler/xlang` + soft gcc fallback when xlang_asm -o fails
-# (false authority) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
-# soft auto-make / prefer-c / soft gcc fallback). Product -o main +
-# udp_batch_buf exit0 = hard run. ensure_std_c_o / ensure_runtime_* left
-# intact (leave ensure_std family; only soft compiler make + soft fallback
-# retired). Report: run=/obs=/skip=.
+# Honesty: leftover soft `ensure_std_c_o` (net.o／thread.o／random.o) + leftover
+# `ensure_runtime_*` + unused compiler-make.sh retired. Prefer product
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard
+# die (refuse leftover SKIP→OK / leftover XLANG fallthrough / leftover
+# auto-make / leftover ensure / prefer-c / soft gcc fallback). Check path =
+# obs= (check gate paused 2026-08-05). Product `-o` each smoke must exit 0.
+# Report: run=/obs=/skip=
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-net.sh
 set -euo pipefail
@@ -20,10 +18,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/gate-progress.sh
 . tests/lib/gate-progress.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
 
 PREFIX="${XLANG_NET_PREFIX:-xlang: [XLANG_NET]}"
 XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-180}"
@@ -41,6 +35,10 @@ ok_report() {
   echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 }
 
+# G.7: complete the existing per-script resolve_shu family (dod_native_exe);
+# do not fork a third resolver. Explicit XLANG that is missing/non-native
+# returns 1 (caller hard-dies; refuse leftover XLANG fallthrough).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
   local cand abs root
   root=$(pwd)
@@ -55,10 +53,11 @@ resolve_shu() {
     fi
     return 1
   fi
-  # Prefer product asm; refuse soft auto-make / prefer-c.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in compiler/xlang_asm compiler/xlang-c compiler/xlang; do
-    abs="$root/$cand"
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
     if dod_native_exe "$abs"; then
       echo "$abs"
       return 0
@@ -80,7 +79,7 @@ run_net_case() {
   if [ "$o_ec" -eq 124 ]; then
     die "$label product -o timeout"
   elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
-    die "$label product -o failed (ec=$o_ec; soft gcc fallback retired); $(tail -8 "$log" 2>/dev/null | tr '\n' ' ')"
+    die "$label product -o failed (ec=$o_ec; refuse leftover ensure / soft gcc fallback); $(tail -8 "$log" 2>/dev/null | tr '\n' ' ')"
   fi
   set +e
   gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
@@ -96,22 +95,26 @@ run_net_case() {
   echo "net OK: $label exit=0"
 }
 
-echo "=== net gate (prefer asm; hard; refuse soft auto-make / soft gcc fallback / soft SKIP→OK) ==="
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+echo "=== net leftover (prefer asm; hard; refuse leftover ensure) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ensure)"
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover ensure)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "XLANG=$XLANG_BIN"
 
-# Leave ensure_std family: still ensure dependent .o for net link contract.
-# Refuse soft auto-make of xlang-c itself (above).
-ensure_std_c_o ../std/net/net.o || die "ensure_std_c_o net.o failed"
-ensure_std_c_o ../std/thread/thread.o || die "ensure_std_c_o thread.o failed"
-ensure_runtime_net_udp_batch_o || die "ensure_runtime_net_udp_batch_o failed"
-ensure_runtime_net_workers_o || die "ensure_runtime_net_workers_o failed"
-ensure_runtime_asm_io_stubs_o || die "ensure_runtime_asm_io_stubs_o failed"
-ensure_runtime_panic_o || die "ensure_runtime_panic_o failed"
-ensure_runtime_process_argv_o || die "ensure_runtime_process_argv_o failed"
-ensure_std_c_o ../std/random/random.o || die "ensure_std_c_o random.o failed"
+set +e
+"$XLANG_BIN" check -L . tests/net/main.x >/tmp/xlang_net_check.log 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "net test OBS check (paused / CHK residual ec=$chk_ec; refuse leftover ensure)" >&2
+  OBS=$((OBS + 1))
+fi
 
 run_net_case "main" "tests/net/main.x"
 run_net_case "udp_batch_buf" "tests/net/udp_batch_buf.x"

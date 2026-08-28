@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
-# log regression runner (bstrict catalog: run-log.sh).
+# log leftover runner (bstrict catalog: run-log.sh): tests/log/main.x
+# product -o exit 0.
 #
-# Honesty: soft SKIP→OK (no native) + prefer-c (xlang-c before asm) +
-# soft auto-make xlang-c retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
-# (refuse soft SKIP→OK / soft auto-make).
-#   - tests/log/main.x product -o run exit0 = hard run.
-# Report: run=/obs=/skip=
+# Honesty: leftover soft `ensure_std_c_o log.o` + `ensure_runtime_log_os_o` +
+# unused compiler-make.sh retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse
+# leftover SKIP→OK / leftover XLANG fallthrough / leftover auto-make /
+# leftover ensure). Check path = obs= (check gate paused 2026-08-05).
+# Product `-o` tests/log/main.x must exit 0. Report: run=/obs=/skip=
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-log.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 PREFIX="${XLANG_LOG_PREFIX:-xlang: [XLANG_LOG]}"
+SMOKE="tests/log/main.x"
 RUN_OK=0
 OBS=0
 SKIP=0
@@ -32,6 +33,10 @@ ok_report() {
   echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 }
 
+# G.7: complete the existing per-script resolve_shu family (dod_native_exe);
+# do not fork a third resolver. Explicit XLANG that is missing/non-native
+# returns 1 (caller hard-dies; refuse leftover XLANG fallthrough).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
   local cand abs root
   root=$(pwd)
@@ -44,11 +49,8 @@ resolve_shu() {
       echo "$abs"
       return 0
     fi
-    # Explicit XLANG that is not native = hard die (refuse soft fallthrough).
     return 1
   fi
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
   for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
@@ -62,30 +64,40 @@ resolve_shu() {
   return 1
 }
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+[ -f "$SMOKE" ] || die "missing $SMOKE"
+
+echo "=== log leftover (prefer asm; hard; refuse leftover ensure) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ensure)"
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / leftover ensure)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-
-# Ensure std log.o + runtime_log_os for link; refuse soft auto-make of compiler.
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/log/log.o || die "ensure log.o failed"
-ensure_runtime_log_os_o || die "ensure runtime_log_os.o failed"
-
-SRC="tests/log/main.x"
-[ -f "$SRC" ] || die "missing $SRC"
-exe="/tmp/xlang_log_$$"
-rm -f "$exe" 2>/dev/null || true
+echo "XLANG=$XLANG_BIN"
 
 set +e
-"$XLANG_BIN" -L . "$SRC" -o "$exe" >/tmp/xlang_log_compile.log 2>&1
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_log_check.log 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "log test OBS check (paused / CHK residual ec=$chk_ec; refuse leftover ensure)" >&2
+  OBS=$((OBS + 1))
+fi
+
+exe="/tmp/xlang_log_$$"
+rm -f "$exe" 2>/dev/null || true
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >/tmp/xlang_log_compile.log 2>&1
 o_ec=$?
 set -e
 if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
   tail -n 12 /tmp/xlang_log_compile.log 2>/dev/null || true
-  die "product -o compile failed (ec=$o_ec; refuse soft SKIP→OK)"
+  rm -f "$exe"
+  die "product -o compile failed (ec=$o_ec; refuse leftover ensure / leftover auto-make)"
 fi
-
 set +e
 "$exe" >/dev/null 2>&1
 exitcode=$?

@@ -2,6 +2,11 @@
 # One symbol per line; run-std-net-api-gate.sh greps std/net/mod.x
 # Updated: 2026-06-27 (API shorten)
 # honesty 2026-08-26: DOC ## 8. Gate; prefer asm; run-net hard; no soft SKIP
+# honesty 2026-08-29 residual ensure: leftover tests/run-net.sh
+# (ensure_std_c_o net.o／thread.o／random.o + ensure_runtime_* + unused
+# compiler-make.sh) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o main+udp_batch_buf hard; check=obs;
+# report run=/obs=/skip=.
 addr_to_packed
 packed_to_ipv4
 connect
