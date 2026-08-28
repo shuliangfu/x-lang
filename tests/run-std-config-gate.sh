@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
-# STD-086: std.config gate — honesty soft auto-make →硬绿.
+# STD-086: std.config gate — honesty residual soft auto-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true`) + soft
-# XLANG fallthrough (explicit-bad still picks another binary) + check=/run=/skip=
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product layer_smoke.x -o exit0 = hard run. check residual = obs (paused
-# 2026-08-05). Host-C smoke remains observational archaeology (not hard green).
-# Report: run=/obs=/skip=.
+# Honesty: residual soft auto-make (`xlang_compiler_make … config.o/env.o/
+# runtime_* || true` before host-C cc) retired. Prefer product xlang_asm;
+# pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
+# (refuse soft SKIP→OK / soft auto-make / prefer-c). Product layer_smoke.x
+# -o exit0 = hard run. check residual = obs (paused 2026-08-05). Host-C
+# archaeology = obs only (prebuilt .o; refuse rebuild). Report:
+# run=/obs=/skip=. Keep ## 3. Gate. Keep keywords STD-086 / load_toml_file /
+# load_env_prefix / merge / get_i32 / get_bool / get_source / source_toml.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-config-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/ci-host.sh
-. tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CONFIG_DOC:-analysis/archive/std/std-config-v1.md}"
 MANIFEST="${XLANG_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
@@ -26,8 +23,8 @@ CFG_X="std/config/config.x"
 LIB="tests/lib/std-config.sh"
 SMOKE_X="tests/std-config/layer_smoke.x"
 SMOKE_C="tests/std-config/config_smoke_ok.c"
+README="std/config/README.md"
 MIN_APIS=15
-SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-config.sh
 . "$LIB"
@@ -72,9 +69,10 @@ resolve_shu() {
 }
 
 echo "=== STD-086: std.config manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CFG_X" "$SMOKE_X" "$SMOKE_C" std/config/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CFG_X" "$SMOKE_X" "$SMOKE_C" "$README"; do
   [ -f "$f" ] || die "missing $f"
 done
+[ ! -f analysis/std-config-v1.md ] || die "dual-authority fossil analysis/std-config-v1.md (archive live)"
 
 for kw in STD-086 load_toml_file load_env_prefix merge get_i32 get_bool get_source source_toml; do
   grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
@@ -98,7 +96,7 @@ done < "$MANIFEST"
 
 [ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
-sym_miss="$(std_config_symbols_ok "$MOD_X" "$CFG_X" "$MANIFEST" || true)"
+sym_miss="$(std_config_symbols_ok "$MOD_X" "$CFG_X" "$MANIFEST" "$DOC" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-config manifest OK"
 
@@ -109,47 +107,28 @@ if [ "${XLANG_STD_CONFIG_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-# Observational host-C archaeology smoke (not hard green).
-# PLATFORM: SHARED archaeology — product honesty is layer_smoke.x via asm.
-# config.o needs short-name fs_open_read_c/fs_posix_read_c (runtime_io_abi.o
-# Track-L) + link_abi_getenv (runtime_link_abi_user_env.o). Do not invent a
-# second fs_* ABI. Do NOT also link std/process/process.o +
-# runtime_process_os_glue.o together: Ubuntu GNU ld hard-fails on multiple
-# definition (Darwin ld was permissive).
-echo "=== STD-086: config c smoke (observational) ==="
-C_NOTE=0
-if dod_native_exe ./compiler/xlang-c || dod_native_exe ./compiler/xlang || dod_native_exe ./compiler/xlang_asm; then
-  xlang_compiler_make ../std/config/config.o ../std/env/env.o \
-    runtime_process_argv.o runtime_env_os.o \
-    src/runtime_io_abi.o runtime_link_abi_user_env.o >/dev/null 2>&1 || true
-  if cc -std=c11 -O1 -o /tmp/xlang_config_smoke \
-    "$SMOKE_C" std/config/config.o std/env/env.o \
-    compiler/runtime_process_argv.o compiler/runtime_env_os.o \
-    compiler/src/runtime_io_abi.o compiler/runtime_link_abi_user_env.o 2>/tmp/xlang_config_smoke_link.err; then
-    if /tmp/xlang_config_smoke >/dev/null 2>&1; then
-      C_NOTE=1
-      echo "std-config c smoke OK (observational)"
-    fi
-    rm -f /tmp/xlang_config_smoke
-  else
-    echo "std-config OBS c smoke (archaeology link; refuse soft SKIP→OK)" >&2
-    tail -n 10 /tmp/xlang_config_smoke_link.err 2>/dev/null || true
-  fi
-else
-  echo "std-config OBS c smoke (archaeology; no compiler)" >&2
-fi
-if [ "$C_NOTE" -eq 0 ]; then
-  OBS=$((OBS + 1))
-fi
-echo "std-config c_smoke_note=${C_NOTE}"
-
 XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-echo "=== STD-086: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+echo "=== STD-086: smoke (XLANG=$XLANG_BIN; host-C=obs; check=obs; product -o hard) ==="
+
+# Host-C archaeology = obs only; refuse soft ensure/auto-make.
+# PLATFORM: SHARED — missing prebuilt .o = obs, not soft SKIP→OK.
+set +e
+std_config_host_c_obs "$SMOKE_C"
+c_rc=$?
+set -e
+# Presence / C-smoke success is not a green signal (product honesty is layer_smoke.x).
+if [ "$c_rc" -ne 0 ]; then
+  echo "std-config OBS host-C (rc=$c_rc; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
+else
+  echo "std-config OBS host-C c smoke present (not a green signal; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
+fi
 
 set +e
-"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_config_check.log 2>&1
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_config_check_$$.log 2>&1
 chk=$?
 set -e
 if [ "$chk" -ne 0 ]; then
@@ -157,26 +136,14 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-OUT="/tmp/xlang_std086_config_$$"
-LOG="/tmp/xlang_std086_config_build_$$.log"
-rm -f "$OUT" "$LOG"
-set +e
-"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
-o_ec=$?
-set -e
-if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
-  tail -n 20 "$LOG" 2>/dev/null || true
-  rm -f "$OUT"
-  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+# Product layer_smoke.x -o exit0 = hard (leave product UNDEF as a later knife).
+# PLATFORM: SHARED — refuse soft SKIP→OK. G.7: lib std_config_run_smoke.
+if std_config_run_smoke "$XLANG_BIN" "$SMOKE_X" "layer"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-config OK: product layer_smoke"
+else
+  die "product -o failed (refuse soft SKIP→OK)"
 fi
-set +e
-"$OUT" >/dev/null 2>&1
-exitcode=$?
-set -e
-rm -f "$OUT"
-[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
-RUN_OK=$((RUN_OK + 1))
-echo "std-config OK: product -o"
 
 std_config_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-config gate OK"

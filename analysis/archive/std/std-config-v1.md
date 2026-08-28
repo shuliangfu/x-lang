@@ -1,7 +1,7 @@
 # STD-086 std.config v1
 
-> 更新时间：2026-06-18  
-> 状态：**可用** — TOML 子集 + ENV 前缀 + merge + 类型化读取 + gate
+> 更新时间：2026-08-29  
+> 状态：**可用** — TOML 子集 + ENV 前缀 + merge + 类型化读取 + gate honesty（残 auto-make 已退役）
 
 ---
 
@@ -35,35 +35,29 @@
 
 ## 3. Gate
 
-Honesty（2026-08-25）：
-
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
-- `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
-- 产品烟测 `layer_smoke.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
-- C smoke（`config_smoke_ok.c`）**仅观测**（archaeology host-C；非硬绿信号）。
-- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
+Honesty（2026-08-29 残 auto-make）：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft `xlang_compiler_make` 重建 config.o／env.o／runtime companions；host-C 仅现成 `.o`＝obs；`check` 观测；`layer_smoke.x` exit0 硬失败；报告 `run=`／`obs=`／`skip=`。
 
 ```bash
 ./tests/run-std-config-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_CONFIG] status=ok check=0|1 run=1 skip=0
+xlang: [XLANG_STD_CONFIG] status=ok run=1 obs=2 skip=0
 std-config gate OK
 ```
 
+（Darwin 上 `check` CHK residual＝obs；host-C 现成 `.o` 或缺 `.o` 均为 obs。硬绿信号是 `run=1`。）
+
 ---
 
-## 4. 后续（非 v1 阻塞）
+## 4. Changelog
 
-- YAML 可选后端（STD-119；同波 honesty 见 `std-config-yaml-v1.md`）  
+- 2026-08-29：残 soft auto-make（host-C 前 `xlang_compiler_make` 重建 config.o／env.o／runtime companions）退役；host-C 仅现成 `.o`＝obs；报告 `run=`／`obs=`／`skip=`。
+- 2026-08-25：闸／TSV／DOC 假权威诚实化；钉盘不升。
+- 2026-06-18：v1 初版（TOML 子集 + ENV + merge + meta + gate）。
 
-- 嵌套 TOML 表 / 数组  
-- 与 `std.cli` flag 自动绑定  
+## 5. 后续（非 v1 阻塞）
 
-## 5. 变更记录
-
-| 版本 | 日期 | 说明 |
-|------|------|------|
-| v1 | 2026-06-18 | TOML 子集 + ENV + merge + meta + gate |
-| v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable 硬失败／C smoke 观测 |
+- YAML 可选后端（STD-119；同波 honesty 见 `std-config-yaml-v1.md`）
+- 嵌套 TOML 表 / 数组
+- 与 `std.cli` flag 自动绑定
