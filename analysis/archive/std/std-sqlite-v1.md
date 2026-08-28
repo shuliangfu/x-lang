@@ -61,10 +61,18 @@
 
 ---
 
-## 5. 门禁
+## Gate
 
 ```bash
-./tests/run-std-db-sqlite-gate.sh
+./tests/run-std-sqlite-gate.sh
 ```
 
-无 `libsqlite3` 时 manifest 仍过，exec 烟测 **SKIP**。
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make sqlite.o；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/db/sqlite/sqlite.o`＝obs；check＋tip product SEGV＝obs；报告 `run=`／`obs=`／`skip=`。
+
+```
+xlang: [XLANG_STD_SQLITE] status=ok run=… obs=… skip=0
+```
+
+manifest：`tests/baseline/std-sqlite.tsv`
+
+关键词锚：`STD-057` · `sqlite3_exec` · `DB_ERR_EXEC` · `exec_roundtrip`

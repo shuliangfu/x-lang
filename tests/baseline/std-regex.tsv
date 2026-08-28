@@ -1,11 +1,11 @@
 # STD-051 std.regex manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# min_apis	6
+min_apis	6
 read_path	section	## 1. 阅读路径	15min
 subset	section	## 2. API 与子集语法	regex.x
 xplat	section	## 3. 三平台验收	must
 link_opt	section	## 4. 可选链入	regex.o
-verify	section	## 5. 门禁	gate
+verify	section	## Gate	gate
 api_compile	api	compile	std/regex/mod.x	编译
 api_match	api	match	std/regex/mod.x	匹配
 api_free	api	free	std/regex/mod.x	释放
@@ -22,5 +22,5 @@ smoke_star	smoke	tests/regex/star_match.x	星号
 smoke_question	smoke	tests/regex/question_match.x	问号
 cross_std062	cross_ref	tests/baseline/std-regex-perf-wave.tsv	STD-062	perf
 bench_prod	bench	bench/regex_match_bench.c	hot-loop
-lib	script	lib/std-regex.sh	tests/lib/std-regex.sh
-gate	script	run-std-regex-gate.sh	tests/run-std-regex-gate.sh
+lib	script	tests/lib/std-regex.sh	lib
+gate	script	tests/run-std-regex-gate.sh	gate

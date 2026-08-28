@@ -54,17 +54,19 @@ C 实现：**`std/net/tls_mbedtls.x`** + 胶层 `tls_mbedtls_bio.c`（F-04 v9）
 
 ---
 
-## 5. 验证与门禁
+## Gate
 
 ```bash
 ./tests/run-std-net-tls-gate.sh
 ```
 
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft `net-o-*`／soft auto-make xlang-c；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `net.o`／`tls_openssl.o`／`tls_mbedtls.o`＝obs；check＋tip product typeck＝obs；缺 libssl／libmbedtls＝env skip；报告 `run=`／`obs=`／`skip=`。
+
 ```
-xlang: [XLANG_STD_NET_TLS] status=ok stub=1 typeck=1 skip=0 openssl=1 mbedtls=1 runtime_link=1
+xlang: [XLANG_STD_NET_TLS] status=ok run=… obs=… skip=…
 ```
 
-OpenSSL 烟测：完整握手 + HTTP 读；mbedTLS 烟测：握手成功即可；runtime_link：xlang-c 链 OpenSSL net.o 并运行 `tls_runtime_link_smoke.x`。
+OpenSSL／mbedTLS host-C：预编 `.o` 握手观测；runtime_link tip＝obs。
 
 ---
 

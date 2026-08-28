@@ -58,14 +58,16 @@ C 烟测 `regex_min_smoke_c` 覆盖 literal/dot/class/star/question；`.x` 烟�
 
 ---
 
-## 5. 门禁
+## Gate
 
 ```bash
 ./tests/run-std-regex-gate.sh
 ```
 
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make xlang-c；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/regex/regex.o`＝obs；check＋tip product（missing `_main`／UNDEF）＝obs；报告 `run=`／`obs=`／`skip=`。
+
 ```
-xlang: [XLANG_STD_REGEX] status=ok c_smoke=1 x=1 skip=0 host=Darwin-arm64
+xlang: [XLANG_STD_REGEX] status=ok run=… obs=… skip=0
 ```
 
 ---

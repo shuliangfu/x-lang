@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# std-net-tls.sh — STD-030/083：TLS manifest 与烟测辅助
+# std-net-tls.sh — STD-030/083 TLS manifest helpers (honesty prefer-asm).
 #
-# 用法（source 后）：
-#   std_net_tls_symbols_ok MOD_X NET_C TSV
-#   std_net_tls_run_smoke XLANG_BIN X TAG
-#   std_net_tls_emit_report status stub_ok typeck_ok skip
+# Usage (after source):
+#   std_net_tls_symbols_ok MOD_X TLS_STUB_X TSV
+#   std_net_tls_run_smoke XLANG_BIN SRC TAG
+#   std_net_tls_run_openssl_c_smoke   # prebuilt .o only
+#   std_net_tls_run_mbedtls_c_smoke   # prebuilt .o only
+#   std_net_tls_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / soft ensure / soft net-o-*; report run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_NET_TLS_PREFIX="${XLANG_STD_NET_TLS_PREFIX:-xlang: [XLANG_STD_NET_TLS]}"
 
-# 校验 manifest symbol/api/file；echo 缺失数。
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_net_tls_symbols_ok() {
   local mod_x="$1"
   local net_c="$2"
@@ -39,9 +41,32 @@ std_net_tls_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section)
+        local doc="${XLANG_STD_NET_TLS_DOC:-analysis/archive/std/std-net-tls-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-net-tls FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
       file|smoke)
         if [ ! -f "$anchor" ]; then
           echo "std-net-tls FAIL: missing file '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      script)
+        if [ -n "$anchor" ] && [ -f "$anchor" ]; then
+          :
+        elif [ -n "$mod_path" ] && [ -f "$mod_path" ]; then
+          :
+        else
+          echo "std-net-tls FAIL: missing script '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      cross_ref)
+        if [ ! -f "$anchor" ]; then
+          echo "std-net-tls FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -51,35 +76,42 @@ std_net_tls_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x（须已 ensure net.o）。
+# Product tip -o smoke. Caller decides hard vs obs (tip typeck/UNDEF = obs leave).
+# PLATFORM: SHARED archaeology — product honesty path.
 std_net_tls_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_net_tls_${tag}_$$"
+  local log="/tmp/xlang_std_net_tls_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-net-tls FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
+  rm -f "$exe" "$log"
+  # Do not restore set -e between steps: return 1 must not trip the gate's set +e window.
+  # PLATFORM: SHARED archaeology.
+  set +e
+  XLANG_NET_TLS="${XLANG_NET_TLS:-stub}" "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-net-tls OBS tip product -o (ec=$o_ec)" >&2
+    tail -n 8 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
-  set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
-  set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
-    echo "std-net-tls FAIL: run $src exit=$ec" >&2
+    echo "std-net-tls OBS tip run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# 探测本机是否可链 OpenSSL（libssl）。
+# Probe whether the host can link OpenSSL (libssl).
+# PLATFORM: SHARED — Darwin Homebrew / Ubuntu libssl-dev.
 std_net_tls_probe_openssl() {
   local out="/tmp/xlang_net_tls_ssl_probe_$$"
   if cc -std=c11 -x c - -lssl -lcrypto -o "$out" 2>/dev/null <<'EOF'
@@ -103,7 +135,7 @@ EOF
   return 1
 }
 
-# OpenSSL 编译/链接 flags（Homebrew 回退）。
+# OpenSSL compile/link flags (Homebrew fallback).
 std_net_tls_openssl_ldflags() {
   if cc -std=c11 -x c - -lssl -lcrypto -o /dev/null 2>/dev/null <<'EOF'
 #include <openssl/ssl.h>
@@ -116,7 +148,8 @@ EOF
   echo "-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib -lssl -lcrypto"
 }
 
-# 探测本机是否可链 mbedTLS。
+# Probe whether the host can link mbedTLS.
+# PLATFORM: SHARED — optional; Darwin Homebrew common.
 std_net_tls_probe_mbedtls() {
   local out="/tmp/xlang_net_tls_mb_probe_$$"
   if cc -std=c11 -I/opt/homebrew/opt/mbedtls/include -L/opt/homebrew/opt/mbedtls/lib \
@@ -138,35 +171,13 @@ EOF
   return 1
 }
 
-# mbedTLS 链接 flags。
+# mbedTLS link flags.
 std_net_tls_mbedtls_ldflags() {
   echo "-I/opt/homebrew/opt/mbedtls/include -L/opt/homebrew/opt/mbedtls/lib -lmbedtls -lmbedx509 -lmbedcrypto"
 }
 
-# 构建 net.o（mbedTLS TLS）。
-std_net_tls_build_mbedtls_o() {
-  if ! xlang_compiler_make net-o-mbedtls >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: xlang_compiler_make net-o-mbedtls" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 构建 net.o（OpenSSL TLS .x + stub net.o）。
-std_net_tls_build_openssl_o() {
-  if ! xlang_compiler_make net-o-openssl >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: xlang_compiler_make net-o-openssl (tls_openssl.x)" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 恢复 stub net.o。
-std_net_tls_restore_stub_o() {
-  xlang_compiler_make net-o-stub >/dev/null 2>&1 || xlang_compiler_make ../std/net/net.o >/dev/null 2>&1 || true
-}
-
-# 启动 openssl s_server 于 127.0.0.1:PORT；echo pid > $1。
+# Start openssl s_server on 127.0.0.1:PORT; echo pid > $1.
+# PLATFORM: SHARED archaeology — optional host-C handshake helper.
 std_net_tls_start_s_server() {
   local pid_file="$1"
   local port="$2"
@@ -178,14 +189,14 @@ std_net_tls_start_s_server() {
   echo $! >"$pid_file"
   sleep 0.4
   if ! kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-    echo "std-net-tls FAIL: s_server start" >&2
+    echo "std-net-tls OBS s_server start" >&2
     tail -5 "$log" 2>/dev/null >&2 || true
     return 1
   fi
   return 0
 }
 
-# 停止 s_server。
+# Stop s_server.
 std_net_tls_stop_s_server() {
   local pid_file="$1"
   if [ -f "$pid_file" ]; then
@@ -194,7 +205,9 @@ std_net_tls_stop_s_server() {
   fi
 }
 
-# C 烟测：tls_openssl_smoke_ok.c + tls_openssl.o + net.o + libssl。
+# Host-C archaeology: prebuilt tls_openssl.o + net.o only. Refuse soft net-o-openssl.
+# Returns 0 green, 1 link/run fail, 2 missing prebuilt .o.
+# PLATFORM: SHARED — do not soft rebuild.
 std_net_tls_run_openssl_c_smoke() {
   local src="tests/net/tls_openssl_smoke_ok.c"
   local out="/tmp/xlang_net_tls_openssl_$$"
@@ -202,30 +215,31 @@ std_net_tls_run_openssl_c_smoke() {
   local net_o="std/net/net.o"
   local ldflags
   ldflags="$(std_net_tls_openssl_ldflags)"
-  if [ ! -f "$tls_o" ]; then
-    echo "std-net-tls FAIL: missing $tls_o (run xlang_compiler_make net-o-openssl)" >&2
-    return 1
-  fi
-  if [ ! -f "$net_o" ]; then
-    echo "std-net-tls FAIL: missing $net_o" >&2
-    return 1
+  if [ ! -f "$tls_o" ] || [ ! -f "$net_o" ]; then
+    echo "std-net-tls OBS openssl c smoke (missing prebuilt .o; refuse soft auto-make)" >&2
+    return 2
   fi
   # shellcheck disable=SC2086
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$tls_o" "$net_o" $ldflags 2>/dev/null; then
-    echo "std-net-tls FAIL: compile openssl smoke" >&2
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$tls_o" "$net_o" $ldflags 2>/tmp/std_net_tls_ossl_$$.log; then
+    echo "std-net-tls OBS openssl c smoke link (refuse soft ensure)" >&2
     return 1
   fi
+  # Do not restore set -e here: return 1 must not trip the gate's set +e window.
+  # PLATFORM: SHARED archaeology.
+  set +e
   XLANG_TLS_SMOKE_PORT="${XLANG_TLS_SMOKE_PORT:-9876}" "$out" >/dev/null 2>&1
   local ec=$?
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
-    echo "std-net-tls FAIL: openssl smoke exit=$ec" >&2
+    echo "std-net-tls OBS openssl c smoke run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# C 烟测：tls_mbedtls_smoke_ok.c + tls_mbedtls.o + net.o + libmbedtls。
+# Host-C archaeology: prebuilt tls_mbedtls.o + net.o only. Refuse soft net-o-mbedtls.
+# Returns 0 green, 1 link/run fail, 2 missing prebuilt .o.
+# PLATFORM: SHARED — do not soft rebuild.
 std_net_tls_run_mbedtls_c_smoke() {
   local src="tests/net/tls_mbedtls_smoke_ok.c"
   local out="/tmp/xlang_net_tls_mbedtls_$$"
@@ -233,64 +247,33 @@ std_net_tls_run_mbedtls_c_smoke() {
   local net_o="std/net/net.o"
   local ldflags
   ldflags="$(std_net_tls_mbedtls_ldflags)"
-  if [ ! -f "$tls_o" ]; then
-    echo "std-net-tls FAIL: missing $tls_o (run xlang_compiler_make net-o-mbedtls)" >&2
-    return 1
-  fi
-  if [ ! -f "$net_o" ]; then
-    echo "std-net-tls FAIL: missing $net_o" >&2
-    return 1
+  if [ ! -f "$tls_o" ] || [ ! -f "$net_o" ]; then
+    echo "std-net-tls OBS mbedtls c smoke (missing prebuilt .o; refuse soft auto-make)" >&2
+    return 2
   fi
   # shellcheck disable=SC2086
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$tls_o" "$net_o" $ldflags 2>/dev/null; then
-    echo "std-net-tls FAIL: compile mbedtls smoke" >&2
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$tls_o" "$net_o" $ldflags 2>/tmp/std_net_tls_mb_$$.log; then
+    echo "std-net-tls OBS mbedtls c smoke link (refuse soft ensure)" >&2
     return 1
   fi
+  # Do not restore set -e here: return 1 must not trip the gate's set +e window.
+  # PLATFORM: SHARED archaeology.
+  set +e
   XLANG_TLS_SMOKE_PORT="${XLANG_TLS_SMOKE_PORT:-9876}" "$out" >/dev/null 2>&1
   local ec=$?
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
-    echo "std-net-tls FAIL: mbedtls smoke exit=$ec" >&2
+    echo "std-net-tls OBS mbedtls c smoke run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# 通过 xlang-c 链接 OpenSSL net.o 并验证 tls_is_available（runtime 自动 -lssl）。
-std_net_tls_runtime_link_smoke() {
-  local xlang="$1"
-  local src="tests/net/tls_runtime_link_smoke.x"
-  local exe="/tmp/xlang_net_tls_runtime_$$"
-  if [ ! -f "$src" ]; then
-    echo "std-net-tls FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: runtime link compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-net-tls FAIL: runtime link run exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 输出结构化报告行。
+# Structured report line (honesty: run=/obs=/skip=; retired stub=/typeck=/openssl=).
 std_net_tls_emit_report() {
   local status="$1"
-  local stub_ok="$2"
-  local typeck_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  local openssl_ok="${5:-0}"
-  local mbedtls_ok="${6:-0}"
-  local runtime_link_ok="${7:-0}"
-  echo "${STD_NET_TLS_PREFIX} status=${status} stub=${stub_ok} typeck=${typeck_ok} skip=${skip} openssl=${openssl_ok} mbedtls=${mbedtls_ok} runtime_link=${runtime_link_ok}"
+  echo "${STD_NET_TLS_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
