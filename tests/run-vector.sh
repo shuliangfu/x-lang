@@ -1,72 +1,113 @@
 #!/usr/bin/env bash
-# 向量 i32x4/u32x4：0 初始化、数组字面量、逐分量加法
-set -e
+# vector i32x4/u32x4 smoke: zero-init, array lit, lane add/copy/verify, i32x16
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make + soft bootstrap-link
+# / prefer-c (false authority) retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
+# SKIP→OK / soft auto-make / prefer-c / soft bootstrap-link). Report:
+# run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-# MG: Makefile gone — do not hang on make. Prefer product XLANG from env.
-if [ -f compiler/Makefile ]; then
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c || true
-fi
-# vec_add_verify compares lanes directly (no xlang_string_memcmp_c / string.o).
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-XLANG=${XLANG:-./compiler/xlang}
-LINK_XLANG="${RUN_XLANG:-$XLANG}"
-# Product pure-asm default. Host-cc -backend c only with FORCE/ALLOW.
-# PLATFORM: SHARED — silent -backend c hits host-cc-requires-allow (≡ hello/slice).
-case "$(basename "${XLANG:-}")" in
-  xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
-    LINK_XLANG="$XLANG"
-    ;;
-esac
-case "$(basename "$LINK_XLANG")" in
-  xlang-backend-wrap.sh|xlang-min-link.sh)
-    LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-./compiler/xlang}}"
-    ;;
-esac
-VEC_BACKEND=""
-case "$(basename "$LINK_XLANG")" in
-  xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
-    if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-      VEC_BACKEND="-backend ${XLANG_FORCE_LINK_BACKEND}"
-    elif [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ]; then
-      VEC_BACKEND="-backend c"
-    else
-      # pure-asm product -o (default empty backend args)
-      VEC_BACKEND=""
-    fi
-    ;;
-esac
+PREFIX="${XLANG_VECTOR_PREFIX:-xlang: [VECTOR]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-vector_link_o() {
-  local x="$1" out="$2" label="$3"
-  set +e
-  $LINK_XLANG build $VEC_BACKEND "$x" -o "$out" >"/tmp/xlang_vec_${label}_build.log" 2>&1
-  local ec=$?
-  set -e
-  if [ "$ec" -ne 0 ] || [ ! -x "$out" ]; then
-    echo "run-vector FAIL: compile $label (via $(basename "$LINK_XLANG") $VEC_BACKEND)" >&2
-    tail -12 "/tmp/xlang_vec_${label}_build.log" 2>/dev/null >&2 || true
-    return 1
-  fi
-  local exitcode=0
-  "$out" >/dev/null 2>&1 || exitcode=$?
-  if [ "$exitcode" -ne 0 ]; then
-    echo "run-vector FAIL: $label expected exit 0, got $exitcode" >&2
-    return 1
-  fi
-  return 0
+die() {
+  echo "vector FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-vector_link_o tests/vector/i32x4.x /tmp/xlang_vec_i32x4 i32x4
-vector_link_o tests/vector/u32x4_lit.x /tmp/xlang_vec_u32 u32x4_lit
-vector_link_o tests/vector/vec_add.x /tmp/xlang_vec_add vec_add
-vector_link_o tests/vector/vec_add_check.x /tmp/xlang_vec_add_check vec_add_check
-vector_link_o tests/vector/vec_add_lit.x /tmp/xlang_vec_add_lit vec_add_lit
-vector_link_o tests/vector/vec_copy.x /tmp/xlang_vec_copy vec_copy
-vector_link_o tests/vector/vec_add_verify.x /tmp/xlang_vec_add_verify vec_add_verify
-vector_link_o tests/vector/i32x16.x /tmp/xlang_vec_i32x16 i32x16
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && dod_native_exe ./compiler/xlang_asm2; then
+    echo "$(pwd)/compiler/xlang_asm2"
+    return 0
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_exit() {
+  local tag="$1" src="$2" want="$3"
+  local exe="/tmp/xlang_vec_${tag}_$$"
+  local log="/tmp/xlang_vec_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+}
+
+echo "=== vector gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+run_exit i32x4 tests/vector/i32x4.x 0
+run_exit u32x4_lit tests/vector/u32x4_lit.x 0
+run_exit vec_add tests/vector/vec_add.x 0
+run_exit vec_add_check tests/vector/vec_add_check.x 0
+run_exit vec_add_lit tests/vector/vec_add_lit.x 0
+run_exit vec_copy tests/vector/vec_copy.x 0
+run_exit vec_add_verify tests/vector/vec_add_verify.x 0
+run_exit i32x16 tests/vector/i32x16.x 0
+
+ok_report
 echo "vector test OK"

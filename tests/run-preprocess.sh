@@ -1,77 +1,155 @@
 #!/usr/bin/env bash
-# 条件编译测试：-D FOO 时保留 #if FOO 分支（返回 11），否则走 #else（返回 22）
-# bootstrap run-all 下 $XLANG build 为 seed（验 .x 流水线）；-o 链接走 $RUN_XLANG（Darwin/ARM64 seed asm ld 会 __TEXT r-x 失败）。
-set -e
+# preprocess / conditional-compile smoke: -D FOO, #elseif, target_os, NEG PP002
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make + soft bootstrap-link
+# (false authority) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK / soft
+# auto-make / prefer-c / soft bootstrap-link). Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-XLANG=${XLANG:-./compiler/xlang}
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# 无 -D：应走 #else，返回 22
-"$RUN_XLANG" build tests/preprocess/main.x -o /tmp/xlang_pp_no_d 2>&1
-exitcode=0; /tmp/xlang_pp_no_d >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 22 ] && { echo "expected 22 (no -D), got $exitcode"; exit 1; }
+PREFIX="${XLANG_PREPROCESS_PREFIX:-xlang: [PREPROCESS]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# -D FOO：应走 #if FOO，返回 11
-"$RUN_XLANG" build -D FOO tests/preprocess/main.x -o /tmp/xlang_pp_d_foo 2>&1
-exitcode=0; /tmp/xlang_pp_d_foo >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 11 ] && { echo "expected 11 (-D FOO), got $exitcode"; exit 1; }
+die() {
+  echo "preprocess FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-# -DFOO 无空格形式
-"$RUN_XLANG" build -DFOO tests/preprocess/main.x -o /tmp/xlang_pp_dfoo 2>&1
-exitcode=0; /tmp/xlang_pp_dfoo >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 11 ] && { echo "expected 11 (-DFOO), got $exitcode"; exit 1; }
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
-# #elseif：无 -D 走 #else → 3；-D FOO → 1；-D BAR → 2
-"$RUN_XLANG" build tests/preprocess/elseif.x -o /tmp/xlang_pp_elseif 2>&1
-exitcode=0; /tmp/xlang_pp_elseif >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 3 ] && { echo "expected 3 (elseif no -D), got $exitcode"; exit 1; }
-"$RUN_XLANG" build -D FOO tests/preprocess/elseif.x -o /tmp/xlang_pp_elseif_foo 2>&1
-exitcode=0; /tmp/xlang_pp_elseif_foo >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 1 ] && { echo "expected 1 (elseif -D FOO), got $exitcode"; exit 1; }
-"$RUN_XLANG" build -D BAR tests/preprocess/elseif.x -o /tmp/xlang_pp_elseif_bar 2>&1
-exitcode=0; /tmp/xlang_pp_elseif_bar >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 2 ] && { echo "expected 2 (elseif -D BAR), got $exitcode"; exit 1; }
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && dod_native_exe ./compiler/xlang_asm2; then
+    echo "$(pwd)/compiler/xlang_asm2"
+    return 0
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
-# 边界：仅有 #if 无 #endif → 应报 unclosed #if，编译失败
-err=$("$RUN_XLANG" build tests/preprocess/unclosed_if.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "unclosed #if" || { echo "expected 'unclosed #if' in: $err"; exit 1; }
+# POS: product -o then assert process exit code.
+run_exit() {
+  local tag="$1" src="$2" want="$3"
+  shift 3
+  local exe="/tmp/xlang_pp_${tag}_$$"
+  local log="/tmp/xlang_pp_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$@" "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+}
 
-# 边界：#else 前无 #if → 应报 #else without #if
-err=$("$RUN_XLANG" build tests/preprocess/else_without_if.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "#else without #if" || { echo "expected '#else without #if' in: $err"; exit 1; }
+# NEG: product -o must fail with needle in diagnostics (hard-asserted → run=).
+run_neg() {
+  local tag="$1" src="$2" needle="$3"
+  local exe="/tmp/xlang_pp_${tag}_$$"
+  local log="/tmp/xlang_pp_${tag}_$$.log"
+  local o_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag timeout"
+  elif [ "$o_ec" -eq 0 ]; then
+    die "$tag expected compile fail, got success"
+  fi
+  grep -q "$needle" "$log" \
+    || die "$tag expected '$needle'; $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  rm -f "$exe" "$log"
+  RUN_OK=$((RUN_OK + 1))
+}
 
-# 边界：#endif 前无 #if → 应报 #endif without #if
-err=$("$RUN_XLANG" build tests/preprocess/endif_without_if.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "#endif without #if" || { echo "expected '#endif without #if' in: $err"; exit 1; }
+echo "=== preprocess gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
-# 边界：#elseif 前无 #if → 应报 #elseif without #if
-err=$("$RUN_XLANG" build tests/preprocess/elseif_without_if.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "#elseif without #if" || { echo "expected '#elseif without #if' in: $err"; exit 1; }
+# -D FOO / -DFOO / no -D
+run_exit no_d tests/preprocess/main.x 22
+run_exit d_foo tests/preprocess/main.x 11 -D FOO
+run_exit dfoo tests/preprocess/main.x 11 -DFOO
 
-# 边界：#elseif 出现在 #else 之后 → 应报 #elseif after #else
-err=$("$RUN_XLANG" build tests/preprocess/elseif_after_else.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "#elseif after #else" || { echo "expected '#elseif after #else' in: $err"; exit 1; }
+# #elseif arms
+run_exit elseif_none tests/preprocess/elseif.x 3
+run_exit elseif_foo tests/preprocess/elseif.x 1 -D FOO
+run_exit elseif_bar tests/preprocess/elseif.x 2 -D BAR
 
-# 边界：同一块内两个 #else → 应报 duplicate #else
-err=$("$RUN_XLANG" build tests/preprocess/duplicate_else.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "duplicate #else" || { echo "expected 'duplicate #else' in: $err"; exit 1; }
+# NEG PP002 family (hard-asserted → run=)
+run_neg unclosed_if tests/preprocess/unclosed_if.x "unclosed #if"
+run_neg else_without_if tests/preprocess/else_without_if.x "#else without #if"
+run_neg endif_without_if tests/preprocess/endif_without_if.x "#endif without #if"
+run_neg elseif_without_if tests/preprocess/elseif_without_if.x "#elseif without #if"
+run_neg elseif_after_else tests/preprocess/elseif_after_else.x "#elseif after #else"
+run_neg duplicate_else tests/preprocess/duplicate_else.x "duplicate #else"
+run_neg extra_endif tests/preprocess/extra_endif.x "#endif without #if"
 
-# #if target_os == "..."（与 #[cfg] 对齐；按 host OS 期望退出码）
+# #if target_os == "..." (host OS exit code)
 EXPECT_OS=43
 case "$(uname -s)" in
   Linux) EXPECT_OS=41 ;;
   Darwin) EXPECT_OS=42 ;;
 esac
-"$RUN_XLANG" build tests/preprocess/target_os_if.x -o /tmp/xlang_pp_target_os 2>&1
-exitcode=0; /tmp/xlang_pp_target_os >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne "$EXPECT_OS" ] && { echo "expected $EXPECT_OS (target_os #if), got $exitcode"; exit 1; }
+run_exit target_os_if tests/preprocess/target_os_if.x "$EXPECT_OS"
 
-# 边界：多一个 #endif（顺序/数量错）→ 应报 #endif without #if
-err=$("$RUN_XLANG" build tests/preprocess/extra_endif.x -o /tmp/xlang_pp_bad 2>&1) || true
-echo "$err" | grep -q "#endif without #if" || { echo "expected '#endif without #if' in: $err"; exit 1; }
-
+ok_report
 echo "preprocess (conditional compile) test OK"
