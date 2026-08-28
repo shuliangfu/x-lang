@@ -132,15 +132,20 @@ if ! grep -q '"id":2' "$OUT"; then
   exit 0
 fi
 
+# Count hits without the shared helper's FAIL stderr (obs path is expected
+# on tip). Also avoid pipefail abort when grep finds zero "label" keys.
 HITS=0
 for label in add_one Point Kind core.mem function i32; do
-  if tool_lsp_completion_has_label "$OUT" "$label"; then
+  if grep -qF "\"label\":\"${label}\"" "$OUT" 2>/dev/null; then
     HITS=$((HITS + 1))
     echo "lsp-completion OK label=$label"
   fi
 done
-ITEMS=$(tool_lsp_completion_count_items "$OUT")
-if [ "$HITS" -lt 6 ] || [ "${ITEMS:-0}" -lt 10 ]; then
+set +e
+ITEMS=$(grep -o '"label":' "$OUT" 2>/dev/null | wc -l | tr -d ' \n')
+set -e
+ITEMS=${ITEMS:-0}
+if [ "$HITS" -lt 6 ] || [ "$ITEMS" -lt 10 ]; then
   echo "lsp-completion OBS: hits=${HITS}/6 items=${ITEMS} (tip residual; refuse soft silence)" >&2
   OBS=$((OBS + 1))
   ok_report
