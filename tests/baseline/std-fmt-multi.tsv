@@ -1,5 +1,10 @@
 # STD-019 std.fmt 多参数 format manifest（函数重载）
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-fmt-std.sh
+# (xlang_compiler_make -q || xlang_compiler_make xlang-c + bootstrap-link wrap)
+# retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
+# product -o fmt-std/*.x hard (print_i32_slc JSON kept); check=obs;
+# report run=/obs=/skip=. Keep ## 4. Gate.
 min_format2_new	7
 min_format3	2
 verify	section	## 4. Gate	analysis/archive/std/std-fmt-multi-v1.md

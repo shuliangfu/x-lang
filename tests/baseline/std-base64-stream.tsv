@@ -1,5 +1,10 @@
 # STD-109 std.base64 stream manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-base64.sh
+# (xlang_compiler_make -q || xlang_compiler_make + ensure_std_c_o base64.o +
+# bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o tests/base64/main.x hard; check=obs;
+# report run=/obs=/skip=. Keep ## 4. Gate.
 min_apis	5
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-base64-stream-v1.md
 stream_api	section	## 2. 流式语义	analysis/archive/std/std-base64-stream-v1.md

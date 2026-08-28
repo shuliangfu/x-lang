@@ -1,5 +1,10 @@
 # SAFE-004 FFI 边界内存契约矩阵
 # 列：case_id	contract_rule	api	src	expect_rc	tier	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-ffi.sh
+# (xlang_compiler_make -q || xlang_compiler_make + ensure_std_c_o ffi.o +
+# prefer-c xlang-c first + bootstrap-link wrap) retired. Prefer asm;
+# explicit-bad XLANG hard-die; missing native FAIL; product -o main.x hard;
+# check=obs; report run=/obs=/skip=.
 # min_cases	8
 read_path	section	## 1. 阅读路径	analysis/archive/safe/safe-ffi-contract-v1.md	-	15min
 rules	section	## 2. 契约规则 C1–C7	analysis/archive/safe/safe-ffi-contract-v1.md	-	FFI 边界

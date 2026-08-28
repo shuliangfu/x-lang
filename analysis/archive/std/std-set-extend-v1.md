@@ -53,6 +53,8 @@
 - typeck：`tests/set/extend.x`
 - 报告：`xlang: [XLANG_STD_SET_EXTEND] status=ok`
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-set.sh`（`xlang_compiler_make … heap.o/set.o` + collection gcc fallback + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/set/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [SET]`。Do not add a new `## Gate` heading here（STD-015 live gate already honesty-closed）。
+
 ---
 
 ## 5. 演进

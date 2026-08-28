@@ -40,3 +40,5 @@
 - 邻域 cookbook：`examples/cookbook/heap_trace_reset.x`
 - gate：`tests/run-std-heap-allocator-gate.sh`（prefer asm；check 观测；runnable hard）
 - 报告：`xlang: [XLANG_STD112_HEAP_ALLOC] status=ok check=… run=… skip=…`
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-heap.sh`（`xlang_compiler_make … heap.o` + collection gcc fallback + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/heap/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [HEAP]`。Do not add a new `## Gate` heading here（STD-112 live gate already honesty-closed）。

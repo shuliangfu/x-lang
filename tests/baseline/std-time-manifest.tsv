@@ -2,6 +2,11 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # 2026-08-26 honesty: verify section → ## 6. Gate; prefer asm + LINK; check observational;
 # runnable main.x + precision_smoke.x exit0 hard; report check=/main=/precision=/skip=.
+# honesty 2026-08-29 residual auto-make: leftover tests/run-time.sh
+# (xlang_compiler_make -q || xlang_compiler_make + ensure_std_c_o time.o +
+# bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o main/bench_timer/format_timezone hard;
+# check=obs; report run=/obs=/skip=. Keep ## 6. Gate.
 # min_apis	13
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-time-precision-v1.md	-	15min
 clock_kinds	section	## 2. 时钟语义	analysis/archive/std/std-time-precision-v1.md	-	monotonic vs wall

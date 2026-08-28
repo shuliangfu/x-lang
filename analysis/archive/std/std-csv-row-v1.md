@@ -55,6 +55,8 @@ Honesty（2026-08-26）：
 - `row_roundtrip.x` + `main.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`；两路烟测都过才 `run=1`）
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-csv.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o csv.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/csv/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [CSV]`。Keep `## 4. Gate`。
+
 manifest：`tests/baseline/std-csv-row.tsv`
 
 ### Changelog

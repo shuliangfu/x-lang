@@ -106,6 +106,8 @@ Honesty（2026-08-26）：
 
 模块回归：`./tests/run-time.sh`（compile + run main）
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-time.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o time.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`bench_timer`／`format_timezone` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [TIME]`。Keep `## 6. Gate`。
+
 | 资源 | 路径 |
 |------|------|
 | 本文 | `analysis/archive/std/std-time-precision-v1.md` |

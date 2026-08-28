@@ -86,6 +86,8 @@ std-sync-rwlock-condvar gate OK
 
 F-sync v1 仍硬委托本闸（须保持 exit 0）。
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-sync.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o sync.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/sync/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [SYNC]`。Keep `## 5. Gate`。
+
 ### 5.1 Changelog
 
 - 2026-06-18：v1 RwLock/Condvar + 竞争烟测 + TSAN 正例。

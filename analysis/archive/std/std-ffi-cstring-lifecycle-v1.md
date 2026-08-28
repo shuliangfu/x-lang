@@ -74,6 +74,8 @@ xlang: [XLANG_STD_FFI_CSTRING] status=ok check=0|1 run=1 safe004=1 skip=0
 std-ffi-cstring gate OK
 ```
 
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-ffi.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o ffi.o` + prefer-c `xlang-c` first + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/ffi/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [FFI]`。Keep `## 5. Gate`。
+
 ---
 
 ## 6. 变更记录

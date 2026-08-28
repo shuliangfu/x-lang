@@ -2,6 +2,11 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # 2026-08-25: anchors aligned to product overload names (insert/remove/str_*),
 # not legacy set_u64_insert-style names that never existed in std/set/mod.x.
+# honesty 2026-08-29 residual auto-make: leftover tests/run-set.sh
+# (xlang_compiler_make … heap.o/set.o + collection gcc fallback +
+# bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o tests/set/main.x hard; check=obs;
+# report run=/obs=/skip=.
 min_set_types	2
 set_u64	symbol	Set_u64	std/set/mod.x
 set_str	symbol	Set_str	std/set/mod.x

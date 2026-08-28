@@ -2,6 +2,10 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
 # report check=/run=/skip=. Section ## 4. Gate in archive DOC.
+# honesty 2026-08-29 residual auto-make: leftover tests/run-csv.sh
+# (xlang_compiler_make -q || xlang_compiler_make + ensure_std_c_o csv.o +
+# bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o main.x hard; check=obs; report run=/obs=/skip=.
 min_syms	4
 parse_row	symbol	parse_row	std/csv/mod.x
 write_row	symbol	write_row	std/csv/mod.x

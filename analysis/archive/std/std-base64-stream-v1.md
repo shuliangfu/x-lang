@@ -55,3 +55,5 @@
 xlang: [XLANG_STD109_BASE64_STREAM] status=ok check=0|1 run=1 skip=0
 std-base64-stream gate OK
 ```
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-base64.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o base64.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/base64/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [BASE64]`。Keep `## 4. Gate`。
