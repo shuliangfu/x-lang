@@ -1,8 +1,8 @@
 # STD-046 std.atomic ordering / fence manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	3
-# 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational;
-# runnable fence/main exit0 hard; report check=/fence=/main=/skip=.
+# 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational.
+# 2026-08-28 honesty residual: report run=/obs=/skip= (retired check=/fence=/main=).
 read_path	section	## 1. 阅读路径		15min
 lang_model	section	## 2. LANG 内存模型对齐		memory_order_seq_cst
 ordering_const	section	## 3. Ordering 常量		ORDER_SEQ_CST
