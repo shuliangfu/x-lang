@@ -1,7 +1,7 @@
 # STD-038：std.tar 目录遍历与文件提取 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-28（honesty residual XLANG fallthrough／auto-make →硬绿）· 原稿 2026-06-17  
+> 状态：**定版（v1.2）** · Gate honesty residual XLANG fallthrough／auto-make →硬绿  
 > 关联：既有 `read_header` / `write_header`（UStar 512 字节头）
 
 ---
@@ -52,17 +52,32 @@ v1 **不**解析 GNU longname / pax；路径 ≤100 字节（UStar name 字段�
 ./tests/run-std-tar-ustar-gate.sh
 ```
 
+Honesty residual（2026-08-28）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- 显式坏 `XLANG`／缺 native **硬 die**（拒 XLANG fallthrough／soft auto-make／prefer-c／soft SKIP→OK／soft `ensure_std_c_o` 重建）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `ustar_roundtrip.x` + `main.x` 产品 `-o` **exit 0 硬失败**（硬绿信号＝`run=`）
+- Host-C archaeology **仅观测**（现成 `std/tar/tar.o` only；拒 ensure／auto-make 重建；不传 extra CLI `.o`）
+- 报告行：`run=`／`obs=`／`skip=`（退役 `check=`／`rt=`／`main=` 当硬绿）
+- 禁顶层 DOC 复活（live = `analysis/archive/std/`）
+- API 锚在 `mod.x`；C 符号在 `tar.x`（`MOD_X`／`TAR_X` 不得二次覆盖）
+
 manifest：`tests/baseline/std-tar-ustar.tsv`
 
-**Honesty (2026-08-26)**：prefer `xlang_asm`＋`XLANG_LINK_XLANG`；`check` 观测（闸门暂停 2026-08-05）；`ustar_roundtrip.x`／`main.x` exit0 硬失败（无 soft SKIP）；报告 `check=`／`rt=`／`main=`／`skip=`。闸内恢复 `MOD_X=std/tar/mod.x` 与 `TAR_X=std/tar/tar.x`（旧闸二次赋值覆盖 → API 对 `tar.x` 假红）。
-
-**report** 示例：
-
 ```
-xlang: [XLANG_STD_TAR_USTAR] status=ok check=1 rt=1 main=1 skip=0
+xlang: [XLANG_STD_TAR_USTAR] status=ok run=2 obs=0|1|2 skip=0
+std-tar-ustar gate OK
 ```
 
-回归：`tests/tar/main.x`（头读写）、`tests/run-tar.sh`
+烟测：`ustar_roundtrip.x` — 内存 UStar append／next／read 往返；`main.x` — 头读写。
+
+回归：`tests/tar/main.x`（头读写）、`tests/run-tar.sh`（观测 hook）。
+
+### 5.1 Changelog
+
+- 2026-08-26：Honesty v1.1（prefer asm；check 观测；恢复 `MOD_X`／`TAR_X`；报告 `check=`／`rt=`／`main=`）。
+- 2026-08-28：Honesty residual v1.2（拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建；报告 `run=`／`obs=`／`skip=`；未啃产品 `std/tar`）。
 
 ---
 
