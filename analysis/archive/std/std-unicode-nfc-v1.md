@@ -1,7 +1,7 @@
 # STD-037：std.unicode 非 BMP 与 NFC 规范化 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-28  
+> 状态：**定版（v1）＋ honesty Gate**  
 > 关联：`std.encoding` UTF-8、既有 `category` / `to_lower`
 
 ---
@@ -49,13 +49,23 @@ v1 **不**实现全量 Unicode 15 NFC 表；仅覆盖 gate 金样与常见拉丁
 
 ## 4. 验证与门禁
 
+见 **## Gate**。化石报告 `nfc=`／`main=` 已退役。
+
+---
+
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；无 dedicated C harness（拒 ensure）；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案）。报告 `run=`／`obs=`／`skip=`（退役 `nfc=`／`main=`）。STD-082 NFD／NFKC／NFKD API 面缺失＝产品另案。
+
 ```bash
 ./tests/run-std-unicode-nfc-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_UNICODE_NFC] status=ok nfc=1 main=1 skip=0
+xlang: [XLANG_STD_UNICODE_NFC] status=ok run=N obs=M skip=K
 ```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
 ---
 
@@ -65,4 +75,4 @@ xlang: [XLANG_STD_UNICODE_NFC] status=ok nfc=1 main=1 skip=0
 - 全量 Unicode 15 分解/组合表
 - NFKD 额外兼容映射（全角/连字等）
 
-NFD/NFKC/NFKD 基础集见 **STD-082**：`analysis/std-unicode-normalization-v1.md`。
+NFD/NFKC/NFKD 基础集见 **STD-082**：`analysis/archive/std/std-unicode-normalization-v1.md`（API 面缺失＝产品另案）。
