@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# STD-002: std.net stable API manifest + run-net smoke (false-authority honesty).
+# STD-002: std.net stable API gate — honesty soft fallthrough →硬绿.
 #
+# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
+# soft auto-make + check=/run=/skip= retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
+# SKIP→OK / soft auto-make / prefer-c / soft ensure). Product run-net.sh exit0
+# = hard run (run=1). check = obs. Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-net-api-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); run-net.sh exit 0 hard-fail (no soft SKIP
-# when native xlang present; no soft SKIP when smoke fails). Drop fossil
-# addr_to_packed-in-main.x (product main.x uses net_tcp_listen_c). Report
-# check=/run=/skip=. Product run-net already green under asm; gate was
-# portable-false-red (prefer xlang-c / soft SKIP on missing native / soft
-# SKIP→OK on run-net fail / ## 8. CI 门禁 / fossil main.x API grep).
-# PLATFORM: SHARED archaeology.
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
@@ -24,27 +24,59 @@ MAIN_X="tests/net/main.x"
 UDP_X="tests/net/udp_batch_buf.x"
 HOOK="tests/run-net.sh"
 PREFIX="xlang: [XLANG_STD002_NET_API]"
+
+RUN_OK=0
+OBS=0
+SKIP=0
 MISS=0
 N=0
+
+die() {
+  echo "std-net-api gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP}"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
 # Refuse resurrected top-level DOC (live = archive/std/).
 # PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
 if [ -f analysis/std-net-api-v1.md ]; then
-  echo "std-net-api gate FAIL: top-level DOC resurrected (live = archive/std/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/std/)"
 fi
 
 for f in "$DOC" "$BASELINE" "$MOD" "$MAIN_X" "$UDP_X" "$HOOK"; do
-  if [ ! -f "$f" ]; then
-    echo "std-net-api gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
-if ! grep -qF '## 8. Gate' "$DOC" 2>/dev/null; then
-  echo "std-net-api gate FAIL: doc missing '## 8. Gate'" >&2
-  exit 1
-fi
+grep -qF '## 8. Gate' "$DOC" 2>/dev/null || die "doc missing '## 8. Gate'"
 
 echo "=== STD-002: std.net stable API manifest ==="
 while IFS= read -r line || [ -n "$line" ]; do
@@ -59,86 +91,49 @@ while IFS= read -r line || [ -n "$line" ]; do
   fi
 done < "$BASELINE"
 
-if [ "$MISS" -gt 0 ]; then
-  echo "${PREFIX} status=fail check=0 run=0 skip=0"
-  echo "std-net-api gate FAIL: ${MISS}/${N} symbols missing" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "${MISS}/${N} symbols missing"
 echo "std-net-api manifest OK (${N} symbols)"
 
 echo "=== STD-002: API rename grep (mod.x only) ==="
 for sym in addr_to_packed packed_to_ipv4 read_batch write_batch send_to recv_from batch_max read_ctx write_ctx set_blocking; do
-  if ! grep -qE "function ${sym}[[:space:](]" "$MOD"; then
-    echo "std-net-api gate FAIL: mod missing function ${sym}" >&2
-    echo "${PREFIX} status=fail check=0 run=0 skip=0"
-    exit 1
-  fi
+  grep -qE "function ${sym}[[:space:](]" "$MOD" || die "mod missing function ${sym}"
 done
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-resolve_shu() {
-  local cand
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
-
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-002: smoke (XLANG=$XLANG_BIN; check observational; run-net hard) ==="
-  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
-  if "$XLANG_BIN" check -L . "$MAIN_X" >/dev/null 2>&1 \
-    && "$XLANG_BIN" check -L . "$UDP_X" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-net-api gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  chmod +x "$HOOK"
-  if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$HOOK"; then
-    RUN_OK=1
-    SKIP=0
-  else
-    echo "std-net-api gate FAIL: run-net.sh" >&2
-    echo "${PREFIX} status=fail check=${CHECK_OK} run=0 skip=0"
-    exit 1
-  fi
-else
-  echo "std-net-api gate FAIL: no native xlang" >&2
-  echo "${PREFIX} status=fail check=0 run=0 skip=0"
-  exit 1
+if [ "${XLANG_STD_NET_API_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP}"
+  echo "std-net-api gate OK (manifest only)"
+  exit 0
 fi
 
-# check stays observational; hard-green signal is run=.
-echo "std-net-api check_ok=${CHECK_OK} (observational)"
-echo "${PREFIX} status=ok check=${CHECK_OK} run=${RUN_OK} skip=${SKIP}"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-002: smoke (XLANG=$XLANG_BIN; check obs; run-net product hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$MAIN_X" >/tmp/xlang_std002_net_main_check.log 2>&1
+chk_main=$?
+"$XLANG_BIN" check -L . "$UDP_X" >/tmp/xlang_std002_net_udp_check.log 2>&1
+chk_udp=$?
+set -e
+if [ "$chk_main" -ne 0 ] || [ "$chk_udp" -ne 0 ]; then
+  echo "std-net-api OBS check (paused / CHK residual main=$chk_main udp=$chk_udp; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse soft auto-make / soft ensure (product run-net is the hard path).
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. tests/lib/bootstrap-link-xlang.sh
+
+chmod +x "$HOOK"
+if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$HOOK"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-net-api OK: run-net"
+else
+  die "run-net.sh failed (refuse soft SKIP→OK)"
+fi
+
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP}"
 echo "std-net-api gate OK"

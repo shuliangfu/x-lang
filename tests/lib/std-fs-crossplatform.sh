@@ -3,13 +3,15 @@
 #
 # Usage (after source):
 #   std_fs_xplat_run_x_smoke XLANG_BIN SRC OUT_PREFIX
-#   std_fs_xplat_emit_report status check_ok x_ok skip
-# 2026-08-26: report check=/x=/skip= (honesty; prefer asm runnable hard).
+#   std_fs_xplat_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check = obs; must-policy product -o hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_FS_XPLAT_PREFIX="${XLANG_STD_FS_XPLAT_PREFIX:-xlang: [XLANG_STD_FS_XPLAT]}"
 
-# Build+run one .x smoke; return 0 when process exits 0.
+# Build+run one .x smoke via product XLANG_BIN -L . -o; expect exit 0.
+# Refuse soft RUN_XLANG remap / soft ensure rebuild (gate pins XLANG_LINK_XLANG).
+# PLATFORM: SHARED archaeology — product honesty path.
 # @param $1 XLANG_BIN — resolved product compiler (prefer asm)
 # @param $2 SRC — .x smoke path under tests/fs/
 # @param $3 OUT_PREFIX — /tmp prefix for binary + build log
@@ -19,22 +21,23 @@ std_fs_xplat_run_x_smoke() {
   local out_prefix="$3"
   local out="${out_prefix}"
   local log="${out_prefix}.log"
-  # Prefer bootstrap-link RUN_XLANG when caller pinned XLANG_LINK_XLANG.
-  # PLATFORM: SHARED — product path honesty.
-  local runner="${RUN_XLANG:-}"
-  if [ -z "$runner" ]; then
-    runner="$xlang_bin"
-  fi
   rm -f tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
-  if ! $runner -L . "$src" -o "$out" 2>"$log"; then
+  rm -f "$out" "$log"
+  set +e
+  "$xlang_bin" -L . "$src" -o "$out" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$out" ]; then
     echo "std-fs-crossplatform FAIL: link $src" >&2
-    tail -20 "$log" 2>/dev/null >&2 || true
-    rm -f "$out"
+    tail -n 20 "$log" 2>/dev/null >&2 || true
+    rm -f "$out" "$log"
     return 1
   fi
-  local ec=0
-  "$out" >/dev/null 2>&1 || ec=$?
-  rm -f "$out" tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
+  set +e
+  "$out" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$out" "$log" tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
   if [ "$ec" -ne 0 ]; then
     echo "std-fs-crossplatform FAIL: $src exit=$ec" >&2
     return 1
@@ -42,16 +45,16 @@ std_fs_xplat_run_x_smoke() {
   return 0
 }
 
-# Structured report line (check observational; x runnable hard; skip only
-# for manifest-only paths — never soft-OK when no native compiler).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is must-policy runnable (folded into run=); check = obs.
 # @param $1 status — ok|fail
-# @param $2 check_ok — observational check (0/1; not hard green)
-# @param $3 x_ok — all must-policy cases exit0 (hard green)
+# @param $2 run_ok — must-policy hard green (0/1)
+# @param $3 obs — observational residuals (check / optional)
 # @param $4 skip — 1 only for manifest-only
 std_fs_xplat_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local x_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_FS_XPLAT_PREFIX} status=${status} check=${check_ok} x=${x_ok} skip=${skip}"
+  echo "${STD_FS_XPLAT_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
