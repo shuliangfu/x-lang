@@ -45,9 +45,15 @@ xlang: [XLANG_STD_CONTEXT] status=ok check=1 run=1 skip=0
 std-context gate OK
 ```
 
+Honesty soft→硬绿 (2026-08-28) `run-std-async-context-gate.sh` (async ↔
+context bind/spawn): prefer `xlang_asm` + `XLANG_LINK_XLANG`; refuse soft
+SKIP→OK / prefer-c / soft `ensure_std_c_o`; host-C＋check＋tip product
+UNDEF = obs; report `run=`／`obs=`／`skip=`. See also
+`analysis/archive/std/std-async-api-v1.md` Gate.
+
 ---
 
 ## 4. 后续集成（非 v1 阻塞）
 
 - `std.io` / `std.net` / `std.http` 接受 Context 或 deadline
-- `std.async` spawn 绑定 Context 传播取消
+- `std.async` spawn 绑定 Context 传播取消（async-context gate honesty 2026-08-28）

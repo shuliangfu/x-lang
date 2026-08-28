@@ -171,8 +171,18 @@ Honesty soft→硬绿 (2026-08-27) `run-std-async-1m-gate.sh`: prefer `xlang_asm
 must/skip from TSV stays honest; missing native／显式坏 XLANG = hard die;
 report `run=`／`obs=`／`skip=`.
 
-Honesty soft→硬绿 (2026-08-27) `run-std-async-future-gate.sh`: prefer
-`xlang_asm` + `XLANG_LINK_XLANG`; refuse soft SKIP→OK / prefer-c; missing
-native／显式坏 XLANG = hard die; host-c smoke UNDEF (drain/io_poll) = obs;
-`xlang check` = obs (paused); .x link/run UNDEF = obs; `-E` hard + CPS
-marker drift = obs; report `c=`／`x=`／`emit=`／`obs=`／`skip=`.
+Honesty soft→硬绿 (2026-08-28) `run-std-async-future-gate.sh`: prefer
+`xlang_asm` + `XLANG_LINK_XLANG`; refuse soft SKIP→OK / prefer-c / soft
+auto-make (`future.o … || true`); missing native／显式坏 XLANG = hard die;
+host-c archaeology = obs (prebuilt `future.o` only; refuse soft ensure);
+`xlang check` = obs (paused); tip product `-o`／run UNDEF = obs; `-E` tool
+fail = hard die; CPS emit marker miss = obs; report `run=`／`obs=`／`skip=`
+(retired `c=`／`x=`／`emit=`).
+
+Honesty soft→硬绿 (2026-08-28) `run-std-async-context-gate.sh`: prefer
+`xlang_asm` + `XLANG_LINK_XLANG`; refuse soft SKIP→OK / prefer-c
+(`xlang-c` first, no asm) / soft `ensure_std_c_o` rebuild of migrated
+scheduler／context／time／task; missing native／显式坏 XLANG = hard die;
+host-c archaeology = obs (prebuilt `.o` only; F-07); `xlang check` = obs;
+tip product `-o`／run UNDEF = obs; report `run=`／`obs=`／`skip=` (PREFIX
+`XLANG_STD_ASYNC_CTX`; historical STD090 label retired — STD-090 is schema).
