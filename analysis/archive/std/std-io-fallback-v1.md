@@ -1,7 +1,7 @@
 # STD-026 std.io 非 Linux io_uring 回退统一文档 v1
 
-> 更新时间：2026-08-26（v1.1 honesty）· 定版正文 2026-06-18  
-> 状态：**定版（v1）+ Gate honesty**  
+> 更新时间：2026-08-29（leftover wrap honesty）· 定版正文 2026-06-18  
+> 状态：**定版（honesty residual leftover wrap）**  
 > 关联：`analysis/自举进度.md`／`C迁移追踪.md` STD-026、`std/io/backend.x`、`STD-042` async IO  
 > **live DOC** = 本归档路径；禁止顶层 `analysis/std-io-fallback-v1.md` 复活  
 > **产品权威**：`std/io/backend.x`（replaces io.c + io.o）+ `sync.x`（POSIX）+ `win32.x`（Windows）；**`io.c` 已退役**
@@ -107,6 +107,7 @@ Honesty template（2026-08-26 · soft→硬绿）：
 | run | `fallback_matrix.x` **exit 0 硬失败**（有 native 时禁止 soft SKIP→OK） |
 | skip | 仅 `MANIFEST_ONLY=1` 时可 1；有 native 跑烟测时必须 0 |
 | refuse | 顶层 `analysis/std-io-fallback-v1.md` 复活 → FAIL |
+| leftover wrap | leftover `bootstrap-link-xlang.sh` + fossil `$RUN_XLANG build` **retired**（产品 `"$xlang" -L . src -o`） |
 
 报告行：
 
@@ -115,7 +116,10 @@ xlang: [XLANG_STD_IO_FALLBACK] status=ok run=1 obs=? skip=0
 ```
 
 Changelog v1.1：DOC／TSV→`## 6. Gate`；权威改锚 `backend.x`／`sync.x`／`win32.x`（`io.c` 退役）；闸 prefer asm＋LINK；check 观测；`fallback_matrix` exit0 硬失败。  
-Changelog v1.2（2026-08-28）：honesty 二过——拒 soft XLANG fallthrough／soft auto-make；报告 `run=`／`obs=`／`skip=`。
+Changelog v1.2（2026-08-28）：honesty 二过——拒 soft XLANG fallthrough／soft auto-make；报告 `run=`／`obs=`／`skip=`。  
+Changelog v1.3（2026-08-29 leftover wrap）：拒 leftover wrap／化石 `$RUN_XLANG build`；G.7 补全既有 `std_io_fallback_run_smoke`。Keep `## 6. Gate`。
+
+**STD-026 状态：定版（honesty residual leftover wrap）**
 
 ---
 

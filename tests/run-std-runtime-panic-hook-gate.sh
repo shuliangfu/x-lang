@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# STD-028: std.runtime panic hook — honesty soft fallthrough →硬绿.
+# STD-028: std.runtime panic hook — honesty leftover wrap →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make + check=/hook=/ready=/exc=/skip= retired.
-# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
-# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product panic_hook_align.x + runtime_ready.x exit0 = hard run (run+=).
-# check + EXC-002 delegate = obs. Report: run=/obs=/skip=.
-# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Honesty: leftover bootstrap-link wrap + fossil `$RUN_XLANG build` in
+# std_runtime_panic_run_smoke retired (product path is `"$xlang" -L . -o`).
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse leftover wrap / fossil RUN_XLANG build /
+# soft SKIP→OK / soft auto-make / prefer-c). Product panic_hook_align.x +
+# runtime_ready.x exit0 = hard run (run+=). check + EXC-002 delegate = obs.
+# Report: run=/obs=/skip=. G.7: complete existing run_smoke; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-runtime-panic-hook-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_RUNTIME_PANIC_DOC:-analysis/archive/std/std-runtime-panic-hook-v1.md}"
 MANIFEST="${XLANG_STD_RUNTIME_PANIC_TSV:-tests/baseline/std-runtime-panic-hook.tsv}"
@@ -119,11 +118,8 @@ if [ "$chk1" -ne 0 ] || [ "$chk2" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
-
+# Refuse leftover wrap / fossil `$RUN_XLANG build` (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_runtime_panic_run_smoke "$XLANG_BIN" "$HOOK_X" "hook"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-runtime-panic OK: hook"

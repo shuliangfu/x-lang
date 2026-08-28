@@ -1,6 +1,8 @@
 # STD-026 std.io non-Linux fallback matrix manifest (honesty 2026-08-26)
 # cols: item_id	kind	doc_anchor	code_anchor	src	notes
 # Authority = live .x (io.c retired). Gate section must be ## 6. Gate.
+# Honesty 2026-08-29 leftover wrap: leftover bootstrap-link wrap + fossil
+# `$RUN_XLANG build` retired (product `-L . -o` via run_smoke). Keep ## 6. Gate.
 min_matrix_rows	meta	8	-	-	8 live matrix rows
 section_matrix	section	## 3. 三平台 read/write 矩阵	-	analysis/archive/std/std-io-fallback-v1.md	RFC
 section_macos	section	### 3.1 macOS 特例	-	analysis/archive/std/std-io-fallback-v1.md	§3.1

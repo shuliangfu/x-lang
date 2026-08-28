@@ -1,7 +1,7 @@
 # STD-028 std.runtime panic 钩子 v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）** · Gate honesty soft→硬绿  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual leftover wrap）** · Gate honesty soft→硬绿  
 > 关联：`STD-028`、EXC-002、`std/runtime/mod.x`、`compiler/seeds/runtime_panic.from_x.c`
 
 ---
@@ -93,7 +93,9 @@ Honesty（2026-08-28 soft fallthrough residual）：
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-runtime.sh`（`xlang_compiler_make -q || make` + `runtime.o` + `xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/runtime/main.x`／`tests/exc/panic_hook_align.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [RUNTIME]`。Keep `## 6. Gate`。
 
-**STD-028 状态：定版 ✅ · Gate honesty soft→硬绿**
+**Honesty (2026-08-29 leftover wrap)**：leftover `bootstrap-link-xlang.sh` + fossil `$RUN_XLANG build` in `std_runtime_panic_run_smoke` retired. Product path = `"$xlang" -L . src -o`. Explicit-bad XLANG hard die；missing native FAIL；product `-o` `panic_hook_align.x`／`runtime_ready.x` hard；check／EXC-002＝obs；report `run=`／`obs=`／`skip=`。Keep `## 6. Gate`。
+
+**STD-028 状态：定版（honesty residual leftover wrap）**
 
 ### Changelog
 
@@ -102,3 +104,4 @@ Honesty（2026-08-28 soft fallthrough residual）：
 | v1.0 | 2026-06-19 | 定版：终止链 + 三平台矩阵 + 弱钩子 |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 6. Gate`；hook/ready exit0 硬；EXC 观测；报告 `check=`／`hook=`／`ready=`／`exc=`／`skip=` |
 | v1.2 | 2026-08-28 | soft fallthrough residual：显式坏 XLANG 硬 die；拒 prefer-c／soft auto-make；报告 `run=`／`obs=`／`skip=` |
+| v1.3 | 2026-08-29 | leftover wrap residual：拒 leftover wrap／化石 `$RUN_XLANG build`；G.7 补全既有 `std_runtime_panic_run_smoke` |

@@ -8,6 +8,7 @@
 #
 # Authority after io.c retirement: std/io/backend.x + sync.x + win32.x + mod.x.
 # TSV code/matrix rows use src= live file; code_anchor grepped there (not deleted io.c).
+# 2026-08-29: leftover `$RUN_XLANG build` / bootstrap-link wrap retired.
 # PLATFORM: SHARED archaeology.
 
 STD_IO_FALLBACK_PREFIX="${XLANG_STD_IO_FALLBACK_PREFIX:-xlang: [XLANG_STD_IO_FALLBACK]}"
@@ -89,8 +90,8 @@ std_io_fallback_manifest_ok() {
 }
 
 # Compile and run smoke .x; expect exit 0.
-# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
-# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# Product path is `"$xlang" -L . src -o` (refuse leftover `$RUN_XLANG build`
+# / bootstrap-link wrap remap). Gate pins XLANG_LINK_XLANG for hooks.
 # PLATFORM: SHARED archaeology — product honesty path.
 std_io_fallback_run_smoke() {
   local xlang="$1"
@@ -102,20 +103,13 @@ std_io_fallback_run_smoke() {
     echo "std-io-fallback FAIL: missing $src" >&2
     return 1
   fi
-  if [ -n "${RUN_XLANG:-}" ]; then
-    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-io-fallback FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
-  else
-    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-io-fallback FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap.
+  # PLATFORM: SHARED
+  if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
+    echo "std-io-fallback FAIL: compile $src" >&2
+    tail -12 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1

@@ -8,6 +8,8 @@
 # retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
 # product -o runtime/main.x + panic_hook_align.x hard; check=obs;
 # report run=/obs=/skip=.
+# Honesty 2026-08-29 leftover wrap: leftover bootstrap-link wrap + fossil
+# `$RUN_XLANG build` retired (product `-L . -o` via run_smoke). Keep ## 6. Gate.
 min_matrix_rows	6
 section_chain	section	## 2. 终止链	analysis/archive/std/std-runtime-panic-hook-v1.md	RFC
 section_platform	section	## 3. 三平台终止矩阵	analysis/archive/std/std-runtime-panic-hook-v1.md	平台表
