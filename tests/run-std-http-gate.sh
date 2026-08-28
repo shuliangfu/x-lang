@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# STD-009：std.http 服务器基准 manifest 门禁（假权威诚实）。
+# STD-009: std.http server bench manifest gate — honesty soft fallthrough →硬绿.
 #
-# 用法：./tests/run-std-http-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); tests/http/main.x exit 0 hard-fail (no soft SKIP
-# when native xlang present). Report check=/run=/skip=.
-# Product surface already green under asm; gate was portable-false-red
-# (prefer xlang-c / soft SKIP when no native / ## 6. 验证与门禁 /
-# fossil bench/http_get_bench.x). Bench anchors → bench/i08_http_*.
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
+# soft auto-make + soft ensure_std_c_o + check=/run=/skip= retired. Prefer
+# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
+# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft ensure).
+# Product tests/http/main.x -o exit0 = hard run (run=1). check = obs.
+# Report: run=/obs=/skip=. Bench anchors → bench/i08_http_* (fossil removed).
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-http-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
@@ -27,16 +29,43 @@ PREFIX="xlang: [XLANG_STD_HTTP]"
 # shellcheck source=tests/lib/perf-http.sh
 . tests/lib/perf-http.sh
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-http gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP}"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 std_http_has_api() {
@@ -50,46 +79,36 @@ std_http_run_smoke() {
   local src="$2"
   local tag="$3"
   local exe="/tmp/xlang_std_http_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
+  local log="/tmp/xlang_std_http_${tag}_$$.log"
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-http FAIL: compile $src" >&2
+    tail -n 10 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
+  set +e
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$exe" "$log"
   [ "$ec" -eq 0 ]
 }
 
-std_http_emit_report() {
-  local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
-  local skip="$4"
-  echo "${PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
-}
-
-resolve_shu() {
-  local cand
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-http-bench-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
 
 echo "=== STD-009: std.http bench manifest ==="
 for f in "$DOC" "$MANIFEST" "$MOD_X" "$HTTP_C" "$SMOKE_X" \
   tests/baseline/http-perf.tsv tests/baseline/http-perf-latency.tsv; do
-  if [ ! -f "$f" ]; then
-    echo "std-http gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -99,10 +118,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-if ! grep -qF '## 6. Gate' "$DOC" 2>/dev/null; then
-  echo "std-http gate FAIL: doc missing '## 6. Gate'" >&2
-  exit 1
-fi
+grep -qF '## 6. Gate' "$DOC" 2>/dev/null || die "doc missing '## 6. Gate'"
 
 MISS=0
 API_N=0
@@ -166,78 +182,54 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-http gate FAIL: apis=${API_N} < min ${MIN_APIS}" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "apis=${API_N} < min ${MIN_APIS}"
 
 for kw in throughput latency server respond_get_ok runnable; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "std-http gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
 
 cap="$(perf_http_read_cap http_get_bench)"
 lat="$(perf_http_read_cap http_get_bench_p99 tests/baseline/http-perf-latency.tsv)"
-if [ -z "$cap" ] || [ -z "$lat" ]; then
-  echo "std-http gate FAIL: baseline rows" >&2
-  exit 1
-fi
+[ -n "$cap" ] && [ -n "$lat" ] || die "baseline rows"
 
-if [ "$MISS" -gt 0 ]; then
-  echo "std-http gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "std-http manifest OK (apis=${API_N})"
 
 if [ "${XLANG_STD_HTTP_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_http_emit_report "ok" 0 0 1
+  SKIP=1
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP}"
   echo "std-http gate OK (manifest only)"
   exit 0
 fi
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
+  export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
+fi
+echo "=== STD-009: smoke (XLANG=$XLANG_BIN; check obs; main product hard) ==="
 
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-009: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
-    export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
-  fi
-  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
-  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-http gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/http/http.o
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  if std_http_run_smoke "$XLANG_BIN" "$SMOKE_X" "main"; then
-    RUN_OK=1
-    SKIP=0
-  else
-    std_http_emit_report "fail" "$CHECK_OK" 0 0
-    echo "std-http gate FAIL: main smoke" >&2
-    exit 1
-  fi
-else
-  echo "std-http gate FAIL: no native xlang" >&2
-  std_http_emit_report "fail" 0 0 0
-  exit 1
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std009_http_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-http OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-# check stays observational; hard-green signal is run= (runnable).
-echo "std-http check_ok=${CHECK_OK} (observational)"
-std_http_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+# Refuse soft auto-make / soft ensure (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. tests/lib/bootstrap-link-xlang.sh
+
+if std_http_run_smoke "$XLANG_BIN" "$SMOKE_X" "main"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-http OK: main"
+else
+  die "main.x exit!=0 (refuse soft SKIP→OK)"
+fi
+
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP}"
 echo "std-http gate OK"
