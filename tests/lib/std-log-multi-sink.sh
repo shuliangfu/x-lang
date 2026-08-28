@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# std-log-multi-sink.sh — STD-053 manifest 与烟测辅助
+# std-log-multi-sink.sh — STD-053 manifest + host-C archaeology helpers.
+#
+# Usage (after source):
+#   std_log_multi_sink_symbols_ok MOD_X LOG_X LOG_GLUE TSV
+#   std_log_multi_sink_run_c_smoke   # existing .o only; no soft rebuild
+#   std_log_multi_sink_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/host-C = obs; prefer asm product -o hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_LOG_MULTI_SINK_PREFIX="${XLANG_STD_LOG_MULTI_SINK_PREFIX:-xlang: [XLANG_STD_LOG_MULTI_SINK]}"
 
-# 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
+# Walk manifest TSV; validate api/const/symbol/file/smoke. Echo miss count.
 std_log_multi_sink_symbols_ok() {
   local mod_x="$1"
   local log_x="$2"
@@ -52,50 +57,18 @@ std_log_multi_sink_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
-std_log_multi_sink_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_log_ms_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-log-multi-sink FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-log-multi-sink FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# C 烟测：multi_sink_ok.c + log.o + runtime_log_os.o。
+# Host-C archaeology: multi_sink_ok.c + existing log.o + runtime_log_os.o.
+# Refuse soft ensure_std_c_o / soft auto-make of missing .o (obs path only).
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
 std_log_multi_sink_run_c_smoke() {
-  local log_impl="$1"
   local src="tests/std-log/multi_sink_ok.c"
   local out="/tmp/xlang_std_log_multi_sink_$$"
   local log_o="std/log/log.o"
   local rt_o="compiler/runtime_log_os.o"
-  if [ ! -f "$log_o" ]; then
-    echo "std-log-multi-sink FAIL: missing $log_o" >&2
-    return 1
-  fi
-  if [ ! -f "$rt_o" ]; then
-    xlang_compiler_make -q runtime_log_os.o 2>/dev/null || xlang_compiler_make runtime_log_os.o >/dev/null 2>&1 || true
-  fi
-  if [ ! -f "$rt_o" ]; then
-    echo "std-log-multi-sink FAIL: missing $rt_o" >&2
+  if [ ! -f "$log_o" ] || [ ! -f "$rt_o" ]; then
     return 1
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$log_o" "$rt_o" 2>/dev/null; then
-    echo "std-log-multi-sink FAIL: compile $src" >&2
     return 1
   fi
   set +e
@@ -103,19 +76,15 @@ std_log_multi_sink_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-log-multi-sink FAIL: c smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
+  [ "$ec" -eq 0 ]
 }
 
-# Structured report line (check observational; run hard; skip only when no binary).
-# PLATFORM: SHARED archaeology — gate path no longer hard-fails on c_smoke / check.
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o level_filter; check/host-C = obs.
 std_log_multi_sink_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_LOG_MULTI_SINK_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_LOG_MULTI_SINK_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

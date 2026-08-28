@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# std-json-object-array.sh — json-object-array (cursor/parse) manifest helpers
+# std-json-object-array.sh — json-object-array (cursor/parse) manifest helpers.
 #
 # Usage (after source):
 #   std_joa_symbols_ok MOD_X JSON_X TSV
-#   std_joa_run_smoke XLANG_BIN smoke_x tag
-#   std_joa_emit_report status check_ok oa_ok skip
-# 2026-08-26: report check=/oa=/skip= (honesty; prefer asm runnable hard).
-# PLATFORM: SHARED archaeology.
+#   std_joa_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check retired to obs; prefer asm product -o hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_JOA_PREFIX="${XLANG_STD_JSON_OBJECT_ARRAY_PREFIX:-xlang: [XLANG_STD_JSON_OBJECT_ARRAY]}"
 
@@ -53,52 +52,13 @@ std_joa_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# Compile and run smoke .x; expect exit 0.
-# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
-# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
-# PLATFORM: SHARED archaeology — product honesty path.
-std_joa_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_joa_${tag}_$$"
-  local log="/tmp/xlang_std_joa_build_${tag}_$$.log"
-  if [ ! -f "$src" ]; then
-    echo "std-json-object-array FAIL: missing $src" >&2
-    return 1
-  fi
-  if [ -n "${RUN_XLANG:-}" ]; then
-    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-json-object-array FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
-  else
-    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-json-object-array FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe" "$log"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-json-object-array FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# Structured report line (honesty: check=/oa=/skip=).
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o (object_array_parse); check residual = obs.
+# Legacy oa= renamed to run= for the honesty contract.
 std_joa_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local oa_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_JOA_PREFIX} status=${status} check=${check_ok} oa=${oa_ok} skip=${skip}"
+  echo "${STD_JOA_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
