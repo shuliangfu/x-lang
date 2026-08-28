@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# core-slice-api.sh — CORE-004：切片 subslice/split_at/chunks manifest 辅助
+# core-slice-api.sh — CORE-004 slice API manifest helpers.
+# Honesty: emit_report uses run=/obs=/skip= (soft SKIP→OK / soft auto-make retired).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   core_slice_symbols_ok SLICE_X TSV
-#   core_slice_emit_report status check_ok run_ok skip
+#   core_slice_emit_report status run_ok obs skip
 
 CORE_SLICE_PREFIX="${XLANG_CORE_SLICE_PREFIX:-xlang: [XLANG_CORE_SLICE_API]}"
 
@@ -28,11 +29,11 @@ core_slice_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run= hard product; obs= check residual; skip= platform N/A.
 core_slice_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${CORE_SLICE_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${CORE_SLICE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

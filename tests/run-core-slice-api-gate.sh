@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
-# CORE-004：切片 subslice/split_at/chunks 门禁（假权威诚实）。
+# CORE-004: core.slice subslice/split_at/chunks gate — honesty soft→硬绿.
 #
-# 用法：./tests/run-core-slice-api-gate.sh
-# wave honesty (2026-08-24 #11): DOC → analysis/archive/core/;
-# check smoke observational SKIP (check gate paused 2026-08-05).
-# 2026-08-25: runnable hard-green (labi g9 full core/slice/mod.o surface ×28);
-# Prefer xlang_asm; check stays observational.
-# PLATFORM: SHARED archaeology.
-set -e
+# Honesty: soft SKIP→OK (no native still gate OK) + soft auto-make xlang-c +
+# check SKIP narrative retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make). Product -o subslice_split_chunks.x exit0 = hard run;
+# check = obs. Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-core-slice-api-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/core-slice-api.sh
+. tests/lib/core-slice-api.sh
 
 DOC="${XLANG_CORE_SLICE_DOC:-analysis/archive/core/core-slice-api-v1.md}"
 DOC_GENERIC="${XLANG_CORE_SLICE_GENERIC_DOC:-analysis/archive/core/core-slice-generic-v1.md}"
@@ -18,97 +23,101 @@ MANIFEST="${XLANG_CORE_SLICE_TSV:-tests/baseline/core-slice-api.tsv}"
 SLICE_X="core/slice/mod.x"
 LIB="tests/lib/core-slice-api.sh"
 SMOKE="tests/slice/subslice_split_chunks.x"
-PREFIX="xlang: [XLANG_CORE_SLICE_API]"
 
-# shellcheck source=tests/lib/core-slice-api.sh
-. tests/lib/core-slice-api.sh
+PREFIX="${XLANG_CORE_SLICE_PREFIX:-xlang: [XLANG_CORE_SLICE_API]}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-echo "=== CORE-004: slice API manifest (archive DOC) ==="
-if [ -f analysis/core-slice-api-v1.md ] || [ -f analysis/core-slice-generic-v1.md ]; then
-  echo "core-slice-api gate FAIL: top-level DOC resurrected (live = archive/core/)" >&2
+die() {
+  echo "core-slice-api gate FAIL: $*" >&2
+  core_slice_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
-fi
-for f in "$DOC" "$DOC_GENERIC" "$MANIFEST" "$LIB" "$SLICE_X" "$SMOKE" core/option/mod.x; do
-  if [ ! -f "$f" ]; then
-    echo "core-slice-api gate FAIL: missing $f" >&2
-    exit 1
-  fi
-done
-
-for kw in subslice split_at chunks_len 零拷贝 is_empty_i32 len_u64 subslice_u64; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "core-slice-api gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
-done
-
-sym_miss="$(core_slice_symbols_ok "$SLICE_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  core_slice_emit_report "fail" 0 0 0
-  echo "core-slice-api gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-fi
-echo "core-slice-api manifest OK"
-
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
 }
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
 resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
   return 1
 }
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-004: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "core-slice-api gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-  OUT="/tmp/xlang_core_slice_api_$$"
-  LOG="/tmp/xlang_core_slice_api_build_$$.log"
-  if $RUN_XLANG build -L . "$SMOKE" -o "$OUT" 2>"$LOG"; then
-    exitcode=0
-    "$OUT" >/dev/null 2>&1 || exitcode=$?
-    rm -f "$OUT"
-    if [ "$exitcode" -eq 0 ]; then
-      RUN_OK=1
-      SKIP=0
-    else
-      echo "core-slice-api gate FAIL runnable exit=$exitcode" >&2
-      core_slice_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  else
-    echo "core-slice-api gate FAIL runnable link" >&2
-    tail -20 "$LOG" 2>/dev/null >&2 || true
-    core_slice_emit_report "fail" "$CHECK_OK" 0 0
-    exit 1
-  fi
-else
-  echo "core-slice-api gate SKIP typeck (no native xlang)" >&2
+echo "=== CORE-004: slice API (prefer asm; hard; refuse soft auto-make / soft SKIP→OK) ==="
+if [ -f analysis/core-slice-api-v1.md ] || [ -f analysis/core-slice-generic-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/core/)"
+fi
+for f in "$DOC" "$DOC_GENERIC" "$MANIFEST" "$LIB" "$SLICE_X" "$SMOKE" core/option/mod.x; do
+  [ -f "$f" ] || die "missing $f"
+done
+
+for kw in subslice split_at chunks_len 零拷贝 is_empty_i32 len_u64 subslice_u64; do
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
+
+sym_miss="$(core_slice_symbols_ok "$SLICE_X" "$MANIFEST" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+echo "core-slice-api manifest OK"
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+# Observational check (paused) — never soft SKIP→OK / never soft auto-make.
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "core-slice-api OBS check (paused / CHK residual ec=$chk_ec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-core_slice_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+exe="/tmp/xlang_core_slice_api_$$"
+trap 'rm -f "$exe"' EXIT
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >/tmp/xlang_core_slice_api_o.log 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  tail -n 12 /tmp/xlang_core_slice_api_o.log 2>/dev/null || true
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$exe" >/dev/null 2>&1
+run_ec=$?
+set -e
+rm -f "$exe"
+[ "$run_ec" -eq 0 ] || die "runnable exit=$run_ec"
+RUN_OK=$((RUN_OK + 1))
+
+core_slice_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "core-slice-api gate OK"
+ok_report

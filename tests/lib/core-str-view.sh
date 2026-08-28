@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# core-str-view.sh — CORE-007：BytesView manifest 辅助
+# core-str-view.sh — CORE-007 BytesView manifest helpers.
+# Honesty: emit_report uses run=/obs=/skip= (soft SKIP→OK / soft auto-make retired).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   core_str_symbols_ok STR_X TSV
-#   core_str_emit_report status check_ok run_ok cookbook_ok skip
+#   core_str_emit_report status run_ok obs skip
 
 CORE_STR_PREFIX="${XLANG_CORE_STR_VIEW_PREFIX:-xlang: [XLANG_CORE_STR_VIEW]}"
 
@@ -28,12 +29,11 @@ core_str_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run= hard product (smoke+cookbook); obs= check; skip= N/A.
 core_str_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
-  local cookbook_ok="$4"
-  local skip="$5"
-  echo "${CORE_STR_PREFIX} status=${status} check=${check_ok} run=${run_ok} cookbook=${cookbook_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${CORE_STR_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

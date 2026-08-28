@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# core-debug-assert-extend.sh — CORE-012：断言类型扩展 manifest 辅助
-# Honesty 2026-08-25: runnable hard-green via gate prefer asm + pin LINK;
-# designed success score = 0 (tests/debug/assert_extend.x). No Darwin soft SKIP.
+# core-debug-assert-extend.sh — CORE-012 assert type-extend manifest helpers.
+# Honesty: emit_report uses run=/obs=/skip= (soft SKIP→OK / soft auto-make retired).
+# Designed success score = 0 (tests/debug/assert_extend.x).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   core_debug_assert_extend_symbols_ok DEBUG_X TSV
-#   core_debug_assert_extend_emit_report status x_ok skip
+#   core_debug_assert_extend_emit_report status run_ok obs skip
 #   core_debug_assert_extend_run_smoke XLANG SRC  (standalone helper)
 
 CORE_DEBUG_ASSERT_EXTEND_PREFIX="${XLANG_CORE_DEBUG_ASSERT_EXTEND_PREFIX:-xlang: [XLANG_CORE_DEBUG_ASSERT_EXTEND]}"
@@ -56,10 +56,11 @@ core_debug_assert_extend_run_smoke() {
   return 0
 }
 
-# 输出结构化报告行（x= runnable hard-green; skip= soft residual）。
+# Structured report: run= hard product; obs= check residual; skip= platform N/A.
 core_debug_assert_extend_emit_report() {
   local status="$1"
-  local x_ok="$2"
-  local skip="$3"
-  echo "${CORE_DEBUG_ASSERT_EXTEND_PREFIX} status=${status} x=${x_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${CORE_DEBUG_ASSERT_EXTEND_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
