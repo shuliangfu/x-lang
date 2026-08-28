@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-# STD-006: std.crypto min safety set gate (false-authority honesty).
+# STD-006: std.crypto min safety set gate — honesty residual soft
+# auto-make / XLANG fallthrough / check=/sha256= report →硬绿.
 #
+# Honesty: residual soft auto-make (`xlang_compiler_make -q ||
+# xlang_compiler_make`) + `std_crypto_resolve_shu` XLANG fallthrough
+# (explicit bad XLANG continues to xlang_asm) + bootstrap-link wrap +
+# report check=/sha256=/hmac=/mem_eq=/rand=/main=/mac=/skip= retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make /
+# prefer-c / XLANG fallthrough). check residual = obs (paused
+# 2026-08-05). Product sha256/hmac/mem_eq/rand/main -o exit0 = hard
+# run (already green under asm). mac_verify_smoke = obs (product
+# UNDEF residual; not soft). Hooks observational. Report:
+# run=/obs=/skip=. Keep ## 5. Gate. Keep keywords runnable / report /
+# K1-hash / K3-sig. PLATFORM: SHARED archaeology — Ubuntu gold still
+# required.
 # Usage: ./tests/run-std-crypto-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); sha256/hmac/mem_eq/rand/main smokes exit 0
-# hard-fail (no soft SKIP when native xlang present). mac_verify_smoke stays
-# observational (product link UNDEF _std_crypto_mac_{sign,verify} — not soft).
-# Report check=/sha256=/hmac=/mem_eq=/rand=/main=/mac=/skip=. Product
-# sha256/hmac/mem_eq/rand/main already green under asm; gate was
-# portable-false-red (prefer xlang-c / soft SKIP on missing native /
-# ## 4. Gate 与 report / hard-chain mac UNDEF).
-# PLATFORM: SHARED archaeology.
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CRYPTO_DOC:-analysis/archive/std/std-crypto-min-v1.md}"
 MANIFEST="${XLANG_STD_CRYPTO_MANIFEST:-tests/baseline/std-crypto-manifest.tsv}"
@@ -38,12 +39,19 @@ MIN_LAYERS=3
 # shellcheck source=tests/lib/std-crypto.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-crypto gate FAIL: $*" >&2
+  std_crypto_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
 # Refuse resurrected top-level DOC (live = archive/std/).
 # PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
-if [ -f analysis/std-crypto-min-v1.md ]; then
-  echo "std-crypto gate FAIL: top-level DOC resurrected (live = archive/std/)" >&2
-  exit 1
-fi
+[ ! -f analysis/std-crypto-min-v1.md ] || die "dual-authority fossil analysis/std-crypto-min-v1.md (archive live)"
 
 echo "=== STD-006: std.crypto manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$CRYPTO_MOD" "$RAND_MOD" "$LIB" \
@@ -51,23 +59,13 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$CRYPTO_MOD" "$RAND_MOD" "$LIB" \
   "$SMOKE_SHA" "$SMOKE_HMAC" "$SMOKE_MAC" "$SMOKE_MEM" "$SMOKE_RAND" "$SMOKE_MAIN" \
   std/crypto/core.x compiler/seeds/runtime_crypto_inc_glue.from_x.c \
   std/random/random.x compiler/seeds/runtime_random_fill.from_x.c; do
-  if [ ! -f "$f" ]; then
-    echo "std-crypto gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 for kw in runnable report K1-hash K3-sig; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "std-crypto gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
-
-if ! grep -qF '## 5. Gate' "$DOC" 2>/dev/null; then
-  echo "std-crypto gate FAIL: doc missing '## 5. Gate'" >&2
-  exit 1
-fi
+grep -qF '## 5. Gate' "$DOC" 2>/dev/null || die "doc missing '## 5. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -120,8 +118,15 @@ while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
       fi
       ;;
     script|hook_script)
-      path="tests/$anchor"
-      if [ "$kind" = "script" ] && [ -f "tests/lib/$anchor" ]; then
+      # Full-path TSV anchors preferred; keep relative tests/$anchor fallback.
+      path="$anchor"
+      if [ ! -f "$path" ]; then
+        path="${src:-$anchor}"
+      fi
+      if [ ! -f "$path" ]; then
+        path="tests/$anchor"
+      fi
+      if [ ! -f "$path" ] && [ "$kind" = "script" ] && [ -f "tests/lib/$anchor" ]; then
         path="tests/lib/$anchor"
       fi
       if [ ! -f "$path" ]; then
@@ -141,134 +146,90 @@ while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-crypto gate FAIL: apis=${API_N} < min_apis=${MIN_APIS}" >&2
-  exit 1
-fi
-if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "std-crypto gate FAIL: layers=${LAYER_N} < min_layers=${MIN_LAYERS}" >&2
-  exit 1
-fi
-if [ "$MISS" -gt 0 ]; then
-  std_crypto_emit_report "fail" 0 0 0 0 0 0 0 1
-  echo "std-crypto gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "apis=${API_N} < min_apis=${MIN_APIS}"
+[ "$LAYER_N" -ge "$MIN_LAYERS" ] || die "layers=${LAYER_N} < min_layers=${MIN_LAYERS}"
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "std-crypto manifest OK (apis=${API_N} layers=${LAYER_N})"
 
 if [ "${XLANG_STD_CRYPTO_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_crypto_emit_report "ok" 0 0 0 0 0 0 0 1
+  SKIP=1
+  std_crypto_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "std-crypto gate OK (manifest only)"
   exit 0
 fi
 
-CHECK_OK=0
-SHA256_OK=0
-HMAC_OK=0
-MEM_OK=0
-RAND_OK=0
-MAIN_OK=0
-MAC_OK=0
-SKIP=1
+XLANG_BIN="$(std_crypto_resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make / XLANG fallthrough)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-006: smoke (XLANG=$XLANG_BIN; check=obs; sha256/hmac/mem_eq/rand/main hard; mac=obs) ==="
+# Refuse soft xlang_compiler_make / bootstrap-link remap.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 
-if XLANG_BIN="$(std_crypto_resolve_shu 2>/dev/null)"; then
-  echo "=== STD-006: smoke (XLANG=$XLANG_BIN; check observational; sha256/hmac/mem_eq/rand/main hard; mac observational) ==="
-  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
-  if "$XLANG_BIN" check -L . "$SMOKE_SHA" >/dev/null 2>&1 \
-    && "$XLANG_BIN" check -L . "$SMOKE_HMAC" >/dev/null 2>&1 \
-    && "$XLANG_BIN" check -L . "$SMOKE_MEM" >/dev/null 2>&1 \
-    && "$XLANG_BIN" check -L . "$SMOKE_RAND" >/dev/null 2>&1 \
-    && "$XLANG_BIN" check -L . "$SMOKE_MAIN" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-crypto gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  echo "── smoke_sha256_abc ──"
-  if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_SHA" "sha256"; then
-    SHA256_OK=1
-    echo "std-crypto OK smoke_sha256_abc"
-  else
-    std_crypto_emit_report "fail" "$CHECK_OK" 0 0 0 0 0 0 0
-    exit 1
-  fi
-
-  echo "── smoke_hmac ──"
-  if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_HMAC" "hmac"; then
-    HMAC_OK=1
-    echo "std-crypto OK smoke_hmac"
-  else
-    std_crypto_emit_report "fail" "$CHECK_OK" "$SHA256_OK" 0 0 0 0 0 0
-    exit 1
-  fi
-
-  echo "── smoke_mem_eq ──"
-  if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_MEM" "mem_eq"; then
-    MEM_OK=1
-    echo "std-crypto OK smoke_mem_eq"
-  else
-    std_crypto_emit_report "fail" "$CHECK_OK" "$SHA256_OK" "$HMAC_OK" 0 0 0 0 0
-    exit 1
-  fi
-
-  echo "── smoke_rand ──"
-  if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_RAND" "rand"; then
-    RAND_OK=1
-    echo "std-crypto OK smoke_rand"
-  else
-    std_crypto_emit_report "fail" "$CHECK_OK" "$SHA256_OK" "$HMAC_OK" "$MEM_OK" 0 0 0 0
-    exit 1
-  fi
-
-  echo "── smoke_main ──"
-  if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_MAIN" "main"; then
-    MAIN_OK=1
-    echo "std-crypto OK smoke_main"
-  else
-    std_crypto_emit_report "fail" "$CHECK_OK" "$SHA256_OK" "$HMAC_OK" "$MEM_OK" "$RAND_OK" 0 0 0
-    exit 1
-  fi
-
-  # Observational mac (product link UNDEF residual; never hard-green).
-  # PLATFORM: SHARED — link surface for mac_sign/mac_verify still product debt.
-  echo "── smoke_mac ──"
-  if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_MAC" "mac"; then
-    MAC_OK=1
-    echo "std-crypto OK smoke_mac"
-  else
-    echo "std-crypto gate SKIP mac smoke (observational; product UNDEF)" >&2
-  fi
-
-  # Hooks are observational regression; not the hard-green signal.
-  echo "── hook_crypto ──"
-  if std_crypto_run_hook "$XLANG_BIN" "$HOOK_CRYPTO"; then
-    echo "std-crypto OK hook_crypto"
-  else
-    echo "std-crypto WARN hook_crypto (observational; hard signal = sha256/hmac/mem_eq/rand/main)" >&2
-  fi
-  echo "── hook_random ──"
-  if std_crypto_run_hook "$XLANG_BIN" "$HOOK_RANDOM"; then
-    echo "std-crypto OK hook_random"
-  else
-    echo "std-crypto WARN hook_random (observational; hard signal = sha256/hmac/mem_eq/rand/main)" >&2
-  fi
-
-  SKIP=0
-else
-  echo "std-crypto gate FAIL: no native xlang" >&2
-  std_crypto_emit_report "fail" 0 0 0 0 0 0 0 0
-  exit 1
+# check residual = obs (paused 2026-08-05). Refuse hard-bind check.
+# PLATFORM: SHARED — CHK residual is not a green signal.
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_SHA" >/tmp/xlang_std_crypto_check_$$.log 2>&1 \
+  && "$XLANG_BIN" check -L . "$SMOKE_HMAC" >>/tmp/xlang_std_crypto_check_$$.log 2>&1 \
+  && "$XLANG_BIN" check -L . "$SMOKE_MEM" >>/tmp/xlang_std_crypto_check_$$.log 2>&1 \
+  && "$XLANG_BIN" check -L . "$SMOKE_RAND" >>/tmp/xlang_std_crypto_check_$$.log 2>&1 \
+  && "$XLANG_BIN" check -L . "$SMOKE_MAIN" >>/tmp/xlang_std_crypto_check_$$.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-crypto OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-# check + mac stay observational; hard-green = sha256+hmac+mem_eq+rand+main.
-echo "std-crypto check_ok=${CHECK_OK} mac=${MAC_OK} (observational)"
-std_crypto_emit_report "ok" "$CHECK_OK" "$SHA256_OK" "$HMAC_OK" "$MEM_OK" "$RAND_OK" "$MAIN_OK" "$MAC_OK" "$SKIP"
+# Product sha256/hmac/mem_eq/rand/main -o exit0 is the hard-green signal.
+# PLATFORM: SHARED — refuse soft SKIP→OK / soft auto-make. G.7: std_crypto_run_smoke.
+run_hard() {
+  local src="$1"
+  local tag="$2"
+  local label="$3"
+  if std_crypto_run_smoke "$XLANG_BIN" "$src" "$tag"; then
+    RUN_OK=$((RUN_OK + 1))
+    echo "std-crypto OK: product $label"
+  else
+    die "product -o $src failed (refuse soft SKIP→OK)"
+  fi
+}
+
+echo "── smoke_sha256_abc ──"
+run_hard "$SMOKE_SHA" "sha256" "sha256_abc"
+echo "── smoke_hmac ──"
+run_hard "$SMOKE_HMAC" "hmac" "hmac_key_msg"
+echo "── smoke_mem_eq ──"
+run_hard "$SMOKE_MEM" "mem_eq" "mem_eq_ct"
+echo "── smoke_rand ──"
+run_hard "$SMOKE_RAND" "rand" "rand_fill"
+echo "── smoke_main ──"
+run_hard "$SMOKE_MAIN" "main" "crypto/main.x"
+
+# Observational mac (product link UNDEF residual; never hard-green).
+# PLATFORM: SHARED — link surface for mac_sign/mac_verify still product debt.
+echo "── smoke_mac ──"
+if std_crypto_run_smoke "$XLANG_BIN" "$SMOKE_MAC" "mac"; then
+  echo "std-crypto OK smoke_mac (observational)"
+else
+  echo "std-crypto OBS mac (product UNDEF residual; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Hooks are observational regression; not the hard-green signal.
+echo "── hook_crypto ──"
+if std_crypto_run_hook "$XLANG_BIN" "$HOOK_CRYPTO"; then
+  echo "std-crypto OK hook_crypto (observational)"
+else
+  echo "std-crypto OBS hook_crypto (observational; hard signal = sha256/hmac/mem_eq/rand/main)" >&2
+  OBS=$((OBS + 1))
+fi
+echo "── hook_random ──"
+if std_crypto_run_hook "$XLANG_BIN" "$HOOK_RANDOM"; then
+  echo "std-crypto OK hook_random (observational)"
+else
+  echo "std-crypto OBS hook_random (observational; hard signal = sha256/hmac/mem_eq/rand/main)" >&2
+  OBS=$((OBS + 1))
+fi
+
+std_crypto_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-crypto gate OK"

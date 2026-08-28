@@ -1,7 +1,7 @@
 # STD-006 std.crypto 最小安全集 v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1.1 honesty）** — hash + CSPRNG + MAC 签验最小闭环；闸门假权威已收  
+> 更新时间：2026-08-29  
+> 状态：**定版（v1.2 honesty residual auto-make）** — hash + CSPRNG + MAC 签验最小闭环；闸门假权威已收  
 > 关联：`std/crypto/core.x`、`std/random/`、`tests/run-crypto.sh`（产品权威 = `.x`，无 `crypto.c`）
 
 ---
@@ -76,14 +76,15 @@ if (mac_verify(&key[0], key_len, &msg[0], msg_len, &tag[0]) != 1) { return 1; }
 | runner | `tests/lib/std-crypto.sh` |
 | gate | `tests/run-std-crypto-gate.sh` |
 
-**Honesty（2026-08-26）**：
+**Honesty（2026-08-29 residual auto-make）**：
 
 - Prefer `xlang_asm`；pin `XLANG_LINK_XLANG`（禁 prefer-c 假权威）
+- 退役 residual `xlang_compiler_make -q || xlang_compiler_make`／XLANG fallthrough／bootstrap-link remap
+- Explicit bad XLANG / missing native → **FAIL**（禁 soft SKIP→OK / soft auto-make）
 - `xlang check` **observational**（自举期暂停闸门 2026-08-05）
 - Hard-green：`sha256_abc` / `hmac_key_msg` / `mem_eq_ct` / `rand_fill_smoke` / `crypto/main.x` exit 0
 - Observational：`mac_verify_smoke`（product link UNDEF `_std_crypto_mac_*` — **非软**）；hooks
-- 无 native xlang → **FAIL**（禁 soft SKIP→OK）
-- Report：`check=/sha256=/hmac=/mem_eq=/rand=/main=/mac=/skip=`
+- Report：`run=/obs=/skip=`（退役 `check=/sha256=/hmac=/mem_eq=/rand=/main=/mac=`）
 - 拒顶层 `analysis/std-crypto-min-v1.md` 复活（live = archive）
 
 gate 输出 **`std-crypto gate OK`** + structured report。
@@ -97,6 +98,7 @@ gate 输出 **`std-crypto gate OK`** + structured report。
 - [x] Gate honesty prefer asm + LINK + check obs（v1.1）
 - [x] mac_verify link residual 观测拆分（非 soft 糊绿）
 - [x] 联动 `std.random` CSPRNG
+- [x] Residual auto-make／XLANG fallthrough 退役；report `run=`／`obs=`／`skip=`（v1.2）
 
 ### Changelog
 
@@ -104,3 +106,4 @@ gate 输出 **`std-crypto gate OK`** + structured report。
 |----|------|------|
 | v1 | 2026-06-17 | 定版 K1–K3 + manifest |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check obs／hard runnable／mac obs；`## 5. Gate`；report 8 字段；无 make／`crypto.c` 权威 |
+| v1.2 | 2026-08-29 | Residual auto-make／XLANG fallthrough／bootstrap-link 退役；`dod_native_exe`；显式坏 XLANG 硬 die；report `run=`／`obs=`／`skip=` |

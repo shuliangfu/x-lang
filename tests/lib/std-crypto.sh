@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
-# std-crypto.sh — STD-006: std.crypto / std.random helpers (false-authority honesty)
+# std-crypto.sh — STD-006: std.crypto / std.random helpers (honesty prefer-asm).
 #
 # Usage (after source):
 #   std_crypto_has_api MOD_X fn_name
+#   std_crypto_resolve_shu
 #   std_crypto_run_smoke XLANG_BIN smoke_x [tag]
 #   std_crypto_run_hook XLANG_BIN tests/run-*.sh
-#   std_crypto_emit_report status check_ok sha256_ok hmac_ok mem_eq_ok rand_ok main_ok mac_ok skip
+#   std_crypto_emit_report status run obs skip
+#   std_crypto_resolve_impl_path / std_crypto_o_has_x_symbols / std_crypto_c_link_objs
 #
-# Prefer product asm + RUN_XLANG (after gate pins XLANG_LINK_XLANG).
+# Honesty: refuse soft auto-make / soft SKIP→OK / prefer-c / XLANG
+# fallthrough; report run=/obs=/skip=. Product -o via std_crypto_run_smoke
+# (G.7: do not fork). Native exe check converges on dod_native_exe.
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CRYPTO_PREFIX="${XLANG_STD_CRYPTO_PREFIX:-xlang: [XLANG_STD_CRYPTO]}"
+
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
 
 # Check mod.x exports the named function.
 std_crypto_has_api() {
@@ -19,9 +26,48 @@ std_crypto_has_api() {
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
+# G.7: native exe check converges on dod_native_exe (single authority).
+# Thin wrapper for any leftover callers; resolve_shu uses dod_native_exe.
+std_crypto_native_xlang() {
+  dod_native_exe "$1"
+}
+
+# Prefer product asm; refuse prefer-c / soft auto-make / XLANG fallthrough.
+# Explicit XLANG that is missing or non-native returns 1 (caller hard-dies).
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+std_crypto_resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Compile and run smoke .x; expect exit 0.
-# Prefer RUN_XLANG (after gate pins XLANG_LINK_XLANG) so Darwin does not
-# silently remap asm→c. Falls back to direct XLANG_BIN -L . -o.
+# Refuse RUN_XLANG / bootstrap-link remap (Darwin must not silently asm→c).
+# Caller decides hard vs obs (sha256/hmac/mem_eq/rand/main = hard;
+# mac_verify product UNDEF = obs leave).
+# Do not restore set -e before return 1.
 # PLATFORM: SHARED archaeology — product honesty path.
 std_crypto_run_smoke() {
   local xlang="$1"
@@ -33,25 +79,18 @@ std_crypto_run_smoke() {
     echo "std-crypto FAIL: missing $src" >&2
     return 1
   fi
-  if [ -n "${RUN_XLANG:-}" ]; then
-    if ! $RUN_XLANG build -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-crypto FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
-  else
-    if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
-      echo "std-crypto FAIL: compile $src" >&2
-      tail -12 "$log" 2>/dev/null >&2 || true
-      rm -f "$exe" "$log"
-      return 1
-    fi
-  fi
+  rm -f "$exe" "$log"
   set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-crypto FAIL: compile $src" >&2
+    tail -12 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
+  fi
   "$exe" >/dev/null 2>&1
   local ec=$?
-  set -e
   rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-crypto FAIL: $tag exit=$ec ($src)" >&2
@@ -70,33 +109,6 @@ std_crypto_run_hook() {
   fi
   chmod +x "$hook" 2>/dev/null || true
   XLANG="$xlang" "$hook"
-}
-
-# True iff the binary is executable for this host.
-std_crypto_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-# Prefer product asm; pin path used by gate via XLANG_LINK_XLANG.
-# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-std_crypto_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if std_crypto_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
 }
 
 # crypto.o whether core.x symbols are linked (no xlang-c → glue-only).
@@ -129,6 +141,7 @@ std_crypto_c_link_objs() {
 }
 
 # Ensure crypto runtime glue .o objects are built.
+# Leave: main STD-006 gate must not call this (refuse soft auto-make).
 std_crypto_ensure_runtime_glue_o() {
   # shellcheck source=tests/lib/build-std-c-o.sh
   . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/build-std-c-o.sh"
@@ -136,18 +149,13 @@ std_crypto_ensure_runtime_glue_o() {
   ensure_runtime_crypto_inc_glue_o
 }
 
-# Structured report (honesty: check=/sha256=/hmac=/mem_eq=/rand=/main=/mac=/skip=).
-# Hard-green = sha256+hmac+mem_eq+rand+main; check + mac observational
+# Structured report (honesty: run=/obs=/skip=; retired check=/sha256=/hmac=).
+# Hard-green = sha256+hmac+mem_eq+rand+main product -o; check + mac + hooks obs
 # (mac_verify product link UNDEF residual — not soft).
 std_crypto_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local sha256_ok="$3"
-  local hmac_ok="$4"
-  local mem_eq_ok="$5"
-  local rand_ok="$6"
-  local main_ok="$7"
-  local mac_ok="$8"
-  local skip="$9"
-  echo "${STD_CRYPTO_PREFIX} status=${status} check=${check_ok} sha256=${sha256_ok} hmac=${hmac_ok} mem_eq=${mem_eq_ok} rand=${rand_ok} main=${main_ok} mac=${mac_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CRYPTO_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
