@@ -6,40 +6,45 @@
 #   ./tests/lib/exc-error-recovery.sh case_id      # single case
 #   XLANG=./compiler/xlang_asm ./tests/lib/exc-error-recovery.sh
 #
-# 2026-08-26 honesty: prefer xlang_asm then xlang-c/xlang; pin XLANG_LINK_XLANG
-# when resolving; hard-fail compile/run (no soft SKIP→OK).
+# Honesty 2026-08-29: leftover XLANG fallthrough retired; leftover
+# xlang_compiler_make auto-make retired. Prefer xlang_asm; pin
+# XLANG_LINK_XLANG; explicit-bad XLANG / missing native hard-die.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
+# shellcheck source=dod-native-exe.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
 set -e
 cd "$(dirname "$0")/../.."
 
 MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
 ONE_CASE="${1:-}"
 
-# Detect native (same-arch) xlang binary.
-# PLATFORM: SHARED — Darwin/Linux ELF|Mach-O arch check.
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-# Prefer product asm; fall back to xlang-c / xlang.
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
@@ -127,23 +132,24 @@ exc_recovery_run_row() {
 }
 
 XLANG_BIN=""
-if XLANG_BIN="$(resolve_shu)"; then
-  :
-else
-  # Hard residual: gate owns FAIL when no native; runner exit 2 for local debug.
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    echo "exc-error-recovery: explicit XLANG not native (refuse leftover XLANG fallthrough)" >&2
+    exit 2
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
   echo "exc-error-recovery: no native xlang" >&2
   exit 2
 fi
 
 # Pin product link to resolved compiler (prefer asm; avoid Darwin asm→c remap).
+# Refuse leftover auto-make / leftover XLANG fallthrough.
 # PLATFORM: SHARED
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 # shellcheck source=bootstrap-link-xlang.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/bootstrap-link-xlang.sh"
 
-# Quiet ensure; resolve already found a native binary so make failure is soft.
-xlang_compiler_make -q 2>/dev/null || true
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 FAILS=0

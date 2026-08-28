@@ -2,6 +2,9 @@
 # 列：stub_id	symbol	root_cause	strategy	regression_src	regression_hook	notes
 # honesty 2026-08-26: DOC ## 7. Gate; prefer asm; matrix reg_src link+run hard;
 # check_only observational; no soft SKIP→OK; report link=/skip=.
+# Honesty 2026-08-29: residual XLANG fallthrough retired (explicit-bad XLANG
+# no longer continues to xlang_asm). script: tests/run-boot-force-stub-gate.sh
+# / tests/lib/boot-force-stub.sh. Keep ## 7. Gate.
 # want_exit map (lib/boot-force-stub.sh): simple=10 no_else=42 f32_f64=0 allow_padding_ok=2
 # doc_gate: DOC must contain "## 7. Gate" (enforced by gate script, not a stub row)
 # min_stub_rows	6

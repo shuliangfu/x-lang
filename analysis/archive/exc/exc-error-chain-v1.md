@@ -1,11 +1,12 @@
 # EXC-004 错误链路追踪 v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）· soft→硬绿（假权威诚实）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual XLANG fallthrough）**  
 > 关联：`EXC-001`（Result_i32）、`EXC-003`（码段）、`EXC-005`（CLI/LSP 展示）
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
-> **Gate honesty 2026-08-26:** prefer `xlang_asm` + `XLANG_LINK_XLANG`; check observational (paused); `error_chain_smoke.x` exit0 hard-fail; no soft SKIP→OK when native present; report `check=`／`run=`／`skip=`. Ubuntu asm smoke already exit0 — gate was portable-false-red (prefer `xlang-c` / soft SKIP→OK).
+> **Gate honesty 2026-08-26:** prefer `xlang_asm` + `XLANG_LINK_XLANG`; check observational (paused); `error_chain_smoke.x` exit0 hard-fail; no soft SKIP→OK when native present; report `check=`／`run=`／`skip=`. Ubuntu asm smoke already exit0 — gate was portable-false-red (prefer `xlang-c` / soft SKIP→OK).  
+> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check remains obs. Keep `## 6. Gate`.
 ---
 
 ## 1. 目标
@@ -106,10 +107,10 @@ let chain: ErrorChain = error_chain_wrap(leaf, io_err_generic());
 
 | 项 | 规则 |
 |----|------|
-| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough） |
 | check | observational only（check gate paused 2026-08-05） |
 | runnable | `error_chain_smoke.x` exit0 **hard-fail**（native present → no soft SKIP→OK） |
-| report | `check=`／`run=`／`skip=` |
+| report | `run=`／`obs=`／`skip=`（keep `check=` extra） |
 | DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 | product API | short names in `std/error/mod.x`：`chain_empty`／`chain_from_code`／`chain_wrap`／`chain_root`／`chain_leaf`／`chain_depth`／`chain_code_at`／`chain_max_depth`（DOC narrative may still say `error_chain_*`） |
 

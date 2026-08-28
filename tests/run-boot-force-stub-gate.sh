@@ -5,12 +5,11 @@
 # wave309 honesty: ast_pool.c left — live PARSER_STUB_EQ =
 # seeds/runtime_pipeline_abi.from_x.c. DOC archived under analysis/archive/boot/.
 # Selfhost pause (2026-08-05): do NOT run xlang check as gate smoke.
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; matrix reg_src link+run
-# hard-fail (no soft SKIP→OK when no native; do not call full check-mixed
-# hooks — those were portable-false-red under paused check). check_only
-# observational. Report link=/skip=. Gate was portable-false-red
-# (prefer xlang-c / soft SKIP→OK when no native / full run-float +
-# run-lang-unsafe hooks hard on check negatives / DOC ## 4 without Gate).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
+# = hard die. matrix reg_src link+run hard-fail; check_only observational.
+# Report run=/obs=/skip= (keep link= extra). G.7: complete existing
+# boot010_resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 #
 # 用法：./tests/run-boot-force-stub-gate.sh
@@ -30,30 +29,37 @@ MIN_STUB=6
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/boot-force-stub.sh
 . "$LIB"
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
-# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+# G.7: complete existing boot010_resolve_shu. Explicit XLANG that is
+# missing or non-native returns 1 (caller hard-dies). Unset XLANG prefers
+# asm. Native check converges on dod_native_exe.
+# Do not restore set -e before return 1.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 boot010_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
@@ -155,7 +161,7 @@ done
 echo "boot-force-stub glue OK"
 
 if [ "${XLANG_BOOT010_MANIFEST_ONLY:-0}" = "1" ]; then
-  boot010_emit_report "ok" 0 "$SKIP_CHECK"
+  boot010_emit_report "ok" 0 "$SKIP_CHECK" "$SKIP_CHECK"
   echo "boot-force-stub gate OK (manifest only)"
   exit 0
 fi
@@ -163,49 +169,55 @@ fi
 LINK_OK=0
 SKIP=1
 
-if XLANG_BIN="$(boot010_resolve_shu 2>/dev/null)"; then
-  echo "=== BOOT-010: matrix reg_src link+run (XLANG=$XLANG_BIN; check_only observational) ==="
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh" 2>/dev/null || true
-  mkdir -p "$OUT_DIR"
-  FAILS=0
-  for reg_src in $LINK_SRCS; do
-    if ! want="$(boot010_want_exit "$reg_src")"; then
-      echo "boot-force-stub FAIL: no want_exit map for $reg_src" >&2
-      FAILS=$((FAILS + 1))
-      continue
-    fi
-    out="$OUT_DIR/boot010_$(basename "$reg_src" .x)"
-    rm -f "$out"
-    if boot010_link_run_one "$XLANG_BIN" "$reg_src" "$out" "$want"; then
-      echo "boot-force-stub link+run OK $reg_src (exit=$want)"
-      LINK_OK=$((LINK_OK + 1))
-    else
-      FAILS=$((FAILS + 1))
-    fi
-  done
-  if [ "$FAILS" -gt 0 ]; then
-    echo "boot-force-stub gate FAIL: ${FAILS} link+run" >&2
-    boot010_emit_report "fail" "$LINK_OK" "$SKIP_CHECK"
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(boot010_resolve_shu)"; then
+    echo "boot-force-stub gate FAIL: explicit XLANG not native (refuse leftover XLANG fallthrough)" >&2
+    boot010_emit_report "fail" 0 "$SKIP_CHECK" "$SKIP_CHECK"
     exit 1
   fi
-  # Expect 4 unique link sources (simple / no_else / f32_f64 / allow_padding_ok).
-  if [ "$LINK_OK" -lt 4 ]; then
-    echo "boot-force-stub gate FAIL: link_ok=${LINK_OK} < 4" >&2
-    boot010_emit_report "fail" "$LINK_OK" "$SKIP_CHECK"
-    exit 1
-  fi
-  SKIP=0
-else
+elif ! XLANG_BIN="$(boot010_resolve_shu)"; then
   echo "boot-force-stub gate FAIL: no native xlang" >&2
-  boot010_emit_report "fail" 0 "$SKIP_CHECK"
+  boot010_emit_report "fail" 0 "$SKIP_CHECK" "$SKIP_CHECK"
   exit 2
 fi
 
+echo "=== BOOT-010: matrix reg_src link+run (XLANG=$XLANG_BIN; check_only observational) ==="
+# Pin product link to resolved compiler (prefer asm).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh" 2>/dev/null || true
+mkdir -p "$OUT_DIR"
+FAILS=0
+for reg_src in $LINK_SRCS; do
+  if ! want="$(boot010_want_exit "$reg_src")"; then
+    echo "boot-force-stub FAIL: no want_exit map for $reg_src" >&2
+    FAILS=$((FAILS + 1))
+    continue
+  fi
+  out="$OUT_DIR/boot010_$(basename "$reg_src" .x)"
+  rm -f "$out"
+  if boot010_link_run_one "$XLANG_BIN" "$reg_src" "$out" "$want"; then
+    echo "boot-force-stub link+run OK $reg_src (exit=$want)"
+    LINK_OK=$((LINK_OK + 1))
+  else
+    FAILS=$((FAILS + 1))
+  fi
+done
+if [ "$FAILS" -gt 0 ]; then
+  echo "boot-force-stub gate FAIL: ${FAILS} link+run" >&2
+  boot010_emit_report "fail" "$LINK_OK" "$SKIP_CHECK" "$SKIP_CHECK"
+  exit 1
+fi
+# Expect 4 unique link sources (simple / no_else / f32_f64 / allow_padding_ok).
+if [ "$LINK_OK" -lt 4 ]; then
+  echo "boot-force-stub gate FAIL: link_ok=${LINK_OK} < 4" >&2
+  boot010_emit_report "fail" "$LINK_OK" "$SKIP_CHECK" "$SKIP_CHECK"
+  exit 1
+fi
+SKIP=0
+
 echo "boot-force-stub link_ok=${LINK_OK} check_only_skip=${SKIP_CHECK}"
-boot010_emit_report "ok" "$LINK_OK" "$SKIP_CHECK"
+boot010_emit_report "ok" "$LINK_OK" "$SKIP_CHECK" "$SKIP_CHECK"
 echo "boot-force-stub gate OK"

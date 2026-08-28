@@ -4,16 +4,16 @@
 # Usage: ./tests/run-exc-error-chain-gate.sh
 # wave honesty (2026-08-24 #12): DOC → analysis/archive/exc/;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); error_chain_smoke.x exit 0 hard-fail
-# (no soft SKIP→OK when native xlang present). Report check=/run=/skip=.
-# Gate was portable-false-red (prefer xlang-c / soft SKIP→OK when no native /
-# no Gate honesty section). Ubuntu asm smoke already exit0.
-# PLATFORM: SHARED archaeology.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
+# = hard die. check observational (paused 2026-08-05); error_chain_smoke.x
+# exit 0 hard-fail. Report run=/obs=/skip= (keep check= extra). G.7: complete
+# existing exc_error_chain_resolve_shu; converge dod_native_exe; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
 DOC="${XLANG_EXC_ERROR_CHAIN_DOC:-analysis/archive/exc/exc-error-chain-v1.md}"
 MATRIX="${XLANG_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
@@ -25,27 +25,32 @@ MIN_ITEMS=8
 # shellcheck source=tests/lib/exc-error-chain.sh
 . "$LIB"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
-# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+# G.7: complete existing exc_error_chain_resolve_shu. Explicit XLANG that
+# is missing or non-native returns 1 (caller hard-dies). Unset XLANG prefers
+# asm. Native check converges on dod_native_exe.
+# Do not restore set -e before return 1.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 exc_error_chain_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
@@ -110,17 +115,29 @@ fi
 echo "exc-error-chain manifest OK (items=${FOUND})"
 
 if [ "${XLANG_EXC_ERROR_CHAIN_MANIFEST_ONLY:-0}" = "1" ]; then
-  exc_error_chain_emit_report "ok" 0 0 1
+  exc_error_chain_emit_report "ok" 0 0 1 0
   echo "exc-error-chain gate OK (manifest only)"
   exit 0
 fi
 
 CHECK_OK=0
 RUN_OK=0
+OBS=0
 SKIP=1
 
-if XLANG_BIN="$(exc_error_chain_resolve_shu 2>/dev/null)"; then
-  echo "=== EXC-004: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(exc_error_chain_resolve_shu)"; then
+    echo "exc-error-chain gate FAIL: explicit XLANG not native (refuse leftover XLANG fallthrough)" >&2
+    exc_error_chain_emit_report "fail" 0 0 0 0
+    exit 1
+  fi
+elif ! XLANG_BIN="$(exc_error_chain_resolve_shu)"; then
+  echo "exc-error-chain gate FAIL: no native xlang" >&2
+  exc_error_chain_emit_report "fail" 0 0 0 0
+  exit 1
+fi
+
+echo "=== EXC-004: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
   # Observational check (paused 2026-08-05); CHK red does not hard-fail.
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
@@ -146,7 +163,8 @@ if XLANG_BIN="$(exc_error_chain_resolve_shu 2>/dev/null)"; then
     else
       echo "exc-error-chain gate FAIL runnable exit" >&2
       rm -f "$OUT"
-      exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0
+      if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
+      exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
       exit 1
     fi
     rm -f "$OUT"
@@ -158,18 +176,15 @@ if XLANG_BIN="$(exc_error_chain_resolve_shu 2>/dev/null)"; then
     else
       echo "exc-error-chain gate FAIL runnable link" >&2
       tail -20 /tmp/xlang_exc_error_chain_gate_$$.log 2>/dev/null >&2 || true
-      exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0
+      if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
+      exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
       exit 1
     fi
   fi
   rm -f /tmp/xlang_exc_error_chain_gate_$$.log
-else
-  echo "exc-error-chain gate FAIL: no native xlang" >&2
-  exc_error_chain_emit_report "fail" 0 0 0
-  exit 1
-fi
 
 # check stays observational; hard-green signal is run= (error_chain_smoke).
+if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
 echo "exc-error-chain check_ok=${CHECK_OK} (observational)"
-exc_error_chain_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+exc_error_chain_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP" "$OBS"
 echo "exc-error-chain gate OK"

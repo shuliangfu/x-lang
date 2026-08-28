@@ -8,6 +8,8 @@
 #
 # honesty 2026-08-26: prefer asm; link+run matrix reg_src hard; check_only
 # observational; no soft SKIP→OK; report link=/skip=.
+# Honesty 2026-08-29: leftover XLANG fallthrough retired; report
+# run=/obs=/skip= (keep link= extra).
 # PLATFORM: SHARED archaeology.
 
 BOOT010_PREFIX="${XLANG_BOOT010_PREFIX:-xlang: [XLANG_BOOT010]}"
@@ -48,10 +50,12 @@ boot010_link_run_one() {
   return 0
 }
 
-# Emit structured report line: link=/skip=.
+# Emit structured report line: run=/obs=/skip= (keep link= extra).
+# skip = check_only row count (observational); obs mirrors that residual.
 boot010_emit_report() {
   local status="$1"
   local link_ok="$2"
   local skip="$3"
-  echo "${BOOT010_PREFIX} status=${status} link=${link_ok} skip=${skip}"
+  local obs="${4:-0}"
+  echo "${BOOT010_PREFIX} status=${status} link=${link_ok} run=${link_ok} obs=${obs} skip=${skip}"
 }

@@ -4,17 +4,17 @@
 # Usage: ./tests/run-exc-error-recovery-gate.sh
 # wave honesty (2026-08-24 #12): DOC → analysis/archive/exc/;
 # live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational SKIP
-# (check gate paused 2026-08-05); recovery suite runnable hard-fail via
-# tests/lib/exc-error-recovery.sh (no soft SKIP→OK when no native).
-# Report check=/run=/skip=.
-# Gate was portable-false-red (prefer xlang-c / soft SKIP→OK when no native /
-# DOC soft SKIP bench narrative). Ubuntu/Darwin asm smoke already exit0.
-# PLATFORM: SHARED archaeology.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
+# = hard die. check observational (paused 2026-08-05); recovery suite
+# runnable hard-fail via tests/lib/exc-error-recovery.sh. Report
+# run=/obs=/skip= (keep check= extra). G.7: complete existing
+# exc_error_recovery_resolve_shu; converge dod_native_exe; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
 DOC="${XLANG_EXC_ERROR_RECOVERY_DOC:-analysis/archive/exc/exc-error-recovery-v1.md}"
 MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
@@ -22,27 +22,32 @@ RUNNER="tests/lib/exc-error-recovery.sh"
 SMOKE="tests/exc/recovery/r_or_fallback.x"
 MIN_CASES=30
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
-# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+# G.7: complete existing exc_error_recovery_resolve_shu. Explicit XLANG
+# that is missing or non-native returns 1 (caller hard-dies). Unset XLANG
+# prefers asm. Native check converges on dod_native_exe.
+# Do not restore set -e before return 1.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 exc_error_recovery_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
@@ -54,7 +59,8 @@ exc_error_recovery_emit_report() {
   local check_ok="$2"
   local run_ok="$3"
   local skip="$4"
-  echo "exc-error-recovery status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  local obs="${5:-0}"
+  echo "exc-error-recovery status=${status} check=${check_ok} run=${run_ok} obs=${obs} skip=${skip}"
 }
 
 echo "=== EXC-006: error recovery manifest ==="
@@ -150,7 +156,7 @@ fi
 echo "exc-error-recovery manifest OK (cases=${FOUND})"
 
 if [ "${XLANG_EXC_ERROR_RECOVERY_MANIFEST_ONLY:-0}" = "1" ]; then
-  exc_error_recovery_emit_report "ok" 0 0 1
+  exc_error_recovery_emit_report "ok" 0 0 1 0
   echo "exc-error-recovery gate OK (manifest only)"
   exit 0
 fi
@@ -159,42 +165,51 @@ chmod +x "$RUNNER" 2>/dev/null || true
 
 CHECK_OK=0
 RUN_OK=0
+OBS=0
 SKIP=1
 
-if XLANG_BIN="$(exc_error_recovery_resolve_shu 2>/dev/null)"; then
-  echo "=== EXC-006: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
-  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
-  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "exc-error-recovery gate SKIP check smoke (paused 2026-08-05)" >&2
-  fi
-
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-
-  # Hard-fail full suite via runner (no soft SKIP→OK).
-  # PLATFORM: SHARED
-  echo "=== EXC-006: runnable report (XLANG=$XLANG_BIN) ==="
-  if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$RUNNER"; then
-    RUN_OK=1
-    SKIP=0
-  else
-    echo "exc-error-recovery gate FAIL: runnable report (XLANG=$XLANG_BIN)" >&2
-    exc_error_recovery_emit_report "fail" "$CHECK_OK" 0 0
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(exc_error_recovery_resolve_shu)"; then
+    echo "exc-error-recovery gate FAIL: explicit XLANG not native (refuse leftover XLANG fallthrough)" >&2
+    exc_error_recovery_emit_report "fail" 0 0 0 0
     exit 1
   fi
-else
+elif ! XLANG_BIN="$(exc_error_recovery_resolve_shu)"; then
   echo "exc-error-recovery gate FAIL: no native xlang" >&2
-  exc_error_recovery_emit_report "fail" 0 0 0
+  exc_error_recovery_emit_report "fail" 0 0 0 0
+  exit 1
+fi
+
+echo "=== EXC-006: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
+# Observational check (paused 2026-08-05); CHK red does not hard-fail.
+if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+  CHECK_OK=1
+else
+  echo "exc-error-recovery gate SKIP check smoke (paused 2026-08-05)" >&2
+fi
+
+# Pin product link to resolved compiler (prefer asm).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+
+# Hard-fail full suite via runner (no soft SKIP→OK).
+# PLATFORM: SHARED
+echo "=== EXC-006: runnable report (XLANG=$XLANG_BIN) ==="
+if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" "$RUNNER"; then
+  RUN_OK=1
+  SKIP=0
+else
+  echo "exc-error-recovery gate FAIL: runnable report (XLANG=$XLANG_BIN)" >&2
+  if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
+  exc_error_recovery_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
   exit 1
 fi
 
 # check stays observational; hard-green signal is run= (recovery suite).
+if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
 echo "exc-error-recovery check_ok=${CHECK_OK} (observational)"
-exc_error_recovery_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+exc_error_recovery_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP" "$OBS"
 echo "exc-error-recovery gate OK"

@@ -1,10 +1,11 @@
 # BOOT-010 force_stub 6 风险处置 v1
 
-> 更新时间：2026-06-17 · **honesty 2026-08-24 / 2026-08-26**  
-> 状态：**硬绿 ✅（soft→硬绿）** — live `PARSER_STUB_EQ` = `compiler/seeds/runtime_pipeline_abi.from_x.c`（`ast_pool.c` left wave309）  
+> 更新时间：2026-08-29 · **honesty 2026-08-24 / 2026-08-26 / residual XLANG fallthrough**  
+> 状态：**定版（honesty residual XLANG fallthrough）** — live `PARSER_STUB_EQ` = `compiler/seeds/runtime_pipeline_abi.from_x.c`（`ast_pool.c` left wave309）  
 > 关联：`COMP-001`、`analysis/archive/boot/boot-mega7-gap.md` §4、abi seed `asm_parser_emit_heavy_force_stub`  
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md`.  
-> **honesty 2026-08-26**：gate prefer asm + `XLANG_LINK_XLANG`; matrix `reg_src` link+run hard; `check_only` observational; no soft SKIP→OK; DOC `## 7. Gate`.
+> **honesty 2026-08-26**：gate prefer asm + `XLANG_LINK_XLANG`; matrix `reg_src` link+run hard; `check_only` observational; no soft SKIP→OK; DOC `## 7. Gate`.  
+> **honesty 2026-08-29**：residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check_only remains obs. Keep `## 7. Gate`.
 
 ---
 
@@ -92,12 +93,12 @@
 
 | 项 | 规则 |
 |----|------|
-| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough） |
 | check_only | **observational**（自举期暂停；`wrap_return`／`skip_padding` 不挡门） |
 | link+run | matrix 唯一 `reg_src` 产品 `-o` + 约定 exit **hard-fail**（须 4／4：simple=10／no_else=42／f32_f64=0／allow_padding_ok=2） |
 | hooks | **不**再整闸调用 `run-float.sh`／`run-lang-unsafe-gate.sh`（其 check 负例在暂停闸门下 portable 假红）；权威回归 = matrix `reg_src` |
 | no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
-| report | `link=`／`skip=`（`skip` = check_only 行数） |
+| report | `run=`／`obs=`／`skip=`（keep `link=` extra；`skip`／`obs` = check_only 行数） |
 | DOC | refuse top-level resurrect；live = `analysis/archive/boot/`；禁 `ast_pool.c` 复活 |
 
 ```bash

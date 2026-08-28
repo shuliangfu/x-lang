@@ -1,11 +1,12 @@
 # EXC-006 错误恢复测试集 v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）· soft→硬绿（假权威诚实）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual XLANG fallthrough）** — 与 `EXC-001~005`、`core.result`、`std.error` 对齐  
 > 关联：`analysis/archive/exc/exc-result-error-v1-rfc.md`、`analysis/archive/exc/exc-panic-abort-v1-rfc.md`
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
-> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; recovery suite runnable hard-fail (no soft SKIP→OK).
+> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; recovery suite runnable hard-fail (no soft SKIP→OK).  
+> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; leftover runner auto-make retired; check remains obs. Keep `## 3. Gate`.
 
 ---
 
@@ -48,7 +49,7 @@
 | manifest | `tests/baseline/exc-error-recovery-cases.tsv` | `min_cases` + `case_*` |
 | runner | `tests/lib/exc-error-recovery.sh` | 单 case / 全量 **runnable** |
 | gate | `tests/run-exc-error-recovery-gate.sh` | manifest + honesty smoke |
-| report | gate stdout | `check=`／`run=`／`skip=` |
+| report | gate stdout | `run=`／`obs=`／`skip=`（keep `check=` extra） |
 
 `policy`：
 
@@ -57,14 +58,14 @@
 - `hook` — 调用 `tests/<script>`
 - `observe` — 观测残债（不硬红闸门）
 
-**Honesty contract（2026-08-26）**
+**Honesty contract（2026-08-26／2026-08-29 residual XLANG fallthrough）**
 
 | 项 | 规则 |
 |----|------|
-| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough） |
 | check | observational only（check gate paused 2026-08-05；smoke=`recovery/r_or_fallback.x`） |
-| runnable | recovery suite via `exc-error-recovery.sh` **hard-fail**（native present → no soft SKIP→OK） |
-| report | `check=`／`run=`／`skip=` |
+| runnable | recovery suite via `exc-error-recovery.sh` **hard-fail**（native present → no soft SKIP→OK；leftover runner auto-make retired） |
+| report | `run=`／`obs=`／`skip=`（keep `check=` extra） |
 | DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 
 ---

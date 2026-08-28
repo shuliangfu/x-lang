@@ -1,11 +1,12 @@
 # EXC-003 错误码分层（语言 / 库 / 系统）v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）· soft→硬绿（假权威诚实）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual XLANG fallthrough）**  
 > 关联：`EXC-001`（Layer A/B/C）、`EXC-002`（panic 边界）、`STD-011`（std 统一）
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
-> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; `error_code_layer.x` exit0 hard-fail (no soft SKIP→OK).
+> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; `error_code_layer.x` exit0 hard-fail (no soft SKIP→OK).  
+> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check remains obs. Keep `## 7. Gate`.
 
 ---
 
@@ -143,10 +144,10 @@ let t: Result_i32 = err_i32(io_err_timeout());
 
 | 项 | 规则 |
 |----|------|
-| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG` |
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough） |
 | check | observational only（check gate paused 2026-08-05） |
 | runnable | `error_code_layer.x` exit0 **hard-fail**（native present → no soft SKIP→OK） |
-| report | `check=`／`run=`／`skip=` |
+| report | `run=`／`obs=`／`skip=`（keep `check=` extra） |
 | DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
 | product API | short names in `std/error/mod.x`：`ok`／`code_*`／`base_*`／`*_err_*`／`code_in_global_range`／`code_in_module_span`／`code_is_platform_errno`（DOC narrative may still say `error_code_*`／`error_base_*`） |
 
