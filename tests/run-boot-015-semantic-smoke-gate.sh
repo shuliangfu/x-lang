@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# BOOT-015: semantic smoke (vec/map/heap) manifest + honesty gate
-# (false-authority honesty).
+# BOOT-015: semantic smoke (vec/map/heap) — honesty soft auto-make →硬绿.
 #
+# Honesty: soft auto-make (`xlang_compiler_make … || true`) + soft SKIP→OK
+# (no native still gate OK) + prefer-c / bootstrap-link wrap retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make).
+# Product -o vec/map/heap link+run exit0 = hard run; check = obs.
+# Report: run=/obs=/skip=. DOC defaults under analysis/archive/; refuse
+# resurrected top-level DOC / NEXT.md.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-boot-015-semantic-smoke-gate.sh
-# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
-# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
-# 2026-08-26: Prefer xlang_asm; pin XLANG_LINK_XLANG; check observational
-# (check gate paused 2026-08-05); vec/map/heap link+run exit0 hard-fail
-# (no soft SKIP→OK when no native). Report check=/link=/skip=. Gate was
-# portable-false-red (prefer xlang-c / soft SKIP→OK when no native /
-# hard check via subset runner / DOC ## 4. Gate without Gate honesty).
-# PLATFORM: SHARED archaeology.
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/boot-015-semantic-smoke.sh
+. tests/lib/boot-015-semantic-smoke.sh
 
 DOC="${XLANG_BOOT015_DOC:-analysis/archive/boot/boot-015-semantic-smoke-v1.md}"
 ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
@@ -23,54 +26,58 @@ LIB="tests/lib/boot-015-semantic-smoke.sh"
 MIN_SMOKE=3
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 
-# shellcheck source=tests/lib/boot-015-semantic-smoke.sh
-. tests/lib/boot-015-semantic-smoke.sh
+RUN_OK=0
+OBS=0
+SKIP=0
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "boot-015-semantic-smoke gate FAIL: $*" >&2
+  boot015_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
 }
 
-# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-boot015_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
   return 1
 }
 
-echo "=== BOOT-015: semantic smoke manifest ==="
+echo "=== BOOT-015: semantic smoke (prefer asm; hard; refuse soft auto-make / soft SKIP→OK) ==="
 
 # Refuse resurrected top-level DOC (live = archive/boot/).
 # PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
 if [ -f analysis/boot-015-semantic-smoke-v1.md ]; then
-  echo "boot-015-semantic-smoke gate FAIL: top-level DOC resurrected (live = archive/boot/)" >&2
-  exit 1
+  die "top-level DOC resurrected (live = archive/boot/)"
 fi
 
 for f in "$DOC" "$MANIFEST" "$LIB" "$ROADMAP"; do
-  if [ ! -f "$f" ]; then
-    echo "boot-015-semantic-smoke gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 if [ -f NEXT.md ]; then
-  echo "boot-015-semantic-smoke gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
-  exit 1
+  die "NEXT.md resurrected (use analysis/自举进度.md)"
 fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -81,16 +88,9 @@ while IFS=$'\t' read -r c1 c2 _rest; do
 done < "$MANIFEST"
 
 for kw in bootstrap-verify vec map heap check-7.2; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "boot-015-semantic-smoke gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
-
-if ! grep -qF '## 7. Gate' "$DOC" 2>/dev/null; then
-  echo "boot-015-semantic-smoke gate FAIL: doc missing '## 7. Gate'" >&2
-  exit 1
-fi
+grep -qF '## 7. Gate' "$DOC" 2>/dev/null || die "doc missing '## 7. Gate'"
 
 MISS=0
 SMOKE=0
@@ -136,72 +136,51 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$SMOKE" -lt "$MIN_SMOKE" ]; then
-  echo "boot-015-semantic-smoke gate FAIL: smokes=${SMOKE} < min ${MIN_SMOKE}" >&2
-  exit 1
-fi
-if [ "$MISS" -gt 0 ]; then
-  echo "boot-015-semantic-smoke gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$SMOKE" -ge "$MIN_SMOKE" ] || die "smokes=${SMOKE} < min ${MIN_SMOKE}"
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "boot-015-semantic-smoke manifest OK (smokes=${SMOKE})"
 
 if [ "${XLANG_BOOT015_MANIFEST_ONLY:-0}" = "1" ]; then
-  boot015_emit_report "ok" 0 0 1
+  SKIP=1
+  boot015_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "boot-015-semantic-smoke gate OK (manifest only)"
   exit 0
 fi
 
-# Best-effort quiet make (do not soft-SKIP the gate when make is noisy).
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make || true
+# Refuse soft auto-make — require existing native product binary.
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 mkdir -p "$OUT_DIR"
 
-CHECK_OK=0
-LINK_OK=0
-SKIP=1
+echo "=== BOOT-015: smoke (check observational; link+run hard) ==="
+for mod in vec map heap; do
+  src="tests/${mod}/main.x"
+  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
+  if boot015_check_one "$XLANG_BIN" "$src"; then
+    :
+  else
+    echo "boot-015-semantic-smoke OBS check $mod (paused 2026-08-05; refuse soft SKIP→OK)" >&2
+    OBS=$((OBS + 1))
+  fi
+done
 
-if XLANG_BIN="$(boot015_resolve_shu 2>/dev/null)"; then
-  echo "=== BOOT-015: smoke (XLANG=$XLANG_BIN; check observational; link+run hard) ==="
-  # Pin product link to resolved compiler (prefer asm).
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  export XLANG="$XLANG_BIN"
-  export XLANG_LINK_XLANG="$XLANG_BIN"
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+for mod in vec map heap; do
+  src="tests/${mod}/main.x"
+  out="${OUT_DIR}/xlang_boot015_${mod}_$$"
+  lr=0
+  boot015_link_run_one "$XLANG_BIN" "$src" "$out" || lr=$?
+  rm -f "$out"
+  if [ "$lr" -eq 0 ]; then
+    RUN_OK=$((RUN_OK + 1))
+    echo "boot-015 link+run OK $mod"
+  else
+    die "link+run $mod (lr=$lr)"
+  fi
+done
 
-  for mod in vec map heap; do
-    src="tests/${mod}/main.x"
-    # Observational check (paused 2026-08-05); CHK red does not hard-fail.
-    if boot015_check_one "$XLANG_BIN" "$src"; then
-      CHECK_OK=$((CHECK_OK + 1))
-    else
-      echo "boot-015-semantic-smoke gate SKIP check $mod (paused 2026-08-05)" >&2
-    fi
-  done
-
-  for mod in vec map heap; do
-    src="tests/${mod}/main.x"
-    out="${OUT_DIR}/xlang_boot015_${mod}_$$"
-    lr=0
-    boot015_link_run_one "$XLANG_BIN" "$src" "$out" || lr=$?
-    rm -f "$out"
-    if [ "$lr" -eq 0 ]; then
-      LINK_OK=$((LINK_OK + 1))
-      echo "boot-015 link+run OK $mod"
-    else
-      echo "boot-015-semantic-smoke gate FAIL: link+run $mod (lr=$lr)" >&2
-      boot015_emit_report "fail" "$CHECK_OK" "$LINK_OK" 0
-      exit 1
-    fi
-  done
-  SKIP=0
-else
-  echo "boot-015-semantic-smoke gate FAIL: no native xlang" >&2
-  boot015_emit_report "fail" 0 0 0
-  exit 2
-fi
-
-# check stays observational; hard-green signal is link= (3/3).
-echo "boot-015-semantic-smoke check_ok=${CHECK_OK} (observational) link_ok=${LINK_OK}"
-boot015_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$SKIP"
+[ "$RUN_OK" -eq 3 ] || die "link_ok=${RUN_OK} < 3"
+echo "boot-015-semantic-smoke check=obs=${OBS} run=${RUN_OK}"
+boot015_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "boot-015-semantic-smoke gate OK"

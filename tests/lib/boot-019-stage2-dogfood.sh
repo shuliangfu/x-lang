@@ -5,15 +5,15 @@
 #   boot019_check_one XLANG tests/parser/two_functions.x
 #   boot019_link_run_one XLANG tests/option/main.x OUT_PATH [EXPECTED_EXIT]
 #   boot019_expected_exit tests/option/main.x  # smoke exit contract
-#   boot019_emit_report status check_ok link_ok skip
+#   boot019_emit_report status run_ok obs skip
 #
-# honesty 2026-08-26: report fields check=/link=/skip=; check observational
-# at gate; link+run hard (6/6). PLATFORM: SHARED archaeology.
+# honesty 2026-08-28: report fields run=/obs=/skip=; check observational
+# at gate (obs++); link+run hard (6/6). PLATFORM: SHARED archaeology.
 
 BOOT019_PREFIX="${XLANG_BOOT019_PREFIX:-xlang: [XLANG_BOOT019]}"
 
 # Run xlang check on one .x; return 1 on failure.
-# Observational at gate (check paused 2026-08-05); callers may soft-note.
+# Observational at gate (check paused 2026-08-05); callers count as obs.
 boot019_check_one() {
   local xlang="$1"
   local src="$2"
@@ -60,11 +60,11 @@ boot019_link_run_one() {
   return 0
 }
 
-# Emit structured report line: check=/link=/skip=.
+# Emit structured report line: run=/obs=/skip=.
 boot019_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local link_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${BOOT019_PREFIX} status=${status} check=${check_ok} link=${link_ok} skip=${skip}"
+  echo "${BOOT019_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

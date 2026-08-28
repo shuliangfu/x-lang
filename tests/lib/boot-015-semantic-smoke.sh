@@ -4,16 +4,16 @@
 # Usage (after source):
 #   boot015_check_one XLANG tests/vec/main.x
 #   boot015_link_run_one XLANG tests/vec/main.x OUT_PATH
-#   boot015_emit_report status check_ok link_ok skip
+#   boot015_emit_report status run_ok obs skip
 #
-# honesty 2026-08-26: report fields stay check_ok=/link_ok=/skip= (gate prints
-# check=/link=/skip= prose); check is observational at gate; link+run hard.
+# honesty 2026-08-28: report fields run=/obs=/skip= (gate hard-green =
+# product -o link+run); check is observational at gate (obs++).
 # PLATFORM: SHARED archaeology.
 
 BOOT015_PREFIX="${XLANG_BOOT015_PREFIX:-xlang: [XLANG_BOOT015]}"
 
 # Run xlang check on one .x; return 1 on failure.
-# Observational at gate (check paused 2026-08-05); callers may soft-note.
+# Observational at gate (check paused 2026-08-05); callers count as obs.
 boot015_check_one() {
   local xlang="$1"
   local src="$2"
@@ -47,11 +47,11 @@ boot015_link_run_one() {
   return 0
 }
 
-# Emit structured report line: check_ok=/link_ok=/skip=.
+# Emit structured report line: run=/obs=/skip=.
 boot015_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local link_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${BOOT015_PREFIX} status=${status} check=${check_ok} link=${link_ok} skip=${skip}"
+  echo "${BOOT015_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
