@@ -13,6 +13,6 @@ impl_c	file	std/db/sqlite/sqlite.x	std/db/sqlite/sqlite.x	实现
 smoke_c	file	tests/std-sqlite/exec_tx_roundtrip_ok.c	C 入口
 smoke_x	smoke	tests/std-sqlite/exec_tx_roundtrip.x	.x 往返
 vectors	file	tests/baseline/std-sqlite-exec-deep-vectors.tsv	向量
-lib	script	lib/std-sqlite-exec-deep.sh	tests/lib/std-sqlite-exec-deep.sh
-gate	script	run-std-sqlite-exec-deep-gate.sh	tests/run-std-sqlite-exec-deep-gate.sh
+lib	script	tests/lib/std-sqlite-exec-deep.sh	lib
+gate	script	tests/run-std-sqlite-exec-deep-gate.sh	gate
 cross_std057	cross_ref	analysis/archive/std/std-sqlite-v1.md	STD-057
