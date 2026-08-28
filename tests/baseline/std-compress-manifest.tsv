@@ -4,7 +4,7 @@ min_apis	4
 min_layers	4
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-compress-v1.md	-	10min
 layers_doc	section	## 2. 格式层 M1–M4	analysis/archive/std/std-compress-v1.md	-	M1-M4
-verify	section	## 6. Gate	analysis/archive/std/std-compress-v1.md	-	gate
+verify	section	## Gate	analysis/archive/std/std-compress-v1.md	-	gate
 layer_m1	layers	M1-gzip	analysis/archive/std/std-compress-v1.md	v1	gzip
 layer_m2	layers	M2-zstd	analysis/archive/std/std-compress-v1.md	v1	zstd
 layer_m3	layers	M3-zlib	analysis/archive/std/std-compress-v1.md	v1	deflate
@@ -19,9 +19,9 @@ impl_brotli	file	std/compress/brotli/lib.x	std/compress/brotli/lib.x	impl	brotli
 impl_zstd	file	std/compress/zstd/lib.x	std/compress/zstd/lib.x	impl	zstd .x
 impl_common	file	std/compress/common.x	std/compress/common.x	impl	共用魔数/流头（零 .h）
 make_zstd	target	compress-o-zlib-zstd	tests/lib/compiler-make.sh	v1	hub no-op phony
-lib	script	lib/std-compress.sh	tests/lib/std-compress.sh	-	共享库
-gate	script	run-std-compress-gate.sh	tests/run-std-compress-gate.sh	-	manifest
-hook_compress	hook_script	run-compress.sh	tests/run-compress.sh	-	回归
+lib	script	tests/lib/std-compress.sh	tests/lib/std-compress.sh	-	共享库
+gate	script	tests/run-std-compress-gate.sh	tests/run-std-compress-gate.sh	-	manifest
+hook_compress	hook_script	tests/run-compress.sh	tests/run-compress.sh	-	回归
 smoke_gzip	smoke	tests/std-compress/gzip_roundtrip.x	tests/std-compress/gzip_roundtrip.x	-	gzip 往返
 smoke_zstd	smoke	tests/std-compress/zstd_roundtrip.x	tests/std-compress/zstd_roundtrip.x	-	zstd 往返
 smoke_legacy	smoke	tests/compress/main.x	tests/compress/main.x	-	legacy

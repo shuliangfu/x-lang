@@ -1,7 +1,7 @@
 # STD-007 std.compress 基础能力 v1
 
-> 更新时间：2026-08-26  
-> 状态：**定版（v1）** · Gate honesty soft→硬绿  
+> 更新时间：2026-08-28  
+> 状态：**定版（v1）＋ honesty Gate**  
 > 关联：`std/compress/*.x`（F-04 v7；无 `compress.c`／无 `compress.o`）、`tests/run-std-compress-gate.sh`、`tests/compress/main.x`
 
 ---
@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 格式层 M1–M4 |
 | 2 | 打开 `tests/baseline/std-compress-manifest.tsv` |
 | 3 | `./tests/run-std-compress-gate.sh` |
-| 4 | 模块回归：`./tests/run-compress.sh`（hook；观测） |
+| 4 | 模块回归：`./tests/run-compress.sh`（hook；观测；非硬绿） |
 
 ---
 
@@ -31,8 +31,8 @@
 **构建**（MF 已物理删除）：
 
 ```bash
-# hub no-op phony（compat）；真权威 = .x + runtime marker 链 -lz/-lzstd/-lbrotli*
-xlang_compiler_make compress-o-zlib-zstd
+# hub no-op phony 仅 inventory（compat）；闸门拒调用 make／try_libs。
+# 真权威 = .x + runtime marker 链 -lz/-lzstd/-lbrotli*
 ./tests/run-std-compress-gate.sh
 ```
 
@@ -46,10 +46,10 @@ xlang_compiler_make compress-o-zlib-zstd
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `smoke_gzip` | `tests/std-compress/gzip_roundtrip.x` | exit 0 硬失败（往返或库未链时分支跳过仍 0） |
-| `smoke_zstd` | `tests/std-compress/zstd_roundtrip.x` | exit 0 硬失败 |
-| `smoke_legacy` | `tests/compress/main.x` | gzip＋zstd＋brotli 往返；exit 0 硬失败 |
-| `hook_compress` | `tests/run-compress.sh` | hook（观测；硬绿信号＝三烟测） |
+| `smoke_gzip` | `tests/std-compress/gzip_roundtrip.x` | 产品 `-o` 成功＝`run++`；UNDEF／SEGV／exit≠0＝obs |
+| `smoke_zstd` | `tests/std-compress/zstd_roundtrip.x` | 同上 |
+| `smoke_legacy` | `tests/compress/main.x` | gzip＋zstd＋brotli 往返；同上 |
+| `hook_compress` | `tests/run-compress.sh` | hook 观测（失败＝obs；非硬绿） |
 
 ---
 
@@ -58,7 +58,7 @@ xlang_compiler_make compress-o-zlib-zstd
 - [x] RFC + manifest **4** API 核心 + **2** 格式层烟测
 - [x] `zstd_*` API + hub `compress-o-zlib-zstd` no-op
 - [x] `run-std-compress-gate.sh` + runnable report
-- [x] Gate honesty soft→硬绿（prefer asm／LINK／check 观测／硬烟测）
+- [x] Gate honesty soft→硬绿（prefer asm／LINK／拒 try_libs／auto-make／XLANG fallthrough；check＋tip 产品＝obs）
 
 ---
 
@@ -73,39 +73,32 @@ xlang_compiler_make compress-o-zlib-zstd
 | 烟测 | `tests/std-compress/gzip_roundtrip.x`、`zstd_roundtrip.x`、`tests/compress/main.x` |
 | README | `std/compress/README.md` |
 
-旧闸偏 `xlang-c`／无 native 则 soft SKIP 却报 OK／section `## 4. Gate 与 report`＝portable 假红；产品 asm 烟测本绿（`main.x` BUILD=0 RUN=0）。
+旧闸偏 `xlang-c`／无 native 则 soft SKIP 却报 OK／section `## 4. Gate 与 report`＝portable 假红；2026-08-26 一过仍留 `std_compress_try_libs`／soft auto-make／显式坏 XLANG 回落／`check=`／`gzip=`／`zstd=`／`legacy=`。
+
+化石报告 `check=`／`gzip=`／`zstd=`／`legacy=` 已退役。
 
 ---
 
-## 6. Gate
+## Gate
+
+Honesty soft→硬绿（2026-08-28 二过）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；拒 soft SKIP→OK／prefer-c／soft `std_compress_try_libs`／soft auto-make／XLANG fallthrough；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV／exit≠0＝obs（产品另案；brotli ld 仍跳）。报告 `run=`／`obs=`／`skip=`。
 
 ```bash
 ./tests/run-std-compress-gate.sh
 ```
 
-Honesty（2026-08-26 · soft→硬绿）：
-
-| 字段 | 含义 |
-|------|------|
-| prefer | `xlang_asm`（再 `xlang-c`／`xlang`）；钉 `XLANG_LINK_XLANG` |
-| check | **观测**（自举期 check 闸门暂停；CHK 红不硬失败） |
-| gzip／zstd／legacy | 三烟测 **exit 0 硬失败**（有 native 时禁止 soft SKIP→OK） |
-| skip | 仅 `MANIFEST_ONLY=1` 时可 1；有 native 跑烟测时必须 0 |
-| refuse | 顶层 `analysis/std-compress-v1.md` 复活 → FAIL |
-
-报告行（runnable report）：
-
-```text
-xlang: [XLANG_STD_COMPRESS] status=ok check=? gzip=1 zstd=1 legacy=1 skip=0
+```
+xlang: [XLANG_STD_COMPRESS] status=ok run=N obs=M skip=K
 ```
 
-硬绿信号＝`gzip=`／`zstd=`／`legacy=`（`check=` 仅观测）。
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
-**STD-007 状态：定版 ✅ · Gate honesty soft→硬绿**
+**STD-007 状态：定版 ✅ · Gate honesty soft→硬绿（残 try_libs／auto-make 已收）**
 
 ### Changelog
 
 | Ver | Date | Note |
 |-----|------|------|
 | v1.0 | 2026-06-17 | 定版：gzip + zstd 往返烟测，可选 zlib/Brotli |
-| v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；DOC／TSV→`## 6. Gate`；gzip／zstd／legacy exit0 硬失败；报告 `check=`／`gzip=`／`zstd=`／`legacy=`／`skip=`；禁 soft SKIP→OK／顶层 DOC 复活 |
+| v1.1 | 2026-08-26 | Gate honesty 一过：prefer asm／LINK／check 观测；DOC／TSV→`## 6. Gate`；gzip／zstd／legacy exit0 硬失败；报告 `check=`／`gzip=`／`zstd=`／`legacy=`／`skip=` |
+| v1.2 | 2026-08-28 | Gate honesty 二过：拒 `std_compress_try_libs`／soft auto-make／XLANG fallthrough；DOC／TSV→`## Gate`；报告 `run=`／`obs=`／`skip=`；check＋tip 产品＝obs |
