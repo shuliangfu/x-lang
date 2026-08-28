@@ -52,12 +52,17 @@ if [ ! -f "$PARSER_X" ]; then
   exit 0
 fi
 
+# Avoid `nm | grep -q` under pipefail: a match closes the pipe early,
+# nm gets SIGPIPE (141), and `if !` falsely treats the symbol as missing.
+NM_OUT="/tmp/xlang_parser_x_nm_$$.txt"
+nm "$PARSER_X" >"$NM_OUT" 2>/dev/null || true
 MISSING=""
 for sym in parser_parse_into_buf parser_parse_into_init parser_parse_into_set_main_index; do
-  if ! nm "$PARSER_X" 2>/dev/null | grep -qE "[ Tt] .*${sym}$"; then
+  if ! grep -qE " [Tt] ${sym}$" "$NM_OUT"; then
     MISSING="${MISSING} ${sym}"
   fi
 done
+rm -f "$NM_OUT"
 if [ -n "$MISSING" ]; then
   if [ "$FAIL" = "1" ]; then
     die "$PARSER_X missing T:${MISSING}"

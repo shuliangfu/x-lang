@@ -70,7 +70,9 @@ SMK="tests/boundary/struct_mk_let_inline.x"
   XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 XLANG=./xlang ./scripts/build_xlang_asm.sh > /tmp/typeck_wpo_smoke.log 2>&1
 )
 
-if ! grep -qE 'typeck_wpo_helpers|whole typeck.o \(selfhosted|seed typeck.o' /tmp/typeck_wpo_smoke.log; then
+# Tip may skip typeck_wpo.o dogfood recompile (XLANG_ASM_SKIP_WPO_DOGFOOD=1)
+# while still printing STRICT_LINK_BUILD_ASM_TYPECK_WPO=1 / "typeck_wpo reach OK".
+if ! grep -qE 'typeck_wpo_helpers|whole typeck\.o \(selfhosted|seed typeck\.o|typeck_wpo reach OK|STRICT_LINK_BUILD_ASM_TYPECK_WPO=1' /tmp/typeck_wpo_smoke.log; then
   die "log missing typeck_wpo opt-in link path"
 fi
 
