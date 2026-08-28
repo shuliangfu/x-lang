@@ -21,14 +21,11 @@
 
 ## 3. Gate
 
-Gate honesty（2026-08-26 soft→硬绿；对齐 STD-137）：
-
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c remap）
-- `xlang check` **观测**（自举期 check 闸门暂停 2026-08-05；失败不硬红）
-- `tests/time/bench_timer.x` **exit 0 硬失败**（有 native xlang 时禁止 soft SKIP）
-- 无 native xlang → **FAIL**（禁止无 native 则 SKIP 假绿）
-- TSV／DOC 锚对齐产品短名：`Timer`／`start`／`reset`／`elapsed_ns`／`elapsed_ms`／`lap_ns`
-- 报告：`check=`／`run=`／`skip=`
-- 拒顶层 DOC 复活（live = `analysis/archive/std/`）
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). `bench_timer.x` exit 0 hard-fail (`run+=`).
+Report `run=` / `obs=` / `skip=`. Refuse top-level DOC resurrect
+(live = `analysis/archive/std/`).
 
 PLATFORM: SHARED archaeology.

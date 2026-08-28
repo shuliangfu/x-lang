@@ -46,7 +46,14 @@ xlang: [XLANG_TEST_SUMMARY] total=2 pass=1 fail=0 skip=1
 ./tests/run-std-test-runner-gate.sh
 ```
 
-烟测：`tests/std-test/runner_smoke.x`（exit 0 + 上述报告行硬失败）
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). `runner_smoke.x` exit 0 + report lines
+hard-fail (`run+=`). Report `run=` / `obs=` / `skip=`.
 
-报告：`xlang: [XLANG_STD145_TEST_RUNNER] status=… check=… run=… skip=…`  
-（check 观测；run 为硬绿信号）
+烟测：`tests/std-test/runner_smoke.x`
+
+```
+xlang: [XLANG_STD145_TEST_RUNNER] status=ok run=1 obs=1 skip=0
+```

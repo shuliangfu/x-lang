@@ -22,13 +22,12 @@
 
 `./tests/run-std-url-ipv6-host-gate.sh`
 
-Honesty（2026-08-26）：
-
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
-- `xlang check` 仅观测（自举期 check 闸门暂停）
-- `ipv6_host.x` exit 0 硬失败（有 native 时禁止 soft SKIP→OK）
-- C smoke 仅观测
-- 报告 `check=`／`run=`／`skip=`（禁顶层 DOC 复活）
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). `ipv6_host.x` exit 0 hard-fail (`run+=`).
+C smoke observational only (existing `.o`; no soft rebuild; `obs+=`).
+Report `run=` / `obs=` / `skip=`. Refuse top-level DOC resurrect.
 
 Gate report example：
 

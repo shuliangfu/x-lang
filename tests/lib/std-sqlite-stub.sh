@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# std-sqlite-stub.sh — STD-139 manifest 与 stub 烟测辅助
-# Honesty 2026-08-26: report check=/run=/stub_c=/skip=; prefer asm gate.
+# std-sqlite-stub.sh — STD-139 manifest and stub smoke helpers (honesty).
+# Honesty 2026-08-28: report run=/obs=/skip=; prefer asm; no soft rebuild.
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -80,59 +80,50 @@ std_sqlite_stub_restore_product_o() {
   fi
 }
 
-# Build stub sqlite.o and run C smoke (no libsqlite3). Observational only.
-# Always restores product sqlite.o before return (stub overwrites shared .o).
+# Run C stub smoke against an existing stub sqlite.o (no soft sqlite-o-stub make).
+# Observational only. Always restores product sqlite.o before return.
+# PLATFORM: SHARED archaeology — hard-green signal is .x stub_behavior.x.
 std_sqlite_stub_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/stub_behavior_ok.c"
   local out="/tmp/xlang_std_sqlite_stub_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
-  if ! xlang_compiler_make sqlite-o-stub >/dev/null 2>&1; then
-    echo "std-sqlite-stub SKIP c smoke (sqlite-o-stub residual)" >&2
-    std_sqlite_stub_restore_product_o
-    return 2
-  fi
+  # Refuse soft auto-make of sqlite-o-stub; only exercise an existing stub .o.
   if [ ! -f "$sqlite_o" ]; then
-    echo "std-sqlite-stub SKIP c smoke (missing stub sqlite.o)" >&2
-    std_sqlite_stub_restore_product_o
+    echo "std-sqlite-stub OBS c smoke (missing stub sqlite.o; no soft rebuild)" >&2
     return 2
   fi
   if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
-    echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols)" >&2
+    echo "std-sqlite-stub OBS c smoke (sqlite.o missing .x symbols)" >&2
     std_sqlite_stub_restore_product_o
     return 2
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" 2>/dev/null; then
-    echo "std-sqlite-stub SKIP c smoke (compile residual)" >&2
+    echo "std-sqlite-stub OBS c smoke (compile residual)" >&2
     std_sqlite_stub_restore_product_o
     return 2
   fi
-  # Observational only: never enable set -e here (would bleed to caller under
-  # outer set +e and turn residual C segfault into a hard gate fail).
-  # PLATFORM: SHARED archaeology — hard-green signal is .x stub_behavior.x.
   local ec=0
   "$out" >/dev/null 2>&1 || ec=$?
   rm -f "$out"
   std_sqlite_stub_restore_product_o
   if [ "$ec" -ne 0 ]; then
-    echo "std-sqlite-stub SKIP c smoke (run residual exit=$ec)" >&2
+    echo "std-sqlite-stub OBS c smoke (run residual exit=$ec)" >&2
     return 2
   fi
   return 0
 }
 
-# Emit structured report line (honesty: check=/run=/stub_c=/skip=).
-# @param status ok|fail
-# @param check_ok 0|1 observational xlang check
-# @param run_ok 0|1 hard runnable exit0 (stub_behavior.x)
-# @param stub_c 0|1 observational C stub smoke
-# @param skip 0|1 residual skip bit (0 when runnable hard-green)
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product stub_behavior.x hard green count
+# @param $3 obs — check/C stub observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_sqlite_stub_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
-  local stub_c="$4"
-  local skip="$5"
-  echo "${STD_DB_STUB_PREFIX} status=${status} check=${check_ok} run=${run_ok} stub_c=${stub_c} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_DB_STUB_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # std-sync-lock-diag.sh — STD-111 manifest 与烟测辅助（F-sync-lock-diag v2：逻辑在 sync.x）
-# Honesty 2026-08-26: report check=/run=/skip=; TSV anchors = product lock_diag_*.
+# Honesty 2026-08-28: report run=/obs=/skip=; TSV anchors = product lock_diag_*.
 
 STD_SYNC_LOCK_DIAG_PREFIX="${XLANG_STD111_SYNC_LOCK_DIAG_PREFIX:-xlang: [XLANG_STD111_SYNC_LOCK_DIAG]}"
 
@@ -78,15 +78,15 @@ std_sync_lock_diag_run_x_smoke() {
   return 0
 }
 
-# Emit structured report line (honesty: check=/run=/skip=).
-# @param status ok|fail
-# @param check_ok 0|1 observational xlang check
-# @param run_ok 0|1 hard runnable exit0
-# @param skip 0|1 residual skip bit (0 when runnable hard-green)
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product lock_diag.x hard green count
+# @param $3 obs — check observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_sync_lock_diag_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_SYNC_LOCK_DIAG_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_SYNC_LOCK_DIAG_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

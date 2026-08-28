@@ -97,15 +97,15 @@ std_url_ipv6_host_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# Emit structured report line (honesty: check=/run=/skip=).
+# Structured report line (honesty: run=/obs=/skip=).
 # @param $1 status — ok|fail
-# @param $2 check_ok — observational check (0/1; not hard green)
-# @param $3 run_ok — runnable .x smoke exit0 (hard green signal)
-# @param $4 skip — 1 only for manifest-only / no-native paths
+# @param $2 run_ok — product ipv6_host.x hard green count
+# @param $3 obs — check/C observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_url_ipv6_host_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_URL_IPV6_HOST_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_URL_IPV6_HOST_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

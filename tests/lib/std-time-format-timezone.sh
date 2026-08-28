@@ -82,15 +82,15 @@ std_time_format_tz_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# Emit structured report line (honesty: check=/run=/skip=).
-# @param status ok|fail
-# @param check_ok 0|1 observational xlang check
-# @param run_ok 0|1 hard runnable exit0
-# @param skip 0|1 residual skip bit (0 when runnable hard-green)
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product format_timezone.x hard green count
+# @param $3 obs — check/C observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_time_format_tz_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_TIME_FORMAT_TZ_PREFIX} status=${status} check=${check_ok} run=${run_ok} skip=${skip}"
+  echo "${STD_TIME_FORMAT_TZ_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

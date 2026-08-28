@@ -43,19 +43,19 @@
 
 ## 4. Gate
 
-Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `xlang check`
-observational (check gate paused); `stub_behavior.x` exit 0 hard-fail on
-`is_available` + stub `backend_name` (soft-scoped); C stub smoke observational.
-Product residual: stub `open` / `last_error` segfault on Ubuntu no-libsqlite3
-(Darwin masked via `is_available==1`) — not soft. Report
-`check=` / `run=` / `stub_c=` / `skip=`.
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). `stub_behavior.x` exit 0 hard-fail (`run+=`).
+C stub smoke observational only (existing stub `.o`; no soft `sqlite-o-stub`
+rebuild; `obs+=`). Report `run=` / `obs=` / `skip=`.
 
 ```bash
 ./tests/run-std-sqlite-stub-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD139_DB_STUB] status=ok check=0 run=1 stub_c=0 skip=0
+xlang: [XLANG_STD139_DB_STUB] status=ok run=1 obs=2 skip=0
 ```
 
 ---

@@ -30,19 +30,18 @@
 ./tests/run-std-sys-gate.sh
 ```
 
-Honesty（2026-08-26 soft→硬绿）：
-
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
-- `xlang check` 仅观测（check 闸门暂停 2026-08-05）
-- 硬绿：`sys_write_freestanding.x` → `write_stdout` exit0 + stdout `Hello Xlang!\n`
-  - **LINUX|UBUNTU x86_64**：`-freestanding -backend asm`
-  - **MACOS|DARWIN**：常规 `-o`（hosted `write_stdout`）
-- 无 native xlang → **FAIL**（禁止 soft SKIP→OK）
-- 观测：`linux_syscall_nr_smoke.x`（Linux）；`macos_posix_write_smoke.x`（Darwin thin `macos_write_*` — 产品 UNDEF：labi `needs_std_sys` needles 缺 mod 层 `std_sys_macos_write_*`）
-- 报告：`check=`／`run=`／`skip=`
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). Hard green: `write_stdout` exit0 +
+stdout `Hello Xlang!\n` (`run+=`) —
+**LINUX|UBUNTU x86_64** `-freestanding -backend asm`; **MACOS|DARWIN** hosted
+`-o`. Observational: `linux_syscall_nr_smoke.x` (Linux); thin
+`macos_posix_write_smoke.x` (Darwin labi needle gap; `obs+=`). Report
+`run=` / `obs=` / `skip=`.
 
 ```text
-xlang: [XLANG_BOOT029_STD_SYS] status=ok check=1 run=1 skip=0
+xlang: [XLANG_BOOT029_STD_SYS] status=ok run=1 obs=2 skip=0
 ```
 
 Changelog：
