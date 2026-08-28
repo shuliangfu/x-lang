@@ -7,5 +7,7 @@ verify	section	## 3. Gate	analysis/archive/std/std-regex-atomic-v1.md
 symbol_atomic_c	symbol	atomic_nest	std/regex/regex.x	回溯控制
 symbol_smoke_c	symbol	pat20	std/regex/regex.x	C 烟测
 smoke_x	smoke	tests/regex/atomic_match.x	.x烟测
-lib	script	lib/std-regex-atomic.sh	tests/lib/std-regex-atomic.sh
-gate	script	run-std-regex-atomic-gate.sh	tests/run-std-regex-atomic-gate.sh
+smoke_c	file	tests/regex/regex_min_ok.c	父 C 入口
+lib	script	tests/lib/std-regex-atomic.sh	tests/lib/std-regex-atomic.sh
+gate	script	tests/run-std-regex-atomic-gate.sh	tests/run-std-regex-atomic-gate.sh
+cross_std051	cross_ref	analysis/archive/std/std-regex-v1.md	STD-051

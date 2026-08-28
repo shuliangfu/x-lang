@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
-# std-regex-atomic.sh — STD-124 manifest 与烟测辅助
+# std-regex-atomic.sh — STD-124 atomic-group helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_regex_atomic_source_regex
+#   std_regex_atomic_symbols_ok REGEX_X TSV
+#   std_regex_atomic_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / soft ensure; report run=/obs=/skip=.
+# Parent STD-051 helpers (run_c_smoke / run_smoke) are G.7 authority — do not duplicate.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_REGEX_ATOMIC_PREFIX="${XLANG_STD124_REGEX_ATOMIC_PREFIX:-xlang: [XLANG_STD124_REGEX_ATOMIC]}"
 
+# Source STD-051 helpers (run_c_smoke / run_smoke). G.7: do not fork.
+std_regex_atomic_source_regex() {
+  # shellcheck source=tests/lib/std-regex.sh
+  . tests/lib/std-regex.sh
+}
+
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_regex_atomic_symbols_ok() {
-  local min_inc="$1"
+  local regex_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -13,10 +28,41 @@ std_regex_atomic_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       symbol)
-        grep -qF "$anchor" "$min_inc" 2>/dev/null || miss=$((miss + 1))
+        local path="$mod_path"
+        if [ "$path" = "std/regex/regex.x" ]; then path="$regex_x"; fi
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-regex-atomic FAIL: missing '$anchor' in $path" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      section)
+        local doc="${XLANG_STD124_DOC:-analysis/archive/std/std-regex-atomic-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-regex-atomic FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
         ;;
       file|smoke)
-        [ -f "$anchor" ] || miss=$((miss + 1))
+        if [ ! -f "$anchor" ]; then
+          echo "std-regex-atomic FAIL: missing '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      script)
+        if [ -n "$anchor" ] && [ -f "$anchor" ]; then
+          :
+        elif [ -n "$mod_path" ] && [ -f "$mod_path" ]; then
+          :
+        else
+          echo "std-regex-atomic FAIL: missing script '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      cross_ref)
+        if [ ! -f "$anchor" ]; then
+          echo "std-regex-atomic FAIL: missing '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
         ;;
     esac
   done < "$tsv"
@@ -24,31 +70,11 @@ std_regex_atomic_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_regex_atomic_run_c_smoke() {
-  local regex_c="$1"
-  local out="/tmp/xlang_std_regex_atomic_c_$$"
-  cc -std=c11 -O1 -o "$out" tests/regex/regex_min_ok.c "$regex_c" 2>/dev/null || return 1
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  [ "$ec" -eq 0 ]
-}
-
-std_regex_atomic_run_x_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std_regex_atomic_x_$$"
-  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  [ "$ec" -eq 0 ]
-}
-
+# Structured report line (honesty: run=/obs=/skip=; retired c=/x=).
 std_regex_atomic_emit_report() {
-  echo "${STD_REGEX_ATOMIC_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_REGEX_ATOMIC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
