@@ -5,7 +5,8 @@
 #   std_db_kv_arrow_symbols_ok KV_MOD ARROW_MOD KV_X ARROW_X TSV
 #   std_db_kv_arrow_run_smoke XLANG_BIN X TAG
 #   std_db_kv_arrow_run_c_smokes
-#   std_db_kv_arrow_emit_report status check_ok kv_ok arrow_ok cb_ok c_ok skip
+#   std_db_kv_arrow_emit_report status run_ok obs skip
+# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
 
 # shellcheck source=compiler-make.sh
 . "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
@@ -87,6 +88,7 @@ std_db_kv_arrow_run_smoke() {
 }
 
 # Observational host-C smokes (kv + arrow). Returns 0 only if both present and exit 0.
+# Refuse soft auto-make / soft ensure rebuild — use existing .o only.
 # PLATFORM: SHARED archaeology — not the product asm hard-green path.
 std_db_kv_arrow_run_c_smokes() {
   local tmp
@@ -106,16 +108,17 @@ EOF
 extern int32_t arrow_smoke_c(void);
 int main(void) { return arrow_smoke_c() == 0 ? 0 : 1; }
 EOF
-  xlang_compiler_make ../std/db/kv/kv.o ../std/db/arrow/arrow.o \
-    runtime_kv_mmap_glue.o runtime_arrow_simd_glue.o >/dev/null 2>&1 || true
-  if nm std/db/kv/kv.o 2>/dev/null | grep -q ' db_kv_smoke_c\| T _db_kv_smoke_c\| T db_kv_smoke_c'; then
+  # No soft xlang_compiler_make || true — missing .o → observational miss.
+  if [ -f std/db/kv/kv.o ] && [ -f compiler/runtime_kv_mmap_glue.o ] \
+    && nm std/db/kv/kv.o 2>/dev/null | grep -q ' db_kv_smoke_c\| T _db_kv_smoke_c\| T db_kv_smoke_c'; then
     if cc -o "$tmp/kv_c_smoke" "$tmp/kv_smoke_main.c" std/db/kv/kv.o \
          compiler/runtime_kv_mmap_glue.o 2>/dev/null \
        && "$tmp/kv_c_smoke"; then
       ok=$((ok + 1))
     fi
   fi
-  if nm std/db/arrow/arrow.o 2>/dev/null | grep -q ' arrow_smoke_c\| T _arrow_smoke_c\| T arrow_smoke_c'; then
+  if [ -f std/db/arrow/arrow.o ] && [ -f compiler/runtime_arrow_simd_glue.o ] \
+    && nm std/db/arrow/arrow.o 2>/dev/null | grep -q ' arrow_smoke_c\| T _arrow_smoke_c\| T arrow_smoke_c'; then
     if cc -o "$tmp/arrow_c_smoke" "$tmp/arrow_smoke_main.c" std/db/arrow/arrow.o \
          compiler/runtime_arrow_simd_glue.o 2>/dev/null \
        && "$tmp/arrow_c_smoke"; then
@@ -126,13 +129,15 @@ EOF
   [ "$ok" -eq 2 ]
 }
 
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product kv+arrow+cb hard green count
+# @param $3 obs — check/host-C observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_db_kv_arrow_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local kv_ok="$3"
-  local arrow_ok="$4"
-  local cb_ok="$5"
-  local c_ok="$6"
-  local skip="$7"
-  echo "${STD_DB_KV_ARROW_PREFIX} status=${status} check=${check_ok} kv=${kv_ok} arrow=${arrow_ok} cb=${cb_ok} c=${c_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_DB_KV_ARROW_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

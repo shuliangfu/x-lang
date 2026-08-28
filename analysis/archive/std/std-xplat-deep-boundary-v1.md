@@ -32,12 +32,13 @@
 
 `./tests/run-std-xplat-deep-boundary-gate.sh`
 
-**Honesty（2026-08-26）**：
+**Honesty（2026-08-28 soft fallthrough residual）**：
 
-- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c  remap 假绿）
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c remap 假绿）
+- 显式坏 `XLANG`／缺 native → **硬 die**（禁 soft fallthrough／prefer-c／soft auto-make／soft SKIP→OK）
 - `xlang check` **观测**（check 闸门暂停 2026-08-05；CHK 红不硬失败）
-- must-policy `.x` **exit0 硬失败**；无 native **FAIL**（禁 soft SKIP→OK）
-- 报告：`check=`／`x=`／`skip=`
-- 产品面 asm 本绿；旧闸 prefer `xlang-c`／硬 typeck／无 native soft SKIP＝portable 假红
+- must-policy `.x` **exit0 硬失败**（`run+=`）；optional fail＝`obs+=`
+- 报告：`run=`／`obs=`／`skip=`
+- 产品面 asm 本绿；旧闸 prefer `xlang-c`／硬 typeck／无 native soft SKIP／显式坏仍回落＝portable 假红
 
 报告前缀：`xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]`

@@ -5,7 +5,8 @@
 #   xplat_deep_platform_policy linux macos windows
 #   xplat_deep_verify_paths TSV MIN_ROWS
 #   xplat_deep_run_smoke XLANG_BIN SRC
-#   xplat_deep_emit_report status check_ok x_ok skip
+#   xplat_deep_emit_report status run_ok obs skip
+# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
 # 2026-08-26: report check=/x=/skip= (honesty; prefer asm runnable hard).
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
@@ -107,16 +108,15 @@ xplat_deep_run_smoke() {
   return 0
 }
 
-# Structured report line (check observational; x runnable hard; skip only
-# for manifest-only paths — never soft-OK when no native compiler).
+# Structured report line (honesty: run=/obs=/skip=).
 # @param $1 status — ok|fail
-# @param $2 check_ok — observational check (0/1; not hard green)
-# @param $3 x_ok — all must-policy smokes exit0 (hard green)
+# @param $2 run_ok — must-policy smoke hard green count
+# @param $3 obs — check/optional observational residuals
 # @param $4 skip — 1 only for manifest-only
 xplat_deep_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local x_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_XPLAT_DEEP_PREFIX} status=${status} check=${check_ok} x=${x_ok} skip=${skip}"
+  echo "${STD_XPLAT_DEEP_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

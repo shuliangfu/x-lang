@@ -4,8 +4,8 @@
 # Usage (after source):
 #   std_runtime_panic_manifest_ok DOC README RUNTIME_X TSV
 #   std_runtime_panic_run_smoke XLANG_BIN smoke_x tag
-#   std_runtime_panic_emit_report status check_ok hook_ok ready_ok exc_ok skip
-# 2026-08-26: report check=/hook=/ready=/exc=/skip= (honesty; prefer asm runnable hard).
+#   std_runtime_panic_emit_report status run_ok obs skip
+# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
 # PLATFORM: SHARED archaeology.
 
 STD_RUNTIME_PANIC_PREFIX="${XLANG_STD_RUNTIME_PANIC_PREFIX:-xlang: [XLANG_STD_RUNTIME_PANIC]}"
@@ -119,13 +119,15 @@ std_runtime_panic_run_smoke() {
   return 0
 }
 
-# Structured report line (honesty: check=/hook=/ready=/exc=/skip=).
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product hook+ready hard green count
+# @param $3 obs — check/EXC observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_runtime_panic_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local hook_ok="$3"
-  local ready_ok="$4"
-  local exc_ok="$5"
-  local skip="$6"
-  echo "${STD_RUNTIME_PANIC_PREFIX} status=${status} check=${check_ok} hook=${hook_ok} ready=${ready_ok} exc=${exc_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_RUNTIME_PANIC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

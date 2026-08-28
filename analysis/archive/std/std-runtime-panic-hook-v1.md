@@ -69,14 +69,15 @@
 ./tests/run-std-runtime-panic-hook-gate.sh
 ```
 
-Honesty（2026-08-26）：
+Honesty（2026-08-28 soft fallthrough residual）：
 
 - Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- 显式坏 `XLANG`／缺 native → **硬 die**（禁 soft fallthrough／prefer-c／soft auto-make／soft SKIP→OK）
 - `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
-- `panic_hook_align.x` + `runtime_ready.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
-- EXC-002 委托 **观测**（报告 `exc=`；禁止 soft-SKIP 整闸却报 OK）
+- `panic_hook_align.x` + `runtime_ready.x` **exit 0 硬失败**（`run+=`）
+- EXC-002 委托 **观测**（`obs+=`；禁止 soft-SKIP 整闸却报 OK）
 - EXC RFC 活路径：`analysis/archive/exc/exc-panic-abort-v1-rfc.md`（禁 top-level 复活）
-- 报告行：`check=`／`hook=`／`ready=`／`exc=`／`skip=`（硬绿信号＝`hook=`／`ready=`）
+- 报告行：`run=`／`obs=`／`skip=`（硬绿信号＝`run=`）
 
 | 资源 | 路径 |
 |------|------|
@@ -98,3 +99,4 @@ Honesty（2026-08-26）：
 |-----|------|------|
 | v1.0 | 2026-06-19 | 定版：终止链 + 三平台矩阵 + 弱钩子 |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 6. Gate`；hook/ready exit0 硬；EXC 观测；报告 `check=`／`hook=`／`ready=`／`exc=`／`skip=` |
+| v1.2 | 2026-08-28 | soft fallthrough residual：显式坏 XLANG 硬 die；拒 prefer-c／soft auto-make；报告 `run=`／`obs=`／`skip=` |

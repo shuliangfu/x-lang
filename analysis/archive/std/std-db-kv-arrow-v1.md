@@ -57,18 +57,18 @@ C archaeology：`db_kv_smoke_c` · `arrow_smoke_c`（host-C 入口；**非**硬�
 
 ## 4. Gate
 
-### 假权威诚实验收（2026-08-26）
+### 假权威诚实验收（2026-08-28 soft fallthrough residual）
 
 - Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
+- 显式坏 `XLANG`／缺 native → **硬 die**（禁 soft fallthrough／prefer-c／soft auto-make／soft SKIP→OK）。
 - `xlang check` **观测**（自举期 check 闸门暂停 2026-08-05）；不硬失败。
-- 可跑烟测 `kv_tick_smoke.x`／`arrow_column_smoke.x`／`db_kv_arrow.x` exit **0** 硬失败；有原生 xlang 时 **禁 soft SKIP**。
-- C smoke（`db_kv_smoke_c`／`arrow_smoke_c`）仅观测（archaeology host-C；非硬绿）。
-- 无原生 xlang → **FAIL**（禁止 soft SKIP→OK）。
-- 报告：`check=`／`kv=`／`arrow=`／`cb=`／`c=`／`skip=`（`kv=1`＋`arrow=1`＋`cb=1` 为硬绿信号）。
+- 可跑烟测 `kv_tick_smoke.x`／`arrow_column_smoke.x`／`db_kv_arrow.x` exit **0** 硬失败（`run+=`）。
+- C smoke（`db_kv_smoke_c`／`arrow_smoke_c`）仅观测（archaeology host-C；**禁 soft ensure 重建**）。
+- 报告：`run=`／`obs=`／`skip=`（硬绿信号＝`run=`）。
 - 构建入口：`./xbuild`／闸脚本（**拒** `make -C compiler` 复活为活权威）。
 
 ```
-xlang: [XLANG_STD_DB_KV_ARROW] status=ok check=0|1 kv=1 arrow=1 cb=1 c=0|1 skip=0
+xlang: [XLANG_STD_DB_KV_ARROW] status=ok run=3 obs=0|1 skip=0
 std-db-kv-arrow gate OK
 ```
 
@@ -84,3 +84,4 @@ std-db-kv-arrow gate OK
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-08-26 | Gate honesty：`## 4. Gate`；prefer asm；三路 `.x` 硬绿；C 观测；禁 soft SKIP |
+| v1.1 | 2026-08-28 | soft fallthrough residual：显式坏 XLANG 硬 die；拒 soft auto-make／soft ensure；报告 `run=`／`obs=`／`skip=` |
