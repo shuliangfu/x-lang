@@ -79,9 +79,13 @@ v1 **无独立 `std.ws` 模块**；API 挂在 `import("std.net")`（`ws_*` 前�
 ./tests/run-std-net-ws-gate.sh
 ```
 
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make／soft zstd SKIP；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/net/net.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
+
 ```
-xlang: [XLANG_STD_NET_WS] status=ok accept=1 frame=1 typeck=1 skip=0
+xlang: [XLANG_STD_NET_WS] status=ok run=… obs=… skip=0
 ```
+
+manifest：`tests/baseline/std-net-ws.tsv`
 
 ---
 

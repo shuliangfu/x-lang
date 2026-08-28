@@ -1,10 +1,11 @@
 # STD-031 std.net WebSocket 客户端 manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# min_apis	30
+min_apis	30
 read_path	section	## 1. 阅读路径	15min
 stack	section	## 2. 栈位置	std.websocket
 api_draft	section	## 3. API（v1）	ws_
 golden	section	## 4. 金样向量	Accept
+verify	section	## 5. Gate	analysis/archive/std/std-net-ws-v1.md	honesty
 api_accept	api	ws_compute_accept	std/websocket/mod.x	Accept
 api_encode	api	ws_encode_text_frame	std/websocket/mod.x	编码
 api_decode	api	ws_decode_frame	std/websocket/mod.x	解码
@@ -52,6 +53,6 @@ api_srv_accept_ctx	api	ws_server_accept_ctx	std/websocket/mod.x	服务端+ctx
 smoke_context	smoke	tests/net/ws_context.x	Context离线烟测
 smoke_frame	smoke	tests/net/ws_frame.x	帧烟测
 cross_std030	cross_ref	analysis/archive/std/std-net-tls-v1.md	STD-030
-lib	script	lib/std-net-ws.sh	tests/lib/std-net-ws.sh
-gate	script	run-std-net-ws-gate.sh	tests/run-std-net-ws-gate.sh
+lib	script	tests/lib/std-net-ws.sh	lib
+gate	script	tests/run-std-net-ws-gate.sh	gate
 doc	file	analysis/archive/std/std-net-ws-v1.md	analysis/archive/std/std-net-ws-v1.md	RFC
