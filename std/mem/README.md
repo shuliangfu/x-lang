@@ -21,7 +21,7 @@
 | `compare_bounded(a, a_len, b, b_len)` | 先比公共前缀，再按长度决胜 |
 | `buffer_from(ptr, len)` | 构造 `Buffer { ptr, len, handle=0 }` |
 
-RFC：`analysis/std-mem-safe-v1.md`；门禁 `./tests/run-std-mem-safe-gate.sh`。
+RFC：`analysis/archive/std/std-mem-safe-v1.md`；门禁 `./tests/run-std-mem-safe-gate.sh`。
 
 ## 与 core.mem 职责边界（STD-018）
 
@@ -30,7 +30,7 @@ RFC：`analysis/std-mem-safe-v1.md`；门禁 `./tests/run-std-mem-safe-gate.sh`�
 | **core.mem** | 无 OS/无堆：`mem_copy` / `mem_move` / `mem_zero` / 对齐辅助；编译器可内建化 |
 | **std.mem** | Buffer ABI + 经 **std.heap** 的 `copy` / `set` / `compare`；**禁止** `import("core.mem")` 双路径 |
 
-详细矩阵与选用指南：`analysis/std-mem-boundary-v1.md`；门禁 `./tests/run-std-mem-boundary-gate.sh`。
+详细矩阵与选用指南：`analysis/archive/std/std-mem-boundary-v1.md`；门禁 `./tests/run-std-mem-boundary-gate.sh`。
 
 ## 二、Buffer ABI 与 IO 预注册
 
