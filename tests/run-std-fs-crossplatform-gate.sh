@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# STD-003: std.fs cross-platform gate — honesty soft fallthrough →硬绿.
+# STD-003: std.fs cross-platform gate — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make + check=/x=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c / soft ensure). Must-policy .x / run-fs.sh
-# exit0 = hard run (run=1). check = obs. Report: run=/obs=/skip=.
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Must-policy .x /
+# run-fs.sh exit0 = hard run (run=1). check = obs. Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-fs-crossplatform-gate.sh
 set -euo pipefail
@@ -14,8 +15,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_FS_XPLAT_DOC:-analysis/archive/std/std-fs-api-v1.md}"
 BASELINE="tests/baseline/std-fs-crossplatform.tsv"
@@ -123,10 +122,9 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make / soft ensure (product must cases are the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product must cases / -o are the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 FAILS=0
 MUST_RAN=0

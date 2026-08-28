@@ -141,6 +141,8 @@ Honesty（STD-003 soft→硬绿）：
 - 平台 `skip` 仍按矩阵策略（splice／win_path 等）；报告 `check=`／`x=`／`skip=`
 - 硬绿信号 = `x=`；§4 仍为兼容矩阵（勿把 Gate 锚撞到 `## 4`）
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-fs-crossplatform-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；must-policy `.x`／`run-fs.sh` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 变更流程（v1）

@@ -1,6 +1,9 @@
 # STD-137 std.time format/timezone manifest
 # Honesty 2026-08-26: prefer asm + XLANG_LINK_XLANG; check observational;
 # format_timezone.x exit0 hard-fail; C smoke observational; report check=/run=/skip=.
+# honesty 2026-08-29 leftover wrap dead source: run-std-time-format-timezone-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o format_timezone hard.
 min_apis	3
 api_format	api	format_wall_rfc3339	std/time/mod.x
 api_offset	api	wall_local_offset_min	std/time/mod.x

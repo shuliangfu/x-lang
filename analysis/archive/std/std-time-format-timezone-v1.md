@@ -27,8 +27,11 @@ observational (paused 2026-08-05). `format_timezone.x` exit 0 hard-fail
 `obs+=`). Report `run=` / `obs=` / `skip=`.
 - 拒顶层 DOC 复活（live = `analysis/archive/std/`）
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-time-format-timezone-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `format_timezone.x` hard；check／C smoke＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-time-format-timezone-manifest.tsv`
 
 ### 3.1 Changelog
 
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；C smoke 观测；未啃产品 `std/time`）。
+- 2026-08-29：leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 3. Gate`。

@@ -52,6 +52,8 @@ Hard signal = `.x` exit 0 under prefer-asm + `XLANG_LINK_XLANG`; `check` observa
 (check gate paused). C smoke observational. `DIRENT_D_NAME_OFF` is PLATFORM
 LINUX=19 / MACOS=21 (was Linux-only 19 → Darwin readdir miss).
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-fs-dirmeta-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `dirmeta_roundtrip.x` hard；check／C smoke＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 4. 变更记录
@@ -59,4 +61,5 @@ LINUX=19 / MACOS=21 (was Linux-only 19 → Darwin readdir miss).
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.1 | 2026-08-26 | Gate honesty prefer asm；`DIRENT_D_NAME_OFF` LINUX=19／MACOS=21；report `check=`／`run=`／`skip=` |
+| honesty-2 | 2026-08-29 | leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 3. Gate` |
 | v1 | 2026-06-18 | 初版：stat/chmod/mkdir/readdir + round-trip gate |
