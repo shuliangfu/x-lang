@@ -2,6 +2,7 @@
 # honesty 2026-08-24 #9: DOC → analysis/archive/lang/;
 # async_keyword_path hard-green (formal_surface + unique on-demand std_async_scheduler_reset).
 # honesty 2026-08-29: residual auto-make (`xlang_compiler_make` / scheduler.o) retired.
+# honesty 2026-08-29 leftover wrap: run-stdlib-import.sh prefer-c / auto-make / fossil `$LINK_XLANG build` retired (product -o).
 # Format: case_id<TAB>script<TAB>policy<TAB>expected_exit<TAB>notes
 # policy: hook = 调用 tests/run-*.sh；run = 编译运行 tests/import 或 tests/parser 下 .x
 import_suite	run-import.sh	hook	0	四种 import + missing_module

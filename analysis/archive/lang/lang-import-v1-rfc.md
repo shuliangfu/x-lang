@@ -120,7 +120,7 @@
 | 解析实现 | `compiler/src/runtime.c` |
 | 同步状态 | `compiler/docs/X与C流水线同步状态.md` |
 
-**LANG-002 状态：定版 ✅**
+**LANG-002 状态：定版 ✅（honesty residual leftover wrap）**
 
 ## Gate
 
@@ -130,6 +130,10 @@ missing native = hard die (import smoke is the live face); `observe`
 policy = obs (product debt — not soft silence); DOC=archive; report
 `run=`／`hooks=`／`obs=`／`skip=`.
 **2026-08-29:** residual auto-make (`xlang_compiler_make` / scheduler.o) retired.
+**2026-08-29 leftover wrap／fossil `$LINK_XLANG build`:** leftover
+`run-stdlib-import.sh` prefer-c / auto-make / fossil build retired
+(product `-o`; check＝obs). Gate hook still `run-stdlib-import.sh`.
+Leave wrap body / ensure_std family.
 
 `tests/run-lang-import-gate.sh`:
 
