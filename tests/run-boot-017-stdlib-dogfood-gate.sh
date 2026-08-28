@@ -2,10 +2,12 @@
 # BOOT-017: stdlib .x frontend check timing dogfood gate.
 #
 # Honesty: soft XLANG_BOOT017_FAIL_ON_REGRESSION / soft SKIP→OK retired.
-# Manifest + baseline coverage are hard. Timing prefers xlang_asm; tip
-# check/SLOW residuals are observational (selfhost check gate paused) —
-# report run=/obs=/skip=, not soft-swallowed silence. Missing native
-# compiler skips timing with skip=1 (honest N/A), still hard on manifest.
+# Residual XLANG fallthrough retired 2026-08-29: explicit-bad XLANG is
+# hard die (no continue to xlang_asm). Manifest + baseline coverage are
+# hard. Timing prefers xlang_asm; tip check/SLOW residuals are
+# observational (selfhost check gate paused) — report run=/obs=/skip=,
+# not soft-swallowed silence. Unset XLANG + missing native skips timing
+# with skip=1 (honest N/A), still hard on manifest.
 #
 # Usage: ./tests/run-boot-017-stdlib-dogfood-gate.sh
 # Report: run=/obs=/skip=
@@ -18,7 +20,8 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# Honesty: no auto-make; missing native → skip timing (skip=1), hard on manifest.
+# Honesty: no auto-make; unset+missing native → skip timing (skip=1);
+# explicit-bad XLANG → hard die. Manifest still hard. G.7: boot017_resolve_shu.
 
 DOC="${XLANG_BOOT017_DOC:-analysis/archive/boot/boot-017-stdlib-dogfood-v1.md}"
 MANIFEST="${XLANG_BOOT017_MANIFEST:-tests/baseline/boot-017-stdlib-dogfood.tsv}"
@@ -43,23 +46,6 @@ die() {
 
 ok_report() {
   echo "${PREFIX} status=ok run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
-}
-
-resolve_shu() {
-  local cand abs root
-  root=$(pwd)
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    case "$cand" in
-      /*) abs="$cand" ;;
-      *) abs="$root/$cand" ;;
-    esac
-    if dod_native_exe "$abs"; then
-      echo "$abs"
-      return 0
-    fi
-  done
-  return 1
 }
 
 echo "=== BOOT-017: stdlib dogfood manifest ==="
@@ -133,7 +119,17 @@ REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 awk -F'\t' '$1=="stdlib-dogfood" && $1 !~ /^#/ { found=1; exit } END { exit !found }' "$REG" 2>/dev/null \
   || die "perf-baseline-registry missing stdlib-dogfood"
 
-if XLANG_BIN="$(resolve_shu)"; then
+# Explicit XLANG that is missing/non-native is hard die (refuse fallthrough).
+# Unset XLANG + no native → skip timing only (honest N/A); manifest already hard.
+HAVE_BIN=0
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(boot017_resolve_shu)" || die "explicit XLANG is not native (refuse soft SKIP→OK / XLANG fallthrough)"
+  HAVE_BIN=1
+elif XLANG_BIN="$(boot017_resolve_shu)"; then
+  HAVE_BIN=1
+fi
+
+if [ "$HAVE_BIN" = 1 ]; then
   echo "=== BOOT-017: per-module timing (XLANG=$XLANG_BIN; hard/obs) ==="
   chmod +x "$RUNNER" "$LIB"
   # Prefer asm path; do not force xlang-c rebuild as the dogfood authority.

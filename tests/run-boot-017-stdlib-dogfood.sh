@@ -3,12 +3,14 @@
 #
 # Honesty: soft XLANG_BOOT017_FAIL_ON_REGRESSION:-0 retired — SLOW modules
 # previously still printed status=ok / exit 0 (portable false-green for
-# perf regression). Prefer product xlang_asm (then xlang-c / xlang).
-# Missing compiler is hard die. `xlang check` is observational during the
-# selfhost check-gate pause: check exit≠0 and median>baseline are obs=
-# (product / check / perf residual), not soft-swallowed silence and not a
-# hard FAIL that re-opens the paused check war. UPDATE_BASELINE still
-# refreshes tests/baseline/stdlib-dogfood.tsv.
+# perf regression). Residual XLANG fallthrough retired 2026-08-29:
+# explicit-bad XLANG no longer continues to xlang_asm. Prefer product
+# xlang_asm (then xlang-c / xlang). Explicit bad XLANG / missing compiler
+# is hard die. `xlang check` is observational during the selfhost
+# check-gate pause: check exit≠0 and median>baseline are obs= (product /
+# check / perf residual), not soft-swallowed silence and not a hard FAIL
+# that re-opens the paused check war. UPDATE_BASELINE still refreshes
+# tests/baseline/stdlib-dogfood.tsv.
 #
 # Usage:
 #   ./tests/run-boot-017-stdlib-dogfood.sh
@@ -25,7 +27,7 @@ cd "$(dirname "$0")/.."
 . tests/lib/dod-native-exe.sh
 # Honesty: do NOT auto-make before resolve — rebuilding would turn
 # "missing compiler" into soft green. Caller / gate must supply a native
-# product binary (prefer xlang_asm).
+# product binary (prefer xlang_asm). G.7: resolve via boot017_resolve_shu.
 
 MATRIX="${XLANG_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
 BASELINE="${XLANG_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"
@@ -36,34 +38,16 @@ UPDATE_BASELINE=0
 PREFIX="xlang: [XLANG_BOOT017_STDLIB_DOGFOOD]"
 ROOT=$(pwd)
 
-resolve_shu() {
-  local cand abs
-  # Prefer product asm; refuse soft prefer-xlang-c false path.
-  # PLATFORM: SHARED — product path honesty.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    case "$cand" in
-      /*) abs="$cand" ;;
-      *) abs="$ROOT/$cand" ;;
-    esac
-    if dod_native_exe "$abs"; then
-      echo "$abs"
-      return 0
-    fi
-  done
-  return 1
-}
+# shellcheck source=tests/lib/boot-017-stdlib-dogfood.sh
+. tests/lib/boot-017-stdlib-dogfood.sh
 
-XLANG_EXE="$(resolve_shu)" || {
-  echo "run-boot-017-stdlib-dogfood: no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)" >&2
+XLANG_EXE="$(boot017_resolve_shu)" || {
+  echo "run-boot-017-stdlib-dogfood: no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make / XLANG fallthrough)" >&2
   echo "${PREFIX} status=fail run=0 obs=0 skip=0 slow=0 modules=0 p50=0.0000 p95=0.0000 host=$(ci_host_summary)"
   exit 1
 }
 export XLANG="$XLANG_EXE"
 export XLANG_LINK_XLANG="$XLANG_EXE"
-
-# shellcheck source=tests/lib/boot-017-stdlib-dogfood.sh
-. tests/lib/boot-017-stdlib-dogfood.sh
 
 echo "=== BOOT-017: stdlib per-module check dogfood (XLANG=$XLANG_EXE RUNS=$RUNS; hard/obs) ==="
 

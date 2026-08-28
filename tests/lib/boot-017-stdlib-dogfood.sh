@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # boot-017-stdlib-dogfood.sh — BOOT-017 helpers for std/core per-module check timing.
 #
-# Honesty (2026-08-27): soft FAIL_ON_REGRESSION / prefer-xlang-c retired in
-# runner+gate. Prefer product asm via callers; report run=/obs=/skip=.
-# PLATFORM: SHARED archaeology.
+# Honesty (2026-08-27): soft FAIL_ON_REGRESSION / prefer-xlang-c retired.
+# Honesty (2026-08-29): residual XLANG fallthrough retired — explicit-bad
+# XLANG no longer continues to xlang_asm. Prefer product asm; pin
+# XLANG_LINK_XLANG via callers. Report run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 #
 # Usage (source):
 #   boot017_resolve_shu
@@ -12,26 +14,39 @@
 
 BOOT017_PREFIX="${XLANG_BOOT017_PREFIX:-xlang: [XLANG_BOOT017_STDLIB_DOGFOOD]}"
 
-# Return 0 if path is a native executable for this host.
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
+
+# G.7: native exe check converges on dod_native_exe (single authority).
 boot017_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+  dod_native_exe "$1"
 }
 
-# Resolve check/timing compiler. Prefer product asm (honesty).
+# Prefer product asm; refuse prefer-c / soft auto-make / XLANG fallthrough.
+# Explicit XLANG that is missing or non-native returns 1 (caller hard-dies).
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 boot017_resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if boot017_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done

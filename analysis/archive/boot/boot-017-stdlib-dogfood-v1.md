@@ -1,9 +1,10 @@
 # BOOT-017 标准库 .x 前端编译 dogfood 指标 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual XLANG fallthrough）**  
 > 关联：`PERF-004`、`BOOT-013`、`tests/baseline/stdlib-check-matrix.tsv`
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
+> **honesty 2026-08-29**：residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check/SLOW remain obs. Keep `## 5. Gate`.
 
 ---
 
