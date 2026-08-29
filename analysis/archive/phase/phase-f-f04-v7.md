@@ -30,6 +30,8 @@ stream smoke is **observational** (`bz_stream=`; product-red residual — not
 soft false-green). Report `static=` / `inventory=` / `compress=` /
 `bz_stream=` / `skip=`.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-compress-zstd：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／STD-007 compress／brotli-zstd-stream observational 不重写）。
+
 ```bash
 ./tests/run-f04-std-compress-zstd-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f04-std-compress-zstd-gate.sh
