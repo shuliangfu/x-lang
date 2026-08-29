@@ -13,6 +13,8 @@
 
 Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_CONTEXT_V1_FAIL` retired. Delegates STD-context hard. http-context is a separate listed skip (not this gate).
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-context-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-context 不重写）。
+
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-context-v1-gate.sh
 ./tests/run-std-context-gate.sh
