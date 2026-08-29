@@ -16,6 +16,8 @@
 
 ## Gate
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-crypto-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／f04-std-crypto-closure／std-crypto-aes-gcm／std-crypto-sha512-hmac／observational chacha／ed25519 不重写）。
+
 ```bash
 ./tests/run-f-crypto-v1-gate.sh
 # expect: status=ok static=1 ensure=1 f04=1 aes=1 sha512=1 skip=0
