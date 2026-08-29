@@ -5,6 +5,12 @@
 # compile/run failure was portable false-green (soft die→exit0). Prefer
 # xlang_asm; pin XLANG_LINK_XLANG. Live DOC = archive phase; refuse top-level
 # DOC / compiler/Makefile resurrect. Hard-delegate B-19 facade.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. leftover stdlib_cm_native_xlang third resolver retired
+# (G.7 converge dod_native_exe). Explicit-bad XLANG / missing native =
+# hard die FIRST (before DOC / leftover nested B-19 facade; refuse
+# leftover ignore of explicit-bad). leftover nested product path stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 #
 # Usage: ./tests/run-sys-platform-write-gate.sh
 # Env:
@@ -16,6 +22,8 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
 
 DOC="analysis/archive/phase/phase-b19-sys-platform-write.md"
 X="tests/sys/sys_platform_write_unified.x"
@@ -33,32 +41,47 @@ die() {
   exit 1
 }
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
-# Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# leftover stdlib_cm_native_xlang third resolver retired — converge
+# dod_native_exe. Do not restore set -e before return 1.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
   return 1
 }
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE DOC /
+# leftover nested B-19 facade (refuse leftover SKIP→OK / leftover
+# ignore of explicit-bad / leftover XLANG fallthrough / leftover
+# stdlib_cm_native_xlang). leftover nested product path stays when
+# XLANG is unset (do not rewrite leftover B-19 facade).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== B-19: std.sys platform write unified (honesty) ==="
 
@@ -87,7 +110,11 @@ if [ "${XLANG_B19_SYS_PLATFORM_WRITE_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 # shellcheck source=tests/lib/bootstrap-link-xlang.sh

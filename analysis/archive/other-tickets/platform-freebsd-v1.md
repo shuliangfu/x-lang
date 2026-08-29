@@ -84,6 +84,8 @@ Changelog：
 - **v1.1（2026-08-27）**：soft→硬绿 — DOC→archive + `## Gate`；prefer asm；host-arch triple 硬绿；foreign 观测；退役 soft FAIL。
 - **v1.0**：初版 soft FAIL:-0；顶层 DOC 路径。
 
+**2026-08-30 leftover XLANG fallthrough 已收**（freebsd-platform：`for cand in "${XLANG:-}"` 退役；leftover `stdlib_cm_native_xlang` 收敛 `dod_native_exe`；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested host-arch triple 不重写）。
+
 ---
 
 ## 5. 索引
