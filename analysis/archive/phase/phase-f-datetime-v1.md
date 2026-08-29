@@ -14,6 +14,8 @@
 
 Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_DATETIME_V1_FAIL` retired. Delegates STD-074 datetime + STD-136 iana hard.
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-datetime-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-datetime／std-datetime-iana 不重写）。
+
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-datetime-v1-gate.sh
 ./tests/run-std-datetime-gate.sh
