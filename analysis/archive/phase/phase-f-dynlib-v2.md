@@ -19,6 +19,8 @@
 
 Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_DYNLIB_V2_FAIL` retired. Delegates STD-027 dynlib-windows + STD-096 last-error hard.
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-dynlib-v2：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-dynlib-windows／std-dynlib-last-error 不重写）。
+
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-dynlib-v2-gate.sh
 ./tests/run-std-dynlib-windows-gate.sh
