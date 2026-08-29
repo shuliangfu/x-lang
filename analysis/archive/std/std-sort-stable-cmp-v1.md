@@ -58,3 +58,5 @@
 - `stable_i32.x` + `cmp_desc.x` exit 0 **hard-fail**（有 native xlang 时禁止 soft SKIP）
 - C smoke observational only
 - Manifest anchors = product names (`stable` / `cmp` / `cmp_desc_fn`)
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-sort-stable-cmp-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `stable_i32.x` + `cmp_desc.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. 门禁`。 Leave wrap body / ensure_std family.

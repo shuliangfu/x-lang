@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-017: std.heap XLANG_HEAP_TRACE gate — honesty soft auto-make →硬绿.
+# STD-017: std.heap XLANG_HEAP_TRACE gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true` + soft
-# heap/mod.o make) + soft XLANG fallthrough (explicit-bad still picks another
-# binary) + check=/run=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product trace_stats.x -o exit0 = hard
-# run (default + XLANG_HEAP_TRACE=1); cookbook heap_trace_reset also hard.
-# check residual = obs (paused 2026-08-05). Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product trace_stats.x -o exit0 =
+# hard run (default + XLANG_HEAP_TRACE=1); cookbook heap_trace_reset also hard.
+# check residual = obs (paused 2026-08-05). Report: run=/obs=/skip=. G.7:
+# complete existing resolve_shu; drop unused compiler-make.sh.
 # TSV anchors: XLANG_HEAP_TRACE / HeapTraceStats / trace_reset.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-heap-trace-gate.sh
@@ -17,8 +17,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_HEAP_TRACE_DOC:-analysis/archive/std/std-heap-trace-v1.md}"
 MANIFEST="${XLANG_STD_HEAP_TRACE_TSV:-tests/baseline/std-heap-trace.tsv}"
@@ -98,6 +96,9 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-017: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 set +e
 "$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std_heap_trace_check.log 2>&1

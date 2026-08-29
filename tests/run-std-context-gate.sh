@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-071: std.context gate — honesty soft auto-make →硬绿.
+# STD-071: std.context gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … || true` / soft ensure_std_c_o)
-# + soft XLANG fallthrough (explicit-bad still picks another binary) +
-# check=/run=/skip= retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK / soft
-# auto-make / prefer-c / soft ensure rebuild). Product cancel_smoke.x -o exit0 =
-# hard run (run=1). check / host-C archaeology = obs. Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# cancel_smoke.x -o exit0 = hard run (run=1). check / host-C archaeology = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-context-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CONTEXT_DOC:-analysis/archive/std/std-context-v1.md}"
 MANIFEST="${XLANG_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
@@ -112,6 +111,9 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-071: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 # Host-C archaeology = obs only; refuse soft ensure_std rebuild.
 # PLATFORM: SHARED archaeology — leave ensure_std family alone.

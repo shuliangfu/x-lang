@@ -1,5 +1,8 @@
 # STD-156 std.context Cookbook manifest
 # 列：item_id	kind	anchor	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-context-cookbook-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o examples/cookbook/context_cancel_deadline.x hard.
 # min_recipes	1
 recipe_ctx01	recipe	examples/cookbook/context_cancel_deadline.x	CTX-01 cancel+timeout
 doc	file	analysis/archive/std/std-context-cookbook-v1.md	STD-156

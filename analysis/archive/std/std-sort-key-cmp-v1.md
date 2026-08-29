@@ -51,3 +51,5 @@ Acceptance: prefer `xlang_asm` + pin `XLANG_LINK_XLANG`; `check` observational
 (paused 2026-08-05); `key_stable.x` runnable exit 0 hard-fail (no soft SKIP when
 no native xlang). C smoke is observational host-C archaeology only.
 Report: `xlang: [XLANG_STD150_SORT_KEY_CMP] status=ok check=N run=1 skip=0`
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-sort-key-cmp-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `key_stable.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.

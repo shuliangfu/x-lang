@@ -46,3 +46,4 @@
 - 门禁：`tests/run-std-context-cookbook-gate.sh`
 - 报告：`status=ok check=… run=1 skip=0`（prefer `xlang_asm`；无 soft SKIP；拒顶层 DOC 复活）
 - 2026-08-25 honesty：假权威（偏 xlang-c／硬 check／无二进制 soft SKIP／顶层 expand DOC）→硬绿
+- 2026-08-29 leftover unused compiler-make.sh retired from live gate. Prefer asm；product `-o` `context_cancel_deadline.x` hard；check＝obs；keep `## 4. 验收`。

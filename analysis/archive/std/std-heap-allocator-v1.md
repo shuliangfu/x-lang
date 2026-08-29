@@ -42,3 +42,5 @@
 - 报告：`xlang: [XLANG_STD112_HEAP_ALLOC] status=ok check=… run=… skip=…`
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-heap.sh`（`xlang_compiler_make … heap.o` + collection gcc fallback + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/heap/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [HEAP]`。Do not add a new `## Gate` heading here（STD-112 live gate already honesty-closed）。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-heap-allocator-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `allocator_vec.x` hard；cookbook `heap_trace_reset` also hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. 验证与门禁`。 Leave wrap body / ensure_std family.

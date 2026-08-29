@@ -51,6 +51,8 @@ SKIP→OK / prefer-c / soft `ensure_std_c_o`; host-C＋check＋tip product
 UNDEF = obs; report `run=`／`obs=`／`skip=`. See also
 `analysis/archive/std/std-async-api-v1.md` Gate.
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-context-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `cancel_smoke.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 4. 后续集成（非 v1 阻塞）

@@ -2,6 +2,9 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # Fossil→product (2026-08-25): sort_stable_i32→stable, sort_stable_u8→stable(*u8),
 # sort_i32_cmp→cmp, sort_stable_i32_c/sort_i32_cmp_c→stable/cmp bodies in sort.x.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-sort-stable-cmp-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/std-sort/stable_i32.x + cmp_desc.x hard.
 # min_apis	3
 read_path	section	## 1. 阅读路径	15min
 api_doc	section	## 2. API	stable

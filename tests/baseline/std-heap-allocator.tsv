@@ -6,6 +6,9 @@
 # (xlang_compiler_make … heap.o + collection gcc fallback + bootstrap-link
 # wrap) retired. Prefer asm; explicit-bad XLANG hard-die; missing native
 # FAIL; product -o tests/heap/main.x hard; check=obs; report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-heap-allocator-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/heap/allocator_vec.x hard.
 min_apis	8
 read_path	section	## 1. 阅读路径	15min
 alloc_api	section	## 2. Allocator 语义	heap_alloc

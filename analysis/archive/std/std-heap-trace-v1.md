@@ -52,6 +52,8 @@
 - 烟测：`tests/heap/trace_stats.x`
 - 报告：`xlang: [XLANG_STD_HEAP_TRACE] status=ok`
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-heap-trace-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `trace_stats.x` hard（default + `XLANG_HEAP_TRACE=1`）；cookbook `heap_trace_reset` also hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. 验收`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 演进
