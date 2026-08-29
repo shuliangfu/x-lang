@@ -1,7 +1,10 @@
 # BOOT-013 std/core check 矩阵 manifest
 # 列：item_id	kind	anchor	layer	notes
+# leftover residual 2026-08-29: leftover fossil top-level DOC as live
+# path retired. Live = analysis/archive/boot/. TSV read_path xref
+# updated (archive; identity otherwise kept).
 min_modules	73
-read_path	section	## 1. 阅读路径	analysis/boot-stdlib-check-matrix-v1.md	-
+read_path	section	## 1. 阅读路径	analysis/archive/boot/boot-stdlib-check-matrix-v1.md	-
 matrix	section	## 2. 模块矩阵	boot-stdlib-check-matrix-v1.md	-
 report	section	## 4. 报告格式	boot-stdlib-check-matrix-v1.md	-
 core_assert	module	core.assert	core	check
