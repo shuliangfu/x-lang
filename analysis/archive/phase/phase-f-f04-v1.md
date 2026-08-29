@@ -30,6 +30,8 @@ observational (net-tls residual). Report `static=` / `inventory=` /
 `compiler/mk/std_and_panic_objs.mk` + `ensure_host_cc_seed_o.sh`
 (Makefile deleted).
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-net-tls-stub：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／observational net-tls 不重写）。
+
 ```bash
 ./tests/run-f04-std-net-tls-stub-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-tls-stub-gate.sh

@@ -7,6 +7,12 @@
 # XLANG_LINK_XLANG. Product TLS observational (net-tls residual). Report
 # static=/inventory=/tls=/skip=. Gate was portable-false-green (DOC
 # top-level; soft FAIL exit0; Makefile fossil greps).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / nested leftover inventory / leftover observational
+# run-std-net-tls-gate; refuse leftover ignore of explicit-bad). leftover
+# nested product path (inventory / observational net-tls) stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -25,13 +31,28 @@ LABI="compiler/src/runtime/labi_invoke_ld_list.x"
 MK_SEED="compiler/mk/driver_seed_r_lists.mk"
 PREFIX="xlang: [XLANG_F04_NET_TLS_MBEDTLS]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -51,6 +72,16 @@ STATIC_OK=0
 INVENTORY_OK=0
 TLS_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# nested leftover inventory / leftover observational net-tls (refuse
+# leftover SKIP→OK / leftover ignore of explicit-bad / leftover XLANG
+# fallthrough). leftover nested product path stays when XLANG is unset
+# (do not rewrite leftover inventory / observational run-std-net-tls-gate).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-04 v9: std.net tls_mbedtls remove tls_mbedtls.inc.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -90,8 +121,10 @@ if ! XLANG_STD_C_INVENTORY_FAIL=1 tests/run-std-c-inventory-gate.sh; then
 fi
 INVENTORY_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
