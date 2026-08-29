@@ -33,6 +33,8 @@
 
 Honesty (2026-08-27): hard-fail static＋ensure＋STD-075 manifest; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_UUID_V1_FAIL` retired. Full uuid product smoke observational (asm UNDEF residual).
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-uuid-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-uuid 不重写）。
+
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-uuid-v1-gate.sh
 XLANG_STD_UUID_MANIFEST_ONLY=1 ./tests/run-std-uuid-gate.sh
