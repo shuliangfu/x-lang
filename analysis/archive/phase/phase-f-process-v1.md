@@ -29,6 +29,7 @@
 
 Honesty (2026-08-26): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_PROCESS_V1_FAIL` retired. Orphan Makefile `die/fi` syntax fixed.
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-process-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-process-xplat 不重写）。
 
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-process-v1-gate.sh

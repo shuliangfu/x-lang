@@ -13,6 +13,8 @@
 
 Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_HTTP_V1_FAIL` retired. Delegates STD-009 http + chunked + methods + https hard. Observational residuals: server-pool / reqresp / h2 / context (listed skip).
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-http-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-http／std-http-chunked／std-http-methods／std-http-https／observational server-pool／reqresp／h2／context 不重写）。
+
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-http-v1-gate.sh
 ./tests/run-std-http-gate.sh
