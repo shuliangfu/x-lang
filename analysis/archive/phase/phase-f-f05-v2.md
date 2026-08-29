@@ -23,6 +23,8 @@ hard-fail static TSV + F-01 inventory + kv-arrow product. No soft
 `die→exit 0`. Soft `XLANG_F05_DB_KV_V2_FAIL` retired. Host-c nm/cc
 smoke retired. Report `static=` / `inventory=` / `kv_arrow=` / `skip=`.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f05-db-kv-v2：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／kv-arrow 不重写）。
+
 ```bash
 ./tests/run-f05-std-db-kv-v2-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-kv-v2-gate.sh

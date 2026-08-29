@@ -9,7 +9,14 @@
 # honesty gate). Report static=/inventory=/kv_arrow=/skip=. Gate was
 # portable-false-green (DOC still pointed at top-level
 # analysis/phase-f-f05-v2.md after archive; soft FAIL printed then exit0;
-# Makefile fossil greps after Makefile deleted). PLATFORM: SHARED archaeology.
+# Makefile fossil greps after Makefile deleted).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / nested leftover inventory / leftover nested kv-arrow;
+# refuse leftover ignore of explicit-bad). leftover nested product path
+# (inventory / kv-arrow) stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -21,15 +28,28 @@ DOC="${XLANG_F05_KV_DOC:-analysis/archive/phase/phase-f-f05-v2.md}"
 MANIFEST="tests/baseline/f05-std-db-kv-v2.tsv"
 PREFIX="xlang: [XLANG_F05_KV]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -49,6 +69,16 @@ STATIC_OK=0
 INVENTORY_OK=0
 KV_ARROW_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# nested leftover inventory / leftover nested kv-arrow (refuse leftover
+# SKIP→OK / leftover ignore of explicit-bad / leftover XLANG
+# fallthrough). leftover nested product path stays when XLANG is unset
+# (do not rewrite leftover inventory / kv-arrow).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-05 v2: std.db.kv remove kv.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -99,8 +129,10 @@ if ! XLANG_STD_C_INVENTORY_FAIL=1 tests/run-std-c-inventory-gate.sh; then
 fi
 INVENTORY_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 echo "=== F-05 v2: kv+arrow product (XLANG=$XLANG_BIN; hard) ==="
 # Pin product link to resolved compiler (prefer asm).

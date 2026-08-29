@@ -10,7 +10,15 @@
 # Report arrow=/kv=/sqlite=/kv_arrow=/sqlite_m=/inventory=/skip=. Gate was
 # portable-false-green (soft FAIL exit0 + soft child FAIL pass-through +
 # Makefile content greps after Makefile deleted while children already
-# honesty-green). PLATFORM: SHARED archaeology.
+# honesty-green).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / nested leftover inventory / leftover nested kv-arrow /
+# leftover nested sqlite; refuse leftover ignore of explicit-bad).
+# leftover nested product path (inventory / kv-arrow / sqlite
+# manifest-only) stay. Child F-05 arrow／kv／sqlite Honesty same wave.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -22,15 +30,28 @@ DOC="${XLANG_F05_DOC:-analysis/archive/phase/phase-f-f05-v4-closure.md}"
 MANIFEST="tests/baseline/f05-std-db-closure.tsv"
 PREFIX="xlang: [XLANG_F05_CLOSURE]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for child dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -53,6 +74,17 @@ KV_ARROW_OK=0
 SQLITE_M_OK=0
 INVENTORY_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# nested leftover inventory / leftover nested kv-arrow / leftover nested
+# sqlite (refuse leftover SKIP→OK / leftover ignore of explicit-bad /
+# leftover XLANG fallthrough). leftover nested product path stays when
+# XLANG is unset (do not rewrite leftover inventory / kv-arrow / sqlite
+# manifest-only). Child F-05 arrow／kv／sqlite Honesty same wave.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-05 v4: std.db closure arrow+kv+sqlite (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -86,8 +118,10 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
 done < "$MANIFEST"
 echo "f05-closure manifest OK"
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 # Pin product link for child dogfood (children re-resolve; keep env honest).
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.

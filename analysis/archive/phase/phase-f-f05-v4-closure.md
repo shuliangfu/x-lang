@@ -44,6 +44,8 @@ manifest-only + F-01 inventory. No soft `die→exit 0`. Soft
 retired (do not export). Report `arrow=` / `kv=` / `sqlite=` /
 `kv_arrow=` / `sqlite_m=` / `inventory=` / `skip=`.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f05-db-closure：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／kv-arrow／sqlite 不重写；arrow／kv／sqlite Honesty 同波）。
+
 ```bash
 ./tests/run-f05-std-db-closure-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-closure-gate.sh

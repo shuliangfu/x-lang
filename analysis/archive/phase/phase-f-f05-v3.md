@@ -26,6 +26,8 @@ smoke retired. STD-139 stub / full exec / open+last_error product-red
 are observational (not soft false-green). Report `static=` /
 `inventory=` / `sqlite=` / `stub=` / `skip=`.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f05-db-sqlite-v3：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／sqlite manifest-only／observational stub 不重写）。
+
 ```bash
 ./tests/run-f05-std-db-sqlite-v3-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f05-std-db-sqlite-v3-gate.sh
