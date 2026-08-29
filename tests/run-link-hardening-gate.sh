@@ -15,6 +15,9 @@
 # Usage: ./tests/run-link-hardening-gate.sh
 # wave honesty (2026-08-24 #5): monofile seeds/runtime.from_x.c retired wave321;
 # harden authority = runtime_link_abi.from_x.c（refuse monofile resurrect）.
+# leftover residual (2026-08-29): dual-authority top-level
+# analysis/安全与性能.md retired; TSV xref = archive/narrative; refuse
+# top-level resurrect. Product -o path already honesty-closed (do not reopen).
 # PLATFORM: SHARED archaeology / LINUX smoke — Ubuntu gold for PIE+NX.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -74,6 +77,9 @@ resolve_shu() {
 }
 
 echo "=== P1-7: link hardening manifest ==="
+if [ -f analysis/安全与性能.md ]; then
+  die "dual-authority fossil analysis/安全与性能.md (archive live)"
+fi
 for f in "$MANIFEST" "$SRC" "$LINK_ABI"; do
   [ -f "$f" ] || die "missing $f"
 done

@@ -65,7 +65,7 @@
 - **分级安全** — 默认安全；裸指针与底层 syscall 仅在 `unsafe { ... }`
 - **别名分析** — `noalias` 与借用门控，服务 autovec / DCE
 
-详见 [编译时内存与自动向量化](analysis/编译时自动内存管理和自动向量化.md) · [安全与性能](analysis/安全与性能.md)。
+详见 [编译时内存与自动向量化](analysis/编译时自动内存管理和自动向量化.md) · [安全与性能](analysis/archive/narrative/安全与性能.md)。
 
 ### 平台
 
@@ -640,7 +640,7 @@ xlang/
 - **原则** — 可维护、开发简单、**内存安全**（安全子集无静默 UB）。
 - **方法** — region 内存 + 借用门控 + 线性类型；别名分析服务 autovec / DCE；`unsafe` 保持薄且可审。
 
-设计长文：[语法与安全](analysis/语法与类型设计-高性能与内存安全.md) · [需求分析](analysis/需求分析.md) · [安全与性能](analysis/安全与性能.md)。
+设计长文：[语法与安全](analysis/语法与类型设计-高性能与内存安全.md) · [需求分析](analysis/需求分析.md) · [安全与性能](analysis/archive/narrative/安全与性能.md)。
 
 ---
 

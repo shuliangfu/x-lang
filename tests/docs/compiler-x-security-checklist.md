@@ -1,6 +1,6 @@
 # 改编译器 `.x` / 前端 C 时的安全自检（P0-6）
 
-> 关联：[analysis/安全与性能.md](../../analysis/安全与性能.md) §十一 P0  
+> 关联：[analysis/archive/narrative/安全与性能.md](../../analysis/archive/narrative/安全与性能.md) §十一 P0  
 > 适用：`compiler/src/**/*.x`、`compiler/src/{lexer,parser,typeck,codegen}/**`
 
 ## 必跑（本地，改完即跑）

@@ -9,6 +9,9 @@
 #   - hard: product -o long-ident (60-char; let.name[64] cap) + long-decimal
 #     (400-digit i64) smoke, run exit 0 (bounded lex+typeck+emit; no stack overflow)
 # Report: run=/obs=/skip=
+# DOC authority = archive/narrative. Refuse leftover top-level
+# analysis/安全与性能.md resurrect (dual authority). Product -o path
+# already honesty-closed (do not reopen).
 # Usage: ./tests/run-lexer-bounds-gate.sh
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Authority: seeds/runtime_lexer_glue.from_x.c (lexer.c deleted; refuse dual authority).
@@ -23,7 +26,7 @@ cd "$(dirname "$0")/.."
 
 PREFIX="${XLANG_LEXER_BOUNDS_PREFIX:-xlang: [XLANG_LEXER_BOUNDS]}"
 XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-90}"
-DOC="analysis/安全与性能.md"
+DOC="${XLANG_LEXER_BOUNDS_DOC:-analysis/archive/narrative/安全与性能.md}"
 MANIFEST="tests/baseline/lexer-bounds.tsv"
 LEXER_GLUE="compiler/seeds/runtime_lexer_glue.from_x.c"
 LONG_IDENT="/tmp/xlang_lexer_long_ident_$$.x"
@@ -112,6 +115,9 @@ product_run_case() {
 }
 
 echo "=== P1-3: lexer bounds manifest ==="
+if [ -f analysis/安全与性能.md ]; then
+  die "dual-authority fossil analysis/安全与性能.md (archive live)"
+fi
 for f in "$DOC" "$MANIFEST" "$LEXER_GLUE"; do
   [ -f "$f" ] || die "missing $f"
 done

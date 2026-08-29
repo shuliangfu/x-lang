@@ -8,6 +8,9 @@
 # `xlang check` paused (2026-08-05) → former typeck-only arm = obs= (CHK002),
 # not soft FAIL→OK. Product `-o` exit 42 is the hard gate.
 # Report: run=/obs=/skip=
+# DOC authority = archive/narrative. Refuse leftover top-level
+# analysis/安全与性能.md resurrect (dual authority). Product -o path
+# already honesty-closed (do not reopen).
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -20,7 +23,7 @@ cd "$(dirname "$0")/.."
 
 PREFIX="${XLANG_I64_CTFE_PREFIX:-xlang: [I64-CTFE]}"
 XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
-DOC="analysis/安全与性能.md"
+DOC="${XLANG_I64_CTFE_DOC:-analysis/archive/narrative/安全与性能.md}"
 SRC="tests/typeck/ctfe/i64_min_not_zero.x"
 BASELINE="tests/baseline/i64-ctfe.tsv"
 RUN_OK=0
@@ -77,6 +80,9 @@ export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "XLANG=$XLANG_BIN"
 
 # Manifest prerequisites (hard die; not soft SKIP→OK).
+if [ -f analysis/安全与性能.md ]; then
+  die "dual-authority fossil analysis/安全与性能.md (archive live)"
+fi
 for f in "$DOC" "$SRC" "$BASELINE"; do
   [ -f "$f" ] || die "missing $f"
 done

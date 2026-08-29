@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-28（§7.5 **G-FFI-3/4 gate ✅**；§7.2 阶段表同步）  
 > 状态：**分析定稿**（指导 LANG-007 v2 / SAFE-004 演进与阶段 G 排期）  
-> 关联：[安全路线.md](./安全路线.md) §6、[lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md)、[safe-ffi-contract-v1.md](./archive/safe/safe-ffi-contract-v1.md)、[type-ffi-bridge-v1.md](./type-ffi-bridge-v1.md)、[安全与性能.md](./安全与性能.md)、[与C互操作.md](./与C互操作.md)
+> 关联：[安全路线.md](./安全路线.md) §6、[lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md)、[safe-ffi-contract-v1.md](./archive/safe/safe-ffi-contract-v1.md)、[type-ffi-bridge-v1.md](./type-ffi-bridge-v1.md)、[安全与性能.md](./archive/narrative/安全与性能.md)、[与C互操作.md](./与C互操作.md)
 
 ---
 
@@ -46,7 +46,7 @@
 | 裸指针渗入业务层 | 安全子集被架空 | **类型分界 + 模块收拢可挡住** |
 | 恶意动态库 | 等同加载恶意代码 | **须进程外隔离**（见 §5.4） |
 
-这与 [安全与性能.md](./安全与性能.md) 一致：**通用 OS + FFI 不存在数学意义上的绝对安全**；目标是 **可证明的安全子集 + 可审计边界 + 纵深防御**。
+这与 [安全与性能.md](./archive/narrative/安全与性能.md) 一致：**通用 OS + FFI 不存在数学意义上的绝对安全**；目标是 **可证明的安全子集 + 可审计边界 + 纵深防御**。
 
 ---
 
@@ -336,7 +336,7 @@ unsafe {
 
 | 顺序 | 文档 | 关注点 |
 |------|------|--------|
-| 1 | [安全与性能.md](./安全与性能.md) §一、§三 | 为何无「绝对安全」 |
+| 1 | [安全与性能.md](./archive/narrative/安全与性能.md) §一、§三 | 为何无「绝对安全」 |
 | 2 | [lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md) | S0 / U1–U4 分层 |
 | 3 | [safe-ffi-contract-v1.md](./archive/safe/safe-ffi-contract-v1.md) | C1–C7 契约 |
 | 4 | [type-ffi-bridge-v1.md](./type-ffi-bridge-v1.md) | F1–F6 类型桥 |

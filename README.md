@@ -65,7 +65,7 @@
 - **Graded safety** — safe by default; raw pointers and low-level syscalls only in `unsafe { ... }`
 - **Alias analysis** — `noalias` and borrow gates for autovec / DCE
 
-See [compile-time memory & autovec](analysis/编译时自动内存管理和自动向量化.md) · [safety & perf](analysis/安全与性能.md).
+See [compile-time memory & autovec](analysis/编译时自动内存管理和自动向量化.md) · [safety & perf](analysis/archive/narrative/安全与性能.md).
 
 ### Platforms
 
@@ -640,7 +640,7 @@ Most languages force a trade-off. X refuses that trade-off:
 - **Discipline** — maintainable code, simple development, **memory safety** (no silent UB in the safe subset).
 - **Method** — region-based memory + borrow gates + linear types; alias analysis feeds autovec / DCE; `unsafe` stays thin and reviewable.
 
-Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能与内存安全.md) · [requirements](analysis/需求分析.md) · [safety & perf](analysis/安全与性能.md).
+Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能与内存安全.md) · [requirements](analysis/需求分析.md) · [safety & perf](analysis/archive/narrative/安全与性能.md).
 
 ---
 
