@@ -7,7 +7,9 @@
 #   - compile_fail negatives → product -o must emit T001 linear diag (hard).
 #   - positive move_ok.x → product -o hard green (run).
 #   - xlang check CHK002 / paused = obs (not soft silence).
-# DOC authority = archive/type. Report: run=/obs=/skip=
+# DOC authority = archive/type. Refuse leftover top-level
+# analysis/type-linear-v1-rfc.md resurrect (dual authority / leftover
+# "narrative mirror"). Report: run=/obs=/skip=
 # Usage: ./tests/run-typeck-linear.sh
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 set -euo pipefail
@@ -156,13 +158,14 @@ typeck_ok_case() {
   return 0
 }
 
-echo "=== M-4 linear typeck (archive DOC) ==="
+echo "=== M-4 linear typeck (archive DOC; refuse leftover dual-authority) ==="
+if [ -f analysis/type-linear-v1-rfc.md ]; then
+  die "dual-authority fossil analysis/type-linear-v1-rfc.md (archive live)"
+fi
 [ -f "$DOC" ] || die "missing $DOC"
 if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
   die "doc missing ## Gate section"
 fi
-# Dual DOC: top-level narrative may remain; Gate authority is archive.
-# Refuse soft silence when archive Gate is missing (checked above).
 
 for f in double_move.x call_double.x addr_of.x return_branch.x move_ok.x; do
   [ -f "${FIXTURE_DIR}/$f" ] || die "missing ${FIXTURE_DIR}/$f"

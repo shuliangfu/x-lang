@@ -81,10 +81,10 @@ typeck error: slice region escape: cannot assign <ra> slice to unbound T[] at 8:
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/lang-lifetime-diag-v1.md` |
+| 本文 | `analysis/archive/lang/lang-lifetime-diag-v1.md` |
 | manifest | `tests/baseline/lang-lifetime-diag.tsv` |
 | 矩阵 | `tests/baseline/lang-lifetime-diag-cases.tsv` |
-| region RFC | `analysis/type-region-v1-rfc.md` |
+| region RFC | `analysis/archive/type/type-region-v1-rfc.md` |
 
 **LANG-008 状态：定版 ✅**
 
@@ -95,6 +95,10 @@ refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
 die (manifest face is live); `xlang check` line/substr smoke = obs (check
 gate paused 2026-08-05); DOC=archive; report `run=`／`obs=`／`skip=`.
 **2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
+**2026-08-29 leftover dual-authority DOC 已收**（LANG-008：顶层
+`analysis/type-region-v1-rfc.md`／`analysis/type-linear-v1-rfc.md` 与
+archive/type 双份退役；live = `analysis/archive/type/`；顶层复活硬 die；
+nested lifetime-diag 产品 substr 仍 leftover／obs；报告 `run=`／`obs=`／`skip=`）。
 
 `tests/run-lang-lifetime-diag-gate.sh` + `tests/run-lang-lifetime-diag.sh`:
 

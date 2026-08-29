@@ -1,51 +1,73 @@
 #!/usr/bin/env bash
-# LANG-008: lifetime diagnostic manifest gate (honesty soft→硬绿).
+# LANG-008: lifetime diagnostic manifest — leftover dual-authority DOC →硬绿.
 #
-# Honesty: soft SKIP→OK / prefer-c retired in child smoke. Prefer
-# product xlang_asm via run-lang-lifetime-diag.sh. Explicit bad XLANG /
-# missing native = hard die. check smoke = obs (check paused). DOC
-# authority = archive/lang. Report delegated to child (run=/obs=/skip=).
-#
+# Honesty: leftover top-level `analysis/type-region-v1-rfc.md` /
+# `analysis/type-linear-v1-rfc.md` (archive/type is Gate authority;
+# leftover "narrative mirror" / LANG-008 hard-require top-level = false
+# dual authority) retired. Live type RFCs = analysis/archive/type/.
+# Refuse top-level resurrect. LANG-008 DOC live remains archive/lang.
+# Nested run-lang-lifetime-diag.sh already honesty-closed (leave lifetime
+# substr product residual). G.7: complete existing nested resolve_shu;
+# do not fork a third resolver. Report: run=/obs=/skip=.
+# Keep `lang-lifetime-diag gate OK`.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-lang-lifetime-diag-gate.sh
-# wave honesty (2026-08-24 #8): DOC → analysis/archive/lang/;
-# lsp_diag.c / typeck.c retired — live = lsp_diag.h + typeck.x.
-# PLATFORM: SHARED archaeology.
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 DOC="${XLANG_LANG_LIFETIME_DIAG_DOC:-analysis/archive/lang/lang-lifetime-diag-v1.md}"
+TYPE_REGION_DOC="${XLANG_TYPE_REGION_DOC:-analysis/archive/type/type-region-v1-rfc.md}"
+TYPE_LINEAR_DOC="${XLANG_TYPE_LINEAR_DOC:-analysis/archive/type/type-linear-v1-rfc.md}"
 MANIFEST="${XLANG_LANG_LIFETIME_DIAG_MANIFEST:-tests/baseline/lang-lifetime-diag.tsv}"
 MATRIX="${XLANG_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
+PREFIX="xlang: [XLANG_LANG_LIFETIME]"
 MIN_LAYERS=6
 MIN_CASES=4
+RUN_OK=0
+OBS=0
+SKIP=0
 
 # shellcheck source=tests/lib/lang-lifetime-diag.sh
 . tests/lib/lang-lifetime-diag.sh
 
-echo "=== LANG-008: lifetime diagnostic manifest (c retired) ==="
-
-if [ -f compiler/src/lsp/lsp_diag.c ]; then
-  echo "lang-lifetime-diag gate FAIL: lsp_diag.c resurrected (live = lsp_diag.h)" >&2
+die() {
+  echo "lang-lifetime-diag gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
   exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+echo "=== LANG-008: lifetime diagnostic manifest (archive DOC; refuse leftover dual-authority) ==="
+if [ -f analysis/type-region-v1-rfc.md ]; then
+  die "dual-authority fossil analysis/type-region-v1-rfc.md (archive live)"
+fi
+if [ -f analysis/type-linear-v1-rfc.md ]; then
+  die "dual-authority fossil analysis/type-linear-v1-rfc.md (archive live)"
+fi
+if [ -f compiler/src/lsp/lsp_diag.c ]; then
+  die "lsp_diag.c resurrected (live = lsp_diag.h)"
 fi
 if [ -f compiler/src/typeck/typeck.c ]; then
-  echo "lang-lifetime-diag gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
-  exit 1
+  die "typeck.c resurrected (live = typeck.x)"
 fi
 
-for f in "$DOC" "$MANIFEST" "$MATRIX" \
-  analysis/type-region-v1-rfc.md \
-  compiler/src/lsp/lsp_diag.h compiler/src/typeck/typeck.x \
+for f in \
+  "$DOC" \
+  "$TYPE_REGION_DOC" \
+  "$TYPE_LINEAR_DOC" \
+  "$MANIFEST" \
+  "$MATRIX" \
+  compiler/src/lsp/lsp_diag.h \
+  compiler/src/typeck/typeck.x \
   tests/typeck/slice_lifetime/region_assign_escape.x; do
-  if [ ! -f "$f" ]; then
-    echo "lang-lifetime-diag gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
-if ! grep -qE '^## Gate' "$DOC"; then
-  echo "lang-lifetime-diag gate FAIL: doc missing ## Gate section" >&2
-  exit 1
-fi
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -127,33 +149,25 @@ while IFS=$'\t' read -r case_id file substr want_line _notes; do
   fi
 done < "$MATRIX"
 
-if [ "$LAYER_N" -lt "$MIN_LAYERS" ]; then
-  echo "lang-lifetime-diag gate FAIL: layers=${LAYER_N} < min ${MIN_LAYERS}" >&2
-  exit 1
-fi
-if [ "$CASE_N" -lt "$MIN_CASES" ]; then
-  echo "lang-lifetime-diag gate FAIL: cases=${CASE_N} < min ${MIN_CASES}" >&2
-  exit 1
-fi
-if [ "$MATRIX_N" -lt "$MIN_CASES" ]; then
-  echo "lang-lifetime-diag gate FAIL: matrix=${MATRIX_N} < min ${MIN_CASES}" >&2
-  exit 1
-fi
+[ "$LAYER_N" -ge "$MIN_LAYERS" ] || die "layers=${LAYER_N} < min ${MIN_LAYERS}"
+[ "$CASE_N" -ge "$MIN_CASES" ] || die "cases=${CASE_N} < min ${MIN_CASES}"
+[ "$MATRIX_N" -ge "$MIN_CASES" ] || die "matrix=${MATRIX_N} < min ${MIN_CASES}"
 
 for kw in lifetime diagnostic friendly source runnable report; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "lang-lifetime-diag gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
 
-if [ "$MISS" -gt 0 ]; then
-  echo "lang-lifetime-diag gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "lang-lifetime-diag manifest OK (layers=${LAYER_N} cases=${CASE_N} matrix=${MATRIX_N})"
 
+echo "=== LANG-008: nested lifetime-diag smoke (refuse leftover dual-authority DOC) ==="
+# Drop leftover hard-require of top-level type-region RFC. Nested gate
+# already honesty-closes XLANG (prefer-asm / explicit-bad hard-die /
+# missing native FAIL / check substr = obs). Do not copy resolve_shu.
 chmod +x tests/run-lang-lifetime-diag.sh
-./tests/run-lang-lifetime-diag.sh
+./tests/run-lang-lifetime-diag.sh || die "nested lifetime-diag failed (refuse leftover dual-authority DOC)"
+RUN_OK=$((RUN_OK + 1))
 
 echo "lang-lifetime-diag gate OK"
+ok_report
+exit 0

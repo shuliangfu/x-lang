@@ -197,7 +197,7 @@ XLANG=/tmp/not-a-compiler ./tests/run-lang-unsafe-gate.sh   # → RC=1
 | 资源 | 路径 |
 |------|------|
 | UB 收窄 | `tests/ub/`、`tests/run-ub.sh` |
-| region | `analysis/type-region-v1-rfc.md` |
+| region | `analysis/archive/type/type-region-v1-rfc.md` |
 | 指针烟测 | `tests/run-pointer.sh` |
 | FFI | `tests/ffi/`、`tests/run-ffi.sh`（若有） |
 

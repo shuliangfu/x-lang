@@ -120,7 +120,7 @@
 
 - `read_ptr_slice` 返回 `u8[]<io_read_ptr>`；**不得**赋给未标注 `u8[]`。
 - `region ra { let s: i32[] = arr; }` — 块内数组转 slice 为视图。
-- 详 `analysis/type-region-v1-rfc.md`。
+- 详 `analysis/archive/type/type-region-v1-rfc.md`。
 
 ---
 
@@ -180,7 +180,7 @@ ZC-007 PR 声明与证明测试模板见 `analysis/archive/zc/zc-copy-proof-v1.m
 
 | 资源 | 路径 |
 |------|------|
-| slice 域 | `analysis/type-region-v1-rfc.md` |
+| slice 域 | `analysis/archive/type/type-region-v1-rfc.md` |
 | IO 模块头 | `std/io/mod.x`（Z2/ZC-1 生命周期） |
 | FS 零拷贝 | `std/fs/README.md` |
 | String ZC-4 | `std/string/mod.x` |

@@ -10,7 +10,9 @@
 #     UNDEF (slice_src / read_ptr_slice) counts as run (link stub not this gate).
 #   - read_ptr escape/mismatch tip not detecting region → obs (was soft-skip
 #     WARN); check path CHK002 / paused = obs. Report run=/obs=/skip=.
-# DOC authority = archive/type. Usage: ./tests/run-typeck-region.sh
+# DOC authority = archive/type. Refuse leftover top-level
+# analysis/type-region-v1-rfc.md resurrect (dual authority).
+# Usage: ./tests/run-typeck-region.sh
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -156,7 +158,10 @@ typeck_ok_case() {
   return 2
 }
 
-echo "=== M-3 region typeck (archive DOC) ==="
+echo "=== M-3 region typeck (archive DOC; refuse leftover dual-authority) ==="
+if [ -f analysis/type-region-v1-rfc.md ]; then
+  die "dual-authority fossil analysis/type-region-v1-rfc.md (archive live)"
+fi
 [ -f "$DOC" ] || die "missing $DOC"
 if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
   die "doc missing ## Gate section"

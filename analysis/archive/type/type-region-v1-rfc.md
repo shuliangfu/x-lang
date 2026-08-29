@@ -163,8 +163,12 @@ Honesty gate for M-3 region typeck (`tests/run-typeck-region.sh`):
 - `read_ptr_region_{escape,mismatch}` tip residual without region diag = obs
   (was soft-skip WARN). `xlang check` CHK002 / paused = obs.
 - Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.
-- Live DOC = this archive file; top-level `analysis/type-region-v1-rfc.md`
-  may remain as narrative mirror (lifetime / index) but Gate authority is here.
+- Live DOC = this archive file; refuse leftover top-level
+  `analysis/type-region-v1-rfc.md` resurrect (dual authority).
+
+Honesty leftover residual (2026-08-29): leftover dual-authority top-level
+`analysis/type-region-v1-rfc.md` retired; leftover LANG-008 hard-require
+of the top-level RFC retired; leftover "narrative mirror" retired.
 
 ## 7. 验收与 CI
 
@@ -215,7 +219,7 @@ ZC-3 gate 将 **编译期域检查** 与 **数组→slice 运行时**、**read_p
 
 | 资源 | 路径 |
 |------|------|
-| 线性类型 v1 | `analysis/type-linear-v1-rfc.md` |
+| 线性类型 v1 | `analysis/archive/type/type-linear-v1-rfc.md` |
 | 内存契约 Slice | `analysis/内存契约.md` §3 |
 | 测试 | `tests/typeck/slice_lifetime/*.x` |
 | 路线图 | `NEXT.md` TYPE-002 |
