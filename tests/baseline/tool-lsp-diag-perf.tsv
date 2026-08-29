@@ -2,6 +2,9 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # honesty 2026-08-24 #8: DOC → analysis/archive/tool/; lsp_diag.c retired;
 # P1–P6 live = runtime_lsp_glue.from_x.c / runtime_lsp_glue.x / lsp_diag.x.
+# leftover residual 2026-08-29: leftover catalog no Honesty / leftover
+# prefer-c / leftover native_xlang / leftover SKIP→OK retired. Nested
+# leftover run-lsp-diag-perf.sh not rewritten (TSV identity kept).
 # min_opts	6
 # min_cases	2
 # min_large_funcs	30

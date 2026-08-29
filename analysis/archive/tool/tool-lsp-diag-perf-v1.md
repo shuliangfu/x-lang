@@ -4,6 +4,14 @@
 > **Honesty 2026-08-24 #8: lsp_diag.c retired; P1–P6 live in runtime_lsp_glue.**
 > 状态：**定版（v1）**  
 > 关联：`TOOL-003`（补全）、`OBS-001`（编译阶段耗时）、`compiler/src/lsp/lsp_diag.c`
+>
+> Honesty leftover residual (2026-08-29): leftover catalog no Honesty + leftover
+> prefer-c + leftover `native_xlang` + leftover SKIP→OK on
+> `tests/run-tool-lsp-diag-perf-gate.sh` retired (report `run=`／`obs=`／
+> `skip=`; nested leftover `run-lsp-diag-perf.sh` auto-make skip=1; G.7
+> complete `dod_native_exe`; explicit-bad XLANG hard-dies). Live DOC = this
+> archive file. Nested leftover runner not rewritten. **Did not create
+> `## Gate`**.
 
 ---
 
