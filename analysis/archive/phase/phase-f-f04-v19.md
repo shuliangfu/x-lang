@@ -36,6 +36,8 @@ smoke observational. Does **not** open `run-std-crypto-ed25519-gate`
 = `./xbuild` + `compiler/mk/driver_seed_r_lists.mk` +
 `xlang_compile_std_module.sh`.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-crypto-v19：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／STD-006 crypto／host-c ed25519 observational／xlang_compiler_make 不重写）。
+
 ```bash
 ./tests/run-f04-std-crypto-v19-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f04-std-crypto-v19-gate.sh

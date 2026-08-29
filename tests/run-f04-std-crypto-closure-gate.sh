@@ -10,7 +10,14 @@
 # Report v16=/v17=/v18=/v19=/crypto=/inventory=/skip=. Gate was
 # portable-false-green (soft FAIL exit0 + soft child FAIL pass-through +
 # Makefile content greps / TSV makefile_crypto_o after Makefile deleted while
-# children already honesty-green). PLATFORM: SHARED archaeology.
+# children already honesty-green).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# children / nested STD-006 / inventory; refuse leftover ignore of
+# explicit-bad). leftover nested product path (v16～v19 Honesty this wave;
+# inventory / STD-006 crypto / xlang_compiler_make stay leftover).
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -27,15 +34,28 @@ MK_STD="compiler/mk/std_and_panic_objs.mk"
 MK_SEED="compiler/mk/driver_seed_r_lists.mk"
 PREFIX="xlang: [XLANG_F04_CRYPTO_CLOSURE]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for child dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -58,6 +78,16 @@ V19_OK=0
 CRYPTO_OK=0
 INVENTORY_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE children /
+# nested STD-006 / inventory (refuse leftover SKIP→OK / leftover ignore of
+# explicit-bad / leftover XLANG fallthrough). leftover nested product path
+# stays when XLANG is unset (v16～v19 Honesty this wave; leftover inventory /
+# STD-006 crypto / xlang_compiler_make stay).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-04 v21: std.crypto module closure (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -106,8 +136,10 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
 done < "$MANIFEST"
 echo "f04-crypto-closure manifest OK"
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"

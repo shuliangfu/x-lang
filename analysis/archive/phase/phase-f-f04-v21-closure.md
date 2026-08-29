@@ -46,6 +46,8 @@ manifest-only. No soft `die→exit 0`. Soft `XLANG_F04_CRYPTO_CLOSURE_FAIL`
 Live authority = `./xbuild` + `compiler/mk/*` + `xlang_compile_std_module.sh`
 (Makefile deleted; TSV no longer lists `compiler/Makefile`).
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-crypto-closure：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／STD-006 crypto／xlang_compiler_make 不重写；v16～v19 Honesty 同波）。
+
 ```bash
 ./tests/run-f04-std-crypto-closure-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f04-std-crypto-closure-gate.sh
