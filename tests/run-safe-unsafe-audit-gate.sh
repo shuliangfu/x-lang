@@ -1,26 +1,58 @@
 #!/usr/bin/env bash
-# SAFE-003：unsafe 审计 ledger 门禁
+# SAFE-003: unsafe audit ledger — leftover dual-authority DOC →硬绿.
 #
-# 验证 SAFE-002 清单中每条 tier-u / tier-e 在 safe-unsafe-audit.tsv 有完整审计记录。
-# 用法：./tests/run-safe-unsafe-audit-gate.sh
-set -e
+# Honesty: leftover top-level `analysis/safe-unsafe-audit-v1.md` /
+# `analysis/safe-unsafe-api-v1.md` (identical copies of archive/safe;
+# false dual authority) retired. Live = analysis/archive/safe/. Refuse
+# top-level resurrect. Nested run-safe-unsafe-api-gate.sh leftover
+# "accept top-level until SAFE soft knife" retired in the same wave.
+# Ledger coverage + nested SAFE-002 inventory remain hard. No XLANG
+# face (G.7: do not fork a resolver). Report: run=/obs=/skip=.
+# Keep `safe-unsafe-audit gate OK`.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-safe-unsafe-audit-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
+DOC="${XLANG_SAFE_UNSAFE_AUDIT_DOC:-analysis/archive/safe/safe-unsafe-audit-v1.md}"
+API_DOC="${XLANG_SAFE_UNSAFE_API_DOC:-analysis/archive/safe/safe-unsafe-api-v1.md}"
 API_TSV="${XLANG_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
 EXT_TSV="${XLANG_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
 AUDIT_TSV="${XLANG_SAFE_UNSAFE_AUDIT_TSV:-tests/baseline/safe-unsafe-audit.tsv}"
+PREFIX="xlang: [XLANG_SAFE_AUDIT]"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-echo "=== SAFE-003: unsafe audit manifest ==="
+die() {
+  echo "safe-unsafe-audit gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+echo "=== SAFE-003: unsafe audit manifest (archive DOC; refuse leftover dual-authority) ==="
+if [ -f analysis/safe-unsafe-audit-v1.md ]; then
+  die "dual-authority fossil analysis/safe-unsafe-audit-v1.md (archive live)"
+fi
+if [ -f analysis/safe-unsafe-api-v1.md ]; then
+  die "dual-authority fossil analysis/safe-unsafe-api-v1.md (archive live)"
+fi
 for f in \
-  analysis/safe-unsafe-audit-v1.md \
-  analysis/safe-unsafe-api-v1.md \
+  "$DOC" \
+  "$API_DOC" \
   "$AUDIT_TSV" \
+  "$API_TSV" \
+  "$EXT_TSV" \
   tests/templates/safe-unsafe-audit-entry.txt; do
-  if [ ! -f "$f" ]; then
-    echo "safe-unsafe-audit gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 echo "safe-unsafe-audit manifest OK"
 
 # 读取 audit ledger 到关联数组（bash 3.2+ 兼容：用临时文件）
@@ -125,12 +157,16 @@ fi
 rm -f "$AUDIT_KEYS" "$AUDIT_ORPHAN"
 
 if [ "$FAILS" -gt 0 ]; then
-  echo "safe-unsafe-audit gate FAIL: ${FAILS} issue(s)" >&2
-  exit 1
+  die "${FAILS} issue(s) (refuse leftover dual-authority DOC / leftover SKIP→OK)"
 fi
 
-echo "=== SAFE-003: SAFE-002 inventory hook ==="
+echo "=== SAFE-003: SAFE-002 inventory hook (refuse leftover accept top-level) ==="
 chmod +x tests/run-safe-unsafe-api-gate.sh
-./tests/run-safe-unsafe-api-gate.sh
+# Nested SAFE-002 leftover "accept top-level until SAFE soft knife" retired
+# in this wave. Ledger coverage stays hard; no XLANG face on this host.
+./tests/run-safe-unsafe-api-gate.sh || die "nested SAFE-002 failed (refuse leftover dual-authority DOC / leftover SKIP→OK)"
+RUN_OK=$((RUN_OK + 1))
 
 echo "safe-unsafe-audit gate OK"
+ok_report
+exit 0

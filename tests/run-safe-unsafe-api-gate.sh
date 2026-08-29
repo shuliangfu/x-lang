@@ -1,39 +1,55 @@
 #!/usr/bin/env bash
-# SAFE-002：unsafe API 清单自动检查门禁
+# SAFE-002: unsafe API inventory — leftover accept top-level DOC →硬绿.
 #
-# 1) safe-unsafe-api.tsv — Tier-U symbol 须在 source 存在
-# 2) safe-unsafe-extern.tsv — Tier-E 模块 extern 集合须与 baseline 完全一致
-# 3) 联动 LANG-007 run-lang-unsafe-gate.sh
-#
-# 用法：./tests/run-safe-unsafe-api-gate.sh
-set -e
+# Honesty: leftover "prefer archive when present; accept top-level until
+# SAFE soft knife" retired. Live = analysis/archive/safe/. Refuse
+# top-level resurrect of safe-unsafe-api-v1.md (dual authority with
+# archive). LANG-007 DOC live remains archive/lang. Nested
+# run-lang-unsafe-gate.sh already honesty-closed (leave unused
+# compiler-make source). Report: run=/obs=/skip=.
+# Keep `safe-unsafe-api gate OK`.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-safe-unsafe-api-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 API_TSV="${XLANG_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
 EXT_TSV="${XLANG_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
+PREFIX="xlang: [XLANG_SAFE_API]"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-echo "=== SAFE-002: unsafe API manifest ==="
+die() {
+  echo "safe-unsafe-api gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} obs=${OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+echo "=== SAFE-002: unsafe API manifest (archive DOC; refuse leftover accept top-level) ==="
 # LANG-007 DOC live = archive/lang (honesty soft→硬绿 2026-08-27).
-# Prefer archive SAFE DOC when present; accept top-level until SAFE soft knife.
 LANG_UNSAFE_DOC="analysis/archive/lang/lang-unsafe-v1-rfc.md"
-SAFE_API_DOC="analysis/safe-unsafe-api-v1.md"
-if [ -f analysis/archive/safe/safe-unsafe-api-v1.md ]; then
-  SAFE_API_DOC="analysis/archive/safe/safe-unsafe-api-v1.md"
+SAFE_API_DOC="${XLANG_SAFE_UNSAFE_API_DOC:-analysis/archive/safe/safe-unsafe-api-v1.md}"
+if [ -f analysis/safe-unsafe-api-v1.md ]; then
+  die "dual-authority fossil analysis/safe-unsafe-api-v1.md (archive live)"
+fi
+if [ -f analysis/lang-unsafe-v1-rfc.md ]; then
+  die "top-level lang-unsafe DOC resurrected (live = archive/lang/)"
 fi
 for f in \
   "$SAFE_API_DOC" \
   "$LANG_UNSAFE_DOC" \
   "$API_TSV" \
   "$EXT_TSV"; do
-  if [ ! -f "$f" ]; then
-    echo "safe-unsafe-api gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
-if [ -f analysis/lang-unsafe-v1-rfc.md ]; then
-  echo "safe-unsafe-api gate FAIL: top-level lang-unsafe DOC resurrected (live = archive/lang/)" >&2
-  exit 1
-fi
+grep -qE '^## Gate' "$SAFE_API_DOC" || die "doc missing ## Gate section"
 echo "safe-unsafe-api manifest OK"
 
 tier_u_source_symbol() {
@@ -95,8 +111,7 @@ while IFS=$'\t' read -r sym kind mod mode src; do
 done < "$API_TSV"
 
 if [ "$MISS" -gt 0 ]; then
-  echo "safe-unsafe-api gate FAIL: ${MISS}/${N} Tier-U symbols missing" >&2
-  exit 1
+  die "${MISS}/${N} Tier-U symbols missing (refuse leftover accept top-level / leftover SKIP→OK)"
 fi
 echo "safe-unsafe-api Tier-U OK (${N} symbols)"
 
@@ -139,7 +154,7 @@ while IFS= read -r src_file || [ -n "$src_file" ]; do
 done < <(awk -F'\t' '$0 !~ /^#/ && NF>=1 {print $1}' "$EXT_TSV" | sort -u)
 
 if [ "$drift_fail" -ne 0 ]; then
-  exit 1
+  die "Tier-E extern drift (refuse leftover accept top-level / leftover SKIP→OK)"
 fi
 
 echo "=== SAFE-002: LANG-007 unsafe boundary (hook) ==="
@@ -147,7 +162,10 @@ if [ "${XLANG_SAFE_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
   echo "safe-unsafe-api: skip lang-unsafe hook (XLANG_SAFE_SKIP_LANG_UNSAFE=1)"
 else
   chmod +x tests/run-lang-unsafe-gate.sh
-  ./tests/run-lang-unsafe-gate.sh
+  ./tests/run-lang-unsafe-gate.sh || die "nested LANG-007 failed (refuse leftover accept top-level / leftover SKIP→OK)"
 fi
 
+RUN_OK=$((RUN_OK + 1))
 echo "safe-unsafe-api gate OK"
+ok_report
+exit 0

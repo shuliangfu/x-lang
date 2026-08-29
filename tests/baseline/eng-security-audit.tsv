@@ -15,5 +15,5 @@ lib	script	lib/eng-security-audit.sh	tests/lib/eng-security-audit.sh	-	共享库
 runner	script	run-eng-security-audit.sh	tests/run-eng-security-audit.sh	-	周期 runner
 gate	script	run-eng-security-audit-gate.sh	tests/run-eng-security-audit-gate.sh	-	manifest
 workflow	hook	ci-nightly.yml	.github/workflows/ci-nightly.yml	-	夜跑
-cross_safe003	cross_ref	analysis/safe-unsafe-audit-v1.md	SAFE-003	unsafe 审计
+cross_safe003	cross_ref	analysis/archive/safe/safe-unsafe-audit-v1.md	SAFE-003	unsafe 审计
 cross_tool008	cross_ref	tests/baseline/tool-deps-lock.tsv	TOOL-008	lockfile
