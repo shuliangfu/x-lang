@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-145: std.test runner — honesty soft fallthrough →硬绿.
+# STD-145: std.test runner — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make + check=/run=/skip= retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard
-# die (refuse soft SKIP→OK / soft auto-make / prefer-c). Product
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
 # runner_smoke.x -o exit0 + report lines = hard run (run+=). check = obs.
-# Report: run=/obs=/skip=.
-# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-test-runner-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -15,8 +15,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD145_DOC:-analysis/archive/std/std-test-runner-v1.md}"
 MANIFEST="${XLANG_STD145_TSV:-tests/baseline/std-test-runner-manifest.tsv}"
@@ -130,10 +128,9 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED — std/test is SHARED report surface.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 OUT="/tmp/xlang_std145_runner_$$"
 LOG="/tmp/xlang_std145_runner_build_$$.log"

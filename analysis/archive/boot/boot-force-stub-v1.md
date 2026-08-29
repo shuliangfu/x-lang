@@ -5,7 +5,8 @@
 > 关联：`COMP-001`、`analysis/archive/boot/boot-mega7-gap.md` §4、abi seed `asm_parser_emit_heavy_force_stub`  
 > **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md`.  
 > **honesty 2026-08-26**：gate prefer asm + `XLANG_LINK_XLANG`; matrix `reg_src` link+run hard; `check_only` observational; no soft SKIP→OK; DOC `## 7. Gate`.  
-> **honesty 2026-08-29**：residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check_only remains obs. Keep `## 7. Gate`.
+> **honesty 2026-08-29**：residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check_only remains obs. Keep `## 7. Gate`.  
+> **honesty 2026-08-29 leftover wrap dead source**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`；`|| true`）retired from `tests/run-boot-force-stub-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；matrix `reg_src` link+run hard；check_only＝obs。Keep `## 7. Gate`。 Leave wrap body.
 
 ---
 
@@ -100,6 +101,7 @@
 | no native | **FAIL**（exit 2）— 禁止 soft SKIP→OK |
 | report | `run=`／`obs=`／`skip=`（keep `link=` extra；`skip`／`obs` = check_only 行数） |
 | DOC | refuse top-level resurrect；live = `analysis/archive/boot/`；禁 `ast_pool.c` 复活 |
+| leftover wrap | sourced unused（no `RUN_XLANG`；`|| true`）**retired** — product `-o` is the hard path |
 
 ```bash
 ./tests/run-boot-force-stub-gate.sh

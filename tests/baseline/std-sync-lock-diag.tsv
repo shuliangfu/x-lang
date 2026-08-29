@@ -2,6 +2,9 @@
 # Honesty 2026-08-26: prefer asm + XLANG_LINK_XLANG; check observational;
 # lock_diag.x exit0 hard-fail; TSV anchors = product lock_diag_* APIs;
 # report check=/run=/skip=. Drop fossil "## 4. 验证与门禁" → "## 3. Gate".
+# honesty 2026-08-29 leftover wrap dead source: run-std-sync-lock-diag-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o lock_diag hard.
 # 列：item_id	kind	anchor	mod_path	notes
 min_apis	8
 api_set_enabled	api	lock_diag_set_enabled	std/sync/mod.x	开关

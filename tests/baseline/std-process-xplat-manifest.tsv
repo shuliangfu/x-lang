@@ -7,6 +7,9 @@
 # bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
 # missing native FAIL; product -o live smokes hard (main.x exit 99);
 # check=obs; report run=/obs=/skip=.
+# honesty 2026-08-29 leftover wrap dead source: run-std-process-xplat-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o xplat_behavior + boundary hard.
 # Columns: item_id	kind	anchor	mod_path	notes
 read_path	section	## 1. 目标	analysis/archive/std/std-process-xplat-v1.md
 matrix	section	## 2. 行为矩阵	analysis/archive/std/std-process-xplat-v1.md

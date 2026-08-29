@@ -39,4 +39,6 @@ observational (paused 2026-08-05). `lock_diag.x` exit 0 hard-fail (`run+=`).
 Report `run=` / `obs=` / `skip=`. Refuse top-level DOC resurrect
 (live = `analysis/archive/std/`).
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-sync-lock-diag-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `lock_diag.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 PLATFORM: SHARED archaeology.

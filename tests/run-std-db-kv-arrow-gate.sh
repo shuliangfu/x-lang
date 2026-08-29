@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# std.db kv + arrow — honesty soft fallthrough →硬绿 (F-05 residual).
+# std.db kv + arrow — honesty leftover wrap dead source →硬绿 (F-05 residual).
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make (`xlang_compiler_make … || true`) +
-# check=/kv=/arrow=/cb=/c=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse
-# soft SKIP→OK / soft auto-make / prefer-c). Product kv_tick + arrow_column +
-# cookbook db_kv_arrow exit0 = hard run (run+=). check + host-C archaeology =
-# obs (no soft ensure rebuild). Report: run=/obs=/skip=.
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product kv_tick +
+# arrow_column + cookbook db_kv_arrow exit0 = hard run (run+=). check +
+# host-C archaeology = obs (no soft ensure rebuild). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-db-kv-arrow-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_DB_KV_ARROW_DOC:-analysis/archive/std/std-db-kv-arrow-v1.md}"
 MANIFEST="${XLANG_STD_DB_KV_ARROW_TSV:-tests/baseline/std-db-kv-arrow.tsv}"
@@ -143,10 +141,9 @@ if [ "$chk1" -ne 0 ] || [ "$chk2" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make / soft ensure_std_c_o (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 if std_db_kv_arrow_run_smoke "$XLANG_BIN" "$SMOKE_KV" "kv"; then
   RUN_OK=$((RUN_OK + 1))

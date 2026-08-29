@@ -1,4 +1,8 @@
 # std.db kv+arrow manifest (F-05 / soft residual honesty)
+# honesty 2026-08-29 leftover wrap dead source: run-std-db-kv-arrow-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o kv_tick + arrow_column +
+# cookbook hard. check / host-C = obs (existing .o only).
 # 列：item_id	kind	anchor	mod_path	notes
 min_apis	8
 gate_section	section	## 4. Gate	analysis/archive/std/std-db-kv-arrow-v1.md

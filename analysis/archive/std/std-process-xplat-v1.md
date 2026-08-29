@@ -53,6 +53,8 @@ hard-fail (`run+=`). `spawn_wait_win` / `spawn_pipe_echo` observational only
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-process.sh`（`xlang_compiler_make -q xlang-c || make` + `ensure_std_c_o process.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` live smokes hard（`main.x` exit 99；POSIX spawn_wait hard；Windows spawn_wait skip＝N/A）；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [PROCESS]`。Keep `## 4. Gate`。
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-process-xplat-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `xplat_behavior.x`／`boundary.x` hard；check／win／pipe＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ```bash
 ./tests/run-std-process-xplat-gate.sh
 ```

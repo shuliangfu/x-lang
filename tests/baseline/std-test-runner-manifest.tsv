@@ -2,6 +2,9 @@
 # Honesty 2026-08-26: prefer asm + XLANG_LINK_XLANG; check observational;
 # runner_smoke.x exit0 + report lines hard-fail; section anchors = archive DOC;
 # report check=/run=/skip=. Product NUL fixes in std/test/test.x (SUMMARY/mid).
+# honesty 2026-08-29 leftover wrap dead source: run-std-test-runner-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product -o runner_smoke hard.
 # 列：item_id	kind	anchor	mod_path	notes
 min_apis	4
 read_path	section	## 1. 目标	analysis/archive/std/std-test-runner-v1.md

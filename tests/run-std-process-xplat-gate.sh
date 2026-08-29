@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-142: std.process xplat — honesty soft fallthrough →硬绿.
+# STD-142: std.process xplat — honesty leftover wrap dead source →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make (`xlang_compiler_make … || true`) +
-# check=/xplat=/boundary=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product xplat_behavior + boundary
-# exit0 = hard run (run+=). check + win/pipe (XT001 neighborhood) = obs.
-# Report: run=/obs=/skip=.
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# xplat_behavior + boundary exit0 = hard run (run+=). check + win/pipe
+# (XT001 neighborhood) = obs. Report: run=/obs=/skip=. G.7: complete
+# existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-process-xplat-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD142_PROCESS_XPLAT_DOC:-analysis/archive/std/std-process-xplat-v1.md}"
 MANIFEST="${XLANG_STD142_PROCESS_XPLAT_MANIFEST:-tests/baseline/std-process-xplat-manifest.tsv}"
@@ -127,10 +125,9 @@ for sym in getpid getppid spawn_simple waitpid pipe spawn_io; do
 done
 grep -q 'unsafe' "$MOD_X" 2>/dev/null || die "mod missing unsafe extern wrappers"
 
-# Refuse soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. tests/lib/bootstrap-link-xlang.sh
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 if std_process_xplat_run_smoke "$XLANG_BIN" "$SMOKE_X"; then
   RUN_OK=$((RUN_OK + 1))

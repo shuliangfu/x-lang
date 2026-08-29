@@ -67,6 +67,8 @@ C archaeology：`db_kv_smoke_c` · `arrow_smoke_c`（host-C 入口；**非**硬�
 - 报告：`run=`／`obs=`／`skip=`（硬绿信号＝`run=`）。
 - 构建入口：`./xbuild`／闸脚本（**拒** `make -C compiler` 复活为活权威）。
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-db-kv-arrow-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` kv／arrow／cookbook hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ```
 xlang: [XLANG_STD_DB_KV_ARROW] status=ok run=3 obs=0|1 skip=0
 std-db-kv-arrow gate OK
@@ -85,3 +87,4 @@ std-db-kv-arrow gate OK
 |------|------|------|
 | v1 | 2026-08-26 | Gate honesty：`## 4. Gate`；prefer asm；三路 `.x` 硬绿；C 观测；禁 soft SKIP |
 | v1.1 | 2026-08-28 | soft fallthrough residual：显式坏 XLANG 硬 die；拒 soft auto-make／soft ensure；报告 `run=`／`obs=`／`skip=` |
+| v1.2 | 2026-08-29 | leftover wrap dead source：闸脚本退役 unused wrap source／compiler-make.sh；产品 kv／arrow／cookbook `-o` 硬绿 |

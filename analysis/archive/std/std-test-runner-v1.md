@@ -52,6 +52,8 @@ soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
 observational (paused 2026-08-05). `runner_smoke.x` exit 0 + report lines
 hard-fail (`run+=`). Report `run=` / `obs=` / `skip=`.
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-test-runner-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `runner_smoke.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 烟测：`tests/std-test/runner_smoke.x`
 
 ```

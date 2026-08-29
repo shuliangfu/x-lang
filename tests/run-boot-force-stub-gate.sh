@@ -6,11 +6,12 @@
 # seeds/runtime_pipeline_abi.from_x.c. DOC archived under analysis/archive/boot/.
 # Selfhost pause (2026-08-05): do NOT run xlang check as gate smoke.
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# leftover bootstrap-link wrap sourced unused (no RUN_XLANG; `|| true`) retired.
 # Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
 # = hard die. matrix reg_src link+run hard-fail; check_only observational.
 # Report run=/obs=/skip= (keep link= extra). G.7: complete existing
-# boot010_resolve_shu; converge dod_native_exe.
-# PLATFORM: SHARED archaeology.
+# boot010_resolve_shu; converge dod_native_exe. Refuse leftover wrap dead
+# source. PLATFORM: SHARED archaeology.
 #
 # 用法：./tests/run-boot-force-stub-gate.sh
 set -e
@@ -186,8 +187,8 @@ echo "=== BOOT-010: matrix reg_src link+run (XLANG=$XLANG_BIN; check_only observ
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-# shellcheck source=tests/lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh" 2>/dev/null || true
+# Refuse leftover wrap dead source (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 mkdir -p "$OUT_DIR"
 FAILS=0
 for reg_src in $LINK_SRCS; do

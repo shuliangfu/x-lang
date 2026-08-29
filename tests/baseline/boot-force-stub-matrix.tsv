@@ -5,6 +5,9 @@
 # Honesty 2026-08-29: residual XLANG fallthrough retired (explicit-bad XLANG
 # no longer continues to xlang_asm). script: tests/run-boot-force-stub-gate.sh
 # / tests/lib/boot-force-stub.sh. Keep ## 7. Gate.
+# honesty 2026-08-29 leftover wrap dead source: bootstrap-link-xlang.sh sourced
+# unused (no RUN_XLANG; `|| true`) retired. Prefer asm; matrix reg_src
+# link+run hard; check_only observational.
 # want_exit map (lib/boot-force-stub.sh): simple=10 no_else=42 f32_f64=0 allow_padding_ok=2
 # doc_gate: DOC must contain "## 7. Gate" (enforced by gate script, not a stub row)
 # min_stub_rows	6

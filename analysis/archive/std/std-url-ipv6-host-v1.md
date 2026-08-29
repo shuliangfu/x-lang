@@ -29,6 +29,8 @@ observational (paused 2026-08-05). `ipv6_host.x` exit 0 hard-fail (`run+=`).
 C smoke observational only (existing `.o`; no soft rebuild; `obs+=`).
 Report `run=` / `obs=` / `skip=`. Refuse top-level DOC resurrect.
 
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-url-ipv6-host-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `ipv6_host.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 Gate report example：
 
 ```text
@@ -38,3 +40,4 @@ xlang: [XLANG_STD134_URL_IPV6_HOST] status=ok check=1 run=1 skip=0
 ### Changelog
 
 - **v1.1（2026-08-26）**：soft→硬绿 — DOC `## 门禁`→`## 3. Gate`；闸 prefer asm＋LINK pin；check 观测；run 硬绿；报告 `check=`／`run=`／`skip=`。根修 `AF_INET6` cfg LINUX=10／MACOS=30／WINDOWS=23（Darwin `inet_pton` 拒 af=10 → `host_is_ipv6` exit3）；同模式 `std/net/ipv6.x`／`dns.x`。
+- **v1.2（2026-08-29）**：leftover wrap dead source — 闸脚本退役 unused wrap source／compiler-make.sh；产品 `ipv6_host.x` `-o` 硬绿。
