@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-10: test_x wiring + Stage2 portable subset (no native xlang → SKIP).
+# F-10: test_x wiring + Stage2 portable subset (honesty).
 #
 # Usage: ./tests/run-f10-test-x-portable-gate.sh
 #        XLANG_F10_RUN_TEST_X=1 ./tests/run-f10-test-x-portable-gate.sh
@@ -10,6 +10,13 @@
 # so archaeology knife does not absorb unrelated suite residuals. Report
 # doc=/wiring=/d04=/skip=. Gate was portable-false-green (soft FAIL exit0
 # while wiring already green).
+# Honesty: leftover stdlib_cm_native_xlang third resolver retired
+# (G.7 converge dod_native_exe). leftover ignore of explicit-bad XLANG
+# (resolver ignored XLANG; DOC/wiring ran first) retired. leftover
+# prefer-c (xlang-c first) retired — prefer asm. Explicit-bad XLANG /
+# missing native = hard die FIRST (before DOC / leftover nested d04).
+# leftover nested d04 portable / leftover nested test_x opt-in stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -17,22 +24,12 @@ cd "$(dirname "$0")/.."
 . tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
 
 DOC="${XLANG_F10_DOC:-analysis/archive/phase/phase-f-f10-v1.md}"
 MANIFEST="tests/baseline/f10-test-x-portable.tsv"
 PREFIX="xlang: [XLANG_F10_TEST_X]"
-
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
 
 die() {
   echo "f10-test-x-portable gate FAIL: $*" >&2
@@ -40,10 +37,51 @@ die() {
   exit 1
 }
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# leftover stdlib_cm_native_xlang third resolver retired — converge
+# dod_native_exe. Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 DOC_OK=0
 WIRING_OK=0
 D04_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE DOC /
+# leftover nested d04 (refuse leftover SKIP→OK / leftover ignore of
+# explicit-bad / leftover stdlib_cm_native_xlang). leftover nested
+# product path stays when XLANG is unset.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover ignore of explicit-bad / leftover SKIP→OK / leftover stdlib_cm_native_xlang)"
+fi
 
 echo "=== F-10: test_x + portable subset (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -71,29 +109,27 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 WIRING_OK=1
 
-XLANG_BIN=""
-if stdlib_cm_native_xlang ./compiler/xlang-c; then
-  XLANG_BIN=./compiler/xlang-c
-elif stdlib_cm_native_xlang ./compiler/xlang; then
-  XLANG_BIN=./compiler/xlang
-elif stdlib_cm_native_xlang ./compiler/xlang_asm; then
-  XLANG_BIN=./compiler/xlang_asm
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover ignore of explicit-bad / leftover SKIP→OK / leftover stdlib_cm_native_xlang)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover SKIP→OK / leftover stdlib_cm_native_xlang / leftover auto-make)"
 fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
 # Wiring (xbuild test_x route + run_compiler_tests.sh) is hard above.
 # Full ./xbuild test_x dogfood is opt-in — archaeology knife must not absorb
-# unrelated test_x suite residuals.
+# unrelated test_x suite residuals. leftover nested test_x stay.
 # PLATFORM: SHARED archaeology.
-if [ -n "$XLANG_BIN" ] && [ "${XLANG_F10_RUN_TEST_X:-0}" = "1" ]; then
+if [ "${XLANG_F10_RUN_TEST_X:-0}" = "1" ]; then
   echo "=== F-10: ./xbuild test_x (XLANG=$XLANG_BIN) ==="
   TARGET="$(basename "$XLANG_BIN")" ./xbuild test_x >/tmp/f10_test_x.log 2>&1 \
     || die "test_x failed (see /tmp/f10_test_x.log)"
-elif [ -n "$XLANG_BIN" ]; then
-  echo "f10 SKIP full test_x (wiring OK; XLANG_F10_RUN_TEST_X=1 to run; XLANG=$XLANG_BIN)" >&2
 else
-  echo "f10 SKIP test_x (no native xlang)" >&2
+  echo "f10 SKIP full test_x (wiring OK; XLANG_F10_RUN_TEST_X=1 to run; XLANG=$XLANG_BIN)" >&2
 fi
 
+# leftover nested d04 portable stay.
 if [ -f tests/run-d04-stage2-portable-diff-gate.sh ]; then
   echo "=== F-10: delegate d04 portable subset (hard) ==="
   chmod +x tests/run-d04-stage2-portable-diff-gate.sh

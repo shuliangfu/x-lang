@@ -206,6 +206,8 @@ green retired for **ZC-2** (`tests/run-zc2-gate.sh`).
 | Out of scope | zc3／zc4／zc5 host-c postponed; brotli ld; mega; pin raise |
 | Manifest gate | `run-zc-semantics-gate.sh` — DOC=archive; no NEXT.md fossil; hooks opt-in only |
 
+**2026-08-30 leftover native_xlang 已收**（zc-semantics：leftover `native_xlang` 收敛 `dod_native_exe`；G.7 补全既有 `resolve_shu`；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested zc3／zc4／zc5 hooks opt-in 不重写）。
+
 PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
 **ZC-006 状态：定版 ✅**
