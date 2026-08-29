@@ -76,6 +76,8 @@ std-ffi-cstring gate OK
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-ffi.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o ffi.o` + prefer-c `xlang-c` first + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/ffi/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [FFI]`。Keep `## 5. Gate`。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-ffi-cstring-lifecycle-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `cstring_try_new.x`＋SAFE-004 hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 变更记录
@@ -84,3 +86,4 @@ std-ffi-cstring gate OK
 |------|------|------|
 | v1 | 2026-06-17 | FFI_ERR_* + cstring_try_new + cstring_destroy |
 | v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable+SAFE-004 硬失败 |
+| v1.2 | 2026-08-29 | leftover unused compiler-make.sh retired from live gate |

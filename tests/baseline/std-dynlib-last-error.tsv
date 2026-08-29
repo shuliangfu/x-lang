@@ -1,5 +1,8 @@
 # STD-096 std.dynlib last_error manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-dynlib-last-error-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/dynlib/last_error.x hard.
 min_apis	1
 verify	section	## 4. Gate	analysis/archive/std/std-dynlib-last-error-v1.md
 api_last_os_error	api	last_os_error	std/dynlib/mod.x	文本诊断

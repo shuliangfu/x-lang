@@ -158,6 +158,8 @@ xlang → **FAIL** (not soft SKIP→OK). Report `check=` / `switch=` / `imp=` /
 xlang: [XLANG_STD_ASYNC_API] status=ok check=1 switch=1 imp=1 drain=1 coop=0 skip=0
 ```
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-async-api-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` switch＋imp＋drain hard；check／coop＝obs；report `run=`／`obs=`／`skip=`。Keep `## 10. Gate`。 Leave wrap body / ensure_std family.
+
 **STD-004 状态：定版 ✅**（Gate honesty soft→硬绿 2026-08-26）
 
 ## Gate

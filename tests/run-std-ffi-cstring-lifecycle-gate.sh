@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-055: std.ffi CString lifecycle + error-code gate — honesty soft auto-make →硬绿.
+# STD-055: std.ffi CString lifecycle + error-code gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make (`xlang_compiler_make … || true`) +
-# check=/run=/safe004=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse
-# soft SKIP→OK / soft auto-make / prefer-c / soft ensure rebuild). Product
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
 # cstring_try_new.x -o exit0 + SAFE-004 regression = hard run (both folded
 # into run=). check / host-C archaeology = obs. Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-ffi-cstring-lifecycle-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_FFI_CSTRING_DOC:-analysis/archive/std/std-ffi-cstring-lifecycle-v1.md}"
 MANIFEST="${XLANG_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
@@ -123,8 +121,9 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-055: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o + SAFE-004 hard) ==="
 
-# Host-C archaeology = obs only; refuse soft ensure/auto-make rebuild.
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Host-C archaeology = obs only; refuse leftover unused compiler-make.sh /
+# soft ensure/auto-make rebuild. Product -o is the hard path.
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_ffi_cstring_run_c_smoke "$FFI_IMPL"; then
   echo "std-ffi-cstring c smoke OK (observational)"
 else

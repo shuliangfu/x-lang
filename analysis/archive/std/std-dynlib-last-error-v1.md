@@ -60,6 +60,13 @@ std-dynlib-last-error gate OK
 - 闸：`tests/run-std-dynlib-last-error-gate.sh`
 - lib：`tests/lib/std-dynlib-last-error.sh`
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-dynlib-last-error-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `last_error.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
+### Changelog
+
+- 2026-08-25：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；C smoke 观测）。
+- 2026-08-29：leftover unused compiler-make.sh retired from live gate.
+
 ---
 
 ## 5. 演进

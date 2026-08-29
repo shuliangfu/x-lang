@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# STD-004: std.async stable API gate — honesty soft fallthrough →硬绿.
+# STD-004: std.async stable API gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make + check=/switch=/imp=/drain=/coop=/skip=
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c /
-# soft ensure). Product i06_async_switch + async_mod_import + async_drain_idle
-# -o exit0 = hard run (all three folded into run=). check / coop_pingpong 1M
-# (product UNDEF residual) = obs. Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# i06_async_switch + async_mod_import + async_drain_idle -o exit0 = hard run
+# (all three folded into run=). check / coop_pingpong 1M (product UNDEF
+# residual) = obs. Report: run=/obs=/skip=. G.7: complete existing
+# resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-async-api-gate.sh
 set -euo pipefail
@@ -16,8 +17,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ASYNC_API_DOC:-analysis/archive/std/std-async-api-v1.md}"
 BASELINE="${XLANG_STD_ASYNC_API_TSV:-tests/baseline/std-async-api.tsv}"
@@ -110,8 +109,9 @@ if [ "$chk_sw" -ne 0 ] || [ "$chk_imp" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft ensure_std_c_o / soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Refuse leftover unused compiler-make.sh / soft ensure_std_c_o / soft
+# auto-make (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_async_api_run_smoke "$XLANG_BIN" "$SMOKE_SWITCH" "switch"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-async-api OK: switch"

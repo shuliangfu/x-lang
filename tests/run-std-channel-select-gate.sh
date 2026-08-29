@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-098/102/104/108: std.channel select gate — honesty soft fallthrough →硬绿.
+# STD-098/102/104/108: std.channel select gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make + check=/run=/skip= retired. Prefer
-# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native
-# = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft ensure).
-# Six select_*.x product -o exit0 = hard run (run=6). check = obs.
-# Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# six select_*.x -o exit0 = hard run (run=6). check = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-channel-select-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CHANNEL_SELECT_DOC:-analysis/archive/std/std-channel-select-v1.md}"
 MANIFEST="${XLANG_STD_CHANNEL_SELECT_TSV:-tests/baseline/std-channel-select.tsv}"
@@ -138,8 +137,9 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft ensure_std_c_o / soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Refuse leftover unused compiler-make.sh / soft ensure_std_c_o / soft
+# auto-make (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 for pair in \
   "$SEL2_X:select2" \
   "$SELN_X:selectn" \

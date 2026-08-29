@@ -4,6 +4,9 @@
 # Updated: 2026-06-28 (S9 API 简写)
 # Gate honesty 2026-08-26: ## 10. Gate; hard smokes = i06_async_switch +
 # cookbook async_mod_import / async_drain_idle; coop/1m observational.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-async-api-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o i06_async_switch + async_mod_import + async_drain_idle hard.
 wait_completion
 submit_read_sync
 submit_write_sync

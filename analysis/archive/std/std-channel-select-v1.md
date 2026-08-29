@@ -112,7 +112,10 @@ manifest：`tests/baseline/std-channel-select.tsv`
 xlang: [XLANG_STD_CHANNEL_SELECT] status=ok check=0|1 run=1 skip=0
 ```
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-channel-select-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` six `select_*.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ### Changelog
 
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 4. Gate`；未啃产品 `std/channel`）。
+- 2026-08-29：leftover unused compiler-make.sh retired from live gate.
 - 2026-06-27：v1 select recv／send／mixed 双路＋N 路定版。

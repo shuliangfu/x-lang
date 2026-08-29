@@ -1,5 +1,8 @@
 # STD-055 std.ffi CString lifecycle manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-ffi-cstring-lifecycle-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/std-ffi/cstring_try_new.x + SAFE-004 hard.
 # min_apis	4
 read_path	section	## 1. 阅读路径	15min
 err_codes	section	## 2. 错误码	FFI_ERR_OOM
