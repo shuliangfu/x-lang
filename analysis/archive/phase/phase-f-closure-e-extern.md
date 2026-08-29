@@ -34,3 +34,5 @@ Under Stage12.0.5 prefer pure-asm product default, shipping a soft-green
 ```
 
 PLATFORM: SHARED archaeology.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-closure-e-extern：`for cand in "${XLANG:-}"` 退役；G.7 补全既有 `prefer_asm_resolve_xlang` 收敛 `dod_native_exe`；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested -E-extern refuse probe 不重写）。

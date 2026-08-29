@@ -9,6 +9,12 @@
 # false-green while children still soft-exit0 on -E-extern+cc). Children
 # rewritten to refuse probes; -E-extern+cc batch retired. Report
 # refuse=/subs=/noperl=/skip=.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired in tests/lib/prefer-asm-e-extern-refuse.sh. Explicit-bad XLANG
+# / missing native = hard die FIRST (before DOC / static / leftover
+# nested e-extern children; refuse leftover ignore of explicit-bad).
+# leftover nested import／lexer／pipeline／parser／no-perl product path stay.
+# G.7: complete existing prefer_asm_resolve_xlang; converge dod_native_exe.
 # Authority refuse: tests/lib/prefer-asm-e-extern-refuse.sh
 # PLATFORM: SHARED archaeology.
 set -e
@@ -46,6 +52,12 @@ run_sub() {
   SUBS=$((SUBS + 1))
 }
 
+# Explicit-bad XLANG dies FIRST (before DOC / leftover nested children).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(prefer_asm_resolve_xlang)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
 echo "=== C-04: -E-extern archaeology (honesty; NO_C_FRONTEND refuse) ==="
 for f in "$DOC" "$MANIFEST" "$ENSURE_MIGRATE" "$PROBE"; do
   [ -f "$f" ] || die "missing $f"
@@ -68,8 +80,10 @@ for f in compiler/mk/driver_seed_composites.mk compiler/mk/driver_seed_mode_objs
   fi
 done
 
-if ! XLANG_BIN="$(prefer_asm_resolve_xlang 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(prefer_asm_resolve_xlang)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(prefer_asm_resolve_xlang)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"

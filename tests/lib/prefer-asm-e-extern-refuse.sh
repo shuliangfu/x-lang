@@ -5,6 +5,11 @@
 # with BLD001 / NO_C_FRONTEND. Soft die→exit0 + swallowing FAIL_XLANGC while
 # every product bin refuses the flag = prefer-c archaeology false-green.
 #
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard return 1 (caller
+# dies FIRST before DOC / static; refuse leftover ignore of explicit-bad).
+# G.7: complete existing prefer_asm_resolve_xlang; converge dod_native_exe.
+#
 # Usage (from repo root after sourcing dod-native-exe.sh):
 #   source tests/lib/prefer-asm-e-extern-refuse.sh
 #   bin="$(prefer_asm_resolve_xlang)" || die "no native xlang"
@@ -13,15 +18,29 @@
 # PLATFORM: SHARED archaeology.
 # shellcheck shell=bash
 
+# G.7: complete existing prefer_asm_resolve_xlang. Explicit XLANG that is
+# missing or non-native returns 1 (caller hard-dies). Unset XLANG prefers
+# asm. leftover XLANG fallthrough (`for cand in "${XLANG:-}"`) retired.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 prefer_asm_resolve_xlang() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"

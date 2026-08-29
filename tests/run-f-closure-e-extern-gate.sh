@@ -10,6 +10,11 @@
 # -E-extern (C frontend gone) = portable false-green / prefer-c archaeology
 # dual authority. Full -E-extern+cc batch retired (cannot green on product
 # pure-asm). Report refuse=/mods=/skip=.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired in tests/lib/prefer-asm-e-extern-refuse.sh. Explicit-bad XLANG
+# / missing native = hard die FIRST (before DOC / static; refuse leftover
+# ignore of explicit-bad). leftover nested -E-extern refuse probe stay.
+# G.7: complete existing prefer_asm_resolve_xlang; converge dod_native_exe.
 # Authority refuse: tests/lib/prefer-asm-e-extern-refuse.sh (G.7 single path).
 # PLATFORM: SHARED archaeology.
 set -e
@@ -35,6 +40,12 @@ die() {
   exit 1
 }
 
+# Explicit-bad XLANG dies FIRST (before DOC / leftover nested refuse probe).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(prefer_asm_resolve_xlang)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
 echo "=== F closure -E-extern archaeology (honesty; NO_C_FRONTEND refuse) ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-closure-e-extern' "$DOC" || die "doc missing F-closure-e-extern marker"
@@ -48,8 +59,10 @@ fi
 MODS=$(find std -name "mod.x" -type f 2>/dev/null | wc -l | tr -d ' ')
 [ "$MODS" -gt 0 ] || die "no std/**/mod.x found"
 
-if ! XLANG_BIN="$(prefer_asm_resolve_xlang 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(prefer_asm_resolve_xlang)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(prefer_asm_resolve_xlang)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
