@@ -37,6 +37,8 @@ DOC / `compiler/Makefile` resurrect. Report `run=` / `skip=`.
 
 **2026-08-29 leftover XLANG fallthrough 已收**（linux-open-read／openat／syscall-invoke／mmap-invoke：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
 
+**2026-08-29 leftover XLANG fallthrough 已收**（macos-mmap／macos-mmap-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Ubuntu N/A skip=1；macos-mmap-file Darwin `std_sys_read_file_into` UNDEF 仍 obs）。
+
 ## 延后（不阻塞 B v1 ✅）
 
 - **B-04 语法层 `asm { }`** → 阶段 C/E；v1 用 extern→`.s` 等价。
