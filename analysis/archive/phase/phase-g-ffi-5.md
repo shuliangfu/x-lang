@@ -3,6 +3,12 @@
 > **G-FFI-5**：业务 `tests/` 无裸 `extern` 调用（须 `unsafe` 或 allowlist）；std 业务层 unsafe 债务冻结（infra 边界排除）；硬委托 `std/ffi`+`std/sys` wrap grep。
 >
 > **Honesty（2026-08-27）**：soft `XLANG_G_FFI5_FAIL`（business die→exit0）已退役。缺 allowlist／baseline 曾 portable 假绿。活权威 = 本 archive DOC + baseline TSV + wrap gate。`xlang check` 闸门自举期暂停 → release-ci 默认 `SKIP_LANG_UNSAFE=1`（policy only）；`XLANG_G_FFI5_RUN_LANG_UNSAFE=1` 才跑 LANG-007 全套（仍绑 check，后置）。
+>
+> Honesty leftover residual (2026-08-29): leftover catalog no Honesty + leftover
+> `native_xlang` on nested `tests/run-g-ffi-5-std-wrap-gate.sh` retired
+> (report `run=`／`obs=`／`skip=`; no XLANG face; G.7 do not fork a resolver;
+> default TYPECK skip=1 check postponed). Parent business／release-ci product
+> path not rewritten this wave. Live DOC = this archive file.
 
 ## v1 完成（✅ policy）
 
@@ -27,6 +33,9 @@
 # Report: doc=/allow=/baseline=/bare=/freeze=/wrap=/skip=
 # Soft XLANG_G_FFI5_FAIL retired (die always hard).
 ```
+
+Honesty leftover residual (2026-08-29): nested wrap gate leftover catalog no
+Honesty retired (keep Gate heading／table; parent product path not rewritten).
 
 PLATFORM: SHARED archaeology.
 

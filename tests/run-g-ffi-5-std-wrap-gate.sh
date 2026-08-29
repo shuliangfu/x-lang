@@ -1,19 +1,41 @@
 #!/usr/bin/env bash
-# G-FFI-5：std/ffi + std/sys 层 extern 调用须包在 unsafe { } 内（LANG-007 v2）
+# G-FFI-5: std/ffi + std/sys extern calls must wrap in unsafe { } (LANG-007 v2).
 #
-# 验证：
-#   1) 清单文件存在
-#   2) win32 / ffi.x 实现层 grep 确认 unsafe 包裹（硬门槛）
-#   3) 可选 typeck：默认 SKIP 单文件 check（G-02a 后 -backend c 已退役；
-#      若干 sys 模块仍有 pre-existing typeck 债如 implicit tail return）。
-#      设 XLANG_G_FFI5_TYPECK=1 时尝试 check -L .（失败仅计数，不硬红除非
-#      XLANG_G_FFI5_TYPECK_STRICT=1）。
-#
-# 用法：./tests/run-g-ffi-5-std-wrap-gate.sh
-set -e
+# Honesty: leftover catalog no Honesty + missing run=/obs=/skip= report +
+# leftover native_xlang (third resolver; only on optional TYPECK) retired.
+# No XLANG face by default (grep / manifest). G.7: do not fork a resolver.
+# Nested leftover of already-honesty-closed
+# `run-g-ffi-5-business-no-bare-extern-gate.sh` (parent product path not
+# rewritten). Also a portable catalog leaf. Keep `g-ffi-5 std-wrap gate OK`
+# (portable greps `g-ffi-5 gate OK`). Manifest / unsafe-wrap grep stays hard.
+# Default TYPECK skip=1 (check postponed). XLANG_G_FFI5_TYPECK=1 = obs
+# (check paused; refuse leftover native_xlang / leftover prefer-seed).
+# Explicit XLANG is ignored (no XLANG face; parent still hard-dies via
+# nested LANG-007 when that path is taken).
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-g-ffi-5-std-wrap-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-echo "=== G-FFI-5: std/ffi + std/sys unsafe wrap manifest ==="
+PREFIX="${XLANG_G_FFI5_WRAP_PREFIX:-xlang: [G_FFI5_WRAP]}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "g-ffi-5 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+echo "=== G-FFI-5: std/ffi + std/sys unsafe wrap manifest (no XLANG face) ==="
 for f in \
   std/ffi/ffi.x \
   std/ffi/mod.x \
@@ -25,26 +47,10 @@ for f in \
   std/sys/win32_net.x \
   std/sys/mmap.x \
   std/sys/linux_io_uring.x; do
-  if [ ! -f "$f" ]; then
-    echo "g-ffi-5 gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 echo "g-ffi-5 manifest OK"
-
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-FAILS=0
+RUN_OK=$((RUN_OK + 1))
 
 echo "=== G-FFI-5: win32 / ffi.x impl unsafe wrap grep ==="
 gffi5_need_unsafe() {
@@ -55,6 +61,7 @@ gffi5_need_unsafe() {
   fi
   return 0
 }
+FAILS=0
 gffi5_need_unsafe std/ffi/ffi.x 'strlen(ptr)' || FAILS=$((FAILS + 1))
 gffi5_need_unsafe std/ffi/ffi.x 'malloc(n)' || FAILS=$((FAILS + 1))
 gffi5_need_unsafe std/ffi/ffi.x 'free(ptr)' || FAILS=$((FAILS + 1))
@@ -62,61 +69,32 @@ gffi5_need_unsafe std/sys/win32.x 'GetStdHandle' || FAILS=$((FAILS + 1))
 gffi5_need_unsafe std/sys/win32.x 'WriteFile' || FAILS=$((FAILS + 1))
 gffi5_need_unsafe std/sys/win32.x 'ExitProcess' || FAILS=$((FAILS + 1))
 gffi5_need_unsafe std/sys/win32_net.x 'WSAStartup' || FAILS=$((FAILS + 1))
-# Linux / macOS / FreeBSD：含 extern 的 OS 层须有 unsafe 包裹
-# （mmap.x 等仅 re-export 委托 linux/macos 的模块可无 unsafe）
+# Linux / macOS / FreeBSD: OS layers with extern must wrap in unsafe.
+# (mmap.x re-export-only modules may omit unsafe.)
+# PLATFORM: SHARED archaeology — wrap grep is the product of this leaf.
 for f in std/sys/linux.x std/sys/macos.x std/sys/freebsd.x std/sys/linux_io_uring.x; do
   if grep -qE '^[[:space:]]*extern ' "$f" && ! grep -q 'unsafe' "$f"; then
     echo "g-ffi-5 FAIL: $f has extern without unsafe" >&2
     FAILS=$((FAILS + 1))
   fi
 done
-echo "g-ffi-5 grep OK (win32 + ffi + sys)"
-
-# ── optional typeck ──
-if [ "${XLANG_G_FFI5_TYPECK:-0}" = "1" ]; then
-  XLANG_BIN=""
-  if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ]; then
-    XLANG_BIN="${XLANG}"
-  elif [ -x ./compiler/xlang ]; then
-    XLANG_BIN=./compiler/xlang
-  elif [ -x ./compiler/xlang_asm ]; then
-    XLANG_BIN=./compiler/xlang_asm
-  fi
-  if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-    echo "=== G-FFI-5: optional typeck (XLANG=$XLANG_BIN) ==="
-    CHECK_SRCS=(
-      std/ffi/mod.x
-      std/sys/mod.x
-      std/sys/linux.x
-      std/sys/macos.x
-      std/sys/freebsd.x
-      std/sys/mmap.x
-      std/sys/linux_io_uring.x
-    )
-    TFAIL=0
-    for src in "${CHECK_SRCS[@]}"; do
-      if "$XLANG_BIN" check -L . "$src" >/tmp/xlang_gffi5_check.log 2>&1; then
-        echo "g-ffi-5 check OK $src"
-      else
-        echo "g-ffi-5 check WARN $src (pre-existing typeck debt; see /tmp/xlang_gffi5_check.log)" >&2
-        TFAIL=$((TFAIL + 1))
-      fi
-    done
-    if [ "$TFAIL" -gt 0 ] && [ "${XLANG_G_FFI5_TYPECK_STRICT:-0}" = "1" ]; then
-      echo "g-ffi-5 FAIL: typeck strict $TFAIL failure(s)" >&2
-      FAILS=$((FAILS + TFAIL))
-    else
-      echo "g-ffi-5 typeck soft: $TFAIL warn(s) (set TYPECK_STRICT=1 to hard-fail)"
-    fi
-  else
-    echo "g-ffi-5 typeck SKIP (no native xlang)"
-  fi
-else
-  echo "g-ffi-5 typeck SKIP (default; set XLANG_G_FFI5_TYPECK=1 to enable soft checks)"
-fi
-
 if [ "$FAILS" -gt 0 ]; then
-  echo "g-ffi-5 gate FAIL: ${FAILS} check(s)" >&2
-  exit 1
+  die "${FAILS} wrap check(s)"
 fi
+echo "g-ffi-5 grep OK (win32 + ffi + sys)"
+RUN_OK=$((RUN_OK + 1))
+
+# Optional typeck is leftover check postponed. Default skip=1.
+# TYPECK=1 stays obs (refuse leftover native_xlang / leftover prefer-seed).
+if [ "${XLANG_G_FFI5_TYPECK:-0}" = "1" ]; then
+  echo "g-ffi-5 typeck OBS (check paused; refuse leftover native_xlang)" >&2
+  OBS=$((OBS + 1))
+else
+  echo "g-ffi-5 typeck SKIP (default; check postponed)"
+  SKIP=$((SKIP + 1))
+fi
+
 echo "g-ffi-5 std-wrap gate OK"
+# Portable greps `g-ffi-5 gate OK` (leftover substring mismatch vs std-wrap).
+echo "g-ffi-5 gate OK"
+ok_report
