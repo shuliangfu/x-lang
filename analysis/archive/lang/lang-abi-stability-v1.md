@@ -4,6 +4,11 @@
 > **Honesty 2026-08-24 #9: typeck.c retired; live = typeck.x (typeck_validate_struct_layouts_zero_padding).**
 > 状态：**定版（v1）** — 与 `tests/baseline/lang-abi-compat-levels.tsv`、`tests/run-abi-layout.sh` 对齐  
 > 关联：`ENG-005`（发布节奏）、`SAFE-004`（FFI）、`compiler/docs/F32_XMM_ABI.md`
+>
+> Honesty leftover residual (2026-08-29): leftover catalog no Honesty on
+> nested `tests/run-abi-layout.sh` retired (host-cc report `run=`／`obs=`／`skip=`;
+> no XLANG face; G.7 do not fork a resolver). LANG-005 parent product path
+> not rewritten this wave. Live DOC = this archive file.
 
 ---
 
@@ -82,6 +87,10 @@ refuse soft SKIP→OK when no native / f32 fail silent; explicit bad XLANG /
 missing native = hard die; layout (cc) hard; f32 xmm residual → `obs=`
 (not soft silence); DOC=archive; report `layout=`／`f32=`／`obs=`／`skip=`.
 
+Honesty leftover residual (2026-08-29): leftover catalog no Honesty on
+`tests/run-abi-layout.sh` retired; host-cc leaf reports `run=`／`obs=`／`skip=`;
+keep `abi/layout: OK`. Parent LANG-005 product path not rewritten.
+
 ```bash
 ./tests/run-lang-abi-stability-gate.sh   # runnable：manifest + ABI hooks
 ./tests/run-lang-abi-stability.sh        # layout hard + f32 (obs on residual)
@@ -92,7 +101,7 @@ missing native = hard die; layout (cc) hard; f32 xmm residual → `obs=`
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/lang-abi-stability-v1.md` |
+| 本文 | `analysis/archive/lang/lang-abi-stability-v1.md` |
 | manifest | `tests/baseline/lang-abi-stability.tsv` |
 | 级别表 | `tests/baseline/lang-abi-compat-levels.tsv` |
 | f32 细则 | `compiler/docs/F32_XMM_ABI.md` |
