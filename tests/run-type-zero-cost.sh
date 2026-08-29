@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# TYPE-005: zero-cost abstraction compile/typeck smoke (honesty soft→硬绿).
+# TYPE-005: zero-cost abstraction compile/typeck smoke — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft SKIP→OK (no native) + prefer-c (xlang-c before asm) +
-# soft auto-make retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
-# soft auto-make).
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft auto-make).
 #   - policy=compile product -o = hard run
 #   - policy=typeck / region check = obs (check gate paused 2026-08-05)
 #   - policy=bcmp = skip (delegated to run-bcmp-gate.sh)
-# Report: run=/obs=/skip=
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-type-zero-cost.sh
 set -euo pipefail
@@ -17,8 +18,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/type-zero-cost.sh
 . tests/lib/type-zero-cost.sh
 
@@ -68,9 +67,13 @@ resolve_shu() {
   return 1
 }
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover unused compiler-make / soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
+
+# Refuse leftover unused compiler-make.sh / soft ensure_std_c_o / soft
+# auto-make (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 [ -f "$BENCH" ] || die "missing $BENCH"
 

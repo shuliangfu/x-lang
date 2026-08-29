@@ -124,4 +124,6 @@ run; report `run=`／`obs=`／`skip=`.
 
 gate 输出 **`type-ffi-bridge gate OK`** + `status=ok run=…`; 缺 native／显式坏 XLANG **硬 die**（拒 soft SKIP→OK）；FFI bridge smoke 硬绿。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-type-ffi-bridge.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` putchar／cstr hard；report `run=`／`obs=`／`skip=`。Keep `## Gate`。 Leave wrap body / ensure_std family.
+
 **TYPE-004 状态：定版 ✅**

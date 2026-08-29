@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # TYPE-004: FFI type-bridge manifest + runnable gate (honesty soft→硬绿).
 #
-# Honesty: soft SKIP→OK when no native + prefer-c + soft auto-make + fossil
-# top-level DOC / codegen.c / c_type_to_buf retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
-# hard die. DOC authority = archive/type. Report run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused from hook
+# (no xlang_compiler_make) retired. Soft SKIP→OK when no native + prefer-c
+# + soft auto-make + fossil top-level DOC / codegen.c / c_type_to_buf
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad
+# XLANG / missing native = hard die. DOC authority = archive/type. Report
+# run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 #
 # Usage: ./tests/run-type-ffi-bridge-gate.sh
 # wave honesty (2026-08-28): DOC → analysis/archive/type/;

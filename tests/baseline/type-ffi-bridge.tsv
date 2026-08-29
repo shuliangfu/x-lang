@@ -2,6 +2,9 @@
 # cols: item_id	kind	anchor	src	tier	notes
 # honesty 2026-08-28: DOC → analysis/archive/type/; codegen.c/typeck.c retired →
 # codegen.x/typeck.x; c_type_to_buf → type_to_c_repr; SAFE-004 cross_ref → archive/safe.
+# honesty 2026-08-29 leftover unused compiler-make: run-type-ffi-bridge.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/ffi/putchar.x + contract_null_cstr.x hard.
 # min_layers	6
 # min_cases	4
 read_path	section	## 1. 阅读路径	analysis/archive/type/type-ffi-bridge-v1.md	-	15min

@@ -2,6 +2,9 @@
 # cols: item_id	kind	anchor	src	tier	notes
 # honesty 2026-08-28: DOC → analysis/archive/type/; codegen.c retired →
 # codegen.x; fossil benches → r01_/m03_/r10_/a01_*; lang-generic → archive/lang.
+# honesty 2026-08-29 leftover unused compiler-make: run-type-zero-cost.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o compile policy hard; typeck/region check = obs.
 # min_layers	6
 # min_cases	4
 read_path	section	## 1. 阅读路径	analysis/archive/type/type-zero-cost-v1.md	-	15min

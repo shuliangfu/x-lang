@@ -12,6 +12,10 @@
 # live entry = ./xbuild bootstrap-driver-bstrict (G.7). check gate paused —
 # smoke uses -backend asm unless XLANG_D05_REQUIRE_CHECK=1.
 # 2026-08-26: Soft XLANG_D05_FAIL retired (hard die; f11 hard-delegate).
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Missing native still SKIP smoke (existing
+# leftover). G.7: complete existing d05_native_exe; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -20,8 +24,6 @@ if [ -f analysis/phase-d-d05-v1.md ]; then
   echo "d05-single-xlang-release-gate gate FAIL: top-level DOC resurrected (live = archive/phase/)" >&2
   exit 1
 fi
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="analysis/archive/phase/phase-d-d05-v1.md"
 MANIFEST="tests/baseline/d05-single-xlang-release.tsv"

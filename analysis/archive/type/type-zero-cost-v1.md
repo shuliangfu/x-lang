@@ -111,4 +111,6 @@ paused 2026-08-05); product `-o` compile = hard run; bcmp rows = skip
 
 gate 输出 **`type-zero-cost gate OK`** + `status=ok run=…`; 缺 native／显式坏 XLANG **硬 die**（拒 soft SKIP→OK）；compile smoke 硬绿；typeck／region check＝obs。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-type-zero-cost.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` compile hard；typeck／region check＝obs；bcmp＝skip；report `run=`／`obs=`／`skip=`。Keep `## Gate`。 Leave wrap body / ensure_std family.
+
 **TYPE-005 状态：定版 ✅**

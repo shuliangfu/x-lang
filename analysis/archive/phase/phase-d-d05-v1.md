@@ -20,6 +20,8 @@ Live entry = `./xbuild bootstrap-driver-bstrict` (Makefile deleted).
 Smoke uses `-backend asm` (check gate paused unless
 `XLANG_D05_REQUIRE_CHECK=1`).
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-d05-single-xlang-release-gate.sh`. Missing native still SKIP smoke（existing leftover）。Keep `## Gate`。 Leave wrap body / ensure_std family.
+
 ```bash
 ./xbuild bootstrap-driver-bstrict   # xlang ← xlang_asm
 ./tests/run-d05-single-xlang-release-gate.sh
