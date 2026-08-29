@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-135: std.datetime fixed-offset timezone gate — honesty soft fallthrough →硬绿.
+# STD-135: std.datetime fixed-offset timezone gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make (`xlang_compiler_make … || true`) + check=/run=/skip= retired.
-# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
-# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft
-# ensure rebuild). Product timezone.x -o exit0 = hard run (run=1). check /
-# host-C archaeology = obs. Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# timezone.x -o exit0 = hard run (run=1). check / host-C archaeology = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-datetime-timezone-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD135_DATETIME_TIMEZONE_DOC:-analysis/archive/std/std-datetime-timezone-v1.md}"
 MANIFEST="${XLANG_STD135_DATETIME_TIMEZONE_MANIFEST:-tests/baseline/std-datetime-timezone-manifest.tsv}"
@@ -95,8 +94,9 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-135: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
 
-# Host-C archaeology = obs only; refuse soft ensure/auto-make rebuild.
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Host-C archaeology = obs only; refuse leftover unused compiler-make.sh /
+# soft ensure/auto-make rebuild. Product -o is the hard path.
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_datetime_timezone_run_c_smoke; then
   echo "std-datetime-timezone c smoke OK (observational)"
 else

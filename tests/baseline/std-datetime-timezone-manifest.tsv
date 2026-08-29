@@ -2,6 +2,9 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
 # C smoke observational; report check=/run=/skip=. Section ## 4. Gate in archive DOC.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-datetime-timezone-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/std-datetime/timezone.x hard.
 min_apis	6
 struct_tz	symbol	TimeZone	std/datetime/mod.x
 api_from_name	api	timezone_from_name	std/datetime/mod.x

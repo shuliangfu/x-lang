@@ -57,3 +57,5 @@ std-base64-stream gate OK
 ```
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-base64.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o base64.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/base64/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [BASE64]`。Keep `## 4. Gate`。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-base64-stream-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/std-base64/stream.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.

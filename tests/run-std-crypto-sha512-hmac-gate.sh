@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# STD-050: std.crypto SHA-512 / HMAC-SHA512 gate — honesty soft fallthrough →硬绿.
+# STD-050: std.crypto SHA-512 / HMAC-SHA512 gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make + check=/sha512=/hmac=/mac512=/skip=
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c /
-# soft ensure). Product sha512_abc.x + hmac_sha512_rfc4231_tc1.x -o exit0 =
-# hard run (both folded into run=). check / mac_verify_512_smoke.x (product
-# UNDEF residual) = obs. Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# sha512_abc.x + hmac_sha512_rfc4231_tc1.x -o exit0 = hard run (both folded
+# into run=). check / mac_verify_512_smoke.x (product UNDEF residual) = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-crypto-sha512-hmac-gate.sh
 set -euo pipefail
@@ -16,8 +17,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CRYPTO_SHA512_HMAC_DOC:-analysis/archive/std/std-crypto-sha512-hmac-v1.md}"
 MANIFEST="${XLANG_STD_CRYPTO_SHA512_HMAC_TSV:-tests/baseline/std-crypto-sha512-hmac.tsv}"
@@ -137,8 +136,9 @@ if [ "$chk_sha" -ne 0 ] || [ "$chk_hmac" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft ensure_std_c_o / soft auto-make (product -o is the hard path).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Refuse leftover unused compiler-make.sh / soft ensure_std_c_o / soft auto-make
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 if std_crypto_sha512_hmac_run_smoke "$XLANG_BIN" "$SMOKE_SHA" "abc"; then
   RUN_OK=$((RUN_OK + 1))
   echo "std-crypto-sha512-hmac OK: sha512"

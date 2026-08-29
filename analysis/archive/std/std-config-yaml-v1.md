@@ -50,6 +50,8 @@ std-config-yaml gate OK
 
 向量：`tests/baseline/std-config-yaml-vectors.tsv`。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-config-yaml-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `yaml_smoke.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 4. 变更记录
@@ -58,3 +60,4 @@ std-config-yaml gate OK
 |------|------|------|
 | v1 | 2026-06-18 | YAML 子集 + gate（曾偏 xlang-c／C smoke 硬绿＝假权威） |
 | v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable 硬失败／C smoke 观测 |
+| v1.2 | 2026-08-29 | leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard） |

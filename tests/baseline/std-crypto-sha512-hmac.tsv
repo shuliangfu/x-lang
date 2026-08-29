@@ -1,5 +1,8 @@
 # STD-050 std.crypto SHA-512 / HMAC manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-crypto-sha512-hmac-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o sha512_abc.x + hmac_sha512_rfc4231_tc1.x hard; mac512 = obs.
 # min_apis	4
 read_path	section	## 1. 阅读路径	15min
 naming	section	## 2. 统一命名	mac_sign_512

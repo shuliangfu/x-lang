@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-092: std.net ↔ std.context connect gate — honesty soft fallthrough →硬绿.
+# STD-092: std.net ↔ std.context connect gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make + check=/run=/skip= retired. Prefer
-# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
-# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft ensure).
-# Product context_connect.x -o exit0 = hard run (run=1). check = obs. Existing
-# glue .o may be passed if present (no soft rebuild). Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# context_connect.x -o exit0 = hard run (run=1). check = obs. Existing glue .o
+# may be passed if present (no soft rebuild). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-net-context-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 MOD_X="std/net/mod.x"
 SMOKE="tests/net/context_connect.x"
@@ -93,9 +92,10 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft ensure_std_c_o / soft auto-make. Product -o is the hard path.
-# Existing glue .o archaeology is observational only (never soft rebuild).
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Refuse leftover unused compiler-make.sh / soft ensure_std_c_o / soft auto-make.
+# Product -o is the hard path. Existing glue .o archaeology is observational
+# only (never soft rebuild).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 for o in compiler/runtime_atomic_glue.o compiler/runtime_time_os.o; do
   if [ ! -f "$o" ]; then
     echo "net-context OBS missing glue $o (no soft ensure; product -o still hard)" >&2

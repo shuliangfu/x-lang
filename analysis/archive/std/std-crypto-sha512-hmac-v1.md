@@ -72,6 +72,8 @@ manifest：`tests/baseline/std-crypto-sha512-hmac.tsv`
 
 关键词锚：`STD-050` · `hmac_sha512` · `mac_sign_512` · `mac_verify_512` · `SHA512_DIGEST_LEN`
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-crypto-sha512-hmac-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `sha512_abc.x`＋`hmac_sha512_rfc4231_tc1.x` hard；check／mac512＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 变更记录
@@ -79,4 +81,5 @@ manifest：`tests/baseline/std-crypto-sha512-hmac.tsv`
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | honesty | 2026-08-26 | Gate honesty soft→硬绿：prefer asm／LINK／check 观测／sha512+hmac runnable hard；mac512 观测拆分；DOC／TSV→`## 5. Gate`；**未**啃产品 mac512 UNDEF／labi |
+| v1.2 | 2026-08-29 | leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard） |
 | v1 | 2026-06-17 | SHA-512 + HMAC-SHA512 + mac_sign_512/mac_verify_512；修复 128-bit 长度字段字节序 |
