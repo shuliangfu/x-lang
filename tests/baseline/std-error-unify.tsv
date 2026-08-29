@@ -4,6 +4,9 @@
 # (xlang_compiler_make -q || make + error.o + fossil XLANG build) retired.
 # Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
 # product -o tests/error/main.x hard; check=obs; report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-error-unify-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o error_unify_smoke.x hard.
 # min_modules	6
 std.io	Layer C+B	base_io	-	std/io/mod.x	core	read/write -1；B 层 io_err_*
 std.fs	Layer C+B	base_fs	last_error	std/fs/mod.x	core	fs_* -1 + errno 侧车

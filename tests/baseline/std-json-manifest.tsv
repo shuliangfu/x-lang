@@ -6,6 +6,9 @@
 # (ensure_std_c_o json.o + unused compiler-make.sh) retired. Prefer asm;
 # explicit-bad XLANG hard-die; missing native FAIL; product -o tests/json/main.x
 # hard; check=obs; report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-json-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/json/main.x hard.
 # min_apis	10
 read_path	section	## 1. 阅读路径	analysis/archive/std/std-json-zc-v1.md	-	15min
 zc_semantics	section	## 2. 零拷贝语义	analysis/archive/std/std-json-zc-v1.md	-	view vs copy

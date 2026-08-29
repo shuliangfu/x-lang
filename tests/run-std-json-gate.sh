@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-008: std.json zero-copy gate — honesty soft auto-make →硬绿.
+# STD-008: std.json zero-copy gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … || true` / soft ensure_std_c_o)
-# + soft XLANG fallthrough (explicit-bad still picks another binary) +
-# check=/main=/zc=/skip= retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK / soft
-# auto-make / prefer-c / soft ensure rebuild). Product main.x -o exit0 = hard
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product main.x -o exit0 = hard
 # run (run=1). check + zc_parse_string_view = obs (Darwin arm64 needs_copy
-# residual; Ubuntu gold may green). Report: run=/obs=/skip=.
+# residual; Ubuntu gold may green). Report: run=/obs=/skip=. G.7: complete
+# existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-json-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_JSON_DOC:-analysis/archive/std/std-json-zc-v1.md}"
 MANIFEST="${XLANG_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
@@ -166,8 +164,8 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-008: smoke (XLANG=$XLANG_BIN; check/zc obs; main -o hard) ==="
 
-# Refuse soft ensure_std_c_o / soft auto-make; leave ensure_std family alone.
-# PLATFORM: SHARED archaeology.
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 set +e
 "$XLANG_BIN" check -L . "$SMOKE_MAIN" >/tmp/xlang_std_json_check.log 2>&1

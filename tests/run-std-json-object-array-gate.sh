@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# json-object-array: std.json object/array cursor/parse gate — honesty soft →硬绿.
-# Archive ID historically STD-034 (cursor); tracker names json-object-array to
-# avoid collision with http-https STD-034.
+# json-object-array: std.json object/array cursor/parse — leftover unused
+# compiler-make →硬绿. Archive ID historically STD-034 (cursor); tracker names
+# json-object-array to avoid collision with http-https STD-034.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make + check=/oa=/skip= retired. Prefer product
-# xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
-# (refuse soft SKIP→OK / soft auto-make / prefer-c / soft ensure rebuild).
-# Product object_array_parse.x -o exit0 = hard run (run=1). check = obs.
-# Report: run=/obs=/skip= (legacy oa= folded into run=).
-# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product object_array_parse.x -o
+# exit0 = hard run (run=1). check = obs. Report: run=/obs=/skip= (legacy oa=
+# folded into run=). G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-json-object-array-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -17,8 +17,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_JOA_DOC:-analysis/archive/std/std-json-object-array-v1.md}"
 MANIFEST="${XLANG_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
@@ -96,8 +94,8 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== json-object-array: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
 
-# Refuse soft ensure_std_c_o / soft auto-make; leave ensure_std family alone.
-# PLATFORM: SHARED archaeology.
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 set +e
 "$XLANG_BIN" check -L . "$OA_X" >/tmp/xlang_std_joa_check.log 2>&1

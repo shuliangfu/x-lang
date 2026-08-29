@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# STD-011: std.error unify gate — honesty soft auto-make →硬绿.
+# STD-011: std.error unify gate — leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … xlang-c … || true` + soft
-# error/mod.o make) + soft XLANG fallthrough (explicit-bad still picks another
-# binary) + check=/run=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product error_unify_smoke.x -o exit0 =
-# hard run. check residual = obs (paused 2026-08-05). Report: run=/obs=/skip=.
-# Matrix: error_base_* / <mod>_err_* / sidecar / EXC layer+RFC fossils.
-# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product error_unify_smoke.x -o
+# exit0 = hard run. check residual = obs (paused 2026-08-05). Report:
+# run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. Matrix: error_base_* / <mod>_err_* / sidecar / EXC
+# layer+RFC fossils. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-error-unify-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/archive/std/std-error-unify-v1.md}"
 MATRIX="${XLANG_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
@@ -105,6 +103,9 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-011: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 set +e
 "$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std_error_unify_check.log 2>&1

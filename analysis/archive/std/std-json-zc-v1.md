@@ -106,6 +106,8 @@ Gate honesty（2026-08-26 soft→硬绿）：
 
 **Honesty (2026-08-29 residual ensure)**：leftover `tests/run-json.sh`（`ensure_std_c_o json.o` + unused `compiler-make.sh`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/json/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [XLANG_JSON]`。Keep `## 6. Gate`。 Do not expand leftover json to `zc_parse_string_view.x`（stays on STD-008 live gate）。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-json-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/json/main.x` hard；check＋zc＝obs；report `run=`／`obs=`／`skip=`。Keep `## 6. Gate`。 Leave wrap body / ensure_std family.
+
 ```text
 xlang: [XLANG_STD_JSON] status=ok check=0|1 main=1 zc=0|1 skip=0
 ```

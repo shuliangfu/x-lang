@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-020: std.error code map / last_error gate — honesty soft auto-make →硬绿.
+# STD-020: std.error code map / last_error — leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … || true`) + soft XLANG
-# fallthrough (explicit-bad still picks another binary) + check=/run=/skip=
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product error_map_smoke.x + cookbook error_module_base.x -o exit0 = hard run
-# (run=2). check = obs (paused 2026-08-05; leave ensure_std family alone).
-# Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product error_map_smoke.x +
+# cookbook error_module_base.x -o exit0 = hard run (run=2). check = obs
+# (paused 2026-08-05; leave ensure_std family alone). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-error-map-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ERROR_MAP_DOC:-analysis/archive/std/std-error-map-v1.md}"
 UNIFY_DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/archive/std/std-error-unify-v1.md}"
@@ -105,8 +103,8 @@ if [ "$chk" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft auto-make of mod.o / xlang-c; leave ensure_std family alone.
-# PLATFORM: SHARED archaeology.
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 for pair in "smoke:$SMOKE" "cookbook:$COOKBOOK"; do
   tag="${pair%%:*}"

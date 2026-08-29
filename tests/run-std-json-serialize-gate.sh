@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# STD-035: std.json object/array serialize gate — honesty soft auto-make →硬绿.
+# STD-035: std.json object/array serialize — leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make (`xlang_compiler_make … || true`) + check=/run=/skip= retired.
-# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
-# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product object_array_roundtrip.x -o exit0 = hard run (run=1). check = obs.
-# Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product object_array_roundtrip.x
+# -o exit0 = hard run (run=1). check = obs. Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-json-serialize-gate.sh
 set -euo pipefail
@@ -15,8 +15,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_JSZ_DOC:-analysis/archive/std/std-json-serialize-v1.md}"
 MANIFEST="${XLANG_STD_JSZ_TSV:-tests/baseline/std-json-serialize.tsv}"
@@ -94,8 +92,8 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-035: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
 
-# Refuse soft auto-make / soft ensure; leave ensure_std family alone.
-# PLATFORM: SHARED archaeology.
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 set +e
 "$XLANG_BIN" check -L . "$RT_X" >/tmp/xlang_std035_jsz_check.log 2>&1

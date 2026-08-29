@@ -2,6 +2,9 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # Gate honesty (2026-08-26): prefer asm + LINK; check observational; runnable exit0 hard;
 # report check=/run=/skip=. Section ## 4. Gate in archive DOC.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-json-serialize-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o object_array_roundtrip.x hard.
 min_syms	8
 append_object	symbol	append_object	std/json/mod.x
 append_array	symbol	append_array	std/json/mod.x

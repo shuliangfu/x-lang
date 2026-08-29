@@ -1,5 +1,8 @@
 # STD-158 跨模块错误语义 manifest
 # 列：item_id	kind	anchor	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-error-semantics-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o error_semantics_smoke.x + cookbook error_semantic_class.x hard.
 # min_symbols	6
 symbol_sem_class	symbol	semantic_class	std/error/mod.x
 symbol_is_timeout	symbol	is_timeout	std/error/mod.x

@@ -78,6 +78,8 @@ Honesty（2026-08-26）：
 - `object_array_parse.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
 - 报告行：`check=`／`oa=`／`skip=`（硬绿信号＝`oa=`）
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-json-object-array-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `object_array_parse.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-json-object-array.tsv`  
 CI：`tests/run-portable-suite.sh`（与 STD-008 gate 并存）
 
@@ -89,6 +91,7 @@ CI：`tests/run-portable-suite.sh`（与 STD-008 gate 并存）
 |-----|------|------|
 | v1.0 | 2026-06-17 | 定版：cursor/parse + ZC 策略 |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 5. Gate`；报告 `check=`／`oa=`／`skip=` |
+| v1.2 | 2026-08-29 | leftover unused compiler-make.sh retired from live gate |
 
 ---
 

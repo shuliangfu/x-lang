@@ -53,8 +53,11 @@ Honesty（2026-08-26）：
 - `object_array_roundtrip.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-json-serialize-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `object_array_roundtrip.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-json-serialize.tsv`
 
 ### Changelog
 
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；未啃产品 `std/json`）。
+- 2026-08-29：leftover unused compiler-make.sh retired from live gate.

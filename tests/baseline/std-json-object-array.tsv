@@ -2,6 +2,9 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational;
 # runnable object_array_parse.x exit0 hard; report check=/oa=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-json-object-array-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o object_array_parse.x hard.
 min_syms	6
 skip_value	symbol	skip_value	std/json/mod.x
 cursor_init	symbol	cursor_init	std/json/mod.x

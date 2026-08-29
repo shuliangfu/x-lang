@@ -1,5 +1,8 @@
 # STD-020 std.error 错误码映射与 last_error manifest
 # 列：item_id	kind	anchor	mod_path	src	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-error-map-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o error_map_smoke.x + cookbook error_module_base.x hard.
 min_modules	meta	8	-	-	-	8 modules
 lookup_code_base	symbol	code_to_module_base	std/error/mod.x	std/error/mod.x	码→base
 lookup_tag_base	symbol	mod_tag_from_base	std/error/mod.x	std/error/mod.x	base→tag

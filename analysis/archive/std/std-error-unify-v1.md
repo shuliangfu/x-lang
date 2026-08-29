@@ -59,6 +59,8 @@ std-error-unify gate OK
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-error.sh`（`xlang_compiler_make -q || make` + `error.o` + fossil `$XLANG build`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/error/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [ERROR]`。Keep `## 4. Gate`。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-error-unify-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `error_unify_smoke.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 5. 演进
