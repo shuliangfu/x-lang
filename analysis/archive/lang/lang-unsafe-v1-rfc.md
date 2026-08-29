@@ -167,6 +167,8 @@ product `-o` `compile_fail` hard-green; `xlang check` path observational
 (check gate paused 2026-08-05 / CHK002); hooks that timeout or product-fail
 = `obs=` (not soft silence); DOC=archive/lang; report `run=`／`obs=`／`skip=`.
 
+**2026-08-30 leftover unused compiler-make SOURCE 已收**（lang-unsafe：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired；G.7 补全既有 `resolve_shu`；显式坏 XLANG 先硬 die；leftover nested TSV hooks／G-FFI-5 wrap 不重写）。
+
 ```bash
 ./tests/run-lang-unsafe-gate.sh
 ```

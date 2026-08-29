@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # LANG-007: unsafe syntax / boundary gate (honesty soft→硬绿).
 #
-# Honesty: soft SKIP→OK when no native xlang + soft auto-make xlang-c +
-# prefer-c-only retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
-# Explicit bad XLANG / missing native = hard die.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. G.7: complete existing resolve_shu;
+# drop unused compiler-make.sh; converge dod_native_exe.
+# Honesty: leftover ignore of explicit-bad (DOC before resolve) retired.
+# Explicit-bad XLANG / missing native = hard die FIRST (before DOC /
+# leftover nested TSV hooks / leftover nested G-FFI-5 wrap).
+# leftover nested product path (TSV hooks / G-FFI-5 wrap / observational
+# check) stay.
 # policy=run → hard-green via product -o.
 # policy=compile_fail → product -o must fail with typeck/unsafe diagnostic
 #   (hard); legacy `xlang check` path is observational (check paused
@@ -15,12 +20,10 @@
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-# shellcheck source=tests/lib/ci-host.sh
-. tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 # shellcheck source=tests/lib/gate-progress.sh
 . tests/lib/gate-progress.sh
 
@@ -33,7 +36,7 @@ XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-90}"
 
 RUN_OK=0
 OBS=0
-SKIP=0
+SKIP=1
 
 die() {
   echo "lang-unsafe gate FAIL: $*" >&2
@@ -45,6 +48,11 @@ ok_report() {
   echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 }
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# leftover unused compiler-make.sh retired — converge dod_native_exe.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
   local cand abs root
   root=$(pwd)
@@ -59,8 +67,6 @@ resolve_shu() {
     fi
     return 1
   fi
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
   for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
@@ -73,6 +79,16 @@ resolve_shu() {
   done
   return 1
 }
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE DOC /
+# leftover nested TSV hooks / leftover nested G-FFI-5 wrap (refuse
+# leftover unused compiler-make SOURCE / leftover ignore of
+# explicit-bad / leftover SKIP→OK). leftover nested product path stays
+# when XLANG is unset (do not rewrite leftover nested G-FFI-5 wrap).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover unused compiler-make SOURCE / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== LANG-007: unsafe boundary manifest (archive DOC) ==="
 if [ -f analysis/lang-unsafe-v1-rfc.md ]; then
@@ -101,10 +117,15 @@ if ! grep -q '"unsafe"' compiler/seeds/parser_asm/parser_asm_emit_heavy_stretch_
 fi
 echo "lang-unsafe manifest OK"
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover unused compiler-make SOURCE / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover unused compiler-make SOURCE / leftover SKIP→OK / leftover auto-make)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
-# Refuse soft auto-make: caller-owned / already-resolved binary only.
+SKIP=0
+# leftover nested product path stay (TSV hooks / G-FFI-5 wrap / observational check)
 
 run_timeout_case() {
   gate_run_timeout "$XLANG_CASE_TIMEOUT" "$@"
