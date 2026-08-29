@@ -32,6 +32,8 @@ smoke is **observational** (`linux=`; asm UNDEF residual `std_sys_mmap_*` /
 
 **2026-08-29 leftover XLANG fallthrough 已收**（linux-mmap-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f02-mmap 父闸：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die（Linux nested）；Darwin N/A 不要求 native（unset）；leftover nested inventory／linux-mmap-file observational 不重写）。
+
 ```bash
 ./tests/run-f02-std-sys-mmap-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f02-std-sys-mmap-gate.sh

@@ -28,6 +28,8 @@ hard-fail static TSV + B-17/B-18 facades + F-01 inventory. No soft
 `b17=` / `b18=` / `inventory=` / `skip=`. Windows hosted smoke remains N/A
 on non-Windows; facade static checks run on all hosts.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f02-win32：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested b17／b18／inventory 不重写）。
+
 ```bash
 ./tests/run-f02-std-sys-win32-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f02-std-sys-win32-gate.sh

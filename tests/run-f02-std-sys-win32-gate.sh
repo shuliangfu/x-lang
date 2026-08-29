@@ -9,6 +9,11 @@
 # static=/b17=/b18=/inventory=/skip=. Gate was portable-false-green (DOC still
 # pointed at top-level analysis/phase-f-f02-v2.md after archive move; soft
 # FAIL printed then exit0 while static checks already green).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / nested b17／b18／inventory; refuse leftover ignore of
+# explicit-bad). leftover nested product path (b17／b18／inventory) stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology (Windows smoke N/A on non-Windows; facade
 # static checks run on all hosts).
 set -e
@@ -22,15 +27,28 @@ DOC="${XLANG_F02_WIN32_DOC:-analysis/archive/phase/phase-f-f02-v2.md}"
 MANIFEST="tests/baseline/f02-std-sys-win32.tsv"
 PREFIX="xlang: [XLANG_F02_WIN32]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -51,6 +69,15 @@ B17_OK=0
 B18_OK=0
 INVENTORY_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# nested b17／b18／inventory (refuse leftover SKIP→OK / leftover ignore of
+# explicit-bad / leftover XLANG fallthrough). leftover nested product path
+# stays when XLANG is unset (do not rewrite leftover b17／b18／inventory).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-02 v2: std.sys win32 remove win32*.inc.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -103,8 +130,10 @@ STATIC_OK=1
 
 # Resolve prefer-asm for dogfood pin even when remaining checks are static.
 # PLATFORM: SHARED — product path honesty.
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
