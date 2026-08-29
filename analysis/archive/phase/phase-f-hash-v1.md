@@ -13,6 +13,8 @@
 
 Honesty (2026-08-27): hard-fail static／ensure; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_HASH_V1_FAIL` retired. STD-056 hasher／STD-105 xxhash／STD-148 default-strategy observational (product residual; not soft-exit0).
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-hash-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-hash-hasher-trait／std-hash-xxhash／std-hash-default-strategy 不重写）。
+
 ```bash
 XLANG=./compiler/xlang_asm ./tests/run-f-hash-v1-gate.sh
 ./tests/run-std-hash-hasher-trait-gate.sh
