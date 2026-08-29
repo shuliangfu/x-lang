@@ -54,6 +54,9 @@ std-option-result gate OK
 - `roundtrip.x` exit 0 硬失败（无 soft SKIP）
 - formal_mod：`std/option/option.o` + `std/result/result.o`（`mod|0`）；fk0 k25/k26；plan 入链
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-option-result-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `roundtrip.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
 ### Changelog
 
+- **2026-08-29**：leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard）。
 - **2026-08-26**：Gate honesty + API 锚对齐产品短名；formal_mod＋fk0＋plan；烟测 `err.*`／bool `false`。

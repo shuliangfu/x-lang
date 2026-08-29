@@ -55,6 +55,8 @@
 xlang: [XLANG_STD130_RANDOM_RNG] status=ok check=1 rt=1 main=1 skip=0
 ```
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-random-rng-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `rng_roundtrip.x`＋`main.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 变更记录
@@ -63,3 +65,4 @@ xlang: [XLANG_STD130_RANDOM_RNG] status=ok check=1 rt=1 main=1 skip=0
 |------|------|------|
 | v1 | 2026-06-19 | SplitMix64 PRNG + manifest + roundtrip 烟测 |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 5. Gate`；报告 `check=`／`rt=`／`main=` |
+| v1.2 | 2026-08-29 | leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard） |

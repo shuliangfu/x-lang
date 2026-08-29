@@ -5,6 +5,9 @@
 # retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
 # product -o fmt-std/*.x hard (print_i32_slc JSON kept); check=obs;
 # report run=/obs=/skip=. Keep ## 4. Gate.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-fmt-multi-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/fmt-std/format_multi.x hard.
 min_format2_new	7
 min_format3	2
 verify	section	## 4. Gate	analysis/archive/std/std-fmt-multi-v1.md

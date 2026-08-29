@@ -3,6 +3,9 @@
 # min_apis	5
 # 2026-08-26 honesty: verify section → ## 5. Gate; prefer asm + LINK; check observational;
 # runnable rt/main exit0 hard; report check=/rt=/main=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-random-rng-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/random/rng_roundtrip.x + main.x hard.
 min_apis	5
 goal	section	## 1. 目标		PRNG SplitMix64
 boundary	section	## 2. 与 CSPRNG 的边界		CSPRNG vs PRNG

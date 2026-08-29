@@ -108,6 +108,8 @@ Honesty（2026-08-26）：
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-time.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o time.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`bench_timer`／`format_timezone` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [TIME]`。Keep `## 6. Gate`。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-time-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main.x`＋`precision_smoke.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 6. Gate`。 Leave wrap body / ensure_std family.
+
 | 资源 | 路径 |
 |------|------|
 | 本文 | `analysis/archive/std/std-time-precision-v1.md` |
@@ -128,3 +130,4 @@ Honesty（2026-08-26）：
 |-----|------|------|
 | v1.0 | 2026-06-17 | 定版：精度矩阵 + UTC 时区策略 + 13 API |
 | v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 6. Gate`；报告 `check=`／`main=`／`precision=`／`skip=` |
+| v1.2 | 2026-08-29 | leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard） |

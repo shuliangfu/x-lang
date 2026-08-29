@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-140: std.path extreme path normalize gate — honesty soft auto-make →硬绿.
+# STD-140: std.path extreme path normalize gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft auto-make (`xlang_compiler_make … || true`) + check=/run=/skip= retired.
-# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
-# native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product extreme_clean.x -o exit0 = hard run (run=1). check = obs.
-# Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# extreme_clean.x -o exit0 = hard run (run=1). check residual = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-path-extreme-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD140_DOC:-analysis/archive/std/std-path-extreme-v1.md}"
 MANIFEST="${XLANG_STD140_MANIFEST:-tests/baseline/std-path-extreme-manifest.tsv}"
@@ -104,8 +103,8 @@ export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-140: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
 
-# Refuse soft auto-make / soft ensure; leave ensure_std family alone.
-# PLATFORM: SHARED archaeology.
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 set +e
 "$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std140_path_check.log 2>&1

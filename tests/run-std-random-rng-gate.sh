@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# STD-130: std.random reproducible PRNG gate — honesty soft auto-make →硬绿.
+# STD-130: std.random reproducible PRNG gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … || true` / soft ensure_std_c_o)
-# + soft XLANG fallthrough (explicit-bad still picks another binary) +
-# check=/rt=/main=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c / soft ensure rebuild). Product
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
 # rng_roundtrip.x + main.x -o exit0 = hard run (run=2). check / host-C
-# archaeology = obs (paused 2026-08-05; leave ensure_std family alone).
-# Report: run=/obs=/skip=.
+# archaeology = obs. Report: run=/obs=/skip=. G.7: complete existing
+# resolve_shu; drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-random-rng-gate.sh
 set -euo pipefail
@@ -17,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_RANDOM_RNG_DOC:-analysis/archive/std/std-random-rng-v1.md}"
 MANIFEST="${XLANG_STD_RANDOM_RNG_TSV:-tests/baseline/std-random-rng-manifest.tsv}"
@@ -133,8 +130,9 @@ if [ "$chk_rt" -ne 0 ] || [ "$chk_main" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
 # Host-C archaeology = obs only; refuse soft ensure_std rebuild.
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 RANDOM_O="std/random/random.o"
 if [ -f "$RANDOM_O" ] && std_random_rng_run_c_smoke "$RANDOM_O"; then
   echo "std-random-rng c smoke OK (observational)"

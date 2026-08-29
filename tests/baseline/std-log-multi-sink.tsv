@@ -1,5 +1,8 @@
 # STD-053 std.log multi-sink manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-log-multi-sink-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/std-log/level_filter.x hard. Keep ## 5. Gate.
 # min_apis	6
 read_path	section	## 1. 阅读路径	15min
 api_doc	section	## 2. API	SINK_STDERR

@@ -77,6 +77,8 @@ std-fmt-multi gate OK
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-fmt-std.sh`（`xlang_compiler_make -q || xlang_compiler_make xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/fmt-std/*.x` hard（`print_i32_slc` JSON kept）；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [FMT_STD]`。Keep `## 4. Gate`。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-fmt-multi-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `format_multi.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 5. 演进

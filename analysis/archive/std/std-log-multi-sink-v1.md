@@ -101,6 +101,8 @@ xlang: [XLANG_STD_LOG_MULTI_SINK] status=ok check=0|1 run=1 skip=0
 std-log-multi-sink gate OK
 ```
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-log-multi-sink-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `level_filter.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 变更记录
@@ -109,3 +111,4 @@ std-log-multi-sink gate OK
 |------|------|------|
 | v1 | 2026-06-17 | 多 sink + XLANG_LOG_MIN_LEVEL + Cookbook |
 | v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable 硬失败／C smoke 观测 |
+| v1.2 | 2026-08-29 | leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard） |

@@ -1,5 +1,8 @@
 # STD-140 std.path extreme manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-path-extreme-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/path/extreme_clean.x hard. Keep ## 4. Gate.
 read_path	section	## 1. 目标	analysis/archive/std/std-path-extreme-v1.md
 behavior	section	## 2. v1 行为备忘	analysis/archive/std/std-path-extreme-v1.md
 vectors_sec	section	## 3. 向量与烟测	analysis/archive/std/std-path-extreme-v1.md

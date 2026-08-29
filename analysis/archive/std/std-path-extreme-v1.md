@@ -53,3 +53,5 @@ Honesty（2026-08-25）：
 xlang: [XLANG_STD140_PATH_EXTREME] status=ok check=0|1 run=1 skip=0
 std-path-extreme gate OK
 ```
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-path-extreme-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `extreme_clean.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-005: std.time precision / timezone gate — honesty soft auto-make →硬绿.
+# STD-005: std.time precision / timezone gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … || true` / soft ensure_std_c_o)
-# + soft XLANG fallthrough (explicit-bad still picks another binary) +
-# check=/main=/precision=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c / soft ensure rebuild). Product main.x +
-# precision_smoke.x -o exit0 = hard run (run=2). check = obs (paused 2026-08-05;
-# leave ensure_std family alone). Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# main.x + precision_smoke.x -o exit0 = hard run (run=2). check residual = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-time-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_TIME_DOC:-analysis/archive/std/std-time-precision-v1.md}"
 MANIFEST="${XLANG_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
@@ -181,8 +179,8 @@ if [ "$chk_main" -ne 0 ] || [ "$chk_prec" -ne 0 ]; then
   OBS=$((OBS + 1))
 fi
 
-# Refuse soft ensure_std_c_o / soft auto-make; product path does not need host-C rebuild.
-# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 for pair in "main:$MAIN_X" "precision:$PRECISION_X"; do
   tag="${pair%%:*}"
