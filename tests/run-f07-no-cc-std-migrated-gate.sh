@@ -10,6 +10,12 @@
 # static=/forbidden=/f06=/f03_core=/skip=. Gate was portable-false-green
 # (soft FAIL exit0 + soft FAIL pass-through to f06 while static + children
 # already green under honesty).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / forbidden / nested leftover f03-core; refuse leftover ignore
+# of explicit-bad). leftover nested f03-core product path stays (already
+# Honesty; do not rewrite). Nested f06 is this-wave Honesty.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -24,15 +30,28 @@ MANIFEST="tests/baseline/f07-no-cc-std-migrated.tsv"
 BUILD_STD="tests/lib/build-std-c-o.sh"
 PREFIX="xlang: [XLANG_F07_NO_CC]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for child dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -53,6 +72,16 @@ FORBIDDEN_OK=0
 F06_OK=0
 F03_CORE_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# forbidden / nested leftover f03-core (refuse leftover SKIP→OK /
+# leftover ignore of explicit-bad / leftover XLANG fallthrough). leftover
+# nested f03-core product path stays when XLANG is unset (do not rewrite
+# leftover nested f03-core). Nested f06 is this-wave Honesty.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-07: forbid cc -c migrated std modules (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -139,8 +168,10 @@ while IFS= read -r f; do
 done < <(find tests -name '*.sh' 2>/dev/null)
 FORBIDDEN_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 # Pin product link for child dogfood (f03-core re-resolves; keep env honest).
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.

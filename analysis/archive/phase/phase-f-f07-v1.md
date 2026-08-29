@@ -32,6 +32,8 @@ hard-fail static manifest + forbidden `ensure_std_c_o` + f06 + f03-core
 (both honesty-hard; soft F06/F07 FAIL retired). No soft `die→exit 0`.
 Report `static=` / `forbidden=` / `f06=` / `f03_core=` / `skip=`.
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f07-no-cc-migrated：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested f03-core 不重写；nested f06 同波 Honesty）。
+
 ```bash
 ./tests/run-f07-no-cc-std-migrated-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f07-no-cc-std-migrated-gate.sh

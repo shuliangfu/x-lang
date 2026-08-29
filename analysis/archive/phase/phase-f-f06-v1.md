@@ -30,6 +30,8 @@ contract. No soft `die→exit 0`. Soft `XLANG_F06_RUNTIME_CLEANUP_FAIL`
 retired. Report `static=` / `link_abi=` / `bootstrap=` / `stage2=` /
 `contract=` / `skip=`.
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f06-runtime-cleanup：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；无 leftover nested 产品面）。
+
 ```bash
 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f06-runtime-std-o-cleanup-gate.sh
