@@ -9,7 +9,15 @@
 # Report v14=/dns=/tcp_pool=/tls_stub=/ws=/static=/inventory=/skip=.
 # Gate was portable-false-green (DOC top-level after archive; soft FAIL
 # exit0 + soft child FAIL pass-through; Makefile content greps / TSV
-# makefile_net_o after Makefile deleted). PLATFORM: SHARED archaeology.
+# makefile_net_o after Makefile deleted).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / leftover xlang_compiler_make / children / nested leftover
+# inventory; refuse leftover ignore of explicit-bad). leftover nested
+# product path (xlang_compiler_make / inventory) stay; tcp-pool / ws /
+# dns-alpn Honesty this wave; tls-stub / v14 already Honesty.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -26,13 +34,28 @@ MK_STD="compiler/mk/std_and_panic_objs.mk"
 MK_SEED="compiler/mk/driver_seed_r_lists.mk"
 PREFIX="xlang: [XLANG_F04_NET_CLOSURE]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -56,6 +79,16 @@ WS_OK=0
 STATIC_OK=0
 INVENTORY_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# leftover xlang_compiler_make / children / nested leftover inventory
+# (refuse leftover SKIP→OK / leftover ignore of explicit-bad / leftover
+# XLANG fallthrough). leftover nested product path stays when XLANG is
+# unset (do not rewrite leftover xlang_compiler_make / inventory).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-04 v15: std.net hosted path closure (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -99,8 +132,10 @@ done < "$MANIFEST"
 echo "f04-net-closure manifest OK"
 STATIC_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"

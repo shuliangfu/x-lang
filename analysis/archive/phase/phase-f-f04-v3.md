@@ -29,6 +29,8 @@ observational (still prefers `xlang-c` check; check gate paused).
 Report `static=` / `inventory=` / `ws=` / `skip=`. Live authority =
 `./xbuild` + mk + ensure (Makefile deleted).
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-net-ws：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／observational STD-031 ws 不重写）。
+
 ```bash
 ./tests/run-f04-std-net-ws-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-ws-gate.sh

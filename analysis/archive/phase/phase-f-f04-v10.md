@@ -29,6 +29,8 @@ hard-fail static TSV. No soft `die→exit 0`. Soft
 Report `static=` / `dns=` / `skip=`. Live authority = ensure net merge
 list (`alpn.x` / `dns.x`) + mk (Makefile deleted).
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-net-dns-alpn：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested STD-029 不重写）。
+
 ```bash
 ./tests/run-f04-std-net-dns-alpn-gate.sh
 ```
