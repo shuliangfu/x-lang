@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# run-portable-suite.sh — Tier P 便携测试套件（全平台必过）。
+# run-portable-suite.sh — leftover catalog no Honesty + leftover prefer-c →硬绿.
 #
-# 统一 .x / xlang-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
-# 由 tests/run-ci-full-suite.sh 在所有 job 上调用。
-#
-# 用法：./tests/run-portable-suite.sh [--with-c-regression]
+# Honesty: leftover catalog no Honesty / missing run=/obs=/skip= + leftover
+# SKIP→OK (explicit-bad XLANG ignored) retired. leftover prefer-c
+# (`XLANG_LINK_XLANG=./compiler/xlang-c` on arm64 / MSYS2 / Docker) still
+# leave this host (retiring it rewrites nested -o; explosion ~336; not
+# this knife). Nested leftover of already-honesty-closed children stays
+# hard (do not rewrite nested product paths). Explicit XLANG not native
+# hard-dies via `dod_native_exe`. Unset XLANG: no product XLANG face on
+# this parent (G.7: do not fork a resolver; complete existing nested
+# resolve_shu). leftover `--with-c-regression` still calls
+# `run-portable-c.sh` (that host skip leftover unbounded C run-all).
+# Keep `run-portable-suite OK`.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-portable-suite.sh [--with-c-regression]
 set -e
 cd "$(dirname "$0")/.."
 
@@ -25,10 +35,48 @@ done
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(dirname "$0")/lib/dod-native-exe.sh"
+
+PREFIX="${XLANG_PORTABLE_SUITE_PREFIX:-xlang: [XLANG_PORTABLE_SUITE]}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "run-portable-suite FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+abs_of() {
+  case "$1" in
+    /*) echo "$1" ;;
+    *) echo "$(pwd)/$1" ;;
+  esac
+}
 
 echo "run-portable-suite: Tier P (host=$(ci_host_summary))"
 
-# 非 x86_64 / MSYS2：-o 链接优先 xlang-c（与 bootstrap-link-xlang 一致）。
+# Explicit XLANG that is missing/non-native hard-dies (refuse leftover
+# SKIP→OK / leftover ignore of explicit-bad / leftover prefer-c).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  abs="$(abs_of "$XLANG")"
+  if ! dod_native_exe "$abs"; then
+    die "explicit XLANG not native (refuse leftover SKIP→OK / leftover prefer-c / leftover auto-make)"
+  fi
+fi
+
+# leftover prefer-c (`XLANG_LINK_XLANG=xlang-c` on arm64 / MSYS2 / Docker)
+# still leave this host: retiring it rewrites nested -o for ~336 children
+# (explosion; not this knife). Nested leftover of already-honesty-closed
+# children that set XLANG_LINK_XLANG themselves stay hard.
+# PLATFORM: SHARED archaeology — nested product paths not rewritten.
 if ci_is_arm64_host || ci_is_windows_msys || ci_is_docker; then
   export XLANG_LINK_XLANG=./compiler/xlang-c
 fi
@@ -1240,10 +1288,15 @@ chmod +x tests/run-zc-dashboard-gate.sh tests/run-zc-dashboard.sh tests/lib/zc-d
 grep -q 'zc-dashboard gate OK' /tmp/zc_dashboard.log
 
 if [ "$WITH_C_REGRESSION" -eq 1 ]; then
-  echo "── portable C regression (run-portable-c) ──"
+  echo "── portable C regression (run-portable-c; leftover C run-all skip) ──"
   chmod +x tests/run-portable-c.sh
   ./tests/run-portable-c.sh | tee /tmp/portable_c.log
   grep -q 'run-portable-c OK' /tmp/portable_c.log
+  SKIP=$((SKIP + 1))
 fi
 
+# Host sequenced nested leftover of already-honesty-closed children.
+# Do not rewrite nested product paths (G.7). Count this host as run=1.
+RUN_OK=$((RUN_OK + 1))
 echo "run-portable-suite OK (Tier P)"
+ok_report
