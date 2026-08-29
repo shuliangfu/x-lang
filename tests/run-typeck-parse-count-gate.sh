@@ -2,10 +2,13 @@
 # A-11 track/CI: asm pipeline typeck.x after_entry_parse num_defined >= min
 # (146 = full defined).
 #
-# Honesty: soft XLANG_TYPECK_PARSE_COUNT_FAIL retired — compile/metric
-# failure was portable false-green (soft die→exit0) and missing compiler
-# soft-SKIP→OK. Prefer xlang_asm. Missing compiler is hard die. Metric
-# under baseline is hard fail. Darwin stays N/A (Linux gold covers).
+# Honesty: leftover XLANG seed fallthrough (`if [ ! -x "$XLANG" ]; then
+# XLANG=./compiler/xlang` and compile-fail seed fallback) retired. Soft
+# XLANG_TYPECK_PARSE_COUNT_FAIL already retired. Prefer xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die.
+# Metric under baseline is hard fail. Darwin stays N/A (Linux gold covers).
+# Chunked parse of the resolved compiler stays as OOM fallback (not seed).
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 #
 # Usage: ./tests/run-typeck-parse-count-gate.sh
 # Env: XLANG_TYPECK_PARSE_COUNT_MIN / TARGET override baseline
@@ -13,6 +16,8 @@
 # PLATFORM: LINUX|UBUNTU gold; DARWIN N/A.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
@@ -21,7 +26,6 @@ MIN_FUNCS=${XLANG_TYPECK_PARSE_COUNT_MIN:-$(awk -F'\t' '$1=="min_funcs" && $1 !~
 TARGET_FUNCS=${XLANG_TYPECK_PARSE_COUNT_TARGET:-$(awk -F'\t' '$1=="target_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
 MIN_FUNCS=${MIN_FUNCS:-80}
 TARGET_FUNCS=${TARGET_FUNCS:-146}
-XLANG="${XLANG:-./compiler/xlang_asm}"
 TYPECK_X="compiler/src/typeck/typeck.x"
 OUT="/tmp/xlang_typeck_parse_count.$$.o"
 LOG="/tmp/xlang_typeck_parse_count.$$.log"
@@ -34,6 +38,37 @@ die() {
   exit 1
 }
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # PLATFORM: MACOS|DARWIN — A-11 parse metric is Linux gold; Darwin N/A.
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "typeck-parse-count-gate: N/A on Darwin (Linux gold covers)"
@@ -41,13 +76,15 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-if [ ! -x "$XLANG" ]; then
-  XLANG="./compiler/xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
 fi
-if [ ! -x "$XLANG" ]; then
-  die "no compiler xlang/xlang_asm (refuse soft SKIP→OK)"
-fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
+echo "=== typeck-parse-count (XLANG=$XLANG_BIN; hard) ==="
 src_count=$(grep -c '^function ' "$TYPECK_X" 2>/dev/null || echo 0)
 echo "typeck-parse-count-gate: source functions in typeck.x: ${src_count} (baseline min=${MIN_FUNCS}, stretch target>=${TARGET_FUNCS})"
 
@@ -61,7 +98,7 @@ typeck_parse_count_compile() {
     env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
       XLANG_ASM_PARSE_METRIC_ONLY=1 \
       XLANG_DEBUG_PIPE=1 \
-      "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.x
+      "$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.x
   ) 2>&1 | tee "$LOG" | cat >/dev/null
 }
 
@@ -82,22 +119,13 @@ typeck_parse_count_try_chunked() {
 }
 
 compile_ok=0
-if typeck_parse_count_compile "$XLANG"; then
+if typeck_parse_count_compile "$XLANG_BIN"; then
   compile_ok=1
-elif [ "$XLANG" != "./compiler/xlang" ] && [ -x "./compiler/xlang" ]; then
-  echo "typeck-parse-count-gate: WARN $XLANG build failed; fallback ./compiler/xlang (seed parse metric, nostdlib xlang_asm typeck OOM)" >&2
-  if typeck_parse_count_compile "./compiler/xlang"; then
-    compile_ok=1
-  fi
 fi
 
 if [ "$compile_ok" -eq 0 ]; then
   echo "typeck-parse-count-gate: WARN full-file parse failed; trying chunked parse (XLANG_TYPECK_PARSE_CHUNK_FUNCS=${XLANG_TYPECK_PARSE_CHUNK_FUNCS:-10})" >&2
-  if ! typeck_parse_count_try_chunked "$XLANG"; then
-    if [ "$XLANG" != "./compiler/xlang" ] && [ -x "./compiler/xlang" ]; then
-      typeck_parse_count_try_chunked "./compiler/xlang" || true
-    fi
-  fi
+  typeck_parse_count_try_chunked "$XLANG_BIN" || true
 fi
 
 # gold/Codespace：xlang 非 TTY stdout 下 parse 指标偶发 SIGTERM；源码 function 计数作临时回退。

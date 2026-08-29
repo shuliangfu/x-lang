@@ -23,4 +23,6 @@ Honesty wave: retire soft `XLANG_PARSER_*_FAIL` die→exit0 on:
 **PLATFORM: LINUX** gold for nm/objdump/ELF; **DARWIN** honest `skip=1` (N/A), not soft PASS.
 **Non-goal:** mega product promote / assemble full `parser.x` as default / raise pin.
 
+**2026-08-29 leftover XLANG seed fallthrough 已收**（parse-count：`if [ ! -x "$XLANG" ]; then XLANG=./compiler/xlang` + missing-compiler SKIP→OK 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；metric 未接线仍 skip=1）。
+
 Parent wrappers: BOOT-024 (`boot-024-parser-bootstrap-emit-v1.md`), ENG quality thin-glue / second-pass (`eng-quality-gate-v1.md`).

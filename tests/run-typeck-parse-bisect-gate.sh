@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # A-11 bisect: typeck.x prefix parse metric — find first defined-func under-count.
 #
-# Honesty: soft XLANG_TYPECK_PARSE_BISECT_FAIL retired — probe under-count was
-# portable false-green (soft die→exit0 / WARN+exit0) and missing compiler
-# soft-SKIP→OK. Prefer xlang_asm. Missing compiler is hard die. Probe
-# num_defined < want is hard fail. Darwin stays N/A (Linux gold covers).
+# Honesty: leftover XLANG seed fallthrough (`if [ ! -x "$XLANG" ]; then
+# XLANG=./compiler/xlang`) retired. Soft XLANG_TYPECK_PARSE_BISECT_FAIL
+# already retired. Prefer xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad
+# XLANG / missing native = hard die. Probe num_defined < want is hard fail.
+# Darwin stays N/A (Linux gold covers). G.7: complete existing resolve_shu;
+# converge dod_native_exe.
 #
 # Usage: ./tests/run-typeck-parse-bisect-gate.sh
 # Env: XLANG_TYPECK_PARSE_BISECT_PROBES override probe list
@@ -12,10 +14,11 @@
 # PLATFORM: LINUX|UBUNTU gold; DARWIN N/A.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-XLANG="${XLANG:-./compiler/xlang_asm}"
 TYPECK_X="compiler/src/typeck/typeck.x"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 PROBES="${XLANG_TYPECK_PARSE_BISECT_PROBES:-20 40 60 80 100 120 146}"
@@ -29,6 +32,37 @@ die() {
   exit 1
 }
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # PLATFORM: MACOS|DARWIN — A-11 bisect metric is Linux gold; Darwin N/A.
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "typeck-parse-bisect-gate: N/A on Darwin (Linux gold covers)"
@@ -37,10 +71,13 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 fi
 
 [ -f "$TYPECK_X" ] || die "missing $TYPECK_X"
-if [ ! -x "$XLANG" ]; then
-  XLANG="./compiler/xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
 fi
-[ -x "$XLANG" ] || die "no compiler xlang/xlang_asm (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
 WORKDIR="/tmp/xlang_typeck_bisect.$$"
 mkdir -p "$WORKDIR"
@@ -71,7 +108,7 @@ parse_defined_count() {
     cd compiler
     env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
       XLANG_DEBUG_PIPE=1 XLANG_DEBUG_PARSE=1 \
-      "../$XLANG" build -backend asm -o "$out" $LIBROOT "$x"
+      "$XLANG_BIN" build -backend asm -o "$out" $LIBROOT "$x"
   ) >"$log" 2>&1 || true
   local ndef nf
   ndef=$(sed -n 's/.*num_defined=\([0-9][0-9]*\).*/\1/p' "$log" | tail -1)
@@ -83,6 +120,7 @@ parse_defined_count() {
   fi
 }
 
+echo "=== typeck-parse-bisect (XLANG=$XLANG_BIN; hard) ==="
 echo "typeck-parse-bisect-gate: probes defined func indices: ${PROBES}"
 for want in $PROBES; do
   prefix="$WORKDIR/typeck_prefix_${want}.x"
