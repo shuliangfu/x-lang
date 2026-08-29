@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # B-17 v1: Windows std.sys os_write_stdout (GetStdHandle + WriteFile) smoke.
 #
-# Honesty: soft XLANG_WIN32_WRITE_FAIL retired — compile/run failure was
-# portable false-green (soft die→exit0). Prefer xlang_asm; pin XLANG_LINK_XLANG.
-# Missing compiler on Windows is hard die (refuse soft SKIP→OK). Non-Windows
-# hosts exit 0 N/A with report counters.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Soft XLANG_WIN32_WRITE_FAIL already retired. Prefer xlang_asm;
+# pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die
+# FIRST (before Windows N/A skip; refuse leftover ignore of explicit-bad
+# as Darwin/Ubuntu N/A). Compile/run failure stays hard on Windows.
+# Darwin/Ubuntu stay N/A (Windows gold covers). leftover nested product
+# path (codesign / WriteFile smoke) stay. G.7: complete existing
+# resolve_shu; converge dod_native_exe.
 #
 # Usage: ./tests/run-win32-write-gate.sh
 # Report: run=/skip=
@@ -26,15 +30,28 @@ PREFIX="xlang: [XLANG_WIN32_WRITE]"
 RUN_OK=0
 SKIP=1
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Windows gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Windows probe still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -50,6 +67,16 @@ die() {
   exit 1
 }
 
+# Explicit XLANG that is missing/non-native hard-dies BEFORE Windows N/A
+# skip (refuse leftover SKIP→OK / leftover ignore of explicit-bad /
+# leftover XLANG fallthrough as Darwin/Ubuntu N/A). leftover nested
+# Windows product path stays when XLANG is unset (do not rewrite leftover
+# WriteFile smoke).
+# PLATFORM: SHARED — product path honesty; Windows gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
 if ! ci_is_windows_msys && [ "${OS:-}" != "Windows_NT" ]; then
   echo "win32-write-gate: N/A (Windows/MSYS2 only)"
   echo "${PREFIX} status=ok run=0 skip=1 host=$(ci_host_summary)"
@@ -58,7 +85,11 @@ fi
 
 [ -f "$X" ] || die "missing $X"
 [ ! -f std/sys/win32.inc.c ] || die "win32.inc.c should be removed (F-02 v2)"
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 
