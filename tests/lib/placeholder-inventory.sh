@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# placeholder-inventory.sh — placeholder() 清单扫描辅助
+# placeholder-inventory.sh — placeholder() inventory helper.
 #
-# 用法（source 后）：
+# Honesty: leftover catalog no Honesty report completed here (G.7).
+# Extra fields count=/max= remain. run=/obs=/skip= required.
+# Usage (after source):
 #   placeholder_count_repo
-#   placeholder_emit_report status count max
+#   placeholder_emit_report status count max [run obs skip]
+# PLATFORM: SHARED archaeology.
 
 PH_INV_PREFIX="${XLANG_PLACEHOLDER_INV_PREFIX:-xlang: [XLANG_PLACEHOLDER_INV]}"
 
-# 统计仓库内 function placeholder() 定义数（不含 bad_path_placeholder 等）。
+# Count `function placeholder()` definitions under core/ + std/
+# (exclude names like bad_path_placeholder).
 placeholder_count_repo() {
   local n
   n="$(grep -rE '^function placeholder\(\)' core std 2>/dev/null \
@@ -17,10 +21,19 @@ placeholder_count_repo() {
   echo "${n:-0}"
 }
 
-# 输出结构化报告行。
+# Structured report. Completes existing helper with run=/obs=/skip=
+# (G.7: do not fork a second reporter). Optional host= when ci_host_summary
+# is already sourced by the gate.
 placeholder_emit_report() {
   local status="$1"
   local count="$2"
   local max="$3"
-  echo "${PH_INV_PREFIX} status=${status} count=${count} max=${max}"
+  local run="${4:-0}"
+  local obs="${5:-0}"
+  local skip="${6:-0}"
+  local host=""
+  if type ci_host_summary >/dev/null 2>&1; then
+    host=" host=$(ci_host_summary)"
+  fi
+  echo "${PH_INV_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip} count=${count} max=${max}${host}"
 }

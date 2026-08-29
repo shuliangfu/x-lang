@@ -3,6 +3,14 @@
 > 更新时间：2026-06-18  
 > 状态：**审计冻结（v2 · 清理后）**  
 > 关联：`NEXT.md` §6.1
+>
+> Honesty leftover residual (2026-08-29): leftover fossil top-level
+> `analysis/placeholder-inventory-v1.md` as live DOC + leftover catalog
+> no Honesty on `tests/run-placeholder-inventory-gate.sh` retired
+> (report `run=`／`obs=`／`skip=`; no XLANG face; G.7 do not fork a
+> resolver). Live DOC = this archive file. Refuse top-level resurrect.
+> Nested leftover of leftover `run-comprehensive-check-gate.sh` not
+> rewritten this wave. **Did not create `## Gate`**.
 
 ---
 
