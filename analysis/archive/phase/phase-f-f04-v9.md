@@ -34,6 +34,8 @@ observational (net-tls residual). Report `static=` / `inventory=` /
 
 **2026-08-29 leftover XLANG fallthrough 已收**（f04-net-tls-mbedtls：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／observational net-tls 不重写）。
 
+**2026-08-30 leftover unused compiler-make SOURCE 已收**（f04-net-tls-mbedtls：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired；G.7 补全既有 `resolve_shu`；leftover nested inventory／observational net-tls 不重写）。
+
 ```bash
 ./tests/run-f04-std-net-tls-mbedtls-gate.sh
 ```
