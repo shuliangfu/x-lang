@@ -2,12 +2,20 @@
 # F-04 v11: std.net addr/ipv6/io_batch remove from net.c.
 #
 # Usage: ./tests/run-f04-std-net-slice-v11-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-slice-v11-gate.sh
 # 2026-08-26: Honesty — hard-fail static (no soft die→exit0). Soft
 # XLANG_F04_NET_SLICE_V11_FAIL retired. Prefer asm; pin XLANG_LINK_XLANG.
 # File needles = addr.x / ipv6.x / io_batch.x (fossil net_addr.x fixed).
 # Report static=/dns_alpn=/skip=. Gate was portable-false-green (DOC
 # top-level; soft FAIL exit0; Makefile fossils; wrong net_addr.x path
-# hidden by soft die). PLATFORM: SHARED archaeology.
+# hidden by soft die).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / nested leftover dns-alpn; refuse leftover ignore of
+# explicit-bad). leftover nested product path (dns-alpn parent leftover
+# XLANG fallthrough) stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -22,13 +30,28 @@ ENSURE="compiler/scripts/ensure_host_cc_seed_o.sh"
 MK_STD="compiler/mk/std_and_panic_objs.mk"
 PREFIX="xlang: [XLANG_F04_NET_SLICE_V11]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -47,6 +70,16 @@ die() {
 STATIC_OK=0
 DNS_ALPN_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# nested leftover dns-alpn (refuse leftover SKIP→OK / leftover ignore
+# of explicit-bad / leftover XLANG fallthrough). leftover nested
+# product path stays when XLANG is unset (do not rewrite leftover
+# dns-alpn).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-04 v11: std.net addr/ipv6/io_batch remove from net.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -75,8 +108,10 @@ grep -q 'addr.x' "$ENSURE" || die "ensure missing addr.x merge"
 grep -q 'ipv6.x' "$ENSURE" || die "ensure missing ipv6.x merge"
 STATIC_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"

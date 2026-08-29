@@ -2,10 +2,17 @@
 # F-04 v14: std.net accept workers remove from net.c; net.c deleted.
 #
 # Usage: ./tests/run-f04-std-net-slice-v14-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-slice-v14-gate.sh
 # 2026-08-26: Honesty — hard-fail static + ensure runtime_net_workers.o
 # (no soft die→exit0). Soft XLANG_F04_NET_SLICE_V14_FAIL retired. Prefer
 # asm; pin XLANG_LINK_XLANG. Report static=/v13b=/skip=. Gate was
 # portable-false-green (DOC top-level; soft FAIL exit0; Makefile fossils).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / nested v13b / xlang_compiler_make; refuse leftover ignore of
+# explicit-bad). leftover nested product path (v11 leftover nested
+# dns-alpn / xlang_compiler_make) stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -23,13 +30,28 @@ MK_STD="compiler/mk/std_and_panic_objs.mk"
 MK_SEED="compiler/mk/driver_seed_r_lists.mk"
 PREFIX="xlang: [XLANG_F04_NET_SLICE_V14]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -48,6 +70,16 @@ die() {
 STATIC_OK=0
 V13B_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# nested v13b / xlang_compiler_make (refuse leftover SKIP→OK / leftover
+# ignore of explicit-bad / leftover XLANG fallthrough). leftover nested
+# product path stays when XLANG is unset (do not rewrite leftover nested
+# dns-alpn / xlang_compiler_make).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-04 v14: std.net workers remove from net.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -76,8 +108,10 @@ grep -q 'runtime_net_workers.o' "$MK_SEED" || die "seed mk missing runtime_net_w
 grep -q 'workers.x' "$ENSURE" || die "ensure missing workers.x merge"
 STATIC_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"

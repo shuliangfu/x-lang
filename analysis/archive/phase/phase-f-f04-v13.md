@@ -26,6 +26,8 @@ hard-fail static. No soft `die→exit 0`. Soft
 `XLANG_F04_NET_SLICE_V13_FAIL` retired. Report `static=` / `v12=` /
 `skip=`. Live authority = ensure (`tcp.x`) + mk.
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-net-slice-v13：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested dns-alpn 不重写）。
+
 ```bash
 ./tests/run-f04-std-net-slice-v13-gate.sh
 ```
