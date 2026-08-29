@@ -41,6 +41,8 @@ XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-std-fs-dirmet
 XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-std-fs-crossplatform-gate.sh
 ```
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f03-fs：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／run-fs／dirmeta／xplat 不重写）。
+
 ## 复现
 
 Same as **## Gate** (soft `XLANG_F03_FS_FAIL` path retired; gate always hard).

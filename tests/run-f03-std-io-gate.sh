@@ -8,6 +8,11 @@
 # no prefer-c). Report inventory=/run=/skip=. Gate was portable-false-green
 # (prefer xlang-c / soft FAIL exit0 / SKIP runtime still OK while asm run-io
 # already green).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# inventory / nested run-io; refuse leftover ignore of explicit-bad).
+# leftover nested product path (inventory / run-io) stay. G.7: complete
+# existing resolve_shu; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -21,15 +26,28 @@ BACKEND="std/io/backend.x"
 CORE="std/io/core.x"
 PREFIX="xlang: [XLANG_F03_IO]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -48,6 +66,15 @@ die() {
 INVENTORY_OK=0
 RUN_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE inventory /
+# nested run-io (refuse leftover SKIP→OK / leftover ignore of explicit-bad
+# / leftover XLANG fallthrough). leftover nested product path stays when
+# XLANG is unset (do not rewrite leftover inventory / run-io).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-03 v2/v3: std.io remove io.c (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -86,8 +113,10 @@ else
   die "missing tests/run-std-c-inventory-gate.sh"
 fi
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 
 echo "=== F-03 v2/v3: run-io (XLANG=$XLANG_BIN; hard) ==="

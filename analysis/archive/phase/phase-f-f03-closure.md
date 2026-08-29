@@ -35,6 +35,8 @@ XLANG=./compiler/xlang_asm ./tests/run-f03-std-core-gate.sh
 XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f03-core／heap-ops／heap-libc／fs／io：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／run-heap／run-fs／run-io／dirmeta／xplat／heap-trace 不重写）。
+
 ## 聚合复现
 
 Same as **## Gate** (soft `XLANG_F03_CORE_FAIL` / `XLANG_F03_PRODUCT_FAIL`

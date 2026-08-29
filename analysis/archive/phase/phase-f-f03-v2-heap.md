@@ -29,6 +29,8 @@ XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-heap.sh
 XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-std-heap-trace-gate.sh
 ```
 
+**2026-08-29 leftover XLANG fallthrough 已收**（f03-heap-libc：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／run-heap／heap-trace 不重写）。
+
 ## 复现
 
 Same as **## Gate** (soft `XLANG_F03_HEAP_LIBC_FAIL` path retired; gate always hard).
