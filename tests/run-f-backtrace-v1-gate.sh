@@ -7,7 +7,15 @@
 # STD-052 symbolicate hard delegate. Soft XLANG_F_BACKTRACE_V1_FAIL retired.
 # Root: soft die→exit0 = portable false-green (static+STD-052 already green;
 # STD-147 xplat still red on fossil DOC sections). xplat observational.
-# Report static=/ensure=/sym=/xplat=/skip=. PLATFORM: SHARED archaeology.
+# Report static=/ensure=/sym=/xplat=/skip=.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / leftover nested xlang_compiler_make / leftover nested
+# std-backtrace-symbolicate / leftover nested std-backtrace-xplat;
+# refuse leftover ignore of explicit-bad). leftover nested product
+# path stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
@@ -21,15 +29,28 @@ DOC="analysis/archive/phase/phase-f-backtrace-v1.md"
 MANIFEST="tests/baseline/f-backtrace-v1-closure.tsv"
 PREFIX="xlang: [XLANG_F_BACKTRACE_V1]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -50,6 +71,18 @@ ENSURE_OK=0
 SYM_OK=0
 XPLAT_OK=0
 SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# leftover nested ensure / leftover nested std-backtrace-symbolicate /
+# leftover nested std-backtrace-xplat (refuse leftover SKIP→OK /
+# leftover ignore of explicit-bad / leftover XLANG fallthrough).
+# leftover nested product path stays when XLANG is unset (do not
+# rewrite leftover xlang_compiler_make / std-backtrace-symbolicate /
+# std-backtrace-xplat).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
 
 echo "=== F-backtrace v1: backtrace.c → backtrace.x (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
@@ -81,8 +114,10 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
 done < "$MANIFEST"
 STATIC_OK=1
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
