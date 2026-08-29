@@ -43,6 +43,8 @@ DOC / `compiler/Makefile` resurrect. Report `run=` / `skip=`.
 
 **2026-08-29 leftover XLANG seed/c fallthrough 已收**（b04：`if [ ! -x "$XLANG" ]; then XLANG=./compiler/xlang-c` 退役；Linux invoke 硬委托已诚实 linux-syscall-invoke；G.7 补全既有 nested `resolve_shu`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
 
+**2026-08-29 leftover B-05 SKIP→OK／leftover asm-73 ensure-compiler-seed 已收**（B-05：无 native 仍 `gate OK` 退役；asm-73：`ensure-compiler-seed.sh` silent `bootstrap-driver-seed` 退役；G.7 补全既有 nested `resolve_shu`；显式坏 XLANG／缺 native 硬 die；Docker N/A skip=1）。
+
 ## 延后（不阻塞 B v1 ✅）
 
 - **B-04 语法层 `asm { }`** → 阶段 C/E；v1 用 extern→`.s` 等价。

@@ -50,6 +50,10 @@ sys_platform_write	sys	run-sys-platform-write-gate.sh	any	B-19 std.sys os_write 
 sys_mod_cfg_import	sys	run-sys-mod-cfg-import-gate.sh	any	B-19 std.sys #[cfg] import prune
 sys_read_file	sys	run-sys-read-file-gate.sh	any	B-20 v0 os_read_file_into
 b04_freestanding_syscall	sys	run-b04-freestanding-syscall-gate.sh	linux	B-04 extern→.s syscall
+# leftover residual (2026-08-29): B-05 SKIP→OK when xlang_asm not runnable
+# retired; nested run-asm-73-gate.sh leftover ensure-compiler-seed auto-make
+# retired. Nested binop/vector/call-inline already honesty-closed (G.7 no
+# third resolver). TSV identity kept (!docker N/A skip=1 before resolve).
 b05_codegen_mvp	compile	run-b05-codegen-mvp-gate.sh	!docker	B-05 asm-73 MVP
 b06_ast_pool	build	run-b06-ast-pool-gate.sh	any	B-06 live pool/arena (runtime_pipeline_abi; ast_pool.c left wave309) + pool limits
 b15_io_uring_sys	sys	run-b15-io-uring-sys-gate.sh	any	B-15 io_uring facade
