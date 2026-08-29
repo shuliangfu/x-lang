@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # STD-027: std.dynlib Windows LoadLibrary — honesty soft fallthrough →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary /
-# prefer-c) + soft auto-make (`xlang_compiler_make … || true`) +
-# check=/osc=/null=/win_path=/skip= retired. Prefer product xlang_asm; pin
-# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
-# SKIP→OK / soft auto-make / prefer-c). Product open_sym_close + main +
-# win_path.x exit0 = hard run (run+=). check + host-C win_path = obs (no soft
-# ensure rebuild). Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. G.7: complete existing resolve_shu;
+# drop unused compiler-make.sh; converge dod_native_exe.
+# Honesty: leftover ignore of explicit-bad (DOC before resolve) retired.
+# Explicit-bad XLANG / missing native = hard die FIRST (before DOC /
+# leftover nested observational check / leftover nested host-C).
+# leftover nested product path (observational check / host-C win_path /
+# product -o open_sym_close+main+win_path) stay.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Report: run=/obs=/skip=.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-dynlib-windows-gate.sh
 set -euo pipefail
@@ -16,8 +18,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_DYNLIB_WIN_DOC:-analysis/archive/std/std-dynlib-windows-v1.md}"
 MANIFEST="${XLANG_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
@@ -36,7 +36,7 @@ RUNNER="tests/run-dynlib.sh"
 
 RUN_OK=0
 OBS=0
-SKIP=0
+SKIP=1
 
 die() {
   echo "std-dynlib-windows gate FAIL: $*" >&2
@@ -44,6 +44,11 @@ die() {
   exit 1
 }
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# leftover unused compiler-make.sh retired — converge dod_native_exe.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
   local cand abs root
   root=$(pwd)
@@ -73,6 +78,16 @@ resolve_shu() {
   return 1
 }
 
+# Explicit XLANG that is missing/non-native hard-dies BEFORE DOC /
+# leftover nested observational check / leftover nested host-C (refuse
+# leftover unused compiler-make SOURCE / leftover ignore of
+# explicit-bad / leftover SKIP→OK). leftover nested product path stays
+# when XLANG is unset.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover unused compiler-make SOURCE / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
 echo "=== STD-027: dynlib Windows manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$DYNLIB_X" "$DYNLIB_RUNTIME" "$MOD_X" \
   "$SMOKE" "$WIN_PATH_X" "$WIN_PATH_C" "$NULL_TEST" "$RUNNER"; do
@@ -96,9 +111,14 @@ if [ "${XLANG_STD_DYNLIB_WIN_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover unused compiler-make SOURCE / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm (refuse leftover unused compiler-make SOURCE / leftover SKIP→OK / leftover auto-make)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
+SKIP=0
 echo "=== STD-027: smoke (XLANG=$XLANG_BIN; check/C obs; osc+null+win_path product -o hard) ==="
 
 # Observational host-C archaeology (existing .o only; refuse soft auto-make).

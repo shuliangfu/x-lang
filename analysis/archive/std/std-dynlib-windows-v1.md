@@ -75,6 +75,8 @@ Honesty gate (2026-08-28 soft fallthrough residual):
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-dynlib.sh`（`xlang_compiler_make -q || make` + `dynlib.o` + `xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`open_sym_close`／`last_error` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [DYNLIB]`。Keep `## 5. Gate`。
 
+**2026-08-30 leftover unused compiler-make SOURCE 已收**（std-dynlib-windows：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired；leftover ignore of explicit-bad（DOC 前不先 die）retired；G.7 补全既有 `resolve_shu`；显式坏 XLANG 先硬 die；leftover nested observational check／host-C 不重写）。Keep `## 5. Gate`。
+
 ---
 
 ## 6. Evolution

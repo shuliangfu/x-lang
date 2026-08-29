@@ -16,12 +16,12 @@
 # prefer-c (xlang-c first) retired — prefer asm. Explicit-bad XLANG /
 # missing native = hard die FIRST (before DOC / leftover nested d04).
 # leftover nested d04 portable / leftover nested test_x opt-in stay.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. G.7: complete existing resolve_shu;
+# drop unused compiler-make.sh; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 # shellcheck source=tests/lib/dod-native-exe.sh
@@ -39,6 +39,7 @@ die() {
 
 # G.7: complete existing resolve_shu. Explicit XLANG that is missing or
 # non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# leftover unused compiler-make.sh retired — converge dod_native_exe.
 # leftover stdlib_cm_native_xlang third resolver retired — converge
 # dod_native_exe. Do not restore set -e before return 1.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
