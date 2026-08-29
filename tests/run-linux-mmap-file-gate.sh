@@ -3,11 +3,13 @@
 #
 # Usage: ./tests/run-linux-mmap-file-gate.sh
 #        XLANG=./compiler/xlang_asm ./tests/run-linux-mmap-file-gate.sh
-# 2026-08-26: Honesty — prefer asm; pin XLANG_LINK_XLANG; hard-fail on Linux
-# when smoke is green (no soft die→exit0; no soft SKIP→OK when no native).
-# Soft XLANG_LINUX_MMAP_FILE_FAIL retired. Standalone still exits 1 on
-# compile/run fail (product UNDEF residual is real red). Parent F-02 mmap
-# gate treats this subgate as observational. Non-Linux hosts exit 0 N/A.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Soft XLANG_LINUX_MMAP_FILE_FAIL already retired. Prefer xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die.
+# Standalone still exits 1 on compile/run fail (product UNDEF residual is
+# real red). Parent F-02 mmap gate treats this subgate as observational.
+# Darwin stays N/A (Linux gold covers). G.7: complete existing resolve_shu;
+# converge dod_native_exe.
 # Report run=/skip=. PLATFORM: LINUX|UBUNTU gold for run; SHARED N/A elsewhere.
 set -e
 cd "$(dirname "$0")/.."
@@ -21,15 +23,28 @@ OUT="/tmp/xlang_linux_mmap_file.$$.out"
 GATE_FILE="/tmp/xlang_linux_mmap_file_gate.dat"
 PREFIX="xlang: [XLANG_LINUX_MMAP_FILE]"
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -57,14 +72,16 @@ fi
 [ -f "$X" ] || die "missing $X"
 [ ! -f std/sys/mmap.inc.c ] || die "mmap.inc.c should be removed (F-02 v1)"
 
-if ! XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  die "no native xlang"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
 fi
-
-echo "=== linux-mmap-file (XLANG=$XLANG_BIN; hard) ==="
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
+
+echo "=== linux-mmap-file (XLANG=$XLANG_BIN; hard) ==="
 
 : >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true

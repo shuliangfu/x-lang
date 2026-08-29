@@ -30,6 +30,8 @@ smoke is **observational** (`linux=`; asm UNDEF residual `std_sys_mmap_*` /
 `read_file_into` — not soft false-green). Report `static=` / `inventory=` /
 `linux=` / `skip=`. Non-Linux hosts keep `linux=0` (platform N/A).
 
+**2026-08-29 leftover XLANG fallthrough 已收**（linux-mmap-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
+
 ```bash
 ./tests/run-f02-std-sys-mmap-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-f02-std-sys-mmap-gate.sh
