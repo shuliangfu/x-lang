@@ -118,3 +118,20 @@ v1 **不新增** `xlang lint` 子命令；分层通过 **`xlang check`** + 环�
 | hook | `tests/run-lint-check.sh` |
 
 **TOOL-002 状态：定版 ✅**
+
+## Gate
+
+Honesty leftover residual (2026-08-29):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG` in already-honesty-closed nested
+  `tests/run-lint-check.sh`.
+- G.7: complete existing nested `resolve_shu`; do not fork a third resolver
+  (`native_xlang`) in this host.
+- Missing native / explicit bad XLANG = hard die (no leftover SKIP→OK /
+  leftover auto-make / leftover `native_xlang` duplicate of `dod_native_exe`).
+- Manifest + archive DOC = hard. Live DOC = this archive file; refuse
+  top-level `analysis/tool-lint-rules-v1.md` and `compiler/src/lsp/lsp_diag.c`.
+- Nested lint-check product `-o` (clean / error) = hard run; check-path
+  warn / unused-hint = obs (paused 2026-08-05).
+- Report: `run=` / `obs=` / `skip=`. Keep `tool-lint gate OK`.
+
