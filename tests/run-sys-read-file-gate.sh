@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # B-20 v0: std.sys os_read_file_into smoke (Darwin hosted / Linux freestanding).
 #
-# Honesty: soft XLANG_SYS_READ_FILE_FAIL retired — compile/run failure was
-# portable false-green (soft die→exit0). Prefer xlang_asm; pin XLANG_LINK_XLANG.
-# Missing compiler is hard die. Linux freestanding path is hard green (Ubuntu
-# gold). Tip Darwin UNDEF residual for std_sys_read_file_into is observational
-# — report obs=1, not soft-swallowed silence.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Soft XLANG_SYS_READ_FILE_FAIL already retired. Prefer xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die. Linux
+# freestanding path is hard green (Ubuntu gold). Tip Darwin UNDEF residual
+# for std_sys_read_file_into is observational — report obs=1, not
+# soft-swallowed silence. G.7: complete existing resolve_shu; converge
+# dod_native_exe.
 #
 # Usage: ./tests/run-sys-read-file-gate.sh
 # Report: run=/obs=/skip=
@@ -25,15 +27,28 @@ RUN_OK=0
 OBS=0
 SKIP=1
 
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand abs
-  # Prefer product asm; pin XLANG_LINK_XLANG to avoid Darwin-arm64 asm→c remap.
-  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
     case "$cand" in
       /*) abs="$cand" ;;
-      *) abs="$(pwd)/$cand" ;;
+      *) abs="$root/$cand" ;;
     esac
     if dod_native_exe "$abs"; then
       echo "$abs"
@@ -50,7 +65,11 @@ die() {
 }
 
 [ -f "$X" ] || die "missing $X"
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 

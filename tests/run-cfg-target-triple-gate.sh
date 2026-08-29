@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 # B-02: #[cfg] follows `-target` triple (cross OS/arch prune smoke).
 #
-# Honesty: soft XLANG_CFG_TARGET_TRIPLE_FAIL retired — foreign-arch ld failure
-# was portable false-green (soft die→exit0). Prefer xlang_asm; pin
-# XLANG_LINK_XLANG.
-#
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Soft XLANG_CFG_TARGET_TRIPLE_FAIL already retired. Prefer xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die.
 # Same-arch cross-OS `-o`+run is HARD (cfg OS prune proven on host ld).
 # Cross-arch triples are OBSERVATIONAL: host ld cannot link foreign ELF/Mach-O
-# (not soft false-green; report obs=).
+# (not soft false-green; report obs=). G.7: complete existing resolve_shu;
+# converge dod_native_exe (drop local stdlib_cm_native_xlang duplicate).
 #
 # Usage: ./tests/run-cfg-target-triple-gate.sh
 # Report: os=/obs=/skip=
 # PLATFORM: SHARED archaeology (LINUX/DARWIN host; cross-arch = obs).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
@@ -29,25 +31,31 @@ die() {
   exit 1
 }
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 resolve_shu() {
-  local cand
-  for cand in "${XLANG:-}" ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    [ -n "$cand" ] || continue
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
@@ -101,7 +109,11 @@ case "$OS" in
     ;;
 esac
 
-XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+fi
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 
