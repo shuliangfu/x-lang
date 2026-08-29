@@ -13,7 +13,9 @@
 # static / nested leftover inventory / leftover observational check;
 # refuse leftover ignore of explicit-bad). leftover nested product path
 # (inventory / observational check) stay.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. G.7: complete existing resolve_shu;
+# drop unused compiler-make.sh; converge dod_native_exe.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -21,8 +23,6 @@ cd "$(dirname "$0")/.."
 source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_F04_NET_TCP_POOL_DOC:-analysis/archive/phase/phase-f-f04-v2.md}"
 TCP_POOL="std/net/tcp_pool.x"
