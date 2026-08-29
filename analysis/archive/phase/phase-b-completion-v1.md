@@ -39,6 +39,8 @@ DOC / `compiler/Makefile` resurrect. Report `run=` / `skip=`.
 
 **2026-08-29 leftover XLANG fallthrough 已收**（macos-mmap／macos-mmap-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Ubuntu N/A skip=1；macos-mmap-file Darwin `std_sys_read_file_into` UNDEF 仍 obs）。
 
+**2026-08-29 leftover XLANG seed fallthrough 已收**（repr-c-layout：`if [ ! -x "$XLANG" ]; then XLANG=./compiler/xlang` 退役；leftover `XLANG_REPR_C_LAYOUT_FAIL=0` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die）。
+
 ## 延后（不阻塞 B v1 ✅）
 
 - **B-04 语法层 `asm { }`** → 阶段 C/E；v1 用 extern→`.s` 等价。
