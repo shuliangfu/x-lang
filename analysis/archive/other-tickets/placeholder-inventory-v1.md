@@ -9,8 +9,8 @@
 > no Honesty on `tests/run-placeholder-inventory-gate.sh` retired
 > (report `run=`／`obs=`／`skip=`; no XLANG face; G.7 do not fork a
 > resolver). Live DOC = this archive file. Refuse top-level resurrect.
-> Nested leftover of leftover `run-comprehensive-check-gate.sh` not
-> rewritten this wave. **Did not create `## Gate`**.
+> Nested leftover of leftover `run-comprehensive-check-gate.sh` retired
+> in a later leftover catalog no Honesty wave. **Did not create `## Gate`**.
 
 ---
 

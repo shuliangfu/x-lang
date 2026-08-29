@@ -5,6 +5,12 @@
 > 关联：`NEXT.md` §7、`STD-156～167`、`CORE-018～020`
 
 > **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+>
+> Honesty leftover residual (2026-08-29): leftover catalog no Honesty on
+> parent `tests/run-comprehensive-check-gate.sh` retired (report `run=`／
+> `obs=`／`skip=`; no XLANG face on parent; G.7 do not fork a resolver;
+> nested children already honesty-closed). Live DOC = this archive file.
+> **Did not create `## Gate`**.
 
 ---
 
