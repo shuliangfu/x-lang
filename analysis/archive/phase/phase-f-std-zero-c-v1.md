@@ -70,6 +70,8 @@ XLANG_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh
 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
+**2026-08-30 leftover XLANG fallthrough 已收**（f-std-de-c-batch：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested 65 f-v1 children 不重写）。
+
 PLATFORM: SHARED archaeology.
 ## 6. 首项清场（v1）
 
