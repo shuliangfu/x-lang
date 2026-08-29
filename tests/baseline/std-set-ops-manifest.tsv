@@ -1,5 +1,8 @@
 # STD-129 std.set Set_i32 ops manifest
 # Columns: item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-set-ops-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/set/ops.x hard.
 # 2026-08-25: anchors aligned to product overload names (union_into /
 # intersect_into / difference_into), not legacy set_i32_*_into names that
 # never existed in std/set/mod.x.

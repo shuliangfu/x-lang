@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# STD-025: std.env env_iter / args_iter gate — honesty soft auto-make →硬绿.
+# STD-025: std.env env_iter / args_iter gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft auto-make (`xlang_compiler_make … || true`) + soft XLANG
-# fallthrough (explicit-bad still picks another binary) + check=/run=/skip=
-# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
-# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
-# Product env_iter.x + cookbook env_args_iter.x -o exit0 = hard run (run=2).
-# check = obs (paused 2026-08-05; leave ensure_std family alone).
-# Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# env_iter.x + cookbook env_args_iter.x -o exit0 = hard run (run=2).
+# check = obs. Report: run=/obs=/skip=. G.7: complete existing resolve_shu;
+# drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-env-iter-gate.sh
 set -euo pipefail
@@ -16,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ENV_ITER_DOC:-analysis/archive/std/std-env-iter-v1.md}"
 MANIFEST="${XLANG_STD_ENV_ITER_TSV:-tests/baseline/std-env-iter.tsv}"
@@ -96,6 +94,9 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== STD-025: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 # check = obs only (paused 2026-08-05); refuse soft SKIP→OK.
 set +e

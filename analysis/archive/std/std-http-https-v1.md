@@ -41,11 +41,14 @@ Honesty（2026-08-26）：
 - C stub / OpenSSL s_server 烟测 **仅观测**（非硬绿信号）
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-http-https-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `https_smoke.x` hard；check／host-C／OpenSSL＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-http-https.tsv`
 
 关键词锚：`STD-HTTP-HTTPS` · `https_is_available` · `err_tls_not_impl` · `https://` · `TLS` · `net_tls`
 
 ## 5. 变更记录
 
+- 2026-08-29：leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard）。
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 4. Gate`；C/OpenSSL 仅观测；未啃产品 `std/http`／`std/net` TLS 后端）。
 - 历史：v1 HTTPS 客户端一体（探测 + offline TLS-not-impl + 可选 OpenSSL）。

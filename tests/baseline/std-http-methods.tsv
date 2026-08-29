@@ -7,6 +7,9 @@
 # ./compiler/xlang + fossil $XLANG build) retired. Prefer asm; explicit-bad
 # XLANG hard-die; missing native FAIL; product -o tests/http/main.x hard;
 # check=obs; report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-http-methods-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/http/methods_status.x hard.
 min_apis	9
 read_path	section	## 1. 阅读路径	15min
 client_api	section	## 2. 客户端 API	post head put delete patch options

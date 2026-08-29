@@ -67,8 +67,11 @@ Honesty（2026-08-26）：
 - 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
 - 拒顶层 DOC 复活（live = `analysis/archive/std/`）
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-env-platform-encoding-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `platform_encoding.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-env-platform-encoding-manifest.tsv`
 
 ### 5.1 Changelog
 
+- 2026-08-29：leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard）。
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；C smoke 观测；未啃产品 `std/env`）。

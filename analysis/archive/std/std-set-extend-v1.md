@@ -55,6 +55,8 @@
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-set.sh`（`xlang_compiler_make … heap.o/set.o` + collection gcc fallback + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/set/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [SET]`。Do not add a new `## Gate` heading here（STD-015 live gate already honesty-closed）。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-set-extend-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `extend.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. 验收`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 5. 演进

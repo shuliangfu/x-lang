@@ -45,6 +45,8 @@ Honesty（2026-08-26）：
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-http.sh`（`xlang_compiler_make -q || make` + `ensure_std_c_o http.o` + default `./compiler/xlang` + fossil `$XLANG build`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/http/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [HTTP]`。Keep `## 4. Gate`。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-http-methods-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `methods_status.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
+
 manifest：`tests/baseline/std-http-methods.tsv`
 
 ```
@@ -53,6 +55,7 @@ xlang: [XLANG_STD_HTTP_METHODS] status=ok check=0|1 run=1 skip=0
 
 ### Changelog
 
+- 2026-08-29：leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard）。
 - 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 4. Gate`；未啃产品 `std/http`）。
 - 历史：v1 POST／HEAD／PUT／DELETE／PATCH／OPTIONS＋`parse_status_line` 定版。
 

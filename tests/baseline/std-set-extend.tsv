@@ -7,6 +7,9 @@
 # bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
 # missing native FAIL; product -o tests/set/main.x hard; check=obs;
 # report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-set-extend-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/set/extend.x hard.
 min_set_types	2
 set_u64	symbol	Set_u64	std/set/mod.x
 set_str	symbol	Set_str	std/set/mod.x

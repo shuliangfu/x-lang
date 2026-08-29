@@ -18,3 +18,5 @@
 ## 门禁
 
 `./tests/run-std-set-ops-gate.sh`
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-set-ops-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `ops.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 门禁`。 Leave wrap body / ensure_std family.

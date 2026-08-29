@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# STD-034: std.http HTTPS client gate — honesty soft fallthrough →硬绿.
+# STD-034: std.http HTTPS client gate — honesty leftover unused compiler-make →硬绿.
 #
-# Honesty: soft XLANG fallthrough (explicit-bad still picks another binary) +
-# soft ensure_std_c_o / soft auto-make + check=/run=/skip= retired. Prefer
-# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native =
-# hard die (refuse soft SKIP→OK / soft auto-make / prefer-c / soft ensure).
-# Product https_smoke.x -o exit0 = hard run (run=1). check / host-C stub /
-# OpenSSL live probe = obs. Report: run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# https_smoke.x -o exit0 = hard run (run=1). check / host-C stub / OpenSSL live
+# probe = obs. Report: run=/obs=/skip=. G.7: complete existing resolve_shu;
+# drop unused compiler-make.sh.
 # PLATFORM: SHARED archaeology — Ubuntu gold still required.
 # Usage: ./tests/run-std-http-https-gate.sh
 set -euo pipefail
@@ -15,8 +16,6 @@ cd "$(dirname "$0")/.."
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 . tests/lib/dod-native-exe.sh
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_HTTP_HTTPS_DOC:-analysis/archive/std/std-http-https-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_HTTPS_TSV:-tests/baseline/std-http-https.tsv}"
@@ -123,6 +122,8 @@ fi
 XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 # PLATFORM: MACOS — Homebrew OpenSSL/lib path for optional host TLS deps.
 if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
   export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"

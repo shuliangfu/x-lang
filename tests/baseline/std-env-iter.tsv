@@ -5,6 +5,9 @@
 # retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
 # product -o main/env_iter/platform_encoding hard; check=obs;
 # report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-env-iter-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/env/env_iter.x hard.
 min_iter_apis	4
 env_iter_struct	symbol	EnvIter	std/env/mod.x
 args_iter_struct	symbol	ArgsIter	std/env/mod.x

@@ -65,6 +65,8 @@
 
 **Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-env.sh`（`xlang_compiler_make -q || make` + `env.o` + `xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`env_iter`／`platform_encoding` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [ENV]`。Do not add a new `## Gate` heading here（STD-025 live gate already honesty-closed）。
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-env-iter-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `env_iter.x` + cookbook `env_args_iter.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. 验收`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 演进
