@@ -610,6 +610,7 @@ struct ast_ASTArena {
 #define codegen_codegen_emit_type_kind codegen_emit_type_kind
 #define codegen_codegen_type_kind_append_to_scratch codegen_type_kind_append_to_scratch
 #define codegen_codegen_emit_vector_c_type_out codegen_emit_vector_c_type_out
+#define codegen_codegen_emit_vector_typedefs codegen_emit_vector_typedefs
 #define codegen_codegen_type_kind_append_to_scratch_ord codegen_type_kind_append_to_scratch_ord
 #define codegen_codegen_type_to_c_repr codegen_type_to_c_repr
 #define codegen_codegen_emit_type codegen_emit_type
@@ -1446,6 +1447,7 @@ extern int32_t codegen_emit_type_kind_ord(struct codegen_CodegenOutBuf * out, in
 extern int32_t codegen_emit_type_kind(struct codegen_CodegenOutBuf * out, int32_t kind_ord);
 extern int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int32_t w, int32_t kind_ord);
 extern int32_t codegen_emit_vector_c_type_out(struct codegen_CodegenOutBuf * out, int32_t elem_kind_ord, int32_t lanes);
+extern int32_t codegen_emit_vector_typedefs(struct codegen_CodegenOutBuf * out);
 extern int32_t codegen_type_kind_append_to_scratch_ord(uint8_t * scratch, int32_t cap, int32_t w, int32_t tk);
 extern int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, int32_t cap, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
@@ -4762,6 +4764,169 @@ int32_t codegen_emit_vector_c_type_out(struct codegen_CodegenOutBuf * out, int32
     }
     uint8_t df[8] = {105, 110, 116, 51, 50, 95, 116, 0};
     return codegen_emit_bytes_from_ptr(out, &((df)[0]), 7);
+  }
+}
+/* PLATFORM: SHARED — host-C SIMD typedefs twin of codegen.x
+ * codegen_emit_vector_typedefs. Guard XLANG_VECTOR_TYPES so -o
+ * (rt_preamble §10 first) does not depend on C11 identical-typedef.
+ * Historic seed emit_header jumped includes → TYPE_DYN; live `-E`
+ * then had unknown type i32x4_t (codegen.x already calls this helper).
+ * G.7: complete existing helper; do not fork a third typedef emitter. */
+int32_t codegen_emit_vector_typedefs(struct codegen_CodegenOutBuf * out) {
+  {
+    if ((out == 0)) {
+      return -1;
+    }
+    /* #ifndef XLANG_VECTOR_TYPES\n#define XLANG_VECTOR_TYPES\n */
+    uint8_t g[64] = {
+      35, 105, 102, 110, 100, 101, 102, 32, 88, 76, 65, 78, 71, 95, 86, 69,
+      67, 84, 79, 82, 95, 84, 89, 80, 69, 83, 10,
+      35, 100, 101, 102, 105, 110, 101, 32, 88, 76, 65, 78, 71, 95, 86, 69,
+      67, 84, 79, 82, 95, 84, 89, 80, 69, 83, 10,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    if ((codegen_emit_bytes_64(out, &((g)[0]), 54) !=0)) {
+      return -1;
+    }
+    /* #if defined(__GNUC__) || defined(__clang__)\n */
+    uint8_t gif[48] = {
+      35, 105, 102, 32, 100, 101, 102, 105, 110, 101, 100, 40, 95, 95, 71, 78,
+      85, 67, 95, 95, 41, 32, 124, 124, 32, 100, 101, 102, 105, 110, 101, 100,
+      40, 95, 95, 99, 108, 97, 110, 103, 95, 95, 41, 10, 0, 0, 0, 0
+    };
+    if ((codegen_emit_bytes_64(out, &((gif)[0]), 44) !=0)) {
+      return -1;
+    }
+    /* GNU vector_size typedefs — same spellings as emit_vector_c_type_out. */
+    uint8_t t0[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 105, 110, 116, 51, 50, 95, 116, 32,
+      105, 51, 50, 120, 52, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98,
+      117, 116, 101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105,
+      122, 101, 40, 49, 54, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t t1[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 105, 110, 116, 51, 50, 95, 116, 32,
+      105, 51, 50, 120, 56, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98,
+      117, 116, 101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105,
+      122, 101, 40, 51, 50, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t t2[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 105, 110, 116, 51, 50, 95, 116, 32,
+      105, 51, 50, 120, 49, 54, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98,
+      117, 116, 101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105,
+      122, 101, 40, 54, 52, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0
+    };
+    uint8_t t3[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 117, 105, 110, 116, 51, 50, 95, 116,
+      32, 117, 51, 50, 120, 52, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98,
+      117, 116, 101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105,
+      122, 101, 40, 49, 54, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0
+    };
+    uint8_t t4[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 117, 105, 110, 116, 51, 50, 95, 116,
+      32, 117, 51, 50, 120, 56, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98,
+      117, 116, 101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105,
+      122, 101, 40, 51, 50, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0
+    };
+    uint8_t t5[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 117, 105, 110, 116, 51, 50, 95, 116,
+      32, 117, 51, 50, 120, 49, 54, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105,
+      98, 117, 116, 101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115,
+      105, 122, 101, 40, 54, 52, 41, 41, 41, 59, 10, 0, 0, 0, 0
+    };
+    uint8_t t6[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 102, 108, 111, 97, 116, 32, 102, 51,
+      50, 120, 52, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101,
+      95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105, 122, 101, 40, 49,
+      54, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t t7[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 102, 108, 111, 97, 116, 32, 102, 51,
+      50, 120, 56, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101,
+      95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105, 122, 101, 40, 51,
+      50, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t t8[64] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 102, 108, 111, 97, 116, 32, 102, 51,
+      50, 120, 49, 54, 95, 116, 32, 95, 95, 97, 116, 116, 114, 105, 98, 117, 116,
+      101, 95, 95, 40, 40, 118, 101, 99, 116, 111, 114, 95, 115, 105, 122, 101, 40,
+      54, 52, 41, 41, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0
+    };
+    if ((codegen_emit_bytes_64(out, &((t0)[0]), 58) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t1)[0]), 58) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t2)[0]), 59) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t3)[0]), 59) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t4)[0]), 59) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t5)[0]), 60) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t6)[0]), 56) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t7)[0]), 56) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((t8)[0]), 57) !=0)) { return -1; }
+    /* #else\n */
+    uint8_t el[8] = {35, 101, 108, 115, 101, 10, 0, 0};
+    if ((codegen_emit_bytes_64(out, &((el)[0]), 6) !=0)) {
+      return -1;
+    }
+    /* Fallback struct typedefs for non-GNU host-cc. */
+    uint8_t s0[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 105, 110, 116, 51, 50, 95, 116, 32, 101, 91, 52, 93, 59, 32, 125, 32,
+      105, 51, 50, 120, 52, 95, 116, 59, 10, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t s1[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 105, 110, 116, 51, 50, 95, 116, 32, 101, 91, 56, 93, 59, 32, 125, 32,
+      105, 51, 50, 120, 56, 95, 116, 59, 10, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t s2[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 105, 110, 116, 51, 50, 95, 116, 32, 101, 91, 49, 54, 93, 59, 32, 125, 32,
+      105, 51, 50, 120, 49, 54, 95, 116, 59, 10, 0, 0, 0, 0
+    };
+    uint8_t s3[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 117, 105, 110, 116, 51, 50, 95, 116, 32, 101, 91, 52, 93, 59, 32, 125, 32,
+      117, 51, 50, 120, 52, 95, 116, 59, 10, 0, 0, 0, 0, 0
+    };
+    uint8_t s4[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 117, 105, 110, 116, 51, 50, 95, 116, 32, 101, 91, 56, 93, 59, 32, 125, 32,
+      117, 51, 50, 120, 56, 95, 116, 59, 10, 0, 0, 0, 0, 0
+    };
+    uint8_t s5[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 117, 105, 110, 116, 51, 50, 95, 116, 32, 101, 91, 49, 54, 93, 59, 32, 125,
+      32, 117, 51, 50, 120, 49, 54, 95, 116, 59, 10, 0, 0, 0
+    };
+    uint8_t s6[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 102, 108, 111, 97, 116, 32, 101, 91, 52, 93, 59, 32, 125, 32, 102, 51,
+      50, 120, 52, 95, 116, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t s7[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 102, 108, 111, 97, 116, 32, 101, 91, 56, 93, 59, 32, 125, 32, 102, 51,
+      50, 120, 56, 95, 116, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    uint8_t s8[48] = {
+      116, 121, 112, 101, 100, 101, 102, 32, 115, 116, 114, 117, 99, 116, 32, 123,
+      32, 102, 108, 111, 97, 116, 32, 101, 91, 49, 54, 93, 59, 32, 125, 32, 102,
+      51, 50, 120, 49, 54, 95, 116, 59, 10, 0, 0, 0, 0, 0, 0
+    };
+    if ((codegen_emit_bytes_64(out, &((s0)[0]), 42) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s1)[0]), 42) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s2)[0]), 44) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s3)[0]), 43) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s4)[0]), 43) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s5)[0]), 45) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s6)[0]), 40) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s7)[0]), 40) !=0)) { return -1; }
+    if ((codegen_emit_bytes_64(out, &((s8)[0]), 42) !=0)) { return -1; }
+    /* #endif\n#endif\n */
+    uint8_t ge2[16] = {35, 101, 110, 100, 105, 102, 10, 35, 101, 110, 100, 105, 102, 10, 0, 0};
+    if ((codegen_emit_bytes_64(out, &((ge2)[0]), 14) !=0)) {
+      return -1;
+    }
+    return 0;
   }
 }
 int32_t codegen_type_kind_append_to_scratch_ord(uint8_t * scratch, int32_t cap, int32_t w, int32_t tk) {
@@ -19614,9 +19779,12 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
   {
     /* PLATFORM: SHARED — host-C prologue twin of codegen.x emit_header.
-     * stdint/stddef/sys/types/string (83) then stdlib/unistd (40).
+     * stdint/stddef/sys/types/string (83) then stdlib/unistd (40) then
+     * codegen_emit_vector_typedefs (XLANG_VECTOR_TYPES) then TYPE_DYN.
      * Historic seed omitted string/stdlib/unistd → xlang-c/-E undeclared
      * memcpy/getcwd (skip-decl already drops the XLANG prototypes).
+     * Historic seed also jumped includes → TYPE_DYN (no SIMD typedefs)
+     * → bare `-E` unknown type i32x4_t.
      * G.7: complete existing emit_header; do not fork a third prologue.
      * std_x inject family remains defense-in-depth. */
     uint8_t h[88] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
@@ -19629,6 +19797,12 @@ int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
     uint8_t h2[48] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 108, 105, 98, 46, 104, 62, 10,
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10, 0};
     if ((codegen_emit_bytes_64(out, &((h2)[0]), 40) !=0)) {
+      return -1;
+    }
+    /* SIMD typedefs after libc includes — twin of codegen.x
+     * codegen_emit_vector_typedefs. Historic seed jumped to TYPE_DYN.
+     * PLATFORM: SHARED. G.7: complete existing emit_header. */
+    if ((codegen_emit_vector_typedefs(out) !=0)) {
       return -1;
     }
     /* TYPE_DYN fat layout — twin of codegen.x emit_header gd (103 bytes exact).
