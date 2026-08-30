@@ -16,8 +16,8 @@
 # Modes (catalog or explicit):
 #   auto              hard-fail if no host; pick xlang_asm → xlang → xlang-c
 #   auto-soft         same pick; exit 0 if no host (F-ZC soft leaves)
-#   auto-merge        compile to ${out%.o}_main.o then ld -r → out.o (hard)
-#   auto-soft-merge   same merge; exit 0 if no host (socketio)
+#   auto-merge        compile to ${out%.o}_main.o then mv → out.o (hard)
+#   auto-soft-merge   same single-TU rename; exit 0 if no host (socketio)
 #   <path-to-bin>     use explicit driver
 #
 # wave811 (G.7 有则补全): host pick + soft/hard + socketio merge body here;
@@ -472,14 +472,23 @@ std_x_compile_one() {
       ;;
   esac
 
-  # wave811: socketio-style single-TU merge — compile landed on *_main.o; ld -r → final OUT.
-  # PLATFORM: SHARED — host ld -r only (no second Makefile hybrid ladder).
+  # wave811: socketio-style single-TU merge — compile landed on *_main.o,
+  # then rename to final OUT. Historic `ld -r` of one relocatable was a
+  # rename (one input). Darwin `ld -r` of an xlang_asm Mach-O with two
+  # LC_SEGMENT_64 fails ("more than one LC_SEGMENT found"). G.7: complete
+  # existing merge body — single-object rename is mv, not ld -r. Real
+  # two-object ld -r (tls_mbedtls_main + bio, sqlite_main + glue) stays in
+  # archaeology_host_pick_phony.sh. Do not fork a third merger.
+  # PLATFORM: SHARED — mv rename; Darwin was the fail surface; Ubuntu ELF
+  # ld -r of one file worked but was never a multi-object combine.
   if [ "$_merge" = "1" ]; then
     if [ ! -f "$out_o" ]; then
       echo "xlang_compile_std_x.sh: merge missing intermediate $out_o" >&2
       return 1
     fi
-    ld -r -o "$_final_out" "$out_o" || return 1
+    if [ "$out_o" != "$_final_out" ]; then
+      mv -f "$out_o" "$_final_out" || return 1
+    fi
   fi
   return 0
 }
