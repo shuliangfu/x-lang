@@ -12,18 +12,22 @@
 # Report static=/ensure=/f04=/aes=/sha512=/chacha=/ed25519=/skip=.
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
 # retired. Explicit-bad XLANG / missing native = hard die FIRST (before
-# static / leftover nested xlang_compiler_make / leftover nested
-# f04-std-crypto-closure / leftover nested std-crypto-aes-gcm /
-# leftover nested std-crypto-sha512-hmac / leftover nested
-# observational chacha / leftover nested observational ed25519;
-# refuse leftover ignore of explicit-bad). leftover nested product
-# path stay.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
+# static / leftover nested f04-std-crypto-closure / leftover nested
+# std-crypto-aes-gcm / leftover nested std-crypto-sha512-hmac /
+# leftover nested observational chacha / leftover nested
+# observational ed25519; refuse leftover ignore of explicit-bad).
+# leftover auto-make of crypto.o (`xlang_compiler_make` even when the
+# leaf is present — try-heat/g05 raced L2) retired. leftover unused
+# compiler-make.sh sourced unused after leftover auto-make retired.
+# Missing leaf .o = hard die. leftover nested f04-std-crypto-closure /
+# leftover nested std-crypto-aes-gcm / leftover nested
+# std-crypto-sha512-hmac stay. leftover nested observational chacha /
+# leftover nested observational ed25519 stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe; do not
+# fork a third resolver.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
@@ -80,14 +84,15 @@ ED25519_OK=0
 SKIP=1
 
 # Explicit XLANG that is missing/non-native hard-dies BEFORE static /
-# leftover nested ensure / leftover nested f04-std-crypto-closure /
+# leftover nested f04-std-crypto-closure / leftover nested
+# std-crypto-aes-gcm / leftover nested std-crypto-sha512-hmac /
+# leftover nested observational chacha / leftover nested
+# observational ed25519 (refuse leftover SKIP→OK / leftover ignore of
+# explicit-bad / leftover XLANG fallthrough). leftover auto-make of
+# crypto.o retired; leftover nested f04-std-crypto-closure /
 # leftover nested std-crypto-aes-gcm / leftover nested
-# std-crypto-sha512-hmac / leftover nested observational chacha /
-# leftover nested observational ed25519 (refuse leftover SKIP→OK /
-# leftover ignore of explicit-bad / leftover XLANG fallthrough).
-# leftover nested product path stays when XLANG is unset (do not
-# rewrite leftover xlang_compiler_make / f04-std-crypto-closure /
-# std-crypto-aes-gcm / std-crypto-sha512-hmac / chacha / ed25519).
+# std-crypto-sha512-hmac stay. leftover nested observational chacha /
+# leftover nested observational ed25519 stay.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 if [ -n "${XLANG:-}" ]; then
   XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
@@ -133,8 +138,11 @@ export XLANG_LINK_XLANG="$XLANG_BIN"
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
 SKIP=0
 
-xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 \
-  || die "ensure crypto.o failed (xlang_compiler_make; prefer asm)"
+# leftover auto-make retired: require the leaf already present (refuse try-heat/g05).
+# PLATFORM: SHARED — missing leaf = hard die; Ubuntu gold still required.
+if [ ! -f std/crypto/crypto.o ]; then
+  die "missing std/crypto/crypto.o (refuse leftover auto-make)"
+fi
 ENSURE_OK=1
 
 # Hard-delegate already soft→硬绿 F-04 closure + STD-049 / STD-050.
