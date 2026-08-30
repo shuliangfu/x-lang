@@ -8,11 +8,14 @@
 #   std_sqlite_run_smoke XLANG_BIN SRC TAG
 #   std_sqlite_emit_report status run obs skip
 # Honesty: refuse soft auto-make / soft SKIP→OK / soft ensure; report run=/obs=/skip=.
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Parent STD-057 / F-05 already Honesty
+# (resolve_shu / prefer-asm). leftover nested product path (manifest /
+# host-C obs / tip product -o) stay. Do not fork a third resolver here.
 # PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 # NOTE: STD-139 sqlite-stub sources this lib for probe / nm helpers; keep those stable.
+# Ubuntu gold still required.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_SQLITE_PREFIX="${XLANG_STD_SQLITE_PREFIX:-xlang: [XLANG_STD_SQLITE]}"
 
 # Probe whether the host can link libsqlite3.

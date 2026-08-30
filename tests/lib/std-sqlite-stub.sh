@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # std-sqlite-stub.sh — STD-139 manifest and stub smoke helpers (honesty).
 # Honesty 2026-08-28: report run=/obs=/skip=; prefer asm; no soft rebuild.
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Parent STD-139 already Honesty
+# (resolve_shu / prefer-asm). leftover nested product path (manifest /
+# stub_behavior -o / observational C stub) stay. Do not fork a third
+# resolver here. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DB_STUB_PREFIX="${XLANG_STD139_PREFIX:-xlang: [XLANG_STD139_DB_STUB]}"
 
 # 复用 STD-057 SQLite 探测。

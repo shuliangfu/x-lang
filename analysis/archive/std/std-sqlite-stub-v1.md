@@ -52,6 +52,8 @@ rebuild; `obs+=`). Report `run=` / `obs=` / `skip=`.
 
 **Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-sqlite-stub-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `stub_behavior.x` hard；check／C stub smoke＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
 
+**2026-08-30 leftover unused compiler-make SOURCE leftover sqlite-stub 已收**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/lib/std-sqlite-stub.sh`。Parent STD-139 already Honesty。leftover nested product path stay。Keep `## 4. Gate`。
+
 ```bash
 ./tests/run-std-sqlite-stub-gate.sh
 ```

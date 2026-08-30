@@ -7,9 +7,13 @@
 #   std_db_kv_arrow_run_c_smokes
 #   std_db_kv_arrow_emit_report status run_ok obs skip
 # 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Parent kv-arrow / F-05 already Honesty
+# (resolve_shu / prefer-asm). leftover nested product path (manifest /
+# kv_tick / arrow_column / cookbook -o / observational host-C) stay.
+# Do not fork a third resolver here.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DB_KV_ARROW_PREFIX="${XLANG_STD_DB_KV_ARROW_PREFIX:-xlang: [XLANG_STD_DB_KV_ARROW]}"
 
 std_db_kv_arrow_symbols_ok() {

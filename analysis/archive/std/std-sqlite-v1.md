@@ -69,6 +69,8 @@
 
 Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make sqlite.o；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/db/sqlite/sqlite.o`＝obs；check＋tip product SEGV＝obs；报告 `run=`／`obs=`／`skip=`。
 
+**2026-08-30 leftover unused compiler-make SOURCE leftover sqlite-gate 已收**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/lib/std-sqlite-gate.sh`（hub；nested sqlite libs inherit via this file）。Parent STD-057／F-05 already Honesty。leftover nested product path stay。Keep `## Gate`。
+
 ```
 xlang: [XLANG_STD_SQLITE] status=ok run=… obs=… skip=0
 ```

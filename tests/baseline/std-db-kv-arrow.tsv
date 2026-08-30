@@ -3,6 +3,8 @@
 # bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
 # compiler-make.sh retired. Prefer asm; product -o kv_tick + arrow_column +
 # cookbook hard. check / host-C = obs (existing .o only).
+# honesty 2026-08-30 leftover unused compiler-make SOURCE leftover db-kv-arrow:
+# tests/lib/std-db-kv-arrow.sh sourced unused (no xlang_compiler_make) retired.
 # 列：item_id	kind	anchor	mod_path	notes
 min_apis	8
 gate_section	section	## 4. Gate	analysis/archive/std/std-db-kv-arrow-v1.md
