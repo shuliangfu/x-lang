@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # S5: compiler-self WPO __text gate (call-graph dead% + multi-lib asm A/B proxy).
 #
-# Honesty: soft XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT:-0 under-min still
-# printed FAIL then OK / exit 0 was portable false-green. Missing xlang_asm
-# soft SKIP→OK for the asm proxy half retired. Compile failure with a present
-# compiler is hard die. Under-min save = obs (perf residual;
-# FAIL_ON_WPO_COMPILER_SELF_TEXT=1 still hard). Call-graph via
-# `xlang-c check` is check-bound: selfhost pause means graph failure = obs
-# (continue asm proxy), not a hard product gate. Prefer product xlang_asm.
-# Report run=/obs=/skip=.
+# Honesty: leftover auto-make ALWAYS (`xlang_compiler_make xlang-c` even when
+# XLANG is set / xlang-c already present) retired — that path kicked g05 and
+# raced L2. leftover ignore of explicit-bad (XLANG=/nonexistent silently
+# auto-made xlang-c then died on missing xlang_asm) retired. leftover unused
+# compiler-make.sh sourced unused after leftover auto-make retired.
+# Explicit-bad XLANG / missing native = hard die FIRST (before leftover
+# nested check-bound graph obs). leftover nested check-bound graph dump
+# (`xlang-c check`; selfhost pause → obs, continue asm proxy) stay.
+# leftover nested asm proxy / under-min save obs stay. G.7: complete
+# existing resolve_shu; converge dod_native_exe. Prefer product xlang_asm;
+# pin XLANG_LINK_XLANG. Report run=/obs=/skip=.
 #
 # Usage:
 #   ./tests/run-perf-wpo-dce-compiler-self-text.sh
@@ -17,12 +20,12 @@
 # PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . "$(dirname "$0")/lib/wpo-ab-proxy.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
 text_bytes() { wpo_ab_text_bytes "$@"; }
 
@@ -37,11 +40,51 @@ die() {
   exit 1
 }
 
-XLANG_ASM="${XLANG:-./compiler/xlang_asm}"
-case "$XLANG_ASM" in
-  /*) XLANG_ASM_ABS="$XLANG_ASM" ;;
-  *) XLANG_ASM_ABS="$(pwd)/$XLANG_ASM" ;;
-esac
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# leftover auto-make xlang-c ALWAYS retired — converge dod_native_exe.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE leftover
+# nested check-bound graph obs (refuse leftover ignore of explicit-bad /
+# leftover auto-make). leftover nested product path stays when XLANG is
+# unset. leftover nested check-bound (`./compiler/xlang-c check`) stay.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover ignore of explicit-bad / leftover auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover auto-make)"
+fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+XLANG_ASM_ABS="$XLANG_BIN"
 XLANG_C="./compiler/xlang-c"
 BASELINE="${XLANG_WPO_COMPILER_SELF_TEXT_BASELINE:-tests/baseline/wpo-dce-compiler-self-text.tsv}"
 GRAPH="/tmp/xlang_wpo_compiler_self_text.json"
@@ -51,8 +94,6 @@ TRY_MAIN_ASM="${XLANG_WPO_TRY_MAIN_ASM:-1}"
 MAIN_TIMEOUT="${XLANG_WPO_MAIN_ASM_TIMEOUT:-180}"
 [ "${XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT:-0}" = "1" ] && FAIL_REGRESS=1
 [ "${XLANG_PERF_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
-
-xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 MIN_GRAPH_PCT=$(awk -F'\t' '$1=="min_dead_pct_graph" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_MULTI_BYTES=$(awk -F'\t' '$1=="dead_multi_min_text_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
@@ -112,12 +153,15 @@ sum_wpo_eligible_text() {
 
 echo "=== wpo compiler self __text (graph + asm proxy) ==="
 
-# Require product xlang_asm up front (asm proxy is the soft-knife authority half).
-if [ ! -x "$XLANG_ASM_ABS" ]; then
-  die "need xlang_asm at $XLANG_ASM_ABS for asm proxy (refuse soft SKIP→OK)"
-fi
+# Native already required by resolve_shu (refuse leftover auto-make /
+# leftover ignore of explicit-bad). leftover nested check-bound graph dump
+# stay observational — do not auto-make xlang-c.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 
 # ── 1) main.x whole-program call-graph dead export % (C WPO; same as run-wpo-compiler-self)
+# leftover nested check-bound graph dump stay (`xlang-c check`; selfhost
+# pause → obs, continue asm proxy). leftover auto-make xlang-c ALWAYS
+# retired — missing xlang-c is obs, not a silent g05 relink.
 # PLATFORM: SHARED — graph dump rides `xlang-c check`; selfhost check gate is paused,
 # so check/parse failure is obs (continue asm), not a hard archaeology die.
 GRAPH_OK=0
