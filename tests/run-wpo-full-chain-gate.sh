@@ -3,10 +3,13 @@
 # strict link + binary proxy (requires xlang_asm). Lighter than
 # run-bootstrap-bstrict-ci.sh (skips whitelist/stage2).
 #
-# Honesty: soft SKIP→OK when no xlang_asm retired. Missing native = hard die.
-# Tip chain/strict_link/glue residuals = obs and CONTINUE (do not early-exit
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover SKIP→OK when no xlang_asm
+# already retired. Missing native = hard die. leftover nested
+# chain/strict_link/glue residuals = obs and CONTINUE (do not early-exit
 # claiming full-chain OK after only ensure). XLANG_WPO_FULL_CHAIN_HARD=1
-# still hard-dies on those steps. Report run=/obs=/skip=.
+# still hard-dies on those steps. G.7: complete existing resolve_asm;
+# converge dod_native_exe. Report run=/obs=/skip=.
 #
 # Usage:
 #   ./tests/run-wpo-full-chain-gate.sh
@@ -17,8 +20,6 @@
 # PLATFORM: SHARED harness — tip main.o entry／Darwin stubs＝obs；HARD=1 金标.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh

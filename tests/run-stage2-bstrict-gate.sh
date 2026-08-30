@@ -4,11 +4,15 @@
 # verify-selfhost-stage2-bstrict.sh; default XLANG_STAGE2_SKIP_BOOTSTRAP=1
 # skips redundant Step 0 bootstrap.
 #
-# Honesty: soft SKIP→OK when no native xlang_asm retired. False Darwin N/A
-# ("strict_glue/parser partial") retired — dual-end Stage2 SHA256 already
-# matched after strict-link root fix. Missing native = hard die. Explicit
-# XLANG_STAGE2_BSTRICT_SKIP=1 = skip=1. Darwin default skip=1 (heavy verify;
-# set XLANG_STAGE2_BSTRICT_FORCE=1 to run). Report run=/obs=/skip=.
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover SKIP→OK when no native xlang_asm
+# already retired. False Darwin N/A ("strict_glue/parser partial") retired —
+# dual-end Stage2 SHA256 already matched after strict-link root fix.
+# Missing native = hard die. Explicit XLANG_STAGE2_BSTRICT_SKIP=1 = skip=1.
+# leftover nested Darwin skip stay (default skip=1; FORCE=1 to run).
+# leftover nested native_xlang (hardcoded compiler/xlang_asm) stay this
+# unused-SOURCE knife. G.7: complete existing dod_native_exe. Report
+# run=/obs=/skip=.
 #
 # Usage (repo root):
 #   ./tests/run-stage2-bstrict-gate.sh
@@ -19,8 +23,6 @@
 # PLATFORM: SHARED — Linux runs; Darwin skip unless FORCE; Ubuntu gold.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
