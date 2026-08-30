@@ -339,6 +339,7 @@
 
 | 项 | 状态 | 备注 |
 |----|------|------|
+| seed emit_header string／stdlib／unistd（twin codegen.x） | ✅ | G.7 补全既有 seed `codegen_x_ast_emit_header`；活链 `-E` 走 seed prologue（stdint／stddef／sys/types only）而 codegen.x 已发 string／stdlib／unistd；skip-decl 已丢 memcpy／getcwd → xlang-c `-E` undeclared；另补 TU 内已有体的 forward decl（Darwin clang C99 implicit-decl）；std_x inject 族仍 defense-in-depth；不开第三 prologue；双端 `-E` 六 include＋FORCE=1 USE_C=1 ensure socketio.o＋asm restore＋`--check`＋L2；**seed emit_header string／stdlib／unistd residual 池空** |
 | std_x host-cc `string.h` inject（socketio memcpy／memcmp） | ✅ | G.7 补全既有 `xlang_compile_std_x.sh` inject 族；`xlang-c -E` prologue 缺 `<string.h>`＋codegen skip-decl 已丢 memcpy 原型 → Darwin clang undeclared memcpy／memcmp／strlen／memset；splice 同 fcntl／stdlib；不开第三 inject；leftover nested std-socketio stay observational；双端 FORCE=1 USE_C=1 ensure socketio.o＋asm restore＋`--check`＋L2；**std_x host-cc string.h inject residual 池空** |
 | std_x auto-soft-merge single-TU rename（Darwin ld -r residual） | ✅ | G.7 补全既有 `xlang_compile_std_x.sh` merge 体；单对象改名＝`mv` 非 `ld -r`（Darwin xlang_asm Mach-O 两段 LC_SEGMENT_64 失败）；两对象 `ld -r` 仍在 `archaeology_host_pick_phony.sh`；不开第三 merger；leftover nested std-socketio stay observational；双端 FORCE=1 ensure socketio.o＋`--check`＋L2；**std_x single-TU ld -r rename residual 池空** |
 | L6 unused-hint | ✅ | `pipeline_typeck_unused_binding_hints`＋thin；闸 hard（无 soft SKIP） |
