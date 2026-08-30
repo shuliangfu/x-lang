@@ -5497,8 +5497,12 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     }
                   }
                   if ((eq_bt !=0)) {
-                    uint8_t eb_bt[256] = {};
-                    int32_t n_bt = codegen_type_to_c_repr(arena, &((eb_bt)[0]), 256, c_bt, struct_prefix, struct_prefix_len);
+                    /* PLATFORM: SHARED — twin of codegen.x eb_bt[896].
+                     * Live -E is host-cc of this seed. cap 256 failed the
+                     * type_to_c_repr 19+2*plen gate at nest 11+ (n16 XP003).
+                     * 896 matches codegen.x; nest 64 i32 tag=782. */
+                    uint8_t eb_bt[896] = {};
+                    int32_t n_bt = codegen_type_to_c_repr(arena, &((eb_bt)[0]), 896, c_bt, struct_prefix, struct_prefix_len);
                     if ((n_bt > 0)) {
                       int32_t sp_bt = 0;
                       if (((((((((n_bt >=7) && ((eb_bt)[0] ==115)) && ((eb_bt)[1] ==116)) && ((eb_bt)[2] ==114)) && ((eb_bt)[3] ==117)) && ((eb_bt)[4] ==99)) && ((eb_bt)[5] ==116)) && ((eb_bt)[6] ==32))) {
@@ -5633,8 +5637,11 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
           (void)((pfx_len_use = pl_sl));
         }
       }
-      uint8_t slb[256] = {};
-      int32_t nl = codegen_type_to_c_repr(arena, &((slb)[0]), 256, type_ref, pfx_use, pfx_len_use);
+      /* PLATFORM: SHARED — twin of codegen.x slb[896]. Nested TYPE_SLICE
+       * falls through to type_to_c_repr; caller cap must match the 896
+       * family (nest 52 i32=638; nest 64=782). Do not keep a 256 sidecar. */
+      uint8_t slb[896] = {};
+      int32_t nl = codegen_type_to_c_repr(arena, &((slb)[0]), 896, type_ref, pfx_use, pfx_len_use);
       if ((nl <=0)) {
         return -1;
       }

@@ -6004,8 +6004,11 @@ extern int32_t pipeline_codegen_type_kind_copy(uint8_t *scratch, int32_t cap, in
 
 static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scratch, int32_t cap, int32_t type_ref,
                                                      uint8_t *struct_prefix, int32_t struct_prefix_len) {
-  uint8_t inner[256];
-  uint8_t eb[256];
+  /* PLATFORM: SHARED — twin of runtime_pipeline_abi.x inner/eb 896.
+   * Live -E first-wins this thin over weak pure. cap 256 failed the
+   * 19+2*plen gate at nest 11+ (n16 XP003). nest 64 i32 tag=782. */
+  uint8_t inner[896];
+  uint8_t eb[896];
   int32_t tk;
   int32_t elem_ref;
   int32_t arr_sz;
@@ -6038,7 +6041,7 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
   elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
   arr_sz = pipeline_type_array_size_at(arena, type_ref);
   if (tk == 9 && elem_ref > 0) {
-    n = pipeline_codegen_type_to_c_repr_inner(arena, inner, 256, elem_ref, struct_prefix, struct_prefix_len);
+    n = pipeline_codegen_type_to_c_repr_inner(arena, inner, 896, elem_ref, struct_prefix, struct_prefix_len);
     if (n < 0 || n + 2 >= cap)
       return -1;
     for (j = 0; j < n; j++)
@@ -6064,8 +6067,8 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
     static const uint8_t k_arr[9] = {'x', 'l', 'a', 'n', 'g', '_', 'a', 'r', 'r'};
     if (arr_sz <= 0)
       return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
-    n_el = pipeline_codegen_type_to_c_repr_inner(arena, eb, 256, elem_ref, struct_prefix, struct_prefix_len);
-    if (n_el < 0 || n_el >= 256)
+    n_el = pipeline_codegen_type_to_c_repr_inner(arena, eb, 896, elem_ref, struct_prefix, struct_prefix_len);
+    if (n_el < 0 || n_el >= 896)
       return -1;
     sp_el = 0;
     if (n_el >= 7 && eb[0] == 's' && eb[1] == 't' && eb[2] == 'r' && eb[3] == 'u' && eb[4] == 'c' && eb[5] == 't'
@@ -6144,8 +6147,8 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
     return 20;
   }
   if (tk == 11 && elem_ref > 0) {
-    n = pipeline_codegen_type_to_c_repr_inner(arena, eb, 256, elem_ref, struct_prefix, struct_prefix_len);
-    if (n < 0 || n >= 256)
+    n = pipeline_codegen_type_to_c_repr_inner(arena, eb, 896, elem_ref, struct_prefix, struct_prefix_len);
+    if (n < 0 || n >= 896)
       return -1;
     sp = 0;
     if (n >= 7 && eb[0] == 's' && eb[1] == 't' && eb[2] == 'r' && eb[3] == 'u' && eb[4] == 'c' && eb[5] == 't'
