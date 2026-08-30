@@ -1,8 +1,10 @@
 # D-05 单 xlang 发布盘点（manifest）
 # 列：item_id	layer	anchor	check_type	gate_or_notes
 # honesty 2026-08-29 leftover unused compiler-make: run-d05-single-xlang-release-gate.sh
-# unused compiler-make.sh retired (no xlang_compiler_make). Missing native
-# still SKIP smoke (existing leftover).
+# unused compiler-make.sh retired (no xlang_compiler_make).
+# honesty 2026-08-30 leftover d05_native_exe third resolver retired
+# (converge dod_native_exe). leftover ignore of explicit-bad / leftover
+# SKIP→OK retired. Explicit-bad XLANG / missing native = hard die FIRST.
 bstrict_cp	xbuild	bootstrap-driver-bstrict	grep	xbuild bootstrap-driver-bstrict
 bootstrap_driver	xbuild	bootstrap-driver	grep	xbuild bootstrap-driver
 build_tool	doc	build.x	grep	build_tool ./xlang daily

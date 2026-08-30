@@ -22,6 +22,8 @@ Smoke uses `-backend asm` (check gate paused unless
 
 **Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-d05-single-xlang-release-gate.sh`. Missing native still SKIP smoke（existing leftover）。Keep `## Gate`。 Leave wrap body / ensure_std family.
 
+**2026-08-30 leftover d05_native_exe third resolver 已收**：leftover `d05_native_exe` 第三 resolver 退役（G.7 收敛 `dod_native_exe`）；leftover ignore of explicit-bad（显式坏 XLANG 静默回落 `xlang_asm`／DOC 前不先 die）retired；leftover SKIP→OK（缺 native 仍 gate OK）retired。显式坏 XLANG／缺 native 先硬 die。Prefer asm＋`XLANG_LINK_XLANG`。leftover nested MANIFEST_ONLY／REQUIRE_CHECK／hash note／`-backend asm -o` smoke stay。Keep `## Gate`。
+
 ```bash
 ./xbuild bootstrap-driver-bstrict   # xlang ← xlang_asm
 ./tests/run-d05-single-xlang-release-gate.sh
