@@ -1545,6 +1545,12 @@ extern int32_t codegen_try_emit_generic_impl_method_mono(struct ast_ASTArena * a
 extern int32_t codegen_try_emit_generic_impl_method_extern_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
+/* PLATFORM: SHARED — forward decls for helpers defined later in this TU.
+ * Darwin clang (C99) errors on implicit-function-declaration; the bodies
+ * already exist (codegen_builtin_type_name_into / codegen_emit_dyn_vtable_close).
+ * G.7: complete existing extern list; do not fork a second helper. */
+extern int32_t codegen_builtin_type_name_into(int32_t kind_ord, uint8_t * out);
+extern int32_t codegen_emit_dyn_vtable_close(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t lt_dyn, int32_t rhs_rt);
 extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
 extern int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
 extern int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len);
@@ -19607,8 +19613,22 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
 }
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
   {
-    uint8_t h[64] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10, 0};
-    if ((codegen_emit_bytes_64(out, &((h)[0]), 63) !=0)) {
+    /* PLATFORM: SHARED — host-C prologue twin of codegen.x emit_header.
+     * stdint/stddef/sys/types/string (83) then stdlib/unistd (40).
+     * Historic seed omitted string/stdlib/unistd → xlang-c/-E undeclared
+     * memcpy/getcwd (skip-decl already drops the XLANG prototypes).
+     * G.7: complete existing emit_header; do not fork a third prologue.
+     * std_x inject family remains defense-in-depth. */
+    uint8_t h[88] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
+      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10,
+      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10,
+      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 114, 105, 110, 103, 46, 104, 62, 10, 0};
+    if ((codegen_emit_bytes_from_ptr(out, &((h)[0]), 83) !=0)) {
+      return -1;
+    }
+    uint8_t h2[48] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 108, 105, 98, 46, 104, 62, 10,
+      35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10, 0};
+    if ((codegen_emit_bytes_64(out, &((h2)[0]), 40) !=0)) {
       return -1;
     }
     /* TYPE_DYN fat layout — twin of codegen.x emit_header gd (103 bytes exact).
