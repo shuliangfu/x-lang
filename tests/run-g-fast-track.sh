@@ -17,11 +17,15 @@
 #   XLANG_FAST_TRACK_LOG_DIR    日志目录（默认 /tmp/xlang-fast-track-$$）
 #
 # 日志：各波次 tee 到 LOG_DIR；另开终端 tail -f $LOG_DIR/w1-g06-bootstrap.log
+#
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested W1+ Docker / leftover
+# nested xlang_compiler_make in leftover nested child echo stay.
+# G.7: complete existing; do not fork a third resolver here.
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 PROGRESS="./tests/lib/progress-run.sh"
 DOCKER="./tests/lib/docker-linux-run.sh"

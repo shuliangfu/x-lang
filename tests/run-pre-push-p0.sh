@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # P0 本地 push 前自检：bootstrap-ci + perf P1 + asm 7.3（bstrict 107 含于 bootstrap-ci）。
+#
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested ensure-compiler-seed stay
+# (leave this host). leftover nested native_xlang (XLANG default
+# ./compiler/xlang_asm) stay. leftover nested bootstrap-bstrict-ci /
+# asm-73 / perf-p1 stay. G.7: complete existing; do not fork a third
+# resolver here.
+#
 # 用法：XLANG=./compiler/xlang_asm ./tests/run-pre-push-p0.sh
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=lib/ensure-compiler-seed.sh
 source "$(dirname "$0")/lib/ensure-compiler-seed.sh"
 export XLANG="${XLANG:-./compiler/xlang_asm}"
