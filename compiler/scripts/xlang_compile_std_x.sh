@@ -411,6 +411,46 @@ std_x_compile_one() {
     } >"$_gen.stdlib" && mv "$_gen.stdlib" "$_gen"
   }
 
+  # PLATFORM: SHARED — std/socketio/socketio.x (and peers) call memcpy/memcmp/
+  # memset/strlen via extern "C", but xlang-c -E host-C may omit <string.h>
+  # (prologue is stdint/stddef/sys/types only). codegen skip-decl
+  # (codegen_is_libc_conflicting_extern_name) already drops the XLANG
+  # memcpy prototype so a later string.h does not clash; without the
+  # header Apple clang fails "call to undeclared library function
+  # 'memcpy'" (also memcmp/strlen/memset) → socketio.o never built on
+  # XLANG_COMPILE_STD_USE_C=1. G.7: inject header when body uses string
+  # libc and include is missing (same splice authority as fcntl/stdlib).
+  # Do not fork a third inject vehicle. codegen_x_ast_emit_header string.h
+  # for bare -E stays the emit authority; this is the std_x host-cc
+  # defense layer, same class as stdlib.h inject.
+  xlang_inject_string_header() {
+    _gen="$1"
+    [ -f "$_gen" ] || return 0
+    if ! grep -qE '\b(memcpy|memcmp|memset|memmove|memchr|strlen|strcmp|strncmp|strstr|strchr|strcpy|strncpy)\s*\(' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -qE '#include\s*[<"]string\.h[>"]' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -q '^#include' "$_gen" 2>/dev/null; then
+      last_inc_line=$(grep -n '^#include' "$_gen" | tail -1 | cut -d: -f1)
+    else
+      last_inc_line=0
+    fi
+    {
+      if [ "$last_inc_line" -gt 0 ]; then
+        head -n "$last_inc_line" "$_gen"
+      fi
+      echo '/* PLATFORM: SHARED injected by xlang_compile_std_x — libc string for socketio */'
+      echo '#include <string.h>'
+      if [ "$last_inc_line" -gt 0 ]; then
+        tail -n +"$((last_inc_line + 1))" "$_gen"
+      else
+        cat "$_gen"
+      fi
+    } >"$_gen.string" && mv "$_gen.string" "$_gen"
+  }
+
   case "$(basename "$xlang_bin")" in
     xlang-c)
       # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
@@ -432,6 +472,7 @@ std_x_compile_one() {
       xlang_inject_errno_externs "$gen_c"
       xlang_inject_fcntl_header "$gen_c"
       xlang_inject_stdlib_header "$gen_c"
+      xlang_inject_string_header "$gen_c"
       # PLATFORM: SHARED — function/data sections so product -dead_strip/--gc-sections
       # can drop unused net/tls/pool residual U (net.o is one ld -r unit).
       cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
@@ -463,6 +504,7 @@ std_x_compile_one() {
           xlang_inject_errno_externs "$gen_c"
           xlang_inject_fcntl_header "$gen_c"
           xlang_inject_stdlib_header "$gen_c"
+          xlang_inject_string_header "$gen_c"
           cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
           rm -f "$gen_c"
         else
