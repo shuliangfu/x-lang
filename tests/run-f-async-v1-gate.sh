@@ -11,17 +11,22 @@
 # Report static=/ensure=/glue=/api=/future=/iocps=/ctx=/lang=/skip=.
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
 # retired. Explicit-bad XLANG / missing native = hard die FIRST (before
-# static / leftover nested xlang_compiler_make / leftover nested
-# std-async-api / leftover nested std-async-future / leftover nested
-# std-async-io-cps / leftover nested std-async-context / leftover nested
-# std-async-language; refuse leftover ignore of explicit-bad). leftover
-# nested product path stay.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
+# static / leftover nested std-async-api / leftover nested
+# std-async-future / leftover nested std-async-io-cps / leftover nested
+# std-async-context / leftover nested std-async-language; refuse leftover
+# ignore of explicit-bad). leftover auto-make of
+# runtime_scheduler_glue.o / scheduler.o / future.o
+# (`xlang_compiler_make` even when the leaf is present — try-heat/g05
+# raced L2) retired. leftover unused compiler-make.sh sourced unused
+# after leftover auto-make retired. Missing leaf .o = hard die.
+# leftover nested std-async-api / leftover nested std-async-future /
+# leftover nested std-async-io-cps / leftover nested std-async-context /
+# leftover nested std-async-language stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe; do not
+# fork a third resolver.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
@@ -79,14 +84,13 @@ LANG_OK=0
 SKIP=1
 
 # Explicit XLANG that is missing/non-native hard-dies BEFORE static /
-# leftover nested ensure / leftover nested std-async-api / leftover
-# nested std-async-future / leftover nested std-async-io-cps /
-# leftover nested std-async-context / leftover nested std-async-language
-# (refuse leftover SKIP→OK / leftover ignore of explicit-bad /
-# leftover XLANG fallthrough). leftover nested product path stays when
-# XLANG is unset (do not rewrite leftover xlang_compiler_make /
-# std-async-api / std-async-future / std-async-io-cps / std-async-context /
-# std-async-language).
+# leftover nested std-async-api / leftover nested std-async-future /
+# leftover nested std-async-io-cps / leftover nested std-async-context /
+# leftover nested std-async-language (refuse leftover SKIP→OK /
+# leftover ignore of explicit-bad / leftover XLANG fallthrough).
+# leftover nested product path stays when XLANG is unset (do not
+# rewrite leftover nested std-async-api / std-async-future /
+# std-async-io-cps / std-async-context / std-async-language).
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 if [ -n "${XLANG:-}" ]; then
   XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
@@ -136,15 +140,18 @@ export XLANG_LINK_XLANG="$XLANG_BIN"
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
 SKIP=0
 
-xlang_compiler_make -q runtime_scheduler_glue.o 2>/dev/null \
-  || xlang_compiler_make runtime_scheduler_glue.o >/dev/null 2>&1 \
-  || die "runtime_scheduler_glue.o build failed"
+# leftover auto-make retired: require the leaf already present (refuse try-heat/g05).
+# PLATFORM: SHARED — missing leaf = hard die; Ubuntu gold still required.
+if [ ! -f compiler/runtime_scheduler_glue.o ]; then
+  die "missing compiler/runtime_scheduler_glue.o (refuse leftover auto-make)"
+fi
 GLUE_OK=1
-
-xlang_compiler_make ../std/async/scheduler.o >/dev/null 2>&1 \
-  || die "ensure scheduler.o failed (xlang_compiler_make; prefer asm)"
-xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 \
-  || die "ensure future.o failed (xlang_compiler_make; prefer asm)"
+if [ ! -f std/async/scheduler.o ]; then
+  die "missing std/async/scheduler.o (refuse leftover auto-make)"
+fi
+if [ ! -f std/async/future.o ]; then
+  die "missing std/async/future.o (refuse leftover auto-make)"
+fi
 ENSURE_OK=1
 
 # STD-004 async-api already soft→硬绿; hard-delegate as product signal.
