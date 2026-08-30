@@ -8,6 +8,11 @@
 # link_abi_generated_c_needs_* / xlang_generated_c_needs_async_scheduler in
 # labi_freestanding_list.from_x.c (via runtime_read_file_malloc; refuse
 # monofile resurrect).
+# Honesty leftover auto-make of src/runtime_link_abi.o (`xlang_compiler_make`
+# even when the leaf is present — try-heat/g05 raced L2) retired. leftover
+# unused compiler-make.sh sourced unused after leftover auto-make retired.
+# Missing leaf .o = hard die. leftover nested scan stay. G.7: complete
+# existing; do not fork a third resolver here.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
@@ -64,12 +69,10 @@ scan_one core_slice link_abi_generated_c_needs_core_slice
 SCAN_OK=1
 
 # Live link ABI object is the product compile face (runtime.o monofile era retired).
-# G.7: tests hub xlang_compiler_make；禁裸 make -C，MF phys-del.
-# PLATFORM: SHARED — hub routes to ensure_host_cc_seed_o try-heat.
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if ! xlang_compiler_make src/runtime_link_abi.o 2>/tmp/b20_link_abi_o.log; then
-  die "ensure src/runtime_link_abi.o (xlang_compiler_make)"
+# leftover auto-make retired: require the leaf already present (refuse try-heat/g05).
+# PLATFORM: SHARED — missing leaf = hard die; Ubuntu gold still required.
+if [ ! -f compiler/src/runtime_link_abi.o ]; then
+  die "missing compiler/src/runtime_link_abi.o (refuse leftover auto-make)"
 fi
 LINKABI_OK=1
 SKIP=0
