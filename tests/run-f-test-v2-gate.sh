@@ -11,15 +11,17 @@
 # Report static=/ensure=/runner=/skip=.
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
 # retired. Explicit-bad XLANG / missing native = hard die FIRST (before
-# static / leftover nested xlang_compiler_make / leftover nested
-# std-test-runner; refuse leftover ignore of explicit-bad). leftover
-# nested product path stay.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
+# static / leftover nested std-test-runner; refuse leftover ignore of
+# explicit-bad). leftover auto-make of runtime_test_fn_invoke.o /
+# test.o (`xlang_compiler_make` even when the leaf is present —
+# try-heat/g05 raced L2) retired. leftover unused compiler-make.sh
+# sourced unused after leftover auto-make retired. Missing leaf .o =
+# hard die. leftover nested std-test-runner stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe; do not
+# fork a third resolver.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
@@ -72,10 +74,10 @@ RUNNER_OK=0
 SKIP=1
 
 # Explicit XLANG that is missing/non-native hard-dies BEFORE static /
-# leftover nested ensure / leftover nested std-test-runner (refuse
-# leftover SKIP→OK / leftover ignore of explicit-bad / leftover XLANG
-# fallthrough). leftover nested product path stays when XLANG is unset
-# (do not rewrite leftover xlang_compiler_make / std-test-runner).
+# leftover nested std-test-runner (refuse leftover SKIP→OK / leftover
+# ignore of explicit-bad / leftover XLANG fallthrough). leftover nested
+# product path stays when XLANG is unset (do not rewrite leftover
+# nested std-test-runner).
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 if [ -n "${XLANG:-}" ]; then
   XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
@@ -129,8 +131,14 @@ export XLANG_LINK_XLANG="$XLANG_BIN"
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
 SKIP=0
 
-xlang_compiler_make runtime_test_fn_invoke.o ../std/test/test.o >/dev/null 2>&1 \
-  || die "ensure test.o failed (xlang_compiler_make; prefer asm)"
+# leftover auto-make retired: require the leaf already present (refuse try-heat/g05).
+# PLATFORM: SHARED — missing leaf = hard die; Ubuntu gold still required.
+if [ ! -f compiler/runtime_test_fn_invoke.o ]; then
+  die "missing compiler/runtime_test_fn_invoke.o (refuse leftover auto-make)"
+fi
+if [ ! -f std/test/test.o ]; then
+  die "missing std/test/test.o (refuse leftover auto-make)"
+fi
 ENSURE_OK=1
 
 # Hard-delegate already soft→硬绿 STD-145.
