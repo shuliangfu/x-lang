@@ -10,17 +10,22 @@
 # Report static=/ensure=/glue=/http=/chunked=/methods=/https=/pool=/reqresp=/h2=/ctx=/skip=.
 # Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
 # retired. Explicit-bad XLANG / missing native = hard die FIRST (before
-# static / leftover nested xlang_compiler_make / leftover nested std-http /
-# leftover nested std-http-chunked / leftover nested std-http-methods /
-# leftover nested std-http-https / leftover nested observational
-# server-pool / reqresp / h2 / context; refuse leftover ignore of
-# explicit-bad). leftover nested product path stay.
-# G.7: complete existing resolve_shu; converge dod_native_exe.
+# static / leftover nested std-http / leftover nested std-http-chunked /
+# leftover nested std-http-methods / leftover nested std-http-https /
+# leftover nested observational server-pool / reqresp / h2 / context;
+# refuse leftover ignore of explicit-bad). leftover auto-make of
+# runtime_http_glue.o / http.o (`xlang_compiler_make` even when the leaf
+# is present — try-heat/g05 raced L2) retired. leftover unused
+# compiler-make.sh sourced unused after leftover auto-make retired.
+# Missing leaf .o = hard die. leftover nested std-http / leftover nested
+# std-http-chunked / leftover nested std-http-methods / leftover nested
+# std-http-https stay HARD. leftover nested observational server-pool /
+# reqresp / h2 / context stay observational (product residual listed skip).
+# G.7: complete existing resolve_shu; converge dod_native_exe; do not
+# fork a third resolver.
 # PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
 # shellcheck source=tests/lib/ci-host.sh
@@ -81,14 +86,15 @@ CTX_OK=0
 SKIP=1
 
 # Explicit XLANG that is missing/non-native hard-dies BEFORE static /
-# leftover nested ensure / leftover nested std-http / leftover nested
+# leftover nested std-http / leftover nested std-http-chunked /
+# leftover nested std-http-methods / leftover nested std-http-https /
+# leftover nested observational server-pool / reqresp / h2 / context
+# (refuse leftover SKIP→OK / leftover ignore of explicit-bad /
+# leftover XLANG fallthrough). leftover auto-make of runtime_http_glue.o
+# / http.o retired; leftover nested std-http / leftover nested
 # std-http-chunked / leftover nested std-http-methods / leftover nested
-# std-http-https / leftover nested observational server-pool / reqresp /
-# h2 / context (refuse leftover SKIP→OK / leftover ignore of
-# explicit-bad / leftover XLANG fallthrough). leftover nested product
-# path stays when XLANG is unset (do not rewrite leftover
-# xlang_compiler_make / std-http / std-http-chunked / std-http-methods /
-# std-http-https / observational server-pool / reqresp / h2 / context).
+# std-http-https stay HARD; leftover nested observational server-pool /
+# reqresp / h2 / context stay.
 # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 if [ -n "${XLANG:-}" ]; then
   XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
@@ -135,13 +141,15 @@ export XLANG_LINK_XLANG="$XLANG_BIN"
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
 SKIP=0
 
-xlang_compiler_make -q runtime_http_glue.o 2>/dev/null \
-  || xlang_compiler_make runtime_http_glue.o >/dev/null 2>&1 \
-  || die "runtime_http_glue.o build failed"
+# leftover auto-make retired: require the leaf already present (refuse try-heat/g05).
+# PLATFORM: SHARED — missing leaf = hard die; Ubuntu gold still required.
+if [ ! -f compiler/runtime_http_glue.o ]; then
+  die "missing compiler/runtime_http_glue.o (refuse leftover auto-make)"
+fi
 GLUE_OK=1
-
-xlang_compiler_make ../std/http/http.o >/dev/null 2>&1 \
-  || die "ensure http.o failed (xlang_compiler_make; prefer asm)"
+if [ ! -f std/http/http.o ]; then
+  die "missing std/http/http.o (refuse leftover auto-make)"
+fi
 ENSURE_OK=1
 
 # Hard-delegate already soft→硬绿 STD-009 family (product signal).
