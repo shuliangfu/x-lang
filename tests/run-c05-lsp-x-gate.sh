@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # C-05 v1：LSP lsp_diag.x 链入 + --lsp 烟测（方案 B 子集）。
 #
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested run-lsp.sh auto-make
+# stay (prefer-asm would export XLANG into leftover nested run-lsp.sh
+# which fires leftover nested xlang_compiler_make bootstrap-driver-seed
+# when --lsp is missing — L2 race). leftover native_xlang / leftover
+# SKIP→OK / leftover prefer-c stay this unused-SOURCE knife. Do not
+# fork a third resolver here.
+#
 # 用法：./tests/run-c05-lsp-x-gate.sh
 # 环境：
 # 2026-08-26: soft XLANG_C05_FAIL retired (die always hard).
@@ -9,11 +17,9 @@
 #
 # wave honesty (2026-08-24 #5): DOC → analysis/archive/phase/；
 # Makefile → compiler/mk/driver_seed_export_lists.mk + ensure_lsp_pipeline_gen.sh。
-# PLATFORM: SHARED archaeology.
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 DOC="${XLANG_C05_DOC:-analysis/archive/phase/phase-c-c05-v1.md}"
 MANIFEST="tests/baseline/c05-lsp-x-manifest.tsv"

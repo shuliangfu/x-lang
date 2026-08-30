@@ -23,6 +23,8 @@ make -C compiler bootstrap-driver-seed
 XLANG_C05_FAIL=1 ./tests/run-c05-lsp-x-gate.sh
 ```
 
+**2026-08-30 leftover unused compiler-make SOURCE leftover c05 已收**（unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-c05-lsp-x-gate.sh`；leftover nested `run-lsp.sh` auto-make／leftover `native_xlang`／leftover SKIP→OK／leftover prefer-c stay）。Keep Gate table.
+
 ## 延后（C-05 v2 / E-02）
 
 - 删 `lsp_diag.c` 或收成仅 ABI 薄层
