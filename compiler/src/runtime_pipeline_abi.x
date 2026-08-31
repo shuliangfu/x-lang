@@ -37824,8 +37824,11 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
     if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
       return 4;
     }
-    // 8-byte: F64=15 U64=4 I64=5 USIZE=6 ISIZE=7 PTR=9
-    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9) {
+    // 8-byte: F64=15 U64=4 I64=5 USIZE=6 ISIZE=7 PTR=9 TYPE_FN=18 (Cap ABI)
+    // 10.3.1 slice13: TYPE_FN miss → return 4 → mov %eax truncates LEA.
+    // PLATFORM: SHARED freestanding.
+    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7
+        || kind_ord == 9 || kind_ord == 18) {
       return 8;
     }
     // TYPE_SLICE fat element = 16
@@ -66910,8 +66913,8 @@ export function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i3
       if (kind_ord == 15) {
         return 8;
       }
-      // array/slice of pointer: element is pointer (8), not pointee
-      if (kind_ord == 9) {
+      // array/slice of pointer / TYPE_FN: Cap opaque 8B
+      if (kind_ord == 9 || kind_ord == 18) {
         return 8;
       }
       // multi-dim: outer stride = sizeof(inner array)
