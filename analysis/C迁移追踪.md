@@ -237,7 +237,7 @@
 
 ### 10.4–10.7
 
-- 🟡 **10.4.1** atomic_load／store／cas — **slice0–3＋arm64 i32/i64 ✅（Ubuntu）** x86＠`d3054d960`；aarch64 i32＠`f2cc0d8d6`＋i64＠`374aaef65`。残：arm64 i16／Darwin
+- ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar*`／`stlr*`／`casal*`）。残：Darwin
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
 - ⬜ **10.5.1** x86 AVX／SSE 内建  
 - ⬜ **10.5.2** ARM SVE／NEON 内建  
