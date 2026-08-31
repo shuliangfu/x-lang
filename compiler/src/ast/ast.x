@@ -122,9 +122,10 @@ export enum ExprKind {
   /* See implementation. */
   EXPR_STRING_LIT,
   /**
-   * Inline asm `asm!("template"[, in/out/lateout("reg") expr, …])` (stage10 10.2.1).
-   * Template in var_name. Operands in call_arg list; regs comma-packed in
-   * method_call_name; int_val = num_in (outs follow). Slice5: out VAR←GP/rax.
+   * Inline asm `asm!("template"[, in/out/lateout("reg") place, …][, options(…)])`
+   * (stage10 10.2.1). Template in var_name. Operands in call_arg list; regs
+   * comma-packed in method_call_name; int_val = num_in. Slice6: place `_` =
+   * clobber discard; options accepted parse-only.
    * Ordinal 60. PLATFORM: SHARED.
    */
   EXPR_ASM
