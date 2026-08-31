@@ -4491,9 +4491,11 @@ function try_emit_atomic_builtin_call_elf_c(
 }
 
 /**
- * Stage10 10.2.1 slice0: emit EXPR_ASM (kind 60) from template in var_name.
- * Supported templates: "nop" → x86_64 0x90 / aarch64 d503201f.
- * Other templates → -1 (honest fail; operands deferred).
+ * Stage10 10.2.1: emit EXPR_ASM (kind 60) from template in var_name.
+ * Slice0: "nop" → x86_64 0x90 / aarch64 d503201f (no operands).
+ * Slice1: optional one `in("rax"|"eax"|"x0") expr` stored in call_arg[0]
+ *   (reg spelling in method_call_name). Emit operand into rax/x0 then nop.
+ * Other templates / regs / out/clobber → -1 (honest fail).
  * Note: pipeline_expr_var_name_len is VAR-only; use var_name_into (any kind)
  * then match bytes (STRING_LIT/ASM share var_name packing).
  * @return i32 — 0 ok; -1 error / unsupported
@@ -4501,7 +4503,7 @@ function try_emit_atomic_builtin_call_elf_c(
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
-  arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
   if (arena == 0 as *u8 || elf_ctx == 0 || expr_ref <= 0) {
     return 0 - 1;
@@ -4511,6 +4513,11 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     let tmpl: u8[128] = [];
     let nop1: u8 = 144 as u8;
     let a64: u8[4] = [];
+    let nargs: i32 = 0;
+    let arg_ref: i32 = 0;
+    let reg: u8[64] = [];
+    let reg_ok: i32 = 0;
+    let erc: i32 = 0;
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko != 60) {
       return 0 - 1;
@@ -4520,6 +4527,46 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     /* "nop" + NUL (into zero-fills remainder). */
     if (tmpl[0] == (110 as u8) && tmpl[1] == (111 as u8) && tmpl[2] == (112 as u8)
         && tmpl[3] == (0 as u8)) {
+      nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+      if (nargs > 1) {
+        return 0 - 1;
+      }
+      if (nargs == 1) {
+        /* Slice1: in("rax"|"eax"|"x0") — value already lands in rax/x0. */
+        if (ctx == 0 as *u8) {
+          return 0 - 1;
+        }
+        pipeline_expr_method_call_name_into(arena, expr_ref, &reg[0]);
+        reg_ok = 0;
+        if (ta == 0) {
+          /* "rax" or "eax" */
+          if (reg[0] == (114 as u8) && reg[1] == (97 as u8) && reg[2] == (120 as u8)
+              && reg[3] == (0 as u8)) {
+            reg_ok = 1;
+          }
+          if (reg[0] == (101 as u8) && reg[1] == (97 as u8) && reg[2] == (120 as u8)
+              && reg[3] == (0 as u8)) {
+            reg_ok = 1;
+          }
+        }
+        if (ta == 1) {
+          /* "x0" */
+          if (reg[0] == (120 as u8) && reg[1] == (48 as u8) && reg[2] == (0 as u8)) {
+            reg_ok = 1;
+          }
+        }
+        if (reg_ok == 0) {
+          return 0 - 1;
+        }
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+        if (arg_ref <= 0) {
+          return 0 - 1;
+        }
+        erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+        if (erc != 0) {
+          return 0 - 1;
+        }
+      }
       if (ta == 0) {
         return pipeline_elf_ctx_append_bytes(elf_ctx, &nop1, 1);
       }
