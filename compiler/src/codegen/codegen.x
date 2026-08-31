@@ -6724,6 +6724,8 @@ export function codegen_stamp_anon_struct_lit_dest(arena: *ASTArena, expr_ref: i
  * @param ctx *PipelineDepCtx — nested emit
  * @return i32 — 0 success
  * PLATFORM: SHARED host-C emit
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+ * Do not fork a second dest-ARRAY `[N][]T` wrap_br.
  */
 export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf, init_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.

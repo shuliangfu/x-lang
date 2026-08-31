@@ -6733,7 +6733,25 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
       }
       return 0;
     }
+    /*
+     * PLATFORM: SHARED — twin of codegen.x emit_braced wrap_br.
+     * dest-elem TYPE_SLICE (`[N][]T`): nested ARRAY_LIT rows are fat
+     * slices (emit_expr durable static), not recurse-braces `{{1,2}}`
+     * into struct fields. TYPE_SLICE VAR/FIELD rows reuse try_emit
+     * (`[N][]T = [a]`). Live `-E` uses this seed path. G.7: complete
+     * existing helper; do not fork a second wrap.
+     */
+    int32_t dest_elem_is_slice = 0;
     struct ast_Expr self_e = ast_ast_arena_expr_get(arena, init_ref);
+    if (((!(ast_ref_is_null(((self_e).resolved_type_ref))) && (((self_e).resolved_type_ref) > 0)) && (((self_e).resolved_type_ref) <= ((arena)->num_types)))) {
+      int32_t stk = pipeline_type_kind_ord_at(arena, ((self_e).resolved_type_ref));
+      if (((stk == 10) || (stk == 11))) {
+        int32_t et = pipeline_type_elem_ref_at(arena, ((self_e).resolved_type_ref));
+        if ((!(ast_ref_is_null(et)) && (pipeline_type_kind_ord_at(arena, et) == 11))) {
+          (void)((dest_elem_is_slice = 1));
+        }
+      }
+    }
     if ((codegen_append_byte(out, 123) !=0)) {
       return -1;
     }
@@ -6749,18 +6767,62 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
         }
       }
       int32_t elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-      if ((!(ast_ref_is_null(elem_ref)) && (pipeline_expr_kind_ord_at(arena, elem_ref) ==46))) {
+      int32_t row_is_slice = dest_elem_is_slice;
+      if (((((row_is_slice == 0) && !(ast_ref_is_null(elem_ref))) && (elem_ref > 0)) && (elem_ref <= ((arena)->num_exprs)))) {
+        struct ast_Expr er = ast_ast_arena_expr_get(arena, elem_ref);
+        if (((!(ast_ref_is_null(((er).resolved_type_ref))) && (((er).resolved_type_ref) > 0)) && (((er).resolved_type_ref) <= ((arena)->num_types)))) {
+          if ((pipeline_type_kind_ord_at(arena, ((er).resolved_type_ref)) == 11)) {
+            (void)((row_is_slice = 1));
+          }
+        }
+      }
+      if (((!(ast_ref_is_null(elem_ref)) && (pipeline_expr_kind_ord_at(arena, elem_ref) ==46)) && (row_is_slice == 0))) {
         if ((codegen_emit_braced_array_lit_init(arena, out, elem_ref, ctx) !=0)) {
           return -1;
         }
         (void)((ai = (ai + 1)));
       } else {
-        (void)(codegen_stamp_anon_struct_lit_dest(arena, elem_ref, ((self_e).resolved_type_ref)));
-        if ((codegen_emit_expr(arena, out, elem_ref, ctx) ==0)) {
-          (void)((ai = (ai + 1)));
-        } else {
+        int32_t wrap_br = 0;
+        if (((row_is_slice != 0) && !(ast_ref_is_null(elem_ref)))) {
+          int32_t br_br = 0;
+          int32_t nlets_br = 0;
+          int32_t et_br = 0;
+          if ((ctx != 0)) {
+            (void)((br_br = ((ctx)->current_block_ref)));
+            if ((((ast_ref_is_null(br_br) || (br_br <= 0)) || (br_br > ((arena)->num_blocks))) && ((((ctx)->current_codegen_module) != 0) && (((ctx)->current_func_index) >= 0)))) {
+              (void)((br_br = pipeline_module_func_body_ref_at(((ctx)->current_codegen_module), ((ctx)->current_func_index))));
+            }
+            if (((!(ast_ref_is_null(br_br)) && (br_br > 0)) && (br_br <= ((arena)->num_blocks)))) {
+              (void)((nlets_br = ast_ast_block_num_lets(arena, br_br)));
+            }
+          }
+          if (((!(ast_ref_is_null(((self_e).resolved_type_ref))) && (((self_e).resolved_type_ref) > 0)) && (((self_e).resolved_type_ref) <= ((arena)->num_types)))) {
+            int32_t stk_br = pipeline_type_kind_ord_at(arena, ((self_e).resolved_type_ref));
+            if (((stk_br == 10) || (stk_br == 11))) {
+              (void)((et_br = pipeline_type_elem_ref_at(arena, ((self_e).resolved_type_ref))));
+            }
+          }
+          if ((ast_ref_is_null(et_br) || (et_br <= 0))) {
+            struct ast_Expr er_br = ast_ast_arena_expr_get(arena, elem_ref);
+            (void)((et_br = ((er_br).resolved_type_ref)));
+          }
+          if (((!(ast_ref_is_null(et_br)) && (et_br > 0)) && (pipeline_type_kind_ord_at(arena, et_br) == 11))) {
+            (void)((wrap_br = codegen_try_emit_slice_init_from_array_var(arena, out, br_br, nlets_br, et_br, elem_ref, ctx)));
+            if ((wrap_br == 0)) {
+              (void)((wrap_br = codegen_try_emit_dest_slice_from_module_array_var(arena, out, et_br, elem_ref, ctx)));
+            }
+          }
+        }
+        if ((wrap_br < 0)) {
           return -1;
         }
+        if (((wrap_br == 0) && !(ast_ref_is_null(elem_ref)))) {
+          (void)(codegen_stamp_anon_struct_lit_dest(arena, elem_ref, ((self_e).resolved_type_ref)));
+        }
+        if ((((wrap_br == 0) && !(ast_ref_is_null(elem_ref))) && (codegen_emit_expr(arena, out, elem_ref, ctx) != 0))) {
+          return -1;
+        }
+        (void)((ai = (ai + 1)));
       }
     }
     if ((codegen_append_byte(out, 125) ==0)) {
