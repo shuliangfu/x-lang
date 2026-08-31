@@ -9735,6 +9735,8 @@ function emit_file_scope_dest_slice_array_lit(
  * slice-of-ARRAY-of-NAMED / slice-of-slice-of-ARRAY emitter).
  * Tag matches type_to_c_repr. Do not invent -3 / a second dest-SLICE
  * stamp. nest walk cap 64.
+ * Seed twin: codegen_gen.linux.x86_64.c codegen_emit_slice_of_fixed_array_layouts
+ * (live `-E` is host-cc of that seed). Do not fork a second walker.
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
  * @param ctx *PipelineDepCtx — optional prefix for NAMED leaves

@@ -653,6 +653,7 @@ struct ast_ASTArena {
 #define codegen_codegen_build_func_param_mono_map codegen_build_func_param_mono_map
 #define codegen_codegen_emit_struct_field_decl_x codegen_emit_struct_field_decl_x
 #define codegen_codegen_emit_companion_named_slice_layout codegen_emit_companion_named_slice_layout
+#define codegen_codegen_emit_slice_of_fixed_array_layouts codegen_emit_slice_of_fixed_array_layouts
 #define codegen_codegen_emit_module_struct_definitions codegen_emit_module_struct_definitions
 #define codegen_codegen_emit_module_struct_forward_declarations codegen_emit_module_struct_forward_declarations
 #define codegen_codegen_emit_module_struct_forward_declarations_ctx codegen_emit_module_struct_forward_declarations_ctx
@@ -1497,6 +1498,7 @@ extern int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast
 extern int32_t codegen_build_func_param_mono_map(struct ast_Module * module, struct ast_ASTArena * arena, int32_t fi, int32_t * gen_refs, int32_t * conc_refs, int32_t max_entries);
 extern int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * field_name, int32_t field_name_len, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf * out, uint8_t * pfx, int32_t pfx_len, uint8_t * name, int32_t name_len);
+extern int32_t codegen_emit_slice_of_fixed_array_layouts(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_module_struct_forward_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_emit_module_struct_forward_declarations_ctx(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
@@ -8102,6 +8104,185 @@ int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf *
       return -1;
     }
     (void)((nest = (nest + 1)));
+  }
+  return 0;
+}
+
+/* PLATFORM: SHARED — twin of codegen.x codegen_emit_slice_of_fixed_array_layouts.
+ * Live `-E` uses this seed path (codegen_x.o is host-cc of codegen_gen.c).
+ * codegen.x already walks TYPE_SLICE whose chain hits TYPE_ARRAY / TYPE_PTR
+ * (`[][N]T` / `[]*T` / `[][][N]T`) after module struct defs so NAMED leaves
+ * (`[][2]Pair`) are complete. Historic seed skipped the walker → bare `-E`
+ * of `[][2]i32` incomplete `struct xlang_slice_xlang_arr2_int32_t`.
+ * Helpers already in seed: codegen_type_to_c_repr / emit_local_fixed_array_*
+ * / codegen_type_is (ptr-to-fixed-array) / codegen_emit_c (named array decl).
+ * G.7: complete existing walker as seed twin; do not fork a second
+ * slice-of-ARRAY / slice-of-PTR emitter. nest walk cap 64. */
+int32_t codegen_emit_slice_of_fixed_array_layouts(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx) {
+  uint8_t cur_pre[128] = {};
+  uint8_t *pfx_use = 0;
+  int32_t pfx_len_use = 0;
+  int32_t nt;
+  int32_t ti;
+  if (((arena == 0) || (out == 0))) {
+    return -1;
+  }
+  if ((ctx != 0)) {
+    int32_t pl = codegen_emit_prefix_len_from_ctx(ctx, &((cur_pre)[0]), 128);
+    if ((pl > 0)) {
+      (void)((pfx_use = &((cur_pre)[0])));
+      (void)((pfx_len_use = pl));
+    }
+  }
+  (void)((nt = ((arena)->num_types)));
+  (void)((ti = 1));
+  while ((ti <= nt)) {
+    if ((pipeline_type_kind_ord_at(arena, ti) == 11)) {
+      int32_t elem = pipeline_type_elem_ref_at(arena, ti);
+      int32_t elem_k = 0;
+      int32_t hit_ap = 0;
+      if (((!(ast_ref_is_null(elem))) && ((elem > 0) && (elem <= nt)))) {
+        (void)((elem_k = pipeline_type_kind_ord_at(arena, elem)));
+      }
+      if (((elem_k == 10) || (elem_k == 9))) {
+        (void)((hit_ap = 1));
+      } else if ((elem_k == 11)) {
+        int32_t walk = elem;
+        int32_t guard = 0;
+        while ((((guard < 64) && (walk > 0)) && (walk <= nt))) {
+          int32_t wk = pipeline_type_kind_ord_at(arena, walk);
+          if (((wk == 10) || (wk == 9))) {
+            (void)((hit_ap = 1));
+            (void)((walk = 0));
+          } else if ((wk == 11)) {
+            int32_t next = pipeline_type_elem_ref_at(arena, walk);
+            if (((ast_ref_is_null(next) || (next <= 0)) || (next == walk))) {
+              (void)((walk = 0));
+            } else {
+              (void)((walk = next));
+              (void)((guard = (guard + 1)));
+            }
+          } else {
+            (void)((walk = 0));
+          }
+        }
+      }
+      if ((hit_ap != 0)) {
+        int32_t seen = 0;
+        uint8_t slb[896] = {};
+        int32_t nl = codegen_type_to_c_repr(arena, &((slb)[0]), 896, ti, pfx_use, pfx_len_use);
+        if ((nl <= 0)) {
+          return -1;
+        }
+        {
+          int32_t tj = 1;
+          while ((tj < ti)) {
+            if ((pipeline_type_kind_ord_at(arena, tj) == 11)) {
+              uint8_t slj[896] = {};
+              int32_t nj = codegen_type_to_c_repr(arena, &((slj)[0]), 896, tj, pfx_use, pfx_len_use);
+              if (((nj == nl) && (nj > 0))) {
+                int32_t eq = 1;
+                int32_t ci = 0;
+                while ((ci < nl)) {
+                  if (((slb)[ci] != ((slj)[ci]))) {
+                    (void)((eq = 0));
+                    (void)((ci = nl));
+                  } else {
+                    (void)((ci = (ci + 1)));
+                  }
+                }
+                if ((eq != 0)) {
+                  (void)((seen = 1));
+                  (void)((tj = ti));
+                }
+              }
+            }
+            (void)((tj = (tj + 1)));
+          }
+        }
+        if ((seen == 0)) {
+          int32_t si = 0;
+          while ((si < nl)) {
+            if ((codegen_append_byte(out, ((int32_t)((slb)[si]))) != 0)) {
+              return -1;
+            }
+            (void)((si = (si + 1)));
+          }
+          {
+            uint8_t mid0[4] = {32, 123, 32, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((mid0)[0]), 3) != 0)) {
+              return -1;
+            }
+          }
+          if ((elem_k == 10)) {
+            if ((codegen_emit_local_fixed_array_elem_type(arena, out, elem, ctx) != 0)) {
+              return -1;
+            }
+            {
+              uint8_t dcl[10] = {32, 40, 42, 100, 97, 116, 97, 41, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((dcl)[0]), 8) != 0)) {
+                return -1;
+              }
+            }
+            if ((codegen_emit_local_fixed_array_suffix(arena, out, elem) != 0)) {
+              return -1;
+            }
+          } else if ((elem_k == 11)) {
+            uint8_t inner_eb[896] = {};
+            int32_t inner_nl = codegen_type_to_c_repr(arena, &((inner_eb)[0]), 896, elem, pfx_use, pfx_len_use);
+            int32_t inner_i = 0;
+            if ((inner_nl <= 0)) {
+              return -1;
+            }
+            while ((inner_i < inner_nl)) {
+              if ((codegen_append_byte(out, ((int32_t)((inner_eb)[inner_i]))) != 0)) {
+                return -1;
+              }
+              (void)((inner_i = (inner_i + 1)));
+            }
+            {
+              uint8_t sl_dcl[8] = {32, 42, 100, 97, 116, 97, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((sl_dcl)[0]), 6) != 0)) {
+                return -1;
+              }
+            }
+          } else {
+            if ((codegen_type_is(arena, elem) != 0)) {
+              uint8_t ptr_arr_nm[10] = {40, 42, 100, 97, 116, 97, 41, 0, 0, 0};
+              if ((codegen_emit_c(arena, out, elem, &((ptr_arr_nm)[0]), 7, ctx) != 0)) {
+                return -1;
+              }
+            } else {
+              uint8_t ptr_eb[896] = {};
+              int32_t ptr_nl = codegen_type_to_c_repr(arena, &((ptr_eb)[0]), 896, elem, pfx_use, pfx_len_use);
+              int32_t ptr_i = 0;
+              if ((ptr_nl <= 0)) {
+                return -1;
+              }
+              while ((ptr_i < ptr_nl)) {
+                if ((codegen_append_byte(out, ((int32_t)((ptr_eb)[ptr_i]))) != 0)) {
+                  return -1;
+                }
+                (void)((ptr_i = (ptr_i + 1)));
+              }
+              {
+                uint8_t ptr_dcl[8] = {32, 42, 100, 97, 116, 97, 0, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ptr_dcl)[0]), 6) != 0)) {
+                  return -1;
+                }
+              }
+            }
+          }
+          {
+            uint8_t tail[24] = {59, 32, 115, 105, 122, 101, 95, 116, 32, 108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 20) != 0)) {
+              return -1;
+            }
+          }
+        }
+      }
+    }
+    (void)((ti = (ti + 1)));
   }
   return 0;
 }
@@ -19990,6 +20171,14 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
             return -1;
           }
           if ((codegen_emit_module_struct_definitions(module, arena, out, &((prefix_buf)[0]), prefix_len, ctx) !=0)) {
+            return -1;
+          }
+          /* PLATFORM: SHARED — twin of codegen.x call after entry struct defs.
+           * [][N]T / []*T fat layouts are not in rt_preamble N=224. After
+           * skipped-dep + entry struct defs so NAMED leaves (`[][2]Pair`)
+           * are complete. Historic seed omitted the walker. G.7: same
+           * emitter, later call site (no second layout walker). */
+          if ((codegen_emit_slice_of_fixed_array_layouts(arena, out, ctx) !=0)) {
             return -1;
           }
         }
