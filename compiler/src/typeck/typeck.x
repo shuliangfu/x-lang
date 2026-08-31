@@ -8384,7 +8384,8 @@ name_len: i32): i32 {
  *
  * Peel EXPR_AS (54) and Cap locals whose init is `bare as *u8` (or nested AS)
  * so TYPE_FN←Cap can hard-check signatures when the underlying fn is known.
- * True opaque Cap (FFI call, unknown) returns -1 → soft allow at the gate.
+ * True opaque Cap (FFI call, null Cap, unknown) returns -1 → hard reject at
+ * coerce unless caller passes allow_opaque (explicit `as function`).
  *
  * @param module *Module
  * @param arena *ASTArena
@@ -8453,19 +8454,20 @@ depth: i32): i32 {
  * - Both TYPE_FN → typeck_fn_type_sig_equal
  * - Expect TYPE_FN + got Cap *u8 + recoverable same-module fn (bare VAR, `as *u8`,
  *   Cap local init peel) → typeck_module_func_matches_type_fn
- * - Cap↔Cap / TYPE_FN←true opaque Cap (no recoverable name) → soft allow
- * - Expect Cap *u8 + got TYPE_FN → allow
+ * - TYPE_FN←true opaque Cap: reject unless allow_opaque≠0 (explicit `as function`)
+ * - Cap↔Cap / Expect Cap *u8 + got TYPE_FN → allow
  *
  * @param module *Module — may be 0 → pipeline_typeck_active_module_c()
  * @param arena *ASTArena
  * @param expect_ty i32 — destination / cast target / return expect
  * @param got_ty i32 — source / operand type
  * @param got_expr i32 — source expr (0 if unavailable; skips recover)
+ * @param allow_opaque i32 — 1: opaque Cap→TYPE_FN ok (as reinterpret); 0: hard reject
  * @return i32 — 1 compatible, 0 reject
- * PLATFORM: SHARED — 10.3.1 signature / Cap provenance.
+ * PLATFORM: SHARED — 10.3.1 signature / Cap provenance / opaque hard gate.
  */
 export function typeck_fnptr_surface_compat(module: *Module, arena: *ASTArena, expect_ty: i32,
-got_ty: i32, got_expr: i32): i32 {
+got_ty: i32, got_expr: i32, allow_opaque: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ek: i32 = 0;
@@ -8513,15 +8515,19 @@ got_ty: i32, got_expr: i32): i32 {
         }
         /*
          * Cap provenance: peel `bare as *u8` / Cap local init → hard sig check.
-         * Unrecoverable Cap stays soft (ABI opaque). PLATFORM: SHARED.
+         * Unrecoverable Cap: only `as function(...)` (allow_opaque) may coerce.
+         * PLATFORM: SHARED — 10.3.1 slice16 opaque hard gate.
          */
         recovered = typeck_recover_fn_fi_from_cap_expr(mod, arena, got_expr, 0);
         if (recovered >= 0) {
           return typeck_module_func_matches_type_fn(mod, arena, recovered, expect_ty);
         }
       }
-      /* True opaque Cap — soft allow (no recoverable signature). */
-      return 1;
+      /* True opaque Cap → TYPE_FN: hard reject unless explicit as. */
+      if (allow_opaque != 0) {
+        return 1;
+      }
+      return 0;
     }
     /* Cap ← TYPE_FN / Cap ← Cap: opaque ABI accept. */
     return 1;
@@ -8731,7 +8737,7 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
      * when TYPE_FN↔TYPE_FN or bare fn recoverable. G.7 typeck_fnptr_surface_compat.
      * PLATFORM: SHARED.
      */
-    if (typeck_fnptr_surface_compat(0 as *Module, arena, expect_ref, got, op_ref) != 0) {
+    if (typeck_fnptr_surface_compat(0 as *Module, arena, expect_ref, got, op_ref, 0) != 0) {
       return true;
     }
     let ord_linear: i32 = 12;
@@ -9140,7 +9146,8 @@ decl_kind: i32): i32 {
  * 10.3.1 slice12: ARRAY_LIT elems that are Cap *u8 (bare same-module fn name)
  * into TYPE_FN element decls must reuse typeck_fnptr_surface_compat (let/assign
  * authority). Prior: only type_refs_equal → `expected function, found *u8`.
- * Recoverable bare/as Cap hard-checks arity; true opaque Cap soft. PLATFORM: SHARED.
+ * Recoverable bare/as Cap hard-checks arity; true opaque Cap rejected on
+ * coerce (allow_opaque=0); explicit `as function` may allow. PLATFORM: SHARED.
  */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
@@ -9217,7 +9224,7 @@ decl_ty_ref: i32): i32 {
           if (type_refs_equal(arena, elem_ty, elem_decl_ref)
           || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)
           || typeck_float_widen_ok(elem_decl_kind, got_kind)
-          || typeck_fnptr_surface_compat(0 as *Module, arena, elem_decl_ref, elem_ty, elem_ref) != 0) {
+          || typeck_fnptr_surface_compat(0 as *Module, arena, elem_decl_ref, elem_ty, elem_ref, 0) != 0) {
             pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref);
           } else {
             /*
@@ -11075,7 +11082,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * 10.3.1: TYPE_FN LHS accepts Cap *u8 / TYPE_FN RHS with signature when
        * checkable (G.7 typeck_fnptr_surface_compat). PLATFORM: SHARED.
        */
-      if (typeck_fnptr_surface_compat(module, arena, lt, rt, right_ref) != 0) {
+      if (typeck_fnptr_surface_compat(module, arena, lt, rt, right_ref, 0) != 0) {
         dyn_assign_ok = 1;
       }
       if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0 && dyn_assign_ok == 0) {
@@ -17563,14 +17570,14 @@ ctx: *PipelineDepCtx): i32 {
         return -1;
       }
       /*
-       * 10.3.1 signature: Cap bare fn `as function(...)` — type-level Cap↔TYPE_FN
-       * is soft; recover module func sig and hard-fail arity/ret/param mismatch.
+       * 10.3.1 signature: Cap bare fn `as function(...)` — recoverable Cap hard
+       * sig check; true opaque Cap allowed only here (allow_opaque=1).
        * G.7 typeck_fnptr_surface_compat. PLATFORM: SHARED.
        */
       if (!ast.ref_is_null(src_ty)
           && typeck_is_fnptr_surface(arena, src_ty) != 0
           && typeck_is_fnptr_surface(arena, tgt) != 0
-          && typeck_fnptr_surface_compat(module, arena, tgt, src_ty, op_ref) == 0) {
+          && typeck_fnptr_surface_compat(module, arena, tgt, src_ty, op_ref, 1) == 0) {
         line_as = pipeline_expr_line_at(arena, expr_ref);
         col_as = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_as_cast(line_as, col_as);
@@ -17749,7 +17756,7 @@ expr_ref: i32, base_ty: i32): i32 {
             if (type_refs_equal(arena, ftr, init_ty)
             || typeck_integer_widen_ok_refs(arena, ftr, init_ty)
             || typeck_float_widen_ok(ftr_kind, got_kind)
-            || typeck_fnptr_surface_compat(module, arena, ftr, init_ty, init_r) != 0) {
+            || typeck_fnptr_surface_compat(module, arena, ftr, init_ty, init_r, 0) != 0) {
               pipeline_expr_set_resolved_type_ref(arena, init_r, ftr);
             } else {
               eb = driver_typeck_diag_scratch_expect();
@@ -18803,7 +18810,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
          * (wave100); accept Cap/TYPE_FN onto TYPE_FN with signature when
          * checkable (G.7 typeck_fnptr_surface_compat). PLATFORM: SHARED.
          */
-        if (typeck_fnptr_surface_compat(module, arena, ld_tr, init_ty, ld_ir) != 0) {
+        if (typeck_fnptr_surface_compat(module, arena, ld_tr, init_ty, ld_ir, 0) != 0) {
           fn_init_ok = 1;
         }
         if (dyn_init_reject != 0
