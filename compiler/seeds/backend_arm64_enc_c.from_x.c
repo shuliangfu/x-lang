@@ -1027,6 +1027,16 @@ int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_
 }
 
 /**
+ * Stage10 10.2.1 slice10: mov x0, x8 (ORR x0, xzr, x8) — reverse of mov_rax_to_x8.
+ * lateout/out("x8") → x0 before store. G.7 same x8 syscall-nr family; do not invent
+ * a second map (glue_arm64_mov_x8_to_x0 is AAPCS sret helper — keep asm on enc_*).
+ * PLATFORM: LINUX|aarch64 runtime effect; SHARED emit code.
+ */
+int32_t arch_arm64_enc_enc_mov_x8_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 8);
+}
+
+/**
  * Stage 10 S3.1 10.1.2: svc #0 (0xD4000001).
  * Linux aarch64 syscall instruction. Darwin uses svc #0x80 with nr in x16
  * — this encoder is Linux-only; the CALL intercept skips Mach-O.

@@ -424,6 +424,17 @@ export function enc_mov_rax_to_x8(ctx: *ElfCodegenCtx): i32 {
 }
 
 /**
+ * mov x0, x8 — reverse of enc_mov_rax_to_x8 (stage10 10.2.1 slice10 lateout x8).
+ * Twin of seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_mov_x8_to_rax.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: LINUX|aarch64 runtime; SHARED emit. G.7 family with enc_mov_rax_to_x8.
+ */
+export function enc_mov_x8_to_rax(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 2852127712 | (8 << 16) | 0);
+}
+
+/**
  * svc #0 (0xD4000001) — Linux aarch64 syscall instruction.
  * Twin of seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_svc.
  * Darwin Mach-O uses svc #0x80 / x16; intercept skips macho.
