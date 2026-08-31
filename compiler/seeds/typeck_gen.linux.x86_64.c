@@ -1826,6 +1826,8 @@ extern int32_t typeck_int_family_id(struct ast_ASTArena * arena, int32_t type_re
 extern int typeck_integer_widen_ok_refs(struct ast_ASTArena * arena, int32_t dest_ref, int32_t src_ref);
 extern int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind);
 extern int32_t typeck_is_fnptr_surface(struct ast_ASTArena * arena, int32_t type_ref);
+extern int32_t typeck_method_call_field_fnptr_ty(struct ast_Module * module, struct ast_ASTArena * arena,
+    struct ast_PipelineDepCtx * ctx, int32_t base_ty, uint8_t * method_nm, int32_t method_nlen);
 extern int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref);
 extern int32_t typeck_array_to_slice_ok(struct ast_ASTArena * arena, int32_t src_ty, int32_t dest_ty);
 extern int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
@@ -7440,6 +7442,46 @@ int32_t typeck_is_fnptr_surface(struct ast_ASTArena * arena, int32_t type_ref) {
   }
   return 0;
 }
+/* 10.3.3 slice3: METHOD_CALL name → Cap/TYPE_FN field type (twin of typeck.x). */
+int32_t typeck_method_call_field_fnptr_ty(struct ast_Module * module, struct ast_ASTArena * arena,
+    struct ast_PipelineDepCtx * ctx, int32_t base_ty, uint8_t * method_nm, int32_t method_nlen) {
+  int32_t ty = 0;
+  int32_t ko = 0;
+  int32_t er = 0;
+  int32_t nlen = 0;
+  int32_t ftr = 0;
+  uint8_t nm[128];
+  if (((module == 0) || (arena == 0) || (base_ty <= 0) || (method_nm == 0) || (method_nlen <= 0)
+      || (method_nlen > 127))) {
+    return 0;
+  }
+  ty = base_ty;
+  ko = pipeline_type_kind_ord_at(arena, ty);
+  if ((ko == 9)) {
+    er = pipeline_type_elem_ref_at(arena, ty);
+    if ((er <= 0)) {
+      return 0;
+    }
+    ty = er;
+    ko = pipeline_type_kind_ord_at(arena, ty);
+  }
+  if ((ko != 8)) {
+    return 0;
+  }
+  nlen = pipeline_type_named_name_into(arena, ty, &((nm)[0]));
+  if (((nlen <= 0) || (nlen > 127))) {
+    return 0;
+  }
+  ftr = typeck_get_field_type_ref_from_layout_deps(module, arena, ctx, &((nm)[0]), nlen, method_nm,
+      method_nlen);
+  if ((ftr <= 0)) {
+    return 0;
+  }
+  if ((typeck_is_fnptr_surface(arena, ftr) != 0)) {
+    return ftr;
+  }
+  return 0;
+}
 int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref) {
   {
     int32_t ord_lit = 0;
@@ -12652,6 +12694,38 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
         return -1;
       }
       (void)((arg_i = (arg_i + 1)));
+    }
+    /* 10.3.3 slice3: Cap/TYPE_FN field METHOD_CALL (twin of typeck.x). */
+    if (((base_ty > 0) && (method_nlen > 0))) {
+      int32_t ff_ty = typeck_method_call_field_fnptr_ty(module, arena, ctx, base_ty, &((method_nm)[0]),
+          method_nlen);
+      if ((ff_ty > 0)) {
+        int32_t ff_ret = 0;
+        int32_t ff_ko = pipeline_type_kind_ord_at(arena, ff_ty);
+        int32_t ff_er = 0;
+        int32_t ff_expect = 0;
+        if ((ff_ko == 18)) {
+          ff_er = pipeline_type_elem_ref_at(arena, ff_ty);
+          if ((ff_er > 0)) {
+            ff_ret = ff_er;
+          }
+        }
+        if ((ff_ret <= 0)) {
+          ff_expect = typeck_i32_ptr_read(typeck_overload_expected_ret_slot());
+          if (((ff_expect <= 0) && (return_type_ref > 0))) {
+            ff_expect = return_type_ref;
+          }
+          if ((ff_expect > 0)) {
+            ff_ret = ff_expect;
+          } else {
+            ff_ret = typeck_ensure_i32_type_ref(arena);
+          }
+        }
+        if ((ff_ret > 0)) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, ff_ret);
+          return 0;
+        }
+      }
     }
     (void)((expect_store = 0));
     if ((return_type_ref > 0)) {
