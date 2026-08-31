@@ -124,7 +124,7 @@ export enum ExprKind {
   /**
    * Inline asm `asm!("template"[, in/out/lateout("reg") expr, …])` (stage10 10.2.1).
    * Template in var_name. Operands in call_arg list; regs comma-packed in
-   * method_call_name; int_val = num_in (outs follow). Slice4: lateout/out VAR←rax.
+   * method_call_name; int_val = num_in (outs follow). Slice5: out VAR←GP/rax.
    * Ordinal 60. PLATFORM: SHARED.
    */
   EXPR_ASM
