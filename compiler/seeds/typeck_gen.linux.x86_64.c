@@ -1828,7 +1828,7 @@ extern int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind);
 extern int32_t typeck_is_fnptr_surface(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t typeck_fn_type_sig_equal(struct ast_ASTArena * arena, int32_t a, int32_t b);
 extern int32_t typeck_module_func_matches_type_fn(struct ast_Module * module, struct ast_ASTArena * arena, int32_t fi, int32_t expect_fn);
-extern int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expect_ty, int32_t got_ty, int32_t got_expr);
+extern int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expect_ty, int32_t got_ty, int32_t got_expr, int32_t allow_opaque);
 extern int32_t typeck_method_call_field_fnptr_ty(struct ast_Module * module, struct ast_ASTArena * arena,
     struct ast_PipelineDepCtx * ctx, int32_t base_ty, uint8_t * method_nm, int32_t method_nlen);
 extern int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref);
@@ -7607,7 +7607,7 @@ int32_t typeck_recover_fn_fi_from_cap_expr(struct ast_Module * module, struct as
 }
 /* 10.3.1: Cap/TYPE_FN surface compat + signature + Cap provenance (twin of typeck.x). PLATFORM: SHARED. */
 int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTArena * arena,
-    int32_t expect_ty, int32_t got_ty, int32_t got_expr) {
+    int32_t expect_ty, int32_t got_ty, int32_t got_expr, int32_t allow_opaque) {
   int32_t ek = 0;
   int32_t gk = 0;
   struct ast_Module * mod = module;
@@ -7652,7 +7652,11 @@ int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTAr
         return typeck_module_func_matches_type_fn(mod, arena, recovered, expect_ty);
       }
     }
-    return 1;
+    /* 10.3.1 slice16: opaque Cap→TYPE_FN hard reject unless allow_opaque (as). */
+    if ((allow_opaque != 0)) {
+      return 1;
+    }
+    return 0;
   }
   return 1;
 }
@@ -7772,7 +7776,7 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
       return 1;
     }
     /* 10.3.1: Cap/TYPE_FN surface + signature (≡ typeck.x). */
-    if ((typeck_fnptr_surface_compat(0, arena, expect_ref, got, op_ref) != 0)) {
+    if ((typeck_fnptr_surface_compat(0, arena, expect_ref, got, op_ref, 0) != 0)) {
       return 1;
     }
     int32_t ord_linear = 12;
@@ -8076,7 +8080,7 @@ int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, 
         (void)((elem_ty = typeck_expr_type_ref(arena, elem_ref)));
         ((!(ast_ref_is_null(elem_ty)) && (elem_ty > 0)) ? ({   (void)((got_kind = pipeline_type_kind_ord_at(arena, elem_ty)));
   /* Twin living/typeck.x 10.3.1 slice12: TYPE_FN←Cap via fnptr_surface_compat. */
-  ((((typeck_type_refs_equal(arena, elem_ty, elem_decl_ref) || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)) || typeck_float_widen_ok(elem_decl_kind, got_kind)) || (typeck_fnptr_surface_compat(0, arena, elem_decl_ref, elem_ty, elem_ref) != 0)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref));
+  ((((typeck_type_refs_equal(arena, elem_ty, elem_decl_ref) || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)) || typeck_float_widen_ok(elem_decl_kind, got_kind)) || (typeck_fnptr_surface_compat(0, arena, elem_decl_ref, elem_ty, elem_ref, 0) != 0)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref));
  }) : ({   (void)((eb = driver_typeck_diag_scratch_expect()));
   (void)((gb = driver_typeck_diag_scratch_found()));
   (void)((el = typeck_diag_fmt_type_into(arena, elem_decl_ref, eb, 96)));
@@ -9342,7 +9346,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
  }));
       }
       /* 10.3.1: TYPE_FN LHS accepts Cap *u8 / TYPE_FN RHS. PLATFORM: SHARED. */
-      if ((typeck_fnptr_surface_compat(module, arena, lt, rt, right_ref) != 0)) {
+      if ((typeck_fnptr_surface_compat(module, arena, lt, rt, right_ref, 0) != 0)) {
         (void)((dyn_assign_ok = 1));
       }
       if (((!(typeck_type_refs_equal(arena, lt, rt)) && (ptr_compound_offset_ok ==0)) && (dyn_assign_ok ==0))) {
@@ -13310,7 +13314,7 @@ int32_t typeck_check_expr_as(struct ast_Module * module, struct ast_ASTArena * a
       /* 10.3.1: bare Cap as function(...) — recover module sig (≡ typeck.x). */
       if (((!(ast_ref_is_null(src_ty)) && (typeck_is_fnptr_surface(arena, src_ty) != 0))
           && (typeck_is_fnptr_surface(arena, tgt) != 0)
-          && (typeck_fnptr_surface_compat(module, arena, tgt, src_ty, op_ref) == 0))) {
+          && (typeck_fnptr_surface_compat(module, arena, tgt, src_ty, op_ref, 1) == 0))) {
         (void)((line_as = pipeline_expr_line_at(arena, expr_ref)));
         (void)((col_as = pipeline_expr_col_at(arena, expr_ref)));
         (void)(driver_diagnostic_typeck_invalid_as_cast(line_as, col_as));
@@ -13411,7 +13415,7 @@ int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * modul
   (void)((init_ty = typeck_expr_type_ref(arena, init_r)));
   ((crc !=0) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, init_r, ftr));
  }) : ((!(ast_ref_is_null(init_ty)) && (init_ty > 0)) ? ({   (void)((got_kind = pipeline_type_kind_ord_at(arena, init_ty)));
-  (((typeck_type_refs_equal(arena, ftr, init_ty) || typeck_integer_widen_ok_refs(arena, ftr, init_ty)) || typeck_float_widen_ok(ftr_kind, got_kind) || (typeck_fnptr_surface_compat(module, arena, ftr, init_ty, init_r) !=0)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, init_r, ftr));
+  (((typeck_type_refs_equal(arena, ftr, init_ty) || typeck_integer_widen_ok_refs(arena, ftr, init_ty)) || typeck_float_widen_ok(ftr_kind, got_kind) || (typeck_fnptr_surface_compat(module, arena, ftr, init_ty, init_r, 0) !=0)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, init_r, ftr));
  }) : ({   (void)((eb = driver_typeck_diag_scratch_expect()));
   (void)((gb = driver_typeck_diag_scratch_found()));
   (void)((el = typeck_diag_fmt_type_into(arena, ftr, eb, 96)));
@@ -14122,7 +14126,7 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
  }) : 0);
         }
         /* 10.3.1: TYPE_FN accepts Cap *u8 / TYPE_FN init. PLATFORM: SHARED. */
-        if ((typeck_fnptr_surface_compat(module, arena, ld_tr, init_ty, ld_ir) != 0)) {
+        if ((typeck_fnptr_surface_compat(module, arena, ld_tr, init_ty, ld_ir, 0) != 0)) {
           (void)((fn_init_ok = 1));
         }
         (((dyn_init_reject !=0) || (((decl_k2 !=17) && (fn_init_ok ==0)) && !(typeck_float_widen_ok(decl_k2, init_k2)))) ? ({   (void)((eb = driver_typeck_diag_scratch_expect()));
