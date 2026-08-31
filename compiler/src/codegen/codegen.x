@@ -5844,7 +5844,8 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
  * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
- * Do not fork a second CALL/METHOD wrap or dest-SLICE non-VAR FIELD wrap.
+ * Do not fork a second CALL/METHOD wrap, dest-SLICE non-VAR FIELD wrap,
+ * or dest-SLICE VAR parent-block const scan.
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5899,7 +5900,9 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       /*
        * Typeck stamps `[a]` row resolved_type_ref to TYPE_SLICE, so the fallback
        * above misses N. Decl type is still TYPE_ARRAY: scan same-block consts,
-       * then parent lets/consts. PLATFORM: SHARED host-C.
+       * then parent lets/consts. Seed twin: codegen_gen.linux.x86_64.c
+       * (live `-E` is host-cc of that seed). Do not fork a second dest-SLICE
+       * VAR parent-block const scan. PLATFORM: SHARED host-C.
        */
       if (arr_sz <= 0) {
         let brw: i32 = block_ref;

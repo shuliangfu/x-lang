@@ -6164,6 +6164,82 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
           (void)((arr_sz = pipeline_type_array_size_at(arena, ((init_e).resolved_type_ref))));
         }
       }
+      /* PLATFORM: SHARED — twin of codegen.x dest-SLICE VAR parent-block
+       * const scan. Typeck stamps `[a]` / `let s:[]T = a` to TYPE_SLICE,
+       * hiding N. Decl is still TYPE_ARRAY: scan same-block consts, then
+       * parent lets/consts (up to 32 hops). hop==0 skips lets (already
+       * walked as prior lets in this block). Historic: seed only walked
+       * prior lets then resolved TYPE_ARRAY → arr_sz stays 0 and wrap
+       * misses (`[][]T=[a]` const / parent; `let s:[]T=a` in an if).
+       * G.7: complete existing VAR path; do not fork a second
+       * parent-block scan. Live `-E` uses this seed path. */
+      if ((arr_sz <= 0)) {
+        int32_t brw = block_ref;
+        int32_t hop = 0;
+        while (((arr_sz <= 0) && (hop < 32))) {
+          if (((ast_ref_is_null(brw) || (brw <= 0)) || (brw > ((arena)->num_blocks)))) {
+            (void)((hop = 32));
+          } else {
+            if ((hop > 0)) {
+              int32_t nlets_w = ast_ast_block_num_lets(arena, brw);
+              int32_t liw = 0;
+              while (((liw < nlets_w) && (arr_sz <= 0))) {
+                int32_t nlen_w = pipeline_block_let_name_len(arena, brw, liw);
+                if (((nlen_w == ((init_e).var_name_len)) && (nlen_w > 0))) {
+                  int32_t matched_w = 1;
+                  uint8_t nbw[128] = {};
+                  (void)(pipeline_block_let_name_copy64(arena, brw, liw, &((nbw)[0])));
+                  int32_t ciw = 0;
+                  while ((ciw < nlen_w)) {
+                    if (((nbw)[ciw] != ((init_e).var_name)[ciw])) {
+                      (void)((matched_w = 0));
+                      (void)((ciw = nlen_w));
+                    } else {
+                      (void)((ciw = (ciw + 1)));
+                    }
+                  }
+                  if ((matched_w != 0)) {
+                    int32_t trw = pipeline_block_let_type_ref(arena, brw, liw);
+                    if ((pipeline_type_kind_ord_at(arena, trw) == 10)) {
+                      (void)((arr_sz = pipeline_type_array_size_at(arena, trw)));
+                    }
+                  }
+                }
+                (void)((liw = (liw + 1)));
+              }
+            }
+            int32_t nconst_w = ast_ast_block_num_consts(arena, brw);
+            int32_t ci_c = 0;
+            while (((ci_c < nconst_w) && (arr_sz <= 0))) {
+              int32_t clen = pipeline_block_const_name_len(arena, brw, ci_c);
+              if (((clen == ((init_e).var_name_len)) && (clen > 0))) {
+                int32_t matched_c = 1;
+                uint8_t nbc[128] = {};
+                (void)(pipeline_block_const_name_copy64(arena, brw, ci_c, &((nbc)[0])));
+                int32_t cic = 0;
+                while ((cic < clen)) {
+                  if (((nbc)[cic] != ((init_e).var_name)[cic])) {
+                    (void)((matched_c = 0));
+                    (void)((cic = clen));
+                  } else {
+                    (void)((cic = (cic + 1)));
+                  }
+                }
+                if ((matched_c != 0)) {
+                  int32_t trc = pipeline_block_const_type_ref(arena, brw, ci_c);
+                  if ((pipeline_type_kind_ord_at(arena, trc) == 10)) {
+                    (void)((arr_sz = pipeline_type_array_size_at(arena, trc)));
+                  }
+                }
+              }
+              (void)((ci_c = (ci_c + 1)));
+            }
+            struct ast_Block blkw = ast_ast_arena_block_get(arena, brw);
+            (void)((brw = ((blkw).parent_block_ref)));
+            (void)((hop = (hop + 1)));
+          }
+        }
+      }
     } else {
       if (((((init_ko ==44) && (((init_e).field_access_field_len) > 0)) && (((init_e).field_access_base_ref) > 0)) && (((init_e).field_access_base_ref) <=((arena)->num_exprs)))) {
         /* PLATFORM: SHARED — twin of codegen.x dest-SLICE FIELD.
