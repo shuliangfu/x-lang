@@ -1343,7 +1343,7 @@ export extern function pipeline_module_top_level_let_is_const(module: *Module, i
 export function type_kind_ordinal(k: TypeKind): i32 {
   let o: i32 = k as i32;
   let lo: i32 = TypeKind.TYPE_I32 as i32;
-  let hi: i32 = TypeKind.TYPE_DYN as i32;
+  let hi: i32 = TypeKind.TYPE_FN as i32;
   if (o < lo) {
     return - 1;
   }
