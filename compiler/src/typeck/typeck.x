@@ -2082,7 +2082,8 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
     if (ko == 0 || ko == 3 || ko == 1 || ko == 14) {
       return 4;
     }
-    if (ko == 5 || ko == 4 || ko == 6 || ko == 7 || ko == 15 || ko == 9) {
+    if (ko == 5 || ko == 4 || ko == 6 || ko == 7 || ko == 15 || ko == 9
+        || ko == TypeKind.TYPE_FN as i32) {
       return 8;
     }
     if (ko == 11) {
@@ -2203,7 +2204,8 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
     if (ko == 0 || ko == 3 || ko == 1 || ko == 14) {
       return 4;
     }
-    if (ko == 5 || ko == 4 || ko == 6 || ko == 7 || ko == 15 || ko == 9) {
+    if (ko == 5 || ko == 4 || ko == 6 || ko == 7 || ko == 15 || ko == 9
+        || ko == TypeKind.TYPE_FN as i32) {
       return 8;
     }
     if (ko == 11) {
@@ -8357,6 +8359,15 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
      * G.7: same predicate as let coerce / assign. PLATFORM: SHARED.
      */
     if (typeck_array_to_slice_ok(arena, got, expect_ref) != 0) {
+      return true;
+    }
+    /*
+     * 10.3.3: opaque Cap-fn-ptr ABI on return — TYPE_FN ↔ Cap *u8 / TYPE_FN.
+     * Same surface gate as let/assign/call-arg score. Signature equality deferred.
+     * PLATFORM: SHARED. G.7 single return-match authority.
+     */
+    if (typeck_is_fnptr_surface(arena, expect_ref) != 0
+        && typeck_is_fnptr_surface(arena, got) != 0) {
       return true;
     }
     let ord_linear: i32 = 12;
