@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | ⬜ | 0/~20 |
+| 语言能力 L2（阶段 10） | 🟡 | 1 slice：**10.1.1 C 后端 ✅**（raw_syscall0..6）；asm 后端直出 ⬜ |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -107,6 +107,7 @@
 - ⬜ **7.2.1** 关闭 parser pinned seed — `seeds/parser_asm_thin_c.from_x.c`（~21,935 LOC）仍在；目标从 `pthin_*.x` 重建  
 - 🟡 **7.2.2** parser_gen 去 pin — **产品冷权威 pin-first**（`XLANG_PARSER_FROM_X=0` 默认；tip assemble 仅显式 `=1`）；手术改须 seed+`.x` 同 commit  
 - ⬜ **7.4.4** 双权威禁令验收 — touch `*.x` 须同 commit 禁「只改 seed」；可选 CI pin↔`-E` 漂移闸  
+- 🟡 **7.4.5** typeck pin 缺体漂移（2026-08-31 发现）— `seeds/typeck_gen.linux.x86_64.c` 只有 `typeck_get_allow_legacy_extern_calls` extern 声明＋调用，**无函数体**（typeck.x／tip 装配有体）；`./xbuild migrate` typeck cold-seed 路产出 UNDEF → pure-ld 链接失败。临时修＝typeck_x.o 由装配产物 host-cc（本波操作）；根治＝pin 补体 twin（同 commit 同语义）
 
 ---
 
@@ -217,10 +218,10 @@
 
 ### 10.1 syscall／FFI
 
-- ⬜ **10.1.1** Linux x86_64 syscall 内建  
-- ⬜ **10.1.2** Linux arm64 syscall 内建  
+- 🟡 **10.1.1** Linux x86_64 syscall 内建 — **C 后端 slice ✅**（2026-08-31：`std.sys.linux raw_syscall0..6`（panic 诚实失败体）＋ codegen CALL／METHOD_CALL 双形状 CALL 站点拦截 → `((int64_t)(__xlang_raw_syscallN((long)(arg),…)))`（wave463 size_of 同形）＋ emit_header `#if defined(__linux__) && defined(__x86_64__)` static-inline `syscall` helper（r10/r8/r9 用 register local var）；探针 `tests/sys/raw_syscall_smoke.x` Ubuntu `-E`＋host-cc＋run=0 绿）；**asm 后端直出 ⬜**（`pipeline_asm_*` C 胶水层拦截，下一刀候选）
+- ⬜ **10.1.2** Linux arm64 syscall 内建（`svc #0`；helper #if 已排除 arm64）
 - ⬜ **10.1.3** Windows NT API 内建  
-- ⬜ **10.1.4** raw FFI（`extern "C"` 调用约定）  
+- ⬜ **10.1.4** raw FFI（`extern "C"` 调用约定）
 
 ### 10.2 inline asm
 
