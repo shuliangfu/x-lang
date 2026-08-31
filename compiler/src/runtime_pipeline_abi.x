@@ -49810,6 +49810,8 @@ export extern "C" function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_c
 // wave162 pure-owned: pipeline_asm_emit_break_elf_c / continue_elf_c body in EOF.
 export extern "C" function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
+/** Stage10 10.2.1: EXPR_ASM (60) template emit — authority in backend_call_dispatch. */
+export extern "C" function pipeline_asm_try_emit_inline_asm_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32;
 // wave203 pure-owned: glue_call_arg_resolve_var_stack_off_elf_c at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave193 pure-owned: glue_load_var_as_value_to_rax_rdx_elf_c at EOF (#[no_mangle]).
@@ -55802,7 +55804,12 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
                               out_rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, expr_ref, ta);
                             }
                           } else {
-                            if (ko >= 14 && ko <= 19) {
+                            if (ko == 60) {
+                              unsafe {
+                                out_rc = pipeline_asm_try_emit_inline_asm_expr_elf_c(arena, elf_ctx, expr_ref, ta);
+                              }
+                            } else {
+                              if (ko >= 14 && ko <= 19) {
                               unsafe {
                                 out_rc = pipeline_asm_emit_cmp_elf(arena, elf_ctx, expr_ref, ctx, ta);
                               }
@@ -55881,6 +55888,7 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
                                   }
                                 }
                               }
+                            }
                             }
                           }
                         }
