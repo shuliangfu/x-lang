@@ -15637,6 +15637,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * INDEX `(x).data[0][1]` was i32[1] (BLD001). G.7: same durable static
          * as scalar slices; payload is `E al[][N]` / memcpy rows. Tag comes
          * from type_to_c_repr (`xlang_slice_xlang_arrN_…`).
+         * Seed twin: codegen_gen.linux.x86_64.c dest-SLICE ARRAY_LIT elem=ARRAY
+         * (live `-E` is host-cc of that seed). Do not fork a second init.
          * PLATFORM: SHARED host-C emit.
          */
         let elem_is_arr: i32 = 0;

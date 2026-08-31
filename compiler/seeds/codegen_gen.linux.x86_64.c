@@ -628,6 +628,7 @@ struct ast_ASTArena {
 #define codegen_codegen_emit_local_fixed_array_let_finish codegen_emit_local_fixed_array_let_finish
 #define codegen_codegen_try_emit_slice_init_from_array_var codegen_try_emit_slice_init_from_array_var
 #define codegen_codegen_emit_braced_array_lit_init codegen_emit_braced_array_lit_init
+#define codegen_codegen_array_lit_tree_is_const codegen_array_lit_tree_is_const
 #define codegen_codegen_emit_struct_field_type_via_pipeline codegen_emit_struct_field_type_via_pipeline
 #define codegen_codegen_lookup_struct_field_type_ref codegen_lookup_struct_field_type_ref
 #define codegen_codegen_should_skip_emit_struct_layout_for_abi_dup codegen_should_skip_emit_struct_layout_for_abi_dup
@@ -1472,6 +1473,7 @@ extern int32_t codegen_stamp_anon_struct_lit_dest(struct ast_ASTArena * arena, i
 extern int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t linit_ref, int32_t dest_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref);
 extern int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_array_lit_tree_is_const(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t codegen_emit_struct_field_type_via_pipeline(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * struct_name, int32_t struct_name_len, uint8_t * field_name, int32_t field_name_len);
 extern int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32_t name_len);
@@ -6199,6 +6201,38 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     }
     return 1;
   }
+}
+/* PLATFORM: SHARED — twin of codegen.x codegen_array_lit_tree_is_const.
+ * True when every leaf of an ARRAY_LIT tree is LIT / BOOL_LIT (or a nested
+ * ARRAY_LIT of the same). dest-SLICE `[][N]T = [[…]]` uses this so the
+ * durable payload is `E al[][N] = {{…}}`, not pointer rows (`E * al[]`).
+ * Live `-E` uses this seed path. G.7: complete existing helper as seed twin;
+ * do not fork a second const-tree walker. */
+int32_t codegen_array_lit_tree_is_const(struct ast_ASTArena * arena, int32_t expr_ref) {
+  int32_t ek;
+  int32_t n;
+  int32_t i;
+  int32_t er;
+  if (((arena == 0) || ast_ref_is_null(expr_ref) || (expr_ref <= 0) || (expr_ref > ((arena)->num_exprs)))) {
+    return 0;
+  }
+  ek = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (((ek == 0) || (ek == 2))) {
+    return 1;
+  }
+  if ((ek != 46)) {
+    return 0;
+  }
+  n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+  i = 0;
+  while ((i < n)) {
+    er = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+    if ((codegen_array_lit_tree_is_const(arena, er) == 0)) {
+      return 0;
+    }
+    (void)((i = (i + 1)));
+  }
+  return 1;
 }
 int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx) {
   {
@@ -13275,6 +13309,136 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -1;
           }
           return 0;
+        }
+        /*
+         * PLATFORM: SHARED — dest-SLICE of ARRAY (`[][N]T`) ARRAY_LIT.
+         * Twin of codegen.x: emit_type(ARRAY) decays to `E *` so the
+         * scalar-slice path emitted `static int32_t * __xlang_al[]` vs
+         * layout `int32_t (*)[N]`. Sit-red take([[3,4]]) host-cc
+         * incompatible-pointer-types. G.7: same durable static as
+         * scalar slices; payload is `E al[][N]` / memcpy rows.
+         * Live `-E` uses this seed path. Do not fork a second init.
+         */
+        int32_t elem_is_arr_sl = 0;
+        if ((!(ast_ref_is_null(elem_type_ref)) && (elem_type_ref > 0) && (elem_type_ref <= ((arena)->num_types)))) {
+          if ((pipeline_type_kind_ord_at(arena, elem_type_ref) == 10)) {
+            (void)((elem_is_arr_sl = 1));
+          }
+        }
+        if ((elem_is_arr_sl != 0)) {
+          int32_t row_const = codegen_array_lit_tree_is_const(arena, expr_ref);
+          if ((((row_const != 0) && !(ast_ref_is_null(elem_type_ref))) && (elem_type_ref > 0) && (elem_type_ref <= ((arena)->num_types)))) {
+            int32_t row_e = pipeline_type_elem_ref_at(arena, elem_type_ref);
+            if (((!(ast_ref_is_null(row_e)) && (row_e > 0)) && (row_e <= ((arena)->num_types)) && (pipeline_type_kind_ord_at(arena, row_e) == 11))) {
+              (void)((row_const = 0));
+            }
+          }
+          uint8_t ar_open[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ar_open)[0]), 10) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_local_fixed_array_elem_type(arena, out, elem_type_ref, ctx) !=0)) {
+            uint8_t fb_ar[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, &((fb_ar)[0]), 7) !=0)) {
+              return -1;
+            }
+          }
+          uint8_t ar_nm[12] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ar_nm)[0]), 11) !=0)) {
+            return -1;
+          }
+          if ((row_const != 0)) {
+            if ((codegen_append_byte(out, 91) !=0)) {
+              return -1;
+            }
+            if ((codegen_append_byte(out, 93) !=0)) {
+              return -1;
+            }
+            if ((codegen_emit_local_fixed_array_suffix(arena, out, elem_type_ref) !=0)) {
+              return -1;
+            }
+            uint8_t ar_eq[4] = {32, 61, 32, 0};
+            if ((codegen_emit_bytes_4(out, &((ar_eq)[0]), 3) !=0)) {
+              return -1;
+            }
+            if ((codegen_emit_braced_array_lit_init(arena, out, expr_ref, ctx) !=0)) {
+              return -1;
+            }
+            uint8_t ar_sc[4] = {59, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((ar_sc)[0]), 2) !=0)) {
+              return -1;
+            }
+          } else {
+            if ((codegen_append_byte(out, 91) !=0)) {
+              return -1;
+            }
+            if ((codegen_format_int(out, n) !=0)) {
+              return -1;
+            }
+            if ((codegen_append_byte(out, 93) !=0)) {
+              return -1;
+            }
+            if ((codegen_emit_local_fixed_array_suffix(arena, out, elem_type_ref) !=0)) {
+              return -1;
+            }
+            uint8_t ar_sc2[4] = {59, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((ar_sc2)[0]), 2) !=0)) {
+              return -1;
+            }
+            int32_t ai_ar = 0;
+            while ((ai_ar < n)) {
+              uint8_t mcp[32] = {
+                109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 95,
+                95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0, 0, 0, 0, 0
+              };
+              if ((codegen_emit_bytes_from_ptr(out, &((mcp)[0]), 26) !=0)) {
+                return -1;
+              }
+              if ((codegen_format_int(out, ai_ar) !=0)) {
+                return -1;
+              }
+              uint8_t mcp_m[20] = {93, 41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((mcp_m)[0]), 18) !=0)) {
+                return -1;
+              }
+              if ((!(ast_ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_ar))) && (codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_ar), ctx) !=0))) {
+                return -1;
+              }
+              uint8_t mcp_sz[24] = {
+                41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110,
+                103, 95, 97, 108, 91, 0, 0, 0
+              };
+              if ((codegen_emit_bytes_from_ptr(out, &((mcp_sz)[0]), 21) !=0)) {
+                return -1;
+              }
+              if ((codegen_format_int(out, ai_ar) !=0)) {
+                return -1;
+              }
+              uint8_t mcp_t[8] = {93, 41, 41, 59, 32, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((mcp_t)[0]), 5) !=0)) {
+                return -1;
+              }
+              (void)((ai_ar = (ai_ar + 1)));
+            }
+          }
+          if ((codegen_append_byte(out, 40) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_type(arena, out, ((e).resolved_type_ref), 0, 0, ctx) !=0)) {
+            uint8_t fb_sl[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, &((fb_sl)[0]), 7) !=0)) {
+              return -1;
+            }
+          }
+          uint8_t ar_mid[36] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ar_mid)[0]), 33) !=0)) {
+            return -1;
+          }
+          if ((codegen_format_int(out, n) !=0)) {
+            return -1;
+          }
+          uint8_t ar_end[8] = {32, 125, 59, 32, 125, 41, 0, 0};
+          return codegen_emit_bytes_from_ptr(out, &((ar_end)[0]), 6);
         }
         int32_t all_const = 1;
         int32_t ci = 0;
