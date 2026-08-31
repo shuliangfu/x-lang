@@ -8175,6 +8175,40 @@ export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
   return false;
 }
 
+/**
+ * True when type_ref is a Cap-fn-ptr surface: TYPE_FN (18) or Cap *u8 (PTR→U8).
+ * 10.3.1/10.3.2: TYPE_FN lets/params share the opaque fn-pointer ABI with Cap *u8
+ * (asm Cap blr path; soft signature match later). PLATFORM: SHARED.
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — candidate type
+ * @return i32 — 1 if Cap/TYPE_FN surface; else 0
+ */
+export function typeck_is_fnptr_surface(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ko: i32 = 0;
+    let er: i32 = 0;
+    let eko: i32 = 0;
+    if (arena == 0 as *ASTArena || type_ref <= 0) {
+      return 0;
+    }
+    ko = pipeline_type_kind_ord_at(arena, type_ref);
+    if (ko == TypeKind.TYPE_FN as i32) {
+      return 1;
+    }
+    if (ko == 9) {
+      er = pipeline_type_elem_ref_at(arena, type_ref);
+      if (er > 0) {
+        eko = pipeline_type_kind_ord_at(arena, er);
+        if (eko == 2) {
+          return 1;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
 /*
  * F2 TYPE_DYN(17) dyn-coerce null-sentinel predicate.
  *
@@ -10639,6 +10673,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           }
         }
       }
+      /*
+       * 10.3.1: TYPE_FN LHS accepts Cap *u8 / TYPE_FN RHS (opaque fn-ptr ABI).
+       * Signature equality deferred. PLATFORM: SHARED. G.7 with Cap *u8 surface.
+       */
+      if (pipeline_type_kind_ord_at(arena, lt) == TypeKind.TYPE_FN as i32
+          && typeck_is_fnptr_surface(arena, rt) != 0) {
+        dyn_assign_ok = 1;
+      }
       if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0 && dyn_assign_ok == 0) {
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
         let rt_kind_mis: i32 = pipeline_type_kind_ord_at(arena, rt);
@@ -11241,9 +11283,9 @@ ctx: *PipelineDepCtx): i32 {
       }
     }
     /*
-     * Cap-fn-ptr (10.3.2 slice1): call through local/param *u8.
-     * Type the callee VAR; if Cap *u8, stamp call ret from expected_ret or i32.
-     * No module fi / no TYPE_FN yet (10.3.1). PLATFORM: SHARED.
+     * Cap-fn-ptr (10.3.2 slice1) / TYPE_FN (10.3.1): call through *u8 or TYPE_FN.
+     * Type the callee VAR; Cap *u8 stamps ret from expected or i32; TYPE_FN
+     * stamps ret from elem (return type). PLATFORM: SHARED.
      */
     if (ret_ty == 0 && pipeline_expr_kind_ord_at(arena, callee_eff) == ord_var) {
       if (check_expr(module, arena, callee_eff, 0, ctx) == 0) {
@@ -11254,7 +11296,19 @@ ctx: *PipelineDepCtx): i32 {
         let expect: i32 = 0;
         if (ctr > 0) {
           cko = pipeline_type_kind_ord_at(arena, ctr);
-          if (cko == 9) {
+          if (cko == TypeKind.TYPE_FN as i32) {
+            eer = pipeline_type_elem_ref_at(arena, ctr);
+            if (eer > 0) {
+              ret_ty = eer;
+            } else {
+              expect = typeck_i32_ptr_read(typeck_overload_expected_ret_slot());
+              if (expect > 0) {
+                ret_ty = expect;
+              } else {
+                ret_ty = ensure_i32_type_ref(arena);
+              }
+            }
+          } else if (cko == 9) {
             eer = pipeline_type_elem_ref_at(arena, ctr);
             if (eer > 0) {
               eko = pipeline_type_kind_ord_at(arena, eer);
@@ -11379,8 +11433,8 @@ ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     /*
-     * Cap-fn-ptr (10.3.2): callee VAR typed *u8 is an opaque function pointer.
-     * Type the VAR (local/param) then soft-skip name lookup — no module fi.
+     * Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): callee VAR typed *u8 or TYPE_FN
+     * is an opaque function pointer. Soft-skip name lookup — no module fi.
      * PLATFORM: SHARED — pairs with asm Cap-fnptr blr / call *reg.
      */
     if (check_expr(module, arena, callee_eff, 0, ctx) != 0) {
@@ -11388,21 +11442,8 @@ ctx: *PipelineDepCtx): i32 {
     }
     {
       let ctr: i32 = pipeline_expr_resolved_type_ref(arena, callee_eff);
-      let cko: i32 = 0;
-      let eer: i32 = 0;
-      let eko: i32 = 0;
-      if (ctr > 0) {
-        cko = pipeline_type_kind_ord_at(arena, ctr);
-        if (cko == 9) {
-          eer = pipeline_type_elem_ref_at(arena, ctr);
-          if (eer > 0) {
-            eko = pipeline_type_kind_ord_at(arena, eer);
-            /* TYPE_U8 kind_ord == 2 — Cap-fn-ptr surface is *u8 only. */
-            if (eko == 2) {
-              return 0;
-            }
-          }
-        }
+      if (ctr > 0 && typeck_is_fnptr_surface(arena, ctr) != 0) {
+        return 0;
       }
     }
     name_hits = 0;
@@ -18245,6 +18286,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
          * PLATFORM: SHARED.
          */
         let dyn_init_reject: i32 = 0;
+        let fn_init_ok: i32 = 0;
         if (decl_k2 == TypeKind.TYPE_DYN as i32) {
           if (typeck_dyn_rhs_is_null_sentinel(arena, init_ty, ld_ir) == 0) {
             let trait_nm_let: u8[64] = [];
@@ -18255,8 +18297,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
             }
           }
         }
+        /*
+         * 10.3.1: `let f: function(...): T = bare_fn` — bare_fn is Cap *u8
+         * (wave100); accept Cap/*TYPE_FN onto TYPE_FN (opaque ABI).
+         * PLATFORM: SHARED.
+         */
+        if (decl_k2 == TypeKind.TYPE_FN as i32
+            && typeck_is_fnptr_surface(arena, init_ty) != 0) {
+          fn_init_ok = 1;
+        }
         if (dyn_init_reject != 0
-            || (decl_k2 != TypeKind.TYPE_DYN as i32 && !typeck_float_widen_ok(decl_k2, init_k2))) {
+            || (decl_k2 != TypeKind.TYPE_DYN as i32 && fn_init_ok == 0
+                && !typeck_float_widen_ok(decl_k2, init_k2))) {
           eb = driver_typeck_diag_scratch_expect();
           gb = driver_typeck_diag_scratch_found();
           el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96);

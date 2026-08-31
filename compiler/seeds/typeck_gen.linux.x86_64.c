@@ -1825,6 +1825,7 @@ extern int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind);
 extern int32_t typeck_int_family_id(struct ast_ASTArena * arena, int32_t type_ref);
 extern int typeck_integer_widen_ok_refs(struct ast_ASTArena * arena, int32_t dest_ref, int32_t src_ref);
 extern int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind);
+extern int32_t typeck_is_fnptr_surface(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref);
 extern int32_t typeck_array_to_slice_ok(struct ast_ASTArena * arena, int32_t src_ty, int32_t dest_ty);
 extern int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
@@ -7412,6 +7413,29 @@ int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind) {
   }
   return 0;
 }
+/* 10.3.1/10.3.2: TYPE_FN(18) or Cap *u8 — twin of typeck.x. PLATFORM: SHARED. */
+int32_t typeck_is_fnptr_surface(struct ast_ASTArena * arena, int32_t type_ref) {
+  int32_t ko = 0;
+  int32_t er = 0;
+  int32_t eko = 0;
+  if (((arena ==0) || (type_ref <=0))) {
+    return 0;
+  }
+  (void)((ko = pipeline_type_kind_ord_at(arena, type_ref)));
+  if ((ko ==18)) {
+    return 1;
+  }
+  if ((ko ==9)) {
+    (void)((er = pipeline_type_elem_ref_at(arena, type_ref)));
+    if ((er > 0)) {
+      (void)((eko = pipeline_type_kind_ord_at(arena, er)));
+      if ((eko ==2)) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
 int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref) {
   {
     int32_t ord_lit = 0;
@@ -9052,6 +9076,10 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
  }) : 0);
  }));
       }
+      /* 10.3.1: TYPE_FN LHS accepts Cap *u8 / TYPE_FN RHS. PLATFORM: SHARED. */
+      if (((pipeline_type_kind_ord_at(arena, lt) ==18) && (typeck_is_fnptr_surface(arena, rt) !=0))) {
+        (void)((dyn_assign_ok = 1));
+      }
       if (((!(typeck_type_refs_equal(arena, lt, rt)) && (ptr_compound_offset_ok ==0)) && (dyn_assign_ok ==0))) {
         (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
         int32_t rt_kind_mis = pipeline_type_kind_ord_at(arena, rt);
@@ -9483,7 +9511,7 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
  }) : 0);
  }) : 0);
     }
-    /* Cap-fn-ptr (10.3.2): call through *u8 — stamp ret from expected or i32. */
+    /* Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): stamp ret from TYPE_FN elem or expected/i32. */
     if (((ret_ty ==0) && (pipeline_expr_kind_ord_at(arena, callee_eff) ==ord_var))) {
       if ((typeck_check_expr(module, arena, callee_eff, 0, ctx) ==0)) {
         int32_t ctr = pipeline_expr_resolved_type_ref(arena, callee_eff);
@@ -9493,7 +9521,19 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
         int32_t expect = 0;
         if ((ctr > 0)) {
           (void)((cko = pipeline_type_kind_ord_at(arena, ctr)));
-          if ((cko ==9)) {
+          if ((cko ==18)) {
+            (void)((eer = pipeline_type_elem_ref_at(arena, ctr)));
+            if ((eer > 0)) {
+              (void)((ret_ty = eer));
+            } else {
+              (void)((expect = typeck_i32_ptr_read(typeck_overload_expected_ret_slot())));
+              if ((expect > 0)) {
+                (void)((ret_ty = expect));
+              } else {
+                (void)((ret_ty = typeck_ensure_i32_type_ref(arena)));
+              }
+            }
+          } else if ((cko ==9)) {
             (void)((eer = pipeline_type_elem_ref_at(arena, ctr)));
             if ((eer > 0)) {
               (void)((eko = pipeline_type_kind_ord_at(arena, eer)));
@@ -9586,26 +9626,14 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     if ((pipeline_typeck_is_simd_comptime_callee_c_u8_ptr_i32_reti32(&((cnm)[0]), cnml) !=0)) {
       return 0;
     }
-    /* Cap-fn-ptr (10.3.2): *u8 callee VAR — soft-skip unresolved name. */
+    /* Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): soft-skip unresolved name. */
     if ((typeck_check_expr(module, arena, callee_eff, 0, ctx) !=0)) {
       return -1;
     }
     {
       int32_t ctr = pipeline_expr_resolved_type_ref(arena, callee_eff);
-      int32_t cko = 0;
-      int32_t eer = 0;
-      int32_t eko = 0;
-      if ((ctr > 0)) {
-        (void)((cko = pipeline_type_kind_ord_at(arena, ctr)));
-        if ((cko ==9)) {
-          (void)((eer = pipeline_type_elem_ref_at(arena, ctr)));
-          if ((eer > 0)) {
-            (void)((eko = pipeline_type_kind_ord_at(arena, eer)));
-            if ((eko ==2)) {
-              return 0;
-            }
-          }
-        }
+      if (((ctr > 0) && (typeck_is_fnptr_surface(arena, ctr) !=0))) {
+        return 0;
       }
     }
     (void)((name_hits = 0));
@@ -13740,6 +13768,7 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
         int32_t decl_k2 = pipeline_type_kind_ord_at(arena, ld_tr);
         int32_t init_k2 = pipeline_type_kind_ord_at(arena, init_ty);
         int32_t dyn_init_reject = 0;
+        int32_t fn_init_ok = 0;
         if ((decl_k2 ==17)) {
           ((typeck_dyn_rhs_is_null_sentinel(arena, init_ty, ld_ir) ==0) ? ({   uint8_t trait_nm_let[64] = {};
   int32_t tnl_let = pipeline_type_named_name_into(arena, ld_tr, &((trait_nm_let)[0]));
@@ -13747,7 +13776,11 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
  }) : 0);
  }) : 0);
         }
-        (((dyn_init_reject !=0) || ((decl_k2 !=17) && !(typeck_float_widen_ok(decl_k2, init_k2)))) ? ({   (void)((eb = driver_typeck_diag_scratch_expect()));
+        /* 10.3.1: TYPE_FN accepts Cap *u8 / TYPE_FN init. PLATFORM: SHARED. */
+        if (((decl_k2 ==18) && (typeck_is_fnptr_surface(arena, init_ty) !=0))) {
+          (void)((fn_init_ok = 1));
+        }
+        (((dyn_init_reject !=0) || (((decl_k2 !=17) && (fn_init_ok ==0)) && !(typeck_float_widen_ok(decl_k2, init_k2)))) ? ({   (void)((eb = driver_typeck_diag_scratch_expect()));
   (void)((gb = driver_typeck_diag_scratch_found()));
   (void)((el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96)));
   (void)((gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96)));
