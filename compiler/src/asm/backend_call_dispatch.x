@@ -4494,6 +4494,8 @@ function try_emit_atomic_builtin_call_elf_c(
  * Stage10 10.2.1 slice0: emit EXPR_ASM (kind 60) from template in var_name.
  * Supported templates: "nop" → x86_64 0x90 / aarch64 d503201f.
  * Other templates → -1 (honest fail; operands deferred).
+ * Note: pipeline_expr_var_name_len is VAR-only; use var_name_into (any kind)
+ * then match bytes (STRING_LIT/ASM share var_name packing).
  * @return i32 — 0 ok; -1 error / unsupported
  * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64 (CPU nop; Darwin OK).
  */
@@ -4506,7 +4508,6 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
   }
   unsafe {
     let ko: i32 = 0;
-    let nlen: i32 = 0;
     let tmpl: u8[128] = [];
     let nop1: u8 = 144 as u8;
     let a64: u8[4] = [];
@@ -4514,13 +4515,11 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     if (ko != 60) {
       return 0 - 1;
     }
-    nlen = pipeline_expr_var_name_len(arena, expr_ref);
-    if (nlen <= 0 || nlen > 127) {
-      return 0 - 1;
-    }
+    /* VAR-only len face returns 0 for ASM; into copies var_name for any kind. */
     pipeline_expr_var_name_into(arena, expr_ref, &tmpl[0]);
-    /* "nop" only for slice0. */
-    if (nlen == 3 && tmpl[0] == (110 as u8) && tmpl[1] == (111 as u8) && tmpl[2] == (112 as u8)) {
+    /* "nop" + NUL (into zero-fills remainder). */
+    if (tmpl[0] == (110 as u8) && tmpl[1] == (111 as u8) && tmpl[2] == (112 as u8)
+        && tmpl[3] == (0 as u8)) {
       if (ta == 0) {
         return pipeline_elf_ctx_append_bytes(elf_ctx, &nop1, 1);
       }
