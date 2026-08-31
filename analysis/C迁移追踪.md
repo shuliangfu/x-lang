@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0–5**（nop／in／syscall／lateout GP）＋**10.2.2 slice0** ✅＠`405e38c9b`；残：clobber／options／10.2.3／10.1.3 NT／Darwin pin |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0–6**（nop／in／syscall／lateout／clobber＋options）＋**10.2.2 slice0** ✅＠`fc6445cc3`；残：options 语义／10.2.3／10.1.3 NT／Darwin pin |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
