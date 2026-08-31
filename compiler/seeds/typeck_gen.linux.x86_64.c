@@ -7522,7 +7522,90 @@ int32_t typeck_module_func_matches_type_fn(struct ast_Module * module, struct as
   }
   return 1;
 }
-/* 10.3.1: Cap/TYPE_FN surface compat + signature (twin of typeck.x). PLATFORM: SHARED. */
+/* 10.3.1: same-block let init by name (Cap provenance). Twin typeck.x. */
+int32_t typeck_block_let_init_by_name(struct ast_ASTArena * arena, int32_t block_ref, uint8_t * name,
+    int32_t name_len) {
+  int32_t nl = 0;
+  int32_t i = 0;
+  int32_t ln = 0;
+  uint8_t nbuf[128];
+  int32_t j = 0;
+  int32_t eq = 0;
+  if (((arena == 0) || (block_ref <= 0) || (name == 0) || (name_len <= 0) || (name_len > 127))) {
+    return 0;
+  }
+  nl = ast_ast_block_num_lets(arena, block_ref);
+  i = 0;
+  while ((i < nl)) {
+    ln = pipeline_block_let_name_len(arena, block_ref, i);
+    if ((ln == name_len)) {
+      pipeline_block_let_name_copy64(arena, block_ref, i, &((nbuf)[0]));
+      eq = 1;
+      j = 0;
+      while ((j < name_len)) {
+        if (((nbuf)[j] != (name)[j])) {
+          eq = 0;
+          break;
+        }
+        j = j + 1;
+      }
+      if ((eq != 0)) {
+        return pipeline_block_let_init_ref(arena, block_ref, i);
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+/* 10.3.1: recover module fn from Cap/AS provenance. Twin typeck.x. */
+int32_t typeck_recover_fn_fi_from_cap_expr(struct ast_Module * module, struct ast_ASTArena * arena,
+    int32_t expr, int32_t depth) {
+  int32_t ko = 0;
+  int32_t ord_var = 3;
+  int32_t ord_as = 54;
+  int32_t vnlen = 0;
+  uint8_t vbuf[128];
+  int32_t fi = 0;
+  int32_t nfuncs = 0;
+  int32_t op = 0;
+  int32_t init_r = 0;
+  struct ast_PipelineDepCtx * ctx = 0;
+  int32_t br = 0;
+  if (((module == 0) || (arena == 0) || (expr <= 0) || (depth > 8))) {
+    return (0 - 1);
+  }
+  ko = pipeline_expr_kind_ord_at(arena, expr);
+  if ((ko == ord_as)) {
+    op = pipeline_expr_as_operand_ref_at(arena, expr);
+    return typeck_recover_fn_fi_from_cap_expr(module, arena, op, (depth + 1));
+  }
+  if ((ko == ord_var)) {
+    vnlen = pipeline_expr_var_name_len(arena, expr);
+    if (((vnlen > 0) && (vnlen <= 127))) {
+      pipeline_expr_var_name_into(arena, expr, &((vbuf)[0]));
+      nfuncs = (module)->num_funcs;
+      fi = 0;
+      while ((fi < nfuncs)) {
+        if ((pipeline_module_func_name_equal_at(module, fi, &((vbuf)[0]), vnlen) != 0)) {
+          return fi;
+        }
+        fi = fi + 1;
+      }
+      ctx = pipeline_typeck_active_ctx_c();
+      if ((ctx != 0)) {
+        br = pipeline_dep_ctx_current_block_ref_at(ctx);
+        if ((br > 0)) {
+          init_r = typeck_block_let_init_by_name(arena, br, &((vbuf)[0]), vnlen);
+          if ((init_r > 0)) {
+            return typeck_recover_fn_fi_from_cap_expr(module, arena, init_r, (depth + 1));
+          }
+        }
+      }
+    }
+  }
+  return (0 - 1);
+}
+/* 10.3.1: Cap/TYPE_FN surface compat + signature + Cap provenance (twin of typeck.x). PLATFORM: SHARED. */
 int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTArena * arena,
     int32_t expect_ty, int32_t got_ty, int32_t got_expr) {
   int32_t ek = 0;
@@ -7533,6 +7616,7 @@ int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTAr
   int32_t fi = 0;
   int32_t nfuncs = 0;
   int32_t ord_var = 3;
+  int32_t recovered = 0;
   if (((arena == 0) || (expect_ty <= 0) || (got_ty <= 0))) {
     return 0;
   }
@@ -7548,18 +7632,24 @@ int32_t typeck_fnptr_surface_compat(struct ast_Module * module, struct ast_ASTAr
     if ((mod == 0)) {
       mod = pipeline_typeck_active_module_c();
     }
-    if (((mod != 0) && (got_expr > 0) && (pipeline_expr_kind_ord_at(arena, got_expr) == ord_var))) {
-      vnlen = pipeline_expr_var_name_len(arena, got_expr);
-      if (((vnlen > 0) && (vnlen <= 127))) {
-        pipeline_expr_var_name_into(arena, got_expr, &((vbuf)[0]));
-        nfuncs = (mod)->num_funcs;
-        fi = 0;
-        while ((fi < nfuncs)) {
-          if ((pipeline_module_func_name_equal_at(mod, fi, &((vbuf)[0]), vnlen) != 0)) {
-            return typeck_module_func_matches_type_fn(mod, arena, fi, expect_ty);
+    if (((mod != 0) && (got_expr > 0))) {
+      if ((pipeline_expr_kind_ord_at(arena, got_expr) == ord_var)) {
+        vnlen = pipeline_expr_var_name_len(arena, got_expr);
+        if (((vnlen > 0) && (vnlen <= 127))) {
+          pipeline_expr_var_name_into(arena, got_expr, &((vbuf)[0]));
+          nfuncs = (mod)->num_funcs;
+          fi = 0;
+          while ((fi < nfuncs)) {
+            if ((pipeline_module_func_name_equal_at(mod, fi, &((vbuf)[0]), vnlen) != 0)) {
+              return typeck_module_func_matches_type_fn(mod, arena, fi, expect_ty);
+            }
+            fi = fi + 1;
           }
-          fi = fi + 1;
         }
+      }
+      recovered = typeck_recover_fn_fi_from_cap_expr(mod, arena, got_expr, 0);
+      if ((recovered >= 0)) {
+        return typeck_module_func_matches_type_fn(mod, arena, recovered, expect_ty);
       }
     }
     return 1;
