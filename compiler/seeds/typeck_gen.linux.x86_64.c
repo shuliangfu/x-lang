@@ -8270,6 +8270,8 @@ int32_t typeck_diag_fmt_type_at(struct ast_ASTArena * arena, int32_t ref, uint8_
     uint8_t lit_f32[3] = {102, 51, 50};
     uint8_t lit_f64[3] = {102, 54, 52};
     uint8_t lit_void[4] = {118, 111, 105, 100};
+    /* 10.3.1: format TYPE_FN as "function" (was bare "?"). Twin of typeck.x. */
+    uint8_t lit_fn[8] = {102, 117, 110, 99, 116, 105, 111, 110};
     uint8_t star[1] = {42};
     uint8_t lbk[1] = {91};
     uint8_t rbk[1] = {93};
@@ -8294,6 +8296,7 @@ int32_t typeck_diag_fmt_type_at(struct ast_ASTArena * arena, int32_t ref, uint8_
     int32_t ord_f32 = 14;
     int32_t ord_f64 = 15;
     int32_t ord_void = 16;
+    int32_t ord_fn = 18;
     uint8_t * nm_buf = typeck_scratch64_slot(0);
     if ((((cur < 0) || (cap <=0)) || (cur >=cap))) {
       return cur;
@@ -8339,6 +8342,9 @@ int32_t typeck_diag_fmt_type_at(struct ast_ASTArena * arena, int32_t ref, uint8_
     }
     if ((kind ==ord_void)) {
       return typeck_diag_append_lit(out, cur, cap, &((lit_void)[0]), 4);
+    }
+    if ((kind ==ord_fn)) {
+      return typeck_diag_append_lit(out, cur, cap, &((lit_fn)[0]), 8);
     }
     if ((kind ==ord_ptr)) {
       (void)((elem_ref = pipeline_type_elem_ref_at(arena, ref)));
