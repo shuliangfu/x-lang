@@ -4136,7 +4136,10 @@ enum {
   PARSER_ASM_TYPE_VECTOR = 13,
   PARSER_ASM_TYPE_F32 = 14,
   PARSER_ASM_TYPE_F64 = 15,
-  PARSER_ASM_TYPE_VOID = 16
+  PARSER_ASM_TYPE_VOID = 16,
+  PARSER_ASM_TYPE_DYN = 17,
+  /* 10.3.1 TYPE_FN — G.7 ≡ type_ref_slice.inc / ast.x. */
+  PARSER_ASM_TYPE_FN = 18
 };
 int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u8 *source,
                                                       struct parser_asm_lexer_result *r, uint8_t *out,
