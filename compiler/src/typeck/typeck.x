@@ -6570,10 +6570,10 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       }
       /*
        * 10.3.3: opaque Cap-fn-ptr ABI — TYPE_FN ↔ Cap *u8 (cross-kind only).
-       * Same gate as let/assign (`typeck_is_fnptr_surface`). Do not steal
+       * Same gate as let/assign (`typeck_fnptr_surface_compat`). Do not steal
        * Cap↔Cap / TYPE_FN↔TYPE_FN same-kind paths (exact / PTR / ak==pk).
-       * Score 100 < exact 1000. Signature equality deferred.
-       * PLATFORM: SHARED. G.7 single score path.
+       * Score 100 < exact 1000. TYPE_FN↔TYPE_FN mismatch → -1 via type_refs_equal.
+       * Cap↔TYPE_FN soft at score (no arg expr here). PLATFORM: SHARED.
        */
       if (ak != pk
           && typeck_is_fnptr_surface(caller_arena, param_ty) != 0
@@ -7887,6 +7887,7 @@ export function type_refs_equal_same_kind(arena: *ASTArena, a: i32, b: i32, kind
     let ord_slice: i32 = 11;
     let ord_linear: i32 = 12;
     let ord_vector: i32 = 13;
+    let ord_fn: i32 = TypeKind.TYPE_FN as i32;
     if (kind_ord == ord_named) {
       return type_refs_equal_named(arena, a, b);
     }
@@ -7902,6 +7903,11 @@ export function type_refs_equal_same_kind(arena: *ASTArena, a: i32, b: i32, kind
       ea = pipeline_type_elem_ref_at(arena, a);
       eb = pipeline_type_elem_ref_at(arena, b);
       return type_refs_equal(arena, ea, eb);
+    }
+    /* 10.3.1: TYPE_FN structural sig (arity + params + ret). Prior fallthrough
+     * returned true for any same-kind TYPE_FN → arity/ret false-green. */
+    if (kind_ord == ord_fn) {
+      return typeck_fn_type_sig_equal(arena, a, b) != 0;
     }
     return true;
   }
@@ -8192,7 +8198,8 @@ export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
 /**
  * True when type_ref is a Cap-fn-ptr surface: TYPE_FN (18) or Cap *u8 (PTR→U8).
  * 10.3.1/10.3.2: TYPE_FN lets/params share the opaque fn-pointer ABI with Cap *u8
- * (asm Cap blr path; soft signature match later). PLATFORM: SHARED.
+ * (asm Cap blr path). Signature compare is typeck_fnptr_surface_compat.
+ * PLATFORM: SHARED.
  * @param arena *ASTArena — type pool
  * @param type_ref i32 — candidate type
  * @return i32 — 1 if Cap/TYPE_FN surface; else 0
@@ -8220,6 +8227,178 @@ export function typeck_is_fnptr_surface(arena: *ASTArena, type_ref: i32): i32 {
       }
     }
     return 0;
+  }
+}
+
+/**
+ * Structural TYPE_FN signature equality: arity (array_size) + params (type_args)
+ * + return (elem_type_ref). Both refs must already be TYPE_FN (18).
+ * G.7 single authority for TYPE_FN↔TYPE_FN (also used by type_refs_equal_same_kind).
+ * @param arena *ASTArena — type pool
+ * @param a i32 — left TYPE_FN type_ref
+ * @param b i32 — right TYPE_FN type_ref
+ * @return i32 — 1 equal, 0 mismatch/null
+ * PLATFORM: SHARED — 10.3.1 signature slice.
+ */
+export function typeck_fn_type_sig_equal(arena: *ASTArena, a: i32, b: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let na: i32 = 0;
+    let nb: i32 = 0;
+    let i: i32 = 0;
+    let ra: i32 = 0;
+    let rb: i32 = 0;
+    let pa: i32 = 0;
+    let pb: i32 = 0;
+    if (arena == 0 as *ASTArena || a <= 0 || b <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, a) != TypeKind.TYPE_FN as i32
+        || pipeline_type_kind_ord_at(arena, b) != TypeKind.TYPE_FN as i32) {
+      return 0;
+    }
+    na = pipeline_type_array_size_at(arena, a);
+    nb = pipeline_type_array_size_at(arena, b);
+    if (na != nb || na < 0) {
+      return 0;
+    }
+    ra = pipeline_type_elem_ref_at(arena, a);
+    rb = pipeline_type_elem_ref_at(arena, b);
+    if (!type_refs_equal(arena, ra, rb)) {
+      return 0;
+    }
+    i = 0;
+    while (i < na) {
+      pa = pipeline_type_type_arg_ref_at(arena, a, i);
+      pb = pipeline_type_type_arg_ref_at(arena, b, i);
+      if (pa <= 0 || pb <= 0 || !type_refs_equal(arena, pa, pb)) {
+        return 0;
+      }
+      i = i + 1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Compare a same-module function (by index) to a TYPE_FN expect type.
+ * Uses num_params / param_type_ref_at / return_type_at vs TYPE_FN array_size /
+ * type_args / elem. PLATFORM: SHARED.
+ * @param module *Module — owning module of fi
+ * @param arena *ASTArena — type pool (expect + param types)
+ * @param fi i32 — function index
+ * @param expect_fn i32 — TYPE_FN type_ref
+ * @return i32 — 1 match, 0 mismatch
+ */
+export function typeck_module_func_matches_type_fn(module: *Module, arena: *ASTArena, fi: i32,
+expect_fn: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let np: i32 = 0;
+    let n_expect: i32 = 0;
+    let i: i32 = 0;
+    let pret: i32 = 0;
+    let eret: i32 = 0;
+    let ppar: i32 = 0;
+    let epar: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || fi < 0 || expect_fn <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, expect_fn) != TypeKind.TYPE_FN as i32) {
+      return 0;
+    }
+    np = pipeline_module_func_num_params_at(module, fi);
+    n_expect = pipeline_type_array_size_at(arena, expect_fn);
+    if (np != n_expect || np < 0) {
+      return 0;
+    }
+    pret = pipeline_module_func_return_type_at(module, fi);
+    eret = pipeline_type_elem_ref_at(arena, expect_fn);
+    if (!type_refs_equal(arena, pret, eret)) {
+      return 0;
+    }
+    i = 0;
+    while (i < np) {
+      ppar = pipeline_module_func_param_type_ref_at(module, fi, i);
+      epar = pipeline_type_type_arg_ref_at(arena, expect_fn, i);
+      if (ppar <= 0 || epar <= 0 || !type_refs_equal(arena, ppar, epar)) {
+        return 0;
+      }
+      i = i + 1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Cap/TYPE_FN surface assign / coerce / as / return gate with signature when
+ * checkable. G.7 single authority for all soft surface sites.
+ *
+ * Rules:
+ * - Both TYPE_FN → typeck_fn_type_sig_equal
+ * - Expect TYPE_FN + got Cap *u8 + got_expr bare same-module fn VAR →
+ *   recover module func sig and compare
+ * - Cap↔Cap / TYPE_FN←opaque Cap (no recoverable name) → soft allow (ABI opaque)
+ * - Expect Cap *u8 + got TYPE_FN → allow
+ *
+ * @param module *Module — may be 0 → pipeline_typeck_active_module_c()
+ * @param arena *ASTArena
+ * @param expect_ty i32 — destination / cast target / return expect
+ * @param got_ty i32 — source / operand type
+ * @param got_expr i32 — source expr (0 if unavailable; skips bare-fn recover)
+ * @return i32 — 1 compatible, 0 reject
+ * PLATFORM: SHARED — 10.3.1 signature slice.
+ */
+export function typeck_fnptr_surface_compat(module: *Module, arena: *ASTArena, expect_ty: i32,
+got_ty: i32, got_expr: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ek: i32 = 0;
+    let gk: i32 = 0;
+    let mod: *Module = module;
+    let vnlen: i32 = 0;
+    let vbuf: u8[128] = [];
+    let fi: i32 = 0;
+    let nfuncs: i32 = 0;
+    let ord_var: i32 = 3;
+    if (arena == 0 as *ASTArena || expect_ty <= 0 || got_ty <= 0) {
+      return 0;
+    }
+    if (typeck_is_fnptr_surface(arena, expect_ty) == 0
+        || typeck_is_fnptr_surface(arena, got_ty) == 0) {
+      return 0;
+    }
+    ek = pipeline_type_kind_ord_at(arena, expect_ty);
+    gk = pipeline_type_kind_ord_at(arena, got_ty);
+    /* TYPE_FN ↔ TYPE_FN: hard structural signature. */
+    if (ek == TypeKind.TYPE_FN as i32 && gk == TypeKind.TYPE_FN as i32) {
+      return typeck_fn_type_sig_equal(arena, expect_ty, got_ty);
+    }
+    /* Expect TYPE_FN ← Cap *u8: recover bare same-module function when possible. */
+    if (ek == TypeKind.TYPE_FN as i32 && gk == 9) {
+      if (mod == 0 as *Module) {
+        mod = pipeline_typeck_active_module_c();
+      }
+      if (mod != 0 as *Module && got_expr > 0
+          && pipeline_expr_kind_ord_at(arena, got_expr) == ord_var) {
+        vnlen = pipeline_expr_var_name_len(arena, got_expr);
+        if (vnlen > 0 && vnlen <= 127) {
+          pipeline_expr_var_name_into(arena, got_expr, &vbuf[0]);
+          nfuncs = mod.num_funcs;
+          fi = 0;
+          while (fi < nfuncs) {
+            if (pipeline_module_func_name_equal_at(mod, fi, &vbuf[0], vnlen) != 0) {
+              return typeck_module_func_matches_type_fn(mod, arena, fi, expect_ty);
+            }
+            fi = fi + 1;
+          }
+        }
+      }
+      /* Opaque Cap local / unknown — soft allow (no recoverable signature). */
+      return 1;
+    }
+    /* Cap ← TYPE_FN / Cap ← Cap: opaque ABI accept. */
+    return 1;
   }
 }
 
@@ -8422,12 +8601,11 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
       return true;
     }
     /*
-     * 10.3.3: opaque Cap-fn-ptr ABI on return — TYPE_FN ↔ Cap *u8 / TYPE_FN.
-     * Same surface gate as let/assign/call-arg score. Signature equality deferred.
-     * PLATFORM: SHARED. G.7 single return-match authority.
+     * 10.3.3 / 10.3.1: Cap/TYPE_FN opaque ABI on return — surface gate + signature
+     * when TYPE_FN↔TYPE_FN or bare fn recoverable. G.7 typeck_fnptr_surface_compat.
+     * PLATFORM: SHARED.
      */
-    if (typeck_is_fnptr_surface(arena, expect_ref) != 0
-        && typeck_is_fnptr_surface(arena, got) != 0) {
+    if (typeck_fnptr_surface_compat(0 as *Module, arena, expect_ref, got, op_ref) != 0) {
       return true;
     }
     let ord_linear: i32 = 12;
@@ -10757,11 +10935,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       /*
-       * 10.3.1: TYPE_FN LHS accepts Cap *u8 / TYPE_FN RHS (opaque fn-ptr ABI).
-       * Signature equality deferred. PLATFORM: SHARED. G.7 with Cap *u8 surface.
+       * 10.3.1: TYPE_FN LHS accepts Cap *u8 / TYPE_FN RHS with signature when
+       * checkable (G.7 typeck_fnptr_surface_compat). PLATFORM: SHARED.
        */
-      if (pipeline_type_kind_ord_at(arena, lt) == TypeKind.TYPE_FN as i32
-          && typeck_is_fnptr_surface(arena, rt) != 0) {
+      if (typeck_fnptr_surface_compat(module, arena, lt, rt, right_ref) != 0) {
         dyn_assign_ok = 1;
       }
       if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0 && dyn_assign_ok == 0) {
@@ -17100,11 +17277,16 @@ tgt_ty: i32): i32 {
     }
     /*
      * 10.3.1: Cap *u8 / TYPE_FN opaque fn-ptr surface ↔ surface (`as function(...)`).
-     * Before class_ok so TYPE_FN need not be numeric/ptr-only. Soft arity/ret
-     * match residual → signature slice. PLATFORM: SHARED.
+     * Both TYPE_FN → structural sig. Cap↔TYPE_FN soft here; bare-fn recover in
+     * typeck_check_expr_as via typeck_fnptr_surface_compat. PLATFORM: SHARED.
      */
     if (typeck_is_fnptr_surface(arena, src_ty) != 0
         && typeck_is_fnptr_surface(arena, tgt_ty) != 0) {
+      let sk_fn: i32 = pipeline_type_kind_ord_at(arena, src_ty);
+      let tk_fn: i32 = pipeline_type_kind_ord_at(arena, tgt_ty);
+      if (sk_fn == TypeKind.TYPE_FN as i32 && tk_fn == TypeKind.TYPE_FN as i32) {
+        return typeck_fn_type_sig_equal(arena, src_ty, tgt_ty);
+      }
       return 1;
     }
     if (typeck_as_cast_type_class_ok(module, arena, src_ty) == 0
@@ -17204,6 +17386,20 @@ ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(tgt)) {
       src_ty = pipeline_expr_resolved_type_ref(arena, op_ref);
       if (!ast.ref_is_null(src_ty) && typeck_as_cast_allowed(module, arena, src_ty, tgt) == 0) {
+        line_as = pipeline_expr_line_at(arena, expr_ref);
+        col_as = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_as_cast(line_as, col_as);
+        return -1;
+      }
+      /*
+       * 10.3.1 signature: Cap bare fn `as function(...)` — type-level Cap↔TYPE_FN
+       * is soft; recover module func sig and hard-fail arity/ret/param mismatch.
+       * G.7 typeck_fnptr_surface_compat. PLATFORM: SHARED.
+       */
+      if (!ast.ref_is_null(src_ty)
+          && typeck_is_fnptr_surface(arena, src_ty) != 0
+          && typeck_is_fnptr_surface(arena, tgt) != 0
+          && typeck_fnptr_surface_compat(module, arena, tgt, src_ty, op_ref) == 0) {
         line_as = pipeline_expr_line_at(arena, expr_ref);
         col_as = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_as_cast(line_as, col_as);
@@ -17382,8 +17578,7 @@ expr_ref: i32, base_ty: i32): i32 {
             if (type_refs_equal(arena, ftr, init_ty)
             || typeck_integer_widen_ok_refs(arena, ftr, init_ty)
             || typeck_float_widen_ok(ftr_kind, got_kind)
-            || (typeck_is_fnptr_surface(arena, ftr) != 0
-                && typeck_is_fnptr_surface(arena, init_ty) != 0)) {
+            || typeck_fnptr_surface_compat(module, arena, ftr, init_ty, init_r) != 0) {
               pipeline_expr_set_resolved_type_ref(arena, init_r, ftr);
             } else {
               eb = driver_typeck_diag_scratch_expect();
@@ -18434,11 +18629,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         }
         /*
          * 10.3.1: `let f: function(...): T = bare_fn` — bare_fn is Cap *u8
-         * (wave100); accept Cap/*TYPE_FN onto TYPE_FN (opaque ABI).
-         * PLATFORM: SHARED.
+         * (wave100); accept Cap/TYPE_FN onto TYPE_FN with signature when
+         * checkable (G.7 typeck_fnptr_surface_compat). PLATFORM: SHARED.
          */
-        if (decl_k2 == TypeKind.TYPE_FN as i32
-            && typeck_is_fnptr_surface(arena, init_ty) != 0) {
+        if (typeck_fnptr_surface_compat(module, arena, ld_tr, init_ty, ld_ir) != 0) {
           fn_init_ok = 1;
         }
         if (dyn_init_reject != 0
