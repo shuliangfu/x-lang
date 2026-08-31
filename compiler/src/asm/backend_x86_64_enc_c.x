@@ -1227,6 +1227,31 @@ export function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32 {
 }
 
 /**
+ * `movl (%rcx), %eax` (8B 01) — load *expected after expected_ptr lives in rcx.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %edx, (%rbx)` (F0 0F B1 13) — CAS with ptr in rbx so eax keeps
+ * expected (eax is the low half of rax; ptr must not share rax).
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 19);
+}
+
+/**
  * `movl (%rax), %eax` (8B 00) — 10.4.1 atomic_load_i32 asm lowering.
  * PLATFORM: SHARED emit · x86_64 runtime.
  */
