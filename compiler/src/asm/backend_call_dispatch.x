@@ -148,6 +148,9 @@ export extern function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i
  * PLATFORM: SHARED — vtable static address for dyn coerce store.
  */
 export extern function backend_enc_lea_sym_to_reg_arch(elf: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
+export extern function backend_enc_blr_arch(elf: *u8, reg: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, er: i32): i32;
 export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, idx: i32): i32;
 export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, tr: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
@@ -3926,6 +3929,46 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let rs_rc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
+    }
+    /*
+     * Cap-fn-ptr (10.3.2 slice1): CALL through *u8 local/param.
+     * typeck stamps callee as TYPE_PTR(u8). Emit callee → rax/x0, then
+     * blr / call *reg (G.7 reuse backend_enc_blr_arch; same as F7 dyn).
+     * slice1: 0-arg only (args would clobber rax before the blr).
+     * PLATFORM: SHARED · LINUX x86_64 call *r · MACOS|ARM64 blr xN.
+     */
+    {
+      let cap_tr: i32 = 0;
+      let cap_ko: i32 = 0;
+      let cap_er: i32 = 0;
+      let cap_eko: i32 = 0;
+      let cap_nargs: i32 = 0;
+      let cap_eff: i32 = callee_ref;
+      if (callee_ko == 51) {
+        /* EXPR_ADDR_OF — peel to operand (*f)() shape when present. */
+        let inn: i32 = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
+        if (inn > 0) { cap_eff = inn; }
+      }
+      cap_tr = pipeline_expr_resolved_type_ref(arena, cap_eff);
+      if (cap_tr > 0) {
+        cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
+        if (cap_ko == 9) {
+          cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
+          if (cap_er > 0) {
+            cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
+            if (cap_eko == 2) {
+              cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+              if (cap_nargs != 0) { return 0 - 1; }
+              if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_eff, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              /* rax/x0 = Cap-fn-ptr; indirect call. */
+              if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+              return 0;
+            }
+          }
+        }
+      }
     }
     // See implementation.
     if (callee_ko == 44) {
