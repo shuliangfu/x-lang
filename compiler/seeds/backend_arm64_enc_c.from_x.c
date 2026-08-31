@@ -1208,6 +1208,48 @@ int32_t arch_arm64_enc_enc_cmp_x0_x4(struct platform_elf_ElfCodegenCtx *elf_ctx)
   return arm64_enc_u32_le(elf_ctx, 0xeb04001fu);
 }
 
+/**
+ * Stage 10 10.4.1 arm64 i16: ldarh w0, [x0] (0x48DFFC00).
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_ldarh_w0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x48dffc00u);
+}
+
+/**
+ * Stage 10 10.4.1 arm64 i16: stlrh w1, [x0] (0x489FFC01).
+ * Pre: w1=val, x0=ptr.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_stlrh_w1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x489ffc01u);
+}
+
+/**
+ * ldrh w0, [x3] — load *expected i16 before CASALH.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_ldrh_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x79400060u);
+}
+
+/**
+ * strh w0, [x3] — write old CAS i16 to *expected.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_strh_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x79000060u);
+}
+
+/**
+ * casalh w0, w1, [x2] (0x48E0FC41) — LSE CAS acquire-release i16.
+ * Pre: w0=expected, w1=desired, x2=ptr. Post: w0=old.
+ * PLATFORM: SHARED aarch64 emit (ARMv8.1 LSE).
+ */
+int32_t arch_arm64_enc_enc_casalh_w0_w1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x48e0fc41u);
+}
+
 int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return arm64_enc_mov_xn_xm(elf_ctx, 0, 9);
 }
