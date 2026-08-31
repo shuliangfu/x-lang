@@ -4739,10 +4739,99 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
+ * Stage10 10.2.1 slice2: twin helpers + try_emit for multi `in("reg")`.
+ * Reg pack = comma-separated method_call_name; mov via arg_reg / rbx.
+ * PLATFORM: SHARED.
+ */
+static int32_t pipeline_asm_inline_in_reg_mov_kind_c(const uint8_t *reg, int32_t ta) {
+  if (!reg)
+    return -1;
+  if (ta == 0) {
+    if (reg[0] == 'r' && reg[1] == 'a' && reg[2] == 'x' && reg[3] == 0)
+      return 0;
+    if (reg[0] == 'e' && reg[1] == 'a' && reg[2] == 'x' && reg[3] == 0)
+      return 0;
+    if (reg[0] == 'r' && reg[1] == 'd' && reg[2] == 'i' && reg[3] == 0)
+      return 1;
+    if (reg[0] == 'e' && reg[1] == 'd' && reg[2] == 'i' && reg[3] == 0)
+      return 1;
+    if (reg[0] == 'r' && reg[1] == 's' && reg[2] == 'i' && reg[3] == 0)
+      return 2;
+    if (reg[0] == 'e' && reg[1] == 's' && reg[2] == 'i' && reg[3] == 0)
+      return 2;
+    if (reg[0] == 'r' && reg[1] == 'd' && reg[2] == 'x' && reg[3] == 0)
+      return 3;
+    if (reg[0] == 'e' && reg[1] == 'd' && reg[2] == 'x' && reg[3] == 0)
+      return 3;
+    if (reg[0] == 'r' && reg[1] == 'c' && reg[2] == 'x' && reg[3] == 0)
+      return 4;
+    if (reg[0] == 'e' && reg[1] == 'c' && reg[2] == 'x' && reg[3] == 0)
+      return 4;
+    if (reg[0] == 'r' && reg[1] == '8' && reg[2] == 0)
+      return 5;
+    if (reg[0] == 'r' && reg[1] == '9' && reg[2] == 0)
+      return 6;
+    if (reg[0] == 'r' && reg[1] == 'b' && reg[2] == 'x' && reg[3] == 0)
+      return 100;
+    if (reg[0] == 'e' && reg[1] == 'b' && reg[2] == 'x' && reg[3] == 0)
+      return 100;
+    return -1;
+  }
+  if (ta == 1) {
+    if (reg[0] == 'x' && reg[1] == '0' && reg[2] == 0)
+      return 0;
+    if (reg[0] == 'x' && reg[1] == '1' && reg[2] == 0)
+      return 2;
+    if (reg[0] == 'x' && reg[1] == '2' && reg[2] == 0)
+      return 3;
+    if (reg[0] == 'x' && reg[1] == '3' && reg[2] == 0)
+      return 4;
+    if (reg[0] == 'x' && reg[1] == '4' && reg[2] == 0)
+      return 5;
+    if (reg[0] == 'x' && reg[1] == '5' && reg[2] == 0)
+      return 6;
+    return -1;
+  }
+  return -1;
+}
+
+static int32_t pipeline_asm_inline_regpack_field_c(const uint8_t *pack, int32_t idx, uint8_t *out,
+                                                   int32_t out_cap) {
+  int32_t i = 0;
+  int32_t field = 0;
+  int32_t o = 0;
+  uint8_t c;
+  if (!pack || !out || out_cap < 2 || idx < 0)
+    return -1;
+  for (;;) {
+    c = pack[i];
+    if (field == idx) {
+      if (c == 0 || c == ',') {
+        if (o >= out_cap)
+          return -1;
+        out[o] = 0;
+        return 0;
+      }
+      if (o + 1 >= out_cap)
+        return -1;
+      out[o++] = c;
+      i++;
+    } else {
+      if (c == 0)
+        return -1;
+      if (c == ',') {
+        field++;
+        i++;
+      } else {
+        i++;
+      }
+    }
+  }
+}
+
+/**
  * Stage10 10.2.1: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
- * EXPR_ASM (60); template in var_name; "nop" → x86 90 / aarch64 d503201f.
- * Slice1: one in("rax"|"eax"|"x0") via call_arg[0] + method_call_name.
- * var_name_len is VAR-only — use var_name_into + byte match (G.7).
+ * EXPR_ASM (60); "nop" + up to 6 in-operands (comma reg pack).
  * PLATFORM: SHARED.
  */
 int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
@@ -4755,8 +4844,10 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   uint8_t a64[4];
   int32_t nargs;
   int32_t arg_ref;
-  uint8_t reg[64];
-  int32_t reg_ok;
+  uint8_t pack[128];
+  uint8_t reg[32];
+  int32_t i;
+  int32_t mk;
   int32_t erc;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
@@ -4767,31 +4858,33 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   if (tmpl[0] == (uint8_t)'n' && tmpl[1] == (uint8_t)'o' && tmpl[2] == (uint8_t)'p'
       && tmpl[3] == 0) {
     nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
-    if (nargs > 1)
+    if (nargs < 0 || nargs > 6)
       return -1;
-    if (nargs == 1) {
+    if (nargs > 0) {
       if (!ctx)
         return -1;
-      pipeline_expr_method_call_name_into(arena, expr_ref, reg);
-      reg_ok = 0;
-      if (ta == 0) {
-        if (reg[0] == (uint8_t)'r' && reg[1] == (uint8_t)'a' && reg[2] == (uint8_t)'x' && reg[3] == 0)
-          reg_ok = 1;
-        if (reg[0] == (uint8_t)'e' && reg[1] == (uint8_t)'a' && reg[2] == (uint8_t)'x' && reg[3] == 0)
-          reg_ok = 1;
+      pipeline_expr_method_call_name_into(arena, expr_ref, pack);
+      for (i = 0; i < nargs; i++) {
+        if (pipeline_asm_inline_regpack_field_c(pack, i, reg, 32) != 0)
+          return -1;
+        mk = pipeline_asm_inline_in_reg_mov_kind_c(reg, ta);
+        if (mk < 0)
+          return -1;
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        if (arg_ref <= 0)
+          return -1;
+        erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+        if (erc != 0)
+          return -1;
+        if (mk >= 1 && mk <= 6) {
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, mk - 1, ta) != 0)
+            return -1;
+        }
+        if (mk == 100) {
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
       }
-      if (ta == 1) {
-        if (reg[0] == (uint8_t)'x' && reg[1] == (uint8_t)'0' && reg[2] == 0)
-          reg_ok = 1;
-      }
-      if (!reg_ok)
-        return -1;
-      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-      if (arg_ref <= 0)
-        return -1;
-      erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
-      if (erc != 0)
-        return -1;
     }
     if (ta == 0)
       return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &nop1, 1);
