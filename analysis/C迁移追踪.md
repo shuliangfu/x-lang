@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | 1 slice：**10.1.1 C＋asm 后端 ✅**（raw_syscall0..6）；10.1.2 arm64 svc ⬜ |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–1 Cap-fn-ptr 取址＋0-arg 间接调 Ubuntu ✅；残：带参／`(*f)()`／TYPE_FN／10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -107,7 +107,7 @@
 - ⬜ **7.2.1** 关闭 parser pinned seed — `seeds/parser_asm_thin_c.from_x.c`（~21,935 LOC）仍在；目标从 `pthin_*.x` 重建  
 - 🟡 **7.2.2** parser_gen 去 pin — **产品冷权威 pin-first**（`XLANG_PARSER_FROM_X=0` 默认；tip assemble 仅显式 `=1`）；手术改须 seed+`.x` 同 commit  
 - ⬜ **7.4.4** 双权威禁令验收 — touch `*.x` 须同 commit 禁「只改 seed」；可选 CI pin↔`-E` 漂移闸  
-- 🟡 **7.4.5** typeck pin 缺体漂移（2026-08-31 发现）— `seeds/typeck_gen.linux.x86_64.c` 只有 `typeck_get_allow_legacy_extern_calls` extern 声明＋调用，**无函数体**（typeck.x／tip 装配有体）；`./xbuild migrate` typeck cold-seed 路产出 UNDEF → pure-ld 链接失败。临时修＝typeck_x.o 由装配产物 host-cc（本波操作）；根治＝pin 补体 twin（同 commit 同语义）
+- ✅ **7.4.5** typeck pin 缺体漂移 — pin twin 已补 `typeck_{get,set}_allow_legacy_extern_calls` 体（`7c67cafa2`；与 assemble 注入／glue 边界 allow=0 同语义）
 
 ---
 
@@ -219,9 +219,9 @@
 ### 10.1 syscall／FFI
 
 - ✅ **10.1.1** Linux x86_64 syscall 内建 — **C 后端 ✅**（2026-08-31：`std.sys.linux raw_syscall0..6` panic 诚实失败体＋ codegen CALL／METHOD_CALL 双形状 → `__xlang_raw_syscallN`）＋ **asm 后端 ✅**（2026-08-31：`try_emit_raw_syscall_call_elf_c` 双形状拦截＋`arch_x86_64_enc_enc_syscall` 0F 05＋r10 `49 89 C2`；G.7 spill 复用 `glue_sysv_spill`；name_into 缓冲 128；探针 `tests/sys/raw_syscall_smoke.x` Ubuntu `xlang_asm -o` run＝`Hello Xlang!` exit 0＋objdump `syscall`）
-- ⬜ **10.1.2** Linux arm64 syscall 内建（`svc #0`；helper #if 已排除 arm64）
-- ⬜ **10.1.3** Windows NT API 内建  
-- ⬜ **10.1.4** raw FFI（`extern "C"` 调用约定）
+- ✅ **10.1.2** Linux arm64 syscall 内建 — C helper `#elif linux&&aarch64` `svc #0`＋asm ELF `enc_svc`／`mov_rax_to_x8`（`015154e4e`）；Darwin Mach-O 诚实 fallthrough（非 Linux ABI）
+- ⬜ **10.1.3** Windows NT API 内建
+- 🟡 **10.1.4** raw FFI（`extern "C"` 调用约定）— **slice1 ✅**：裸 `extern "C" write` 产品 `xlang_asm -o` 双端绿（探针 `tests/sys/raw_ffi_libc_smoke.x`；Darwin `U _write`／Ubuntu `U write@GLIBC`＋`write@plt`；**无** `xlang_sys_*` 桥、**无**新 FFI 发射器 — G.7 复用既有 SysV CALL）。残：dlsym／fnptr cast → **10.3**；NT → **10.1.3**
 
 ### 10.2 inline asm
 
@@ -232,7 +232,7 @@
 ### 10.3 fnptr
 
 - ⬜ **10.3.1** fnptr 类型表达  
-- ⬜ **10.3.2** fnptr cast + indirect call  
+- 🟡 **10.3.2** fnptr cast + indirect call — **slice0 ✅ 取址**＋**slice1 ✅ 0-arg `f()`**：同模块 `#[no_mangle] fn as *u8` → LEA；typeck Cap `*u8` soft-skip unresolved＋stamp ret；asm `emit_expr`＋`backend_enc_blr_arch`（seed／`.x` twin）。探针 `tests/sys/fnptr_addr_smoke.x` Ubuntu build=0 **run=42**。残：带参间接调／`(*f)()`／`TYPE_FN`（10.3.1）；Darwin 共验待 pabi 恢复  
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
 ### 10.4–10.7
