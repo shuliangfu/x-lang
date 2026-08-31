@@ -322,6 +322,76 @@ static int32_t parser_asm_primary_ident_is_lateout_c(struct parser_asm_slice_u8 
       && source->data[token_start + 6] == (uint8_t)'t';
 }
 
+/**
+ * True when IDENT is `options` (stage10 10.2.1 slice6 trailing options(...)).
+ * PLATFORM: SHARED.
+ */
+static int32_t parser_asm_primary_ident_is_options_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t ident_len) {
+  if (!source || !source->data || ident_len != 7)
+    return 0;
+  if (token_start + (size_t)ident_len > source->length)
+    return 0;
+  return source->data[token_start + 0] == (uint8_t)'o' && source->data[token_start + 1] == (uint8_t)'p'
+      && source->data[token_start + 2] == (uint8_t)'t' && source->data[token_start + 3] == (uint8_t)'i'
+      && source->data[token_start + 4] == (uint8_t)'o' && source->data[token_start + 5] == (uint8_t)'n'
+      && source->data[token_start + 6] == (uint8_t)'s';
+}
+
+/**
+ * True when IDENT is a known Rust-style asm! option name (slice6 accept-only).
+ * Accepted: nostack, preserves_flags, nomem, readonly, pure, noreturn.
+ * PLATFORM: SHARED — emit does not yet act on these for nop/syscall.
+ */
+static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_slice_u8 *source,
+                                                             size_t token_start, int32_t ident_len) {
+  if (!source || !source->data || ident_len <= 0)
+    return 0;
+  if (token_start + (size_t)ident_len > source->length)
+    return 0;
+  /* nostack */
+  if (ident_len == 7 && source->data[token_start + 0] == (uint8_t)'n'
+      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'s'
+      && source->data[token_start + 3] == (uint8_t)'t' && source->data[token_start + 4] == (uint8_t)'a'
+      && source->data[token_start + 5] == (uint8_t)'c' && source->data[token_start + 6] == (uint8_t)'k')
+    return 1;
+  /* nomem */
+  if (ident_len == 5 && source->data[token_start + 0] == (uint8_t)'n'
+      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'m'
+      && source->data[token_start + 3] == (uint8_t)'e' && source->data[token_start + 4] == (uint8_t)'m')
+    return 1;
+  /* pure */
+  if (ident_len == 4 && source->data[token_start + 0] == (uint8_t)'p'
+      && source->data[token_start + 1] == (uint8_t)'u' && source->data[token_start + 2] == (uint8_t)'r'
+      && source->data[token_start + 3] == (uint8_t)'e')
+    return 1;
+  /* readonly */
+  if (ident_len == 8 && source->data[token_start + 0] == (uint8_t)'r'
+      && source->data[token_start + 1] == (uint8_t)'e' && source->data[token_start + 2] == (uint8_t)'a'
+      && source->data[token_start + 3] == (uint8_t)'d' && source->data[token_start + 4] == (uint8_t)'o'
+      && source->data[token_start + 5] == (uint8_t)'n' && source->data[token_start + 6] == (uint8_t)'l'
+      && source->data[token_start + 7] == (uint8_t)'y')
+    return 1;
+  /* noreturn */
+  if (ident_len == 8 && source->data[token_start + 0] == (uint8_t)'n'
+      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'r'
+      && source->data[token_start + 3] == (uint8_t)'e' && source->data[token_start + 4] == (uint8_t)'t'
+      && source->data[token_start + 5] == (uint8_t)'u' && source->data[token_start + 6] == (uint8_t)'r'
+      && source->data[token_start + 7] == (uint8_t)'n')
+    return 1;
+  /* preserves_flags */
+  if (ident_len == 15 && source->data[token_start + 0] == (uint8_t)'p'
+      && source->data[token_start + 1] == (uint8_t)'r' && source->data[token_start + 2] == (uint8_t)'e'
+      && source->data[token_start + 3] == (uint8_t)'s' && source->data[token_start + 4] == (uint8_t)'e'
+      && source->data[token_start + 5] == (uint8_t)'r' && source->data[token_start + 6] == (uint8_t)'v'
+      && source->data[token_start + 7] == (uint8_t)'e' && source->data[token_start + 8] == (uint8_t)'s'
+      && source->data[token_start + 9] == (uint8_t)'_' && source->data[token_start + 10] == (uint8_t)'f'
+      && source->data[token_start + 11] == (uint8_t)'l' && source->data[token_start + 12] == (uint8_t)'a'
+      && source->data[token_start + 13] == (uint8_t)'g' && source->data[token_start + 14] == (uint8_t)'s')
+    return 1;
+  return 0;
+}
+
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
                                                    struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_parse_expr_result *out) {
@@ -1285,11 +1355,11 @@ static void parser_asm_primary_parse_panic_c(void *arena, struct parser_asm_slic
 }
 
 /**
- * Parse `asm!("template")` / `asm!("template", in("reg") expr, …)` (stage10 10.2.1).
- * Caller must have consumed IDENT `asm` and leave `*r` on TOKEN_BANG.
- * Slice0: template-only. Slice1: one `in`. Slice2: up to 6 `in("reg") expr`.
+ * Parse `asm!("template")` / `asm!("template", in/out/lateout(...), options(...))`
+ * (stage10 10.2.1). Caller must have consumed IDENT `asm` and leave `*r` on TOKEN_BANG.
+ * Slice6: `out`/`lateout` place may be `_` (clobber discard); trailing `options(name…)`.
  * Reg spellings packed comma-separated in method_call_name (matches call_arg order).
- * GNU `:` operands / options / out / clobber still rejected.
+ * GNU `:` operands still rejected.
  * Escape decode matches STRING_LIT (G.7). Template → var_name; kind=EXPR_ASM(60).
  * PLATFORM: SHARED.
  */
@@ -1390,14 +1460,49 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
   {
     int32_t n_in = 0;
     int32_t saw_out = 0;
+    int32_t saw_options = 0;
     while (r->tok.kind == (int32_t)TOKEN_COMMA) {
-      /* Slice4: up to 6 operands = mix of in / out / lateout (ins before outs). */
+      /* Slice6: in/out/lateout operands and/or trailing options(...). */
       int32_t is_out_op = 0;
-      if (nops >= 6)
-        return;
       parser_asm_lex_from_result_val_into(lex, *r);
       lexer_next_into(r, *lex, source);
       if (r->tok.kind != (int32_t)TOKEN_IDENT)
+        return;
+      /* Trailing options(...) — once; after this only asm RPAREN. */
+      if (parser_asm_primary_ident_is_options_c(source, r->token_start, r->tok.ident_len)) {
+        if (saw_options)
+          return;
+        saw_options = 1;
+        parser_asm_lex_from_result_val_into(lex, *r);
+        lexer_next_into(r, *lex, source);
+        if (r->tok.kind != (int32_t)TOKEN_LPAREN)
+          return;
+        parser_asm_lex_from_result_val_into(lex, *r);
+        lexer_next_into(r, *lex, source);
+        /* Empty options() ok; else IDENT[, IDENT…] of known names. */
+        if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
+          while (1) {
+            if (r->tok.kind != (int32_t)TOKEN_IDENT)
+              return;
+            if (!parser_asm_primary_ident_is_asm_option_name_c(source, r->token_start, r->tok.ident_len))
+              return;
+            parser_asm_lex_from_result_val_into(lex, *r);
+            lexer_next_into(r, *lex, source);
+            if (r->tok.kind == (int32_t)TOKEN_RPAREN)
+              break;
+            if (r->tok.kind != (int32_t)TOKEN_COMMA)
+              return;
+            parser_asm_lex_from_result_val_into(lex, *r);
+            lexer_next_into(r, *lex, source);
+          }
+        }
+        parser_asm_lex_from_result_val_into(lex, *r);
+        lexer_next_into(r, *lex, source);
+        continue;
+      }
+      if (saw_options)
+        return;
+      if (nops >= 6)
         return;
       if (parser_asm_primary_ident_is_in_c(source, r->token_start, r->tok.ident_len)) {
         if (saw_out)
@@ -1467,15 +1572,37 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
         return;
       parser_asm_lex_from_result_val_into(lex, *r);
       lexer_next_into(r, *lex, source);
-      memset(&arg_res, 0, sizeof(arg_res));
-      arg_res.next_lex = *lex;
-      parse_expr_into(arena, *lex, source, &arg_res);
-      if (!arg_res.ok || arg_res.expr_ref <= 0)
-        return;
-      *lex = arg_res.next_lex;
-      lexer_next_into(r, *lex, source);
-      if (pipeline_expr_append_call_arg(arena, pref, arg_res.expr_ref) < 0)
-        return;
+      /* Slice6: out/lateout place may be `_` (TOKEN_UNDERSCORE → VAR "_"). */
+      if (is_out_op && r->tok.kind == (int32_t)TOKEN_UNDERSCORE) {
+        int32_t disc = 0;
+        struct parser_asm_ast_expr de;
+        disc = ast_ast_arena_expr_alloc(arena);
+        if (disc == 0)
+          return;
+        de = parser_asm_arena_expr_get_c(arena, disc);
+        parser_asm_expr_set_common_zeros_c(&de);
+        de.kind = PARSER_ASM_EXPR_VAR;
+        de.line = r->tok.line;
+        de.col = r->tok.col;
+        de.var_name[0] = (uint8_t)'_';
+        de.var_name[1] = 0;
+        de.var_name_len = 1;
+        parser_asm_arena_expr_set_c(arena, disc, de);
+        parser_asm_lex_from_result_val_into(lex, *r);
+        lexer_next_into(r, *lex, source);
+        if (pipeline_expr_append_call_arg(arena, pref, disc) < 0)
+          return;
+      } else {
+        memset(&arg_res, 0, sizeof(arg_res));
+        arg_res.next_lex = *lex;
+        parse_expr_into(arena, *lex, source, &arg_res);
+        if (!arg_res.ok || arg_res.expr_ref <= 0)
+          return;
+        *lex = arg_res.next_lex;
+        lexer_next_into(r, *lex, source);
+        if (pipeline_expr_append_call_arg(arena, pref, arg_res.expr_ref) < 0)
+          return;
+      }
       if (!is_out_op)
         n_in += 1;
       nops += 1;
