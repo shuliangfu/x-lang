@@ -9577,6 +9577,9 @@ function codegen_array_lit_tree_is_const(arena: *ASTArena, expr_ref: i32): i32 {
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for []i32
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C (C static initializer only)
+ * Seed twin: codegen_gen.linux.x86_64.c
+ * codegen_emit_file_scope_dest_slice_array_lit (live `-E` is host-cc of
+ * that seed). Do not fork a second file-scope dest-SLICE ARRAY_LIT wrap.
  */
 function emit_file_scope_dest_slice_array_lit(
   arena: *ASTArena,

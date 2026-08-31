@@ -631,6 +631,7 @@ struct ast_ASTArena {
 #define codegen_codegen_try_emit_dest_slice_from_module_array_var codegen_try_emit_dest_slice_from_module_array_var
 #define codegen_codegen_emit_braced_array_lit_init codegen_emit_braced_array_lit_init
 #define codegen_codegen_array_lit_tree_is_const codegen_array_lit_tree_is_const
+#define codegen_codegen_emit_file_scope_dest_slice_array_lit codegen_emit_file_scope_dest_slice_array_lit
 #define codegen_codegen_emit_struct_field_type_via_pipeline codegen_emit_struct_field_type_via_pipeline
 #define codegen_codegen_lookup_struct_field_type_ref codegen_lookup_struct_field_type_ref
 #define codegen_codegen_should_skip_emit_struct_layout_for_abi_dup codegen_should_skip_emit_struct_layout_for_abi_dup
@@ -1478,6 +1479,7 @@ extern int32_t codegen_try_emit_dest_slice_from_import_const_field(struct ast_AS
 extern int32_t codegen_try_emit_dest_slice_from_module_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_array_lit_tree_is_const(struct ast_ASTArena * arena, int32_t expr_ref);
+extern int32_t codegen_emit_file_scope_dest_slice_array_lit(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_ty, int32_t lit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_struct_field_type_via_pipeline(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * struct_name, int32_t struct_name_len, uint8_t * field_name, int32_t field_name_len);
 extern int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32_t name_len);
@@ -6084,6 +6086,7 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     struct ast_Expr init_e = ast_ast_arena_expr_get(arena, linit_ref);
     int32_t arr_sz = 0;
     int32_t is_field = 0;
+    int32_t is_call = 0;
     struct ast_Expr base_e = init_e;
     int32_t init_ko = pipeline_expr_kind_ord_at(arena, linit_ref);
     if (((init_ko ==3) && (((init_e).var_name_len) > 0))) {
@@ -6142,6 +6145,76 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
             (void)((arr_sz = pipeline_type_array_size_at(arena, ((init_e).resolved_type_ref))));
           }
         }
+      } else if ((init_ko == 47)) {
+        /* PLATFORM: SHARED — twin of codegen.x try_emit INDEX (kind 47).
+         * dest-SLICE stamps INDEX to TYPE_SLICE, hiding N. N from base
+         * elem TYPE_ARRAY (`[K][N]T` / `[][N]T`). `.data` is emit_expr of
+         * the INDEX (`A[i]` decays to E*). File-scope `const s:[]T = A[1]`
+         * is a C address constant. G.7: complete existing helper; do not
+         * fork a second INDEX wrap. */
+        (void)((is_call = 1));
+        {
+          int32_t ix_base = ((init_e).index_base_ref);
+          if (((ix_base > 0) && (ix_base <= ((arena)->num_exprs)))) {
+            int32_t bty = pipeline_expr_resolved_type_ref(arena, ix_base);
+            if ((!(ast_ref_is_null(bty)) && (bty > 0))) {
+              int32_t bk = pipeline_type_kind_ord_at(arena, bty);
+              if (((bk == 10) || (bk == 11))) {
+                int32_t ety = pipeline_type_elem_ref_at(arena, bty);
+                if ((!(ast_ref_is_null(ety)) && (ety > 0))) {
+                  if ((pipeline_type_kind_ord_at(arena, ety) == 10)) {
+                    (void)((arr_sz = pipeline_type_array_size_at(arena, ety)));
+                  }
+                }
+              }
+            }
+            if ((arr_sz <= 0)) {
+              int32_t ity = pipeline_expr_resolved_type_ref(arena, linit_ref);
+              if ((!(ast_ref_is_null(ity)) && (ity > 0))) {
+                if ((pipeline_type_kind_ord_at(arena, ity) == 10)) {
+                  (void)((arr_sz = pipeline_type_array_size_at(arena, ity)));
+                }
+              }
+            }
+            if (((arr_sz <= 0) && (ctx != 0))) {
+              struct ast_Expr be = ast_ast_arena_expr_get(arena, ix_base);
+              if (((pipeline_expr_kind_ord_at(arena, ix_base) == 3) && (((be).var_name_len) > 0))) {
+                struct ast_Module * ix_mod = ((ctx)->current_codegen_module);
+                if ((ix_mod != 0)) {
+                  int32_t tli = 0;
+                  while (((tli < ((ix_mod)->num_top_level_lets)) && (arr_sz <= 0))) {
+                    int32_t nlen_tl = pipeline_module_top_level_let_name_len(ix_mod, tli);
+                    if (((nlen_tl == ((be).var_name_len)) && (nlen_tl > 0))) {
+                      int32_t matched_tl = 1;
+                      int32_t ci_tl = 0;
+                      while ((ci_tl < nlen_tl)) {
+                        if ((pipeline_module_top_level_let_name_byte_at(ix_mod, tli, ci_tl) != ((be).var_name)[ci_tl])) {
+                          (void)((matched_tl = 0));
+                          (void)((ci_tl = nlen_tl));
+                        } else {
+                          (void)((ci_tl = (ci_tl + 1)));
+                        }
+                      }
+                      if ((matched_tl != 0)) {
+                        int32_t tr_tl = pipeline_module_top_level_let_type_ref(ix_mod, tli);
+                        if ((!(ast_ref_is_null(tr_tl)) && (pipeline_type_kind_ord_at(arena, tr_tl) == 10))) {
+                          int32_t ety_tl = pipeline_type_elem_ref_at(arena, tr_tl);
+                          if ((!(ast_ref_is_null(ety_tl)) && (pipeline_type_kind_ord_at(arena, ety_tl) == 10))) {
+                            (void)((arr_sz = pipeline_type_array_size_at(arena, ety_tl)));
+                          }
+                        }
+                      }
+                    }
+                    (void)((tli = (tli + 1)));
+                  }
+                }
+              }
+            }
+          }
+        }
+        if ((arr_sz <= 0)) {
+          return 0;
+        }
       } else {
         return 0;
       }
@@ -6184,6 +6257,11 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
         return -1;
       }
       if ((codegen_emit_bytes_64(out, &((((init_e).field_access_field_name))[0]), ((init_e).field_access_field_len)) !=0)) {
+        return -1;
+      }
+    } else if ((is_call != 0)) {
+      /* ARRAY return / INDEX: `.data = emit_expr(linit)` is E*. PLATFORM: SHARED. */
+      if ((codegen_emit_expr(arena, out, linit_ref, ctx) != 0)) {
         return -1;
       }
     } else {
@@ -6491,6 +6569,152 @@ int32_t codegen_array_lit_tree_is_const(struct ast_ASTArena * arena, int32_t exp
       return 0;
     }
     (void)((i = (i + 1)));
+  }
+  return 1;
+}
+/* PLATFORM: SHARED — twin of codegen.x emit_file_scope_dest_slice_array_lit.
+ * dest-SLICE ARRAY_LIT at C static storage (`const t:[]T = [10,32]` /
+ * `[][]T = [[…]]`): emit_expr uses a GNU statement-expr which is illegal
+ * as a file-scope initializer. `(T){ .data = (E[]){…}, .length = N }`
+ * is an address constant. Nested dest-SLICE rows recurse. Live `-E`
+ * uses this seed path. G.7: complete existing dest-SLICE wrap family;
+ * do not add ARRAY_LIT to try_emit (init_globals block_ref=0 would
+ * dangle a function-scope compound). */
+int32_t codegen_emit_file_scope_dest_slice_array_lit(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_ty, int32_t lit_ref, struct ast_PipelineDepCtx * ctx) {
+  int32_t n;
+  int32_t elem;
+  int32_t ek;
+  int32_t ri;
+  int32_t er;
+  int32_t ai;
+  int32_t er2;
+  int32_t row;
+  if (((arena == 0) || (out == 0))) {
+    return 0;
+  }
+  if ((ast_ref_is_null(dest_ty) || (dest_ty <= 0))) {
+    return 0;
+  }
+  if ((pipeline_type_kind_ord_at(arena, dest_ty) != 11)) {
+    return 0;
+  }
+  if (((ast_ref_is_null(lit_ref) || (lit_ref <= 0)) || (lit_ref > ((arena)->num_exprs)))) {
+    return 0;
+  }
+  if ((pipeline_expr_kind_ord_at(arena, lit_ref) != 46)) {
+    return 0;
+  }
+  if ((codegen_array_lit_tree_is_const(arena, lit_ref) == 0)) {
+    return 0;
+  }
+  n = pipeline_expr_array_lit_num_elems_at(arena, lit_ref);
+  elem = pipeline_type_elem_ref_at(arena, dest_ty);
+  if (((n <= 0) || ast_ref_is_null(elem) || (elem <= 0))) {
+    return 0;
+  }
+  ek = pipeline_type_kind_ord_at(arena, elem);
+  if ((ek == 11)) {
+    ri = 0;
+    while ((ri < n)) {
+      er = pipeline_expr_array_lit_elem_ref(arena, lit_ref, ri);
+      if (((ast_ref_is_null(er) || (er <= 0)) || (er > ((arena)->num_exprs)))) {
+        return 0;
+      }
+      if ((pipeline_expr_kind_ord_at(arena, er) != 46)) {
+        return 0;
+      }
+      if ((codegen_array_lit_tree_is_const(arena, er) == 0)) {
+        return 0;
+      }
+      (void)((ri = (ri + 1)));
+    }
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_type(arena, out, dest_ty, 0, 0, ctx) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 123) != 0)) {
+    return -1;
+  }
+  {
+    uint8_t ad1[12] = {32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0};
+    if ((codegen_emit_bytes_from_ptr(out, &((ad1)[0]), 10) != 0)) {
+      return -1;
+    }
+  }
+  if ((ek == 10)) {
+    if ((codegen_emit_local_fixed_array_elem_type(arena, out, elem, ctx) != 0)) {
+      return -1;
+    }
+    if ((codegen_append_byte(out, 91) != 0)) {
+      return -1;
+    }
+    if ((codegen_append_byte(out, 93) != 0)) {
+      return -1;
+    }
+    if ((codegen_emit_local_fixed_array_suffix(arena, out, elem) != 0)) {
+      return -1;
+    }
+  } else {
+    if ((codegen_emit_type(arena, out, elem, 0, 0, ctx) != 0)) {
+      return -1;
+    }
+    if ((codegen_append_byte(out, 91) != 0)) {
+      return -1;
+    }
+    if ((codegen_append_byte(out, 93) != 0)) {
+      return -1;
+    }
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((ek == 11)) {
+    if ((codegen_append_byte(out, 123) != 0)) {
+      return -1;
+    }
+    ai = 0;
+    while ((ai < n)) {
+      if ((ai > 0)) {
+        uint8_t comma[3] = {44, 32, 0};
+        if ((codegen_emit_bytes_3(out, &((comma)[0]), 2) != 0)) {
+          return -1;
+        }
+      }
+      er2 = pipeline_expr_array_lit_elem_ref(arena, lit_ref, ai);
+      row = codegen_emit_file_scope_dest_slice_array_lit(arena, out, elem, er2, ctx);
+      if ((row <= 0)) {
+        return -1;
+      }
+      (void)((ai = (ai + 1)));
+    }
+    if ((codegen_append_byte(out, 125) != 0)) {
+      return -1;
+    }
+  } else {
+    if ((codegen_emit_braced_array_lit_init(arena, out, lit_ref, ctx) != 0)) {
+      return -1;
+    }
+  }
+  {
+    uint8_t ad2[16] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0};
+    if ((codegen_emit_bytes_from_ptr(out, &((ad2)[0]), 12) != 0)) {
+      return -1;
+    }
+  }
+  if ((codegen_format_int(out, ((int64_t)(n))) != 0)) {
+    return -1;
+  }
+  {
+    uint8_t ad3[4] = {32, 125, 0, 0};
+    if ((codegen_emit_bytes_4(out, &((ad3)[0]), 2) != 0)) {
+      return -1;
+    }
   }
   return 1;
 }
@@ -20853,12 +21077,90 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
                 return -1;
               }
               if ((is_fixed_arr !=0)) {
-                if ((codegen_emit_braced_array_lit_init(arena, out, tl_init, ctx) !=0)) {
-                  return -1;
+                /* PLATFORM: SHARED — twin of codegen.x dest-ARRAY `[N][]T`
+                 * file-scope ARRAY_LIT rows via emit_file_scope wrap
+                 * (emit_braced injects statement-expr rows). Other dest-ARRAY
+                 * still emit_braced. */
+                int32_t fa_slice_rows = 0;
+                if (((!(ast_ref_is_null(tl_init)) && (pipeline_expr_kind_ord_at(arena, tl_init) == 46)) && (codegen_array_lit_tree_is_const(arena, tl_init) != 0))) {
+                  int32_t fa_elem = pipeline_type_elem_ref_at(arena, tl_ty);
+                  if ((!(ast_ref_is_null(fa_elem)) && (fa_elem > 0) && (pipeline_type_kind_ord_at(arena, fa_elem) == 11))) {
+                    int32_t fa_n = pipeline_expr_array_lit_num_elems_at(arena, tl_init);
+                    int32_t fa_ok = 0;
+                    if ((fa_n > 0)) {
+                      int32_t fa_i = 0;
+                      (void)((fa_ok = 1));
+                      while (((fa_i < fa_n) && (fa_ok != 0))) {
+                        int32_t fa_er = pipeline_expr_array_lit_elem_ref(arena, tl_init, fa_i);
+                        if (((ast_ref_is_null(fa_er) || (fa_er <= 0)) || (pipeline_expr_kind_ord_at(arena, fa_er) != 46))) {
+                          (void)((fa_ok = 0));
+                        }
+                        (void)((fa_i = (fa_i + 1)));
+                      }
+                    }
+                    if ((fa_ok != 0)) {
+                      if ((codegen_append_byte(out, 123) != 0)) {
+                        return -1;
+                      }
+                      {
+                        int32_t fa_j = 0;
+                        while ((fa_j < fa_n)) {
+                          if ((fa_j > 0)) {
+                            uint8_t fa_cm[3] = {44, 32, 0};
+                            if ((codegen_emit_bytes_3(out, &((fa_cm)[0]), 2) != 0)) {
+                              return -1;
+                            }
+                          }
+                          {
+                            int32_t fa_er2 = pipeline_expr_array_lit_elem_ref(arena, tl_init, fa_j);
+                            int32_t fa_row = codegen_emit_file_scope_dest_slice_array_lit(arena, out, fa_elem, fa_er2, ctx);
+                            if ((fa_row <= 0)) {
+                              return -1;
+                            }
+                          }
+                          (void)((fa_j = (fa_j + 1)));
+                        }
+                      }
+                      if ((codegen_append_byte(out, 125) != 0)) {
+                        return -1;
+                      }
+                      (void)((fa_slice_rows = 1));
+                    }
+                  }
+                }
+                if ((fa_slice_rows == 0)) {
+                  if ((codegen_emit_braced_array_lit_init(arena, out, tl_init, ctx) !=0)) {
+                    return -1;
+                  }
                 }
               } else {
-                if ((codegen_emit_expr(arena, out, tl_init, ctx) !=0)) {
+                /* PLATFORM: SHARED — twin of codegen.x dest-SLICE module
+                 * const/let wrap: try_emit then module_array_var then
+                 * file-scope ARRAY_LIT then emit_expr. Historic seed
+                 * emit_expr only → `static const T s = (A)[1]` / `= B`
+                 * / statement-expr ARRAY_LIT (host-cc BLD001). */
+                int32_t slice_tl = 0;
+                if ((!(ast_ref_is_null(tl_ty)) && (pipeline_type_kind_ord_at(arena, tl_ty) == 11))) {
+                  if ((ctx != 0)) {
+                    (void)((((ctx)->current_codegen_module) = module));
+                    (void)((((ctx)->current_codegen_arena) = arena));
+                  }
+                  (void)((slice_tl = codegen_try_emit_slice_init_from_array_var(arena, out, 0, 0, tl_ty, tl_init, ctx)));
+                }
+                if ((slice_tl == 0)) {
+                  (void)((slice_tl = codegen_try_emit_dest_slice_from_module_array_var(arena, out, tl_ty, tl_init, ctx)));
+                }
+                if ((slice_tl < 0)) {
                   return -1;
+                } else if ((slice_tl == 0)) {
+                  int32_t al_got = codegen_emit_file_scope_dest_slice_array_lit(arena, out, tl_ty, tl_init, ctx);
+                  if ((al_got < 0)) {
+                    return -1;
+                  } else if ((al_got == 0)) {
+                    if ((codegen_emit_expr(arena, out, tl_init, ctx) !=0)) {
+                      return -1;
+                    }
+                  }
                 }
               }
             }
@@ -20943,8 +21245,25 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
               if ((codegen_emit_bytes_4(out, &((eq2)[0]), 3) !=0)) {
                 return -1;
               }
-              if ((!(ast_ref_is_null(pipeline_module_top_level_let_init_ref(module, ti))) && (codegen_emit_expr(arena, out, pipeline_module_top_level_let_init_ref(module, ti), ctx) !=0))) {
-                return -1;
+              /* PLATFORM: SHARED — twin of codegen.x dest-SLICE mutable
+               * top-level let init_globals wrap. Historic seed emit_expr
+               * only → `m = B` array decay vs fat (host-cc BLD001). */
+              {
+                int32_t ig_init = pipeline_module_top_level_let_init_ref(module, ti);
+                int32_t slice_ig = 0;
+                if (((!(ast_ref_is_null(ig_ty)) && (pipeline_type_kind_ord_at(arena, ig_ty) == 11)) && !(ast_ref_is_null(ig_init)))) {
+                  (void)((slice_ig = codegen_try_emit_slice_init_from_array_var(arena, out, 0, 0, ig_ty, ig_init, ctx)));
+                }
+                if ((slice_ig == 0)) {
+                  (void)((slice_ig = codegen_try_emit_dest_slice_from_module_array_var(arena, out, ig_ty, ig_init, ctx)));
+                }
+                if ((slice_ig < 0)) {
+                  return -1;
+                } else if ((slice_ig == 0)) {
+                  if ((!(ast_ref_is_null(ig_init)) && (codegen_emit_expr(arena, out, ig_init, ctx) !=0))) {
+                    return -1;
+                  }
+                }
               }
               uint8_t sc2[3] = {59, 10, 0};
               if ((codegen_emit_bytes_3(out, &((sc2)[0]), 2) !=0)) {
@@ -20994,8 +21313,29 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
                     if ((codegen_emit_bytes_4(out, &((deq)[0]), 3) !=0)) {
                       return -1;
                     }
-                    if ((!(ast_ref_is_null(pipeline_module_top_level_let_init_ref(dep_mod, dti))) && (codegen_emit_expr(dep_arena, out, pipeline_module_top_level_let_init_ref(dep_mod, dti), ctx) !=0))) {
-                      return -1;
+                    /* PLATFORM: SHARED — twin of codegen.x dep-module
+                     * dest-SLICE mutable let init_globals wrap. Point
+                     * current_codegen_module at the dep so dest-SLICE
+                     * `= B` finds dep B. */
+                    {
+                      int32_t dig_init = pipeline_module_top_level_let_init_ref(dep_mod, dti);
+                      int32_t slice_dig = 0;
+                      if (((!(ast_ref_is_null(dig_ty)) && (pipeline_type_kind_ord_at(dep_arena, dig_ty) == 11)) && !(ast_ref_is_null(dig_init)))) {
+                        struct ast_Module * saved_dig = ((ctx)->current_codegen_module);
+                        (void)((((ctx)->current_codegen_module) = dep_mod));
+                        (void)((slice_dig = codegen_try_emit_slice_init_from_array_var(dep_arena, out, 0, 0, dig_ty, dig_init, ctx)));
+                        if ((slice_dig == 0)) {
+                          (void)((slice_dig = codegen_try_emit_dest_slice_from_module_array_var(dep_arena, out, dig_ty, dig_init, ctx)));
+                        }
+                        (void)((((ctx)->current_codegen_module) = saved_dig));
+                      }
+                      if ((slice_dig < 0)) {
+                        return -1;
+                      } else if ((slice_dig == 0)) {
+                        if ((!(ast_ref_is_null(dig_init)) && (codegen_emit_expr(dep_arena, out, dig_init, ctx) !=0))) {
+                          return -1;
+                        }
+                      }
                     }
                     uint8_t dsc[3] = {59, 10, 0};
                     if ((codegen_emit_bytes_3(out, &((dsc)[0]), 2) !=0)) {
