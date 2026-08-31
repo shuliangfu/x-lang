@@ -82,6 +82,15 @@ export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta:
  * bodies in backend_x86_64_enc_c.x — same family as the enc externs above. */
 export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32;
+/* 10.4.1 slice1: atomic_load/store/cas i32 encoders (backend_x86_64_enc_c.x). */
+export extern "C" function arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_sete_al(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32;
 /* stage10 S3.1 10.1.2: Linux aarch64 svc #0 + nr home x8.
  * bodies in seeds/backend_arm64_enc_c.from_x.c (G.7 mov_xn_xm family). */
 export extern "C" function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32;
@@ -2669,6 +2678,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       if (rs_mc < 0) { return 0 - 1; }
       if (rs_mc > 0) { return 0; }
     }
+    /* 10.4.1 slice1: atomic_load/store/cas_i32 METHOD_CALL (x86_64 only). */
+    {
+      let at_mc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (at_mc < 0) { return 0 - 1; }
+      if (at_mc > 0) { return 0; }
+    }
     /*
      * 10.3.3 slice3: METHOD_CALL `h.f(args)` when `f` is Cap/TYPE_FN field.
      * typeck stamps ret; emit loads field into rax/x0 then Cap blr (no self arg).
@@ -4046,6 +4061,144 @@ function try_emit_raw_syscall_call_elf_c(
   }
 }
 
+/**
+ * Stage 10 (10.4.1) slice1: atomic_load_i32 / atomic_store_i32 / atomic_cas_i32.
+ * Match CALL/METHOD_CALL by exact name; spill args; emit x86_64 lock/xchg/cmpxchg.
+ * Non-x86_64 (ta!=0) → 0 fallthrough to panic body. PLATFORM: SHARED emit ·
+ * LINUX|x86_64 runtime (Darwin arm64 falls through).
+ * @return i32 — 1 emitted; 0 not applicable; -1 emit error
+ */
+function try_emit_atomic_builtin_call_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    let ko: i32 = 0;
+    let name: u8[128] = [];
+    let nlen: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let i: i32 = 0;
+    let cur: i32 = 0;
+    let off: i32[4] = [];
+    let arg_ref: i32 = 0;
+    /* load=1 store=2 cas=3 */
+    let nm_load: u8[16] = [97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 51, 50, 0];
+    let nm_store: u8[17] = [97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 51, 50, 0];
+    let nm_cas: u8[14] = [97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 51, 50];
+    if (ta != 0) {
+      return 0;
+    }
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (ko == 49) {
+      nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+      if (nlen <= 0 || nlen > 127) { return 0; }
+      pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+      n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      is_method = 1;
+    } else if (ko == 48) {
+      let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      let cko: i32 = 0;
+      if (callee_ref <= 0) { return 0; }
+      cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+      if (cko == 44) {
+        nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 127) { return 0; }
+        pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+      } else if (cko == 3) {
+        nlen = pipeline_expr_var_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 127) { return 0; }
+        pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+      } else {
+        return 0;
+      }
+      n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    } else {
+      return 0;
+    }
+    which = 0;
+    if (nlen == 15) {
+      i = 0;
+      while (i < 15) {
+        if (name[i] != nm_load[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 15) { which = 1; }
+    }
+    if (which == 0 && nlen == 16) {
+      i = 0;
+      while (i < 16) {
+        if (name[i] != nm_store[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 16) { which = 2; }
+    }
+    if (which == 0 && nlen == 14) {
+      i = 0;
+      while (i < 14) {
+        if (name[i] != nm_cas[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 14) { which = 3; }
+    }
+    if (which == 0) { return 0; }
+    if (which == 1 && n_args != 1) { return 0; }
+    if (which == 2 && n_args != 2) { return 0; }
+    if (which == 3 && n_args != 3) { return 0; }
+    /* Spill all args (same cursor discipline as raw_syscall). */
+    cur = call_dispatch_load_i32_le(ctx, 4);
+    i = 0;
+    while (i < n_args) {
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      }
+      if (arg_ref == 0) { return 0 - 1; }
+      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      off[i] = cur + 16;
+      if (off[i] < 16) { off[i] = 16; }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off[i], ta) != 0) { return 0 - 1; }
+      cur = off[i];
+      i = i + 1;
+    }
+    call_dispatch_store_i32_le(ctx, 4, cur + 16);
+    if (which == 1) {
+      /* load: ptr → rax; movl (%rax), %eax */
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
+    if (which == 2) {
+      /* store: val → edx; ptr → rax; xchg %edx, (%rax) */
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
+    /* cas: desired → edx FIRST (so later loads do not clobber eax=expected);
+     * expected_ptr → rcx; *expected → eax; ptr → rax; lock cmpxchg;
+     * *expected ← old eax; sete → eax. */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) { return 0 - 1; }
+    return 1;
+  }
+}
+
 #[no_mangle]
 export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
@@ -4074,6 +4227,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let rs_rc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
+    }
+    /* 10.4.1 slice1: atomic_load/store/cas_i32 CALL (x86_64 only). */
+    {
+      let at_rc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (at_rc < 0) { return 0 - 1; }
+      if (at_rc > 0) { return 0; }
     }
     /*
      * Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): CALL through *u8 or TYPE_FN.
