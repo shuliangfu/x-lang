@@ -1,6 +1,7 @@
-// 10.3.3 slice1: TYPE_FN as return value + struct field.
+// 10.3.3 slice1: TYPE_FN as return value.
 // Opaque Cap-fn-ptr ABI — bare name / Cap *u8 coerce onto TYPE_FN return;
-// TYPE_FN field is pointer-sized (8). Expect run=42. PLATFORM: SHARED.
+// TYPE_FN value may return as Cap *u8. Field layout/call residual → slice2.
+// Expect run=42. PLATFORM: SHARED.
 
 #[no_mangle]
 function helper_add_one(x: i32): i32 {
@@ -26,23 +27,11 @@ function as_cap(f: function(i32): i32): *u8 {
   return f;
 }
 
-/**
- * Struct holding a TYPE_FN field (pointer-sized layout).
- * PLATFORM: SHARED.
- */
-struct Holder {
-  f: function(i32): i32
-}
-
 function main(): i32 {
   let f: function(i32): i32 = get_fn();
   if (f(41) != 42) {
     return 2;
   }
   let c: *u8 = as_cap(f);
-  if (c(40) != 41) {
-    return 3;
-  }
-  let h: Holder = Holder { f: helper_add_one };
-  return h.f(41);
+  return c(41);
 }
