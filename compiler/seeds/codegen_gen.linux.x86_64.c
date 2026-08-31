@@ -16450,8 +16450,13 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
       }
       int32_t type_emitted = 0;
       int32_t use_local_array = 0;
+      int32_t use_fnptr = 0;
       if ((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) ==10))) {
         (void)((use_local_array = 1));
+      }
+      /* 10.3.1 fallback let: TYPE_FN → named fnptr declarator. Twin codegen.x. */
+      if ((((use_local_array ==0) && !(ast_ref_is_null(let_type_ref))) && (pipeline_type_kind_ord_at(arena, let_type_ref) ==18))) {
+        (void)((use_fnptr = 1));
       }
       if ((use_local_array !=0)) {
         if ((codegen_emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) !=0)) {
@@ -16503,20 +16508,6 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
           }
         }
       }
-      if ((type_emitted ==0)) {
-        if ((((ast_ref_is_null(let_type_ref) && !(ast_ref_is_null(linit_fb))) && (linit_fb > 0)) && (linit_fb <=((arena)->num_exprs)))) {
-          struct ast_Expr init_e = ast_ast_arena_expr_get(arena, linit_fb);
-          if (!(ast_ref_is_null(((init_e).resolved_type_ref)))) {
-            (void)((let_type_ref = ((init_e).resolved_type_ref)));
-          }
-        }
-        if ((codegen_emit_type(arena, out, let_type_ref, &((blk_prefix)[0]), blk_prefix_len, ctx) !=0)) {
-          return -1;
-        }
-      }
-      if ((codegen_append_byte(out, 32) !=0)) {
-        return -1;
-      }
       uint8_t emit_nm_fb[128] = {};
       int32_t emit_nml_fb = 0;
       if (((lname_len_fb > 0) && ((lname_fb)[0] > 32))) {
@@ -16560,8 +16551,29 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
           (void)((pi3 = (pi3 + 1)));
         }
       }
-      if ((codegen_emit_bytes_64(out, &((emit_nm_fb)[0]), emit_nml_fb) !=0)) {
-        return -1;
+      if (((use_fnptr !=0) && (type_emitted ==0))) {
+        if ((codegen_emit_c_fnptr_decl(arena, out, let_type_ref, &((emit_nm_fb)[0]), emit_nml_fb, ctx) !=0)) {
+          return -1;
+        }
+        (void)((type_emitted = 1));
+      } else if ((type_emitted ==0)) {
+        if ((((ast_ref_is_null(let_type_ref) && !(ast_ref_is_null(linit_fb))) && (linit_fb > 0)) && (linit_fb <=((arena)->num_exprs)))) {
+          struct ast_Expr init_e = ast_ast_arena_expr_get(arena, linit_fb);
+          if (!(ast_ref_is_null(((init_e).resolved_type_ref)))) {
+            (void)((let_type_ref = ((init_e).resolved_type_ref)));
+          }
+        }
+        if ((codegen_emit_type(arena, out, let_type_ref, &((blk_prefix)[0]), blk_prefix_len, ctx) !=0)) {
+          return -1;
+        }
+      }
+      if ((use_fnptr ==0)) {
+        if ((codegen_append_byte(out, 32) !=0)) {
+          return -1;
+        }
+        if ((codegen_emit_bytes_64(out, &((emit_nm_fb)[0]), emit_nml_fb) !=0)) {
+          return -1;
+        }
       }
       if ((use_local_array !=0)) {
         if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_ref) !=0)) {
@@ -17983,6 +17995,33 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     if ((codegen_emit_c(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &((pta_nm)[0]), pta_nl, ctx) !=0)) {
                       return -1;
                     }
+                  } else if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 18)) {
+                    /* 10.3.1: param f: function(T): R → R (*f)(T). Twin codegen.x. */
+                    uint8_t pfn_nm[128] = {};
+                    int32_t pfn_nl = 0;
+                    if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
+                      (void)(codegen_copy_param_name32_from_module(module, fi, p, &((pfn_nm)[0])));
+                      (void)((pfn_nl = pipeline_module_func_param_name_len_at(module, fi, p)));
+                      if (((pfn_nm)[0] <= 32)) {
+                        (void)((pfn_nl = 0));
+                      }
+                    }
+                    if ((pfn_nl <= 0)) {
+                      (void)(((pfn_nm)[0] = 95));
+                      (void)(((pfn_nm)[1] = 112));
+                      (void)((pfn_nl = 2));
+                      if ((p < 10)) {
+                        (void)(((pfn_nm)[2] = ((uint8_t)((p + 48)))));
+                        (void)((pfn_nl = 3));
+                      } else {
+                        (void)(((pfn_nm)[2] = ((uint8_t)(((p / 10) + 48)))));
+                        (void)(((pfn_nm)[3] = ((uint8_t)(((p % 10) + 48)))));
+                        (void)((pfn_nl = 4));
+                      }
+                    }
+                    if ((codegen_emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &((pfn_nm)[0]), pfn_nl, ctx) != 0)) {
+                      return -1;
+                    }
                   } else {
                     if ((codegen_emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) !=0)) {
                       return -1;
@@ -17993,7 +18032,8 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
             }
           }
         }
-        if (((use_na ==0) && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11))) {
+        if ((((use_na ==0) && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 18))
+            && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11))) {
           if ((codegen_append_byte(out, 32) !=0)) {
             return -1;
           }
@@ -18001,7 +18041,8 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -1;
           }
         }
-        if ((use_na ==0)) {
+        /* wave636 / 10.3.1: named-array / TYPE_FN already emitted name — skip. */
+        if (((use_na ==0) && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 18))) {
           if ((codegen_append_byte(out, 32) !=0)) {
             return -1;
           }
@@ -21343,6 +21384,33 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
                   if ((codegen_emit_bytes_8(out, &((i32_str)[0]), 7) !=0)) {
                     return -1;
                   }
+                } else if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 18)) {
+                  /* Proto twin: function(T): R param → R (*name)(T). PLATFORM: SHARED. */
+                  uint8_t pfn_nm[128] = {};
+                  int32_t pfn_nl = 0;
+                  if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
+                    (void)(codegen_copy_param_name32_from_module(module, fi, p, &((pfn_nm)[0])));
+                    (void)((pfn_nl = pipeline_module_func_param_name_len_at(module, fi, p)));
+                    if (((pfn_nm)[0] <= 32)) {
+                      (void)((pfn_nl = 0));
+                    }
+                  }
+                  if ((pfn_nl <= 0)) {
+                    (void)(((pfn_nm)[0] = 95));
+                    (void)(((pfn_nm)[1] = 112));
+                    (void)((pfn_nl = 2));
+                    if ((p < 10)) {
+                      (void)(((pfn_nm)[2] = ((uint8_t)((p + 48)))));
+                      (void)((pfn_nl = 3));
+                    } else {
+                      (void)(((pfn_nm)[2] = ((uint8_t)(((p / 10) + 48)))));
+                      (void)(((pfn_nm)[3] = ((uint8_t)(((p % 10) + 48)))));
+                      (void)((pfn_nl = 4));
+                    }
+                  }
+                  if ((codegen_emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &((pfn_nm)[0]), pfn_nl, ctx) != 0)) {
+                    return -1;
+                  }
                 } else {
                   if ((codegen_emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) !=0)) {
                     return -1;
@@ -21352,7 +21420,8 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
             }
           }
         }
-        if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
+        if (((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 18)
+            && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11))) {
           if ((codegen_append_byte(out, 32) !=0)) {
             return -1;
           }
@@ -21360,6 +21429,7 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
             return -1;
           }
         }
+        if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 18)) {
         if ((codegen_append_byte(out, 32) !=0)) {
           return -1;
         }
@@ -21377,6 +21447,7 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
           if ((codegen_format_int(out, p) !=0)) {
             return -1;
           }
+        }
         }
         (void)((p = (p + 1)));
       }
