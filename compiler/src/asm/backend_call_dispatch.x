@@ -149,6 +149,7 @@ export extern function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i
  */
 export extern function backend_enc_lea_sym_to_reg_arch(elf: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
 export extern function backend_enc_blr_arch(elf: *u8, reg: i32, ta: i32): i32;
+export extern function backend_enc_ldr_xreg_xreg_imm_arch(elf: *u8, dst: i32, base: i32, off: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, er: i32): i32;
 export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, idx: i32): i32;
@@ -2667,6 +2668,150 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       let rs_mc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (rs_mc < 0) { return 0 - 1; }
       if (rs_mc > 0) { return 0; }
+    }
+    /*
+     * 10.3.3 slice3: METHOD_CALL `h.f(args)` when `f` is Cap/TYPE_FN field.
+     * typeck stamps ret; emit loads field into rax/x0 then Cap blr (no self arg).
+     * G.7: reuse spill / emit_expr_for_call_args / mov_rax_to_arg_reg / blr.
+     * PLATFORM: SHARED · LINUX x86_64 call *r · MACOS|ARM64 blr.
+     */
+    {
+      let ff_base_ty: i32 = 0;
+      let ff_ty: i32 = 0;
+      let ff_ko: i32 = 0;
+      let ff_er: i32 = 0;
+      let ff_eko: i32 = 0;
+      let ff_ok: i32 = 0;
+      let ff_nlen: i32 = 0;
+      let ff_li: i32 = 0;
+      let ff_nf: i32 = 0;
+      let ff_j: i32 = 0;
+      let ff_fnl: i32 = 0;
+      let ff_foff: i32 = 0;
+      let ff_hit: i32 = 0;
+      let ff_eq: i32 = 0;
+      let ff_k: i32 = 0;
+      let ff_nlays: i32 = 0;
+      let ff_fi: i32 = 0;
+      let ff_spill: i32 = 0;
+      let ff_reg_max: i32 = 0;
+      let ff_nm: u8[128] = [];
+      let ff_fnm: u8[128] = [];
+      let ff_lnm: u8[128] = [];
+      ff_base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (ff_base_ty > 0) {
+        ff_ty = ff_base_ty;
+        ff_ko = pipeline_type_kind_ord_at(arena, ff_ty);
+        if (ff_ko == 9) {
+          ff_er = pipeline_type_elem_ref_at(arena, ff_ty);
+          if (ff_er > 0) {
+            ff_ty = ff_er;
+            ff_ko = pipeline_type_kind_ord_at(arena, ff_ty);
+          }
+        }
+        if (ff_ko == 8 && mod_ref != 0 as *u8) {
+          ff_nlen = pipeline_type_named_name_into(arena, ff_ty, &ff_nm[0]);
+          if (ff_nlen > 0 && ff_nlen <= 127) {
+            ff_nlays = pipeline_module_num_struct_layouts_at(mod_ref);
+            ff_li = 0;
+            while (ff_li < ff_nlays && ff_hit == 0) {
+              let ln: i32 = pipeline_module_struct_layout_name_len(mod_ref, ff_li);
+              ff_eq = 1;
+              if (ln != ff_nlen) {
+                ff_eq = 0;
+              } else {
+                pipeline_module_struct_layout_name_into(mod_ref, ff_li, &ff_lnm[0]);
+                ff_k = 0;
+                while (ff_k < ff_nlen) {
+                  if (ff_lnm[ff_k] != ff_nm[ff_k]) {
+                    ff_eq = 0;
+                  }
+                  ff_k = ff_k + 1;
+                }
+              }
+              if (ff_eq != 0) {
+                ff_nf = pipeline_module_struct_layout_num_fields(mod_ref, ff_li);
+                ff_j = 0;
+                while (ff_j < ff_nf && ff_hit == 0) {
+                  ff_fnl = pipeline_module_struct_layout_field_name_len(mod_ref, ff_li, ff_j);
+                  if (ff_fnl == name_len && ff_fnl > 0 && ff_fnl <= 127) {
+                    pipeline_module_struct_layout_field_name_into(mod_ref, ff_li, ff_j, &ff_fnm[0]);
+                    ff_eq = 1;
+                    ff_k = 0;
+                    while (ff_k < ff_fnl) {
+                      if (ff_fnm[ff_k] != name[ff_k]) {
+                        ff_eq = 0;
+                      }
+                      ff_k = ff_k + 1;
+                    }
+                    if (ff_eq != 0) {
+                      ff_er = pipeline_module_struct_layout_field_type_ref(mod_ref, ff_li, ff_j);
+                      ff_foff = pipeline_module_struct_layout_field_offset_at(mod_ref, ff_li, ff_j);
+                      ff_hit = 1;
+                    }
+                  }
+                  ff_j = ff_j + 1;
+                }
+              }
+              ff_li = ff_li + 1;
+            }
+          }
+        }
+        if (ff_hit != 0 && ff_er > 0) {
+          ff_ko = pipeline_type_kind_ord_at(arena, ff_er);
+          if (ff_ko == 18) {
+            ff_ok = 1;
+          } else if (ff_ko == 9) {
+            let ff_pointee: i32 = pipeline_type_elem_ref_at(arena, ff_er);
+            if (ff_pointee > 0) {
+              ff_eko = pipeline_type_kind_ord_at(arena, ff_pointee);
+              if (ff_eko == 2) {
+                ff_ok = 1;
+              }
+            }
+          }
+        }
+        if (ff_ok != 0) {
+          /* rax = &receiver; load field qword at offset. */
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, ff_foff, ta) != 0) {
+            return 0 - 1;
+          }
+          if (nargs == 0) {
+            if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+            return 0;
+          }
+          ff_reg_max = glue_asm_call_reg_max(ta);
+          if (ff_reg_max < 1) { ff_reg_max = 6; }
+          if (nargs > ff_reg_max) {
+            /* Stack-arg Cap via METHOD_CALL residual — keep UFCS fallthrough. */
+            ff_ok = 0;
+          }
+        }
+        if (ff_ok != 0 && nargs > 0) {
+          ff_spill = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+          if (ff_spill < 0) { return 0 - 1; }
+          ff_fi = 0;
+          while (ff_fi < nargs) {
+            let ff_ar: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ff_fi);
+            if (ff_ar <= 0) { return 0 - 1; }
+            if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, ff_ar, ctx, ta) != 0) {
+              return 0 - 1;
+            }
+            if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, ff_fi, ta) != 0) {
+              return 0 - 1;
+            }
+            ff_fi = ff_fi + 1;
+          }
+          if (backend_enc_load_rbp_to_rax_arch(elf_ctx, ff_spill, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+          return 0;
+        }
+      }
     }
     // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
     let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
