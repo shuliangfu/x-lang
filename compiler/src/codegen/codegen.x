@@ -15960,6 +15960,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
            * Dest-elem TYPE_SLICE + VAR/FIELD TYPE_ARRAY (`[][]T = [a]`):
            * assign a typed fat, not `__xlang_al[i]=a` (array into slice = BLD001).
            * G.7: reuse try_emit_slice_init_from_array_var. PLATFORM: SHARED host-C.
+           * Seed twin: codegen_gen.linux.x86_64.c dest-SLICE ARRAY_LIT wrap_nc
+           * (live `-E` is host-cc of that seed). Do not fork a second wrap.
            */
           let er_nc: i32 = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc);
           let wrap_nc: i32 = 0;
