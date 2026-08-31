@@ -231,7 +231,7 @@
 
 ### 10.3 fnptr
 
-- 🟡 **10.3.1** fnptr 类型表达 — **slice0 地基** TYPE_FN＝18 ✅；**slice1 parser** `function(...): T`（权威 `parser_asm_type_ref_slice.inc`；sidecar 参／elem＝ret／array_size＝n）。残：resolve／codegen／赋值互转／`*u8` coerce
+- 🟡 **10.3.1** fnptr 类型表达 — **slice0** TYPE_FN＝18 ✅；**slice1 parser** `function(...): T` ✅（`fn_type_parse_smoke.x` → `expected function, found i32`＠`4bb7e8b74`）。残：resolve／codegen／`*u8` coerce
 - 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin**：ensure 拒不完整 libtool archive；Cap 共验仍阻（g05 UNDEF hybrid／无 pin egg）。残：Darwin Cap 全链
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
