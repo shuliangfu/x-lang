@@ -4657,6 +4657,7 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  * Operands: up to 6; int_val = num_in; call_args[0..num_in) = in,
  *   call_args[num_in..) = out/lateout places (VAR only).
  * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP (x86 mov_arg→rax) · mk==100 rbx.
+ * Place `_` (VAR name "_"): clobber discard — no store (slice6).
  * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — not valid out yet.
  * @return i32 — 0 ok; -1 error / unsupported
  * PLATFORM: SHARED emit · LINUX|x86_64 gold out-GP · aarch64 encode (x0 out only via arch).
@@ -4794,7 +4795,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
     }
-    /* ---- out / lateout: VAR; GP→rax then store (slice5) ---- */
+    /* ---- out / lateout: VAR store, or `_` clobber discard (slice6) ---- */
     i = num_in;
     while (i < nargs) {
       if (ctx == 0 as *u8) {
@@ -4824,6 +4825,11 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
       pipeline_expr_var_name_into(arena, arg_ref, &vname[0]);
+      /* Slice6: VAR "_" = clobber discard — validate reg, no store. */
+      if (vlen == 1 && vname[0] == (95 as u8)) {
+        i = i + 1;
+        continue;
+      }
       voff = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
       if (voff < 0) {
         return 0 - 1;

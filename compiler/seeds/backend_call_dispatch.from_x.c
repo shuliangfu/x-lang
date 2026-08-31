@@ -4843,7 +4843,7 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenC
 
 /**
  * Stage10 10.2.1: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
- * Templates: "nop" / "syscall"; in + lateout/out (VAR; GP→rax then store).
+ * Templates: "nop" / "syscall"; in + lateout/out (VAR or "_" clobber).
  * PLATFORM: SHARED · LINUX|x86_64 gold out-GP.
  */
 int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
@@ -4972,6 +4972,9 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     if (vlen <= 0 || vlen > 127)
       return -1;
     pipeline_expr_var_name_into(arena, arg_ref, vname);
+    /* Slice6: VAR "_" = clobber discard — validate reg, no store. */
+    if (vlen == 1 && vname[0] == (uint8_t)'_')
+      continue;
     voff = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
     if (voff < 0)
       return -1;
