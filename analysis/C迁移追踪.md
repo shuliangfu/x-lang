@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1** x86＋arm64 i16/i32/i64 ✅＠`a2277e5e3` · **10.4.2** fence＋arm64 dmb ✅；残：10.2 asm!／10.1.3 NT／Darwin pin |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0** `asm!("nop")` ✅＠`94c196e04`；残：asm 操作数／10.2.2–3／10.1.3 NT／Darwin pin |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -225,8 +225,8 @@
 
 ### 10.2 inline asm
 
-- ⬜ **10.2.1** x86_64 inline asm  
-- ⬜ **10.2.2** arm64 inline asm  
+- 🟡 **10.2.1** x86_64 inline asm — **slice0 ✅（Ubuntu）**＠`94c196e04`：`asm!("nop")` → EXPR_ASM(60)／unsafe void／emit `90`；探针 `asm_nop_smoke.x` run **42**。残：in/out/clobber/options／多指令模板  
+- ⬜ **10.2.2** arm64 inline asm（enc 已备 `d503201f`；缺 aarch64 运行时探针）  
 - ⬜ **10.2.3** Windows inline asm／intrinsics  
 
 ### 10.3 fnptr
