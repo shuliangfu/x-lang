@@ -32112,8 +32112,8 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
       tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
       op_ko = pipeline_expr_kind_ord_at(arena, op);
     }
-    // TYPE_PTR=9 · EXPR_VAR=3
-    if (tgt_kind == 9 && op_ko == 3) {
+    // TYPE_PTR=9 · TYPE_FN=18 · EXPR_VAR=3
+    if ((tgt_kind == 9 || tgt_kind == 18) && op_ko == 3) {
       unsafe {
         fnptr_off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
       }
@@ -55396,6 +55396,18 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
   let mod: *u8 = 0 as *u8;
   let mod_imm: i32 = 0;
   let vtr: i32 = 0;
+  /* Cap-fn-ptr bare VAR LEA scratch (10.3.1 slice3 / 10.3.2). PLATFORM: SHARED. */
+  let fnptr_sym: u8[130] = [];
+  let fnptr_sym_len: i32 = 0;
+  let fnptr_k: i32 = 0;
+  let fnptr_fi: i32 = 0;
+  let fnptr_nm: i32 = 0;
+  let fnptr_macho: i32 = 0;
+  let cap_tr: i32 = 0;
+  let cap_ko: i32 = 0;
+  let cap_er: i32 = 0;
+  let cap_eko: i32 = 0;
+  let cap_ok: i32 = 0;
   // INT32_MAX for non-negative imm32 range
   let int32_max: i64 = 2147483647;
   if (expr_ref == 0) {
@@ -55541,6 +55553,57 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
         }
         if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, &vname[0], vlen) == 0) {
           return 0;
+        }
+        /*
+         * Cap-fn-ptr bare name (10.3.1 slice3): wave100 types same-module fn
+         * as Cap *u8 / TYPE_FN but there is no stack slot. LEA link symbol
+         * (same algorithm as EXPR_AS Cap path). Locals already failed above.
+         * #[no_mangle] only. PLATFORM: SHARED · MACOS '_' · LINUX bare.
+         */
+        cap_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        cap_ok = 0;
+        if (cap_tr > 0) {
+          cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
+          if (cap_ko == 18) {
+            cap_ok = 1;
+          } else if (cap_ko == 9) {
+            cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
+            if (cap_er > 0) {
+              cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
+              if (cap_eko == 2) {
+                cap_ok = 1;
+              }
+            }
+          }
+        }
+        if (cap_ok != 0 && vlen > 0 && vlen < 128) {
+          mod = glue_emit_module_from_ctx(ctx);
+          if (mod != (0 as *u8)) {
+            fnptr_fi = glue_module_func_index_by_name_c(mod, &vname[0], vlen);
+            if (fnptr_fi >= 0) {
+              fnptr_nm = pipeline_module_func_is_no_mangle_at(mod, fnptr_fi);
+              if (fnptr_nm != 0) {
+                fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+                if (fnptr_macho != 0) {
+                  fnptr_sym[0] = 95 as u8;
+                  fnptr_k = 0;
+                  while (fnptr_k < vlen) {
+                    fnptr_sym[fnptr_k + 1] = vname[fnptr_k];
+                    fnptr_k = fnptr_k + 1;
+                  }
+                  fnptr_sym_len = vlen + 1;
+                } else {
+                  fnptr_k = 0;
+                  while (fnptr_k < vlen) {
+                    fnptr_sym[fnptr_k] = vname[fnptr_k];
+                    fnptr_k = fnptr_k + 1;
+                  }
+                  fnptr_sym_len = vlen;
+                }
+                return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, &fnptr_sym[0], fnptr_sym_len, ta);
+              }
+            }
+          }
         }
         return 0 - 1;
       }

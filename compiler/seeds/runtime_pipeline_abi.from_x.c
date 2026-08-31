@@ -13389,7 +13389,7 @@ int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_r
   if (tgt > 0) {
     tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
     op_ko = pipeline_expr_kind_ord_at(arena, op);
-    if (tgt_kind == 9 && op_ko == 3) {
+    if ((tgt_kind == 9 || tgt_kind == 18) && op_ko == 3) {
       int32_t fnptr_off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
       if (fnptr_off < 0) {
         int32_t fnptr_vlen = pipeline_expr_var_name_len(arena, op);
@@ -26652,6 +26652,57 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
       if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, vname, vlen) == 0)
         return 0;
+      /* Cap-fn-ptr bare VAR (10.3.1 slice3): LEA when Cap *u8 / TYPE_FN, no slot.
+       * Twin of emit_expr_elf_fast in runtime_pipeline_abi.x. PLATFORM: SHARED. */
+      {
+        int32_t cap_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        int32_t cap_ko = 0;
+        int32_t cap_er = 0;
+        int32_t cap_eko = 0;
+        int32_t cap_ok = 0;
+        if (cap_tr > 0) {
+          cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
+          if (cap_ko == 18)
+            cap_ok = 1;
+          else if (cap_ko == 9) {
+            cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
+            if (cap_er > 0) {
+              cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
+              if (cap_eko == 2)
+                cap_ok = 1;
+            }
+          }
+        }
+        if (cap_ok != 0 && vlen > 0 && vlen < 128) {
+          uint8_t fnptr_sym[130];
+          int32_t fnptr_sym_len = 0;
+          int32_t fnptr_k = 0;
+          int32_t fnptr_fi = 0;
+          int32_t fnptr_nm = 0;
+          int32_t fnptr_macho = 0;
+          void *fnptr_mod = glue_emit_module_from_ctx(ctx);
+          if (fnptr_mod) {
+            fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, vname, vlen);
+            if (fnptr_fi >= 0) {
+              fnptr_nm = pipeline_module_func_is_no_mangle_at(fnptr_mod, fnptr_fi);
+              if (fnptr_nm != 0) {
+                fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+                if (fnptr_macho != 0) {
+                  fnptr_sym[0] = (uint8_t)'_';
+                  for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
+                    fnptr_sym[fnptr_k + 1] = vname[fnptr_k];
+                  fnptr_sym_len = vlen + 1;
+                } else {
+                  for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
+                    fnptr_sym[fnptr_k] = vname[fnptr_k];
+                  fnptr_sym_len = vlen;
+                }
+                return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, fnptr_sym, fnptr_sym_len, ta);
+              }
+            }
+          }
+        }
+      }
       return -1;
     }
     {
