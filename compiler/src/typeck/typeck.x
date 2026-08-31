@@ -10474,6 +10474,39 @@ export function typeck_check_expr_string_lit(arena: *ASTArena, expr_ref: i32): i
 }
 
 /**
+ * Type-check `asm!("template")` (stage10 10.2.1 slice0).
+ * Stamps TYPE_VOID. Requires unsafe nest (g_typeck_unsafe_depth > 0);
+ * reuses extern-call-outside-unsafe diagnostic until a dedicated asm! diag exists.
+ * @param arena *ASTArena — expr arena
+ * @param expr_ref i32 — EXPR_ASM (60)
+ * @param ctx *PipelineDepCtx — unused (depth is process-local BSS)
+ * @return i32 — 0 ok, -1 outside unsafe
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_check_expr_asm(arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — inline asm requires unsafe (docs/10 K1a).
+  unsafe {
+    let vt: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
+      line = pipeline_expr_line_at(arena, expr_ref);
+      col = pipeline_expr_col_at(arena, expr_ref);
+      driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
+      return 0 - 1;
+    }
+    vt = ensure_void_type_ref(arena);
+    if (!ast.ref_is_null(vt)) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, vt);
+    }
+    return 0;
+  }
+}
+
+/**
  * See implementation.
  */
 export function typeck_check_expr_break_continue(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -18348,6 +18381,7 @@ ctx: *PipelineDepCtx): i32 {
     let ord_float: i32 = 1;
     let ord_bool: i32 = 2;
     let ord_string_lit: i32 = 59;
+    let ord_asm: i32 = 60;
     let ord_if: i32 = 25;
     let ord_block: i32 = 26;
     let ord_ternary: i32 = 27;
@@ -18370,6 +18404,9 @@ ctx: *PipelineDepCtx): i32 {
     }
     if (kind == ord_string_lit) {
       return typeck_check_expr_string_lit(arena, expr_ref);
+    }
+    if (kind == ord_asm) {
+      return typeck_check_expr_asm(arena, expr_ref, ctx);
     }
     if (kind == ord_break || kind == ord_continue) {
       return typeck_check_expr_break_continue(module, arena, expr_ref, return_type_ref, ctx);
@@ -18981,7 +19018,7 @@ return_type_ref: i32): i32 {
       if (ast.ref_is_null(pipeline_expr_unary_operand_ref_at(arena, expr_ref))) {
         void_stmt_ok = 1;
       }
-    } else if (ek == 48 || ek == 49 || ek == 39 || ek == 40 || ek == 42) {
+    } else if (ek == 48 || ek == 49 || ek == 39 || ek == 40 || ek == 42 || ek == 60) {
       void_stmt_ok = 1;
     } else if (ek >= 28 && ek <= 38) {
       void_stmt_ok = 1;
