@@ -3122,6 +3122,16 @@ ensure_pipeline_abi_prefer_one() {
 
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
     stale=0
+    # Incomplete Darwin libtool archive masquerading as .o → always rebuild.
+    # PLATFORM: MACOS Cap residual (10.3.2); LINUX never matches.
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      local arch_sz
+      arch_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -z "$arch_sz" ] || [ "$arch_sz" -lt 1000000 ]; then
+        log "pipeline_abi prefer: incomplete libtool archive $o (${arch_sz:-0}B) → force rebuild"
+        stale=1
+      fi
+    fi
     [ "$seed" -nt "$o" ] && stale=1
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
       stale=1
@@ -3167,7 +3177,8 @@ ensure_pipeline_abi_prefer_one() {
     # OUT already exists, inject-only instead of full hybrid rebuild.
     # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer.
     # PLATFORM: SHARED shell · LINUX gold + MACOS.
-    if [ -s "$o" ] && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
+    if [ -s "$o" ] && ! pipeline_abi_o_is_libtool_archive "$o" \
+      && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
       || [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; }; then
       log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
@@ -3212,8 +3223,26 @@ ensure_pipeline_abi_prefer_one() {
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm skip Cap-residual RT=0)"
-      done=1
+      # PLATFORM: MACOS — libtool -static fallback yields ar named .o; Cap LEA
+      # and product force_load need a complete hybrid or cold MH_OBJECT, not a
+      # thin+rest archive leftover. Discard and fall through to cold seed.
+      if pipeline_abi_o_is_libtool_archive "$o"; then
+        # Accept complete Darwin prefer archives (thin+rest); discard tiny leftovers.
+        # Incomplete Cap residual was ~260KiB (fnptr_thin + pabi_rest_try only).
+        local hyb_sz
+        hyb_sz=$(wc -c <"$o" | tr -d ' ')
+        if [ -n "$hyb_sz" ] && [ "$hyb_sz" -ge 1000000 ]; then
+          log "prefer thin+rest $o <- $x_src + seed-rest (Darwin libtool archive ≥1MiB; prefer=${prefer})"
+          done=1
+        else
+          log "pipeline_abi hybrid produced incomplete libtool archive (${hyb_sz:-0}B); discard → cold/seed"
+          rm -f "$o"
+          done=0
+        fi
+      else
+        log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm skip Cap-residual RT=0)"
+        done=1
+      fi
     else
       log "pipeline_abi hybrid failed; fallback full seed (prefer=${prefer})"
     fi
@@ -3246,18 +3275,41 @@ ensure_pipeline_abi_prefer_one() {
   cold_flags="$(pipeline_abi_prefer_cflags)"
   # shellcheck disable=SC2086
   if [ -s "$o" ]; then
-    log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
-    pipeline_abi_inject_reent_deep_copy_thin "$o" || true
-    pipeline_abi_inject_fixed_array_copy_thin "$o" || true
-    pipeline_abi_inject_slot_bytes_thin "$o" || true
-    pipeline_abi_inject_field_load_sz_thin "$o" || true
-    pipeline_abi_inject_unused_hints_thin "$o" || true
-      pipeline_abi_inject_wpo_dump_thin "$o" || true
-    pipeline_abi_inject_type_to_c_repr_thin "$o" || true
-    pipeline_abi_inject_binop_block_peel_thin "$o" || true
-    pipeline_abi_inject_param_ptr_slot_thin "$o" || true
-    pipeline_abi_inject_fnptr_as_thin "$o" || true
-    return 0
+    # Cap residual (10.3.2): never "keep" an incomplete Darwin libtool archive.
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      local keep_sz
+      keep_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -z "$keep_sz" ] || [ "$keep_sz" -lt 1000000 ]; then
+        log "pipeline_abi discard incomplete libtool archive $o (${keep_sz:-0}B); try cold seed (10.3.2)"
+        rm -f "$o"
+      else
+        log "pipeline_abi keep Darwin libtool archive $o (${keep_sz}B ≥1MiB)"
+        pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+        pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+        pipeline_abi_inject_slot_bytes_thin "$o" || true
+        pipeline_abi_inject_field_load_sz_thin "$o" || true
+        pipeline_abi_inject_unused_hints_thin "$o" || true
+          pipeline_abi_inject_wpo_dump_thin "$o" || true
+        pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+        pipeline_abi_inject_binop_block_peel_thin "$o" || true
+        pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+        pipeline_abi_inject_fnptr_as_thin "$o" || true
+        return 0
+      fi
+    else
+      log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
+      pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+      pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_slot_bytes_thin "$o" || true
+      pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_unused_hints_thin "$o" || true
+        pipeline_abi_inject_wpo_dump_thin "$o" || true
+      pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+      pipeline_abi_inject_binop_block_peel_thin "$o" || true
+      pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+      pipeline_abi_inject_fnptr_as_thin "$o" || true
+      return 0
+    fi
   fi
   if ! ensure_one "$o" "$seed" $cold_flags; then
     echo "ensure_host_cc_seed_o: pipeline_abi cold seed failed and no hybrid $o" >&2
@@ -3285,6 +3337,19 @@ ensure_pipeline_abi_prefer_one() {
 # Thin .x body MUST match the same-named export in runtime_pipeline_abi.x;
 # regenerate the thin when that function changes. First-wins ld -r: thin.o then pabi.o.
 # G.7: one helper; 4.2.7 nested SLICE esz + dest-ARRAY [K][N]T memcpy both reuse it.
+# True if PATH is a Darwin libtool/ar archive (magic "!<arch>"), not MH_OBJECT.
+# PLATFORM: MACOS — prefer/inject ld -r fallback uses libtool -static; a later
+# inject into that archive can leave a tiny incomplete .o (Cap LEA missing).
+# LINUX ELF never matches. G.7 single gate for pabi recover / inject refuse.
+pipeline_abi_o_is_libtool_archive() {
+  local p="$1"
+  local mag
+  [ -f "$p" ] || return 1
+  # PLATFORM: MACOS — magic "!<arch>" (7 bytes). Avoid tr on binary (Darwin LC_CTYPE).
+  mag="$(head -c 7 "$p" 2>/dev/null || true)"
+  [ "$mag" = '!<arch>' ]
+}
+
 pipeline_abi_inject_thin_leaf() {
   local o="$1"
   local thin_x="$2"
@@ -3293,6 +3358,12 @@ pipeline_abi_inject_thin_leaf() {
   local gen_c thin_o base_o
   if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
     return 0
+  fi
+  # Cap residual (10.3.2 Darwin): do not inject into a libtool archive named .o.
+  # Caller (prefer) must rebuild MH_OBJECT / ELF first. PLATFORM: MACOS.
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi ${tag} inject skip: $o is libtool archive (rebuild pabi first)"
+    return 1
   fi
   if [ -x ./xlang_asm ]; then
     xlang_bin=./xlang_asm
@@ -3320,7 +3391,23 @@ pipeline_abi_inject_thin_leaf() {
   fi
   cp -f "$o" "$base_o"
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+    # PLATFORM: MACOS — ld -r may fall back to libtool -static. Accept only if
+    # the archive still contains the full base (≥ base size). Tiny incomplete
+    # archives (Cap residual 10.3.2: thin+rest_try leftover) are refused.
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      local base_sz out_sz
+      base_sz=$(wc -c <"$base_o" | tr -d ' ')
+      out_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -z "$base_sz" ] || [ -z "$out_sz" ] || [ "$out_sz" -lt "$base_sz" ]; then
+        cp -f "$base_o" "$o"
+        log "pipeline_abi ${tag} inject: incomplete libtool archive; restored base"
+        rm -f "$gen_c" "$thin_o" "$base_o"
+        return 1
+      fi
+      log "pipeline_abi ${tag} inject OK (Darwin libtool archive ≥ base; force_load)"
+    else
+      log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+    fi
     rm -f "$gen_c" "$thin_o" "$base_o"
     return 0
   fi
