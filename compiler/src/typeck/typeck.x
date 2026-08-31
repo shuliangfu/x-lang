@@ -16990,8 +16990,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 
 /**
  * Return 1 when ty_ref is a cast-eligible class for `expr as T` (wave659).
- * Eligible: first-class integers/bool, floats, pointers, NAMED integer spellings
- * (i8/i16/u16 via int_family), and TYPE_NAMED enum/alias-of-scalar (non-struct).
+ * Eligible: first-class integers/bool, floats, pointers, TYPE_FN (opaque Cap-fn-ptr),
+ * NAMED integer spellings (i8/i16/u16 via int_family), and TYPE_NAMED enum/alias-of-scalar
+ * (non-struct).
  * Ineligible: ARRAY/SLICE/LINEAR/VECTOR/struct layouts (via aggregate helper).
  * @param module *Module — struct layout table for named aggregate detection
  * @param arena *ASTArena — type arena
@@ -17025,8 +17026,9 @@ export function typeck_as_cast_type_class_ok(module: *Module, arena: *ASTArena, 
     if (ko == ord_void) {
       return 0;
     }
-    /* First-class ints / bool / float / ptr. */
-    if (ko == ord_bool || ko == ord_ptr || ko == ord_f32 || ko == ord_f64) {
+    /* First-class ints / bool / float / ptr / TYPE_FN (opaque Cap-fn-ptr ABI). */
+    if (ko == ord_bool || ko == ord_ptr || ko == ord_f32 || ko == ord_f64
+        || ko == TypeKind.TYPE_FN as i32) {
       return 1;
     }
     if (typeck_int_family_id(arena, rty) >= 0) {
@@ -17043,8 +17045,10 @@ export function typeck_as_cast_type_class_ok(module: *Module, arena: *ASTArena, 
 /**
  * Return 1 when `src as tgt` is a legal cast (wave659 Cap residual).
  * Allowed: same type; numeric↔numeric (int/bool/float family); int↔ptr; ptr↔ptr;
+ * Cap/TYPE_FN opaque fn-ptr surface ↔ Cap/TYPE_FN (`as function(...)` / `as *u8`);
  * enum-like NAMED↔integer; `[N]T as []T` (equal elems, reuse typeck_array_to_slice_ok);
- * same-type ARRAY/SLICE ascription. Rejected: other aggregates; float↔ptr; void.
+ * same-type ARRAY/SLICE ascription. Rejected: other aggregates; float↔ptr; void;
+ * int↔TYPE_FN (not Cap surface).
  * @param module *Module
  * @param arena *ASTArena
  * @param src_ty i32 — resolved type of cast operand
@@ -17093,6 +17097,15 @@ tgt_ty: i32): i32 {
       if (sk0 == 10 || sk0 == 11) {
         return 1;
       }
+    }
+    /*
+     * 10.3.1: Cap *u8 / TYPE_FN opaque fn-ptr surface ↔ surface (`as function(...)`).
+     * Before class_ok so TYPE_FN need not be numeric/ptr-only. Soft arity/ret
+     * match residual → signature slice. PLATFORM: SHARED.
+     */
+    if (typeck_is_fnptr_surface(arena, src_ty) != 0
+        && typeck_is_fnptr_surface(arena, tgt_ty) != 0) {
+      return 1;
     }
     if (typeck_as_cast_type_class_ok(module, arena, src_ty) == 0
     || typeck_as_cast_type_class_ok(module, arena, tgt_ty) == 0) {
