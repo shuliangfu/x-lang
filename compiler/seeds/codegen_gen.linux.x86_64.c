@@ -6135,6 +6135,26 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     if (((arr_sz <=0) && (is_field ==0))) {
       return 0;
     }
+    /*
+     * PLATFORM: SHARED — typed compound `(T){ .data = …, .length = N }`.
+     * Twin of codegen.x try_emit_slice_init_from_array_var. Untyped
+     * `{.data=a}` is a declaration initializer only; assignment
+     * `__xlang_al[i] = {…}` is sit-red "expected expression before '{'".
+     * G.7: complete existing helper; do not fork a second wrap.
+     * emit_type ctx=0: scalar []T tag needs no module prefix.
+     */
+    if ((codegen_append_byte(out, 40) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_type(arena, out, let_type_ref, 0, 0, 0) !=0)) {
+      uint8_t fb_sl[28] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0};
+      if ((codegen_emit_bytes_from_ptr(out, &((fb_sl)[0]), 26) !=0)) {
+        return -1;
+      }
+    }
+    if ((codegen_append_byte(out, 41) !=0)) {
+      return -1;
+    }
     if ((codegen_append_byte(out, 123) !=0)) {
       return -1;
     }
