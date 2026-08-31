@@ -4702,6 +4702,129 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     if (rs_mc > 0)
       return 0;
   }
+  /* 10.3.3 slice3: METHOD_CALL Cap/TYPE_FN field → load + blr (twin of .x). */
+  {
+    int32_t ff_base_ty = 0;
+    int32_t ff_ty = 0;
+    int32_t ff_ko = 0;
+    int32_t ff_er = 0;
+    int32_t ff_eko = 0;
+    int32_t ff_ok = 0;
+    int32_t ff_nlen = 0;
+    int32_t ff_li = 0;
+    int32_t ff_nf = 0;
+    int32_t ff_j = 0;
+    int32_t ff_fnl = 0;
+    int32_t ff_foff = 0;
+    int32_t ff_hit = 0;
+    int32_t ff_eq = 0;
+    int32_t ff_k = 0;
+    int32_t ff_nlays = 0;
+    int32_t ff_fi = 0;
+    int32_t ff_spill = 0;
+    int32_t ff_reg_max = 0;
+    uint8_t ff_nm[128];
+    uint8_t ff_fnm[128];
+    uint8_t ff_lnm[128];
+    ff_base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (ff_base_ty > 0) {
+      ff_ty = ff_base_ty;
+      ff_ko = pipeline_type_kind_ord_at(arena, ff_ty);
+      if (ff_ko == 9) {
+        ff_er = pipeline_type_elem_ref_at(arena, ff_ty);
+        if (ff_er > 0) {
+          ff_ty = ff_er;
+          ff_ko = pipeline_type_kind_ord_at(arena, ff_ty);
+        }
+      }
+      if (ff_ko == 8 && mod_ref != 0) {
+        ff_nlen = pipeline_type_named_name_into(arena, ff_ty, ff_nm);
+        if (ff_nlen > 0 && ff_nlen <= 127) {
+          ff_nlays = pipeline_module_num_struct_layouts_at(mod_ref);
+          for (ff_li = 0; ff_li < ff_nlays && !ff_hit; ff_li++) {
+            int32_t ln = pipeline_module_struct_layout_name_len(mod_ref, ff_li);
+            ff_eq = 1;
+            if (ln != ff_nlen)
+              ff_eq = 0;
+            else {
+              pipeline_module_struct_layout_name_into(mod_ref, ff_li, ff_lnm);
+              for (ff_k = 0; ff_k < ff_nlen; ff_k++) {
+                if (ff_lnm[ff_k] != ff_nm[ff_k])
+                  ff_eq = 0;
+              }
+            }
+            if (ff_eq) {
+              ff_nf = pipeline_module_struct_layout_num_fields(mod_ref, ff_li);
+              for (ff_j = 0; ff_j < ff_nf && !ff_hit; ff_j++) {
+                ff_fnl = pipeline_module_struct_layout_field_name_len(mod_ref, ff_li, ff_j);
+                if (ff_fnl == name_len && ff_fnl > 0 && ff_fnl <= 127) {
+                  pipeline_module_struct_layout_field_name_into(mod_ref, ff_li, ff_j, ff_fnm);
+                  ff_eq = 1;
+                  for (ff_k = 0; ff_k < ff_fnl; ff_k++) {
+                    if (ff_fnm[ff_k] != name[ff_k])
+                      ff_eq = 0;
+                  }
+                  if (ff_eq) {
+                    ff_er = pipeline_module_struct_layout_field_type_ref(mod_ref, ff_li, ff_j);
+                    ff_foff = pipeline_module_struct_layout_field_offset_at(mod_ref, ff_li, ff_j);
+                    ff_hit = 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (ff_hit && ff_er > 0) {
+        ff_ko = pipeline_type_kind_ord_at(arena, ff_er);
+        if (ff_ko == 18)
+          ff_ok = 1;
+        else if (ff_ko == 9) {
+          int32_t ff_pointee = pipeline_type_elem_ref_at(arena, ff_er);
+          if (ff_pointee > 0) {
+            ff_eko = pipeline_type_kind_ord_at(arena, ff_pointee);
+            if (ff_eko == 2)
+              ff_ok = 1;
+          }
+        }
+      }
+      if (ff_ok) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 0, ff_foff, ta) != 0)
+          return -1;
+        if (nargs == 0) {
+          if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+          return 0;
+        }
+        ff_reg_max = glue_asm_call_reg_max(ta);
+        if (ff_reg_max < 1)
+          ff_reg_max = 6;
+        if (nargs > ff_reg_max)
+          ff_ok = 0;
+      }
+      if (ff_ok && nargs > 0) {
+        ff_spill = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (ff_spill < 0)
+          return -1;
+        for (ff_fi = 0; ff_fi < nargs; ff_fi++) {
+          int32_t ff_ar = pipeline_expr_method_call_arg_ref(arena, expr_ref, ff_fi);
+          if (ff_ar <= 0)
+            return -1;
+          if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, ff_ar, ctx, ta) != 0)
+            return -1;
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, ff_fi, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, ff_spill, ta) != 0)
+          return -1;
+        if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0)
+          return -1;
+        return 0;
+      }
+    }
+  }
   /*
    * wave359 Cap residual pure — freestanding i32.double() → x*2.
    * Root: host codegen expands `(x * 2)`; freestanding called bare `double`
