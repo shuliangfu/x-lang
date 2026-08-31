@@ -8223,6 +8223,66 @@ export function typeck_is_fnptr_surface(arena: *ASTArena, type_ref: i32): i32 {
   }
 }
 
+/**
+ * If METHOD_CALL name matches a Cap/TYPE_FN field on the receiver, return that
+ * field type_ref; else 0.
+ *
+ * 10.3.3 slice3: `h.f(args)` parses as EXPR_METHOD_CALL (not CALL+FIELD_ACCESS).
+ * When `f` is an opaque fn-ptr field, accept as Cap-style call (not LANG-004).
+ * Peels one TYPE_PTR so `*Holder` receivers work. PLATFORM: SHARED.
+ *
+ * @param module *Module — layout table
+ * @param arena *ASTArena — type pool
+ * @param ctx *PipelineDepCtx — dep layouts
+ * @param base_ty i32 — receiver resolved type
+ * @param method_nm *u8 — method / field name bytes
+ * @param method_nlen i32 — name length
+ * @return i32 — field type_ref if Cap/TYPE_FN surface; else 0
+ */
+export function typeck_method_call_field_fnptr_ty(module: *Module, arena: *ASTArena,
+ctx: *PipelineDepCtx, base_ty: i32, method_nm: *u8, method_nlen: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ty: i32 = 0;
+    let ko: i32 = 0;
+    let er: i32 = 0;
+    let nlen: i32 = 0;
+    let ftr: i32 = 0;
+    let nm: u8[128] = [];
+    if (module == 0 as *Module || arena == 0 as *ASTArena || base_ty <= 0
+        || method_nm == 0 as *u8 || method_nlen <= 0 || method_nlen > 127) {
+      return 0;
+    }
+    ty = base_ty;
+    ko = pipeline_type_kind_ord_at(arena, ty);
+    /* Peel one pointer so `(*h).f` / typed `*Holder` receivers still match. */
+    if (ko == 9) {
+      er = pipeline_type_elem_ref_at(arena, ty);
+      if (er <= 0) {
+        return 0;
+      }
+      ty = er;
+      ko = pipeline_type_kind_ord_at(arena, ty);
+    }
+    if (ko != 8) {
+      return 0;
+    }
+    nlen = pipeline_type_named_name_into(arena, ty, &nm[0]);
+    if (nlen <= 0 || nlen > 127) {
+      return 0;
+    }
+    ftr = get_field_type_ref_from_layout_deps(module, arena, ctx, &nm[0], nlen, method_nm,
+        method_nlen);
+    if (ftr <= 0) {
+      return 0;
+    }
+    if (typeck_is_fnptr_surface(arena, ftr) != 0) {
+      return ftr;
+    }
+    return 0;
+  }
+}
+
 /*
  * F2 TYPE_DYN(17) dyn-coerce null-sentinel predicate.
  *
@@ -16608,6 +16668,43 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         return 0 - 1;
       }
       arg_i = arg_i + 1;
+    }
+
+    /*
+     * 10.3.3 slice3: `h.f(args)` METHOD_CALL when `f` is Cap/TYPE_FN field.
+     * Before import/UFCS/LANG-004 — field-fnptr is not an impl method.
+     * Stamp ret like Cap CALL (TYPE_FN elem / ambient / i32). PLATFORM: SHARED.
+     */
+    if (base_ty > 0 && method_nlen > 0) {
+      let ff_ty: i32 = typeck_method_call_field_fnptr_ty(module, arena, ctx, base_ty, &method_nm[0],
+          method_nlen);
+      if (ff_ty > 0) {
+        let ff_ret: i32 = 0;
+        let ff_ko: i32 = pipeline_type_kind_ord_at(arena, ff_ty);
+        let ff_er: i32 = 0;
+        let ff_expect: i32 = 0;
+        if (ff_ko == TypeKind.TYPE_FN as i32) {
+          ff_er = pipeline_type_elem_ref_at(arena, ff_ty);
+          if (ff_er > 0) {
+            ff_ret = ff_er;
+          }
+        }
+        if (ff_ret <= 0) {
+          ff_expect = typeck_i32_ptr_read(typeck_overload_expected_ret_slot());
+          if (ff_expect <= 0 && return_type_ref > 0) {
+            ff_expect = return_type_ref;
+          }
+          if (ff_expect > 0) {
+            ff_ret = ff_expect;
+          } else {
+            ff_ret = ensure_i32_type_ref(arena);
+          }
+        }
+        if (ff_ret > 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, ff_ret);
+          return 0;
+        }
+      }
     }
 
     /* Hold expected_ret for zero-arg / tie-break overload pick. */
