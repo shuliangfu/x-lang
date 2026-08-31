@@ -120,7 +120,14 @@ export enum ExprKind {
   /* See implementation. */
   EXPR_TRY_PROPAGATE,
   /* See implementation. */
-  EXPR_STRING_LIT
+  EXPR_STRING_LIT,
+  /**
+   * Inline asm `asm!("template")` (stage10 10.2.1).
+   * Template semantic bytes live in Expr.var_name (same packing as STRING_LIT).
+   * Slice0: template-only; in/out/clobber/options deferred.
+   * Ordinal 60 (after STRING_LIT=59). PLATFORM: SHARED.
+   */
+  EXPR_ASM
 }
 
 /* See implementation. */
