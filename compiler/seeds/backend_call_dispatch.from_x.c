@@ -4222,6 +4222,8 @@ extern int32_t arch_x86_64_enc_enc_movw_ax_to_mem_rcx(struct platform_elf_ElfCod
 extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx);
+/* stage10 10.2.1 slice10: lateout/out("x8") → x0. */
+extern int32_t arch_arm64_enc_enc_mov_x8_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_dmb_ish(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_dmb_ishld(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_dmb_ishst(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -4962,9 +4964,6 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     mk = pipeline_asm_inline_in_reg_mov_kind_c(reg, ta);
     if (mk < 0)
       return -1;
-    /* Reject aarch64 syscall-nr home as out (x8); r10 allowed on x86 (slice7). */
-    if (mk == 102)
-      return -1;
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
     if (arg_ref <= 0)
       return -1;
@@ -4994,6 +4993,13 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
       if (ta != 0)
         return -1;
       if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0)
+        return -1;
+    }
+    /* Slice10: lateout/out("x8") → x0 before store (mirror r10). */
+    if (mk == 102) {
+      if (ta != 1)
+        return -1;
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0)
         return -1;
     }
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, voff, ta) != 0)

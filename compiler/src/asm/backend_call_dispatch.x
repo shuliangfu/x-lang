@@ -121,6 +121,8 @@ export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(elf_ctx: 
  * bodies in seeds/backend_arm64_enc_c.from_x.c (G.7 mov_xn_xm family). */
 export extern "C" function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx: *u8): i32;
+/* stage10 10.2.1 slice10: lateout/out("x8") → x0. */
+export extern "C" function arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx: *u8): i32;
 /* 10.4.1–2 arm64: fence + i32 atomic encoders (seed LIVE + arm64_enc.x twin). */
 export extern "C" function arch_arm64_enc_enc_dmb_ish(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_dmb_ishld(elf_ctx: *u8): i32;
@@ -4660,14 +4662,15 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  * Templates: "nop" · "syscall" (x86 0F05 / aarch64 svc).
  * Operands: up to 6; int_val = num_in; call_args[0..num_in) = in,
  *   call_args[num_in..) = out/lateout places (VAR only).
- * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP · mk==100 rbx · mk==101 r10 (x86).
+ * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP · mk==100 rbx · mk==101 r10 (x86)
+ *   · mk==102 x8 (aarch64, slice10).
  * Place `_` (VAR name "_"): clobber discard — no store (slice6).
  * Options bits in call_num_type_args; noreturn(32) → x86 ud2 after (slice8).
  * Slice9: after noreturn ud2, glue_asm_block_diverged_set(1) so block emit
  * skips trailing stmt_order / final_expr (no fallthrough return).
- * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — x8 out still unsupported.
+ * Extra in-homes: r10 (x86) · x8 (aarch64 nr).
  * @return i32 — 0 ok; -1 error / unsupported
- * PLATFORM: SHARED emit · LINUX|x86_64 gold · aarch64 encode (x0 out only via arch).
+ * PLATFORM: SHARED emit · LINUX|x86_64 gold · aarch64 encode (x8 out via enc).
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
@@ -4817,10 +4820,6 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
       if (mk < 0) {
         return 0 - 1;
       }
-      /* Reject aarch64 syscall-nr home as out (x8); r10 allowed on x86 (slice7). */
-      if (mk == 102) {
-        return 0 - 1;
-      }
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
       if (arg_ref <= 0) {
         return 0 - 1;
@@ -4860,6 +4859,15 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
           return 0 - 1;
         }
         if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) {
+          return 0 - 1;
+        }
+      }
+      /* Slice10: lateout/out("x8") → x0 before store (mirror r10). */
+      if (mk == 102) {
+        if (ta != 1) {
+          return 0 - 1;
+        }
+        if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) {
           return 0 - 1;
         }
       }
