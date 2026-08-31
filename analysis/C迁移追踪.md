@@ -225,7 +225,7 @@
 
 ### 10.2 inline asm
 
-- 🟡 **10.2.1** x86_64 inline asm — **slice0–6 ✅**＠`fc6445cc3`：`lateout("reg") _` clobber＋`options(nostack|…)` 解析接受；探针 `asm_clobber_options_smoke.x` **42**；slice5 GP＠`405e38c9b`。残：options 语义／r10 out／10.2.3  
+- 🟡 **10.2.1** x86_64 inline asm — **slice0–7 ✅**＠`e41625b57`：`lateout("r10")`（G.7 `enc_mov_r10_to_rax` 4C 89 D0）；探针 `asm_lateout_r10_smoke.x` **42**；slice6 clobber／options＠`fc6445cc3`。残：options 语义／x8 out／10.2.3  
 - 🟡 **10.2.2** arm64 inline asm — **slice0 ✅（Ubuntu）**＠`146ad835a`：同 try_emit ta==1 → LE `1f 20 03 d5`；探针 `asm_nop_arm64_smoke.x`（`-target aarch64-linux-gnu -c`；无 qemu）。残：操作数／运行时 qemu  
 - ⬜ **10.2.3** Windows inline asm／intrinsics  
 
