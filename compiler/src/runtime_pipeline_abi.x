@@ -24964,6 +24964,9 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   let else_live: u8[136] = [];
   let rc: i32 = 0;
   let has_ret: i32 = 0;
+  /* Slice11: options(noreturn) CFG join — then/else diverge flags. */
+  let then_div: i32 = 0;
+  let else_div: i32 = 0;
   // stmt_i reserved for residual debug parity; unused in pure path
   if (stmt_i != 0) {
     // no-op keep param live for ABI
@@ -25022,11 +25025,12 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   unsafe {
     glue_block_fill_live_end_for_merge(arena, ctx, then_ref, &then_live[0]);
   }
-  // then already returned: done lands after if; do not jmp done.
+  // then already returned / noreturn: done lands after if; do not jmp done.
   unsafe {
     has_ret = glue_block_stmt_order_has_return(arena, then_ref);
+    then_div = glue_asm_block_diverged_get();
   }
-  if (has_ret == 0) {
+  if (has_ret == 0 && then_div == 0) {
     unsafe {
       rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
     }
@@ -25036,6 +25040,8 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   }
   if (else_ref != 0) {
     unsafe {
+      /* Else is a separate CFG path — clear then's diverged before emitting else. */
+      glue_asm_block_diverged_set(0);
       rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
     }
     if (rc != 0) {
@@ -25054,6 +25060,7 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
     }
     unsafe {
       glue_block_fill_live_end_for_merge(arena, ctx, else_ref, &else_live[0]);
+      else_div = glue_asm_block_diverged_get();
     }
   } else {
     unsafe {
@@ -25066,7 +25073,22 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   if (rc != 0) {
     return 0 - 1;
   }
+  /*
+   * Slice11 CFG join for options(noreturn):
+   * - if/else: join diverges only when BOTH arms diverged.
+   * - if-only: false path jumps to done → join is reachable → clear diverged.
+   * PLATFORM: SHARED freestanding emit.
+   */
   unsafe {
+    if (else_ref != 0) {
+      if (then_div != 0 && else_div != 0) {
+        glue_asm_block_diverged_set(1);
+      } else {
+        glue_asm_block_diverged_set(0);
+      }
+    } else {
+      glue_asm_block_diverged_set(0);
+    }
     glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, then_ref, else_ref);
     glue_asm_if_phi_invalidate_both_branch_defs(arena, ctx, then_ref, else_ref);
     glue_asm_if_merge_live_union_from_ends(arena, ctx, &then_live[0], &else_live[0]);
