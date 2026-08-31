@@ -15359,6 +15359,14 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   if (tk == 17) {
     return cg_ttc_write_bytes(scratch, cap, "struct xlang_dyn_obj", 20);
   }
+  /*
+   * 10.3.1: TYPE_FN (18) — Cap opaque fn-ptr ABI on host-C (`uint8_t *`).
+   * Twin of codegen emit_type_kind TYPE_FN. Full Ret(*)(args) residual.
+   * PLATFORM: SHARED host-C. G.7 single type_to_c_repr authority.
+   */
+  if (tk == 18) {
+    return cg_ttc_write_bytes(scratch, cap, "uint8_t *", 9);
+  }
   // TYPE_SLICE (11): `struct xlang_slice_<elemTag>`.
   // Strip leading "struct " then sanitize like TYPE_ARRAY: keep [A-Za-z0-9_],
   // map `*` → `_p`, skip spaces / brackets. Prior raw copy made `[]*i32` →
