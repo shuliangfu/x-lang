@@ -29,6 +29,6 @@ function main(): i32 {
   if (g1(40) != 41) {
     return 3;
   }
-  /* Indirect call via loaded TYPE_FN local (h.f() method syntax = residual). */
-  return g1(41);
+  /* Indirect field call through Cap blr (`h.f(args)` METHOD_CALL). */
+  return h1.f(41);
 }
