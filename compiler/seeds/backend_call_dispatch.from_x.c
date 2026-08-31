@@ -4391,7 +4391,8 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     int32_t cap_nargs = 0;
     int32_t cap_eff = callee_ref;
     int32_t cap_fn_off = 0;
-    if (callee_ko == 51) {
+    if (callee_ko == 51 || callee_ko == 52) {
+      /* EXPR_ADDR_OF / EXPR_DEREF — Cap (*f)() peels to VAR. */
       int32_t inn = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
       if (inn > 0)
         cap_eff = inn;
