@@ -42,7 +42,11 @@ export enum TypeKind {
   TYPE_VOID,
   /* TYPE_DYN: fat trait object {data*, vtable*} (ord 17). Append-only after
    * TYPE_VOID so existing 0..16 ordinals stay stable. PLATFORM: SHARED. */
-  TYPE_DYN
+  TYPE_DYN,
+  /* TYPE_FN (10.3.1 Wave1): fn(params...) -> Ret type (ord 18). Append-only
+   * after TYPE_DYN so 0..17 stay stable. Compound (not primitive cache).
+   * Parser / resolve / codegen land in later Wave1 slices. PLATFORM: SHARED. */
+  TYPE_FN
 }
 
 /* See implementation. */
