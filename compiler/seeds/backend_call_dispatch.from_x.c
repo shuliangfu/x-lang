@@ -4739,8 +4739,8 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Stage10 10.2.1 slice2–3: twin helpers + try_emit for multi `in` + syscall.
- * Reg pack = comma-separated method_call_name; mov via arg_reg / rbx / r10 / x8.
+ * Stage10 10.2.1 slice2–4: twin helpers + try_emit (in / out / syscall).
+ * int_val = num_in; outs store rax→local VAR (rax/eax/x0 only).
  * PLATFORM: SHARED.
  */
 static int32_t pipeline_asm_inline_in_reg_mov_kind_c(const uint8_t *reg, int32_t ta) {
@@ -4833,9 +4833,15 @@ static int32_t pipeline_asm_inline_regpack_field_c(const uint8_t *pack, int32_t 
   }
 }
 
+extern int32_t asm_ctx_local_find_offset_scoped(void *ctx, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
+extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off,
+                                                 int32_t ta);
+
 /**
  * Stage10 10.2.1: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
- * Templates: "nop" / "syscall"; up to 6 in-operands (comma reg pack).
+ * Templates: "nop" / "syscall"; in + lateout/out (VAR←rax).
  * PLATFORM: SHARED.
  */
 int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
@@ -4847,14 +4853,19 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   uint8_t nop1 = 0x90u;
   uint8_t a64[4];
   int32_t nargs;
+  int32_t num_in;
   int32_t arg_ref;
   uint8_t pack[128];
   uint8_t reg[32];
+  uint8_t vname[128];
   int32_t i;
   int32_t mk;
   int32_t erc;
   int32_t is_nop = 0;
   int32_t is_sys = 0;
+  int32_t pko;
+  int32_t vlen;
+  int32_t voff;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -4872,11 +4883,14 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
   if (nargs < 0 || nargs > 6)
     return -1;
+  num_in = pipeline_expr_int_val_at(arena, expr_ref);
+  if (num_in < 0 || num_in > nargs)
+    return -1;
   if (nargs > 0) {
     if (!ctx)
       return -1;
     pipeline_expr_method_call_name_into(arena, expr_ref, pack);
-    for (i = 0; i < nargs; i++) {
+    for (i = 0; i < num_in; i++) {
       if (pipeline_asm_inline_regpack_field_c(pack, i, reg, 32) != 0)
         return -1;
       mk = pipeline_asm_inline_in_reg_mov_kind_c(reg, ta);
@@ -4911,22 +4925,55 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     }
   }
   if (is_nop) {
-    if (ta == 0)
-      return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &nop1, 1);
-    if (ta == 1) {
+    if (ta == 0) {
+      if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &nop1, 1) != 0)
+        return -1;
+    } else if (ta == 1) {
       a64[0] = 0x1fu;
       a64[1] = 0x20u;
       a64[2] = 0x03u;
       a64[3] = 0xd5u;
-      return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, a64, 4);
+      if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, a64, 4) != 0)
+        return -1;
+    } else {
+      return -1;
     }
-    return -1;
+  } else {
+    if (ta == 0) {
+      if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0)
+        return -1;
+    } else if (ta == 1) {
+      if (arch_arm64_enc_enc_svc(elf_ctx) != 0)
+        return -1;
+    } else {
+      return -1;
+    }
   }
-  if (ta == 0)
-    return arch_x86_64_enc_enc_syscall(elf_ctx);
-  if (ta == 1)
-    return arch_arm64_enc_enc_svc(elf_ctx);
-  return -1;
+  for (i = num_in; i < nargs; i++) {
+    if (!ctx)
+      return -1;
+    if (pipeline_asm_inline_regpack_field_c(pack, i, reg, 32) != 0)
+      return -1;
+    mk = pipeline_asm_inline_in_reg_mov_kind_c(reg, ta);
+    if (mk != 0)
+      return -1;
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref <= 0)
+      return -1;
+    pko = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if (pko != 3)
+      return -1;
+    vlen = pipeline_expr_var_name_len(arena, arg_ref);
+    if (vlen <= 0 || vlen > 127)
+      return -1;
+    pipeline_expr_var_name_into(arena, arg_ref, vname);
+    voff = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
+    if (voff < 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, voff, ta) != 0)
+      return -1;
+  }
+  return 0;
 }
 
 /**
