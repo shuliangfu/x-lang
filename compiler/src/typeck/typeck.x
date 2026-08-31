@@ -728,6 +728,7 @@ export extern function pipeline_block_local_name_redecl_c(arena: *ASTArena, bloc
 vlen: i32, kind: i32, idx: i32, module: *Module, func_index: i32): i32;
 export extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
 export extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li: i32): i32;
 export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
@@ -8331,23 +8332,137 @@ expect_fn: i32): i32 {
 }
 
 /**
+ * Same-block let init for a Cap local name (10.3.1 opaque Cap provenance).
+ * @param arena *ASTArena
+ * @param block_ref i32 — active typeck block
+ * @param name *u8 — VAR name bytes
+ * @param name_len i32
+ * @return i32 — init expr_ref, or 0 if not found
+ * PLATFORM: SHARED.
+ */
+export function typeck_block_let_init_by_name(arena: *ASTArena, block_ref: i32, name: *u8,
+name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let nl: i32 = 0;
+    let i: i32 = 0;
+    let ln: i32 = 0;
+    let nbuf: u8[128] = [];
+    let j: i32 = 0;
+    let eq: i32 = 0;
+    if (arena == 0 as *ASTArena || block_ref <= 0 || name == 0 as *u8 || name_len <= 0
+        || name_len > 127) {
+      return 0;
+    }
+    nl = ast.ast_block_num_lets(arena, block_ref);
+    i = 0;
+    while (i < nl) {
+      ln = pipeline_block_let_name_len(arena, block_ref, i);
+      if (ln == name_len) {
+        pipeline_block_let_name_copy64(arena, block_ref, i, &nbuf[0]);
+        eq = 1;
+        j = 0;
+        while (j < name_len) {
+          if (nbuf[j] != name[j]) {
+            eq = 0;
+            break;
+          }
+          j = j + 1;
+        }
+        if (eq != 0) {
+          return pipeline_block_let_init_ref(arena, block_ref, i);
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Recover a same-module function index from Cap / AS provenance.
+ *
+ * Peel EXPR_AS (54) and Cap locals whose init is `bare as *u8` (or nested AS)
+ * so TYPE_FN←Cap can hard-check signatures when the underlying fn is known.
+ * True opaque Cap (FFI call, unknown) returns -1 → soft allow at the gate.
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr i32 — Cap-side expr
+ * @param depth i32 — recurse cap (max 8)
+ * @return i32 — func index ≥0, or -1
+ * PLATFORM: SHARED — 10.3.1 Cap provenance slice.
+ */
+export function typeck_recover_fn_fi_from_cap_expr(module: *Module, arena: *ASTArena, expr: i32,
+depth: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ko: i32 = 0;
+    let ord_var: i32 = 3;
+    let ord_as: i32 = 54;
+    let vnlen: i32 = 0;
+    let vbuf: u8[128] = [];
+    let fi: i32 = 0;
+    let nfuncs: i32 = 0;
+    let op: i32 = 0;
+    let init_r: i32 = 0;
+    let ctx: *PipelineDepCtx = 0 as *PipelineDepCtx;
+    let br: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr <= 0 || depth > 8) {
+      return 0 - 1;
+    }
+    ko = pipeline_expr_kind_ord_at(arena, expr);
+    if (ko == ord_as) {
+      op = pipeline_expr_as_operand_ref_at(arena, expr);
+      return typeck_recover_fn_fi_from_cap_expr(module, arena, op, depth + 1);
+    }
+    if (ko == ord_var) {
+      vnlen = pipeline_expr_var_name_len(arena, expr);
+      if (vnlen > 0 && vnlen <= 127) {
+        pipeline_expr_var_name_into(arena, expr, &vbuf[0]);
+        nfuncs = module.num_funcs;
+        fi = 0;
+        while (fi < nfuncs) {
+          if (pipeline_module_func_name_equal_at(module, fi, &vbuf[0], vnlen) != 0) {
+            return fi;
+          }
+          fi = fi + 1;
+        }
+        /* Cap local: peel its let init when active typeck block is known. */
+        ctx = pipeline_typeck_active_ctx_c();
+        if (ctx != 0 as *PipelineDepCtx) {
+          br = pipeline_dep_ctx_current_block_ref_at(ctx);
+          if (br > 0) {
+            init_r = typeck_block_let_init_by_name(arena, br, &vbuf[0], vnlen);
+            if (init_r > 0) {
+              return typeck_recover_fn_fi_from_cap_expr(module, arena, init_r, depth + 1);
+            }
+          }
+        }
+      }
+    }
+    return 0 - 1;
+  }
+}
+
+/**
  * Cap/TYPE_FN surface assign / coerce / as / return gate with signature when
  * checkable. G.7 single authority for all soft surface sites.
  *
  * Rules:
  * - Both TYPE_FN → typeck_fn_type_sig_equal
- * - Expect TYPE_FN + got Cap *u8 + got_expr bare same-module fn VAR →
- *   recover module func sig and compare
- * - Cap↔Cap / TYPE_FN←opaque Cap (no recoverable name) → soft allow (ABI opaque)
+ * - Expect TYPE_FN + got Cap *u8 + recoverable same-module fn (bare VAR, `as *u8`,
+ *   Cap local init peel) → typeck_module_func_matches_type_fn
+ * - Cap↔Cap / TYPE_FN←true opaque Cap (no recoverable name) → soft allow
  * - Expect Cap *u8 + got TYPE_FN → allow
  *
  * @param module *Module — may be 0 → pipeline_typeck_active_module_c()
  * @param arena *ASTArena
  * @param expect_ty i32 — destination / cast target / return expect
  * @param got_ty i32 — source / operand type
- * @param got_expr i32 — source expr (0 if unavailable; skips bare-fn recover)
+ * @param got_expr i32 — source expr (0 if unavailable; skips recover)
  * @return i32 — 1 compatible, 0 reject
- * PLATFORM: SHARED — 10.3.1 signature slice.
+ * PLATFORM: SHARED — 10.3.1 signature / Cap provenance.
  */
 export function typeck_fnptr_surface_compat(module: *Module, arena: *ASTArena, expect_ty: i32,
 got_ty: i32, got_expr: i32): i32 {
@@ -8361,6 +8476,7 @@ got_ty: i32, got_expr: i32): i32 {
     let fi: i32 = 0;
     let nfuncs: i32 = 0;
     let ord_var: i32 = 3;
+    let recovered: i32 = 0;
     if (arena == 0 as *ASTArena || expect_ty <= 0 || got_ty <= 0) {
       return 0;
     }
@@ -8374,27 +8490,37 @@ got_ty: i32, got_expr: i32): i32 {
     if (ek == TypeKind.TYPE_FN as i32 && gk == TypeKind.TYPE_FN as i32) {
       return typeck_fn_type_sig_equal(arena, expect_ty, got_ty);
     }
-    /* Expect TYPE_FN ← Cap *u8: recover bare same-module function when possible. */
+    /* Expect TYPE_FN ← Cap *u8: recover same-module fn when checkable. */
     if (ek == TypeKind.TYPE_FN as i32 && gk == 9) {
       if (mod == 0 as *Module) {
         mod = pipeline_typeck_active_module_c();
       }
-      if (mod != 0 as *Module && got_expr > 0
-          && pipeline_expr_kind_ord_at(arena, got_expr) == ord_var) {
-        vnlen = pipeline_expr_var_name_len(arena, got_expr);
-        if (vnlen > 0 && vnlen <= 127) {
-          pipeline_expr_var_name_into(arena, got_expr, &vbuf[0]);
-          nfuncs = mod.num_funcs;
-          fi = 0;
-          while (fi < nfuncs) {
-            if (pipeline_module_func_name_equal_at(mod, fi, &vbuf[0], vnlen) != 0) {
-              return typeck_module_func_matches_type_fn(mod, arena, fi, expect_ty);
+      if (mod != 0 as *Module && got_expr > 0) {
+        /* Fast path: bare function VAR name. */
+        if (pipeline_expr_kind_ord_at(arena, got_expr) == ord_var) {
+          vnlen = pipeline_expr_var_name_len(arena, got_expr);
+          if (vnlen > 0 && vnlen <= 127) {
+            pipeline_expr_var_name_into(arena, got_expr, &vbuf[0]);
+            nfuncs = mod.num_funcs;
+            fi = 0;
+            while (fi < nfuncs) {
+              if (pipeline_module_func_name_equal_at(mod, fi, &vbuf[0], vnlen) != 0) {
+                return typeck_module_func_matches_type_fn(mod, arena, fi, expect_ty);
+              }
+              fi = fi + 1;
             }
-            fi = fi + 1;
           }
         }
+        /*
+         * Cap provenance: peel `bare as *u8` / Cap local init → hard sig check.
+         * Unrecoverable Cap stays soft (ABI opaque). PLATFORM: SHARED.
+         */
+        recovered = typeck_recover_fn_fi_from_cap_expr(mod, arena, got_expr, 0);
+        if (recovered >= 0) {
+          return typeck_module_func_matches_type_fn(mod, arena, recovered, expect_ty);
+        }
       }
-      /* Opaque Cap local / unknown — soft allow (no recoverable signature). */
+      /* True opaque Cap — soft allow (no recoverable signature). */
       return 1;
     }
     /* Cap ← TYPE_FN / Cap ← Cap: opaque ABI accept. */
