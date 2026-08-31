@@ -4216,6 +4216,16 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
       let s: u8[22] = [115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0];
       return emit_bytes_from_ptr(out, &s[0], 20);
     }
+    /*
+     * 10.3.1: TYPE_FN (18) shares Cap opaque fn-ptr ABI on host-C — `uint8_t *`
+     * (same spelling as Cap *u8). Full `Ret (*)(args)` declarator / call-cast
+     * residual → follow-up. Unblocks -E CG003 (emit_type_kind miss → -1).
+     * PLATFORM: SHARED host-C. G.7 twin type_to_c_repr / type_kind_append.
+     */
+    if (kind_ord == (TypeKind.TYPE_FN as i32)) {
+      let s: u8[10] = [117, 105, 110, 116, 56, 95, 116, 32, 42, 0];
+      return emit_bytes_from_ptr(out, &s[0], 9);
+    }
     return -1;
   }
 }
@@ -4523,6 +4533,20 @@ export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind
     let s: u8[22] = [115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0];
     let i: i32 = 0;
     while (i < 20) {
+      if (w >= cap - 1) {
+        return -1;
+      }
+      scratch[w] = s[i];
+      w = w + 1;
+      i = i + 1;
+    }
+    return w;
+  }
+  /* 10.3.1: TYPE_FN → uint8_t * (Cap opaque ABI). Twin emit_type_kind. */
+  if (kind_ord == (TypeKind.TYPE_FN as i32)) {
+    let s: u8[10] = [117, 105, 110, 116, 56, 95, 116, 32, 42, 0];
+    let i: i32 = 0;
+    while (i < 9) {
       if (w >= cap - 1) {
         return -1;
       }
