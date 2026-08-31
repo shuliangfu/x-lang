@@ -4217,6 +4217,20 @@ extern int32_t arch_x86_64_enc_enc_movw_ax_to_mem_rcx(struct platform_elf_ElfCod
 extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_dmb_ish(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_dmb_ishld(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_dmb_ishst(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_ldar_w0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_stlr_w1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_mov_x0_to_x1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_mov_x0_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_mov_x0_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_ldr_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_str_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_mov_w0_to_w4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_casal_w0_w1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_cmp_w0_w4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_cset_eq_w0(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4363,11 +4377,11 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Stage 10 (10.4.1) slice1–3 + (10.4.2) fences: load/store/cas i16/i32/i64 + fences.
+ * Stage 10 (10.4.1) slice1–3 + (10.4.2) fences + arm64 i32/fence:
  * Twin of try_emit_atomic_builtin_call_elf_c in backend_call_dispatch.x.
- * ta==0 only (x86_64); other arches fall through to panic bodies.
+ * ta==0 x86_64; ta==1 aarch64 (i32+fence); other → 0.
  * @return 1 emitted; 0 not applicable; -1 emit error
- * PLATFORM: SHARED emit · LINUX|x86_64 runtime
+ * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64 runtime
  */
 static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -4396,7 +4410,7 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (ta != 0)
+  if (ta != 0 && ta != 1)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   memset(name, 0, sizeof(name));
@@ -4526,6 +4540,47 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
     off[i] = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
     if (off[i] < 0)
       return -1;
+  }
+  if (ta == 1) {
+    if (which == 1) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_ldar_w0_x0(elf_ctx) != 0) return -1;
+      return 1;
+    }
+    if (which == 2) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_stlr_w1_x0(elf_ctx) != 0) return -1;
+      return 1;
+    }
+    if (which == 3) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x2(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_ldr_w0_x3(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_w0_to_w4(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_casal_w0_w1_x2(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_str_w0_x3(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_cmp_w0_w4(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_cset_eq_w0(elf_ctx) != 0) return -1;
+      return 1;
+    }
+    if (which == 7 || which == 8 || which == 9) {
+      if (which == 7) {
+        if (arch_arm64_enc_enc_dmb_ish(elf_ctx) != 0) return -1;
+      } else if (which == 8) {
+        if (arch_arm64_enc_enc_dmb_ishld(elf_ctx) != 0) return -1;
+      } else {
+        if (arch_arm64_enc_enc_dmb_ishst(elf_ctx) != 0) return -1;
+      }
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) return -1;
+      return 1;
+    }
+    return 0;
   }
   if (which == 1) {
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
