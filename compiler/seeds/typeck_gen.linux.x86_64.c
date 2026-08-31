@@ -13074,7 +13074,7 @@ int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * modul
   (void)((init_ty = typeck_expr_type_ref(arena, init_r)));
   ((crc !=0) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, init_r, ftr));
  }) : ((!(ast_ref_is_null(init_ty)) && (init_ty > 0)) ? ({   (void)((got_kind = pipeline_type_kind_ord_at(arena, init_ty)));
-  (((typeck_type_refs_equal(arena, ftr, init_ty) || typeck_integer_widen_ok_refs(arena, ftr, init_ty)) || typeck_float_widen_ok(ftr_kind, got_kind)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, init_r, ftr));
+  (((typeck_type_refs_equal(arena, ftr, init_ty) || typeck_integer_widen_ok_refs(arena, ftr, init_ty)) || typeck_float_widen_ok(ftr_kind, got_kind) || ((typeck_is_fnptr_surface(arena, ftr) !=0) && (typeck_is_fnptr_surface(arena, init_ty) !=0))) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, init_r, ftr));
  }) : ({   (void)((eb = driver_typeck_diag_scratch_expect()));
   (void)((gb = driver_typeck_diag_scratch_found()));
   (void)((el = typeck_diag_fmt_type_into(arena, ftr, eb, 96)));
