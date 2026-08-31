@@ -4491,13 +4491,161 @@ function try_emit_atomic_builtin_call_elf_c(
 }
 
 /**
+ * Stage10 10.2.1 slice2: map in-reg spelling to post-emit move from rax/x0.
+ * @return i32 — 0 = already in rax/x0 (no mov); 1..6 = SysV/AAPCS arg index
+ *   for backend_enc_mov_rax_to_arg_reg_arch (0=rdi/x0…); 100 = rbx;
+ *   -1 = unsupported spelling.
+ * PLATFORM: SHARED · LINUX|x86_64 (rax/rdi/…) · aarch64 (x0..x5).
+ */
+function pipeline_asm_inline_in_reg_mov_kind(reg: *u8, ta: i32): i32 {
+  unsafe {
+    if (reg == 0 as *u8) {
+      return 0 - 1;
+    }
+    if (ta == 0) {
+      /* rax / eax — value already in rax */
+      if (reg[0] == (114 as u8) && reg[1] == (97 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 0;
+      }
+      if (reg[0] == (101 as u8) && reg[1] == (97 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 0;
+      }
+      /* rdi / edi → arg 0 */
+      if (reg[0] == (114 as u8) && reg[1] == (100 as u8) && reg[2] == (105 as u8)
+          && reg[3] == (0 as u8)) {
+        return 1;
+      }
+      if (reg[0] == (101 as u8) && reg[1] == (100 as u8) && reg[2] == (105 as u8)
+          && reg[3] == (0 as u8)) {
+        return 1;
+      }
+      /* rsi / esi → arg 1 */
+      if (reg[0] == (114 as u8) && reg[1] == (115 as u8) && reg[2] == (105 as u8)
+          && reg[3] == (0 as u8)) {
+        return 2;
+      }
+      if (reg[0] == (101 as u8) && reg[1] == (115 as u8) && reg[2] == (105 as u8)
+          && reg[3] == (0 as u8)) {
+        return 2;
+      }
+      /* rdx / edx → arg 2 */
+      if (reg[0] == (114 as u8) && reg[1] == (100 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 3;
+      }
+      if (reg[0] == (101 as u8) && reg[1] == (100 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 3;
+      }
+      /* rcx / ecx → arg 3 */
+      if (reg[0] == (114 as u8) && reg[1] == (99 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 4;
+      }
+      if (reg[0] == (101 as u8) && reg[1] == (99 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 4;
+      }
+      /* r8 → arg 4 */
+      if (reg[0] == (114 as u8) && reg[1] == (56 as u8) && reg[2] == (0 as u8)) {
+        return 5;
+      }
+      /* r9 → arg 5 */
+      if (reg[0] == (114 as u8) && reg[1] == (57 as u8) && reg[2] == (0 as u8)) {
+        return 6;
+      }
+      /* rbx / ebx */
+      if (reg[0] == (114 as u8) && reg[1] == (98 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 100;
+      }
+      if (reg[0] == (101 as u8) && reg[1] == (98 as u8) && reg[2] == (120 as u8)
+          && reg[3] == (0 as u8)) {
+        return 100;
+      }
+      return 0 - 1;
+    }
+    if (ta == 1) {
+      /* x0 — already; x1..x5 → arg indices 1..5 (enc treats k as AAPCS slot). */
+      if (reg[0] == (120 as u8) && reg[1] == (48 as u8) && reg[2] == (0 as u8)) {
+        return 0;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (49 as u8) && reg[2] == (0 as u8)) {
+        return 2;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (50 as u8) && reg[2] == (0 as u8)) {
+        return 3;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (51 as u8) && reg[2] == (0 as u8)) {
+        return 4;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (52 as u8) && reg[2] == (0 as u8)) {
+        return 5;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (53 as u8) && reg[2] == (0 as u8)) {
+        return 6;
+      }
+      return 0 - 1;
+    }
+    return 0 - 1;
+  }
+}
+
+/**
+ * Copy the idx-th comma-separated field from pack into out (NUL-terminated).
+ * @return i32 — 0 ok; -1 missing field / overflow
+ * PLATFORM: SHARED.
+ */
+function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    let i: i32 = 0;
+    let field: i32 = 0;
+    let o: i32 = 0;
+    let c: u8 = 0;
+    if (pack == 0 as *u8 || out == 0 as *u8 || out_cap < 2 || idx < 0) {
+      return 0 - 1;
+    }
+    while (1 == 1) {
+      c = pack[i];
+      if (field == idx) {
+        if (c == (0 as u8) || c == (44 as u8)) {
+          if (o >= out_cap) {
+            return 0 - 1;
+          }
+          out[o] = 0 as u8;
+          return 0;
+        }
+        if (o + 1 >= out_cap) {
+          return 0 - 1;
+        }
+        out[o] = c;
+        o = o + 1;
+        i = i + 1;
+      } else {
+        if (c == (0 as u8)) {
+          return 0 - 1;
+        }
+        if (c == (44 as u8)) {
+          field = field + 1;
+          i = i + 1;
+        } else {
+          i = i + 1;
+        }
+      }
+    }
+    return 0 - 1;
+  }
+}
+
+/**
  * Stage10 10.2.1: emit EXPR_ASM (kind 60) from template in var_name.
  * Slice0: "nop" → x86_64 0x90 / aarch64 d503201f (no operands).
- * Slice1: optional one `in("rax"|"eax"|"x0") expr` stored in call_arg[0]
- *   (reg spelling in method_call_name). Emit operand into rax/x0 then nop.
+ * Slice1–2: up to 6 `in("reg") expr` in call_args; regs comma-packed in
+ *   method_call_name. Emit each expr into rax/x0 then mov to target reg.
  * Other templates / regs / out/clobber → -1 (honest fail).
- * Note: pipeline_expr_var_name_len is VAR-only; use var_name_into (any kind)
- * then match bytes (STRING_LIT/ASM share var_name packing).
+ * Note: pipeline_expr_var_name_len is VAR-only; use var_name_into (any kind).
  * @return i32 — 0 ok; -1 error / unsupported
  * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64 (CPU nop; Darwin OK).
  */
@@ -4515,63 +4663,63 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     let a64: u8[4] = [];
     let nargs: i32 = 0;
     let arg_ref: i32 = 0;
-    let reg: u8[64] = [];
-    let reg_ok: i32 = 0;
+    let pack: u8[128] = [];
+    let reg: u8[32] = [];
+    let i: i32 = 0;
+    let mk: i32 = 0;
     let erc: i32 = 0;
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko != 60) {
       return 0 - 1;
     }
-    /* VAR-only len face returns 0 for ASM; into copies var_name for any kind. */
     pipeline_expr_var_name_into(arena, expr_ref, &tmpl[0]);
-    /* "nop" + NUL (into zero-fills remainder). */
+    /* "nop" + NUL */
     if (tmpl[0] == (110 as u8) && tmpl[1] == (111 as u8) && tmpl[2] == (112 as u8)
         && tmpl[3] == (0 as u8)) {
       nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
-      if (nargs > 1) {
+      if (nargs < 0 || nargs > 6) {
         return 0 - 1;
       }
-      if (nargs == 1) {
-        /* Slice1: in("rax"|"eax"|"x0") — value already lands in rax/x0. */
+      if (nargs > 0) {
         if (ctx == 0 as *u8) {
           return 0 - 1;
         }
-        pipeline_expr_method_call_name_into(arena, expr_ref, &reg[0]);
-        reg_ok = 0;
-        if (ta == 0) {
-          /* "rax" or "eax" */
-          if (reg[0] == (114 as u8) && reg[1] == (97 as u8) && reg[2] == (120 as u8)
-              && reg[3] == (0 as u8)) {
-            reg_ok = 1;
+        pipeline_expr_method_call_name_into(arena, expr_ref, &pack[0]);
+        i = 0;
+        while (i < nargs) {
+          if (pipeline_asm_inline_regpack_field(&pack[0], i, &reg[0], 32) != 0) {
+            return 0 - 1;
           }
-          if (reg[0] == (101 as u8) && reg[1] == (97 as u8) && reg[2] == (120 as u8)
-              && reg[3] == (0 as u8)) {
-            reg_ok = 1;
+          mk = pipeline_asm_inline_in_reg_mov_kind(&reg[0], ta);
+          if (mk < 0) {
+            return 0 - 1;
           }
-        }
-        if (ta == 1) {
-          /* "x0" */
-          if (reg[0] == (120 as u8) && reg[1] == (48 as u8) && reg[2] == (0 as u8)) {
-            reg_ok = 1;
+          arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+          if (arg_ref <= 0) {
+            return 0 - 1;
           }
-        }
-        if (reg_ok == 0) {
-          return 0 - 1;
-        }
-        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-        if (arg_ref <= 0) {
-          return 0 - 1;
-        }
-        erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
-        if (erc != 0) {
-          return 0 - 1;
+          erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+          if (erc != 0) {
+            return 0 - 1;
+          }
+          /* mk==0: already in rax/x0; 1..6 → arg_reg k=mk-1; 100 → rbx */
+          if (mk >= 1 && mk <= 6) {
+            if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, mk - 1, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (mk == 100) {
+            if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          i = i + 1;
         }
       }
       if (ta == 0) {
         return pipeline_elf_ctx_append_bytes(elf_ctx, &nop1, 1);
       }
       if (ta == 1) {
-        /* aarch64 HINT nop: d5 03 20 1f (LE). */
         a64[0] = 31 as u8;
         a64[1] = 32 as u8;
         a64[2] = 3 as u8;
