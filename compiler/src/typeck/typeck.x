@@ -6566,6 +6566,18 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       if (typeck_float_widen_ok(pk, ak)) {
         return 100;
       }
+      /*
+       * 10.3.3: opaque Cap-fn-ptr ABI — TYPE_FN ↔ Cap *u8 (cross-kind only).
+       * Same gate as let/assign (`typeck_is_fnptr_surface`). Do not steal
+       * Cap↔Cap / TYPE_FN↔TYPE_FN same-kind paths (exact / PTR / ak==pk).
+       * Score 100 < exact 1000. Signature equality deferred.
+       * PLATFORM: SHARED. G.7 single score path.
+       */
+      if (ak != pk
+          && typeck_is_fnptr_surface(caller_arena, param_ty) != 0
+          && typeck_is_fnptr_surface(caller_arena, arg_ty) != 0) {
+        return 100;
+      }
       /* See implementation. */
       if (ak == 10 && pk == 9) {
         let ae: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
