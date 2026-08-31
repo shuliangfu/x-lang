@@ -4206,6 +4206,9 @@ extern int32_t arch_x86_64_enc_enc_mov_rax_to_rdx(struct platform_elf_ElfCodegen
 extern int32_t arch_x86_64_enc_enc_movq_mem_rcx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_movq_rax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_mfence(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_lfence(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_sfence(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4354,7 +4357,7 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Stage 10 (10.4.1) slice1–2: atomic_load/store/cas_i32 and _i64.
+ * Stage 10 (10.4.1) slice1–2 + (10.4.2) fences: load/store/cas i32/i64 + fences.
  * Twin of try_emit_atomic_builtin_call_elf_c in backend_call_dispatch.x.
  * ta==0 only (x86_64); other arches fall through to panic bodies.
  * @return 1 emitted; 0 not applicable; -1 emit error
@@ -4378,6 +4381,9 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
   static const uint8_t nm_load64[15] = {97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 54, 52};
   static const uint8_t nm_store64[16] = {97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 54, 52};
   static const uint8_t nm_cas64[14] = {97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 54, 52};
+  static const uint8_t nm_fseq[20] = {97, 116, 111, 109, 105, 99, 95, 102, 101, 110, 99, 101, 95, 115, 101, 113, 95, 99, 115, 116};
+  static const uint8_t nm_facq[20] = {97, 116, 111, 109, 105, 99, 95, 102, 101, 110, 99, 101, 95, 97, 99, 113, 117, 105, 114, 101};
+  static const uint8_t nm_frel[20] = {97, 116, 111, 109, 105, 99, 95, 102, 101, 110, 99, 101, 95, 114, 101, 108, 101, 97, 115, 101};
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
@@ -4452,6 +4458,25 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       if (which == 0) which = 6; else which = 0;
     }
   }
+
+  if (which == 0 && nlen == 20) {
+    for (i = 0; i < 20; i++) {
+      if (name[i] != nm_fseq[i]) { which = -1; break; }
+    }
+    if (which == 0) which = 7; else which = 0;
+    if (which == 0) {
+      for (i = 0; i < 20; i++) {
+        if (name[i] != nm_facq[i]) { which = -1; break; }
+      }
+      if (which == 0) which = 8; else which = 0;
+    }
+    if (which == 0) {
+      for (i = 0; i < 20; i++) {
+        if (name[i] != nm_frel[i]) { which = -1; break; }
+      }
+      if (which == 0) which = 9; else which = 0;
+    }
+  }
   if (which == 0)
     return 0;
   if ((which == 1 || which == 4) && n_args != 1)
@@ -4459,6 +4484,8 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
   if ((which == 2 || which == 5) && n_args != 2)
     return 0;
   if ((which == 3 || which == 6) && n_args != 3)
+    return 0;
+  if ((which == 7 || which == 8 || which == 9) && n_args != 0)
     return 0;
   for (i = 0; i < n_args; i++) {
     if (is_method)
@@ -4509,6 +4536,17 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
     if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0) return -1;
     if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) return -1;
     if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) return -1;
+    return 1;
+  }
+  if (which == 7 || which == 8 || which == 9) {
+    if (which == 7) {
+      if (arch_x86_64_enc_enc_mfence(elf_ctx) != 0) return -1;
+    } else if (which == 8) {
+      if (arch_x86_64_enc_enc_lfence(elf_ctx) != 0) return -1;
+    } else {
+      if (arch_x86_64_enc_enc_sfence(elf_ctx) != 0) return -1;
+    }
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) return -1;
     return 1;
   }
   /* cas i64 */
