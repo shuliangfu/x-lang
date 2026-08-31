@@ -9172,6 +9172,11 @@ int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct cod
     if (((ast_ref_is_null(type_ref) || (field_name ==0)) || (field_name_len <=0))) {
       return -1;
     }
+    /* Twin living/codegen.x: TYPE_FN field → emit_c_fnptr_decl (10.3.1 slice10).
+     * PLATFORM: SHARED. G.7 single declarator authority. */
+    if (pipeline_type_kind_ord_at(arena, type_ref) == 18) {
+      return codegen_emit_c_fnptr_decl(arena, out, type_ref, field_name, field_name_len, ctx);
+    }
     while ((!(ast_ref_is_null(base_ref)) && (pipeline_type_kind_ord_at(arena, base_ref) ==10))) {
       int32_t inner = pipeline_type_elem_ref_at(arena, base_ref);
       if (ast_ref_is_null(inner)) {
