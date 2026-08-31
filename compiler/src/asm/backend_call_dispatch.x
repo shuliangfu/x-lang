@@ -4556,6 +4556,11 @@ function pipeline_asm_inline_in_reg_mov_kind(reg: *u8, ta: i32): i32 {
       if (reg[0] == (114 as u8) && reg[1] == (57 as u8) && reg[2] == (0 as u8)) {
         return 6;
       }
+      /* r10 — Linux syscall arg4 home (not C-ABI k). */
+      if (reg[0] == (114 as u8) && reg[1] == (49 as u8) && reg[2] == (48 as u8)
+          && reg[3] == (0 as u8)) {
+        return 101;
+      }
       /* rbx / ebx */
       if (reg[0] == (114 as u8) && reg[1] == (98 as u8) && reg[2] == (120 as u8)
           && reg[3] == (0 as u8)) {
@@ -4568,7 +4573,7 @@ function pipeline_asm_inline_in_reg_mov_kind(reg: *u8, ta: i32): i32 {
       return 0 - 1;
     }
     if (ta == 1) {
-      /* x0 — already; x1..x5 → arg indices 1..5 (enc treats k as AAPCS slot). */
+      /* x0 — already; x1..x5 → arg indices; x8 → syscall nr home. */
       if (reg[0] == (120 as u8) && reg[1] == (48 as u8) && reg[2] == (0 as u8)) {
         return 0;
       }
@@ -4586,6 +4591,9 @@ function pipeline_asm_inline_in_reg_mov_kind(reg: *u8, ta: i32): i32 {
       }
       if (reg[0] == (120 as u8) && reg[1] == (53 as u8) && reg[2] == (0 as u8)) {
         return 6;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (56 as u8) && reg[2] == (0 as u8)) {
+        return 102;
       }
       return 0 - 1;
     }
@@ -4641,13 +4649,12 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
 
 /**
  * Stage10 10.2.1: emit EXPR_ASM (kind 60) from template in var_name.
- * Slice0: "nop" → x86_64 0x90 / aarch64 d503201f (no operands).
- * Slice1–2: up to 6 `in("reg") expr` in call_args; regs comma-packed in
- *   method_call_name. Emit each expr into rax/x0 then mov to target reg.
+ * Templates: "nop" (slice0) · "syscall" (slice3 → x86 0F05 / aarch64 svc).
+ * Slice1–2: up to 6 `in("reg") expr`; regs comma-packed in method_call_name.
+ * Extra homes for syscall ABI: r10 (x86) · x8 (aarch64 nr).
  * Other templates / regs / out/clobber → -1 (honest fail).
- * Note: pipeline_expr_var_name_len is VAR-only; use var_name_into (any kind).
  * @return i32 — 0 ok; -1 error / unsupported
- * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64 (CPU nop; Darwin OK).
+ * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64 (CPU ops; Darwin OK for nop/svc).
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
@@ -4668,54 +4675,83 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     let i: i32 = 0;
     let mk: i32 = 0;
     let erc: i32 = 0;
+    let is_nop: i32 = 0;
+    let is_sys: i32 = 0;
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko != 60) {
       return 0 - 1;
     }
     pipeline_expr_var_name_into(arena, expr_ref, &tmpl[0]);
-    /* "nop" + NUL */
     if (tmpl[0] == (110 as u8) && tmpl[1] == (111 as u8) && tmpl[2] == (112 as u8)
         && tmpl[3] == (0 as u8)) {
-      nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
-      if (nargs < 0 || nargs > 6) {
+      is_nop = 1;
+    }
+    if (tmpl[0] == (115 as u8) && tmpl[1] == (121 as u8) && tmpl[2] == (115 as u8)
+        && tmpl[3] == (99 as u8) && tmpl[4] == (97 as u8) && tmpl[5] == (108 as u8)
+        && tmpl[6] == (108 as u8) && tmpl[7] == (0 as u8)) {
+      is_sys = 1;
+    }
+    if (is_nop == 0 && is_sys == 0) {
+      return 0 - 1;
+    }
+    nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+    if (nargs < 0 || nargs > 6) {
+      return 0 - 1;
+    }
+    if (nargs > 0) {
+      if (ctx == 0 as *u8) {
         return 0 - 1;
       }
-      if (nargs > 0) {
-        if (ctx == 0 as *u8) {
+      pipeline_expr_method_call_name_into(arena, expr_ref, &pack[0]);
+      i = 0;
+      while (i < nargs) {
+        if (pipeline_asm_inline_regpack_field(&pack[0], i, &reg[0], 32) != 0) {
           return 0 - 1;
         }
-        pipeline_expr_method_call_name_into(arena, expr_ref, &pack[0]);
-        i = 0;
-        while (i < nargs) {
-          if (pipeline_asm_inline_regpack_field(&pack[0], i, &reg[0], 32) != 0) {
-            return 0 - 1;
-          }
-          mk = pipeline_asm_inline_in_reg_mov_kind(&reg[0], ta);
-          if (mk < 0) {
-            return 0 - 1;
-          }
-          arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
-          if (arg_ref <= 0) {
-            return 0 - 1;
-          }
-          erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
-          if (erc != 0) {
-            return 0 - 1;
-          }
-          /* mk==0: already in rax/x0; 1..6 → arg_reg k=mk-1; 100 → rbx */
-          if (mk >= 1 && mk <= 6) {
-            if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, mk - 1, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (mk == 100) {
-            if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          i = i + 1;
+        mk = pipeline_asm_inline_in_reg_mov_kind(&reg[0], ta);
+        if (mk < 0) {
+          return 0 - 1;
         }
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        if (arg_ref <= 0) {
+          return 0 - 1;
+        }
+        erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+        if (erc != 0) {
+          return 0 - 1;
+        }
+        if (mk >= 1 && mk <= 6) {
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, mk - 1, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (mk == 100) {
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (mk == 101) {
+          /* PLATFORM: LINUX|x86_64 — syscall arg4 home. */
+          if (ta != 0) {
+            return 0 - 1;
+          }
+          if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (mk == 102) {
+          /* PLATFORM: LINUX|aarch64 — svc nr home x8. */
+          if (ta != 1) {
+            return 0 - 1;
+          }
+          if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0) {
+            return 0 - 1;
+          }
+        }
+        i = i + 1;
       }
+    }
+    if (is_nop != 0) {
       if (ta == 0) {
         return pipeline_elf_ctx_append_bytes(elf_ctx, &nop1, 1);
       }
@@ -4727,6 +4763,13 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return pipeline_elf_ctx_append_bytes(elf_ctx, &a64[0], 4);
       }
       return 0 - 1;
+    }
+    /* "syscall" — G.7 reuse raw_syscall enc (0F 05 / svc #0). */
+    if (ta == 0) {
+      return arch_x86_64_enc_enc_syscall(elf_ctx);
+    }
+    if (ta == 1) {
+      return arch_arm64_enc_enc_svc(elf_ctx);
     }
     return 0 - 1;
   }
