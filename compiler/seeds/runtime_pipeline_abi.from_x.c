@@ -26315,7 +26315,7 @@ extern int32_t pipeline_asm_emit_call_elf_c(void *arena, void *elf_ctx, int32_t 
 extern int32_t pipeline_asm_emit_method_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t str_expr_ref, int32_t ta);
 /* Stage10 10.2.1: EXPR_ASM (60) template emit (call_dispatch authority). */
-extern int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t ta);
+extern int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_cmp_elf(void *arena, void *elf_ctx, int32_t cmp_expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_break_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta);
@@ -26520,7 +26520,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
   else if (ko == 59)
     out_rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, expr_ref, ta);
   else if (ko == 60)
-    out_rc = pipeline_asm_try_emit_inline_asm_expr_elf_c(arena, elf_ctx, expr_ref, ta);
+    out_rc = pipeline_asm_try_emit_inline_asm_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko >= 14 && ko <= 19)
     out_rc = pipeline_asm_emit_cmp_elf(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 41)
