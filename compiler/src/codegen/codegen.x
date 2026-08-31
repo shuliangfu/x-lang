@@ -2513,6 +2513,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     let n_args: i32 = 0;
     let ai: i32 = 0;
     let pi: i32 = 0;
+    let is_method: i32 = 0;
+    let arg_ref: i32 = 0;
     /* ((int64_t)(__xlang_raw_syscall — arity digit + '(' appended after match. */
     let open_pre: u8[30] = [40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 95, 95, 120, 108, 97,
       110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
@@ -2531,20 +2533,35 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     e = ast.ast_arena_expr_get(arena, expr_ref);
-    if ((e.kind as i32) != (ExprKind.EXPR_CALL as i32)) {
-      return 0;
-    }
-    callee_ref = e.call_callee_ref;
-    if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
-      return 0;
-    }
-    callee = ast.ast_arena_expr_get(arena, callee_ref);
-    if ((callee.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee.field_access_field_len > 0) {
-      name_ptr = &callee.field_access_field_name[0];
-      name_len = callee.field_access_field_len;
-    } else if ((callee.kind as i32) == (ExprKind.EXPR_VAR as i32) && callee.var_name_len > 0) {
-      name_ptr = &callee.var_name[0];
-      name_len = callee.var_name_len;
+    /*
+     * Dot calls parse as METHOD_CALL (kind 49, fmt.println default shape);
+     * bare calls and the alt FIELD_ACCESS-callee shape are EXPR_CALL (48).
+     * Both shapes name the same builtin and lower identically (fmt_lit twin).
+     */
+    if ((e.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)) {
+      if (e.method_call_name_len <= 0) {
+        return 0;
+      }
+      name_ptr = &e.method_call_name[0];
+      name_len = e.method_call_name_len;
+      n_args = e.method_call_num_args;
+      is_method = 1;
+    } else if ((e.kind as i32) == (ExprKind.EXPR_CALL as i32)) {
+      callee_ref = e.call_callee_ref;
+      if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+        return 0;
+      }
+      callee = ast.ast_arena_expr_get(arena, callee_ref);
+      if ((callee.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee.field_access_field_len > 0) {
+        name_ptr = &callee.field_access_field_name[0];
+        name_len = callee.field_access_field_len;
+      } else if ((callee.kind as i32) == (ExprKind.EXPR_VAR as i32) && callee.var_name_len > 0) {
+        name_ptr = &callee.var_name[0];
+        name_len = callee.var_name_len;
+      } else {
+        return 0;
+      }
+      n_args = e.call_num_args;
     } else {
       return 0;
     }
@@ -2562,7 +2579,6 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (arity < 0 || arity > 6) {
       return 0;
     }
-    n_args = e.call_num_args;
     if (n_args != arity + 1) {
       return 0;
     }
@@ -2586,7 +2602,12 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (emit_bytes_from_ptr(out, &arg_open[0], 7) != 0) {
         return -1;
       }
-      if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+      }
+      if (emit_call_arg_slice_abi(arena, out, arg_ref, ctx) != 0) {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
       }
@@ -14149,6 +14170,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         if (fmt_mc_rc > 0) {
+          return 0;
+        }
+      }
+      /* stage10 S3.1 slice1 (10.1.1): dot-call raw_syscall0..6 shape
+       * (linux.raw_syscall3(...) parses here, fmt.println default shape). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let rs_mc_rc: i32 = codegen_try_emit_raw_syscall_call(arena, out, expr_ref, ctx);
+        if (rs_mc_rc < 0) {
+          return -1;
+        }
+        if (rs_mc_rc > 0) {
           return 0;
         }
       }

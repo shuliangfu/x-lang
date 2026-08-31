@@ -3554,6 +3554,8 @@ int32_t codegen_try_emit_raw_syscall_call(struct ast_ASTArena * arena, struct co
     int32_t n_args = 0;
     int32_t ai = 0;
     int32_t pi = 0;
+    int32_t is_method = 0;
+    int32_t arg_ref = 0;
     uint8_t open_pre[30] = {40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 95, 95, 120, 108, 97,
       110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108};
     uint8_t arg_open[7] = {40, 108, 111, 110, 103, 41, 40};
@@ -3567,30 +3569,42 @@ int32_t codegen_try_emit_raw_syscall_call(struct ast_ASTArena * arena, struct co
       return 0;
     }
     (void)((e = ast_ast_arena_expr_get(arena, expr_ref)));
-    if (((int32_t)(((e).kind))) !=48) {
-      return 0;
-    }
-    (void)((callee_ref = ((e).call_callee_ref)));
-    if (((callee_ref <=0) || (callee_ref >((arena)->num_exprs)))) {
-      return 0;
-    }
-    (void)((callee = ast_ast_arena_expr_get(arena, callee_ref)));
-    if (((((int32_t)(((callee).kind))) ==44) && (((callee).field_access_field_len) > 0))) {
-      (void)((name_ptr = &((((callee).field_access_field_name))[0])));
-      (void)((name_len = ((callee).field_access_field_len)));
-    } else {
-      if (((((int32_t)(((callee).kind))) ==3) && (((callee).var_name_len) > 0))) {
-        (void)((name_ptr = &((((callee).var_name))[0])));
-        (void)((name_len = ((callee).var_name_len)));
-      } else {
+    /* Dot calls parse as METHOD_CALL (49); bare/alt shape EXPR_CALL (48). */
+    if (((int32_t)(((e).kind))) ==49) {
+      if ((((e).method_call_name_len) <=0)) {
         return 0;
       }
+      (void)((name_ptr = &((((e).method_call_name))[0])));
+      (void)((name_len = ((e).method_call_name_len)));
+      (void)((n_args = ((e).method_call_num_args)));
+      (void)((is_method = 1));
+    } else {
+      if (((int32_t)(((e).kind))) !=48) {
+        return 0;
+      }
+      (void)((callee_ref = ((e).call_callee_ref)));
+      if (((callee_ref <=0) || (callee_ref >((arena)->num_exprs)))) {
+        return 0;
+      }
+      (void)((callee = ast_ast_arena_expr_get(arena, callee_ref)));
+      if (((((int32_t)(((callee).kind))) ==44) && (((callee).field_access_field_len) > 0))) {
+        (void)((name_ptr = &((((callee).field_access_field_name))[0])));
+        (void)((name_len = ((callee).field_access_field_len)));
+      } else {
+        if (((((int32_t)(((callee).kind))) ==3) && (((callee).var_name_len) > 0))) {
+          (void)((name_ptr = &((((callee).var_name))[0])));
+          (void)((name_len = ((callee).var_name_len)));
+        } else {
+          return 0;
+        }
+      }
+      (void)((n_args = ((e).call_num_args)));
     }
     if ((name_len != 12)) {
       return 0;
     }
     while ((pi < 11)) {
-      if (((name_ptr)[pi] != (pfx)[pi])) {
+      if (((name_ptr)[pi] !=(pfx)[pi])) {
         return 0;
       }
       (void)((pi = (pi + 1)));
@@ -3599,7 +3613,6 @@ int32_t codegen_try_emit_raw_syscall_call(struct ast_ASTArena * arena, struct co
     if (((arity < 0) || (arity > 6))) {
       return 0;
     }
-    (void)((n_args = ((e).call_num_args)));
     if ((n_args != (arity + 1))) {
       return 0;
     }
@@ -3622,7 +3635,12 @@ int32_t codegen_try_emit_raw_syscall_call(struct ast_ASTArena * arena, struct co
       if ((codegen_emit_bytes_from_ptr(out, &((arg_open)[0]), 7) !=0)) {
         return -1;
       }
-      if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
+      if ((is_method !=0)) {
+        (void)((arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai)));
+      } else {
+        (void)((arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai)));
+      }
+      if ((codegen_emit_call_arg_slice_abi(arena, out, arg_ref, ctx) !=0)) {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
       }
@@ -12853,6 +12871,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -1;
         }
         if ((fmt_mc_rc > 0)) {
+          return 0;
+        }
+      }
+      /* stage10 S3.1 slice1 (10.1.1): dot-call raw_syscall0..6 shape. */
+      if ((ctx !=0)) {
+        int32_t rs_mc_rc = codegen_try_emit_raw_syscall_call(arena, out, expr_ref, ctx);
+        if ((rs_mc_rc < 0)) {
+          return -1;
+        }
+        if ((rs_mc_rc > 0)) {
           return 0;
         }
       }
