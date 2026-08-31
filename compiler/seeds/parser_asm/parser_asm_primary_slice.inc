@@ -1255,12 +1255,12 @@ static void parser_asm_primary_parse_panic_c(void *arena, struct parser_asm_slic
 }
 
 /**
- * Parse `asm!("template")` / `asm!("template", in("reg") expr)` (stage10 10.2.1).
+ * Parse `asm!("template")` / `asm!("template", in("reg") expr, …)` (stage10 10.2.1).
  * Caller must have consumed IDENT `asm` and leave `*r` on TOKEN_BANG.
- * Slice0: template-only. Slice1: one Rust-style `in("reg") expr` (comma form).
+ * Slice0: template-only. Slice1: one `in`. Slice2: up to 6 `in("reg") expr`.
+ * Reg spellings packed comma-separated in method_call_name (matches call_arg order).
  * GNU `:` operands / options / out / clobber still rejected.
  * Escape decode matches STRING_LIT (G.7). Template → var_name; kind=EXPR_ASM(60).
- * Operand expr → call_arg list; reg spelling → method_call_name; int_val=0 means `in`.
  * PLATFORM: SHARED.
  */
 static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_slice_u8 *source,
@@ -1358,8 +1358,8 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
     return;
   nops = 0;
   while (r->tok.kind == (int32_t)TOKEN_COMMA) {
-    /* Slice1: exactly one `in("reg") expr`; more operands deferred. */
-    if (nops >= 1)
+    /* Slice2: up to 6 `in("reg") expr` (SysV GP); out/clobber deferred. */
+    if (nops >= 6)
       return;
     parser_asm_lex_from_result_val_into(lex, *r);
     lexer_next_into(r, *lex, source);
@@ -1374,25 +1374,48 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
     lexer_next_into(r, *lex, source);
     if (r->tok.kind != (int32_t)TOKEN_STRING)
       return;
-    /* Register name from STRING (no escapes needed for rax/eax/x0). */
+    /*
+     * Register spellings packed comma-separated in method_call_name
+     * (order matches call_arg indices). Slice1 = single field; slice2 = "rax,rdi,…".
+     */
     ae = parser_asm_arena_expr_get_c(arena, pref);
     rq0 = r->token_start;
     rlen = r->tok.ident_len;
     if (rlen < 0)
       rlen = 0;
-    if (rlen > 127)
-      rlen = 127;
-    rwi = 0;
-    while (rwi < rlen) {
-      uint8_t rc = 0;
-      if (rq0 + (size_t)rwi < source->length)
-        rc = source->data[rq0 + (size_t)rwi];
-      ae.method_call_name[rwi] = rc;
-      rwi += 1;
+    if (rlen > 16)
+      rlen = 16;
+    if (nops == 0) {
+      rwi = 0;
+      while (rwi < rlen) {
+        uint8_t rc = 0;
+        if (rq0 + (size_t)rwi < source->length)
+          rc = source->data[rq0 + (size_t)rwi];
+        ae.method_call_name[rwi] = rc;
+        rwi += 1;
+      }
+      ae.method_call_name_len = rwi;
+      if (rwi < 128)
+        ae.method_call_name[rwi] = 0;
+    } else {
+      int32_t base = ae.method_call_name_len;
+      if (base < 0)
+        base = 0;
+      if (base + 1 + rlen >= 128)
+        return;
+      ae.method_call_name[base] = (uint8_t)',';
+      rwi = 0;
+      while (rwi < rlen) {
+        uint8_t rc = 0;
+        if (rq0 + (size_t)rwi < source->length)
+          rc = source->data[rq0 + (size_t)rwi];
+        ae.method_call_name[base + 1 + rwi] = rc;
+        rwi += 1;
+      }
+      ae.method_call_name_len = base + 1 + rlen;
+      if (ae.method_call_name_len < 128)
+        ae.method_call_name[ae.method_call_name_len] = 0;
     }
-    ae.method_call_name_len = rwi;
-    if (rwi < 128)
-      ae.method_call_name[rwi] = 0;
     /* int_val=0 → direction `in` (out/inout deferred). */
     ae.int_val = 0;
     parser_asm_arena_expr_set_c(arena, pref, ae);
