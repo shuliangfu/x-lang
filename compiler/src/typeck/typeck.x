@@ -9548,6 +9548,9 @@ export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cu
     let lit_f64: u8[3] = [102, 54, 52];
     /* wave663: format TYPE_VOID as "void" (was bare "?"). */
     let lit_void: u8[4] = [118, 111, 105, 100];
+    /* 10.3.1: format TYPE_FN as "function" (was bare "?"). Full
+     * function(...): Ret pretty-print can land with resolve/codegen. */
+    let lit_fn: u8[8] = [102, 117, 110, 99, 116, 105, 111, 110];
     let star: u8[1] = [42];
     let lbk: u8[1] = [91];
     let rbk: u8[1] = [93];
@@ -9572,6 +9575,7 @@ export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cu
     let ord_f32: i32 = 14;
     let ord_f64: i32 = 15;
     let ord_void: i32 = 16;
+    let ord_fn: i32 = 18;
     let nm_buf: *u8 = typeck_scratch64_slot(0);
     if (cur < 0 || cap <= 0 || cur >= cap) {
       return cur;
@@ -9618,6 +9622,9 @@ export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cu
     }
     if (kind == ord_void) {
       return typeck_diag_append_lit(out, cur, cap, &lit_void[0], 4);
+    }
+    if (kind == ord_fn) {
+      return typeck_diag_append_lit(out, cur, cap, &lit_fn[0], 8);
     }
     if (kind == ord_ptr) {
       elem_ref = pipeline_type_elem_ref_at(arena, ref);
