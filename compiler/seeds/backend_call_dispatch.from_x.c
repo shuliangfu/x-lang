@@ -4191,6 +4191,7 @@ static int32_t try_fold_size_align_of_call_elf(struct ast_ASTArena *arena,
 
 extern int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_mov_r10_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 /* 10.4.1 slice1: atomic_load/store/cas i32 encoders (twin of backend_x86_64_enc_c.x). */
 extern int32_t arch_x86_64_enc_enc_movl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_movl_mem_rcx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -4959,8 +4960,8 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     mk = pipeline_asm_inline_in_reg_mov_kind_c(reg, ta);
     if (mk < 0)
       return -1;
-    /* Reject syscall-only homes as out (r10 / x8). */
-    if (mk == 101 || mk == 102)
+    /* Reject aarch64 syscall-nr home as out (x8); r10 allowed on x86 (slice7). */
+    if (mk == 102)
       return -1;
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
     if (arg_ref <= 0)
@@ -4985,6 +4986,12 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     }
     if (mk == 100) {
       if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (mk == 101) {
+      if (ta != 0)
+        return -1;
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0)
         return -1;
     }
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, voff, ta) != 0)

@@ -84,6 +84,8 @@ export extern function backend_enc_mov_arg_reg_to_rax_arch(elf: *u8, k: i32, ta:
  * bodies in backend_x86_64_enc_c.x — same family as the enc externs above. */
 export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32;
+/* stage10 10.2.1 slice7: lateout/out("r10") → rax. */
+export extern "C" function arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx: *u8): i32;
 /* 10.4.1 slice1: atomic_load/store/cas i32 encoders (backend_x86_64_enc_c.x). */
 export extern "C" function arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx: *u8): i32;
@@ -4656,11 +4658,11 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  * Templates: "nop" · "syscall" (x86 0F05 / aarch64 svc).
  * Operands: up to 6; int_val = num_in; call_args[0..num_in) = in,
  *   call_args[num_in..) = out/lateout places (VAR only).
- * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP (x86 mov_arg→rax) · mk==100 rbx.
+ * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP · mk==100 rbx · mk==101 r10 (x86).
  * Place `_` (VAR name "_"): clobber discard — no store (slice6).
- * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — not valid out yet.
+ * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — x8 out still unsupported.
  * @return i32 — 0 ok; -1 error / unsupported
- * PLATFORM: SHARED emit · LINUX|x86_64 gold out-GP · aarch64 encode (x0 out only via arch).
+ * PLATFORM: SHARED emit · LINUX|x86_64 gold out-GP/r10 · aarch64 encode (x0 out only via arch).
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
@@ -4808,8 +4810,8 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
       if (mk < 0) {
         return 0 - 1;
       }
-      /* Reject syscall-only homes as out (r10 / x8). */
-      if (mk == 101 || mk == 102) {
+      /* Reject aarch64 syscall-nr home as out (x8); r10 allowed on x86 (slice7). */
+      if (mk == 102) {
         return 0 - 1;
       }
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
@@ -4843,6 +4845,14 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
       }
       if (mk == 100) {
         if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      if (mk == 101) {
+        if (ta != 0) {
+          return 0 - 1;
+        }
+        if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) {
           return 0 - 1;
         }
       }
