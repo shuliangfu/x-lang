@@ -1346,6 +1346,81 @@ export function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32 {
 }
 
 /**
+ * `movq (%rax), %rax` (48 8B 00) — 10.4.1 slice2 atomic_load_i64.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 0);
+}
+
+/**
+ * `xchg %rdx, (%rax)` (48 87 10) — 10.4.1 slice2 atomic_store_i64.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 135) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `mov %rax, %rdx` (48 89 C2) — i64 desired/val into rdx for xchg/cmpxchg.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/**
+ * `movq (%rcx), %rax` (48 8B 01) — load *expected (i64) with ptr parked in rbx.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `movq %rax, (%rcx)` (48 89 01) — write old CAS i64 value to *expected.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %rdx, (%rbx)` (F0 48 0F B1 13) — 10.4.1 slice2 atomic_cas_i64.
+ * Pre: rax=expected, rdx=desired, rbx=ptr. Post: rax=old; ZF=success.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 19);
+}
+
+/**
  * mov %rax, %r10 (49 89 C2) — stage 10 S3.1 slice 2 (10.1.1): syscall arg4
  * home. r10 has no slot in the C-ABI mov_rax_to_arg_reg k table, so this raw
  * form is the single r10 path (G.7; do not fork a second register map).
