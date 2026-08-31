@@ -729,6 +729,7 @@ struct ast_ASTArena {
 #define codegen_codegen_get_host_call_arg_param_ty codegen_get_host_call_arg_param_ty
 #define codegen_codegen_next_host_call_array_tmp_id codegen_next_host_call_array_tmp_id
 #define codegen_codegen_emit_slice_let_reent_finish codegen_emit_slice_let_reent_finish
+#define codegen_codegen_slice_let_call_returns_slice codegen_slice_let_call_returns_slice
 #define ast_expr_apply_call_resolve ast_ast_expr_apply_call_resolve
 #define ast_block_final_expr_ref ast_ast_block_final_expr_ref
 #define ast_expr_disallows_implicit_tail ast_ast_expr_disallows_implicit_tail
@@ -3531,6 +3532,7 @@ extern void codegen_set_host_call_arg_param_ty(int32_t param_ty_ref);
 extern int32_t codegen_get_host_call_arg_param_ty(void);
 extern int32_t codegen_next_host_call_array_tmp_id(void);
 extern int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t let_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_slice_let_call_returns_slice(struct ast_ASTArena * arena, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx) {
   {
     if (ast_ref_is_null(arg_ref)) {
@@ -6074,6 +6076,46 @@ int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, s
     uint8_t tail[4] = {41, 41, 59, 10};
     return codegen_emit_bytes_from_ptr(out, &((tail)[0]), 4);
   }
+}
+/**
+ * PLATFORM: SHARED — twin of codegen.x codegen_slice_let_call_returns_slice.
+ * True when a dest-SLICE let init CALL/METHOD callee already returns TYPE_SLICE.
+ * dest-SLICE of a callee that returns TYPE_ARRAY (`let s:[]T=mk()`) must wrap
+ * via try_emit — typeck stamps CALL to TYPE_SLICE but ARRAY ABI is E*, so
+ * wave409 reent `__xlang_sp = mk()` is BLD001. Same-module: current_codegen_module
+ * + caller arena. Dep-module: dep arena (type_ref is arena-local).
+ * Unknown / missing ctx → 0 (try_emit or emit_expr).
+ * G.7: complete existing let-init reent gate; do not fork a second wrap.
+ * Live `-E` uses this seed path. @return 1 callee return TYPE_SLICE; 0 otherwise.
+ */
+int32_t codegen_slice_let_call_returns_slice(struct ast_ASTArena * arena, int32_t linit_ref, struct ast_PipelineDepCtx * ctx) {
+  if (((arena == 0) || ast_ref_is_null(linit_ref)) || (ctx == 0)) {
+    return 0;
+  }
+  int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, linit_ref);
+  int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, linit_ref);
+  if (((((dep_ix < 0) && (((ctx)->current_codegen_module) != 0)) && (func_ix >= 0)) && (func_ix < ((((ctx)->current_codegen_module))->num_funcs)))) {
+    int32_t rty = pipeline_module_func_return_type_at(((ctx)->current_codegen_module), func_ix);
+    if ((!(ast_ref_is_null(rty)) && (rty > 0))) {
+      if ((pipeline_type_kind_ord_at(arena, rty) == 11)) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  if (((dep_ix >= 0) && (func_ix >= 0))) {
+    struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    struct ast_ASTArena * dep_ar = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+    if (((dep_mod != 0) && (func_ix < ((dep_mod)->num_funcs)))) {
+      int32_t rty_d = pipeline_module_func_return_type_at(dep_mod, func_ix);
+      if (((!(ast_ref_is_null(rty_d)) && (rty_d > 0)) && (dep_ar != 0))) {
+        if ((pipeline_type_kind_ord_at(dep_ar, rty_d) == 11)) {
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
 }
 int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx) {
   {
@@ -15300,7 +15342,12 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                   return -1;
                 }
               } else {
-                if ((((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) ==11)) && !(ast_ref_is_null(linit_ref))) && ((pipeline_expr_kind_ord_at(arena, linit_ref) ==48) || (pipeline_expr_kind_ord_at(arena, linit_ref) ==49)))) {
+                /* PLATFORM: SHARED — twin of codegen.x let-init reent gate.
+                 * dest-SLICE CALL/METHOD that already returns TYPE_SLICE → reent.
+                 * dest-SLICE of ARRAY-returning mk() → try_emit wrap (ARRAY ABI E*).
+                 * Historic: ungated reent `__xlang_sp = mk()` is BLD001 (E* vs fat).
+                 * G.7: complete existing gate; do not fork a second wrap. */
+                if (((((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) ==11)) && !(ast_ref_is_null(linit_ref))) && ((pipeline_expr_kind_ord_at(arena, linit_ref) ==48) || (pipeline_expr_kind_ord_at(arena, linit_ref) ==49))) && (codegen_slice_let_call_returns_slice(arena, linit_ref, ctx) != 0))) {
                   if ((codegen_emit_slice_let_reent_finish(arena, out, indent, &((emit_nm)[0]), emit_nml, let_type_ref, linit_ref, ctx) !=0)) {
                     return -1;
                   }

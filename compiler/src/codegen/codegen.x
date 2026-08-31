@@ -5749,6 +5749,8 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
  * @param ctx *PipelineDepCtx — current module + dep table; null → 0
  * @return i32 — 1 callee return TYPE_SLICE; 0 otherwise
  * PLATFORM: SHARED host-C (let-init reent gate).
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+ * Do not fork a second let-init reent gate.
  */
 export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
