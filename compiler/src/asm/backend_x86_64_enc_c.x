@@ -1227,6 +1227,100 @@ export function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32 {
 }
 
 /**
+ * `movl (%rax), %eax` (8B 00) — 10.4.1 atomic_load_i32 asm lowering.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 0);
+}
+
+/**
+ * `xchg %edx, (%rax)` (87 10) — 10.4.1 atomic_store_i32 asm lowering.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 135) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `mov %rax, %rcx` (48 89 C1) — scratch for atomic_cas expected-ptr update.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 193);
+}
+
+/**
+ * `movl %eax, (%rcx)` (89 01) — write old CAS value to *expected.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %edx, (%rax)` (F0 0F B1 10) — 10.4.1 atomic_cas_i32.
+ * Pre: eax=expected, edx=desired, rax=ptr. Post: eax=old; ZF=success.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `sete %al` (0F 94 C0) — CAS success flag.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sete_al(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 148) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 192);
+}
+
+/**
+ * `movzbl %al, %eax` (0F B6 C0) — zero-extend sete result.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 182) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 192);
+}
+
+/**
+ * `mov %eax, %edx` (89 C2) — copy i32 desired/val into edx for xchg/cmpxchg.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/**
  * mov %rax, %r10 (49 89 C2) — stage 10 S3.1 slice 2 (10.1.1): syscall arg4
  * home. r10 has no slot in the C-ABI mov_rax_to_arg_reg k table, so this raw
  * form is the single r10 path (G.7; do not fork a second register map).
