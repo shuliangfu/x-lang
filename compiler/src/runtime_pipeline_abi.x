@@ -57400,15 +57400,16 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
    * Slice9: skip defer + final_expr when options(noreturn) diverged (unreachable).
    * PLATFORM: SHARED freestanding pure-asm. */
   unsafe {
-    if (glue_asm_block_diverged_get() == 0) {
-      rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
-      if (rc != 0) {
-        return 0 - 1;
-      }
+    done = glue_asm_block_diverged_get();
+  }
+  if (done == 0) {
+    rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
     }
   }
 
