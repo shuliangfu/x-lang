@@ -435,6 +435,146 @@ export function enc_svc(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 0 - 738197503);
 }
 
+/**
+ * dmb ish — seq_cst full barrier. Twin of arch_arm64_enc_enc_dmb_ish.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_dmb_ish(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 721208385);
+}
+
+/**
+ * dmb ishld — acquire barrier. Twin of arch_arm64_enc_enc_dmb_ishld.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_dmb_ishld(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 721208897);
+}
+
+/**
+ * dmb ishst — release barrier. Twin of arch_arm64_enc_enc_dmb_ishst.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_dmb_ishst(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 721208641);
+}
+
+/**
+ * ldar w0, [x0] — atomic_load_i32. Twin of arch_arm64_enc_enc_ldar_w0_x0.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_ldar_w0_x0(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 1998586880);
+}
+
+/**
+ * stlr w1, [x0] — atomic_store_i32. Twin of arch_arm64_enc_enc_stlr_w1_x0.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_stlr_w1_x0(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 2002781183);
+}
+
+/**
+ * mov x1, x0 — val/desired park. Twin of arch_arm64_enc_enc_mov_x0_to_x1.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_mov_x0_to_x1(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 2852127712 | (0 << 16) | 1);
+}
+
+/**
+ * mov x2, x0 — CAS ptr home. Twin of arch_arm64_enc_enc_mov_x0_to_x2.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_mov_x0_to_x2(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 2852127712 | (0 << 16) | 2);
+}
+
+/**
+ * mov x3, x0 — expected* home. Twin of arch_arm64_enc_enc_mov_x0_to_x3.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_mov_x0_to_x3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 2852127712 | (0 << 16) | 3);
+}
+
+/**
+ * ldr w0, [x3]. Twin of arch_arm64_enc_enc_ldr_w0_x3.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_ldr_w0_x3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 1186987936);
+}
+
+/**
+ * str w0, [x3]. Twin of arch_arm64_enc_enc_str_w0_x3.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_str_w0_x3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 1191182240);
+}
+
+/**
+ * mov w4, w0. Twin of arch_arm64_enc_enc_mov_w0_to_w4.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_mov_w0_to_w4(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 704644068);
+}
+
+/**
+ * casal w0, w1, [x2] — LSE CAS i32. Twin of arch_arm64_enc_enc_casal_w0_w1_x2.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit (ARMv8.1 LSE).
+ */
+export function enc_casal_w0_w1_x2(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 0 - 1998521279);
+}
+
+/**
+ * cmp w0, w4. Twin of arch_arm64_enc_enc_cmp_w0_w4.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_cmp_w0_w4(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 1795424287);
+}
+
+/**
+ * cset w0, eq. Twin of arch_arm64_enc_enc_cset_eq_w0.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit.
+ */
+export function enc_cset_eq_w0(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 446633952);
+}
+
 /** Exported function `enc_mov_x9_to_rax`.
  * Implements `enc_mov_x9_to_rax`.
  * @param ctx *ElfCodegenCtx
