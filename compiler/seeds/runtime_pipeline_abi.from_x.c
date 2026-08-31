@@ -25809,8 +25809,10 @@ int32_t pipeline_expr_field_access_layout_offset(void *a, void *m, int32_t expr_
 }
 
 /**
- * 按类型 ref 返回 FIELD_ACCESS 加载宽度（bool/u8=1，i32/u32/f32=4，i64/指针=8）。
- * 与 backend.x asm_field_access_load_byte_sz 中 TypeKind 分支一致。
+ * Field-access load width by type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr/TYPE_FN=8).
+ * Twin of runtime_pipeline_abi.x glue_field_access_load_bytes_for_type_ref.
+ * 10.3.3: TYPE_FN (18) is opaque Cap-fn-ptr ABI — pointer-sized, not scalar miss→4.
+ * PLATFORM: SHARED.
  */
 int32_t glue_field_access_load_bytes_for_type_ref(void *a, int32_t ty_ref) {
   int32_t kind_ord;
@@ -25821,7 +25823,9 @@ int32_t glue_field_access_load_bytes_for_type_ref(void *a, int32_t ty_ref) {
     return 1;
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
     return 4;
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9)
+  /* i64/u64/usize/isize/f64/ptr/TYPE_FN → 8 */
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18)
     return 8;
   if (kind_ord == 8)
     return 8;
