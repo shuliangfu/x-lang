@@ -1474,6 +1474,9 @@ extern int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * c
 extern int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t codegen_emit_c(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t ptr_type_ref, uint8_t * name, int32_t name_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_c_fnptr_decl(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t fn_ty, uint8_t * name, int32_t name_len, int32_t array_ty, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_type_is_cap_u8_ptr(struct ast_ASTArena * arena, int32_t type_ref);
+extern int32_t codegen_emit_c_fnptr_abstract_from_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t call_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_try_emit_cap_u8_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_type_is(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref);
@@ -5971,6 +5974,166 @@ int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_
     return 0;
   }
 }
+
+/* Twin living/codegen.x 10.3.1 slice15 Cap *u8 host-C cast helpers. PLATFORM: SHARED. */
+int32_t codegen_type_is_cap_u8_ptr(struct ast_ASTArena * arena, int32_t type_ref) {
+  int32_t er = 0;
+  if (((arena == 0) || (type_ref <= 0))) {
+    return 0;
+  }
+  if ((pipeline_type_kind_ord_at(arena, type_ref) != 9)) {
+    return 0;
+  }
+  (void)((er = pipeline_type_elem_ref_at(arena, type_ref)));
+  if ((er <= 0)) {
+    return 0;
+  }
+  if ((pipeline_type_kind_ord_at(arena, er) == 2)) {
+    return 1;
+  }
+  return 0;
+}
+
+int32_t codegen_emit_c_fnptr_abstract_from_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t call_ref, struct ast_PipelineDepCtx * ctx) {
+  int32_t ret_ty = 0;
+  int32_t n = 0;
+  int32_t i = 0;
+  int32_t arg_ref = 0;
+  int32_t arg_ty = 0;
+  uint8_t i32t[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+  uint8_t void5[5] = {118, 111, 105, 100, 0};
+  if ((((arena == 0) || (out == 0)) || (call_ref <= 0))) {
+    return -1;
+  }
+  (void)((ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref)));
+  if ((ret_ty <= 0)) {
+    if ((codegen_emit_bytes_8(out, &((i32t)[0]), 7) != 0)) {
+      return -1;
+    }
+  } else if ((codegen_emit_type(arena, out, ret_ty, 0, 0, ctx) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 32) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 42) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  (void)((n = pipeline_expr_call_num_args_at(arena, call_ref)));
+  if ((n <= 0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((void5)[0]), 4) != 0)) {
+      return -1;
+    }
+  } else {
+    (void)((i = 0));
+    while ((i < n)) {
+      if ((i > 0)) {
+        uint8_t comma[3] = {44, 32, 0};
+        if ((codegen_emit_bytes_3(out, &((comma)[0]), 2) != 0)) {
+          return -1;
+        }
+      }
+      (void)((arg_ref = pipeline_expr_call_arg_ref(arena, call_ref, i)));
+      (void)((arg_ty = 0));
+      if ((!(ast_ref_is_null(arg_ref)) && (arg_ref > 0))) {
+        (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
+      }
+      if ((arg_ty <= 0)) {
+        if ((codegen_emit_bytes_8(out, &((i32t)[0]), 7) != 0)) {
+          return -1;
+        }
+      } else if ((codegen_emit_type(arena, out, arg_ty, 0, 0, ctx) != 0)) {
+        return -1;
+      }
+      (void)((i = (i + 1)));
+    }
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  return 0;
+}
+
+int32_t codegen_try_emit_cap_u8_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
+  int32_t callee_ref = 0;
+  int32_t cal_ty = 0;
+  int32_t n = 0;
+  int32_t ai = 0;
+  if (((arena == 0) || (out == 0))) {
+    return -1;
+  }
+  if ((((int32_t)(((e).kind))) != 48)) {
+    return 0;
+  }
+  (void)((callee_ref = ((e).call_callee_ref)));
+  if (((ast_ref_is_null(callee_ref) || (callee_ref <= 0)) || (callee_ref > ((arena)->num_exprs)))) {
+    return 0;
+  }
+  (void)((cal_ty = pipeline_expr_resolved_type_ref(arena, callee_ref)));
+  if ((codegen_type_is_cap_u8_ptr(arena, cal_ty) == 0)) {
+    return 0;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_c_fnptr_abstract_from_call(arena, out, expr_ref, ctx) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_expr(arena, out, callee_ref, ctx) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  (void)((n = ((e).call_num_args)));
+  (void)((ai = 0));
+  while ((ai < n)) {
+    if ((ai > 0)) {
+      uint8_t comma[3] = {44, 32, 0};
+      if ((codegen_emit_bytes_3(out, &((comma)[0]), 2) != 0)) {
+        return -1;
+      }
+    }
+    if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {
+      if ((codegen_append_byte(out, 48) != 0)) {
+        return -1;
+      }
+    } else if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0)) {
+      return -1;
+    }
+    (void)((ai = (ai + 1)));
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  return 1;
+}
+
 int32_t codegen_emit_c_fnptr_decl(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t fn_ty, uint8_t * name, int32_t name_len, int32_t array_ty, struct ast_PipelineDepCtx * ctx) {
   /* 10.3.1 slice11: Host-C TYPE_FN declarator Ret (*name)(T0,…) / Ret (*name[N])(…).
    * Twin of living/codegen.x emit_c_fnptr_decl. PLATFORM: SHARED. */
@@ -11700,6 +11863,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return 0;
         }
       }
+      /* 10.3.1 slice15: Cap *u8 CALL cast. Twin codegen.x. PLATFORM: SHARED. */
+      if ((ctx != 0)) {
+        int32_t cap_call_rc = codegen_try_emit_cap_u8_call(arena, out, expr_ref, ctx);
+        if ((cap_call_rc < 0)) {
+          return -1;
+        }
+        if ((cap_call_rc > 0)) {
+          return 0;
+        }
+      }
       if (((((!(ast_ref_is_null(callee_ref)) && (callee_ref > 0)) && (callee_ref <=((arena)->num_exprs))) && (ctx !=0)) && (((ctx)->current_codegen_module) !=0))) {
         uint8_t sym_buf[128] = {};
         int32_t imp_j = -1;
@@ -16053,6 +16226,22 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                       return -1;
                     }
                   }
+                  /* 10.3.1 slice15: TYPE_FN let = Cap → (Ret (*)(args))init. Twin. */
+                  if ((((use_fnptr != 0) && (use_fnptr_array_init == 0)) && !(ast_ref_is_null(linit_ref)))) {
+                    int32_t cast_fn = fn_leaf;
+                    if ((cast_fn <= 0)) {
+                      (void)((cast_fn = let_type_ref));
+                    }
+                    if ((codegen_append_byte(out, 40) != 0)) {
+                      return -1;
+                    }
+                    if ((codegen_emit_c_fnptr_decl(arena, out, cast_fn, 0, 0, 0, ctx) != 0)) {
+                      return -1;
+                    }
+                    if ((codegen_append_byte(out, 41) != 0)) {
+                      return -1;
+                    }
+                  }
                   int32_t slice_init = 0;
                   if (!(ast_ref_is_null(linit_ref))) {
                     (void)((slice_init = codegen_try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref, ctx)));
@@ -16699,6 +16888,22 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
         uint8_t eq[4] = {32, 61, 32, 0};
         if ((codegen_emit_bytes_4(out, &((eq)[0]), 3) !=0)) {
           return -1;
+        }
+        /* 10.3.1 slice15: TYPE_FN let Cap cast (fallback). Twin. */
+        if ((((use_fnptr != 0) && (use_fnptr_array_init == 0)) && !(ast_ref_is_null(linit_fb)))) {
+          int32_t cast_fn_fb = fn_leaf_fb;
+          if ((cast_fn_fb <= 0)) {
+            (void)((cast_fn_fb = let_type_ref));
+          }
+          if ((codegen_append_byte(out, 40) != 0)) {
+            return -1;
+          }
+          if ((codegen_emit_c_fnptr_decl(arena, out, cast_fn_fb, 0, 0, 0, ctx) != 0)) {
+            return -1;
+          }
+          if ((codegen_append_byte(out, 41) != 0)) {
+            return -1;
+          }
         }
         if (ast_ref_is_null(linit_fb)) {
           uint8_t zinit_omit[6] = {123, 32, 48, 32, 125, 0};
