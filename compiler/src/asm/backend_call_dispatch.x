@@ -3962,8 +3962,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
             if (cap_eko == 2) {
               cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
               if (cap_nargs < 0) { return 0 - 1; }
-              /* Cap opaque *u8: GP register-file only this slice (SysV 6 / AAPCS64 8). */
-              if (cap_nargs > glue_asm_call_reg_max(ta)) { return 0 - 1; }
+              /*
+               * Cap opaque *u8: reuse pipeline_asm_emit_call_args_elf_c for GP
+               * regs + stack spill (SysV 6 / AAPCS64 8). slice2 was reg-only;
+               * slice4 lifts the reg_max hard-fail (G.7 same packer as direct CALL).
+               * PLATFORM: SHARED.
+               */
               if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_eff, ctx, ta) != 0) {
                 return 0 - 1;
               }
