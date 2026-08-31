@@ -80,7 +80,11 @@ enum {
   PARSER_ASM_TYPE_VOID = 16,
   /* TYPE_DYN fat trait object {data*, vtable*} — append after VOID (ord 17).
    * PLATFORM: SHARED type grammar. G.7 ≡ ast.x TypeKind. */
-  PARSER_ASM_TYPE_DYN = 17
+  PARSER_ASM_TYPE_DYN = 17,
+  /* TYPE_FN (10.3.1): function(params...): Ret — append after DYN (ord 18).
+   * elem_type_ref = return; array_size = n_params; params via type-arg sidecar.
+   * PLATFORM: SHARED. G.7 ≡ ast.x TypeKind.TYPE_FN. */
+  PARSER_ASM_TYPE_FN = 18
 };
 
 extern int32_t ast_ast_arena_type_alloc(void *arena);
@@ -247,6 +251,9 @@ static int32_t parser_asm_type_ref_token_starts_type_c(int32_t kind) {
   if (kind == (int32_t)TOKEN_IDENT || kind == (int32_t)TOKEN_STAR || kind == (int32_t)TOKEN_LBRACKET)
     return 1;
   if (kind == (int32_t)TOKEN_IMPL)
+    return 1;
+  /* 10.3.1: type-position `function(...): T` starts a TYPE_FN. */
+  if (kind == (int32_t)TOKEN_FUNCTION)
     return 1;
   if (kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL)
     return 1;
@@ -640,6 +647,86 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
     lexer_next_into(&peek_impl, r.next_lex, source);
     if (parser_asm_type_ref_token_starts_type_c(peek_impl.tok.kind))
       return parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
+  }
+  /*
+   * 10.3.1 TYPE_FN (ord 18): type-position `function(T0, T1, ...): Ret`.
+   * X grammar (docs/ai/anti-patterns H02): keyword is `function`, return uses
+   * `: Ret` — not Rust `fn` / `->`. Storage (G.7 reuse wave467 sidecar):
+   *   - kind = TYPE_FN
+   *   - elem_type_ref = return type
+   *   - array_size = n_params
+   *   - each param via pipeline_type_append_type_arg
+   * Empty param list `function(): i32` is valid (n_params=0).
+   * PLATFORM: SHARED type grammar.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+    struct parser_asm_lexer_result peek_fn;
+    int32_t fn_ref;
+    int32_t n_params;
+    int32_t param_tr;
+    int32_t ret_tr;
+    struct ast_Type tf;
+    extern int32_t pipeline_type_append_type_arg(void *arena, int32_t type_ref, int32_t arg_ref);
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&peek_fn, lex, source);
+    if (peek_fn.tok.kind != (int32_t)TOKEN_LPAREN) {
+      /* Bare `function` is not a type (decl keyword only). */
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    parser_asm_lex_from_result_val_into(&lex, peek_fn);
+    fn_ref = ast_ast_arena_type_alloc(arena);
+    if (fn_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    n_params = 0;
+    lexer_next_into(&peek_fn, lex, source);
+    if (peek_fn.tok.kind != (int32_t)TOKEN_RPAREN) {
+      /* At least one param type; leave lex before first type token. */
+      for (;;) {
+        param_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+        if (param_tr == 0) {
+          parser_asm_write_out_lex_c(out_lex, lex);
+          return 0;
+        }
+        (void)pipeline_type_append_type_arg(arena, fn_ref, param_tr);
+        n_params = n_params + 1;
+        lexer_next_into(&peek_fn, lex, source);
+        if (peek_fn.tok.kind == (int32_t)TOKEN_COMMA) {
+          parser_asm_lex_from_result_val_into(&lex, peek_fn);
+          continue;
+        }
+        if (peek_fn.tok.kind == (int32_t)TOKEN_RPAREN) {
+          parser_asm_lex_from_result_val_into(&lex, peek_fn);
+          break;
+        }
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+    } else {
+      parser_asm_lex_from_result_val_into(&lex, peek_fn);
+    }
+    lexer_next_into(&peek_fn, lex, source);
+    if (peek_fn.tok.kind != (int32_t)TOKEN_COLON) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    parser_asm_lex_from_result_val_into(&lex, peek_fn);
+    ret_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+    if (ret_tr == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    tf = ast_arena_type_get(arena, fn_ref);
+    tf.kind = PARSER_ASM_TYPE_FN;
+    tf.elem_type_ref = ret_tr;
+    tf.array_size = n_params;
+    tf.name_len = 0;
+    tf.region_label_len = 0;
+    ast_arena_type_set(arena, fn_ref, tf);
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return fn_ref;
   }
   if (r.tok.kind == (int32_t)TOKEN_STAR) {
     ptr_depth = 0;
