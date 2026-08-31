@@ -30,8 +30,10 @@ enum {
   PARSER_ASM_EXPR_CALL = 48,
   /** 与 ast.x ExprKind.EXPR_METHOD_CALL 一致；`.method(...)` 后缀。 */
   PARSER_ASM_EXPR_METHOD_CALL = 49,
-  /** 与 ast.h AST_EXPR_STRING_LIT 序一致；字符串字面量写入 var_name。 */
-  PARSER_ASM_EXPR_STRING_LIT = 59
+  /** 与 ast.x ExprKind.EXPR_STRING_LIT 序一致；字符串字面量写入 var_name。 */
+  PARSER_ASM_EXPR_STRING_LIT = 59,
+  /** Stage10 10.2.1: `asm!("template")`；模板语义字节写入 var_name（同 STRING_LIT）。 */
+  PARSER_ASM_EXPR_ASM = 60
 };
 
 extern void lexer_note_string_lit_overflow(int32_t line, int32_t col);
@@ -261,6 +263,20 @@ static int32_t parser_asm_primary_ident_is_unsafe_c(struct parser_asm_slice_u8 *
   return source->data[token_start + 0] == (uint8_t)'u' && source->data[token_start + 1] == (uint8_t)'n'
       && source->data[token_start + 2] == (uint8_t)'s' && source->data[token_start + 3] == (uint8_t)'a'
       && source->data[token_start + 4] == (uint8_t)'f' && source->data[token_start + 5] == (uint8_t)'e';
+}
+
+/**
+ * True when IDENT spelling is exactly `asm` (stage10 10.2.1 `asm!(...)`).
+ * PLATFORM: SHARED — G.7 primary authority (parser_asm_thin include).
+ */
+static int32_t parser_asm_primary_ident_is_asm_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                 int32_t ident_len) {
+  if (!source || !source->data || ident_len != 3)
+    return 0;
+  if (token_start + (size_t)ident_len > source->length)
+    return 0;
+  return source->data[token_start + 0] == (uint8_t)'a' && source->data[token_start + 1] == (uint8_t)'s'
+      && source->data[token_start + 2] == (uint8_t)'m';
 }
 
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
@@ -1220,6 +1236,109 @@ static void parser_asm_primary_parse_panic_c(void *arena, struct parser_asm_slic
   pe.line = 0;
   pe.col = 0;
   parser_asm_arena_expr_set_c(arena, pref, pe);
+  out->ok = 1;
+  out->expr_ref = pref;
+  out->next_lex = *lex;
+}
+
+/**
+ * Parse `asm!("template")` (stage10 10.2.1 slice0).
+ * Caller must have consumed IDENT `asm` and leave `*r` on TOKEN_BANG.
+ * Template-only: no `:` operands / options / labels yet.
+ * Escape decode matches STRING_LIT (G.7). Template bytes → var_name; kind=EXPR_ASM(60).
+ * PLATFORM: SHARED.
+ */
+static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
+                                                struct parser_asm_parse_expr_result *out) {
+  int32_t pref;
+  struct parser_asm_ast_expr ae;
+  size_t q0;
+  int32_t nlen;
+  int32_t ri;
+  int32_t wi;
+
+  if (!arena || !source || !lex || !r || !out)
+    return;
+  out->ok = 0;
+  if (r->tok.kind != (int32_t)TOKEN_BANG)
+    return;
+  parser_asm_lex_from_result_val_into(lex, *r);
+  lexer_next_into(r, *lex, source);
+  if (r->tok.kind != (int32_t)TOKEN_LPAREN)
+    return;
+  parser_asm_lex_from_result_val_into(lex, *r);
+  lexer_next_into(r, *lex, source);
+  if (r->tok.kind != (int32_t)TOKEN_STRING)
+    return;
+  pref = ast_ast_arena_expr_alloc(arena);
+  if (pref == 0)
+    return;
+  ae = parser_asm_arena_expr_get_c(arena, pref);
+  parser_asm_expr_set_common_zeros_c(&ae);
+  ae.kind = PARSER_ASM_EXPR_ASM;
+  ae.line = r->tok.line;
+  ae.col = r->tok.col;
+  q0 = r->token_start;
+  nlen = r->tok.ident_len;
+  ri = 0;
+  wi = 0;
+  if (nlen < 0)
+    nlen = 0;
+  while (ri < nlen) {
+    uint8_t c = 0;
+    if (wi >= 127) {
+      lexer_note_string_lit_overflow(ae.line, ae.col);
+      break;
+    }
+    if (q0 + (size_t)ri < source->length)
+      c = source->data[q0 + (size_t)ri];
+    if (c == 92 && (ri + 1) < nlen) {
+      uint8_t n = 0;
+      if (q0 + (size_t)(ri + 1) < source->length)
+        n = source->data[q0 + (size_t)(ri + 1)];
+      if (n == 110) { ae.var_name[wi++] = 10; ri += 2; continue; }
+      if (n == 116) { ae.var_name[wi++] = 9; ri += 2; continue; }
+      if (n == 114) { ae.var_name[wi++] = 13; ri += 2; continue; }
+      if (n == 48) { ae.var_name[wi++] = 0; ri += 2; continue; }
+      if (n == 92 || n == 34) { ae.var_name[wi++] = n; ri += 2; continue; }
+      if (n == 120 && (ri + 3) < nlen) {
+        uint8_t h1 = 0;
+        uint8_t h2 = 0;
+        int32_t v1 = -1;
+        int32_t v2 = -1;
+        if (q0 + (size_t)(ri + 2) < source->length)
+          h1 = source->data[q0 + (size_t)(ri + 2)];
+        if (q0 + (size_t)(ri + 3) < source->length)
+          h2 = source->data[q0 + (size_t)(ri + 3)];
+        if (h1 >= 48 && h1 <= 57) v1 = (int32_t)h1 - 48;
+        if (h1 >= 97 && h1 <= 102) v1 = (int32_t)h1 - 97 + 10;
+        if (h1 >= 65 && h1 <= 70) v1 = (int32_t)h1 - 65 + 10;
+        if (h2 >= 48 && h2 <= 57) v2 = (int32_t)h2 - 48;
+        if (h2 >= 97 && h2 <= 102) v2 = (int32_t)h2 - 97 + 10;
+        if (h2 >= 65 && h2 <= 70) v2 = (int32_t)h2 - 65 + 10;
+        if (v1 >= 0 && v2 >= 0) {
+          ae.var_name[wi++] = (uint8_t)((v1 << 4) | v2);
+          ri += 4;
+          continue;
+        }
+      }
+    }
+    ae.var_name[wi++] = c;
+    ri += 1;
+  }
+  ae.var_name_len = wi;
+  if (wi < 128)
+    ae.var_name[wi] = 0;
+  parser_asm_arena_expr_set_c(arena, pref, ae);
+  parser_asm_lex_from_result_val_into(lex, *r);
+  lexer_next_into(r, *lex, source);
+  /* Slice0: reject operands (`:`) — template-only form. */
+  if (r->tok.kind == (int32_t)TOKEN_COLON)
+    return;
+  if (r->tok.kind != (int32_t)TOKEN_RPAREN)
+    return;
+  parser_asm_lex_from_result_val_into(lex, *r);
   out->ok = 1;
   out->expr_ref = pref;
   out->next_lex = *lex;
@@ -2412,6 +2531,18 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         && parser_asm_primary_ident_is_unsafe_c(source, r.token_start, r.tok.ident_len)) {
       parser_asm_primary_parse_unsafe_expr_c(arena, r.next_lex, source, out);
       return;
+    }
+    /* Stage10 10.2.1: `asm!("...")` — peek BANG; bare `asm` remains EXPR_VAR. */
+    if (!name_was_self
+        && parser_asm_primary_ident_is_asm_c(source, r.token_start, r.tok.ident_len)) {
+      struct parser_asm_lexer_result peek;
+      struct parser_asm_lexer peek_lex;
+      peek_lex = r.next_lex;
+      lexer_next_into(&peek, peek_lex, source);
+      if (peek.tok.kind == (int32_t)TOKEN_BANG) {
+        parser_asm_primary_parse_asm_bang_c(arena, source, &peek_lex, &peek, out);
+        return;
+      }
     }
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0) {
