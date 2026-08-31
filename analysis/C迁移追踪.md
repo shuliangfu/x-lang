@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1** slice0 ✅（裸 atomic FFI＠`e506385cd`）；残：语言原子内建／10.2 asm!／10.1.3 NT／Darwin pin |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1** slice0–1 ✅（语言原子 asm＠`4cd022b44`）；残：arm64／fence／宽整数／10.2 asm!／10.1.3 NT／Darwin pin |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -237,7 +237,7 @@
 
 ### 10.4–10.7
 
-- 🟡 **10.4.1** atomic_load／store／cas — **slice0 ✅（Ubuntu）**：裸 `extern "C" atomic_*_i32_c` 产品绿（探针 `raw_ffi_atomic_smoke.x`＠`e506385cd`；链 `runtime_atomic_glue`；**无**新发射器）。残：语言内建（无 C11／`__atomic` glue）→ 后切片；与 **9.3.4** 同向
+- 🟡 **10.4.1** atomic_load／store／cas — **slice0 ✅** 裸 `atomic_*_i32_c`＠`e506385cd`；**slice1 ✅（Ubuntu）** 语言面 `std.atomic.builtin`＋asm intercept（x86_64 `xchg`／`lock cmpxchg`；CAS ptr∈rbx、eax＝expected 最后装）探针 `atomic_lang_builtin_smoke.x`＠`4cd022b44` **42**／无 `atomic_*_c`／L2 **5／5**。残：arm64／宽整数／fence（10.4.2）／Darwin
 - ⬜ **10.4.2** 内存屏障内建  
 - ⬜ **10.5.1** x86 AVX／SSE 内建  
 - ⬜ **10.5.2** ARM SVE／NEON 内建  
