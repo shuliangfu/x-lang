@@ -6147,6 +6147,15 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
       scratch[j] = k_dyn[j];
     return 20;
   }
+  /* 10.3.1: TYPE_FN (18) → uint8_t * Cap opaque ABI — ≡ runtime_pipeline_abi.x. */
+  if (tk == 18) {
+    static const uint8_t k_fn[9] = {'u', 'i', 'n', 't', '8', '_', 't', ' ', '*'};
+    if (cap < 9)
+      return -1;
+    for (j = 0; j < 9; j++)
+      scratch[j] = k_fn[j];
+    return 9;
+  }
   if (tk == 11 && elem_ref > 0) {
     n = pipeline_codegen_type_to_c_repr_inner(arena, eb, 896, elem_ref, struct_prefix, struct_prefix_len);
     if (n < 0 || n >= 896)
