@@ -1629,6 +1629,7 @@ extern void pipeline_module_func_set_num_generic_params(struct ast_Module * modu
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_name_equal_at(struct ast_Module * module, int32_t fi, uint8_t * name, int32_t name_len);
+extern void pipeline_module_func_set_is_used(struct ast_Module * module, int32_t fi, int32_t is_used);
 extern uint8_t pipeline_module_func_name_byte_at(struct ast_Module * module, int32_t fi, int32_t i);
 extern int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module * module, int32_t fi);
 extern int ast_ref_is_null(int32_t ref);
@@ -2313,6 +2314,7 @@ extern int32_t pipeline_module_func_name_len_at(struct ast_Module * module, int3
 extern void pipeline_module_func_name_copy64(struct ast_Module * module, int32_t fi, uint8_t * dst);
 extern uint8_t pipeline_module_func_name_byte_at(struct ast_Module * module, int32_t fi, int32_t i);
 extern int32_t pipeline_module_func_name_equal_at(struct ast_Module * module, int32_t fi, uint8_t * name, int32_t name_len);
+extern void pipeline_module_func_set_is_used(struct ast_Module * module, int32_t fi, int32_t is_used);
 extern void pipeline_module_struct_layout_reset_slot(struct ast_Module * module, int32_t idx);
 extern void pipeline_module_struct_layout_set_name(struct ast_Module * module, int32_t idx, uint8_t * bytes, int32_t len);
 extern void pipeline_module_struct_layout_set_field(struct ast_Module * module, int32_t layout_idx, int32_t j, uint8_t * fname, int32_t fname_len, int32_t ftype_ref, int32_t foff);
@@ -9471,6 +9473,33 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
  }) : 0);
  }) : 0);
     }
+    /* Cap-fn-ptr (10.3.2): call through *u8 — stamp ret from expected or i32. */
+    if (((ret_ty ==0) && (pipeline_expr_kind_ord_at(arena, callee_eff) ==ord_var))) {
+      if ((typeck_check_expr(module, arena, callee_eff, 0, ctx) ==0)) {
+        int32_t ctr = pipeline_expr_resolved_type_ref(arena, callee_eff);
+        int32_t cko = 0;
+        int32_t eer = 0;
+        int32_t eko = 0;
+        int32_t expect = 0;
+        if ((ctr > 0)) {
+          (void)((cko = pipeline_type_kind_ord_at(arena, ctr)));
+          if ((cko ==9)) {
+            (void)((eer = pipeline_type_elem_ref_at(arena, ctr)));
+            if ((eer > 0)) {
+              (void)((eko = pipeline_type_kind_ord_at(arena, eer)));
+              if ((eko ==2)) {
+                (void)((expect = typeck_i32_ptr_read(typeck_overload_expected_ret_slot())));
+                if ((expect > 0)) {
+                  (void)((ret_ty = expect));
+                } else {
+                  (void)((ret_ty = typeck_ensure_i32_type_ref(arena)));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if ((ret_ty !=0)) {
       (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
     }
@@ -9542,6 +9571,28 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     }
     if ((pipeline_typeck_is_simd_comptime_callee_c_u8_ptr_i32_reti32(&((cnm)[0]), cnml) !=0)) {
       return 0;
+    }
+    /* Cap-fn-ptr (10.3.2): *u8 callee VAR — soft-skip unresolved name. */
+    if ((typeck_check_expr(module, arena, callee_eff, 0, ctx) !=0)) {
+      return -1;
+    }
+    {
+      int32_t ctr = pipeline_expr_resolved_type_ref(arena, callee_eff);
+      int32_t cko = 0;
+      int32_t eer = 0;
+      int32_t eko = 0;
+      if ((ctr > 0)) {
+        (void)((cko = pipeline_type_kind_ord_at(arena, ctr)));
+        if ((cko ==9)) {
+          (void)((eer = pipeline_type_elem_ref_at(arena, ctr)));
+          if ((eer > 0)) {
+            (void)((eko = pipeline_type_kind_ord_at(arena, eer)));
+            if ((eko ==2)) {
+              return 0;
+            }
+          }
+        }
+      }
     }
     (void)((name_hits = 0));
     (void)((arity_hits = 0));
@@ -11624,6 +11675,8 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
       if ((ast_ref_is_null(ptr_u8) || (ptr_u8 ==0))) {
         return -1;
       }
+      /* Cap-fn-ptr (10.3.2): mark is_used so asm WPO keeps address-taken body. */
+      (void)(pipeline_module_func_set_is_used(module, fi, 1));
       (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_u8));
       (void)(driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 105, ptr_u8));
       return 0;
