@@ -1036,6 +1036,120 @@ int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return arm64_enc_u32_le(elf_ctx, 0xd4000001u);
 }
 
+/**
+ * Stage 10 10.4.2 arm64: dmb ish (0xD5033BBF) — seq_cst full barrier.
+ * PLATFORM: SHARED aarch64 emit (Linux ELF + Darwin Mach-O).
+ */
+int32_t arch_arm64_enc_enc_dmb_ish(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xd5033bbfu);
+}
+
+/**
+ * Stage 10 10.4.2 arm64: dmb ishld (0xD50339BF) — acquire/load barrier.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_dmb_ishld(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xd50339bfu);
+}
+
+/**
+ * Stage 10 10.4.2 arm64: dmb ishst (0xD5033ABF) — release/store barrier.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_dmb_ishst(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xd5033abfu);
+}
+
+/**
+ * Stage 10 10.4.1 arm64: ldar w0, [x0] (0x88DFFC00) — atomic_load_i32.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_ldar_w0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x88dffc00u);
+}
+
+/**
+ * Stage 10 10.4.1 arm64: stlr w1, [x0] (0x889FFC01) — atomic_store_i32.
+ * Pre: w1=val, x0=ptr.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_stlr_w1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x889ffc01u);
+}
+
+/**
+ * mov x1, x0 — park i32 desired/val in w1 without touching x19.
+ * PLATFORM: SHARED aarch64 emit. G.7 mov_xn_xm family.
+ */
+int32_t arch_arm64_enc_enc_mov_x0_to_x1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 0);
+}
+
+/**
+ * mov x2, x0 — ptr home for CASAL.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_mov_x0_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 2, 0);
+}
+
+/**
+ * mov x3, x0 — expected* home for CAS i32.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_mov_x0_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 3, 0);
+}
+
+/**
+ * ldr w0, [x3] — load *expected before CASAL.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_ldr_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xb9400060u);
+}
+
+/**
+ * str w0, [x3] — write old CAS value back to *expected.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_str_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xb9000060u);
+}
+
+/**
+ * mov w4, w0 — save expected for post-CASAL cmp.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_mov_w0_to_w4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x2a0003e4u);
+}
+
+/**
+ * casal w0, w1, [x2] (0x88E0FC41) — LSE compare-and-swap acquire-release i32.
+ * Pre: w0=expected, w1=desired, x2=ptr. Post: w0=old value at ptr.
+ * PLATFORM: SHARED aarch64 emit (requires ARMv8.1 LSE; modern Linux/Darwin aarch64).
+ */
+int32_t arch_arm64_enc_enc_casal_w0_w1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x88e0fc41u);
+}
+
+/**
+ * cmp w0, w4 (subs wzr, w0, w4) — CAS success test.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_cmp_w0_w4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x6b04001fu);
+}
+
+/**
+ * cset w0, eq (0x1A9F17E0) — CAS bool result in w0.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_cset_eq_w0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0x1a9f17e0u);
+}
+
 int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return arm64_enc_mov_xn_xm(elf_ctx, 0, 9);
 }
