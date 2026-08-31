@@ -12,7 +12,7 @@
  * Asm backend replaces the call with `movl (%rax), %eax`.
  * @param ptr *i32 — address of the cell
  * @return i32 — loaded value
- * PLATFORM: SHARED · asm LINUX|x86_64
+ * PLATFORM: SHARED · asm LINUX|x86_64 · aarch64 (ldar/stlr/casal/dmb)
  */
 export function atomic_load_i32(ptr: *i32): i32 {
   panic();
