@@ -11611,6 +11611,9 @@ ctx: *PipelineDepCtx): i32 {
     /* EXPR_DEREF — Cap-fn-ptr (*f)() peels to VAR f (*u8); ≡ f() for Cap. */
     let ord_deref: i32 = 52;
     let ord_var: i32 = 3;
+    /* EXPR_INDEX / EXPR_FIELD — Cap/TYPE_FN surface callees (10.3.1 slice14). */
+    let ord_index: i32 = 47;
+    let ord_field: i32 = 44;
     /* See implementation. */
     let minus_one: i32 = -1;
     let callee_ref: i32 = 0;
@@ -11681,10 +11684,16 @@ ctx: *PipelineDepCtx): i32 {
     }
     /*
      * Cap-fn-ptr (10.3.2 slice1) / TYPE_FN (10.3.1): call through *u8 or TYPE_FN.
-     * Type the callee VAR; Cap *u8 stamps ret from expected or i32; TYPE_FN
-     * stamps ret from elem (return type). PLATFORM: SHARED.
+     * Type the callee; Cap *u8 stamps ret from expected or i32; TYPE_FN
+     * stamps ret from elem (return type).
+     * 10.3.1 slice14: also INDEX (`fs[0](x)`) and FIELD Cap surfaces —
+     * prior VAR-only left CALL ret `?` (return mismatch). Asm Cap emit
+     * already loads any Cap-typed expr then blr.
+     * PLATFORM: SHARED.
      */
-    if (ret_ty == 0 && pipeline_expr_kind_ord_at(arena, callee_eff) == ord_var) {
+    if (ret_ty == 0) {
+      let ckind: i32 = pipeline_expr_kind_ord_at(arena, callee_eff);
+      if (ckind == ord_var || ckind == ord_index || ckind == ord_field) {
       if (check_expr(module, arena, callee_eff, 0, ctx) == 0) {
         let ctr: i32 = pipeline_expr_resolved_type_ref(arena, callee_eff);
         let cko: i32 = 0;
@@ -11720,6 +11729,7 @@ ctx: *PipelineDepCtx): i32 {
             }
           }
         }
+      }
       }
     }
     if (ret_ty != 0) {
@@ -11811,6 +11821,30 @@ ctx: *PipelineDepCtx): i32 {
       inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff);
       if (!ast.ref_is_null(inner_c)) {
         callee_eff = inner_c;
+      }
+    }
+    /*
+     * Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): callee VAR typed *u8 or TYPE_FN
+     * is an opaque function pointer. Soft-skip name lookup — no module fi.
+     * 10.3.1 slice14: INDEX/FIELD Cap surfaces also soft (no local name).
+     * PLATFORM: SHARED — pairs with asm Cap-fnptr blr / call *reg.
+     */
+    {
+      let ckind: i32 = pipeline_expr_kind_ord_at(arena, callee_eff);
+      let ord_index: i32 = 47;
+      let ord_field: i32 = 44;
+      if (ckind == ord_index || ckind == ord_field) {
+        if (check_expr(module, arena, callee_eff, 0, ctx) != 0) {
+          return -1;
+        }
+        {
+          let ctr: i32 = pipeline_expr_resolved_type_ref(arena, callee_eff);
+          if (ctr > 0 && typeck_is_fnptr_surface(arena, ctr) != 0) {
+            return 0;
+          }
+        }
+        /* Non-Cap INDEX/FIELD callee: soft (not unresolved-name leaf). */
+        return 0;
       }
     }
     if (pipeline_expr_kind_ord_at(arena, callee_eff) != ord_var) {
