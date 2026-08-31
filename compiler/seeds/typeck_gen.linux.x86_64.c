@@ -12937,7 +12937,8 @@ int32_t typeck_as_cast_type_class_ok(struct ast_Module * module, struct ast_ASTA
     if ((ko ==ord_void)) {
       return 0;
     }
-    if (((((ko ==ord_bool) || (ko ==ord_ptr)) || (ko ==ord_f32)) || (ko ==ord_f64))) {
+    /* First-class ints / bool / float / ptr / TYPE_FN (opaque Cap-fn-ptr ABI). */
+    if ((((((ko ==ord_bool) || (ko ==ord_ptr)) || (ko ==ord_f32)) || (ko ==ord_f64)) || (ko ==18))) {
       return 1;
     }
     if ((typeck_int_family_id(arena, rty) >=0)) {
@@ -12979,6 +12980,14 @@ int32_t typeck_as_cast_allowed(struct ast_Module * module, struct ast_ASTArena *
       int32_t sk0 = pipeline_type_kind_ord_at(arena, src_ty);
       (((sk0 ==10) || (sk0 ==11)) ? ({   return 1;
  }) : 0);
+    }
+    /*
+     * 10.3.1: Cap *u8 / TYPE_FN opaque fn-ptr surface ↔ surface (`as function(...)`).
+     * Before class_ok so TYPE_FN need not be numeric/ptr-only. Soft arity/ret
+     * match residual → signature slice. PLATFORM: SHARED.
+     */
+    if (((typeck_is_fnptr_surface(arena, src_ty) !=0) && (typeck_is_fnptr_surface(arena, tgt_ty) !=0))) {
+      return 1;
     }
     if (((typeck_as_cast_type_class_ok(module, arena, src_ty) ==0) || (typeck_as_cast_type_class_ok(module, arena, tgt_ty) ==0))) {
       return 0;
