@@ -104,6 +104,13 @@ export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(elf_ctx:
 export extern "C" function arch_x86_64_enc_enc_mfence(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_lfence(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_sfence(elf_ctx: *u8): i32;
+/* 10.4.1 slice3: i16 atomic encoders. */
+export extern "C" function arch_x86_64_enc_enc_movzwl_mem_rax_to_eax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_xchg_dx_mem_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_mov_ax_to_dx(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_movw_ax_to_mem_rcx(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(elf_ctx: *u8): i32;
 /* stage10 S3.1 10.1.2: Linux aarch64 svc #0 + nr home x8.
  * bodies in seeds/backend_arm64_enc_c.from_x.c (G.7 mov_xn_xm family). */
 export extern "C" function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32;
@@ -4100,7 +4107,8 @@ function try_emit_atomic_builtin_call_elf_c(
     let off: i32[4] = [];
     let arg_ref: i32 = 0;
     /* 1=load32 2=store32 3=cas32 4=load64 5=store64 6=cas64
-     * 7=fence_seq_cst 8=fence_acquire 9=fence_release */
+     * 7=fence_seq_cst 8=fence_acquire 9=fence_release
+     * 10=load16 11=store16 12=cas16 */
     let nm_fseq: u8[20] = [97, 116, 111, 109, 105, 99, 95, 102, 101, 110, 99, 101, 95, 115, 101, 113, 95, 99, 115, 116];
     let nm_facq: u8[20] = [97, 116, 111, 109, 105, 99, 95, 102, 101, 110, 99, 101, 95, 97, 99, 113, 117, 105, 114, 101];
     let nm_frel: u8[20] = [97, 116, 111, 109, 105, 99, 95, 102, 101, 110, 99, 101, 95, 114, 101, 108, 101, 97, 115, 101];
@@ -4110,6 +4118,9 @@ function try_emit_atomic_builtin_call_elf_c(
     let nm_load64: u8[15] = [97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 54, 52];
     let nm_store64: u8[16] = [97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 54, 52];
     let nm_cas64: u8[14] = [97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 54, 52];
+    let nm_load16: u8[15] = [97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 49, 54];
+    let nm_store16: u8[16] = [97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 49, 54];
+    let nm_cas16: u8[14] = [97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 49, 54];
     if (ta != 0) {
       return 0;
     }
@@ -4156,6 +4167,14 @@ function try_emit_atomic_builtin_call_elf_c(
         }
         if (i == 15) { which = 4; }
       }
+      if (which == 0) {
+        i = 0;
+        while (i < 15) {
+          if (name[i] != nm_load16[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 15) { which = 10; }
+      }
     }
     if (which == 0 && nlen == 16) {
       i = 0;
@@ -4172,6 +4191,14 @@ function try_emit_atomic_builtin_call_elf_c(
         }
         if (i == 16) { which = 5; }
       }
+      if (which == 0) {
+        i = 0;
+        while (i < 16) {
+          if (name[i] != nm_store16[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 16) { which = 11; }
+      }
     }
     if (which == 0 && nlen == 14) {
       i = 0;
@@ -4187,6 +4214,14 @@ function try_emit_atomic_builtin_call_elf_c(
           else { i = i + 1; }
         }
         if (i == 14) { which = 6; }
+      }
+      if (which == 0) {
+        i = 0;
+        while (i < 14) {
+          if (name[i] != nm_cas16[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 14) { which = 12; }
       }
     }
     if (which == 0 && nlen == 20) {
@@ -4214,9 +4249,9 @@ function try_emit_atomic_builtin_call_elf_c(
       }
     }
     if (which == 0) { return 0; }
-    if ((which == 1 || which == 4) && n_args != 1) { return 0; }
-    if ((which == 2 || which == 5) && n_args != 2) { return 0; }
-    if ((which == 3 || which == 6) && n_args != 3) { return 0; }
+    if ((which == 1 || which == 4 || which == 10) && n_args != 1) { return 0; }
+    if ((which == 2 || which == 5 || which == 11) && n_args != 2) { return 0; }
+    if ((which == 3 || which == 6 || which == 12) && n_args != 3) { return 0; }
     if ((which == 7 || which == 8 || which == 9) && n_args != 0) { return 0; }
     cur = call_dispatch_load_i32_le(ctx, 4);
     i = 0;
@@ -4247,6 +4282,11 @@ function try_emit_atomic_builtin_call_elf_c(
       if (arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx) != 0) { return 0 - 1; }
       return 1;
     }
+    if (which == 10) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movzwl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
     if (which == 2) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
@@ -4261,6 +4301,13 @@ function try_emit_atomic_builtin_call_elf_c(
       if (arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
       return 1;
     }
+    if (which == 11) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_ax_to_dx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_xchg_dx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
     if (which == 3) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
@@ -4271,6 +4318,20 @@ function try_emit_atomic_builtin_call_elf_c(
       if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
+    if (which == 12) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_ax_to_dx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movw_ax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) { return 0 - 1; }
       return 1;
