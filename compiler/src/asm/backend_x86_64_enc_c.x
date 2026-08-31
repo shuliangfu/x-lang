@@ -1545,6 +1545,20 @@ export function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32 {
   return x86_enc_u8(elf_ctx, 194);
 }
 
+/**
+ * mov %r10, %rax (4C 89 D0) — reverse of enc_mov_rax_to_r10.
+ * Stage10 10.2.1 slice7: lateout/out("r10") → rax before store.
+ * G.7: same r10 family as syscall arg4; do not invent a second map.
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 76) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 208);
+}
+
 /** mov imm32 to ebx (B8+reg form). Cap residual pure R2 wave2. PLATFORM: SHARED */
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32 {

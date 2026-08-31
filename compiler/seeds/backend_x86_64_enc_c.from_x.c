@@ -1154,6 +1154,16 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *el
   if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
   return x86_enc_u8(elf_ctx, 194);
 }
+
+/* Stage10 10.2.1 slice7: mov %r10, %rax (4C 89 D0). Twin of
+ * arch_x86_64_enc_enc_mov_r10_to_rax in backend_x86_64_enc_c.x.
+ * PLATFORM: LINUX|x86_64; SHARED emit. */
+int32_t arch_x86_64_enc_enc_mov_r10_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 76) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 208);
+}
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
