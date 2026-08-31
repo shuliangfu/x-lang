@@ -5844,7 +5844,7 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
  * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
- * Do not fork a second CALL/METHOD wrap.
+ * Do not fork a second CALL/METHOD wrap or dest-SLICE non-VAR FIELD wrap.
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5978,6 +5978,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
        * base TYPE_NAMED layout (same as glue_field_access_field_type_ref).
        * CALL/METHOD return temps die — .data memcpy into unique static[N].
        * STRUCT_LIT C compound has block duration; INDEX/VAR view the object.
+       * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+       * Do not fork a second dest-SLICE non-VAR FIELD wrap.
        * PLATFORM: SHARED host-C.
        */
       is_field = 1;
