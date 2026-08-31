@@ -10478,6 +10478,7 @@ export function typeck_check_expr_string_lit(arena: *ASTArena, expr_ref: i32): i
  * Stamps TYPE_VOID. Requires unsafe nest (g_typeck_unsafe_depth > 0);
  * reuses extern-call-outside-unsafe diagnostic until a dedicated asm! diag exists.
  * Slice1: typeck each call_arg operand via pipeline_typeck_check_expr_impl_c.
+ * Slice6: skip discard place VAR "_" (clobber; not a binding).
  * @param module *Module — for operand recursion
  * @param arena *ASTArena — expr arena
  * @param expr_ref i32 — EXPR_ASM (60)
@@ -10497,6 +10498,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let i: i32 = 0;
     let arg_ref: i32 = 0;
     let arc: i32 = 0;
+    let ako: i32 = 0;
+    let alen: i32 = 0;
+    let aname: u8[8] = [];
     if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
@@ -10511,6 +10515,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     while (i < nargs) {
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
       if (arg_ref > 0) {
+        /* Discard `_` is not a local — do not resolve as unbound VAR. */
+        ako = pipeline_expr_kind_ord_at(arena, arg_ref);
+        if (ako == 3) {
+          alen = pipeline_expr_var_name_len(arena, arg_ref);
+          if (alen == 1) {
+            pipeline_expr_var_name_into(arena, arg_ref, &aname[0]);
+            if (aname[0] == (95 as u8)) {
+              i = i + 1;
+              continue;
+            }
+          }
+        }
         arc = pipeline_typeck_check_expr_impl_c(module, arena, arg_ref, return_type_ref, ctx);
         if (arc != 0) {
           return arc;
