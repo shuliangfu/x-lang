@@ -1052,6 +1052,36 @@ int32_t arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(struct platform_elf_ElfCode
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.2: mfence (0F AE F0). */
+int32_t arch_x86_64_enc_enc_mfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 240);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.2: lfence (0F AE E8). */
+int32_t arch_x86_64_enc_enc_lfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 232);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.2: sfence (0F AE F8). */
+int32_t arch_x86_64_enc_enc_sfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 248);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Stage 10 S3.1 slice 2 (10.1.1): mov %rax, %r10 (49 89 C2). Twin of
  * arch_x86_64_enc_enc_mov_rax_to_r10 in backend_x86_64_enc_c.x. r10 has no
  * C-ABI mov_rax_to_arg_reg k slot (G.7; do not fork a second register map).
