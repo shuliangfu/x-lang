@@ -4191,10 +4191,12 @@ extern int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *el
 extern int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx);
 /* 10.4.1 slice1: atomic_load/store/cas i32 encoders (twin of backend_x86_64_enc_c.x). */
 extern int32_t arch_x86_64_enc_enc_movl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_movl_mem_rcx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_xchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_mov_rax_to_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_movl_eax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_sete_al(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_movzbl_al_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_mov_eax_to_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -4480,7 +4482,7 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     return 1;
   }
-  /* cas: desired→edx; expected_ptr→rcx; *expected→eax; ptr→rax; lock cmpxchg */
+  /* cas: desired→edx; expected_ptr→rcx; *expected→eax; ptr→rbx; lock cmpxchg (%rbx) */
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0)
     return -1;
   if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
@@ -4489,11 +4491,13 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
     return -1;
-  if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0)
+  if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0)
     return -1;
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
     return -1;
-  if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx) != 0)
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0)
     return -1;
   if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0)
     return -1;
