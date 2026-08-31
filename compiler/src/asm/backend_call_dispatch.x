@@ -84,10 +84,12 @@ export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32;
 /* 10.4.1 slice1: atomic_load/store/cas i32 encoders (backend_x86_64_enc_c.x). */
 export extern "C" function arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_sete_al(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32;
@@ -4182,16 +4184,17 @@ function try_emit_atomic_builtin_call_elf_c(
       if (arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
       return 1;
     }
-    /* cas: desired → edx FIRST (so later loads do not clobber eax=expected);
-     * expected_ptr → rcx; *expected → eax; ptr → rax; lock cmpxchg;
-     * *expected ← old eax; sete → eax. */
+    /* cas: desired → edx; expected_ptr → rcx; *expected → eax; ptr → rbx
+     * (must NOT put ptr in rax — eax is rax's low half and would lose expected);
+     * lock cmpxchg (%rbx); *expected ← old eax; sete → eax. */
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) { return 0 - 1; }
