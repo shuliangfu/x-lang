@@ -57807,8 +57807,10 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) {
     return 4;
   }
-  // i64/u64/usize/isize/ptr/f64: 5,4,6,7,15,9 → 8
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+  // i64/u64/usize/isize/ptr/f64/TYPE_FN: 5,4,6,7,15,9,18 → 8
+  // 10.3.3: TYPE_FN is opaque Cap-fn-ptr ABI (pointer-sized), not scalar miss→0.
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
     return 8;
   }
   // SLICE=11 → 16
@@ -57955,7 +57957,8 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) {
     return 4;
   }
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
     return 8;
   }
   if (kind_ord == 11) {
