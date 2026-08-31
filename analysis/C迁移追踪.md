@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0–6**（nop／in／syscall／lateout／clobber＋options）＋**10.2.2 slice0** ✅＠`fc6445cc3`；残：options 语义／10.2.3／10.1.3 NT／Darwin pin |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0–7**（含 r10 lateout／clobber＋options）＋**10.2.2 slice0** ✅＠`e41625b57`；残：options 语义／10.2.3／10.1.3 NT（须 Windows）／Darwin pin |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -220,7 +220,7 @@
 
 - ✅ **10.1.1** Linux x86_64 syscall 内建 — **C 后端 ✅**（2026-08-31：`std.sys.linux raw_syscall0..6` panic 诚实失败体＋ codegen CALL／METHOD_CALL 双形状 → `__xlang_raw_syscallN`）＋ **asm 后端 ✅**（2026-08-31：`try_emit_raw_syscall_call_elf_c` 双形状拦截＋`arch_x86_64_enc_enc_syscall` 0F 05＋r10 `49 89 C2`；G.7 spill 复用 `glue_sysv_spill`；name_into 缓冲 128；探针 `tests/sys/raw_syscall_smoke.x` Ubuntu `xlang_asm -o` run＝`Hello Xlang!` exit 0＋objdump `syscall`）
 - ✅ **10.1.2** Linux arm64 syscall 内建 — C helper `#elif linux&&aarch64` `svc #0`＋asm ELF `enc_svc`／`mov_rax_to_x8`（`015154e4e`）；Darwin Mach-O 诚实 fallthrough（非 Linux ABI）
-- ⬜ **10.1.3** Windows NT API 内建
+- ⬜ **10.1.3** Windows NT API 内建 — **暂缓**：无 Windows 金标宿主（`windows-server` 现指向 Linux）；Ubuntu 不可诚实跑 Nt*／kernel32  
 - 🟡 **10.1.4** raw FFI（`extern "C"` 调用约定）— **slice1–2 ✅（Ubuntu）**：裸 `write`＠slice1；裸 `dlsym`→Cap→`as function`→CALL＠`3d37ea225`（探针 `raw_ffi_dlsym_smoke.x`；`U dlsym@GLIBC`；**无**新发射器 — G.7 复用 SysV＋10.3 Cap）。Darwin pin egg 阻。残：NT → **10.1.3**
 
 ### 10.2 inline asm
