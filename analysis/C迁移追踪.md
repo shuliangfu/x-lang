@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–3 ✅；**10.3.3** slice0–2 作参／返回／字段 Ubuntu ✅（`5995dd72e`）；Darwin Cap 仍阻；残：`h.f()`／签名比对／10.1.3 NT |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–3 ✅；**10.3.3** slice0–3 作参／返回／字段／`h.f()` Ubuntu ✅（`75580cabf`）；Darwin Cap 仍阻；残：签名比对／10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -233,7 +233,7 @@
 
 - 🟡 **10.3.1** fnptr 类型表达 — **slice0–3** ✅（TYPE_FN＝18／parser／Cap coerce＋call＠`7da3889f8`；**裸名 Cap LEA** 金标＠`e99a8f74c`：`let f: function(i32): i32 = helper; f(41)`→42）。根因补全：mega 缺 `xlang_driver_fwrite_*`／`fopen_write` extern→XT001；PREGEN `-E`＋FORCE prefer 恢复 hybrid egg≈1.8MiB。残：签名比对／codegen C repr／`as function(...)`
 - 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin**：ensure 拒不完整 libtool archive；Cap 共验仍阻（g05 UNDEF hybrid／无 pin egg）。残：Darwin Cap 全链
-- 🟡 **10.3.3** fnptr 作参／返回／字段 — **slice0 作参 ✅**＠`362eee083`；**slice1 返回 ✅**＠`87c8037d8`；**slice2 字段 ✅**＠`5995dd72e`（load_bytes TYPE_FN→8＋`fn_type_field_smoke`→42；`movq`／local `call *%rax`）。残：`h.f()` 方法语法／签名比对  
+- 🟡 **10.3.3** fnptr 作参／返回／字段 — **slice0–3 ✅**＠`75580cabf`（作参／返回／字段 load／`h.f()` METHOD_CALL Cap blr；TYPE_FN＋Cap `*u8` 字段）。残：签名比对／`as function(...)`  
 
 ### 10.4–10.7
 
