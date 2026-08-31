@@ -10474,21 +10474,29 @@ export function typeck_check_expr_string_lit(arena: *ASTArena, expr_ref: i32): i
 }
 
 /**
- * Type-check `asm!("template")` (stage10 10.2.1 slice0).
+ * Type-check `asm!("template"[, in("reg") expr])` (stage10 10.2.1).
  * Stamps TYPE_VOID. Requires unsafe nest (g_typeck_unsafe_depth > 0);
  * reuses extern-call-outside-unsafe diagnostic until a dedicated asm! diag exists.
+ * Slice1: typeck each call_arg operand via pipeline_typeck_check_expr_impl_c.
+ * @param module *Module — for operand recursion
  * @param arena *ASTArena — expr arena
  * @param expr_ref i32 — EXPR_ASM (60)
- * @param ctx *PipelineDepCtx — unused (depth is process-local BSS)
- * @return i32 — 0 ok, -1 outside unsafe
+ * @param return_type_ref i32 — forwarded to operand check
+ * @param ctx *PipelineDepCtx — unsafe depth + operand ctx
+ * @return i32 — 0 ok, -1 outside unsafe / operand fail
  * PLATFORM: SHARED freestanding typeck.
  */
-export function typeck_check_expr_asm(arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+export function typeck_check_expr_asm(module: *Module, arena: *ASTArena, expr_ref: i32,
+return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — inline asm requires unsafe (docs/10 K1a).
   unsafe {
     let vt: i32 = 0;
     let line: i32 = 0;
     let col: i32 = 0;
+    let nargs: i32 = 0;
+    let i: i32 = 0;
+    let arg_ref: i32 = 0;
+    let arc: i32 = 0;
     if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
@@ -10497,6 +10505,18 @@ export function typeck_check_expr_asm(arena: *ASTArena, expr_ref: i32, ctx: *Pip
       col = pipeline_expr_col_at(arena, expr_ref);
       driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
       return 0 - 1;
+    }
+    nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+    i = 0;
+    while (i < nargs) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      if (arg_ref > 0) {
+        arc = pipeline_typeck_check_expr_impl_c(module, arena, arg_ref, return_type_ref, ctx);
+        if (arc != 0) {
+          return arc;
+        }
+      }
+      i = i + 1;
     }
     vt = ensure_void_type_ref(arena);
     if (!ast.ref_is_null(vt)) {
@@ -18406,7 +18426,7 @@ ctx: *PipelineDepCtx): i32 {
       return typeck_check_expr_string_lit(arena, expr_ref);
     }
     if (kind == ord_asm) {
-      return typeck_check_expr_asm(arena, expr_ref, ctx);
+      return typeck_check_expr_asm(module, arena, expr_ref, return_type_ref, ctx);
     }
     if (kind == ord_break || kind == ord_continue) {
       return typeck_check_expr_break_continue(module, arena, expr_ref, return_type_ref, ctx);
