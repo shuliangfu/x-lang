@@ -810,6 +810,13 @@ export extern "C" function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_re
 export extern "C" function xlang_driver_fputs_opaque(s: *u8, stream: *u8): i32;
 export extern "C" function xlang_driver_stdout_ptr(): *u8;
 export extern "C" function xlang_driver_fclose_opaque(stream: *u8): i32;
+// WPO dump (pipeline_typeck_wpo_dump_callgraph): FILE* cast residuals — same g05 harness
+// as driver_abi / thin runtime_pipeline_abi_wpo_dump_thin.x. Missing decls made mega -E
+// XT001 on wpo_dump_write (check_block: undeclared call). G.7: declare here, do not
+// reimplement fwrite. PLATFORM: SHARED.
+export extern "C" function xlang_driver_fopen_write_opaque(path: *u8): *u8;
+export extern "C" function xlang_driver_fwrite_opaque(data: *u8, len: i32, stream: *u8): i32;
+export extern "C" function xlang_driver_fwrite_stdout_n(data: *u8, len: i32): i32;
 // wave79: g05 harness - libc realpath char* cast residual (labi_path_io same clash avoidance).
 // PLATFORM: SHARED POSIX/APPLE call realpath; non-POSIX harness returns null (seed no-op).
 export extern "C" function xlang_driver_realpath_opaque(path: *u8, resolved: *u8): *u8;
