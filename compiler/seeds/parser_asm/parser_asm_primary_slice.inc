@@ -339,47 +339,24 @@ static int32_t parser_asm_primary_ident_is_options_c(struct parser_asm_slice_u8 
 }
 
 /**
- * True when IDENT is a known Rust-style asm! option name (slice6 accept-only).
- * Accepted: nostack, preserves_flags, nomem, readonly, pure, noreturn.
- * PLATFORM: SHARED — emit does not yet act on these for nop/syscall.
+ * Map IDENT to asm! options bit (stage10 10.2.1 slice8), or 0 if unknown.
+ * Bits: nostack=1, preserves_flags=2, nomem=4, readonly=8, pure=16, noreturn=32.
+ * Stored on EXPR_ASM.call_num_type_args (ASM has no type-args).
+ * PLATFORM: SHARED — G.7 single bit table for parse+emit.
  */
-static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_slice_u8 *source,
-                                                             size_t token_start, int32_t ident_len) {
+static int32_t parser_asm_primary_asm_option_bit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                    int32_t ident_len) {
   if (!source || !source->data || ident_len <= 0)
     return 0;
   if (token_start + (size_t)ident_len > source->length)
     return 0;
-  /* nostack */
+  /* nostack = 1 */
   if (ident_len == 7 && source->data[token_start + 0] == (uint8_t)'n'
       && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'s'
       && source->data[token_start + 3] == (uint8_t)'t' && source->data[token_start + 4] == (uint8_t)'a'
       && source->data[token_start + 5] == (uint8_t)'c' && source->data[token_start + 6] == (uint8_t)'k')
     return 1;
-  /* nomem */
-  if (ident_len == 5 && source->data[token_start + 0] == (uint8_t)'n'
-      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'m'
-      && source->data[token_start + 3] == (uint8_t)'e' && source->data[token_start + 4] == (uint8_t)'m')
-    return 1;
-  /* pure */
-  if (ident_len == 4 && source->data[token_start + 0] == (uint8_t)'p'
-      && source->data[token_start + 1] == (uint8_t)'u' && source->data[token_start + 2] == (uint8_t)'r'
-      && source->data[token_start + 3] == (uint8_t)'e')
-    return 1;
-  /* readonly */
-  if (ident_len == 8 && source->data[token_start + 0] == (uint8_t)'r'
-      && source->data[token_start + 1] == (uint8_t)'e' && source->data[token_start + 2] == (uint8_t)'a'
-      && source->data[token_start + 3] == (uint8_t)'d' && source->data[token_start + 4] == (uint8_t)'o'
-      && source->data[token_start + 5] == (uint8_t)'n' && source->data[token_start + 6] == (uint8_t)'l'
-      && source->data[token_start + 7] == (uint8_t)'y')
-    return 1;
-  /* noreturn */
-  if (ident_len == 8 && source->data[token_start + 0] == (uint8_t)'n'
-      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'r'
-      && source->data[token_start + 3] == (uint8_t)'e' && source->data[token_start + 4] == (uint8_t)'t'
-      && source->data[token_start + 5] == (uint8_t)'u' && source->data[token_start + 6] == (uint8_t)'r'
-      && source->data[token_start + 7] == (uint8_t)'n')
-    return 1;
-  /* preserves_flags */
+  /* preserves_flags = 2 */
   if (ident_len == 15 && source->data[token_start + 0] == (uint8_t)'p'
       && source->data[token_start + 1] == (uint8_t)'r' && source->data[token_start + 2] == (uint8_t)'e'
       && source->data[token_start + 3] == (uint8_t)'s' && source->data[token_start + 4] == (uint8_t)'e'
@@ -388,8 +365,41 @@ static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_s
       && source->data[token_start + 9] == (uint8_t)'_' && source->data[token_start + 10] == (uint8_t)'f'
       && source->data[token_start + 11] == (uint8_t)'l' && source->data[token_start + 12] == (uint8_t)'a'
       && source->data[token_start + 13] == (uint8_t)'g' && source->data[token_start + 14] == (uint8_t)'s')
-    return 1;
+    return 2;
+  /* nomem = 4 */
+  if (ident_len == 5 && source->data[token_start + 0] == (uint8_t)'n'
+      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'m'
+      && source->data[token_start + 3] == (uint8_t)'e' && source->data[token_start + 4] == (uint8_t)'m')
+    return 4;
+  /* readonly = 8 */
+  if (ident_len == 8 && source->data[token_start + 0] == (uint8_t)'r'
+      && source->data[token_start + 1] == (uint8_t)'e' && source->data[token_start + 2] == (uint8_t)'a'
+      && source->data[token_start + 3] == (uint8_t)'d' && source->data[token_start + 4] == (uint8_t)'o'
+      && source->data[token_start + 5] == (uint8_t)'n' && source->data[token_start + 6] == (uint8_t)'l'
+      && source->data[token_start + 7] == (uint8_t)'y')
+    return 8;
+  /* pure = 16 */
+  if (ident_len == 4 && source->data[token_start + 0] == (uint8_t)'p'
+      && source->data[token_start + 1] == (uint8_t)'u' && source->data[token_start + 2] == (uint8_t)'r'
+      && source->data[token_start + 3] == (uint8_t)'e')
+    return 16;
+  /* noreturn = 32 */
+  if (ident_len == 8 && source->data[token_start + 0] == (uint8_t)'n'
+      && source->data[token_start + 1] == (uint8_t)'o' && source->data[token_start + 2] == (uint8_t)'r'
+      && source->data[token_start + 3] == (uint8_t)'e' && source->data[token_start + 4] == (uint8_t)'t'
+      && source->data[token_start + 5] == (uint8_t)'u' && source->data[token_start + 6] == (uint8_t)'r'
+      && source->data[token_start + 7] == (uint8_t)'n')
+    return 32;
   return 0;
+}
+
+/**
+ * True when IDENT is a known Rust-style asm! option name (slice6+/8).
+ * PLATFORM: SHARED.
+ */
+static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_slice_u8 *source,
+                                                             size_t token_start, int32_t ident_len) {
+  return parser_asm_primary_asm_option_bit_c(source, token_start, ident_len) != 0;
 }
 
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
@@ -1461,14 +1471,15 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
     int32_t n_in = 0;
     int32_t saw_out = 0;
     int32_t saw_options = 0;
+    int32_t opt_bits = 0;
     while (r->tok.kind == (int32_t)TOKEN_COMMA) {
-      /* Slice6: in/out/lateout operands and/or trailing options(...). */
+      /* Slice6/8: in/out/lateout operands and/or trailing options(...). */
       int32_t is_out_op = 0;
       parser_asm_lex_from_result_val_into(lex, *r);
       lexer_next_into(r, *lex, source);
       if (r->tok.kind != (int32_t)TOKEN_IDENT)
         return;
-      /* Trailing options(...) — once; after this only asm RPAREN. */
+      /* Trailing options(...) — once; bits → call_num_type_args (slice8). */
       if (parser_asm_primary_ident_is_options_c(source, r->token_start, r->tok.ident_len)) {
         if (saw_options)
           return;
@@ -1482,10 +1493,13 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
         /* Empty options() ok; else IDENT[, IDENT…] of known names. */
         if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
           while (1) {
+            int32_t obit = 0;
             if (r->tok.kind != (int32_t)TOKEN_IDENT)
               return;
-            if (!parser_asm_primary_ident_is_asm_option_name_c(source, r->token_start, r->tok.ident_len))
+            obit = parser_asm_primary_asm_option_bit_c(source, r->token_start, r->tok.ident_len);
+            if (obit == 0)
               return;
+            opt_bits = opt_bits | obit;
             parser_asm_lex_from_result_val_into(lex, *r);
             lexer_next_into(r, *lex, source);
             if (r->tok.kind == (int32_t)TOKEN_RPAREN)
@@ -1496,6 +1510,10 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
             lexer_next_into(r, *lex, source);
           }
         }
+        /* Persist option bitmask on EXPR_ASM (reuse call_num_type_args). */
+        ae = parser_asm_arena_expr_get_c(arena, pref);
+        ae.call_num_type_args = opt_bits;
+        parser_asm_arena_expr_set_c(arena, pref, ae);
         parser_asm_lex_from_result_val_into(lex, *r);
         lexer_next_into(r, *lex, source);
         continue;
