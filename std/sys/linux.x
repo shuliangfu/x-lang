@@ -237,10 +237,10 @@ export function linux_syscall_exit(code: i32): void {
 
 /**
  * Raw Linux syscall, zero arguments (nr in rax): `raw_syscall0(39)` = getpid.
- * Stage 10 S3.1 slice 1 (10.1.1): the C backend (`-E` / `-backend c`) expands
- * call sites to the `__xlang_raw_syscall0` host-cc inline-asm helper; the
- * asm-backend lowering is not wired yet, so this body panics instead of
- * returning a silent wrong 0 (honest fail until that wave lands).
+ * Stage 10 S3.1 (10.1.1): C backend (`-E` / `-backend c`) expands call sites
+ * to `__xlang_raw_syscall0`; asm backend intercepts CALL/METHOD_CALL and
+ * encodes `syscall` (0F 05) with Linux x86_64 homes (nr rax; a1 rdi…). This
+ * body panics on miss / non-x86_64 (honest fail; arm64 svc = 10.1.2).
  * @param nr i64 — Linux x86_64 syscall number (e.g. 39 getpid, 231 exit_group)
  * @return i64 — raw kernel return; -1..-4095 means -errno (no libc errno)
  * PLATFORM: LINUX x86_64

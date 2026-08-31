@@ -1212,6 +1212,34 @@ export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32
   return x86_enc_bytes(elf_ctx, m, 3);
 }
 
+/**
+ * syscall instruction (0F 05) — stage 10 S3.1 slice 2 (10.1.1) raw syscall
+ * builtin ELF lowering. Linux x86_64 kernel ABI: nr in rax, args in
+ * rdi/rsi/rdx/r10/r8/r9, return rax; rcx/r11 clobbered by the instruction.
+ * Consumed by try_emit_raw_syscall_call_elf_c (backend_call_dispatch.x).
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 5);
+}
+
+/**
+ * mov %rax, %r10 (49 89 C2) — stage 10 S3.1 slice 2 (10.1.1): syscall arg4
+ * home. r10 has no slot in the C-ABI mov_rax_to_arg_reg k table, so this raw
+ * form is the single r10 path (G.7; do not fork a second register map).
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 73) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
 /** mov imm32 to ebx (B8+reg form). Cap residual pure R2 wave2. PLATFORM: SHARED */
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32 {

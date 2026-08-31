@@ -1,10 +1,9 @@
-// Stage 10 S3.1 slice 1 (10.1.1): raw Linux x86_64 syscall builtin probe.
-// Exercises raw_syscall0 (getpid) and raw_syscall3 (write) through the C
-// backend path: `xlang -E` + host cc + run on Linux x86_64. The emitted C
-// must expand call sites to __xlang_raw_syscallN (no extern C bridge).
-// The asm-backend lowering is not wired yet — on that path the .x bodies
-// panic (honest fail), so this probe is C-backend-only this wave.
-// PLATFORM: LINUX x86_64 (-E + host cc; syscall numbers are Linux amd64).
+// Stage 10 S3.1 (10.1.1): raw Linux x86_64 syscall builtin probe.
+// Exercises raw_syscall0 (getpid) and raw_syscall3 (write).
+// C path: `xlang -E` + host cc — call sites expand to __xlang_raw_syscallN.
+// Asm path: product `xlang_asm` -o — CALL/METHOD_CALL intercept encodes
+// `syscall` (0F 05); no libc, no C bridge, no panic body.
+// PLATFORM: LINUX x86_64 (syscall numbers are Linux amd64).
 const linux = import("std.sys.linux");
 
 /**

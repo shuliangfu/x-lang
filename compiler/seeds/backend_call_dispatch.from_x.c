@@ -4184,6 +4184,127 @@ static int32_t try_fold_size_align_of_call_elf(struct ast_ASTArena *arena,
   return 1;
 }
 
+extern int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+
+/**
+ * Stage 10 S3.1 slice 2 (10.1.1): raw_syscall0..6 ELF direct-encode lowering.
+ * Twin of try_emit_raw_syscall_call_elf_c in backend_call_dispatch.x.
+ * G.7: spill via glue_sysv_spill_rax_rdx_to_frame_c (same cursor as .x
+ * next_offset@4 +16 stride). ta!=0 returns 0 (arm64 svc = 10.1.2).
+ * @return 1 emitted; 0 not applicable; -1 emit error
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
+                                              struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                              struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t nlen = 0;
+  int32_t n_args = 0;
+  int32_t is_method = 0;
+  int32_t arity;
+  int32_t i;
+  int32_t j;
+  int32_t k;
+  int32_t arg_ref;
+  int32_t off[8];
+  uint8_t name[16];
+  static const uint8_t pfx[11] = {114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108};
+
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return 0;
+  /* x86_64 only this wave; other arches fall through (panic body honest-fail). */
+  if (ta != 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  memset(name, 0, sizeof(name));
+  if (ko == GLUE_EXPR_METHOD_CALL_ORD) {
+    nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (nlen != 12)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, expr_ref, name);
+    n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    is_method = 1;
+  } else if (ko == GLUE_EXPR_CALL_ORD) {
+    int32_t callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    int32_t cko;
+    if (callee_ref <= 0)
+      return 0;
+    cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+    if (cko == GLUE_EXPR_FIELD_ACCESS_ORD) {
+      nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+      if (nlen != 12)
+        return 0;
+      pipeline_expr_field_access_name_into(arena, callee_ref, name);
+    } else if (cko == GLUE_EXPR_VAR_ORD) {
+      nlen = pipeline_expr_var_name_len(arena, callee_ref);
+      if (nlen != 12)
+        return 0;
+      pipeline_expr_var_name_into(arena, callee_ref, name);
+    } else {
+      return 0;
+    }
+    n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+  } else {
+    return 0;
+  }
+  for (i = 0; i < 11; i++) {
+    if (name[i] != pfx[i])
+      return 0;
+  }
+  arity = (int32_t)name[11] - 48;
+  if (arity < 0 || arity > 6)
+    return 0;
+  if (n_args != arity + 1)
+    return 0;
+  for (i = 0; i < n_args; i++) {
+    if (is_method)
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+    else
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref == 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+      return -1;
+    /* G.7 complete existing spill (same +16 stride as .x next_offset@4). */
+    off[i] = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+    if (off[i] < 0)
+      return -1;
+  }
+  for (j = 1; j < n_args; j++) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0)
+      return -1;
+    if (j == 1)
+      k = 0;
+    else if (j == 2)
+      k = 1;
+    else if (j == 3)
+      k = 2;
+    else if (j == 4)
+      k = -1;
+    else if (j == 5)
+      k = 4;
+    else
+      k = 5;
+    if (k == -1) {
+      if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0)
+        return -1;
+    } else {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, k, ta) != 0)
+        return -1;
+    }
+  }
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0)
+    return -1;
+  return 1;
+}
+
 /**
  * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
  * 供 pipeline_asm_emit_expr_elf_rec 与 backend.x emit_expr_elf_call 委托。
@@ -4216,6 +4337,15 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     if (sa_rc < 0)
       return -1;
     if (sa_rc > 0)
+      return 0;
+  }
+  /* stage10 S3.1 slice2 (10.1.1): raw_syscall0..6 → direct syscall
+   * (before import mangle; same slot as the size_of fold). */
+  {
+    int32_t rs_rc = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (rs_rc < 0)
+      return -1;
+    if (rs_rc > 0)
       return 0;
   }
 
@@ -4474,6 +4604,15 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   if (name_len <= 0 || name_len > 127)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, name);
+  /* stage10 S3.1 slice2 (10.1.1): dot-call raw_syscall0..6 shape
+   * (linux.raw_syscall3(...) parses here; before dyn/UFCS/try_inline). */
+  {
+    int32_t rs_mc = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (rs_mc < 0)
+      return -1;
+    if (rs_mc > 0)
+      return 0;
+  }
   /*
    * wave359 Cap residual pure — freestanding i32.double() → x*2.
    * Root: host codegen expands `(x * 2)`; freestanding called bare `double`

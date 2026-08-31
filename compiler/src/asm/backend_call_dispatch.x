@@ -78,6 +78,10 @@ export extern function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth
 export extern function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+/* stage10 S3.1 slice2 (10.1.1): raw syscall byte-level encoders (x86_64 only;
+ * bodies in backend_x86_64_enc_c.x — same family as the enc externs above). */
+export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
 export extern function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf: *u8, ta: i32): i32;
@@ -2650,6 +2654,13 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (name_len > 127) { return 0 - 1; }
     let name: u8[128] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+    /* stage10 S3.1 slice2 (10.1.1): dot-call raw_syscall0..6 shape
+     * (linux.raw_syscall3(...) parses here; before dyn/UFCS/try_inline). */
+    {
+      let rs_mc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (rs_mc < 0) { return 0 - 1; }
+      if (rs_mc > 0) { return 0; }
+    }
     // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
     let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     /*
@@ -3727,6 +3738,140 @@ function try_fold_size_align_of_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32
   }
 }
 
+/**
+ * Stage 10 S3.1 slice 2 (10.1.1): raw_syscall0..6 — ELF direct-encode lowering.
+ *
+ * Matches the same builtin surface as the C-backend intercept
+ * (codegen_try_emit_raw_syscall_call) on BOTH parse shapes: dot calls parse as
+ * METHOD_CALL (49, fmt.println default), bare/alt calls as EXPR_CALL (48) with
+ * FIELD_ACCESS/VAR callee. Arity digit is the callee-name suffix; arg count
+ * must equal arity+1 (arg 0 is the syscall nr).
+ *
+ * Lowering (Linux x86_64 kernel ABI; ta!=0 returns 0 — arm64 svc = 10.1.2):
+ *   1. emit each arg expr (pipeline_asm_emit_expr_elf_for_call_args → rax) and
+ *      spill rax to a frame slot, bumping the AsmFuncCtx.next_offset cursor
+ *      exactly like glue_sysv_spill_rax_rdx_to_frame_c (G.7 same discipline;
+ *      arg emissions may clobber rax so nothing lives in registers mid-loop)
+ *   2. reload slots into syscall homes: a1→rdi(k0) a2→rsi(k1) a3→rdx(k2)
+ *      a4→r10(raw; no C-ABI k slot) a5→r8(k4) a6→r9(k5); nr LAST → rax
+ *   3. enc syscall (0F 05); return value stays in rax like a normal call,
+ *      clobbers rcx/r11 (dead here). No stack args, no stack cleanup.
+ *
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param expr_ref i32 — CALL/METHOD_CALL expr ref
+ * @param ctx *u8 — AsmFuncCtx* (frame cursor at byte 4)
+ * @param ta i32 — target arch (0 x86_64 only this wave)
+ * @return i32 — 1 emitted; 0 not applicable (fall through to normal call);
+ *               -1 emit error
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+function try_emit_raw_syscall_call_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  /* x86_64 only this wave; other arches fall through (panic body honest-fail). */
+  if (ta != 0) {
+    return 0;
+  }
+  unsafe {
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    let name: u8[16] = [];
+    let nlen: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let arity: i32 = 0 - 1;
+    let pfx: u8[11] = [114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
+    let i: i32 = 0;
+    let cur: i32 = 0;
+    let off: i32[8] = [];
+    let arg_ref: i32 = 0;
+    let j: i32 = 0;
+    let k: i32 = 0;
+    /* Shape match: METHOD_CALL(49) reads method_call_name; CALL(48) reads the
+     * callee FIELD_ACCESS(44)/VAR(3) name. Exact raw_syscall<digit>, len 12. */
+    if (ko == 49) {
+      nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+      if (nlen != 12) { return 0; }
+      pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+      n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      is_method = 1;
+    } else if (ko == 48) {
+      let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      let cko: i32 = 0;
+      if (callee_ref <= 0) { return 0; }
+      cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+      if (cko == 44) {
+        nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (nlen != 12) { return 0; }
+        pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+      } else if (cko == 3) {
+        nlen = pipeline_expr_var_name_len(arena, callee_ref);
+        if (nlen != 12) { return 0; }
+        pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+      } else {
+        return 0;
+      }
+      n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    } else {
+      return 0;
+    }
+    i = 0;
+    while (i < 11) {
+      if (name[i] != pfx[i]) { return 0; }
+      i = i + 1;
+    }
+    arity = name[11] as i32 - 48;
+    if (arity < 0 || arity > 6) { return 0; }
+    if (n_args != arity + 1) { return 0; }
+    /* Emit + spill each arg to its own frame slot (cursor discipline twin of
+     * glue_sysv_spill_rax_rdx_to_frame_c: off = max(cur+16,16), 16 stride). */
+    cur = call_dispatch_load_i32_le(ctx, 4);
+    i = 0;
+    while (i < n_args) {
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      }
+      if (arg_ref == 0) { return 0 - 1; }
+      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      off[i] = cur + 16;
+      if (off[i] < 16) { off[i] = 16; }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off[i], ta) != 0) { return 0 - 1; }
+      cur = off[i];
+      i = i + 1;
+    }
+    call_dispatch_store_i32_le(ctx, 4, cur + 16);
+    /* Reload into syscall homes: a1..a6 first (rdi/rsi/rdx/r10/r8/r9), then
+     * nr LAST so rax ends holding the syscall number. */
+    j = 1;
+    while (j < n_args) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0) { return 0 - 1; }
+      if (j == 1) { k = 0; }
+      else if (j == 2) { k = 1; }
+      else if (j == 3) { k = 2; }
+      else if (j == 4) { k = 0 - 1; }
+      else if (j == 5) { k = 4; }
+      else { k = 5; }
+      if (k == 0 - 1) {
+        /* a4 → r10 (49 89 C2); r10 has no C-ABI mov_rax_to_arg_reg slot. */
+        if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+      } else {
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+      }
+      j = j + 1;
+    }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0) { return 0 - 1; }
+    return 1;
+  }
+}
+
 #[no_mangle]
 export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
@@ -3748,6 +3893,13 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let sa_rc: i32 = try_fold_size_align_of_call_elf(arena, elf_ctx, expr_ref, mod_ref, ta);
       if (sa_rc < 0) { return 0 - 1; }
       if (sa_rc > 0) { return 0; }
+    }
+    /* stage10 S3.1 slice2 (10.1.1): raw_syscall0..6 → direct syscall
+     * (before import mangle; same slot as the size_of fold). */
+    {
+      let rs_rc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (rs_rc < 0) { return 0 - 1; }
+      if (rs_rc > 0) { return 0; }
     }
     // See implementation.
     if (callee_ko == 44) {
