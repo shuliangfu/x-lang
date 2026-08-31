@@ -4408,8 +4408,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
             cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
             if (cap_nargs < 0)
               return -1;
-            if (cap_nargs > glue_asm_call_reg_max(ta))
-              return -1;
+            /* slice4: allow stack args via emit_call_args (no reg_max hard-fail). */
             if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_eff, ctx, ta) != 0)
               return -1;
             if (cap_nargs == 0) {
