@@ -16165,7 +16165,8 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
     return 1;
   if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
     return 4;
-  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
+  /* Twin living/runtime_pipeline_abi.x 10.3.1 slice13: TYPE_FN=18 → 8 (Cap ABI). */
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9 || ek == 18)
     return 8;
   if (ek == 8) {
     void *mod = pipeline_asm_emit_module_ref_c();
@@ -16213,7 +16214,8 @@ int32_t glue_fixed_array_temp_bytes(void *arena, int32_t type_ref) {
     int32_t etk = pipeline_type_kind_ord_at(arena, elem_ref);
     if (etk == 2)
       esz = 1;
-    else if (etk == 8 || etk == 4 || etk == 5 || etk == 6 || etk == 14)
+    else if (etk == 8 || etk == 4 || etk == 5 || etk == 6 || etk == 7 || etk == 9
+             || etk == 14 || etk == 15 || etk == 18)
       esz = 8;
     else
       esz = 4;
