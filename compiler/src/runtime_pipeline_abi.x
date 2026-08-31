@@ -56958,6 +56958,14 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   while (pass < 2) {
     i = 0;
     while (i < nso) {
+      /* Slice9: after options(noreturn), skip remaining pass-1 stmts (unreachable). */
+      if (pass == 1) {
+        unsafe {
+          if (glue_asm_block_diverged_get() != 0) {
+            break;
+          }
+        }
+      }
       unsafe {
         item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, i);
         idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
@@ -57389,15 +57397,19 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
    * Mirrors codegen.x emit_run_defers (host-C). Trailing `return x` is final_expr
    * when next token is RBRACE (parser.x return_ends_block); mid-body early
    * return stays stmt_order and matches C (defers not rewound on that path).
+   * Slice9: skip defer + final_expr when options(noreturn) diverged (unreachable).
    * PLATFORM: SHARED freestanding pure-asm. */
-  rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-
-  rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
+  unsafe {
+    if (glue_asm_block_diverged_get() == 0) {
+      rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
   }
 
   unsafe {
@@ -57617,6 +57629,8 @@ export function pipeline_asm_emit_expr_if_arm_elf_c(arena: *u8, elf_ctx: *u8, ar
 #[no_mangle]
 export function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
+    /* Slice9: clear diverged at function-body entry (nested regions keep the flag). */
+    glue_asm_block_diverged_set(0);
     glue_block_body_bind_module_dep_from_ctx(ctx);
   }
   return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
@@ -77669,6 +77683,8 @@ let g_block_live_cfg_parent: i32 = 0;
 let g_block_live_fwd_active: i32 = 0;
 let g_block_emit_stmt_i: i32 = 0;
 let g_asm73_linear_max_live_n: i32 = 0;
+/* stage10 10.2.1 slice9: 1 after options(noreturn) asm — skip unreachable emit. */
+let g_asm_block_diverged: i32 = 0;
 
 // wave213: Chaitin interf graph (max 32 verts; undirected adj bitmasks as i32).
 let g_asm73_interf_n: i32 = 0;
@@ -77776,6 +77792,35 @@ export function glue_block_emit_stmt_i_set(v: i32): void {
 #[no_mangle]
 export function glue_block_emit_stmt_i_get(): i32 {
   return g_block_emit_stmt_i;
+}
+
+/**
+ * Stamp block-emit diverged flag (stage10 10.2.1 slice9).
+ * Set by inline asm options(noreturn) after ud2; consumers skip trailing
+ * stmt_order entries and final_expr until the next function body entry clears.
+ *
+ * @param v i32 — non-zero ⇒ diverged
+ * @return void
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_asm_block_diverged_set(v: i32): void {
+  if (v != 0) {
+    g_asm_block_diverged = 1;
+  } else {
+    g_asm_block_diverged = 0;
+  }
+}
+
+/**
+ * Return 1 when block emit should skip unreachable trailing code.
+ *
+ * @return i32 — 0 or 1
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_asm_block_diverged_get(): i32 {
+  return g_asm_block_diverged;
 }
 
 /**
