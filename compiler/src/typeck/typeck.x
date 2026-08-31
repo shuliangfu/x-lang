@@ -17271,7 +17271,9 @@ expr_ref: i32, base_ty: i32): i32 {
             got_kind = pipeline_type_kind_ord_at(arena, init_ty);
             if (type_refs_equal(arena, ftr, init_ty)
             || typeck_integer_widen_ok_refs(arena, ftr, init_ty)
-            || typeck_float_widen_ok(ftr_kind, got_kind)) {
+            || typeck_float_widen_ok(ftr_kind, got_kind)
+            || (typeck_is_fnptr_surface(arena, ftr) != 0
+                && typeck_is_fnptr_surface(arena, init_ty) != 0)) {
               pipeline_expr_set_resolved_type_ref(arena, init_r, ftr);
             } else {
               eb = driver_typeck_diag_scratch_expect();
