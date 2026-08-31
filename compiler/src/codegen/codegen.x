@@ -5841,6 +5841,8 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for scalar []i32
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+ * Do not fork a second CALL/METHOD wrap.
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.

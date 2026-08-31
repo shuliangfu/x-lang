@@ -6215,6 +6215,43 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
         if ((arr_sz <= 0)) {
           return 0;
         }
+      } else if ((((init_ko == 48) || (init_ko == 49)) && (ctx != 0))) {
+        /* PLATFORM: SHARED — twin of codegen.x try_emit CALL/METHOD
+         * (kind 48/49). dest-SLICE stamps CALL to TYPE_SLICE, hiding N.
+         * N from callee return TYPE_ARRAY. Same-module: current_codegen_module
+         * + caller arena. Dep-module: dep module + dep arena (type_ref is
+         * arena-local). `.data = mk()` is E* (ARRAY return ABI). wrap_br
+         * of `[N][]T = [mk(), [3,4]]` without this branch falls to emit_expr
+         * → `{mk(), fat}` host-cc (fat into .length). G.7: complete existing
+         * helper; do not fork a second CALL wrap. */
+        (void)((is_call = 1));
+        {
+          int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, linit_ref);
+          int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, linit_ref);
+          struct ast_Module * res_mod = ((ctx)->current_codegen_module);
+          if (((((dep_ix < 0) && (res_mod != 0)) && (func_ix >= 0)) && (func_ix < ((res_mod)->num_funcs)))) {
+            int32_t rty = pipeline_module_func_return_type_at(res_mod, func_ix);
+            if ((!(ast_ref_is_null(rty)) && (rty > 0))) {
+              if ((pipeline_type_kind_ord_at(arena, rty) == 10)) {
+                (void)((arr_sz = pipeline_type_array_size_at(arena, rty)));
+              }
+            }
+          } else if (((dep_ix >= 0) && (func_ix >= 0))) {
+            struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+            struct ast_ASTArena * dep_ar = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+            if (((dep_mod != 0) && (func_ix < ((dep_mod)->num_funcs)))) {
+              int32_t rty_d = pipeline_module_func_return_type_at(dep_mod, func_ix);
+              if (((!(ast_ref_is_null(rty_d)) && (rty_d > 0)) && (dep_ar != 0))) {
+                if ((pipeline_type_kind_ord_at(dep_ar, rty_d) == 10)) {
+                  (void)((arr_sz = pipeline_type_array_size_at(dep_ar, rty_d)));
+                }
+              }
+            }
+          }
+        }
+        if ((arr_sz <= 0)) {
+          return 0;
+        }
       } else {
         return 0;
       }
