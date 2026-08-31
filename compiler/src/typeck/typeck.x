@@ -812,7 +812,8 @@ export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32
 export extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
 export extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
 export extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8,
-name_len: i32): i32;
+                                                         name_len: i32): i32;
+export extern function pipeline_module_func_set_is_used(module: *Module, fi: i32, is_used: i32): void;
 /* See implementation. */
 export extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
 export extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8,
@@ -11223,6 +11224,37 @@ ctx: *PipelineDepCtx): i32 {
         }
       }
     }
+    /*
+     * Cap-fn-ptr (10.3.2 slice1): call through local/param *u8.
+     * Type the callee VAR; if Cap *u8, stamp call ret from expected_ret or i32.
+     * No module fi / no TYPE_FN yet (10.3.1). PLATFORM: SHARED.
+     */
+    if (ret_ty == 0 && pipeline_expr_kind_ord_at(arena, callee_eff) == ord_var) {
+      if (check_expr(module, arena, callee_eff, 0, ctx) == 0) {
+        let ctr: i32 = pipeline_expr_resolved_type_ref(arena, callee_eff);
+        let cko: i32 = 0;
+        let eer: i32 = 0;
+        let eko: i32 = 0;
+        let expect: i32 = 0;
+        if (ctr > 0) {
+          cko = pipeline_type_kind_ord_at(arena, ctr);
+          if (cko == 9) {
+            eer = pipeline_type_elem_ref_at(arena, ctr);
+            if (eer > 0) {
+              eko = pipeline_type_kind_ord_at(arena, eer);
+              if (eko == 2) {
+                expect = typeck_i32_ptr_read(typeck_overload_expected_ret_slot());
+                if (expect > 0) {
+                  ret_ty = expect;
+                } else {
+                  ret_ty = ensure_i32_type_ref(arena);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if (ret_ty != 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
     }
@@ -11325,6 +11357,33 @@ ctx: *PipelineDepCtx): i32 {
     /* @shuffle/@select → simd_shuffle/simd_select (codegen-inline; no fi). */
     if (pipeline_typeck_is_simd_comptime_callee_c(&cnm[0], cnml) != 0) {
       return 0;
+    }
+    /*
+     * Cap-fn-ptr (10.3.2): callee VAR typed *u8 is an opaque function pointer.
+     * Type the VAR (local/param) then soft-skip name lookup — no module fi.
+     * PLATFORM: SHARED — pairs with asm Cap-fnptr blr / call *reg.
+     */
+    if (check_expr(module, arena, callee_eff, 0, ctx) != 0) {
+      return -1;
+    }
+    {
+      let ctr: i32 = pipeline_expr_resolved_type_ref(arena, callee_eff);
+      let cko: i32 = 0;
+      let eer: i32 = 0;
+      let eko: i32 = 0;
+      if (ctr > 0) {
+        cko = pipeline_type_kind_ord_at(arena, ctr);
+        if (cko == 9) {
+          eer = pipeline_type_elem_ref_at(arena, ctr);
+          if (eer > 0) {
+            eko = pipeline_type_kind_ord_at(arena, eer);
+            /* TYPE_U8 kind_ord == 2 — Cap-fn-ptr surface is *u8 only. */
+            if (eko == 2) {
+              return 0;
+            }
+          }
+        }
+      }
     }
     name_hits = 0;
     arity_hits = 0;
@@ -14437,7 +14496,9 @@ ctx: *PipelineDepCtx): i32 {
      * (g05 formerly held (uint8_t*)(void*)fn; .x could not form fn-pointer constants).
      * Locals/params/top-level lets already resolved above. CALL does not typecheck
      * the callee via this path (name-based resolve), so call sites stay unchanged.
-     * First matching overload wins (C product surfaces are #[no_mangle] unique). */
+     * First matching overload wins (C product surfaces are #[no_mangle] unique).
+     * Cap-fn-ptr (10.3.2): mark is_used so asm WPO emit-order keeps the body
+     * (address-taken has no call edge; same pattern as F7 vtable impl mark). */
     {
       let fi: i32 = 0;
       let nfuncs: i32 = module.num_funcs;
@@ -14452,6 +14513,7 @@ ctx: *PipelineDepCtx): i32 {
           if (ast.ref_is_null(ptr_u8) || ptr_u8 == 0) {
             return -1;
           }
+          pipeline_module_func_set_is_used(module, fi, 1);
           pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_u8);
           driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 105, ptr_u8);
           return 0;
