@@ -5498,9 +5498,9 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   }
                   if ((eq_bt !=0)) {
                     /* PLATFORM: SHARED — twin of codegen.x eb_bt[896].
-                     * Live -E is host-cc of this seed. cap 256 failed the
-                     * type_to_c_repr 19+2*plen gate at nest 11+ (n16 XP003).
-                     * 896 matches codegen.x; nest 64 i32 tag=782. */
+                     * Live -E is host-cc of this seed. cap 256 failed nest 11+
+                     * (n16 XP003). 896 matches codegen.x; nest 64 i32 tag=782.
+                     * TYPE_SLICE cap is the ttc-thin write loop, not 19+2*plen. */
                     uint8_t eb_bt[896] = {};
                     int32_t n_bt = codegen_type_to_c_repr(arena, &((eb_bt)[0]), 896, c_bt, struct_prefix, struct_prefix_len);
                     if ((n_bt > 0)) {

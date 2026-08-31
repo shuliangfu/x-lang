@@ -15385,8 +15385,10 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
       }
     }
     let plen: i32 = n - sp;
-    // `*` → `_p` can grow; 19 + 2*plen is a conservative cap.
-    if (plen <= 0 || 19 + plen + plen >= cap) {
+    // Header needs 19 bytes. `*` → `_p` growth is the write-loop
+    // `w_sl+2>=cap` below. leftover 19+2*plen rejected nest 64 i32
+    // (tag=782 fits 896; 2*plen of nest 63 ≈ 1545). PLATFORM: SHARED.
+    if (plen <= 0 || 19 >= cap) {
       return -1;
     }
     // "struct xlang_slice_" = 19 bytes

@@ -6005,8 +6005,9 @@ extern int32_t pipeline_codegen_type_kind_copy(uint8_t *scratch, int32_t cap, in
 static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scratch, int32_t cap, int32_t type_ref,
                                                      uint8_t *struct_prefix, int32_t struct_prefix_len) {
   /* PLATFORM: SHARED — twin of runtime_pipeline_abi.x inner/eb 896.
-   * Live -E first-wins this thin over weak pure. cap 256 failed the
-   * 19+2*plen gate at nest 11+ (n16 XP003). nest 64 i32 tag=782. */
+   * Live -E first-wins this thin over weak pure. cap 256 failed nest 11+
+   * (n16 XP003). nest 64 i32 tag=782 fits 896; TYPE_SLICE cap is the
+   * write loop (per-star w+2), not leftover 19+2*plen. */
   uint8_t inner[896];
   uint8_t eb[896];
   int32_t tk;
@@ -6158,12 +6159,13 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
         sp++;
     }
     plen = n - sp;
-    if (plen <= 0 || 19 + plen + plen >= cap)
+    /* PLATFORM: SHARED — header needs 19 bytes; `*` → `_p` growth is the
+     * write-loop `w+2>=cap` below. leftover 19+2*plen rejected nest 64
+     * i32 (tag=782 fits 896; 2*plen of nest 63 ≈ 1545). */
+    if (plen <= 0 || 19 >= cap)
       return -1;
     {
       static const uint8_t hdr[19] = {'s', 't', 'r', 'u', 'c', 't', ' ', 'x', 'l', 'a', 'n', 'g', '_', 's', 'l', 'i', 'c', 'e', '_'};
-      if (19 + plen + plen >= cap)
-        return -1;
       for (hi = 0; hi < 19; hi++)
         scratch[hi] = hdr[hi];
     }
