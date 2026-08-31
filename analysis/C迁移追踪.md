@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–15 ✅（真 Cap host-C cast＠`e4283974b`）；**10.3.3** slice0–3 ✅；Darwin Cap／pin egg 仍阻；残：10.1.3 NT／不透明 Cap 软 |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–16 ✅（不透明 Cap 硬门＠`ef9f5c2da`）；**10.3.3** slice0–3 ✅；Darwin Cap／pin egg 仍阻；残：10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -231,9 +231,9 @@
 
 ### 10.3 fnptr
 
-- 🟡 **10.3.1** fnptr 类型表达 — **slice0–15** ✅（TYPE_FN＝18／parser／Cap coerce／裸名／`as`／签名／host-C／`[N]function`／ARRAY_LIT／INDEX 8B／直 `fs[0](x)`／**真 Cap `*u8` host-C 赋／调强转**＠`e4283974b`：`(Ret (*)(T))c`＋`((Ret (*)(T))(c))(args)`）。残：真不透明 Cap 软；Darwin
+- 🟡 **10.3.1** fnptr 类型表达 — **slice0–16** ✅（TYPE_FN＝18／parser／Cap coerce／裸名／`as`／签名／host-C／`[N]function`／ARRAY_LIT／INDEX／直 call／Cap cast／**不透明 Cap→TYPE_FN 硬拒**＠`ef9f5c2da`：`allow_opaque`；coerce 拒／`as function` 逃逸）。残：Darwin
 - 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin pin egg 阻**：本机 `xlang_asm` 仍旧二进制；pabi≈425KiB 残档；无 MH_OBJECT ≥1MiB pin；mega `-E` 硬禁；ensure 已拒 libtool 残档＠`739ccf1d3`；**2026-08-31 再证仍无可达恢复路径 → SHARED pivot**。残：Darwin Cap 全链
-- 🟡 **10.3.3** fnptr 作参／返回／字段 — **slice0–3 ✅**＠`75580cabf`；host-C 字段／`[N]function`／ARRAY_LIT／INDEX／Cap cast 与 **10.3.1 slice10–15** 同收。残：Darwin；不透明 Cap 软
+- 🟡 **10.3.3** fnptr 作参／返回／字段 — **slice0–3 ✅**＠`75580cabf`；host-C 字段／`[N]function`／ARRAY_LIT／INDEX／Cap cast／opaque 硬门 与 **10.3.1 slice10–16** 同收。残：Darwin
 
 ### 10.4–10.7
 
