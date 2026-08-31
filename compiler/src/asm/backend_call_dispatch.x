@@ -78,6 +78,8 @@ export extern function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth
 export extern function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+/* stage10 10.2.1 slice5: out/lateout from SysV GP → rax before store. */
+export extern function backend_enc_mov_arg_reg_to_rax_arch(elf: *u8, k: i32, ta: i32): i32;
 /* stage10 S3.1 slice2 (10.1.1): raw syscall byte-level encoders (x86_64).
  * bodies in backend_x86_64_enc_c.x — same family as the enc externs above. */
 export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
@@ -4653,10 +4655,11 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  * Stage10 10.2.1: emit EXPR_ASM (kind 60) from template in var_name.
  * Templates: "nop" · "syscall" (x86 0F05 / aarch64 svc).
  * Operands: up to 6; int_val = num_in; call_args[0..num_in) = in,
- *   call_args[num_in..) = out/lateout places (slice4: VAR + rax/eax/x0 only).
- * Extra homes: r10 (x86) · x8 (aarch64 nr).
+ *   call_args[num_in..) = out/lateout places (VAR only).
+ * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP (x86 mov_arg→rax) · mk==100 rbx.
+ * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — not valid out yet.
  * @return i32 — 0 ok; -1 error / unsupported
- * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64.
+ * PLATFORM: SHARED emit · LINUX|x86_64 gold out-GP · aarch64 encode (x0 out only via arch).
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
@@ -4791,7 +4794,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
     }
-    /* ---- out / lateout: slice4 VAR + rax/eax/x0 only ---- */
+    /* ---- out / lateout: VAR; GP→rax then store (slice5) ---- */
     i = num_in;
     while (i < nargs) {
       if (ctx == 0 as *u8) {
@@ -4801,8 +4804,11 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
       mk = pipeline_asm_inline_in_reg_mov_kind(&reg[0], ta);
-      /* Only "already in rax/x0" homes for out (mk==0). */
-      if (mk != 0) {
+      if (mk < 0) {
+        return 0 - 1;
+      }
+      /* Reject syscall-only homes as out (r10 / x8). */
+      if (mk == 101 || mk == 102) {
         return 0 - 1;
       }
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
@@ -4821,6 +4827,18 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
       voff = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
       if (voff < 0) {
         return 0 - 1;
+      }
+      /* mk==0: value already in rax/x0. */
+      if (mk >= 1 && mk <= 6) {
+        /* G.7: reuse SysV/AAPCS arg→rax (x86 gold; arm64 arch may -1). */
+        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, mk - 1, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      if (mk == 100) {
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
       }
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, voff, ta) != 0) {
         return 0 - 1;

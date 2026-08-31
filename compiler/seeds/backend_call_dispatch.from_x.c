@@ -417,6 +417,8 @@ extern int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTAre
                                                                int32_t ta);
 
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+/* stage10 10.2.1 slice5: out/lateout from SysV GP → rax before store. */
+extern int32_t backend_enc_mov_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
 /* wave359: freestanding i32.double → x*2 (mov+add self). */
 extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_rbx_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -4841,8 +4843,8 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenC
 
 /**
  * Stage10 10.2.1: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
- * Templates: "nop" / "syscall"; in + lateout/out (VAR←rax).
- * PLATFORM: SHARED.
+ * Templates: "nop" / "syscall"; in + lateout/out (VAR; GP→rax then store).
+ * PLATFORM: SHARED · LINUX|x86_64 gold out-GP.
  */
 int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -4955,7 +4957,10 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     if (pipeline_asm_inline_regpack_field_c(pack, i, reg, 32) != 0)
       return -1;
     mk = pipeline_asm_inline_in_reg_mov_kind_c(reg, ta);
-    if (mk != 0)
+    if (mk < 0)
+      return -1;
+    /* Reject syscall-only homes as out (r10 / x8). */
+    if (mk == 101 || mk == 102)
       return -1;
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
     if (arg_ref <= 0)
@@ -4970,6 +4975,15 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     voff = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
     if (voff < 0)
       return -1;
+    /* mk==0: already in rax/x0. */
+    if (mk >= 1 && mk <= 6) {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, mk - 1, ta) != 0)
+        return -1;
+    }
+    if (mk == 100) {
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, voff, ta) != 0)
       return -1;
   }
