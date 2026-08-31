@@ -1,7 +1,7 @@
 // Stage 10 S3.1 (10.1.4) slice 1: bare `extern "C"` libc call — no
 // `xlang_sys_*` C bridge and no raw_syscall builtin. Proves product
 // `xlang_asm -o` packs SysV/AAPCS args and links a libc symbol directly.
-// Residual (dlsym / fnptr cast / NT) stays 10.1.4 leftover → 10.3 / 10.1.3.
+// slice2: `tests/sys/raw_ffi_dlsym_smoke.x` (dlsym→Cap). Residual: NT → 10.1.3.
 // PLATFORM: SHARED (emit + link) / POSIX (libc write).
 
 /**
