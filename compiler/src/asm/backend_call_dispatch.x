@@ -3931,9 +3931,9 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (rs_rc > 0) { return 0; }
     }
     /*
-     * Cap-fn-ptr (10.3.2): CALL through *u8 local/param.
-     * typeck stamps callee as TYPE_PTR(u8). Emit callee → rax/x0, then
-     * blr / call *reg (G.7 reuse backend_enc_blr_arch; same as F7 dyn).
+     * Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): CALL through *u8 or TYPE_FN.
+     * typeck stamps Cap as TYPE_PTR(u8) or TYPE_FN(18). Emit callee → rax/x0,
+     * then blr / call *reg (G.7 reuse backend_enc_blr_arch; same as F7 dyn).
      * slice1: 0-arg. slice2: GP args via spill fn + pipeline_asm_emit_call_args_elf_c
      * then reload fn (args would otherwise clobber rax before blr).
      * PLATFORM: SHARED · LINUX x86_64 call *r · MACOS|ARM64 blr xN.
@@ -3946,8 +3946,9 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let cap_nargs: i32 = 0;
       let cap_eff: i32 = callee_ref;
       let cap_fn_off: i32 = 0;
+      let cap_ok: i32 = 0;
       if (callee_ko == 51 || callee_ko == 52) {
-        /* EXPR_ADDR_OF / EXPR_DEREF — peel so Cap *u8 VAR is visible.
+        /* EXPR_ADDR_OF / EXPR_DEREF — peel so Cap *u8 / TYPE_FN VAR is visible.
          * (*f)() → DEREF(VAR); Cap ≡ f() (emit pointer value, not u8 load). */
         let inn: i32 = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
         if (inn > 0) { cap_eff = inn; }
@@ -3955,18 +3956,26 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       cap_tr = pipeline_expr_resolved_type_ref(arena, cap_eff);
       if (cap_tr > 0) {
         cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
-        if (cap_ko == 9) {
+        /* TYPE_FN (18) shares Cap opaque fn-ptr ABI with *u8. */
+        if (cap_ko == 18) {
+          cap_ok = 1;
+        } else if (cap_ko == 9) {
           cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
           if (cap_er > 0) {
             cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
             if (cap_eko == 2) {
+              cap_ok = 1;
+            }
+          }
+        }
+        if (cap_ok != 0) {
               cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
               if (cap_nargs < 0) { return 0 - 1; }
               /*
-               * Cap opaque *u8: reuse pipeline_asm_emit_call_args_elf_c for GP
-               * regs + stack spill (SysV 6 / AAPCS64 8). slice2 was reg-only;
-               * slice4 lifts the reg_max hard-fail (G.7 same packer as direct CALL).
-               * PLATFORM: SHARED.
+               * Cap opaque *u8 / TYPE_FN: reuse pipeline_asm_emit_call_args_elf_c
+               * for GP regs + stack spill (SysV 6 / AAPCS64 8). slice2 was
+               * reg-only; slice4 lifts the reg_max hard-fail (G.7 same packer
+               * as direct CALL). PLATFORM: SHARED.
                */
               if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_eff, ctx, ta) != 0) {
                 return 0 - 1;
@@ -3987,8 +3996,6 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
               }
               if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
               return 0;
-            }
-          }
         }
       }
     }

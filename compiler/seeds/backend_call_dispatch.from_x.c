@@ -4380,8 +4380,8 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       return 0;
   }
 
-  /* Cap-fn-ptr (10.3.2): CALL through *u8 — spill fn + emit_call_args + blr.
-   * Twin of backend_call_dispatch.x. slice1 0-arg; slice2 GP args.
+  /* Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): CALL through *u8 or TYPE_FN —
+   * spill fn + emit_call_args + blr. Twin of backend_call_dispatch.x.
    * PLATFORM: SHARED. */
   {
     int32_t cap_tr = 0;
@@ -4391,6 +4391,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     int32_t cap_nargs = 0;
     int32_t cap_eff = callee_ref;
     int32_t cap_fn_off = 0;
+    int32_t cap_ok = 0;
     if (callee_ko == 51 || callee_ko == 52) {
       /* EXPR_ADDR_OF / EXPR_DEREF — Cap (*f)() peels to VAR. */
       int32_t inn = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
@@ -4400,11 +4401,18 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     cap_tr = pipeline_expr_resolved_type_ref(arena, cap_eff);
     if (cap_tr > 0) {
       cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
-      if (cap_ko == GLUE_TYPE_PTR_ORD) {
+      /* TYPE_FN (18) shares Cap opaque fn-ptr ABI with *u8. */
+      if (cap_ko == 18) {
+        cap_ok = 1;
+      } else if (cap_ko == GLUE_TYPE_PTR_ORD) {
         cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
         if (cap_er > 0) {
           cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
-          if (cap_eko == 2) {
+          if (cap_eko == 2)
+            cap_ok = 1;
+        }
+      }
+      if (cap_ok != 0) {
             cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
             if (cap_nargs < 0)
               return -1;
@@ -4426,8 +4434,6 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
             if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0)
               return -1;
             return 0;
-          }
-        }
       }
     }
   }
