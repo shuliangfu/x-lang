@@ -38,7 +38,11 @@ typedef enum ASTTypeKind {
     AST_TYPE_VECTOR, /**< 向量类型如 i32x4；elem_type 为元素类型，array_size 为 lane 数（文档 §10，先用 struct 模拟） */
     AST_TYPE_F32,    /**< 32 位浮点（文档阶段 8+ 可选） */
     AST_TYPE_F64,    /**< 64 位浮点 */
-    AST_TYPE_VOID    /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
+    AST_TYPE_VOID,   /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
+    /* AST_TYPE_FN: C-path mirror of .x TypeKind.TYPE_FN (ord 18 on asm/.x enum).
+     * Append-only. Full param/return pool fields land with Wave1 parser.
+     * PLATFORM: SHARED — keep in sync with ast.x TypeKind.TYPE_FN. */
+    AST_TYPE_FN
 } ASTTypeKind;
 
 /** 类型节点：内建/具名/指针/数组/切片等；指针/数组/切片时 elem_type 非 NULL，由 ast_type_free 递归释放 */
