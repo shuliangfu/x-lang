@@ -3151,6 +3151,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_fnptr_as_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_fnptr_array_esz_thin.x ] \
+      && [ src/runtime_pipeline_abi_fnptr_array_esz_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3169,6 +3173,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
       pipeline_abi_inject_fnptr_as_thin "$o" || true
+      pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
@@ -3195,6 +3200,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || return 1
       pipeline_abi_inject_fnptr_as_thin "$o" || return 1
+      pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       return 0
     fi
   fi
@@ -3264,6 +3270,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
     pipeline_abi_inject_fnptr_as_thin "$o" || true
+    pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     return 0
   fi
 
@@ -3294,6 +3301,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_binop_block_peel_thin "$o" || true
         pipeline_abi_inject_param_ptr_slot_thin "$o" || true
         pipeline_abi_inject_fnptr_as_thin "$o" || true
+        pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         return 0
       fi
     else
@@ -3308,6 +3316,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || true
       pipeline_abi_inject_fnptr_as_thin "$o" || true
+      pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       return 0
     fi
   fi
@@ -3330,6 +3339,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
   pipeline_abi_inject_param_ptr_slot_thin "$o" || true
   pipeline_abi_inject_fnptr_as_thin "$o" || true
+  pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   return 0
 }
 
@@ -3455,6 +3465,74 @@ pipeline_abi_inject_unused_hints_thin() {
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_as_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
+}
+
+# 10.3.1 slice13: TYPE_FN array-lit esz / fixed-array temp bytes.
+# Seed rest holds strong glue_array_lit_force_esz_from_elem_type_c /
+# glue_fixed_array_temp_bytes — weaken then first-wins thin (no mega -E).
+# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED shell ·
+# LINUX gold + MACOS.
+pipeline_abi_inject_fnptr_array_esz_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_fnptr_array_esz_thin.x"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi fnptr-arr-esz inject skip: $o is libtool archive"
+    return 1
+  fi
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi fnptr-arr-esz inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi fnptr-arr-esz inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi fnptr-arr-esz inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    # Seed rest holds strong defs; weaken so thin first-wins. ELF + Mach-O.
+    "$oc" --weaken-symbol=glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi fnptr-arr-esz inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi fnptr-arr-esz inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
 }
 
 # WPO_DUMP_CALLGRAPH (XLANG_WPO_DUMP_CALLGRAPH). G.7: thin body matches
