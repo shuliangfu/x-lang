@@ -4482,7 +4482,7 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     return 1;
   }
-  /* cas: desired→edx; expected_ptr→rcx; *expected→eax; ptr→rbx; lock cmpxchg (%rbx) */
+  /* cas: desired→edx; expected_ptr→rcx; ptr→rbx; *expected→eax LAST; lock cmpxchg (%rbx) */
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0)
     return -1;
   if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
@@ -4491,11 +4491,11 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
     return -1;
-  if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0)
-    return -1;
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0)
     return -1;
   if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0)
     return -1;
