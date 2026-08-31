@@ -77821,6 +77821,8 @@ export function glue_block_emit_stmt_i_get(): i32 {
  * Stamp block-emit diverged flag (stage10 10.2.1 slice9).
  * Set by inline asm options(noreturn) after ud2; consumers skip trailing
  * stmt_order entries and final_expr until the next function body entry clears.
+ * Slice11: if-stmt CFG join clears or ANDs arm flags (if-only → clear;
+ * if/else → set only when both arms diverged).
  *
  * @param v i32 — non-zero ⇒ diverged
  * @return void
