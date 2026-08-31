@@ -4212,7 +4212,7 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
   int32_t k;
   int32_t arg_ref;
   int32_t off[8];
-  uint8_t name[16];
+  uint8_t name[128];
   static const uint8_t pfx[11] = {114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108};
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)

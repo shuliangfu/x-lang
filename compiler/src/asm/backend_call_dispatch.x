@@ -3778,7 +3778,7 @@ function try_emit_raw_syscall_call_elf_c(
   }
   unsafe {
     let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    let name: u8[16] = [];
+    let name: u8[128] = [];
     let nlen: i32 = 0;
     let n_args: i32 = 0;
     let is_method: i32 = 0;
