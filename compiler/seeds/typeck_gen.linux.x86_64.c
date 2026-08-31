@@ -6177,6 +6177,10 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
       if (typeck_float_widen_ok(pk, ak)) {
         return 100;
       }
+      /* 10.3.3: TYPE_FN ↔ Cap *u8 opaque ABI cross-kind (≡ typeck.x score). */
+      if ((((ak != pk) && (typeck_is_fnptr_surface(caller_arena, param_ty) !=0)) && (typeck_is_fnptr_surface(caller_arena, arg_ty) !=0))) {
+        return 100;
+      }
       if (((ak ==10) && (pk ==9))) {
         int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
         int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
