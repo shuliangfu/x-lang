@@ -4186,6 +4186,8 @@ static int32_t try_fold_size_align_of_call_elf(struct ast_ASTArena *arena,
 
 extern int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4195,9 +4197,10 @@ extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t
  * Stage 10 S3.1 slice 2 (10.1.1): raw_syscall0..6 ELF direct-encode lowering.
  * Twin of try_emit_raw_syscall_call_elf_c in backend_call_dispatch.x.
  * G.7: spill via glue_sysv_spill_rax_rdx_to_frame_c (same cursor as .x
- * next_offset@4 +16 stride). ta!=0 returns 0 (arm64 svc = 10.1.2).
+ * next_offset@4 +16 stride). ta==0 → x86_64 syscall; ta==1 && !macho →
+ * Linux ELF aarch64 svc #0 (nr x8, args x0..x5); Darwin Mach-O returns 0.
  * @return 1 emitted; 0 not applicable; -1 emit error
- * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ * PLATFORM: LINUX x86_64 or LINUX aarch64 ELF runtime; SHARED emit code.
  */
 static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
                                               struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -4217,9 +4220,14 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  /* x86_64 only this wave; other arches fall through (panic body honest-fail). */
-  if (ta != 0)
-    return 0;
+  /* x86_64, or Linux ELF aarch64. Darwin Mach-O (x16 + svc #0x80) falls
+   * through to the panic body — linux.raw_syscall is the Linux ABI. */
+  if (ta != 0) {
+    if (ta != 1)
+      return 0;
+    if (pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx) != 0)
+      return 0;
+  }
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   memset(name, 0, sizeof(name));
   if (ko == GLUE_EXPR_METHOD_CALL_ORD) {
@@ -4275,33 +4283,53 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
     if (off[i] < 0)
       return -1;
   }
-  for (j = 1; j < n_args; j++) {
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0)
-      return -1;
-    if (j == 1)
-      k = 0;
-    else if (j == 2)
-      k = 1;
-    else if (j == 3)
-      k = 2;
-    else if (j == 4)
-      k = -1;
-    else if (j == 5)
-      k = 4;
-    else
-      k = 5;
-    if (k == -1) {
-      if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0)
+  if (ta == 0) {
+    for (j = 1; j < n_args; j++) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0)
         return -1;
-    } else {
-      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, k, ta) != 0)
+      if (j == 1)
+        k = 0;
+      else if (j == 2)
+        k = 1;
+      else if (j == 3)
+        k = 2;
+      else if (j == 4)
+        k = -1;
+      else if (j == 5)
+        k = 4;
+      else
+        k = 5;
+      if (k == -1) {
+        if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0)
+          return -1;
+      } else {
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, k, ta) != 0)
+          return -1;
+      }
+    }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
+      return -1;
+    if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0)
+      return -1;
+  } else {
+    /* LINUX ELF aarch64: a2..a6 → x1..x5, nr → x8, a1 LAST → x0. */
+    for (j = 2; j < n_args; j++) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, j - 1, ta) != 0)
         return -1;
     }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
+      return -1;
+    if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0)
+      return -1;
+    if (n_args > 1) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0)
+        return -1;
+    }
+    if (arch_arm64_enc_enc_svc(elf_ctx) != 0)
+      return -1;
   }
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0)
-    return -1;
   return 1;
 }
 

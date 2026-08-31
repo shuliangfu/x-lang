@@ -1,9 +1,11 @@
-// Stage 10 S3.1 (10.1.1): raw Linux x86_64 syscall builtin probe.
+// Stage 10 S3.1 (10.1.1+10.1.2): raw Linux syscall builtin probe.
 // Exercises raw_syscall0 (getpid) and raw_syscall3 (write).
-// C path: `xlang -E` + host cc — call sites expand to __xlang_raw_syscallN.
+// C path: `xlang -E` + host cc — call sites expand to __xlang_raw_syscallN
+//   (helpers: #if linux/x86_64 syscall; #elif linux/aarch64 svc #0).
 // Asm path: product `xlang_asm` -o — CALL/METHOD_CALL intercept encodes
-// `syscall` (0F 05); no libc, no C bridge, no panic body.
-// PLATFORM: LINUX x86_64 (syscall numbers are Linux amd64).
+//   x86_64 `syscall` (0F 05) or Linux ELF aarch64 `svc #0` (nr x8).
+// Darwin Mach-O still hits the panic body (not the Linux ABI).
+// PLATFORM: LINUX x86_64 (this probe's syscall numbers are Linux amd64).
 const linux = import("std.sys.linux");
 
 /**

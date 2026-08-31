@@ -78,10 +78,14 @@ export extern function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth
 export extern function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
-/* stage10 S3.1 slice2 (10.1.1): raw syscall byte-level encoders (x86_64 only;
- * bodies in backend_x86_64_enc_c.x — same family as the enc externs above). */
+/* stage10 S3.1 slice2 (10.1.1): raw syscall byte-level encoders (x86_64).
+ * bodies in backend_x86_64_enc_c.x — same family as the enc externs above. */
 export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32;
+/* stage10 S3.1 10.1.2: Linux aarch64 svc #0 + nr home x8.
+ * bodies in seeds/backend_arm64_enc_c.from_x.c (G.7 mov_xn_xm family). */
+export extern "C" function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx: *u8): i32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
 export extern function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf: *u8, ta: i32): i32;
@@ -3747,24 +3751,27 @@ function try_fold_size_align_of_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32
  * FIELD_ACCESS/VAR callee. Arity digit is the callee-name suffix; arg count
  * must equal arity+1 (arg 0 is the syscall nr).
  *
- * Lowering (Linux x86_64 kernel ABI; ta!=0 returns 0 — arm64 svc = 10.1.2):
+ * Lowering:
  *   1. emit each arg expr (pipeline_asm_emit_expr_elf_for_call_args → rax) and
  *      spill rax to a frame slot, bumping the AsmFuncCtx.next_offset cursor
  *      exactly like glue_sysv_spill_rax_rdx_to_frame_c (G.7 same discipline;
  *      arg emissions may clobber rax so nothing lives in registers mid-loop)
- *   2. reload slots into syscall homes: a1→rdi(k0) a2→rsi(k1) a3→rdx(k2)
- *      a4→r10(raw; no C-ABI k slot) a5→r8(k4) a6→r9(k5); nr LAST → rax
- *   3. enc syscall (0F 05); return value stays in rax like a normal call,
- *      clobbers rcx/r11 (dead here). No stack args, no stack cleanup.
+ *   2a. Linux x86_64 (ta==0): reload a1→rdi(k0) a2→rsi(k1) a3→rdx(k2)
+ *       a4→r10(raw; no C-ABI k slot) a5→r8(k4) a6→r9(k5); nr LAST → rax;
+ *       enc syscall (0F 05). Return in rax; clobbers rcx/r11 (dead here).
+ *   2b. Linux ELF aarch64 (ta==1 && !macho): a2..a6 → x1..x5; nr → x8;
+ *       a1 LAST → x0 (so mov-to-x8 does not clobber a1); enc svc #0.
+ *       Return in x0. Darwin Mach-O (ta==1 && macho) returns 0 — Darwin
+ *       syscalls use x16 + svc #0x80, not the Linux ABI (honest panic body).
  *
  * @param arena *u8 — ASTArena*
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param expr_ref i32 — CALL/METHOD_CALL expr ref
  * @param ctx *u8 — AsmFuncCtx* (frame cursor at byte 4)
- * @param ta i32 — target arch (0 x86_64 only this wave)
+ * @param ta i32 — target arch (0 x86_64, 1 aarch64)
  * @return i32 — 1 emitted; 0 not applicable (fall through to normal call);
  *               -1 emit error
- * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ * PLATFORM: LINUX x86_64 or LINUX aarch64 ELF runtime; SHARED emit code.
  */
 function try_emit_raw_syscall_call_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
@@ -3772,11 +3779,13 @@ function try_emit_raw_syscall_call_elf_c(
   if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
     return 0;
   }
-  /* x86_64 only this wave; other arches fall through (panic body honest-fail). */
-  if (ta != 0) {
-    return 0;
-  }
   unsafe {
+    /* x86_64, or Linux ELF aarch64. Darwin Mach-O (x16 + svc #0x80) falls
+     * through to the panic body — linux.raw_syscall is the Linux ABI. */
+    if (ta != 0) {
+      if (ta != 1) { return 0; }
+      if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0) { return 0; }
+    }
     let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
     let name: u8[128] = [];
     let nlen: i32 = 0;
@@ -3847,27 +3856,44 @@ function try_emit_raw_syscall_call_elf_c(
       i = i + 1;
     }
     call_dispatch_store_i32_le(ctx, 4, cur + 16);
-    /* Reload into syscall homes: a1..a6 first (rdi/rsi/rdx/r10/r8/r9), then
-     * nr LAST so rax ends holding the syscall number. */
-    j = 1;
-    while (j < n_args) {
-      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0) { return 0 - 1; }
-      if (j == 1) { k = 0; }
-      else if (j == 2) { k = 1; }
-      else if (j == 3) { k = 2; }
-      else if (j == 4) { k = 0 - 1; }
-      else if (j == 5) { k = 4; }
-      else { k = 5; }
-      if (k == 0 - 1) {
-        /* a4 → r10 (49 89 C2); r10 has no C-ABI mov_rax_to_arg_reg slot. */
-        if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
-      } else {
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+    if (ta == 0) {
+      /* Reload into syscall homes: a1..a6 first (rdi/rsi/rdx/r10/r8/r9), then
+       * nr LAST so rax ends holding the syscall number. */
+      j = 1;
+      while (j < n_args) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0) { return 0 - 1; }
+        if (j == 1) { k = 0; }
+        else if (j == 2) { k = 1; }
+        else if (j == 3) { k = 2; }
+        else if (j == 4) { k = 0 - 1; }
+        else if (j == 5) { k = 4; }
+        else { k = 5; }
+        if (k == 0 - 1) {
+          /* a4 → r10 (49 89 C2); r10 has no C-ABI mov_rax_to_arg_reg slot. */
+          if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+        } else {
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        }
+        j = j + 1;
       }
-      j = j + 1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      /* LINUX ELF aarch64: a2..a6 → x1..x5 (C-ABI k=1..5), nr → x8,
+       * then a1 LAST → x0 so the x8 move does not clobber a1. */
+      j = 2;
+      while (j < n_args) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[j], ta) != 0) { return 0 - 1; }
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, j - 1, ta) != 0) { return 0 - 1; }
+        j = j + 1;
+      }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0) { return 0 - 1; }
+      if (n_args > 1) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+      }
+      if (arch_arm64_enc_enc_svc(elf_ctx) != 0) { return 0 - 1; }
     }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_syscall(elf_ctx) != 0) { return 0 - 1; }
     return 1;
   }
 }

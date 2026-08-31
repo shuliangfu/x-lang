@@ -1016,6 +1016,26 @@ int32_t arch_arm64_enc_enc_mov_rax_to_x9(struct platform_elf_ElfCodegenCtx *elf_
   return arm64_enc_mov_xn_xm(elf_ctx, 9, 0);
 }
 
+/**
+ * Stage 10 S3.1 10.1.2: mov x8, x0 (ORR x8, xzr, x0).
+ * Linux aarch64 kernel ABI puts the syscall number in x8 (not a C-ABI
+ * arg-reg k slot; k=0..7 are x0..x7). G.7 complete existing mov_xn_xm family.
+ * PLATFORM: LINUX|aarch64 runtime effect; SHARED emit code.
+ */
+int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 8, 0);
+}
+
+/**
+ * Stage 10 S3.1 10.1.2: svc #0 (0xD4000001).
+ * Linux aarch64 syscall instruction. Darwin uses svc #0x80 with nr in x16
+ * — this encoder is Linux-only; the CALL intercept skips Mach-O.
+ * PLATFORM: LINUX|aarch64 runtime effect; SHARED emit code.
+ */
+int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xd4000001u);
+}
+
 int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return arm64_enc_mov_xn_xm(elf_ctx, 0, 9);
 }
