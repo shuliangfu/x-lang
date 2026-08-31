@@ -5370,6 +5370,14 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     if (tk == TypeKind.TYPE_LINEAR as i32 && !ast.ref_is_null(elem_ref)) {
       return emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx);
     }
+    /*
+     * 10.3.1: TYPE_FN → abstract C fnptr `Ret (*)(T0,…)`.
+     * Named locals/params use emit_c_fnptr_decl with name (like *[N]T).
+     * PLATFORM: SHARED host-C. G.7 single declarator authority.
+     */
+    if (tk == TypeKind.TYPE_FN as i32) {
+      return emit_c_fnptr_decl(arena, out, type_ref, 0 as *u8, 0, ctx);
+    }
     return emit_type_kind_ord(out, tk);
   }
 }
@@ -5732,6 +5740,106 @@ export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32
     }
     elem = pipeline_type_elem_ref_at(arena, type_ref);
     return type_is_ptr_to_fixed_array(arena, elem);
+  }
+}
+
+/**
+ * Host-C: emit a C function-pointer declarator for TYPE_FN (10.3.1).
+ *
+ * Storage (parser): elem=return, array_size=n_params, type_args=params.
+ * Form: `Ret (*name)(T0, T1, …)` or abstract `Ret (*)(T0, …)` when name_len==0.
+ * Zero params → `(void)` (ISO C empty-prototype ban). Nested TYPE_FN params
+ * recurse via emit_type → abstract form.
+ *
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param fn_ty i32 — TYPE_FN type_ref
+ * @param name *u8 — optional declarator name (null when name_len==0)
+ * @param name_len i32 — 0 for abstract type (casts / emit_type)
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C. G.7 single TYPE_FN declarator authority.
+ */
+export function emit_c_fnptr_decl(arena: *ASTArena, out: *CodegenOutBuf, fn_ty: i32, name: *u8,
+name_len: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ret_ty: i32 = 0;
+    let n: i32 = 0;
+    let i: i32 = 0;
+    let pty: i32 = 0;
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || fn_ty <= 0) {
+      return -1;
+    }
+    if (pipeline_type_kind_ord_at(arena, fn_ty) != (TypeKind.TYPE_FN as i32)) {
+      return -1;
+    }
+    ret_ty = pipeline_type_elem_ref_at(arena, fn_ty);
+    if (ret_ty <= 0) {
+      /* Missing ret → void. */
+      let v: u8[5] = [118, 111, 105, 100, 0];
+      if (emit_bytes_from_ptr(out, &v[0], 4) != 0) {
+        return -1;
+      }
+    } else if (emit_type(arena, out, ret_ty, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    /* " (*" */
+    if (append_byte(out, 32) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 42) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && name != 0 as *u8) {
+      if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+        return -1;
+      }
+    }
+    /* ")(" */
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    n = pipeline_type_array_size_at(arena, fn_ty);
+    if (n < 0) {
+      n = 0;
+    }
+    if (n == 0) {
+      let vd: u8[5] = [118, 111, 105, 100, 0];
+      if (emit_bytes_from_ptr(out, &vd[0], 4) != 0) {
+        return -1;
+      }
+    } else {
+      i = 0;
+      while (i < n) {
+        if (i > 0) {
+          if (append_byte(out, 44) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 32) != 0) {
+            return -1;
+          }
+        }
+        pty = pipeline_type_type_arg_ref_at(arena, fn_ty, i);
+        if (pty <= 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, pty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        i = i + 1;
+      }
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    return 0;
   }
 }
 
@@ -17488,6 +17596,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             let type_emitted: i32 = 0;
             let use_local_array: i32 = 0;
             let use_ptr_to_array: i32 = 0;
+            let use_fnptr: i32 = 0;
             if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
               use_local_array = 1;
             }
@@ -17497,6 +17606,15 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              */
             if (use_local_array == 0 && !ast.ref_is_null(let_type_ref) && type_is_ptr_to_fixed_array(arena, let_type_ref) != 0) {
               use_ptr_to_array = 1;
+            }
+            /*
+             * 10.3.1: `let f: function(T): R = …` → `R (*f)(T)`.
+             * Bare emit_type abstract + name → invalid `R (*)(T) f`.
+             * PLATFORM: SHARED host-C. G.7 emit_c_fnptr_decl.
+             */
+            if (use_local_array == 0 && use_ptr_to_array == 0 && !ast.ref_is_null(let_type_ref)
+                && pipeline_type_kind_ord_at(arena, let_type_ref) == (TypeKind.TYPE_FN as i32)) {
+              use_fnptr = 1;
             }
             if (use_local_array != 0) {
               if (emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {
@@ -17607,6 +17725,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
               type_emitted = 1;
+            } else if (use_fnptr != 0 && type_emitted == 0) {
+              if (emit_c_fnptr_decl(arena, out, let_type_ref, &emit_nm[0], emit_nml, ctx) != 0) {
+                return -1;
+              }
+              type_emitted = 1;
             } else if (type_emitted == 0) {
               if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
                 let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
@@ -17618,7 +17741,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
             }
-            if (use_ptr_to_array == 0) {
+            if (use_ptr_to_array == 0 && use_fnptr == 0) {
               if (append_byte(out, 32) != 0) {
                 return -1;
               }
@@ -18162,8 +18285,14 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       /* See implementation. */
       let type_emitted: i32 = 0;
       let use_local_array: i32 = 0;
+      let use_fnptr: i32 = 0;
       if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
         use_local_array = 1;
+      }
+      /* 10.3.1 fallback let: TYPE_FN → named fnptr declarator (mirror primary path). */
+      if (use_local_array == 0 && !ast.ref_is_null(let_type_ref)
+          && pipeline_type_kind_ord_at(arena, let_type_ref) == (TypeKind.TYPE_FN as i32)) {
+        use_fnptr = 1;
       }
       if (use_local_array != 0) {
         if (emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {
@@ -18216,20 +18345,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         }
       }
-      if (type_emitted == 0) {
-        if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_fb) && linit_fb > 0 && linit_fb <= arena.num_exprs) {
-          let init_e: Expr = ast.ast_arena_expr_get(arena, linit_fb);
-          if (!ast.ref_is_null(init_e.resolved_type_ref)) {
-            let_type_ref = init_e.resolved_type_ref;
-          }
-        }
-        if (emit_type(arena, out, let_type_ref, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
-          return -1;
-        }
-      }
-      if (append_byte(out, 32) != 0) {
-        return -1;
-      }
+      /* Build local name before type emit (fnptr embeds name in declarator). */
       let emit_nm_fb: u8[128] = [];
       let emit_nml_fb: i32 = 0;
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
@@ -18273,8 +18389,29 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           pi3 = pi3 + 1;
         }
       }
-      if (emit_bytes_64(out, &emit_nm_fb[0], emit_nml_fb) != 0) {
-        return -1;
+      if (use_fnptr != 0 && type_emitted == 0) {
+        if (emit_c_fnptr_decl(arena, out, let_type_ref, &emit_nm_fb[0], emit_nml_fb, ctx) != 0) {
+          return -1;
+        }
+        type_emitted = 1;
+      } else if (type_emitted == 0) {
+        if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_fb) && linit_fb > 0 && linit_fb <= arena.num_exprs) {
+          let init_e: Expr = ast.ast_arena_expr_get(arena, linit_fb);
+          if (!ast.ref_is_null(init_e.resolved_type_ref)) {
+            let_type_ref = init_e.resolved_type_ref;
+          }
+        }
+        if (emit_type(arena, out, let_type_ref, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
+          return -1;
+        }
+      }
+      if (use_fnptr == 0) {
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &emit_nm_fb[0], emit_nml_fb) != 0) {
+          return -1;
+        }
       }
       if (use_local_array != 0) {
         if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
@@ -19990,6 +20127,35 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
           if (emit_c_ptr_to_fixed_array_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &pta_nm[0], pta_nl, ctx) != 0) {
             return -1;
           }
+        } else if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p))
+            == (TypeKind.TYPE_FN as i32)) {
+          /* 10.3.1: param `f: function(T): R` → `R (*f)(T)`. PLATFORM: SHARED. */
+          let pfn_nm: u8[128] = [];
+          let pfn_nl: i32 = 0;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            codegen_copy_param_name32_from_module(module, fi, p, &pfn_nm[0]);
+            pfn_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+            if (pfn_nm[0] <= 32) {
+              pfn_nl = 0;
+            }
+          }
+          if (pfn_nl <= 0) {
+            pfn_nm[0] = 95;
+            pfn_nm[1] = 112;
+            pfn_nl = 2;
+            if (p < 10) {
+              pfn_nm[2] = ((p + 48) as u8);
+              pfn_nl = 3;
+            } else {
+              pfn_nm[2] = ((p / 10) + 48) as u8;
+              pfn_nm[3] = ((p % 10) + 48) as u8;
+              pfn_nl = 4;
+            }
+          }
+          if (emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p),
+              &pfn_nm[0], pfn_nl, ctx) != 0) {
+            return -1;
+          }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
@@ -19997,6 +20163,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
          * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
          * Emit: `struct xlang_slice_T * name` so field access uses -> and calls pass &local. */
         if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)
             && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -20005,8 +20172,9 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             return -1;
           }
         }
-        /* wave636: PTR→ARRAY / ARRAY-of-ARRAY already emitted name inside declarator — skip space+name. */
-        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
+        /* wave636 / 10.3.1: named-array / TYPE_FN already emitted name — skip space+name. */
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
           }
@@ -23696,11 +23864,41 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           if (emit_c_ptr_to_fixed_array_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &pta_nm[0], pta_nl, ctx) != 0) {
             return -1;
           }
+        } else if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p))
+            == (TypeKind.TYPE_FN as i32)) {
+          /* Proto twin: `function(T): R` param → `R (*name)(T)`. PLATFORM: SHARED. */
+          let pfn_nm: u8[128] = [];
+          let pfn_nl: i32 = 0;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            codegen_copy_param_name32_from_module(module, fi, p, &pfn_nm[0]);
+            pfn_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+            if (pfn_nm[0] <= 32) {
+              pfn_nl = 0;
+            }
+          }
+          if (pfn_nl <= 0) {
+            pfn_nm[0] = 95;
+            pfn_nm[1] = 112;
+            pfn_nl = 2;
+            if (p < 10) {
+              pfn_nm[2] = ((p + 48) as u8);
+              pfn_nl = 3;
+            } else {
+              pfn_nm[2] = ((p / 10) + 48) as u8;
+              pfn_nm[3] = ((p % 10) + 48) as u8;
+              pfn_nl = 4;
+            }
+          }
+          if (emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p),
+              &pfn_nm[0], pfn_nl, ctx) != 0) {
+            return -1;
+          }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
         /* PLATFORM: SHARED — TYPE_SLICE params as pointers (mirror emit_func body; seed/glue ABI). */
         if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)
             && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -23709,7 +23907,8 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
             return -1;
           }
         }
-        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)) {
         if (append_byte(out, 32) != 0) {
           return -1;
         }
