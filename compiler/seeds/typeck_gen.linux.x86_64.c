@@ -3026,7 +3026,7 @@ int32_t typeck_x_type_align(struct ast_Module * module, struct ast_ASTArena * ar
     if (((((ko ==0) || (ko ==3)) || (ko ==1)) || (ko ==14))) {
       return 4;
     }
-    if (((((((ko ==5) || (ko ==4)) || (ko ==6)) || (ko ==7)) || (ko ==15)) || (ko ==9))) {
+    if (((((((ko ==5) || (ko ==4)) || (ko ==6)) || (ko ==7)) || (ko ==15)) || (ko ==9)) || (ko ==18))) {
       return 8;
     }
     if ((ko ==11)) {
@@ -3119,7 +3119,7 @@ int32_t typeck_x_type_size(struct ast_Module * module, struct ast_ASTArena * are
     if (((((ko ==0) || (ko ==3)) || (ko ==1)) || (ko ==14))) {
       return 4;
     }
-    if (((((((ko ==5) || (ko ==4)) || (ko ==6)) || (ko ==7)) || (ko ==15)) || (ko ==9))) {
+    if (((((((ko ==5) || (ko ==4)) || (ko ==6)) || (ko ==7)) || (ko ==15)) || (ko ==9)) || (ko ==18))) {
       return 8;
     }
     if ((ko ==11)) {
@@ -7513,6 +7513,10 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
       return 1;
     }
     if ((typeck_array_to_slice_ok(arena, got, expect_ref) !=0)) {
+      return 1;
+    }
+    /* 10.3.3: TYPE_FN ↔ Cap *u8 opaque ABI on return (≡ typeck.x). */
+    if (((typeck_is_fnptr_surface(arena, expect_ref) !=0) && (typeck_is_fnptr_surface(arena, got) !=0))) {
       return 1;
     }
     int32_t ord_linear = 12;
