@@ -72,6 +72,8 @@ export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i
 export extern function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
 export extern function pipeline_expr_call_num_type_args_at(arena: *u8, er: i32): i32;
+/* stage10 10.2.1 slice9: mark block emit diverged after options(noreturn). */
+export extern function glue_asm_block_diverged_set(v: i32): void;
 export extern function pipeline_expr_call_type_arg_ref_at(arena: *u8, er: i32, idx: i32): i32;
 export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
 export extern function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
@@ -4661,6 +4663,8 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP · mk==100 rbx · mk==101 r10 (x86).
  * Place `_` (VAR name "_"): clobber discard — no store (slice6).
  * Options bits in call_num_type_args; noreturn(32) → x86 ud2 after (slice8).
+ * Slice9: after noreturn ud2, glue_asm_block_diverged_set(1) so block emit
+ * skips trailing stmt_order / final_expr (no fallthrough return).
  * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — x8 out still unsupported.
  * @return i32 — 0 ok; -1 error / unsupported
  * PLATFORM: SHARED emit · LINUX|x86_64 gold · aarch64 encode (x0 out only via arch).
@@ -4865,6 +4869,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
       i = i + 1;
     }
     /* Slice8: options(noreturn) → ud2 after asm (trap if template returns). */
+    /* Slice9: stamp diverged so parent block skips unreachable stmts/final_expr. */
     opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
     if ((opt_bits & 32) != 0) {
       if (ta == 0) {
@@ -4873,6 +4878,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         if (pipeline_elf_ctx_append_bytes(elf_ctx, &ud2[0], 2) != 0) {
           return 0 - 1;
         }
+        glue_asm_block_diverged_set(1);
       } else {
         return 0 - 1;
       }

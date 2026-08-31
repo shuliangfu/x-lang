@@ -201,6 +201,8 @@ struct glue_AsmFuncCtxCall {
 #define GLUE_TYPE_SLICE_ORD 11
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
+/* stage10 10.2.1 slice9: block truncate after options(noreturn) ud2. */
+extern void glue_asm_block_diverged_set(int32_t v);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -4998,6 +5000,7 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
       return -1;
   }
   /* Slice8: options(noreturn) → ud2 after asm (trap if template returns). */
+  /* Slice9: stamp diverged so parent block skips unreachable stmts/final_expr. */
   {
     int32_t opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
     uint8_t ud2[2];
@@ -5008,6 +5011,7 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
       ud2[1] = 0x0bu;
       if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, ud2, 2) != 0)
         return -1;
+      glue_asm_block_diverged_set(1);
     }
   }
   return 0;
