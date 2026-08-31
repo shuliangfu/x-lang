@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** TYPE_FN＝18 地基；Darwin Cap 共验仍阻；残：parser／10.1.3 NT |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** TYPE_FN＝18＋parser `function(...): T`；Darwin Cap 共验仍阻；残：resolve／codegen／10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -231,8 +231,8 @@
 
 ### 10.3 fnptr
 
-- 🟡 **10.3.1** fnptr 类型表达 — **slice0 地基**：`TypeKind.TYPE_FN`＝ord **18**（append-only after DYN＝17）；`type_kind_ordinal` hi→18；twin `ast.x`／`typeck.x`／`typeck_gen`／`codegen_gen`／`ast.h`。残：parser `fn(...) -> T`／resolve／codegen／池字段
-- 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin**：ensure 拒不完整 libtool archive；Cap 共验仍阻（g05 UNDEF hybrid／无 pin egg；thin+seed-rest `cc -r` 可得 MH_OBJECT 仍不足 g05）。残：Darwin Cap 全链
+- 🟡 **10.3.1** fnptr 类型表达 — **slice0 地基** TYPE_FN＝18 ✅；**slice1 parser** `function(...): T`（权威 `parser_asm_type_ref_slice.inc`；sidecar 参／elem＝ret／array_size＝n）。残：resolve／codegen／赋值互转／`*u8` coerce
+- 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin**：ensure 拒不完整 libtool archive；Cap 共验仍阻（g05 UNDEF hybrid／无 pin egg）。残：Darwin Cap 全链
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
 ### 10.4–10.7
