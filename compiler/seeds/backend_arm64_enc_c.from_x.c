@@ -1150,6 +1150,64 @@ int32_t arch_arm64_enc_enc_cset_eq_w0(struct platform_elf_ElfCodegenCtx *elf_ctx
   return arm64_enc_u32_le(elf_ctx, 0x1a9f17e0u);
 }
 
+/**
+ * Stage 10 10.4.1 arm64 i64: ldar x0, [x0] (0xC8DFFC00).
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_ldar_x0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xc8dffc00u);
+}
+
+/**
+ * Stage 10 10.4.1 arm64 i64: stlr x1, [x0] (0xC89FFC01).
+ * Pre: x1=val, x0=ptr.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_stlr_x1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xc89ffc01u);
+}
+
+/**
+ * ldr x0, [x3] — load *expected i64 before CASAL.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_ldr_x0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xf9400060u);
+}
+
+/**
+ * str x0, [x3] — write old CAS i64 to *expected.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_str_x0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xf9000060u);
+}
+
+/**
+ * mov x4, x0 — save expected i64 for post-CASAL cmp.
+ * PLATFORM: SHARED aarch64 emit. G.7 mov_xn_xm family.
+ */
+int32_t arch_arm64_enc_enc_mov_x0_to_x4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 4, 0);
+}
+
+/**
+ * casal x0, x1, [x2] (0xC8E0FC41) — LSE CAS acquire-release i64.
+ * Pre: x0=expected, x1=desired, x2=ptr. Post: x0=old.
+ * PLATFORM: SHARED aarch64 emit (ARMv8.1 LSE).
+ */
+int32_t arch_arm64_enc_enc_casal_x0_x1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xc8e0fc41u);
+}
+
+/**
+ * cmp x0, x4 (subs xzr, x0, x4) — i64 CAS success test.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_cmp_x0_x4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_u32_le(elf_ctx, 0xeb04001fu);
+}
+
 int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return arm64_enc_mov_xn_xm(elf_ctx, 0, 9);
 }
