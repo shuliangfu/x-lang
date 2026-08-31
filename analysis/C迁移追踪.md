@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–8 ✅（形参 host-C＠`e9ccc020f`）；**10.3.3** slice0–3 ✅；Darwin Cap／pin egg 仍阻；残：Cap 软／10.1.3 NT |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–9 ✅（Cap 溯源＠`2e1783648`）；**10.3.3** slice0–3 ✅；Darwin Cap／pin egg 仍阻；残：真 FFI Cap／10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -231,7 +231,7 @@
 
 ### 10.3 fnptr
 
-- 🟡 **10.3.1** fnptr 类型表达 — **slice0–8** ✅（TYPE_FN＝18／parser／Cap coerce／裸名／`as`／签名；host-C let＠`076c5f3e4`；**形参／proto／fallback seed 全孪**＠`e9ccc020f` host-cc／asm **42**）。残：不透明 Cap 局部软；Darwin
+- 🟡 **10.3.1** fnptr 类型表达 — **slice0–9** ✅（TYPE_FN＝18／parser／Cap coerce／裸名／`as`／签名／host-C let＋形参；**Cap 溯源硬拒**＠`2e1783648`：`as *u8`／同块 Cap 局部初值可恢复则比对签名；真不透明仍软）。残：真 FFI Cap；Darwin
 - 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin pin egg 阻**：本机 `xlang_asm` 仍旧二进制；pabi≈425KiB 残档；无 MH_OBJECT ≥1MiB pin；mega `-E` 硬禁；ensure 已拒 libtool 残档＠`739ccf1d3`。残：Darwin Cap 全链
 - 🟡 **10.3.3** fnptr 作参／返回／字段 — **slice0–3 ✅**＠`75580cabf`。残：Darwin
 
