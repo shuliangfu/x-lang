@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** TYPE_FN＝18＋parser `function(...): T`；Darwin Cap 共验仍阻；残：resolve／codegen／10.1.3 NT |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Ubuntu ✅；**10.3.1** slice0–2 TYPE_FN＋parser＋Cap coerce／call Ubuntu ✅；Darwin Cap 仍阻；残：裸名 LEA／10.3.3／10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -231,7 +231,7 @@
 
 ### 10.3 fnptr
 
-- 🟡 **10.3.1** fnptr 类型表达 — **slice0** TYPE_FN＝18 ✅；**slice1 parser** `function(...): T` ✅（`fn_type_parse_smoke.x` → `expected function, found i32`＠`4bb7e8b74`）。残：resolve／codegen／`*u8` coerce
+- 🟡 **10.3.1** fnptr 类型表达 — **slice0** TYPE_FN＝18 ✅；**slice1 parser** `function(...): T` ✅；**slice2** Cap `*u8`→TYPE_FN coerce＋间接调 ✅（`fn_type_parse_smoke.x` `(fn as *u8)`→`f(41)` **run=42**＠`7da3889f8`）。残：裸名 LEA／签名比对／codegen C repr／`as function(...)`
 - 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin**：ensure 拒不完整 libtool archive；Cap 共验仍阻（g05 UNDEF hybrid／无 pin egg）。残：Darwin Cap 全链
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
