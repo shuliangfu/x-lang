@@ -4380,8 +4380,9 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       return 0;
   }
 
-  /* Cap-fn-ptr (10.3.2 slice1): CALL through *u8 — emit callee → rax/x0, blr.
-   * Twin of backend_call_dispatch.x; 0-arg only. PLATFORM: SHARED. */
+  /* Cap-fn-ptr (10.3.2): CALL through *u8 — spill fn + emit_call_args + blr.
+   * Twin of backend_call_dispatch.x. slice1 0-arg; slice2 GP args.
+   * PLATFORM: SHARED. */
   {
     int32_t cap_tr = 0;
     int32_t cap_ko = 0;
@@ -4389,6 +4390,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     int32_t cap_eko = 0;
     int32_t cap_nargs = 0;
     int32_t cap_eff = callee_ref;
+    int32_t cap_fn_off = 0;
     if (callee_ko == 51) {
       int32_t inn = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
       if (inn > 0)
@@ -4403,9 +4405,23 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
           cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
           if (cap_eko == 2) {
             cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
-            if (cap_nargs != 0)
+            if (cap_nargs < 0)
+              return -1;
+            if (cap_nargs > glue_asm_call_reg_max(ta))
               return -1;
             if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_eff, ctx, ta) != 0)
+              return -1;
+            if (cap_nargs == 0) {
+              if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0)
+                return -1;
+              return 0;
+            }
+            cap_fn_off = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+            if (cap_fn_off < 0)
+              return -1;
+            if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, cap_nargs) != 0)
+              return -1;
+            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, cap_fn_off, ta) != 0)
               return -1;
             if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0)
               return -1;
