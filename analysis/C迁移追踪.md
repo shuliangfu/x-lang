@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–3 Cap-fn-ptr（含 `(*f)()`）Ubuntu git ✅；残：栈参／TYPE_FN／10.1.3 NT |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1** C＋asm ✅ · **10.1.2** arm64 svc ✅ · **10.1.4** slice1 裸 libc SysV ✅ · **10.3.2** slice0–4 Cap-fn-ptr（含 `(*f)()`／栈参）待 git；残：TYPE_FN／10.1.3 NT |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -232,7 +232,7 @@
 ### 10.3 fnptr
 
 - ⬜ **10.3.1** fnptr 类型表达  
-- 🟡 **10.3.2** fnptr cast + indirect call — **slice0–3 ✅**：取址／`f()`／`f(x)`／`(*f)()`（DEREF peel≡Cap `f()`；typeck＋asm＋seed twin）。探针 `fnptr_addr_smoke.x` Ubuntu git＠`d4ae8371c` build=0 run=42／L2 5／5。残：栈参／`TYPE_FN`（10.3.1）；Darwin 共验待 pabi 恢复  
+- 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4**：取址／`f()`／`f(x)`／`(*f)()`／**栈参**（撤 Cap `reg_max` 硬拒，G.7 复用 `emit_call_args`）。探针 `fnptr_addr_smoke.x`（含 `f7(…,21)`→42）。残：`TYPE_FN`（10.3.1）；Darwin 共验待 pabi 恢复  
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
 ### 10.4–10.7
