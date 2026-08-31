@@ -965,6 +965,9 @@ export extern "C" function write(fd: i32, buf: *u8, count: i64): i64;
 // wave269: asm_sum_block_array_temp_bytes pure (block_tree leave; dual-export ban).
 // wave152 pure-owned faces: pipeline_asm_emit_expr_elf_c body in EOF section (#[no_mangle] export; no dual export extern).
 export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+// Cap-fn-ptr (stage10 10.3.2 slice0): LEA of same-module #[no_mangle] fn into rax/x0.
+// G.7: reuse backend_enc_dispatch authority (vtable LEA co-path); no second encoder.
+export extern "C" function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 // wave123 Cap residual: lea_common pure leave callees (pipeline_elf_ctx still host-cc).
@@ -31803,7 +31806,9 @@ export function glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena: *u8, elf_ctx
  * wave138 pure: G.7 authority (was pipeline_asm_emit_as_elf_impl).
  * Cap residual: emit_expr_elf_c + cast encoders + f32/f64 classifiers +
  *   float_lit face + elf append (u32 zext mov eax,eax).
- * PLATFORM: SHARED freestanding cast emit.
+ * Cap-fn-ptr (10.3.2 slice0): same-module bare fn as *u8 → LEA link
+ *   symbol into rax/x0 (#[no_mangle] only; locals win over same-named funcs).
+ * PLATFORM: SHARED freestanding cast emit · LINUX gold · MACOS underscore.
  */
 #[no_mangle]
 export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -31817,6 +31822,17 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
   let src_is_f64: i32 = 0;
   let rc: i32 = 0;
   let mov_eax: u8[2] = [];
+  // Cap-fn-ptr scratch (slice0 #[no_mangle] LEA); kept at top for .x let discipline.
+  let fnptr_off: i32 = 0;
+  let fnptr_vlen: i32 = 0;
+  let fnptr_fi: i32 = 0;
+  let fnptr_nm: i32 = 0;
+  let fnptr_macho: i32 = 0;
+  let fnptr_k: i32 = 0;
+  let fnptr_sym_len: i32 = 0;
+  let fnptr_mod: *u8 = 0 as *u8;
+  let fnptr_vname: u8[128] = [];
+  let fnptr_sym: u8[130] = [];
   if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
     return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   }
@@ -32083,6 +32099,68 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
             rc = backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
           }
           return rc;
+        }
+      }
+    }
+  }
+  // Cap-fn-ptr: (same_module_fn as *u8) → LEA of link symbol (rax/x0).
+  // Complements wave100 typeck Cap-fn-ptr + C codegen_try_emit_fn_as_value.
+  // Locals (stack slot) win over same-named funcs. slice0: #[no_mangle] only.
+  // PLATFORM: SHARED · MACOS Mach-O leading '_' · LINUX ELF bare name.
+  if (tgt > 0) {
+    unsafe {
+      tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+      op_ko = pipeline_expr_kind_ord_at(arena, op);
+    }
+    // TYPE_PTR=9 · EXPR_VAR=3
+    if (tgt_kind == 9 && op_ko == 3) {
+      unsafe {
+        fnptr_off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
+      }
+      if (fnptr_off < 0) {
+        unsafe {
+          fnptr_vlen = pipeline_expr_var_name_len(arena, op);
+        }
+        if (fnptr_vlen > 0 && fnptr_vlen < 128) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, op, &fnptr_vname[0]);
+            fnptr_mod = glue_emit_module_from_ctx(ctx);
+          }
+          if (fnptr_mod != (0 as *u8)) {
+            unsafe {
+              fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, &fnptr_vname[0], fnptr_vlen);
+            }
+            if (fnptr_fi >= 0) {
+              unsafe {
+                fnptr_nm = pipeline_module_func_is_no_mangle_at(fnptr_mod, fnptr_fi);
+              }
+              if (fnptr_nm != 0) {
+                unsafe {
+                  fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+                }
+                if (fnptr_macho != 0) {
+                  fnptr_sym[0] = 95 as u8;
+                  fnptr_k = 0;
+                  while (fnptr_k < fnptr_vlen) {
+                    fnptr_sym[fnptr_k + 1] = fnptr_vname[fnptr_k];
+                    fnptr_k = fnptr_k + 1;
+                  }
+                  fnptr_sym_len = fnptr_vlen + 1;
+                } else {
+                  fnptr_k = 0;
+                  while (fnptr_k < fnptr_vlen) {
+                    fnptr_sym[fnptr_k] = fnptr_vname[fnptr_k];
+                    fnptr_k = fnptr_k + 1;
+                  }
+                  fnptr_sym_len = fnptr_vlen;
+                }
+                unsafe {
+                  rc = backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, &fnptr_sym[0], fnptr_sym_len, ta);
+                }
+                return rc;
+              }
+            }
+          }
         }
       }
     }
