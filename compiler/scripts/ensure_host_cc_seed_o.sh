@@ -3137,6 +3137,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_slot_bytes_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_fnptr_as_thin.x ] \
+      && [ src/runtime_pipeline_abi_fnptr_as_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3154,6 +3158,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_field_load_sz_thin "$o" || true
       pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
+      pipeline_abi_inject_fnptr_as_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
@@ -3178,6 +3183,7 @@ ensure_pipeline_abi_prefer_one() {
       # dup). Do not abort before ptrslot (this leaf).
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || return 1
+      pipeline_abi_inject_fnptr_as_thin "$o" || return 1
       return 0
     fi
   fi
@@ -3228,6 +3234,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+    pipeline_abi_inject_fnptr_as_thin "$o" || true
     return 0
   fi
 
@@ -3249,6 +3256,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+    pipeline_abi_inject_fnptr_as_thin "$o" || true
     return 0
   fi
   if ! ensure_one "$o" "$seed" $cold_flags; then
@@ -3269,6 +3277,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_type_to_c_repr_thin "$o" || true
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
   pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+  pipeline_abi_inject_fnptr_as_thin "$o" || true
   return 0
 }
 
@@ -3352,6 +3361,13 @@ pipeline_abi_inject_field_load_sz_thin() {
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_unused_hints_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_unused_hints_thin.x" "unusedhints-thin"
+}
+
+# Cap-fn-ptr (10.3.2 slice0): EXPR_AS same-module #[no_mangle] fn as *u8 → LEA.
+# G.7: thin body matches pipeline_asm_emit_as_elf_impl / _c in mega .x.
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_fnptr_as_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
 }
 
 # WPO_DUMP_CALLGRAPH (XLANG_WPO_DUMP_CALLGRAPH). G.7: thin body matches
