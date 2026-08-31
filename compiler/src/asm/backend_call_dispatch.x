@@ -3931,10 +3931,11 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (rs_rc > 0) { return 0; }
     }
     /*
-     * Cap-fn-ptr (10.3.2 slice1): CALL through *u8 local/param.
+     * Cap-fn-ptr (10.3.2): CALL through *u8 local/param.
      * typeck stamps callee as TYPE_PTR(u8). Emit callee → rax/x0, then
      * blr / call *reg (G.7 reuse backend_enc_blr_arch; same as F7 dyn).
-     * slice1: 0-arg only (args would clobber rax before the blr).
+     * slice1: 0-arg. slice2: GP args via spill fn + pipeline_asm_emit_call_args_elf_c
+     * then reload fn (args would otherwise clobber rax before blr).
      * PLATFORM: SHARED · LINUX x86_64 call *r · MACOS|ARM64 blr xN.
      */
     {
@@ -3944,6 +3945,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let cap_eko: i32 = 0;
       let cap_nargs: i32 = 0;
       let cap_eff: i32 = callee_ref;
+      let cap_fn_off: i32 = 0;
       if (callee_ko == 51) {
         /* EXPR_ADDR_OF — peel to operand (*f)() shape when present. */
         let inn: i32 = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
@@ -3958,11 +3960,26 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
             cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
             if (cap_eko == 2) {
               cap_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
-              if (cap_nargs != 0) { return 0 - 1; }
+              if (cap_nargs < 0) { return 0 - 1; }
+              /* Cap opaque *u8: GP register-file only this slice (SysV 6 / AAPCS64 8). */
+              if (cap_nargs > glue_asm_call_reg_max(ta)) { return 0 - 1; }
               if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_eff, ctx, ta) != 0) {
                 return 0 - 1;
               }
-              /* rax/x0 = Cap-fn-ptr; indirect call. */
+              if (cap_nargs == 0) {
+                /* rax/x0 = Cap-fn-ptr; indirect call. */
+                if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+                return 0;
+              }
+              /* Spill fn, pack args into ABI regs, reload fn, blr. */
+              cap_fn_off = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+              if (cap_fn_off < 0) { return 0 - 1; }
+              if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, cap_nargs) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_load_rbp_to_rax_arch(elf_ctx, cap_fn_off, ta) != 0) {
+                return 0 - 1;
+              }
               if (backend_enc_blr_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
               return 0;
             }
