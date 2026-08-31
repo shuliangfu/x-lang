@@ -4238,6 +4238,11 @@ extern int32_t arch_arm64_enc_enc_str_x0_x3(struct platform_elf_ElfCodegenCtx *e
 extern int32_t arch_arm64_enc_enc_mov_x0_to_x4(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_casal_x0_x1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_cmp_x0_x4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_ldarh_w0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_stlrh_w1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_ldrh_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_strh_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_casalh_w0_w1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4559,6 +4564,11 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       if (arch_arm64_enc_enc_ldar_x0_x0(elf_ctx) != 0) return -1;
       return 1;
     }
+    if (which == 10) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_ldarh_w0_x0(elf_ctx) != 0) return -1;
+      return 1;
+    }
     if (which == 2) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
       if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) return -1;
@@ -4571,6 +4581,13 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) return -1;
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
       if (arch_arm64_enc_enc_stlr_x1_x0(elf_ctx) != 0) return -1;
+      return 1;
+    }
+    if (which == 11) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_stlrh_w1_x0(elf_ctx) != 0) return -1;
       return 1;
     }
     if (which == 3) {
@@ -4600,6 +4617,21 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       if (arch_arm64_enc_enc_casal_x0_x1_x2(elf_ctx) != 0) return -1;
       if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) return -1;
       if (arch_arm64_enc_enc_cmp_x0_x4(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_cset_eq_w0(elf_ctx) != 0) return -1;
+      return 1;
+    }
+    if (which == 12) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_x0_to_x2(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_ldrh_w0_x3(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_mov_w0_to_w4(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_casalh_w0_w1_x2(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_strh_w0_x3(elf_ctx) != 0) return -1;
+      if (arch_arm64_enc_enc_cmp_w0_w4(elf_ctx) != 0) return -1;
       if (arch_arm64_enc_enc_cset_eq_w0(elf_ctx) != 0) return -1;
       return 1;
     }
