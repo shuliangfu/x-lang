@@ -9364,8 +9364,22 @@ function codegen_build_func_param_mono_map(module: *Module, arena: *ASTArena, fi
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Host-C: emit one struct field declarator (`<type> <name>` or TYPE_FN form).
+ *
+ * Fixed arrays peel to scalar/base then append `[N]` dims (same as locals).
+ * TYPE_FN (10.3.1 slice10): `Ret (*field)(args)` via emit_c_fnptr_decl —
+ * abstract `Ret (*)(args) field` is invalid C.
+ *
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param type_ref i32 — field type (may be TYPE_ARRAY nest)
+ * @param field_name *u8 — field identifier bytes
+ * @param field_name_len i32 — name length; must be > 0
+ * @param struct_prefix *u8 — optional named-struct tag prefix
+ * @param struct_prefix_len i32 — prefix length
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C. G.7 single struct-field declarator path.
  */
 export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9374,6 +9388,17 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
     let base_ref: i32 = type_ref;
     if (ast.ref_is_null(type_ref) || field_name == 0 as *u8 || field_name_len <= 0) {
       return -1;
+    }
+    /*
+     * 10.3.1 slice10: TYPE_FN field must be `Ret (*name)(args)`, not
+     * abstract `Ret (*)(args)` + space + name (invalid C; host-cc rejects
+     * `struct Holder { int32_t (*)(int32_t) f; }`). G.7: reuse emit_c_fnptr_decl.
+     * Array-of-fnptr fields (`[N]function(...)`) still use peel+dims path
+     * (needs `Ret (*name[N])(args)` — residual).
+     * PLATFORM: SHARED host-C.
+     */
+    if (pipeline_type_kind_ord_at(arena, type_ref) == (TypeKind.TYPE_FN as i32)) {
+      return emit_c_fnptr_decl(arena, out, type_ref, field_name, field_name_len, ctx);
     }
     while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_ARRAY as i32)) {
       let inner: i32 = pipeline_type_elem_ref_at(arena, base_ref);
