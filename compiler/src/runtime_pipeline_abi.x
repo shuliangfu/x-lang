@@ -37928,7 +37928,14 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
   if (ek == 0 || ek == 3 || ek == 13 || ek == 14) {
     return 4;
   }
-  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9) {
+  /*
+   * 10.3.1 slice13: TYPE_FN=18 shares Cap opaque fn-ptr ABI with TYPE_PTR=9 —
+   * array-lit elem store/INDEX stride must be 8B. Prior miss → return 0 →
+   * callers force_esz=4 → `mov %eax` truncates LEA; INDEX 8B load reads
+   * garbage → SEGV on Cap blr. G.7 ≡ glue_type_size_simple kind 18.
+   * PLATFORM: SHARED freestanding.
+   */
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9 || ek == 18) {
     return 8;
   }
   if (ek == 8) {
@@ -38040,7 +38047,9 @@ export function glue_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
             esz = 8;
           }
         } else {
-          if (etk == 4 || etk == 5 || etk == 6 || etk == 14) {
+          /* i64/u64/usize/f64/PTR/TYPE_FN → 8. Prior miss TYPE_FN/PTR → 4. */
+          if (etk == 4 || etk == 5 || etk == 6 || etk == 7 || etk == 9 || etk == 14
+              || etk == 15 || etk == 18) {
             esz = 8;
           } else {
             esz = 4;
