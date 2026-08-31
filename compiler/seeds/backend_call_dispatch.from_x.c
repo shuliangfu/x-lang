@@ -4189,6 +4189,15 @@ static int32_t try_fold_size_align_of_call_elf(struct ast_ASTArena *arena,
 
 extern int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx);
+/* 10.4.1 slice1: atomic_load/store/cas i32 encoders (twin of backend_x86_64_enc_c.x). */
+extern int32_t arch_x86_64_enc_enc_movl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_xchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_mov_rax_to_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_movl_eax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_sete_al(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_movzbl_al_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_mov_eax_to_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4337,6 +4346,165 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
+ * Stage 10 (10.4.1) slice1: atomic_load_i32 / atomic_store_i32 / atomic_cas_i32.
+ * Twin of try_emit_atomic_builtin_call_elf_c in backend_call_dispatch.x.
+ * ta==0 only (x86_64); other arches fall through to panic bodies.
+ * @return 1 emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED emit · LINUX|x86_64 runtime
+ */
+static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                  struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t nlen = 0;
+  int32_t n_args = 0;
+  int32_t is_method = 0;
+  int32_t which = 0;
+  int32_t i;
+  int32_t arg_ref;
+  int32_t off[4];
+  uint8_t name[128];
+  static const uint8_t nm_load[15] = {97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 51, 50};
+  static const uint8_t nm_store[16] = {97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 51, 50};
+  static const uint8_t nm_cas[14] = {97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 51, 50};
+
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return 0;
+  if (ta != 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  memset(name, 0, sizeof(name));
+  if (ko == GLUE_EXPR_METHOD_CALL_ORD) {
+    nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (nlen <= 0 || nlen > 127)
+      return 0;
+    pipeline_expr_method_call_name_into(arena, expr_ref, name);
+    n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    is_method = 1;
+  } else if (ko == GLUE_EXPR_CALL_ORD) {
+    int32_t callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    int32_t cko;
+    if (callee_ref <= 0)
+      return 0;
+    cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+    if (cko == GLUE_EXPR_FIELD_ACCESS_ORD) {
+      nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+      if (nlen <= 0 || nlen > 127)
+        return 0;
+      pipeline_expr_field_access_name_into(arena, callee_ref, name);
+    } else if (cko == GLUE_EXPR_VAR_ORD) {
+      nlen = pipeline_expr_var_name_len(arena, callee_ref);
+      if (nlen <= 0 || nlen > 127)
+        return 0;
+      pipeline_expr_var_name_into(arena, callee_ref, name);
+    } else {
+      return 0;
+    }
+    n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+  } else {
+    return 0;
+  }
+  which = 0;
+  if (nlen == 15) {
+    for (i = 0; i < 15; i++) {
+      if (name[i] != nm_load[i]) {
+        which = -1;
+        break;
+      }
+    }
+    if (which == 0)
+      which = 1;
+    else
+      which = 0;
+  }
+  if (which == 0 && nlen == 16) {
+    for (i = 0; i < 16; i++) {
+      if (name[i] != nm_store[i]) {
+        which = -1;
+        break;
+      }
+    }
+    if (which == 0)
+      which = 2;
+    else
+      which = 0;
+  }
+  if (which == 0 && nlen == 14) {
+    for (i = 0; i < 14; i++) {
+      if (name[i] != nm_cas[i]) {
+        which = -1;
+        break;
+      }
+    }
+    if (which == 0)
+      which = 3;
+    else
+      which = 0;
+  }
+  if (which == 0)
+    return 0;
+  if (which == 1 && n_args != 1)
+    return 0;
+  if (which == 2 && n_args != 2)
+    return 0;
+  if (which == 3 && n_args != 3)
+    return 0;
+  for (i = 0; i < n_args; i++) {
+    if (is_method)
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+    else
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref == 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+      return -1;
+    off[i] = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+    if (off[i] < 0)
+      return -1;
+  }
+  if (which == 1) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
+      return -1;
+    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0)
+      return -1;
+    return 1;
+  }
+  if (which == 2) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0)
+      return -1;
+    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
+      return -1;
+    if (arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx) != 0)
+      return -1;
+    return 1;
+  }
+  /* cas: desired→edx; expected_ptr→rcx; *expected→eax; ptr→rax; lock cmpxchg */
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0)
+    return -1;
+  return 1;
+}
+
+/**
  * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
  * 供 pipeline_asm_emit_expr_elf_rec 与 backend.x emit_expr_elf_call 委托。
  */
@@ -4377,6 +4545,14 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     if (rs_rc < 0)
       return -1;
     if (rs_rc > 0)
+      return 0;
+  }
+  /* 10.4.1 slice1: atomic_load/store/cas_i32 CALL (x86_64 only). */
+  {
+    int32_t at_rc = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (at_rc < 0)
+      return -1;
+    if (at_rc > 0)
       return 0;
   }
 
@@ -4700,6 +4876,14 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     if (rs_mc < 0)
       return -1;
     if (rs_mc > 0)
+      return 0;
+  }
+  /* 10.4.1 slice1: atomic_load/store/cas_i32 METHOD_CALL (x86_64 only). */
+  {
+    int32_t at_mc = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (at_mc < 0)
+      return -1;
+    if (at_mc > 0)
       return 0;
   }
   /* 10.3.3 slice3: METHOD_CALL Cap/TYPE_FN field → load + blr (twin of .x). */
