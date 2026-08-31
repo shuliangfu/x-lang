@@ -1421,6 +1421,42 @@ export function arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(elf_ctx: *u8): i32 
 }
 
 /**
+ * `mfence` (0F AE F0) — 10.4.2 atomic_fence_seq_cst.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mfence(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 174) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 240);
+}
+
+/**
+ * `lfence` (0F AE E8) — 10.4.2 atomic_fence_acquire.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lfence(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 174) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 232);
+}
+
+/**
+ * `sfence` (0F AE F8) — 10.4.2 atomic_fence_release.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sfence(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 174) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 248);
+}
+
+/**
  * mov %rax, %r10 (49 89 C2) — stage 10 S3.1 slice 2 (10.1.1): syscall arg4
  * home. r10 has no slot in the C-ABI mov_rax_to_arg_reg k table, so this raw
  * form is the single r10 path (G.7; do not fork a second register map).
