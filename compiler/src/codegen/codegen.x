@@ -6372,6 +6372,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * try_emit_dest_slice_from_module_array_var when linit is FIELD so
  * every try_emit==0 caller is covered. Do not add this walk to
  * try_emit. Do not add an 8th pointer param.
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that
+ * seed). Do not fork a second import-const FIELD wrap.
  *
  * @param arena *ASTArena — caller type/expr pool (dest_type_ref)
  * @param out *CodegenOutBuf — C text sink

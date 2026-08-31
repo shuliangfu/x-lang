@@ -627,6 +627,7 @@ struct ast_ASTArena {
 #define codegen_codegen_emit_local_fixed_array_suffix codegen_emit_local_fixed_array_suffix
 #define codegen_codegen_emit_local_fixed_array_let_finish codegen_emit_local_fixed_array_let_finish
 #define codegen_codegen_try_emit_slice_init_from_array_var codegen_try_emit_slice_init_from_array_var
+#define codegen_codegen_try_emit_dest_slice_from_import_const_field codegen_try_emit_dest_slice_from_import_const_field
 #define codegen_codegen_try_emit_dest_slice_from_module_array_var codegen_try_emit_dest_slice_from_module_array_var
 #define codegen_codegen_emit_braced_array_lit_init codegen_emit_braced_array_lit_init
 #define codegen_codegen_array_lit_tree_is_const codegen_array_lit_tree_is_const
@@ -1473,6 +1474,7 @@ extern int32_t codegen_peel_named_dest_type(struct ast_ASTArena * arena, int32_t
 extern int32_t codegen_stamp_anon_struct_lit_dest(struct ast_ASTArena * arena, int32_t expr_ref, int32_t dest_type_ref);
 extern int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t linit_ref, int32_t dest_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref);
+extern int32_t codegen_try_emit_dest_slice_from_import_const_field(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_try_emit_dest_slice_from_module_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_array_lit_tree_is_const(struct ast_ASTArena * arena, int32_t expr_ref);
@@ -6224,12 +6226,133 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     return 1;
   }
 }
+/* PLATFORM: SHARED — twin of codegen.x try_emit_dest_slice_from_import_const_field.
+ * dest-SLICE wrap of import-module const FIELD (`dep.A`): typed
+ * `(T){ .data = <import-const>, .length = N }` with N from the
+ * dep-arena TYPE_ARRAY. Live `-E` uses this seed path. `.data` reuses
+ * emit_import_module_const_field (INT_LIT or durable `__xlang_icN`
+ * ARRAY_LIT) because consts-only deps are not co-emitted. G.7:
+ * complete existing dest-SLICE wrap family; do not fork a second
+ * import-const wrap; do not add this walk to try_emit. */
+int32_t codegen_try_emit_dest_slice_from_import_const_field(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx) {
+  struct ast_Expr init_e;
+  uint8_t dep_path[128] = {};
+  int32_t dep_path_len;
+  int32_t dep_ix;
+  struct ast_Module * dep_mod;
+  struct ast_ASTArena * dep_ar;
+  int32_t arr_sz;
+  int32_t ti;
+  if (((arena == 0) || (out == 0))) {
+    return 0;
+  }
+  if ((ast_ref_is_null(dest_type_ref) || (pipeline_type_kind_ord_at(arena, dest_type_ref) != 11))) {
+    return 0;
+  }
+  if (((ast_ref_is_null(linit_ref) || (linit_ref <= 0)) || (linit_ref > ((arena)->num_exprs)))) {
+    return 0;
+  }
+  if ((ctx == 0)) {
+    return 0;
+  }
+  init_e = ast_ast_arena_expr_get(arena, linit_ref);
+  if (((((int32_t)((init_e).kind)) != 44) || (((init_e).field_access_field_len) <= 0))) {
+    return 0;
+  }
+  dep_path_len = codegen_resolve_binding_import_path_for_field_access(ctx, arena, linit_ref, &((dep_path)[0]));
+  if ((dep_path_len <= 0)) {
+    return 0;
+  }
+  dep_ix = codegen_find_dep_index_by_path(ctx, &((dep_path)[0]), dep_path_len);
+  if (((dep_ix < 0) || (dep_ix >= pipeline_dep_ctx_ndep(ctx)))) {
+    return 0;
+  }
+  dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+  dep_ar = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+  if (((dep_mod == 0) || (dep_ar == 0))) {
+    return 0;
+  }
+  arr_sz = 0;
+  ti = 0;
+  while (((ti < ((dep_mod)->num_top_level_lets)) && (arr_sz <= 0))) {
+    if ((pipeline_module_top_level_let_is_const(dep_mod, ti) == 0)) {
+      (void)((ti = (ti + 1)));
+    } else {
+      int32_t nlen = pipeline_module_top_level_let_name_len(dep_mod, ti);
+      if (((nlen == ((init_e).field_access_field_len)) && (nlen > 0))) {
+        int32_t matched = 1;
+        int32_t ci = 0;
+        while ((ci < nlen)) {
+          if ((pipeline_module_top_level_let_name_byte_at(dep_mod, ti, ci) != (((init_e).field_access_field_name))[ci])) {
+            (void)((matched = 0));
+            (void)((ci = nlen));
+          } else {
+            (void)((ci = (ci + 1)));
+          }
+        }
+        if ((matched != 0)) {
+          int32_t tr = pipeline_module_top_level_let_type_ref(dep_mod, ti);
+          if ((!(ast_ref_is_null(tr)) && (pipeline_type_kind_ord_at(dep_ar, tr) == 10))) {
+            (void)((arr_sz = pipeline_type_array_size_at(dep_ar, tr)));
+          }
+        }
+      }
+      (void)((ti = (ti + 1)));
+    }
+  }
+  if ((arr_sz <= 0)) {
+    return 0;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_type(arena, out, dest_type_ref, 0, 0, ctx) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 123) != 0)) {
+    return -1;
+  }
+  {
+    uint8_t d1[12] = {32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0};
+    if ((codegen_emit_bytes_from_ptr(out, &((d1)[0]), 9) != 0)) {
+      return -1;
+    }
+  }
+  /* .data = emit_import_module_const_field: INT_LIT or durable
+   * `({ static T __xlang_icN[] = {…}; __xlang_icN; })`. Fallback
+   * bare field name if the import lookup misses. PLATFORM: SHARED. */
+  if ((codegen_emit_import_module_const_field(arena, out, linit_ref, ctx) != 0)) {
+    if ((codegen_emit_bytes_64(out, &((((init_e).field_access_field_name))[0]), ((init_e).field_access_field_len)) != 0)) {
+      return -1;
+    }
+  }
+  {
+    uint8_t d2[16] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0};
+    if ((codegen_emit_bytes_from_ptr(out, &((d2)[0]), 12) != 0)) {
+      return -1;
+    }
+  }
+  if ((codegen_format_int(out, arr_sz) != 0)) {
+    return -1;
+  }
+  {
+    uint8_t d3[4] = {32, 125, 0, 0};
+    if ((codegen_emit_bytes_4(out, &((d3)[0]), 2) != 0)) {
+      return -1;
+    }
+  }
+  return 1;
+}
 /* PLATFORM: SHARED — twin of codegen.x try_emit_dest_slice_from_module_array_var.
  * dest-SLICE ARRAY_LIT dest-elem TYPE_SLICE + module VAR TYPE_ARRAY
  * (`[][]T = [A]`): `{.data=A,.length=N}` not `__xlang_al[i]=A` (array
  * decays to `E *` vs fat). Live `-E` uses this seed path. Kind 44
- * import-module const FIELD stays leftover (no import_const_field
- * twin). G.7: complete existing dest-SLICE wrap; do not fork a second
+ * import-module const FIELD dispatches to
+ * try_emit_dest_slice_from_import_const_field (own slot budget).
+ * G.7: complete existing dest-SLICE wrap; do not fork a second
  * module-array wrap. */
 int32_t codegen_try_emit_dest_slice_from_module_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t dest_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx) {
   struct ast_Expr init_e;
@@ -6249,9 +6372,11 @@ int32_t codegen_try_emit_dest_slice_from_module_array_var(struct ast_ASTArena * 
     return 0;
   }
   init_e = ast_ast_arena_expr_get(arena, linit_ref);
-  /* Kind 44 FIELD: leftover import-module const (no seed twin). */
+  /* Import-module const FIELD (`dep.A`) is not a current-module VAR.
+   * Dispatch before the current_codegen_module gate: the sibling
+   * walks the dep table, not this module. PLATFORM: SHARED. */
   if ((((int32_t)((init_e).kind)) == 44)) {
-    return 0;
+    return codegen_try_emit_dest_slice_from_import_const_field(arena, out, dest_type_ref, linit_ref, ctx);
   }
   if ((((ctx)->current_codegen_module) == 0)) {
     return 0;
@@ -9317,9 +9442,81 @@ int32_t codegen_emit_import_module_const_field(struct ast_ASTArena * arena, stru
         continue;
       }
       int32_t init_ref = pipeline_module_top_level_let_init_ref(dep_mod, ti);
-      if ((((init_ref > 0) && (init_ref <=((arena)->num_exprs))) && (pipeline_expr_kind_ord_at(arena, init_ref) ==0))) {
-        if ((codegen_format_int(out, ((int64_t)(pipeline_expr_int_val_at(arena, init_ref)))) !=0)) {
+      /* init_ref / kind / int_val live in the dep arena. The caller
+       * arena must not be used: a dep INT_LIT index is not portable.
+       * PLATFORM: SHARED host-C. Twin of codegen.x emit_import_module_const_field. */
+      struct ast_ASTArena * dep_ar = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+      if (((((dep_ar != 0) && (init_ref > 0)) && (init_ref <= ((dep_ar)->num_exprs))) && (pipeline_expr_kind_ord_at(dep_ar, init_ref) == 0))) {
+        if ((codegen_format_int(out, ((int64_t)(pipeline_expr_int_val_at(dep_ar, init_ref)))) != 0)) {
           return -1;
+        }
+        return 0;
+      }
+      /* ARRAY_LIT: durable `({ static T __xlang_icN[] = {…}; __xlang_icN; })`
+       * so dest-SLICE `.data` / INDEX base do not need file-static `A`.
+       * Consts-only deps are not co-emitted (driver nf>0 gate). Compound
+       * `(T[]){…}` dies at the end of a statement-expr assignment.
+       * PLATFORM: SHARED host-C. G.7: complete existing helper. */
+      if (((((dep_ar != 0) && (init_ref > 0)) && (init_ref <= ((dep_ar)->num_exprs))) && (pipeline_expr_kind_ord_at(dep_ar, init_ref) == 46))) {
+        int32_t tr_al = pipeline_module_top_level_let_type_ref(dep_mod, ti);
+        int32_t elem_k = 0;
+        if ((!(ast_ref_is_null(tr_al)) && (pipeline_type_kind_ord_at(dep_ar, tr_al) == 10))) {
+          int32_t et_al = pipeline_type_elem_ref_at(dep_ar, tr_al);
+          if ((!(ast_ref_is_null(et_al)) && (et_al > 0))) {
+            (void)((elem_k = pipeline_type_kind_ord_at(dep_ar, et_al)));
+          }
+        }
+        int32_t tid_al = codegen_next_host_call_array_tmp_id();
+        {
+          uint8_t ic_open[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ic_open)[0]), 10) != 0)) {
+            return -1;
+          }
+        }
+        if ((codegen_emit_type_kind(out, elem_k) != 0)) {
+          uint8_t fb_i32[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+          if ((codegen_emit_bytes_8(out, &((fb_i32)[0]), 7) != 0)) {
+            return -1;
+          }
+        }
+        {
+          uint8_t ic_nm[12] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 105, 99, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ic_nm)[0]), 11) != 0)) {
+            return -1;
+          }
+        }
+        if ((codegen_format_int(out, ((int64_t)tid_al)) != 0)) {
+          return -1;
+        }
+        {
+          uint8_t ic_eq[8] = {91, 93, 32, 61, 32, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ic_eq)[0]), 5) != 0)) {
+            return -1;
+          }
+        }
+        if ((codegen_emit_braced_array_lit_init(dep_ar, out, init_ref, ctx) != 0)) {
+          return -1;
+        }
+        {
+          uint8_t ic_sc[4] = {59, 32, 0, 0};
+          if ((codegen_emit_bytes_4(out, &((ic_sc)[0]), 2) != 0)) {
+            return -1;
+          }
+        }
+        {
+          uint8_t ic_use[12] = {95, 95, 120, 108, 97, 110, 103, 95, 105, 99, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ic_use)[0]), 10) != 0)) {
+            return -1;
+          }
+        }
+        if ((codegen_format_int(out, ((int64_t)tid_al)) != 0)) {
+          return -1;
+        }
+        {
+          uint8_t ic_end[8] = {59, 32, 125, 41, 0, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((ic_end)[0]), 4) != 0)) {
+            return -1;
+          }
         }
         return 0;
       }
@@ -13697,7 +13894,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
            * wrap_nc: assign `{.data=a,.length=N}` not `__xlang_al[i]=a`
            * (array decays to `E *` vs fat; sit-red host-cc incompatible
            * types). Live `-E` uses this seed path. G.7: reuse existing
-           * try_emit_slice_init_from_array_var / module_array_var; do not
+           * try_emit_slice_init_from_array_var / module_array_var
+           * (kind 44 import-module const FIELD sibling); do not
            * fork a second wrap.
            */
           {
@@ -14591,8 +14789,27 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
             if ((codegen_emit_bytes_4(out, &((eq)[0]), 3) !=0)) {
               return -1;
             }
-            if ((codegen_emit_expr(arena, out, cinit_ref, ctx) !=0)) {
-              return -1;
+            /* dest-SLICE const INDEX/VAR/FIELD: same wrap as let.
+             * Prior: emit_expr only → pointer into slice struct.
+             * G.7: reuse try_emit_slice_init_from_array_var then
+             * module_array_var (import-module const FIELD sibling).
+             * PLATFORM: SHARED host-C. Twin of codegen.x emit_block. */
+            {
+              int32_t slice_cinit = 0;
+              if (!(ast_ref_is_null(cinit_ref))) {
+                int32_t nlets_c = ast_ast_block_num_lets(arena, block_ref);
+                (void)((slice_cinit = codegen_try_emit_slice_init_from_array_var(arena, out, block_ref, nlets_c, ctype_ref, cinit_ref)));
+                if ((slice_cinit == 0)) {
+                  (void)((slice_cinit = codegen_try_emit_dest_slice_from_module_array_var(arena, out, ctype_ref, cinit_ref, ctx)));
+                }
+              }
+              if ((slice_cinit < 0)) {
+                return -1;
+              } else {
+                if (((slice_cinit == 0) && (codegen_emit_expr(arena, out, cinit_ref, ctx) != 0))) {
+                  return -1;
+                }
+              }
             }
             uint8_t sc[3] = {59, 10, 0};
             if ((codegen_emit_bytes_3(out, &((sc)[0]), 2) !=0)) {
@@ -14772,6 +14989,9 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                   int32_t slice_init = 0;
                   if (!(ast_ref_is_null(linit_ref))) {
                     (void)((slice_init = codegen_try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref)));
+                    if ((slice_init == 0)) {
+                      (void)((slice_init = codegen_try_emit_dest_slice_from_module_array_var(arena, out, let_type_ref, linit_ref, ctx)));
+                    }
                   }
                   if (ast_ref_is_null(linit_ref)) {
                     uint8_t zinit_omit2[6] = {123, 32, 48, 32, 125, 0};
