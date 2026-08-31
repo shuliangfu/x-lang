@@ -9489,7 +9489,8 @@ function codegen_emit_vector_typedefs(out: *CodegenOutBuf): i32 {
  * After `struct TAG { ... };` emit nest 1..64 companion fat layouts
  * (`struct xlang_slice_×k_TAG { struct xlang_slice_×(k-1)_TAG *data; size_t length; }`,
  * nest=1 pointee is `struct TAG`). 4.2.3: loop through codegen_emit_slice_fat_one
- * (wave698 unrolled only to 7; nest>16 soft 17..52; nest>52 jump 53..64).
+ * (seed twin was wave698 unrolled 1..7 leftover; now the same 1..64 loop.
+ * nest>16 soft 17..52; nest>52 jump 53..64).
  * @param out *CodegenOutBuf — C text buffer
  * @param pfx *u8 — struct tag prefix (empty for entry bare)
  * @param pfx_len i32 — prefix byte count; 0 means bare tag

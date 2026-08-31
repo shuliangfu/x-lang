@@ -8085,202 +8085,27 @@ int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct cod
     return 0;
   }
 }
+/* PLATFORM: SHARED — companion fat-slice layouts for a named struct C tag.
+ * Twin of codegen.x codegen_emit_companion_named_slice_layout: loop nest
+ * 1..64 through codegen_emit_slice_fat_one (leaf_is_struct=1). Historic
+ * seed unrolled wave698 1..7 only → bare `-E` of []×8 Cell incomplete
+ * type (take tag nest 8/16/64 declared inside parameter list). Product
+ * freeze at 64. G.7: complete existing companion; do not fork a second
+ * named-layout emitter. Live `-E` uses this seed path. */
 int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf * out, uint8_t * pfx, int32_t pfx_len, uint8_t * name, int32_t name_len) {
   if ((((out ==0) || (name ==0)) || (name_len <=0))) {
     return -1;
   }
-  uint8_t h1[20] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h1)[0]), 19) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
+  int32_t nest = 1;
+  while ((nest <= 64)) {
+    if ((codegen_emit_slice_fat_one(out, nest, pfx, pfx_len, name, name_len, 1) !=0)) {
       return -1;
     }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid[12] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid)[0]), 10) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t tail[28] = {32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32, 108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 10, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
-  }
-  uint8_t h2[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h2)[0]), 31) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid2[24] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid2)[0]), 22) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
-  }
-  uint8_t h3[44] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h3)[0]), 43) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid3[36] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid3)[0]), 34) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
-  }
-  uint8_t h4[56] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h4)[0]), 55) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid4[48] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid4)[0]), 46) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
-  }
-  uint8_t h5[68] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h5)[0]), 67) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid5[60] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid5)[0]), 58) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
-  }
-  uint8_t h6[80] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h6)[0]), 79) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid6[72] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid6)[0]), 70) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
-  }
-  uint8_t h7[96] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0, 0, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((h7)[0]), 91) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  uint8_t mid7[88] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0, 0, 0, 0, 0};
-  if ((codegen_emit_bytes_from_ptr(out, &((mid7)[0]), 82) !=0)) {
-    return -1;
-  }
-  if (((pfx !=0) && (pfx_len > 0))) {
-    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) !=0)) {
-      return -1;
-    }
-  }
-  if ((codegen_emit_bytes_from_ptr(out, name, name_len) !=0)) {
-    return -1;
-  }
-  if ((codegen_emit_bytes_from_ptr(out, &((tail)[0]), 27) !=0)) {
-    return -1;
+    (void)((nest = (nest + 1)));
   }
   return 0;
 }
+
 int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t cur_di = -1;
