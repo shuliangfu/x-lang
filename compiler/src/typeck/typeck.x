@@ -9136,6 +9136,11 @@ decl_kind: i32): i32 {
  * compared wave611's inferred `[2]i32` to `[]i32` (expected []i32 found [2]i32).
  * Same-layer: already-typed TYPE_ARRAY elems (`let a:[2]i32=…; [a]` → `[][]i32`)
  * reuse typeck_coerce_init_slice_from_array (no second peel). PLATFORM: SHARED.
+ *
+ * 10.3.1 slice12: ARRAY_LIT elems that are Cap *u8 (bare same-module fn name)
+ * into TYPE_FN element decls must reuse typeck_fnptr_surface_compat (let/assign
+ * authority). Prior: only type_refs_equal → `expected function, found *u8`.
+ * Recoverable bare/as Cap hard-checks arity; true opaque Cap soft. PLATFORM: SHARED.
  */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
@@ -9204,9 +9209,15 @@ decl_ty_ref: i32): i32 {
         elem_ty = expr_type_ref(arena, elem_ref);
         if (!ast.ref_is_null(elem_ty) && elem_ty > 0) {
           got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
+          /*
+           * 10.3.1 slice12: TYPE_FN elem decl ← Cap *u8 / TYPE_FN via G.7
+           * typeck_fnptr_surface_compat (active module for bare-name recover).
+           * PLATFORM: SHARED.
+           */
           if (type_refs_equal(arena, elem_ty, elem_decl_ref)
           || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)
-          || typeck_float_widen_ok(elem_decl_kind, got_kind)) {
+          || typeck_float_widen_ok(elem_decl_kind, got_kind)
+          || typeck_fnptr_surface_compat(0 as *Module, arena, elem_decl_ref, elem_ty, elem_ref) != 0) {
             pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref);
           } else {
             /*
