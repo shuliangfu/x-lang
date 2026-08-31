@@ -14753,6 +14753,75 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
           return 0;
         }
       }
+      /* PLATFORM: SHARED host-C — dest-SLICE return of already-typed TYPE_ARRAY
+       * (`return a` / `return w.xs` / `return W{}.xs`). Twin of codegen.x
+       * emit_return_stmt_with_context. Typeck accepts without stamping SLICE
+       * so operand resolved stays TYPE_ARRAY (N from that, not from rty).
+       * Stack view {.data=a,.length=N} dangles after return; durable static
+       * memcpy then fat (same COMMON-like static as wave342 escape). Live `-E`
+       * uses this seed path. Do not fork a second dest-SLICE RETURN wrap.
+       * Historic: bare `return a` is E* vs fat (host-cc BLD001). */
+      if (((!(ast_ref_is_null(rty)) && (pipeline_type_kind_ord_at(arena, rty) ==11))
+              && !(ast_ref_is_null(operand_ref)))) {
+        int32_t op_tr = pipeline_expr_resolved_type_ref(arena, operand_ref);
+        int32_t rar_n = 0;
+        int32_t rar_elem = 0;
+        if (((op_tr > 0) && (pipeline_type_kind_ord_at(arena, op_tr) ==10))) {
+          (void)((rar_n = pipeline_type_array_size_at(arena, op_tr)));
+          (void)((rar_elem = pipeline_type_elem_ref_at(arena, op_tr)));
+        }
+        if ((((rar_n > 0) && (rar_n <=1024)) && !(ast_ref_is_null(rar_elem)))) {
+          if ((codegen_emit_indent(out, indent) !=0)) {
+            return -1;
+          }
+          uint8_t rar_o[20] = {114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((rar_o)[0]), 17) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_type(arena, out, rar_elem, 0, 0, ctx) !=0)) {
+            uint8_t rar_fb[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((rar_fb)[0]), 7) !=0)) {
+              return -1;
+            }
+          }
+          uint8_t rar_nm[16] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 97, 114, 91, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((rar_nm)[0]), 13) !=0)) {
+            return -1;
+          }
+          if ((codegen_format_int(out, ((int64_t)(rar_n))) !=0)) {
+            return -1;
+          }
+          uint8_t rar_cp[48] = {93, 59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 114, 97, 114, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((rar_cp)[0]), 37) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_expr(arena, out, operand_ref, ctx) !=0)) {
+            return -1;
+          }
+          uint8_t rar_sz[28] = {41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 114, 97, 114, 41, 41, 59, 32, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((rar_sz)[0]), 25) !=0)) {
+            return -1;
+          }
+          if ((codegen_append_byte(out, 40) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_type(arena, out, rty, 0, 0, ctx) !=0)) {
+            return -1;
+          }
+          uint8_t rar_ft[40] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 97, 114, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((rar_ft)[0]), 34) !=0)) {
+            return -1;
+          }
+          if ((codegen_format_int(out, ((int64_t)(rar_n))) !=0)) {
+            return -1;
+          }
+          uint8_t rar_e[12] = {32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((rar_e)[0]), 8) !=0)) {
+            return -1;
+          }
+          return 0;
+        }
+      }
       if ((!(ast_ref_is_null(rty)) && (pipeline_type_kind_ord_at(arena, rty) ==8))) {
         int32_t use_struct_zero = 0;
         if (ast_ref_is_null(operand_ref)) {

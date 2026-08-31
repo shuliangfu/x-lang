@@ -16610,6 +16610,8 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
        * already-typed VAR/FIELD/STRUCT_LIT.field need the same COMMON-like
        * static. Do not stamp SLICE (operand stays TYPE_ARRAY).
        * PLATFORM: SHARED host-C emit. G.7 complete emit_return wrap.
+       * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+       * Do not fork a second dest-SLICE RETURN ARRAY wrap.
        */
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
           && !ast.ref_is_null(operand_ref)) {
