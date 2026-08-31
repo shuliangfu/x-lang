@@ -1,5 +1,5 @@
-// 10.3.1: TYPE_FN host-C repr — `uint8_t *` (Cap opaque ABI) via -E.
-// Acceptance: -E succeeds (no CG003). Full Ret(*)(args) + call-cast residual.
+// 10.3.1 slice7: TYPE_FN host-C declarator `Ret (*name)(args)` via -E.
+// Acceptance: -E succeeds; host-cc builds and run exits 42 (f(41) callable).
 // PLATFORM: SHARED host-C.
 
 #[no_mangle]
