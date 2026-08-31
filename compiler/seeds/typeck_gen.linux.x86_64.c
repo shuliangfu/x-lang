@@ -8075,7 +8075,8 @@ int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, 
         (void)(typeck_coerce_init_slice_from_array(arena, elem_ref, elem_decl_ref, elem_decl_kind));
         (void)((elem_ty = typeck_expr_type_ref(arena, elem_ref)));
         ((!(ast_ref_is_null(elem_ty)) && (elem_ty > 0)) ? ({   (void)((got_kind = pipeline_type_kind_ord_at(arena, elem_ty)));
-  (((typeck_type_refs_equal(arena, elem_ty, elem_decl_ref) || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)) || typeck_float_widen_ok(elem_decl_kind, got_kind)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref));
+  /* Twin living/typeck.x 10.3.1 slice12: TYPE_FN←Cap via fnptr_surface_compat. */
+  ((((typeck_type_refs_equal(arena, elem_ty, elem_decl_ref) || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)) || typeck_float_widen_ok(elem_decl_kind, got_kind)) || (typeck_fnptr_surface_compat(0, arena, elem_decl_ref, elem_ty, elem_ref) != 0)) ? ({   (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref));
  }) : ({   (void)((eb = driver_typeck_diag_scratch_expect()));
   (void)((gb = driver_typeck_diag_scratch_found()));
   (void)((el = typeck_diag_fmt_type_into(arena, elem_decl_ref, eb, 96)));
