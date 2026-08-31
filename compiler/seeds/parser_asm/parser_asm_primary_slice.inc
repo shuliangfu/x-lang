@@ -279,6 +279,19 @@ static int32_t parser_asm_primary_ident_is_asm_c(struct parser_asm_slice_u8 *sou
       && source->data[token_start + 2] == (uint8_t)'m';
 }
 
+/**
+ * True when IDENT spelling is exactly `in` (stage10 10.2.1 slice1 `in("reg") expr`).
+ * PLATFORM: SHARED — G.7 primary authority (parser_asm_thin include).
+ */
+static int32_t parser_asm_primary_ident_is_in_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                int32_t ident_len) {
+  if (!source || !source->data || ident_len != 2)
+    return 0;
+  if (token_start + (size_t)ident_len > source->length)
+    return 0;
+  return source->data[token_start + 0] == (uint8_t)'i' && source->data[token_start + 1] == (uint8_t)'n';
+}
+
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
                                                    struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_parse_expr_result *out) {
@@ -1242,10 +1255,12 @@ static void parser_asm_primary_parse_panic_c(void *arena, struct parser_asm_slic
 }
 
 /**
- * Parse `asm!("template")` (stage10 10.2.1 slice0).
+ * Parse `asm!("template")` / `asm!("template", in("reg") expr)` (stage10 10.2.1).
  * Caller must have consumed IDENT `asm` and leave `*r` on TOKEN_BANG.
- * Template-only: no `:` operands / options / labels yet.
- * Escape decode matches STRING_LIT (G.7). Template bytes → var_name; kind=EXPR_ASM(60).
+ * Slice0: template-only. Slice1: one Rust-style `in("reg") expr` (comma form).
+ * GNU `:` operands / options / out / clobber still rejected.
+ * Escape decode matches STRING_LIT (G.7). Template → var_name; kind=EXPR_ASM(60).
+ * Operand expr → call_arg list; reg spelling → method_call_name; int_val=0 means `in`.
  * PLATFORM: SHARED.
  */
 static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_slice_u8 *source,
@@ -1257,6 +1272,11 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
   int32_t nlen;
   int32_t ri;
   int32_t wi;
+  int32_t nops;
+  struct parser_asm_parse_expr_result arg_res;
+  size_t rq0;
+  int32_t rlen;
+  int32_t rwi;
 
   if (!arena || !source || !lex || !r || !out)
     return;
@@ -1333,9 +1353,67 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
   parser_asm_arena_expr_set_c(arena, pref, ae);
   parser_asm_lex_from_result_val_into(lex, *r);
   lexer_next_into(r, *lex, source);
-  /* Slice0: reject operands (`:`) — template-only form. */
+  /* GNU colon operands deferred — Rust comma form only. */
   if (r->tok.kind == (int32_t)TOKEN_COLON)
     return;
+  nops = 0;
+  while (r->tok.kind == (int32_t)TOKEN_COMMA) {
+    /* Slice1: exactly one `in("reg") expr`; more operands deferred. */
+    if (nops >= 1)
+      return;
+    parser_asm_lex_from_result_val_into(lex, *r);
+    lexer_next_into(r, *lex, source);
+    if (r->tok.kind != (int32_t)TOKEN_IDENT
+        || !parser_asm_primary_ident_is_in_c(source, r->token_start, r->tok.ident_len))
+      return;
+    parser_asm_lex_from_result_val_into(lex, *r);
+    lexer_next_into(r, *lex, source);
+    if (r->tok.kind != (int32_t)TOKEN_LPAREN)
+      return;
+    parser_asm_lex_from_result_val_into(lex, *r);
+    lexer_next_into(r, *lex, source);
+    if (r->tok.kind != (int32_t)TOKEN_STRING)
+      return;
+    /* Register name from STRING (no escapes needed for rax/eax/x0). */
+    ae = parser_asm_arena_expr_get_c(arena, pref);
+    rq0 = r->token_start;
+    rlen = r->tok.ident_len;
+    if (rlen < 0)
+      rlen = 0;
+    if (rlen > 127)
+      rlen = 127;
+    rwi = 0;
+    while (rwi < rlen) {
+      uint8_t rc = 0;
+      if (rq0 + (size_t)rwi < source->length)
+        rc = source->data[rq0 + (size_t)rwi];
+      ae.method_call_name[rwi] = rc;
+      rwi += 1;
+    }
+    ae.method_call_name_len = rwi;
+    if (rwi < 128)
+      ae.method_call_name[rwi] = 0;
+    /* int_val=0 → direction `in` (out/inout deferred). */
+    ae.int_val = 0;
+    parser_asm_arena_expr_set_c(arena, pref, ae);
+    parser_asm_lex_from_result_val_into(lex, *r);
+    lexer_next_into(r, *lex, source);
+    if (r->tok.kind != (int32_t)TOKEN_RPAREN)
+      return;
+    parser_asm_lex_from_result_val_into(lex, *r);
+    lexer_next_into(r, *lex, source);
+    memset(&arg_res, 0, sizeof(arg_res));
+    /* Match CALL arg parse: start from lex past `in("reg")` RPAREN. */
+    arg_res.next_lex = *lex;
+    parse_expr_into(arena, *lex, source, &arg_res);
+    if (!arg_res.ok || arg_res.expr_ref <= 0)
+      return;
+    *lex = arg_res.next_lex;
+    lexer_next_into(r, *lex, source);
+    if (pipeline_expr_append_call_arg(arena, pref, arg_res.expr_ref) < 0)
+      return;
+    nops += 1;
+  }
   if (r->tok.kind != (int32_t)TOKEN_RPAREN)
     return;
   parser_asm_lex_from_result_val_into(lex, *r);
