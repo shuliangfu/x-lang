@@ -3523,6 +3523,8 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
     "$oc" --weaken-symbol=_glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
     "$oc" --weaken-symbol=glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
     "$oc" --weaken-symbol=_glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=pipeline_asm_array_lit_elem_byte_sz_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_pipeline_asm_array_lit_elem_byte_sz_c "$base_o" 2>/dev/null || true
   fi
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
     log "pipeline_abi fnptr-arr-esz inject OK (first-wins over weakened leftover)"
