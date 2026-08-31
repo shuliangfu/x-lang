@@ -9428,6 +9428,7 @@ int32_t typeck_check_expr_call_arg(struct ast_Module * module, struct ast_ASTAre
 int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_addr_of = 51;
+    int32_t ord_deref = 52;
     int32_t ord_var = 3;
     int32_t minus_one = -1;
     int32_t callee_ref = 0;
@@ -9435,13 +9436,16 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
     int32_t inner_c = 0;
     int32_t ret_ty = 0;
     int32_t cnml = 0;
+    int32_t peel_ko = 0;
     uint8_t cnm[128] = {};
     (void)((callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref)));
     if (ast_ref_is_null(callee_ref)) {
       return 0;
     }
     (void)((callee_eff = callee_ref));
-    if ((pipeline_expr_kind_ord_at(arena, callee_eff) ==ord_addr_of)) {
+    (void)((peel_ko = pipeline_expr_kind_ord_at(arena, callee_eff)));
+    /* Cap (*f)(): peel DEREF/ADDR_OF (10.3.2 slice3). */
+    if (((peel_ko ==ord_addr_of) || (peel_ko ==ord_deref))) {
       (void)((inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff)));
       (!(ast_ref_is_null(inner_c)) ? ({   (void)((callee_eff = inner_c));
  }) : 0);
@@ -9519,8 +9523,10 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     int32_t callee_ref = 0;
     int32_t callee_eff = 0;
     int32_t ord_addr_of = 51;
+    int32_t ord_deref = 52;
     int32_t ord_var = 3;
     int32_t inner_c = 0;
+    int32_t peel_ko = 0;
     int32_t cnml = 0;
     uint8_t cnm[128] = {};
     int32_t j = 0;
@@ -9553,7 +9559,9 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
       return 0;
     }
     (void)((callee_eff = callee_ref));
-    if ((pipeline_expr_kind_ord_at(arena, callee_eff) ==ord_addr_of)) {
+    (void)((peel_ko = pipeline_expr_kind_ord_at(arena, callee_eff)));
+    /* Cap (*f)(): peel DEREF/ADDR_OF (10.3.2 slice3). */
+    if (((peel_ko ==ord_addr_of) || (peel_ko ==ord_deref))) {
       (void)((inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff)));
       (!(ast_ref_is_null(inner_c)) ? ({   (void)((callee_eff = inner_c));
  }) : 0);
