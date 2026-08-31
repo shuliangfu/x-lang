@@ -232,7 +232,7 @@
 ### 10.3 fnptr
 
 - ⬜ **10.3.1** fnptr 类型表达  
-- 🟡 **10.3.2** fnptr cast + indirect call — **slice0–3 ✅**：取址／`f()`／`f(x)`／`(*f)()`（DEREF peel≡Cap `f()`；typeck＋asm＋seed twin）。探针 `fnptr_addr_smoke.x`。残：栈参／`TYPE_FN`（10.3.1）；Darwin 共验待 pabi 恢复  
+- 🟡 **10.3.2** fnptr cast + indirect call — **slice0–3 ✅**：取址／`f()`／`f(x)`／`(*f)()`（DEREF peel≡Cap `f()`；typeck＋asm＋seed twin）。探针 `fnptr_addr_smoke.x` Ubuntu git＠`d4ae8371c` build=0 run=42／L2 5／5。残：栈参／`TYPE_FN`（10.3.1）；Darwin 共验待 pabi 恢复  
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
 ### 10.4–10.7
