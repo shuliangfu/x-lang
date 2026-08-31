@@ -4200,6 +4200,12 @@ extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(struct platform_elf_
 extern int32_t arch_x86_64_enc_enc_sete_al(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_movzbl_al_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_mov_eax_to_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_movq_mem_rax_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_xchg_rdx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_mov_rax_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_movq_mem_rcx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_movq_rax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4348,7 +4354,7 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Stage 10 (10.4.1) slice1: atomic_load_i32 / atomic_store_i32 / atomic_cas_i32.
+ * Stage 10 (10.4.1) slice1–2: atomic_load/store/cas_i32 and _i64.
  * Twin of try_emit_atomic_builtin_call_elf_c in backend_call_dispatch.x.
  * ta==0 only (x86_64); other arches fall through to panic bodies.
  * @return 1 emitted; 0 not applicable; -1 emit error
@@ -4366,9 +4372,12 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
   int32_t arg_ref;
   int32_t off[4];
   uint8_t name[128];
-  static const uint8_t nm_load[15] = {97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 51, 50};
-  static const uint8_t nm_store[16] = {97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 51, 50};
-  static const uint8_t nm_cas[14] = {97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 51, 50};
+  static const uint8_t nm_load32[15] = {97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 51, 50};
+  static const uint8_t nm_store32[16] = {97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 51, 50};
+  static const uint8_t nm_cas32[14] = {97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 51, 50};
+  static const uint8_t nm_load64[15] = {97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 54, 52};
+  static const uint8_t nm_store64[16] = {97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 54, 52};
+  static const uint8_t nm_cas64[14] = {97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 54, 52};
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
@@ -4409,47 +4418,47 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
   which = 0;
   if (nlen == 15) {
     for (i = 0; i < 15; i++) {
-      if (name[i] != nm_load[i]) {
-        which = -1;
-        break;
-      }
+      if (name[i] != nm_load32[i]) { which = -1; break; }
     }
-    if (which == 0)
-      which = 1;
-    else
-      which = 0;
+    if (which == 0) which = 1; else which = 0;
+    if (which == 0) {
+      for (i = 0; i < 15; i++) {
+        if (name[i] != nm_load64[i]) { which = -1; break; }
+      }
+      if (which == 0) which = 4; else which = 0;
+    }
   }
   if (which == 0 && nlen == 16) {
     for (i = 0; i < 16; i++) {
-      if (name[i] != nm_store[i]) {
-        which = -1;
-        break;
-      }
+      if (name[i] != nm_store32[i]) { which = -1; break; }
     }
-    if (which == 0)
-      which = 2;
-    else
-      which = 0;
+    if (which == 0) which = 2; else which = 0;
+    if (which == 0) {
+      for (i = 0; i < 16; i++) {
+        if (name[i] != nm_store64[i]) { which = -1; break; }
+      }
+      if (which == 0) which = 5; else which = 0;
+    }
   }
   if (which == 0 && nlen == 14) {
     for (i = 0; i < 14; i++) {
-      if (name[i] != nm_cas[i]) {
-        which = -1;
-        break;
-      }
+      if (name[i] != nm_cas32[i]) { which = -1; break; }
     }
-    if (which == 0)
-      which = 3;
-    else
-      which = 0;
+    if (which == 0) which = 3; else which = 0;
+    if (which == 0) {
+      for (i = 0; i < 14; i++) {
+        if (name[i] != nm_cas64[i]) { which = -1; break; }
+      }
+      if (which == 0) which = 6; else which = 0;
+    }
   }
   if (which == 0)
     return 0;
-  if (which == 1 && n_args != 1)
+  if ((which == 1 || which == 4) && n_args != 1)
     return 0;
-  if (which == 2 && n_args != 2)
+  if ((which == 2 || which == 5) && n_args != 2)
     return 0;
-  if (which == 3 && n_args != 3)
+  if ((which == 3 || which == 6) && n_args != 3)
     return 0;
   for (i = 0; i < n_args; i++) {
     if (is_method)
@@ -4465,46 +4474,55 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
   }
   if (which == 1) {
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
-      return -1;
-    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0)
-      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) return -1;
+    return 1;
+  }
+  if (which == 4) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx) != 0) return -1;
     return 1;
   }
   if (which == 2) {
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0)
-      return -1;
-    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
-      return -1;
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
-      return -1;
-    if (arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx) != 0)
-      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx) != 0) return -1;
     return 1;
   }
-  /* cas: desired→edx; expected_ptr→rcx; ptr→rbx; *expected→eax LAST; lock cmpxchg (%rbx) */
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
-    return -1;
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
-    return -1;
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0)
-    return -1;
-  if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0)
-    return -1;
+  if (which == 5) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx) != 0) return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx) != 0) return -1;
+    return 1;
+  }
+  if (which == 3) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) return -1;
+    if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0) return -1;
+    if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0) return -1;
+    if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0) return -1;
+    if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) return -1;
+    if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) return -1;
+    return 1;
+  }
+  /* cas i64 */
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) return -1;
+  if (arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx) != 0) return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) return -1;
+  if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) return -1;
+  if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) return -1;
+  if (arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(elf_ctx) != 0) return -1;
+  if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) return -1;
+  if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) return -1;
+  if (arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx) != 0) return -1;
   return 1;
 }
 
