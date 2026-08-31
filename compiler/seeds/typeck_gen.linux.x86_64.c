@@ -2095,6 +2095,21 @@ extern void pipeline_typeck_expr_apply_call_resolve_c(struct ast_ASTArena * aren
 extern int32_t pipeline_typeck_import_segment_at_c(struct ast_Module * module, int32_t imp_ix, int32_t want_seg, int32_t * ostr, int32_t * olen);
 extern int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t imp_ix);
 extern int32_t pipeline_typeck_resolve_whole_import_call_ret_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t callee_expr_ref, struct ast_PipelineDepCtx * ctx, int32_t * dep_index_out, int32_t * func_index_out);
+/* Pin twin of patch_typeck_gen_lang007.py ALLOW_LEGACY_HELPERS (G.7 same
+ * semantics): the assemble path injects these bodies into host-local
+ * typeck_gen.c after -E; the Track L cold-seed path compiles this pin
+ * directly, so without this block the pin object leaves
+ * typeck_get_allow_legacy_extern_calls UNDEF and pure-ld fails (7.4.5).
+ * Default allow=0 keeps LANG-007 S0 enforcement via glue boundary. */
+static int g_typeck_allow_legacy_extern_calls = 0;
+int typeck_set_allow_legacy_extern_calls(int allow) {
+  int old = g_typeck_allow_legacy_extern_calls;
+  g_typeck_allow_legacy_extern_calls = allow ? 1 : 0;
+  return old;
+}
+int typeck_get_allow_legacy_extern_calls(void) {
+  return g_typeck_allow_legacy_extern_calls;
+}
 #undef g_typeck_prim_arena
 static uint8_t * g_typeck_prim_arena = 0;
 #undef g_typeck_prim_ref
