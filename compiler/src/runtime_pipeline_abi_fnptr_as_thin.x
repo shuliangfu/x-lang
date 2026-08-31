@@ -1,4 +1,4 @@
-// Thin pure override: Cap-fn-ptr EXPR_AS (same-module #[no_mangle] fn as *u8).
+// Thin pure override: Cap-fn-ptr EXPR_AS (same-module #[no_mangle] fn as *u8 / TYPE_FN).
 // G.7: bodies MUST match pipeline_asm_emit_as_elf_impl / _c in runtime_pipeline_abi.x.
 // ensure injects via first-wins ld -r so product need not full mega -E
 // (Darwin mega -E hang-prone / memory).
@@ -48,7 +48,7 @@ export extern function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, n
  * wave138 pure: G.7 authority (was pipeline_asm_emit_as_elf_impl).
  * Cap residual: emit_expr_elf_c + cast encoders + f32/f64 classifiers +
  *   float_lit face + elf append (u32 zext mov eax,eax).
- * Cap-fn-ptr (10.3.2 slice0): same-module bare fn as *u8 → LEA link
+ * Cap-fn-ptr (10.3.2 slice0 / 10.3.1): bare fn as *u8 or TYPE_FN → LEA link
  *   symbol into rax/x0 (#[no_mangle] only; locals win over same-named funcs).
  * PLATFORM: SHARED freestanding cast emit · LINUX gold · MACOS underscore.
  */
@@ -345,7 +345,7 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
       }
     }
   }
-  // Cap-fn-ptr: (same_module_fn as *u8) → LEA of link symbol (rax/x0).
+  // Cap-fn-ptr: (same_module_fn as *u8|TYPE_FN) → LEA of link symbol (rax/x0).
   // Complements wave100 typeck Cap-fn-ptr + C codegen_try_emit_fn_as_value.
   // Locals (stack slot) win over same-named funcs. slice0: #[no_mangle] only.
   // PLATFORM: SHARED · MACOS Mach-O leading '_' · LINUX ELF bare name.
@@ -354,8 +354,8 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
       tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
       op_ko = pipeline_expr_kind_ord_at(arena, op);
     }
-    // TYPE_PTR=9 · EXPR_VAR=3
-    if (tgt_kind == 9 && op_ko == 3) {
+    // TYPE_PTR=9 · TYPE_FN=18 · EXPR_VAR=3
+    if ((tgt_kind == 9 || tgt_kind == 18) && op_ko == 3) {
       unsafe {
         fnptr_off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
       }
