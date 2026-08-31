@@ -3151,6 +3151,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_fnptr_as_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_asm_expr_thin.x ] \
+      && [ src/runtime_pipeline_abi_asm_expr_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     if [ -f src/runtime_pipeline_abi_fnptr_array_esz_thin.x ] \
       && [ src/runtime_pipeline_abi_fnptr_array_esz_thin.x -nt "$o" ]; then
       stale=1
@@ -3173,6 +3177,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
       pipeline_abi_inject_fnptr_as_thin "$o" || true
+      pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
@@ -3200,6 +3205,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || return 1
       pipeline_abi_inject_fnptr_as_thin "$o" || return 1
+      pipeline_abi_inject_asm_expr_thin "$o" || return 1
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       return 0
     fi
@@ -3270,6 +3276,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
     pipeline_abi_inject_param_ptr_slot_thin "$o" || true
     pipeline_abi_inject_fnptr_as_thin "$o" || true
+    pipeline_abi_inject_asm_expr_thin "$o" || true
     pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     return 0
   fi
@@ -3301,6 +3308,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_binop_block_peel_thin "$o" || true
         pipeline_abi_inject_param_ptr_slot_thin "$o" || true
         pipeline_abi_inject_fnptr_as_thin "$o" || true
+        pipeline_abi_inject_asm_expr_thin "$o" || true
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         return 0
       fi
@@ -3316,6 +3324,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || true
       pipeline_abi_inject_fnptr_as_thin "$o" || true
+      pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       return 0
     fi
@@ -3339,6 +3348,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
   pipeline_abi_inject_param_ptr_slot_thin "$o" || true
   pipeline_abi_inject_fnptr_as_thin "$o" || true
+  pipeline_abi_inject_asm_expr_thin "$o" || true
   pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   return 0
 }
@@ -3465,6 +3475,12 @@ pipeline_abi_inject_unused_hints_thin() {
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_as_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
+}
+
+# Stage10 10.2.1: EXPR_ASM emit_expr_elf_rec override (ko==60 → try_emit).
+# G.7: thin body matches seed/mega emit_expr_elf_rec asm branch.
+pipeline_abi_inject_asm_expr_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm_expr_thin.x" "asm-expr-thin"
 }
 
 # 10.3.1 slice13: TYPE_FN array-lit esz / fixed-array temp bytes.
