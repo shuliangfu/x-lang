@@ -5006,7 +5006,7 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
         return -1;
       ud2[0] = 0x0fu;
       ud2[1] = 0x0bu;
-      if (pipeline_elf_ctx_append_bytes(elf_ctx, ud2, 2) != 0)
+      if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, ud2, 2) != 0)
         return -1;
     }
   }
