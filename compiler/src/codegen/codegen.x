@@ -5376,7 +5376,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
      * PLATFORM: SHARED host-C. G.7 single declarator authority.
      */
     if (tk == TypeKind.TYPE_FN as i32) {
-      return emit_c_fnptr_decl(arena, out, type_ref, 0 as *u8, 0, ctx);
+      return emit_c_fnptr_decl(arena, out, type_ref, 0 as *u8, 0, 0, ctx);
     }
     return emit_type_kind_ord(out, tk);
   }
@@ -5751,23 +5751,32 @@ export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32
  * Zero params → `(void)` (ISO C empty-prototype ban). Nested TYPE_FN params
  * recurse via emit_type → abstract form.
  *
+ * 10.3.1 slice11: when `array_ty` is TYPE_ARRAY… peeling to `fn_ty`, emit
+ * dims after the name inside the pointer parens:
+ *   `Ret (*name[N][M])(args)` — not invalid `Ret (*)(args) name[N]`.
+ * Pass array_ty==0 for bare TYPE_FN / abstract / params.
+ *
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
- * @param fn_ty i32 — TYPE_FN type_ref
+ * @param fn_ty i32 — TYPE_FN type_ref (leaf)
  * @param name *u8 — optional declarator name (null when name_len==0)
  * @param name_len i32 — 0 for abstract type (casts / emit_type)
+ * @param array_ty i32 — 0 or outermost TYPE_ARRAY of fn_ty; dims after name
  * @param ctx *PipelineDepCtx — nested emit
  * @return i32 — 0 success, -1 failure
  * PLATFORM: SHARED host-C. G.7 single TYPE_FN declarator authority.
  */
 export function emit_c_fnptr_decl(arena: *ASTArena, out: *CodegenOutBuf, fn_ty: i32, name: *u8,
-name_len: i32, ctx: *PipelineDepCtx): i32 {
+name_len: i32, array_ty: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ret_ty: i32 = 0;
     let n: i32 = 0;
     let i: i32 = 0;
     let pty: i32 = 0;
+    let dims_ref: i32 = 0;
+    let depth: i32 = 0;
+    let asz: i32 = 0;
     if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || fn_ty <= 0) {
       return -1;
     }
@@ -5797,6 +5806,30 @@ name_len: i32, ctx: *PipelineDepCtx): i32 {
     if (name_len > 0 && name != 0 as *u8) {
       if (emit_bytes_from_ptr(out, name, name_len) != 0) {
         return -1;
+      }
+    }
+    /*
+     * Array-of-fnptr: dims bind to the pointer name, not after the prototype.
+     * PLATFORM: SHARED host-C (ISO C `Ret (*a[N])(T)`).
+     */
+    if (array_ty > 0 && pipeline_type_kind_ord_at(arena, array_ty) == (TypeKind.TYPE_ARRAY as i32)) {
+      dims_ref = array_ty;
+      depth = 0;
+      while (!ast.ref_is_null(dims_ref)
+          && pipeline_type_kind_ord_at(arena, dims_ref) == (TypeKind.TYPE_ARRAY as i32)
+          && depth < 8) {
+        asz = pipeline_type_array_size_at(arena, dims_ref);
+        if (append_byte(out, 91) != 0) {
+          return -1;
+        }
+        if (format_int(out, asz) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 93) != 0) {
+          return -1;
+        }
+        dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+        depth = depth + 1;
       }
     }
     /* ")(" */
@@ -9369,6 +9402,7 @@ function codegen_build_func_param_mono_map(module: *Module, arena: *ASTArena, fi
  * Fixed arrays peel to scalar/base then append `[N]` dims (same as locals).
  * TYPE_FN (10.3.1 slice10): `Ret (*field)(args)` via emit_c_fnptr_decl —
  * abstract `Ret (*)(args) field` is invalid C.
+ * `[N]function(...)` (slice11): `Ret (*field[N])(args)` via array_ty dims.
  *
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
@@ -9386,26 +9420,36 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
   unsafe {
 
     let base_ref: i32 = type_ref;
+    let array_ty: i32 = 0;
     if (ast.ref_is_null(type_ref) || field_name == 0 as *u8 || field_name_len <= 0) {
       return -1;
     }
     /*
-     * 10.3.1 slice10: TYPE_FN field must be `Ret (*name)(args)`, not
-     * abstract `Ret (*)(args)` + space + name (invalid C; host-cc rejects
-     * `struct Holder { int32_t (*)(int32_t) f; }`). G.7: reuse emit_c_fnptr_decl.
-     * Array-of-fnptr fields (`[N]function(...)`) still use peel+dims path
-     * (needs `Ret (*name[N])(args)` — residual).
+     * 10.3.1 slice10/11: bare TYPE_FN → Ret (*name)(args); ARRAY of TYPE_FN →
+     * Ret (*name[N]…)(args). Peel first so one G.7 emit_c_fnptr_decl path.
      * PLATFORM: SHARED host-C.
      */
-    if (pipeline_type_kind_ord_at(arena, type_ref) == (TypeKind.TYPE_FN as i32)) {
-      return emit_c_fnptr_decl(arena, out, type_ref, field_name, field_name_len, ctx);
-    }
     while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_ARRAY as i32)) {
       let inner: i32 = pipeline_type_elem_ref_at(arena, base_ref);
       if (ast.ref_is_null(inner)) {
         break;
       }
       base_ref = inner;
+    }
+    if (pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_FN as i32)) {
+      if (pipeline_type_kind_ord_at(arena, type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+        array_ty = type_ref;
+      }
+      return emit_c_fnptr_decl(arena, out, base_ref, field_name, field_name_len, array_ty, ctx);
+    }
+    /* Reset peel for non-FN arrays (scalar/struct leaf + trailing dims). */
+    base_ref = type_ref;
+    while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+      let inner2: i32 = pipeline_type_elem_ref_at(arena, base_ref);
+      if (ast.ref_is_null(inner2)) {
+        break;
+      }
+      base_ref = inner2;
     }
     if (emit_type(arena, out, base_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
       return -1;
@@ -17622,6 +17666,9 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             let use_local_array: i32 = 0;
             let use_ptr_to_array: i32 = 0;
             let use_fnptr: i32 = 0;
+            let fnptr_array_ty: i32 = 0;
+            let use_fnptr_array_init: i32 = 0;
+            let fn_leaf: i32 = 0;
             if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
               use_local_array = 1;
             }
@@ -17635,9 +17682,28 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             /*
              * 10.3.1: `let f: function(T): R = …` → `R (*f)(T)`.
              * Bare emit_type abstract + name → invalid `R (*)(T) f`.
+             * slice11: `let a: [N]function(...)=…` → `R (*a[N])(…)` (not abstract+suffix).
              * PLATFORM: SHARED host-C. G.7 emit_c_fnptr_decl.
              */
-            if (use_local_array == 0 && use_ptr_to_array == 0 && !ast.ref_is_null(let_type_ref)
+            if (use_local_array != 0 && !ast.ref_is_null(let_type_ref)) {
+              fn_leaf = let_type_ref;
+              while (!ast.ref_is_null(fn_leaf)
+                  && pipeline_type_kind_ord_at(arena, fn_leaf) == (TypeKind.TYPE_ARRAY as i32)) {
+                let inn: i32 = pipeline_type_elem_ref_at(arena, fn_leaf);
+                if (ast.ref_is_null(inn)) {
+                  break;
+                }
+                fn_leaf = inn;
+              }
+              if (pipeline_type_kind_ord_at(arena, fn_leaf) == (TypeKind.TYPE_FN as i32)) {
+                use_fnptr = 1;
+                fnptr_array_ty = let_type_ref;
+                use_fnptr_array_init = 1;
+                use_local_array = 0;
+              }
+            }
+            if (use_local_array == 0 && use_ptr_to_array == 0 && use_fnptr == 0
+                && !ast.ref_is_null(let_type_ref)
                 && pipeline_type_kind_ord_at(arena, let_type_ref) == (TypeKind.TYPE_FN as i32)) {
               use_fnptr = 1;
             }
@@ -17751,7 +17817,19 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
               type_emitted = 1;
             } else if (use_fnptr != 0 && type_emitted == 0) {
-              if (emit_c_fnptr_decl(arena, out, let_type_ref, &emit_nm[0], emit_nml, ctx) != 0) {
+              fn_leaf = let_type_ref;
+              if (fnptr_array_ty > 0) {
+                fn_leaf = fnptr_array_ty;
+                while (!ast.ref_is_null(fn_leaf)
+                    && pipeline_type_kind_ord_at(arena, fn_leaf) == (TypeKind.TYPE_ARRAY as i32)) {
+                  let inn2: i32 = pipeline_type_elem_ref_at(arena, fn_leaf);
+                  if (ast.ref_is_null(inn2)) {
+                    break;
+                  }
+                  fn_leaf = inn2;
+                }
+              }
+              if (emit_c_fnptr_decl(arena, out, fn_leaf, &emit_nm[0], emit_nml, fnptr_array_ty, ctx) != 0) {
                 return -1;
               }
               type_emitted = 1;
@@ -17786,6 +17864,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              */
             if (use_local_array != 0) {
               if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, let_type_ref, ctx) != 0) {
+                return -1;
+              }
+            } else if (use_fnptr_array_init != 0) {
+              /* slice11: declarator already has [N]; reuse ARRAY let-finish for init. */
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, fnptr_array_ty, ctx) != 0) {
                 return -1;
               }
             } else if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 11
@@ -18311,11 +18394,31 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       let type_emitted: i32 = 0;
       let use_local_array: i32 = 0;
       let use_fnptr: i32 = 0;
+      let fnptr_array_ty: i32 = 0;
+      let use_fnptr_array_init: i32 = 0;
+      let fn_leaf_fb: i32 = 0;
       if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
         use_local_array = 1;
       }
       /* 10.3.1 fallback let: TYPE_FN → named fnptr declarator (mirror primary path). */
-      if (use_local_array == 0 && !ast.ref_is_null(let_type_ref)
+      if (use_local_array != 0 && !ast.ref_is_null(let_type_ref)) {
+        fn_leaf_fb = let_type_ref;
+        while (!ast.ref_is_null(fn_leaf_fb)
+            && pipeline_type_kind_ord_at(arena, fn_leaf_fb) == (TypeKind.TYPE_ARRAY as i32)) {
+          let inn_fb: i32 = pipeline_type_elem_ref_at(arena, fn_leaf_fb);
+          if (ast.ref_is_null(inn_fb)) {
+            break;
+          }
+          fn_leaf_fb = inn_fb;
+        }
+        if (pipeline_type_kind_ord_at(arena, fn_leaf_fb) == (TypeKind.TYPE_FN as i32)) {
+          use_fnptr = 1;
+          fnptr_array_ty = let_type_ref;
+          use_fnptr_array_init = 1;
+          use_local_array = 0;
+        }
+      }
+      if (use_local_array == 0 && use_fnptr == 0 && !ast.ref_is_null(let_type_ref)
           && pipeline_type_kind_ord_at(arena, let_type_ref) == (TypeKind.TYPE_FN as i32)) {
         use_fnptr = 1;
       }
@@ -18415,7 +18518,19 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
       }
       if (use_fnptr != 0 && type_emitted == 0) {
-        if (emit_c_fnptr_decl(arena, out, let_type_ref, &emit_nm_fb[0], emit_nml_fb, ctx) != 0) {
+        fn_leaf_fb = let_type_ref;
+        if (fnptr_array_ty > 0) {
+          fn_leaf_fb = fnptr_array_ty;
+          while (!ast.ref_is_null(fn_leaf_fb)
+              && pipeline_type_kind_ord_at(arena, fn_leaf_fb) == (TypeKind.TYPE_ARRAY as i32)) {
+            let inn_fb2: i32 = pipeline_type_elem_ref_at(arena, fn_leaf_fb);
+            if (ast.ref_is_null(inn_fb2)) {
+              break;
+            }
+            fn_leaf_fb = inn_fb2;
+          }
+        }
+        if (emit_c_fnptr_decl(arena, out, fn_leaf_fb, &emit_nm_fb[0], emit_nml_fb, fnptr_array_ty, ctx) != 0) {
           return -1;
         }
         type_emitted = 1;
@@ -18446,6 +18561,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       /* wave353: fixed TYPE_ARRAY local let finish (brace or memcpy). */
       if (use_local_array != 0) {
         if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, let_type_ref, ctx) != 0) {
+          return -1;
+        }
+      } else if (use_fnptr_array_init != 0) {
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, fnptr_array_ty, ctx) != 0) {
           return -1;
         }
       } else {
@@ -20178,7 +20297,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             }
           }
           if (emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p),
-              &pfn_nm[0], pfn_nl, ctx) != 0) {
+              &pfn_nm[0], pfn_nl, 0, ctx) != 0) {
             return -1;
           }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
@@ -23915,7 +24034,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
             }
           }
           if (emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p),
-              &pfn_nm[0], pfn_nl, ctx) != 0) {
+              &pfn_nm[0], pfn_nl, 0, ctx) != 0) {
             return -1;
           }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
