@@ -231,7 +231,7 @@
 
 ### 10.3 fnptr
 
-- 🟡 **10.3.1** fnptr 类型表达 — **slice0** TYPE_FN＝18 ✅；**slice1 parser** `function(...): T` ✅；**slice2** Cap `*u8`→TYPE_FN coerce＋间接调 ✅（`fn_type_parse_smoke.x` `(fn as *u8)`→`f(41)` **run=42**＠`7da3889f8`）。残：裸名 LEA／签名比对／codegen C repr／`as function(...)`
+- 🟡 **10.3.1** fnptr 类型表达 — **slice0–2** ✅（TYPE_FN＝18／parser／Cap coerce＋call＠`7da3889f8`）。**裸名 LEA** 已入 `emit_expr_elf_fast`（`e0a85d20f`）但 Ubuntu hybrid pabi egg 待恢复后金标；探针暂 `(fn as *u8)`。残：egg／签名比对／codegen C repr／`as function(...)`
 - 🟡 **10.3.2** fnptr cast + indirect call — **slice0–4 ✅（Ubuntu）**：取址／`f()`／`f(x)`／`(*f)()`／栈参。探针 `fnptr_addr_smoke.x`＠`410118683`。**Darwin**：ensure 拒不完整 libtool archive；Cap 共验仍阻（g05 UNDEF hybrid／无 pin egg）。残：Darwin Cap 全链
 - ⬜ **10.3.3** fnptr 作参／返回／字段  
 
