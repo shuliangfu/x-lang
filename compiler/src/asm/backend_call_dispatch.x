@@ -3946,8 +3946,9 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let cap_nargs: i32 = 0;
       let cap_eff: i32 = callee_ref;
       let cap_fn_off: i32 = 0;
-      if (callee_ko == 51) {
-        /* EXPR_ADDR_OF — peel to operand (*f)() shape when present. */
+      if (callee_ko == 51 || callee_ko == 52) {
+        /* EXPR_ADDR_OF / EXPR_DEREF — peel so Cap *u8 VAR is visible.
+         * (*f)() → DEREF(VAR); Cap ≡ f() (emit pointer value, not u8 load). */
         let inn: i32 = pipeline_expr_unary_operand_ref_at(arena, callee_ref);
         if (inn > 0) { cap_eff = inn; }
       }
