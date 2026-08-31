@@ -2474,6 +2474,136 @@ export extern function codegen_get_host_call_arg_param_ty(): i32;
 export extern function codegen_next_host_call_array_tmp_id(): i32;
 
 /**
+ * Stage 10 S3.1 slice 1 (10.1.1): host-C raw syscall intrinsic for
+ * `raw_syscall0..raw_syscall6(nr, a1..aN)` — Linux x86_64 kernel ABI.
+ *
+ * Product surface (`std.sys.linux`, cfg target_os="linux"):
+ *   - import-qualified: `linux.raw_syscall3(1, fd, buf, len)` (write)
+ *   - bare same-module calls also match (callee EXPR_VAR)
+ *
+ * Authority (G.7): expand at the CALL site to
+ *   `((int64_t)(__xlang_raw_syscallN((long)(nr),(long)(a1),...)))`
+ * — same single-authority shape as the wave463 size_of/align_of intrinsic;
+ * do not open a second lowering path for syscalls. The static-inline helpers
+ * (register constraints + `syscall`, clobber rcx/r11/memory) are emitted once
+ * per TU by codegen_emit_raw_syscall_helpers behind
+ * `#if defined(__linux__) && defined(__x86_64__)`: the host cc preprocessor
+ * is the platform truth, so Darwin/arm64 host-cc of `-E` drops them and any
+ * unguarded use fails to link (honest boundary; arm64 `svc #0` = 10.1.2).
+ * The `.x` bodies in std.sys.linux panic — the asm-backend intercept does
+ * not exist yet and must not silently return 0 (honest-fail, not fake green).
+ *
+ * @param arena *ASTArena — expr / callee slots
+ * @param out *CodegenOutBuf — host-C text buffer
+ * @param expr_ref i32 — EXPR_CALL site
+ * @param ctx *PipelineDepCtx — arg emit context
+ * @return i32 — 1 fully emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED host-C emit; runtime effect LINUX x86_64 only (#if helpers).
+ */
+export function codegen_try_emit_raw_syscall_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let arity: i32 = -1;
+    let n_args: i32 = 0;
+    let ai: i32 = 0;
+    let pi: i32 = 0;
+    /* ((int64_t)(__xlang_raw_syscall — arity digit + '(' appended after match. */
+    let open_pre: u8[30] = [40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
+    /* (long)( */
+    let arg_open: u8[7] = [40, 108, 111, 110, 103, 41, 40];
+    /* , */
+    let comma_sp: u8[2] = [44, 32];
+    /* ))) — close call paren, int64_t cast, outer wrap. */
+    let close3: u8[3] = [41, 41, 41];
+    /* raw_syscall — 11 prefix bytes; callee must be exactly raw_syscall<digit>. */
+    let pfx: u8[11] = [114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    if ((e.kind as i32) != (ExprKind.EXPR_CALL as i32)) {
+      return 0;
+    }
+    callee_ref = e.call_callee_ref;
+    if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+      return 0;
+    }
+    callee = ast.ast_arena_expr_get(arena, callee_ref);
+    if ((callee.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee.field_access_field_len > 0) {
+      name_ptr = &callee.field_access_field_name[0];
+      name_len = callee.field_access_field_len;
+    } else if ((callee.kind as i32) == (ExprKind.EXPR_VAR as i32) && callee.var_name_len > 0) {
+      name_ptr = &callee.var_name[0];
+      name_len = callee.var_name_len;
+    } else {
+      return 0;
+    }
+    /* Exact shape: raw_syscall0..raw_syscall6 (len 12; suffix digit = arity). */
+    if (name_len != 12) {
+      return 0;
+    }
+    while (pi < 11) {
+      if (name_ptr[pi] != pfx[pi]) {
+        return 0;
+      }
+      pi = pi + 1;
+    }
+    arity = name_ptr[11] as i32 - 48;
+    if (arity < 0 || arity > 6) {
+      return 0;
+    }
+    n_args = e.call_num_args;
+    if (n_args != arity + 1) {
+      return 0;
+    }
+    if (emit_bytes_from_ptr(out, &open_pre[0], 30) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 48 + arity) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    /* Scalar i64 formals only: clear the host slice-formal sidecar (wave395). */
+    codegen_set_host_call_arg_param_ty(0);
+    while (ai < n_args) {
+      if (ai > 0) {
+        if (emit_bytes_from_ptr(out, &comma_sp[0], 2) != 0) {
+          return -1;
+        }
+      }
+      if (emit_bytes_from_ptr(out, &arg_open[0], 7) != 0) {
+        return -1;
+      }
+      if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    if (emit_bytes_from_ptr(out, &close3[0], 3) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
  * wave409 Cap residual pure: finish TYPE_SLICE let from CALL/METHOD with frame deep-copy.
  * Type+name already written. Emits `; E __xlang_ldN[1024]; { S __sp = call; copy; name=fat(ld); }`.
  * Fixes true recursion last-wins on callee static `__xlang_al` (walk 18→36).
@@ -12587,6 +12717,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         if (sa_rc > 0) {
+          return 0;
+        }
+      }
+      /* stage10 S3.1 slice1 (10.1.1): raw_syscall0..6 → __xlang_raw_syscallN
+       * (Linux x86_64 kernel ABI; before bare call, after size_of authority). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let rs_rc: i32 = codegen_try_emit_raw_syscall_call(arena, out, expr_ref, ctx);
+        if (rs_rc < 0) {
+          return -1;
+        }
+        if (rs_rc > 0) {
           return 0;
         }
       }
@@ -23728,6 +23869,180 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
  * SIMD: XLANG_VECTOR_TYPES (i32x4_t / u32x8_t / f32x4_t …) so bare `-E`
  * host-cc matches emit_vector_c_type_out; `-o` already has rt_preamble §10.
  */
+/**
+ * Stage 10 S3.1 slice 1 (10.1.1): emit the raw syscall static-inline helpers
+ * `__xlang_raw_syscall0..6` into the host-C preamble, behind
+ * `#if defined(__linux__) && defined(__x86_64__)`.
+ *
+ * Register map (Linux x86_64 kernel ABI): nr→rax; a1→rdi; a2→rsi; a3→rdx;
+ * a4→r10; a5→r8; a6→r9; return rax; rcx/r11 clobbered by `syscall`.
+ * r10/r8/r9 have no single-letter GCC constraints → register local vars.
+ * `__attribute__((unused))` keeps helper-only TUs warning-free under
+ * -Wall -Wextra (gcc/clang both accept; host cc is the documented product).
+ * Darwin/arm64 host cc drops the whole block via the #if guard (arm64
+ * `svc #0` lowering is 10.1.2, a follow-up wave).
+ *
+ * Consumed only by codegen_try_emit_raw_syscall_call call-site expansion;
+ * emitting here is safe for both bare `-E` and full `-o` because this runs
+ * once per C TU via the prologue gate (pipeline_codegen_c_file_prologue_done).
+ *
+ * @param out *CodegenOutBuf — destination C text buffer
+ * @return i32 — 0 on success; -1 if any emit fails
+ * PLATFORM: SHARED host-C emit; runtime effect LINUX x86_64 only.
+ */
+export function codegen_emit_raw_syscall_helpers(out: *CodegenOutBuf): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    /* #if defined(__linux__) && defined(__x86_64__)\n */
+    let guard_open: u8[46] = [35, 105, 102, 32, 100, 101, 102, 105, 110, 101, 100, 40, 95, 95, 108, 105,
+      110, 117, 120, 95, 95, 41, 32, 38, 38, 32, 100, 101, 102, 105, 110, 101,
+      100, 40, 95, 95, 120, 56, 54, 95, 54, 52, 95, 95, 41, 10];
+    /* static inline __attribute__((unused)) long __xlang_raw_syscall0(long n){long r;__asm__ __volatile__("syscall":"=a"(r):"a"(n):"rcx","r11","memory");return r;}\n */
+    let h0: u8[158] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 48, 40,
+      108, 111, 110, 103, 32, 110, 41, 123, 108, 111, 110, 103, 32, 114, 59, 95,
+      95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108,
+      101, 95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61,
+      97, 34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 58, 34, 114, 99,
+      120, 34, 44, 34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121,
+      34, 41, 59, 114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall1(long n,long a) — arg1 in rdi ("D"). */
+    let h1: u8[172] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 49, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 41, 123, 108,
+      111, 110, 103, 32, 114, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95,
+      118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99,
+      97, 108, 108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34,
+      40, 110, 41, 44, 34, 68, 34, 40, 97, 41, 58, 34, 114, 99, 120, 34,
+      44, 34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41,
+      59, 114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall2(long n,long a,long b) — arg2 in rsi ("S"). */
+    let h2: u8[186] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 50, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 41, 123, 108, 111, 110, 103, 32, 114, 59, 95, 95, 97,
+      115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95,
+      95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97, 34,
+      40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40, 97,
+      41, 44, 34, 83, 34, 40, 98, 41, 58, 34, 114, 99, 120, 34, 44, 34,
+      114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114,
+      101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall3(long n,long a,long b,long c) — arg3 in rdx ("d"); write/read shape. */
+    let h3: u8[200] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 51, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 41, 123, 108, 111, 110,
+      103, 32, 114, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111,
+      108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99, 97, 108,
+      108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34, 40, 110,
+      41, 44, 34, 68, 34, 40, 97, 41, 44, 34, 83, 34, 40, 98, 41, 44,
+      34, 100, 34, 40, 99, 41, 58, 34, 114, 99, 120, 34, 44, 34, 114, 49,
+      49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116,
+      117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall4 — arg4 in r10 (register local var; no single-letter constraint). */
+    let h4: u8[251] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 52, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 41, 123, 108, 111, 110, 103, 32, 114, 59, 114, 101, 103, 105, 115,
+      116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 49, 48, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 114, 49, 48, 34, 41, 61, 100, 59, 95, 95,
+      97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101,
+      95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97,
+      34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40,
+      97, 41, 44, 34, 83, 34, 40, 98, 41, 44, 34, 100, 34, 40, 99, 41,
+      44, 34, 114, 34, 40, 120, 49, 48, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall5 — arg4 r10 + arg5 r8 (register locals). */
+    let h5: u8[299] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 53, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 41, 123, 108, 111, 110, 103, 32,
+      114, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32,
+      120, 49, 48, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 114, 49, 48,
+      34, 41, 61, 100, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111,
+      110, 103, 32, 120, 56, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 114,
+      56, 34, 41, 61, 101, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95,
+      118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99,
+      97, 108, 108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34,
+      40, 110, 41, 44, 34, 68, 34, 40, 97, 41, 44, 34, 83, 34, 40, 98,
+      41, 44, 34, 100, 34, 40, 99, 41, 44, 34, 114, 34, 40, 120, 49, 48,
+      41, 44, 34, 114, 34, 40, 120, 56, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall6 — arg4 r10 + arg5 r8 + arg6 r9 (register locals). */
+    let h6: u8[347] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 54, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 44, 108, 111, 110, 103, 32, 102,
+      41, 123, 108, 111, 110, 103, 32, 114, 59, 114, 101, 103, 105, 115, 116, 101,
+      114, 32, 108, 111, 110, 103, 32, 120, 49, 48, 32, 95, 95, 97, 115, 109,
+      95, 95, 40, 34, 114, 49, 48, 34, 41, 61, 100, 59, 114, 101, 103, 105,
+      115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 56, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 114, 56, 34, 41, 61, 101, 59, 114, 101, 103,
+      105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 57, 32, 95, 95,
+      97, 115, 109, 95, 95, 40, 34, 114, 57, 34, 41, 61, 102, 59, 95, 95,
+      97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101,
+      95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97,
+      34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40,
+      97, 41, 44, 34, 83, 34, 40, 98, 41, 44, 34, 100, 34, 40, 99, 41,
+      44, 34, 114, 34, 40, 120, 49, 48, 41, 44, 34, 114, 34, 40, 120, 56,
+      41, 44, 34, 114, 34, 40, 120, 57, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* #endif\n */
+    let guard_close: u8[7] = [35, 101, 110, 100, 105, 102, 10];
+    if (out == 0 as *CodegenOutBuf) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &guard_open[0], 46) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h0[0], 158) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h1[0], 172) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h2[0], 186) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h3[0], 200) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h4[0], 251) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h5[0], 299) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h6[0], 347) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &guard_close[0], 7) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
 export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -23756,6 +24071,17 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10,
       0, 0, 0, 0, 0, 0, 0, 0];
     if (emit_bytes_64(out, &h2[0], 40) != 0) {
+      return -1;
+    }
+    /*
+     * Stage 10 S3.1 slice 1 (10.1.1): raw syscall static-inline helpers behind
+     * `#if defined(__linux__) && defined(__x86_64__)` (host cc preprocessor is
+     * the platform truth; Darwin/arm64 drops them). Consumed only by
+     * codegen_try_emit_raw_syscall_call call sites; __attribute__((unused))
+     * keeps TUs without syscalls warning-free.
+     * PLATFORM: SHARED host-C. G.7: emit_header is the -E authority.
+     */
+    if (codegen_emit_raw_syscall_helpers(out) != 0) {
       return -1;
     }
     /* SIMD typedefs after libc includes (int32_t / float available).

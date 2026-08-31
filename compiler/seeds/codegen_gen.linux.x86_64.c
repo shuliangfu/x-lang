@@ -579,6 +579,8 @@ struct ast_ASTArena {
 #define codegen_codegen_field_access_base_type_resolved codegen_field_access_base_type_resolved
 #define codegen_codegen_try_emit_fmt_string_lit_call codegen_try_emit_fmt_string_lit_call
 #define codegen_codegen_try_emit_size_align_of_call codegen_try_emit_size_align_of_call
+#define codegen_codegen_try_emit_raw_syscall_call codegen_try_emit_raw_syscall_call
+#define codegen_codegen_emit_raw_syscall_helpers codegen_emit_raw_syscall_helpers
 #define codegen_codegen_emit_call_arg_slice_abi codegen_emit_call_arg_slice_abi
 #define codegen_codegen_field_access_base_is_pointer_param codegen_field_access_base_is_pointer_param
 #define codegen_codegen_field_access_base_is_pointer_local codegen_field_access_base_is_pointer_local
@@ -1426,6 +1428,8 @@ extern int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * ar
 extern int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int32_t base_ref);
 extern int32_t codegen_try_emit_fmt_string_lit_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_try_emit_size_align_of_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_try_emit_raw_syscall_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_emit_raw_syscall_helpers(struct codegen_CodegenOutBuf * out);
 extern int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
 extern int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
@@ -3531,6 +3535,110 @@ int32_t codegen_try_emit_size_align_of_call(struct ast_ASTArena * arena, struct 
 extern void codegen_set_host_call_arg_param_ty(int32_t param_ty_ref);
 extern int32_t codegen_get_host_call_arg_param_ty(void);
 extern int32_t codegen_next_host_call_array_tmp_id(void);
+
+/* Stage 10 S3.1 slice 1 (10.1.1): host-C raw syscall intrinsic
+ * raw_syscall0..6 — seed twin of codegen.x codegen_try_emit_raw_syscall_call.
+ * Call-site expansion ((int64_t)(__xlang_raw_syscallN((long)(arg),...)));
+ * G.7 same shape as wave463 size_of/align_of intercept. Helpers come from
+ * codegen_emit_raw_syscall_helpers (#if linux/x86_64). Scalar i64 formals:
+ * host slice-formal sidecar cleared per wave395 contract.
+ * PLATFORM: SHARED host-C emit; runtime effect LINUX x86_64 only. */
+int32_t codegen_try_emit_raw_syscall_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  {
+    struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
+    int32_t callee_ref = 0;
+    struct ast_Expr callee = e;
+    uint8_t * name_ptr = 0;
+    int32_t name_len = 0;
+    int32_t arity = -1;
+    int32_t n_args = 0;
+    int32_t ai = 0;
+    int32_t pi = 0;
+    uint8_t open_pre[30] = {40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108};
+    uint8_t arg_open[7] = {40, 108, 111, 110, 103, 41, 40};
+    uint8_t comma_sp[2] = {44, 32};
+    uint8_t close3[3] = {41, 41, 41};
+    uint8_t pfx[11] = {114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108};
+    if ((((arena ==0) || (out ==0)) || (ctx ==0))) {
+      return 0;
+    }
+    if (((expr_ref <=0) || (expr_ref >((arena)->num_exprs)))) {
+      return 0;
+    }
+    (void)((e = ast_ast_arena_expr_get(arena, expr_ref)));
+    if (((int32_t)(((e).kind))) !=48) {
+      return 0;
+    }
+    (void)((callee_ref = ((e).call_callee_ref)));
+    if (((callee_ref <=0) || (callee_ref >((arena)->num_exprs)))) {
+      return 0;
+    }
+    (void)((callee = ast_ast_arena_expr_get(arena, callee_ref)));
+    if (((((int32_t)(((callee).kind))) ==44) && (((callee).field_access_field_len) > 0))) {
+      (void)((name_ptr = &((((callee).field_access_field_name))[0])));
+      (void)((name_len = ((callee).field_access_field_len)));
+    } else {
+      if (((((int32_t)(((callee).kind))) ==3) && (((callee).var_name_len) > 0))) {
+        (void)((name_ptr = &((((callee).var_name))[0])));
+        (void)((name_len = ((callee).var_name_len)));
+      } else {
+        return 0;
+      }
+    }
+    if ((name_len != 12)) {
+      return 0;
+    }
+    while ((pi < 11)) {
+      if (((name_ptr)[pi] != (pfx)[pi])) {
+        return 0;
+      }
+      (void)((pi = (pi + 1)));
+    }
+    (void)((arity = (((int32_t)(((name_ptr)[11]))) - 48)));
+    if (((arity < 0) || (arity > 6))) {
+      return 0;
+    }
+    (void)((n_args = ((e).call_num_args)));
+    if ((n_args != (arity + 1))) {
+      return 0;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((open_pre)[0]), 30) !=0)) {
+      return -1;
+    }
+    if ((codegen_append_byte(out, (48 + arity)) !=0)) {
+      return -1;
+    }
+    if ((codegen_append_byte(out, 40) !=0)) {
+      return -1;
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    while ((ai < n_args)) {
+      if ((ai > 0)) {
+        if ((codegen_emit_bytes_from_ptr(out, &((comma_sp)[0]), 2) !=0)) {
+          return -1;
+        }
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((arg_open)[0]), 7) !=0)) {
+        return -1;
+      }
+      if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((codegen_append_byte(out, 41) !=0)) {
+        return -1;
+      }
+      (void)((ai = (ai + 1)));
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    if ((codegen_emit_bytes_from_ptr(out, &((close3)[0]), 3) !=0)) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
 extern int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t let_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_slice_let_call_returns_slice(struct ast_ASTArena * arena, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx) {
@@ -11417,6 +11525,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -1;
         }
         if ((sa_rc > 0)) {
+          return 0;
+        }
+      }
+      /* stage10 S3.1 slice1 (10.1.1): raw_syscall0..6 -> __xlang_raw_syscallN. */
+      if ((ctx !=0)) {
+        int32_t rs_rc = codegen_try_emit_raw_syscall_call(arena, out, expr_ref, ctx);
+        if ((rs_rc < 0)) {
+          return -1;
+        }
+        if ((rs_rc > 0)) {
           return 0;
         }
       }
@@ -21239,6 +21357,171 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
     return 0;
   }
 }
+/* Stage 10 S3.1 slice 1 (10.1.1): raw syscall static-inline helpers — seed
+ * twin of codegen.x codegen_emit_raw_syscall_helpers. Register map: nr→rax,
+ * a1→rdi, a2→rsi, a3→rdx, a4→r10, a5→r8, a6→r9; rcx/r11 clobbered.
+ * #if __linux__/__x86_64__ guard = host cc preprocessor platform truth.
+ * PLATFORM: SHARED host-C emit; runtime effect LINUX x86_64 only. */
+int32_t codegen_emit_raw_syscall_helpers(struct codegen_CodegenOutBuf * out) {
+  {
+    uint8_t guard_open[46] = {
+      35, 105, 102, 32, 100, 101, 102, 105, 110, 101, 100, 40, 95, 95, 108, 105,
+      110, 117, 120, 95, 95, 41, 32, 38, 38, 32, 100, 101, 102, 105, 110, 101,
+      100, 40, 95, 95, 120, 56, 54, 95, 54, 52, 95, 95, 41, 10
+    };
+    uint8_t h0[158] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 48, 40,
+      108, 111, 110, 103, 32, 110, 41, 123, 108, 111, 110, 103, 32, 114, 59, 95,
+      95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108,
+      101, 95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61,
+      97, 34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 58, 34, 114, 99,
+      120, 34, 44, 34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121,
+      34, 41, 59, 114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t h1[172] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 49, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 41, 123, 108,
+      111, 110, 103, 32, 114, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95,
+      118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99,
+      97, 108, 108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34,
+      40, 110, 41, 44, 34, 68, 34, 40, 97, 41, 58, 34, 114, 99, 120, 34,
+      44, 34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41,
+      59, 114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t h2[186] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 50, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 41, 123, 108, 111, 110, 103, 32, 114, 59, 95, 95, 97,
+      115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95,
+      95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97, 34,
+      40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40, 97,
+      41, 44, 34, 83, 34, 40, 98, 41, 58, 34, 114, 99, 120, 34, 44, 34,
+      114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114,
+      101, 116, 117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t h3[200] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 51, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 41, 123, 108, 111, 110,
+      103, 32, 114, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111,
+      108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99, 97, 108,
+      108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34, 40, 110,
+      41, 44, 34, 68, 34, 40, 97, 41, 44, 34, 83, 34, 40, 98, 41, 44,
+      34, 100, 34, 40, 99, 41, 58, 34, 114, 99, 120, 34, 44, 34, 114, 49,
+      49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116,
+      117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t h4[251] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 52, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 41, 123, 108, 111, 110, 103, 32, 114, 59, 114, 101, 103, 105, 115,
+      116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 49, 48, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 114, 49, 48, 34, 41, 61, 100, 59, 95, 95,
+      97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101,
+      95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97,
+      34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40,
+      97, 41, 44, 34, 83, 34, 40, 98, 41, 44, 34, 100, 34, 40, 99, 41,
+      44, 34, 114, 34, 40, 120, 49, 48, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t h5[299] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 53, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 41, 123, 108, 111, 110, 103, 32,
+      114, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32,
+      120, 49, 48, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 114, 49, 48,
+      34, 41, 61, 100, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111,
+      110, 103, 32, 120, 56, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 114,
+      56, 34, 41, 61, 101, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95,
+      118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99,
+      97, 108, 108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34,
+      40, 110, 41, 44, 34, 68, 34, 40, 97, 41, 44, 34, 83, 34, 40, 98,
+      41, 44, 34, 100, 34, 40, 99, 41, 44, 34, 114, 34, 40, 120, 49, 48,
+      41, 44, 34, 114, 34, 40, 120, 56, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t h6[347] = {
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 54, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 44, 108, 111, 110, 103, 32, 102,
+      41, 123, 108, 111, 110, 103, 32, 114, 59, 114, 101, 103, 105, 115, 116, 101,
+      114, 32, 108, 111, 110, 103, 32, 120, 49, 48, 32, 95, 95, 97, 115, 109,
+      95, 95, 40, 34, 114, 49, 48, 34, 41, 61, 100, 59, 114, 101, 103, 105,
+      115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 56, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 114, 56, 34, 41, 61, 101, 59, 114, 101, 103,
+      105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 57, 32, 95, 95,
+      97, 115, 109, 95, 95, 40, 34, 114, 57, 34, 41, 61, 102, 59, 95, 95,
+      97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101,
+      95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97,
+      34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40,
+      97, 41, 44, 34, 83, 34, 40, 98, 41, 44, 34, 100, 34, 40, 99, 41,
+      44, 34, 114, 34, 40, 120, 49, 48, 41, 44, 34, 114, 34, 40, 120, 56,
+      41, 44, 34, 114, 34, 40, 120, 57, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10
+    };
+    uint8_t guard_close[7] = {
+      35, 101, 110, 100, 105, 102, 10
+    };
+    if ((out ==0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((guard_open)[0]), 46) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h0)[0]), 158) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h1)[0]), 172) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h2)[0]), 186) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h3)[0]), 200) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h4)[0]), 251) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h5)[0]), 299) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((h6)[0]), 347) !=0)) {
+      return -1;
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((guard_close)[0]), 7) !=0)) {
+      return -1;
+    }
+    return 0;
+  }
+}
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
   {
     /* PLATFORM: SHARED — host-C prologue twin of codegen.x emit_header.
@@ -21259,6 +21542,12 @@ int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
     uint8_t h2[48] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 108, 105, 98, 46, 104, 62, 10,
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10, 0};
     if ((codegen_emit_bytes_64(out, &((h2)[0]), 40) !=0)) {
+      return -1;
+    }
+    /* Stage 10 S3.1 slice 1 (10.1.1): raw syscall helpers — twin of codegen.x
+     * codegen_emit_raw_syscall_helpers call. #if linux/x86_64 host cc truth.
+     * PLATFORM: SHARED host-C. G.7: complete existing emit_header. */
+    if ((codegen_emit_raw_syscall_helpers(out) !=0)) {
       return -1;
     }
     /* SIMD typedefs after libc includes — twin of codegen.x

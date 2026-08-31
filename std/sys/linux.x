@@ -235,6 +235,118 @@ export function linux_syscall_exit(code: i32): void {
   }
 }
 
+/**
+ * Raw Linux syscall, zero arguments (nr in rax): `raw_syscall0(39)` = getpid.
+ * Stage 10 S3.1 slice 1 (10.1.1): the C backend (`-E` / `-backend c`) expands
+ * call sites to the `__xlang_raw_syscall0` host-cc inline-asm helper; the
+ * asm-backend lowering is not wired yet, so this body panics instead of
+ * returning a silent wrong 0 (honest fail until that wave lands).
+ * @param nr i64 — Linux x86_64 syscall number (e.g. 39 getpid, 231 exit_group)
+ * @return i64 — raw kernel return; -1..-4095 means -errno (no libc errno)
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall0(nr: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, one argument (nr in rax, a1 in rdi).
+ * Same lowering and honest-fail contract as `raw_syscall0` (10.1.1 slice 1).
+ * @param nr i64 — Linux x86_64 syscall number
+ * @param a1 i64 — first argument (rdi), e.g. fd for close(3)/exit_group(231)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall1(nr: i64, a1: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, two arguments (nr in rax, a1 rdi, a2 rsi).
+ * Same lowering and honest-fail contract as `raw_syscall0` (10.1.1 slice 1).
+ * @param nr i64 — Linux x86_64 syscall number
+ * @param a1 i64 — first argument (rdi)
+ * @param a2 i64 — second argument (rsi)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall2(nr: i64, a1: i64, a2: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, three arguments (nr rax, a1 rdi, a2 rsi, a3 rdx) —
+ * the write(1, fd, buf, count) / read(0, fd, buf, count) shape.
+ * Same lowering and honest-fail contract as `raw_syscall0` (10.1.1 slice 1).
+ * @param nr i64 — Linux x86_64 syscall number (e.g. 0 read, 1 write)
+ * @param a1 i64 — first argument (rdi), e.g. fd
+ * @param a2 i64 — second argument (rsi), e.g. buffer pointer cast from `*u8`
+ * @param a3 i64 — third argument (rdx), e.g. byte count
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall3(nr: i64, a1: i64, a2: i64, a3: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, four arguments (nr rax, a1 rdi, a2 rsi, a3 rdx, a4 r10)
+ * — the openat(257, dirfd, path, flags, mode) shape.
+ * Same lowering and honest-fail contract as `raw_syscall0` (10.1.1 slice 1).
+ * @param nr i64 — Linux x86_64 syscall number
+ * @param a1 i64 — first argument (rdi)
+ * @param a2 i64 — second argument (rsi)
+ * @param a3 i64 — third argument (rdx)
+ * @param a4 i64 — fourth argument (r10)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall4(nr: i64, a1: i64, a2: i64, a3: i64, a4: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, five arguments (nr rax, a1 rdi, a2 rsi, a3 rdx, a4 r10,
+ * a5 r8) — the mmap(9, addr, len, prot, flags, fd) prefix shape.
+ * Same lowering and honest-fail contract as `raw_syscall0` (10.1.1 slice 1).
+ * @param nr i64 — Linux x86_64 syscall number
+ * @param a1 i64 — first argument (rdi)
+ * @param a2 i64 — second argument (rsi)
+ * @param a3 i64 — third argument (rdx)
+ * @param a4 i64 — fourth argument (r10)
+ * @param a5 i64 — fifth argument (r8)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall5(nr: i64, a1: i64, a2: i64, a3: i64, a4: i64, a5: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, six arguments (nr rax, a1 rdi, a2 rsi, a3 rdx, a4 r10,
+ * a5 r8, a6 r9) — the full mmap(9) shape.
+ * Same lowering and honest-fail contract as `raw_syscall0` (10.1.1 slice 1).
+ * @param nr i64 — Linux x86_64 syscall number
+ * @param a1 i64 — first argument (rdi)
+ * @param a2 i64 — second argument (rsi)
+ * @param a3 i64 — third argument (rdx)
+ * @param a4 i64 — fourth argument (r10)
+ * @param a5 i64 — fifth argument (r8)
+ * @param a6 i64 — sixth argument (r9)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64
+ */
+export function raw_syscall6(nr: i64, a1: i64, a2: i64, a3: i64, a4: i64, a5: i64, a6: i64): i64 {
+  panic();
+  return 0;
+}
+
 /* See implementation. */
 export const LINUX_O_RDONLY: i32 = 0;
 
