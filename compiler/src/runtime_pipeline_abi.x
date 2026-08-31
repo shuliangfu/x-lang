@@ -53757,11 +53757,13 @@ export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_
 }
 
 /**
- * Load width for a type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr=8).
+ * Load width for a type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr/TYPE_FN=8).
  * @param a *u8 - ASTArena*
  * @param ty_ref i32 - type ref
  * @return i32 - byte size
  * wave151 pure: G.7 authority (was static glue_field_access_load_bytes_for_type_ref).
+ * 10.3.3: TYPE_FN (18) is opaque Cap-fn-ptr ABI — pointer-sized load, not scalar miss→4
+ * (miss caused `mov (%rax),%eax; cltq` SEGV on field load of function pointers).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -53786,7 +53788,9 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
     return 4;
   }
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+  /* i64/u64/usize/isize/f64/ptr/TYPE_FN → 8 (Cap-fn-ptr opaque ABI). */
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
     return 8;
   }
   if (kind_ord == 8) {
