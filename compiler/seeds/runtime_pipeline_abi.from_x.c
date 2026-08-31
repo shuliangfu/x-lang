@@ -6362,7 +6362,14 @@ extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *
 
 static int32_t pipeline_codegen_emit_struct_field_type_inner_w110(void *arena, void *out, int32_t type_ref,
                                                                   uint8_t *struct_prefix, int32_t struct_prefix_len) {
-  static uint8_t scratch[256];
+  /* PLATFORM: SHARED — twin of runtime_pipeline_abi.x inner scratch 896.
+   * Product hybrid live: WEAK .x owns emit_struct_field_type (TYPE_SLICE
+   * cap 896). This leftover is cold-when-pure-FROM_X-object-not-linked.
+   * Caller cap 256 failed nest 16 TYPE_SLICE field tags (393). nest 64
+   * i32 tag=782 fits 896. G.7: complete existing w110 inner; do not fork
+   * a second field-type emitter. vector_type_copy / type_kind_copy stay
+   * 256 (short C names; match .x). */
+  static uint8_t scratch[896];
   int32_t ord;
   int32_t inner;
   int32_t asz;
@@ -6412,7 +6419,7 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner_w110(void *arena, v
     return pipeline_codegen_out_append_bytes_w110(out, nm, nl);
   }
   if (ord == 11) {
-    nl = pipeline_codegen_type_to_c_repr(arena, scratch, 256, type_ref, struct_prefix, struct_prefix_len);
+    nl = pipeline_codegen_type_to_c_repr(arena, scratch, 896, type_ref, struct_prefix, struct_prefix_len);
     if (nl <= 0)
       return -1;
     return pipeline_codegen_out_append_bytes_w110(out, scratch, nl);

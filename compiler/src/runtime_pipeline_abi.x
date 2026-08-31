@@ -15768,6 +15768,8 @@ function cg_se_out_format_int(out: *u8, val: i32): i32 {
  * @param struct_prefix_len i32 - prefix length
  * @return i32 - 0 ok, -1 fail
  * wave110 pure: private recursive core for emit_struct_field_type.
+ * Leftover seed inner_w110 is the cold twin (scratch/cap 896, same as here).
+ * Product hybrid live is this WEAK .x; do not fork a second field-type emitter.
  * PLATFORM: SHARED.
  */
 function pipeline_codegen_emit_struct_field_type_inner(arena: *u8, out: *u8, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
