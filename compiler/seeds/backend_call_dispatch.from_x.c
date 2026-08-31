@@ -4739,18 +4739,25 @@ static int32_t try_emit_atomic_builtin_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Stage10 10.2.1 slice0: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
+ * Stage10 10.2.1: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
  * EXPR_ASM (60); template in var_name; "nop" → x86 90 / aarch64 d503201f.
+ * Slice1: one in("rax"|"eax"|"x0") via call_arg[0] + method_call_name.
  * var_name_len is VAR-only — use var_name_into + byte match (G.7).
  * PLATFORM: SHARED.
  */
 int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                    int32_t expr_ref, int32_t ta) {
+                                                    int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                    int32_t ta) {
   int32_t ko;
   uint8_t tmpl[128];
   uint8_t nop1 = 0x90u;
   uint8_t a64[4];
+  int32_t nargs;
+  int32_t arg_ref;
+  uint8_t reg[64];
+  int32_t reg_ok;
+  int32_t erc;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -4759,6 +4766,33 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   pipeline_expr_var_name_into(arena, expr_ref, tmpl);
   if (tmpl[0] == (uint8_t)'n' && tmpl[1] == (uint8_t)'o' && tmpl[2] == (uint8_t)'p'
       && tmpl[3] == 0) {
+    nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+    if (nargs > 1)
+      return -1;
+    if (nargs == 1) {
+      if (!ctx)
+        return -1;
+      pipeline_expr_method_call_name_into(arena, expr_ref, reg);
+      reg_ok = 0;
+      if (ta == 0) {
+        if (reg[0] == (uint8_t)'r' && reg[1] == (uint8_t)'a' && reg[2] == (uint8_t)'x' && reg[3] == 0)
+          reg_ok = 1;
+        if (reg[0] == (uint8_t)'e' && reg[1] == (uint8_t)'a' && reg[2] == (uint8_t)'x' && reg[3] == 0)
+          reg_ok = 1;
+      }
+      if (ta == 1) {
+        if (reg[0] == (uint8_t)'x' && reg[1] == (uint8_t)'0' && reg[2] == 0)
+          reg_ok = 1;
+      }
+      if (!reg_ok)
+        return -1;
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      if (arg_ref <= 0)
+        return -1;
+      erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+      if (erc != 0)
+        return -1;
+    }
     if (ta == 0)
       return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &nop1, 1);
     if (ta == 1) {
