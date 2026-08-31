@@ -115,6 +115,21 @@ export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(elf_ctx: 
  * bodies in seeds/backend_arm64_enc_c.from_x.c (G.7 mov_xn_xm family). */
 export extern "C" function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx: *u8): i32;
+/* 10.4.1–2 arm64: fence + i32 atomic encoders (seed LIVE + arm64_enc.x twin). */
+export extern "C" function arch_arm64_enc_enc_dmb_ish(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_dmb_ishld(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_dmb_ishst(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_ldar_w0_x0(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_stlr_w1_x0(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x0_to_x2(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_ldr_w0_x3(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_str_w0_x3(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_w0_to_w4(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_casal_w0_w1_x2(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_cmp_w0_w4(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_cset_eq_w0(elf_ctx: *u8): i32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
 export extern function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf: *u8, ta: i32): i32;
@@ -4082,11 +4097,13 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Stage 10 (10.4.1) slice1–2 + (10.4.2) fences: atomic load/store/cas i32/i64
- * and fence_seq_cst/acquire/release.
- * Match CALL/METHOD_CALL by exact name; spill args; emit x86_64 lock/xchg/cmpxchg.
- * Non-x86_64 (ta!=0) → 0 fallthrough to panic body. PLATFORM: SHARED emit ·
- * LINUX|x86_64 runtime (Darwin arm64 falls through).
+ * Stage 10 (10.4.1) slice1–3 + (10.4.2) fences + arm64 i32/fence:
+ * atomic load/store/cas i16/i32/i64 (x86) and i32 (aarch64 LSE),
+ * fence_seq_cst/acquire/release on both.
+ * Match CALL/METHOD_CALL by exact name; spill args; emit lock/xchg/cmpxchg
+ * (ta==0) or ldar/stlr/casal/dmb (ta==1). Other arches → 0 fallthrough.
+ * PLATFORM: SHARED emit · LINUX|x86_64 / aarch64 runtime (Darwin aarch64 OK for
+ * atomics/fences — CPU ops, not syscall ABI).
  * @return i32 — 1 emitted; 0 not applicable; -1 emit error
  */
 function try_emit_atomic_builtin_call_elf_c(
@@ -4121,7 +4138,7 @@ function try_emit_atomic_builtin_call_elf_c(
     let nm_load16: u8[15] = [97, 116, 111, 109, 105, 99, 95, 108, 111, 97, 100, 95, 105, 49, 54];
     let nm_store16: u8[16] = [97, 116, 111, 109, 105, 99, 95, 115, 116, 111, 114, 101, 95, 105, 49, 54];
     let nm_cas16: u8[14] = [97, 116, 111, 109, 105, 99, 95, 99, 97, 115, 95, 105, 49, 54];
-    if (ta != 0) {
+    if (ta != 0 && ta != 1) {
       return 0;
     }
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -4272,6 +4289,49 @@ function try_emit_atomic_builtin_call_elf_c(
       i = i + 1;
     }
     call_dispatch_store_i32_le(ctx, 4, cur + 16);
+    /* aarch64: i32 load/store/cas + fences only (i16/i64 later). */
+    if (ta == 1) {
+      if (which == 1) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_ldar_w0_x0(elf_ctx) != 0) { return 0 - 1; }
+        return 1;
+      }
+      if (which == 2) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) { return 0 - 1; }
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_stlr_w1_x0(elf_ctx) != 0) { return 0 - 1; }
+        return 1;
+      }
+      if (which == 3) {
+        /* desired→x1; expected*→x3; ptr→x2; *expected→w0; save w4; casal; str; cmp; cset */
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx) != 0) { return 0 - 1; }
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_mov_x0_to_x2(elf_ctx) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_ldr_w0_x3(elf_ctx) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_mov_w0_to_w4(elf_ctx) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_casal_w0_w1_x2(elf_ctx) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_str_w0_x3(elf_ctx) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_cmp_w0_w4(elf_ctx) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_cset_eq_w0(elf_ctx) != 0) { return 0 - 1; }
+        return 1;
+      }
+      if (which == 7 || which == 8 || which == 9) {
+        if (which == 7) {
+          if (arch_arm64_enc_enc_dmb_ish(elf_ctx) != 0) { return 0 - 1; }
+        } else if (which == 8) {
+          if (arch_arm64_enc_enc_dmb_ishld(elf_ctx) != 0) { return 0 - 1; }
+        } else {
+          if (arch_arm64_enc_enc_dmb_ishst(elf_ctx) != 0) { return 0 - 1; }
+        }
+        if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+        return 1;
+      }
+      return 0;
+    }
     if (which == 1) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
