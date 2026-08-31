@@ -12049,6 +12049,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
        * [N]T → []T assign: stack-view fat. Same frame as let s = a (no escape).
        * Do not stamp SLICE — RHS stays TYPE_ARRAY so .data is the array.
        * PLATFORM: SHARED host-C. G.7 reuse fat compound (try_emit / call-arg).
+       * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+       * Do not fork a second dest-SLICE ASSIGN ARRAY wrap.
        */
       if (lt_ref > 0 && pipeline_type_kind_ord_at(arena, lt_ref) == (TypeKind.TYPE_SLICE as i32)) {
         let rt_as: i32 = pipeline_expr_resolved_type_ref(arena, e.binop_right_ref);

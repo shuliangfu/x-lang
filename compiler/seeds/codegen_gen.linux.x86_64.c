@@ -10662,6 +10662,55 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       if (((lt_ref > 0) && (pipeline_type_kind_ord_at(arena, lt_ref) ==10))) {
         (void)((is_fa = 1));
       }
+      /* PLATFORM: SHARED host-C — dest-SLICE assign of already-typed TYPE_ARRAY
+       * (`s = a` / `s = w.xs` / `s = W{}.xs`). Twin of codegen.x EXPR_ASSIGN
+       * wrap. Typeck accepts without stamping SLICE so RHS resolved stays
+       * TYPE_ARRAY (N from that, not from LHS). Same-frame stack-view fat:
+       * dest lives in this function so `.data = rhs` does not dangle (unlike
+       * dest-SLICE RETURN, which durables via __xlang_rar). Live `-E` uses
+       * this seed path. Do not fork a second dest-SLICE ASSIGN wrap.
+       * Historic: bare `s = a` is E* vs fat (host-cc BLD001). */
+      if (((lt_ref > 0) && (pipeline_type_kind_ord_at(arena, lt_ref) ==11))) {
+        int32_t rt_as = pipeline_expr_resolved_type_ref(arena, ((e).binop_right_ref));
+        int32_t as_n = 0;
+        if (((rt_as > 0) && (pipeline_type_kind_ord_at(arena, rt_as) ==10))) {
+          (void)((as_n = pipeline_type_array_size_at(arena, rt_as)));
+        }
+        if ((as_n > 0)) {
+          if ((codegen_append_byte(out, 40) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_expr(arena, out, ((e).binop_left_ref), ctx) !=0)) {
+            return -1;
+          }
+          uint8_t as_eq[4] = {32, 61, 32, 40};
+          if ((codegen_emit_bytes_4(out, &((as_eq)[0]), 4) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_type(arena, out, lt_ref, 0, 0, ctx) !=0)) {
+            return -1;
+          }
+          uint8_t as_d[12] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((as_d)[0]), 11) !=0)) {
+            return -1;
+          }
+          if ((codegen_emit_expr(arena, out, ((e).binop_right_ref), ctx) !=0)) {
+            return -1;
+          }
+          uint8_t as_l[16] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((as_l)[0]), 12) !=0)) {
+            return -1;
+          }
+          if ((codegen_format_int(out, ((int64_t)(as_n))) !=0)) {
+            return -1;
+          }
+          uint8_t as_c[4] = {32, 125, 41, 0};
+          if ((codegen_emit_bytes_4(out, &((as_c)[0]), 3) !=0)) {
+            return -1;
+          }
+          return 0;
+        }
+      }
       if ((is_fa !=0)) {
         uint8_t pref[16] = {109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0};
         uint8_t mid[20] = {41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0};
