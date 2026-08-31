@@ -4184,16 +4184,16 @@ function try_emit_atomic_builtin_call_elf_c(
       if (arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx) != 0) { return 0 - 1; }
       return 1;
     }
-    /* cas: desired → edx; expected_ptr → rcx; *expected → eax; ptr → rbx
-     * (must NOT put ptr in rax — eax is rax's low half and would lose expected);
+    /* cas: desired → edx; expected_ptr → rcx; ptr → rbx FIRST; then
+     * *expected → eax LAST (any later load into rax would clobber eax);
      * lock cmpxchg (%rbx); *expected ← old eax; sete → eax. */
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[2], ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[1], ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off[0], ta) != 0) { return 0 - 1; }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_sete_al(elf_ctx) != 0) { return 0 - 1; }
