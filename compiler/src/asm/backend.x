@@ -1384,8 +1384,11 @@ export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: 
     if (kind == TypeKind.TYPE_U8 as i32) {
       return 1;
     }
-    if (kind == TypeKind.TYPE_PTR as i32 || kind == TypeKind.TYPE_I64 as i32 || kind == TypeKind.TYPE_U64 as i32
-        || kind == TypeKind.TYPE_USIZE as i32 || kind == TypeKind.TYPE_ISIZE as i32 || kind == TypeKind.TYPE_F64 as i32) {
+    /* 10.3.3: TYPE_FN shares Cap-fn-ptr opaque ABI — 8-byte field load. */
+    if (kind == TypeKind.TYPE_PTR as i32 || kind == TypeKind.TYPE_FN as i32
+        || kind == TypeKind.TYPE_I64 as i32 || kind == TypeKind.TYPE_U64 as i32
+        || kind == TypeKind.TYPE_USIZE as i32 || kind == TypeKind.TYPE_ISIZE as i32
+        || kind == TypeKind.TYPE_F64 as i32) {
       return 8;
     }
     if (kind == TypeKind.TYPE_NAMED as i32 && module != 0 as *Module) {
