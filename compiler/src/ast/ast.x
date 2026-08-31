@@ -122,9 +122,10 @@ export enum ExprKind {
   /* See implementation. */
   EXPR_STRING_LIT,
   /**
-   * Inline asm `asm!("template")` (stage10 10.2.1).
+   * Inline asm `asm!("template"[, in("reg") expr])` (stage10 10.2.1).
    * Template semantic bytes live in Expr.var_name (same packing as STRING_LIT).
-   * Slice0: template-only; in/out/clobber/options deferred.
+   * Slice1: one `in` operand uses call_arg list; reg spelling in method_call_name;
+   * int_val=0 means direction `in`. out/clobber/options deferred.
    * Ordinal 60 (after STRING_LIT=59). PLATFORM: SHARED.
    */
   EXPR_ASM
