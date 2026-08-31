@@ -4660,9 +4660,10 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  *   call_args[num_in..) = out/lateout places (VAR only).
  * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP · mk==100 rbx · mk==101 r10 (x86).
  * Place `_` (VAR name "_"): clobber discard — no store (slice6).
+ * Options bits in call_num_type_args; noreturn(32) → x86 ud2 after (slice8).
  * Extra in-homes: r10 (x86) · x8 (aarch64 nr) — x8 out still unsupported.
  * @return i32 — 0 ok; -1 error / unsupported
- * PLATFORM: SHARED emit · LINUX|x86_64 gold out-GP/r10 · aarch64 encode (x0 out only via arch).
+ * PLATFORM: SHARED emit · LINUX|x86_64 gold · aarch64 encode (x0 out only via arch).
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
@@ -4690,6 +4691,8 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     let pko: i32 = 0;
     let vlen: i32 = 0;
     let voff: i32 = 0;
+    let opt_bits: i32 = 0;
+    let ud2: u8[2] = [];
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko != 60) {
       return 0 - 1;
@@ -4860,6 +4863,19 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
       i = i + 1;
+    }
+    /* Slice8: options(noreturn) → ud2 after asm (trap if template returns). */
+    opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    if ((opt_bits & 32) != 0) {
+      if (ta == 0) {
+        ud2[0] = 15 as u8;
+        ud2[1] = 11 as u8;
+        if (pipeline_elf_ctx_append_bytes(elf_ctx, &ud2[0], 2) != 0) {
+          return 0 - 1;
+        }
+      } else {
+        return 0 - 1;
+      }
     }
     return 0;
   }

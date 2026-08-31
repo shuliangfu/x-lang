@@ -4997,6 +4997,19 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, voff, ta) != 0)
       return -1;
   }
+  /* Slice8: options(noreturn) → ud2 after asm (trap if template returns). */
+  {
+    int32_t opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    uint8_t ud2[2];
+    if ((opt_bits & 32) != 0) {
+      if (ta != 0)
+        return -1;
+      ud2[0] = 0x0fu;
+      ud2[1] = 0x0bu;
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, ud2, 2) != 0)
+        return -1;
+    }
+  }
   return 0;
 }
 
