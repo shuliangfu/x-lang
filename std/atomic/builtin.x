@@ -118,3 +118,42 @@ export function atomic_fence_release(): i32 {
   panic();
   return 0;
 }
+
+/**
+ * Atomic load of i16 (seq_cst-class via aligned load on x86).
+ * Asm: `movzwl (%rax), %eax`.
+ * @param ptr *i16 — address of the cell
+ * @return i16 — loaded value
+ * PLATFORM: SHARED · asm LINUX|x86_64
+ */
+export function atomic_load_i16(ptr: *i16): i16 {
+  panic();
+  return 0 as i16;
+}
+
+/**
+ * Atomic store of i16 (x86 `xchg` for store-release strength).
+ * Asm: spill + `xchg %dx, (%rax)`.
+ * @param ptr *i16 — address of the cell
+ * @param val i16 — value to store
+ * @return i16 — 0 (void-shaped)
+ * PLATFORM: SHARED · asm LINUX|x86_64
+ */
+export function atomic_store_i16(ptr: *i16, val: i16): i16 {
+  panic();
+  return 0 as i16;
+}
+
+/**
+ * Atomic compare-and-swap of i16 (strong).
+ * Asm: `lock cmpxchg` (16-bit) + update `*expected` + `sete`.
+ * @param ptr *i16 — address of the cell
+ * @param expected *i16 — in/out expected value
+ * @param desired i16 — value to write on match
+ * @return i32 — 1 on success, 0 on failure
+ * PLATFORM: SHARED · asm LINUX|x86_64
+ */
+export function atomic_cas_i16(ptr: *i16, expected: *i16, desired: i16): i32 {
+  panic();
+  return 0;
+}
