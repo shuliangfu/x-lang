@@ -16125,7 +16125,7 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
       return 4;
     if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 ||
-        kind_ord == 9)
+        kind_ord == 9 || kind_ord == 18)
       return 8;
     if (kind_ord == GLUE_TYPE_KIND_SLICE)
       return 16;
