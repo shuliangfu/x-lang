@@ -4217,9 +4217,10 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
       return emit_bytes_from_ptr(out, &s[0], 20);
     }
     /*
-     * 10.3.1: TYPE_FN (18) shares Cap opaque fn-ptr ABI on host-C — `uint8_t *`
-     * (same spelling as Cap *u8). Full `Ret (*)(args)` declarator / call-cast
-     * residual → follow-up. Unblocks -E CG003 (emit_type_kind miss → -1).
+     * 10.3.1: TYPE_FN (18) non-declarator fallthrough stays Cap opaque
+     * `uint8_t *` (emit_type_kind). Named declarator / Cap assign cast →
+     * emit_c_fnptr_decl; Cap *u8 CALL cast → codegen_try_emit_cap_u8_call
+     * (slice15). Unblocks -E CG003 (emit_type_kind miss → -1).
      * PLATFORM: SHARED host-C. G.7 twin type_to_c_repr / type_kind_append.
      */
     if (kind_ord == (TypeKind.TYPE_FN as i32)) {
@@ -5740,6 +5741,207 @@ export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32
     }
     elem = pipeline_type_elem_ref_at(arena, type_ref);
     return type_is_ptr_to_fixed_array(arena, elem);
+  }
+}
+
+/**
+ * True when type_ref is Cap fn-ptr surface `*u8` (TYPE_PTR → TYPE_U8).
+ * Host-C Cap→fn assign cast / Cap CALL cast gate (10.3.1 slice15).
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — resolved type
+ * @return i32 — 1 Cap *u8, 0 otherwise
+ * PLATFORM: SHARED host-C.
+ */
+export function codegen_type_is_cap_u8_ptr(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let er: i32 = 0;
+    if (arena == 0 as *ASTArena || type_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_PTR as i32)) {
+      return 0;
+    }
+    er = pipeline_type_elem_ref_at(arena, type_ref);
+    if (er <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, er) == (TypeKind.TYPE_U8 as i32)) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Host-C abstract fnptr type from CALL site: `Ret (*)(T0, …)`.
+ * Used when Cap *u8 is called (no TYPE_FN node on callee). Ret/arg types from
+ * stamped CALL / arg resolved types; missing → int32_t; 0-arg → void.
+ * @param arena *ASTArena — type/expr pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param call_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — nested emit_type
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C. Complements emit_c_fnptr_decl (TYPE_FN authority).
+ */
+export function codegen_emit_c_fnptr_abstract_from_call(arena: *ASTArena, out: *CodegenOutBuf,
+call_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ret_ty: i32 = 0;
+    let n: i32 = 0;
+    let i: i32 = 0;
+    let arg_ref: i32 = 0;
+    let arg_ty: i32 = 0;
+    let i32t: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
+    let void5: u8[5] = [118, 111, 105, 100, 0];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || call_ref <= 0) {
+      return -1;
+    }
+    ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
+    if (ret_ty <= 0) {
+      if (emit_bytes_8(out, &i32t[0], 7) != 0) {
+        return -1;
+      }
+    } else if (emit_type(arena, out, ret_ty, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    /* " (*(" */
+    if (append_byte(out, 32) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 42) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    n = pipeline_expr_call_num_args_at(arena, call_ref);
+    if (n <= 0) {
+      if (emit_bytes_from_ptr(out, &void5[0], 4) != 0) {
+        return -1;
+      }
+    } else {
+      i = 0;
+      while (i < n) {
+        if (i > 0) {
+          let comma: u8[3] = [44, 32, 0];
+          if (emit_bytes_3(out, &comma[0], 2) != 0) {
+            return -1;
+          }
+        }
+        arg_ref = pipeline_expr_call_arg_ref(arena, call_ref, i);
+        arg_ty = 0;
+        if (!ast.ref_is_null(arg_ref) && arg_ref > 0) {
+          arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
+        if (arg_ty <= 0) {
+          if (emit_bytes_8(out, &i32t[0], 7) != 0) {
+            return -1;
+          }
+        } else if (emit_type(arena, out, arg_ty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        i = i + 1;
+      }
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Host-C Cap `*u8` CALL → `((Ret (*)(T…))(callee))(args)`.
+ * Without cast, gcc: called object type 'uint8_t *' is not a function.
+ * TYPE_FN / named declarator callees return 0 (unhandled).
+ * @param arena *ASTArena — expr pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param expr_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 1 emitted, 0 not Cap surface, -1 failure
+ * PLATFORM: SHARED host-C. 10.3.1 slice15.
+ */
+export function codegen_try_emit_cap_u8_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let cal_ty: i32 = 0;
+    let n: i32 = 0;
+    let ai: i32 = 0;
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf) {
+      return -1;
+    }
+    if ((e.kind as i32) != (ExprKind.EXPR_CALL as i32)) {
+      return 0;
+    }
+    callee_ref = e.call_callee_ref;
+    if (ast.ref_is_null(callee_ref) || callee_ref <= 0 || callee_ref > arena.num_exprs) {
+      return 0;
+    }
+    cal_ty = pipeline_expr_resolved_type_ref(arena, callee_ref);
+    if (codegen_type_is_cap_u8_ptr(arena, cal_ty) == 0) {
+      return 0;
+    }
+    /* ((abstract)(callee))(args) */
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (codegen_emit_c_fnptr_abstract_from_call(arena, out, expr_ref, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, callee_ref, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    n = e.call_num_args;
+    ai = 0;
+    while (ai < n) {
+      if (ai > 0) {
+        let comma: u8[3] = [44, 32, 0];
+        if (emit_bytes_3(out, &comma[0], 2) != 0) {
+          return -1;
+        }
+      }
+      if (ast.ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {
+        if (append_byte(out, 48) != 0) {
+          return -1;
+        }
+      } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    return 1;
   }
 }
 
@@ -12952,6 +13154,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
       }
+      /* 10.3.1 slice15: Cap *u8 CALL → ((Ret (*)(T…))(callee))(args).
+       * Before import/bare; TYPE_FN declarator callees stay uncast.
+       * PLATFORM: SHARED host-C. */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let cap_call_rc: i32 = codegen_try_emit_cap_u8_call(arena, out, expr_ref, ctx);
+        if (cap_call_rc < 0) {
+          return -1;
+        }
+        if (cap_call_rc > 0) {
+          return 0;
+        }
+      }
       /* See implementation. */
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
         let sym_buf: u8[128] = [];
@@ -17911,6 +18125,28 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                   return -1;
                 }
               }
+              /*
+               * 10.3.1 slice15: TYPE_FN let = Cap/opaque → `(Ret (*)(args))init`.
+               * Without cast gcc: incompatible pointer types assigning to
+               * 'int32_t (*)(int32_t)' from 'uint8_t *'. Skip [N]TYPE_FN
+               * (use_fnptr_array_init). G.7 reuse emit_c_fnptr_decl abstract.
+               * PLATFORM: SHARED host-C.
+               */
+              if (use_fnptr != 0 && use_fnptr_array_init == 0 && !ast.ref_is_null(linit_ref)) {
+                let cast_fn: i32 = fn_leaf;
+                if (cast_fn <= 0) {
+                  cast_fn = let_type_ref;
+                }
+                if (append_byte(out, 40) != 0) {
+                  return -1;
+                }
+                if (emit_c_fnptr_decl(arena, out, cast_fn, 0 as *u8, 0, 0, ctx) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 41) != 0) {
+                  return -1;
+                }
+              }
               let slice_init: i32 = 0;
               if (!ast.ref_is_null(linit_ref)) {
                 slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref, ctx);
@@ -18571,6 +18807,22 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         let eq: u8[4] = [32, 61, 32, 0];
         if (emit_bytes_4(out, &eq[0], 3) != 0) {
           return -1;
+        }
+        /* 10.3.1 slice15: TYPE_FN let init Cap cast (fallback block path). */
+        if (use_fnptr != 0 && use_fnptr_array_init == 0 && !ast.ref_is_null(linit_fb)) {
+          let cast_fn_fb: i32 = fn_leaf_fb;
+          if (cast_fn_fb <= 0) {
+            cast_fn_fb = let_type_ref;
+          }
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (emit_c_fnptr_decl(arena, out, cast_fn_fb, 0 as *u8, 0, 0, ctx) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 41) != 0) {
+            return -1;
+          }
         }
         if (ast.ref_is_null(linit_fb)) {
           let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
