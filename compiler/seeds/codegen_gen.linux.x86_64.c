@@ -4701,6 +4701,11 @@ int32_t codegen_emit_type_kind(struct codegen_CodegenOutBuf * out, int32_t kind_
     uint8_t s[22] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0};
     return codegen_emit_bytes_from_ptr(out, &((s)[0]), 20);
   }
+  /* 10.3.1: TYPE_FN (18) → uint8_t * Cap opaque ABI (twin codegen.x). */
+  if ((kind_ord ==18)) {
+    uint8_t s[10] = {117, 105, 110, 116, 56, 95, 116, 32, 42, 0};
+    return codegen_emit_bytes_from_ptr(out, &((s)[0]), 9);
+  }
   return -1;
 }
 int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int32_t w, int32_t kind_ord) {
@@ -4853,6 +4858,20 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
     uint8_t s[22] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0};
     int32_t i = 0;
     while ((i < 20)) {
+      if ((w >=(cap - 1))) {
+        return -1;
+      }
+      (void)(((scratch)[w] = (s)[i]));
+      (void)((w = (w + 1)));
+      (void)((i = (i + 1)));
+    }
+    return w;
+  }
+  /* 10.3.1: TYPE_FN → uint8_t * (twin codegen.x). */
+  if ((kind_ord ==18)) {
+    uint8_t s[10] = {117, 105, 110, 116, 56, 95, 116, 32, 42, 0};
+    int32_t i = 0;
+    while ((i < 9)) {
       if ((w >=(cap - 1))) {
         return -1;
       }
