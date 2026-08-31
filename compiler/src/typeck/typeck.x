@@ -11162,6 +11162,8 @@ ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ord_addr_of: i32 = 51;
+    /* EXPR_DEREF — Cap-fn-ptr (*f)() peels to VAR f (*u8); ≡ f() for Cap. */
+    let ord_deref: i32 = 52;
     let ord_var: i32 = 3;
     /* See implementation. */
     let minus_one: i32 = -1;
@@ -11171,12 +11173,19 @@ ctx: *PipelineDepCtx): i32 {
     let ret_ty: i32 = 0;
     let cnml: i32 = 0;
     let cnm: u8[128] = [];
+    let peel_ko: i32 = 0;
     callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     if (ast.ref_is_null(callee_ref)) {
       return 0;
     }
     callee_eff = callee_ref;
-    if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_addr_of) {
+    /*
+     * Peel ADDR_OF / DEREF once so Cap *u8 VAR is visible.
+     * (*f)() → DEREF(VAR); Cap treats as call-through (no u8 load).
+     * PLATFORM: SHARED — pairs with asm Cap peel (10.3.2 slice3).
+     */
+    peel_ko = pipeline_expr_kind_ord_at(arena, callee_eff);
+    if (peel_ko == ord_addr_of || peel_ko == ord_deref) {
       inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff);
       if (!ast.ref_is_null(inner_c)) {
         callee_eff = inner_c;
@@ -11293,8 +11302,10 @@ ctx: *PipelineDepCtx): i32 {
     let callee_ref: i32 = 0;
     let callee_eff: i32 = 0;
     let ord_addr_of: i32 = 51;
+    let ord_deref: i32 = 52;
     let ord_var: i32 = 3;
     let inner_c: i32 = 0;
+    let peel_ko: i32 = 0;
     let cnml: i32 = 0;
     let cnm: u8[128] = [];
     let j: i32 = 0;
@@ -11336,7 +11347,9 @@ ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     callee_eff = callee_ref;
-    if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_addr_of) {
+    /* Cap (*f)(): peel DEREF/ADDR_OF to VAR before Cap *u8 soft-skip. */
+    peel_ko = pipeline_expr_kind_ord_at(arena, callee_eff);
+    if (peel_ko == ord_addr_of || peel_ko == ord_deref) {
       inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff);
       if (!ast.ref_is_null(inner_c)) {
         callee_eff = inner_c;
