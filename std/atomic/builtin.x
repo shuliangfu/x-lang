@@ -1,12 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: Apache-2.0
 //
-// Stage 10 (10.4.1) slice1: language atomic builtins — panic bodies.
-// Asm backend intercepts CALL/METHOD_CALL by name and emits x86_64
-// lock/xchg/cmpxchg (try_emit_atomic_builtin_call_elf_c). Host-C / other
-// arches fall through here (honest panic) until later slices.
-// slice2 adds i64 load/store/cas on the same intercept path.
-// PLATFORM: SHARED surface; LINUX|x86_64 asm lowering (slice1–2).
+// Stage 10 (10.4.1) slice1–2 + (10.4.2) fences: language atomic builtins —
+// panic bodies. Asm intercepts CALL/METHOD_CALL by name
+// (try_emit_atomic_builtin_call_elf_c). Host-C / other arches fall through
+// (honest panic) until later slices.
+// PLATFORM: SHARED surface; LINUX|x86_64 asm lowering.
 
 /**
  * Atomic load of i32 (seq_cst-class via plain aligned load on x86).
@@ -86,6 +85,36 @@ export function atomic_store_i64(ptr: *i64, val: i64): i64 {
  * PLATFORM: SHARED · asm LINUX|x86_64
  */
 export function atomic_cas_i64(ptr: *i64, expected: *i64, desired: i64): i32 {
+  panic();
+  return 0;
+}
+
+/**
+ * Full memory fence (seq_cst). Asm: x86_64 `mfence`.
+ * @return i32 — 0
+ * PLATFORM: SHARED · asm LINUX|x86_64
+ */
+export function atomic_fence_seq_cst(): i32 {
+  panic();
+  return 0;
+}
+
+/**
+ * Load fence (acquire). Asm: x86_64 `lfence`.
+ * @return i32 — 0
+ * PLATFORM: SHARED · asm LINUX|x86_64
+ */
+export function atomic_fence_acquire(): i32 {
+  panic();
+  return 0;
+}
+
+/**
+ * Store fence (release). Asm: x86_64 `sfence`.
+ * @return i32 — 0
+ * PLATFORM: SHARED · asm LINUX|x86_64
+ */
+export function atomic_fence_release(): i32 {
   panic();
   return 0;
 }
