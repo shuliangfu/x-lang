@@ -4278,13 +4278,14 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Cap 10.7.1 slice12: language va_start / va_end / va_arg_i32 → asm Cap (no UNDEF).
+ * Cap 10.7.1 slice12–13: language va_start / va_end / va_arg_{i32,i64,ptr} → asm Cap.
  *
  * Host-C uses xlang_va_* macros (SysV). Asm Cap is Cap-private: at va_start,
  * spill the 6 SysV GP arg regs into call-spill scratch (regs still hold entry
  * values because this intercept runs before call-arg packing), then store a
  * cursor pointer into the VaList local (first 8 bytes) at save+8*nparams.
- * va_arg_i32 loads *cursor as i32 and advances by 8. va_end is a no-op.
+ * va_arg_i32 loads *cursor as i32; va_arg_i64 / va_arg_ptr load qword; all
+ * advance the cursor by 8. va_end is a no-op.
  *
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
@@ -4314,6 +4315,8 @@ function try_emit_va_cap_builtin_call_elf_c(
     let nm_start: u8[8] = [118, 97, 95, 115, 116, 97, 114, 116]; /* va_start */
     let nm_end: u8[6] = [118, 97, 95, 101, 110, 100]; /* va_end */
     let nm_argi32_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 51, 50]; /* va_arg_i32 */
+    let nm_argi64_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 54, 52]; /* va_arg_i64 */
+    let nm_argptr_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 112, 116, 114]; /* va_arg_ptr */
     let ap_ref: i32 = 0;
     let ap_off: i32 = 0;
     let cur: i32 = 0;
@@ -4375,6 +4378,22 @@ function try_emit_va_cap_builtin_call_elf_c(
         else { i = i + 1; }
       }
       if (i == 10) { which = 3; }
+      if (which == 0) {
+        i = 0;
+        while (i < 10) {
+          if (name[i] != nm_argi64_full[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 10) { which = 4; }
+      }
+      if (which == 0) {
+        i = 0;
+        while (i < 10) {
+          if (name[i] != nm_argptr_full[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 10) { which = 5; }
+      }
     }
     if (which == 0) { return 0; }
 
@@ -4434,7 +4453,8 @@ function try_emit_va_cap_builtin_call_elf_c(
       return 1;
     }
 
-    /* which == 3: va_arg_i32(ap) */
+    /* which == 3/4/5: va_arg_i32 / va_arg_i64 / va_arg_ptr (ap) */
+    if (which < 3 || which > 5) { return 0; }
     if (n_args != 1) { return 0; }
     if (is_method != 0) {
       ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
@@ -4446,17 +4466,28 @@ function try_emit_va_cap_builtin_call_elf_c(
     ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
     if (ap_off < 16) { return 0 - 1; }
 
-    /* rcx = &ap; rax = cursor; rbx = cursor; eax = *cursor; bump; restore eax. */
+    /* rcx = &ap; rax = cursor; rbx = cursor; load *cursor; bump; restore result. */
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+    if (which == 3) {
+      /* i32: eax = *(i32*)cursor; park in edx across bump. */
+      if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      /* i64 / ptr: rax = *cursor; park in r10 across bump. */
+      if (arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
+    }
     if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
-    if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    if (which == 3) {
+      if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
     return 1;
   }
 }
@@ -5805,7 +5836,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
     }
-    /* Cap 10.7.1 slice12: va_start/end/va_arg_i32 Cap (x86_64). */
+    /* Cap 10.7.1 slice12–13: va_start/end/va_arg_{i32,i64,ptr} Cap (x86_64). */
     {
       let va_rc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (va_rc < 0) { return 0 - 1; }
