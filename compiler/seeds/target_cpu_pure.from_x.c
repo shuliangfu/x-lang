@@ -19,8 +19,8 @@
  *   + tcp_parse_named + xlang_target_cpu_resolve + tcp_eq5 + tcp_eq6
  *   + xlang_simd_is_vector_type_spelling + xlang_simd_vector_lanes_esz_from_spelling
  *   + append_feat_name + flags_has_token
- * Cap residual（mega rest 冷路径）：xlang_target_cpu_print (FILE/fprintf) +
- *   OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
+ * Cap residual（mega rest 冷路径）：xlang_target_cpu_print（Linux Cap io write；
+ *   Darwin 仍 FILE/fprintf）+ OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
  * FROM_X 下本文件业务 H=0（仅 extern 声明 + slice marker）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -295,6 +295,67 @@ int target_cpu_pure_slice_marker(void) {
 
 /* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
 
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#include <xlang_io_cap.h>
+#define HAVE_XLANG_IO_PRINT_CAP 1
+#endif
+
+/**
+ * Write entire buffer to fd via Cap io (handles partial writes).
+ * @param fd   stdout=1
+ * @param buf  bytes to emit
+ * @param len  byte count
+ * PLATFORM: LINUX Cap residual 9.5.2
+ */
+static void tcp_cap_write_all(int fd, const char *buf, size_t len) {
+  size_t off = 0;
+  while (off < len) {
+    long n = xlang_io_write(fd, buf + off, len - off);
+    if (n <= 0)
+      break;
+    off += (size_t)n;
+  }
+}
+
+/**
+ * Format u32 as 8 lowercase hex digits into dst[8] (no NUL).
+ * PLATFORM: SHARED helper for Cap print
+ */
+static void tcp_fmt_u32_hex8(uint32_t v, char *dst) {
+  static const char hex[] = "0123456789abcdef";
+  int i;
+  for (i = 7; i >= 0; i--) {
+    dst[i] = hex[v & 0xfu];
+    v >>= 4;
+  }
+}
+
+/**
+ * Append fixed prefix + 0x + 8-digit hex + newline; write to fd.
+ * @return bytes written (best effort)
+ * PLATFORM: LINUX Cap residual 9.5.2
+ */
+static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
+  char line[64];
+  char hex[8];
+  size_t plen;
+  size_t pos;
+  if (!prefix)
+    return;
+  plen = strlen(prefix);
+  if (plen + 2 + 8 + 1 > sizeof(line))
+    return;
+  memcpy(line, prefix, plen);
+  pos = plen;
+  line[pos++] = '0';
+  line[pos++] = 'x';
+  tcp_fmt_u32_hex8(val, hex);
+  memcpy(line + pos, hex, 8);
+  pos += 8;
+  line[pos++] = '\n';
+  tcp_cap_write_all(fd, line, pos);
+}
+
 void xlang_target_cpu_print(FILE *out, uint32_t features) {
   char list[256];
   size_t pos = 0;
@@ -322,9 +383,34 @@ void xlang_target_cpu_print(FILE *out, uint32_t features) {
     append_feat_name(list, sizeof(list), &pos, "sve");
   if (features & 65536u) /* RVV */
     append_feat_name(list, sizeof(list), &pos, "rvv");
+#if defined(HAVE_XLANG_IO_PRINT_CAP)
+  {
+    char line[320];
+    size_t lpos;
+    const char *feat_list;
+    size_t flen;
+    /* stdout fd; out is opaque FILE* / *u8 handle — product always prints to stdout. */
+    const int fd = 1;
+    (void)out;
+    tcp_cap_print_hex_line(fd, "target_cpu_features", features);
+    lpos = 0;
+    memcpy(line, "target_cpu_features_list=", 25);
+    lpos = 25;
+    feat_list = list[0] ? list : "(none)";
+    flen = strlen(feat_list);
+    if (lpos + flen + 1 <= sizeof(line)) {
+      memcpy(line + lpos, feat_list, flen);
+      lpos += flen;
+      line[lpos++] = '\n';
+      tcp_cap_write_all(fd, line, lpos);
+    }
+    tcp_cap_print_hex_line(fd, "target_cpu_host_features", xlang_target_cpu_detect_host());
+  }
+#else
   fprintf(out, "target_cpu_features=0x%08x\n", features);
   fprintf(out, "target_cpu_features_list=%s\n", list[0] ? list : "(none)");
   fprintf(out, "target_cpu_host_features=0x%08x\n", xlang_target_cpu_detect_host());
+#endif
 }
 
 /* --- G-02f-6：OS detect（原 target_cpu.inc 语言限制 #if / sysctl /proc）--- */
