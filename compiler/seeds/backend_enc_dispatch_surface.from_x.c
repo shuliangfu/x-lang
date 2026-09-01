@@ -1229,6 +1229,7 @@ extern int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_rdx(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(uint8_t * elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(uint8_t * elf_ctx, int32_t k);
+extern int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(uint8_t * elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_load_rbp_pos_to_rax(uint8_t * elf_ctx, int32_t off_pos);
 extern int32_t arch_arm64_enc_enc_load_32_from_rax(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_load_32_from_rax(uint8_t * elf_ctx);
@@ -1303,6 +1304,10 @@ int32_t backend_enc_mov_rdx_to_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_
 int32_t backend_enc_mov_arg_reg_to_rax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta) {
   if ((ta ==0)) {
     return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
+  }
+  /* Stage10 10.2.2 slice1: AAPCS arg → x0 for asm! lateout. */
+  if ((ta ==1)) {
+    return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
   }
   return (0 - 1);
 }
