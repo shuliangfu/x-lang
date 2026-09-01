@@ -270,6 +270,8 @@ export function xlang_simd_is_vector_type_spelling(name: *u8, name_len: usize): 
     if (tcp_eq5(name, 117, 51, 50, 120, 52) != 0) { return 1; }
     if (tcp_eq5(name, 117, 51, 50, 120, 56) != 0) { return 1; }
     if (tcp_eq5(name, 102, 51, 50, 120, 52) != 0) { return 1; }
+    /* f32x8 — 8-wide AVX ymm lang builtins (10.5.1 slice3). */
+    if (tcp_eq5(name, 102, 51, 50, 120, 56) != 0) { return 1; }
     if (tcp_eq5(name, 118, 101, 99, 52, 102) != 0) { return 1; }
     if (tcp_eq5(name, 118, 101, 99, 56, 105) != 0) { return 1; }
   }
