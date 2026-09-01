@@ -13,7 +13,7 @@
  * G-02f-254: lsp_find_text_value / _from pure.
  * G-02f-255: extract_position pure; P1-9 soft near-close.
  * Product object from this seed; refs/AST/format/cache still mostly C.
- * Cap residual 10.7.2／9.5.3: typeck reportf formats via xlang_vsnprintf.
+ * Cap residual 10.7.2／9.5.3: typeck reportf + path/JSON snprintf via Cap fmt.
  */
 /**
  * lsp_diag.c — LSP 诊断收集器与 definition/hover/references/formatting 等 C 实现
@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: lsp typeck reportf → xlang_vsnprintf */
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: lsp reportf/snprintf → Cap fmt */
 
 /* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -298,7 +298,7 @@ void lsp_entry_dir_set_dot(void) {
 void lsp_entry_fs_path_store(const char *path) {
     if (!path)
         return;
-    (void)snprintf(s_entry_fs_path, sizeof(s_entry_fs_path), "%s", path);
+    (void)xlang_snprintf(s_entry_fs_path, sizeof(s_entry_fs_path), "%s", path);
 }
 
 void lsp_entry_dir_store_prefix(const char *path, int n) {
@@ -364,14 +364,14 @@ void lsp_init_lib_roots_once_impl(void) {
     const char *env = link_abi_getenv("XLANG_LSP_LIB_ROOTS");
     if (env && env[0]) {
         char buf[1024];
-        (void)snprintf(buf, sizeof(buf), "%s", env);
+        (void)xlang_snprintf(buf, sizeof(buf), "%s", env);
         char *p = buf;
         while (p && s_n_lib_roots < 8) {
             char *col = strchr(p, ':');
             if (col) *col = '\0';
             if (p[0]) {
                 int idx = s_n_lib_roots;
-                (void)snprintf(s_lib_roots_storage[idx], sizeof(s_lib_roots_storage[0]), "%s", p);
+                (void)xlang_snprintf(s_lib_roots_storage[idx], sizeof(s_lib_roots_storage[0]), "%s", p);
                 s_lib_roots[idx] = s_lib_roots_storage[idx];
                 s_n_lib_roots++;
             }
@@ -381,7 +381,7 @@ void lsp_init_lib_roots_once_impl(void) {
     if (s_n_lib_roots == 0) {
         const char *defs[] = { ".", "compiler/src", "core", "std" };
         for (i = 0; i < 4; i++) {
-            (void)snprintf(s_lib_roots_storage[i], sizeof(s_lib_roots_storage[0]), "%s", defs[i]);
+            (void)xlang_snprintf(s_lib_roots_storage[i], sizeof(s_lib_roots_storage[0]), "%s", defs[i]);
             s_lib_roots[i] = s_lib_roots_storage[i];
         }
         s_n_lib_roots = 4;
@@ -1835,43 +1835,43 @@ int32_t type_to_string_impl(const uint8_t *ty_u8, uint8_t *buf, int32_t cap) {
 #endif /* XLANG_L2_LSP_GLUE_FULL_FROM_X — type_to_string */
     if (!ty || !buf || cap <= 0) return 0;
     switch (ty->kind) {
-        case AST_TYPE_I32: return snprintf(buf, (size_t)cap, "i32");
-        case AST_TYPE_BOOL: return snprintf(buf, (size_t)cap, "bool");
-        case AST_TYPE_U8: return snprintf(buf, (size_t)cap, "u8");
-        case AST_TYPE_U32: return snprintf(buf, (size_t)cap, "u32");
-        case AST_TYPE_U64: return snprintf(buf, (size_t)cap, "u64");
-        case AST_TYPE_I64: return snprintf(buf, (size_t)cap, "i64");
-        case AST_TYPE_USIZE: return snprintf(buf, (size_t)cap, "usize");
-        case AST_TYPE_ISIZE: return snprintf(buf, (size_t)cap, "isize");
-        case AST_TYPE_F32: return snprintf(buf, (size_t)cap, "f32");
-        case AST_TYPE_F64: return snprintf(buf, (size_t)cap, "f64");
-        case AST_TYPE_VOID: return snprintf(buf, (size_t)cap, "void");
-        case AST_TYPE_NAMED: return snprintf(buf, (size_t)cap, "%s", ty->name ? ty->name : "?");
+        case AST_TYPE_I32: return xlang_snprintf(buf, (size_t)cap, "i32");
+        case AST_TYPE_BOOL: return xlang_snprintf(buf, (size_t)cap, "bool");
+        case AST_TYPE_U8: return xlang_snprintf(buf, (size_t)cap, "u8");
+        case AST_TYPE_U32: return xlang_snprintf(buf, (size_t)cap, "u32");
+        case AST_TYPE_U64: return xlang_snprintf(buf, (size_t)cap, "u64");
+        case AST_TYPE_I64: return xlang_snprintf(buf, (size_t)cap, "i64");
+        case AST_TYPE_USIZE: return xlang_snprintf(buf, (size_t)cap, "usize");
+        case AST_TYPE_ISIZE: return xlang_snprintf(buf, (size_t)cap, "isize");
+        case AST_TYPE_F32: return xlang_snprintf(buf, (size_t)cap, "f32");
+        case AST_TYPE_F64: return xlang_snprintf(buf, (size_t)cap, "f64");
+        case AST_TYPE_VOID: return xlang_snprintf(buf, (size_t)cap, "void");
+        case AST_TYPE_NAMED: return xlang_snprintf(buf, (size_t)cap, "%s", ty->name ? ty->name : "?");
         case AST_TYPE_PTR: {
             char inner[64];
             int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
-            if (n <= 0) return snprintf(buf, (size_t)cap, "*?");
-            return snprintf(buf, (size_t)cap, "*%s", inner);
+            if (n <= 0) return xlang_snprintf(buf, (size_t)cap, "*?");
+            return xlang_snprintf(buf, (size_t)cap, "*%s", inner);
         }
         case AST_TYPE_ARRAY: {
             char inner[64];
             int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
-            if (n <= 0) return snprintf(buf, (size_t)cap, "[%d]?", ty->array_size);
-            return snprintf(buf, (size_t)cap, "[%d]%s", ty->array_size, inner);
+            if (n <= 0) return xlang_snprintf(buf, (size_t)cap, "[%d]?", ty->array_size);
+            return xlang_snprintf(buf, (size_t)cap, "[%d]%s", ty->array_size, inner);
         }
         case AST_TYPE_SLICE: {
             char inner[64];
             int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
-            if (n <= 0) return snprintf(buf, (size_t)cap, "[]?");
-            return snprintf(buf, (size_t)cap, "[]%s", inner);
+            if (n <= 0) return xlang_snprintf(buf, (size_t)cap, "[]?");
+            return xlang_snprintf(buf, (size_t)cap, "[]%s", inner);
         }
         case AST_TYPE_VECTOR: {
             char inner[64];
             int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
-            if (n <= 0) return snprintf(buf, (size_t)cap, "?x%d", ty->array_size);
-            return snprintf(buf, (size_t)cap, "%x%d", inner, ty->array_size);
+            if (n <= 0) return xlang_snprintf(buf, (size_t)cap, "?x%d", ty->array_size);
+            return xlang_snprintf(buf, (size_t)cap, "%x%d", inner, ty->array_size);
         }
-        default: return snprintf(buf, (size_t)cap, "?");
+        default: return xlang_snprintf(buf, (size_t)cap, "?");
     }
 }
 
@@ -1893,7 +1893,7 @@ int lsp_diag_format_diagnostics_json(char *out, int out_cap) {
         int col0 = e->col > 0 ? e->col - 1 : 0;
         char esc_buf[LSP_MSG_MAX * 2 + 16];
         json_escape_str(e->msg, esc_buf, (int)sizeof(esc_buf));
-        int n = snprintf(out + k, (size_t)(out_cap - k),
+        int n = xlang_snprintf(out + k, (size_t)(out_cap - k),
             "%s{\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}},\"message\":\"%s\",\"severity\":%d%s%s%s}",
             i > 0 ? "," : "", line0, col0, line0, col0 + 1, esc_buf, e->severity,
             e->code[0] != '\0' ? ",\"code\":\"" : "",
@@ -2027,7 +2027,7 @@ void lsp_set_document_from_body(const uint8_t *body, int body_len) {
         int uri_len = lsp_extract_uri_from_params(body, body_len, uri_buf, (int)sizeof(uri_buf));
         if (uri_len > 0) {
             uri_buf[uri_len] = '\0';
-            (void)snprintf(s_doc_uri, sizeof(s_doc_uri), "%s", (const char *)uri_buf);
+            (void)xlang_snprintf(s_doc_uri, sizeof(s_doc_uri), "%s", (const char *)uri_buf);
             char fs_path[512];
             lsp_uri_to_fs_path((const char *)uri_buf, fs_path, sizeof(fs_path));
             lsp_update_entry_dir(fs_path);
@@ -2453,7 +2453,7 @@ int lsp_build_definition_response(int id_val, const uint8_t *body, int body_len,
     int line0_def = def_line > 0 ? def_line - 1 : 0;
     int col0_def = def_col > 0 ? def_col - 1 : 0;
     char result_buf[LSP_DEFINITION_RESULT_MAX];
-    int r = snprintf(result_buf, sizeof(result_buf),
+    int r = xlang_snprintf(result_buf, sizeof(result_buf),
         "{\"uri\":\"%.*s\",\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}}}",
         uri_len, def_uri, line0_def, col0_def, line0_def, col0_def + 1);
     if (r <= 0 || r >= (int)sizeof(result_buf)) return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
@@ -2483,16 +2483,16 @@ int lsp_build_references_response(int id_val, const uint8_t *body, int body_len,
     uri_buf[uri_len] = '\0';
     char result_buf[LSP_REFERENCES_RESULT_MAX];
     int k = 0;
-    k += snprintf(result_buf + k, sizeof(result_buf) - k, "[");
+    k += xlang_snprintf(result_buf + k, sizeof(result_buf) - k, "[");
     for (int i = 0; i < n && k < (int)sizeof(result_buf) - 80; i++) {
         int l0 = ref_lines[i] > 0 ? ref_lines[i] - 1 : 0;
         int c0 = ref_cols[i] > 0 ? ref_cols[i] - 1 : 0;
         if (i > 0) result_buf[k++] = ',';
-        k += snprintf(result_buf + k, sizeof(result_buf) - k,
+        k += xlang_snprintf(result_buf + k, sizeof(result_buf) - k,
             "{\"uri\":\"%.*s\",\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}}}",
             uri_len, (const char *)uri_buf, l0, c0, l0, c0 + 1);
     }
-    k += snprintf(result_buf + k, sizeof(result_buf) - k, "]");
+    k += xlang_snprintf(result_buf + k, sizeof(result_buf) - k, "]");
     return lsp_build_response_with_result(id_val, (const uint8_t *)result_buf, k, out_buf, out_cap);
 }
 
@@ -2523,7 +2523,7 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
     }
     esc[e] = '\0';
     char result_buf[LSP_HOVER_RESULT_MAX];
-    int r = snprintf(result_buf, sizeof(result_buf),
+    int r = xlang_snprintf(result_buf, sizeof(result_buf),
         "{\"contents\":{\"kind\":\"markdown\",\"value\":\"%s\"}}", esc);
     if (r <= 0 || r >= (int)sizeof(result_buf))
         return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
@@ -2604,7 +2604,7 @@ int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
         int room = (int)sizeof(result) - k;
         if (room < 64)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":3}", need_comma ? "," : "", esc);
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":3}", need_comma ? "," : "", esc);
         if (n <= 0 || n >= room)
             return -1;
         k += n;
@@ -2618,7 +2618,7 @@ int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
         int room = (int)sizeof(result) - k;
         if (room < 64)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":9}", need_comma ? "," : "", esc);
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":9}", need_comma ? "," : "", esc);
         if (n <= 0 || n >= room)
             return -1;
         k += n;
@@ -2632,7 +2632,7 @@ int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
         int room = (int)sizeof(result) - k;
         if (room < 64)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":7}", need_comma ? "," : "", esc);
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":7}", need_comma ? "," : "", esc);
         if (n <= 0 || n >= room)
             return -1;
         k += n;
@@ -2646,7 +2646,7 @@ int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
         int room = (int)sizeof(result) - k;
         if (room < 64)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":13}", need_comma ? "," : "", esc);
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":13}", need_comma ? "," : "", esc);
         if (n <= 0 || n >= room)
             return -1;
         k += n;
@@ -2658,7 +2658,7 @@ int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
         int room = (int)sizeof(result) - k;
         if (room < 64)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":14}", need_comma ? "," : "", esc);
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":14}", need_comma ? "," : "", esc);
         if (n <= 0 || n >= room)
             return -1;
         k += n;
@@ -2670,7 +2670,7 @@ int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
         int room = (int)sizeof(result) - k;
         if (room < 64)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":25}", need_comma ? "," : "", esc);
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":25}", need_comma ? "," : "", esc);
         if (n <= 0 || n >= room)
             return -1;
         k += n;
@@ -2717,7 +2717,7 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
         int room = (int)sizeof(result) - k;
         if (room < 128)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":12%s",
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":12%s",
                          need_comma ? "," : "", esc, LSP_DOC_SYM_RANGE_TAIL);
         if (n <= 0 || n >= room)
             return -1;
@@ -2732,7 +2732,7 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
         int room = (int)sizeof(result) - k;
         if (room < 128)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":23%s",
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":23%s",
                          need_comma ? "," : "", esc, LSP_DOC_SYM_RANGE_TAIL);
         if (n <= 0 || n >= room)
             return -1;
@@ -2747,7 +2747,7 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
         int room = (int)sizeof(result) - k;
         if (room < 128)
             return -1;
-        int n = snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":13%s",
+        int n = xlang_snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":13%s",
                          need_comma ? "," : "", esc, LSP_DOC_SYM_RANGE_TAIL);
         if (n <= 0 || n >= room)
             return -1;
@@ -3568,7 +3568,7 @@ int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len,
     /* 将 newText JSON 转义： \ " 换行等 */
     static uint8_t result_buf[LSP_FORMATTING_RESULT_MAX];
     int r = 0;
-    r += snprintf((char *)result_buf + r, sizeof(result_buf) - r,
+    r += xlang_snprintf((char *)result_buf + r, sizeof(result_buf) - r,
         "[{\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":%d,\"character\":%d}},\"newText\":\"",
         last_line, last_char);
     for (int i = 0; i < fmt_len && r < (int)sizeof(result_buf) - 8; i++) {
@@ -3598,7 +3598,7 @@ int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len,
 
 int lsp_extract_string_value(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
     char search[128];
-    int sl = snprintf(search, sizeof(search), "\"%s\":\"", key);
+    int sl = xlang_snprintf(search, sizeof(search), "\"%s\":\"", key);
     if (sl <= 0 || sl >= (int)sizeof(search)) return -1;
     int pos = lsp_find_key_after(body, len, 0, search);
     if (pos < 0) return -1;
@@ -3699,7 +3699,7 @@ int lsp_build_rename_response(int id_val, const uint8_t *body, int body_len,
 
     /* 构建 WorkspaceEdit: {\"changes\":{\"<uri>\":[TextEdit...]}} */
     char result[65536];
-    int k = snprintf(result, sizeof(result),
+    int k = xlang_snprintf(result, sizeof(result),
         "{\"changes\":{\"%.*s\":[", uri_len, (const char *)uri_buf);
     for (int i = 0; i < hits && k < (int)sizeof(result) - 256; i++) {
         int pos = hit_pos[i];
@@ -3710,12 +3710,12 @@ int lsp_build_rename_response(int id_val, const uint8_t *body, int body_len,
             else rc++;
         }
         if (i > 0) result[k++] = ',';
-        k += snprintf(result + k, sizeof(result) - k,
+        k += xlang_snprintf(result + k, sizeof(result) - k,
             "{\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}},\"newText\":\"%s\"}",
             rl, rc, rl, rc + old_len, new_name);
     }
     if (k + 4 >= (int)sizeof(result))
         return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
-    k += snprintf(result + k, sizeof(result) - k, "]}}");
+    k += xlang_snprintf(result + k, sizeof(result) - k, "]}}");
     return lsp_build_response_with_result(id_val, (const uint8_t *)result, k, out_buf, out_cap);
 }
