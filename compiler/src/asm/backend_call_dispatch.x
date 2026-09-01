@@ -4700,6 +4700,8 @@ function try_emit_simd_lang_builtin_call_elf_c(
     let nm_add_f32x8: u8[9] = [97, 100, 100, 95, 102, 51, 50, 120, 56];
     /* mul_f32x8 (9) */
     let nm_mul_f32x8: u8[9] = [109, 117, 108, 95, 102, 51, 50, 120, 56];
+    /* sub_f32x8 (9) */
+    let nm_sub_f32x8: u8[9] = [115, 117, 98, 95, 102, 51, 50, 120, 56];
     if (ko == 49) {
       nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
       if (nlen != 9) { return 0; }
@@ -4790,9 +4792,17 @@ function try_emit_simd_lang_builtin_call_elf_c(
       }
       if (i == 9) { which = 8; }
     }
+    if (which == 0) {
+      i = 0;
+      while (i < 9) {
+        if (name[i] != nm_sub_f32x8[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 9) { which = 9; }
+    }
     if (which == 0) { return 0; }
-    /* slice1–3: i32x8 / f32x8 — VAR operands; >16B sret dest from sret_home_off. */
-    if (which == 3 || which == 4 || which == 6 || which == 7 || which == 8) {
+    /* slice1–4: i32x8 / f32x8 — VAR operands; >16B sret dest from sret_home_off. */
+    if (which == 3 || which == 4 || which == 6 || which == 7 || which == 8 || which == 9) {
       if (is_method != 0) {
         ar0 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
         ar1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 1);
@@ -4834,8 +4844,10 @@ function try_emit_simd_lang_builtin_call_elf_c(
         hw = simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, off_a, off_b, dst_off, 8, 4, ta, feats, 1);
       } else if (which == 7) {
         hw = simd_enc_try_hw_vector_fadd_rbp(elf_ctx, off_a, off_b, dst_off, 8, 4, ta, feats);
-      } else {
+      } else if (which == 8) {
         hw = simd_enc_try_hw_vector_fmul_rbp(elf_ctx, off_a, off_b, dst_off, 8, 4, ta, feats);
+      } else {
+        hw = simd_enc_try_hw_vector_fsub_rbp(elf_ctx, off_a, off_b, dst_off, 8, 4, ta, feats);
       }
       if (hw != 0) {
         return 0;
