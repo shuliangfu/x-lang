@@ -4,12 +4,14 @@
 // runtime_thread_glue.x — R2 full wave513
 //
 // Thread OS glue: thread_self/create/join/affinity/QoS/name + worker thread pool.
-// The actual OS API calls (pthread_*, CreateThread, SetThreadAffinityMask, etc.)
-// are delegated to C bridge functions declared below as extern "C". These are
-// implemented in seeds/runtime_thread_glue.from_x.c and linked via the product
-// pipeline (thin+rest ld -r pattern).
+// The actual OS API calls (Linux Cap spawn/join/pool; Darwin pthread_*;
+// Windows CreateThread / SetThreadAffinityMask, etc.) are delegated to C
+// bridge functions declared below as extern "C". These are implemented in
+// seeds/runtime_thread_glue.from_x.c and linked via the product pipeline
+// (thin+rest ld -r pattern).
 //
-// PLATFORM: SHARED (POSIX + Windows branches handled by C bridge _impl functions)
+// PLATFORM: SHARED — LINUX Cap (xlang_thread_cap／sync_cap); Darwin pthread;
+//           Windows CreateThread (handled by C bridge _impl).
 //
 // Wave513 (2026-07-27): R2 migration of runtime_thread_glue.from_x.c business
 // logic to .x. Previously the .c seed provided all public wrappers; now the
