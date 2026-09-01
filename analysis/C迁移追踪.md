@@ -159,7 +159,7 @@
 - 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–3＋poll 收口 Ubuntu ✅（WIP）**：net Cap＋DNS Cap＋http 宏＋**preamble Cap poll**（`3d10ea818`；g05 后 `net.o`／bytes／fs **无 U poll**，reloc→`xlang_net_poll`）。残：WSAStartup／Darwin  
 - 🟡 **9.1.8** `_write`／write — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`（Linux write／read／writev syscall）；preamble＋asm_io_stubs weak `xlang_sys_*`＋io_abi 离 libc write。探针 `io_write_raw_smoke.x`＠**`7486a3f51`**。残：cold io_abi U read · Darwin／Win  
 - ✅ **9.1.9** inline asm syscall（Linux x86_64）— **Ubuntu ✅（WIP）**：G.7 `xlang_syscall_cap.h`（syscall0..6；x86_64＋aarch64）；path／io／net／process／time／random 改 alias。探针 `syscall_cap_raw_smoke.x`＠**`fecc624dd`**。残：非 Cap 种子内仍有独立 asm（bootstrap／freestanding）  
-- ⬜ **9.1.10** opendir／readdir／closedir  
+- ⬜ **9.1.10** opendir／readdir／closedir — **Ubuntu ✅（WIP）**：G.7 `xlang_dir_cap.h`（open+getdents64）＋`runtime_dir_cap` merge＋posix／fmt／pabi Cap。证＠**`13246bba7`**：fs／fmt **无 U opendir** · Cap smoke **0**。残：Darwin／Win · pabi 若未 prefer 仍旧叶  
 - ⬜ **9.1.11** execinfo／dladdr／DbgHelp／CaptureStackBackTrace  
 - ⬜ **9.1.12** sysctl／proc／`#if`  
 
