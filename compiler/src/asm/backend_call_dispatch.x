@@ -4672,13 +4672,13 @@ function try_emit_simd_lang_resolve_feats_c(ta: i32, feats_in: u32): u32 {
 }
 
 /**
- * Stage 10 (10.5.1) slice0–8: language SIMD builtins add/mul/sub/fma/hsum/dot.
+ * Stage 10 (10.5.1) slice0–9: language SIMD builtins add/mul/sub/fma/hsum/dot.
  *
  * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
  * f32x4 add/mul/sub: spill each Vec4f arg (16B dual-GP), x86 SSE or aarch64 NEON,
  *   reload dual-GP (x86 rdx/rax · aarch64 x1/x0).
- * f32x4 fma (slice7): 3-arg spill; x86 FMA3/mulps+addps only (ta==0); aarch64 fallthrough.
- * f32x4 hsum/dot (slice8): spill; x86 mulps+hadd → xmm0 → eax; aarch64 fallthrough.
+ * f32x4 fma (slice7/9): 3-arg spill; x86 FMA3/mulps+addps · aarch64 NEON fmul+fadd.
+ * f32x4 hsum/dot (slice8/9): spill; x86 SSE or aarch64 faddp → xmm0/s0 → eax/w0.
  * i32x8/f32x8: VAR stack homes + sret let slot; x86 AVX2/SSE or aarch64 NEON dual-half.
  *
  * @return i32 — 1 emitted; 0 not applicable or HW unavailable (fallthrough);
@@ -4863,10 +4863,10 @@ function try_emit_simd_lang_builtin_call_elf_c(
       if (i == 10) { which = 12; }
     }
     if (which == 0) { return 0; }
-    /* slice7: fma_f32x4 — 3× dual-GP spill; x86 FMA3/mulps+addps; reload rdx/rax. */
+    /* slice7/9: fma_f32x4 — 3× dual-GP spill; x86 FMA/SSE or aarch64 NEON; reload. */
     if (which == 10) {
       if (n_args != 3) { return 0; }
-      if (ta != 0) { return 0; }
+      if (ta != 0 && ta != 1) { return 0; }
       if (is_method != 0) {
         arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
       } else {
@@ -4905,12 +4905,30 @@ function try_emit_simd_lang_builtin_call_elf_c(
       if (dst_off < 16) { dst_off = 16; }
       call_dispatch_store_i32_le(ctx, 4, dst_off + 16);
       feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
-      if ((feats & 1) == 0) {
-        return 0;
+      if (ta == 0) {
+        if ((feats & 1) == 0) {
+          return 0;
+        }
+      } else {
+        if ((feats & 256) == 0) {
+          return 0;
+        }
       }
       hw = simd_enc_try_hw_vector_fma_rbp(elf_ctx, off_a, off_b, off_c, dst_off, 4, 4, ta, feats);
       if (hw != 0) {
         return 0;
+      }
+      if (ta == 1) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off + 8, ta) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off, ta) != 0) {
+          return 0 - 1;
+        }
+        return 1;
       }
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off - 8, ta) != 0) {
         return 0 - 1;
@@ -4923,9 +4941,9 @@ function try_emit_simd_lang_builtin_call_elf_c(
       }
       return 1;
     }
-    /* slice8: hsum_f32x4 / dot_f32x4 — spill; SSE reduce → xmm0 → eax. */
+    /* slice8/9: hsum_f32x4 / dot_f32x4 — spill; SSE/NEON reduce → xmm0/s0 → eax/w0. */
     if (which == 11 || which == 12) {
-      if (ta != 0) { return 0; }
+      if (ta != 0 && ta != 1) { return 0; }
       if (which == 12) {
         if (n_args != 1) { return 0; }
       } else {
@@ -4956,8 +4974,14 @@ function try_emit_simd_lang_builtin_call_elf_c(
         if (off_b < 0) { return 0 - 1; }
       }
       feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
-      if ((feats & 1) == 0) {
-        return 0;
+      if (ta == 0) {
+        if ((feats & 1) == 0) {
+          return 0;
+        }
+      } else {
+        if ((feats & 256) == 0) {
+          return 0;
+        }
       }
       if (which == 12) {
         hw = simd_enc_try_hw_vector_hsum_f32x4_rbp(elf_ctx, off_a, ta, feats);
@@ -4967,7 +4991,7 @@ function try_emit_simd_lang_builtin_call_elf_c(
       if (hw != 0) {
         return 0;
       }
-      /* Pure-asm CALL consumers expect f32 bits in eax (same as harvest). */
+      /* Pure-asm CALL consumers expect f32 bits in eax/w0 (same as harvest). */
       if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0) {
         return 0 - 1;
       }
