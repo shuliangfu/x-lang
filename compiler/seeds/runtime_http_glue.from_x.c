@@ -80,10 +80,11 @@ static inline int xlang_http_setsockopt_cap(int fd, int level, int optname, cons
 static inline int xlang_http_fcntl_cap(int fd, int cmd, ...) {
   long arg = 0;
   if (cmd == F_SETFL) {
-    __builtin_va_list ap;
-    __builtin_va_start(ap, cmd);
-    arg = __builtin_va_arg(ap, long);
-    __builtin_va_end(ap);
+    /* Cap residual 10.7.1: Cap va face (no raw __builtin_va_* twin). */
+    xlang_va_list ap;
+    xlang_va_start(ap, cmd);
+    arg = xlang_va_arg(ap, long);
+    xlang_va_end(ap);
   }
   return xlang_net_fcntl(fd, cmd, arg);
 }
