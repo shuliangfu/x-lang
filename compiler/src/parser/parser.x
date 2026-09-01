@@ -348,6 +348,13 @@ allow(padding) struct OneFuncResult {
   num_src_body_expr_stmts: i32;
   /* See implementation. */
   func_return_type_ref: i32;
+  /**
+   * Cap 10.7.1 language slice5: 1 when param list ends with `, ...` after ≥1 named
+   * formal. Stored on OneFuncResult (not sidecar) so pin sizeof OneFuncSidecar stays 944.
+   * Consumed at commit via pipeline_module_func_set_is_variadic → host-C `, ...` emit.
+   * PLATFORM: SHARED
+   */
+  is_variadic: i32;
 }
 
 /* Forward decls: monofile typeck is single-pass by function order; callees defined later need early surface. PLATFORM: SHARED. */
@@ -1060,9 +1067,11 @@ export function onefunc_result_layout_prime_f(): void {
   let _q6: OneFuncResult = {
     num_src_stmt_order: 0,
     num_src_body_expr_stmts: 0,
-    func_return_type_ref: 0
+    func_return_type_ref: 0,
+    is_variadic: 0
   };
   _q6.func_return_type_ref = 0;
+  _q6.is_variadic = 0;
   }
 }
 
@@ -1130,6 +1139,8 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   } else {
     dst.func_return_type_ref = preserved_func_ret_ty;
   }
+  /* Cap 10.7.1: copy variadic flag with other OneFuncResult scalars. */
+  dst.is_variadic = src.is_variadic;
   /* See implementation. */
   }
 }
@@ -1164,6 +1175,8 @@ export function onefunc_merge_pool_out_to_snap(snap: *OneFuncResult, out: *OneFu
   if (out.func_return_type_ref != 0) {
     snap.func_return_type_ref = out.func_return_type_ref;
   }
+  /* Cap 10.7.1: keep variadic flag across pool merge to snap. */
+  snap.is_variadic = out.is_variadic;
   snap.num_consts = pipeline_onefunc_num_consts(onefunc_result_pool_ptr(snap));
   snap.num_lets = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(snap));
   snap.num_if_stmts = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(snap));
@@ -5770,6 +5783,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* See implementation. */
   let out_clean: OneFuncResult = onefunc_alloc_wired_for_parse(lex);
   copy_onefunc_into(out, &out_clean);
+  /* Cap 10.7.1: clear variadic until trailing `...` is seen. */
+  out.is_variadic = 0;
   let out_ref: *OneFuncResult = out;
   let dummy_name: u8[128] = [];
   /* See implementation. */
@@ -5895,6 +5910,25 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * this IDENT|SELF gate; do not accept TOKEN_RUN as a param name.
      * PLATFORM: SHARED — bind name "self" via token_start copy (len 4). */
     while (1 == 1) {
+      /*
+       * Cap 10.7.1 language slice5: trailing `...` after ≥1 named formal.
+       * Lexer already emits TOKEN_ELLIPSIS; codegen emits `, ...` when
+       * pipeline_module_func_is_variadic_at != 0. Require named params so
+       * Cap va_start has a last named argument (C ABI). PLATFORM: SHARED.
+       */
+      if ((r.tok.kind as i32) == (token.TokenKind.TOKEN_ELLIPSIS as i32)) {
+        if (out.num_params <= 0) {
+          set_onefunc_fail(out_ref, lex); return;
+        }
+        out.is_variadic = 1;
+        lex_from_next_into(&lex, r);
+        lexer.lexer_next_into(&r, lex, source);
+        if ((r.tok.kind as i32) != (token.TokenKind.TOKEN_RPAREN as i32)) {
+          set_onefunc_fail(out_ref, lex); return;
+        }
+        lex_from_next_into(&lex, r);
+        break;
+      }
       if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
         parser_report_keyword_binding_p014_c(r.tok.line, r.tok.col);
         set_onefunc_fail(out_ref, lex); return;
@@ -8244,6 +8278,8 @@ export function module_register_arena_func(module: *Module, func_ref: i32, f: Fu
   pipeline_module_func_set_body_expr_ref(module, fi, f.body_expr_ref);
   pipeline_module_func_set_is_extern(module, fi, f.is_extern);
   pipeline_module_func_set_is_async(module, fi, f.is_async);
+  /* Cap 10.7.1: Func.is_variadic → module slot (host-C `, ...` emit). */
+  pipeline_module_func_set_is_variadic(module, fi, f.is_variadic);
   pipeline_module_func_set_is_export(module, fi, module.pending_export);
   module.pending_export = 0;
       pipeline_module_func_set_is_used(module, fi, module.pending_used);
@@ -10285,6 +10321,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     pipeline_module_func_name_write(module, fi, &res.name[0], res.name_len);
     pipeline_module_func_set_num_params(module, fi, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi, res.num_generic_params);
+    /* Cap 10.7.1: OneFuncResult.is_variadic → module Func for C prototype emit. */
+    pipeline_module_func_set_is_variadic(module, fi, res.is_variadic);
     /* See implementation. */
     let mod_pool: *u8 = onefunc_result_pool_ptr(&res);
     let p: i32 = 0;
@@ -12369,6 +12407,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     pipeline_module_func_name_write(module, fi_mod, &res.name[0], res.name_len);
     pipeline_module_func_set_num_params(module, fi_mod, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi_mod, res.num_generic_params);
+    /* Cap 10.7.1: OneFuncResult.is_variadic → module Func (buf parse_into path). */
+    pipeline_module_func_set_is_variadic(module, fi_mod, res.is_variadic);
     pipeline_module_func_set_return_type(module, fi_mod, type_ref);
     pipeline_module_func_set_body_ref(module, fi_mod, block_ref);
     pipeline_module_func_set_body_expr_ref(module, fi_mod, 0);
