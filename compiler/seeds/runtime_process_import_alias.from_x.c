@@ -13,10 +13,12 @@
  * second process OS body — only import-binding names. Mirror net tls_stub
  * import_alias + path std_path_* product face in the hybrid leaf.
  *
- * exit: mod.x stub returns 0; product tests need real terminate → _exit.
+ * exit: mod.x stub returns 0; product tests need real terminate.
+ * Cap residual 9.1.4: Linux exit_group via xlang_process_cap (no libc _exit).
  */
 #include <stdint.h>
 #include <unistd.h>
+#include <xlang_process_cap.h>
 
 extern int32_t process_args_count_c(void);
 extern uint8_t *process_arg_c(int32_t i);
@@ -40,8 +42,19 @@ extern int32_t process_spawn_simple_c(uint8_t *program);
 extern int32_t process_exec_simple_c(uint8_t *program);
 extern int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd);
 
+/**
+ * Product std.process.exit — terminate with code.
+ * Cap residual 9.1.4: Linux exit_group; else libc _exit.
+ * @param code process exit status
+ * @return never returns (0 unreachable)
+ * PLATFORM: LINUX Cap residual; else POSIX _exit.
+ */
 int32_t std_process_exit(int32_t code) {
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    xlang_proc_exit((int)code);
+#else
     _exit((int)code);
+#endif
     return 0;
 }
 
