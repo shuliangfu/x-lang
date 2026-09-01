@@ -29,7 +29,7 @@
 /* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
 #include <xlang_fmt_cap.h> /* Cap residual 10.7.2: http format → xlang_snprintf */
-/* G.7: single Cap authority for this TU + included seeds/http/*.inc (after stdio). */
+/* G.7: single Cap authority for this TU + included seeds/http .inc files (after stdio). */
 #undef snprintf
 #define snprintf xlang_snprintf
 
