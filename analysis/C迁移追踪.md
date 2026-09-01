@@ -240,7 +240,7 @@
 - ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar`*／`stlr`*／`casal*`）。残：Darwin
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
 - ✅ **10.5.1** x86 AVX／SSE + aarch64 NEON 内建 — **slice0–10 ✅** · **slice10 ✅（Ubuntu host-C）**＠`0609c4a05`：`builtin.x` 标量 fallthrough（无 panic）。残：MSYS Win 实机
-- 🟡 **10.5.2** ARM SVE 内建 — **slice0 ✅（Ubuntu）**＠`779374da5`：`-target-cpu sve` → feat 512 prefer `ptrue VL4`＋ld1w／fadd|fmul|fsub／st1w（f32x4）；NEON 默认不扰。残：SVE fma／reduce／更宽 VL · MSYS Win  
+- 🟡 **10.5.2** ARM SVE 内建 — **slice0–1 ✅（Ubuntu）**＠`4dc1b412d`：slice0 f32x4 add／mul／sub · slice1 fma／hsum／dot（`ptrue VL4`＋fmla／faddv）。残：更宽 VL／i32 · MSYS Win  
 
 - ⬜ **10.6.1** Linux futex／clone／mmap 栈  
 - ⬜ **10.6.2** Windows CreateThread／WaitForSingleObject  
