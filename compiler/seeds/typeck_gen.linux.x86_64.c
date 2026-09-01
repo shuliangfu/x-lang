@@ -760,6 +760,7 @@ struct ast_ASTArena {
 #define typeck_typeck_type_is_free_type_param typeck_type_is_free_type_param
 #define typeck_typeck_type_tree_has_free_type_param typeck_type_tree_has_free_type_param
 #define typeck_typeck_generic_formal_matches_arg_type typeck_generic_formal_matches_arg_type
+#define typeck_typeck_call_is_fmt_debug_print_any typeck_call_is_fmt_debug_print_any
 #define typeck_typeck_check_call_arg_types typeck_check_call_arg_types
 #define typeck_typeck_match_subject_field_type typeck_match_subject_field_type
 #define typeck_typeck_call_arg_repr_compatible_ok typeck_call_arg_repr_compatible_ok
@@ -1889,6 +1890,7 @@ extern int32_t typeck_named_is_module_type(struct ast_Module * module, struct as
 extern int32_t typeck_type_is_free_type_param(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref);
 extern int32_t typeck_type_tree_has_free_type_param(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth);
 extern int32_t typeck_generic_formal_matches_arg_type(struct ast_Module * module, struct ast_ASTArena * arena, int32_t formal_ty, int32_t arg_ty, int32_t depth);
+extern int32_t typeck_call_is_fmt_debug_print_any(struct ast_Module * mod, int32_t fi, int32_t dep, struct ast_PipelineDepCtx * ctx, int32_t num_args);
 extern int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_match_subject_field_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * name, int32_t name_len);
 extern int32_t typeck_call_arg_repr_compatible_ok(struct ast_Module * module, struct ast_ASTArena * arena, int32_t param_ref, int32_t arg_ref);
@@ -10229,6 +10231,64 @@ int32_t typeck_generic_formal_matches_arg_type(struct ast_Module * module, struc
     return 0;
   }
 }
+/* Twin of typeck.x typeck_call_is_fmt_debug_print_any (7.4.9).
+ * Product contract: 1-arg std.fmt / std.debug print/println of a composite
+ * that misses scalar overloads is JSON "print any" — not T001.
+ * L4 g05 compiles this pin (prefer .x hid the gap on daily L2).
+ * PLATFORM: SHARED typeck pin. G.7 complete existing gate; no third scorer.
+ */
+int32_t typeck_call_is_fmt_debug_print_any(struct ast_Module * mod, int32_t fi, int32_t dep,
+    struct ast_PipelineDepCtx * ctx, int32_t num_args) {
+  int32_t nlen = 0;
+  int32_t plen = 0;
+  uint8_t print_nm[8];
+  uint8_t println_nm[8];
+  uint8_t pb[128] = {};
+  if (num_args != 1) {
+    return 0;
+  }
+  if ((mod == 0) || (fi < 0)) {
+    return 0;
+  }
+  if ((dep < 0) || (ctx == 0)) {
+    return 0;
+  }
+  nlen = pipeline_module_func_name_len_at(mod, fi);
+  if ((nlen != 5) && (nlen != 7)) {
+    return 0;
+  }
+  print_nm[0] = 112; print_nm[1] = 114; print_nm[2] = 105; print_nm[3] = 110; print_nm[4] = 116;
+  println_nm[0] = 112; println_nm[1] = 114; println_nm[2] = 105; println_nm[3] = 110;
+  println_nm[4] = 116; println_nm[5] = 108; println_nm[6] = 110;
+  if (nlen == 5) {
+    if (pipeline_module_func_name_equal_at(mod, fi, &(print_nm[0]), 5) == 0) {
+      return 0;
+    }
+  } else {
+    if (pipeline_module_func_name_equal_at(mod, fi, &(println_nm[0]), 7) == 0) {
+      return 0;
+    }
+  }
+  plen = pipeline_dep_ctx_import_path_len(ctx, dep);
+  if ((plen != 7) && (plen != 9)) {
+    return 0;
+  }
+  /* copy64 APIs write 128 bytes (AST name[128]); never a smaller local. */
+  pipeline_dep_ctx_import_path_copy64(ctx, dep, &(pb[0]));
+  if (plen == 7) {
+    if (((pb[0] == 115) && (pb[1] == 116) && (pb[2] == 100) && (pb[3] == 46)
+        && (pb[4] == 102) && (pb[5] == 109) && (pb[6] == 116))) {
+      return 1;
+    }
+    return 0;
+  }
+  if (((pb[0] == 115) && (pb[1] == 116) && (pb[2] == 100) && (pb[3] == 46)
+      && (pb[4] == 100) && (pb[5] == 101) && (pb[6] == 98) && (pb[7] == 117)
+      && (pb[8] == 103))) {
+    return 1;
+  }
+  return 0;
+}
 int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t num_args = 0;
@@ -10308,6 +10368,12 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
         }
         (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
         ((sc < 0) ? ({   if (((arg_ref > 0) && (typeck_call_arg_repr_compatible_ok(mod, arena, param_raw, arg_ref) !=0))) {
+    (void)((ai = (ai + 1)));
+    continue;
+  }
+  /* Twin of typeck.x: fmt/debug print/println(composite) JSON any — not T001.
+   * PLATFORM: SHARED typeck pin. */
+  if ((typeck_call_is_fmt_debug_print_any(mod, fi, dep, ctx, num_args) != 0)) {
     (void)((ai = (ai + 1)));
     continue;
   }

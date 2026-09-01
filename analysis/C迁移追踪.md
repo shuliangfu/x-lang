@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 前排大多闭；3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128（~85%） |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6–7.4.8** pin 孪生／patch 幂等／`let _` 豁免已落盘（L4 未重跑）；parser seed 物理删／CI 漂移闸 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6–7.4.9** pin 孪生／patch 幂等／`let _`／println 复合 any 已落盘（L4 未重跑）；parser seed 物理删／CI 漂移闸 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | 🟡 | **9.1.3** getpid／getppid／getcwd／chdir Linux raw ✅（WIP）；其余 9.1～9.7 仍开 |
@@ -32,7 +32,7 @@
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
-| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip L4＠`d9903f8e8` 双端 g05／矩阵 OK · Ubuntu fmt-std T001 println · Darwin FMT001 |
+| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip **7.4.9** pin println any 已落盘；前 L4＠`d9903f8e8` 双端 g05／矩阵 OK · Ubuntu fmt-std T001 · Darwin FMT001；本波 L4 未重跑 |
 | BC（自举编译层零 host-cc） | 🟡 | inventory 冻；`pipeline_x` 仍 host-cc mega |
 | PC（产品默认 asm／禁默 host-cc） | 🟡 | 去 import→C／FORBID／ALLOW／ld-only ✅；invoke_cc 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名；产品 thin-first／inject |
@@ -111,6 +111,7 @@
 - ✅ **7.4.6** typeck pin extra-paren — L4 Track L `cc` 硬失败：size/align `ko==18` 与 Cap va 名字链 if 条件多一个 `)`；权威仍 `typeck.x`，pin 孪生去多余 `)`（9 处）。日常 L2 prefer `.x` 藏此债
 - ✅ **7.4.7** typeck archaeology patch 幂等 — L4 g05 `cc typeck_gen.c` 重复定义 `g_typeck_allow_legacy_extern_calls`：7.4.5 pin 已有体、patcher 只认 `XLANG_ALLOW_LEGACY_EXTERN` 注释。G.7 补全既有 patcher（符号已在则 skip）＋pin 补标记。证：Darwin patch skip · `cc -c` 0
 - ✅ **7.4.8** typeck pin discard `_` — L4 g05 typeck T001 `print_any` 多份 `let _`：权威 `typeck.x` 已豁免，pin 孪生无。G.7 补全 pin let／const。L4＠`d9903f8e8` duplicate 已消，转 **argument type mismatch**（println 实参）
+- ✅ **7.4.9** typeck pin println 复合实参 JSON any — L4 g05 T001 `fmt.println(Point／array／Option)`：权威 `typeck.x` `typeck_call_is_fmt_debug_print_any`，pin／empty_surface 孪生无。G.7 补全 pin `check_call_arg_types` score＜0 后放行；无第三 scorer；禁改 print_any 期望。Darwin pin 链 print_any／fmt-std 6／6／L2 5／5。双端 L4 未重跑
 
 ---
 
