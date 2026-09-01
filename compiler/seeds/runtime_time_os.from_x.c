@@ -16,10 +16,11 @@
  *
  * Cap residual 9.1.5: Linux clock_gettime/nanosleep/gmtime_r via
  * compiler/include/xlang_time_cap.h (no libc those symbols).
+ * Cap residual 10.7.2: RFC3339 format via xlang_snprintf (no libc snprintf).
  */
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: time_format_rfc3339 → xlang_snprintf */
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -97,8 +98,8 @@ void time_sleep_ns_impl(int64_t ns) {
 
 /**
  * Bridge: format current UTC wall clock as RFC3339 (trailing Z).
- * POSIX: Cap clock_gettime + Cap gmtime_r + snprintf
- * Windows: gmtime_s + snprintf
+ * POSIX: Cap clock_gettime + Cap gmtime_r + Cap snprintf
+ * Windows: gmtime_s + Cap snprintf
  * @param buf output buffer
  * @param cap buffer capacity in bytes
  * @return written length; -1 on failure
@@ -120,7 +121,8 @@ int32_t time_format_rfc3339_impl(uint8_t *buf, int32_t cap) {
     }
     if (xlang_time_gmtime_r(&now, &tm) == NULL) return -1;
 #endif
-    n = snprintf((char *)buf, (size_t)cap, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+    /* PLATFORM: SHARED — Cap fmt (10.7.2). */
+    n = xlang_snprintf((char *)buf, (size_t)cap, "%04d-%02d-%02dT%02d:%02d:%02dZ",
                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
                  tm.tm_hour, tm.tm_min, tm.tm_sec);
     if (n <= 0 || n >= cap) return -1;
