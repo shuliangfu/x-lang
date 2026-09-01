@@ -1,8 +1,9 @@
 /**
- * Cap 10.7.1 language slice7 smoke: va_start / va_arg_i32 / va_end → Cap macros.
+ * Cap 10.7.1 language slice7–8 smoke: va Cap builtins + variadic call arity.
  *
  * Typeck sees export-extern faces; codegen rewrites call sites to xlang_va_*.
  * VaList lowers as xlang_va_list (emit_header includes xlang_va_cap.h).
+ * slice8: call sites may pass trailing args beyond named formals.
  * PLATFORM: SHARED — -E emit gate (host-cc/runtime deferred).
  */
 
@@ -41,9 +42,8 @@ export function lang_va_cap_probe(n: i32, ...): i32 {
 }
 
 /**
- * Entry: call with only the named arg (extra args optional; typeck arity
- * does not yet accept trailing variadic literals at call sites).
+ * Entry: pass one trailing variadic literal (slice8 arity Cap).
  */
 export function main(): i32 {
-  return lang_va_cap_probe(1);
+  return lang_va_cap_probe(1, 42);
 }
