@@ -4583,7 +4583,7 @@ function pipeline_asm_inline_in_reg_mov_kind(reg: *u8, ta: i32): i32 {
       return 0 - 1;
     }
     if (ta == 1) {
-      /* x0 — already; x1..x5 → arg indices; x8 → syscall nr home. */
+      /* x0 already; x1..x7 → mk 2..8 (k=mk-1); x8 → syscall nr (102). */
       if (reg[0] == (120 as u8) && reg[1] == (48 as u8) && reg[2] == (0 as u8)) {
         return 0;
       }
@@ -4601,6 +4601,13 @@ function pipeline_asm_inline_in_reg_mov_kind(reg: *u8, ta: i32): i32 {
       }
       if (reg[0] == (120 as u8) && reg[1] == (53 as u8) && reg[2] == (0 as u8)) {
         return 6;
+      }
+      /* Slice2: x6/x7 AAPCS arg homes (mk 7/8 → k 6/7). */
+      if (reg[0] == (120 as u8) && reg[1] == (54 as u8) && reg[2] == (0 as u8)) {
+        return 7;
+      }
+      if (reg[0] == (120 as u8) && reg[1] == (55 as u8) && reg[2] == (0 as u8)) {
+        return 8;
       }
       if (reg[0] == (120 as u8) && reg[1] == (56 as u8) && reg[2] == (0 as u8)) {
         return 102;
@@ -4662,15 +4669,26 @@ function pipeline_asm_inline_regpack_field(pack: *u8, idx: i32, out: *u8, out_ca
  * Templates: "nop" · "syscall" (x86 0F05 / aarch64 svc).
  * Operands: up to 6; int_val = num_in; call_args[0..num_in) = in,
  *   call_args[num_in..) = out/lateout places (VAR only).
- * Out homes: mk==0 (rax/x0) · mk 1..6 SysV/AAPCS GP · mk==100 rbx · mk==101 r10 (x86)
- *   · mk==102 x8 (aarch64, slice10).
+ * Out homes: mk==0 (rax/x0) · mk 1..6 SysV GP · mk 2..8 AAPCS x1..x7
+ *   · mk==100 rbx · mk==101 r10 (x86) · mk==102 x8 (aarch64, slice10).
  * Place `_` (VAR name "_"): clobber discard — no store (slice6).
  * Options bits in call_num_type_args; noreturn(32) → x86 ud2 after (slice8).
  * Slice9: after noreturn ud2, glue_asm_block_diverged_set(1) so block emit
  * skips trailing stmt_order / final_expr (no fallthrough return).
+ * Slice12: preserves_flags(2) → x86 pushfq before template / popfq after
+ *   (net RFLAGS restore; aarch64 accept-only no-op).
+ * Slice13: nostack(1) → skip preserves_flags wrap (pushfq uses stack);
+ *   nostack alone still accept-only for the template itself.
+ * Slice14: nomem(4) → hard-fail if any out/lateout stores to a local VAR
+ *   (`_` clobber discard still OK; no memory write).
+ * Slice15: readonly(8) → same local-out store forbid as nomem.
+ * Slice16: pure(16) → same store forbid; pure+noreturn(32) hard-fail
+ *   (noreturn is a side effect beyond writing outputs).
+ * 10.2.2 slice1: lateout AAPCS GP via backend_enc_mov_arg_reg_to_rax_arch(ta==1).
+ * 10.2.2 slice2: open x6/x7 (mk 7/8) — AAPCS arg homes complete x0..x7.
  * Extra in-homes: r10 (x86) · x8 (aarch64 nr).
  * @return i32 — 0 ok; -1 error / unsupported
- * PLATFORM: SHARED emit · LINUX|x86_64 gold · aarch64 encode (x8 out via enc).
+ * PLATFORM: SHARED emit · LINUX|x86_64 gold · aarch64 encode (GP lateout via enc).
  */
 #[no_mangle]
 export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
@@ -4700,6 +4718,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     let voff: i32 = 0;
     let opt_bits: i32 = 0;
     let ud2: u8[2] = [];
+    let pfq: u8 = 0 as u8;
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko != 60) {
       return 0 - 1;
@@ -4725,6 +4744,12 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     if (num_in < 0 || num_in > nargs) {
       return 0 - 1;
     }
+    /* Options bitfield once (slice8–16 options family). */
+    opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    /* Slice16: pure + noreturn conflict (side effect beyond outputs). */
+    if ((opt_bits & 16) != 0 && (opt_bits & 32) != 0) {
+      return 0 - 1;
+    }
     if (nargs > 0) {
       if (ctx == 0 as *u8) {
         return 0 - 1;
@@ -4748,7 +4773,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         if (erc != 0) {
           return 0 - 1;
         }
-        if (mk >= 1 && mk <= 6) {
+        if (mk >= 1 && mk <= 8) {
           if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, mk - 1, ta) != 0) {
             return 0 - 1;
           }
@@ -4775,6 +4800,37 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
           }
         }
         i = i + 1;
+      }
+      /* Slice14–16: nomem/readonly/pure forbid out/lateout stores to locals. */
+      if ((opt_bits & 28) != 0) {
+        i = num_in;
+        while (i < nargs) {
+          arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+          if (arg_ref <= 0) {
+            return 0 - 1;
+          }
+          pko = pipeline_expr_kind_ord_at(arena, arg_ref);
+          if (pko != 3) {
+            return 0 - 1;
+          }
+          vlen = pipeline_expr_var_name_len(arena, arg_ref);
+          if (vlen <= 0 || vlen > 127) {
+            return 0 - 1;
+          }
+          pipeline_expr_var_name_into(arena, arg_ref, &vname[0]);
+          /* `_` clobber discard does not store — allowed. */
+          if (!(vlen == 1 && vname[0] == (95 as u8))) {
+            return 0 - 1;
+          }
+          i = i + 1;
+        }
+      }
+    }
+    /* Slice12/13: preserves_flags wrap unless nostack (pushfq uses stack). */
+    if ((opt_bits & 2) != 0 && (opt_bits & 1) == 0 && ta == 0) {
+      pfq = 156 as u8; /* 0x9C pushfq */
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &pfq, 1) != 0) {
+        return 0 - 1;
       }
     }
     /* ---- template ---- */
@@ -4804,6 +4860,13 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
           return 0 - 1;
         }
       } else {
+        return 0 - 1;
+      }
+    }
+    /* Slice12/13: popfq after template unless nostack. */
+    if ((opt_bits & 2) != 0 && (opt_bits & 1) == 0 && ta == 0) {
+      pfq = 157 as u8; /* 0x9D popfq */
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &pfq, 1) != 0) {
         return 0 - 1;
       }
     }
@@ -4843,8 +4906,8 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
       /* mk==0: value already in rax/x0. */
-      if (mk >= 1 && mk <= 6) {
-        /* G.7: reuse SysV/AAPCS arg→rax (x86 gold; arm64 arch may -1). */
+      if (mk >= 1 && mk <= 8) {
+        /* G.7: SysV mk1..6 / AAPCS mk2..8 (x1..x7) → rax/x0 (10.2.2 slice1–2). */
         if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, mk - 1, ta) != 0) {
           return 0 - 1;
         }
@@ -4878,7 +4941,6 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
     }
     /* Slice8: options(noreturn) → ud2 after asm (trap if template returns). */
     /* Slice9: stamp diverged so parent block skips unreachable stmts/final_expr. */
-    opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
     if ((opt_bits & 32) != 0) {
       if (ta == 0) {
         ud2[0] = 15 as u8;
