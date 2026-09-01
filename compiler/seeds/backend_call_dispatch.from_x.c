@@ -4397,10 +4397,12 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Cap 10.7.1 slice12–16: twin of try_emit_va_cap_builtin_call_elf_c (.x).
+ * Cap 10.7.1 slice12–17: twin of try_emit_va_cap_builtin_call_elf_c (.x).
  * Cap-private VaList header (GP cursor + FP cursor) + GP/XMM spill.
  * x86_64: 6 SysV GP + 8 xmm; aarch64: 8 AAPCS GP + 8 v. typed va_arg<T>
- * including f32/f64. PLATFORM: SHARED emit · LINUX|x86_64 · LINUX|aarch64
+ * including f32/f64. slice17: copy incoming stack extras into GP-ov/FP-ov
+ * (8 slots) so the -8 walk continues past the register file.
+ * PLATFORM: SHARED emit · LINUX|x86_64 · LINUX|aarch64
  */
 static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -4423,6 +4425,11 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   int32_t np_fp = 0;
   int32_t gp_save;
   int32_t fp_save;
+  int32_t gp_ov;
+  int32_t fp_ov;
+  int32_t ov_n = 8;
+  int32_t named_stk = 0;
+  int32_t stk_pos = 0;
   int32_t pty;
   int32_t is_fp = 0;
   uint8_t name[128];
@@ -4557,6 +4564,11 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       else
         np_gp++;
     }
+    named_stk = 0;
+    if (np_gp > gp_n)
+      named_stk += np_gp - gp_n;
+    if (np_fp > fp_n)
+      named_stk += np_fp - fp_n;
     if (np_gp > gp_n)
       np_gp = gp_n;
     if (np_fp > fp_n)
@@ -4565,8 +4577,11 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     if (save_off < 16)
       save_off = 16;
     gp_save = save_off + 16;
-    fp_save = gp_save + gp_n * 8;
-    ly->next_offset = fp_save + fp_n * 8;
+    ov_n = 8;
+    gp_ov = gp_save + gp_n * 8;
+    fp_save = gp_ov + ov_n * 8;
+    fp_ov = fp_save + fp_n * 8;
+    ly->next_offset = fp_ov + ov_n * 8;
     for (k = 0; k < gp_n; k++) {
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0)
         return -1;
@@ -4577,6 +4592,28 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0)
+        return -1;
+    }
+    /* Incoming stack extras → GP-ov / FP-ov. PLATFORM: LINUX x86 [rbp+16];
+     * aarch64 [x29,#frame+16] after x19 pad (param_home twin). */
+    stk_pos = 16;
+    if (ta == 1) {
+      if (ly->frame_size > 16)
+        stk_pos = ly->frame_size;
+      stk_pos += 16;
+    }
+    stk_pos += named_stk * 8;
+    for (k = 0; k < ov_n; k++) {
+      if (ta == 1) {
+        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_ov + k * 8, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_ov + k * 8, ta) != 0)
         return -1;
     }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, gp_save + np_gp * 8, ta) != 0)

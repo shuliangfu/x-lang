@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–16: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
+# Cap 10.7.1 language slice7–17: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
 # slice7–10: Cap rewrite/arity/host-cc/preamble; slice11: invoke_cc Cap -I;
 # slice12: asm Cap va_start/end/va_arg_i32; slice13: asm Cap va_arg_i64/ptr;
 # slice14: typed turbofish va_arg<T>(ap); slice15: aarch64 asm Cap cross-emit;
 # slice16: va_arg<f32>/va_arg<f64> (XMM/NEON + C float→double promote).
+# slice17: GP stack extras beyond 6 SysV GP (11/22 in r8/r9, 33/44 at [rbp+16]).
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -59,9 +60,15 @@ if ! grep -F 'xlang_va_end(' "$OUT_C" >/dev/null 2>&1; then
   exit 1
 fi
 
-# Call site must emit trailing variadic args (slice8 arity + slice13 i64/ptr).
+# Call site must emit trailing variadic args (slice8 arity + slice13 i64/ptr + slice17 stack extras).
 if ! grep -E 'lang_va_cap_probe\([^)]*42' "$OUT_C" >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_variadic_call" >&2
+  grep -n 'lang_va_cap_probe' "$OUT_C" | head -20 >&2 || true
+  exit 1
+fi
+# slice17: stack extras 33/44 must appear at the call site (host-C and asm).
+if ! grep -E 'lang_va_cap_probe\([^)]*33' "$OUT_C" >/dev/null 2>&1; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_stack_extra" >&2
   grep -n 'lang_va_cap_probe' "$OUT_C" | head -20 >&2 || true
   exit 1
 fi

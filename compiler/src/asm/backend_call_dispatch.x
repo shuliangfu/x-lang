@@ -4278,22 +4278,28 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Cap 10.7.1 slice12–16: language va_start / va_end / va_arg_{i32,i64,ptr} /
- * typed va_arg<T>(ap) including f32/f64 → asm Cap.
+ * Cap 10.7.1 slice12–17: language va_start / va_end / va_arg_{i32,i64,ptr} /
+ * typed va_arg<T>(ap) including f32/f64 + stack extras → asm Cap.
  *
  * Host-C uses xlang_va_* macros (SysV / AAPCS; C promotes unnamed f32→double).
  * Asm Cap is Cap-private: at va_start, spill GP + FP arg regs into call-spill
  * scratch (regs still hold entry values because this intercept runs before
  * call-arg packing). VaList local holds a pointer to a 16-byte header:
  *   header[0] = GP cursor, header[8] (rbp-off; pointer-8) = FP cursor.
- * Layout: header (16) / GP[gp_n] / FP[fp_n]. gp_n = 6 SysV (rdi..r9) or 8
- * AAPCS (x0..x7). fp_n = 8 (xmm0..7 / v0..v7). Named params consume GP or FP
- * slots independently (glue_call_param_is_f32_c). va_arg loads *cursor as a
- * full 8-byte slot (i32/f32 live in the low 32); both streams bump -8
- * (rising rbp-offsets = falling addresses). va_end is a no-op.
+ * Layout: header (16) / GP[gp_n] / GP-ov[8] / FP[fp_n] / FP-ov[8].
+ * gp_n = 6 SysV (rdi..r9) or 8 AAPCS (x0..x7). fp_n = 8 (xmm0..7 / v0..v7).
+ * Named params consume GP or FP slots independently (glue_call_param_is_f32_c).
+ * slice17: incoming stack extras (beyond GP/FP register files) are copied at
+ * va_start into GP-ov / FP-ov so the same -8 walk continues off the end of
+ * the register save. x86 first extra at [rbp+16]; aarch64 at
+ * [x29,#frame+16] (prologue x19 pad; matches param_home). Named stack
+ * formals (named GP/FP past the register file) skip that many words.
+ * All-GP extras and all-FP extras are correct; mixed GP+FP overflow on the
+ * same stack (independent copies of the same cells) is residual. MSVC residual.
+ * va_arg loads *cursor as a full 8-byte slot (i32/f32 live in the low 32);
+ * both streams bump -8 (rising rbp-offsets = falling addresses). va_end is a no-op.
  * slice14: va_arg<T>(ap) classifies T via type-arg sidecar.
  * slice16: TYPE_F32=14 / TYPE_F64=15 walk the FP cursor (G.7 complete).
- * Stack extras beyond GP/FP count residual. MSVC residual.
  *
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
@@ -4343,6 +4349,11 @@ function try_emit_va_cap_builtin_call_elf_c(
     let np_fp: i32 = 0;
     let gp_save: i32 = 0;
     let fp_save: i32 = 0;
+    let gp_ov: i32 = 0;
+    let fp_ov: i32 = 0;
+    let ov_n: i32 = 8;
+    let named_stk: i32 = 0;
+    let stk_pos: i32 = 0;
     let pty: i32 = 0;
     let is_fp: i32 = 0;
 
@@ -4470,17 +4481,25 @@ function try_emit_va_cap_builtin_call_elf_c(
         }
         k = k + 1;
       }
+      /* Named stack formals sit at the front of the incoming overflow area. */
+      named_stk = 0;
+      if (np_gp > gp_n) { named_stk = named_stk + (np_gp - gp_n); }
+      if (np_fp > fp_n) { named_stk = named_stk + (np_fp - fp_n); }
       if (np_gp > gp_n) { np_gp = gp_n; }
       if (np_fp > fp_n) { np_fp = fp_n; }
 
-      /* Reserve header(16) + GP save + FP save in call-spill scratch
-       * (frame already ≥512). x86_64 GP 48B / aarch64 GP 64B; FP 64B both. */
+      /* Reserve header(16) + GP save + GP-ov + FP save + FP-ov in call-spill
+       * scratch (frame already ≥512). ov_n=8 extra 8-byte slots per class.
+       * PLATFORM: LINUX|x86_64 SysV · LINUX|aarch64 AAPCS (cross-emit). */
       cur = call_dispatch_load_i32_le(ctx, 4);
       save_off = cur + 16;
       if (save_off < 16) { save_off = 16; }
       gp_save = save_off + 16;
-      fp_save = gp_save + gp_n * 8;
-      call_dispatch_store_i32_le(ctx, 4, fp_save + fp_n * 8);
+      ov_n = 8;
+      gp_ov = gp_save + gp_n * 8;
+      fp_save = gp_ov + ov_n * 8;
+      fp_ov = fp_save + fp_n * 8;
+      call_dispatch_store_i32_le(ctx, 4, fp_ov + ov_n * 8);
 
       /* Spill GP arg regs while entry values still live. */
       k = 0;
@@ -4496,6 +4515,38 @@ function try_emit_va_cap_builtin_call_elf_c(
       while (k < fp_n) {
         if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+
+      /* Copy incoming stack extras into GP-ov / FP-ov (same cells). After the
+       * last GP/FP register slot the -8 walk lands on ov[0]. G.7 existing
+       * load_rbp_pos / load_x29_pos (param_home twins). rax/x0 is free: GP
+       * and FP files already spilled. */
+      stk_pos = 16;
+      if (ta == 1) {
+        /* PLATFORM: LINUX|aarch64 — prologue grows frame by 16 (x19). */
+        cur = call_dispatch_load_i32_le(ctx, 0);
+        if (cur > 16) { stk_pos = cur; }
+        stk_pos = stk_pos + 16;
+      }
+      stk_pos = stk_pos + named_stk * 8;
+      k = 0;
+      while (k < ov_n) {
+        if (ta == 1) {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0) {
+            return 0 - 1;
+          }
+        } else {
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_ov + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_ov + k * 8, ta) != 0) {
           return 0 - 1;
         }
         k = k + 1;
