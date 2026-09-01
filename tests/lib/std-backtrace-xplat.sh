@@ -81,7 +81,7 @@ std_backtrace_xplat_pick_vector() {
 
 # Compile+run xplat_quality.c against prebuilt .o only.
 # Refuse soft xlang_compiler_make / ensure rebuild. Return 0 on quality OK.
-# PLATFORM: SHARED — Darwin export_dynamic / Linux -rdynamic -ldl / Windows dbghelp.
+# PLATFORM: SHARED — Darwin export_dynamic / Linux -rdynamic -ldl / Windows Cap (no dbghelp).
 std_backtrace_xplat_run_smoke() {
   local src="tests/backtrace/xplat_quality.c"
   local out="/tmp/xlang_backtrace_xplat_$$"
@@ -100,7 +100,7 @@ std_backtrace_xplat_run_smoke() {
   case "$(uname -s)" in
     Linux) extra=(-rdynamic -ldl) ;;
     Darwin) extra=(-Wl,-export_dynamic) ;;
-    MINGW*|MSYS*|CYGWIN*) extra=(-ldbghelp) ;;
+    MINGW*|MSYS*|CYGWIN*) extra=(-lkernel32) ;;
   esac
   if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "$rt_o" "${extra[@]}" 2>/dev/null; then
     echo "std-backtrace-xplat OBS: compile/link $src (UNDEF/residual; refuse soft ensure)" >&2
