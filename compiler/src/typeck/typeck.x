@@ -1144,6 +1144,11 @@ export extern function glue_expr_is_func_param_at_c(arena: *ASTArena, mod: *Modu
 expr_ref: i32, param_ix: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
+/**
+ * Cap 10.7.1: 1 when func has trailing `...` (named params only in num_params).
+ * PLATFORM: SHARED — used by typeck call arity / overload pick.
+ */
+export extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
 /**
  * Resolved dep module index for a CALL (-1 = local / entry module).
@@ -6700,12 +6705,13 @@ func_index_out: *i32): i32 {
           first_ret = rtr;
         }
         let nparams: i32 = pipeline_module_func_num_params_at(mod, j);
-        if (nparams == num_args) {
+        /* Cap 10.7.1 slice8: exact or variadic (score named formals only). */
+        if (typeck_call_arity_compatible(mod, j, num_args) != 0) {
           let ai: i32 = 0;
           let score: i32 = 0;
           let matched: i32 = 1;
           let expect_match: i32 = 0;
-          while (ai < num_args) {
+          while (ai < nparams) {
             let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
             let pty: i32 = param_raw;
             let aref: i32 = 0;
@@ -6827,7 +6833,8 @@ func_index_out: *i32): i32 {
       let j2: i32 = 0;
       while (j2 < mod.num_funcs) {
         if (pipeline_module_func_name_equal_at(mod, j2, name, name_len) != 0) {
-          if (pipeline_module_func_num_params_at(mod, j2) == num_args) {
+          /* Cap 10.7.1 slice8: exact or variadic compatible. */
+          if (typeck_call_arity_compatible(mod, j2, num_args) != 0) {
             any_arity = 1;
             break;
           }
@@ -6892,13 +6899,14 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
         }
         if (has_call_info != 0) {
           let nparams: i32 = pipeline_module_func_num_params_at(mod, j);
-          if (nparams == num_args) {
+          /* Cap 10.7.1 slice8: exact or variadic (score named formals only). */
+          if (typeck_call_arity_compatible(mod, j, num_args) != 0) {
             let ai: i32 = 0;
             let score: i32 = 0;
             let matched: i32 = 1;
             let expect_match2: i32 = 0;
             let rtr_cand: i32 = pipeline_module_func_return_type_at(mod, j);
-            while (ai < num_args) {
+            while (ai < nparams) {
               let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
               let pty2: i32 = param_raw;
               let aref2: i32 = 0;
@@ -6970,7 +6978,8 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
         let j3: i32 = 0;
         while (j3 < mod.num_funcs) {
           if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j3)) {
-            if (pipeline_module_func_num_params_at(mod, j3) == num_args) {
+            /* Cap 10.7.1 slice8: exact or variadic compatible. */
+            if (typeck_call_arity_compatible(mod, j3, num_args) != 0) {
               any_arity2 = 1;
               break;
             }
@@ -11816,12 +11825,41 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * Cap 10.7.1 slice8: call-site arity vs named formals.
+ * Exact match, or variadic with num_args >= named param count (C `...`).
+ * Too few args always fails (even on variadic).
+ * @param module *Module — func owner (local or dep)
+ * @param fi i32 — function index
+ * @param num_args i32 — call-site argument count
+ * @return i32 — 1 compatible, 0 not
+ * PLATFORM: SHARED — G.7 single predicate for arity gate + overload pick.
+ */
+export function typeck_call_arity_compatible(module: *Module, fi: i32, num_args: i32): i32 {
+  // PLATFORM: SHARED — Cap variadic call arity.
+  unsafe {
+    let np: i32 = 0;
+    if (module == 0 as *Module || fi < 0) {
+      return 0;
+    }
+    np = pipeline_module_func_num_params_at(module, fi);
+    if (np == num_args) {
+      return 1;
+    }
+    if (pipeline_module_func_is_variadic_at(module, fi) != 0 && num_args >= np) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * Hard-fail free-function CALL when argument count ≠ resolved (or name-matched) arity,
  * or when a bare VAR callee name resolves to no function at all.
  * wave660 Cap residual: overload pick used to bind first same-name func ignoring arity
  * → typeck OK then host-cc BLD001. Also covers pure miss after first_idx gate.
  * wave675 Cap residual: unresolved bare VAR callee (name_hits==0) was soft-skipped →
  * host BLD001 undeclared function (typos, silent parse-drop of bad formals + call).
+ * Cap 10.7.1 slice8: variadic callees accept num_args >= named arity.
  * Soft-skip: non-VAR callee (fn ptr / method path), special read_ptr_slice intrinsics.
  * @param module *Module — entry / local module
  * @param arena *ASTArena
@@ -11840,7 +11878,6 @@ ctx: *PipelineDepCtx): i32 {
     let dep: i32 = 0;
     let mod: *Module = 0 as *Module;
     let dm: *Module = 0 as *Module;
-    let np: i32 = 0;
     let line_a: i32 = 0;
     let col_a: i32 = 0;
     let callee_ref: i32 = 0;
@@ -11869,8 +11906,8 @@ ctx: *PipelineDepCtx): i32 {
           mod = dm;
         }
       }
-      np = pipeline_module_func_num_params_at(mod, fi);
-      if (np != num_args) {
+      /* Cap 10.7.1 slice8: exact or variadic (num_args >= named). */
+      if (typeck_call_arity_compatible(mod, fi, num_args) == 0) {
         line_a = pipeline_expr_line_at(arena, expr_ref);
         col_a = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a);
@@ -11959,7 +11996,8 @@ ctx: *PipelineDepCtx): i32 {
     while (j < module.num_funcs) {
       if (pipeline_module_func_name_equal_at(module, j, &cnm[0], cnml) != 0) {
         name_hits = name_hits + 1;
-        if (pipeline_module_func_num_params_at(module, j) == num_args) {
+        /* Cap 10.7.1 slice8: exact or variadic compatible. */
+        if (typeck_call_arity_compatible(module, j, num_args) != 0) {
           arity_hits = arity_hits + 1;
         }
       }

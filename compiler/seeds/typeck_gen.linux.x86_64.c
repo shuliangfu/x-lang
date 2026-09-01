@@ -754,6 +754,7 @@ struct ast_ASTArena {
 #define typeck_typeck_check_expr_try_propagate typeck_check_expr_try_propagate
 #define typeck_typeck_check_expr_call_arg typeck_check_expr_call_arg
 #define typeck_typeck_check_expr_call_resolve typeck_check_expr_call_resolve
+#define typeck_typeck_call_arity_compatible typeck_call_arity_compatible
 #define typeck_typeck_check_call_arity typeck_check_call_arity
 #define typeck_typeck_named_is_module_type typeck_named_is_module_type
 #define typeck_typeck_type_is_free_type_param typeck_type_is_free_type_param
@@ -1881,6 +1882,7 @@ extern int32_t typeck_check_expr_match(struct ast_Module * module, struct ast_AS
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_call_arg(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t arg_i, int32_t num_args);
 extern int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t typeck_call_arity_compatible(struct ast_Module * module, int32_t fi, int32_t num_args);
 extern int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_named_is_module_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * name, int32_t name_len);
 extern int32_t typeck_type_is_free_type_param(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref);
@@ -6265,11 +6267,11 @@ int32_t typeck_find_func_return_type_in_module_by_name_overload(struct ast_Modul
           (void)((first_ret = rtr));
         }
         int32_t nparams = pipeline_module_func_num_params_at(mod, j);
-        ((nparams ==num_args) ? ({   int32_t ai = 0;
+        /* Cap 10.7.1 slice8 */ ((typeck_call_arity_compatible(mod, j, num_args) !=0) ? ({   int32_t ai = 0;
   int32_t score = 0;
   int32_t matched = 1;
   int32_t expect_match = 0;
-  while ((ai < num_args)) {
+  while ((ai < nparams)) {
     int32_t param_raw = pipeline_module_func_param_type_ref_at(mod, j, ai);
     int32_t pty = param_raw;
     int32_t aref = 0;
@@ -6357,7 +6359,7 @@ int32_t typeck_find_func_return_type_in_module_by_name_overload(struct ast_Modul
       int32_t j2 = 0;
       while ((j2 < ((mod)->num_funcs))) {
         if ((pipeline_module_func_name_equal_at(mod, j2, name, name_len) !=0)) {
-          ((pipeline_module_func_num_params_at(mod, j2) ==num_args) ? ({   (void)((any_arity = 1));
+          /* Cap 10.7.1 slice8 */ ((typeck_call_arity_compatible(mod, j2, num_args) !=0) ? ({   (void)((any_arity = 1));
   break;
  }) : 0);
         }
@@ -6405,12 +6407,12 @@ int32_t typeck_find_func_return_type_in_module_overload(struct ast_Module * mod,
           (void)((first_ret = pipeline_module_func_return_type_at(mod, j)));
         }
         ((has_call_info !=0) ? ({   int32_t nparams = pipeline_module_func_num_params_at(mod, j);
-  ((nparams ==num_args) ? ({   int32_t ai = 0;
+  /* Cap 10.7.1 slice8 */ ((typeck_call_arity_compatible(mod, j, num_args) !=0) ? ({   int32_t ai = 0;
   int32_t score = 0;
   int32_t matched = 1;
   int32_t expect_match2 = 0;
   int32_t rtr_cand = pipeline_module_func_return_type_at(mod, j);
-  while ((ai < num_args)) {
+  while ((ai < nparams)) {
     int32_t param_raw = pipeline_module_func_param_type_ref_at(mod, j, ai);
     int32_t pty2 = param_raw;
     int32_t aref2 = 0;
@@ -6466,7 +6468,7 @@ int32_t typeck_find_func_return_type_in_module_overload(struct ast_Module * mod,
         int32_t j3 = 0;
         while ((j3 < ((mod)->num_funcs))) {
           if (typeck_expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j3)) {
-            ((pipeline_module_func_num_params_at(mod, j3) ==num_args) ? ({   (void)((any_arity2 = 1));
+            /* Cap 10.7.1 slice8 */ ((typeck_call_arity_compatible(mod, j3, num_args) !=0) ? ({   (void)((any_arity2 = 1));
   break;
  }) : 0);
           }
@@ -9832,6 +9834,27 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
     return 0;
   }
 }
+
+/* Cap 10.7.1 slice8: twin of typeck.x typeck_call_arity_compatible.
+ * Exact match or variadic with num_args >= named params.
+ * PLATFORM: SHARED. G.7 twin. */
+int32_t typeck_call_arity_compatible(struct ast_Module * module, int32_t fi, int32_t num_args) {
+  {
+    int32_t np = 0;
+    if (((module ==0) || (fi < 0))) {
+      return 0;
+    }
+    (void)((np = pipeline_module_func_num_params_at(module, fi)));
+    if ((np ==num_args)) {
+      return 1;
+    }
+    if (((pipeline_module_func_is_variadic_at(module, fi) !=0) && (num_args >=np))) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
 int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t num_args = 0;
@@ -9867,8 +9890,8 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
         ((dm !=0) ? ({   (void)((mod = dm));
  }) : 0);
       }
-      (void)((np = pipeline_module_func_num_params_at(mod, fi)));
-      if ((np !=num_args)) {
+      /* Cap 10.7.1 slice8: exact or variadic. Twin typeck.x. */
+      if ((typeck_call_arity_compatible(mod, fi, num_args) ==0)) {
         (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
         (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
         (void)(driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a));
@@ -9936,7 +9959,8 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     while ((j < ((module)->num_funcs))) {
       if ((pipeline_module_func_name_equal_at(module, j, &((cnm)[0]), cnml) !=0)) {
         (void)((name_hits = (name_hits + 1)));
-        ((pipeline_module_func_num_params_at(module, j) ==num_args) ? ({   (void)((arity_hits = (arity_hits + 1)));
+        /* Cap 10.7.1 slice8: exact or variadic. Twin typeck.x. */
+        ((typeck_call_arity_compatible(module, j, num_args) !=0) ? ({   (void)((arity_hits = (arity_hits + 1)));
  }) : 0);
       }
       (void)((j = (j + 1)));
