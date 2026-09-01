@@ -156,6 +156,10 @@ const char *xlang_empty_cstr(void);
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: link_abi path/cmd format → Cap snprintf */
+/* G.7: single Cap authority for this TU + included labi_* lists (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
