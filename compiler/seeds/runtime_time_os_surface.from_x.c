@@ -2,8 +2,9 @@
  * G-02f-19 runtime_time_os R2 full surface — isomorphic with src/asm/runtime_time_os.x
  * Product PREFER_X_O: xlang-c -E(.x) → thin.o + seed-rest (-DXLANG_RUNTIME_TIME_OS_FROM_X) ld -r
  * Prove: full.x vs this seed → nm IDENTICAL (5 public API from .x)
- * Cap residual: 5 OS bridge _impl (clock_gettime/nanosleep/gmtime_r/QPC/Sleep etc.) kept in
- *   seeds/runtime_time_os.from_x.c rest; surface only mirrors .x public API face.
+ * Cap residual: 5 OS bridge _impl (clock_gettime/nanosleep/gmtime_r/QPC/Sleep etc.)
+ *   via xlang_time_cap.h on Linux; kept in seeds/runtime_time_os.from_x.c rest;
+ *   surface only mirrors .x public API face.
  * Regen: ./xlang-c -E ... runtime_time_os.x | filter DBG + polish prologue
  */
 #include <stddef.h>
