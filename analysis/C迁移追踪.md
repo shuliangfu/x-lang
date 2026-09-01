@@ -192,7 +192,7 @@
 ### 9.5 FILE／fprintf／va_list（P1）
 
 - ⬜ **9.5.1** driver_preamble_fputs  
-- 🟡 **9.5.2** xlang_target_cpu_print（FILE／fprintf）— **Linux Ubuntu ✅（WIP）**：Cap `xlang_io_write`＋手工 hex；`--print-target-cpu` 三行＠**`35c582cd9`** · target_cpu.o **无 U fprintf**。残：Darwin print Cap  
+- ✅ **9.5.2** xlang_target_cpu_print（FILE／fprintf）— **Linux+Darwin ✅（WIP）**：Cap `xlang_io_write`（Linux/Darwin syscall）＋手工 hex；`--print-target-cpu`＠**`390af683a`** · target_cpu.o **无 U fprintf** 双端。残：Win    
 - ⬜ **9.5.3** reportf／va_list  
 - ⬜ **9.5.4** vsnprintf + write  
 
