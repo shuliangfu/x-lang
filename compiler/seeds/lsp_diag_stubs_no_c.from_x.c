@@ -13,6 +13,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: NO_C stubs → Cap fmt */
+/* G.7: single Cap authority for this bootstrap NO_C TU (after stdio). */
+#undef snprintf
+#undef vsnprintf
+#define snprintf xlang_snprintf
+#define vsnprintf xlang_vsnprintf
 #include "diag.h"
 #include "runtime_driver_abi.h"
 
