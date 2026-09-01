@@ -2788,9 +2788,9 @@ int labi_fk0_sym_count(int k) {
     return 12;
   if (k == 14)
     return 15;
-  /* PLATFORM: SHARED — fs fk0 complete (mirror heavy.x): +readv_buf/writev_buf. */
+  /* PLATFORM: SHARED — fs fk0 complete (mirror heavy.x): +readv_buf/writev_buf +stat. */
   if (k == 15)
-    return 11;
+    return 12;
   /* PLATFORM: SHARED — tar/unicode/runtime formal public surface (mirror heavy). */
   if (k == 16)
     return 7;
@@ -3304,6 +3304,9 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_fs_readv_buf";
     if (i == 10)
       return "std_fs_writev_buf";
+    /* Cap residual 9.1.2: stat-only users must pull formal fs.o. */
+    if (i == 11)
+      return "std_fs_stat";
     return NULL;
   }
   /* PLATFORM: SHARED — std/tar/tar.o exact UNDEF needles (fk0 k==16; mirror heavy). */
