@@ -1869,8 +1869,15 @@ export function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, sl
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
   if (lanes != 4) { return 0 - 1; }
-  /* slice9: aarch64 NEON a + b*c via fmul+fadd (same opcodes as fbinop). */
+  /* slice9 NEON / 10.5.2 slice1 SVE: dest = a + b*c. Prefer SVE when feat 512. */
   if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let lc_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_c, 0, esz);
+      let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_sve_fma_f32x4_rbp(elf_ctx, la_s, lb_s, lc_s, ld_s, ta);
+    }
     if ((cpu_features & 256) == 0) { return 0 - 1; }
     let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
     let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
@@ -1962,9 +1969,9 @@ export function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param slot_off i32 — Vec4f stack home (frame offset)
  * @param ta i32 — 0=x86_64 · 1=aarch64
- * @param cpu_features u32 — bit0 SSE or bit8 NEON
+ * @param cpu_features u32 — bit0 SSE · bit8 NEON · bit9 SVE
  * @return i32 — 0 ok; -1 unavailable/error
- * PLATFORM: LINUX|x86_64 SSE · LINUX|aarch64 NEON
+ * PLATFORM: LINUX|x86_64 SSE · LINUX|aarch64 NEON|SVE
  */
 #[no_mangle]
 export function simd_enc_try_hw_vector_hsum_f32x4_rbp(
@@ -1973,6 +1980,10 @@ export function simd_enc_try_hw_vector_hsum_f32x4_rbp(
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off < 0) { return 0 - 1; }
   if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off, 0, 4);
+      return simd_arm64_sve_hsum_f32x4_to_s0_rbp(elf_ctx, la_s, ta);
+    }
     if ((cpu_features & 256) == 0) { return 0 - 1; }
     let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off, 0, 4);
     return simd_arm64_hsum_f32x4_to_s0_rbp(elf_ctx, la, ta);
@@ -1990,9 +2001,9 @@ export function simd_enc_try_hw_vector_hsum_f32x4_rbp(
  * @param slot_off_a i32 — first Vec4f stack home
  * @param slot_off_b i32 — second Vec4f stack home
  * @param ta i32 — 0=x86_64 · 1=aarch64
- * @param cpu_features u32 — bit0 SSE or bit8 NEON
+ * @param cpu_features u32 — bit0 SSE · bit8 NEON · bit9 SVE
  * @return i32 — 0 ok; -1 unavailable/error
- * PLATFORM: LINUX|x86_64 SSE · LINUX|aarch64 NEON
+ * PLATFORM: LINUX|x86_64 SSE · LINUX|aarch64 NEON|SVE
  */
 #[no_mangle]
 export function simd_enc_try_hw_vector_dot_f32x4_rbp(
@@ -2002,6 +2013,11 @@ export function simd_enc_try_hw_vector_dot_f32x4_rbp(
   if (slot_off_a < 0) { return 0 - 1; }
   if (slot_off_b < 0) { return 0 - 1; }
   if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, 4);
+      return simd_arm64_sve_dot_f32x4_to_s0_rbp(elf_ctx, la_s, lb_s, ta);
+    }
     if ((cpu_features & 256) == 0) { return 0 - 1; }
     let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
     let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, 4);
@@ -2237,6 +2253,105 @@ export function simd_arm64_sve_fbinop_f32x4_rbp(
   if (re != 0) { return 0 - 1; }
   /* st1w {z0.s}, p0, [x0] — 0xe540e000 */
   if (simd_append_u32_le(elf_ctx, 3846234112) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE f32x4 fused multiply-add: dest = a + b*c (ptrue VL4, ld1w×3, fmla, st1w).
+ * Encodings verified via llvm-mc -mattr=+sve (fmla z0,p0/m,z1,z2 = 0x65a20020).
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param lea_c i32 — lea_rbp offset for c
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_fma_f32x4_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_c: i32, lea_dst: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z1.s}, p0/z, [x0] — 0xa540a001 */
+  if (simd_append_u32_le(elf_ctx, 2772475905) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_c, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z2.s}, p0/z, [x0] — 0xa540a002 */
+  if (simd_append_u32_le(elf_ctx, 2772475906) != 0) { return 0 - 1; }
+  /* fmla z0.s, p0/m, z1.s, z2.s — 0x65a20020 (z0 += z1*z2) */
+  if (simd_append_u32_le(elf_ctx, 1705115680) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* st1w {z0.s}, p0, [x0] — 0xe540e000 */
+  if (simd_append_u32_le(elf_ctx, 3846234112) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE f32x4 horizontal sum into s0: ptrue VL4, ld1w z0, faddv s0.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_v i32 — lea_rbp offset for Vec4f home
+ * @param ta i32 — must be 1
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_hsum_f32x4_to_s0_rbp(elf_ctx: *u8, lea_v: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_v, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  /* faddv s0, p0, z0.s — 0x65802000 */
+  if (simd_append_u32_le(elf_ctx, 1702895616) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE f32x4 dot into s0: ptrue VL4, ld1w a/b, fmul, faddv.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param ta i32 — must be 1
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_dot_f32x4_to_s0_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z1.s}, p0/z, [x0] — 0xa540a001 */
+  if (simd_append_u32_le(elf_ctx, 2772475905) != 0) { return 0 - 1; }
+  /* fmul z0.s, p0/m, z0.s, z1.s — 0x65828020 */
+  if (simd_append_u32_le(elf_ctx, 1703051296) != 0) { return 0 - 1; }
+  /* faddv s0, p0, z0.s — 0x65802000 */
+  if (simd_append_u32_le(elf_ctx, 1702895616) != 0) { return 0 - 1; }
   return 0;
 }
 
