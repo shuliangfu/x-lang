@@ -5,6 +5,7 @@
  *   slice0: mutex init/lock/trylock/unlock + Cap-spawn contention
  *   slice1: condvar wait/signal (producer/consumer)
  *   slice2: semaphore wait/trywait/post
+ *   slice4: rwlock rd/wr + Cap-spawn writer contention
  *
  * PLATFORM: LINUX|x86_64|aarch64 gold.
  *
@@ -40,6 +41,10 @@ static volatile int g_seen = 0;
 /** Semaphore Cap-spawn handshake. */
 static struct xlang_cap_sem *g_sem = 0;
 static volatile int g_sem_got = 0;
+
+/** RwLock Cap-spawn writer contention. */
+static struct xlang_cap_rwlock g_rw;
+static volatile int g_rw_counter = 0;
 
 /**
  * Cap child: lock, increment counter, unlock.
@@ -102,7 +107,26 @@ static void *sync_cap_sem_waiter(void *arg) {
 }
 
 /**
- * Cap residual 10.6.3 probe entry (mutex + condvar + semaphore).
+ * Cap child: wrlock, increment shared counter, wrunlock (1000×).
+ * @param arg unused
+ * @return NULL
+ * PLATFORM: LINUX
+ */
+static void *sync_cap_rw_writer(void *arg) {
+  int i = 0;
+  (void)arg;
+  for (i = 0; i < 1000; i++) {
+    if (xlang_cap_rwlock_wrlock(&g_rw) != 0) {
+      return 0;
+    }
+    g_rw_counter = g_rw_counter + 1;
+    (void)xlang_cap_rwlock_wrunlock(&g_rw);
+  }
+  return 0;
+}
+
+/**
+ * Cap residual 10.6.3 probe entry (mutex + condvar + semaphore + rwlock).
  * @return 0 ok; nonzero step id on failure
  * PLATFORM: LINUX
  */
@@ -254,6 +278,60 @@ int main(void) {
     }
     (void)xlang_cap_sem_destroy(&sem);
     g_sem = 0;
+  }
+
+  /* Step5: rwlock rd/wr + Cap-spawn writer contention. */
+  {
+    struct xlang_cap_rwlock rw;
+    struct xlang_thread_join rjoin;
+    if (xlang_cap_rwlock_init(&rw) != 0) {
+      fprintf(stderr, "rwlock_init failed\n");
+      return 17;
+    }
+    if (xlang_cap_rwlock_rdlock(&rw) != 0) {
+      fprintf(stderr, "rdlock failed errno=%d\n", errno);
+      return 17;
+    }
+    if (xlang_cap_rwlock_rdlock(&rw) != 0) {
+      fprintf(stderr, "second rdlock failed errno=%d\n", errno);
+      return 17;
+    }
+    (void)xlang_cap_rwlock_rdunlock(&rw);
+    (void)xlang_cap_rwlock_rdunlock(&rw);
+    if (xlang_cap_rwlock_wrlock(&rw) != 0) {
+      fprintf(stderr, "wrlock failed errno=%d\n", errno);
+      return 18;
+    }
+    (void)xlang_cap_rwlock_wrunlock(&rw);
+    (void)xlang_cap_rwlock_destroy(&rw);
+
+    if (xlang_cap_rwlock_init(&g_rw) != 0) {
+      fprintf(stderr, "g_rw init failed\n");
+      return 19;
+    }
+    g_rw_counter = 0;
+    memset(&rjoin, 0, sizeof(rjoin));
+    if (xlang_thread_spawn(sync_cap_rw_writer, 0, &rjoin, 65536u) != 0) {
+      fprintf(stderr, "rw writer spawn failed errno=%d\n", errno);
+      return 19;
+    }
+    for (i = 0; i < 1000; i++) {
+      if (xlang_cap_rwlock_wrlock(&g_rw) != 0) {
+        fprintf(stderr, "parent wrlock failed\n");
+        return 19;
+      }
+      g_rw_counter = g_rw_counter + 1;
+      (void)xlang_cap_rwlock_wrunlock(&g_rw);
+    }
+    if (xlang_thread_join(&rjoin) != 0) {
+      fprintf(stderr, "rw join failed errno=%d\n", errno);
+      return 19;
+    }
+    if (g_rw_counter != 2000) {
+      fprintf(stderr, "g_rw_counter=%d want 2000\n", g_rw_counter);
+      return 20;
+    }
+    (void)xlang_cap_rwlock_destroy(&g_rw);
   }
 
   return 0;
