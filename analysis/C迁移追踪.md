@@ -156,7 +156,7 @@
 - ✅ **9.1.4** execve／waitpid／pipe／spawn／system — **Ubuntu ✅（WIP）**：产品 `xlang_process_cap.h`＋host `spawn_sync`／`waitpid_retry`／`system_impl`／`execvp` PATH。探针 `process_spawn_raw_smoke.x`／`process_pipe_raw_smoke.x`。残：signal／strerror 文案 · Darwin／Win  
 - ✅ **9.1.5** clock_gettime／nanosleep／gmtime_r／QPC／Sleep — **Ubuntu ✅（WIP）**：`xlang_time_cap.h`（Linux syscall＋civil gmtime）；`runtime_time_os`＋scheduler／channel／sync／driver wall。探针 `time_raw_smoke.x`。残：localtime_r／mktime（tz）· mega 未注入 · Darwin／Win QPC 面既有  
 - ✅ **9.1.6** getrandom／getentropy／BCryptGenRandom — **Ubuntu ✅（WIP）**：`xlang_random_cap.h`（Linux getrandom syscall）；`random_fill_bytes_impl`。探针 `random_raw_smoke.x`。残：Darwin getentropy · Win BCrypt 既有  
-- 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–2 Ubuntu ✅（WIP）**：`xlang_net_cap.h`＋**slice2** `xlang_dns_cap.h`（literal／hosts／UDP DNS；无 libc getaddrinfo）；dns_fast／dns.x／http dial／pool。探针 `net_sock_raw_smoke`／`net_mmsg_raw_smoke`／`net_dns_raw_smoke`＠**`9c5bb4f00`**。残：http_glue U socket／connect（timeout_impl）· WSAStartup／Darwin · net.o U poll（io）  
+- 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–3 Ubuntu ✅（WIP）**：net Cap＋DNS Cap＋**slice3** http_glue 宏重定向 socket／connect／fcntl／…；dns／http **无 U getaddrinfo／socket 面**。探针 dns／sock／mmsg。残：WSAStartup／Darwin · net.o U poll（io）  
 - 🟡 **9.1.8** `_write`／write — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`（Linux write／read／writev syscall）；preamble＋asm_io_stubs weak `xlang_sys_*`＋io_abi 离 libc write。探针 `io_write_raw_smoke.x`＠**`7486a3f51`**。残：cold io_abi U read · Darwin／Win  
 - ⬜ **9.1.9** inline asm syscall（Linux x86_64）  
 - ⬜ **9.1.10** opendir／readdir／closedir  
