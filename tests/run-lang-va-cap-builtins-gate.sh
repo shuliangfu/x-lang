@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–11: va_* → Cap xlang_va_* (-E) + host-cc/runtime + product -backend c -o.
-# slice7: Cap rewrite + header; slice8: trailing call arity; slice9: cc+run == 42;
-# slice10: rt_preamble Cap fold; slice11: product invoke_cc -I compiler/include → -o 42.
+# Cap 10.7.1 language slice7–12: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
+# slice7–10: Cap rewrite/arity/host-cc/preamble; slice11: invoke_cc Cap -I; slice12: asm Cap va.
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -114,6 +113,35 @@ prod_run=$?
 set -e
 if [[ "$prod_run" -ne 42 ]]; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=product_run_rc rc=$prod_run want=42" >&2
+  exit 1
+fi
+
+# Cap 10.7.1 slice12: default product asm -o (no ALLOW_HOST_CC) must exit 42.
+OUT_ASM="/tmp/xlang_lang_va_cap_builtins_asm_$$"
+trap 'rm -f "$OUT_C" "$OUT_BIN" "$OUT_PROD" "$OUT_ASM"' EXIT
+rm -f "$OUT_ASM"
+set +e
+"$XLANG" -o "$OUT_ASM" "$SRC" >/tmp/xlang_lang_va_cap_builtins_asm.$$ 2>&1
+asm_rc=$?
+set -e
+if [[ "$asm_rc" -ne 0 ]] || [[ ! -x "$OUT_ASM" ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=product_asm_o" >&2
+  cat /tmp/xlang_lang_va_cap_builtins_asm.$$ >&2 || true
+  rm -f /tmp/xlang_lang_va_cap_builtins_asm.$$
+  exit 1
+fi
+rm -f /tmp/xlang_lang_va_cap_builtins_asm.$$
+if nm -u "$OUT_ASM" 2>/dev/null | grep -E 'U (va_start|va_end|va_arg_i32)$' >/dev/null 2>&1; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=asm_undef_va" >&2
+  nm -u "$OUT_ASM" 2>/dev/null | grep -E 'va_' >&2 || true
+  exit 1
+fi
+set +e
+"$OUT_ASM"
+asm_run=$?
+set -e
+if [[ "$asm_run" -ne 42 ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=asm_run_rc rc=$asm_run want=42" >&2
   exit 1
 fi
 
