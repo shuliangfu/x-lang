@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–9: va_* → Cap xlang_va_* (-E) + host-cc/runtime.
-# slice7: Cap rewrite + header; slice8: trailing call arity; slice9: cc+run == 42.
+# Cap 10.7.1 language slice7–11: va_* → Cap xlang_va_* (-E) + host-cc/runtime + product -backend c -o.
+# slice7: Cap rewrite + header; slice8: trailing call arity; slice9: cc+run == 42;
+# slice10: rt_preamble Cap fold; slice11: product invoke_cc -I compiler/include → -o 42.
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +10,8 @@ XLANG="${XLANG:-$ROOT/compiler/xlang}"
 SRC="$ROOT/tests/sys/lang_va_cap_builtins_smoke.x"
 OUT_C="/tmp/xlang_lang_va_cap_builtins_$$.c"
 OUT_BIN="/tmp/xlang_lang_va_cap_builtins_$$"
-trap 'rm -f "$OUT_C" "$OUT_BIN"' EXIT
+OUT_PROD="/tmp/xlang_lang_va_cap_builtins_prod_$$"
+trap 'rm -f "$OUT_C" "$OUT_BIN" "$OUT_PROD"' EXIT
 
 if [[ ! -x "$XLANG" ]]; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=1 reason=no_xlang" >&2
@@ -88,6 +90,30 @@ fi
 # Cap 10.7.1 slice10: product -o preamble must fold Cap va header (N=224 slot).
 if ! grep -F 'xlang_va_cap.h' "$ROOT/compiler/seeds/rt_preamble.from_x.c" >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_preamble_cap" >&2
+  exit 1
+fi
+
+# Cap 10.7.1 slice11: product opt-in host-C -o must resolve Cap headers via invoke_cc -I.
+# PC: C is opt-in (ALLOW_HOST_CC + -backend c); default asm Cap va remains residual.
+rm -f "$OUT_PROD"
+set +e
+XLANG_ALLOW_HOST_CC=1 "$XLANG" build -backend c -o "$OUT_PROD" "$SRC" \
+  >/tmp/xlang_lang_va_cap_builtins_prod.$$ 2>&1
+prod_rc=$?
+set -e
+if [[ "$prod_rc" -ne 0 ]] || [[ ! -x "$OUT_PROD" ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=product_c_o" >&2
+  cat /tmp/xlang_lang_va_cap_builtins_prod.$$ >&2 || true
+  rm -f /tmp/xlang_lang_va_cap_builtins_prod.$$
+  exit 1
+fi
+rm -f /tmp/xlang_lang_va_cap_builtins_prod.$$
+set +e
+"$OUT_PROD"
+prod_run=$?
+set -e
+if [[ "$prod_run" -ne 42 ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=product_run_rc rc=$prod_run want=42" >&2
   exit 1
 fi
 
