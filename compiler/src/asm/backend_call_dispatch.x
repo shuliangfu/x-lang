@@ -1422,13 +1422,19 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
 
 // glue_asm_build_func_export_sym_c: see function docblock below.
 /** Exported function `glue_asm_build_func_export_sym_c`.
- * Implements `glue_asm_build_func_export_sym_c`.
- * @param m *u8
- * @param a *u8
- * @param func_ix i32
- * @param out *u8
- * @param out_cap i32
- * @return i32
+ * Build dep-prefixed export link symbol for func_ix (def emit + same-module CALL).
+ * Unique names stay bare; overloads append param suffixes via glue_asm_type_ref_to_suffix_c
+ * (VECTOR → f32x4 / i32x8, not glue_type_kind_to_suffix scalar fallback).
+ * Same param-sig siblings append `_ret_<T>` (align seed glue_asm_build_func_export_sym_c_impl).
+ * Why: dot(Vec4f){ mul(a,b) } must call std_simd_mul_f32x4_f32x4, not bare std_simd_mul
+ * (STD-SIMD-INTRINSIC BLD001 on Ubuntu when .x used glue_type_kind_to_suffix for TYPE_VECTOR).
+ * @param m *u8 — owning Module
+ * @param a *u8 — arena for param/return type_refs
+ * @param func_ix i32 — function index in m
+ * @param out *u8 — destination symbol buffer
+ * @param out_cap i32 — capacity; must be > 0
+ * @return i32 — symbol length, or -1 on failure
+ * PLATFORM: SHARED — G.7 twin of seeds/backend_call_dispatch.from_x.c impl authority.
  */
 #[no_mangle]
 export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32 {
@@ -1460,32 +1466,15 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
       if (pos >= out_cap - 2) { break; }
       let pty: i32 = pipeline_module_func_param_type_ref_at(m, func_ix, pi);
       if (pty > 0) {
-        let pk: i32 = pipeline_type_kind_ord_at(a, pty);
-        if (pk == 9) {
-          let elem: i32 = pipeline_type_elem_ref_at(a, pty);
-          if (elem > 0) {
-            pk = pipeline_type_kind_ord_at(a, elem);
-          }
-          if (pos < out_cap - 1) {
-            out[pos] = 95;
-            pos = pos + 1;
-          }
-          if (pos < out_cap - 4) {
-            out[pos] = 112; // p
-            out[pos + 1] = 116; // t
-            out[pos + 2] = 114; // r
-            pos = pos + 3;
-          }
-        }
-        if (pos < out_cap - 1) {
-          out[pos] = 95;
-          pos = pos + 1;
-        }
-        let suf: u8[16] = [];
-        let sl: i32 = glue_type_kind_to_suffix_c(pk, &suf[0], 16);
+        let suf: u8[64] = [];
+        let sl: i32 = glue_asm_type_ref_to_suffix_c(a, pty, &suf[0], 64);
         if (sl <= 0) {
-          sl = glue_type_kind_to_suffix_c(0, &suf[0], 16);
+          pi = pi + 1;
+          continue;
         }
+        if (pos >= out_cap - 1) { break; }
+        out[pos] = 95;
+        pos = pos + 1;
         if (pos + sl >= out_cap) { return 0 - 1; }
         let si: i32 = 0;
         while (si < sl) {
@@ -1495,6 +1484,27 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
         }
       }
       pi = pi + 1;
+    }
+    /* Same param-sig overloads: append _ret_<T> (e.g. vec.new → new_i32_retVec_u8). */
+    let sig_count: i32 = glue_asm_overload_param_sig_count_c(a, m, func_ix);
+    if (sig_count > 1) {
+      let ret_ref: i32 = pipeline_module_func_return_type_at(m, func_ix);
+      let rsuf: u8[64] = [];
+      let rsl: i32 = glue_asm_type_ref_to_suffix_c(a, ret_ref, &rsuf[0], 64);
+      if (rsl > 0) {
+        if (pos + 4 + rsl >= out_cap) { return 0 - 1; }
+        out[pos] = 95;
+        out[pos + 1] = 114;
+        out[pos + 2] = 101;
+        out[pos + 3] = 116;
+        pos = pos + 4;
+        let ri: i32 = 0;
+        while (ri < rsl) {
+          out[pos] = rsuf[ri];
+          pos = pos + 1;
+          ri = ri + 1;
+        }
+      }
     }
     if (glue_asm_std_c_wrapper_fname_needs_export_c_suffix(&fname[0], fname_len) != 0) {
       pos = glue_asm_append_export_c_suffix(out, pos, out_cap);
