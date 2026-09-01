@@ -1968,6 +1968,7 @@ export extern "C" function arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx: *
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
+export extern "C" function arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx: *u8, off_pos: i32): i32;
 export extern "C" function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
@@ -2108,9 +2109,10 @@ export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
  */
 #[no_mangle]
 export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
-  // See implementation.
+  // Stage10 10.2.2 slice1: ta==1 → arch_arm64_enc_enc_mov_arg_reg_to_rax (AAPCS lateout).
   unsafe {
   if (ta == 0) { return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
+  if (ta == 1) { return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
   return 0 - 1;
   }
 }
