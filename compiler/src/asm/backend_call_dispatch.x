@@ -4644,6 +4644,29 @@ function try_emit_atomic_builtin_call_elf_c(
 }
 
 /**
+ * Resolve SIMD HW feature bits for language-builtin emit (ta-aware).
+ * x86: glue pending or host SSE2 detect. aarch64: OR in NEON (mandatory on
+ * ARM64; x86 gold cross-emit may leave host SSE in pending).
+ * @param ta i32 — 0=x86_64 1=aarch64
+ * @param feats_in u32 — glue_simd_emit_cpu_features_c() raw value
+ * @return u32 — feature mask for simd_enc try_hw_* calls
+ * PLATFORM: SHARED · LINUX cross-emit gold on x86_64 host.
+ */
+function try_emit_simd_lang_resolve_feats_c(ta: i32, feats_in: u32): u32 {
+  let feats: u32 = feats_in;
+  if (ta == 1) {
+    if ((feats & 256) == 0) {
+      feats = feats | 256;
+    }
+    return feats;
+  }
+  if (feats == 0) {
+    feats = xlang_target_cpu_detect_host();
+  }
+  return feats;
+}
+
+/**
  * Stage 10 (10.5.1) slice0–5: language SIMD builtins add/mul/sub f32x4, i32x8, f32x8.
  *
  * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
@@ -4830,16 +4853,9 @@ function try_emit_simd_lang_builtin_call_elf_c(
         call_dispatch_store_i32_le(ctx, 4, dst_off + 32);
       }
       if (dst_off < 0) { return 0; }
-      feats = glue_simd_emit_cpu_features_c();
-      if (feats == 0) {
-        feats = xlang_target_cpu_detect_host();
-      }
+      feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
       if (ta == 0) {
         if ((feats & 1) == 0) {
-          return 0;
-        }
-      } else {
-        if ((feats & 256) == 0) {
           return 0;
         }
       }
@@ -4889,16 +4905,9 @@ function try_emit_simd_lang_builtin_call_elf_c(
     dst_off = cur + 16;
     if (dst_off < 16) { dst_off = 16; }
     call_dispatch_store_i32_le(ctx, 4, dst_off + 16);
-    feats = glue_simd_emit_cpu_features_c();
-    if (feats == 0) {
-      feats = xlang_target_cpu_detect_host();
-    }
+    feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
     if (ta == 0) {
       if ((feats & 1) == 0) {
-        return 0;
-      }
-    } else {
-      if ((feats & 256) == 0) {
         return 0;
       }
     }
