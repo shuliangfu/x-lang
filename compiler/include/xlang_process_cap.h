@@ -16,47 +16,16 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <xlang_syscall_cap.h>
 
 #ifndef SIGCHLD
 #define SIGCHLD 17
 #endif
 
-/** Linux raw syscall ≤6 args. Returns -errno on failure. PLATFORM: LINUX. */
-static inline long xlang_proc_syscall6(long nr, long a1, long a2, long a3, long a4, long a5,
-                                      long a6) {
-  long r;
-#if defined(__x86_64__)
-  register long r10 __asm__("r10") = a4;
-  register long r8 __asm__("r8") = a5;
-  register long r9 __asm__("r9") = a6;
-  __asm__ __volatile__("syscall"
-                       : "=a"(r)
-                       : "a"(nr), "D"(a1), "S"(a2), "d"(a3), "r"(r10), "r"(r8), "r"(r9)
-                       : "rcx", "r11", "memory");
-#elif defined(__aarch64__)
-  register long x8 __asm__("x8") = nr;
-  register long x0 __asm__("x0") = a1;
-  register long x1 __asm__("x1") = a2;
-  register long x2 __asm__("x2") = a3;
-  register long x3 __asm__("x3") = a4;
-  register long x4 __asm__("x4") = a5;
-  register long x5 __asm__("x5") = a6;
-  __asm__ __volatile__("svc #0"
-                       : "+r"(x0)
-                       : "r"(x8), "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5)
-                       : "memory");
-  r = x0;
-#endif
-  return r;
-}
-
-static inline long xlang_proc_syscall3(long nr, long a1, long a2, long a3) {
-  return xlang_proc_syscall6(nr, a1, a2, a3, 0, 0, 0);
-}
-
-static inline long xlang_proc_syscall1(long nr, long a1) {
-  return xlang_proc_syscall6(nr, a1, 0, 0, 0, 0, 0);
-}
+/** Cap residual 9.1.9: aliases → single syscall authority. */
+#define xlang_proc_syscall6 xlang_syscall6
+#define xlang_proc_syscall3 xlang_syscall3
+#define xlang_proc_syscall1 xlang_syscall1
 
 /**
  * Cap residual pipe(2): create pipe ends into fd[2].
