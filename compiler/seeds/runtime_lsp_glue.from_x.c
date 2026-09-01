@@ -13,6 +13,7 @@
  * G-02f-254: lsp_find_text_value / _from pure.
  * G-02f-255: extract_position pure; P1-9 soft near-close.
  * Product object from this seed; refs/AST/format/cache still mostly C.
+ * Cap residual 10.7.2／9.5.3: typeck reportf formats via xlang_vsnprintf.
  */
 /**
  * lsp_diag.c — LSP 诊断收集器与 definition/hover/references/formatting 等 C 实现
@@ -39,6 +40,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: lsp typeck reportf → xlang_vsnprintf */
 
 /* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -492,7 +494,8 @@ void lsp_diag_report_typeck_code(const char *code, int line, int col, const char
     char buf[LSP_MSG_MAX + 1];
     va_list ap;
     va_start(ap, fmt);
-    (void)vsnprintf(buf, sizeof(buf), fmt, ap);
+    /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+    (void)xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     if (lsp_diag_enabled)
         lsp_diag_add_code(line, col, 1, code, buf);
@@ -507,7 +510,8 @@ void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
     char buf[LSP_MSG_MAX + 1];
     va_list ap;
     va_start(ap, fmt);
-    (void)vsnprintf(buf, sizeof(buf), fmt, ap);
+    /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+    (void)xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     if (lsp_diag_enabled)
         lsp_diag_add_code(line, col, 1, "T001", buf);
