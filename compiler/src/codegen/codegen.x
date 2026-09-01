@@ -2634,6 +2634,7 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  *   va_arg_i64(ap)     → ((int64_t)(xlang_va_arg(ap, int64_t)))
  *   va_arg_ptr(ap)     → ((uint8_t *)(xlang_va_arg(ap, uint8_t *)))
  *   va_arg<T>(ap)      → ((CType)(xlang_va_arg(ap, CType)))  [slice14]
+ *   va_arg<f32>(ap)    → ((float)(xlang_va_arg(ap, double))) [slice16; C promote]
  *
  * Typed form reuses existing turbofish `id<T>(…)` (G.7 size_of<T> pattern);
  * no type-as-value parse. Header face: emit_header `#include <xlang_va_cap.h>`.
@@ -2686,6 +2687,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     let close3t: u8[3] = [41, 41, 41];
     let n_ta: i32 = 0;
     let ta_ref: i32 = 0;
+    let ta_is_f32: i32 = 0;
+    let nm_double: u8[6] = [100, 111, 117, 98, 108, 101]; /* double */
     if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
@@ -2773,6 +2776,11 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
         codegen_set_host_call_arg_param_ty(0);
         return 0;
       }
+      /* C default promotions: unnamed float is passed as double. */
+      ta_is_f32 = 0;
+      if (pipeline_type_kind_ord_at(arena, ta_ref) == 14) {
+        ta_is_f32 = 1;
+      }
       if (emit_bytes_from_ptr(out, &open2[0], 2) != 0) {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
@@ -2798,7 +2806,12 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
       }
-      if (emit_type(arena, out, ta_ref, 0 as *u8, 0, ctx) != 0) {
+      if (ta_is_f32 != 0) {
+        if (emit_bytes_from_ptr(out, &nm_double[0], 6) != 0) {
+          codegen_set_host_call_arg_param_ty(0);
+          return -1;
+        }
+      } else if (emit_type(arena, out, ta_ref, 0 as *u8, 0, ctx) != 0) {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
       }

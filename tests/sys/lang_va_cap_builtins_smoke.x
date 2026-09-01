@@ -7,6 +7,7 @@
  * slice9: -E host-cc run must exit 42 (first variadic i32).
  * slice13: also exercise va_arg_i64 + va_arg_ptr (asm Cap qword load).
  * slice14: typed turbofish va_arg<T>(ap) (G.7 size_of<T> type-arg sidecar).
+ * slice16: va_arg<f32>/va_arg<f64> (XMM/NEON spill + C float→double promote).
  * PLATFORM: SHARED — L2 gate; Ubuntu gold.
  */
 
@@ -50,7 +51,7 @@ export extern function va_arg_ptr(ap: VaList): *u8;
  * Generic body is a typeck/host-C face only (never executed); call sites rewrite
  * to Cap xlang_va_arg. Null-deref return compiles for any T without panic FFI.
  * @param ap Cap VaList local (unused in the face body).
- * @return Next variadic value of T (i32 / i64 / *u8 this slice).
+ * @return Next variadic value of T (i32 / i64 / *u8 / f32 / f64 this slice).
  */
 export function va_arg<T>(ap: VaList): T {
   unsafe {
@@ -60,9 +61,9 @@ export function va_arg<T>(ap: VaList): T {
 }
 
 /**
- * Variadic probe: i32 then i64 then *i32 via typed va_arg<T>; expect exit 42.
+ * Variadic probe: i32, i64, *i32, f32, f64 via typed va_arg<T>; expect exit 42.
  * @param n Named last parameter (required by Cap va_start).
- * @return 42 on success; 1/2/3 on mismatch of each slot.
+ * @return 42 on success; 1..5 on mismatch of each slot.
  */
 export function lang_va_cap_probe(n: i32, ...): i32 {
   let ap: VaList;
@@ -70,6 +71,8 @@ export function lang_va_cap_probe(n: i32, ...): i32 {
   let a: i32 = va_arg<i32>(ap);
   let b: i64 = va_arg<i64>(ap);
   let p: *u8 = va_arg<*u8>(ap);
+  let xf: f32 = va_arg<f32>(ap);
+  let xd: f64 = va_arg<f64>(ap);
   va_end(ap);
   if (a != 42) {
     return 1;
@@ -83,13 +86,21 @@ export function lang_va_cap_probe(n: i32, ...): i32 {
       return 3;
     }
   }
+  if ((xf as i32) != 1) {
+    return 4;
+  }
+  if ((xd as i32) != 2) {
+    return 5;
+  }
   return 42;
 }
 
 /**
- * Entry: trailing i32, i64-slot literal, and pointer to local marker.
+ * Entry: trailing i32, i64-slot literal, pointer, f32 1.0, f64 2.0.
  */
 export function main(): i32 {
   let m: i32 = 7;
-  return lang_va_cap_probe(1, 42, 42, &m);
+  let xf: f32 = 1.0;
+  let xd: f64 = 2.0;
+  return lang_va_cap_probe(1, 42, 42, &m, xf, xd);
 }

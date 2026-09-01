@@ -4397,10 +4397,10 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Cap 10.7.1 slice12–15: twin of try_emit_va_cap_builtin_call_elf_c (.x).
- * Cap-private VaList cursor + GP spill into call-spill scratch.
- * x86_64: 6 SysV GP; aarch64: 8 AAPCS GP. typed va_arg<T> Cap loads.
- * PLATFORM: SHARED emit · LINUX|x86_64 runtime · LINUX|aarch64 cross-emit
+ * Cap 10.7.1 slice12–16: twin of try_emit_va_cap_builtin_call_elf_c (.x).
+ * Cap-private VaList header (GP cursor + FP cursor) + GP/XMM spill.
+ * x86_64: 6 SysV GP + 8 xmm; aarch64: 8 AAPCS GP + 8 v. typed va_arg<T>
+ * including f32/f64. PLATFORM: SHARED emit · LINUX|x86_64 · LINUX|aarch64
  */
 static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -4418,6 +4418,13 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   int32_t fi;
   int32_t k;
   int32_t gp_n = 6;
+  int32_t fp_n = 8;
+  int32_t np_gp = 0;
+  int32_t np_fp = 0;
+  int32_t gp_save;
+  int32_t fp_save;
+  int32_t pty;
+  int32_t is_fp = 0;
   uint8_t name[128];
   struct glue_AsmFuncCtxCall *ly;
   static const uint8_t nm_start[8] = {118, 97, 95, 115, 116, 97, 114, 116};
@@ -4538,19 +4545,49 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     if (np < 0)
       np = 0;
     gp_n = (ta == 1) ? 8 : 6;
-    if (np > gp_n)
-      np = gp_n;
+    fp_n = 8;
+    np_gp = 0;
+    np_fp = 0;
+    for (k = 0; k < np; k++) {
+      pty = 0;
+      if (ly->module_ref && fi >= 0)
+        pty = pipeline_module_func_param_type_ref_at(ly->module_ref, fi, k);
+      if (glue_call_param_is_f32_c(arena, pty))
+        np_fp++;
+      else
+        np_gp++;
+    }
+    if (np_gp > gp_n)
+      np_gp = gp_n;
+    if (np_fp > fp_n)
+      np_fp = fp_n;
     save_off = ly->next_offset + 16;
     if (save_off < 16)
       save_off = 16;
-    ly->next_offset = save_off + gp_n * 8;
+    gp_save = save_off + 16;
+    fp_save = gp_save + gp_n * 8;
+    ly->next_offset = fp_save + fp_n * 8;
     for (k = 0; k < gp_n; k++) {
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + k * 8, ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_save + k * 8, ta) != 0)
         return -1;
     }
-    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off + np * 8, ta) != 0)
+    for (k = 0; k < fp_n; k++) {
+      if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, gp_save + np_gp * 8, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, fp_save + np_fp * 8, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 8, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
@@ -4573,7 +4610,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     return 1;
   }
-  /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5. Twin .x. */
+  /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5/7/8. Twin .x. */
   if (which == 6) {
     int32_t ty_ref;
     int32_t tk;
@@ -4586,19 +4623,24 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     if (ty_ref <= 0)
       return 0;
     tk = pipeline_type_kind_ord_at(arena, ty_ref);
-    if (tk == 14 || tk == 15)
-      return 0;
-    tsz = glue_type_size_simple(ly->module_ref, arena, ty_ref, 0);
-    if (tk == 9)
-      which = 5;
-    else if (tsz >= 8)
-      which = 4;
-    else
-      which = 3;
+    if (tk == 14)
+      which = 7;
+    else if (tk == 15)
+      which = 8;
+    else {
+      tsz = glue_type_size_simple(ly->module_ref, arena, ty_ref, 0);
+      if (tk == 9)
+        which = 5;
+      else if (tsz >= 8)
+        which = 4;
+      else
+        which = 3;
+    }
   }
-  /* va_arg_i32 / va_arg_i64 / va_arg_ptr / classified va_arg<T> */
-  if (which < 3 || which > 5)
+  /* 3=i32 4=i64 5=ptr (GP) · 7=f32 8=f64 (FP) */
+  if (which < 3 || which == 6 || which > 8)
     return 0;
+  is_fp = (which >= 7);
   if (n_args != 1)
     return 0;
   ap_ref = is_method ? pipeline_expr_method_call_arg_ref(arena, expr_ref, 0)
@@ -4613,6 +4655,12 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0)
     return -1;
   if (ta == 1) {
+    if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
+      return -1;
+    if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
+      return -1;
+    if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
     if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
       return -1;
     if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
@@ -4637,9 +4685,15 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
     return -1;
+  if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
+    return -1;
+  if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
+    return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
     return -1;
-  if (which == 3) {
+  if (which == 3 || which == 7) {
     if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0)
       return -1;
     if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0)
@@ -4652,12 +4706,12 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   }
   if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  /* Spill layout: save+k*8 is rbp-(save_off+k*8); next GP is lower addr → -8. */
+  /* Spill layout: save+k*8 is rbp-(save_off+k*8); next slot is lower addr → -8. */
   if (backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
     return -1;
   if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0)
     return -1;
-  if (which == 3) {
+  if (which == 3 || which == 7) {
     if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0)
       return -1;
   } else {

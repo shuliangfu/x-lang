@@ -3696,6 +3696,8 @@ int32_t codegen_try_emit_va_cap_call(struct ast_ASTArena * arena, struct codegen
     uint8_t close3t[3] = {41, 41, 41};
     int32_t n_ta = 0;
     int32_t ta_ref = 0;
+    int32_t ta_is_f32 = 0;
+    uint8_t nm_double[6] = {100, 111, 117, 98, 108, 101};
     if ((((arena ==0) || (out ==0)) || (ctx ==0))) {
       return 0;
     }
@@ -3769,6 +3771,11 @@ int32_t codegen_try_emit_va_cap_call(struct ast_ASTArena * arena, struct codegen
         codegen_set_host_call_arg_param_ty(0);
         return 0;
       }
+      /* C default promotions: unnamed float is passed as double. Twin codegen.x. */
+      (void)((ta_is_f32 = 0));
+      if ((pipeline_type_kind_ord_at(arena, ta_ref) == 14)) {
+        (void)((ta_is_f32 = 1));
+      }
       if ((codegen_emit_bytes_from_ptr(out, &((open2)[0]), 2) !=0)) {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
@@ -3794,7 +3801,12 @@ int32_t codegen_try_emit_va_cap_call(struct ast_ASTArena * arena, struct codegen
         codegen_set_host_call_arg_param_ty(0);
         return -1;
       }
-      if ((codegen_emit_type(arena, out, ta_ref, 0, 0, ctx) !=0)) {
+      if ((ta_is_f32 != 0)) {
+        if ((codegen_emit_bytes_from_ptr(out, &((nm_double)[0]), 6) !=0)) {
+          codegen_set_host_call_arg_param_ty(0);
+          return -1;
+        }
+      } else if ((codegen_emit_type(arena, out, ta_ref, 0, 0, ctx) !=0)) {
         codegen_set_host_call_arg_param_ty(0);
         return -1;
       }

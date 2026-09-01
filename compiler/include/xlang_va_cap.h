@@ -6,7 +6,7 @@
  *
  * Slice0: typedef + start/arg/end/copy macros (host-cc Cap face).
  * Slice7: language .x builtins rewrite to these macros (codegen Cap).
- * Residual: arm64 asm Cap va · MSVC va_list layout.
+ * Residual: MSVC va_list layout.
  *
  * PLATFORM: SHARED — GCC/Clang builtins (Linux + Darwin + MinGW).
  *           MSVC va_list layout not covered in this slice.

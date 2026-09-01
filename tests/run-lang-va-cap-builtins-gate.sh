@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–15: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
+# Cap 10.7.1 language slice7–16: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
 # slice7–10: Cap rewrite/arity/host-cc/preamble; slice11: invoke_cc Cap -I;
 # slice12: asm Cap va_start/end/va_arg_i32; slice13: asm Cap va_arg_i64/ptr;
-# slice14: typed turbofish va_arg<T>(ap); slice15: aarch64 asm Cap cross-emit.
+# slice14: typed turbofish va_arg<T>(ap); slice15: aarch64 asm Cap cross-emit;
+# slice16: va_arg<f32>/va_arg<f64> (XMM/NEON + C float→double promote).
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -72,6 +73,17 @@ if ! grep -F 'int64_t)(xlang_va_arg(ap, int64_t)' "$OUT_C" >/dev/null 2>&1; then
 fi
 if ! grep -F 'uint8_t *)(xlang_va_arg(ap, uint8_t *)' "$OUT_C" >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_va_arg_ptr" >&2
+  grep -n 'va_arg\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
+  exit 1
+fi
+# slice16: f32 uses C default promotion (va_arg double, cast float); f64 is double.
+if ! grep -F 'float)(xlang_va_arg(ap, double)' "$OUT_C" >/dev/null 2>&1; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_va_arg_f32" >&2
+  grep -n 'va_arg\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
+  exit 1
+fi
+if ! grep -F 'double)(xlang_va_arg(ap, double)' "$OUT_C" >/dev/null 2>&1; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_va_arg_f64" >&2
   grep -n 'va_arg\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
   exit 1
 fi

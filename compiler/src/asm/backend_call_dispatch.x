@@ -4278,18 +4278,22 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Cap 10.7.1 slice12–15: language va_start / va_end / va_arg_{i32,i64,ptr} /
- * typed va_arg<T>(ap) → asm Cap.
+ * Cap 10.7.1 slice12–16: language va_start / va_end / va_arg_{i32,i64,ptr} /
+ * typed va_arg<T>(ap) including f32/f64 → asm Cap.
  *
- * Host-C uses xlang_va_* macros (SysV / AAPCS). Asm Cap is Cap-private: at
- * va_start, spill GP arg regs into call-spill scratch (regs still hold entry
- * values because this intercept runs before call-arg packing), then store a
- * cursor pointer into the VaList local (first 8 bytes) at save+8*nparams.
- * x86_64: 6 SysV GP (rdi..r9). aarch64: 8 AAPCS GP (x0..x7). va_arg loads
- * *cursor as a full GP slot (i32 lives in the low 32 of the spilled Xn);
- * all advance the cursor by -8 (rising fp-offsets = falling addresses).
- * va_end is a no-op. slice14: va_arg<T>(ap) classifies T via type-arg sidecar.
- * f32/f64 XMM/NEON residual. Stack extras beyond GP count residual.
+ * Host-C uses xlang_va_* macros (SysV / AAPCS; C promotes unnamed f32→double).
+ * Asm Cap is Cap-private: at va_start, spill GP + FP arg regs into call-spill
+ * scratch (regs still hold entry values because this intercept runs before
+ * call-arg packing). VaList local holds a pointer to a 16-byte header:
+ *   header[0] = GP cursor, header[8] = FP cursor.
+ * Layout: header (16) / GP[gp_n] / FP[fp_n]. gp_n = 6 SysV (rdi..r9) or 8
+ * AAPCS (x0..x7). fp_n = 8 (xmm0..7 / v0..v7). Named params consume GP or FP
+ * slots independently (glue_call_param_is_f32_c). va_arg loads *cursor as a
+ * full 8-byte slot (i32/f32 live in the low 32); both streams bump -8
+ * (rising rbp-offsets = falling addresses). va_end is a no-op.
+ * slice14: va_arg<T>(ap) classifies T via type-arg sidecar.
+ * slice16: TYPE_F32=14 / TYPE_F64=15 walk the FP cursor (G.7 complete).
+ * Stack extras beyond GP/FP count residual. MSVC residual.
  *
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
@@ -4334,6 +4338,13 @@ function try_emit_va_cap_builtin_call_elf_c(
     let np: i32 = 0;
     let k: i32 = 0;
     let gp_n: i32 = 6;
+    let fp_n: i32 = 8;
+    let np_gp: i32 = 0;
+    let np_fp: i32 = 0;
+    let gp_save: i32 = 0;
+    let fp_save: i32 = 0;
+    let pty: i32 = 0;
+    let is_fp: i32 = 0;
 
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 49) {
@@ -4442,33 +4453,70 @@ function try_emit_va_cap_builtin_call_elf_c(
       if (np < 0) { np = 0; }
       gp_n = 6;
       if (ta == 1) { gp_n = 8; }
-      if (np > gp_n) { np = gp_n; }
+      fp_n = 8;
+      /* Named params consume GP or XMM/NEON independently (SysV / AAPCS). */
+      np_gp = 0;
+      np_fp = 0;
+      k = 0;
+      while (k < np) {
+        pty = 0;
+        if (mod != 0 as *u8 && fi >= 0) {
+          pty = pipeline_module_func_param_type_ref_at(mod, fi, k);
+        }
+        if (glue_call_param_is_f32_c(arena, pty) != 0) {
+          np_fp = np_fp + 1;
+        } else {
+          np_gp = np_gp + 1;
+        }
+        k = k + 1;
+      }
+      if (np_gp > gp_n) { np_gp = gp_n; }
+      if (np_fp > fp_n) { np_fp = fp_n; }
 
-      /* Reserve GP save in call-spill scratch (frame already ≥512).
-       * x86_64: 48B (6 SysV); aarch64: 64B (8 AAPCS). */
+      /* Reserve header(16) + GP save + FP save in call-spill scratch
+       * (frame already ≥512). x86_64 GP 48B / aarch64 GP 64B; FP 64B both. */
       cur = call_dispatch_load_i32_le(ctx, 4);
       save_off = cur + 16;
       if (save_off < 16) { save_off = 16; }
-      call_dispatch_store_i32_le(ctx, 4, save_off + gp_n * 8);
+      gp_save = save_off + 16;
+      fp_save = gp_save + gp_n * 8;
+      call_dispatch_store_i32_le(ctx, 4, fp_save + fp_n * 8);
 
       /* Spill GP arg regs while entry values still live. */
       k = 0;
       while (k < gp_n) {
         if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + k * 8, ta) != 0) {
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_save + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+      /* Spill FP arg regs (xmmK / vK) as 8-byte slots. G.7 existing encoders. */
+      k = 0;
+      while (k < fp_n) {
+        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0) {
           return 0 - 1;
         }
         k = k + 1;
       }
 
-      /* ap cursor = &save[np] (first trailing GP). */
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off + np * 8, ta) != 0) {
+      /* header[0] = &GP[np_gp] (first trailing GP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, gp_save + np_gp * 8, ta) != 0) {
         return 0 - 1;
       }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+      /* header[8] = &FP[np_fp] (first trailing FP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, fp_save + np_fp * 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 8, ta) != 0) { return 0 - 1; }
+      /* *ap = &header. */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
       if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
       if (ta == 1) {
-        /* x3 = &ap; x0 = cursor; str x0, [x3]. G.7 existing encoders. */
+        /* x3 = &ap; x0 = header; str x0, [x3]. G.7 existing encoders. */
         if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
         if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
         if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
@@ -4480,27 +4528,34 @@ function try_emit_va_cap_builtin_call_elf_c(
       return 1;
     }
 
-    /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5. */
+    /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5/7/8. */
     if (which == 6) {
       if (n_args != 1) { return 0; }
       if (pipeline_expr_call_num_type_args_at(arena, expr_ref) < 1) { return 0; }
       ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
       if (ty_ref <= 0) { return 0; }
       tk = pipeline_type_kind_ord_at(arena, ty_ref);
-      /* TYPE_F32=14 / TYPE_F64=15: XMM residual this slice. */
-      if (tk == 14 || tk == 15) { return 0; }
-      mod = call_dispatch_load_ptr_le(ctx, 16);
-      tsz = glue_type_size_simple(mod, arena, ty_ref, 0);
-      if (tk == 9) {
-        which = 5;
-      } else if (tsz >= 8) {
-        which = 4;
+      /* TYPE_F32=14 / TYPE_F64=15: FP cursor (slice16). */
+      if (tk == 14) {
+        which = 7;
+      } else if (tk == 15) {
+        which = 8;
       } else {
-        which = 3;
+        mod = call_dispatch_load_ptr_le(ctx, 16);
+        tsz = glue_type_size_simple(mod, arena, ty_ref, 0);
+        if (tk == 9) {
+          which = 5;
+        } else if (tsz >= 8) {
+          which = 4;
+        } else {
+          which = 3;
+        }
       }
     }
-    /* which == 3/4/5: va_arg_i32 / va_arg_i64 / va_arg_ptr (ap) */
-    if (which < 3 || which > 5) { return 0; }
+    /* 3=i32 4=i64 5=ptr (GP) · 7=f32 8=f64 (FP). */
+    if (which < 3 || which == 6 || which > 8) { return 0; }
+    is_fp = 0;
+    if (which >= 7) { is_fp = 1; }
     if (n_args != 1) { return 0; }
     if (is_method != 0) {
       ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
@@ -4512,10 +4567,15 @@ function try_emit_va_cap_builtin_call_elf_c(
     ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
     if (ap_off < 16) { return 0 - 1; }
 
-    /* Load *ap cursor, fetch slot, bump -8, store cursor, leave result in rax/x0. */
+    /* *ap = header; GP cursor at header[0], FP at header[8]. Load slot, bump -8. */
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
     if (ta == 1) {
-      /* x3=&ap; x0=cursor; x1=cursor; ldr x0,[x1]; park x4; bump; str; restore x4. */
+      /* x3=&ap; x0=header; optional +8; x3=&cursor_cell; then same ldr/bump/str. */
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (is_fp != 0) {
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+      }
       if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
       if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
       if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
@@ -4529,21 +4589,26 @@ function try_emit_va_cap_builtin_call_elf_c(
     }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (is_fp != 0) {
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+    }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (which == 3) {
-      /* i32: eax = *(i32*)cursor; park in edx across bump. */
+    if (which == 3 || which == 7) {
+      /* i32/f32: eax = *(i32*)cursor; park in edx across bump. */
       if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
     } else {
-      /* i64 / ptr: rax = *cursor; park in r10 across bump. */
+      /* i64 / ptr / f64: rax = *cursor; park in r10 across bump. */
       if (arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
     }
     if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    /* Spill layout: save+k*8 is rbp-(save_off+k*8); next GP is lower addr → -8. */
+    /* Spill layout: save+k*8 is rbp-(save_off+k*8); next slot is lower addr → -8. */
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
-    if (which == 3) {
+    if (which == 3 || which == 7) {
       if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }
     } else {
       if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
@@ -5896,7 +5961,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
     }
-    /* Cap 10.7.1 slice12–15: va_start/end/va_arg_{i32,i64,ptr}/va_arg<T> Cap (x86_64+aarch64). */
+    /* Cap 10.7.1 slice12–16: va_start/end/va_arg_{i32,i64,ptr}/va_arg<T> Cap (GP+FP). */
     {
       let va_rc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (va_rc < 0) { return 0 - 1; }
