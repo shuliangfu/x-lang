@@ -124,9 +124,12 @@ const char *const driver_preamble_io_net_lines[] = {
         "  return (ssize_t)xlang_io_writev((int)fd, (const void *)iov, (int)iovcnt);\n"
         "}\n"
         "#endif\n",
+        /* Cap residual 9.1.7/9.1.9: poll via xlang_net_cap.h (no libc poll).
+         * Co-emit into std.net must not leave U poll (net.o residual). */
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
+        "#include <xlang_net_cap.h>\n"
         "static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
-        "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
+        "  return (int32_t)xlang_net_poll((void *)fds, (unsigned int)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
