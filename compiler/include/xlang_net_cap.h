@@ -315,6 +315,34 @@ static inline long xlang_net_recvfrom(int sockfd, void *buf, size_t len, int fla
   return r;
 }
 
+#ifndef F_GETFL
+#define F_GETFL 3
+#endif
+#ifndef F_SETFL
+#define F_SETFL 4
+#endif
+
+/**
+ * Cap residual fcntl F_GETFL / F_SETFL (nonblock dial).
+ * Only cmd F_GETFL (arg ignored) and F_SETFL (arg = flags) are supported.
+ * PLATFORM: LINUX
+ */
+static inline int xlang_net_fcntl(int fd, int cmd, long arg) {
+  long r;
+#if defined(__x86_64__)
+  /* fcntl = 72 */
+  r = xlang_net_syscall3(72, (long)fd, (long)cmd, arg);
+#elif defined(__aarch64__)
+  /* fcntl = 25 */
+  r = xlang_net_syscall3(25, (long)fd, (long)cmd, arg);
+#endif
+  if (r < 0) {
+    errno = (int)(-r);
+    return -1;
+  }
+  return (int)r;
+}
+
 #else /* !LINUX Cap — POSIX libc thin wrappers (Darwin residual) */
 
 #include <poll.h>
@@ -414,6 +442,11 @@ static inline long xlang_net_recvfrom(int sockfd, void *buf, size_t len, int fla
   if (addrlen)
     *addrlen = (unsigned int)al;
   return r;
+}
+
+/** PLATFORM: POSIX fallback — libc fcntl. */
+static inline int xlang_net_fcntl(int fd, int cmd, long arg) {
+  return fcntl(fd, cmd, arg);
 }
 
 #endif /* LINUX Cap vs POSIX fallback */
