@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SYNC-CAP-RAW gate: Stage 10 (10.6.3) Linux futex mutex/condvar Cap.
+# SYNC-CAP-RAW gate: Stage 10 (10.6.3) Linux futex mutex/condvar/sem Cap.
 # Host-cc compile+run tests/sys/sync_cap_raw_smoke.c against xlang_sync_cap.h.
 # No libpthread. Darwin N/A (skip=1).
 #
@@ -30,7 +30,7 @@ ok_report() {
   echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 }
 
-echo "=== SYNC-CAP-RAW: futex mutex/condvar Cap (10.6.3) ==="
+echo "=== SYNC-CAP-RAW: futex mutex/condvar/sem Cap (10.6.3) ==="
 
 if ! ci_is_linux; then
   SKIP=1
