@@ -4278,26 +4278,26 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Cap 10.7.1 slice12–14: language va_start / va_end / va_arg_{i32,i64,ptr} /
+ * Cap 10.7.1 slice12–15: language va_start / va_end / va_arg_{i32,i64,ptr} /
  * typed va_arg<T>(ap) → asm Cap.
  *
- * Host-C uses xlang_va_* macros (SysV). Asm Cap is Cap-private: at va_start,
- * spill the 6 SysV GP arg regs into call-spill scratch (regs still hold entry
+ * Host-C uses xlang_va_* macros (SysV / AAPCS). Asm Cap is Cap-private: at
+ * va_start, spill GP arg regs into call-spill scratch (regs still hold entry
  * values because this intercept runs before call-arg packing), then store a
  * cursor pointer into the VaList local (first 8 bytes) at save+8*nparams.
- * va_arg_i32 loads *cursor as i32; va_arg_i64 / va_arg_ptr load qword; all
- * advance the cursor by -8 (spill slots use rising rbp-offsets = falling
- * addresses: save+0 closest to rbp, save+40 furthest). va_end is a no-op.
- * slice14: va_arg<T>(ap) classifies T (PTR→qword, size>=8→qword, else i32)
- * via existing type-arg sidecar (G.7 size_of<T> pattern). f32/f64 residual.
+ * x86_64: 6 SysV GP (rdi..r9). aarch64: 8 AAPCS GP (x0..x7). va_arg loads
+ * *cursor as a full GP slot (i32 lives in the low 32 of the spilled Xn);
+ * all advance the cursor by -8 (rising fp-offsets = falling addresses).
+ * va_end is a no-op. slice14: va_arg<T>(ap) classifies T via type-arg sidecar.
+ * f32/f64 XMM/NEON residual. Stack extras beyond GP count residual.
  *
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
  * @param expr_ref i32 — CALL or METHOD_CALL expr
  * @param ctx *u8 — AsmFuncCtx (next_offset@4, module@16)
- * @param ta i32 — 0 = x86_64 only this slice; other → 0 fallthrough
+ * @param ta i32 — 0 = x86_64; 1 = aarch64; other → 0 fallthrough
  * @return i32 — 1 emitted; 0 not Cap va; -1 emit error
- * PLATFORM: SHARED emit · LINUX|x86_64 Cap runtime (arm64 residual).
+ * PLATFORM: SHARED emit · LINUX|x86_64 runtime · LINUX|aarch64 cross-emit.
  */
 function try_emit_va_cap_builtin_call_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
@@ -4305,7 +4305,7 @@ function try_emit_va_cap_builtin_call_elf_c(
   if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
     return 0;
   }
-  if (ta != 0) {
+  if (ta != 0 && ta != 1) {
     return 0;
   }
   unsafe {
@@ -4333,6 +4333,7 @@ function try_emit_va_cap_builtin_call_elf_c(
     let fi: i32 = 0;
     let np: i32 = 0;
     let k: i32 = 0;
+    let gp_n: i32 = 6;
 
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 49) {
@@ -4439,17 +4440,20 @@ function try_emit_va_cap_builtin_call_elf_c(
         np = pipeline_module_func_num_params_at(mod, fi);
       }
       if (np < 0) { np = 0; }
-      if (np > 6) { np = 6; }
+      gp_n = 6;
+      if (ta == 1) { gp_n = 8; }
+      if (np > gp_n) { np = gp_n; }
 
-      /* Reserve 48B GP save in call-spill scratch (frame already ≥512). */
+      /* Reserve GP save in call-spill scratch (frame already ≥512).
+       * x86_64: 48B (6 SysV); aarch64: 64B (8 AAPCS). */
       cur = call_dispatch_load_i32_le(ctx, 4);
       save_off = cur + 16;
       if (save_off < 16) { save_off = 16; }
-      call_dispatch_store_i32_le(ctx, 4, save_off + 48);
+      call_dispatch_store_i32_le(ctx, 4, save_off + gp_n * 8);
 
-      /* Spill rdi..r9 while entry values still live. */
+      /* Spill GP arg regs while entry values still live. */
       k = 0;
-      while (k < 6) {
+      while (k < gp_n) {
         if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + k * 8, ta) != 0) {
           return 0 - 1;
@@ -4463,6 +4467,13 @@ function try_emit_va_cap_builtin_call_elf_c(
       }
       if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+      if (ta == 1) {
+        /* x3 = &ap; x0 = cursor; str x0, [x3]. G.7 existing encoders. */
+        if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+        return 1;
+      }
       if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
       if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
       if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
@@ -4501,8 +4512,21 @@ function try_emit_va_cap_builtin_call_elf_c(
     ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
     if (ap_off < 16) { return 0 - 1; }
 
-    /* rcx = &ap; rax = cursor; rbx = cursor; load *cursor; bump; restore result. */
+    /* Load *ap cursor, fetch slot, bump -8, store cursor, leave result in rax/x0. */
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+    if (ta == 1) {
+      /* x3=&ap; x0=cursor; x1=cursor; ldr x0,[x1]; park x4; bump; str; restore x4. */
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 1, 0, ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 4, ta) != 0) { return 0 - 1; }
+      return 1;
+    }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
@@ -5872,7 +5896,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
     }
-    /* Cap 10.7.1 slice12–14: va_start/end/va_arg_{i32,i64,ptr}/va_arg<T> Cap (x86_64). */
+    /* Cap 10.7.1 slice12–15: va_start/end/va_arg_{i32,i64,ptr}/va_arg<T> Cap (x86_64+aarch64). */
     {
       let va_rc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (va_rc < 0) { return 0 - 1; }

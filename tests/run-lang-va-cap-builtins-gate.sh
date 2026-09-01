@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–14: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
+# Cap 10.7.1 language slice7–15: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
 # slice7–10: Cap rewrite/arity/host-cc/preamble; slice11: invoke_cc Cap -I;
 # slice12: asm Cap va_start/end/va_arg_i32; slice13: asm Cap va_arg_i64/ptr;
-# slice14: typed turbofish va_arg<T>(ap).
+# slice14: typed turbofish va_arg<T>(ap); slice15: aarch64 asm Cap cross-emit.
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -156,6 +156,32 @@ asm_run=$?
 set -e
 if [[ "$asm_run" -ne 42 ]]; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=asm_run_rc rc=$asm_run want=42" >&2
+  exit 1
+fi
+
+# Cap 10.7.1 slice15: aarch64 Cap va cross-emit (Ubuntu x86 gold = opcode scan, no qemu).
+# Distinctive LE: ldr x0,[x3]=f9400060; str x0,[x3]=f9000060; sub x0,x0,#8=d1002000.
+OUT_A64="/tmp/xlang_lang_va_cap_builtins_a64_$$.o"
+trap 'rm -f "$OUT_C" "$OUT_BIN" "$OUT_PROD" "$OUT_ASM" "$OUT_A64"' EXIT
+rm -f "$OUT_A64"
+set +e
+"$XLANG" -target aarch64-linux-gnu -o "$OUT_A64" "$SRC" >/tmp/xlang_lang_va_cap_builtins_a64.$$ 2>&1
+a64_rc=$?
+set -e
+if [[ "$a64_rc" -ne 0 ]] || [[ ! -f "$OUT_A64" ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=aarch64_emit" >&2
+  cat /tmp/xlang_lang_va_cap_builtins_a64.$$ >&2 || true
+  rm -f /tmp/xlang_lang_va_cap_builtins_a64.$$
+  exit 1
+fi
+rm -f /tmp/xlang_lang_va_cap_builtins_a64.$$
+a64_ok=0
+if grep -a -q $'\x60\x00\x40\xf9' "$OUT_A64" 2>/dev/null; then a64_ok=1; fi
+if grep -a -q $'\x60\x00\x00\xf9' "$OUT_A64" 2>/dev/null; then a64_ok=$((a64_ok + 1)); fi
+if grep -a -q $'\x00\x20\x00\xd1' "$OUT_A64" 2>/dev/null; then a64_ok=$((a64_ok + 1)); fi
+if [[ "$a64_ok" -lt 2 ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=aarch64_no_cap_opcodes a64_ok=$a64_ok" >&2
+  xxd "$OUT_A64" 2>/dev/null | head -20 >&2 || true
   exit 1
 fi
 

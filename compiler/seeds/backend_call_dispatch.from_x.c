@@ -4397,10 +4397,10 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Cap 10.7.1 slice12–14: twin of try_emit_va_cap_builtin_call_elf_c (.x).
+ * Cap 10.7.1 slice12–15: twin of try_emit_va_cap_builtin_call_elf_c (.x).
  * Cap-private VaList cursor + GP spill into call-spill scratch.
- * va_arg_i32 / va_arg_i64 / va_arg_ptr / typed va_arg<T> Cap loads; arm64 residual.
- * PLATFORM: SHARED emit · LINUX|x86_64 Cap runtime
+ * x86_64: 6 SysV GP; aarch64: 8 AAPCS GP. typed va_arg<T> Cap loads.
+ * PLATFORM: SHARED emit · LINUX|x86_64 runtime · LINUX|aarch64 cross-emit
  */
 static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -4417,6 +4417,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   int32_t np = 0;
   int32_t fi;
   int32_t k;
+  int32_t gp_n = 6;
   uint8_t name[128];
   struct glue_AsmFuncCtxCall *ly;
   static const uint8_t nm_start[8] = {118, 97, 95, 115, 116, 97, 114, 116};
@@ -4433,7 +4434,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
-  if (ta != 0)
+  if (ta != 0 && ta != 1)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   memset(name, 0, sizeof(name));
@@ -4536,13 +4537,14 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       np = pipeline_module_func_num_params_at(ly->module_ref, fi);
     if (np < 0)
       np = 0;
-    if (np > 6)
-      np = 6;
+    gp_n = (ta == 1) ? 8 : 6;
+    if (np > gp_n)
+      np = gp_n;
     save_off = ly->next_offset + 16;
     if (save_off < 16)
       save_off = 16;
-    ly->next_offset = save_off + 48;
-    for (k = 0; k < 6; k++) {
+    ly->next_offset = save_off + gp_n * 8;
+    for (k = 0; k < gp_n; k++) {
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + k * 8, ta) != 0)
@@ -4554,6 +4556,15 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0)
       return -1;
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
+        return -1;
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0)
+        return -1;
+      return 1;
+    }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
       return -1;
     if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
@@ -4601,6 +4612,27 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0)
     return -1;
+  if (ta == 1) {
+    if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
+      return -1;
+    if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 1, 0, ta) != 0)
+      return -1;
+    if (arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
+      return -1;
+    if (arch_arm64_enc_enc_str_x0_x3(elf_ctx) != 0)
+      return -1;
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 4, ta) != 0)
+      return -1;
+    return 1;
+  }
   if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
     return -1;
   if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
