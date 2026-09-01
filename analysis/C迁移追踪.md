@@ -109,6 +109,7 @@
 - ⬜ **7.4.4** 双权威禁令验收 — touch `*.x` 须同 commit 禁「只改 seed」；可选 CI pin↔`-E` 漂移闸  
 - ✅ **7.4.5** typeck pin 缺体漂移 — pin twin 已补 `typeck_{get,set}_allow_legacy_extern_calls` 体（`7c67cafa2`；与 assemble 注入／glue 边界 allow=0 同语义）
 - ✅ **7.4.6** typeck pin extra-paren — L4 Track L `cc` 硬失败：size/align `ko==18` 与 Cap va 名字链 if 条件多一个 `)`；权威仍 `typeck.x`，pin 孪生去多余 `)`（9 处）。日常 L2 prefer `.x` 藏此债
+- ✅ **7.4.7** typeck archaeology patch 幂等 — L4 g05 `cc typeck_gen.c` 重复定义 `g_typeck_allow_legacy_extern_calls`：7.4.5 pin 已有体、patcher 只认 `XLANG_ALLOW_LEGACY_EXTERN` 注释。G.7 补全既有 patcher（符号已在则 skip）＋pin 补标记。证：Darwin patch skip · `cc -c` 0。残：双端 L4 未重跑
 
 ---
 
