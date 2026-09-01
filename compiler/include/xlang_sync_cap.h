@@ -8,9 +8,11 @@
  * Slice0: non-recursive mutex (init/lock/trylock/unlock).
  * Slice1: condition variable (init/wait/signal/broadcast).
  * Slice2: counting semaphore (init/wait/trywait/post).
- * Later: wire runtime_sync_os _impl · Windows (10.6.2).
+ * Slice3: runtime_sync_os Linux mutex/cond wired to Cap.
+ * Slice4: reader-writer lock (rdlock/wrlock/unlock) + sync_os wire.
+ * Later: Windows (10.6.2).
  *
- * Windows / Darwin: not provided — callers keep OS mutex/cond APIs.
+ * Windows / Darwin: not provided — callers keep OS mutex/cond/rwlock APIs.
  *
  * PLATFORM: LINUX primary (x86_64 + aarch64).
  */
@@ -309,6 +311,132 @@ static inline int xlang_cap_sem_post(struct xlang_cap_sem *sem) {
   }
   (void)__atomic_fetch_add(&sem->count, 1u, __ATOMIC_RELEASE);
   (void)xlang_futex_wake(&sem->count, 1);
+  return 0;
+}
+
+/** Writer held bit (MSB). Lower bits = reader count when writer clear. */
+#define XLANG_CAP_RW_WRITER 0x80000000u
+/** Mask for concurrent reader count. */
+#define XLANG_CAP_RW_READERS_MASK 0x7fffffffu
+
+/**
+ * Cap futex rwlock — single state word.
+ *   0              unlocked
+ *   1..0x7fffffff  N readers
+ *   0x80000000     exclusive writer
+ * Waiters sleep on `state`. Reader-biased (writers wait for readers==0).
+ * PLATFORM: LINUX
+ */
+struct xlang_cap_rwlock {
+  uint32_t state;
+};
+
+/**
+ * Initialize Cap rwlock to unlocked.
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_rwlock_init(struct xlang_cap_rwlock *rw) {
+  if (rw == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  rw->state = 0u;
+  return 0;
+}
+
+/**
+ * Destroy Cap rwlock (no heap; clears state).
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_rwlock_destroy(struct xlang_cap_rwlock *rw) {
+  if (rw == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  rw->state = 0u;
+  return 0;
+}
+
+/**
+ * Acquire shared read lock (block while a writer holds).
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_rwlock_rdlock(struct xlang_cap_rwlock *rw) {
+  uint32_t s = 0;
+  if (rw == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  for (;;) {
+    s = __atomic_load_n(&rw->state, __ATOMIC_ACQUIRE);
+    if ((s & XLANG_CAP_RW_WRITER) != 0u) {
+      (void)xlang_futex(&rw->state, XLANG_FUTEX_WAIT, s, 0);
+      continue;
+    }
+    if (__atomic_compare_exchange_n(&rw->state, &s, s + 1u, 0, __ATOMIC_ACQ_REL,
+                                    __ATOMIC_ACQUIRE)) {
+      return 0;
+    }
+  }
+}
+
+/**
+ * Acquire exclusive write lock (block while any reader or writer holds).
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_rwlock_wrlock(struct xlang_cap_rwlock *rw) {
+  uint32_t s = 0;
+  if (rw == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  for (;;) {
+    s = __atomic_load_n(&rw->state, __ATOMIC_ACQUIRE);
+    if (s != 0u) {
+      (void)xlang_futex(&rw->state, XLANG_FUTEX_WAIT, s, 0);
+      continue;
+    }
+    if (__atomic_compare_exchange_n(&rw->state, &s, XLANG_CAP_RW_WRITER, 0,
+                                    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+      return 0;
+    }
+  }
+}
+
+/**
+ * Release a previously held read lock; wake waiters when last reader exits.
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_rwlock_rdunlock(struct xlang_cap_rwlock *rw) {
+  uint32_t prev = 0;
+  if (rw == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  prev = __atomic_fetch_sub(&rw->state, 1u, __ATOMIC_RELEASE);
+  if ((prev & XLANG_CAP_RW_READERS_MASK) == 1u) {
+    (void)xlang_futex_wake(&rw->state, 0x7fffffff);
+  }
+  return 0;
+}
+
+/**
+ * Release a previously held write lock; wake all waiters.
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_rwlock_wrunlock(struct xlang_cap_rwlock *rw) {
+  if (rw == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  __atomic_store_n(&rw->state, 0u, __ATOMIC_RELEASE);
+  (void)xlang_futex_wake(&rw->state, 0x7fffffff);
   return 0;
 }
 
