@@ -35,11 +35,10 @@
  */
 #include <stdint.h>
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: call_dispatch debugf → xlang_vsnprintf */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: call_dispatch debugf → xlang_vsnprintf */
 
 #include "diag.h"
 #include "runtime_pipeline_abi.h"
@@ -110,14 +109,14 @@ extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx);
 
 static void backend_call_debugf(const char *fmt, ...) {
   char buf[256];
-  va_list ap;
+  xlang_va_list ap;
   /* wave231 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv). */
   if (!link_abi_getenv("XLANG_ASM_DEBUG"))
     return;
-  va_start(ap, fmt);
-  /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+  xlang_va_start(ap, fmt);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
   (void)xlang_vsnprintf(buf, sizeof buf, fmt ? fmt : "asm call debug", ap);
-  va_end(ap);
+  xlang_va_end(ap);
   buf[sizeof buf - 1] = '\0';
   diag_report(NULL, 0, 0, "note", buf, NULL);
 }
