@@ -32,7 +32,7 @@
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
-| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129 |
+| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip L4＠`93595ea81` **红**（phase1 UNDEF） |
 | BC（自举编译层零 host-cc） | 🟡 | inventory 冻；`pipeline_x` 仍 host-cc mega |
 | PC（产品默认 asm／禁默 host-cc） | 🟡 | 去 import→C／FORBID／ALLOW／ld-only ✅；invoke_cc 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名；产品 thin-first／inject |
@@ -240,7 +240,7 @@
 
 - ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar`*／`stlr`*／`casal*`）。残：Darwin
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
-- ✅ **10.5.1** x86 AVX／SSE + aarch64 NEON 内建 — **slice0–10 ✅** · **slice10 ✅（Ubuntu host-C）**＠`0609c4a05`：`builtin.x` 标量 fallthrough（无 panic）。残：MSYS Win 实机
+- ✅ **10.5.1** x86 AVX／SSE + aarch64 NEON 内建 — **slice0–10 ✅** · **slice10 ✅（Ubuntu host-C）**＠`0609c4a05`：`builtin.x` 标量 fallthrough（无 panic）。残：MSYS Win 实机 · **L4 seed 孪**：`simd_enc.from_x.c` 缺 `hsum_f32x4`／`dot_f32x4`／`fsub`（`.x` 有；cold 走 seed → phase1 UNDEF）
 - 🟡 **10.5.2** ARM SVE 内建 — **slice0–2 ✅（Ubuntu）**＠`2e03ae24c`：f32x4／fma／hsum／dot／i32x8／f32x8 双半 VL4。残：真宽 VL／MSYS Win  
 - 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–2 ✅（Ubuntu）**＠`e8777cb6b`：futex／mmap／clone trampoline＋**product `runtime_thread_glue` Linux Cap**（pool／create／join；nm 无 pthread；STD-043 run=2）。残：Darwin pthread · TLS  
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
