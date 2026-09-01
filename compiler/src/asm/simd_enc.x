@@ -594,10 +594,12 @@ export function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 16;
-  let b3: u8 = 133;
+  /* VEX.256 vmovups ymm0, [rbp+disp32] = C4 E1 7C 10 85 disp32 */
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 16;
+  let b4: u8 = 133;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -606,6 +608,8 @@ export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
@@ -619,10 +623,12 @@ export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 16;
-  let b3: u8 = 141;
+  /* VEX.256 vmovups ymm1, [rbp+disp32] = C4 E1 7C 10 8D disp32 */
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 16;
+  let b4: u8 = 141;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -631,6 +637,8 @@ export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
@@ -644,10 +652,12 @@ export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 17;
-  let b3: u8 = 133;
+  /* VEX.256 vmovups [rbp+disp32], ymm0 = C4 E1 7C 11 85 disp32 */
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 17;
+  let b4: u8 = 133;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -656,6 +666,8 @@ export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
