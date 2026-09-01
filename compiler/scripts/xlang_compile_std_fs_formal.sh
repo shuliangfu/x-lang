@@ -26,7 +26,9 @@ fi
 # Catalog sources: std/fs/mod.x + posix.x (vehicle imports std.fs). PLATFORM: SHARED.
 if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
   _fs_stale=0
-  for _s in ../std/fs/mod.x ../std/fs/posix.x std/fs/mod.x std/fs/posix.x; do
+  for _s in ../std/fs/mod.x ../std/fs/posix.x std/fs/mod.x std/fs/posix.x \
+            seeds/runtime_dir_cap.from_x.c include/xlang_dir_cap.h \
+            ../compiler/seeds/runtime_dir_cap.from_x.c ../compiler/include/xlang_dir_cap.h; do
     if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
       _fs_stale=1
       break
@@ -100,6 +102,30 @@ if ! cc -c $CFLAGS "$gen_c" -o "$raw_o" 2>"$tmp_dir/cc.err"; then
   echo "xlang_compile_std_fs_formal.sh: cc -c failed for KEEP_C" >&2
   tail -40 "$tmp_dir/cc.err" >&2 || true
   exit 1
+fi
+
+# Cap residual 9.1.10: merge xlang_dir_* into fs.o so KEEP_C U opendir faces
+# resolve without libc (G.7 single Cap body in xlang_dir_cap.h).
+# PLATFORM: SHARED face; LINUX Cap / POSIX fallback inside header.
+_dir_cap_c="seeds/runtime_dir_cap.from_x.c"
+if [ ! -f "$_dir_cap_c" ]; then
+  _dir_cap_c="../compiler/seeds/runtime_dir_cap.from_x.c"
+fi
+if [ -f "$_dir_cap_c" ]; then
+  _dir_cap_o="$tmp_dir/runtime_dir_cap.o"
+  # shellcheck disable=SC2086
+  if ! cc -c $CFLAGS "$_dir_cap_c" -o "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
+    echo "xlang_compile_std_fs_formal.sh: cc -c dir Cap failed" >&2
+    tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+    exit 1
+  fi
+  _merged="$tmp_dir/fs_formal_merged.o"
+  if ! ld -r -o "$_merged" "$raw_o" "$_dir_cap_o" 2>"$tmp_dir/dir_ld.err"; then
+    echo "xlang_compile_std_fs_formal.sh: ld -r dir Cap failed" >&2
+    tail -20 "$tmp_dir/dir_ld.err" >&2 || true
+    exit 1
+  fi
+  raw_o="$_merged"
 fi
 
 # Drop vehicle main + foreign co-emits so fs.o is a pure library face.
