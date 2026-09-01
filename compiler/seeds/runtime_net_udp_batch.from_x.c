@@ -3,11 +3,11 @@
  * Product: runtime_net_udp_batch.o; logic still C until full .x port.
  */
 /**
- * runtime_net_udp_batch.c — Linux recvmmsg/sendmmsg 胶层（F-ZC：自 std/net/udp_batch_glue.c 迁入）
+ * runtime_net_udp_batch.c — Linux recvmmsg/sendmmsg glue (from std/net/udp_batch_glue.c).
  *
- * mmsghdr/iovec 批量 syscall 暂由 C 提供；主逻辑与回退路径见 udp_batch.x。
- * 仅 __linux__ && __GLIBC__ 编译有效符号；其它平台为空 TU。与 net.o 一并链入 exe。
- * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 xlang_asm 未链 runtime_net_udp_batch.o 时解析符号。
+ * Cap residual 9.1.7 slice1: mmsg + poll via xlang_net_cap.h (no libc recvmmsg/sendmmsg).
+ * mmsghdr/iovec batch syscalls still C; product paths in udp_batch.x.
+ * Only __linux__ builds symbols; other platforms empty TU. Linked with net.o.
  */
 
 /* _GNU_SOURCE must be defined before any system header so that recvmmsg /
@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <poll.h>
+#include <xlang_net_cap.h>
 
 #ifndef XLANG_NET_UDP_GLUE_WEAK
 #define XLANG_NET_UDP_GLUE_WEAK
@@ -71,7 +72,8 @@ void xlang_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, u
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_udp_batch.x）提供 public wrapper */
 int xlang_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
     struct pollfd pfd = { fd, POLLIN, 0 };
-    int n = poll(&pfd, 1, (int)(timeout_ms ? timeout_ms : (-1)));
+    /* Cap residual 9.1.7: poll via xlang_net_cap.h (slice0). PLATFORM: LINUX */
+    int n = xlang_net_poll((void *)&pfd, 1u, (int)(timeout_ms ? timeout_ms : (-1)));
     if (n <= 0 || (pfd.revents & (POLLERR | POLLHUP)))
         return -1;
     return 0;
@@ -117,7 +119,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, si
         if (xlang_udp_batch_poll_readable((int)fd, timeout_ms) != 0)
             return -1;
     }
-    r = recvmmsg((int)fd, msgvec, (unsigned int)n, 0, NULL);
+    r = xlang_net_recvmmsg((int)fd, (void *)msgvec, (unsigned int)n, 0, NULL);
     if (r < 0)
         return (errno == EAGAIN) ? 0 : -1;
     for (i = 0; i < (unsigned int)r; i++) {
@@ -155,7 +157,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, ui
         msgvec[i].msg_hdr.msg_controllen = 0;
         msgvec[i].msg_hdr.msg_flags = 0;
     }
-    r = sendmmsg((int)fd, msgvec, (unsigned int)n, 0);
+    r = xlang_net_sendmmsg((int)fd, (void *)msgvec, (unsigned int)n, 0);
     return (r < 0) ? -1 : r;
 }
 
@@ -188,7 +190,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_recvmmsg_buf_c(int32_t fd, xlang_net_bu
         if (xlang_udp_batch_poll_readable((int)fd, timeout_ms) != 0)
             return -1;
     }
-    r = recvmmsg((int)fd, msgvec, (unsigned int)n, 0, NULL);
+    r = xlang_net_recvmmsg((int)fd, (void *)msgvec, (unsigned int)n, 0, NULL);
     if (r < 0)
         return (errno == EAGAIN) ? 0 : -1;
     for (i = 0; i < (unsigned int)r; i++) {
@@ -226,7 +228,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_sendmmsg_buf_c(int32_t fd, const uint32
         msgvec[i].msg_hdr.msg_controllen = 0;
         msgvec[i].msg_hdr.msg_flags = 0;
     }
-    r = sendmmsg((int)fd, msgvec, (unsigned int)n, 0);
+    r = xlang_net_sendmmsg((int)fd, (void *)msgvec, (unsigned int)n, 0);
     return (r >= 0) ? r : -1;
 }
 
