@@ -6,7 +6,8 @@
 // Provides monotonic/wall time, sleep, RFC3339 formatting, and local timezone offset.
 // The actual OS API calls (clock_gettime, nanosleep, gmtime_r, etc.) are delegated
 // to C bridge functions declared below as extern "C". These are implemented in
-// seeds/runtime_time_os.from_x.c and linked via the product pipeline.
+// seeds/runtime_time_os.from_x.c via xlang_time_cap.h (Linux Cap residual 9.1.5)
+// and linked via the product pipeline.
 //
 // PLATFORM: SHARED (POSIX + Windows branches handled by C bridge _impl functions)
 //
