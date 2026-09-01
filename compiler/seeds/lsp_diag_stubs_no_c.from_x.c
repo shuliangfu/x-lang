@@ -12,8 +12,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdarg.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: NO_C stubs → Cap fmt */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: NO_C stubs → Cap fmt */
 /* G.7: single Cap authority for this bootstrap NO_C TU (after stdio). */
 #undef snprintf
 #undef vsnprintf
@@ -317,10 +316,10 @@ void lsp_diag_prepare_pipeline_ctx(void *ctx_void) {
 /** typeck 诊断上报：NO_C seed 链无 LSP 收集器，须直写 stderr（与 lsp_diag.c 非 collect 分支一致）。 */
 void lsp_diag_report_typeck_code(const char *code, int line, int col, const char *fmt, ...) {
     char buf[512];
-    va_list ap;
-    va_start(ap, fmt);
+    xlang_va_list ap;
+    xlang_va_start(ap, fmt);
     (void)vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     if (driver_check_only_get())
         driver_check_diag_emitted_note();
     diag_report_with_code(NULL, line, col, "typeck error", code, buf, buf);
@@ -328,10 +327,10 @@ void lsp_diag_report_typeck_code(const char *code, int line, int col, const char
 
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
     char buf[LSP_MSG_MAX + 1];
-    va_list ap;
-    va_start(ap, fmt);
+    xlang_va_list ap;
+    xlang_va_start(ap, fmt);
     (void)vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     if (driver_check_only_get())
         driver_check_diag_emitted_note();
     diag_report_with_code(NULL, line, col, "typeck error", "T001", buf, buf);
