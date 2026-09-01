@@ -1,7 +1,7 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: Apache-2.0
 //
-// Stage 10 (10.5.1) slice0–7: language SIMD builtins — panic bodies.
+// Stage 10 (10.5.1) slice0–8: language SIMD builtins — panic bodies.
 // Asm backend intercepts CALL/METHOD_CALL by name
 // (try_emit_simd_lang_builtin_call_elf_c). Host-C / non-x86 fall through
 // to panic until later slices.
@@ -58,6 +58,31 @@ export function sub_f32x4(a: Vec4f, b: Vec4f): Vec4f {
 export function fma_f32x4(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
   panic();
   return [0.0, 0.0, 0.0, 0.0];
+}
+
+/**
+ * Hardware f32x4 horizontal sum of lanes into one f32.
+ * Asm replaces the call with movups + pshufd/addps; result bits in eax.
+ * @param v Vec4f — vector to reduce
+ * @return f32 — v[0]+v[1]+v[2]+v[3]
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE); host-C / aarch64 panic
+ */
+export function hsum_f32x4(v: Vec4f): f32 {
+  panic();
+  return 0.0;
+}
+
+/**
+ * Hardware f32x4 dot product: sum of lane-wise products.
+ * Asm replaces the call with mulps + horizontal add; result bits in eax.
+ * @param a Vec4f — first operand
+ * @param b Vec4f — second operand
+ * @return f32 — sum_i a[i]*b[i]
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE); host-C / aarch64 panic
+ */
+export function dot_f32x4(a: Vec4f, b: Vec4f): f32 {
+  panic();
+  return 0.0;
 }
 
 /**
