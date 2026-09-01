@@ -17,6 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: build_runtime cmd format → Cap snprintf */
+/* G.7: Cap after stdio for product cold-start build_runtime TU. */
+#undef snprintf
+#define snprintf xlang_snprintf
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
