@@ -1433,7 +1433,28 @@ export function glue_asm_build_call_export_sym_c(
             let mid_len: i32 = 0 - 1;
             let da: *u8 = dep_arena;
             if (da == 0 as *u8) { da = arena; }
-            use_fi = pipeline_typeck_resolve_call_func_index_for_emit_c(dep_mod, da, call_expr_ref);
+            // CALL expr + resolved_func_index live in the caller arena.
+            // Passing dep_arena here reads a different expr at the same ref
+            // (STD-091: io_err_cancelled() emitted as std_error_base_fs).
+            // PLATFORM: SHARED — typeck stamp/name scan; Ubuntu gold -o.
+            use_fi = pipeline_typeck_resolve_call_func_index_for_emit_c(dep_mod, arena, call_expr_ref);
+            if (use_fi >= 0) {
+              if (use_fi >= pipeline_module_num_funcs(dep_mod)) {
+                use_fi = 0 - 1;
+              } else {
+                if (pipeline_module_func_is_extern_at(dep_mod, use_fi) != 0) {
+                  use_fi = 0 - 1;
+                } else {
+                  if (pipeline_module_func_name_equal_at(dep_mod, use_fi, &cname[0], clen) == 0) {
+                    use_fi = 0 - 1;
+                  } else {
+                    if (pipeline_module_func_num_params_at(dep_mod, use_fi) != want_np) {
+                      use_fi = 0 - 1;
+                    }
+                  }
+                }
+              }
+            }
             if (use_fi < 0) {
               if (r_dep == dep_ix) {
                 if (r_func >= 0) {

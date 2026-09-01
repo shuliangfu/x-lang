@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 前排大多闭；3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128（~85%） |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6–7.4.9** pin 孪生已落盘；L4＠`1174c5bb3` fmt-std OK、bstrict 红（AVX2 select SIGILL／Darwin FMT001）；parser seed 物理删／CI 漂移闸 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6–7.4.9** pin 孪生已落盘；L4＠`7104b384b` fmt-std／shuffle-select OK、bstrict 红（STD-091 io-context／Darwin FMT001）；parser seed 物理删／CI 漂移闸 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | 🟡 | **9.1.3** getpid／getppid／getcwd／chdir Linux raw ✅（WIP）；其余 9.1～9.7 仍开 |
@@ -32,7 +32,7 @@
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
-| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip L4＠`1174c5bb3` 双端 g05／矩阵 OK · Ubuntu fmt-std OK · Ubuntu select SIGILL（本波修 i32 ymm VEX）· Darwin FMT001 |
+| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip L4＠`7104b384b` 双端 g05／矩阵 OK · Ubuntu fmt-std／shuffle-select OK · Ubuntu STD-091 io-context（本波修 CALL caller arena）· Darwin FMT001 |
 | BC（自举编译层零 host-cc） | 🟡 | inventory 冻；`pipeline_x` 仍 host-cc mega |
 | PC（产品默认 asm／禁默 host-cc） | 🟡 | 去 import→C／FORBID／ALLOW／ld-only ✅；invoke_cc 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名；产品 thin-first／inject |
@@ -418,7 +418,7 @@
 | STD-045 sync-rwlock-condvar soft→硬绿 | ✅ | 二过：拒 soft XLANG fallthrough／soft auto-make／bootstrap-link／soft `ensure_std_c_o`／extra CLI `.o`／TSAN ensure；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`rwlock_condvar.x`／`main.x` exit0 硬失败；check／TSAN compile／run／host-C archaeology＝obs（现成 `.o` only）；报告 `run=`／`obs=`／`skip=`；archive `## 5. Gate`；双端 L2；**sync-rwlock-condvar 残 fallthrough FAIL 池空** |
 | STD-029 net-dns soft→硬绿 | ✅ | 二过：拒 soft XLANG fallthrough／soft ensure／soft auto-make；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`resolve_dns.x`／`main.x` exit0 硬失败；check＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**net-dns soft fallthrough FAIL 池空**；**leftover wrap 死 source 已收** |
 | STD-043 thread-pool soft→硬绿 | ✅ | 二过：拒 soft XLANG fallthrough／soft auto-make／bootstrap-link／soft `ensure_std_c_o`；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`pool_roundtrip.x`／`main.x` exit0 硬失败；check／host-C archaeology＝obs（现成 `.o` only）；报告 `run=`／`obs=`／`skip=`；archive `## 5. Gate`；双端 L2；**thread-pool 残 fallthrough FAIL 池空** |
-| STD-091 io-context soft→硬绿 | ✅ | 二过：拒 soft XLANG fallthrough／soft auto-make／bootstrap-link／soft `ensure_std_c_o`／CLI extra `.o`；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`context_read_write.x` exit0 硬失败；check／glue archaeology＝obs（现成 `.o` only）；报告 `run=`／`obs=`／`skip=`；无 DOC／TSV（镜像 STD-092）；双端 L2；**io-context 残 fallthrough FAIL 池空** |
+| STD-091 io-context soft→硬绿 | 🟡 | 闸诚实 ✅；L4＠`7104b384b` 产品 `-o` 红（asm CALL `io_err_cancelled`→`base_fs`；本波修 caller arena）；禁改测试 |
 | STD-052 backtrace-symbolicate soft→硬绿 | ✅ | 二过：拒 soft XLANG fallthrough／soft auto-make／bootstrap-link／soft `ensure_std_c_o`／`ensure_runtime_backtrace_platform_o`／extra CLI `.o`／C gold auto-make；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`symbolicate_known.x` exit0 硬失败；check／C gold compile／run／host-C archaeology＝obs（现成 `.o` only）；报告 `run=`／`obs=`／`skip=`；archive `## 5. Gate`；双端 L2；**backtrace-symbolicate 残 fallthrough FAIL 池空** |
 | STD-120 db-compat soft→硬绿 | ✅ | 二过：拒 soft prefer-c／soft SKIP→OK／soft `ensure_std_c_o`／soft auto-make；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`compat_smoke.x` 能链则硬绿、tip `_std_db_*` UNDEF＝obs；check／host-C archaeology＝obs（现成 `.o` only）；archive `## 3. Gate`；G.7 父 `std_sqlite_run_smoke`；报告 `run=`／`obs=`／`skip=`；双端 L2；**db-compat 残 prefer-c／ensure FAIL 池空** |
 | STD-124 regex-atomic soft→硬绿 | ✅ | 二过：拒 soft prefer-c／soft SKIP→OK／soft `ensure_std_c_o`／soft auto-make／硬 C smoke 重建；prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；显式坏 XLANG／缺 native 硬 die；`atomic_match.x` 能链则硬绿、tip missing `_main`＝obs；check／C smoke compile／run／host-C archaeology＝obs（现成 `.o` only）；archive `## 3. Gate`；父 STD-051 MANIFEST_ONLY 硬委托；报告 `run=`／`obs=`／`skip=`；双端 L2；**regex-atomic 残 prefer-c／ensure FAIL 池空** |

@@ -3409,8 +3409,17 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
        * prior path always used bare field mid (prefix+cname) → U std_vec_reserve
        * while T std_vec_reserve_Vec_i32_ptr (formal export mid).
        * G.7: complete call-export authority with formal/score mid (same as import-binding).
+       * Resolve must use the caller arena (CALL stamp lives there). Dep arena
+       * at the same expr_ref is a different node (STD-091 io_err_cancelled →
+       * std_error_base_fs). Name+arity gate matches the .x twin.
        */
-      if (r_dep == dep_ix && r_func >= 0 && r_func < pipeline_module_num_funcs(dep_mod)
+      use_fi = pipeline_typeck_resolve_call_func_index_for_emit_c(dep_mod, arena, call_expr_ref);
+      if (use_fi >= 0 && (use_fi >= pipeline_module_num_funcs(dep_mod)
+                          || pipeline_module_func_is_extern_at(dep_mod, use_fi) != 0
+                          || !pipeline_module_func_name_equal_at(dep_mod, use_fi, cname, clen)
+                          || pipeline_module_func_num_params_at(dep_mod, use_fi) != want_np))
+        use_fi = -1;
+      if (use_fi < 0 && r_dep == dep_ix && r_func >= 0 && r_func < pipeline_module_num_funcs(dep_mod)
           && pipeline_module_func_is_extern_at(dep_mod, r_func) == 0
           && pipeline_module_func_name_equal_at(dep_mod, r_func, cname, clen)
           && pipeline_module_func_num_params_at(dep_mod, r_func) == want_np)
