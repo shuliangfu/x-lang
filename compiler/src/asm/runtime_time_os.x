@@ -9,7 +9,8 @@
 // seeds/runtime_time_os.from_x.c via xlang_time_cap.h (Linux Cap residual 9.1.5)
 // and linked via the product pipeline.
 //
-// PLATFORM: SHARED (POSIX + Windows branches handled by C bridge _impl functions)
+// PLATFORM: SHARED — POSIX Cap clock (xlang_time_cap) + Cap fmt (xlang_snprintf);
+//           Windows QPC / gmtime_s + Cap snprintf via _impl.
 //
 // Wave501 (2026-07-27): R2 migration of runtime_time_os.from_x.c business logic to .x.
 // Previously the .c seed provided all business logic; now the .x file is the
@@ -44,11 +45,12 @@ export extern "C" function time_sleep_ns_impl(ns: i64): void;
 
 /**
  * Bridge: format current UTC wall clock as RFC3339 (trailing Z).
- * POSIX: gmtime_r + snprintf
- * Windows: gmtime_s + snprintf
+ * POSIX: Cap gmtime_r + Cap snprintf (10.7.2).
+ * Windows: gmtime_s + Cap snprintf.
  * @param buf output buffer
  * @param cap buffer capacity in bytes
  * @return written length; -1 on failure
+ * PLATFORM: SHARED
  */
 export extern "C" function time_format_rfc3339_impl(buf: *u8, cap: i32): i32;
 
