@@ -4672,7 +4672,7 @@ function try_emit_simd_lang_resolve_feats_c(ta: i32, feats_in: u32): u32 {
  * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
  * f32x4: spill each Vec4f arg (16B dual-GP), x86 SSE or aarch64 NEON fadd/fmul/fsub,
  *   reload dual-GP (x86 rdx/rax · aarch64 x1/x0).
- * i32x8/f32x8: VAR stack homes, x86 AVX2 ymm or SSE halves, sret let slot (>16B).
+ * i32x8/f32x8: VAR stack homes + sret let slot; x86 AVX2/SSE or aarch64 NEON dual-half.
  *
  * @return i32 — 1 emitted; 0 not applicable or HW unavailable (fallthrough);
  *               -1 emit error
@@ -4825,8 +4825,8 @@ function try_emit_simd_lang_builtin_call_elf_c(
       if (i == 9) { which = 9; }
     }
     if (which == 0) { return 0; }
-    /* slice1–4: i32x8 / f32x8 — x86 only (VAR + sret); aarch64 falls through. */
-    if (ta == 0 && (which == 3 || which == 4 || which == 6 || which == 7 || which == 8 || which == 9)) {
+    /* slice1–6: i32x8 / f32x8 — VAR + sret; x86 SSE/AVX · aarch64 NEON dual-half. */
+    if ((ta == 0 || ta == 1) && (which == 3 || which == 4 || which == 6 || which == 7 || which == 8 || which == 9)) {
       if (is_method != 0) {
         ar0 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
         ar1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 1);
@@ -4856,6 +4856,10 @@ function try_emit_simd_lang_builtin_call_elf_c(
       feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
       if (ta == 0) {
         if ((feats & 1) == 0) {
+          return 0;
+        }
+      } else {
+        if ((feats & 256) == 0) {
           return 0;
         }
       }
