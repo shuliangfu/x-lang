@@ -98,6 +98,18 @@ export function mul_f32x8(a: f32x8, b: f32x8): f32x8 {
 }
 
 /**
+ * Hardware f32x8 vector subtract (8-wide AVX vsubps or dual SSE subps).
+ * @param a f32x8 — minuend
+ * @param b f32x8 — subtrahend
+ * @return f32x8 — lane-wise difference (>16B sret into let slot)
+ * PLATFORM: SHARED · asm LINUX|x86_64 (AVX2 ymm preferred); host-C / aarch64 panic
+ */
+export function sub_f32x8(a: f32x8, b: f32x8): f32x8 {
+  panic();
+  return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+}
+
+/**
  * Hardware i32x8 vector subtract (8-wide SSE2 psubd or AVX2 vpsubd).
  * Asm replaces the call with movups + psubd/vpsubd into the sret let slot.
  * @param a Vec8i — minuend (32B stack home)
