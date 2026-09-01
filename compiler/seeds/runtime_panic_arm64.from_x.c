@@ -22,19 +22,25 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_environ_cap.h>
 
 /* wave251: user-domain cold twin of product link_abi_getenv face (≡ pure thin + _impl).
  * PLATFORM: SHARED — user/STD_AND_PANIC only; never dual-def with g05 labi. */
 
 /**
  * Cap residual host getenv for user-linked runtime_panic.o (≡ product _impl).
+ * Cap residual 9.1.1: POSIX environ walk (no libc getenv); Windows CRT getenv.
  * @param name NUL-terminated environment key; may be null
  * @return value pointer from process env block, or NULL
  */
 const char *link_abi_getenv_impl(const char *name) {
   if (!name || !name[0])
     return NULL;
+#if defined(_WIN32) || defined(_WIN64)
   return getenv(name);
+#else
+  return xlang_environ_getenv(name);
+#endif
 }
 
 /**
