@@ -1578,6 +1578,27 @@ export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_fbinop_128_rbp(elf_ctx, la, lb, ld, 0, ta);
+    }
+    if (lanes == 8) {
+      let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la0, lb0, ld0, 0, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la1, lb1, ld1, 0, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    return 0 - 1;
+  }
   if (ta != 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -1631,6 +1652,27 @@ export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_fbinop_128_rbp(elf_ctx, la, lb, ld, 1, ta);
+    }
+    if (lanes == 8) {
+      let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la0, lb0, ld0, 1, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la1, lb1, ld1, 1, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    return 0 - 1;
+  }
   if (ta != 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -1686,6 +1728,24 @@ export function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
   if (lanes != 4 && lanes != 8) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_fbinop_128_rbp(elf_ctx, la, lb, ld, 2, ta);
+    }
+    let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+    let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+    let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+    let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+    let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+    let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+    if (simd_arm64_fbinop_128_rbp(elf_ctx, la0, lb0, ld0, 2, ta) != 0) { return 0 - 1; }
+    if (simd_arm64_fbinop_128_rbp(elf_ctx, la1, lb1, ld1, 2, ta) != 0) { return 0 - 1; }
+    return 0;
+  }
   if (ta != 0) { return 0 - 1; }
   if ((cpu_features & 1) == 0) { return 0 - 1; }
   if (lanes == 8) {
@@ -1962,6 +2022,43 @@ export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i3
   unsafe { re8 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
   if (re8 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1275099139) != 0) { return 0 - 1; } // st1 v3
+  return 0;
+}
+
+/** Exported function `simd_arm64_fbinop_128_rbp`.
+ * NEON 128-bit lane-wise f32 binop: ld1 v0/v1, fadd|fmul|fsub, st1 v0.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for operand a 16B home (lane0 low-end)
+ * @param lea_b i32 — lea_rbp offset for operand b
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param binop i32 — 0=fadd 1=fmul 2=fsub
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 append/lea error
+ * PLATFORM: MACOS|ARM64 · LINUX aarch64 ELF emit.
+ */
+#[no_mangle]
+export function simd_arm64_fbinop_128_rbp(elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_dst: i32, binop: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re_a: i32 = 0;
+  unsafe { re_a = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re_a != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 {v0.4s}, [x0]
+  let re_b: i32 = 0;
+  unsafe { re_b = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re_b != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293441) != 0) { return 0 - 1; } // ld1 {v1.4s}, [x0]
+  if (binop == 0) {
+    if (simd_append_u32_le(elf_ctx, 1310839808) != 0) { return 0 - 1; } // fadd v0.4s, v0.4s, v1.4s
+  } else if (binop == 1) {
+    if (simd_append_u32_le(elf_ctx, 1847712768) != 0) { return 0 - 1; } // fmul v0.4s, v0.4s, v1.4s
+  } else {
+    if (simd_append_u32_le(elf_ctx, 1319228416) != 0) { return 0 - 1; } // fsub v0.4s, v0.4s, v1.4s
+  }
+  let re_d: i32 = 0;
+  unsafe { re_d = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re_d != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1275099136) != 0) { return 0 - 1; } // st1 {v0.4s}, [x0]
   return 0;
 }
 
