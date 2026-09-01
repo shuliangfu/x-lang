@@ -171,6 +171,8 @@ static inline const char *xlang_path_realpath(const char *path, char *out) {
 
 #else /* !LINUX primary ISA — Darwin / other POSIX residual */
 
+#include <stdlib.h> /* realpath(3); PLATFORM: POSIX (Darwin residual). Linux Cap path above does not call libc realpath. */
+
 static inline int xlang_path_access(const char *path, int mode) {
   if (!path || !path[0])
     return -1;
@@ -190,6 +192,7 @@ static inline int xlang_path_fstat(int fd, struct stat *st) {
 }
 
 static inline const char *xlang_path_realpath(const char *path, char *out) {
+  /* PLATFORM: POSIX — libc realpath; Darwin needs stdlib.h (ISO C99 no implicit decl). */
   if (!path || !path[0] || !out)
     return NULL;
   return realpath(path, out);

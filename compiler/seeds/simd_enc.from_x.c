@@ -219,6 +219,23 @@ int32_t simd_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
+/** x86：subps xmm0, xmm1（0F 5C C1）。 Twin of simd_x86_subps_xmm0_xmm1 in simd_enc.x.
+ * PLATFORM: LINUX+MACOS x86_64 SSE. */
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t simd_x86_subps_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+    static const uint8_t insn[3] = {0x0f, 0x5c, 0xc1};
+    return simd_append_impl(elf_ctx, insn, 3);
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_subps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_subps_xmm0_xmm1_impl(elf_ctx);
+}
+#endif
+
+
+
+
 /** x86：paddd xmm0, xmm1（66 0F FE C1）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-384/385：实现体始终 seed；public PREFER 时 thin forward */
@@ -713,6 +730,45 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
   return simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
+}
+#endif
+
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc
+ * Cold twin of simd_enc_try_hw_vector_fsub_rbp. Matches existing seed fadd:
+ * x86 SSE lanes==4 only (ARM/AVX live in simd_enc.x; L2 prefer uses .x).
+ * PLATFORM: SHARED symbol / LINUX+MACOS x86_64 SSE body. */
+int32_t simd_enc_try_hw_vector_fsub_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+    int32_t da;
+    int32_t db;
+    int32_t dd;
+
+    if (!elf_ctx || slot_off_a < 0 || slot_off_b < 0 || slot_off_dst < 0 || esz != 4 || lanes != 4)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
+        return -1;
+    da = simd_rbp_disp32(slot_off_a, lanes, esz);
+    db = simd_rbp_disp32(slot_off_b, lanes, esz);
+    dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
+    if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
+        return -1;
+    if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
+        return -1;
+    if (simd_x86_subps_xmm0_xmm1_impl(elf_ctx) != 0)
+        return -1;
+    if (simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, dd) != 0)
+        return -1;
+    return 0;
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_fsub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_fsub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
 }
 #endif
 
@@ -1897,6 +1953,64 @@ int32_t simd_enc_x86_horizontal_addps_xmm0_impl(struct platform_elf_ElfCodegenCt
 #ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_horizontal_addps_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
+}
+#endif
+
+/* Cold twin of simd_enc_try_hw_vector_hsum_f32x4_rbp (simd_enc.x).
+ * x86 SSE movups + horizontal addps; ARM/SVE live in .x (L2 prefer).
+ * PLATFORM: SHARED symbol / LINUX+MACOS x86_64 SSE body. */
+int32_t simd_enc_try_hw_vector_hsum_f32x4_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off,
+                                                  int32_t ta, uint32_t cpu_features) {
+    int32_t d;
+
+    if (!elf_ctx || slot_off < 0)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
+        return -1;
+    d = simd_rbp_disp32(slot_off, 4, 4);
+    if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, d) != 0)
+        return -1;
+    return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_hsum_f32x4_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off, int32_t ta,
+                                             uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_hsum_f32x4_rbp_impl(elf_ctx, slot_off, ta, cpu_features);
+}
+#endif
+
+/* Cold twin of simd_enc_try_hw_vector_dot_f32x4_rbp (simd_enc.x).
+ * x86 SSE mulps + horizontal addps; ARM/SVE live in .x (L2 prefer).
+ * PLATFORM: SHARED symbol / LINUX+MACOS x86_64 SSE body. */
+int32_t simd_enc_try_hw_vector_dot_f32x4_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                                 int32_t slot_off_b, int32_t ta, uint32_t cpu_features) {
+    int32_t da;
+    int32_t db;
+
+    if (!elf_ctx || slot_off_a < 0 || slot_off_b < 0)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
+        return -1;
+    da = simd_rbp_disp32(slot_off_a, 4, 4);
+    db = simd_rbp_disp32(slot_off_b, 4, 4);
+    if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
+        return -1;
+    if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
+        return -1;
+    if (simd_x86_mulps_xmm0_xmm1_impl(elf_ctx) != 0)
+        return -1;
+    return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_dot_f32x4_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                            int32_t slot_off_b, int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_dot_f32x4_rbp_impl(elf_ctx, slot_off_a, slot_off_b, ta, cpu_features);
 }
 #endif
 

@@ -63,7 +63,6 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *asm_ctx);
 uint8_t *glue_asm_ctx_module_ref_c_impl(uint8_t *asm_ctx);
-#define glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl
 int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out);
 int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len);
@@ -147,12 +146,9 @@ struct glue_AsmFuncCtx {
   void *dep_pipe;
 };
 
-/* G-02f-368：供 thin local_slot 读 module_ref（始终在 seed，不 omit） */
-uint8_t *glue_asm_ctx_module_ref_c(uint8_t *asm_ctx) {
-  if (!asm_ctx)
-    return 0;
-  return (uint8_t *)((struct glue_AsmFuncCtx *)asm_ctx)->module_ref;
-}
+/* G-02f-368：module_ref accessor body is always emitted after the FROM_X
+ * endif (full.x is `export extern "C"` only). Do not define it here: a
+ * `#define` onto `_impl` plus FROM_X H=0 skip caused L4 phase1 UNDEF. */
 
 
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -2871,3 +2867,34 @@ int backend_try_inline_dispatch_slice_marker(void) {
   return 0;
 }
 #endif /* XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X */
+
+/* PLATFORM: SHARED — always emit module_ref accessor.
+ * full.x only `export extern "C"` (U). FROM_X rest used to skip the body
+ * (H=0) → L4 phase1 UNDEF glue_asm_ctx_module_ref_c.
+ * THIN: public wrapper lives in backend_try_inline_dispatch_thin.x; seed
+ * provides `_impl` only. Cold (no -D): seed provides both.
+ * G.7: single body; do not `#define` the public name onto `_impl`. */
+#ifdef XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X
+#include <stdint.h>
+struct ast_Module;
+/* Prefix-compatible view of glue_AsmFuncCtx (module_ref is field 5 / off 16 LP64). */
+struct glue_AsmFuncCtx {
+  int32_t frame_size;
+  int32_t next_offset;
+  int32_t num_locals;
+  int32_t label_counter;
+  struct ast_Module *module_ref;
+};
+#endif
+
+uint8_t *glue_asm_ctx_module_ref_c_impl(uint8_t *asm_ctx) {
+  if (!asm_ctx)
+    return 0;
+  return (uint8_t *)((struct glue_AsmFuncCtx *)asm_ctx)->module_ref;
+}
+
+#ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
+uint8_t *glue_asm_ctx_module_ref_c(uint8_t *asm_ctx) {
+  return glue_asm_ctx_module_ref_c_impl(asm_ctx);
+}
+#endif
