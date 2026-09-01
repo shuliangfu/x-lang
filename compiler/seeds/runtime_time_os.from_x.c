@@ -12,7 +12,10 @@
  *     This seed provides both _impl bridges AND public API wrappers.
  *     The .x file exists as source anchor only.
  *
- * PLATFORM: SHARED (POSIX clock_gettime + Windows QPC branches)
+ * PLATFORM: SHARED (POSIX Cap clock via xlang_time_cap.h + Windows QPC)
+ *
+ * Cap residual 9.1.5: Linux clock_gettime/nanosleep/gmtime_r via
+ * compiler/include/xlang_time_cap.h (no libc those symbols).
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -23,18 +26,15 @@
 #include <time.h> /* struct tm/time/gmtime_s；MinGW windows.h 不提供 */
 #define UNIX_EPOCH_100NS 116444736000000000ULL
 #else
+#include <xlang_time_cap.h>
 #include <time.h>
-#ifndef _WIN32
-#include <sys/time.h>
-#endif
-#include <unistd.h>
 #endif
 
 /* === OS bridge _impl functions (always compiled) === */
 
 /**
  * Bridge: monotonic clock in nanoseconds.
- * POSIX: clock_gettime(CLOCK_MONOTONIC) → ns
+ * POSIX: Cap clock_gettime(CLOCK_MONOTONIC) → ns
  * Windows: QueryPerformanceCounter → ns
  * @return nanoseconds; 0 on failure
  */
@@ -50,14 +50,15 @@ int64_t time_monotonic_ns_impl(void) {
     return (int64_t)((counter.QuadPart * 1000000000) / freq.QuadPart);
 #else
     struct timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
+    /* PLATFORM: LINUX Cap / POSIX fallback via xlang_time_clock_gettime */
+    if (xlang_time_clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
     return (int64_t)ts.tv_sec * 1000000000 + (int64_t)ts.tv_nsec;
 #endif
 }
 
 /**
  * Bridge: wall clock in nanoseconds (UTC).
- * POSIX: clock_gettime(CLOCK_REALTIME) → ns
+ * POSIX: Cap clock_gettime(CLOCK_REALTIME) → ns
  * Windows: GetSystemTimePreciseAsFileTime → ns
  * @return nanoseconds since epoch; 0 on failure
  */
@@ -71,14 +72,15 @@ int64_t time_wall_ns_impl(void) {
     return (int64_t)((u.QuadPart - UNIX_EPOCH_100NS) * 100);
 #else
     struct timespec ts;
-    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) return 0;
+    /* PLATFORM: LINUX Cap / POSIX fallback via xlang_time_clock_gettime */
+    if (xlang_time_clock_gettime(CLOCK_REALTIME, &ts) != 0) return 0;
     return (int64_t)ts.tv_sec * 1000000000 + (int64_t)ts.tv_nsec;
 #endif
 }
 
 /**
  * Bridge: sleep for nanoseconds.
- * POSIX: nanosleep loop (handles spurious wakeups)
+ * POSIX: Cap nanosleep loop (handles spurious wakeups)
  * Windows: Sleep (with minimum 1ms clamp)
  * @param ns duration in nanoseconds; <=0 is no-op
  */
@@ -88,18 +90,14 @@ void time_sleep_ns_impl(int64_t ns) {
     if (ns < 1000000) ns = 1000000;
     Sleep((DWORD)(ns / 1000000));
 #else
-    struct timespec req, rem;
-    req.tv_sec = (time_t)(ns / 1000000000);
-    req.tv_nsec = (long)(ns % 1000000000);
-    while (nanosleep(&req, &rem) != 0) {
-        req = rem;
-    }
+    /* PLATFORM: LINUX Cap / POSIX fallback */
+    xlang_time_sleep_ns((long long)ns);
 #endif
 }
 
 /**
  * Bridge: format current UTC wall clock as RFC3339 (trailing Z).
- * POSIX: gmtime_r + snprintf
+ * POSIX: Cap clock_gettime + Cap gmtime_r + snprintf
  * Windows: gmtime_s + snprintf
  * @param buf output buffer
  * @param cap buffer capacity in bytes
@@ -114,8 +112,13 @@ int32_t time_format_rfc3339_impl(uint8_t *buf, int32_t cap) {
     now = time(NULL);
     if (gmtime_s(&tm, &now) != 0) return -1;
 #else
-    now = time(NULL);
-    if (gmtime_r(&now, &tm) == NULL) return -1;
+    {
+        struct timespec ts;
+        /* Avoid libc time(3); wall sec from Cap clock_gettime. PLATFORM: LINUX Cap */
+        if (xlang_time_clock_gettime(CLOCK_REALTIME, &ts) != 0) return -1;
+        now = (time_t)ts.tv_sec;
+    }
+    if (xlang_time_gmtime_r(&now, &tm) == NULL) return -1;
 #endif
     n = snprintf((char *)buf, (size_t)cap, "%04d-%02d-%02dT%02d:%02d:%02dZ",
                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
@@ -126,7 +129,8 @@ int32_t time_format_rfc3339_impl(uint8_t *buf, int32_t cap) {
 
 /**
  * Bridge: local timezone offset from UTC in minutes (east positive).
- * POSIX: localtime_r/gmtime_r + mktime diff
+ * POSIX: localtime_r + Cap gmtime_r + mktime diff
+ *   (localtime_r/mktime remain Cap residual — tzdb)
  * Windows: GetTimeZoneInformation.Bias negated
  * @return offset minutes; 0 on failure
  */
@@ -137,13 +141,17 @@ int32_t time_local_offset_min_impl(void) {
     (void)r;
     return -(int32_t)tzi.Bias;
 #else
-    time_t now = time(NULL);
+    time_t now;
     struct tm local_tm;
     struct tm gmt_tm;
     time_t local_sec;
     time_t gmt_sec;
+    struct timespec ts;
+    /* PLATFORM: LINUX Cap wall sec; localtime_r/mktime still libc (tz residual) */
+    if (xlang_time_clock_gettime(CLOCK_REALTIME, &ts) != 0) return 0;
+    now = (time_t)ts.tv_sec;
     if (localtime_r(&now, &local_tm) == NULL) return 0;
-    if (gmtime_r(&now, &gmt_tm) == NULL) return 0;
+    if (xlang_time_gmtime_r(&now, &gmt_tm) == NULL) return 0;
     local_tm.tm_isdst = 0;
     gmt_tm.tm_isdst = 0;
     local_sec = mktime(&local_tm);
