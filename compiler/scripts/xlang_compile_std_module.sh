@@ -1490,6 +1490,15 @@ for fm in _func_def_re.finditer(s):
 # Rename only wrapped definitions of the *same arity* + wrapper callees.
 # Different-arity FFI prototypes (msync 3-arg vs X msync 2-arg) stay libc.
 # G.7: complete wrapper authority (do not stack a second #define).
+#
+# PLATFORM: MACOS — POSIX listen(2) is 2-arg; X std.http export listen is
+# 3-arg (addr, port, backlog). Darwin xlang_net_cap.h includes <sys/socket.h>
+# so `static listen(...)` → "static declaration follows non-static".
+# Linux Cap does not include socket.h (Ubuntu http already green via objcopy).
+# Do NOT add listen to the SHARED arity-aware / file-wide #define lists:
+# Ubuntu leftover calls are 3-arg only (listen_on); a SHARED def-rename
+# without mixed leftover would steal those calls or leave them undeclared.
+# G.7: same mmap-family mixed-arity rule (defs + X-arity calls; POSIX FFI stays).
 _libc_clash = {
     'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
     'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
@@ -1497,10 +1506,23 @@ _libc_clash = {
     'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
     'read', 'write', 'sync',
     'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
+    'listen',
     'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
     'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
     'erf', 'erfc', 'min', 'max',
+}
+# POSIX/libc arity when it differs from an X export of the same name.
+# After def-rename, rewrite in-TU calls of the X arity so listen_on hits
+# the bare body. POSIX listen(2) lives in the included header (not gen_c
+# text) — leftover-arity detection in this TU cannot see it.
+# Names omitted here have X arity == libc (write 3 vs write 3): leftover
+# calls stay libc (existing file-wide #define skip). G.7 complete table.
+_libc_clash_posix_arity = {
+    'mmap': 6,
+    'munmap': 2,
+    'msync': 3,
+    'listen': 2,
 }
 def _arg_count(args_str):
     a = (args_str or '').strip()
@@ -1521,6 +1543,16 @@ if to_wrap:
                 return m.group(0)
             return 'static ' + m.group(2) + body + m.group(3) + m.group(4) + m.group(5)
         s2 = pat.sub(_repl, s2)
+        posix_n = _libc_clash_posix_arity.get(fname)
+        if fname in _libc_clash and posix_n is not None and posix_n != want_n:
+            call_pat = re.compile(
+                rf'(?<![A-Za-z0-9_]){re.escape(fname)}\s*\(([^)]*)\)'
+            )
+            def _repl_call(m, body=body, want_n=want_n):
+                if _arg_count(m.group(1)) != want_n:
+                    return m.group(0)
+                return body + '(' + m.group(1) + ')'
+            s2 = call_pat.sub(_repl_call, s2)
     with open(gen_c_path, 'w') as f:
         f.write(s2)
     print('/* Namespaced wrappers — macOS twin of Linux objcopy; bare body static. */')
