@@ -106,6 +106,66 @@ __attribute__((weak)) int32_t backtrace_capture_c(uint8_t *buf, int32_t max_fram
     memcpy(buf + (size_t)i * sizeof(void *), &arr[i], sizeof(void *));
   return (int32_t)n;
 }
+
+#define XLANG_BT_STUB_SYM_NAME_LEN 128
+
+/** Write "0x" + hex digits for addr into out (Cap probe stub hex fallback). */
+static void xlang_bt_stub_hex_addr(uint8_t *out, int32_t cap, void *addr) {
+  static const char hx[] = "0123456789abcdef";
+  uintptr_t v = (uintptr_t)addr;
+  int32_t pos = 2;
+  int32_t i;
+  int32_t ncopy;
+  if (!out || cap <= 0)
+    return;
+  out[0] = '0';
+  out[1] = 'x';
+  for (i = (int32_t)sizeof(void *) - 1; i >= 0; i--) {
+    uint8_t b = (uint8_t)((v >> (i * 8)) & 0xffu);
+    out[pos++] = (uint8_t)hx[(b >> 4) & 0x0fu];
+    out[pos++] = (uint8_t)hx[b & 0x0fu];
+  }
+  ncopy = pos;
+  if (ncopy >= cap)
+    ncopy = cap - 1;
+  out[ncopy] = '\0';
+}
+
+/**
+ * Weak probe stub: Cap dladdr symbolicate (strong twin in platform.o).
+ * PLATFORM: LINUX
+ */
+__attribute__((weak)) int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len,
+                                                      uint8_t *out_ptrs, uint8_t *out_names,
+                                                      int32_t max) {
+  int32_t ok = 0;
+  int32_t n;
+  int32_t i;
+  if (!buf || len <= 0 || !out_names || max <= 0)
+    return 0;
+  n = len < max ? len : max;
+  for (i = 0; i < n; i++) {
+    void *addr;
+    uint8_t *name_slot = out_names + (size_t)i * XLANG_BT_STUB_SYM_NAME_LEN;
+    XlangBtDlInfo info;
+    memcpy(&addr, buf + (size_t)i * sizeof(void *), sizeof(void *));
+    if (out_ptrs)
+      memcpy(out_ptrs + (size_t)i * sizeof(void *), &addr, sizeof(void *));
+    memset(&info, 0, sizeof(info));
+    if (xlang_bt_dladdr(addr, &info) && info.dli_sname && info.dli_sname[0]) {
+      size_t k = 0;
+      while (info.dli_sname[k] && k + 1 < (size_t)XLANG_BT_STUB_SYM_NAME_LEN) {
+        name_slot[k] = (uint8_t)info.dli_sname[k];
+        k++;
+      }
+      name_slot[k] = '\0';
+      ok++;
+    } else {
+      xlang_bt_stub_hex_addr(name_slot, XLANG_BT_STUB_SYM_NAME_LEN, addr);
+    }
+  }
+  return ok;
+}
 #endif /* LINUX backtrace Cap */
 #endif
 

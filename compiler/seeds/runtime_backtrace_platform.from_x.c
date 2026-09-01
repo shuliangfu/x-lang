@@ -184,7 +184,7 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 #define HAVE_EXECINFO 1
 #endif
 
-#if defined(__linux__) || defined(__APPLE__)
+#if !defined(HAVE_XLANG_BT_CAP) && (defined(__linux__) || defined(__APPLE__))
 #include <dlfcn.h>
 #define HAVE_DLADDR 1
 #endif
@@ -255,7 +255,18 @@ int32_t backtrace_symbolicate_impl(const uint8_t *buf, int32_t len, uint8_t *out
     void *addr = backtrace_read_frame_addr_c(buf, i);
     uint8_t *name_slot = out_names + (size_t)i * BACKTRACE_SYM_NAME_LEN;
     if (out_ptrs) backtrace_write_frame_addr_c(out_ptrs, i, addr);
-#if defined(HAVE_DLADDR)
+#if defined(HAVE_XLANG_BT_CAP)
+    {
+      XlangBtDlInfo info;
+      memset(&info, 0, sizeof(info));
+      if (xlang_bt_dladdr(addr, &info) && info.dli_sname && info.dli_sname[0]) {
+        backtrace_copy_sym_name_impl(name_slot, BACKTRACE_SYM_NAME_LEN, (const uint8_t *)info.dli_sname);
+        ok++;
+      } else {
+        backtrace_format_hex_addr_impl(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
+      }
+    }
+#elif defined(HAVE_DLADDR)
     {
       Dl_info info;
       memset(&info, 0, sizeof(info));

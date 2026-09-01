@@ -188,6 +188,9 @@ export function xlang_freestanding_user_o_needs_io(user_o: *u8): i32 {
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "backtrace_capture_c") != 0) {
       return 1;
     }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "backtrace_symbolicate_c") != 0) {
+      return 1;
+    }
     return 0;
   }
   return 0;

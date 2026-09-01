@@ -85,7 +85,7 @@ export function labi_fs_env_freestanding(): *u8 {
  */
 #[no_mangle]
 export function labi_fs_io_sym_count(): i32 {
-  return 14;
+  return 15;
 }
 
 /** Exported function `labi_fs_io_sym_at`.
@@ -152,6 +152,10 @@ export function labi_fs_io_sym_at(i: i32): *u8 {
   }
   if (i == 13) {
     let p: *u8 = "backtrace_capture_c";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "backtrace_symbolicate_c";
     return p;
   }
   return 0 as *u8;
