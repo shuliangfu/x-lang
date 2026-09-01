@@ -96,7 +96,7 @@ const char *const driver_preamble_io_net_lines[] = {
         "#endif\n",
         /* Cap residual 9.1.8: read/write/writev via xlang_io_cap.h on Linux
          * (no libc write). Windows keeps host write/_write. Generated user C
-         * needs -I…/compiler/include (product host-cc already sets it). */
+         * needs -I…/compiler/include (Cap 10.7.1 slice11: invoke_cc second -I). */
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "#include <xlang_io_cap.h>\n"
         "static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
