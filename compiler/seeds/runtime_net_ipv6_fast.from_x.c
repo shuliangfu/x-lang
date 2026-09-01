@@ -13,14 +13,11 @@ static int net_ipv6_wsa_done = 0;
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
-#include <poll.h>
+#include <poll.h> /* struct pollfd + POLL* constants; Cap calls xlang_net_poll */
 #include <sys/socket.h>
-/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
- *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
- *            macOS/Linux delegate to system <unistd.h> via #include_next.
- *            Historical #ifndef _WIN32 guard removed — shim is a no-op
- *            on POSIX and provides needed declarations on Windows. */
-#include <unistd.h>
+#include <xlang_net_cap.h>
+/* Cap residual 9.1.7: socket/connect/poll/close via xlang_net_cap.h on Linux.
+ * fcntl residual for O_NONBLOCK. PLATFORM: LINUX Cap / POSIX fallback. */
 #endif
 
 /* 【Why 根源】asm codegen 对 u16 间接 store 会错发 64 位 store；IPv6 sockaddr_in6 填充须走 C。
@@ -70,7 +67,7 @@ int32_t net_ipv6_close_socket_c_impl_c(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     return closesocket(fd) == 0 ? 0 : -1;
 #else
-    return close(fd) == 0 ? 0 : -1;
+    return xlang_net_close((int)fd) == 0 ? 0 : -1;
 #endif
 }
 
@@ -116,10 +113,20 @@ int32_t net_ipv6_poll_writable_c_impl_c(int32_t fd, uint32_t timeout_ms) {
 #else
     struct pollfd pfd;
     int n;
+    /* POLLOUT=4 POLLERR=8 POLLHUP=16 — avoid libc poll(); Cap xlang_net_poll. */
+#ifndef POLLOUT
+#define POLLOUT 4
+#endif
+#ifndef POLLERR
+#define POLLERR 8
+#endif
+#ifndef POLLHUP
+#define POLLHUP 16
+#endif
     pfd.fd = fd;
     pfd.events = POLLOUT;
     pfd.revents = 0;
-    n = poll(&pfd, 1, (int)timeout_ms);
+    n = xlang_net_poll(&pfd, 1, (int)timeout_ms);
     if (n <= 0 || (pfd.revents & (POLLERR | POLLHUP)) != 0)
         return -1;
     return 0;
@@ -164,14 +171,22 @@ int32_t net_tcp_connect_ipv6_c(uint8_t *addr_16, uint32_t port_u32, uint32_t tim
     if (!addr_16)
         return -1;
     net_ipv6_set_addr_port_buf_c(&sin_mem[0], addr_16, port_u32);
+#if defined(_WIN32) || defined(_WIN64)
     fd = (int32_t)socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#else
+    fd = (int32_t)xlang_net_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#endif
     if (fd < 0)
         return -1;
     if (net_ipv6_set_nonblock_c(fd) != 0) {
         net_ipv6_close_socket_c(fd);
         return -1;
     }
+#if defined(_WIN32) || defined(_WIN64)
     if (connect(fd, (struct sockaddr *)(void *)&sin_mem[0], (socklen_t)28) != 0) {
+#else
+    if (xlang_net_connect((int)fd, (const void *)&sin_mem[0], 28) != 0) {
+#endif
         if (net_ipv6_connect_retry_ok_c() == 0) {
             net_ipv6_close_socket_c(fd);
             return -1;
@@ -198,9 +213,14 @@ int32_t net_tcp_listen_ipv6_c(uint8_t *addr_16, uint32_t port_u32) {
     if (!addr_16)
         return -1;
     net_ipv6_set_addr_port_buf_c(&sin_mem[0], addr_16, port_u32);
+#if defined(_WIN32) || defined(_WIN64)
     fd = (int32_t)socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#else
+    fd = (int32_t)xlang_net_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#endif
     if (fd < 0)
         return -1;
+#if defined(_WIN32) || defined(_WIN64)
     (void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void *)&one, (socklen_t)sizeof(one));
     if (bind(fd, (struct sockaddr *)(void *)&sin_mem[0], (socklen_t)28) != 0) {
         net_ipv6_close_socket_c(fd);
@@ -210,6 +230,17 @@ int32_t net_tcp_listen_ipv6_c(uint8_t *addr_16, uint32_t port_u32) {
         net_ipv6_close_socket_c(fd);
         return -1;
     }
+#else
+    (void)xlang_net_setsockopt((int)fd, SOL_SOCKET, SO_REUSEADDR, &one, (unsigned int)sizeof(one));
+    if (xlang_net_bind((int)fd, (const void *)&sin_mem[0], 28) != 0) {
+        net_ipv6_close_socket_c(fd);
+        return -1;
+    }
+    if (xlang_net_listen((int)fd, 128) != 0) {
+        net_ipv6_close_socket_c(fd);
+        return -1;
+    }
+#endif
     if (net_ipv6_set_nonblock_c(fd) != 0) {
         net_ipv6_close_socket_c(fd);
         return -1;
