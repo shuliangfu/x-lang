@@ -47,11 +47,13 @@ export extern function va_arg_ptr(ap: VaList): *u8;
 
 /**
  * Cap 10.7.1 slice14: typed va_arg<T>(ap) — turbofish type arg, not C va_arg(ap,T).
- * Typeck via generic extern face; codegen/asm rewrite to Cap (not a real call).
+ * Generic body is a typeck face (panic); codegen/asm rewrite the call to Cap.
  * @param ap Cap VaList local.
  * @return Next variadic value of T (i32 / i64 / *u8 this slice).
  */
-export extern function va_arg<T>(ap: VaList): T;
+export function va_arg<T>(ap: VaList): T {
+  panic("va_arg");
+}
 
 /**
  * Variadic probe: i32 then i64 then *i32 via typed va_arg<T>; expect exit 42.
