@@ -27011,6 +27011,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let arm_rc: i32 = 0;
+  let saved_sret_home: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
   }
@@ -27339,8 +27340,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
           return 0 - 1;
         }
       }
+      /* 10.5.1 slice1: lang SIMD i32x8 try_emit reads let sret dest via sret_home_off. */
+      saved_sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+      if (dest_in_rbx == 0) {
+        pipeline_asm_emit_ctx_sret_home_off_set(stack_slot_off);
+      }
       unsafe {
         emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      }
+      if (dest_in_rbx == 0) {
+        pipeline_asm_emit_ctx_sret_home_off_set(saved_sret_home);
       }
       pipeline_asm_emit_set_call_sret_reg_shift_c(0);
       unsafe {
