@@ -28,39 +28,12 @@
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
-/** Linux raw syscall up to 4 args. Returns -errno on failure. PLATFORM: LINUX. */
-static inline long xlang_linux_syscall4(long nr, long a1, long a2, long a3, long a4) {
-  long r;
-#if defined(__x86_64__)
-  register long r10 __asm__("r10") = a4;
-  __asm__ __volatile__("syscall"
-                       : "=a"(r)
-                       : "a"(nr), "D"(a1), "S"(a2), "d"(a3), "r"(r10)
-                       : "rcx", "r11", "memory");
-#elif defined(__aarch64__)
-  register long x8 __asm__("x8") = nr;
-  register long x0 __asm__("x0") = a1;
-  register long x1 __asm__("x1") = a2;
-  register long x2 __asm__("x2") = a3;
-  register long x3 __asm__("x3") = a4;
-  __asm__ __volatile__("svc #0"
-                       : "+r"(x0)
-                       : "r"(x8), "r"(x1), "r"(x2), "r"(x3)
-                       : "memory");
-  r = x0;
-#endif
-  return r;
-}
+#include <xlang_syscall_cap.h>
 
-/** Linux raw syscall 3 args. PLATFORM: LINUX. */
-static inline long xlang_linux_syscall3(long nr, long a1, long a2, long a3) {
-  return xlang_linux_syscall4(nr, a1, a2, a3, 0);
-}
-
-/** Linux raw syscall 2 args. PLATFORM: LINUX. */
-static inline long xlang_linux_syscall2(long nr, long a1, long a2) {
-  return xlang_linux_syscall4(nr, a1, a2, 0, 0);
-}
+/** Cap residual 9.1.9: aliases → single syscall authority. */
+#define xlang_linux_syscall4 xlang_syscall4
+#define xlang_linux_syscall3 xlang_syscall3
+#define xlang_linux_syscall2 xlang_syscall2
 
 /**
  * Cap residual access(2): faccessat(AT_FDCWD, path, mode, 0).
