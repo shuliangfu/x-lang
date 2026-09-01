@@ -53,5 +53,12 @@ if ! grep -F 'xlang_va_end(' "$OUT_C" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Call site must emit the trailing variadic literal (slice8 arity Cap).
+if ! grep -E 'lang_va_cap_probe\([^)]*42' "$OUT_C" >/dev/null 2>&1; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_variadic_call" >&2
+  grep -n 'lang_va_cap_probe' "$OUT_C" | head -20 >&2 || true
+  exit 1
+fi
+
 host="$(uname -s 2>/dev/null || echo unknown)/$(uname -m 2>/dev/null || echo unknown)"
 echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=ok run=1 obs=0 skip=0 host=$host"
