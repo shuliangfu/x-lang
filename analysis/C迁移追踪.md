@@ -239,7 +239,7 @@
 
 - ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar`*／`stlr`*／`casal*`）。残：Darwin
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
-- 🟡 **10.5.1** x86 AVX／SSE 内建 — **slice0 ✅** f32x4 · **slice1 ✅** i32x8 · **slice2 ✅（Ubuntu）**＠`35fc832d8`：`sub_f32x4`／`sub_i32x8` subps/psubd；gate **run=2**。残：f32x8 AVX ymm／aarch64 NEON · host-C
+- 🟡 **10.5.1** x86 AVX／SSE 内建 — **slice0–2 ✅** · **slice3 ✅（Ubuntu）**＠`b96e77dd6`：`add_f32x8`／`mul_f32x8` AVX vaddps/vmulps；gate **run=2**。残：sub_f32x8／aarch64 NEON · host-C
 - ⬜ **10.5.2** ARM SVE／NEON 内建  
 - ⬜ **10.6.1** Linux futex／clone／mmap 栈  
 - ⬜ **10.6.2** Windows CreateThread／WaitForSingleObject  
