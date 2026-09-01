@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
-#include <stdarg.h>
+#include <xlang_va_cap.h> /* Cap residual 10.7.1: reportf face without <stdarg.h> */
 
 typedef struct DiagContextSnapshot {
     const char *file_path;
@@ -20,8 +20,8 @@ const char *diag_get_source(void);
 size_t diag_get_source_len(void);
 void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail);
 void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail);
-void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, va_list ap);
-void diag_vreportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, va_list ap);
+void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, xlang_va_list ap);
+void diag_vreportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, xlang_va_list ap);
 void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, ...);
 void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, ...);
 int diag_code_is_known(const char *code);
