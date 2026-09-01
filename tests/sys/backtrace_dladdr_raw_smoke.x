@@ -3,7 +3,7 @@
  *
  * Contract: capture ≥1 frame, symbolicate writes a non-empty name slot
  * (named symbol or hex fallback). Return 0 on success.
- * PLATFORM: LINUX|x86_64 gold.
+ * PLATFORM: LINUX|DARWIN|x86_64|aarch64 gold.
  */
 
 extern "C" function backtrace_capture_c(buf: *u8, max_frames: i32): i32;
