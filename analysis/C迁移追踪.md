@@ -193,8 +193,8 @@
 
 - ⬜ **9.5.1** driver_preamble_fputs  
 - ✅ **9.5.2** xlang_target_cpu_print（FILE／fprintf）— **Linux+Darwin ✅（WIP）**：Cap `xlang_io_write`（Linux/Darwin syscall）＋手工 hex；`--print-target-cpu`＠**`390af683a`** · target_cpu.o **无 U fprintf** 双端。残：Win    
-- 🟡 **9.5.3** reportf／va_list — **slice0 ✅（diag Cap fmt）**＠`51423a9af`：`diag_vreportf_with_code` → `xlang_vsnprintf`；diag.o **无 U vsnprintf**。残：其它 reportf 消费叶 · 语言 va  
-- 🟡 **9.5.4** vsnprintf + write — 部分吸收于 **10.7.2** Cap（nostdlib＋diag）；残：write 路径／更多 seed  
+- 🟡 **9.5.3** reportf／va_list — **slice0–1 ✅**＠`26357d82a`：diag＋**lsp typeck reportf** → Cap；残：其它 reportf 叶 · 语言 va  
+- 🟡 **9.5.4** vsnprintf + write — 部分吸收于 **10.7.2** Cap（nostdlib＋diag＋lsp reportf）；残：write 路径／lsp snprintf 面  
 
 ### 9.6 全局／static／巨型数据（P1）
 
