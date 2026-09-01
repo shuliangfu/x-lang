@@ -244,7 +244,7 @@
 - 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–2 ✅（Ubuntu）**＠`e8777cb6b`：futex／mmap／clone trampoline＋**product `runtime_thread_glue` Linux Cap**（pool／create／join；nm 无 pthread；STD-043 run=2）。残：Darwin pthread · TLS  
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows sync Cap
-- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0–8 ✅（SHARED Cap＋语言 `...`＋va builtins＋变参 call arity）**＠`b381c73f5`：slice8 `is_variadic` 时 `num_args >= named`；overload 只评分具名形参。残：typed `va_arg(ap,T)` · host-cc／runtime · MSVC · rt_preamble -o 孪
+- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0–9 ✅（SHARED Cap＋语言＋arity＋host-cc/runtime）**＠`47ff2fe7b`：slice9 `-E` host-cc 跑通 exit **42**。残：typed `va_arg(ap,T)` · MSVC · rt_preamble -o 孪 · 产品 `-o` asm
 - 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–21 ✅（SHARED）**＠`b5b7d323d`：产品 seed／gen pin／Track L／build_tool cold **Cap 收口**（labi「snprintf」仅为注释假阳）。残：纯 .x fmt · typed `va_arg`／MSVC
 
 ---
