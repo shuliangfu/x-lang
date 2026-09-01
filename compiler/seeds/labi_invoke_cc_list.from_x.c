@@ -1062,9 +1062,8 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldl");
     } else if (link_abi_host_is_apple()) {
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-export_dynamic");
-    } else if (link_abi_host_is_windows()) {
-      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldbghelp");
     }
+    /* Cap residual 9.1.11 Win: no -ldbghelp (PE export Cap). */
   }
   if (need_hash)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, hash_o);
