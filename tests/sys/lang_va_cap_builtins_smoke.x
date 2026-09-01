@@ -1,10 +1,11 @@
 /**
- * Cap 10.7.1 language slice7–9 smoke: va Cap builtins + arity + host-cc/runtime.
+ * Cap 10.7.1 language slice7–13 smoke: va Cap builtins + arity + host-cc/runtime.
  *
  * Typeck sees export-extern faces; codegen rewrites call sites to xlang_va_*.
  * VaList lowers as xlang_va_list (emit_header includes xlang_va_cap.h).
  * slice8: call sites may pass trailing args beyond named formals.
  * slice9: -E host-cc run must exit 42 (first variadic i32).
+ * slice13: also exercise va_arg_i64 + va_arg_ptr (asm Cap qword load).
  * PLATFORM: SHARED — L2 gate; Ubuntu gold.
  */
 
@@ -30,21 +31,50 @@ export extern function va_end(ap: VaList): void;
 export extern function va_arg_i32(ap: VaList): i32;
 
 /**
- * Variadic probe: return the first extra i32 after n.
+ * Cap face: fetch next i64 from ap (typed helper; SysV 8-byte slot).
+ * @param ap Cap VaList local.
+ * @return Next variadic i64.
+ */
+export extern function va_arg_i64(ap: VaList): i64;
+
+/**
+ * Cap face: fetch next pointer from ap (typed helper; SysV GP slot).
+ * @param ap Cap VaList local.
+ * @return Next variadic *u8.
+ */
+export extern function va_arg_ptr(ap: VaList): *u8;
+
+/**
+ * Variadic probe: i32 then i64 then *i32 via Cap helpers; expect exit 42.
  * @param n Named last parameter (required by Cap va_start).
- * @return First variadic i32 (host-cc/runtime expects 42 from main).
+ * @return 42 on success; 1/2/3 on mismatch of each slot.
  */
 export function lang_va_cap_probe(n: i32, ...): i32 {
   let ap: VaList;
   va_start(ap, n);
-  let v: i32 = va_arg_i32(ap);
+  let a: i32 = va_arg_i32(ap);
+  let b: i64 = va_arg_i64(ap);
+  let p: *u8 = va_arg_ptr(ap);
   va_end(ap);
-  return v;
+  if (a != 42) {
+    return 1;
+  }
+  if (b != 42) {
+    return 2;
+  }
+  unsafe {
+    let pi: *i32 = p as *i32;
+    if (*pi != 7) {
+      return 3;
+    }
+  }
+  return 42;
 }
 
 /**
- * Entry: pass one trailing variadic literal (slice8 arity Cap).
+ * Entry: trailing i32, i64-slot literal, and pointer to local marker.
  */
 export function main(): i32 {
-  return lang_va_cap_probe(1, 42);
+  let m: i32 = 7;
+  return lang_va_cap_probe(1, 42, 42, &m);
 }
