@@ -2510,7 +2510,7 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
  * (ensure-push mid sync→hash inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push mid always-mega after wave200 front.
- * PLATFORM: SHARED orch / LINUX -rdynamic -ldl / APPLE -export_dynamic / WINDOWS -ldbghelp.
+ * PLATFORM: SHARED orch / LINUX -rdynamic -ldl / APPLE -export_dynamic / WINDOWS Cap (no dbghelp).
  */
 
 /* wave202: invoke_cc_append_std_ensure_push_heavy_a pure orch lives in labi_invoke_cc_list
