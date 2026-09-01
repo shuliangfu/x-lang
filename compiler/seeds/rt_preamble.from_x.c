@@ -27,7 +27,10 @@ extern unsigned codegen_get_preamble_skip_mask(void);
 const char *const driver_preamble_io_net_lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
-        "#include <stdint.h>\n",
+        /* Cap 10.7.1 slice10: fold Cap va header into existing slot (do NOT add a
+         * new array row — fixed N=224 skip ranges). Mirrors -E emit_header.
+         * PLATFORM: SHARED host-C product -o preamble. */
+        "#include <stdint.h>\n#include <xlang_va_cap.h>\n",
         /* PLATFORM: SHARED — host libc prototypes for skip-list symbols
          * (codegen_is_libc_conflicting_extern_name: malloc/free/calloc/realloc/
          * getenv/memcpy/memchr/strtoul/...). XLANG *u8 emits as uint8_t * and
