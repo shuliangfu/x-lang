@@ -1037,6 +1037,22 @@ int32_t arch_arm64_enc_enc_mov_x8_to_rax(struct platform_elf_ElfCodegenCtx *elf_
 }
 
 /**
+ * Stage10 10.2.2 slice1: mov x0, x{k} for AAPCS64 arg homes (k=0..7).
+ * Reverse of arch_arm64_enc_enc_mov_rax_to_arg_reg. Used by
+ * backend_enc_mov_arg_reg_to_rax_arch(ta==1) for asm! lateout/out("x1"…).
+ * k==0 is already in x0 (no-op). G.7: complete mov_xn_xm / mov_rax_to_arg_reg
+ * family — do not invent a second arg→x0 map in call_dispatch.
+ * PLATFORM: SHARED aarch64 emit.
+ */
+int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
+  if (k < 0 || k > 7)
+    return -1;
+  if (k == 0)
+    return 0;
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, k);
+}
+
+/**
  * Stage 10 S3.1 10.1.2: svc #0 (0xD4000001).
  * Linux aarch64 syscall instruction. Darwin uses svc #0x80 with nr in x16
  * — this encoder is Linux-only; the CALL intercept skips Mach-O.
