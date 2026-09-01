@@ -9,8 +9,14 @@
 
 export extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 export extern "C" function close(fd: i32): i32;
-export extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
-export extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+/**
+ * Cap residual 9.1.8: hosted read/write face — Cap body in runtime_asm_io_stubs
+ * (xlang_io_cap.h); freestanding_io.o strong twin wins when both linked.
+ * Do not call libc write/read here (G.7 single Cap authority).
+ * PLATFORM: LINUX Cap / POSIX fallback via Cap header.
+ */
+export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
 // libc
 export extern "C" function malloc(size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
@@ -63,7 +69,7 @@ export function xlang_fs_open_write_flags_impl(): i32 {
  * Write entire buffer to path (create/trunc 0644).
  * Params: path NUL-C string; data bytes; len length (i64, must be >= 0).
  * Returns: 0 on full write, -1 on error.
- * Cap residual pure: open/write/close loop (no seed C).
+ * Cap residual 9.1.8: open/xlang_sys_write/close loop (no libc write).
  * PLATFORM: SHARED — flags via xlang_fs_open_write_flags_impl; mode 0644=420.
  */
 #[no_mangle]
@@ -89,7 +95,7 @@ export function xlang_write_path_bytes_impl(path: *u8, data: *u8, len: i64): i32
   let len_u: usize = len as usize;
   while (off < len_u) {
     unsafe {
-      let n: isize = write(fd, data + off, len_u - off);
+      let n: isize = xlang_sys_write(fd, data + off, len_u - off);
       if (n < 0) {
         close(fd);
         return -1;
@@ -296,7 +302,7 @@ export function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
     return neg;
   }
   unsafe {
-    let n: isize = read(fd, buf, count);
+    let n: isize = xlang_sys_read(fd, buf, count);
     return n;
   }
   let neg2: isize = (0 - 1) as isize;
@@ -317,7 +323,7 @@ export function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
     return neg;
   }
   unsafe {
-    let n: isize = write(fd, buf, count);
+    let n: isize = xlang_sys_write(fd, buf, count);
     return n;
   }
   let neg2: isize = (0 - 1) as isize;
@@ -533,7 +539,7 @@ export function xlang_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32 {
   let cap_u: usize = cap as usize;
   while (off < cap_u) {
     unsafe {
-      let n: isize = read(fd, buf + off, cap_u - off);
+      let n: isize = xlang_sys_read(fd, buf + off, cap_u - off);
       if (n < 0) {
         return -1;
       }
@@ -563,7 +569,7 @@ export function xlang_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out
   let off: usize = 0 as usize;
   while (off < size_u) {
     unsafe {
-      let n: isize = read(fd, buf + off, size_u - off);
+      let n: isize = xlang_sys_read(fd, buf + off, size_u - off);
       if (n < 0) {
         free(buf);
         close(fd);
@@ -695,7 +701,7 @@ export function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i
   while (total < cap) {
     let chunk: i32 = cap - total;
     unsafe {
-      let r: isize = read(fd, buf + (total as usize), chunk as usize);
+      let r: isize = xlang_sys_read(fd, buf + (total as usize), chunk as usize);
       if (r < 0) {
         close(fd);
         return -1;
