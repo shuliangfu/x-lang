@@ -5,7 +5,7 @@ const simd = import("std.simd.builtin");
 
 /**
  * Language SIMD i32x8 builtin smoke: add then mul lane checks (32B sret let).
- * @return i32 — 0 on success; 1/2/3 on step failure
+ * @return i32 — 0 on success; 1/2/3/4/5 on step failure
  * PLATFORM: LINUX x86_64 asm (SSE2 paddd / SSE4.1 pmulld or AVX2)
  */
 function main(): i32 {
@@ -21,6 +21,13 @@ function main(): i32 {
   let p: Vec8i = simd.mul_i32x8(s, b);
   if (p[0] != 2) {
     return 3;
+  }
+  let d: Vec8i = simd.sub_i32x8(p, b);
+  if (d[0] != 1) {
+    return 4;
+  }
+  if (d[7] != 8) {
+    return 5;
   }
   return 0;
 }
