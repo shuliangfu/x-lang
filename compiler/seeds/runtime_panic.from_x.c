@@ -24,6 +24,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: crash evidence path → Cap snprintf */
+/* G.7: Cap after stdio for user-link panic residual. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <xlang_environ_cap.h>
 #ifdef _WIN32
 #include <process.h> /* MinGW getpid() 声明在此；unistd.h 不提供 */
