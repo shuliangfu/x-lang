@@ -598,6 +598,12 @@ driver_leaf_build() {
         echo '#include <stdlib.h>'
         echo '#include <string.h>'
         echo '#include <stdio.h>'
+        # Cap residual 10.7.2 (slice18): Track L -E C may still embed
+        # CRASH_EVIDENCE snprintf from older emit; redirect at compile face.
+        # PLATFORM: SHARED — Cap header lives under compiler/include.
+        echo '#include <xlang_fmt_cap.h>'
+        echo '#undef snprintf'
+        echo '#define snprintf xlang_snprintf'
         echo '#ifndef _WIN32'
         echo '#include <unistd.h>'
         echo '#include <fcntl.h>'
