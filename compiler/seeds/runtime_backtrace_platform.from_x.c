@@ -171,15 +171,19 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 
 /* === Platform-specific _impl functions === */
 
-/* Cap residual 9.1.11: Linux stack capture without libc backtrace(). */
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+/* Cap residual 9.1.11: stack capture without libc backtrace() (Linux + Darwin). */
+#if (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
 #include <xlang_backtrace_cap.h>
+#define HAVE_XLANG_BT_CAPTURE_CAP 1
+#if defined(__linux__) || defined(__APPLE__)
 #define HAVE_XLANG_BT_CAP 1
+#endif
 #endif
 
 /* PLATFORM: POSIX — stdio above pulls features.h on glibc so __GLIBC__ is set.
- * Musl/Alpine typically lack execinfo.h → leave HAVE_EXECINFO undefined. */
-#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
+ * Musl/Alpine typically lack execinfo.h → leave HAVE_EXECINFO undefined.
+ * Skip execinfo when Cap frame walk is active (Linux or Darwin). */
+#if ((defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)) && !defined(HAVE_XLANG_BT_CAPTURE_CAP)
 #include <execinfo.h>
 #define HAVE_EXECINFO 1
 #endif
@@ -200,7 +204,7 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 /** Capture current call stack into buffer. */
 int32_t backtrace_capture_impl(uint8_t *buf, int32_t max_frames) {
   if (!buf || max_frames <= 0) return 0;
-#if defined(HAVE_XLANG_BT_CAP)
+#if defined(HAVE_XLANG_BT_CAPTURE_CAP)
   {
     void *arr[256];
     int cap = max_frames > 256 ? 256 : (int)max_frames;
