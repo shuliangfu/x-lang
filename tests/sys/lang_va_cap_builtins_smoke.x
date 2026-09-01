@@ -1,10 +1,11 @@
 /**
- * Cap 10.7.1 language slice7–8 smoke: va Cap builtins + variadic call arity.
+ * Cap 10.7.1 language slice7–9 smoke: va Cap builtins + arity + host-cc/runtime.
  *
  * Typeck sees export-extern faces; codegen rewrites call sites to xlang_va_*.
  * VaList lowers as xlang_va_list (emit_header includes xlang_va_cap.h).
  * slice8: call sites may pass trailing args beyond named formals.
- * PLATFORM: SHARED — -E emit gate (host-cc/runtime deferred).
+ * slice9: -E host-cc run must exit 42 (first variadic i32).
+ * PLATFORM: SHARED — L2 gate; Ubuntu gold.
  */
 
 /**
@@ -31,7 +32,7 @@ export extern function va_arg_i32(ap: VaList): i32;
 /**
  * Variadic probe: return the first extra i32 after n.
  * @param n Named last parameter (required by Cap va_start).
- * @return First variadic i32 (emit-only smoke; not executed in gate).
+ * @return First variadic i32 (host-cc/runtime expects 42 from main).
  */
 export function lang_va_cap_probe(n: i32, ...): i32 {
   let ap: VaList;
