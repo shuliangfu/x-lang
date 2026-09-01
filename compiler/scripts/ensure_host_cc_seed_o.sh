@@ -3370,6 +3370,28 @@ pipeline_abi_o_is_libtool_archive() {
   [ "$mag" = '!<arch>' ]
 }
 
+# Return 0 if every global text symbol in THIN is already a global T in BASE.
+# PLATFORM: SHARED nm (Darwin leading underscore accepted as-is).
+pipeline_abi_thin_already_defined() {
+  local base="$1"
+  local thin="$2"
+  local sym
+  local thin_syms
+  [ -f "$base" ] && [ -f "$thin" ] || return 1
+  thin_syms="$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')"
+  [ -n "$thin_syms" ] || return 1
+  while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
+      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
+      END { exit !found }
+    ' || return 1
+  done <<EOF
+$thin_syms
+EOF
+  return 0
+}
+
 pipeline_abi_inject_thin_leaf() {
   local o="$1"
   local thin_x="$2"
@@ -3408,6 +3430,16 @@ pipeline_abi_inject_thin_leaf() {
     log "pipeline_abi ${tag} inject: cc thin failed"
     rm -f "$gen_c" "$thin_o" "$base_o"
     return 1
+  fi
+  # PLATFORM: MACOS — g05 re-injects after bootstrap already overlaid this leaf.
+  # Second strong overlay cannot Darwin ld -r (two LC_SEGMENT / two T); libtool
+  # -static then keeps both members. Final -force_load of a ≤2-member archive
+  # pulls both → duplicate `_glue_slice_let_reent_deep_copy_after_dual_gp_elf_c`
+  # (L4 @7f2754d80). Skip when thin's global T symbols are already T in $o.
+  if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
+    log "pipeline_abi ${tag} inject skip: already defined in $o"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
   fi
   cp -f "$o" "$base_o"
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
