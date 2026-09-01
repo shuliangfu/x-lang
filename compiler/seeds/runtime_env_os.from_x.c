@@ -19,6 +19,8 @@
 #include <string.h>
 /* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
+/* Cap residual 9.1.1: POSIX setenv/unsetenv via environ mutate (no libc). */
+#include <xlang_environ_cap.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -202,8 +204,11 @@ int32_t env_getenv_exists_c(const uint8_t * restrict key, int32_t key_len) {
 #endif
 
 /**
- * 设置环境变量 name=value（NUL 结尾）；overwrite 非 0 覆盖。
- * 返回值：0 成功，-1 失败。
+ * Set environment variable name=value (NUL-terminated); overwrite != 0 replaces.
+ * Cap residual 9.1.1: POSIX xlang_environ_setenv (no libc setenv).
+ * Windows: dual CRT (_putenv) + process env block (SetEnvironmentVariableA).
+ * @return 0 success, -1 failure.
+ * PLATFORM: POSIX Cap residual; WINDOWS dual-block.
  */
 ENV_COLD
 int32_t env_setenv_c_impl(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
@@ -235,7 +240,8 @@ int32_t env_setenv_c_impl(const uint8_t *name, const uint8_t *value, int32_t ove
         return 0;
     }
 #else
-    return setenv((const char *)name, value ? (const char *)value : "", overwrite ? 1 : 0) == 0 ? 0 : -1;
+    return xlang_environ_setenv((const char *)name, value ? (const char *)value : "",
+                                overwrite ? 1 : 0);
 #endif
 }
 
@@ -247,8 +253,11 @@ int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrit
 #endif
 
 /**
- * 删除环境变量 name（NUL 结尾）。
- * 返回值：0 成功，-1 失败。
+ * Delete environment variable name (NUL-terminated).
+ * Cap residual 9.1.1: POSIX xlang_environ_unsetenv (no libc unsetenv).
+ * Windows: dual CRT (_putenv("name=")) + SetEnvironmentVariableA(NULL).
+ * @return 0 success, -1 failure.
+ * PLATFORM: POSIX Cap residual; WINDOWS dual-block.
  */
 ENV_COLD
 int32_t env_unsetenv_c_impl(const uint8_t *name) {
@@ -270,7 +279,7 @@ int32_t env_unsetenv_c_impl(const uint8_t *name) {
         return -1;
     return 0;
 #else
-    return unsetenv((const char *)name) == 0 ? 0 : -1;
+    return xlang_environ_unsetenv((const char *)name);
 #endif
 }
 
