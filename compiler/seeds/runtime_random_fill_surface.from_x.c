@@ -2,8 +2,9 @@
  * G-02f-132 runtime_random_fill R2 thin surface — isomorphic with src/asm/runtime_random_fill.x
  * Product PREFER_X_O: xlang-c -E(.x) → thin.o + seed-rest (-DXLANG_RUNTIME_RANDOM_FILL_FROM_X) ld -r
  * Prove: full.x vs this seed → nm IDENTICAL (2 #[no_mangle] + 1 doc_anchor)
- * Cap residual: 2 _impl OS bridges (random_get_alg_impl BCrypt handle lazy init +
- *   random_fill_bytes_impl BCryptGenRandom/getrandom/getentropy) in runtime_random_fill.from_x.c rest
+ * Cap residual 9.1.6: 2 _impl OS bridges (random_get_alg_impl BCrypt handle lazy
+ *   init + random_fill_bytes_impl via xlang_random_cap.h getrandom／getentropy／BCrypt)
+ *   in runtime_random_fill.from_x.c rest
  * Regen: ./xlang-c -E ... runtime_random_fill.x | filter DBG + polish prologue
  */
 #include <stdint.h>
