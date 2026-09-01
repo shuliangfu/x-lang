@@ -4285,7 +4285,8 @@ function try_emit_raw_syscall_call_elf_c(
  * values because this intercept runs before call-arg packing), then store a
  * cursor pointer into the VaList local (first 8 bytes) at save+8*nparams.
  * va_arg_i32 loads *cursor as i32; va_arg_i64 / va_arg_ptr load qword; all
- * advance the cursor by 8. va_end is a no-op.
+ * advance the cursor by -8 (spill slots use rising rbp-offsets = falling
+ * addresses: save+0 closest to rbp, save+40 furthest). va_end is a no-op.
  *
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
@@ -4481,7 +4482,8 @@ function try_emit_va_cap_builtin_call_elf_c(
       if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
     }
     if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+    /* Spill layout: save+k*8 is rbp-(save_off+k*8); next GP is lower addr → -8. */
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (which == 3) {
       if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }

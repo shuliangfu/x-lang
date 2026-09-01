@@ -4588,7 +4588,8 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   }
   if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+  /* Spill layout: save+k*8 is rbp-(save_off+k*8); next GP is lower addr → -8. */
+  if (backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
     return -1;
   if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0)
     return -1;
