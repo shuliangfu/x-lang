@@ -35,11 +35,10 @@
  * M8 自举：含 Expr/Type 按值访问的 X 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
  */
 #include <stdint.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: try_inline debugf → xlang_vsnprintf */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: try_inline debugf → xlang_vsnprintf */
 
 #include "diag.h"
 #ifdef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -108,14 +107,14 @@ extern char *link_abi_getenv(const char *name);
 
 static void backend_try_inline_debugf(const char *fmt, ...) {
   char buf[256];
-  va_list ap;
+  xlang_va_list ap;
   /* wave232 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv). */
   if (!link_abi_getenv("XLANG_ASM_DEBUG"))
     return;
-  va_start(ap, fmt);
-  /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+  xlang_va_start(ap, fmt);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
   (void)xlang_vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
-  va_end(ap);
+  xlang_va_end(ap);
   buf[sizeof buf - 1] = '\0';
   diag_report(NULL, 0, 0, "note", buf, NULL);
 }
