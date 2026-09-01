@@ -2226,7 +2226,7 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
  * Heavy tail residual (math…process_argv complement) + heap F-06 + fork/exec remain mega.
  * Callers: mega xlang_invoke_cc_impl after invoke_cc_append_std_ensure_push_front.
  * PLATFORM: SHARED orch / LINUX -rdynamic -ldl on backtrace / APPLE -export_dynamic /
- *   WINDOWS -ldbghelp on backtrace.
+ *   WINDOWS Cap residual (no -ldbghelp; PE export + VirtualQuery).
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
  */
@@ -2380,7 +2380,8 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
     }
   }
 
-  // backtrace marker optional; platform .o + host ld flags (rdynamic/export_dynamic/dbghelp).
+  // backtrace marker optional; platform .o + host ld flags (rdynamic/export_dynamic).
+  // Cap residual 9.1.11 Win: no -ldbghelp (PE export Cap; kernel32 VirtualQuery only).
   if (need_backtrace != 0) {
     unsafe {
       let _pbt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, backtrace_o);
@@ -2417,15 +2418,6 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
       if (is_apple != 0) {
         let fex: *u8 = "-Wl,-export_dynamic";
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, fex);
-      } else {
-        let is_win: i32 = 0;
-        unsafe {
-          is_win = link_abi_host_is_windows();
-        }
-        if (is_win != 0) {
-          let fdbg: *u8 = "-ldbghelp";
-          labi_icc_argv_try_push_flag(argv, ia, argv_cap, fdbg);
-        }
       }
     }
   }
