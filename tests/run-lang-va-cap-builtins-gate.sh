@@ -85,5 +85,11 @@ if [[ "$rc" -ne 42 ]]; then
   exit 1
 fi
 
+# Cap 10.7.1 slice10: product -o preamble must fold Cap va header (N=224 slot).
+if ! grep -F 'xlang_va_cap.h' "$ROOT/compiler/seeds/rt_preamble.from_x.c" >/dev/null 2>&1; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_preamble_cap" >&2
+  exit 1
+fi
+
 host="$(uname -s 2>/dev/null || echo unknown)/$(uname -m 2>/dev/null || echo unknown)"
 echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=ok run=1 obs=0 skip=0 host=$host"
