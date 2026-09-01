@@ -38,6 +38,7 @@
 #else
 #include <pthread.h>
 #include <time.h>
+#include <xlang_time_cap.h> /* Cap residual 9.1.5 clock_gettime */
 #define CHAN_SYNC_WIN 0
 #endif
 
@@ -293,7 +294,8 @@ void channel_timedwait_not_empty_impl(channel_i32_impl_t *c, int32_t ms) {
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, (DWORD)ms);
 #else
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    /* PLATFORM: LINUX Cap / POSIX fallback — no libc clock_gettime */
+    (void)xlang_time_clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += (long)ms * 1000000L;
     if (ts.tv_nsec >= 1000000000L) {
         ts.tv_sec += ts.tv_nsec / 1000000000L;
@@ -318,7 +320,8 @@ void channel_timedwait_not_full_impl(channel_i32_impl_t *c, int32_t ms) {
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, (DWORD)ms);
 #else
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    /* PLATFORM: LINUX Cap / POSIX fallback — no libc clock_gettime */
+    (void)xlang_time_clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += (long)ms * 1000000L;
     if (ts.tv_nsec >= 1000000000L) {
         ts.tv_sec += ts.tv_nsec / 1000000000L;
