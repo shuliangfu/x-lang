@@ -14,7 +14,8 @@
  * with cold-mode fallback wrappers under #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X.
  *
  * PLATFORM: SHARED — LINUX Cap spawn/join/pool (xlang_thread_cap + sync_cap);
- *           Darwin/other POSIX pthread; Windows CreateThread.
+ *           Darwin/other POSIX pthread;
+ *           WINDOWS Cap CreateThread spawn/join (10.6.2; kernel32).
  */
 
 #if defined(__linux__)
@@ -63,9 +64,11 @@ void xlang_cpu_set(unsigned int cpu, cpu_set_t *set) {
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <stdlib.h>
-/* Windows: CreateThread + WaitForSingleObject; thread_id stores HANDLE. */
-typedef HANDLE xlang_thread_t;
-#define XLANG_THREAD_ID_INVALID ((int64_t)(uintptr_t)NULL)
+#include <string.h>
+#include <xlang_thread_cap.h> /* Cap residual 10.6.2: CreateThread spawn/join */
+/* Windows Cap: thread_id is heap `struct xlang_thread_join *` (owned until join). */
+#define XLANG_THREAD_ID_INVALID ((int64_t)0)
+#define XLANG_THREAD_CAP_DEFAULT_STACK (256u * 1024u)
 #elif defined(__linux__)
 #include <sched.h>
 #include <stdlib.h>
@@ -112,18 +115,6 @@ int32_t std_thread_thread_set_affinity_c(int64_t thread_id, int32_t cpu_index);
 int32_t std_thread_thread_set_qos_class_self_c(int32_t qos_class);
 uintptr_t std_thread_thread_dummy_entry_ptr_c(void);
 
-/* ========== Windows __stdcall trampoline (must stay in rest; .x cannot express stdcall) ========== */
-#if defined(_WIN32) || defined(_WIN64)
-struct xlang_thread_params { void *(*entry)(void *); void *arg; };
-static DWORD WINAPI thread_wrap(LPVOID arg) {
-    struct xlang_thread_params *p = (struct xlang_thread_params *)arg;
-    void *(*entry)(void *) = p->entry;
-    void *a = p->arg;
-    free(p);
-    return (DWORD)(uintptr_t)entry(a);
-}
-#endif
-
 /* ========== _impl: thread_self ========== */
 int64_t thread_self_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -144,13 +135,17 @@ int64_t thread_create_impl(void *entry, void *arg) {
     if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
-        struct xlang_thread_params *params = (struct xlang_thread_params *)malloc(sizeof(struct xlang_thread_params));
-        if (!params) return XLANG_THREAD_ID_INVALID;
-        params->entry = (void *(*)(void *))entry;
-        params->arg = arg;
-        HANDLE h = CreateThread(NULL, 0, thread_wrap, params, 0, NULL);
-        if (h == NULL) { free(params); return XLANG_THREAD_ID_INVALID; }
-        return (int64_t)(uintptr_t)h;
+        /* PLATFORM: WINDOWS — Cap CreateThread spawn; thread_id = heap join handle. */
+        struct xlang_thread_join *join =
+            (struct xlang_thread_join *)malloc(sizeof(struct xlang_thread_join));
+        if (join == NULL) return XLANG_THREAD_ID_INVALID;
+        memset(join, 0, sizeof(*join));
+        if (xlang_thread_spawn((xlang_thread_start_fn)entry, arg, join,
+                               XLANG_THREAD_CAP_DEFAULT_STACK) != 0) {
+            free(join);
+            return XLANG_THREAD_ID_INVALID;
+        }
+        return (int64_t)(uintptr_t)join;
     }
 #elif defined(__linux__)
     {
@@ -184,13 +179,19 @@ int64_t thread_create_with_stack_impl(void *entry, void *arg, size_t stack_size)
     if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
-        struct xlang_thread_params *params = (struct xlang_thread_params *)malloc(sizeof(struct xlang_thread_params));
-        if (!params) return XLANG_THREAD_ID_INVALID;
-        params->entry = (void *(*)(void *))entry;
-        params->arg = arg;
-        HANDLE h = CreateThread(NULL, (SIZE_T)stack_size, thread_wrap, params, 0, NULL);
-        if (h == NULL) { free(params); return XLANG_THREAD_ID_INVALID; }
-        return (int64_t)(uintptr_t)h;
+        struct xlang_thread_join *join =
+            (struct xlang_thread_join *)malloc(sizeof(struct xlang_thread_join));
+        size_t slen = stack_size;
+        if (join == NULL) return XLANG_THREAD_ID_INVALID;
+        if (slen == 0) {
+            slen = XLANG_THREAD_CAP_DEFAULT_STACK;
+        }
+        memset(join, 0, sizeof(*join));
+        if (xlang_thread_spawn((xlang_thread_start_fn)entry, arg, join, slen) != 0) {
+            free(join);
+            return XLANG_THREAD_ID_INVALID;
+        }
+        return (int64_t)(uintptr_t)join;
     }
 #elif defined(__linux__)
     {
@@ -243,9 +244,13 @@ int32_t thread_join_impl(int64_t thread_id) {
     if (thread_id == XLANG_THREAD_ID_INVALID) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
-        HANDLE h = (HANDLE)(uintptr_t)thread_id;
-        if (WaitForSingleObject(h, INFINITE) != WAIT_OBJECT_0) return -1;
-        CloseHandle(h);
+        /* PLATFORM: WINDOWS — Cap join then free heap handle. */
+        struct xlang_thread_join *join = (struct xlang_thread_join *)(uintptr_t)thread_id;
+        if (xlang_thread_join(join) != 0) {
+            free(join);
+            return -1;
+        }
+        free(join);
         return 0;
     }
 #elif defined(__linux__)
@@ -305,8 +310,11 @@ int32_t thread_set_affinity_impl(int64_t thread_id, int32_t cpu_index) {
     if (thread_id == XLANG_THREAD_ID_INVALID || cpu_index < 0) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
+        /* PLATFORM: WINDOWS — Cap join handle → CreateThread HANDLE. */
+        struct xlang_thread_join *join = (struct xlang_thread_join *)(uintptr_t)thread_id;
         DWORD_PTR mask = (DWORD_PTR)(1ULL << (unsigned)cpu_index);
-        if (SetThreadAffinityMask((HANDLE)(uintptr_t)thread_id, mask) == 0) return -1;
+        if (join == NULL || join->handle == 0) return -1;
+        if (SetThreadAffinityMask((HANDLE)join->handle, mask) == 0) return -1;
         return 0;
     }
 #elif defined(__linux__)
