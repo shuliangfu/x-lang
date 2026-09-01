@@ -38,9 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdint.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: lsp reportf/snprintf → Cap fmt */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: lsp reportf/snprintf → Cap fmt */
 
 /* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -492,11 +491,11 @@ int lsp_diag_count_severity(int severity) {
 
 void lsp_diag_report_typeck_code(const char *code, int line, int col, const char *fmt, ...) {
     char buf[LSP_MSG_MAX + 1];
-    va_list ap;
-    va_start(ap, fmt);
-    /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+    xlang_va_list ap;
+    xlang_va_start(ap, fmt);
+    /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
     (void)xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     if (lsp_diag_enabled)
         lsp_diag_add_code(line, col, 1, code, buf);
     else {
@@ -508,11 +507,11 @@ void lsp_diag_report_typeck_code(const char *code, int line, int col, const char
 
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
     char buf[LSP_MSG_MAX + 1];
-    va_list ap;
-    va_start(ap, fmt);
-    /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+    xlang_va_list ap;
+    xlang_va_start(ap, fmt);
+    /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
     (void)xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     if (lsp_diag_enabled)
         lsp_diag_add_code(line, col, 1, "T001", buf);
     else {
