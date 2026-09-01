@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# THREAD-CAP-RAW gate: Stage 10 (10.6.1) slice0 Linux futex/mmap-stack Cap.
+# THREAD-CAP-RAW gate: Stage 10 (10.6.1) Linux futex/mmap/clone Cap.
 # Host-cc compile+run tests/sys/thread_cap_raw_smoke.c against xlang_thread_cap.h.
 # No libpthread. Darwin N/A (skip=1).
 #
@@ -30,7 +30,7 @@ ok_report() {
   echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 }
 
-echo "=== THREAD-CAP-RAW: futex + mmap stack Cap (10.6.1 slice0) ==="
+echo "=== THREAD-CAP-RAW: futex/mmap/clone Cap (10.6.1) ==="
 
 if ! ci_is_linux; then
   SKIP=1
