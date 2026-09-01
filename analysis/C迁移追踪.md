@@ -245,7 +245,7 @@
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows sync Cap
 - 🟡 **10.7.1** va_list + va_start／arg／end — **slice0 ✅（SHARED Cap）**＠`61d670a19`：`xlang_va_cap.h` builtins（无 `<stdarg.h>`）；VA-CAP **run=1**。残：语言层 .x builtins · MSVC  
-- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–20 ✅（SHARED）**＠`PENDING`：…＋build_tool_libc_bridge＋**build_runtime Cap**。残：rt_run_exec／c_import／parsed 等 cold seed · 纯 .x fmt · 10.7.1 语言 va
+- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–21 ✅（SHARED）**＠`b5b7d323d`：…＋build_runtime＋**rt_run_exec／c_import／parsed／asm_backend Cap**。残：labi_ensure／freestanding 等 · 纯 .x fmt · 10.7.1 语言 va
 
 ---
 
