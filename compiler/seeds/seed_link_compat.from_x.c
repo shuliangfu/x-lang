@@ -4,12 +4,14 @@
  * Regen: ./xlang-c -E -L .. src/seed_link_compat.x > /tmp/slc.c
  *         then merge into this seed (weak polish + fold/arch C tail).
  * .x covers: typeck_lsp_* / std_heap/sys bridges / lsp_diag_* weak -1 stubs.
+ * Cap residual 10.7.2：xlang_append_asmf formats via xlang_vsnprintf (no libc vsnprintf).
  */
 #include <xlang_weak.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: append_asmf → xlang_vsnprintf */
 
 struct ast_Module;
 struct backend_AsmFuncCtx;
@@ -478,7 +480,8 @@ static int32_t xlang_append_asmf(struct codegen_CodegenOutBuf *out, const char *
   int n;
   va_list ap;
   va_start(ap, fmt);
-  n = vsnprintf(buf, sizeof(buf), fmt, ap);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+  n = xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
   if (n < 0 || (size_t)n >= sizeof(buf))
     return -1;
