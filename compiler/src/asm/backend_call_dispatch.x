@@ -150,6 +150,11 @@ export extern "C" function arch_arm64_enc_enc_stlrh_w1_x0(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_ldrh_w0_x3(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_strh_w0_x3(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_casalh_w0_w1_x2(elf_ctx: *u8): i32;
+/* 10.5.1 slice0: Vec4f SSE addps/mulps via simd_enc (reuse HW vector binop encoders). */
+export extern "C" function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+export extern "C" function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+export extern "C" function glue_simd_emit_cpu_features_c(): u32;
+export extern "C" function xlang_target_cpu_detect_host(): u32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
 export extern function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf: *u8, ta: i32): i32;
@@ -2867,6 +2872,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       if (at_mc < 0) { return 0 - 1; }
       if (at_mc > 0) { return 0; }
     }
+    /* 10.5.1 slice0: add_f32x4 / mul_f32x4 language SIMD builtins (x86 SSE). */
+    {
+      let sd_mc: i32 = try_emit_simd_lang_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (sd_mc < 0) { return 0 - 1; }
+      if (sd_mc > 0) { return 0; }
+    }
     /*
      * 10.3.3 slice3: METHOD_CALL `h.f(args)` when `f` is Cap/TYPE_FN field.
      * typeck stamps ret; emit loads field into rax/x0 then Cap blr (no self arg).
@@ -4627,6 +4638,145 @@ function try_emit_atomic_builtin_call_elf_c(
 }
 
 /**
+ * Stage 10 (10.5.1) slice0: language SIMD builtins add_f32x4 / mul_f32x4.
+ *
+ * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
+ * Spills each Vec4f arg (16B dual-GP) via glue_sysv_spill_rax_rdx_to_frame_c,
+ * emits SSE addps/mulps through simd_enc_try_hw_vector_f{add,mul}_rbp, then
+ * reloads the 16B result into rax/rdx (SysV low@off, high@off-8).
+ *
+ * @return i32 — 1 emitted; 0 not applicable or HW unavailable (fallthrough);
+ *               -1 emit error
+ * PLATFORM: LINUX|x86_64 asm (ta==0); SHARED name match.
+ */
+function try_emit_simd_lang_builtin_call_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  /* slice0: x86_64 SSE only; aarch64 / host-C fall through to panic bodies. */
+  if (ta != 0) {
+    return 0;
+  }
+  unsafe {
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    let name: u8[128] = [];
+    let nlen: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let i: i32 = 0;
+    let arg_ref: i32 = 0;
+    let off_a: i32 = 0;
+    let off_b: i32 = 0;
+    let dst_off: i32 = 0;
+    let cur: i32 = 0;
+    let feats: u32 = 0;
+    let hw: i32 = 0;
+    /* add_f32x4 (9) */
+    let nm_add: u8[9] = [97, 100, 100, 95, 102, 51, 50, 120, 52];
+    /* mul_f32x4 (9) */
+    let nm_mul: u8[9] = [109, 117, 108, 95, 102, 51, 50, 120, 52];
+    if (ko == 49) {
+      nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+      if (nlen != 9) { return 0; }
+      pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+      n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      is_method = 1;
+    } else if (ko == 48) {
+      let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      let cko: i32 = 0;
+      if (callee_ref <= 0) { return 0; }
+      cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+      if (cko == 44) {
+        nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (nlen != 9) { return 0; }
+        pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+      } else if (cko == 3) {
+        nlen = pipeline_expr_var_name_len(arena, callee_ref);
+        if (nlen != 9) { return 0; }
+        pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+      } else {
+        return 0;
+      }
+      n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    } else {
+      return 0;
+    }
+    if (n_args != 2) { return 0; }
+    which = 0;
+    i = 0;
+    while (i < 9) {
+      if (name[i] != nm_add[i]) { i = 99; }
+      else { i = i + 1; }
+    }
+    if (i == 9) { which = 1; }
+    if (which == 0) {
+      i = 0;
+      while (i < 9) {
+        if (name[i] != nm_mul[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 9) { which = 2; }
+    }
+    if (which == 0) { return 0; }
+    if (is_method != 0) {
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (arg_ref == 0) { return 0 - 1; }
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    off_a = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+    if (off_a < 0) { return 0 - 1; }
+    if (is_method != 0) {
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 1);
+    } else {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    }
+    if (arg_ref == 0) { return 0 - 1; }
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    off_b = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+    if (off_b < 0) { return 0 - 1; }
+    cur = call_dispatch_load_i32_le(ctx, 4);
+    dst_off = cur + 16;
+    if (dst_off < 16) { dst_off = 16; }
+    call_dispatch_store_i32_le(ctx, 4, dst_off + 16);
+    feats = glue_simd_emit_cpu_features_c();
+    if (feats == 0) {
+      feats = xlang_target_cpu_detect_host();
+    }
+    if ((feats & 1) == 0) {
+      return 0;
+    }
+    if (which == 1) {
+      hw = simd_enc_try_hw_vector_fadd_rbp(elf_ctx, off_a, off_b, dst_off, 4, 4, ta, feats);
+    } else {
+      hw = simd_enc_try_hw_vector_fmul_rbp(elf_ctx, off_a, off_b, dst_off, 4, 4, ta, feats);
+    }
+    if (hw != 0) {
+      return 0;
+    }
+    /* Reload 16B dual-GP result (high@off-8, low@off) into rdx/rax. */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off - 8, ta) != 0) {
+      return 0 - 1;
+    }
+    if (arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off, ta) != 0) {
+      return 0 - 1;
+    }
+    return 1;
+  }
+}
+
+/**
  * Stage10 10.2.1 slice2: map in-reg spelling to post-emit move from rax/x0.
  * @return i32 — 0 = already in rax/x0 (no mov); 1..6 = SysV/AAPCS arg index
  *   for backend_enc_mov_rax_to_arg_reg_arch (0=rdi/x0…); 100 = rbx;
@@ -5117,6 +5267,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let at_rc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (at_rc < 0) { return 0 - 1; }
       if (at_rc > 0) { return 0; }
+    }
+    /* 10.5.1 slice0: add_f32x4 / mul_f32x4 language SIMD builtins (x86 SSE). */
+    {
+      let sd_rc: i32 = try_emit_simd_lang_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (sd_rc < 0) { return 0 - 1; }
+      if (sd_rc > 0) { return 0; }
     }
     /*
      * Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): CALL through *u8 or TYPE_FN.
