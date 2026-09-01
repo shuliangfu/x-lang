@@ -4799,6 +4799,11 @@ static int32_t pipeline_asm_inline_in_reg_mov_kind_c(const uint8_t *reg, int32_t
       return 5;
     if (reg[0] == 'x' && reg[1] == '5' && reg[2] == 0)
       return 6;
+    /* Stage10 10.2.2 slice2: x6/x7 AAPCS (mk 7/8 → k 6/7). */
+    if (reg[0] == 'x' && reg[1] == '6' && reg[2] == 0)
+      return 7;
+    if (reg[0] == 'x' && reg[1] == '7' && reg[2] == 0)
+      return 8;
     if (reg[0] == 'x' && reg[1] == '8' && reg[2] == 0)
       return 102;
     return -1;
@@ -4849,6 +4854,10 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenC
 /**
  * Stage10 10.2.1: twin of pipeline_asm_try_emit_inline_asm_expr_elf_c (.x).
  * Templates: "nop" / "syscall"; in + lateout/out (VAR or "_" clobber).
+ * Slice12: preserves_flags → pushfq/popfq around template (x86).
+ * Slice13: nostack skips that wrap (pushfq uses stack); alone accept-only.
+ * Slice14: nomem forbids out/lateout local stores (`_` discard OK).
+ * Slice15: readonly same store forbid. Slice16: pure same + pure+noreturn fail.
  * PLATFORM: SHARED · LINUX|x86_64 gold out-GP.
  */
 int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
@@ -4873,6 +4882,8 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   int32_t pko;
   int32_t vlen;
   int32_t voff;
+  int32_t opt_bits;
+  uint8_t pfq;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -4893,6 +4904,11 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   num_in = pipeline_expr_int_val_at(arena, expr_ref);
   if (num_in < 0 || num_in > nargs)
     return -1;
+  /* Options bitfield once (slice8–16 options family). */
+  opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+  /* Slice16: pure + noreturn conflict (side effect beyond outputs). */
+  if ((opt_bits & 16) != 0 && (opt_bits & 32) != 0)
+    return -1;
   if (nargs > 0) {
     if (!ctx)
       return -1;
@@ -4909,7 +4925,7 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
       erc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
       if (erc != 0)
         return -1;
-      if (mk >= 1 && mk <= 6) {
+      if (mk >= 1 && mk <= 8) {
         if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, mk - 1, ta) != 0)
           return -1;
       }
@@ -4930,6 +4946,30 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
           return -1;
       }
     }
+    /* Slice14–16: nomem/readonly/pure forbid out/lateout stores to locals. */
+    if ((opt_bits & 28) != 0) {
+      for (i = num_in; i < nargs; i++) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        if (arg_ref <= 0)
+          return -1;
+        pko = pipeline_expr_kind_ord_at(arena, arg_ref);
+        if (pko != 3)
+          return -1;
+        vlen = pipeline_expr_var_name_len(arena, arg_ref);
+        if (vlen <= 0 || vlen > 127)
+          return -1;
+        pipeline_expr_var_name_into(arena, arg_ref, vname);
+        /* `_` clobber discard does not store — allowed. */
+        if (!(vlen == 1 && vname[0] == (uint8_t)'_'))
+          return -1;
+      }
+    }
+  }
+  /* Slice12/13: preserves_flags wrap unless nostack (pushfq uses stack). */
+  if ((opt_bits & 2) != 0 && (opt_bits & 1) == 0 && ta == 0) {
+    pfq = 0x9cu;
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &pfq, 1) != 0)
+      return -1;
   }
   if (is_nop) {
     if (ta == 0) {
@@ -4956,6 +4996,12 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
       return -1;
     }
   }
+  /* Slice12/13: popfq after template unless nostack. */
+  if ((opt_bits & 2) != 0 && (opt_bits & 1) == 0 && ta == 0) {
+    pfq = 0x9du;
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &pfq, 1) != 0)
+      return -1;
+  }
   for (i = num_in; i < nargs; i++) {
     if (!ctx)
       return -1;
@@ -4981,7 +5027,7 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
     if (voff < 0)
       return -1;
     /* mk==0: already in rax/x0. */
-    if (mk >= 1 && mk <= 6) {
+    if (mk >= 1 && mk <= 8) {
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, mk - 1, ta) != 0)
         return -1;
     }
@@ -5008,7 +5054,6 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
   /* Slice8: options(noreturn) → ud2 after asm (trap if template returns). */
   /* Slice9: stamp diverged so parent block skips unreachable stmts/final_expr. */
   {
-    int32_t opt_bits = pipeline_expr_call_num_type_args_at(arena, expr_ref);
     uint8_t ud2[2];
     if ((opt_bits & 32) != 0) {
       if (ta != 0)
