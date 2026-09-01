@@ -1,0 +1,229 @@
+/*
+ * xlang_path_cap.h — Cap residual 9.1.2: path access/stat/fstat/realpath without
+ * libc access/stat/fstat/realpath on Linux.
+ *
+ * Single authority for host mega Cap residual path probes:
+ *   link_abi_path_readable_impl / path_executable_impl / realpath_cap_impl,
+ *   xlang_path_is_nonempty_regular_file_impl, ELF fstat scan, host gcc probe.
+ *
+ * Linux: faccessat / newfstatat|fstatat / fstat / open+readlink(/proc/self/fd/N).
+ * Other POSIX: thin wrappers over libc (Darwin residual until later).
+ * Windows: not used — call sites keep Win32 paths.
+ *
+ * PLATFORM: LINUX primary (x86_64 + aarch64); POSIX fallback elsewhere.
+ */
+
+#ifndef XLANG_PATH_CAP_H
+#define XLANG_PATH_CAP_H
+
+#if !defined(_WIN32) && !defined(_WIN64)
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#ifndef AT_FDCWD
+#define AT_FDCWD (-100)
+#endif
+
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+
+/** Linux raw syscall up to 4 args. Returns -errno on failure. PLATFORM: LINUX. */
+static inline long xlang_linux_syscall4(long nr, long a1, long a2, long a3, long a4) {
+  long r;
+#if defined(__x86_64__)
+  register long r10 __asm__("r10") = a4;
+  __asm__ __volatile__("syscall"
+                       : "=a"(r)
+                       : "a"(nr), "D"(a1), "S"(a2), "d"(a3), "r"(r10)
+                       : "rcx", "r11", "memory");
+#elif defined(__aarch64__)
+  register long x8 __asm__("x8") = nr;
+  register long x0 __asm__("x0") = a1;
+  register long x1 __asm__("x1") = a2;
+  register long x2 __asm__("x2") = a3;
+  register long x3 __asm__("x3") = a4;
+  __asm__ __volatile__("svc #0"
+                       : "+r"(x0)
+                       : "r"(x8), "r"(x1), "r"(x2), "r"(x3)
+                       : "memory");
+  r = x0;
+#endif
+  return r;
+}
+
+/** Linux raw syscall 3 args. PLATFORM: LINUX. */
+static inline long xlang_linux_syscall3(long nr, long a1, long a2, long a3) {
+  return xlang_linux_syscall4(nr, a1, a2, a3, 0);
+}
+
+/** Linux raw syscall 2 args. PLATFORM: LINUX. */
+static inline long xlang_linux_syscall2(long nr, long a1, long a2) {
+  return xlang_linux_syscall4(nr, a1, a2, 0, 0);
+}
+
+/**
+ * Cap residual access(2): faccessat(AT_FDCWD, path, mode, 0).
+ * @return 0 ok, -1 fail (≡ libc access)
+ * PLATFORM: LINUX
+ */
+static inline int xlang_path_access(const char *path, int mode) {
+  long r;
+  if (!path || !path[0])
+    return -1;
+#if defined(__x86_64__)
+  /* faccessat = 269 */
+  r = xlang_linux_syscall4(269, (long)AT_FDCWD, (long)path, (long)mode, 0);
+#elif defined(__aarch64__)
+  /* faccessat = 48 */
+  r = xlang_linux_syscall4(48, (long)AT_FDCWD, (long)path, (long)mode, 0);
+#endif
+  return r == 0 ? 0 : -1;
+}
+
+/**
+ * Cap residual stat(2): newfstatat/fstatat into libc-layout struct stat.
+ * @return 0 ok, -1 fail
+ * PLATFORM: LINUX
+ */
+static inline int xlang_path_stat(const char *path, struct stat *st) {
+  long r;
+  if (!path || !path[0] || !st)
+    return -1;
+#if defined(__x86_64__)
+  /* newfstatat = 262 */
+  r = xlang_linux_syscall4(262, (long)AT_FDCWD, (long)path, (long)st, 0);
+#elif defined(__aarch64__)
+  /* fstatat = 79 */
+  r = xlang_linux_syscall4(79, (long)AT_FDCWD, (long)path, (long)st, 0);
+#endif
+  return r == 0 ? 0 : -1;
+}
+
+/**
+ * Cap residual fstat(2).
+ * @return 0 ok, -1 fail
+ * PLATFORM: LINUX
+ */
+static inline int xlang_path_fstat(int fd, struct stat *st) {
+  long r;
+  if (fd < 0 || !st)
+    return -1;
+#if defined(__x86_64__)
+  /* fstat = 5 */
+  r = xlang_linux_syscall2(5, (long)fd, (long)st);
+#elif defined(__aarch64__)
+  /* fstat = 80 */
+  r = xlang_linux_syscall2(80, (long)fd, (long)st);
+#endif
+  return r == 0 ? 0 : -1;
+}
+
+/**
+ * Format "/proc/self/fd/<fd>" into buf (caller ≥ 32 bytes).
+ * PLATFORM: LINUX
+ */
+static inline void xlang_path_proc_fd(char *buf, int fd) {
+  static const char pref[] = "/proc/self/fd/";
+  int i = 0;
+  int v;
+  char tmp[16];
+  int n = 0;
+  while (pref[i]) {
+    buf[i] = pref[i];
+    i++;
+  }
+  if (fd == 0) {
+    buf[i++] = '0';
+    buf[i] = '\0';
+    return;
+  }
+  v = fd;
+  if (v < 0) {
+    buf[i++] = '-';
+    v = -v;
+  }
+  while (v > 0 && n < (int)sizeof(tmp)) {
+    tmp[n++] = (char)('0' + (v % 10));
+    v /= 10;
+  }
+  while (n > 0)
+    buf[i++] = tmp[--n];
+  buf[i] = '\0';
+}
+
+/**
+ * Cap residual realpath: open(O_PATH|O_CLOEXEC) + readlink(/proc/self/fd/N).
+ * Requires path to exist (≡ common libc realpath success case for files/dirs).
+ * @param out caller buffer (typically PATH_MAX); written NUL-terminated on success
+ * @return out on success, NULL on failure
+ * PLATFORM: LINUX
+ */
+static inline const char *xlang_path_realpath(const char *path, char *out) {
+  long fd;
+  long n;
+  long cr;
+  char proc[64];
+  /* O_PATH|O_CLOEXEC: 0x200000 | 0x80000 */
+  const long o_flags = 0x200000L | 0x80000L;
+  if (!path || !path[0] || !out)
+    return NULL;
+#if defined(__x86_64__)
+  /* open = 2 */
+  fd = xlang_linux_syscall3(2, (long)path, o_flags, 0);
+#elif defined(__aarch64__)
+  /* openat = 56 */
+  fd = xlang_linux_syscall4(56, (long)AT_FDCWD, (long)path, o_flags, 0);
+#endif
+  if (fd < 0)
+    return NULL;
+  xlang_path_proc_fd(proc, (int)fd);
+#if defined(__x86_64__)
+  /* readlink = 89; leave 1 byte for NUL — use 4095 if out is PATH_MAX */
+  n = xlang_linux_syscall3(89, (long)proc, (long)out, 4095);
+  /* close = 3 */
+  cr = xlang_linux_syscall2(3, fd, 0);
+#elif defined(__aarch64__)
+  /* readlinkat = 78 */
+  n = xlang_linux_syscall4(78, (long)AT_FDCWD, (long)proc, (long)out, 4095);
+  /* close = 57 */
+  cr = xlang_linux_syscall2(57, fd, 0);
+#endif
+  (void)cr;
+  if (n < 0)
+    return NULL;
+  out[n] = '\0';
+  return out;
+}
+
+#else /* !LINUX primary ISA — Darwin / other POSIX residual */
+
+static inline int xlang_path_access(const char *path, int mode) {
+  if (!path || !path[0])
+    return -1;
+  return access(path, mode);
+}
+
+static inline int xlang_path_stat(const char *path, struct stat *st) {
+  if (!path || !path[0] || !st)
+    return -1;
+  return stat(path, st);
+}
+
+static inline int xlang_path_fstat(int fd, struct stat *st) {
+  if (fd < 0 || !st)
+    return -1;
+  return fstat(fd, st);
+}
+
+static inline const char *xlang_path_realpath(const char *path, char *out) {
+  if (!path || !path[0] || !out)
+    return NULL;
+  return realpath(path, out);
+}
+
+#endif /* LINUX */
+
+#endif /* !_WIN32 */
+
+#endif /* XLANG_PATH_CAP_H */
