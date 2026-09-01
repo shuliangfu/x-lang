@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: Apache-2.0
 //
-// Stage 10 (10.5.1) slice0–3: language SIMD builtins — panic bodies.
+// Stage 10 (10.5.1) slice0–7: language SIMD builtins — panic bodies.
 // Asm backend intercepts CALL/METHOD_CALL by name
 // (try_emit_simd_lang_builtin_call_elf_c). Host-C / non-x86 fall through
 // to panic until later slices.
-// PLATFORM: SHARED surface; LINUX|x86_64 asm SSE/AVX lowering (Vec4f).
+// PLATFORM: SHARED surface; LINUX|x86_64 asm SSE/AVX/FMA lowering (Vec4f).
 
 /**
  * Hardware f32x4 vector add (4-wide SSE addps).
@@ -42,6 +42,20 @@ export function mul_f32x4(a: Vec4f, b: Vec4f): Vec4f {
  * PLATFORM: SHARED · asm LINUX|x86_64 (SSE); host-C / aarch64 panic
  */
 export function sub_f32x4(a: Vec4f, b: Vec4f): Vec4f {
+  panic();
+  return [0.0, 0.0, 0.0, 0.0];
+}
+
+/**
+ * Hardware f32x4 fused multiply-add: lane-wise `a + b * c`.
+ * Asm replaces the call with FMA3 vfmadd231ps when available, else mulps+addps.
+ * @param a Vec4f — addend
+ * @param b Vec4f — multiplicand
+ * @param c Vec4f — multiplier
+ * @return Vec4f — lane-wise a + b*c
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE/FMA3); host-C / aarch64 panic
+ */
+export function fma_f32x4(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
   panic();
   return [0.0, 0.0, 0.0, 0.0];
 }
