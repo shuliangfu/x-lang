@@ -961,6 +961,8 @@ struct parser_OneFuncResult {
   int32_t num_src_stmt_order;
   int32_t num_src_body_expr_stmts;
   int32_t func_return_type_ref;
+  /* Cap 10.7.1 language: 1 when param list ends with `, ...` (≡ parser.x). */
+  int32_t is_variadic;
 };
 
 struct parser_ParseResult {
@@ -1843,8 +1845,9 @@ void parser_onefunc_result_layout_prime_e(void) {
 }
 void parser_onefunc_result_layout_prime_f(void) {
   {
-    struct parser_OneFuncResult _q6 = (struct parser_OneFuncResult){ .num_src_stmt_order = 0, .num_src_body_expr_stmts = 0, .func_return_type_ref = 0 };
+    struct parser_OneFuncResult _q6 = (struct parser_OneFuncResult){ .num_src_stmt_order = 0, .num_src_body_expr_stmts = 0, .func_return_type_ref = 0, .is_variadic = 0 };
     (void)(((_q6.func_return_type_ref) = 0));
+    (void)(((_q6.is_variadic) = 0));
   }
 }
 void parser_copy_onefunc_into(struct parser_OneFuncResult * dst, struct parser_OneFuncResult * src) {
@@ -1905,6 +1908,8 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * dst, struct parser_O
     } else {
       (void)(((dst->func_return_type_ref) = preserved_func_ret_ty));
     }
+    /* Cap 10.7.1: copy variadic flag (≡ parser.x). */
+    (void)(((dst->is_variadic) = (src->is_variadic)));
   }
 }
 struct parser_OneFuncResult parser_onefunc_scratch_empty(void) {
@@ -1920,6 +1925,8 @@ void parser_onefunc_merge_pool_out_to_snap(struct parser_OneFuncResult * snap, s
   if (((out->func_return_type_ref) !=0)) {
     (void)(((snap->func_return_type_ref) = (out->func_return_type_ref)));
   }
+  /* Cap 10.7.1: keep variadic across pool merge (≡ parser.x). */
+  (void)(((snap->is_variadic) = (out->is_variadic)));
   (void)(((snap->num_consts) = pipeline_onefunc_num_consts(parser_onefunc_result_pool_ptr(snap))));
   (void)(((snap->num_lets) = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(snap))));
   (void)(((snap->num_if_stmts) = pipeline_onefunc_num_if_stmts(parser_onefunc_result_pool_ptr(snap))));
@@ -4890,6 +4897,8 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(out)));
     struct parser_OneFuncResult out_clean = parser_onefunc_alloc_wired_for_parse(lex);
     (void)(parser_copy_onefunc_into(out, &(out_clean)));
+    /* Cap 10.7.1: clear variadic until trailing `...` is seen (≡ parser.x). */
+    (void)(((out->is_variadic) = 0));
     struct parser_OneFuncResult * out_ref = out;
     uint8_t dummy_name[128] = {};
     struct parser_OneFuncResult impl_snap = parser_onefunc_scratch_empty();
@@ -4995,6 +5004,23 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
       (void)(parser_lex_from_next_into(&(lex), r));
     } else {
       while ((1 ==1)) {
+        /* Cap 10.7.1 language slice5: trailing `...` (TOKEN_ELLIPSIS=94) after ≥1 named
+         * formal. Mirrors parser.x; codegen emits `, ...` when is_variadic. PLATFORM: SHARED. */
+        if ((((r.tok).kind) ==94)) {
+          if (((out->num_params) <=0)) {
+            (void)(parser_set_onefunc_fail(out_ref, lex));
+            return;
+          }
+          (void)(((out->is_variadic) = 1));
+          (void)(parser_lex_from_next_into(&(lex), r));
+          (void)(lexer_next_into(&(r), lex, source));
+          if ((((r.tok).kind) !=83)) {
+            (void)(parser_set_onefunc_fail(out_ref, lex));
+            return;
+          }
+          (void)(parser_lex_from_next_into(&(lex), r));
+          break;
+        }
         /* 59=TOKEN_IDENT, 51=TOKEN_SELF: accept self as param binding name.
          * Lexer keywords self as TOKEN_SELF with ident_len=0; IDENT-only check
          * silent set_onefunc_fail → function dropped from multi-fn AST (wave43).
@@ -6889,6 +6915,8 @@ int32_t parser_module_register_arena_func(struct ast_Module * module, int32_t fu
     (void)(pipeline_module_func_set_body_expr_ref(module, fi, (f.body_expr_ref)));
     (void)(pipeline_module_func_set_is_extern(module, fi, (f.is_extern)));
     (void)(pipeline_module_func_set_is_async(module, fi, (f.is_async)));
+    /* Cap 10.7.1: Func.is_variadic → module slot (≡ parser.x). */
+    (void)(pipeline_module_func_set_is_variadic(module, fi, (f.is_variadic)));
     (void)(pipeline_module_func_set_is_export(module, fi, (module->pending_export)));
     (void)(((module->pending_export) = 0));
     (void)(pipeline_module_func_set_is_used(module, fi, (module->pending_used)));
@@ -8419,6 +8447,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       (void)(pipeline_module_func_name_write(module, fi, &(((res.name))[0]), (res.name_len)));
       (void)(pipeline_module_func_set_num_params(module, fi, (res.num_params)));
       (void)(pipeline_module_func_set_num_generic_params(module, fi, (res.num_generic_params)));
+      /* Cap 10.7.1: OneFuncResult.is_variadic → module Func (≡ parser.x). */
+      (void)(pipeline_module_func_set_is_variadic(module, fi, (res.is_variadic)));
       uint8_t * mod_pool = parser_onefunc_result_pool_ptr(&(res));
       int32_t p = 0;
       while ((p < (res.num_params))) {
@@ -9877,6 +9907,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       (void)(pipeline_module_func_name_write(module, fi_mod, &(((res.name))[0]), (res.name_len)));
       (void)(pipeline_module_func_set_num_params(module, fi_mod, (res.num_params)));
       (void)(pipeline_module_func_set_num_generic_params(module, fi_mod, (res.num_generic_params)));
+      /* Cap 10.7.1: OneFuncResult.is_variadic → module Func buf path (≡ parser.x). */
+      (void)(pipeline_module_func_set_is_variadic(module, fi_mod, (res.is_variadic)));
       (void)(pipeline_module_func_set_return_type(module, fi_mod, type_ref));
       (void)(pipeline_module_func_set_body_ref(module, fi_mod, block_ref));
       (void)(pipeline_module_func_set_body_expr_ref(module, fi_mod, 0));
