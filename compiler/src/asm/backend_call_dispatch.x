@@ -154,6 +154,8 @@ export extern "C" function arch_arm64_enc_enc_casalh_w0_w1_x2(elf_ctx: *u8): i32
 export extern "C" function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+/* 10.5.1 slice7: f32x4 lang fma (a + b*c); x86 SSE/FMA3 via existing fma_rbp. */
+export extern "C" function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, off_c: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 /* 10.5.1 slice1: i32x8 lang builtins (VAR stack homes + sret let slot). */
 export extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32, is_sub: i32): i32;
 export extern "C" function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
@@ -4667,11 +4669,12 @@ function try_emit_simd_lang_resolve_feats_c(ta: i32, feats_in: u32): u32 {
 }
 
 /**
- * Stage 10 (10.5.1) slice0–5: language SIMD builtins add/mul/sub f32x4, i32x8, f32x8.
+ * Stage 10 (10.5.1) slice0–7: language SIMD builtins add/mul/sub/fma f32x4, i32x8, f32x8.
  *
  * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
- * f32x4: spill each Vec4f arg (16B dual-GP), x86 SSE or aarch64 NEON fadd/fmul/fsub,
+ * f32x4 add/mul/sub: spill each Vec4f arg (16B dual-GP), x86 SSE or aarch64 NEON,
  *   reload dual-GP (x86 rdx/rax · aarch64 x1/x0).
+ * f32x4 fma (slice7): 3-arg spill; x86 FMA3/mulps+addps only (ta==0); aarch64 fallthrough.
  * i32x8/f32x8: VAR stack homes + sret let slot; x86 AVX2/SSE or aarch64 NEON dual-half.
  *
  * @return i32 — 1 emitted; 0 not applicable or HW unavailable (fallthrough);
@@ -4699,6 +4702,7 @@ function try_emit_simd_lang_builtin_call_elf_c(
     let arg_ref: i32 = 0;
     let off_a: i32 = 0;
     let off_b: i32 = 0;
+    let off_c: i32 = 0;
     let dst_off: i32 = 0;
     let cur: i32 = 0;
     let feats: u32 = 0;
@@ -4726,6 +4730,8 @@ function try_emit_simd_lang_builtin_call_elf_c(
     let nm_mul_f32x8: u8[9] = [109, 117, 108, 95, 102, 51, 50, 120, 56];
     /* sub_f32x8 (9) */
     let nm_sub_f32x8: u8[9] = [115, 117, 98, 95, 102, 51, 50, 120, 56];
+    /* fma_f32x4 (9) — slice7 */
+    let nm_fma_f32: u8[9] = [102, 109, 97, 95, 102, 51, 50, 120, 52];
     if (ko == 49) {
       nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
       if (nlen != 9) { return 0; }
@@ -4752,7 +4758,7 @@ function try_emit_simd_lang_builtin_call_elf_c(
     } else {
       return 0;
     }
-    if (n_args != 2) { return 0; }
+    /* Arity checked after name match: binops need 2; fma_f32x4 needs 3. */
     which = 0;
     i = 0;
     while (i < 9) {
@@ -4824,7 +4830,76 @@ function try_emit_simd_lang_builtin_call_elf_c(
       }
       if (i == 9) { which = 9; }
     }
+    if (which == 0) {
+      i = 0;
+      while (i < 9) {
+        if (name[i] != nm_fma_f32[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 9) { which = 10; }
+    }
     if (which == 0) { return 0; }
+    /* slice7: fma_f32x4 — 3× dual-GP spill; x86 FMA3/mulps+addps; reload rdx/rax. */
+    if (which == 10) {
+      if (n_args != 3) { return 0; }
+      if (ta != 0) { return 0; }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (arg_ref == 0) { return 0 - 1; }
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      off_a = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+      if (off_a < 0) { return 0 - 1; }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 1);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+      }
+      if (arg_ref == 0) { return 0 - 1; }
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      off_b = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+      if (off_b < 0) { return 0 - 1; }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 2);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 2);
+      }
+      if (arg_ref == 0) { return 0 - 1; }
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      off_c = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+      if (off_c < 0) { return 0 - 1; }
+      cur = call_dispatch_load_i32_le(ctx, 4);
+      dst_off = cur + 16;
+      if (dst_off < 16) { dst_off = 16; }
+      call_dispatch_store_i32_le(ctx, 4, dst_off + 16);
+      feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
+      if ((feats & 1) == 0) {
+        return 0;
+      }
+      hw = simd_enc_try_hw_vector_fma_rbp(elf_ctx, off_a, off_b, off_c, dst_off, 4, 4, ta, feats);
+      if (hw != 0) {
+        return 0;
+      }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off - 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off, ta) != 0) {
+        return 0 - 1;
+      }
+      return 1;
+    }
+    if (n_args != 2) { return 0; }
     /* slice1–6: i32x8 / f32x8 — VAR + sret; x86 SSE/AVX · aarch64 NEON dual-half. */
     if ((ta == 0 || ta == 1) && (which == 3 || which == 4 || which == 6 || which == 7 || which == 8 || which == 9)) {
       if (is_method != 0) {
