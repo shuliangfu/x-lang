@@ -49635,6 +49635,8 @@ struct parser_OneFuncResult {
   int32_t num_src_stmt_order;
   int32_t num_src_body_expr_stmts;
   int32_t func_return_type_ref;
+  /* Cap 10.7.1 language: 1 when param list ends with `, ...` (≡ parser.x / pin). */
+  int32_t is_variadic;
 };
 struct parser_ExternParseResult {
   struct lexer_Lexer next_lex;
