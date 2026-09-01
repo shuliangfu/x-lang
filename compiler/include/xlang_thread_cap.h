@@ -9,11 +9,11 @@
  * Slice1: clone trampoline spawn/join (child never C-continues after clone).
  *         Raw xlang_clone / xlang_clone3 helpers kept for Cap faces.
  * Slice2: product runtime_thread_glue Linux spawn/join/pool → Cap.
- * Later: Windows CreateThread (10.6.2).
+ * 10.6.2 slice0: Windows CreateThread / WaitForSingleObject Cap spawn/join.
  *
- * Windows / Darwin: not provided — callers keep OS thread APIs.
+ * Darwin: not provided — callers keep pthread APIs.
  *
- * PLATFORM: LINUX primary (x86_64 + aarch64).
+ * PLATFORM: LINUX primary (x86_64 + aarch64) · WINDOWS Cap spawn/join.
  */
 
 #ifndef XLANG_THREAD_CAP_H
@@ -452,6 +452,119 @@ static inline int xlang_thread_join(struct xlang_thread_join *join) {
   return 0;
 }
 
-#endif /* LINUX x86_64|aarch64 */
+#elif defined(_WIN32) || defined(_WIN64)
+
+/*
+ * Cap residual 10.6.2 slice0 — Windows CreateThread / WaitForSingleObject.
+ * Same spawn/join entry names as Linux Cap so product glue has one authority.
+ * PLATFORM: WINDOWS
+ */
+
+#include <errno.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+typedef void *(*xlang_thread_start_fn)(void *arg);
+
+/**
+ * Join handle filled by xlang_thread_spawn; wait with xlang_thread_join.
+ * PLATFORM: WINDOWS — handle is CreateThread HANDLE.
+ */
+struct xlang_thread_join {
+  void *handle; /* HANDLE */
+  void *stack;  /* unused (CreateThread owns stack); kept for layout kinship */
+  size_t stack_len;
+};
+
+/**
+ * Pack passed to Cap Win trampoline (heap; freed by child).
+ * PLATFORM: WINDOWS
+ */
+struct xlang_thread_spawn_pack {
+  xlang_thread_start_fn fn;
+  void *arg;
+};
+
+/**
+ * CreateThread trampoline: run fn(arg), free pack, return 0.
+ * @param p xlang_thread_spawn_pack*
+ * @return 0
+ * PLATFORM: WINDOWS
+ */
+static DWORD WINAPI xlang_thread_win_tramp(LPVOID p) {
+  struct xlang_thread_spawn_pack *pack = (struct xlang_thread_spawn_pack *)p;
+  if (pack != 0) {
+    if (pack->fn != 0) {
+      (void)pack->fn(pack->arg);
+    }
+    free(pack);
+  }
+  return 0;
+}
+
+/**
+ * Spawn fn(arg) via CreateThread (Cap residual; no CRT _beginthreadex).
+ * join must be zero-initialized; owns HANDLE until xlang_thread_join.
+ * @param stack_len requested stack bytes; 0 → system default
+ * @return 0 parent ok; -1 with errno
+ * PLATFORM: WINDOWS
+ */
+static inline int xlang_thread_spawn(xlang_thread_start_fn fn, void *arg,
+                                     struct xlang_thread_join *join, size_t stack_len) {
+  struct xlang_thread_spawn_pack *pack = 0;
+  HANDLE h = NULL;
+  if (fn == 0 || join == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  join->handle = 0;
+  join->stack = 0;
+  join->stack_len = 0;
+  pack = (struct xlang_thread_spawn_pack *)malloc(sizeof(*pack));
+  if (pack == 0) {
+    errno = ENOMEM;
+    return -1;
+  }
+  pack->fn = fn;
+  pack->arg = arg;
+  h = CreateThread(NULL, (SIZE_T)stack_len, xlang_thread_win_tramp, pack, 0, NULL);
+  if (h == NULL) {
+    free(pack);
+    errno = EAGAIN;
+    return -1;
+  }
+  join->handle = (void *)h;
+  join->stack_len = stack_len;
+  return 0;
+}
+
+/**
+ * Wait for Cap-spawned Win thread and CloseHandle.
+ * @return 0 ok; -1 with errno
+ * PLATFORM: WINDOWS
+ */
+static inline int xlang_thread_join(struct xlang_thread_join *join) {
+  HANDLE h = NULL;
+  if (join == 0 || join->handle == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  h = (HANDLE)join->handle;
+  if (WaitForSingleObject(h, INFINITE) != WAIT_OBJECT_0) {
+    errno = EIO;
+    return -1;
+  }
+  (void)CloseHandle(h);
+  join->handle = 0;
+  return 0;
+}
+
+#endif /* LINUX | WINDOWS */
 
 #endif /* XLANG_THREAD_CAP_H */
