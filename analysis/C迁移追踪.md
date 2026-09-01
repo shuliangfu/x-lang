@@ -161,7 +161,7 @@
 - ✅ **9.1.9** inline asm syscall（Linux x86_64）— **Ubuntu ✅（WIP）**：G.7 `xlang_syscall_cap.h`（syscall0..6；x86_64＋aarch64）；path／io／net／process／time／random 改 alias。探针 `syscall_cap_raw_smoke.x`＠**`fecc624dd`**。残：非 Cap 种子内仍有独立 asm（bootstrap／freestanding）  
 - 🟡 **9.1.10** opendir／readdir／closedir — **Ubuntu ✅（WIP）**：G.7 `xlang_dir_cap.h`＋`-E` prologue＋formal merge＋posix／fmt／pabi Cap。证＠**`6ee38226e`**：fs／fmt／pabi **无 U opendir** · Cap smoke **0**。残：Darwin／Win  
 - ✅ **9.1.11** execinfo／dladdr — **Ubuntu ✅（WIP）**：`xlang_backtrace_cap.h` frame walk＋maps/ELF `xlang_bt_dladdr`；platform.o **无 U backtrace/dladdr** · 探针 `backtrace_cap_raw_smoke.x`／`backtrace_dladdr_raw_smoke.x`＠**`72f18126c`** · 残 DbgHelp／Darwin  
-- ⬜ **9.1.12** sysctl／proc／`#if`  
+- 🟡 **9.1.12** sysctl／proc／`#if` — **Linux s0 Ubuntu ✅（WIP）**：G.7 `xlang_proc_cap.h`（syscall open＋`xlang_io_read`＋行扫描）；`target_cpu_pure` Linux detect 离 fopen/fgets；探针 `target_cpu_proc_raw_smoke.x`＠**`3f7cc46c6`** · target_cpu.o **无 U fopen/fgets**。残：macOS sysctlbyname · 9.3.3 host 字面量  
 
 ### 9.2 第三方库（P2）
 

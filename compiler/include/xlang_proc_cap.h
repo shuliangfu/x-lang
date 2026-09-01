@@ -61,14 +61,14 @@ static inline long xlang_proc_read_file(const char *path, char *buf, size_t cap)
   while ((size_t)off + 1 < cap) {
     n = xlang_io_read(fd, buf + off, cap - 1 - (size_t)off);
     if (n < 0) {
-      XLANG_PROC_SYS_close(fd);
+      (void)XLANG_PROC_SYS_close(fd);
       return -1;
     }
     if (n == 0)
       break;
     off += n;
   }
-  XLANG_PROC_SYS_close(fd);
+  (void)XLANG_PROC_SYS_close(fd);
   buf[off] = '\0';
   return off;
 }
