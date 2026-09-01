@@ -3,9 +3,11 @@
  * (runtime_backtrace_platform → xlang_backtrace_cap.h frame walk on Linux).
  *
  * Contract: capture at least one frame; return 0 on success.
+ * No std imports — same link model as io_write_raw_smoke.x.
  * PLATFORM: LINUX|x86_64 gold.
  */
-const backtrace = import("std.backtrace");
+
+extern "C" function backtrace_capture_c(buf: *u8, max_frames: i32): i32;
 
 /**
  * Probe entry for Cap residual 9.1.11 capture face.
@@ -13,7 +15,10 @@ const backtrace = import("std.backtrace");
  */
 export function main(): i32 {
   let buf: u8[64] = [];
-  let n: i32 = backtrace.capture(&buf[0], 8);
+  let n: i32 = 0;
+  unsafe {
+    n = backtrace_capture_c(&buf[0], 8);
+  }
   if (n <= 0) {
     return 1;
   }
