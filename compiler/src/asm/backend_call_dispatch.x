@@ -153,6 +153,11 @@ export extern "C" function arch_arm64_enc_enc_casalh_w0_w1_x2(elf_ctx: *u8): i32
 /* 10.5.1 slice0: Vec4f SSE addps/mulps via simd_enc (reuse HW vector binop encoders). */
 export extern "C" function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+/* 10.5.1 slice1: i32x8 lang builtins (VAR stack homes + sret let slot). */
+export extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32, is_sub: i32): i32;
+export extern "C" function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+export extern function glue_asm_local_var_stack_off_scoped(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
 export extern "C" function glue_simd_emit_cpu_features_c(): u32;
 export extern "C" function xlang_target_cpu_detect_host(): u32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
@@ -4638,12 +4643,11 @@ function try_emit_atomic_builtin_call_elf_c(
 }
 
 /**
- * Stage 10 (10.5.1) slice0: language SIMD builtins add_f32x4 / mul_f32x4.
+ * Stage 10 (10.5.1) slice0–1: language SIMD builtins add/mul f32x4 and i32x8.
  *
  * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
- * Spills each Vec4f arg (16B dual-GP) via glue_sysv_spill_rax_rdx_to_frame_c,
- * emits SSE addps/mulps through simd_enc_try_hw_vector_f{add,mul}_rbp, then
- * reloads the 16B result into rax/rdx (SysV low@off, high@off-8).
+ * f32x4: spill each Vec4f arg (16B dual-GP), SSE addps/mulps, reload rax/rdx.
+ * i32x8: VAR stack homes, paddd/pmulld (or AVX2), write into sret let slot (>16B).
  *
  * @return i32 — 1 emitted; 0 not applicable or HW unavailable (fallthrough);
  *               -1 emit error
@@ -4655,7 +4659,7 @@ function try_emit_simd_lang_builtin_call_elf_c(
   if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
     return 0;
   }
-  /* slice0: x86_64 SSE only; aarch64 / host-C fall through to panic bodies. */
+  /* slice0/1: x86_64 SSE only; aarch64 / host-C fall through to panic bodies. */
   if (ta != 0) {
     return 0;
   }
@@ -4674,10 +4678,19 @@ function try_emit_simd_lang_builtin_call_elf_c(
     let cur: i32 = 0;
     let feats: u32 = 0;
     let hw: i32 = 0;
+    let ko_a: i32 = 0;
+    let ko_b: i32 = 0;
+    let sret_sh: i32 = 0;
+    let ar0: i32 = 0;
+    let ar1: i32 = 0;
     /* add_f32x4 (9) */
-    let nm_add: u8[9] = [97, 100, 100, 95, 102, 51, 50, 120, 52];
+    let nm_add_f32: u8[9] = [97, 100, 100, 95, 102, 51, 50, 120, 52];
     /* mul_f32x4 (9) */
-    let nm_mul: u8[9] = [109, 117, 108, 95, 102, 51, 50, 120, 52];
+    let nm_mul_f32: u8[9] = [109, 117, 108, 95, 102, 51, 50, 120, 52];
+    /* add_i32x8 (9) */
+    let nm_add_i32: u8[9] = [97, 100, 100, 95, 105, 51, 50, 120, 56];
+    /* mul_i32x8 (9) */
+    let nm_mul_i32: u8[9] = [109, 117, 108, 95, 105, 51, 50, 120, 56];
     if (ko == 49) {
       nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
       if (nlen != 9) { return 0; }
@@ -4708,19 +4721,82 @@ function try_emit_simd_lang_builtin_call_elf_c(
     which = 0;
     i = 0;
     while (i < 9) {
-      if (name[i] != nm_add[i]) { i = 99; }
+      if (name[i] != nm_add_f32[i]) { i = 99; }
       else { i = i + 1; }
     }
     if (i == 9) { which = 1; }
     if (which == 0) {
       i = 0;
       while (i < 9) {
-        if (name[i] != nm_mul[i]) { i = 99; }
+        if (name[i] != nm_mul_f32[i]) { i = 99; }
         else { i = i + 1; }
       }
       if (i == 9) { which = 2; }
     }
+    if (which == 0) {
+      i = 0;
+      while (i < 9) {
+        if (name[i] != nm_add_i32[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 9) { which = 3; }
+    }
+    if (which == 0) {
+      i = 0;
+      while (i < 9) {
+        if (name[i] != nm_mul_i32[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 9) { which = 4; }
+    }
     if (which == 0) { return 0; }
+    /* slice1: i32x8 — local VAR operands; >16B sret dest from sret_home_off. */
+    if (which == 3 || which == 4) {
+      if (is_method != 0) {
+        ar0 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+        ar1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 1);
+      } else {
+        ar0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+        ar1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+      }
+      if (ar0 == 0 || ar1 == 0) { return 0 - 1; }
+      ko_a = pipeline_expr_kind_ord_at(arena, ar0);
+      ko_b = pipeline_expr_kind_ord_at(arena, ar1);
+      if (ko_a != 3 || ko_b != 3) {
+        return 0;
+      }
+      off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, ar0);
+      off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, ar1);
+      if (off_a < 0 || off_b < 0) { return 0 - 1; }
+      sret_sh = pipeline_asm_emit_call_sret_reg_shift_c();
+      if (sret_sh != 0) {
+        dst_off = pipeline_asm_emit_ctx_sret_home_off_get();
+      } else {
+        cur = call_dispatch_load_i32_le(ctx, 4);
+        dst_off = cur + 16;
+        if (dst_off < 16) { dst_off = 16; }
+        call_dispatch_store_i32_le(ctx, 4, dst_off + 32);
+      }
+      if (dst_off < 0) { return 0; }
+      feats = glue_simd_emit_cpu_features_c();
+      if (feats == 0) {
+        feats = xlang_target_cpu_detect_host();
+      }
+      if ((feats & 1) == 0) {
+        return 0;
+      }
+      if (which == 3) {
+        hw = simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, off_a, off_b, dst_off, 8, 4, ta, feats, 0);
+      } else {
+        hw = simd_enc_try_hw_vector_imul_rbp(elf_ctx, off_a, off_b, dst_off, 8, 4, ta, feats);
+      }
+      if (hw != 0) {
+        return 0;
+      }
+      /* Callee wrote into sret dest (rdi / let slot); no rax/rdx reload. */
+      return 1;
+    }
+    /* slice0: f32x4 — spill dual-GP args, SSE, reload 16B pair into rdx/rax. */
     if (is_method != 0) {
       arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
     } else {
