@@ -1,7 +1,7 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: Apache-2.0
 //
-// Stage 10 (10.5.1) slice0: language SIMD builtins — panic bodies.
+// Stage 10 (10.5.1) slice0–1: language SIMD builtins — panic bodies.
 // Asm backend intercepts CALL/METHOD_CALL by name
 // (try_emit_simd_lang_builtin_call_elf_c). Host-C / non-x86 fall through
 // to panic until later slices.
@@ -31,4 +31,30 @@ export function add_f32x4(a: Vec4f, b: Vec4f): Vec4f {
 export function mul_f32x4(a: Vec4f, b: Vec4f): Vec4f {
   panic();
   return [0.0, 0.0, 0.0, 0.0];
+}
+
+/**
+ * Hardware i32x8 vector add (8-wide SSE2 paddd or AVX2 vpaddd).
+ * Asm replaces the call with movups + paddd/vpaddd into the sret let slot.
+ * @param a Vec8i — first operand (32B stack home)
+ * @param b Vec8i — second operand
+ * @return Vec8i — lane-wise sum (>16B sret into let slot)
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE2/AVX2); host-C / aarch64 panic
+ */
+export function add_i32x8(a: Vec8i, b: Vec8i): Vec8i {
+  panic();
+  return [0, 0, 0, 0, 0, 0, 0, 0];
+}
+
+/**
+ * Hardware i32x8 vector multiply (8-wide SSE4.1 pmulld or AVX2 vpmulld).
+ * Asm replaces the call with movups + pmulld/vpmulld into the sret let slot.
+ * @param a Vec8i — first operand
+ * @param b Vec8i — second operand
+ * @return Vec8i — lane-wise product (>16B sret into let slot)
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE4.1/AVX2); host-C / aarch64 panic
+ */
+export function mul_i32x8(a: Vec8i, b: Vec8i): Vec8i {
+  panic();
+  return [0, 0, 0, 0, 0, 0, 0, 0];
 }
