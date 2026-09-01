@@ -300,6 +300,8 @@ int target_cpu_pure_slice_marker(void) {
 #define HAVE_XLANG_IO_PRINT_CAP 1
 #endif
 
+#if defined(HAVE_XLANG_IO_PRINT_CAP)
+
 /**
  * Write entire buffer to fd via Cap io (handles partial writes).
  * @param fd   stdout=1
@@ -332,7 +334,6 @@ static void tcp_fmt_u32_hex8(uint32_t v, char *dst) {
 
 /**
  * Append fixed prefix + 0x + 8-digit hex + newline; write to fd.
- * @return bytes written (best effort)
  * PLATFORM: LINUX Cap residual 9.5.2
  */
 static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
@@ -355,6 +356,8 @@ static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
   line[pos++] = '\n';
   tcp_cap_write_all(fd, line, pos);
 }
+
+#endif /* HAVE_XLANG_IO_PRINT_CAP */
 
 void xlang_target_cpu_print(FILE *out, uint32_t features) {
   char list[256];
@@ -428,8 +431,10 @@ void xlang_target_cpu_print(FILE *out, uint32_t features) {
 #endif
 #endif
 #if defined(__APPLE__)
-#include <sys/sysctl.h>
-#include <sys/types.h>
+#if defined(__x86_64__)
+#include <cpuid.h>
+#define HAVE_XLANG_CPUID_MACOS 1
+#endif
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
@@ -541,16 +546,21 @@ uint32_t xlang_target_cpu_detect_x86_linux(void) {
 #endif
 
 #if defined(__APPLE__)
-/** macOS x86：sysctl machdep.cpu.leaf7_features / machdep.cpu.feature_bits。 */
+/** macOS x86：CPUID leaf7 + leaf1 feature bits（Cap 9.1.12 s1，无 sysctlbyname）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_x86_macos(void) {
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
     uint64_t leaf7 = 0;
     uint64_t feat = 0;
-    size_t sz;
     uint32_t f = XLANG_CPU_FEAT_SSE2 | XLANG_CPU_FEAT_SSE41;
 
-    sz = sizeof(leaf7);
-    if (sysctlbyname("machdep.cpu.leaf7_features", &leaf7, &sz, NULL, 0) == 0) {
+#if defined(HAVE_XLANG_CPUID_MACOS)
+    if (__get_cpuid_max(0, NULL) >= 7) {
+        __cpuid_count(7, 0, &eax, &ebx, &ecx, &edx);
+        leaf7 = (uint64_t)(uint32_t)ebx;
         if (leaf7 & (1ULL << 5))
             f |= XLANG_CPU_FEAT_AVX2;
         if (leaf7 & (1ULL << 16))
@@ -560,13 +570,15 @@ uint32_t xlang_target_cpu_detect_x86_macos(void) {
         if (leaf7 & (1ULL << 12))
             f |= XLANG_CPU_FEAT_FMA;
     }
-    sz = sizeof(feat);
-    if (sysctlbyname("machdep.cpu.feature_bits", &feat, &sz, NULL, 0) == 0) {
+    if (__get_cpuid_max(0, NULL) >= 1) {
+        __cpuid(1, &eax, &ebx, &ecx, &edx);
+        feat = ((uint64_t)edx << 32) | (uint64_t)(uint32_t)ecx;
         if (feat & (1ULL << 28))
             f |= XLANG_CPU_FEAT_AVX;
         if (feat & (1ULL << 14))
             f |= XLANG_CPU_FEAT_POPCNT;
     }
+#endif
     if (f == 0)
         f = xlang_target_cpu_detect_x86_macro_fallback();
     return f;
@@ -639,16 +651,14 @@ uint32_t xlang_target_cpu_detect_arm64_linux(void) {
 #endif
 
 #if defined(__APPLE__)
-/** macOS arm64：NEON 为 mandatory；SVE 通过 hw.optional.arm.FEAT_SVE 探测。 */
+/**
+ * macOS arm64：NEON mandatory；SVE sysctl 在 Apple Silicon 消费级芯片上不存在。
+ * Cap 9.1.12 s1：去掉 sysctlbyname（与旧路径失败时等价，仅 NEON）。
+ * PLATFORM: MACOS|DARWIN|arm64
+ */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_arm64_macos(void) {
-    uint32_t f = XLANG_CPU_FEAT_NEON;
-    int sve = 0;
-    size_t sz = sizeof(sve);
-
-    if (sysctlbyname("hw.optional.arm.FEAT_SVE", &sve, &sz, NULL, 0) == 0 && sve)
-        f |= XLANG_CPU_FEAT_SVE;
-    return f;
+    return XLANG_CPU_FEAT_NEON;
 }
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
