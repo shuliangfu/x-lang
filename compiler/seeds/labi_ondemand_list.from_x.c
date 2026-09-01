@@ -45,6 +45,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: L8b standalone ondemand seed → Cap snprintf */
+/* G.7: Cap when this TU is cc'd alone (try-labi-prefer L8b); mega include already redirects. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include "runtime_link_abi.h"
 
 /* Cap residual (wave212): nm/popen(+ELF) UNDEF body; pure owns null/empty gates. */
