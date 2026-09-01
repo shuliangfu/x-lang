@@ -271,6 +271,10 @@ export extern function glue_asm_mangle_import_binding_call_sym_c(
 ): i32;
 export extern function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
 export extern function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
+export extern function pipeline_typeck_call_arg_effective_type_c(a: *u8, arg_ref: i32): i32;
+export extern function pipeline_dep_ctx_current_func_index(dep: *u8): i32;
+export extern function pipeline_module_func_param_name_len_at(m: *u8, fi: i32, pi: i32): i32;
+export extern function pipeline_module_func_param_name_copy32(m: *u8, fi: i32, pi: i32, dst: *u8): void;
 export extern function asm_qual_sym_layer_reset(): void;
 export extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
 export extern function asm_qual_sym_layer_count(): i32;
@@ -1400,13 +1404,16 @@ export function glue_asm_build_call_export_sym_c(
             let mid_len: i32 = 0 - 1;
             let da: *u8 = dep_arena;
             if (da == 0 as *u8) { da = arena; }
-            if (r_dep == dep_ix) {
-              if (r_func >= 0) {
-                if (r_func < pipeline_module_num_funcs(dep_mod)) {
-                  if (pipeline_module_func_is_extern_at(dep_mod, r_func) == 0) {
-                    if (pipeline_module_func_name_equal_at(dep_mod, r_func, &cname[0], clen) != 0) {
-                      if (pipeline_module_func_num_params_at(dep_mod, r_func) == want_np) {
-                        use_fi = r_func;
+            use_fi = pipeline_typeck_resolve_call_func_index_for_emit_c(dep_mod, da, call_expr_ref);
+            if (use_fi < 0) {
+              if (r_dep == dep_ix) {
+                if (r_func >= 0) {
+                  if (r_func < pipeline_module_num_funcs(dep_mod)) {
+                    if (pipeline_module_func_is_extern_at(dep_mod, r_func) == 0) {
+                      if (pipeline_module_func_name_equal_at(dep_mod, r_func, &cname[0], clen) != 0) {
+                        if (pipeline_module_func_num_params_at(dep_mod, r_func) == want_np) {
+                          use_fi = r_func;
+                        }
                       }
                     }
                   }
@@ -6008,6 +6015,51 @@ export function glue_asm_score_import_binding_func_ix_c(
               let arg_ty: i32 = 0;
               if (arg_ref > 0) {
                 arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                if (arg_ty <= 0) {
+                  arg_ty = pipeline_typeck_call_arg_effective_type_c(arena, arg_ref);
+                }
+                /* Co-emit dep bodies: mul(a,b) inside dot may lack resolved_type_ref on
+                 * param VARs — match enclosing current_func_index formals (Vec4f not Vec8i).
+                 * PLATFORM: SHARED — STD-SIMD-INTRINSIC dot→mul_f32x4 on Ubuntu pure .x. */
+                if (arg_ty <= 0) {
+                  if (pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+                    let vn_len: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+                    if (vn_len > 0) {
+                      if (vn_len <= 127) {
+                        let vn: u8[128] = [];
+                        pipeline_expr_var_name_into(arena, arg_ref, &vn[0]);
+                        let dp_sc: *u8 = pipeline_asm_emit_dep_pipe_c();
+                        if (dp_sc != 0 as *u8) {
+                          let cur_fi: i32 = pipeline_dep_ctx_current_func_index(dp_sc);
+                          if (cur_fi >= 0) {
+                            let np_cur: i32 = pipeline_module_func_num_params_at(res_mod, cur_fi);
+                            let pj: i32 = 0;
+                            while (pj < np_cur) {
+                              let plen: i32 = pipeline_module_func_param_name_len_at(res_mod, cur_fi, pj);
+                              if (plen == vn_len) {
+                                if (plen > 0) {
+                                  let pn: u8[128] = [];
+                                  pipeline_module_func_param_name_copy32(res_mod, cur_fi, pj, &pn[0]);
+                                  let eqn: i32 = 1;
+                                  let vk: i32 = 0;
+                                  while (vk < plen) {
+                                    if (pn[vk] != vn[vk]) { eqn = 0; break; }
+                                    vk = vk + 1;
+                                  }
+                                  if (eqn != 0) {
+                                    arg_ty = pipeline_module_func_param_type_ref_at(res_mod, cur_fi, pj);
+                                    pj = np_cur;
+                                  }
+                                }
+                              }
+                              pj = pj + 1;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
               let pty: i32 = pipeline_module_func_param_type_ref_at(res_mod, fi, pi);
               if (arg_ty > 0) {
