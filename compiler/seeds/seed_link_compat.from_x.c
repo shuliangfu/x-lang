@@ -966,6 +966,7 @@ XLANG_ARCH_ENC_STUB2(arch_arm64_enc_enc_jge, uint8_t *, label, int32_t, label_le
 XLANG_ARCH_ENC_STUB2(arch_arm64_enc_enc_jmp, uint8_t *, label, int32_t, label_len)
 XLANG_ARCH_ENC_STUB3(arch_arm64_enc_enc_label, uint8_t *, name, int32_t, name_len, int32_t, is_func)
 XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
+XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_arg_reg_to_rax, int32_t, k)
 XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_add_sp_imm12, int32_t, imm)
 XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_sub_sp_imm12, int32_t, imm)
 XLANG_ARCH_ENC_STUB0(arch_arm64_enc_enc_sub_rax_rbx)
