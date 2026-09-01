@@ -8,7 +8,8 @@
  * Slice0: futex wait/wake + anonymous stack mmap/munmap.
  * Slice1: clone trampoline spawn/join (child never C-continues after clone).
  *         Raw xlang_clone / xlang_clone3 helpers kept for Cap faces.
- * Later: product pthread face → Cap · Windows CreateThread (10.6.2).
+ * Slice2: product runtime_thread_glue Linux spawn/join/pool → Cap.
+ * Later: Windows CreateThread (10.6.2).
  *
  * Windows / Darwin: not provided — callers keep OS thread APIs.
  *
