@@ -3,7 +3,8 @@
  * Product PREFER_X_O: xlang-c -E(.x) -> thin.o + ld -r with rest (seeds/runtime_backtrace_platform.from_x.c)
  * Prove: full.x vs this surface -> nm IDENTICAL (15 #[no_mangle] + 1 doc_anchor)
  * Mode: thin+rest - 15 public API forwards to _impl extern C bridges;
- *   rest keeps OS-specific logic (execinfo/dladdr/DbgHelp/CaptureStackBackTrace)
+ *   rest keeps OS-specific Cap residual (ELF/Mach-O/PE) + legacy fallbacks
+ *   (execinfo/dladdr/DbgHelp/CaptureStackBackTrace when Cap N/A)
  * Cap residual: 13 _impl - backtrace_u8_hex2/read_frame_addr/write_frame_addr/copy_sym_name/
  *   format_hex_addr/name_has_gold_anchor/capture/symbolicate/gold_anchor_addr/
  *   capture_and_check_gold_c/xplat_platform_name/xplat_quality + xlang_crash_evidence_collect_impl
