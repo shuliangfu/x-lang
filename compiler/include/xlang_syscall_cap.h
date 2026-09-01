@@ -2,7 +2,7 @@
  * xlang_syscall_cap.h — Cap residual 9.1.9: single Linux inline-asm syscall
  * authority (x86_64 + aarch64).
  *
- * G.7: all Cap residual headers (path/io/net/process/time/random/…) must use
+ * G.7: all Cap residual headers (path/io/net/process/time/random/dir/…) must use
  * these helpers instead of duplicating syscall/svc asm.
  *
  * Returns raw kernel return (negative -errno on failure). Callers map errno.
