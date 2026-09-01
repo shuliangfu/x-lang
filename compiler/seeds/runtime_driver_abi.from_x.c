@@ -194,6 +194,10 @@ void driver_compile_phase_timing_clear(void);
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: driver_abi path/uname format → Cap snprintf */
+/* G.7: single Cap authority for this cold/rest TU (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
 
 #ifndef _WIN32
 #include <sys/time.h>
