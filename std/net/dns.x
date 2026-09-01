@@ -91,9 +91,13 @@ export function net_dns_ai_addconfig_c(): i32 {
   return 1024;
 }
 
-extern "C" function getaddrinfo(node: *u8, service: *u8, hints_in: *u8, res: * *u8): i32;
-extern "C" function freeaddrinfo(res: *AddrInfo): void;
-extern "C" function ntohl(netlong: u32): u32;
+/**
+ * Cap residual 9.1.7 slice2: DNS resolve faces (body in runtime_net_dns_fast).
+ * Linux Cap has no libc getaddrinfo; Windows still uses Winsock in the C twin.
+ * PLATFORM: SHARED export name / LINUX Cap body.
+ */
+extern "C" function xlang_dns_cap_resolve_ipv4(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
+extern "C" function xlang_dns_cap_resolve_ipv6(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
 
 #[cfg(target_os = "windows")]
 extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
@@ -233,61 +237,35 @@ export function net_resolve_ipv4_c(hostname: *u8): u32 {
 }
 
 /**
- * See implementation.
+ * Resolve hostname to IPv4 (host-order u32).
+ * Cap residual 9.1.7 slice2: delegates to xlang_dns_cap_resolve_ipv4 (no getaddrinfo).
+ * @param hostname NUL-C host; null rejected
+ * @param out_addr host-order IPv4 or 0
+ * @param out_err product map 0/1/2/3/4
+ * @return 0 ok, -1 fail
+ * PLATFORM: SHARED contract / LINUX Cap body in dns_fast
  */
 export function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
-  let hints_mem: u8[48] = [];
-  let res_head: *u8 = 0 as *u8;
-  let res: *AddrInfo = 0 as *AddrInfo;
-  let ga: i32 = 0;
-  let addr_u32: u32 = 0;
-  let sa: *SockAddrIn = 0 as *SockAddrIn;
-  let rp: *AddrInfo = 0 as *AddrInfo;
   if (net_dns_maybe_wsa_fail_c() != 0) {
     if (out_addr != 0) { out_addr[0] = 0; }
     if (out_err != 0) { out_err[0] = 4; }
     return -1;
   }
-  if (hostname == 0) {
-    if (out_addr != 0) { out_addr[0] = 0; }
-    if (out_err != 0) { out_err[0] = 4; }
-    return -1;
+  unsafe {
+    return xlang_dns_cap_resolve_ipv4(hostname, out_addr, out_err);
   }
-  net_dns_fill_hints_inet_c(&hints_mem[0], AF_INET, net_dns_ai_addconfig_c());
-  unsafe { ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head); }
-  res = res_head as *AddrInfo;
-  if (ga != 0 || res == 0) {
-    if (out_addr != 0) { out_addr[0] = 0; }
-    if (out_err != 0) { out_err[0] = net_map_gai_error_c(ga); }
-    if (res != 0) { unsafe { freeaddrinfo(res); } }
-    return -1;
-  }
-  rp = res;
-  if (rp.ai_family == AF_INET && rp.ai_addr != 0 && rp.ai_addrlen >= 16 as u32) {
-    sa = rp.ai_addr as *SockAddrIn;
-    unsafe { addr_u32 = ntohl(sa.sin_addr); }
-  }
-  unsafe { freeaddrinfo(res); }
-  if (addr_u32 == 0) {
-    if (out_addr != 0) { out_addr[0] = 0; }
-    if (out_err != 0) { out_err[0] = 2; }
-    return -1;
-  }
-  if (out_addr != 0) { out_addr[0] = addr_u32; }
-  if (out_err != 0) { out_err[0] = 0; }
-  return 0;
 }
 
 /**
- * See implementation.
+ * Resolve hostname to IPv6 (16 network-order bytes).
+ * Cap residual 9.1.7 slice2: delegates to xlang_dns_cap_resolve_ipv6 (no getaddrinfo).
+ * @param hostname NUL-C host; null rejected
+ * @param out_addr_16 16-byte buffer
+ * @param out_err product map 0/1/2/3/4
+ * @return 0 ok, -1 fail
+ * PLATFORM: SHARED contract / LINUX Cap body in dns_fast
  */
 export function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
-  let hints_mem: u8[48] = [];
-  let res_head: *u8 = 0 as *u8;
-  let res: *AddrInfo = 0 as *AddrInfo;
-  let ga: i32 = 0;
-  let sa6: *SockAddrIn6 = 0 as *SockAddrIn6;
-  let rp: *AddrInfo = 0 as *AddrInfo;
   if (net_dns_maybe_wsa_fail_c() != 0) {
     if (out_err != 0) { out_err[0] = 4; }
     return -1;
@@ -296,33 +274,7 @@ export function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: 
     if (out_err != 0) { out_err[0] = 4; }
     return -1;
   }
-  let i0: i32 = 0;
-  while (i0 < 16) {
-    out_addr_16[i0] = 0;
-    i0 = i0 + 1;
+  unsafe {
+    return xlang_dns_cap_resolve_ipv6(hostname, out_addr_16, out_err);
   }
-  net_dns_fill_hints_inet_c(&hints_mem[0], AF_INET6, net_dns_ai_addconfig_c());
-  unsafe { ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head); }
-  res = res_head as *AddrInfo;
-  if (ga != 0 || res == 0) {
-    if (out_err != 0) { out_err[0] = net_map_gai_error_c(ga); }
-    if (res != 0) { unsafe { freeaddrinfo(res); } }
-    return -1;
-  }
-  rp = res;
-  if (rp.ai_family == AF_INET6 && rp.ai_addr != 0 && rp.ai_addrlen >= 28 as u32) {
-    sa6 = rp.ai_addr as *SockAddrIn6;
-    let i1: i32 = 0;
-    while (i1 < 16) {
-      out_addr_16[i1] = sa6.sin6_addr[i1];
-      i1 = i1 + 1;
-    }
-  } else {
-    if (out_err != 0) { out_err[0] = 2; }
-    unsafe { freeaddrinfo(res); }
-    return -1;
-  }
-  unsafe { freeaddrinfo(res); }
-  if (out_err != 0) { out_err[0] = 0; }
-  return 0;
 }
