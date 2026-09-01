@@ -12807,8 +12807,57 @@ arg_ref: i32): i32 {
 }
 
 /**
+ * Cap 10.7.1 slice10: language Cap va_* faces (codegen → xlang_va_* macros).
+ * Not libc FFI — export-extern is only a typeck shape; calls need no unsafe.
+ * @param name *u8 — bare callee spelling
+ * @param name_len i32 — byte length
+ * @return i32 — 1 Cap va builtin, 0 otherwise
+ * PLATFORM: SHARED — pairs with codegen_try_emit_va_cap_call.
+ */
+export function typeck_is_cap_va_builtin_name(name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — Cap va language builtin name table.
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  if (name_len == 8 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 115 && name[4] == 116 && name[5] == 97
+      && name[6] == 114 && name[7] == 116) {
+    return 1;
+  }
+  if (name_len == 6 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 101 && name[4] == 110 && name[5] == 100) {
+    return 1;
+  }
+  if (name_len == 7 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 99 && name[4] == 111 && name[5] == 112
+      && name[6] == 121) {
+    return 1;
+  }
+  if (name_len == 10 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 97 && name[4] == 114 && name[5] == 103
+      && name[6] == 95 && name[7] == 105 && name[8] == 51
+      && name[9] == 50) {
+    return 1;
+  }
+  if (name_len == 10 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 97 && name[4] == 114 && name[5] == 103
+      && name[6] == 95 && name[7] == 105 && name[8] == 54
+      && name[9] == 52) {
+    return 1;
+  }
+  if (name_len == 10 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 97 && name[4] == 114 && name[5] == 103
+      && name[6] == 95 && name[7] == 112 && name[8] == 116
+      && name[9] == 114) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * LANG-007 v2 S0: extern calls must be inside unsafe { }.
  * wave234 G.7 pure leave: was Cap residual pipeline_typeck_check_extern_call_unsafe_boundary_c.
+ * Cap 10.7.1 slice10: Cap va_* language builtins exempt (macro rewrite, not FFI).
  * @param module *Module — function table for is_extern
  * @param arena *ASTArena — call expr arena
  * @param expr_ref i32 — EXPR_CALL site
@@ -12852,6 +12901,10 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+    /* Cap 10.7.1 slice10: va_* Cap faces → xlang_va_* (not libc FFI). */
+    if (typeck_is_cap_va_builtin_name(&name[0], name_len) != 0) {
+      return 0;
+    }
     m_u8 = module as *u8;
     fi = glue_module_func_index_by_name_c(m_u8, &name[0], name_len);
     if (fi < 0 || pipeline_module_func_is_extern_at(module, fi) == 0) {

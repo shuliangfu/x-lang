@@ -763,6 +763,7 @@ struct ast_ASTArena {
 #define typeck_typeck_check_call_arg_types typeck_check_call_arg_types
 #define typeck_typeck_match_subject_field_type typeck_match_subject_field_type
 #define typeck_typeck_call_arg_repr_compatible_ok typeck_call_arg_repr_compatible_ok
+#define typeck_typeck_is_cap_va_builtin_name typeck_is_cap_va_builtin_name
 #define typeck_typeck_check_extern_call_unsafe_boundary typeck_check_extern_call_unsafe_boundary
 #define typeck_typeck_slice_region_escape typeck_slice_region_escape
 #define typeck_typeck_slice_region_conflict typeck_slice_region_conflict
@@ -1891,6 +1892,7 @@ extern int32_t typeck_generic_formal_matches_arg_type(struct ast_Module * module
 extern int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_match_subject_field_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * name, int32_t name_len);
 extern int32_t typeck_call_arg_repr_compatible_ok(struct ast_Module * module, struct ast_ASTArena * arena, int32_t param_ref, int32_t arg_ref);
+extern int32_t typeck_is_cap_va_builtin_name(uint8_t * name, int32_t name_len);
 extern int32_t typeck_check_extern_call_unsafe_boundary(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern void typeck_expr_diag_line_col(struct ast_ASTArena * arena, int32_t expr_ref, int32_t * line_out, int32_t * col_out);
 extern int32_t typeck_slice_region_escape(struct ast_ASTArena * arena, int32_t expect_ref, int32_t src_ref);
@@ -10459,6 +10461,35 @@ int32_t typeck_call_arg_repr_compatible_ok(struct ast_Module * module, struct as
     return 0;
   }
 }
+
+/* Cap 10.7.1 slice10: twin of typeck.x typeck_is_cap_va_builtin_name.
+ * Cap va_* language faces (codegen → xlang_va_*); not libc FFI.
+ * PLATFORM: SHARED. G.7 twin. */
+int32_t typeck_is_cap_va_builtin_name(uint8_t * name, int32_t name_len) {
+  if (((name ==0) || (name_len <=0))) {
+    return 0;
+  }
+  if (((((((((name_len == 8) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 115)) && ((name)[4] == 116)) && ((name)[5] == 97)) && ((name)[6] == 114)) && ((name)[7] == 116))) {
+    return 1;
+  }
+  if (((((((name_len == 6) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 101)) && ((name)[4] == 110)) && ((name)[5] == 100))) {
+    return 1;
+  }
+  if ((((((((name_len == 7) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 99)) && ((name)[4] == 111)) && ((name)[5] == 112)) && ((name)[6] == 121))) {
+    return 1;
+  }
+  if (((((((((((name_len == 10) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 97)) && ((name)[4] == 114)) && ((name)[5] == 103)) && ((name)[6] == 95)) && ((name)[7] == 105)) && ((name)[8] == 51)) && ((name)[9] == 50))) {
+    return 1;
+  }
+  if (((((((((((name_len == 10) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 97)) && ((name)[4] == 114)) && ((name)[5] == 103)) && ((name)[6] == 95)) && ((name)[7] == 105)) && ((name)[8] == 54)) && ((name)[9] == 52))) {
+    return 1;
+  }
+  if (((((((((((name_len == 10) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 97)) && ((name)[4] == 114)) && ((name)[5] == 103)) && ((name)[6] == 95)) && ((name)[7] == 112)) && ((name)[8] == 116)) && ((name)[9] == 114))) {
+    return 1;
+  }
+  return 0;
+}
+
 int32_t typeck_check_extern_call_unsafe_boundary(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t callee_ref = 0;
@@ -10491,6 +10522,10 @@ int32_t typeck_check_extern_call_unsafe_boundary(struct ast_Module * module, str
       return 0;
     }
     (void)(pipeline_expr_var_name_into(arena, callee_ref, &((name)[0])));
+    /* Cap 10.7.1 slice10: Cap va_* exempt. Twin typeck.x. */
+    if ((typeck_is_cap_va_builtin_name(&((name)[0]), name_len) !=0)) {
+      return 0;
+    }
     (void)((m_u8 = ((uint8_t *)(module))));
     (void)((fi = glue_module_func_index_by_name_c(m_u8, &((name)[0]), name_len)));
     if (((fi < 0) || (pipeline_module_func_is_extern_at(module, fi) ==0))) {
