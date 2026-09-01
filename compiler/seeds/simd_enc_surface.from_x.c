@@ -1393,9 +1393,10 @@ int32_t simd_x86_orps_xmm0_xmm2(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vpxor_ymm3_ymm3(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX2 — C5 E5 EF DB (vpxor ymm3,ymm3,ymm3). */
   uint8_t b0 = 197;
-  uint8_t b1 = 245;
-  uint8_t b2 = 119;
+  uint8_t b1 = 229;
+  uint8_t b2 = 239;
   uint8_t b3 = 219;
   int32_t r = 0;
   {
@@ -1463,8 +1464,9 @@ int32_t simd_x86_vpcmpgtd_ymm2_ymm3(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vpand_ymm0_ymm2(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX2 — C5 FD DB C2 (vpand ymm0,ymm0,ymm2). */
   uint8_t b0 = 197;
-  uint8_t b1 = 229;
+  uint8_t b1 = 253;
   uint8_t b2 = 219;
   uint8_t b3 = 194;
   int32_t r = 0;
@@ -1498,8 +1500,9 @@ int32_t simd_x86_vpand_ymm0_ymm2(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vpandn_ymm2_ymm1(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX2 — C5 ED DF D1 (vpandn ymm2,ymm2,ymm1). */
   uint8_t b0 = 197;
-  uint8_t b1 = 229;
+  uint8_t b1 = 237;
   uint8_t b2 = 223;
   uint8_t b3 = 209;
   int32_t r = 0;
@@ -1533,8 +1536,9 @@ int32_t simd_x86_vpandn_ymm2_ymm1(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vpor_ymm0_ymm2(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX2 — C5 FD EB C2 (vpor ymm0,ymm0,ymm2). */
   uint8_t b0 = 197;
-  uint8_t b1 = 229;
+  uint8_t b1 = 253;
   uint8_t b2 = 235;
   uint8_t b3 = 194;
   int32_t r = 0;
