@@ -4659,7 +4659,8 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
       return -1;
-    if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+    /* header+8 rbp-off = lower addr = pointer-8. Twin .x. */
+    if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
       return -1;
     if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
       return -1;
@@ -4685,7 +4686,8 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
     return -1;
-  if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+  /* header+8 rbp-off = lower addr = pointer-8. Twin .x. */
+  if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
     return -1;
   if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
     return -1;

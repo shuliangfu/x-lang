@@ -4285,7 +4285,7 @@ function try_emit_raw_syscall_call_elf_c(
  * Asm Cap is Cap-private: at va_start, spill GP + FP arg regs into call-spill
  * scratch (regs still hold entry values because this intercept runs before
  * call-arg packing). VaList local holds a pointer to a 16-byte header:
- *   header[0] = GP cursor, header[8] = FP cursor.
+ *   header[0] = GP cursor, header[8] (rbp-off; pointer-8) = FP cursor.
  * Layout: header (16) / GP[gp_n] / FP[fp_n]. gp_n = 6 SysV (rdi..r9) or 8
  * AAPCS (x0..x7). fp_n = 8 (xmm0..7 / v0..v7). Named params consume GP or FP
  * slots independently (glue_call_param_is_f32_c). va_arg loads *cursor as a
@@ -4574,7 +4574,8 @@ function try_emit_va_cap_builtin_call_elf_c(
       if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
       if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
       if (is_fp != 0) {
-        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+        /* header+8 rbp-off = lower addr = pointer-8 (same -8 as slot walk). */
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
       }
       if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
       if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
@@ -4590,7 +4591,8 @@ function try_emit_va_cap_builtin_call_elf_c(
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
     if (is_fp != 0) {
-      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+      /* header+8 rbp-off = lower addr = pointer-8 (same -8 as slot walk). */
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
     }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
