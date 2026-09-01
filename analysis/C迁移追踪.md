@@ -244,8 +244,8 @@
 - 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–2 ✅（Ubuntu）**＠`e8777cb6b`：futex／mmap／clone trampoline＋**product `runtime_thread_glue` Linux Cap**（pool／create／join；nm 无 pthread；STD-043 run=2）。残：Darwin pthread · TLS  
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows sync Cap
-- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0–6 ✅（SHARED Cap＋语言 `...`）**＠`0f533bbfb`：slice5 parse／decl＋**slice6** 函数**定义** host-C 亦发 `, ...`。残：`.x` `va_start`／`va_arg`／`va_end` builtins · MSVC（extern `...` 已在 skip_tl）
-- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–21 ✅（SHARED）**＠`b5b7d323d`：产品 seed／gen pin／Track L／build_tool cold **Cap 收口**（labi「snprintf」仅为注释假阳）。残：纯 .x fmt · 10.7.1 语言 va builtins
+- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0–7 ✅（SHARED Cap＋语言 `...`＋va builtins）**＠`7ea872f86`：slice7 `va_start`／`va_end`／`va_arg_i32` → Cap `xlang_va_*`＋`VaList`→`xlang_va_list`＋emit_header include。残：typed `va_arg(ap,T)` · 变参 call 实参 arity · host-cc／runtime · MSVC · rt_preamble -o 孪
+- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–21 ✅（SHARED）**＠`b5b7d323d`：产品 seed／gen pin／Track L／build_tool cold **Cap 收口**（labi「snprintf」仅为注释假阳）。残：纯 .x fmt · typed `va_arg`／MSVC
 
 ---
 
