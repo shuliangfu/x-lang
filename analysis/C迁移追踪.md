@@ -158,7 +158,7 @@
 - ✅ **9.1.6** getrandom／getentropy／BCryptGenRandom — **Ubuntu ✅（WIP）**：`xlang_random_cap.h`（Linux getrandom syscall）；`random_fill_bytes_impl`。探针 `random_raw_smoke.x`。残：Darwin getentropy · Win BCrypt 既有  
 - 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–3 Ubuntu ✅（WIP）**：net Cap＋DNS Cap＋**slice3** http_glue 宏重定向 socket／connect／fcntl／…；dns／http **无 U getaddrinfo／socket 面**。探针 dns／sock／mmsg。残：WSAStartup／Darwin · net.o U poll（io）  
 - 🟡 **9.1.8** `_write`／write — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`（Linux write／read／writev syscall）；preamble＋asm_io_stubs weak `xlang_sys_*`＋io_abi 离 libc write。探针 `io_write_raw_smoke.x`＠**`7486a3f51`**。残：cold io_abi U read · Darwin／Win  
-- ⬜ **9.1.9** inline asm syscall（Linux x86_64）  
+- ✅ **9.1.9** inline asm syscall（Linux x86_64）— **Ubuntu ✅（WIP）**：G.7 `xlang_syscall_cap.h`（syscall0..6；x86_64＋aarch64）；path／io／net／process／time／random 改 alias。探针 `syscall_cap_raw_smoke.x`＠**`fecc624dd`**。残：非 Cap 种子内仍有独立 asm（bootstrap／freestanding）  
 - ⬜ **9.1.10** opendir／readdir／closedir  
 - ⬜ **9.1.11** execinfo／dladdr／DbgHelp／CaptureStackBackTrace  
 - ⬜ **9.1.12** sysctl／proc／`#if`  
