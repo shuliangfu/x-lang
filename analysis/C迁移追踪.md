@@ -244,8 +244,8 @@
 - 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–2 ✅（Ubuntu）**＠`e8777cb6b`：futex／mmap／clone trampoline＋**product `runtime_thread_glue` Linux Cap**（pool／create／join；nm 无 pthread；STD-043 run=2）。残：Darwin pthread · TLS  
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows sync Cap
-- ⬜ **10.7.1** va_list + va_start／arg／end  
-- ⬜ **10.7.2** .x 自实现 vsnprintf  
+- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0 ✅（SHARED Cap）**＠`61d670a19`：`xlang_va_cap.h` builtins（无 `<stdarg.h>`）；VA-CAP **run=1**。残：语言层 .x builtins · MSVC  
+- ⬜ **10.7.2** .x 自实现 vsnprintf 
 
 ---
 
