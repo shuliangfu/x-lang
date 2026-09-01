@@ -5,11 +5,11 @@
  * weak twins that lived in each residual TU via xlang_user_link_abi_getenv.h
  * PROVIDE_WEAK_TWIN.
  *
- * Semantics ≡ wave222 pure thin (null/empty → null) + host getenv residual
- * (≡ wave251 panic C strong twin). This TU is **weak** so strong twin from
- * runtime_panic C seeds (mac / non-x86_64) wins when co-linked; Linux x86_64
- * product panic is freestanding .s (no face) — this .o supplies the face when
- * residual or PRIMARY_PANIC companion path links it.
+ * Semantics ≡ wave222 pure thin (null/empty → null) + Cap residual 9.1.1
+ * environ walk (≡ product mega / wave251 panic twin). This TU is **weak** so
+ * strong twin from runtime_panic C seeds (mac / non-x86_64) wins when co-linked;
+ * Linux x86_64 product panic is freestanding .s (no face) — this .o supplies the
+ * face when residual or PRIMARY_PANIC companion path links it.
  *
  * NEVER in g05 60/62-obj host bag (labi_diag_pure + mega link_abi_getenv_impl
  * remain product host authority). User / STD_AND_PANIC / test_c only.
@@ -18,6 +18,7 @@
  */
 
 #include <stdlib.h>
+#include <xlang_environ_cap.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 #define XLANG_USER_ENV_WEAK __attribute__((weak))
@@ -30,12 +31,17 @@
  * Weak: strong may come from runtime_panic C seed (wave251).
  * @param name NUL-terminated environment key; may be null
  * @return value pointer from process env block, or NULL
+ * PLATFORM: POSIX environ walk; Windows CRT getenv.
  */
 XLANG_USER_ENV_WEAK
 const char *link_abi_getenv_impl(const char *name) {
   if (!name || !name[0])
     return NULL;
+#if defined(_WIN32) || defined(_WIN64)
   return getenv(name);
+#else
+  return xlang_environ_getenv(name);
+#endif
 }
 
 /**
