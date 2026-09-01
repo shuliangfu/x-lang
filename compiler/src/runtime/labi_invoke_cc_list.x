@@ -2102,20 +2102,16 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
     }
   }
 
-  // thread.o + thread_glue (ensure after push success — product path present).
+  // thread.o + thread_glue. Glue must push whenever need_thread — co-emit may
+  // already define std_thread_* so callers only UNDEF glue symbols.
   if (need_thread != 0) {
-    let pt: i32 = 0;
     unsafe {
-      pt = invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o);
-    }
-    if (pt != 0) {
-      unsafe {
-        let _etg: i32 = xlang_ensure_runtime_thread_glue_o(0 as *u8);
-        let rtg: *u8 = xlang_runtime_thread_glue_o_path(0 as *u8);
-        if (rtg != 0 as *u8) {
-          if (rtg[0] != 0) {
-            let _ptg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtg);
-          }
+      let _pt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o);
+      let _etg: i32 = xlang_ensure_runtime_thread_glue_o(0 as *u8);
+      let rtg: *u8 = xlang_runtime_thread_glue_o_path(0 as *u8);
+      if (rtg != 0 as *u8) {
+        if (rtg[0] != 0) {
+          let _ptg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtg);
         }
       }
     }
