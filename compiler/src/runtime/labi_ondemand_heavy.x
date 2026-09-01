@@ -2288,7 +2288,10 @@ export function labi_std_fk_gate_sym_count(fk: i32): i32 {
     return 28;
   }
   if (fk == 2) {
-    return 4;
+    // PLATFORM: SHARED — thread product face complete (pool/name/affinity + create/join).
+    // Was only spawn/join + create/join_c; pool_roundtrip co-emits std_thread_* and
+    // UNDEFs thread_pool_*_c / set_name_self_c → need_thread stayed 0 → glue never linked.
+    return 16;
   }
   if (fk == 3) {
     return 5;
@@ -2384,22 +2387,23 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
       return 0 as *u8;
     }
     if (fk == 2) {
-      if (i == 0) {
-        let p: *u8 = "std_thread_spawn";
-        return p;
-      }
-      if (i == 1) {
-        let p: *u8 = "std_thread_join";
-        return p;
-      }
-      if (i == 2) {
-        let p: *u8 = "thread_create_c";
-        return p;
-      }
-      if (i == 3) {
-        let p: *u8 = "thread_join_c";
-        return p;
-      }
+      // PLATFORM: SHARED — exact UNDEF needles for std/thread + runtime_thread_glue.
+      if (i == 0) { let p: *u8 = "std_thread_spawn"; return p; }
+      if (i == 1) { let p: *u8 = "std_thread_join"; return p; }
+      if (i == 2) { let p: *u8 = "thread_create_c"; return p; }
+      if (i == 3) { let p: *u8 = "thread_join_c"; return p; }
+      if (i == 4) { let p: *u8 = "thread_pool_start_c"; return p; }
+      if (i == 5) { let p: *u8 = "thread_pool_submit_c"; return p; }
+      if (i == 6) { let p: *u8 = "thread_pool_drain_c"; return p; }
+      if (i == 7) { let p: *u8 = "thread_pool_stop_c"; return p; }
+      if (i == 8) { let p: *u8 = "thread_pool_pending_c"; return p; }
+      if (i == 9) { let p: *u8 = "thread_set_name_self_c"; return p; }
+      if (i == 10) { let p: *u8 = "thread_dummy_entry_ptr_c"; return p; }
+      if (i == 11) { let p: *u8 = "thread_create_with_stack_c"; return p; }
+      if (i == 12) { let p: *u8 = "thread_self_c"; return p; }
+      if (i == 13) { let p: *u8 = "thread_set_affinity_c"; return p; }
+      if (i == 14) { let p: *u8 = "thread_set_affinity_self_c"; return p; }
+      if (i == 15) { let p: *u8 = "thread_set_qos_class_self_c"; return p; }
       return 0 as *u8;
     }
     if (fk == 3) {
