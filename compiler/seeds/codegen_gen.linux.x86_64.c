@@ -18929,6 +18929,11 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   if ((((((((name_len ==6) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==110)) && ((name)[3] ==97)) && ((name)[4] ==109)) && ((name)[5] ==101))) {
     return 1;
   }
+  /* sendfile 8 — Darwin socket.h vs XLANG extern types; Linux leftover in fs_formal.
+   * PLATFORM: SHARED skip; LINUX header in fs_formal; MACOS via socket.h. */
+  if ((((((((((name_len ==8) && ((name)[0] ==115)) && ((name)[1] ==101)) && ((name)[2] ==110)) && ((name)[3] ==100)) && ((name)[4] ==102)) && ((name)[5] ==105)) && ((name)[6] ==108)) && ((name)[7] ==101))) {
+    return 1;
+  }
   return 0;
 }
 int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t arg_idx) {

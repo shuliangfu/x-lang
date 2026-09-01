@@ -21120,12 +21120,14 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
  *
  * Covered (historical g05 sed + read/write + wave30 mkstemp/rename): libc I/O,
  * alloc (incl. realloc / posix_memalign), string, env, path (unlink/mkstemp/
- * rename/access). g05 sed remains a defense layer for harness helpers and
- * #include strip; libc name authority is this predicate only (G.7).
+ * rename/access), sendfile. g05 sed remains a defense layer for harness helpers
+ * and #include strip; libc name authority is this predicate only (G.7).
  * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h +
  * unistd.h (`codegen_x_ast_emit_header` for bare `-E`, plus rt_preamble
  * io_net for `-o`). Skipping without those headers → implicit int /
  * undeclared getcwd (L0 labi_path_pure.x host-cc).
+ * sendfile leftover: LINUX 4-arg prototype via fs_formal `<sys/sendfile.h>`;
+ * MACOS 6-arg already in `<sys/socket.h>` (Darwin net Cap).
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -21286,6 +21288,16 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   }
   /* rename 6 — i32 vs int; *u8 paths vs char* (open_out close-before-rename). */
   if (name_len == 6 && name[0] == 114 && name[1] == 101 && name[2] == 110 && name[3] == 97 && name[4] == 109 && name[5] == 101) {
+    return 1;
+  }
+  /* sendfile 8 — Darwin <sys/socket.h> 6-arg (off_t *, struct sf_hdtr *) vs
+   * XLANG extern i64*/u8* → "conflicting types for 'sendfile'" in fs_formal
+   * KEEP_C, so std/fs/fs.o never lands and product -o UNDEF _std_fs_invalid.
+   * Linux 4-arg leftover (fs_libc_sendfile) keeps a prototype via fs_formal
+   * #include <sys/sendfile.h>. Darwin 6-arg FFI is unused (fs_libc_sendfile_mac
+   * returns -1 without calling sendfile).
+   * PLATFORM: SHARED skip; LINUX header in fs_formal; MACOS via socket.h. */
+  if (name_len == 8 && name[0] == 115 && name[1] == 101 && name[2] == 110 && name[3] == 100 && name[4] == 102 && name[5] == 105 && name[6] == 108 && name[7] == 101) {
     return 1;
   }
   return 0;

@@ -96,6 +96,28 @@ gen_c="$tmp_dir/fs_formal.c"
 cp "$kept" "$gen_c"
 rm -f "$kept" 2>/dev/null || true
 
+# PLATFORM: LINUX — codegen_is_libc_conflicting_extern_name skips the XLANG
+# sendfile redecl (Darwin socket.h 6-arg vs i64*/u8* is a hard conflict).
+# Leftover fs_libc_sendfile 4-arg calls still need a prototype; include
+# <sys/sendfile.h> (same class as compile_std_module snprintf → stdio.h).
+# Darwin 6-arg FFI is unused (fs_libc_sendfile_mac returns -1); socket.h
+# already provides sendfile(2) via net Cap. Do not file-wide #define sendfile.
+case "$(uname -s 2>/dev/null)" in
+  Linux)
+    if grep -qE '\bsendfile[[:space:]]*\(' "$gen_c" 2>/dev/null \
+       && ! grep -qE '#include[[:space:]]*<sys/sendfile\.h>' "$gen_c" 2>/dev/null; then
+      _sf_inc=$(grep -n '^#include' "$gen_c" 2>/dev/null | tail -1 | cut -d: -f1)
+      [ -n "$_sf_inc" ] || _sf_inc=1
+      {
+        head -n "$_sf_inc" "$gen_c"
+        echo '/* PLATFORM: LINUX — libc sendfile after dropping conflicting XLANG extern */'
+        echo '#include <sys/sendfile.h>'
+        tail -n +"$((_sf_inc + 1))" "$gen_c"
+      } >"$tmp_dir/gen_sendfile.c" && mv "$tmp_dir/gen_sendfile.c" "$gen_c"
+    fi
+    ;;
+esac
+
 raw_o="$tmp_dir/fs_formal_raw.o"
 # shellcheck disable=SC2086
 if ! cc -c $CFLAGS "$gen_c" -o "$raw_o" 2>"$tmp_dir/cc.err"; then
