@@ -4428,9 +4428,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   extern int32_t pipeline_asm_emit_func_index_c(void);
   extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
   extern int32_t arch_x86_64_enc_enc_mov_edx_to_eax(void *elf_ctx);
-  extern int32_t arch_x86_64_enc_enc_movq_mem_rax_to_rax(void *elf_ctx);
-  extern int32_t arch_x86_64_enc_enc_mov_rax_to_r10(void *elf_ctx);
-  extern int32_t arch_x86_64_enc_enc_mov_r10_to_rax(void *elf_ctx);
+  /* movq_mem_rax / mov_rax_to_r10 / mov_r10_to_rax: file-scope ElfCodegenCtx* decls above. */
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
