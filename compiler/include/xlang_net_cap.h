@@ -2,6 +2,7 @@
  * xlang_net_cap.h — Cap residual 9.1.7: socket/connect/bind/listen/accept/poll/close
  * (slice0) + recvmmsg/sendmmsg (slice1) + sendto/recvfrom (slice2 DNS) without
  * libc those symbols on Linux (x86_64 + aarch64).
+ * Cap residual 9.1.9: syscall asm via xlang_syscall_cap.h (G.7 single authority).
  *
  * Single authority for runtime_net_sock_fast, runtime_net_udp_batch,
  * xlang_dns_cap.h, and xlang_sys_* net symbols.
