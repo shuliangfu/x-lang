@@ -29,27 +29,10 @@
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
-/** Linux raw syscall ≤3 args. Returns -errno on failure. PLATFORM: LINUX. */
-static inline long xlang_time_syscall3(long nr, long a1, long a2, long a3) {
-  long r;
-#if defined(__x86_64__)
-  __asm__ __volatile__("syscall"
-                       : "=a"(r)
-                       : "a"(nr), "D"(a1), "S"(a2), "d"(a3)
-                       : "rcx", "r11", "memory");
-#elif defined(__aarch64__)
-  register long x8 __asm__("x8") = nr;
-  register long x0 __asm__("x0") = a1;
-  register long x1 __asm__("x1") = a2;
-  register long x2 __asm__("x2") = a3;
-  __asm__ __volatile__("svc #0"
-                       : "+r"(x0)
-                       : "r"(x8), "r"(x1), "r"(x2)
-                       : "memory");
-  r = x0;
-#endif
-  return r;
-}
+#include <xlang_syscall_cap.h>
+
+/** Cap residual 9.1.9: alias → single syscall authority. */
+#define xlang_time_syscall3 xlang_syscall3
 
 /**
  * Cap residual clock_gettime(2).
