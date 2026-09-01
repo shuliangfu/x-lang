@@ -4,11 +4,12 @@
  * Host-cc smoke for xlang_sync_cap.h:
  *   slice0: mutex init/lock/trylock/unlock + Cap-spawn contention
  *   slice1: condvar wait/signal (producer/consumer)
+ *   slice2: semaphore wait/trywait/post
  *
  * PLATFORM: LINUX|x86_64|aarch64 gold.
  *
  * Build (gate): cc -O0 -Icompiler/include -o /tmp/... tests/sys/sync_cap_raw_smoke.c
- * Exit: 0 ok; 1..12 step failure.
+ * Exit: 0 ok; 1..16 step failure.
  */
 
 #include <errno.h>
@@ -35,6 +36,10 @@ static struct xlang_cap_cond g_cv;
 static volatile int g_waiting = 0;
 static volatile int g_ready = 0;
 static volatile int g_seen = 0;
+
+/** Semaphore Cap-spawn handshake. */
+static struct xlang_cap_sem *g_sem = 0;
+static volatile int g_sem_got = 0;
 
 /**
  * Cap child: lock, increment counter, unlock.
@@ -79,7 +84,25 @@ static void *sync_cap_waiter(void *arg) {
 }
 
 /**
- * Cap residual 10.6.3 probe entry (mutex + condvar).
+ * Cap child: block on semaphore wait, then set g_sem_got.
+ * @param arg unused
+ * @return NULL
+ * PLATFORM: LINUX
+ */
+static void *sync_cap_sem_waiter(void *arg) {
+  (void)arg;
+  if (g_sem == 0) {
+    return 0;
+  }
+  if (xlang_cap_sem_wait(g_sem) != 0) {
+    return 0;
+  }
+  g_sem_got = 1;
+  return 0;
+}
+
+/**
+ * Cap residual 10.6.3 probe entry (mutex + condvar + semaphore).
  * @return 0 ok; nonzero step id on failure
  * PLATFORM: LINUX
  */
@@ -186,6 +209,52 @@ int main(void) {
   }
   (void)xlang_cap_cond_destroy(&g_cv);
   (void)xlang_cap_mutex_destroy(&g_cv_mu);
+
+  /* Step4: semaphore trywait / wait / post + Cap-spawn consumer. */
+  {
+    struct xlang_cap_sem sem;
+    struct xlang_thread_join sjoin;
+    if (xlang_cap_sem_init(&sem, 0) != 0) {
+      fprintf(stderr, "sem_init failed\n");
+      return 13;
+    }
+    if (xlang_cap_sem_trywait(&sem) == 0) {
+      fprintf(stderr, "trywait on 0 unexpectedly ok\n");
+      return 14;
+    }
+    if (errno != EAGAIN) {
+      fprintf(stderr, "trywait errno=%d want EAGAIN\n", errno);
+      return 14;
+    }
+    g_sem = &sem;
+    g_sem_got = 0;
+    memset(&sjoin, 0, sizeof(sjoin));
+    if (xlang_thread_spawn(sync_cap_sem_waiter, 0, &sjoin, 65536u) != 0) {
+      fprintf(stderr, "sem waiter spawn failed errno=%d\n", errno);
+      return 15;
+    }
+    /* Brief spin so child reaches wait; post wakes it. */
+    for (i = 0; i < 100000 && g_sem_got == 0; i++) {
+    }
+    if (xlang_cap_sem_post(&sem) != 0) {
+      fprintf(stderr, "sem_post failed errno=%d\n", errno);
+      return 15;
+    }
+    if (xlang_thread_join(&sjoin) != 0) {
+      fprintf(stderr, "sem join failed errno=%d\n", errno);
+      return 15;
+    }
+    if (g_sem_got != 1) {
+      fprintf(stderr, "g_sem_got=%d want 1\n", g_sem_got);
+      return 16;
+    }
+    if (xlang_cap_sem_post(&sem) != 0 || xlang_cap_sem_trywait(&sem) != 0) {
+      fprintf(stderr, "sem post/trywait roundtrip failed\n");
+      return 16;
+    }
+    (void)xlang_cap_sem_destroy(&sem);
+    g_sem = 0;
+  }
 
   return 0;
 }
