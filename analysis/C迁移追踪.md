@@ -243,7 +243,7 @@
 - 🟡 **10.5.2** ARM SVE 内建 — **slice0–2 ✅（Ubuntu）**＠`2e03ae24c`：f32x4／fma／hsum／dot／i32x8／f32x8 双半 VL4。残：真宽 VL／MSYS Win  
 - 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–1 ✅（Ubuntu）**＠`069b56009`：futex／mmap 栈＋**clone trampoline** spawn／join（禁 C-continuation；无 libpthread）。残：入链产品 pthread 面 · TLS  
 - ⬜ **10.6.2** Windows CreateThread／WaitForSingleObject  
-- 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–3 ✅（Ubuntu）**＠`72159127c`：futex mutex＋cond＋sem＋**sync_os Linux mutex／cond 入链 Cap**。残：Cap rwlock／cond smoke `pthread_create` · Darwin mutex／cond 仍 pthread
+- 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows 10.6.2
 - ⬜ **10.7.1** va_list + va_start／arg／end  
 - ⬜ **10.7.2** .x 自实现 vsnprintf  
 
