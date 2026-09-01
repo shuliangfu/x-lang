@@ -102,6 +102,14 @@ export extern "C" function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32
 export extern "C" function arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
 /* Cap 10.7.1 slice12: bump VaList cursor (addq $imm,%rax). */
 export extern function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, ta: i32): i32;
+/* Cap 10.7.1 slice18: mixed overflow select (cmp class_cursor vs class_end). */
+export extern function backend_enc_cmp_rbx_rax_arch(elf: *u8, ta: i32): i32;
+export extern function backend_enc_cmp_setcc_movzbl_arch(elf: *u8, cc: i32, ta: i32): i32;
+export extern function backend_enc_test_eax_eax_arch(elf: *u8, ta: i32): i32;
+export extern function backend_enc_jz_arch(elf: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern function backend_enc_jmp_arch(elf: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern function backend_enc_label_arch(elf: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, buf_size: i32): i32;
 /* Cap 10.7.1 slice12: current emit func index for named-param gp skip. */
 export extern function pipeline_asm_emit_func_index_c(): i32;
 /* 10.4.1 slice2: i64 atomic encoders. */
@@ -4278,25 +4286,102 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Cap 10.7.1 slice12–17: language va_start / va_end / va_arg_{i32,i64,ptr} /
+ * Cap 10.7.1 slice18: after class_cursor is in rax and class_cell in rcx/x3,
+ * compare against class_end and — if past the register file — switch to the
+ * shared overflow cursor (header[16]).
+ *
+ * Preconditions: header parked in r10 (x86) / x8 (aarch64); rax = class_cursor;
+ * rcx/x3 = class_cell. Post: rax = slot pointer; rcx/x3 = writeback cell
+ * (class_cell or ov_cell). Unique labels via pipeline_asm_emit_next_label_c.
+ *
+ * class_end = header_addr - (24 + gp_n*8 [+ fp_n*8 if FP]). rbp-negative
+ * layout means a cursor address <= class_end is past the save (overflow).
+ * Signed LE (cc=3) is valid: both pointers live in the same user stack.
+ *
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param ctx *u8 — AsmFuncCtx (label counter)
+ * @param ta i32 — 0 = x86_64; 1 = aarch64
+ * @param is_fp i32 — 0 GP class, 1 FP class
+ * @param gp_n i32 — 6 SysV / 8 AAPCS
+ * @return i32 — 0 ok; -1 emit error
+ * PLATFORM: SHARED emit · LINUX|x86_64 · LINUX|aarch64 cross-emit.
+ */
+function try_emit_va_cap_ov_select_elf_c(
+  elf_ctx: *u8, ctx: *u8, ta: i32, is_fp: i32, gp_n: i32
+): i32 {
+  unsafe {
+    let end_delta: i32 = 0;
+    let lbl_sv: u8[64] = [];
+    let lbl_dn: u8[64] = [];
+    let n_sv: i32 = 0;
+    let n_dn: i32 = 0;
+    if (elf_ctx == 0 as *u8 || ctx == 0 as *u8) { return 0 - 1; }
+    if (gp_n < 6) { gp_n = 6; }
+    /* header(24) + GP save; FP class_end is past FP save too. */
+    end_delta = 24 + gp_n * 8;
+    if (is_fp != 0) { end_delta = end_delta + 64; }
+    n_sv = pipeline_asm_emit_next_label_c(ctx, &lbl_sv[0], 64);
+    n_dn = pipeline_asm_emit_next_label_c(ctx, &lbl_dn[0], 64);
+    if (n_sv <= 0 || n_dn <= 0) { return 0 - 1; }
+    /* rbx = class_cursor (mov does not clobber flags we have not set yet). */
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* rax = header (parked r10 / x8). */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - end_delta, ta) != 0) {
+      return 0 - 1;
+    }
+    /* rax = class_end, rbx = class_cursor. cmp cursor, end. */
+    if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    /* cc=3 LE: overflow = (cursor <= class_end). */
+    if (backend_enc_cmp_setcc_movzbl_arch(elf_ctx, 3, ta) != 0) { return 0 - 1; }
+    if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jz_arch(elf_ctx, &lbl_sv[0], n_sv, ta) != 0) { return 0 - 1; }
+    /* overflow: ov_cell = header - 16; load *ov_cell as slot. */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 16, ta) != 0) { return 0 - 1; }
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+    } else {
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_jmp_arch(elf_ctx, &lbl_dn[0], n_dn, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &lbl_sv[0], n_sv, 0, ta) != 0) { return 0 - 1; }
+    /* in-save: slot = class_cursor (rbx); writeback stays class_cell. */
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &lbl_dn[0], n_dn, 0, ta) != 0) { return 0 - 1; }
+    return 0;
+  }
+}
+
+/**
+ * Cap 10.7.1 slice12–18: language va_start / va_end / va_arg_{i32,i64,ptr} /
  * typed va_arg<T>(ap) including f32/f64 + stack extras → asm Cap.
  *
  * Host-C uses xlang_va_* macros (SysV / AAPCS; C promotes unnamed f32→double).
  * Asm Cap is Cap-private: at va_start, spill GP + FP arg regs into call-spill
  * scratch (regs still hold entry values because this intercept runs before
- * call-arg packing). VaList local holds a pointer to a 16-byte header:
- *   header[0] = GP cursor, header[8] (rbp-off; pointer-8) = FP cursor.
- * Layout: header (16) / GP[gp_n] / GP-ov[8] / FP[fp_n] / FP-ov[8].
+ * call-arg packing). VaList local holds a pointer to a 24-byte header:
+ *   header[0] = GP cursor, header[8] (pointer-8) = FP cursor,
+ *   header[16] (pointer-16) = shared overflow cursor.
+ * Layout: header (24) / GP[gp_n] / FP[fp_n] / OV[8].
  * gp_n = 6 SysV (rdi..r9) or 8 AAPCS (x0..x7). fp_n = 8 (xmm0..7 / v0..v7).
  * Named params consume GP or FP slots independently (glue_call_param_is_f32_c).
- * slice17: incoming stack extras (beyond GP/FP register files) are copied at
- * va_start into GP-ov / FP-ov so the same -8 walk continues off the end of
- * the register save. x86 first extra at [rbp+16]; aarch64 at
- * [x29,#frame+16] (prologue x19 pad; matches param_home). Named stack
- * formals (named GP/FP past the register file) skip that many words.
- * All-GP extras and all-FP extras are correct; mixed GP+FP overflow on the
- * same stack (independent copies of the same cells) is residual. MSVC residual.
- * va_arg loads *cursor as a full 8-byte slot (i32/f32 live in the low 32);
+ * slice17–18: incoming stack extras are copied once into OV. va_arg walks the
+ * class save with -8 until class_end, then both GP and FP consume the shared
+ * OV cursor (SysV / AAPCS mixed overflow). x86 first extra at [rbp+16];
+ * aarch64 at [x29,#frame+16] (prologue x19 pad; matches param_home). Named
+ * stack formals skip that many words in the copy source. MSVC residual.
+ * va_arg loads *slot as a full 8-byte slot (i32/f32 live in the low 32);
  * both streams bump -8 (rising rbp-offsets = falling addresses). va_end is a no-op.
  * slice14: va_arg<T>(ap) classifies T via type-arg sidecar.
  * slice16: TYPE_F32=14 / TYPE_F64=15 walk the FP cursor (G.7 complete).
@@ -4349,8 +4434,7 @@ function try_emit_va_cap_builtin_call_elf_c(
     let np_fp: i32 = 0;
     let gp_save: i32 = 0;
     let fp_save: i32 = 0;
-    let gp_ov: i32 = 0;
-    let fp_ov: i32 = 0;
+    let ov: i32 = 0;
     let ov_n: i32 = 8;
     let named_stk: i32 = 0;
     let stk_pos: i32 = 0;
@@ -4488,18 +4572,17 @@ function try_emit_va_cap_builtin_call_elf_c(
       if (np_gp > gp_n) { np_gp = gp_n; }
       if (np_fp > fp_n) { np_fp = fp_n; }
 
-      /* Reserve header(16) + GP save + GP-ov + FP save + FP-ov in call-spill
-       * scratch (frame already ≥512). ov_n=8 extra 8-byte slots per class.
+      /* Reserve header(24) + GP save + FP save + shared OV in call-spill
+       * scratch (frame already ≥512). ov_n=8 extra 8-byte slots, one copy.
        * PLATFORM: LINUX|x86_64 SysV · LINUX|aarch64 AAPCS (cross-emit). */
       cur = call_dispatch_load_i32_le(ctx, 4);
       save_off = cur + 16;
       if (save_off < 16) { save_off = 16; }
-      gp_save = save_off + 16;
+      gp_save = save_off + 24;
       ov_n = 8;
-      gp_ov = gp_save + gp_n * 8;
-      fp_save = gp_ov + ov_n * 8;
-      fp_ov = fp_save + fp_n * 8;
-      call_dispatch_store_i32_le(ctx, 4, fp_ov + ov_n * 8);
+      fp_save = gp_save + gp_n * 8;
+      ov = fp_save + fp_n * 8;
+      call_dispatch_store_i32_le(ctx, 4, ov + ov_n * 8);
 
       /* Spill GP arg regs while entry values still live. */
       k = 0;
@@ -4520,8 +4603,7 @@ function try_emit_va_cap_builtin_call_elf_c(
         k = k + 1;
       }
 
-      /* Copy incoming stack extras into GP-ov / FP-ov (same cells). After the
-       * last GP/FP register slot the -8 walk lands on ov[0]. G.7 existing
+      /* Copy incoming stack extras once into shared OV. G.7 existing
        * load_rbp_pos / load_x29_pos (param_home twins). rax/x0 is free: GP
        * and FP files already spilled. */
       stk_pos = 16;
@@ -4543,10 +4625,7 @@ function try_emit_va_cap_builtin_call_elf_c(
             return 0 - 1;
           }
         }
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_ov + k * 8, ta) != 0) {
-          return 0 - 1;
-        }
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_ov + k * 8, ta) != 0) {
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, ov + k * 8, ta) != 0) {
           return 0 - 1;
         }
         k = k + 1;
@@ -4562,6 +4641,11 @@ function try_emit_va_cap_builtin_call_elf_c(
         return 0 - 1;
       }
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 8, ta) != 0) { return 0 - 1; }
+      /* header[16] = &OV[0] (shared overflow; named_stk already skipped in copy). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ov, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 16, ta) != 0) { return 0 - 1; }
       /* *ap = &header. */
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
       if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
@@ -4618,18 +4702,25 @@ function try_emit_va_cap_builtin_call_elf_c(
     ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
     if (ap_off < 16) { return 0 - 1; }
 
-    /* *ap = header; GP cursor at header[0], FP at header[8]. Load slot, bump -8. */
+    /* *ap = header; GP cursor at header[0], FP at header[8], OV at header[16].
+     * Park header, load class cursor, then slice18 shared-OV select. */
+    gp_n = 6;
+    if (ta == 1) { gp_n = 8; }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
     if (ta == 1) {
-      /* x3=&ap; x0=header; optional +8; x3=&cursor_cell; then same ldr/bump/str. */
+      /* x3=&ap; x0=header; park x8; optional +8; x3=&cursor_cell; ldr cursor. */
       if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
       if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0) { return 0 - 1; }
       if (is_fp != 0) {
         /* header+8 rbp-off = lower addr = pointer-8 (same -8 as slot walk). */
         if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
       }
       if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0) { return 0 - 1; }
       if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0) { return 0 - 1; }
+      if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0) {
+        return 0 - 1;
+      }
       if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
       if (backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx, 0, 1, 0, ta) != 0) { return 0 - 1; }
       if (arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx) != 0) { return 0 - 1; }
@@ -4641,12 +4732,16 @@ function try_emit_va_cap_builtin_call_elf_c(
     }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0) { return 0 - 1; }
     if (is_fp != 0) {
       /* header+8 rbp-off = lower addr = pointer-8 (same -8 as slot walk). */
       if (backend_enc_add_imm_to_rax_arch(elf_ctx, 0 - 8, ta) != 0) { return 0 - 1; }
     }
     if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
     if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0) {
+      return 0 - 1;
+    }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
     if (which == 3 || which == 7) {
       /* i32/f32: eax = *(i32*)cursor; park in edx across bump. */

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–17: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
+# Cap 10.7.1 language slice7–18: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
 # slice7–10: Cap rewrite/arity/host-cc/preamble; slice11: invoke_cc Cap -I;
 # slice12: asm Cap va_start/end/va_arg_i32; slice13: asm Cap va_arg_i64/ptr;
 # slice14: typed turbofish va_arg<T>(ap); slice15: aarch64 asm Cap cross-emit;
 # slice16: va_arg<f32>/va_arg<f64> (XMM/NEON + C float→double promote).
 # slice17: GP stack extras beyond 6 SysV GP (11/22 in r8/r9, 33/44 at [rbp+16]).
+# slice18: mixed GP+FP overflow on the shared stack (asm -o of mixed smoke).
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -202,6 +203,32 @@ if grep -a -q $'\x00\x20\x00\xd1' "$OUT_A64" 2>/dev/null; then a64_ok=$((a64_ok 
 if [[ "$a64_ok" -lt 2 ]]; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=aarch64_no_cap_opcodes a64_ok=$a64_ok" >&2
   xxd "$OUT_A64" 2>/dev/null | head -20 >&2 || true
+  exit 1
+fi
+
+# Cap 10.7.1 slice18: mixed GP+FP overflow — product asm -o (not host-C:
+# a second va_arg<f64> in the builtins TU redefines va_arg__VaList_f64).
+SRC_MIX="$ROOT/tests/sys/lang_va_cap_mixed_overflow_smoke.x"
+OUT_MIX="/tmp/xlang_lang_va_cap_mixed_$$"
+trap 'rm -f "$OUT_C" "$OUT_BIN" "$OUT_PROD" "$OUT_ASM" "$OUT_A64" "$OUT_MIX"' EXIT
+rm -f "$OUT_MIX"
+set +e
+"$XLANG" -o "$OUT_MIX" "$SRC_MIX" >/tmp/xlang_lang_va_cap_mixed.$$ 2>&1
+mix_rc=$?
+set -e
+if [[ "$mix_rc" -ne 0 ]] || [[ ! -x "$OUT_MIX" ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=mixed_asm_o" >&2
+  cat /tmp/xlang_lang_va_cap_mixed.$$ >&2 || true
+  rm -f /tmp/xlang_lang_va_cap_mixed.$$
+  exit 1
+fi
+rm -f /tmp/xlang_lang_va_cap_mixed.$$
+set +e
+"$OUT_MIX"
+mix_run=$?
+set -e
+if [[ "$mix_run" -ne 42 ]]; then
+  echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=mixed_run_rc rc=$mix_run want=42" >&2
   exit 1
 fi
 

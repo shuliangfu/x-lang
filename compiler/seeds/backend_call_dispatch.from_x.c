@@ -4397,11 +4397,95 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Cap 10.7.1 slice12–17: twin of try_emit_va_cap_builtin_call_elf_c (.x).
- * Cap-private VaList header (GP cursor + FP cursor) + GP/XMM spill.
+ * Cap 10.7.1 slice18: twin of try_emit_va_cap_ov_select_elf_c (.x).
+ * rax=class_cursor, rcx/x3=class_cell, header in r10/x8.
+ * Post: rax=slot, rcx/x3=writeback (class or shared OV).
+ * PLATFORM: SHARED emit · LINUX|x86_64 · LINUX|aarch64
+ */
+static int32_t try_emit_va_cap_ov_select_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                              int32_t is_fp, int32_t gp_n) {
+  int32_t end_delta;
+  uint8_t lbl_sv[64];
+  uint8_t lbl_dn[64];
+  int32_t n_sv;
+  int32_t n_dn;
+  extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+  extern int32_t backend_enc_cmp_rbx_rax_arch(void *elf_ctx, int32_t ta);
+  extern int32_t backend_enc_cmp_setcc_movzbl_arch(void *elf_ctx, int32_t cc, int32_t ta);
+  extern int32_t backend_enc_test_eax_eax_arch(void *elf_ctx, int32_t ta);
+  extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+  extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+  extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len,
+                                       int32_t is_func, int32_t ta);
+  extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+  if (!elf_ctx || !ctx)
+    return -1;
+  if (gp_n < 6)
+    gp_n = 6;
+  end_delta = 24 + gp_n * 8;
+  if (is_fp)
+    end_delta += 64;
+  memset(lbl_sv, 0, sizeof(lbl_sv));
+  memset(lbl_dn, 0, sizeof(lbl_dn));
+  n_sv = pipeline_asm_emit_next_label_c(ctx, lbl_sv, 64);
+  n_dn = pipeline_asm_emit_next_label_c(ctx, lbl_dn, 64);
+  if (n_sv <= 0 || n_dn <= 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (ta == 1) {
+    if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0)
+      return -1;
+  } else if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) {
+    return -1;
+  }
+  if (backend_enc_add_imm_to_rax_arch(elf_ctx, -end_delta, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_setcc_movzbl_arch(elf_ctx, 3, ta) != 0)
+    return -1;
+  if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jz_arch(elf_ctx, lbl_sv, n_sv, ta) != 0)
+    return -1;
+  if (ta == 1) {
+    if (arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx) != 0)
+      return -1;
+  } else if (arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx) != 0) {
+    return -1;
+  }
+  if (backend_enc_add_imm_to_rax_arch(elf_ctx, -16, ta) != 0)
+    return -1;
+  if (ta == 1) {
+    if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
+      return -1;
+    if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
+      return -1;
+  } else {
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
+      return -1;
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
+      return -1;
+  }
+  if (backend_enc_jmp_arch(elf_ctx, lbl_dn, n_dn, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, lbl_sv, n_sv, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, lbl_dn, n_dn, 0, ta) != 0)
+    return -1;
+  return 0;
+}
+
+/**
+ * Cap 10.7.1 slice12–18: twin of try_emit_va_cap_builtin_call_elf_c (.x).
+ * Cap-private VaList header (GP + FP + shared OV cursor) + GP/XMM spill.
  * x86_64: 6 SysV GP + 8 xmm; aarch64: 8 AAPCS GP + 8 v. typed va_arg<T>
- * including f32/f64. slice17: copy incoming stack extras into GP-ov/FP-ov
- * (8 slots) so the -8 walk continues past the register file.
+ * including f32/f64. slice17–18: copy incoming stack extras once into OV[8];
+ * va_arg past class_end consumes the shared overflow cursor.
  * PLATFORM: SHARED emit · LINUX|x86_64 · LINUX|aarch64
  */
 static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
@@ -4425,8 +4509,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   int32_t np_fp = 0;
   int32_t gp_save;
   int32_t fp_save;
-  int32_t gp_ov;
-  int32_t fp_ov;
+  int32_t ov;
   int32_t ov_n = 8;
   int32_t named_stk = 0;
   int32_t stk_pos = 0;
@@ -4576,12 +4659,11 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     save_off = ly->next_offset + 16;
     if (save_off < 16)
       save_off = 16;
-    gp_save = save_off + 16;
+    gp_save = save_off + 24;
     ov_n = 8;
-    gp_ov = gp_save + gp_n * 8;
-    fp_save = gp_ov + ov_n * 8;
-    fp_ov = fp_save + fp_n * 8;
-    ly->next_offset = fp_ov + ov_n * 8;
+    fp_save = gp_save + gp_n * 8;
+    ov = fp_save + fp_n * 8;
+    ly->next_offset = ov + ov_n * 8;
     for (k = 0; k < gp_n; k++) {
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0)
         return -1;
@@ -4594,7 +4676,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_save + k * 8, ta) != 0)
         return -1;
     }
-    /* Incoming stack extras → GP-ov / FP-ov. PLATFORM: LINUX x86 [rbp+16];
+    /* Incoming stack extras → shared OV. PLATFORM: LINUX x86 [rbp+16];
      * aarch64 [x29,#frame+16] after x19 pad (param_home twin). */
     stk_pos = 16;
     if (ta == 1) {
@@ -4611,9 +4693,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
         if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stk_pos + k * 8, ta) != 0)
           return -1;
       }
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, gp_ov + k * 8, ta) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, fp_ov + k * 8, ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, ov + k * 8, ta) != 0)
         return -1;
     }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, gp_save + np_gp * 8, ta) != 0)
@@ -4623,6 +4703,10 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, fp_save + np_fp * 8, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 8, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ov, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + 16, ta) != 0)
       return -1;
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0)
       return -1;
@@ -4689,6 +4773,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
   if (ap_off < 16)
     return -1;
+  gp_n = (ta == 1) ? 8 : 6;
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0)
     return -1;
   if (ta == 1) {
@@ -4696,12 +4781,16 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
       return -1;
+    if (arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx) != 0)
+      return -1;
     /* header+8 rbp-off = lower addr = pointer-8. Twin .x. */
     if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
       return -1;
     if (arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx) != 0)
       return -1;
     if (arch_arm64_enc_enc_ldr_x0_x3(elf_ctx) != 0)
+      return -1;
+    if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
@@ -4723,12 +4812,16 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
     return -1;
+  if (arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx) != 0)
+    return -1;
   /* header+8 rbp-off = lower addr = pointer-8. Twin .x. */
   if (is_fp && backend_enc_add_imm_to_rax_arch(elf_ctx, -8, ta) != 0)
     return -1;
   if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0)
     return -1;
   if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0)
+    return -1;
+  if (try_emit_va_cap_ov_select_elf_c(elf_ctx, ctx, ta, is_fp, gp_n) != 0)
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
     return -1;
