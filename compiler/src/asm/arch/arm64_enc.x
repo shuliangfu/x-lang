@@ -435,6 +435,25 @@ export function enc_mov_x8_to_rax(ctx: *ElfCodegenCtx): i32 {
 }
 
 /**
+ * mov x0, x{k} — AAPCS64 arg home → x0 (k=0..7; k==0 no-op).
+ * Twin of seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_mov_arg_reg_to_rax.
+ * Stage10 10.2.2 slice1: asm! lateout/out("x1"…) via enc_dispatch ta==1.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param k i32 — AAPCS arg index 0..7 (x0..x7)
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED aarch64 emit. G.7 reverse of enc_mov_rax_to_arg_reg family.
+ */
+export function enc_mov_arg_reg_to_rax(ctx: *ElfCodegenCtx, k: i32): i32 {
+  if (k < 0 || k > 7) {
+    return 0 - 1;
+  }
+  if (k == 0) {
+    return 0;
+  }
+  return enc_u32_le(ctx, 2852127712 | (k << 16) | 0);
+}
+
+/**
  * svc #0 (0xD4000001) — Linux aarch64 syscall instruction.
  * Twin of seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_svc.
  * Darwin Mach-O uses svc #0x80 / x16; intercept skips macho.
