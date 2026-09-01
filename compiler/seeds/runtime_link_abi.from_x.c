@@ -15,6 +15,10 @@
 #include "runtime_abi.h"
 #include "diag.h"
 #include "runtime_diag_codes.h"
+/* Cap residual 9.1.2: Linux path access/stat/fstat/realpath without libc. */
+#include <xlang_path_cap.h>
+/* Cap residual 9.1.4: Linux fork/execve/wait4/execvp/system without libc. */
+#include <xlang_process_cap.h>
 
 /* G-02f-53/65/66: empty C string + path/ld helpers */
 const char *xlang_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
@@ -288,6 +292,15 @@ int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
     }
 #else
     {
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+        long pid = xlang_proc_fork();
+        if (pid < 0)
+            return -1;
+        if (pid == 0) {
+            (void)xlang_proc_execvp("cc", (char *const *)argv);
+            xlang_proc_exit(127);
+        }
+#else
         pid_t pid = fork();
         if (pid < 0)
             return -1;
@@ -295,9 +308,10 @@ int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
             execvp("cc", (char *const *)argv);
             _exit(127);
         }
+#endif
         {
             int st;
-            if (xlang_waitpid_retry(pid, &st) != 0)
+            if (xlang_waitpid_retry((pid_t)pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0)
                 return -1;
@@ -363,11 +377,12 @@ int xlang_cc_compile_sync_one_extra(const char *src, const char *out_o,
 
 
 /**
- * Cap residual (wave219): synchronous spawn body.
+ * Cap residual (wave219 + 9.1.4): synchronous spawn body.
  * Pure orch (labi_diag_pure L1) owns public thin null/empty gates; _impl is always mega.
- * POSIX: fork+execvp+waitpid (via public xlang_waitpid_retry); Windows: _spawnvp(_P_WAIT).
+ * Linux: fork+execvp+wait4 via xlang_process_cap (no libc fork/execvp/waitpid).
+ * Other POSIX: fork+execvp+waitpid. Windows: _spawnvp(_P_WAIT).
  * G.7 single spawn authority for invoke_cc / ld / strip (no second fork path).
- * PLATFORM: SHARED residual / POSIX fork / WINDOWS _spawnvp.
+ * PLATFORM: LINUX Cap residual / POSIX fork / WINDOWS _spawnvp.
  */
 int xlang_spawn_sync_impl(const char *prog, const char *const *argv) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
@@ -377,6 +392,24 @@ int xlang_spawn_sync_impl(const char *prog, const char *const *argv) {
             return -1;
         return (int)rc;
     }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    {
+        long pid = xlang_proc_fork();
+        if (pid < 0)
+            return -1;
+        if (pid == 0) {
+            (void)xlang_proc_execvp(prog, (char *const *)argv);
+            xlang_proc_exit(127);
+        }
+        {
+            int st;
+            if (xlang_waitpid_retry((pid_t)pid, &st) != 0)
+                return -1;
+            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0)
+                return -1;
+        }
+    }
+    return 0;
 #else
     {
         pid_t pid = fork();
@@ -452,15 +485,20 @@ void invoke_cc_strip_out_x(const char *out_path);
 #endif
 
 /**
- * Cap residual (wave222): host getenv(name) → value pointer or NULL.
+ * Cap residual (wave222 + 9.1.1): host env lookup → value pointer or NULL.
  * Pure orch (wave222 labi_diag_pure L1) owns null/empty name gates; _impl is always mega.
- * PLATFORM: SHARED — host libc getenv (process environment block).
+ * PLATFORM: SHARED — POSIX walk environ (xlang_environ_cap); Windows CRT getenv.
  * Product ensure orch (formal_std XLANG / XLANG_FORMAL_STD_ENSURE; ensure_std_net XLANG_NET_TLS).
  */
+#include <xlang_environ_cap.h>
 const char *link_abi_getenv_impl(const char *name) {
     if (!name || !name[0])
         return NULL;
+#if defined(_WIN32) || defined(_WIN64)
     return getenv(name);
+#else
+    return xlang_environ_getenv(name);
+#endif
 }
 
 /* wave222: link_abi_getenv pure orch lives in labi_diag_pure.x (hybrid L1);
@@ -479,15 +517,40 @@ const char *link_abi_getenv(const char *name);
 #endif
 
 /**
- * Cap residual (wave224): host system(cmd) → shell status or -1.
+ * Cap residual (wave224 + 9.1.4): host system(cmd) → shell status or -1.
  * Pure orch (wave224 labi_diag_pure L1) owns null/empty cmd gates; _impl is always mega.
- * PLATFORM: SHARED — host libc system (shell make / process boundary).
+ * Linux: fork+execve(/bin/sh -c)+wait4 (no libc system). Else libc system.
+ * PLATFORM: LINUX Cap residual; SHARED face; other POSIX libc system.
  * Product ensure orch (ensure_std_net net-o-*; formal_std XLANG make).
  */
 int link_abi_system_impl(const char *cmd) {
     if (!cmd || !cmd[0])
         return -1;
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    {
+        char *argv[4];
+        long pid;
+        int st;
+        argv[0] = (char *)"sh";
+        argv[1] = (char *)"-c";
+        argv[2] = (char *)cmd;
+        argv[3] = NULL;
+        pid = xlang_proc_fork();
+        if (pid < 0)
+            return -1;
+        if (pid == 0) {
+            (void)xlang_proc_execve("/bin/sh", argv, environ);
+            xlang_proc_exit(127);
+        }
+        if (xlang_waitpid_retry((pid_t)pid, &st) != 0)
+            return -1;
+        if (!WIFEXITED(st))
+            return -1;
+        return (int)WEXITSTATUS(st);
+    }
+#else
     return system(cmd);
+#endif
 }
 
 /* wave224: link_abi_system pure orch lives in labi_diag_pure.x (hybrid L1);
@@ -936,9 +999,10 @@ void xlang_asm_ld_lib_root_default(char root_buf[512]);
 /** Absolute gcc path for ALLOW invoke_cc only (product -o hosted uses ld, not gcc-as-ld). */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 const char * xlang_linux_host_gcc_path(void) {
-    if (access("/usr/bin/gcc", X_OK) == 0)
+    /* Cap residual 9.1.2: faccessat, not libc access. */
+    if (xlang_path_access("/usr/bin/gcc", X_OK) == 0)
         return "/usr/bin/gcc";
-    if (access("/usr/local/bin/gcc", X_OK) == 0)
+    if (xlang_path_access("/usr/local/bin/gcc", X_OK) == 0)
         return "/usr/local/bin/gcc";
     return "gcc";
 }
@@ -990,6 +1054,29 @@ void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *loca
         strncpy(url, "http://127.0.0.1:7777/event", sizeof(url) - 1);
     if (!session[0])
         strncpy(session, "hello-stage1-segv", sizeof(session) - 1);
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    if (xlang_proc_fork() == 0) {
+        char body[768];
+        char *cargv[12];
+        (void)snprintf(body, sizeof(body),
+            "{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"%s\",\"location\":\"%s\","
+            "\"msg\":\"[DEBUG] %s\",\"data\":{\"v1\":%d,\"v2\":%d,\"v3\":%d}}",
+            session, hypothesis_id ? hypothesis_id : "A", location ? location : "runtime_link_abi.c",
+            msg ? msg : "hello-stage1", v1, v2, v3);
+        cargv[0] = (char *)"curl";
+        cargv[1] = (char *)"-s";
+        cargv[2] = (char *)"-X";
+        cargv[3] = (char *)"POST";
+        cargv[4] = url;
+        cargv[5] = (char *)"-H";
+        cargv[6] = (char *)"Content-Type: application/json";
+        cargv[7] = (char *)"-d";
+        cargv[8] = body;
+        cargv[9] = NULL;
+        (void)xlang_proc_execvp("curl", cargv);
+        xlang_proc_exit(0);
+    }
+#else
     if (fork() == 0) {
         char body[768];
         (void)snprintf(body, sizeof(body),
@@ -1000,6 +1087,7 @@ void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *loca
         execlp("curl", "curl", "-s", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", body, (char *)NULL);
         _exit(0);
     }
+#endif
 }
 
 
@@ -2573,7 +2661,7 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
         size_t tail = strlen(pos + strlen(from));
         memmove(pos + strlen(to), pos + strlen(from), tail + 1);
         memcpy(pos, to, strlen(to));
-        if (access(derived, F_OK) == 0)
+        if (xlang_path_access(derived, F_OK) == 0)
             return derived;
     }
     cwd_buf[0] = '\0';
@@ -3239,7 +3327,8 @@ int xlang_path_is_nonempty_regular_file_impl(const char *path) {
     struct stat st;
     if (!path || !path[0])
         return 0;
-    if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+    /* Cap residual 9.1.2: newfstatat/fstatat, not libc stat. */
+    if (xlang_path_stat(path, &st) != 0 || !S_ISREG(st.st_mode))
         return 0;
     if (st.st_size <= 0)
         return 0;
@@ -3339,14 +3428,14 @@ const char *link_abi_user_extra_o_at(int i) {
 }
 
 /**
- * Cap residual (wave151 / wave209): host access(path, R_OK) == 0 → 1.
+ * Cap residual (wave151 / wave209 + 9.1.2): host access R_OK == 0 → 1.
  * Pure orch (wave209 labi_path_io L3) owns null/empty gates; _impl is always mega.
- * PLATFORM: SHARED — host libc access (POSIX; Windows hybrid via compat).
+ * PLATFORM: SHARED — Linux faccessat Cap residual; Darwin libc access.
  */
 int link_abi_path_readable_impl(const char *path) {
     if (!path || !path[0])
         return 0;
-    return access(path, R_OK) == 0 ? 1 : 0;
+    return xlang_path_access(path, R_OK) == 0 ? 1 : 0;
 }
 
 /* wave209: link_abi_path_readable pure orch lives in labi_path_io.x (hybrid L3);
@@ -3365,15 +3454,15 @@ int link_abi_path_readable(const char *path);
 #endif
 
 /**
- * Cap residual (wave221): host access(path, X_OK) == 0 → 1.
+ * Cap residual (wave221 + 9.1.2): host access X_OK == 0 → 1.
  * Pure orch (wave221 labi_path_io L3) owns null/empty gates; _impl is always mega.
- * PLATFORM: SHARED — host libc access X_OK (POSIX; Windows hybrid via compat).
+ * PLATFORM: SHARED — Linux faccessat Cap residual; Darwin libc access.
  * Product host binary probe (formal_std XLANG / compiler/{xlang_asm,xlang,xlang-c}).
  */
 int link_abi_path_executable_impl(const char *path) {
     if (!path || !path[0])
         return 0;
-    return access(path, X_OK) == 0 ? 1 : 0;
+    return xlang_path_access(path, X_OK) == 0 ? 1 : 0;
 }
 
 /* wave221: link_abi_path_executable pure orch lives in labi_path_io.x (hybrid L3);
@@ -3805,7 +3894,7 @@ static int xlang_elf64_obj_scan_undef(const char *o_path, const char *want_sym) 
     fd = open(o_path, O_RDONLY, 0);
     if (fd < 0)
         return 0;
-    if (fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(Elf64_Ehdr)) {
+    if (xlang_path_fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(Elf64_Ehdr)) {
         close(fd);
         return 0;
     }
@@ -4167,10 +4256,10 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
  */
 
 /**
- * Cap residual (always _impl, wave218): POSIX realpath into out; Windows / fail → NULL.
+ * Cap residual (always _impl, wave218 + 9.1.2): resolve path into out; Windows / fail → NULL.
  * Pure orch (wave218 labi_path_io L3) owns public thin + null/empty/out gates;
  * path_pure / invoke_ld / formal_std call the public face (wave146+).
- * PLATFORM: SHARED residual; WINDOWS always NULL (≡ mega #if skip realpath).
+ * PLATFORM: SHARED residual; LINUX open+readlink Cap residual; WINDOWS always NULL.
  */
 const char *link_abi_realpath_cap_impl(const char *path, char *out) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -4180,7 +4269,7 @@ const char *link_abi_realpath_cap_impl(const char *path, char *out) {
 #else
     if (!path || !path[0] || !out)
         return NULL;
-    return realpath(path, out);
+    return xlang_path_realpath(path, out);
 #endif
 }
 
@@ -5603,6 +5692,18 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
             }
         }
 #else
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+        pid = (pid_t)xlang_proc_fork();
+        if (pid < 0) {
+            perror("fork (ld)");
+            return -1;
+        }
+        if (pid == 0) {
+            xlang_linux_ld_child_path();
+            (void)xlang_proc_execvp(argv[0], (char *const *)argv);
+            xlang_proc_exit(127);
+        }
+#else
         pid = fork();
         if (pid < 0) {
             perror("fork (ld)");
@@ -5619,6 +5720,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
 #endif
             _exit(127);
         }
+#endif
         {
             int status;
             if (xlang_waitpid_retry(pid, &status) != 0)
@@ -5777,12 +5879,34 @@ int labi_gates_count(void);
 /* -------------------------------------------------------------------------- */
 
 /**
- * Cap residual (wave216): waitpid with EINTR retry + errno strerror report.
+ * Cap residual (wave216 + 9.1.4): waitpid with EINTR retry + errno strerror report.
  * Pure orch (labi_diag_pure L1) owns public thin; _impl is always mega.
- * PLATFORM: POSIX — waitpid; Windows product uses _spawnvp paths that skip this.
+ * Linux: wait4 via xlang_process_cap (no libc waitpid). Else libc waitpid.
+ * PLATFORM: LINUX Cap residual; POSIX waitpid; Windows product uses _spawnvp paths that skip this.
  */
 int xlang_waitpid_retry_impl(pid_t pid, int *status_out) {
     int st = 0;
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    for (;;) {
+        long w = xlang_proc_waitpid((long)pid, &st, 0);
+        if (w == (long)pid) {
+            if (status_out)
+                *status_out = st;
+            return 0;
+        }
+        if (w < 0 && w == -(long)EINTR)
+            continue;
+        {
+            /* Map negative errno for diag; strerror still host residual for message text. */
+            int saved_errno = (w < 0) ? (int)(-w) : EINTR;
+            const char *err = strerror(saved_errno);
+            diag_reportf_with_code(NULL, 0, 0, "process error", XLANG_DIAG_CODE_PROCESS_PRC001, NULL,
+                                   "waitpid failed: %s",
+                                   err ? err : "unknown error");
+        }
+        return -1;
+    }
+#else
     for (;;) {
         pid_t w = waitpid(pid, &st, 0);
         if (w == pid) {
@@ -5801,6 +5925,7 @@ int xlang_waitpid_retry_impl(pid_t pid, int *status_out) {
         }
         return -1;
     }
+#endif
 }
 
 /* wave216: xlang_waitpid_retry pure orch lives in labi_diag_pure.x (hybrid L1);
