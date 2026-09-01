@@ -851,18 +851,22 @@ export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
 }
 
 
-/** Exported function `simd_x86_vmovups_ymm2_from_rbp`.
- * Implements `simd_x86_vmovups_ymm2_from_rbp`.
- * @param elf *u8
- * @param disp i32
- * @return i32
+/**
+ * Emit AVX `vmovups ymm2, [rbp+disp32]` as VEX.256.0F `C4 E1 7C 10 95 disp32`.
+ * Same 3-byte VEX as ymm0/ymm1 from_rbp. C5 FE 10 (pp=F3) is vmovss and #UD
+ * when L=1 — L4/L2 gold select SIGILL after Vec8i shuffle.
+ * @param elf *u8 — ElfCodegenCtx
+ * @param disp i32 — rbp displacement
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 16;
-  let b3: u8 = 149;
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 16;
+  let b4: u8 = 149;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -871,6 +875,8 @@ export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;

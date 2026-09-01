@@ -272,12 +272,12 @@ int32_t simd_x86_movups_xmm0_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 
 
 
-/** x86 AVX2：vmovups ymm0, [rbp+disp32]（C5 FE 10 85 disp32）。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-397：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x: VEX.256.0F vmovups ymm0, [rbp+disp32] = C4 E1 7C 10 85.
+ * PLATFORM: SHARED emit / x86 AVX. G.7 match .x (not C5 FE vmovss).
+ */
 int32_t simd_x86_vmovups_ymm0_from_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x10, 0x85};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x10, 0x85};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -291,12 +291,12 @@ int32_t simd_x86_vmovups_ymm0_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
 
 
 
-/** x86 AVX2：vmovups ymm1, [rbp+disp32]（C5 FE 10 8D disp32）。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-397：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x: VEX.256.0F vmovups ymm1, [rbp+disp32] = C4 E1 7C 10 8D.
+ * PLATFORM: SHARED emit / x86 AVX. G.7 match .x (not C5 FE vmovss).
+ */
 int32_t simd_x86_vmovups_ymm1_from_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x10, 0x8d};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x10, 0x8d};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -327,12 +327,12 @@ int32_t simd_x86_vpaddd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX2：vmovups [rbp+disp32], ymm0（C5 FE 11 85 disp32）。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-397：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x: VEX.256.0F vmovups [rbp+disp32], ymm0 = C4 E1 7C 11 85.
+ * PLATFORM: SHARED emit / x86 AVX. G.7 match .x (not C5 FE vmovss).
+ */
 int32_t simd_x86_vmovups_ymm0_to_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x11, 0x85};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x11, 0x85};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -1271,12 +1271,14 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
 }
 #endif
 
-/** x86 AVX2：vmovups ymm2, [rbp+disp32]（C5 FE 10 95 disp32）。 */
-/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-398：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x simd_x86_vmovups_ymm2_from_rbp.
+ * VEX.256.0F vmovups ymm2, [rbp+disp32] = C4 E1 7C 10 95 disp32.
+ * C5 FE 10 is vmovss (pp=F3) and #UD at L=1 (select SIGILL).
+ * PLATFORM: SHARED emit / x86 AVX. G.7 complete existing encoder.
+ */
 int32_t simd_x86_vmovups_ymm2_from_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x10, 0x95};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x10, 0x95};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }

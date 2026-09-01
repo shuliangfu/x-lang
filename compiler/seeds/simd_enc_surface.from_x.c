@@ -1050,38 +1050,24 @@ int32_t simd_x86_vpshufd_ymm0_imm8(uint8_t * elf, int32_t imm8) {
   return r;
 }
 int32_t simd_x86_vmovups_ymm2_from_rbp(uint8_t * elf, int32_t disp) {
-  uint8_t b0 = 197;
-  uint8_t b1 = 254;
-  uint8_t b2 = 16;
-  uint8_t b3 = 149;
+  /* Twin simd_enc.x: C4 E1 7C 10 95 vmovups ymm2,[rbp+disp] (not C5 FE vmovss). */
+  uint8_t b0 = 196;
+  uint8_t b1 = 225;
+  uint8_t b2 = 124;
+  uint8_t b3 = 16;
+  uint8_t b4 = 149;
   int32_t r = 0;
-  {
-    (void)((r = simd_append(elf, &(b0), 1)));
-  }
-  if ((r !=0)) {
-    return (0 - 1);
-  }
-  {
-    (void)((r = simd_append(elf, &(b1), 1)));
-  }
-  if ((r !=0)) {
-    return (0 - 1);
-  }
-  {
-    (void)((r = simd_append(elf, &(b2), 1)));
-  }
-  if ((r !=0)) {
-    return (0 - 1);
-  }
-  {
-    (void)((r = simd_append(elf, &(b3), 1)));
-  }
-  if ((r !=0)) {
-    return (0 - 1);
-  }
-  {
-    (void)((r = simd_append_disp32(elf, disp)));
-  }
+  (void)((r = simd_append(elf, &(b0), 1)));
+  if ((r !=0)) { return (0 - 1); }
+  (void)((r = simd_append(elf, &(b1), 1)));
+  if ((r !=0)) { return (0 - 1); }
+  (void)((r = simd_append(elf, &(b2), 1)));
+  if ((r !=0)) { return (0 - 1); }
+  (void)((r = simd_append(elf, &(b3), 1)));
+  if ((r !=0)) { return (0 - 1); }
+  (void)((r = simd_append(elf, &(b4), 1)));
+  if ((r !=0)) { return (0 - 1); }
+  (void)((r = simd_append_disp32(elf, disp)));
   return r;
 }
 int32_t simd_x86_pxor_xmm3_xmm3(uint8_t * elf) {
