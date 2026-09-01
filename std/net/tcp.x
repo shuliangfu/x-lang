@@ -52,6 +52,9 @@ allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
 extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
 extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
+/* Cap residual 9.1.7: Linux product face via sock_fast Cap bodies (not libc socket). */
+extern function xlang_sys_socket(domain: i32, sock_type: i32, protocol: i32): i32;
+extern function xlang_sys_connect(sockfd: i32, addr: *u8, addrlen: i32): i32;
 extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
 extern "C" function listen(fd: i32, backlog: i32): i32;
 extern "C" function accept(fd: i32, addr: *u8, addrlen: *u32): i32;
@@ -363,8 +366,11 @@ export function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32)
 }
 
 /**
- * See implementation.
+ * Blocking TCP connect (Linux): Cap socket/connect via xlang_sys_* when
+ * timeout_ms==0; otherwise net_tcp_connect_c (io_uring).
+ * PLATFORM: LINUX Cap residual 9.1.7
  */
+#[cfg(target_os = "linux")]
 #[no_mangle]
 export function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[16] = [];
@@ -379,7 +385,46 @@ export function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout
     if (fd < 0) {
       return -1;
     }
-    /* See implementation. */
+    let set_blk_rc: i32 = 0;
+    unsafe { set_blk_rc = net_set_blocking_c(fd, 1); }
+    if (set_blk_rc != 0) {
+      unsafe { net_close_socket_c(fd); }
+      return -1;
+    }
+    net_tcp_prefetch_fd_c(fd);
+    return fd;
+  }
+  unsafe { fd = xlang_sys_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); }
+  if (fd < 0) {
+    return -1;
+  }
+  unsafe { if (xlang_sys_connect(fd, sin_ptr, 16) != 0) {
+    net_close_socket_c(fd);
+    return -1;
+  } }
+  net_tcp_prefetch_fd_c(fd);
+  return fd;
+}
+
+/**
+ * Blocking TCP connect (non-Linux): libc/Winsock socket/connect when timeout_ms==0.
+ * PLATFORM: MACOS|WINDOWS|other
+ */
+#[cfg(not(target_os = "linux"))]
+#[no_mangle]
+export function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+  let sin_mem: u8[16] = [];
+  let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
+  let fd: i32 = 0;
+  if (net_tcp_maybe_wsa_fail_c() != 0) {
+    return -1;
+  }
+  unsafe { net_tcp_set_addr_port_buf_c(sin_ptr, addr_u32, port_u32); }
+  if (timeout_ms != 0) {
+    fd = net_tcp_connect_c(addr_u32, port_u32, timeout_ms);
+    if (fd < 0) {
+      return -1;
+    }
     let set_blk_rc: i32 = 0;
     unsafe { set_blk_rc = net_set_blocking_c(fd, 1); }
     if (set_blk_rc != 0) {
