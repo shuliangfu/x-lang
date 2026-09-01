@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: try_inline debugf → xlang_vsnprintf */
 
 #include "diag.h"
 #ifdef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -112,7 +113,8 @@ static void backend_try_inline_debugf(const char *fmt, ...) {
   if (!link_abi_getenv("XLANG_ASM_DEBUG"))
     return;
   va_start(ap, fmt);
-  (void)vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+  (void)xlang_vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
   va_end(ap);
   buf[sizeof buf - 1] = '\0';
   diag_report(NULL, 0, 0, "note", buf, NULL);
