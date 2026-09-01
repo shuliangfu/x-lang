@@ -19,6 +19,7 @@
  * 【所属模块/组件】std.http；经 ld -r 与 http.x 合并为 http.o；与 mod.x 同属一模块。
  * Cap residual 9.1.7 slice2：Linux dial via xlang_dns_cap + xlang_net_cap（无 getaddrinfo）；
  * Windows 仍 Winsock getaddrinfo／WSAStartup。
+ * Cap residual 10.7.2：request／URL format via xlang_snprintf（无 libc snprintf）。
  */
 
 #include <stdint.h>
@@ -27,6 +28,11 @@
 #include <string.h>
 /* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: http format → xlang_snprintf */
+/* G.7: single Cap authority for this TU + included seeds/http/*.inc (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
+
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
