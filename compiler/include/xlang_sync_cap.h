@@ -7,7 +7,8 @@
  *
  * Slice0: non-recursive mutex (init/lock/trylock/unlock).
  * Slice1: condition variable (init/wait/signal/broadcast).
- * Later: semaphore · wire runtime_sync_os _impl · Windows (10.6.2).
+ * Slice2: counting semaphore (init/wait/trywait/post).
+ * Later: wire runtime_sync_os _impl · Windows (10.6.2).
  *
  * Windows / Darwin: not provided — callers keep OS mutex/cond APIs.
  *
@@ -209,6 +210,105 @@ static inline int xlang_cap_cond_broadcast(struct xlang_cap_cond *cv) {
   }
   (void)__atomic_fetch_add(&cv->seq, 1u, __ATOMIC_RELEASE);
   (void)xlang_futex_wake(&cv->seq, 0x7fffffff);
+  return 0;
+}
+
+/**
+ * Cap futex counting semaphore — non-negative count word.
+ * PLATFORM: LINUX
+ */
+struct xlang_cap_sem {
+  uint32_t count;
+};
+
+/**
+ * Initialize Cap semaphore to `value` permits (value may be 0).
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_sem_init(struct xlang_cap_sem *sem, uint32_t value) {
+  if (sem == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  sem->count = value;
+  return 0;
+}
+
+/**
+ * Destroy Cap semaphore (no heap).
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_sem_destroy(struct xlang_cap_sem *sem) {
+  if (sem == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  sem->count = 0;
+  return 0;
+}
+
+/**
+ * Wait (P/down): decrement count, blocking via futex while count==0.
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_sem_wait(struct xlang_cap_sem *sem) {
+  uint32_t cur = 0;
+  if (sem == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  for (;;) {
+    cur = __atomic_load_n(&sem->count, __ATOMIC_ACQUIRE);
+    if (cur > 0) {
+      if (__atomic_compare_exchange_n(&sem->count, &cur, cur - 1u, 0, __ATOMIC_ACQ_REL,
+                                      __ATOMIC_ACQUIRE)) {
+        return 0;
+      }
+      continue;
+    }
+    (void)xlang_futex(&sem->count, XLANG_FUTEX_WAIT, 0u, 0);
+  }
+}
+
+/**
+ * Try wait: decrement if count>0, else EAGAIN.
+ * @return 0 ok; -1 with errno=EAGAIN if empty
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_sem_trywait(struct xlang_cap_sem *sem) {
+  uint32_t cur = 0;
+  if (sem == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  for (;;) {
+    cur = __atomic_load_n(&sem->count, __ATOMIC_ACQUIRE);
+    if (cur == 0) {
+      errno = EAGAIN;
+      return -1;
+    }
+    if (__atomic_compare_exchange_n(&sem->count, &cur, cur - 1u, 0, __ATOMIC_ACQ_REL,
+                                    __ATOMIC_ACQUIRE)) {
+      return 0;
+    }
+  }
+}
+
+/**
+ * Post (V/up): increment count and wake one waiter.
+ * @return 0 ok; -1 with errno
+ * PLATFORM: LINUX
+ */
+static inline int xlang_cap_sem_post(struct xlang_cap_sem *sem) {
+  if (sem == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  (void)__atomic_fetch_add(&sem->count, 1u, __ATOMIC_RELEASE);
+  (void)xlang_futex_wake(&sem->count, 1);
   return 0;
 }
 
