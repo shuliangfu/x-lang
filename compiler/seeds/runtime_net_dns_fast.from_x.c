@@ -1,6 +1,7 @@
 /* seeds/runtime_net_dns_fast.from_x.c — G-02f-20 product TU
  * G-02f-103 helper gates.
  * Product: ../std/net/net_dns_fast.o; logic still C until full .x port.
+ * Cap residual 9.1.7 slice2: resolve via xlang_dns_cap.h (no libc getaddrinfo).
  */
 #include <stdint.h>
 #include <string.h>
@@ -10,9 +11,7 @@
 #include <ws2tcpip.h>
 static int net_dns_wsa_ready = 0;
 #else
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
+#include <xlang_dns_cap.h>
 #endif
 
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err);
@@ -35,29 +34,22 @@ int32_t net_dns_ai_addconfig_c(void) {
 }
 #endif
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
 int32_t net_dns_map_gai_error_c_impl_c(int err) {
 #if defined(__linux__)
-    if (err == EAI_NONAME)
+    /* Cap residual errors already use product map 1/2/3/4. */
+    if (err == 1)
         return 1;
-#ifdef EAI_NODATA
-    if (err == EAI_NODATA)
+    if (err == 2)
         return 2;
-#endif
-    if (err == EAI_AGAIN)
+    if (err == 3)
         return 3;
     return 4;
 #elif defined(__APPLE__)
-    if (err == EAI_NONAME)
+    if (err == 8) /* EAI_NONAME Darwin */
         return 1;
-#ifdef EAI_NODATA
-    if (err == EAI_NODATA)
+    if (err == 7) /* EAI_NODATA */
         return 2;
-#endif
-    if (err == EAI_AGAIN)
+    if (err == 2) /* EAI_AGAIN */
         return 3;
     return 4;
 #elif defined(_WIN32) || defined(_WIN64)
@@ -80,10 +72,6 @@ int32_t net_dns_map_gai_error_c(int err) {
     return net_dns_map_gai_error_c_impl_c(err);
 }
 #endif
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
 
 int32_t net_dns_ensure_wsa_c_impl_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -104,9 +92,6 @@ int32_t net_dns_ensure_wsa_c(void) {
 }
 #endif
 
-
-
-
 uint32_t net_resolve_ipv4_c(uint8_t *hostname) {
     uint32_t addr = 0;
     int32_t err = 0;
@@ -115,7 +100,12 @@ uint32_t net_resolve_ipv4_c(uint8_t *hostname) {
     return addr;
 }
 
-int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err) {
+/**
+ * Cap residual 9.1.7 slice2: IPv4 resolve via xlang_dns_cap.h.
+ * Exported for dns.x / http_glue. PLATFORM: LINUX Cap; Win keeps Winsock.
+ */
+int32_t xlang_dns_cap_resolve_ipv4(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err) {
+#if defined(_WIN32) || defined(_WIN64)
     struct addrinfo hints;
     struct addrinfo *res = 0;
     struct sockaddr_in *sa = 0;
@@ -138,7 +128,6 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = net_dns_ai_addconfig_c_impl_c();
     ga = getaddrinfo((const char *)hostname, 0, &hints, &res);
     if (ga != 0 || !res) {
         if (out_addr)
@@ -149,7 +138,8 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
             freeaddrinfo(res);
         return -1;
     }
-    if (res->ai_family == AF_INET && res->ai_addr && res->ai_addrlen >= (socklen_t)sizeof(struct sockaddr_in)) {
+    if (res->ai_family == AF_INET && res->ai_addr &&
+        res->ai_addrlen >= (socklen_t)sizeof(struct sockaddr_in)) {
         sa = (struct sockaddr_in *)(void *)res->ai_addr;
         addr_u32 = ntohl(sa->sin_addr.s_addr);
     }
@@ -166,9 +156,16 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
     if (out_err)
         out_err[0] = 0;
     return 0;
+#else
+    return (int32_t)xlang_dns_resolve_ipv4((const char *)hostname, out_addr, out_err);
+#endif
 }
 
-int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err) {
+/**
+ * Cap residual 9.1.7 slice2: IPv6 resolve via xlang_dns_cap.h.
+ */
+int32_t xlang_dns_cap_resolve_ipv6(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err) {
+#if defined(_WIN32) || defined(_WIN64)
     struct addrinfo hints;
     struct addrinfo *res = 0;
     struct sockaddr_in6 *sa6 = 0;
@@ -187,7 +184,6 @@ int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = net_dns_ai_addconfig_c_impl_c();
     ga = getaddrinfo((const char *)hostname, 0, &hints, &res);
     if (ga != 0 || !res) {
         if (out_err)
@@ -196,7 +192,8 @@ int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *
             freeaddrinfo(res);
         return -1;
     }
-    if (res->ai_family != AF_INET6 || !res->ai_addr || res->ai_addrlen < (socklen_t)sizeof(struct sockaddr_in6)) {
+    if (res->ai_family != AF_INET6 || !res->ai_addr ||
+        res->ai_addrlen < (socklen_t)sizeof(struct sockaddr_in6)) {
         if (out_err)
             out_err[0] = 2;
         freeaddrinfo(res);
@@ -208,4 +205,15 @@ int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *
     if (out_err)
         out_err[0] = 0;
     return 0;
+#else
+    return (int32_t)xlang_dns_resolve_ipv6((const char *)hostname, out_addr_16, out_err);
+#endif
+}
+
+int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err) {
+    return xlang_dns_cap_resolve_ipv4(hostname, out_addr, out_err);
+}
+
+int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err) {
+    return xlang_dns_cap_resolve_ipv6(hostname, out_addr_16, out_err);
 }
