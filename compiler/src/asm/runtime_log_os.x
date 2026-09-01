@@ -12,7 +12,8 @@ export function runtime_log_os_x_doc_anchor(): i32 {
 }
 
 /* extern bridge declarations — OS-specific _impl functions in runtime_log_os.from_x.c.
- * PLATFORM: SHARED — write_fd uses _write on Windows, write on POSIX.
+ * PLATFORM: SHARED — write_fd uses _write on Windows, write on POSIX;
+ *           rotate path format via Cap xlang_snprintf (10.7.2).
  * All other _impl functions delegate to OS or manipulate C static state. */
 
 export extern "C" function log_apply_env_once_impl(): void;
