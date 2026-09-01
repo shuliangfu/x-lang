@@ -118,12 +118,27 @@ static inline long xlang_io_write(int fd, const void *buf, size_t count) {
   }
 #elif defined(__aarch64__)
   {
-    register long x8 __asm__("x8") = 4;
+    /* Darwin ARM64 write(2): syscall number in x16, svc #0x80.
+     * Linux aarch64 (nr in x8 + svc #0) is a different ABI — copying it
+     * truncates the fmt dest (open/O_TRUNC via libc succeeds) then leaves
+     * 0 bytes (FMT001 write failed). SYS_write = 4.
+     * Error: PSTATE.C set and x0 = errno (positive). Map to -errno so the
+     * shared r<0 check below matches the Linux Cap face.
+     * PLATFORM: MACOS|DARWIN aarch64 */
+    register long x16 __asm__("x16") = 4;
     register long x0 __asm__("x0") = (long)fd;
     register long x1 __asm__("x1") = (long)buf;
     register long x2 __asm__("x2") = (long)count;
-    __asm__ __volatile__("svc #0" : "+r"(x0) : "r"(x8), "r"(x1), "r"(x2) : "memory");
-    r = x0;
+    register long failed __asm__("x9");
+    __asm__ __volatile__("svc #0x80\n\t"
+                         "cset %1, cs"
+                         : "+r"(x0), "=r"(failed)
+                         : "r"(x16), "r"(x1), "r"(x2)
+                         : "memory", "cc");
+    if (failed)
+      r = -x0;
+    else
+      r = x0;
   }
 #endif
   if (r < 0) {
