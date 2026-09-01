@@ -533,8 +533,9 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // PLATFORM: SHARED — fs fk0 was incomplete (only invalid/open/…/last_error).
   // Sole callers of readv_buf/writev_buf never opened the gate → UNDEF at ld
   // (run-fs readv_writev_buf). G.7 complete surface: public readv/writev faces.
+  // Cap residual 9.1.2: +std_fs_stat so stat-only users pull formal fs.o.
   if (k == 15) {
-    return 11;
+    return 12;
   }
   // PLATFORM: SHARED — tar formal public surface (std_tar_*).
   if (k == 16) {
@@ -1508,6 +1509,11 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 10) {
         let p: *u8 = "std_fs_writev_buf";
+        return p;
+      }
+      // Cap residual 9.1.2: stat-only pure-asm must open fs.o gate.
+      if (i == 11) {
+        let p: *u8 = "std_fs_stat";
         return p;
       }
       return 0 as *u8;
