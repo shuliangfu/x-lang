@@ -160,7 +160,7 @@
 - ✅ **9.1.8** `_write`／write／read — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`；preamble＋stubs weak `xlang_sys_`*＋io_abi cold read/write→Cap。探针 `io_write_raw_smoke.x`／`io_read_raw_smoke.x`＠**`c73745da4`**。残：Darwin／Win 金标  
 - ✅ **9.1.9** inline asm syscall（Linux x86_64）— **Ubuntu ✅（WIP）**：G.7 `xlang_syscall_cap.h`（syscall0..6；x86_64＋aarch64）；path／io／net／process／time／random 改 alias。探针 `syscall_cap_raw_smoke.x`＠**`fecc624dd`**。残：非 Cap 种子内仍有独立 asm（bootstrap／freestanding）  
 - 🟡 **9.1.10** opendir／readdir／closedir — **Ubuntu ✅（WIP）**：G.7 `xlang_dir_cap.h`＋`-E` prologue＋formal merge＋posix／fmt／pabi Cap。证＠**`6ee38226e`**：fs／fmt／pabi **无 U opendir** · Cap smoke **0**。残：Darwin／Win  
-- ✅ **9.1.11** execinfo／dladdr — **Linux+Darwin ✅（WIP）**：`xlang_backtrace_cap.h` frame walk＋Linux maps/ELF `xlang_bt_dladdr`＠**`72f18126c`** · Darwin proc_regionfilename＋Mach-O symtab＠**`e2bba0eed`**；platform.o **无 U backtrace/dladdr**（双端）· 探针 `backtrace_cap_raw_smoke.x`／`backtrace_dladdr_raw_smoke.x` **0**。残：Win DbgHelp  
+- ✅ **9.1.11** execinfo／dladdr／DbgHelp — **Linux+Darwin+Windows Cap ✅**＠`dcd335be4`：SHARED FP walk＋Linux maps/ELF＋Darwin Mach-O＋**Win VirtualQuery+PE export**（无 CaptureStackBackTrace／DbgHelp／`-ldbghelp`）；双端 capture／dladdr smoke **0**。残：MSYS 实机金标
 - 🟡 **9.1.12** sysctl／proc／`#if` — **Linux s0＋Darwin s1 ✅（WIP）**：Linux `xlang_proc_cap.h`＠**`3f7cc46c6`** · Darwin arm64 去 sysctlbyname／x86 CPUID＠**`4dbe69e88`** · target_cpu.o Linux **无 U fopen/fprintf** · macOS **无 U sysctl**。残：Darwin print Cap · arm SVE via caps（若内核暴露）  
 
 ### 9.2 第三方库（P2）
@@ -239,7 +239,7 @@
 
 - ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar`*／`stlr`*／`casal*`）。残：Darwin
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
-- 🟡 **10.5.1** x86 AVX／SSE + aarch64 NEON 内建 — **slice0–6 ✅** · **slice6 ✅（Ubuntu cross-emit）**＠`4c6cac242`：aarch64 f32x4/f32x8/i32x8 add·mul·sub；x86 同宽齐。残：fma/dot/hsum · host-C · 9.1.11
+- 🟡 **10.5.1** x86 AVX／SSE + aarch64 NEON 内建 — **slice0–6 ✅** · **slice6 ✅（Ubuntu cross-emit）**＠`4c6cac242`：aarch64 f32x4/f32x8/i32x8 add·mul·sub；x86 同宽齐。残：fma/dot/hsum · host-C
 - ⬜ **10.5.2** ARM SVE／NEON 内建  
 - ⬜ **10.6.1** Linux futex／clone／mmap 栈  
 - ⬜ **10.6.2** Windows CreateThread／WaitForSingleObject  
