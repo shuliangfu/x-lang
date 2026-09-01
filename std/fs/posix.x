@@ -23,6 +23,9 @@
 // See implementation.
 // See implementation.
 
+/* Cap residual 9.1.2: Linux fs_libc_stat/fstat via raw_syscall (no libc). */
+const linux = import("std.sys.linux");
+
 /* See implementation. */
 const io_sync = import("std.io.sync");
 
@@ -230,22 +233,107 @@ export function fs_libc_munmap(addr: *u8, len: usize): i32 {
   unsafe { return munmap(addr, len); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_fstat`.
- * Implements `fs_libc_fstat`.
+/**
+ * Cap residual 9.1.2: fstat via raw_syscall2 (x86_64 nr=5). No libc fstat.
+ * @param fd i32
+ * @param st *PosixStatBuf — Linux struct stat layout
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "x86_64")]
+export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall2(5, fd as i64, st as i64);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual 9.1.2: fstat via raw_syscall2 (aarch64 nr=80). No libc fstat.
+ * @param fd i32
+ * @param st *PosixStatBuf
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "aarch64")]
+export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall2(80, fd as i64, st as i64);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Darwin / non-Linux Cap residual: libc fstat.
  * @param fd i32
  * @param st *PosixStatBuf
  * @return i32
+ * PLATFORM: MACOS|DARWIN
  */
+#[cfg(target_os = "macos")]
 export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
   unsafe { return fstat(fd, st); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_stat`.
- * Implements `fs_libc_stat`.
+
+/**
+ * Cap residual 9.1.2: stat via newfstatat (x86_64 nr=262, AT_FDCWD=-100).
+ * @param path *u8 — NUL-terminated path
+ * @param st *PosixStatBuf
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "x86_64")]
+export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall4(262, -100 as i64, path as i64, st as i64, 0);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual 9.1.2: stat via fstatat (aarch64 nr=79, AT_FDCWD=-100).
+ * @param path *u8
+ * @param st *PosixStatBuf
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "aarch64")]
+export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall4(79, -100 as i64, path as i64, st as i64, 0);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Darwin Cap residual: libc stat.
  * @param path *u8
  * @param st *PosixStatBuf
  * @return i32
+ * PLATFORM: MACOS|DARWIN
  */
+#[cfg(target_os = "macos")]
 export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
   unsafe { return stat(path, st); }
   return 0; // unreachable — typeck workaround
