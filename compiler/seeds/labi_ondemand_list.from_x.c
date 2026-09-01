@@ -3708,7 +3708,7 @@ int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
 int labi_std_fk_gate_sym_count(int fk) {
   /* PLATFORM: SHARED — process product face complete (pure-asm std_process_*). */
   if (fk == 1) return 28;
-  if (fk == 2) return 4;
+  if (fk == 2) return 16; /* pool/name/affinity + create/join — twin labi_ondemand_heavy.x */
   if (fk == 3) return 5;
   if (fk == 4) return 3;
   if (fk == 5) return 5;
@@ -3762,10 +3762,23 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     return NULL;
   }
   if (fk == 2) {
+    /* PLATFORM: SHARED — twin of labi_ondemand_heavy.x fk==2 (pool co-emit UNDEFs glue). */
     if (i == 0) return "std_thread_spawn";
     if (i == 1) return "std_thread_join";
     if (i == 2) return "thread_create_c";
     if (i == 3) return "thread_join_c";
+    if (i == 4) return "thread_pool_start_c";
+    if (i == 5) return "thread_pool_submit_c";
+    if (i == 6) return "thread_pool_drain_c";
+    if (i == 7) return "thread_pool_stop_c";
+    if (i == 8) return "thread_pool_pending_c";
+    if (i == 9) return "thread_set_name_self_c";
+    if (i == 10) return "thread_dummy_entry_ptr_c";
+    if (i == 11) return "thread_create_with_stack_c";
+    if (i == 12) return "thread_self_c";
+    if (i == 13) return "thread_set_affinity_c";
+    if (i == 14) return "thread_set_affinity_self_c";
+    if (i == 15) return "thread_set_qos_class_self_c";
     return NULL;
   }
   if (fk == 3) {
