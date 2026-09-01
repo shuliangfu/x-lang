@@ -49,10 +49,51 @@
 #include <unistd.h>
 #include <errno.h>
 #include <poll.h>
+#include <fcntl.h>
 #include <xlang_dns_cap.h>
 #include <xlang_net_cap.h>
 #define XLANG_HTTP_CLOSE(fd) close(fd)
 #define XLANG_HTTP_ERRNO errno
+
+/*
+ * Cap residual 9.1.7 slice3: redirect libc socket face to Cap for this TU
+ * (pool / h2 server smokes / timeout dial). Function-like macros only.
+ * PLATFORM: LINUX Cap (include path already gated !_WIN32).
+ */
+static inline int xlang_http_accept_cap(int fd, void *addr, socklen_t *alen) {
+  unsigned int a = alen ? (unsigned int)(*alen) : 0;
+  int r = xlang_net_accept(fd, addr, alen ? &a : 0);
+  if (alen)
+    *alen = (socklen_t)a;
+  return r;
+}
+static inline int xlang_http_setsockopt_cap(int fd, int level, int optname, const void *optval,
+                                           socklen_t optlen) {
+  return xlang_net_setsockopt(fd, level, optname, optval, (unsigned int)optlen);
+}
+static inline int xlang_http_fcntl_cap(int fd, int cmd, ...) {
+  long arg = 0;
+  if (cmd == F_SETFL) {
+    __builtin_va_list ap;
+    __builtin_va_start(ap, cmd);
+    arg = __builtin_va_arg(ap, long);
+    __builtin_va_end(ap);
+  }
+  return xlang_net_fcntl(fd, cmd, arg);
+}
+#define socket(d, t, p) xlang_net_socket((d), (t), (p))
+#define connect(fd, addr, len) xlang_net_connect((fd), (const void *)(addr), (unsigned int)(len))
+#define bind(fd, addr, len) xlang_net_bind((fd), (const void *)(addr), (unsigned int)(len))
+#define listen(fd, bl) xlang_net_listen((fd), (bl))
+#define accept(fd, addr, alen) xlang_http_accept_cap((fd), (addr), (alen))
+#define setsockopt(fd, l, o, v, n) xlang_http_setsockopt_cap((fd), (l), (o), (v), (n))
+#define poll(fds, n, t) xlang_net_poll((void *)(fds), (unsigned int)(n), (int)(t))
+#define fcntl xlang_http_fcntl_cap
+#define close(fd) xlang_net_close((fd))
+#define send(fd, buf, len, flags)                                                                  \
+  xlang_net_sendto((fd), (buf), (size_t)(len), (int)(flags), 0, 0)
+#define recv(fd, buf, len, flags)                                                                  \
+  xlang_net_recvfrom((fd), (buf), (size_t)(len), (int)(flags), 0, 0)
 #endif
 
 #include "http_chunked.inc"
