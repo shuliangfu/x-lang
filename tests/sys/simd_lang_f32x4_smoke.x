@@ -1,12 +1,12 @@
-// Stage 10 (10.5.1) slice0: language SIMD builtins add_f32x4 / mul_f32x4.
-// Product xlang_asm -o must inline SSE addps/mulps — no extern std_simd_* CALL.
-// PLATFORM: LINUX x86_64 asm; SHARED surface (host-C / aarch64 panic).
+// Stage 10 (10.5.1) slice0/5: language SIMD builtins add/mul/sub_f32x4.
+// Product xlang_asm must inline x86 SSE or aarch64 NEON — no extern std_simd_* CALL.
+// PLATFORM: LINUX x86_64 asm · aarch64 NEON (slice5); SHARED surface (host-C fallback).
 const simd = import("std.simd.builtin");
 
 /**
  * Language SIMD f32x4 builtin smoke: add then mul lane checks.
  * @return i32 — 0 on success; 1/2/3/4 on step failure
- * PLATFORM: LINUX x86_64 asm (SSE addps/mulps)
+ * PLATFORM: LINUX x86_64 asm (SSE) · aarch64 NEON (fadd/fmul/fsub)
  */
 function main(): i32 {
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
