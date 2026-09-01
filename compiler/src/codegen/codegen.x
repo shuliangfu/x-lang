@@ -20593,6 +20593,18 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         p = p + 1;
       }
     }
+    /*
+     * Cap 10.7.1 slice6: emit `, ...` on function *definitions* when is_variadic.
+     * Declarations already emit via codegen_emit_import_dep / extern proto path;
+     * defs closed `)` without ellipsis → prototype/def mismatch (host-cc error).
+     * PLATFORM: SHARED host-C.
+     */
+    if (pipeline_module_func_is_variadic_at(module, fi) != 0 && pipeline_module_func_num_params_at(module, fi) > 0) {
+      let ellipsis_def: u8[5] = [44, 32, 46, 46, 46];
+      if (emit_bytes_from_ptr(out, &ellipsis_def[0], 5) != 0) {
+        return -1;
+      }
+    }
     let rpar: u8[3] = [41, 32, 0];
     if (emit_bytes_3(out, &rpar[0], 2) != 0) {
       return -1;
