@@ -1603,6 +1603,32 @@ void invoke_cc_append_heap_f06_ondemand(uint8_t **argv, int32_t *ia, int32_t arg
 /* wave206: durable -O{level} slot (≡ .x g_labi_icc_oopt_buf). */
 static uint8_t g_labi_icc_oopt_buf[8];
 
+/* Cap 10.7.1 slice11: durable <repo>/compiler/include (≡ .x g_labi_icc_cap_inc_buf). */
+static uint8_t g_labi_icc_cap_inc_buf[512];
+
+/* Cap 10.7.1 slice11: fill Cap include path BSS (≡ .x invoke_cc_fill_cap_include_path). */
+static uint8_t *invoke_cc_fill_cap_include_path(uint8_t *include_root) {
+  int ri = 0;
+  int si;
+  const char *suf = "/compiler/include";
+  g_labi_icc_cap_inc_buf[0] = 0;
+  if (!include_root || !include_root[0])
+    return g_labi_icc_cap_inc_buf;
+  while (ri < 494 && include_root[ri]) {
+    g_labi_icc_cap_inc_buf[ri] = include_root[ri];
+    ri++;
+  }
+  if (ri > 0) {
+    uint8_t last = g_labi_icc_cap_inc_buf[ri - 1];
+    if (last == (uint8_t)'/' || last == (uint8_t)'\\')
+      ri--;
+  }
+  for (si = 0; suf[si] && ri < 511; si++, ri++)
+    g_labi_icc_cap_inc_buf[ri] = (uint8_t)suf[si];
+  g_labi_icc_cap_inc_buf[ri] = 0;
+  return g_labi_icc_cap_inc_buf;
+}
+
 /* wave206: invoke_cc_append_argv_head_flags pure orch (surface pin ≡ .x). */
 void invoke_cc_append_argv_head_flags(uint8_t **argv, int32_t *ia, int32_t argv_cap,
     uint8_t *out_path, uint8_t *opt_level, int32_t use_lto, uint8_t *include_root) {
@@ -1662,9 +1688,16 @@ void invoke_cc_append_argv_head_flags(uint8_t **argv, int32_t *ia, int32_t argv_
     else if (is_linux)
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-Wl,--gc-sections");
   }
+  /* Cap 10.7.1 slice11: repo -I + Cap <repo>/compiler/include -I. */
   if (include_root && include_root[0]) {
+    uint8_t *cap_inc;
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-I");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
+    cap_inc = invoke_cc_fill_cap_include_path(include_root);
+    if (cap_inc && cap_inc[0]) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-I");
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, cap_inc);
+    }
   }
 }
 

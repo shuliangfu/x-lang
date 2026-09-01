@@ -30,6 +30,66 @@
 // wave206: durable -O{level} argv slot (≡ mega static char oopt_buf[8]; durable pointer into argv).
 let g_labi_icc_oopt_buf: u8[8] = [];
 
+// Cap 10.7.1 slice11: durable <repo>/compiler/include for argv -I (Cap headers).
+// include_root stays the repo root (std/*.o ensure paths); Cap #include <xlang_*_cap.h>
+// lives under compiler/include — product host-cc must pass a second -I. Cap=512 leaves
+// room for "/compiler/include" (17) + NUL; pointer into this BSS is pushed into argv.
+let g_labi_icc_cap_inc_buf: u8[512] = [];
+
+/**
+ * Build durable Cap include path `<include_root>/compiler/include` into BSS.
+ * @param include_root *u8 — repo root from xlang_repo_root_from_argv0; null/empty → empty buf
+ * @return *u8 — pointer to g_labi_icc_cap_inc_buf (NUL-terminated; may be empty)
+ * Contract: never overflows 512; strips one trailing '/' or '\\' before appending.
+ * PLATFORM: SHARED — Cap headers under compiler/include (va/io/fmt/…); host-cc -I consumer.
+ */
+function invoke_cc_fill_cap_include_path(include_root: *u8): *u8 {
+  let ri: i32 = 0;
+  g_labi_icc_cap_inc_buf[0] = 0;
+  if (include_root == 0 as *u8) {
+    return &g_labi_icc_cap_inc_buf[0];
+  }
+  if (include_root[0] == 0) {
+    return &g_labi_icc_cap_inc_buf[0];
+  }
+  // Copy repo root; leave ≥18 bytes for "/compiler/include\0".
+  while (ri < 494) {
+    let ch: u8 = include_root[ri];
+    if (ch == 0) {
+      break;
+    }
+    g_labi_icc_cap_inc_buf[ri] = ch;
+    ri = ri + 1;
+  }
+  // Drop one trailing path sep so we always append "/compiler/include".
+  if (ri > 0) {
+    let last: u8 = g_labi_icc_cap_inc_buf[ri - 1];
+    if (last == 47) {
+      // '/'
+      ri = ri - 1;
+    } else {
+      if (last == 92) {
+        // '\\' (WINDOWS path)
+        ri = ri - 1;
+      }
+    }
+  }
+  // Append "/compiler/include" (ASCII; works for MinGW gcc -I too).
+  let suf: *u8 = "/compiler/include";
+  let si: i32 = 0;
+  while (si < 18) {
+    let sch: u8 = suf[si];
+    if (sch == 0) {
+      break;
+    }
+    g_labi_icc_cap_inc_buf[ri] = sch;
+    ri = ri + 1;
+    si = si + 1;
+  }
+  g_labi_icc_cap_inc_buf[ri] = 0;
+  return &g_labi_icc_cap_inc_buf[0];
+}
+
 // wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure L1).
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 
@@ -3633,10 +3693,12 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
  * @param out_path *u8 — product executable path for -o; null/empty still pushes -o then skips path
  * @param opt_level *u8 — optimization level string; null/empty treated as "2" (≡ mega default)
  * @param use_lto i32 — non-zero enables -flto when opt != "0" and native tuning not skipped
- * @param include_root *u8 — optional -I root; null/empty skips -I
- * @return void — mutates *ia and argv slots; writes durable -O* into g_labi_icc_oopt_buf BSS
+ * @param include_root *u8 — optional repo root for -I + Cap -I; null/empty skips both -I
+ * @return void — mutates *ia and argv slots; writes durable -O* / Cap include into BSS
  * Pure orch: ≡ mega argv head inside xlang_invoke_cc_impl (before c_paths loop / early_needs).
  * Cap residual: link_abi_getenv(XLANG_RUN_QUIET) + pure skip_native_tuning + pure harden_impl + host_is_*.
+ * Cap 10.7.1 slice11: second -I `<include_root>/compiler/include` so `#include <xlang_*_cap.h>` resolves
+ *   (repo-root -I alone cannot see compiler/include; gates that pass -Icompiler/include manually hid this).
  * G.7: reuses labi_icc_argv_try_push_flag + xlang_append_linux_link_harden_impl (no second flag path).
  * Why (wave206): hybrid still had quiet/O/harden/gc argv head always-mega after wave205 fork-exec pure.
  * wave223: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
@@ -3775,11 +3837,19 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
     }
   }
 
-  // Optional -I include_root for generated C / std headers.
+  // Optional -I include_root (repo root) for generated C / std path joins.
+  // Cap 10.7.1 slice11: also -I <repo>/compiler/include for Cap headers.
   if (include_root != 0 as *u8) {
     if (include_root[0] != 0) {
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
+      let cap_inc: *u8 = invoke_cc_fill_cap_include_path(include_root);
+      if (cap_inc != 0 as *u8) {
+        if (cap_inc[0] != 0) {
+          labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
+          labi_icc_argv_try_push_flag(argv, ia, argv_cap, cap_inc);
+        }
+      }
     }
   }
 }

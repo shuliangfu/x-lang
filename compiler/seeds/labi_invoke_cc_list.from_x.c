@@ -1617,6 +1617,32 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
 /* wave206: durable -O{level} slot (≡ .x g_labi_icc_oopt_buf / mega static oopt_buf[8]). */
 static char g_labi_icc_oopt_buf[8];
 
+/* Cap 10.7.1 slice11: durable <repo>/compiler/include (≡ .x g_labi_icc_cap_inc_buf). */
+static char g_labi_icc_cap_inc_buf[512];
+
+/* Cap 10.7.1 slice11: fill Cap include path BSS (≡ .x invoke_cc_fill_cap_include_path). */
+static char *invoke_cc_fill_cap_include_path(const char *include_root) {
+  int ri = 0;
+  int si;
+  const char *suf = "/compiler/include";
+  g_labi_icc_cap_inc_buf[0] = '\0';
+  if (!include_root || !include_root[0])
+    return g_labi_icc_cap_inc_buf;
+  while (ri < 494 && include_root[ri]) {
+    g_labi_icc_cap_inc_buf[ri] = include_root[ri];
+    ri++;
+  }
+  if (ri > 0) {
+    char last = g_labi_icc_cap_inc_buf[ri - 1];
+    if (last == '/' || last == '\\')
+      ri--;
+  }
+  for (si = 0; suf[si] && ri < 511; si++, ri++)
+    g_labi_icc_cap_inc_buf[ri] = suf[si];
+  g_labi_icc_cap_inc_buf[ri] = '\0';
+  return g_labi_icc_cap_inc_buf;
+}
+
 /* wave206: invoke_cc_append_argv_head_flags pure orch (cold twin ≡ .x). */
 void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root) {
@@ -1676,9 +1702,16 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     else if (is_linux)
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
   }
+  /* Cap 10.7.1 slice11: repo -I + Cap <repo>/compiler/include -I. */
   if (include_root && include_root[0]) {
+    const char *cap_inc;
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
+    cap_inc = invoke_cc_fill_cap_include_path(include_root);
+    if (cap_inc && cap_inc[0]) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, cap_inc);
+    }
   }
 }
 
