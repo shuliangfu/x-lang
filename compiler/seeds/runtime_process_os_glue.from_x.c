@@ -44,6 +44,10 @@
 #include <string.h>
 /* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
+/* Cap residual 9.1.1: POSIX setenv/unsetenv via environ mutate (no libc). */
+#include <xlang_environ_cap.h>
+/* Cap residual 9.1.4: Linux fork/execve/wait4/pipe without libc. */
+#include <xlang_process_cap.h>
 /* wave252 G.7: single face — XLANG_GETENV routes through link_abi_getenv. */
 #define XLANG_GETENV(name) link_abi_getenv((const char *)(name))
 
@@ -111,9 +115,11 @@ uint8_t *process_getenv_c(uint8_t *name) {
 #endif
 
 /**
- * 设置环境变量 name=value；overwrite 非 0 时覆盖已有值。
- * POSIX: setenv(name, value, overwrite)；Windows: _putenv("name=value")。
- * 返回 0 成功，-1 失败。
+ * Set environment variable name=value; overwrite != 0 replaces existing.
+ * Cap residual 9.1.1: POSIX xlang_environ_setenv (no libc setenv).
+ * Windows: _putenv("name=value").
+ * @return 0 success, -1 failure.
+ * PLATFORM: POSIX Cap residual; WIN32 _putenv.
  */
 int32_t process_setenv_impl(uint8_t *name, uint8_t *value, int32_t overwrite) {
     if (name == NULL) return -1;
@@ -133,7 +139,8 @@ int32_t process_setenv_impl(uint8_t *name, uint8_t *value, int32_t overwrite) {
         return _putenv(buf) == 0 ? 0 : -1;
     }
 #else
-    return setenv((const char *)name, value ? (const char *)value : "", overwrite ? 1 : 0) == 0 ? 0 : -1;
+    return xlang_environ_setenv((const char *)name, value ? (const char *)value : "",
+                                overwrite ? 1 : 0);
 #endif
 }
 
@@ -143,7 +150,13 @@ int32_t process_setenv_c(uint8_t *name, uint8_t *value, int32_t overwrite) {
 }
 #endif
 
-/** 删除环境变量 name。POSIX: unsetenv；Windows: _putenv("name=")。返回 0 成功，-1 失败。 */
+/**
+ * Delete environment variable name.
+ * Cap residual 9.1.1: POSIX xlang_environ_unsetenv (no libc unsetenv).
+ * Windows: _putenv("name=").
+ * @return 0 success, -1 failure.
+ * PLATFORM: POSIX Cap residual; WIN32 _putenv.
+ */
 int32_t process_unsetenv_impl(uint8_t *name) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
@@ -157,7 +170,7 @@ int32_t process_unsetenv_impl(uint8_t *name) {
         return _putenv(buf) == 0 ? 0 : -1;
     }
 #else
-    return unsetenv((const char *)name) == 0 ? 0 : -1;
+    return xlang_environ_unsetenv((const char *)name);
 #endif
 }
 
@@ -167,10 +180,22 @@ int32_t process_unsetenv_c(uint8_t *name) {
 }
 #endif
 
-/** 热路径：单次 syscall；-flto 可内联。POSIX: getpid()；Windows: GetCurrentProcessId()。 */
+/** Stage10 Cap residual 9.1.3: Linux getpid via raw syscall (no libc getpid).
+ * x86_64 nr=39; aarch64 nr=172. Windows: GetCurrentProcessId. Other POSIX: libc.
+ * PLATFORM: LINUX|x86_64 + LINUX|aarch64 primary; WIN32; else POSIX fallback.
+ */
 int32_t process_getpid_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return (int32_t)(intptr_t)GetCurrentProcessId();
+#elif defined(__linux__) && defined(__x86_64__)
+    long r;
+    __asm__ __volatile__("syscall" : "=a"(r) : "a"((long)39) : "rcx", "r11", "memory");
+    return (int32_t)r;
+#elif defined(__linux__) && defined(__aarch64__)
+    register long x8 __asm__("x8") = 172;
+    register long x0 __asm__("x0");
+    __asm__ __volatile__("svc #0" : "=r"(x0) : "r"(x8) : "memory");
+    return (int32_t)x0;
 #else
     return (int32_t)getpid();
 #endif
@@ -182,11 +207,23 @@ int32_t process_getpid_c(void) {
 }
 #endif
 
-/** 热路径：POSIX 单次 getppid()；Windows 返回 -1。-flto 可内联。 */
+/** Stage10 Cap residual 9.1.3: Linux getppid via raw syscall (no libc getppid).
+ * x86_64 nr=110; aarch64 nr=173. Windows: -1 (no portable parent pid). Else POSIX.
+ * PLATFORM: LINUX|x86_64 + LINUX|aarch64 primary; WIN32; else POSIX fallback.
+ */
 int32_t process_getppid_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)0;
     return -1;
+#elif defined(__linux__) && defined(__x86_64__)
+    long r;
+    __asm__ __volatile__("syscall" : "=a"(r) : "a"((long)110) : "rcx", "r11", "memory");
+    return (int32_t)r;
+#elif defined(__linux__) && defined(__aarch64__)
+    register long x8 __asm__("x8") = 173;
+    register long x0 __asm__("x0");
+    __asm__ __volatile__("svc #0" : "=r"(x0) : "r"(x8) : "memory");
+    return (int32_t)x0;
 #else
     return (int32_t)getppid();
 #endif
@@ -204,9 +241,75 @@ static char process_cwd_cache[PROCESS_CWD_CACHE_SIZE];
 static int32_t process_cwd_cache_len = 0; /* 0 表示未缓存或已失效 */
 
 /**
- * 将当前工作目录写入 buf（NUL 结尾），最多写 buf_size 字节（含 NUL）。
- * 返回写入的字节数（不含 NUL），失败返回 -1。
- * 性能：首次调用或 chdir 后走 syscall 并缓存；后续调用仅内存拷贝，避免重复 getcwd/GetCurrentDirectory。
+ * Stage10 Cap residual 9.1.3: Linux getcwd/chdir without libc.
+ * x86_64: getcwd=79 chdir=80; aarch64: getcwd=17 chdir=49.
+ * getcwd syscall returns bytes placed including NUL, or -errno.
+ * PLATFORM: LINUX|x86_64 + LINUX|aarch64.
+ */
+#if defined(__linux__) && defined(__x86_64__)
+static long process_linux_sys2(long nr, long a1, long a2) {
+  long r;
+  __asm__ __volatile__("syscall"
+                       : "=a"(r)
+                       : "a"(nr), "D"(a1), "S"(a2)
+                       : "rcx", "r11", "memory");
+  return r;
+}
+static long process_linux_sys1(long nr, long a1) {
+  long r;
+  __asm__ __volatile__("syscall"
+                       : "=a"(r)
+                       : "a"(nr), "D"(a1)
+                       : "rcx", "r11", "memory");
+  return r;
+}
+static int process_linux_fill_cwd_cache(void) {
+  long r = process_linux_sys2(79, (long)(intptr_t)process_cwd_cache, (long)sizeof(process_cwd_cache));
+  if (r <= 0)
+    return -1;
+  process_cwd_cache_len = (int32_t)r - 1;
+  if (process_cwd_cache_len < 0)
+    return -1;
+  return 0;
+}
+static int process_linux_chdir(const char *path) {
+  long r = process_linux_sys1(80, (long)(intptr_t)path);
+  return (r == 0) ? 0 : -1;
+}
+#elif defined(__linux__) && defined(__aarch64__)
+static long process_linux_sys2(long nr, long a1, long a2) {
+  register long x8 __asm__("x8") = nr;
+  register long x0 __asm__("x0") = a1;
+  register long x1 __asm__("x1") = a2;
+  __asm__ __volatile__("svc #0" : "+r"(x0) : "r"(x8), "r"(x1) : "memory");
+  return x0;
+}
+static long process_linux_sys1(long nr, long a1) {
+  register long x8 __asm__("x8") = nr;
+  register long x0 __asm__("x0") = a1;
+  __asm__ __volatile__("svc #0" : "+r"(x0) : "r"(x8) : "memory");
+  return x0;
+}
+static int process_linux_fill_cwd_cache(void) {
+  long r = process_linux_sys2(17, (long)(intptr_t)process_cwd_cache, (long)sizeof(process_cwd_cache));
+  if (r <= 0)
+    return -1;
+  process_cwd_cache_len = (int32_t)r - 1;
+  if (process_cwd_cache_len < 0)
+    return -1;
+  return 0;
+}
+static int process_linux_chdir(const char *path) {
+  long r = process_linux_sys1(49, (long)(intptr_t)path);
+  return (r == 0) ? 0 : -1;
+}
+#endif
+
+/**
+ * Write cwd into buf (NUL-terminated), at most buf_size bytes including NUL.
+ * Returns bytes written excluding NUL, or -1 on failure.
+ * Cache: first call / after chdir hits syscall; later calls memcpy only.
+ * Stage10 Cap residual 9.1.3: Linux uses raw getcwd syscall (no libc getcwd).
  */
 int32_t process_getcwd_impl(uint8_t *buf, int32_t buf_size) {
     if (buf == NULL || buf_size <= 0) return -1;
@@ -224,6 +327,16 @@ int32_t process_getcwd_impl(uint8_t *buf, int32_t buf_size) {
         memcpy(process_cwd_cache, buf, (size_t)n + 1u);
         return (int32_t)n;
     }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    if (process_cwd_cache_len > 0) {
+        if (process_cwd_cache_len >= buf_size) return -1;
+        memcpy(buf, process_cwd_cache, (size_t)process_cwd_cache_len + 1u);
+        return process_cwd_cache_len;
+    }
+    if (process_linux_fill_cwd_cache() != 0) return -1;
+    if (process_cwd_cache_len >= buf_size) return -1;
+    memcpy(buf, process_cwd_cache, (size_t)process_cwd_cache_len + 1u);
+    return process_cwd_cache_len;
 #else
     if (process_cwd_cache_len > 0) {
         if (process_cwd_cache_len >= buf_size) return -1;
@@ -249,8 +362,9 @@ int32_t process_getcwd_c(uint8_t *buf, int32_t buf_size) {
 #endif
 
 /**
- * 零拷贝：返回指向内部缓存的当前工作目录字符串（NUL 结尾）。
- * 若缓存未填充则先填充；失败返回 NULL。调用方只读，不得修改；指针在下次 chdir 或 getcwd 前有效。
+ * Zero-copy: pointer to internal cwd cache (NUL-terminated).
+ * Fills cache on miss. Caller must not write; valid until next chdir/getcwd fill.
+ * Stage10 Cap residual 9.1.3: Linux raw getcwd syscall (no libc).
  */
 uint8_t *process_getcwd_ptr_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -263,6 +377,12 @@ uint8_t *process_getcwd_ptr_impl(void) {
         process_cwd_cache_len = (int32_t)n;
         return (uint8_t *)process_cwd_cache;
     }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    if (process_cwd_cache_len > 0)
+        return (uint8_t *)process_cwd_cache;
+    if (process_linux_fill_cwd_cache() != 0)
+        return NULL;
+    return (uint8_t *)process_cwd_cache;
 #else
     if (process_cwd_cache_len > 0)
         return (uint8_t *)process_cwd_cache;
@@ -292,12 +412,16 @@ int32_t process_getcwd_cached_len_c(void) {
 }
 #endif
 
-/** 切换当前工作目录到 path（NUL 结尾）。返回 0 成功，-1 失败。调用后使 getcwd 缓存失效。 */
+/** Change cwd to path (NUL-terminated). Returns 0 ok, -1 fail. Invalidates getcwd cache.
+ * Stage10 Cap residual 9.1.3: Linux raw chdir syscall (no libc chdir).
+ */
 int32_t process_chdir_impl(uint8_t *path) {
     if (path == NULL) return -1;
     process_cwd_cache_len = 0;
 #if defined(_WIN32) || defined(_WIN64)
     return SetCurrentDirectoryA((const char *)path) ? 0 : -1;
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    return process_linux_chdir((const char *)path);
 #else
     return chdir((const char *)path) == 0 ? 0 : -1;
 #endif
@@ -429,9 +553,11 @@ void process_nop_sigchld_impl(int32_t sig) { (void)sig; }
 #endif
 
 /**
- * 创建子进程执行 program，参数为 argv（argv 为 char* 数组，以 NULL 结尾）。
- * 使用当前环境与当前工作目录。返回子进程 pid（>0），失败返回 -1。
- * POSIX: fork + execve；Windows: CreateProcess。
+ * Spawn child running program with argv (NULL-terminated char* array).
+ * Cap residual 9.1.4: Linux fork+execve via xlang_process_cap (no libc fork/execve).
+ * Windows: CreateProcess. Other POSIX: libc fork/execve.
+ * @return child pid (>0) or -1
+ * PLATFORM: LINUX Cap residual; WIN32 CreateProcess; else POSIX.
  */
 int32_t process_spawn_impl(uint8_t *program, uint8_t *argv_ptr) {
     if (program == NULL || argv_ptr == NULL) return -1;
@@ -464,6 +590,23 @@ int32_t process_spawn_impl(uint8_t *program, uint8_t *argv_ptr) {
         CloseHandle(pi.hProcess);
         return (int32_t)(intptr_t)pi.dwProcessId;
     }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    {
+        void (*saved_sigchld)(int) = signal(SIGCHLD, process_nop_sigchld);
+        if (saved_sigchld == SIG_ERR) saved_sigchld = SIG_DFL;
+        long pid = xlang_proc_fork();
+        if (pid < 0) {
+            signal(SIGCHLD, saved_sigchld);
+            return -1;
+        }
+        if (pid == 0) {
+            signal(SIGCHLD, saved_sigchld);
+            (void)xlang_proc_execve((const char *)program, (char *const *)argv, environ);
+            xlang_proc_exit(127);
+        }
+        signal(SIGCHLD, saved_sigchld);
+        return (int32_t)pid;
+    }
 #else
     {
         void (*saved_sigchld)(int) = signal(SIGCHLD, process_nop_sigchld);
@@ -491,8 +634,11 @@ int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr) {
 #endif
 
 /**
- * 用 program 替换当前进程（不返回）。argv 为 char* 数组，以 NULL 结尾。
- * POSIX: execve；Windows 不支持，返回 -1。
+ * Replace current process with program (does not return on success).
+ * Cap residual 9.1.4: Linux execve via xlang_process_cap.
+ * Windows: unsupported (-1). Other POSIX: libc execve.
+ * @return -1 on failure
+ * PLATFORM: LINUX Cap residual; WIN32 -1; else POSIX.
  */
 int32_t process_exec_impl(uint8_t *program, uint8_t *argv_ptr) {
     if (program == NULL || argv_ptr == NULL) return -1;
@@ -500,6 +646,12 @@ int32_t process_exec_impl(uint8_t *program, uint8_t *argv_ptr) {
     (void)program;
     (void)argv_ptr;
     return -1;
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    {
+        char **argv = (char **)(void *)argv_ptr;
+        (void)xlang_proc_execve((const char *)program, (char *const *)argv, environ);
+        return -1;
+    }
 #else
     char **argv = (char **)(void *)argv_ptr;
     execve((const char *)program, (char *const *)argv, environ);
@@ -514,8 +666,10 @@ int32_t process_exec_c(uint8_t *program, uint8_t *argv_ptr) {
 #endif
 
 /**
- * 等待子进程 pid 结束，返回其退出码（低 8 位）；失败返回 -1。
- * POSIX: waitpid(pid, &status, 0)；Windows: OpenProcess + WaitForSingleObject + GetExitCodeProcess。
+ * Wait for child pid; return exit code (low 8 bits) or -1.
+ * Cap residual 9.1.4: Linux wait4 via xlang_process_cap (no libc waitpid).
+ * Windows: OpenProcess + WaitForSingleObject. Other POSIX: libc waitpid.
+ * PLATFORM: LINUX Cap residual; WIN32; else POSIX.
  */
 int32_t process_waitpid_impl(int32_t pid) {
     if (pid <= 0) return -1;
@@ -534,6 +688,14 @@ int32_t process_waitpid_impl(int32_t pid) {
         }
         CloseHandle(h);
         return (int32_t)(uint32_t)code;
+    }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    {
+        int status = 0;
+        long w = xlang_proc_waitpid((long)pid, &status, 0);
+        if (w != (long)pid) return -1;
+        if (WIFEXITED(status)) return (int32_t)(uint8_t)WEXITSTATUS(status);
+        return -1;
     }
 #else
     {
@@ -574,9 +736,19 @@ typedef struct {
 } process_spawn_io_t;
 
 #if !defined(_WIN32) && !defined(_WIN64)
+/**
+ * dup2 fd → slot for spawn_io stdio redirect.
+ * Cap residual 9.1.4: Linux dup2/dup3 via xlang_process_cap.
+ * @return 0 ok, -1 fail
+ * PLATFORM: LINUX Cap residual; else POSIX libc dup2.
+ */
 int32_t process_dup_stdio_posix_impl(int32_t fd, int32_t slot) {
     if (fd < 0) return 0;
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    if (xlang_proc_dup2(fd, slot) < 0) return -1;
+#else
     if (dup2(fd, slot) < 0) return -1;
+#endif
     return 0;
 }
 
@@ -648,6 +820,23 @@ int32_t process_spawn_io_impl(uint8_t *program, uint8_t *argv_ptr, void *io_void
     {
         void (*saved_sigchld)(int) = signal(SIGCHLD, process_nop_sigchld);
         if (saved_sigchld == SIG_ERR) saved_sigchld = SIG_DFL;
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+        long pid = xlang_proc_fork();
+        if (pid < 0) {
+            signal(SIGCHLD, saved_sigchld);
+            return -1;
+        }
+        if (pid == 0) {
+            signal(SIGCHLD, saved_sigchld);
+            if (in_fd >= 0 && process_dup_stdio_posix(in_fd, STDIN_FILENO) != 0) xlang_proc_exit(127);
+            if (out_fd >= 0 && process_dup_stdio_posix(out_fd, STDOUT_FILENO) != 0) xlang_proc_exit(127);
+            if (err_fd >= 0 && process_dup_stdio_posix(err_fd, STDERR_FILENO) != 0) xlang_proc_exit(127);
+            (void)xlang_proc_execve((const char *)program, (char *const *)argv, environ);
+            xlang_proc_exit(127);
+        }
+        signal(SIGCHLD, saved_sigchld);
+        return (int32_t)pid;
+#else
         pid_t pid = fork();
         if (pid < 0) {
             signal(SIGCHLD, saved_sigchld);
@@ -663,6 +852,7 @@ int32_t process_spawn_io_impl(uint8_t *program, uint8_t *argv_ptr, void *io_void
         }
         signal(SIGCHLD, saved_sigchld);
         return (int32_t)pid;
+#endif
     }
 #endif
 }
@@ -689,8 +879,11 @@ int32_t process_exec_simple_c(uint8_t *program) {
 #endif
 
 /**
- * 创建管道（P3 process 扩展）；成功时 *read_fd 可读、*write_fd 可写，返回 0；失败返回 -1。
- * POSIX: pipe(2)；Windows 暂不支持，返回 -1。
+ * Create a pipe; on success *read_fd readable, *write_fd writable.
+ * Cap residual 9.1.4: Linux pipe/pipe2 via xlang_process_cap (no libc pipe).
+ * Windows: CreatePipe. Other POSIX: libc pipe.
+ * @return 0 ok, -1 fail
+ * PLATFORM: LINUX Cap residual; WIN32; else POSIX.
  */
 int32_t process_pipe_impl(int32_t *read_fd, int32_t *write_fd) {
     if (read_fd == NULL || write_fd == NULL) return -1;
@@ -707,6 +900,14 @@ int32_t process_pipe_impl(int32_t *read_fd, int32_t *write_fd) {
         *read_fd = (int32_t)_open_osfhandle((intptr_t)r, _O_RDONLY);
         *write_fd = (int32_t)_open_osfhandle((intptr_t)w, _O_WRONLY);
         if (*read_fd < 0 || *write_fd < 0) return -1;
+        return 0;
+    }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    {
+        int fd[2];
+        if (xlang_proc_pipe(fd) != 0) return -1;
+        *read_fd = (int32_t)fd[0];
+        *write_fd = (int32_t)fd[1];
         return 0;
     }
 #else
