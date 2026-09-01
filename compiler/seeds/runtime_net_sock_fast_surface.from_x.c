@@ -2,8 +2,9 @@
  * G-02f-136 runtime_net_sock_fast R2 thin surface — isomorphic with src/asm/runtime_net_sock_fast.x
  * Product PREFER_X_O: xlang-c -E(.x) → thin.o + seed-rest (-DXLANG_RUNTIME_NET_SOCK_FAST_FROM_X) ld -r
  * Prove: full.x vs this seed → nm IDENTICAL (2 #[no_mangle] + 1 doc_anchor)
- * Cap residual: 2 _impl_c bridges (net_ensure_wsa_impl_c WSAStartup + net_wsa_ctor_impl_c
- *   constructor) in runtime_net_sock_fast.from_x.c rest — Windows Winsock init
+ * Cap residual 9.1.7 slice0: socket/connect/bind/listen/accept/poll/close via
+ *   xlang_net_cap.h + xlang_sys_* bodies in runtime_net_sock_fast.from_x.c rest;
+ *   Windows still has net_ensure_wsa_impl_c / net_wsa_ctor_impl_c
  * Note: extern names use _impl_c suffix to match seed definitions (root-cause fix in wave545)
  * Regen: ./xlang-c -E ... runtime_net_sock_fast.x | filter DBG + polish prologue
  */
