@@ -198,6 +198,7 @@ void driver_compile_phase_timing_clear(void);
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/utsname.h>
+#include <xlang_time_cap.h> /* Cap residual 9.1.5 clock_gettime (wall clock) */
 #ifndef _WIN32
 #include <sys/resource.h>
 #endif
@@ -1093,19 +1094,27 @@ int compile_phase_timing_enabled(void) {
 
 /**
  * Permanent OS wall-clock surface (seconds as double).
- * PLATFORM: POSIX — gettimeofday; WINDOWS — time(NULL) (usec=0).
+ * PLATFORM: POSIX — Cap clock_gettime(CLOCK_REALTIME); WINDOWS — time(NULL) (usec=0).
  * Always present under FROM_X (thin compile_phase_now_sec calls this; no pure-dup _impl).
  * G.7: single authority for wall clock used by phase timing.
+ * Cap residual 9.1.5: no libc gettimeofday on Linux.
  */
 double xlang_driver_wall_clock_sec(void)
 {
-    struct timeval tv;
-    #ifndef _WIN32
-    gettimeofday(&tv, NULL);
+#ifndef _WIN32
+    struct timespec ts;
+    if (xlang_time_clock_gettime(CLOCK_REALTIME, &ts) != 0)
+        return 0.0;
+    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 #else
-    time_t t = time(NULL); tv.tv_sec = (long)t; tv.tv_usec = 0;
+    {
+        struct timeval tv;
+        time_t t = time(NULL);
+        tv.tv_sec = (long)t;
+        tv.tv_usec = 0;
+        return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
+    }
 #endif
-    return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
 }
 
 /** Wall-clock seconds for phase timing (cold twin of thin pure wave7). */
