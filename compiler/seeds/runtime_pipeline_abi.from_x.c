@@ -46804,6 +46804,8 @@ int32_t asm_type_is_simd_vector_spelling(void *arena, int32_t type_ref) {
     return 1;
   if (nlen == 5 && memcmp(name, "f32x4", 5) == 0)
     return 1;
+  if (nlen == 5 && memcmp(name, "f32x8", 5) == 0)
+    return 1;
   if (nlen == 5 && memcmp(name, "Vec4f", 5) == 0)
     return 1;
   if (nlen == 5 && memcmp(name, "Vec8i", 5) == 0)
