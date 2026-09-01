@@ -8,6 +8,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: CRASH_EVIDENCE path → Cap snprintf */
+/* G.7: Cap after stdio for compiler-only gen seed pin crash evidence. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <string.h>
 struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
 struct preprocess_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
