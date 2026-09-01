@@ -5,7 +5,7 @@ const simd = import("std.simd.builtin");
 
 /**
  * Language SIMD f32x4 builtin smoke: add then mul lane checks.
- * @return i32 — 0 on success; 1/2/3 on step failure
+ * @return i32 — 0 on success; 1/2/3/4 on step failure
  * PLATFORM: LINUX x86_64 asm (SSE addps/mulps)
  */
 function main(): i32 {
@@ -21,6 +21,10 @@ function main(): i32 {
   let p: Vec4f = simd.mul_f32x4(s, b);
   if (p[0] < 1.99 || p[0] > 2.01) {
     return 3;
+  }
+  let d: Vec4f = simd.sub_f32x4(p, b);
+  if (d[0] < 0.99 || d[0] > 1.01) {
+    return 4;
   }
   return 0;
 }
