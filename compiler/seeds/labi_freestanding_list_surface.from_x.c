@@ -563,7 +563,7 @@ uint8_t * labi_fs_env_freestanding(void) {
   return p;
 }
 int32_t labi_fs_io_sym_count(void) {
-  return 15;
+  return 16;
 }
 uint8_t * labi_fs_io_sym_at(int32_t i) {
   if ((i < 0)) {
@@ -627,6 +627,10 @@ uint8_t * labi_fs_io_sym_at(int32_t i) {
   }
   if ((i ==14)) {
     uint8_t * p = ((uint8_t *)"\x62\x61\x63\x6b\x74\x72\x61\x63\x65\x5f\x73\x79\x6d\x62\x6f\x6c\x69\x63\x61\x74\x65\x5f\x63");
+    return p;
+  }
+  if ((i ==15)) {
+    uint8_t * p = ((uint8_t *)"\x78\x6c\x61\x6e\x67\x5f\x74\x61\x72\x67\x65\x74\x5f\x63\x70\x75\x5f\x64\x65\x74\x65\x63\x74\x5f\x68\x6f\x73\x74");
     return p;
   }
   return ((uint8_t *)(0));

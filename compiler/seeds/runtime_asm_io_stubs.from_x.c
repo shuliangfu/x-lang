@@ -88,6 +88,7 @@ __attribute__((weak)) ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t
  */
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 #include <xlang_backtrace_cap.h>
+#include <xlang_proc_cap.h>
 #include <string.h>
 
 /** Weak probe/product stub: frame walk into buf (void* slots). */
@@ -165,6 +166,54 @@ __attribute__((weak)) int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_
     }
   }
   return ok;
+}
+
+/*
+ * Cap residual 9.1.12: weak xlang_target_cpu_detect_host for probes.
+ * Strong twin in src/driver/target_cpu.o wins on full product link.
+ */
+__attribute__((weak)) uint32_t xlang_target_cpu_detect_host(void) {
+  char buf[8192];
+  char *line;
+  char *next;
+  long n;
+#if defined(__x86_64__)
+  uint32_t f = 0;
+  n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+  if (n <= 0)
+    return 1u; /* XLANG_CPU_FEAT_SSE2 macro fallback minimum */
+  line = buf;
+  while (line) {
+    next = xlang_proc_next_line(line);
+    if (strncmp(line, "flags", 5) == 0) {
+      if (strstr(line, " sse2") || strstr(line, "\tsse2"))
+        f |= 1u;
+      if (strstr(line, " avx2"))
+        f |= 8u;
+      break;
+    }
+    line = next;
+  }
+  return f != 0 ? f : 1u;
+#elif defined(__aarch64__)
+  uint32_t f = 256u; /* XLANG_CPU_FEAT_NEON */
+  n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+  if (n <= 0)
+    return f;
+  line = buf;
+  while (line) {
+    next = xlang_proc_next_line(line);
+    if (strncmp(line, "Features", 8) == 0) {
+      if (strstr(line, " sve"))
+        f |= 512u;
+      break;
+    }
+    line = next;
+  }
+  return f;
+#else
+  return 0;
+#endif
 }
 #endif /* LINUX backtrace Cap */
 #endif

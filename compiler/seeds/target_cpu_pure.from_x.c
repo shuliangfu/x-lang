@@ -336,6 +336,10 @@ void xlang_target_cpu_print(FILE *out, uint32_t features) {
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#if defined(__x86_64__) || defined(__aarch64__)
+#include <xlang_proc_cap.h>
+#define HAVE_XLANG_PROC_CAP 1
+#endif
 #endif
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -379,35 +383,71 @@ uint32_t xlang_target_cpu_detect_x86_macro_fallback(void) {
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_x86_linux(void) {
-    FILE *fp;
-    char line[512];
+    char buf[8192];
+    char *line;
+    char *next;
+    long n;
     uint32_t f = 0;
 
+#if defined(HAVE_XLANG_PROC_CAP)
+    n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+    if (n <= 0)
+        return xlang_target_cpu_detect_x86_macro_fallback();
+    line = buf;
+    while (line) {
+        next = xlang_proc_next_line(line);
+        if (strncmp(line, "flags", 5) == 0) {
+            if (flags_has_token(line, "sse2"))
+                f |= XLANG_CPU_FEAT_SSE2;
+            if (flags_has_token(line, "sse4_1"))
+                f |= XLANG_CPU_FEAT_SSE41;
+            if (flags_has_token(line, "avx"))
+                f |= XLANG_CPU_FEAT_AVX;
+            if (flags_has_token(line, "avx2"))
+                f |= XLANG_CPU_FEAT_AVX2;
+            if (flags_has_token(line, "avx512f"))
+                f |= XLANG_CPU_FEAT_AVX512F;
+            if (flags_has_token(line, "popcnt"))
+                f |= XLANG_CPU_FEAT_POPCNT;
+            if (flags_has_token(line, "bmi2"))
+                f |= XLANG_CPU_FEAT_BMI2;
+            if (flags_has_token(line, "fma"))
+                f |= XLANG_CPU_FEAT_FMA;
+            break;
+        }
+        line = next;
+    }
+#else
+    {
+    FILE *fp;
+    char linebuf[512];
     fp = fopen("/proc/cpuinfo", "r");
     if (!fp)
         return xlang_target_cpu_detect_x86_macro_fallback();
-    while (fgets(line, (int)sizeof(line), fp)) {
-        if (strncmp(line, "flags", 5) != 0)
+    while (fgets(linebuf, (int)sizeof(linebuf), fp)) {
+        if (strncmp(linebuf, "flags", 5) != 0)
             continue;
-        if (flags_has_token(line, "sse2"))
+        if (flags_has_token(linebuf, "sse2"))
             f |= XLANG_CPU_FEAT_SSE2;
-        if (flags_has_token(line, "sse4_1"))
+        if (flags_has_token(linebuf, "sse4_1"))
             f |= XLANG_CPU_FEAT_SSE41;
-        if (flags_has_token(line, "avx"))
+        if (flags_has_token(linebuf, "avx"))
             f |= XLANG_CPU_FEAT_AVX;
-        if (flags_has_token(line, "avx2"))
+        if (flags_has_token(linebuf, "avx2"))
             f |= XLANG_CPU_FEAT_AVX2;
-        if (flags_has_token(line, "avx512f"))
+        if (flags_has_token(linebuf, "avx512f"))
             f |= XLANG_CPU_FEAT_AVX512F;
-        if (flags_has_token(line, "popcnt"))
+        if (flags_has_token(linebuf, "popcnt"))
             f |= XLANG_CPU_FEAT_POPCNT;
-        if (flags_has_token(line, "bmi2"))
+        if (flags_has_token(linebuf, "bmi2"))
             f |= XLANG_CPU_FEAT_BMI2;
-        if (flags_has_token(line, "fma"))
+        if (flags_has_token(linebuf, "fma"))
             f |= XLANG_CPU_FEAT_FMA;
         break;
     }
     fclose(fp);
+    }
+#endif
     if (f == 0)
         f = xlang_target_cpu_detect_x86_macro_fallback();
     return f;
@@ -467,23 +507,47 @@ uint32_t xlang_target_cpu_detect_x86(void) {
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_arm64_linux(void) {
-    FILE *fp;
-    char line[512];
+    char buf[8192];
+    char *line;
+    char *next;
+    long n;
     uint32_t f = XLANG_CPU_FEAT_NEON;
 
+#if defined(HAVE_XLANG_PROC_CAP)
+    n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+    if (n <= 0)
+        return f;
+    line = buf;
+    while (line) {
+        next = xlang_proc_next_line(line);
+        if (strncmp(line, "Features", 8) == 0) {
+            if (flags_has_token(line, "asimd") || flags_has_token(line, "neon"))
+                f |= XLANG_CPU_FEAT_NEON;
+            if (flags_has_token(line, "sve"))
+                f |= XLANG_CPU_FEAT_SVE;
+            break;
+        }
+        line = next;
+    }
+#else
+    {
+    FILE *fp;
+    char linebuf[512];
     fp = fopen("/proc/cpuinfo", "r");
     if (!fp)
         return f;
-    while (fgets(line, (int)sizeof(line), fp)) {
-        if (strncmp(line, "Features", 8) != 0)
+    while (fgets(linebuf, (int)sizeof(linebuf), fp)) {
+        if (strncmp(linebuf, "Features", 8) != 0)
             continue;
-        if (flags_has_token(line, "asimd") || flags_has_token(line, "neon"))
+        if (flags_has_token(linebuf, "asimd") || flags_has_token(linebuf, "neon"))
             f |= XLANG_CPU_FEAT_NEON;
-        if (flags_has_token(line, "sve"))
+        if (flags_has_token(linebuf, "sve"))
             f |= XLANG_CPU_FEAT_SVE;
         break;
     }
     fclose(fp);
+    }
+#endif
     return f;
 }
 #endif
@@ -520,18 +584,45 @@ uint32_t xlang_target_cpu_detect_arm64(void) {
 /** Linux riscv64：isa 行含 'v' 时认为有 RVV。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_riscv64_linux(void) {
-    FILE *fp;
-    char line[256];
+    char buf[4096];
+    char *line;
+    char *next;
+    long n;
     uint32_t f = 0;
 
+#if defined(HAVE_XLANG_PROC_CAP)
+    n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+    if (n <= 0)
+        return 0;
+    line = buf;
+    while (line) {
+        const char *isa;
+        next = xlang_proc_next_line(line);
+        if (strncmp(line, "isa", 3) == 0) {
+            isa = strchr(line, ':');
+            if (!isa)
+                break;
+            isa++;
+            while (*isa == ' ' || *isa == '\t')
+                isa++;
+            if (strchr(isa, 'v') != NULL)
+                f |= XLANG_CPU_FEAT_RVV;
+            break;
+        }
+        line = next;
+    }
+#else
+    {
+    FILE *fp;
+    char linebuf[256];
     fp = fopen("/proc/cpuinfo", "r");
     if (!fp)
         return 0;
-    while (fgets(line, (int)sizeof(line), fp)) {
+    while (fgets(linebuf, (int)sizeof(linebuf), fp)) {
         const char *isa;
-        if (strncmp(line, "isa", 3) != 0)
+        if (strncmp(linebuf, "isa", 3) != 0)
             continue;
-        isa = strchr(line, ':');
+        isa = strchr(linebuf, ':');
         if (!isa)
             break;
         isa++;
@@ -542,6 +633,8 @@ uint32_t xlang_target_cpu_detect_riscv64_linux(void) {
         break;
     }
     fclose(fp);
+    }
+#endif
     return f;
 }
 #endif

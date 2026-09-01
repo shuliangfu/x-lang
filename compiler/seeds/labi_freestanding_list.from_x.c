@@ -86,7 +86,7 @@ const char *labi_fs_env_freestanding(void) {
 
 /* ---- freestanding_io probe symbols (any undef → needs io) ---- */
 int labi_fs_io_sym_count(void) {
-  return 15;
+  return 16;
 }
 
 const char *labi_fs_io_sym_at(int i) {
@@ -122,6 +122,8 @@ const char *labi_fs_io_sym_at(int i) {
     return "backtrace_capture_c";
   if (i == 14)
     return "backtrace_symbolicate_c";
+  if (i == 15)
+    return "xlang_target_cpu_detect_host";
   return NULL;
 }
 
