@@ -23,47 +23,33 @@
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
 #endif
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <xlang_io_cap.h>
+#endif
 
 /**
- * Linux 裸 syscall write(2)；F-03 无 std/io/io.o 时供 nostdlib / gcc 链使用。
- * timeout_ms 在 seed 桩 v1 中忽略（同步写完全部 count 或返回错误）。
+ * Cap residual 9.1.8: seed_io_syscall_* → xlang_io_cap.h (G.7 single authority).
+ * F-03 无 std/io/io.o 时供 nostdlib / gcc 链；timeout 在 seed 桩 v1 忽略。
+ * PLATFORM: LINUX Cap (x86_64+aarch64); POSIX fallback elsewhere.
  */
-#if defined(__linux__) && defined(__x86_64__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
 long seed_io_syscall_write_impl(int fd, const void *buf, unsigned long count) {
-  long ret;
-  __asm__ volatile("syscall"
-                   : "=a"(ret)
-                   : "0"(1L), "D"((long)fd), "S"(buf), "d"(count)
-                   : "rcx", "r11", "memory");
-  return ret;
+  return xlang_io_write(fd, buf, (size_t)count);
 }
 
-
-
-
-/** Linux x86_64 裸 syscall read(2)。 G-02f-100 gate. */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
+/** Cap residual 9.1.8: read via xlang_io_cap.h. G-02f-100 gate. */
 long seed_io_syscall_read_impl(int fd, void *buf, unsigned long count) {
-  long ret;
-  __asm__ volatile("syscall"
-                   : "=a"(ret)
-                   : "0"(0L), "D"((long)fd), "S"(buf), "d"(count)
-                   : "rcx", "r11", "memory");
-  return ret;
+  return xlang_io_read(fd, buf, (size_t)count);
 }
-
 
 #endif
 
 #ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供
- * 注意：seed_io_syscall_write/read 仅 Linux x86_64 有 _impl 定义；
- * 非 Linux x86_64 平台 wrapper 仍由 thin.o 提供（调用 U _impl，rest 不引用）。
- * 为避免非 Linux x86_64 平台 seed 重复定义 wrapper，此处 wrapper 仅在 Linux x86_64 emit。 */
-#if defined(__linux__) && defined(__x86_64__)
+ * Cap residual 9.1.8: Linux x86_64 + aarch64 emit wrappers. */
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
   return seed_io_syscall_write_impl(fd, buf, count);
 }
@@ -78,13 +64,31 @@ long seed_io_syscall_write(int fd, const void *buf, unsigned long count);
 long seed_io_syscall_read(int fd, void *buf, unsigned long count);
 int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms);
 
+/*
+ * Cap residual 9.1.8: complete xlang_sys_write/read/writev for -backend asm
+ * std.io / std.fs (preamble static inline does not export into those .o).
+ * Weak so freestanding_io.o strong twin wins when both are linked.
+ * PLATFORM: LINUX Cap / POSIX fallback; Windows omitted (MinGW write).
+ */
+#if !defined(_WIN32) && !defined(_WIN64)
+__attribute__((weak)) ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {
+  return (ssize_t)xlang_io_write((int)fd, (const void *)buf, count);
+}
+__attribute__((weak)) ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {
+  return (ssize_t)xlang_io_read((int)fd, (void *)buf, count);
+}
+__attribute__((weak)) ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+  return (ssize_t)xlang_io_writev((int)fd, (const void *)iov, (int)iovcnt);
+}
+#endif
+
 /** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
 ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms) {
   long n;
   (void)timeout_ms;
   if (!buf && count > 0)
     return (ptrdiff_t)-1;
-#if defined(__linux__) && defined(__x86_64__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
   n = seed_io_syscall_write(fd, buf, (unsigned long)count);
 #elif defined(__unix__) || defined(__APPLE__)
   n = (long)write(fd, buf, count);
@@ -100,7 +104,7 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
   (void)timeout_ms;
   if (!buf && count > 0)
     return (ptrdiff_t)-1;
-#if defined(__linux__) && defined(__x86_64__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
   n = seed_io_syscall_read(fd, buf, (unsigned long)count);
 #elif defined(__unix__) || defined(__APPLE__)
   n = (long)read(fd, buf, count);
