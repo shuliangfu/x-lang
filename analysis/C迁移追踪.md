@@ -195,7 +195,6 @@
 - ✅ **9.5.2** xlang_target_cpu_print（FILE／fprintf）— **Linux+Darwin ✅（WIP）**：Cap `xlang_io_write`（Linux/Darwin syscall）＋手工 hex；`--print-target-cpu`＠**`390af683a`** · target_cpu.o **无 U fprintf** 双端。残：Win    
 - 🟡 **9.5.3** reportf／va_list — **slice0–1 ✅**＠`26357d82a`：diag＋lsp typeck reportf → Cap；残：其它 reportf 叶 · 语言 va  
 - 🟡 **9.5.4** vsnprintf + write — 部分吸收于 **10.7.2** Cap（nostdlib＋diag＋**lsp_diag 全 fmt**＠`1fd734bb6`）；残：write 路径／其它 seed  
-- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–5 ✅（SHARED）**＠`1fd734bb6`：Cap＋nostdlib＋diag＋slc＋try_inline＋**lsp reportf／snprintf**。残：call_dispatch／driver_diagnostic／stubs · 纯 .x
 
 ### 9.6 全局／static／巨型数据（P1）
 
