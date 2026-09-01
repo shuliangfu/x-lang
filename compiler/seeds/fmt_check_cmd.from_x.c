@@ -90,22 +90,35 @@ void closedir_win(DIR *d) {
  * pure-asm thin+rest partial-merge / final pure-ld resolve inside the fmt leaf
  * (and any peer pure-asm that U's the same face while this leaf is on the bag).
  *
- * PLATFORM: SHARED — opendir/readdir/closedir honor Win32 macros above; access
- * via unistd shim on MinGW. Keep prologue static inline for -E inlining only;
- * local `t` does not multidef against these weak globals.
+ * Cap residual 9.1.10: opendir/readdir/closedir via xlang_dir_cap.h (G.7).
+ * PLATFORM: SHARED — Win32 macros above remap libc names before Cap include;
+ * access still unistd shim on MinGW. Weak globals for pure-asm thin U faces.
  */
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <xlang_dir_cap.h>
+#endif
+
 XLANG_WEAK uint8_t *xlang_fmt_opendir(uint8_t *name) {
     if (!name) {
         return (uint8_t *)0;
     }
+#if !defined(_WIN32) && !defined(_WIN64)
+    /* Cap residual 9.1.10: no libc opendir on Linux. PLATFORM: SHARED */
+    return (uint8_t *)xlang_dir_open((const char *)(void *)name);
+#else
     return (uint8_t *)(void *)opendir((const char *)(void *)name);
+#endif
 }
 
 XLANG_WEAK int32_t xlang_fmt_closedir(uint8_t *dirp) {
     if (!dirp) {
         return (int32_t)-1;
     }
+#if !defined(_WIN32) && !defined(_WIN64)
+    return (int32_t)xlang_dir_close((void *)dirp);
+#else
     return (int32_t)closedir((DIR *)(void *)dirp);
+#endif
 }
 
 XLANG_WEAK int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {
@@ -116,12 +129,20 @@ XLANG_WEAK int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {
 }
 
 XLANG_WEAK uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {
-    struct dirent *ent;
     if (!dirp) {
         return (uint8_t *)0;
     }
-    ent = readdir((DIR *)(void *)dirp);
-    return ent ? (uint8_t *)(void *)ent->d_name : (uint8_t *)0;
+#if !defined(_WIN32) && !defined(_WIN64)
+    {
+        char *n = xlang_dir_readdir_name((void *)dirp);
+        return (uint8_t *)(void *)n;
+    }
+#else
+    {
+        struct dirent *ent = readdir((DIR *)(void *)dirp);
+        return ent ? (uint8_t *)(void *)ent->d_name : (uint8_t *)0;
+    }
+#endif
 }
 
 /* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
