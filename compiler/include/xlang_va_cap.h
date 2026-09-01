@@ -5,7 +5,8 @@
  * pull libc stdarg.h. Uses compiler builtins only (__builtin_va_*).
  *
  * Slice0: typedef + start/arg/end/copy macros (host-cc Cap face).
- * Later: language .x builtins (10.7.1 language slice) · Cap vsnprintf (10.7.2).
+ * Slice7: language .x builtins rewrite to these macros (codegen Cap).
+ * Residual: typed va_arg(ap,T) · MSVC va_list layout.
  *
  * PLATFORM: SHARED — GCC/Clang builtins (Linux + Darwin + MinGW).
  *           MSVC va_list layout not covered in this slice.
