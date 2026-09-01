@@ -49,6 +49,7 @@
 /**
  * B-20：POSIX read 循环读 fd 到 buf[0..cap-1]；成功返回读入字节数，失败 -1。
  * 参数：fd 已打开描述符；buf/cap 输出缓冲与容量。
+ * Cap residual 9.1.8: Linux via xlang_io_cap.h (no libc read); Win keeps read().
  * G-02f-334：hybrid 时作 _impl（.x thin 门闩调 _impl）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -67,7 +68,11 @@ int xlang_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
         return -1;
     off = 0;
     while (off < cap) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        n = (ssize_t)xlang_io_read(fd, (char *)buf + off, cap - off);
+#else
         n = read(fd, (char *)buf + off, cap - off);
+#endif
         if (n < 0)
             return -1;
         if (n == 0)
@@ -100,7 +105,11 @@ int xlang_runtime_file_view_read_malloc_impl(int fd, size_t size, XlangRuntimeFi
     }
     off = 0;
     while (off < size) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        n = (ssize_t)xlang_io_read(fd, buf + off, size - off);
+#else
         n = read(fd, buf + off, size - off);
+#endif
         if (n < 0) {
             free(buf);
             close(fd);
@@ -517,7 +526,11 @@ int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap)
   total = 0;
   while (total < cap) {
     int32_t chunk = cap - total;
+#if !defined(_WIN32) && !defined(_WIN64)
+    ssize_t r = (ssize_t)xlang_io_read(fd, buf + total, (size_t)chunk);
+#else
     ssize_t r = read(fd, buf + total, (size_t)chunk);
+#endif
     if (r < 0) {
       close(fd);
       return -1;
