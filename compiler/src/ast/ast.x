@@ -126,7 +126,10 @@ export enum ExprKind {
    * (stage10 10.2.1). Template in var_name. Operands in call_arg list; regs
    * comma-packed in method_call_name; int_val = num_in. Slice8: options bits in
    * call_num_type_args; noreturn → ud2. Slice9: diverged truncate. Slice10:
-   * lateout x8. Slice7: lateout r10. Slice6: `_` clobber.
+   * lateout x8. Slice12: preserves_flags → pushfq/popfq (x86). Slice13:
+   * nostack skips that wrap. Slice14: nomem forbids local out stores.
+   * Slice15: readonly same. Slice16: pure same + pure+noreturn fail.
+   * Slice7: lateout r10. Slice6: `_` clobber.
    * Ordinal 60. PLATFORM: SHARED.
    */
   EXPR_ASM
