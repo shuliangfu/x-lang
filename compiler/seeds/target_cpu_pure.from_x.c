@@ -333,7 +333,8 @@ static void tcp_fmt_u32_hex8(uint32_t v, char *dst) {
 }
 
 /**
- * Append fixed prefix + 0x + 8-digit hex + newline; write to fd.
+ * Append fixed prefix + '=' + 0x + 8-digit hex + newline; write to fd.
+ * Must match fprintf path (target_cpu_features=0x…) for SIMD-S1 gate grep.
  * PLATFORM: LINUX|DARWIN Cap residual 9.5.2
  */
 static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
@@ -344,10 +345,11 @@ static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
   if (!prefix)
     return;
   plen = strlen(prefix);
-  if (plen + 2 + 8 + 1 > sizeof(line))
+  if (plen + 1 + 2 + 8 + 1 > sizeof(line))
     return;
   memcpy(line, prefix, plen);
   pos = plen;
+  line[pos++] = '=';
   line[pos++] = '0';
   line[pos++] = 'x';
   tcp_fmt_u32_hex8(val, hex);
