@@ -53,7 +53,7 @@ export function sub_f32x4(a: Vec4f, b: Vec4f): Vec4f {
  * @param b Vec4f — multiplicand
  * @param c Vec4f — multiplier
  * @return Vec4f — lane-wise a + b*c
- * PLATFORM: SHARED · asm LINUX|x86_64 (SSE/FMA3); host-C / aarch64 panic
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE/FMA3) · LINUX|aarch64 NEON (slice9); host-C panic
  */
 export function fma_f32x4(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
   panic();
@@ -65,7 +65,7 @@ export function fma_f32x4(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
  * Asm replaces the call with movups + pshufd/addps; result bits in eax.
  * @param v Vec4f — vector to reduce
  * @return f32 — v[0]+v[1]+v[2]+v[3]
- * PLATFORM: SHARED · asm LINUX|x86_64 (SSE); host-C / aarch64 panic
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE) · LINUX|aarch64 NEON (slice9); host-C panic
  */
 export function hsum_f32x4(v: Vec4f): f32 {
   panic();
@@ -78,7 +78,7 @@ export function hsum_f32x4(v: Vec4f): f32 {
  * @param a Vec4f — first operand
  * @param b Vec4f — second operand
  * @return f32 — sum_i a[i]*b[i]
- * PLATFORM: SHARED · asm LINUX|x86_64 (SSE); host-C / aarch64 panic
+ * PLATFORM: SHARED · asm LINUX|x86_64 (SSE) · LINUX|aarch64 NEON (slice9); host-C panic
  */
 export function dot_f32x4(a: Vec4f, b: Vec4f): f32 {
   panic();
