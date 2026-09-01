@@ -1,10 +1,10 @@
 /*
  * xlang_net_cap.h — Cap residual 9.1.7: socket/connect/bind/listen/accept/poll/close
- * (slice0) + recvmmsg/sendmmsg (slice1) without libc those symbols on Linux
- * (x86_64 + aarch64).
+ * (slice0) + recvmmsg/sendmmsg (slice1) + sendto/recvfrom (slice2 DNS) without
+ * libc those symbols on Linux (x86_64 + aarch64).
  *
- * Single authority for runtime_net_sock_fast, runtime_net_udp_batch, and
- * xlang_sys_* net symbols.
+ * Single authority for runtime_net_sock_fast, runtime_net_udp_batch,
+ * xlang_dns_cap.h, and xlang_sys_* net symbols.
  *
  * Windows: not used — call sites keep Winsock.
  * Other POSIX: thin libc wrappers (Darwin residual until later; mmsg ENOSYS).
@@ -265,6 +265,56 @@ static inline int xlang_net_sendmmsg(int sockfd, void *msgvec, unsigned int vlen
   return xlang_net_ret(r);
 }
 
+/**
+ * Cap residual sendto(2) — DNS Cap (9.1.7 slice2) UDP query.
+ * PLATFORM: LINUX
+ */
+static inline long xlang_net_sendto(int sockfd, const void *buf, size_t len, int flags,
+                                   const void *addr, unsigned int addrlen) {
+  long r;
+  if (!buf && len != 0)
+    return -1;
+#if defined(__x86_64__)
+  /* sendto = 44 */
+  r = xlang_net_syscall6(44, (long)sockfd, (long)buf, (long)len, (long)flags, (long)addr,
+                         (long)addrlen);
+#elif defined(__aarch64__)
+  /* sendto = 206 */
+  r = xlang_net_syscall6(206, (long)sockfd, (long)buf, (long)len, (long)flags, (long)addr,
+                         (long)addrlen);
+#endif
+  if (r < 0) {
+    errno = (int)(-r);
+    return -1;
+  }
+  return r;
+}
+
+/**
+ * Cap residual recvfrom(2) — DNS Cap (9.1.7 slice2) UDP reply.
+ * PLATFORM: LINUX
+ */
+static inline long xlang_net_recvfrom(int sockfd, void *buf, size_t len, int flags, void *addr,
+                                     unsigned int *addrlen) {
+  long r;
+  if (!buf && len != 0)
+    return -1;
+#if defined(__x86_64__)
+  /* recvfrom = 45 */
+  r = xlang_net_syscall6(45, (long)sockfd, (long)buf, (long)len, (long)flags, (long)addr,
+                         (long)addrlen);
+#elif defined(__aarch64__)
+  /* recvfrom = 207 */
+  r = xlang_net_syscall6(207, (long)sockfd, (long)buf, (long)len, (long)flags, (long)addr,
+                         (long)addrlen);
+#endif
+  if (r < 0) {
+    errno = (int)(-r);
+    return -1;
+  }
+  return r;
+}
+
 #else /* !LINUX Cap — POSIX libc thin wrappers (Darwin residual) */
 
 #include <poll.h>
@@ -348,6 +398,22 @@ static inline int xlang_net_sendmmsg(int sockfd, void *msgvec, unsigned int vlen
 #else
   return sendmmsg(sockfd, (struct mmsghdr *)msgvec, vlen, flags);
 #endif
+}
+
+/** PLATFORM: POSIX fallback — libc sendto. */
+static inline long xlang_net_sendto(int sockfd, const void *buf, size_t len, int flags,
+                                   const void *addr, unsigned int addrlen) {
+  return (long)sendto(sockfd, buf, len, flags, (const struct sockaddr *)addr, (socklen_t)addrlen);
+}
+
+/** PLATFORM: POSIX fallback — libc recvfrom. */
+static inline long xlang_net_recvfrom(int sockfd, void *buf, size_t len, int flags, void *addr,
+                                     unsigned int *addrlen) {
+  socklen_t al = addrlen ? (socklen_t)(*addrlen) : 0;
+  long r = (long)recvfrom(sockfd, buf, len, flags, (struct sockaddr *)addr, addrlen ? &al : 0);
+  if (addrlen)
+    *addrlen = (unsigned int)al;
+  return r;
 }
 
 #endif /* LINUX Cap vs POSIX fallback */
