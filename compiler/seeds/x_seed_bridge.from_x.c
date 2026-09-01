@@ -21,7 +21,6 @@
  * PLATFORM: SHARED (include always; was Windows-skipped before). */
 #include <unistd.h>
 #include <stdio.h>
-#include <stdarg.h>
 /* sys/types for ssize_t if not from unistd */
 #include <sys/types.h>
 
