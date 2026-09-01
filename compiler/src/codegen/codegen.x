@@ -2624,6 +2624,212 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * Cap 10.7.1 language slice7: rewrite Cap va builtins to xlang_va_* macros.
+ *
+ * Call names (typeck via export-extern in user TU; not libc):
+ *   va_start(ap, last) → xlang_va_start(ap, last)
+ *   va_end(ap)         → xlang_va_end(ap)
+ *   va_copy(dst, src)  → xlang_va_copy(dst, src)
+ *   va_arg_i32(ap)     → ((int32_t)(xlang_va_arg(ap, int32_t)))
+ *   va_arg_i64(ap)     → ((int64_t)(xlang_va_arg(ap, int64_t)))
+ *   va_arg_ptr(ap)     → ((uint8_t *)(xlang_va_arg(ap, uint8_t *)))
+ *
+ * Typed `va_arg(ap, T)` syntax is deferred (needs type-as-arg parse).
+ * Header face: codegen_x_ast_emit_header `#include <xlang_va_cap.h>`.
+ * VaList TYPE_NAMED → xlang_va_list in emit_type.
+ *
+ * @param arena *ASTArena — expr / callee slots
+ * @param out *CodegenOutBuf — host-C text buffer
+ * @param expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL site
+ * @param ctx *PipelineDepCtx — arg emit context
+ * @return i32 — 1 fully emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED host-C (GCC/Clang Cap; MSVC residual).
+ */
+export function codegen_try_emit_va_cap_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — Cap va macro rewrite (host-C only).
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let expect_args: i32 = 0;
+    let ai: i32 = 0;
+    let arg_ref: i32 = 0;
+    /* xlang_va_start( / xlang_va_end( / xlang_va_copy( — shared "xlang_va_" prefix. */
+    let pfx: u8[9] = [120, 108, 97, 110, 103, 95, 118, 97, 95];
+    /* start( end( copy( suffixes after prefix (lengths 6/4/5). */
+    let s_start: u8[6] = [115, 116, 97, 114, 116, 40];
+    let s_end: u8[4] = [101, 110, 100, 40];
+    let s_copy: u8[5] = [99, 111, 112, 121, 40];
+    /* ((int32_t)(xlang_va_arg( */
+    let open_i32: u8[24] = [40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40];
+    /* ((int64_t)(xlang_va_arg( */
+    let open_i64: u8[24] = [40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40];
+    /* ((uint8_t *)(xlang_va_arg( */
+    let open_ptr: u8[26] = [40, 40, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40];
+    /* , int32_t))) */
+    let close_i32: u8[13] = [44, 32, 105, 110, 116, 51, 50, 95, 116, 41, 41, 41, 0];
+    /* , int64_t))) */
+    let close_i64: u8[13] = [44, 32, 105, 110, 116, 54, 52, 95, 116, 41, 41, 41, 0];
+    /* , uint8_t *))) */
+    let close_ptr: u8[15] = [44, 32, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 41, 41, 0];
+    let comma_sp: u8[2] = [44, 32];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    if ((e.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)) {
+      if (e.method_call_name_len <= 0) {
+        return 0;
+      }
+      name_ptr = &e.method_call_name[0];
+      name_len = e.method_call_name_len;
+      n_args = e.method_call_num_args;
+      is_method = 1;
+    } else if ((e.kind as i32) == (ExprKind.EXPR_CALL as i32)) {
+      callee_ref = e.call_callee_ref;
+      if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+        return 0;
+      }
+      callee = ast.ast_arena_expr_get(arena, callee_ref);
+      if ((callee.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee.field_access_field_len > 0) {
+        name_ptr = &callee.field_access_field_name[0];
+        name_len = callee.field_access_field_len;
+      } else if ((callee.kind as i32) == (ExprKind.EXPR_VAR as i32) && callee.var_name_len > 0) {
+        name_ptr = &callee.var_name[0];
+        name_len = callee.var_name_len;
+      } else {
+        return 0;
+      }
+      n_args = e.call_num_args;
+    } else {
+      return 0;
+    }
+    /* Match Cap names (byte-exact; FIELD_ACCESS leaf / bare VAR).
+     * va_arg_i32 / va_arg_i64 / va_arg_ptr are 10 bytes each. */
+    if (name_len == 8 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 115 && name_ptr[4] == 116 && name_ptr[5] == 97
+        && name_ptr[6] == 114 && name_ptr[7] == 116) {
+      which = 1;
+      expect_args = 2;
+    } else if (name_len == 6 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 101 && name_ptr[4] == 110 && name_ptr[5] == 100) {
+      which = 2;
+      expect_args = 1;
+    } else if (name_len == 7 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 99 && name_ptr[4] == 111 && name_ptr[5] == 112
+        && name_ptr[6] == 121) {
+      which = 3;
+      expect_args = 2;
+    } else if (name_len == 10 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103
+        && name_ptr[6] == 95 && name_ptr[7] == 105 && name_ptr[8] == 51
+        && name_ptr[9] == 50) {
+      which = 4;
+      expect_args = 1;
+    } else if (name_len == 10 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103
+        && name_ptr[6] == 95 && name_ptr[7] == 105 && name_ptr[8] == 54
+        && name_ptr[9] == 52) {
+      which = 5;
+      expect_args = 1;
+    } else if (name_len == 10 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103
+        && name_ptr[6] == 95 && name_ptr[7] == 112 && name_ptr[8] == 116
+        && name_ptr[9] == 114) {
+      which = 6;
+      expect_args = 1;
+    } else {
+      return 0;
+    }
+    if (n_args != expect_args) {
+      return 0;
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    if (which == 1) {
+      if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &s_start[0], 6) != 0) {
+        return -1;
+      }
+    } else if (which == 2) {
+      if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &s_end[0], 4) != 0) {
+        return -1;
+      }
+    } else if (which == 3) {
+      if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &s_copy[0], 5) != 0) {
+        return -1;
+      }
+    } else if (which == 4) {
+      if (emit_bytes_from_ptr(out, &open_i32[0], 24) != 0) {
+        return -1;
+      }
+    } else if (which == 5) {
+      if (emit_bytes_from_ptr(out, &open_i64[0], 24) != 0) {
+        return -1;
+      }
+    } else if (which == 6) {
+      if (emit_bytes_from_ptr(out, &open_ptr[0], 26) != 0) {
+        return -1;
+      }
+    } else {
+      return 0;
+    }
+    while (ai < n_args) {
+      if (ai > 0) {
+        if (emit_bytes_from_ptr(out, &comma_sp[0], 2) != 0) {
+          return -1;
+        }
+      }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+      }
+      if (emit_call_arg_slice_abi(arena, out, arg_ref, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    if (which >= 1 && which <= 3) {
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+    } else if (which == 4) {
+      if (emit_bytes_from_ptr(out, &close_i32[0], 12) != 0) {
+        return -1;
+      }
+    } else if (which == 5) {
+      if (emit_bytes_from_ptr(out, &close_i64[0], 12) != 0) {
+        return -1;
+      }
+    } else if (which == 6) {
+      if (emit_bytes_from_ptr(out, &close_ptr[0], 14) != 0) {
+        return -1;
+      }
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    return 1;
+  }
+}
+
+/**
  * wave409 Cap residual pure: finish TYPE_SLICE let from CALL/METHOD with frame deep-copy.
  * Type+name already written. Emits `; E __xlang_ldN[1024]; { S __sp = call; copy; name=fat(ld); }`.
  * Fixes true recursion last-wins on callee static `__xlang_al` (walk 18→36).
@@ -4796,6 +5002,12 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     if (tk == TypeKind.TYPE_NAMED as i32 && name_len > 0) {
       let dep_prefix_buf: u8[128] = [];
       let dep_prefix_len: i32 = 0;
+      /* Cap 10.7.1 slice7: VaList → xlang_va_list (header from emit_header). */
+      if (name_len == 6 && nm[0] == 86 && nm[1] == 97 && nm[2] == 76
+          && nm[3] == 105 && nm[4] == 115 && nm[5] == 116) {
+        let vl: u8[14] = [120, 108, 97, 110, 103, 95, 118, 97, 95, 108, 105, 115, 116, 0];
+        return emit_bytes_from_ptr(out, &vl[0], 13);
+      }
       /* See implementation. */
       if (name_len == 6 && nm[0] == 66 && nm[1] == 117 && nm[2] == 102 && nm[3] == 102
           && nm[4] == 101 && nm[5] == 114) {
@@ -13154,6 +13366,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
       }
+      /* Cap 10.7.1 slice7: va_start/end/copy/va_arg_* → xlang_va_* macros. */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let va_rc: i32 = codegen_try_emit_va_cap_call(arena, out, expr_ref, ctx);
+        if (va_rc < 0) {
+          return -1;
+        }
+        if (va_rc > 0) {
+          return 0;
+        }
+      }
       /* 10.3.1 slice15: Cap *u8 CALL → ((Ret (*)(T…))(callee))(args).
        * Before import/bare; TYPE_FN declarator callees stay uncast.
        * PLATFORM: SHARED host-C. */
@@ -14595,6 +14817,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         if (rs_mc_rc > 0) {
+          return 0;
+        }
+      }
+      /* Cap 10.7.1 slice7: method-shape va_* → xlang_va_* (same leaf names). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let va_mc_rc: i32 = codegen_try_emit_va_cap_call(arena, out, expr_ref, ctx);
+        if (va_mc_rc < 0) {
+          return -1;
+        }
+        if (va_mc_rc > 0) {
           return 0;
         }
       }
@@ -24928,6 +25160,18 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10,
       0, 0, 0, 0, 0, 0, 0, 0];
     if (emit_bytes_64(out, &h2[0], 40) != 0) {
+      return -1;
+    }
+    /*
+     * Cap 10.7.1 slice7: Cap va_list face for language builtins.
+     * `#include <xlang_va_cap.h>` — xlang_va_list / xlang_va_start/arg/end/copy.
+     * Consumed by codegen_try_emit_va_cap_call + VaList emit_type.
+     * Product -o also has -Iinclude; bare -E needs the same include path.
+     * PLATFORM: SHARED host-C. G.7: emit_header is the -E authority.
+     */
+    /* #include <xlang_va_cap.h>\n — 26 bytes exact. */
+    let hva: u8[26] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 120, 108, 97, 110, 103, 95, 118, 97, 95, 99, 97, 112, 46, 104, 62, 10];
+    if (emit_bytes_from_ptr(out, &hva[0], 26) != 0) {
       return -1;
     }
     /*
