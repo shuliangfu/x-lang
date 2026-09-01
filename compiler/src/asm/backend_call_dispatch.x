@@ -156,6 +156,9 @@ export extern "C" function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, off_a: 
 export extern "C" function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 /* 10.5.1 slice7: f32x4 lang fma (a + b*c); x86 SSE/FMA3 via existing fma_rbp. */
 export extern "C" function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, off_c: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+/* 10.5.1 slice8: f32x4 lang hsum/dot → scalar f32 in xmm0 then eax. */
+export extern "C" function simd_enc_try_hw_vector_hsum_f32x4_rbp(elf_ctx: *u8, off_v: i32, ta: i32, feats: u32): i32;
+export extern "C" function simd_enc_try_hw_vector_dot_f32x4_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, ta: i32, feats: u32): i32;
 /* 10.5.1 slice1: i32x8 lang builtins (VAR stack homes + sret let slot). */
 export extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32, is_sub: i32): i32;
 export extern "C" function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, off_a: i32, off_b: i32, dst_off: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
@@ -4669,12 +4672,13 @@ function try_emit_simd_lang_resolve_feats_c(ta: i32, feats_in: u32): u32 {
 }
 
 /**
- * Stage 10 (10.5.1) slice0–7: language SIMD builtins add/mul/sub/fma f32x4, i32x8, f32x8.
+ * Stage 10 (10.5.1) slice0–8: language SIMD builtins add/mul/sub/fma/hsum/dot.
  *
  * Matches CALL/METHOD_CALL by exact export name (std.simd.builtin surface).
  * f32x4 add/mul/sub: spill each Vec4f arg (16B dual-GP), x86 SSE or aarch64 NEON,
  *   reload dual-GP (x86 rdx/rax · aarch64 x1/x0).
  * f32x4 fma (slice7): 3-arg spill; x86 FMA3/mulps+addps only (ta==0); aarch64 fallthrough.
+ * f32x4 hsum/dot (slice8): spill; x86 mulps+hadd → xmm0 → eax; aarch64 fallthrough.
  * i32x8/f32x8: VAR stack homes + sret let slot; x86 AVX2/SSE or aarch64 NEON dual-half.
  *
  * @return i32 — 1 emitted; 0 not applicable or HW unavailable (fallthrough);
@@ -4732,9 +4736,13 @@ function try_emit_simd_lang_builtin_call_elf_c(
     let nm_sub_f32x8: u8[9] = [115, 117, 98, 95, 102, 51, 50, 120, 56];
     /* fma_f32x4 (9) — slice7 */
     let nm_fma_f32: u8[9] = [102, 109, 97, 95, 102, 51, 50, 120, 52];
+    /* dot_f32x4 (9) — slice8 */
+    let nm_dot_f32: u8[9] = [100, 111, 116, 95, 102, 51, 50, 120, 52];
+    /* hsum_f32x4 (10) — slice8 */
+    let nm_hsum_f32: u8[10] = [104, 115, 117, 109, 95, 102, 51, 50, 120, 52];
     if (ko == 49) {
       nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-      if (nlen != 9) { return 0; }
+      if (nlen != 9 && nlen != 10) { return 0; }
       pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
       n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
       is_method = 1;
@@ -4745,11 +4753,11 @@ function try_emit_simd_lang_builtin_call_elf_c(
       cko = pipeline_expr_kind_ord_at(arena, callee_ref);
       if (cko == 44) {
         nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
-        if (nlen != 9) { return 0; }
+        if (nlen != 9 && nlen != 10) { return 0; }
         pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
       } else if (cko == 3) {
         nlen = pipeline_expr_var_name_len(arena, callee_ref);
-        if (nlen != 9) { return 0; }
+        if (nlen != 9 && nlen != 10) { return 0; }
         pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
       } else {
         return 0;
@@ -4838,6 +4846,22 @@ function try_emit_simd_lang_builtin_call_elf_c(
       }
       if (i == 9) { which = 10; }
     }
+    if (which == 0 && nlen == 9) {
+      i = 0;
+      while (i < 9) {
+        if (name[i] != nm_dot_f32[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 9) { which = 11; }
+    }
+    if (which == 0 && nlen == 10) {
+      i = 0;
+      while (i < 10) {
+        if (name[i] != nm_hsum_f32[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 10) { which = 12; }
+    }
     if (which == 0) { return 0; }
     /* slice7: fma_f32x4 — 3× dual-GP spill; x86 FMA3/mulps+addps; reload rdx/rax. */
     if (which == 10) {
@@ -4895,6 +4919,56 @@ function try_emit_simd_lang_builtin_call_elf_c(
         return 0 - 1;
       }
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_off, ta) != 0) {
+        return 0 - 1;
+      }
+      return 1;
+    }
+    /* slice8: hsum_f32x4 / dot_f32x4 — spill; SSE reduce → xmm0 → eax. */
+    if (which == 11 || which == 12) {
+      if (ta != 0) { return 0; }
+      if (which == 12) {
+        if (n_args != 1) { return 0; }
+      } else {
+        if (n_args != 2) { return 0; }
+      }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (arg_ref == 0) { return 0 - 1; }
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      off_a = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+      if (off_a < 0) { return 0 - 1; }
+      if (which == 11) {
+        if (is_method != 0) {
+          arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 1);
+        } else {
+          arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+        }
+        if (arg_ref == 0) { return 0 - 1; }
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+          return 0 - 1;
+        }
+        off_b = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 2);
+        if (off_b < 0) { return 0 - 1; }
+      }
+      feats = try_emit_simd_lang_resolve_feats_c(ta, glue_simd_emit_cpu_features_c());
+      if ((feats & 1) == 0) {
+        return 0;
+      }
+      if (which == 12) {
+        hw = simd_enc_try_hw_vector_hsum_f32x4_rbp(elf_ctx, off_a, ta, feats);
+      } else {
+        hw = simd_enc_try_hw_vector_dot_f32x4_rbp(elf_ctx, off_a, off_b, ta, feats);
+      }
+      if (hw != 0) {
+        return 0;
+      }
+      /* Pure-asm CALL consumers expect f32 bits in eax (same as harvest). */
+      if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta) != 0) {
         return 0 - 1;
       }
       return 1;
