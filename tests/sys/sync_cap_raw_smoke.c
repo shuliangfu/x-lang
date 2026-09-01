@@ -1,13 +1,14 @@
 /*
- * sync_cap_raw_smoke.c — Stage 10 (10.6.3) slice0 Cap residual probe.
+ * sync_cap_raw_smoke.c — Stage 10 (10.6.3) Cap residual probe.
  *
- * Host-cc smoke for xlang_sync_cap.h: mutex init/lock/trylock/unlock +
- * Cap-spawn concurrent lock (no libpthread).
+ * Host-cc smoke for xlang_sync_cap.h:
+ *   slice0: mutex init/lock/trylock/unlock + Cap-spawn contention
+ *   slice1: condvar wait/signal (producer/consumer)
  *
  * PLATFORM: LINUX|x86_64|aarch64 gold.
  *
  * Build (gate): cc -O0 -Icompiler/include -o /tmp/... tests/sys/sync_cap_raw_smoke.c
- * Exit: 0 ok; 1..9 step failure.
+ * Exit: 0 ok; 1..12 step failure.
  */
 
 #include <errno.h>
@@ -27,6 +28,13 @@ int main(void) {
 /** Shared mutex + counter for Cap concurrent smoke. */
 static struct xlang_cap_mutex g_mu;
 static volatile int g_counter = 0;
+
+/** Condvar handshake: child parks until parent sets ready=1 and signals. */
+static struct xlang_cap_mutex g_cv_mu;
+static struct xlang_cap_cond g_cv;
+static volatile int g_waiting = 0;
+static volatile int g_ready = 0;
+static volatile int g_seen = 0;
 
 /**
  * Cap child: lock, increment counter, unlock.
@@ -48,7 +56,30 @@ static void *sync_cap_child(void *arg) {
 }
 
 /**
- * Cap residual 10.6.3 slice0 probe entry.
+ * Cap child: announce waiting, then wait on condvar until g_ready.
+ * @param arg unused
+ * @return NULL
+ * PLATFORM: LINUX
+ */
+static void *sync_cap_waiter(void *arg) {
+  (void)arg;
+  if (xlang_cap_mutex_lock(&g_cv_mu) != 0) {
+    return 0;
+  }
+  g_waiting = 1;
+  while (g_ready == 0) {
+    if (xlang_cap_cond_wait(&g_cv, &g_cv_mu) != 0) {
+      (void)xlang_cap_mutex_unlock(&g_cv_mu);
+      return 0;
+    }
+  }
+  g_seen = 1;
+  (void)xlang_cap_mutex_unlock(&g_cv_mu);
+  return 0;
+}
+
+/**
+ * Cap residual 10.6.3 probe entry (mutex + condvar).
  * @return 0 ok; nonzero step id on failure
  * PLATFORM: LINUX
  */
@@ -113,6 +144,48 @@ int main(void) {
     return 9;
   }
   (void)xlang_cap_mutex_destroy(&g_mu);
+
+  /* Step3: condvar wait/signal handshake. */
+  if (xlang_cap_mutex_init(&g_cv_mu) != 0 || xlang_cap_cond_init(&g_cv) != 0) {
+    fprintf(stderr, "cv init failed\n");
+    return 10;
+  }
+  g_waiting = 0;
+  g_ready = 0;
+  g_seen = 0;
+  memset(&join, 0, sizeof(join));
+  if (xlang_thread_spawn(sync_cap_waiter, 0, &join, 65536u) != 0) {
+    fprintf(stderr, "waiter spawn failed errno=%d\n", errno);
+    return 11;
+  }
+  /* Wait until child announced it holds the lock and will wait. */
+  for (;;) {
+    if (xlang_cap_mutex_lock(&g_cv_mu) != 0) {
+      fprintf(stderr, "cv parent lock failed\n");
+      return 11;
+    }
+    if (g_waiting != 0) {
+      break;
+    }
+    (void)xlang_cap_mutex_unlock(&g_cv_mu);
+  }
+  g_ready = 1;
+  if (xlang_cap_cond_signal(&g_cv) != 0) {
+    fprintf(stderr, "cond_signal failed errno=%d\n", errno);
+    (void)xlang_cap_mutex_unlock(&g_cv_mu);
+    return 11;
+  }
+  (void)xlang_cap_mutex_unlock(&g_cv_mu);
+  if (xlang_thread_join(&join) != 0) {
+    fprintf(stderr, "waiter join failed errno=%d\n", errno);
+    return 11;
+  }
+  if (g_seen != 1) {
+    fprintf(stderr, "g_seen=%d want 1\n", g_seen);
+    return 12;
+  }
+  (void)xlang_cap_cond_destroy(&g_cv);
+  (void)xlang_cap_mutex_destroy(&g_cv_mu);
 
   return 0;
 }
