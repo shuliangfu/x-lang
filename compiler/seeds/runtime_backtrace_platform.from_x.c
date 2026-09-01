@@ -21,6 +21,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: crash evidence path → Cap snprintf */
+/* G.7: Cap after stdio for backtrace crash-evidence residual. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include "diag.h"
 #include <xlang_user_link_abi_getenv.h>
 #if defined(__unix__) || defined(__APPLE__)
