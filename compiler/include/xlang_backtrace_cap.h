@@ -1,13 +1,18 @@
 /*
  * xlang_backtrace_cap.h — Cap residual 9.1.11: stack capture + symbol resolve
- * without libc backtrace()/dladdr() on Linux (x86_64 + aarch64).
+ * without libc backtrace()/dladdr() (Linux/Darwin) or CaptureStackBackTrace/
+ * DbgHelp (Windows).
  *
- * Capture: frame-pointer walk via __builtin_frame_address.
- * Resolve: Linux — /proc/self/maps + ELF symtab; Darwin — Mach-O (slice1, WIP).
+ * Capture: frame-pointer walk via __builtin_frame_address (SHARED).
+ * Resolve:
+ *   Linux  — /proc/self/maps + ELF symtab
+ *   Darwin — Mach-O LC_SYMTAB + proc_regionfilename
+ *   Windows — VirtualQuery module base + PE export directory (no dbghelp)
  *
  * Frame pointers may require -fno-omit-frame-pointer for deep stacks.
  *
- * PLATFORM: LINUX + DARWIN (x86_64 + aarch64); other platforms use execinfo/dladdr.
+ * PLATFORM: LINUX + DARWIN + WINDOWS (x86_64 + aarch64); other platforms use
+ * execinfo/dladdr/DbgHelp fallbacks in runtime_backtrace_platform seed.
  */
 
 #ifndef XLANG_BACKTRACE_CAP_H
@@ -16,7 +21,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32) || defined(_WIN64)) && \
+    (defined(__x86_64__) || defined(__aarch64__) || defined(_M_X64) || defined(_M_ARM64))
 
 /** dladdr-compatible layout for Cap symbolicate. PLATFORM: SHARED */
 typedef struct XlangBtDlInfo {
@@ -33,7 +39,7 @@ typedef struct XlangBtDlInfo {
  * @param array output pointer array (void*)
  * @param size  max entries
  * @return number of frames written (0 on failure)
- * PLATFORM: LINUX|DARWIN
+ * PLATFORM: LINUX|DARWIN|WINDOWS
  */
 static inline int xlang_bt_backtrace(void **array, int size) {
   void **bp;
@@ -771,8 +777,136 @@ static inline int xlang_bt_dladdr(void *addr, XlangBtDlInfo *info) {
   return (info->dli_sname && info->dli_sname[0]) ? 1 : (info->dli_fname && info->dli_fname[0]) ? 1 : 0;
 }
 
-#endif /* __linux__ | __APPLE__ dladdr */
+#elif defined(_WIN32) || defined(_WIN64)
 
-#endif /* LINUX|DARWIN Cap */
+/* PLATFORM: WINDOWS — Cap residual without DbgHelp / CaptureStackBackTrace.
+ * Capture uses SHARED FP walk above. Resolve: VirtualQuery → PE export table
+ * (kernel32 only). No SymFromAddr / UnDecorateSymbolName. */
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <string.h>
+
+/**
+ * Lookup nearest PE export name at or below target RVA within image.
+ * @param base image base (HMODULE / AllocationBase)
+ * @param target_rva RVA of address within image
+ * @param out name buffer
+ * @param out_cap capacity including NUL
+ * @param out_sym_rva optional; written with chosen export RVA when non-null
+ * @return 1 if a name was written
+ * PLATFORM: WINDOWS
+ */
+static inline int xlang_bt_pe_lookup_export(const uint8_t *base, uint32_t target_rva,
+                                            char *out, size_t out_cap,
+                                            uint32_t *out_sym_rva) {
+  const IMAGE_DOS_HEADER *dos;
+  const IMAGE_NT_HEADERS *nt;
+  const IMAGE_DATA_DIRECTORY *dd;
+  const IMAGE_EXPORT_DIRECTORY *exp;
+  const uint32_t *names;
+  const uint32_t *funcs;
+  const uint16_t *ords;
+  uint32_t i;
+  uint32_t best_rva = 0;
+  const char *best_name = NULL;
+  int have = 0;
+  if (!base || !out || out_cap < 2)
+    return 0;
+  dos = (const IMAGE_DOS_HEADER *)base;
+  if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+    return 0;
+  nt = (const IMAGE_NT_HEADERS *)(base + (uint32_t)dos->e_lfanew);
+  if (nt->Signature != IMAGE_NT_SIGNATURE)
+    return 0;
+  dd = &nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+  if (dd->VirtualAddress == 0 || dd->Size == 0)
+    return 0;
+  exp = (const IMAGE_EXPORT_DIRECTORY *)(base + dd->VirtualAddress);
+  if (exp->NumberOfNames == 0 || exp->AddressOfNames == 0)
+    return 0;
+  names = (const uint32_t *)(base + exp->AddressOfNames);
+  funcs = (const uint32_t *)(base + exp->AddressOfFunctions);
+  ords = (const uint16_t *)(base + exp->AddressOfNameOrdinals);
+  for (i = 0; i < exp->NumberOfNames; i++) {
+    uint16_t ord = ords[i];
+    uint32_t rva;
+    const char *nm;
+    if (ord >= exp->NumberOfFunctions)
+      continue;
+    rva = funcs[ord];
+    if (rva == 0 || rva > target_rva)
+      continue;
+    if (have && rva < best_rva)
+      continue;
+    nm = (const char *)(base + names[i]);
+    if (!nm || !nm[0])
+      continue;
+    best_rva = rva;
+    best_name = nm;
+    have = 1;
+  }
+  if (!have || !best_name)
+    return 0;
+  {
+    size_t n = 0;
+    while (best_name[n] && n + 1 < out_cap)
+      n++;
+    if (n == 0)
+      return 0;
+    memcpy(out, best_name, n);
+    out[n] = '\0';
+  }
+  if (out_sym_rva)
+    *out_sym_rva = best_rva;
+  return 1;
+}
+
+/**
+ * Cap residual dladdr: VirtualQuery module base + PE export nearest name.
+ * @return nonzero on success (dli_fname and/or dli_sname usable)
+ * PLATFORM: WINDOWS
+ */
+static inline int xlang_bt_dladdr(void *addr, XlangBtDlInfo *info) {
+  static char fname[MAX_PATH];
+  static char sname[256];
+  MEMORY_BASIC_INFORMATION mbi;
+  const uint8_t *base;
+  uintptr_t a;
+  uint32_t rva;
+  uint32_t sym_rva = 0;
+  DWORD n;
+  if (!addr || !info)
+    return 0;
+  memset(info, 0, sizeof(*info));
+  memset(&mbi, 0, sizeof(mbi));
+  if (VirtualQuery(addr, &mbi, sizeof(mbi)) == 0)
+    return 0;
+  if (!mbi.AllocationBase)
+    return 0;
+  base = (const uint8_t *)mbi.AllocationBase;
+  a = (uintptr_t)addr;
+  if (a < (uintptr_t)base)
+    return 0;
+  rva = (uint32_t)(a - (uintptr_t)base);
+  info->dli_fbase = (void *)(uintptr_t)base;
+  n = GetModuleFileNameA((HMODULE)(uintptr_t)base, fname, (DWORD)sizeof(fname));
+  if (n > 0 && n < sizeof(fname)) {
+    info->dli_fname = fname;
+  }
+  if (xlang_bt_pe_lookup_export(base, rva, sname, sizeof(sname), &sym_rva)) {
+    info->dli_sname = sname;
+    info->dli_saddr = (void *)(uintptr_t)((uintptr_t)base + (uintptr_t)sym_rva);
+  }
+  return (info->dli_sname && info->dli_sname[0]) ? 1
+         : (info->dli_fname && info->dli_fname[0]) ? 1
+                                                  : 0;
+}
+
+#endif /* __linux__ | __APPLE__ | WINDOWS dladdr */
+
+#endif /* LINUX|DARWIN|WINDOWS Cap */
 
 #endif /* XLANG_BACKTRACE_CAP_H */
