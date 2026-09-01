@@ -3,8 +3,9 @@
  *
  * R2 full mode: public API in src/asm/runtime_backtrace_platform.x (thin),
  * OS bridge _impl functions here (rest). Thin+rest linked via ld -r.
- * Platform-specific: execinfo/dladdr on POSIX/macOS, CaptureStackBackTrace
- * + DbgHelp on Windows.
+ * Platform-specific: Cap residual 9.1.11 (FP walk + ELF/Mach-O/PE) on
+ * LINUX|DARWIN|WINDOWS; fallback execinfo/dladdr or CaptureStackBackTrace/
+ * DbgHelp only when Cap is unavailable.
  *
  * wave252 G.7: CRASH_EVIDENCE env via public face link_abi_getenv (not raw libc getenv).
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
@@ -171,13 +172,13 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 
 /* === Platform-specific _impl functions === */
 
-/* Cap residual 9.1.11: stack capture without libc backtrace() (Linux + Darwin). */
-#if (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
+/* Cap residual 9.1.11: stack capture + resolve without libc backtrace/dladdr
+ * (Linux/Darwin) or CaptureStackBackTrace/DbgHelp (Windows). */
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32) || defined(_WIN64)) && \
+    (defined(__x86_64__) || defined(__aarch64__) || defined(_M_X64) || defined(_M_ARM64))
 #include <xlang_backtrace_cap.h>
 #define HAVE_XLANG_BT_CAPTURE_CAP 1
-#if defined(__linux__) || defined(__APPLE__)
 #define HAVE_XLANG_BT_CAP 1
-#endif
 #endif
 
 /* PLATFORM: POSIX — stdio above pulls features.h on glibc so __GLIBC__ is set.
@@ -193,7 +194,7 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 #define HAVE_DLADDR 1
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if !defined(HAVE_XLANG_BT_CAP) && (defined(_WIN32) || defined(_WIN64))
 #include <windows.h>
 #ifdef _MSC_VER
 #pragma comment(lib, "dbghelp.lib")
