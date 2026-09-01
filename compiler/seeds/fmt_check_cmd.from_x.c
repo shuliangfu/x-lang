@@ -19,8 +19,14 @@
 #include "lsp/lsp_diag.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
-#ifdef _WIN32
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: fmt_check path/walk format → Cap snprintf */
+/* G.7: Cap before Win32 opendir pattern snprintf and all later path joins. */
+#undef snprintf
+#define snprintf xlang_snprintf
+#ifdef _WIN32
 /* MinGW 无 dirent.h 的 d_type/DT_REG——用 _findfirst/_findnext 兼容层 */
 #include <io.h>
 #include <direct.h>
@@ -66,9 +72,6 @@ void closedir_win(DIR *d) {
 #else
 #include <dirent.h>
 #endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
