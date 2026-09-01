@@ -8,6 +8,7 @@
  * Regen: ./xlang-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: report/human/json/print/code-query/levenshtein/…; C: table data + va_list.
+ * Cap residual 10.7.2／9.5.3: reportf formats via xlang_vsnprintf (no libc vsnprintf).
  */
 #include "diag.h"
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
@@ -27,6 +28,7 @@ void diag_json_set_state(int v);
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2／9.5.3: reportf → xlang_vsnprintf */
 
 /* wave233 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -763,7 +765,8 @@ void diag_vreportf_with_code(const char *file, int line, int col, const char *ki
 
     if (!fmt)
         fmt = "";
-    (void)vsnprintf(buf, sizeof(buf), fmt, ap);
+    /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+    (void)xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
     diag_report_with_code(file, line, col, kind, code, buf, detail ? detail : buf);
 }
 
