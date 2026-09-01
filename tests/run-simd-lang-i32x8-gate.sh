@@ -75,8 +75,8 @@ if ! "$XLANG_ABS" -L . "$SMOKE_SRC" -o "$SMOKE_EXE"; then
 fi
 [ -x "$SMOKE_EXE" ] || die "missing exe $SMOKE_EXE"
 
-if ! "$SMOKE_EXE"; then
-  die "run $SMOKE_EXE exit=$?"
+if ! rc="$SMOKE_EXE"; then
+  die "run $SMOKE_EXE exit=$rc"
 fi
 RUN_OK=$((RUN_OK + 1))
 
