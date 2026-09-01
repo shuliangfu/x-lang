@@ -919,7 +919,9 @@ void invoke_cc_append_std_ensure_push_front(uint8_t **argv, int32_t *ia, int32_t
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());
   }
 
-  if (need_thread && invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o)) {
+  /* thread.o + thread_glue: always push glue when need_thread (co-emit may skip thread.o UNDEFs). */
+  if (need_thread) {
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o);
     (void)xlang_ensure_runtime_thread_glue_o(NULL);
     {
       uint8_t *rtg = xlang_runtime_thread_glue_o_path(NULL);
