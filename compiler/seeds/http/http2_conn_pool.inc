@@ -59,13 +59,11 @@ static int32_t pool_url_matches(const conn_pool_t *pool, const uint8_t *url,
     return 1;
 }
 
-/** 新建 TCP 连接并返回 fd；失败 -1。 */
+/** 新建 TCP 连接并返回 fd；失败 -1。
+ * Cap residual 9.1.7 slice2: Linux via http_dial_host_port (no getaddrinfo). */
 static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
     SOCKET fd;
-#else
-    int fd;
-#endif
     struct addrinfo hints;
     struct addrinfo *res = NULL;
 
@@ -74,13 +72,8 @@ static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo(host, port, &hints, &res) != 0 || !res)
         return -1;
-#if defined(_WIN32) || defined(_WIN64)
     fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (fd == INVALID_SOCKET) {
-#else
-    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-#endif
         freeaddrinfo(res);
         return -1;
     }
@@ -92,11 +85,7 @@ static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint
             return -1;
         }
     } else {
-#if defined(_WIN32) || defined(_WIN64)
         if (connect(fd, res->ai_addr, (int)res->ai_addrlen) != 0) {
-#else
-        if (connect(fd, res->ai_addr, res->ai_addrlen) != 0) {
-#endif
             XLANG_HTTP_CLOSE((int)fd);
             freeaddrinfo(res);
             return -1;
@@ -108,6 +97,17 @@ static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint
         return -1;
     }
     return (int32_t)fd;
+#else
+    int fd = -1;
+    int32_t dr = http_dial_host_port(host, port, timeout_ms, &fd);
+    if (dr != 0)
+        return -1;
+    if (http_set_timeouts(fd, timeout_ms) != 0) {
+        XLANG_HTTP_CLOSE(fd);
+        return -1;
+    }
+    return (int32_t)fd;
+#endif
 }
 
 /** 新建 h2c 连接并完成 handshake；成功 0。 */
