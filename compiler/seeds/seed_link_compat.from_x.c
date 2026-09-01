@@ -7,11 +7,10 @@
  * Cap residual 10.7.2：xlang_append_asmf formats via xlang_vsnprintf (no libc vsnprintf).
  */
 #include <xlang_weak.h>
-#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: append_asmf → xlang_vsnprintf */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: append_asmf → xlang_vsnprintf */
 
 struct ast_Module;
 struct backend_AsmFuncCtx;
@@ -478,11 +477,11 @@ int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, in
 static int32_t xlang_append_asmf(struct codegen_CodegenOutBuf *out, const char *fmt, ...) {
   char buf[128];
   int n;
-  va_list ap;
-  va_start(ap, fmt);
-  /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+  xlang_va_list ap;
+  xlang_va_start(ap, fmt);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
   n = xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
+  xlang_va_end(ap);
   if (n < 0 || (size_t)n >= sizeof(buf))
     return -1;
   return append_asm_line(out, (uint8_t *)buf, n);
