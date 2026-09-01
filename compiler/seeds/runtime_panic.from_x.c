@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_environ_cap.h>
 #ifdef _WIN32
 #include <process.h> /* MinGW getpid() 声明在此；unistd.h 不提供 */
 #else
@@ -40,13 +41,18 @@ __asm__(".section .note.GNU-stack,\"\",%progbits");
 
 /**
  * Cap residual host getenv for user-linked runtime_panic.o (≡ product _impl).
+ * Cap residual 9.1.1: POSIX environ walk (no libc getenv); Windows CRT getenv.
  * @param name NUL-terminated environment key; may be null
  * @return value pointer from process env block, or NULL
  */
 const char *link_abi_getenv_impl(const char *name) {
   if (!name || !name[0])
     return NULL;
+#if defined(_WIN32) || defined(_WIN64)
   return getenv(name);
+#else
+  return xlang_environ_getenv(name);
+#endif
 }
 
 /**
