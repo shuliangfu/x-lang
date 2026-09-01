@@ -241,7 +241,7 @@
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
 - ✅ **10.5.1** x86 AVX／SSE + aarch64 NEON 内建 — **slice0–10 ✅** · **slice10 ✅（Ubuntu host-C）**＠`0609c4a05`：`builtin.x` 标量 fallthrough（无 panic）。残：MSYS Win 实机
 - 🟡 **10.5.2** ARM SVE 内建 — **slice0–2 ✅（Ubuntu）**＠`2e03ae24c`：f32x4／fma／hsum／dot／i32x8／f32x8 双半 VL4。残：真宽 VL／MSYS Win  
-- 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–1 ✅（Ubuntu）**＠`069b56009`：futex／mmap 栈＋**clone trampoline** spawn／join（禁 C-continuation；无 libpthread）。残：入链产品 pthread 面 · TLS  
+- 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–2 ✅（Ubuntu）**＠`e8777cb6b`：futex／mmap／clone trampoline＋**product `runtime_thread_glue` Linux Cap**（pool／create／join；nm 无 pthread；STD-043 run=2）。残：Darwin pthread · TLS · Windows 10.6.2  
 - ⬜ **10.6.2** Windows CreateThread／WaitForSingleObject  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows 10.6.2
 - ⬜ **10.7.1** va_list + va_start／arg／end  
