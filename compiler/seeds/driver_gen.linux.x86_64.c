@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: CRASH_EVIDENCE path → Cap snprintf */
+/* G.7: Cap after stdio for compiler-only gen seed pin crash evidence. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <string.h>
 #include <string.h>
 #undef htonl
