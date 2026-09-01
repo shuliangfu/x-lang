@@ -1929,6 +1929,56 @@ export function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
   return simd_x86_addps_xmm0_xmm1(elf_ctx);
 }
 
+/**
+ * Hardware f32x4 horizontal sum into xmm0 lane0 (pshufd+addps).
+ * Leaves IEEE f32 scalar in xmm0; caller harvests to eax via ABI helper.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param slot_off i32 — Vec4f stack home (frame offset)
+ * @param ta i32 — 0=x86_64 only
+ * @param cpu_features u32 — bit0 SSE required
+ * @return i32 — 0 ok; -1 unavailable/error
+ * PLATFORM: LINUX|x86_64 SSE; aarch64 returns -1 (fallthrough)
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_hsum_f32x4_rbp(
+  elf_ctx: *u8, slot_off: i32, ta: i32, cpu_features: u32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (slot_off < 0) { return 0 - 1; }
+  if (ta != 0) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
+  let d: i32 = simd_rbp_disp32(slot_off, 4, 4);
+  if (simd_x86_movups_xmm0_from_rbp(elf_ctx, d) != 0) { return 0 - 1; }
+  return simd_enc_x86_horizontal_addps_xmm0(elf_ctx);
+}
+
+/**
+ * Hardware f32x4 dot product: mulps then horizontal sum into xmm0 lane0.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param slot_off_a i32 — first Vec4f stack home
+ * @param slot_off_b i32 — second Vec4f stack home
+ * @param ta i32 — 0=x86_64 only
+ * @param cpu_features u32 — bit0 SSE required
+ * @return i32 — 0 ok; -1 unavailable/error
+ * PLATFORM: LINUX|x86_64 SSE; aarch64 returns -1 (fallthrough)
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_dot_f32x4_rbp(
+  elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, ta: i32, cpu_features: u32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (slot_off_a < 0) { return 0 - 1; }
+  if (slot_off_b < 0) { return 0 - 1; }
+  if (ta != 0) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
+  let da: i32 = simd_rbp_disp32(slot_off_a, 4, 4);
+  let db: i32 = simd_rbp_disp32(slot_off_b, 4, 4);
+  if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+  if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+  if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+  return simd_enc_x86_horizontal_addps_xmm0(elf_ctx);
+}
+
 /** Exported function `simd_enc_x86_movss_xmm0_rbp_disp`.
  * Implements `simd_enc_x86_movss_xmm0_rbp_disp`.
  * @param elf_ctx *u8
