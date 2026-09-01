@@ -14057,6 +14057,8 @@ int32_t typeck_check_block_one_const(struct ast_Module * module, struct ast_ASTA
     (void)((cname_len = pipeline_block_const_name_len(arena, block_ref, idx)));
     if (((cname_len > 0) && (cname_len < 128))) {
       (void)(pipeline_block_const_name_copy64(arena, block_ref, idx, &((cname_buf)[0])));
+      /* Twin of typeck.x: discard `const _` (name "_" len=1) must not T001. */
+      if (!((cname_len == 1) && (cname_buf[0] == 95))) {
       (void)((func_ix = pipeline_dep_ctx_current_func_index(ctx)));
       ((pipeline_block_local_name_redecl_c(arena, block_ref, &((cname_buf)[0]), cname_len, 1, idx, module, func_ix) !=0) ? ({   int32_t err_line = 0;
   int32_t err_col = 0;
@@ -14067,6 +14069,7 @@ int32_t typeck_check_block_one_const(struct ast_Module * module, struct ast_ASTA
   (void)(driver_diagnostic_typeck_duplicate_local(err_line, err_col));
   return -1;
  }) : 0);
+      }
     }
     if (!(ast_ref_is_null(cd_ir))) {
       ((typeck_block_const_init_is_const(arena, block_ref, idx) ==0) ? ({   int32_t err_line = pipeline_expr_line_at(arena, cd_ir);
@@ -14129,6 +14132,10 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
     (void)((lname_len = pipeline_block_let_name_len(arena, block_ref, idx)));
     if (((lname_len > 0) && (lname_len < 128))) {
       (void)(pipeline_block_let_name_copy64(arena, block_ref, idx, &((lname_buf)[0])));
+      /* Twin of typeck.x: discard `let _` (name "_" len=1) must not T001.
+       * L4 g05 compiles this pin (prefer .x hid the gap on daily L2).
+       * PLATFORM: SHARED typeck pin. */
+      if (!((lname_len == 1) && (lname_buf[0] == 95))) {
       (void)((func_ix_l = pipeline_dep_ctx_current_func_index(ctx)));
       ((pipeline_block_local_name_redecl_c(arena, block_ref, &((lname_buf)[0]), lname_len, 0, idx, module, func_ix_l) !=0) ? ({   int32_t err_line = 0;
   int32_t err_col = 0;
@@ -14139,6 +14146,7 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
   (void)(driver_diagnostic_typeck_duplicate_local(err_line, err_col));
   return -1;
  }) : 0);
+      }
     }
     if (!(ast_ref_is_null(ld_ir))) {
       (void)((init_ctx = return_type_ref));
