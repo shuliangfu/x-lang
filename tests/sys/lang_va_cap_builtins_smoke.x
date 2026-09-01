@@ -6,6 +6,7 @@
  * slice8: call sites may pass trailing args beyond named formals.
  * slice9: -E host-cc run must exit 42 (first variadic i32).
  * slice13: also exercise va_arg_i64 + va_arg_ptr (asm Cap qword load).
+ * slice14: typed turbofish va_arg<T>(ap) (G.7 size_of<T> type-arg sidecar).
  * PLATFORM: SHARED — L2 gate; Ubuntu gold.
  */
 
@@ -45,16 +46,24 @@ export extern function va_arg_i64(ap: VaList): i64;
 export extern function va_arg_ptr(ap: VaList): *u8;
 
 /**
- * Variadic probe: i32 then i64 then *i32 via Cap helpers; expect exit 42.
+ * Cap 10.7.1 slice14: typed va_arg<T>(ap) — turbofish type arg, not C va_arg(ap,T).
+ * Typeck via generic extern face; codegen/asm rewrite to Cap (not a real call).
+ * @param ap Cap VaList local.
+ * @return Next variadic value of T (i32 / i64 / *u8 this slice).
+ */
+export extern function va_arg<T>(ap: VaList): T;
+
+/**
+ * Variadic probe: i32 then i64 then *i32 via typed va_arg<T>; expect exit 42.
  * @param n Named last parameter (required by Cap va_start).
  * @return 42 on success; 1/2/3 on mismatch of each slot.
  */
 export function lang_va_cap_probe(n: i32, ...): i32 {
   let ap: VaList;
   va_start(ap, n);
-  let a: i32 = va_arg_i32(ap);
-  let b: i64 = va_arg_i64(ap);
-  let p: *u8 = va_arg_ptr(ap);
+  let a: i32 = va_arg<i32>(ap);
+  let b: i64 = va_arg<i64>(ap);
+  let p: *u8 = va_arg<*u8>(ap);
   va_end(ap);
   if (a != 42) {
     return 1;

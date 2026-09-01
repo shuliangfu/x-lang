@@ -4397,9 +4397,9 @@ static int32_t try_emit_raw_syscall_call_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Cap 10.7.1 slice12–13: twin of try_emit_va_cap_builtin_call_elf_c (.x).
+ * Cap 10.7.1 slice12–14: twin of try_emit_va_cap_builtin_call_elf_c (.x).
  * Cap-private VaList cursor + GP spill into call-spill scratch.
- * va_arg_i32 / va_arg_i64 / va_arg_ptr Cap loads; arm64 residual.
+ * va_arg_i32 / va_arg_i64 / va_arg_ptr / typed va_arg<T> Cap loads; arm64 residual.
  * PLATFORM: SHARED emit · LINUX|x86_64 Cap runtime
  */
 static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
@@ -4424,6 +4424,7 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
   static const uint8_t nm_argi32[10] = {118, 97, 95, 97, 114, 103, 95, 105, 51, 50};
   static const uint8_t nm_argi64[10] = {118, 97, 95, 97, 114, 103, 95, 105, 54, 52};
   static const uint8_t nm_argptr[10] = {118, 97, 95, 97, 114, 103, 95, 112, 116, 114};
+  static const uint8_t nm_arg_typed[6] = {118, 97, 95, 97, 114, 103};
   extern int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx, int32_t var_expr_ref);
   extern int32_t pipeline_asm_emit_func_index_c(void);
   extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
@@ -4476,7 +4477,15 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     for (i = 0; i < 6; i++) {
       if (name[i] != nm_end[i]) { which = -1; break; }
     }
-    if (which == 0) which = 2; else which = 0;
+    if (which == 0) {
+      which = 2;
+    } else {
+      which = 0;
+      for (i = 0; i < 6; i++) {
+        if (name[i] != nm_arg_typed[i]) { which = -1; break; }
+      }
+      if (which == 0) which = 6; else which = 0;
+    }
   }
   if (which == 0 && nlen == 10) {
     for (i = 0; i < 10; i++) {
@@ -4553,7 +4562,30 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
       return -1;
     return 1;
   }
-  /* va_arg_i32 / va_arg_i64 / va_arg_ptr */
+  /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5. Twin .x. */
+  if (which == 6) {
+    int32_t ty_ref;
+    int32_t tk;
+    int32_t tsz;
+    if (n_args != 1)
+      return 0;
+    if (pipeline_expr_call_num_type_args_at(arena, expr_ref) < 1)
+      return 0;
+    ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+    if (ty_ref <= 0)
+      return 0;
+    tk = pipeline_type_kind_ord_at(arena, ty_ref);
+    if (tk == 14 || tk == 15)
+      return 0;
+    tsz = glue_type_size_simple(ly->module_ref, arena, ty_ref, 0);
+    if (tk == 9)
+      which = 5;
+    else if (tsz >= 8)
+      which = 4;
+    else
+      which = 3;
+  }
+  /* va_arg_i32 / va_arg_i64 / va_arg_ptr / classified va_arg<T> */
   if (which < 3 || which > 5)
     return 0;
   if (n_args != 1)

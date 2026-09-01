@@ -3690,6 +3690,12 @@ int32_t codegen_try_emit_va_cap_call(struct ast_ASTArena * arena, struct codegen
     uint8_t close_i64[13] = {44, 32, 105, 110, 116, 54, 52, 95, 116, 41, 41, 41, 0};
     uint8_t close_ptr[15] = {44, 32, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 41, 41, 0};
     uint8_t comma_sp[2] = {44, 32};
+    /* Cap 10.7.1 slice14: typed va_arg<T>. Twin codegen.x. */
+    uint8_t open2[2] = {40, 40};
+    uint8_t mid_typed[16] = {41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40, 0};
+    uint8_t close3t[3] = {41, 41, 41};
+    int32_t n_ta = 0;
+    int32_t ta_ref = 0;
     if ((((arena ==0) || (out ==0)) || (ctx ==0))) {
       return 0;
     }
@@ -3745,6 +3751,10 @@ int32_t codegen_try_emit_va_cap_call(struct ast_ASTArena * arena, struct codegen
     } else if (((name_len == 10) && ((name_ptr)[0] == 118) && ((name_ptr)[1] == 97) && ((name_ptr)[2] == 95) && ((name_ptr)[3] == 97) && ((name_ptr)[4] == 114) && ((name_ptr)[5] == 103) && ((name_ptr)[6] == 95) && ((name_ptr)[7] == 112) && ((name_ptr)[8] == 116) && ((name_ptr)[9] == 114))) {
       (void)((which = 6));
       (void)((expect_args = 1));
+    } else if (((name_len == 6) && ((name_ptr)[0] == 118) && ((name_ptr)[1] == 97) && ((name_ptr)[2] == 95) && ((name_ptr)[3] == 97) && ((name_ptr)[4] == 114) && ((name_ptr)[5] == 103))) {
+      /* Cap 10.7.1 slice14: va_arg<T>(ap). Twin codegen.x. */
+      (void)((which = 7));
+      (void)((expect_args = 1));
     } else {
       return 0;
     }
@@ -3752,6 +3762,49 @@ int32_t codegen_try_emit_va_cap_call(struct ast_ASTArena * arena, struct codegen
       return 0;
     }
     codegen_set_host_call_arg_param_ty(0);
+    if ((which == 7)) {
+      (void)((n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref)));
+      (void)((ta_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0)));
+      if (((n_ta < 1) || (ta_ref <= 0))) {
+        codegen_set_host_call_arg_param_ty(0);
+        return 0;
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((open2)[0]), 2) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((codegen_emit_type(arena, out, ta_ref, 0, 0, ctx) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((mid_typed)[0]), 15) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((is_method != 0)) {
+        (void)((arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0)));
+      } else {
+        (void)((arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0)));
+      }
+      if ((codegen_emit_call_arg_slice_abi(arena, out, arg_ref, ctx) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((comma_sp)[0]), 2) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((codegen_emit_type(arena, out, ta_ref, 0, 0, ctx) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((close3t)[0]), 3) !=0)) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      codegen_set_host_call_arg_param_ty(0);
+      return 1;
+    }
     if ((which == 1)) {
       if ((codegen_emit_bytes_from_ptr(out, &((pfx)[0]), 9) !=0)) { return -1; }
       if ((codegen_emit_bytes_from_ptr(out, &((s_start)[0]), 6) !=0)) { return -1; }

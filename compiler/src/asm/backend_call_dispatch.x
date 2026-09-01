@@ -4278,7 +4278,8 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
- * Cap 10.7.1 slice12–13: language va_start / va_end / va_arg_{i32,i64,ptr} → asm Cap.
+ * Cap 10.7.1 slice12–14: language va_start / va_end / va_arg_{i32,i64,ptr} /
+ * typed va_arg<T>(ap) → asm Cap.
  *
  * Host-C uses xlang_va_* macros (SysV). Asm Cap is Cap-private: at va_start,
  * spill the 6 SysV GP arg regs into call-spill scratch (regs still hold entry
@@ -4287,6 +4288,8 @@ function try_emit_raw_syscall_call_elf_c(
  * va_arg_i32 loads *cursor as i32; va_arg_i64 / va_arg_ptr load qword; all
  * advance the cursor by -8 (spill slots use rising rbp-offsets = falling
  * addresses: save+0 closest to rbp, save+40 furthest). va_end is a no-op.
+ * slice14: va_arg<T>(ap) classifies T (PTR→qword, size>=8→qword, else i32)
+ * via existing type-arg sidecar (G.7 size_of<T> pattern). f32/f64 residual.
  *
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
@@ -4318,6 +4321,10 @@ function try_emit_va_cap_builtin_call_elf_c(
     let nm_argi32_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 51, 50]; /* va_arg_i32 */
     let nm_argi64_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 54, 52]; /* va_arg_i64 */
     let nm_argptr_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 112, 116, 114]; /* va_arg_ptr */
+    let nm_arg_typed: u8[6] = [118, 97, 95, 97, 114, 103]; /* va_arg */
+    let ty_ref: i32 = 0;
+    let tk: i32 = 0;
+    let tsz: i32 = 0;
     let ap_ref: i32 = 0;
     let ap_off: i32 = 0;
     let cur: i32 = 0;
@@ -4371,6 +4378,14 @@ function try_emit_va_cap_builtin_call_elf_c(
         else { i = i + 1; }
       }
       if (i == 6) { which = 2; }
+      if (which == 0) {
+        i = 0;
+        while (i < 6) {
+          if (name[i] != nm_arg_typed[i]) { i = 99; }
+          else { i = i + 1; }
+        }
+        if (i == 6) { which = 6; }
+      }
     }
     if (which == 0 && nlen == 10) {
       i = 0;
@@ -4454,6 +4469,25 @@ function try_emit_va_cap_builtin_call_elf_c(
       return 1;
     }
 
+    /* which == 6: typed va_arg<T>(ap) → classify T into 3/4/5. */
+    if (which == 6) {
+      if (n_args != 1) { return 0; }
+      if (pipeline_expr_call_num_type_args_at(arena, expr_ref) < 1) { return 0; }
+      ty_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+      if (ty_ref <= 0) { return 0; }
+      tk = pipeline_type_kind_ord_at(arena, ty_ref);
+      /* TYPE_F32=14 / TYPE_F64=15: XMM residual this slice. */
+      if (tk == 14 || tk == 15) { return 0; }
+      mod = call_dispatch_load_ptr_le(ctx, 16);
+      tsz = glue_type_size_simple(mod, arena, ty_ref, 0);
+      if (tk == 9) {
+        which = 5;
+      } else if (tsz >= 8) {
+        which = 4;
+      } else {
+        which = 3;
+      }
+    }
     /* which == 3/4/5: va_arg_i32 / va_arg_i64 / va_arg_ptr (ap) */
     if (which < 3 || which > 5) { return 0; }
     if (n_args != 1) { return 0; }
@@ -5838,7 +5872,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
     }
-    /* Cap 10.7.1 slice12–13: va_start/end/va_arg_{i32,i64,ptr} Cap (x86_64). */
+    /* Cap 10.7.1 slice12–14: va_start/end/va_arg_{i32,i64,ptr}/va_arg<T> Cap (x86_64). */
     {
       let va_rc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (va_rc < 0) { return 0 - 1; }

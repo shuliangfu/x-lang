@@ -12807,8 +12807,9 @@ arg_ref: i32): i32 {
 }
 
 /**
- * Cap 10.7.1 slice10: language Cap va_* faces (codegen → xlang_va_* macros).
+ * Cap 10.7.1 slice10+14: language Cap va_* faces (codegen → xlang_va_* macros).
  * Not libc FFI — export-extern is only a typeck shape; calls need no unsafe.
+ * slice14: also `va_arg` (typed turbofish va_arg<T>(ap)).
  * @param name *u8 — bare callee spelling
  * @param name_len i32 — byte length
  * @return i32 — 1 Cap va builtin, 0 otherwise
@@ -12826,6 +12827,11 @@ export function typeck_is_cap_va_builtin_name(name: *u8, name_len: i32): i32 {
   }
   if (name_len == 6 && name[0] == 118 && name[1] == 97 && name[2] == 95
       && name[3] == 101 && name[4] == 110 && name[5] == 100) {
+    return 1;
+  }
+  /* Cap 10.7.1 slice14: typed va_arg<T>(ap) — turbofish, not libc FFI. */
+  if (name_len == 6 && name[0] == 118 && name[1] == 97 && name[2] == 95
+      && name[3] == 97 && name[4] == 114 && name[5] == 103) {
     return 1;
   }
   if (name_len == 7 && name[0] == 118 && name[1] == 97 && name[2] == 95

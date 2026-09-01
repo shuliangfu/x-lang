@@ -10475,6 +10475,10 @@ int32_t typeck_is_cap_va_builtin_name(uint8_t * name, int32_t name_len) {
   if (((((((name_len == 6) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 101)) && ((name)[4] == 110)) && ((name)[5] == 100))) {
     return 1;
   }
+  /* Cap 10.7.1 slice14: typed va_arg<T>(ap). Twin typeck.x. */
+  if (((((((name_len == 6) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 97)) && ((name)[4] == 114)) && ((name)[5] == 103))) {
+    return 1;
+  }
   if ((((((((name_len == 7) && ((name)[0] == 118)) && ((name)[1] == 97)) && ((name)[2] == 95)) && ((name)[3] == 99)) && ((name)[4] == 111)) && ((name)[5] == 112)) && ((name)[6] == 121))) {
     return 1;
   }

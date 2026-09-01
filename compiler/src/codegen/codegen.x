@@ -2633,9 +2633,10 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  *   va_arg_i32(ap)     → ((int32_t)(xlang_va_arg(ap, int32_t)))
  *   va_arg_i64(ap)     → ((int64_t)(xlang_va_arg(ap, int64_t)))
  *   va_arg_ptr(ap)     → ((uint8_t *)(xlang_va_arg(ap, uint8_t *)))
+ *   va_arg<T>(ap)      → ((CType)(xlang_va_arg(ap, CType)))  [slice14]
  *
- * Typed `va_arg(ap, T)` syntax is deferred (needs type-as-arg parse).
- * Header face: codegen_x_ast_emit_header `#include <xlang_va_cap.h>`.
+ * Typed form reuses existing turbofish `id<T>(…)` (G.7 size_of<T> pattern);
+ * no type-as-value parse. Header face: emit_header `#include <xlang_va_cap.h>`.
  * VaList TYPE_NAMED → xlang_va_list in emit_type.
  *
  * @param arena *ASTArena — expr / callee slots
@@ -2679,6 +2680,12 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     /* , uint8_t *))) */
     let close_ptr: u8[15] = [44, 32, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 41, 41, 0];
     let comma_sp: u8[2] = [44, 32];
+    /* slice14 typed va_arg<T>: `((` + emit_type(T) + `)(xlang_va_arg(` + ap + `, ` + T + `)))` */
+    let open2: u8[2] = [40, 40];
+    let mid_typed: u8[16] = [41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40, 0];
+    let close3t: u8[3] = [41, 41, 41];
+    let n_ta: i32 = 0;
+    let ta_ref: i32 = 0;
     if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
@@ -2747,6 +2754,11 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
         && name_ptr[9] == 114) {
       which = 6;
       expect_args = 1;
+    } else if (name_len == 6 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103) {
+      /* Cap 10.7.1 slice14: va_arg<T>(ap) turbofish. Distinct from va_end. */
+      which = 7;
+      expect_args = 1;
     } else {
       return 0;
     }
@@ -2754,6 +2766,49 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     codegen_set_host_call_arg_param_ty(0);
+    if (which == 7) {
+      n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+      ta_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+      if (n_ta < 1 || ta_ref <= 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return 0;
+      }
+      if (emit_bytes_from_ptr(out, &open2[0], 2) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_type(arena, out, ta_ref, 0 as *u8, 0, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &mid_typed[0], 15) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (emit_call_arg_slice_abi(arena, out, arg_ref, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &comma_sp[0], 2) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_type(arena, out, ta_ref, 0 as *u8, 0, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &close3t[0], 3) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      codegen_set_host_call_arg_param_ty(0);
+      return 1;
+    }
     if (which == 1) {
       if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
         return -1;

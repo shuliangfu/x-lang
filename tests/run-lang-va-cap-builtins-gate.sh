@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Cap 10.7.1 language slice7–13: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
+# Cap 10.7.1 language slice7–14: va_* → Cap (-E/host-cc) + product -backend c -o + default asm -o.
 # slice7–10: Cap rewrite/arity/host-cc/preamble; slice11: invoke_cc Cap -I;
-# slice12: asm Cap va_start/end/va_arg_i32; slice13: asm Cap va_arg_i64/ptr.
+# slice12: asm Cap va_start/end/va_arg_i32; slice13: asm Cap va_arg_i64/ptr;
+# slice14: typed turbofish va_arg<T>(ap).
 # PLATFORM: SHARED — L2 probe; Ubuntu gold. Does not run xlang check.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -63,15 +64,15 @@ if ! grep -E 'lang_va_cap_probe\([^)]*42' "$OUT_C" >/dev/null 2>&1; then
   grep -n 'lang_va_cap_probe' "$OUT_C" | head -20 >&2 || true
   exit 1
 fi
-# slice13: typed helpers must rewrite to Cap macros (not bare va_arg_i64/ptr calls).
+# slice13–14: typed va_arg<T> / helpers must rewrite to Cap macros (not bare va_arg calls).
 if ! grep -F 'int64_t)(xlang_va_arg(ap, int64_t)' "$OUT_C" >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_va_arg_i64" >&2
-  grep -n 'va_arg_i64\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
+  grep -n 'va_arg\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
   exit 1
 fi
 if ! grep -F 'uint8_t *)(xlang_va_arg(ap, uint8_t *)' "$OUT_C" >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_va_arg_ptr" >&2
-  grep -n 'va_arg_ptr\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
+  grep -n 'va_arg\|xlang_va_arg' "$OUT_C" | head -30 >&2 || true
   exit 1
 fi
 
@@ -128,8 +129,8 @@ if [[ "$prod_run" -ne 42 ]]; then
   exit 1
 fi
 
-# Cap 10.7.1 slice12–13: default product asm -o (no ALLOW_HOST_CC) must exit 42.
-# slice13: no UNDEF for va_arg_i64 / va_arg_ptr either.
+# Cap 10.7.1 slice12–14: default product asm -o (no ALLOW_HOST_CC) must exit 42.
+# slice14: no UNDEF for va_arg / va_arg_i64 / va_arg_ptr either.
 OUT_ASM="/tmp/xlang_lang_va_cap_builtins_asm_$$"
 trap 'rm -f "$OUT_C" "$OUT_BIN" "$OUT_PROD" "$OUT_ASM"' EXIT
 rm -f "$OUT_ASM"
@@ -144,7 +145,7 @@ if [[ "$asm_rc" -ne 0 ]] || [[ ! -x "$OUT_ASM" ]]; then
   exit 1
 fi
 rm -f /tmp/xlang_lang_va_cap_builtins_asm.$$
-if nm -u "$OUT_ASM" 2>/dev/null | grep -E 'U (va_start|va_end|va_arg_i32|va_arg_i64|va_arg_ptr)$' >/dev/null 2>&1; then
+if nm -u "$OUT_ASM" 2>/dev/null | grep -E 'U (va_start|va_end|va_arg_i32|va_arg_i64|va_arg_ptr|va_arg)$' >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=asm_undef_va" >&2
   nm -u "$OUT_ASM" 2>/dev/null | grep -E 'va_' >&2 || true
   exit 1
