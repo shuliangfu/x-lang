@@ -10,7 +10,7 @@
  * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
  * after_entry_parse_module/codegen_emit_func_fail +
  * asm last_expr/store/trace/print/var/fail_at + slice_marker dropped;
- * wave6: va_list report_x cold-only (FROM_X dead — pure XP001/XP002 cover callers);
+ * wave6: Cap-va report_x cold-only (FROM_X dead — pure XP001/XP002 cover callers);
  * lsp_diag_get_enabled authority moved to runtime_lsp_glue (G.7 with flag owner).
  * FROM_X rest T=0 (empty TU of public business symbols).
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
@@ -51,9 +51,8 @@ void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pr
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdarg.h>
 #include <string.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: cold driver_diagnostic → Cap fmt */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: cold driver_diagnostic → Cap fmt */
 /* G.7: single Cap authority for this cold TU (after stdio). Prefer thin.x already avoids libc fmt. */
 #undef snprintf
 #undef vsnprintf
@@ -181,10 +180,10 @@ void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg)
 #endif
 
 
-/* wave6: va_list report_x is cold-seed only. Under FROM_X, pure thin XP001/XP002 cover
+/* wave6: Cap-va report_x is cold-seed only. Under FROM_X, pure thin XP001/XP002 cover
  * the only historical callers; no external UNDEF references. PLATFORM: SHARED cold path. */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
-void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, va_list ap) {
+void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, xlang_va_list ap) {
     char buf[256];
 
     if (!fmt)
@@ -200,10 +199,10 @@ void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, 
 }
 void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) {
   {
-    va_list ap;
-    va_start(ap, fmt);
+    xlang_va_list ap;
+    xlang_va_start(ap, fmt);
     driver_diag_report_x_pipeline_code_impl(code, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
   }
 }
 #endif
@@ -1056,7 +1055,7 @@ int driver_diag_env_debug_pipe(void) {
     return driver_diag_env_debug_pipe_impl();
 }
 #endif
-/** pure 权威：thin.x driver_diag_pipe_note（append+note，无 va_list）；
+/** pure 权威：thin.x driver_diag_pipe_note（append+note，无 va_list reportf）；
  * 冷启动保留 reportf 体；FROM_X 无 pure-dup _impl（H↓）。
  * kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
@@ -1563,7 +1562,7 @@ void driver_diagnostic_asm_fail_at(int32_t loc)
 
 
 
-/* pure 权威：thin.x driver_debug_log / parser_diag_*（append+note，无 va_list）；
+/* pure 权威：thin.x driver_debug_log / parser_diag_*（append+note，无 va_list reportf）；
  * 冷启动保留 reportf 体；FROM_X 无 pure-dup _impl（H↓）。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_debug_log(int32_t step)
