@@ -19,8 +19,8 @@
  *   + tcp_parse_named + xlang_target_cpu_resolve + tcp_eq5 + tcp_eq6
  *   + xlang_simd_is_vector_type_spelling + xlang_simd_vector_lanes_esz_from_spelling
  *   + append_feat_name + flags_has_token
- * Cap residual（mega rest 冷路径）：xlang_target_cpu_print（Linux Cap io write；
- *   Darwin 仍 FILE/fprintf）+ OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
+ * Cap residual（mega rest 冷路径）：xlang_target_cpu_print（Linux/Darwin Cap io write；
+ *   仅 Win/其它仍 FILE/fprintf）+ OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
  * FROM_X 下本文件业务 H=0（仅 extern 声明 + slice marker）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -295,7 +295,7 @@ int target_cpu_pure_slice_marker(void) {
 
 /* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
 #include <xlang_io_cap.h>
 #define HAVE_XLANG_IO_PRINT_CAP 1
 #endif
@@ -307,7 +307,7 @@ int target_cpu_pure_slice_marker(void) {
  * @param fd   stdout=1
  * @param buf  bytes to emit
  * @param len  byte count
- * PLATFORM: LINUX Cap residual 9.5.2
+ * PLATFORM: LINUX|DARWIN Cap residual 9.5.2
  */
 static void tcp_cap_write_all(int fd, const char *buf, size_t len) {
   size_t off = 0;
@@ -334,7 +334,7 @@ static void tcp_fmt_u32_hex8(uint32_t v, char *dst) {
 
 /**
  * Append fixed prefix + 0x + 8-digit hex + newline; write to fd.
- * PLATFORM: LINUX Cap residual 9.5.2
+ * PLATFORM: LINUX|DARWIN Cap residual 9.5.2
  */
 static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
   char line[64];
