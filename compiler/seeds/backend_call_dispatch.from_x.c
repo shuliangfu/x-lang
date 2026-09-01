@@ -4503,8 +4503,8 @@ static int32_t try_emit_va_cap_builtin_call_elf_c(struct ast_ASTArena *arena,
     if (ap_off < 16)
       return -1;
     fi = pipeline_asm_emit_func_index_c();
-    if (ctx->module_ref && fi >= 0)
-      np = pipeline_module_func_num_params_at(ctx->module_ref, fi);
+    if (ly->module_ref && fi >= 0)
+      np = pipeline_module_func_num_params_at(ly->module_ref, fi);
     if (np < 0)
       np = 0;
     if (np > 6)
