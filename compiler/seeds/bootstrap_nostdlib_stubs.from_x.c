@@ -27,8 +27,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdarg.h>
-#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: freestanding vsnprintf authority */
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: freestanding vsnprintf authority */
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -253,7 +252,7 @@ static unsigned char *bootstrap_heap_limit;
 size_t bootstrap_align16(size_t n);
 int bootstrap_heap_grow(size_t need);
 int bootstrap_format_double(double x, char *out, size_t cap);
-int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap);
+int bootstrap_vfprintf_fd(int fd, const char *fmt, xlang_va_list ap);
 #if defined(__linux__) && defined(__x86_64__)
 long bootstrap_syscall3(long nr, long a0, long a1, long a2);
 long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3);
@@ -626,35 +625,35 @@ int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_
  *
  * NL-07 L4: Cap honors %.*s / * width so product diagnostics stay va-aligned.
  */
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
+int vsnprintf(char *buf, size_t size, const char *fmt, xlang_va_list ap) {
     return xlang_vsnprintf(buf, size, fmt, ap);
 }
 
 /** snprintf — Cap residual 10.7.2 thin wrap over xlang_vsnprintf. */
 int snprintf(char *buf, size_t size, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = xlang_vsnprintf(buf, size, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** 向 fd 格式化输出；返回写入字节数。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
+int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, xlang_va_list ap) {
     char stack_buf[512];
     char *heap_buf = NULL;
     char *use_buf = stack_buf;
     size_t cap = sizeof(stack_buf);
-    va_list ap2;
+    xlang_va_list ap2;
     int need;
     int wrote = 0;
     if (!fmt)
         return 0;
-    va_copy(ap2, ap);
+    xlang_va_copy(ap2, ap);
     need = vsnprintf(stack_buf, cap, fmt, ap2);
-    va_end(ap2);
+    xlang_va_end(ap2);
     if (need >= (int)cap) {
         cap = (size_t)need + 1u;
         heap_buf = (char *)malloc(cap);
@@ -671,8 +670,8 @@ int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl
- * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 va_list，C 链接器不看类型，ABI 兼容 */
-int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
+ * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 xlang_va_list，C 链接器不看类型，ABI 兼容 */
+int bootstrap_vfprintf_fd(int fd, const char *fmt, xlang_va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -680,19 +679,19 @@ int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) { return bootstra
 
 /** fprintf 最小实现；仅 stdout/stderr fd 路径。 */
 int fprintf(FILE *stream, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
     int fd = 1;
     if (stream == stderr)
         fd = 2;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = bootstrap_vfprintf_fd(fd, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** vfprintf 最小实现；供 _FORTIFY_SOURCE 重定向桩使用。 */
-int vfprintf(FILE *stream, const char *fmt, va_list ap) {
+int vfprintf(FILE *stream, const char *fmt, xlang_va_list ap) {
     int fd = 1;
     if (stream == stderr)
         fd = 2;
@@ -703,36 +702,36 @@ int vfprintf(FILE *stream, const char *fmt, va_list ap) {
 
 /** glibc _FORTIFY_SOURCE：nostdlib 链 fmt_check_cmd_driver.o 需要。 */
 int __fprintf_chk(FILE *stream, int flag, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
     (void)flag;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = vfprintf(stream, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** glibc _FORTIFY_SOURCE：nostdlib 链 snprintf 重定向。 */
 int __snprintf_chk(char *s, size_t maxlen, int flag, size_t slen, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
     (void)flag;
     (void)slen;
     if (!s || maxlen == 0)
         return -1;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = vsnprintf(s, maxlen, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** printf 最小实现。 */
 int printf(const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = bootstrap_vfprintf_fd(1, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
@@ -1378,10 +1377,10 @@ int close(int fd) {
 int open(const char *path, int flags, ...) {
     mode_t mode = 0;
     if (flags & O_CREAT) {
-        va_list ap;
-        va_start(ap, flags);
-        mode = (mode_t)va_arg(ap, int);
-        va_end(ap);
+        xlang_va_list ap;
+        xlang_va_start(ap, flags);
+        mode = (mode_t)xlang_va_arg(ap, int);
+        xlang_va_end(ap);
     }
 #if defined(__linux__) && defined(__x86_64__)
     return (int)bootstrap_syscall3(2L, (long)path, (long)flags, (long)mode);
@@ -2521,19 +2520,19 @@ int execv(const char *path, char *const argv[]) {
 
 /** execlp：可变参数转 argv 后 execvp（签名与 unistd.h 一致）。 */
 int execlp(const char *file, const char *arg, ...) {
-  va_list ap;
+  xlang_va_list ap;
   char *argv[256];
   int i = 0;
   argv[i++] = (char *)file;
   argv[i++] = (char *)arg;
-  va_start(ap, arg);
+  xlang_va_start(ap, arg);
   while (i < 255) {
-    char *a = va_arg(ap, char *);
+    char *a = xlang_va_arg(ap, char *);
     argv[i++] = a;
     if (!a)
       break;
   }
-  va_end(ap);
+  xlang_va_end(ap);
   return execvp(file, argv);
 }
 
