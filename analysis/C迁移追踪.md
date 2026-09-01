@@ -1,8 +1,8 @@
 # C → .X 迁移追踪（状态待办地图）
 
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 路径／验收／为何开）。  
-> **禁止**：tip 流水账、wave／SHA 日记、双端 `/tmp` 日志、「证：…」长叙事。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
-> **考古副本**（本波重写前全文）：[`archive/C迁移追踪-流水账归档-20260825.md`](archive/C迁移追踪-流水账归档-20260825.md)  
+> **禁止**：tip 流水账、wave／SHA 日记、双端 `/tmp` 日志、「证：…」长叙事。波次流水只写 `[自举进度.md](自举进度.md)` §6。  
+> **考古副本**（本波重写前全文）：`[archive/C迁移追踪-流水账归档-20260825.md](archive/C迁移追踪-流水账归档-20260825.md)`  
 > **刷新**：2026-08-25 · 钉盘 **`e8176cbe5`**（不随微步升钉）
 
 ### 维护约定
@@ -10,7 +10,7 @@
 1. 做到某一项 → 标 **🟡**；完成 → **✅**；未开 → **⬜**。  
 2. 只改状态与必要事实（路径、LOC、验收条件）。  
 3. 不要往本文追加「本波完成了什么」段落。  
-4. MG／Makefile 叶映射细节见 [`Makefile迁移表.md`](Makefile迁移表.md)。
+4. MG／Makefile 叶映射细节见 `[Makefile迁移表.md](Makefile迁移表.md)`。
 
 ---
 
@@ -157,7 +157,7 @@
 - ✅ **9.1.5** clock_gettime／nanosleep／gmtime_r／QPC／Sleep — **Ubuntu ✅（WIP）**：`xlang_time_cap.h`（Linux syscall＋civil gmtime）；`runtime_time_os`＋scheduler／channel／sync／driver wall。探针 `time_raw_smoke.x`。残：localtime_r／mktime（tz）· mega 未注入 · Darwin／Win QPC 面既有  
 - ✅ **9.1.6** getrandom／getentropy／BCryptGenRandom — **Ubuntu ✅（WIP）**：`xlang_random_cap.h`（Linux getrandom syscall）；`random_fill_bytes_impl`。探针 `random_raw_smoke.x`。残：Darwin getentropy · Win BCrypt 既有  
 - 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–3＋poll 收口 Ubuntu ✅（WIP）**：net Cap＋DNS Cap＋http 宏＋**preamble Cap poll**（`3d10ea818`；g05 后 `net.o`／bytes／fs **无 U poll**，reloc→`xlang_net_poll`）。残：WSAStartup／Darwin  
-- ✅ **9.1.8** `_write`／write／read — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`；preamble＋stubs weak `xlang_sys_*`＋io_abi cold read/write→Cap。探针 `io_write_raw_smoke.x`／`io_read_raw_smoke.x`＠**`c73745da4`**。残：Darwin／Win 金标  
+- ✅ **9.1.8** `_write`／write／read — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`；preamble＋stubs weak `xlang_sys_`*＋io_abi cold read/write→Cap。探针 `io_write_raw_smoke.x`／`io_read_raw_smoke.x`＠**`c73745da4`**。残：Darwin／Win 金标  
 - ✅ **9.1.9** inline asm syscall（Linux x86_64）— **Ubuntu ✅（WIP）**：G.7 `xlang_syscall_cap.h`（syscall0..6；x86_64＋aarch64）；path／io／net／process／time／random 改 alias。探针 `syscall_cap_raw_smoke.x`＠**`fecc624dd`**。残：非 Cap 种子内仍有独立 asm（bootstrap／freestanding）  
 - 🟡 **9.1.10** opendir／readdir／closedir — **Ubuntu ✅（WIP）**：G.7 `xlang_dir_cap.h`＋`-E` prologue＋formal merge＋posix／fmt／pabi Cap。证＠**`6ee38226e`**：fs／fmt／pabi **无 U opendir** · Cap smoke **0**。残：Darwin／Win  
 - ✅ **9.1.11** execinfo／dladdr — **Linux+Darwin ✅（WIP）**：`xlang_backtrace_cap.h` frame walk＋Linux maps/ELF `xlang_bt_dladdr`＠**`72f18126c`** · Darwin proc_regionfilename＋Mach-O symtab＠**`e2bba0eed`**；platform.o **无 U backtrace/dladdr**（双端）· 探针 `backtrace_cap_raw_smoke.x`／`backtrace_dladdr_raw_smoke.x` **0**。残：Win DbgHelp  
@@ -184,7 +184,7 @@
 
 - ✅ **9.4.1** uintptr_t→fnptr cast + indirect call — 吸收于 **10.3** Cap `*u8`／`as function`／Cap CALL（Ubuntu）；Darwin Cap 仍阻
 - ⬜ **9.4.2** `void*(*)(void*)` C ABI  
-- ⬜ **9.4.3** `main` 的 `char**` argv  
+- ⬜ **9.4.3** `main` 的 `char`** argv  
 - ⬜ **9.4.4** pthread_mutex／cond／create  
 - ⬜ **9.4.5** CRITICAL_SECTION／SRWLOCK／CONDITION_VARIABLE／CreateThread／`_beginthreadex`  
 - ⬜ **9.4.6** SetThreadAffinityMask／qos_class  
@@ -225,7 +225,7 @@
 
 ### 10.2 inline asm
 
-- 🟡 **10.2.1** x86_64 inline asm — **slice0–16**（options 族大体收；WIP）：`opt_bits&28` 拒本地 out；`pure+noreturn` 硬拒。探针 `asm_readonly_*`／`asm_pure_*`／既有 nomem／nostack／pf。残：10.2.3  
+- 🟡 **10.2.1** x86_64 inline asm — **slice0–16**（options 族大体收；WIP）：`opt_bits&28` 拒本地 out；`pure+noreturn` 硬拒。探针 `asm_readonly_`*／`asm_pure_`*／既有 nomem／nostack／pf。残：10.2.3  
 - 🟡 **10.2.2** arm64 inline asm — **slice0–2 ✅（Ubuntu encode）**：slice0 nop；slice1 `mov_arg_reg_to_rax` ta==1；slice2 开 x6／x7（mk 7／8）→ **AAPCS x0..x7**。探针 `asm_lateout_x{1,2,6,7}_arm64_smoke.x`。残：运行时 qemu  
 - ⬜ **10.2.3** Windows inline asm／intrinsics  
 
@@ -237,9 +237,9 @@
 
 ### 10.4–10.7
 
-- ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar*`／`stlr*`／`casal*`）。残：Darwin
+- ✅ **10.4.1** atomic_load／store／cas — **Ubuntu ✅**＠`a2277e5e3`：x86 i16/i32/i64＋aarch64 i16/i32/i64（`ldar`*／`stlr`*／`casal*`）。残：Darwin
 - ✅ **10.4.2** 内存屏障内建 — **Ubuntu ✅** x86 fence＠`d39f619ee`＋aarch64 `dmb ish/ishld/ishst`＠`f2cc0d8d6`  
-- 🟡 **10.5.1** x86 AVX／SSE 内建 — **slice0 ✅（Ubuntu）**＠`e296cdc25`：`std/simd/builtin.x` `add_f32x4`／`mul_f32x4` panic 体＋`try_emit_simd_lang_builtin_call_elf_c` SSE addps/mulps（Vec4f dual-GP spill）；探针 `simd_lang_f32x4_smoke.x`＋gate **run=2**。残：i32x8／AVX2 ymm／aarch64 NEON · host-C
+- 🟡 **10.5.1** x86 AVX／SSE 内建 — **slice0 ✅**＠`e296cdc25` f32x4 · **slice1 ✅（Ubuntu）**＠`0a09b8056`：`add_i32x8`／`mul_i32x8` paddd/pmulld（Vec8i sret＋VAR homes＋`simd_enc` ymm rbp 修）；gate **run=2**。残：AVX2 ymm 扩 op／aarch64 NEON · host-C
 - ⬜ **10.5.2** ARM SVE／NEON 内建  
 - ⬜ **10.6.1** Linux futex／clone／mmap 栈  
 - ⬜ **10.6.2** Windows CreateThread／WaitForSingleObject  
@@ -285,7 +285,7 @@
 - 🟡 **11.5.4** `tests/probes/**/*.c` — 同上  
 - ⬜ **11.6.1** `editors/tree-sitter-xlang/` 第三方 grammar  
 
-全量叶映射 → [`Makefile迁移表.md`](Makefile迁移表.md)。
+全量叶映射 → `[Makefile迁移表.md](Makefile迁移表.md)`。
 
 ---
 
@@ -336,7 +336,7 @@
 
 ## 产品软残（非阶段编号 · 日常软刀池）
 
-> 流水与证据在 [`自举进度.md`](自举进度.md)。此处只勾选。
+> 流水与证据在 `[自举进度.md](自举进度.md)`。此处只勾选。
 
 | 项 | 状态 | 备注 |
 |----|------|------|
@@ -369,7 +369,7 @@
 | view_lifecycle discard `_` | ✅ | typeck one_let／one_const 豁免精确 `"_"` redecl；Ubuntu／Darwin `view_lifecycle` run=0／L2 |
 | print_any JSON println | ✅ | typeck fmt-any 放行＋asm schema emit＋`std_fmt_json_*_schema`／`u8_slc` stubs；fmt-std 纳 print_any；双端 L2 |
 | u8_slc fat-pointer ABI | ✅ | io stubs `std_fmt_*_u8_slc(const XlangSliceU8 *)` 对齐 TYPE_SLICE 形参权威；fmt-std 纳 print_u8_slc；双端 L2 |
-| host-C STRUCT_LIT mono 标签统一 | ✅ | 外层 joiner `__`→`_`（≡ typeck named-inst）；`Box_i32` 单权威；函数 mono 仍 `__`；双端 L2 |
+| host-C STRUCT_LIT mono 标签统一 | ✅ | 外层 joiner `_`_→`_`（≡ typeck named-inst）；`Box_i32` 单权威；函数 mono 仍 `_`_；双端 L2 |
 | TYPE_SLICE i32[] print_any schema A@ | ✅ | fat `A@OFF` JSON；u8[] 仍 u8_slc mid；fmt-std 内容硬闸；双端 L2 |
 | ArrowColumnMem 32B pack／db_kv_arrow | ✅ | `data_owned` 挪入 calloc(1,32) 头内；SIMD twin 同 commit；cookbook 8／8＋smoke；双端 L2 |
 | STD-025 env_iter soft→硬绿 | ✅ | 闸 prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft XLANG fallthrough／soft auto-make／`check=` 报告；显式坏 XLANG／缺 native 硬 die；`env_iter.x`／cookbook `env_args_iter.x` exit0 硬失败；check＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**env-iter soft auto-make FAIL 池空**；**leftover unused compiler-make 已收** |
@@ -692,11 +692,11 @@
 | codegen-regression soft SKIP→OK →硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 soft SKIP→OK／prefer-c／soft auto-make；显式坏 XLANG／缺 native 硬 die；DOC→archive `## Gate`；化石 bench→`r01_`／`m03_`／`r10_`／`a01_`；hook 产品残／Darwin SIGKILL＝obs；报告 `run=`／`hook=`／`obs=`／`skip=`；双端 L2；**codegen-regression soft FAIL 池空**；zc3／zc4／zc5 host-c 后置；lang-unsafe（check 后置） |
 | lang-option-generic／lang-result-generic／lang-const-eval／lang-abi-stability soft SKIP→OK →硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 soft SKIP→OK／prefer-c；**2026-08-29 残 auto-make 已收**（option／result leftover `xlang_compiler_make`）；显式坏 XLANG／缺 native 硬 die；DOC→archive `## Gate`；option／result check／f32 xmm residual＝obs；报告 `run=`／`obs=`／`layout=`／`f32=`／`skip=`；双端 L2；**lang-option-generic＋lang-result-generic＋lang-const-eval＋lang-abi-stability soft FAIL 池空**；option／result check＝obs（Darwin）；abi f32 residual＝obs；zc3／zc4／zc5 host-c 后置；lang-unsafe（check 后置） |
 | lang-generic／lang-trait／lang-lifetime／async-language／async-future soft SKIP→OK →硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 soft SKIP→OK／prefer-c／force-xlang-c multi-file；**2026-08-29 残 auto-make 已收**（trait／lifetime leftover `xlang_compiler_make`；generic 卸 unused `compiler-make.sh`）；显式坏 XLANG／缺 native 硬 die；DOC→archive `## Gate`；lifetime check／async run·mod·c·.x·emit-marker＝obs；报告 `run=`／`multi=`／`neg=`／`obs=`／`skip=`；双端 L2；**lang-generic＋lang-trait＋lang-lifetime＋async-language＋async-future soft FAIL 池空**；async-language run／mod＝obs；async-future c／.x／emit-marker＝obs；lifetime check smoke＝obs；zc3／zc4／zc5 host-c 后置 |
-| lang-feature／lang-import／std-async-1m soft SKIP→OK →硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 soft SKIP→OK／prefer-c／force-xlang-c LINK／silent asm→c；**2026-08-29 残 auto-make 已收**（feature／import leftover `xlang_compiler_make`；import 另拒 `scheduler.o`）；显式坏 XLANG／缺 native 硬 die；DOC→archive `## Gate`；1m 矩阵→`i06_*`；coop_pingpong UNDEF＝obs；报告 `run=`／`hooks=`／`edition=`／`obs=`／`skip=`；双端 L2；**lang-feature＋lang-import＋std-async-1m soft FAIL 池空**；async-1m coop UNDEF＝obs；zc3／zc4／zc5 host-c 后置 |
+| lang-feature／lang-import／std-async-1m soft SKIP→OK →硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 soft SKIP→OK／prefer-c／force-xlang-c LINK／silent asm→c；**2026-08-29 残 auto-make 已收**（feature／import leftover `xlang_compiler_make`；import 另拒 `scheduler.o`）；显式坏 XLANG／缺 native 硬 die；DOC→archive `## Gate`；1m 矩阵→`i06_`*；coop_pingpong UNDEF＝obs；报告 `run=`／`hooks=`／`edition=`／`obs=`／`skip=`；双端 L2；**lang-feature＋lang-import＋std-async-1m soft FAIL 池空**；async-1m coop UNDEF＝obs；zc3／zc4／zc5 host-c 后置 |
 | tool-*/typeck-hotpath soft SKIP→OK →硬绿 | ✅ | prefer asm；退役 soft SKIP→OK／prefer-c；显式坏 XLANG／缺 native 硬 die；DOC→archive `## Gate`；LSP 无 `--lsp`＝skip=1；region／linear／wpo-optin tip miss＝obs；报告 `run=`／`hooks=`／`obs=`／`skip=`；双端 L2；**tool-*＋typeck-hotpath soft FAIL 池空**；LSP tip 无 `--lsp` skip＝obs；typeck-hotpath region／linear／wpo-optin＝obs；zc3／zc4／zc5 host-c 后置 |
 | alloc-hotspot／net-zc FAIL soft→硬绿 | ✅ | DOC→archive＋`## Gate`；prefer asm；拒 soft auto-make／显式坏 XLANG 回落；退役 soft `XLANG_{ALLOC_HOTSPOT,NET_ZC}_FAIL:-0` 静默 OK＋soft SKIP→OK；超 cap／zc≥ref／compile-fail／`with_arena_vec` exit≠0＝obs（FAIL=1 仍硬）；Darwin／无 perf＝skip；bench→`r08_`／`i03_`／`i04_`／`tests/mem/`；`grep -c` 无匹配权威计数修；报告 `run=`／`obs=`／`skip=`；双端 L2；**alloc-hotspot＋net-zc soft FAIL 池空**；MEM-C1 with_arena exit＝obs；zc3／zc4／zc5 host-c 后置 |
 | compile-dogfood／wpo-s2／p0-matrix FAIL_ON soft→硬绿 | ✅ | DOC→archive＋`## Gate`；prefer asm；拒 soft auto-make／显式坏 XLANG 回落；退役 soft `FAIL_ON_{COMPILE,WPO_S2,C_O2}_*:-0` 静默 OK＋soft SKIP→OK＋p0 FAIL=1 stub；超 cap／check_fail／vs_c>1／compile-fail／vec fold still-calls＝obs（FAIL=1 仍硬）；Darwin wpo N/A＝skip；bench→`a04_wpo_*`；报告 `run=`／`obs=`／`skip=`；双端 L2；**compile-dogfood＋wpo-s2＋p0-matrix soft FAIL 池空**；wpo-s2 vec fold still-calls＝obs |
-| http／async／iocp／baseline FAIL_ON soft→硬绿 | ✅ | DOC→archive＋`## Gate`；prefer asm；拒 soft auto-make／显式坏 XLANG 回落；退役 soft `FAIL_ON_{HTTP,ASYNC,IOCP,ZIG,C_O3}_*:-0` 静默 OK＋soft SKIP→OK；超 cap／慢于 Zig|C-O3／http client `std_io_write_stderr_*` UNDEF＝obs（FAIL=1 仍硬）；iocp 非 Windows＝skip；bench→`i06_`／`r01_`／`m03_`／`r10_`／`a01_`；server 链产品 `runtime_http_glue.o`；报告 `run=`／`obs=`／`skip=`；双端 L2；**http＋async＋iocp＋baseline soft FAIL 池空**；http stderr UNDEF＝obs |
+| http／async／iocp／baseline FAIL_ON soft→硬绿 | ✅ | DOC→archive＋`## Gate`；prefer asm；拒 soft auto-make／显式坏 XLANG 回落；退役 soft `FAIL_ON_{HTTP,ASYNC,IOCP,ZIG,C_O3}_*:-0` 静默 OK＋soft SKIP→OK；超 cap／慢于 Zig|C-O3／http client `std_io_write_stderr_*` UNDEF＝obs（FAIL=1 仍硬）；iocp 非 Windows＝skip；bench→`i06`_／`r01`_／`m03_`／`r10_`／`a01_`；server 链产品 `runtime_http_glue.o`；报告 `run=`／`obs=`／`skip=`；双端 L2；**http＋async＋iocp＋baseline soft FAIL 池空**；http stderr UNDEF＝obs |
 | net／io／coldstart FAIL_ON soft→硬绿 | ✅ | DOC→archive＋`## Gate`；prefer asm；拒 soft auto-make／显式坏 XLANG 回落；退役 soft `FAIL_ON_{NET,IO,COLDSTART}_*:-0` 静默 OK＋soft SKIP→OK；超 cap／Zig 慢／nan＝obs（FAIL=1 仍硬）；bench→`i0N_*`＋`zig-perf.tsv`；报告 `run=`／`obs=`／`skip=`；双端 L2；**net＋io＋coldstart soft FAIL 池空**；Darwin net_mixed typeck nan＝obs |
 | xlang-asm-text + compiler-self soft→硬绿 | ✅ | 退役 soft `FAIL_ON_WPO_XLANG_ASM_TEXT`／`FAIL_ON_WPO_COMPILER_SELF_TEXT:-0` under-min FAIL→OK＋缺 `xlang_asm` soft SKIP→OK；under-min＝obs（FAIL=1 仍硬）；Darwin asm-text N/A＝skip；compiler-self graph 绑 `xlang-c check`＝obs（check 暂停，继续 asm proxy）；报告 `run=`／`obs=`／`skip=`；双端 L2；**xlang-asm-text+compiler-self soft FAIL 池空**；graph check-bound 仍产品／check obs |
 | size + WPO DCE text soft→硬绿 | ✅ | 退役 soft `XLANG_SIZE_FAIL:-0` 静默 WARN＋缺 `xlang_asm` soft SKIP→OK；退役 soft `XLANG_PERF_FAIL_ON_WPO_DCE_TEXT:-0` under-min OK＋缺编译器／compile soft SKIP→OK；超 cap／under-min＝obs（FAIL=1 仍硬）；报告 `run=`／`obs=`／`skip=`；eng-quality 仍强制 size advisory；双端 L2；**size+WPO DCE text soft FAIL 池空**；Ubuntu tip stripped＞8MiB＝产品 obs |
@@ -731,7 +731,7 @@
 | CORE-001／CORE-016 soft prefer-c →硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 prefer-c（xlang-c 先）＋soft auto-make xlang-c＋无 native soft SKIP→OK；显式坏 XLANG／缺 native 硬 die；check＝obs；generic `-o` exit0／unify 双 smoke exit0 硬绿；报告 `run=`／`obs=`／`skip=`；双端 L2；**CORE-001＋CORE-016 soft FAIL 池空**；Darwin check＝obs；zc3／zc4／zc5 host-c 后置；ensure_std／fmt-check／brotli／without-c 仍后置；余 soft：其它 core-* leftover runner auto-make 已收（run-core-types）；leftover `run-http.sh`／`run-string.sh` auto-make／wrap 已收；leftover json／net／log／atomic／math ensure 已收；leftover runner auto-make **池空**；leftover runner ensure **池空**；EXC leftover wrap／化石 `$RUN_XLANG build` 已收；STD-026／028 leftover wrap／化石 `$RUN_XLANG build` 已收；STD-012／021-022／138 leftover wrap／`RUN_XLANG` remap 已收；leftover compound-assign／stdtest／stdlib-import wrap／化石 build 已收；leftover tar／boundary-encodings／asm-call-inline auto-make／化石 build 已收；STD-001／002／029／009 leftover wrap 死 source 已收；STD-061／153／INTRINSIC／047 leftover wrap 死 source 已收；STD-003／123／137／133 leftover wrap 死 source 已收；STD-033／BOOT-029／STD-139／STD-160 leftover wrap 死 source 已收；STD-111／145／142／db-kv-arrow／STD-134／BOOT-010 leftover wrap 死 source 已收；余 leftover wrap 死 source **池空**（leave-class SOURCE+USE 仍 freebsd／linux-a09／brotli／dynlib-windows／strview-zc4／xlang-asm-gate／sys-platform-write）；STD-008／joa／035／011／020／158 leftover unused compiler-make 已收；STD-071／156／112／017／150／060 leftover unused compiler-make 已收；STD-015／129／025／132／034／032 leftover unused compiler-make 已收；STD-019／005／080／140／130／053 leftover unused compiler-make 已收；STD-136／135／119／050／092／109 leftover unused compiler-make 已收；STD-004／098／096／055 leftover unused compiler-make 已收；TYPE-004／005／D-05 leftover unused compiler-make 已收；MEM leftover XLANG fallthrough（scope-alloc／noalias／with-arena-vec／alloc-inject）已收；B-01／B-02／B-03／B-20 leftover XLANG fallthrough 已收；A-11 leftover XLANG seed fallthrough 已收；余 leftover unused compiler-make 已 ✅ std-* 死 source **池空**（leave-class SOURCE 仍 async-1m／async-language／hash＊／http-reqresp／encoding-hex／uuid／brotli／strview-zc4／unicode-norm／socketio live／dynlib-windows）；余 leftover unused compiler-make 非 std leftover 仍 c05（nested lsp auto-make＝leave）／f10（F-leave）／LANG-007（leave check 后置）／**ensure 族本体**（leave）／wrap 本体／F-*／hash＊／http-context／zc；余 leftover XLANG fallthrough 非 leave leftover 仍 macos-*／win32-*／F-*；**linux-* leftover XLANG fallthrough 已收** |
 | migrate-x-gen soft→硬绿 | ✅ | 默认 inspect-only gen 标记（拒 soft wipe＋soft auto-make xlang-c）；FORCE 须现成 native xlang-c，经 ensure_migrate_gen＋migrate_x_objs（不先 rm）；stale／缺 `.o` 无 FORCE＝obs；缺 gen／标记 miss＝硬 die；报告 `run=`／`obs=`／`skip=`；双端 L2；**migrate-x-gen soft FAIL 池空**；stale `.o`＝obs；zc3／zc4／zc5 host-c 后置；ensure_std／fmt-check／brotli／without-c 仍后置 |
 | x-pipeline／x-multi-file／lsp soft→硬绿 | ✅ | prefer asm＋`XLANG_LINK_XLANG`；退役 soft auto-make bootstrap-pipeline／xlang-x＋soft SKIP→OK（XLANG 置位／缺 `-x -E`／timeout）／lsp `--help` 缺 `--lsp` soft auto-make；显式坏 XLANG／缺 native 硬 die；`-x -E` min＋multi-file `foo_bar`／exit42 硬绿；lsp tip 无 completionProvider／hits=0＝obs；报告 `run=`／`obs=`／`skip=`；双端 L2；**x-pipeline＋x-multi-file＋lsp soft FAIL 池空**；lsp tip＝obs；zc3／zc4／zc5 host-c 后置；ensure_std／fmt-check／brotli／without-c 仍后置 |
-| STD soft SKIP 邻域续（其它闸） | 🟡 | soft SKIP 邻域续扫（若仍有 soft die→exit0；**…／codec＋stream＋buffer-reuse／option-result／bytes-arena＋datetime＋url／cli＋cache＋config＋csv-row＋bytes／boot-std-link＋exc-cli＋exc-panic／boot-015＋019／refresh-xlang-asm／CORE-017＋011／CORE-002/003＋006＋STD-131／CORE-012＋007＋004／CORE-001＋016／migrate-x-gen／x-pipeline＋lsp soft FAIL 池空**；余 soft：邻域再扫…／非 ensure tinies（**mem-safe＋codec＋metrics＋schema＋async-io-cps＋async-future＋async-context＋csv-stream＋json-typed＋atomic-widen＋task＋trace＋backtrace-xplat＋math-fenv＋elf五闸＋chacha＋ed25519＋net-ws＋sqlite＋regex＋net-tls＋sqlite-pool＋stmt-cache＋encoding-extra＋channel-unbounded＋ffi-struct-callback＋sqlite-blob-stream＋next-row＋col_text＋col_blob＋query-rows＋http-h2＋unicode-nfc＋grapheme-case＋compress 残 try_libs＋aes-gcm 残 auto-make＋log-rotate-async 残 fallthrough＋io-context 残 fallthrough＋thread-pool 残 fallthrough＋tar-ustar 残 fallthrough＋atomic-ordering 残 fallthrough＋tar-extended 残 fallthrough＋queue-concurrent 残 fallthrough＋sync-rwlock-condvar 残 fallthrough＋backtrace-symbolicate 残 fallthrough＋trace-hooks 残 prefer-c／ensure＋sqlite-exec-deep 残 prefer-c／ensure＋regex-atomic 残 prefer-c／ensure＋db-compat 残 prefer-c／ensure＋cache 残 auto-make＋cli 残 auto-make＋config 残 auto-make＋datetime 残 auto-make＋security 残 auto-make＋url 残 auto-make＋sqlite-prereq 残 auto-make soft FAIL 池空**；tip `std_mem_*`／`std_codec_*`／`std_metrics_*`／`std_schema_*`／`std_async_*`／`std_task_*`／`std_trace_*` UNDEF＝obs）；ensure_std 族；fmt-check／brotli／without-c；encoding-hex／uuid 产品 UNDEF（codec 产品 UNDEF＝obs 已诚实）；read_ptr region tip＝obs；zc2 mmap／view tip＝obs；Darwin math check＝obs；queue exit=5／sqlite TLS／debug diag＝obs；cookbook check parse＝obs；phase3 Darwin sqlite SEGV＝obs…；**zc3／zc4／zc5 仍绑 host-c（xlang-c）后置**；Stage2 SHA256 topology fork 16B 产品残；Ubuntu tip stripped＞8MiB size＝产品 obs；MEM-C1 with_arena emit／`std_heap_scope_alloc`／AL inject／vec run 产品 obs；owned tip parse／typeck＝obs；SROA compound-literal tip＝obs；MEM-A1 single-ptr `restrict` 产品 obs；s2 `pipeline_type_ensure_by_kind_ord`／s3 compile.o stub size／tip live EMIT_HEAVY under 产品 obs；boot-017 tip SLOW／check_fail＝obs；compiler-self graph check-bound＝obs；Darwin net_mixed typeck nan＝obs；http client `std_io_write_stderr_u8_ptr_usize` UNDEF＝obs；wpo-s2 vec fold still-calls＝obs；simd-dot tip under-ratio＝obs；Darwin f32 SoA CG002＝obs；async-1m coop UNDEF＝obs；async-language run／mod＝obs；async-future c／.x／emit-marker＝obs；lifetime check smoke＝obs；option／result check＝obs（Darwin）；abi f32 xmm residual＝obs（含 legacy cvtsd2ss）；dod-s3 soa_cross exit≠10＝obs；typeck-generic tip span 0:0＝obs；obs structured `levelinfo`（缺 `=`）＝obs；c07 CAND `-backend c` SEGV 观测；experimental XP008／T001 观测；WPO_DCE baseline TSV under＝obs；STD uuid／task／trace 等 asm UNDEF 跳；**mem-safe soft→硬绿（tip UNDEF＝obs）**；linux mmap **file** smoke UNDEF 观测残；Darwin `std_sys_read_file_into` UNDEF＝obs；compress-stream／unified-stream 观测残；sqlite stub open／last_error 观测残；aes-gcm host-c／nist2 观测残；queue-sync 观测残；async future／iocps／ctx／lang／atomic-widen 观测残；channel-unbounded／csv-stream／elf-parse／ffi-struct／http-pool／reqresp／h2／context／json-typed／regex／schema／socketio／task／trace／unicode／backtrace-xplat／chacha／ed25519／net-ws tip UNDEF 观测残（闸 soft FAIL 池空）；compress-brotli ld 红跳；test-executable／bench-fuzz 探针 ld UNDEF 跳；**encoding-extra＋sqlite-pool＋stmt-cache soft→硬绿**；**regex＋net-tls＋sqlite soft→硬绿**；**chacha＋ed25519＋net-ws soft→硬绿**；**STD-057／051／030 sqlite＋regex＋net-tls soft→硬绿**；**STD-084／070／127 soft→硬绿**；lang-unsafe（check 后置）；仍跳过产品红／UNDEF）；另残 asm ld `--export-dynamic`（非软）＋by-value `Set_i32`+MEMORY（非软）＋Stage2 SHA256 topology converge（非软） |
+| STD soft SKIP 邻域续（其它闸） | 🟡 | soft SKIP 邻域续扫（若仍有 soft die→exit0；**…／codec＋stream＋buffer-reuse／option-result／bytes-arena＋datetime＋url／cli＋cache＋config＋csv-row＋bytes／boot-std-link＋exc-cli＋exc-panic／boot-015＋019／refresh-xlang-asm／CORE-017＋011／CORE-002/003＋006＋STD-131／CORE-012＋007＋004／CORE-001＋016／migrate-x-gen／x-pipeline＋lsp soft FAIL 池空**；余 soft：邻域再扫…／非 ensure tinies（**mem-safe＋codec＋metrics＋schema＋async-io-cps＋async-future＋async-context＋csv-stream＋json-typed＋atomic-widen＋task＋trace＋backtrace-xplat＋math-fenv＋elf五闸＋chacha＋ed25519＋net-ws＋sqlite＋regex＋net-tls＋sqlite-pool＋stmt-cache＋encoding-extra＋channel-unbounded＋ffi-struct-callback＋sqlite-blob-stream＋next-row＋col_text＋col_blob＋query-rows＋http-h2＋unicode-nfc＋grapheme-case＋compress 残 try_libs＋aes-gcm 残 auto-make＋log-rotate-async 残 fallthrough＋io-context 残 fallthrough＋thread-pool 残 fallthrough＋tar-ustar 残 fallthrough＋atomic-ordering 残 fallthrough＋tar-extended 残 fallthrough＋queue-concurrent 残 fallthrough＋sync-rwlock-condvar 残 fallthrough＋backtrace-symbolicate 残 fallthrough＋trace-hooks 残 prefer-c／ensure＋sqlite-exec-deep 残 prefer-c／ensure＋regex-atomic 残 prefer-c／ensure＋db-compat 残 prefer-c／ensure＋cache 残 auto-make＋cli 残 auto-make＋config 残 auto-make＋datetime 残 auto-make＋security 残 auto-make＋url 残 auto-make＋sqlite-prereq 残 auto-make soft FAIL 池空**；tip `std_mem_`*／`std_codec_`*／`std_metrics_*`／`std_schema_*`／`std_async_*`／`std_task_*`／`std_trace_*` UNDEF＝obs）；ensure_std 族；fmt-check／brotli／without-c；encoding-hex／uuid 产品 UNDEF（codec 产品 UNDEF＝obs 已诚实）；read_ptr region tip＝obs；zc2 mmap／view tip＝obs；Darwin math check＝obs；queue exit=5／sqlite TLS／debug diag＝obs；cookbook check parse＝obs；phase3 Darwin sqlite SEGV＝obs…；**zc3／zc4／zc5 仍绑 host-c（xlang-c）后置**；Stage2 SHA256 topology fork 16B 产品残；Ubuntu tip stripped＞8MiB size＝产品 obs；MEM-C1 with_arena emit／`std_heap_scope_alloc`／AL inject／vec run 产品 obs；owned tip parse／typeck＝obs；SROA compound-literal tip＝obs；MEM-A1 single-ptr `restrict` 产品 obs；s2 `pipeline_type_ensure_by_kind_ord`／s3 compile.o stub size／tip live EMIT_HEAVY under 产品 obs；boot-017 tip SLOW／check_fail＝obs；compiler-self graph check-bound＝obs；Darwin net_mixed typeck nan＝obs；http client `std_io_write_stderr_u8_ptr_usize` UNDEF＝obs；wpo-s2 vec fold still-calls＝obs；simd-dot tip under-ratio＝obs；Darwin f32 SoA CG002＝obs；async-1m coop UNDEF＝obs；async-language run／mod＝obs；async-future c／.x／emit-marker＝obs；lifetime check smoke＝obs；option／result check＝obs（Darwin）；abi f32 xmm residual＝obs（含 legacy cvtsd2ss）；dod-s3 soa_cross exit≠10＝obs；typeck-generic tip span 0:0＝obs；obs structured `levelinfo`（缺 `=`）＝obs；c07 CAND `-backend c` SEGV 观测；experimental XP008／T001 观测；WPO_DCE baseline TSV under＝obs；STD uuid／task／trace 等 asm UNDEF 跳；**mem-safe soft→硬绿（tip UNDEF＝obs）**；linux mmap **file** smoke UNDEF 观测残；Darwin `std_sys_read_file_into` UNDEF＝obs；compress-stream／unified-stream 观测残；sqlite stub open／last_error 观测残；aes-gcm host-c／nist2 观测残；queue-sync 观测残；async future／iocps／ctx／lang／atomic-widen 观测残；channel-unbounded／csv-stream／elf-parse／ffi-struct／http-pool／reqresp／h2／context／json-typed／regex／schema／socketio／task／trace／unicode／backtrace-xplat／chacha／ed25519／net-ws tip UNDEF 观测残（闸 soft FAIL 池空）；compress-brotli ld 红跳；test-executable／bench-fuzz 探针 ld UNDEF 跳；**encoding-extra＋sqlite-pool＋stmt-cache soft→硬绿**；**regex＋net-tls＋sqlite soft→硬绿**；**chacha＋ed25519＋net-ws soft→硬绿**；**STD-057／051／030 sqlite＋regex＋net-tls soft→硬绿**；**STD-084／070／127 soft→硬绿**；lang-unsafe（check 后置）；仍跳过产品红／UNDEF）；另残 asm ld `--export-dynamic`（非软）＋by-value `Set_i32`+MEMORY（非软）＋Stage2 SHA256 topology converge（非软） |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 非软刀默认；优先级到才动；Darwin heat 仍依赖 hybrid thin（禁 mega） |
 | LANG-009／010 Option／Result 泛型 STRUCT_LIT | ✅ | 解析 mangle＋具名 lit typeck；闸 run hard |
 | CORE-016 多 mono／多 let 字段 load 宽 | ✅ | typeck mono 戳优先于泛型布局 T→8；thin inject |
@@ -766,7 +766,7 @@
 | 桶 | 状态 |
 |----|------|
 | MG 编排／物理删 Makefile | ✅ |
-| H／D／E／F／B／A／M 等执行桶 | 🟡 见 [`Makefile迁移表.md`](Makefile迁移表.md) |
+| H／D／E／F／B／A／M 等执行桶 | 🟡 见 `[Makefile迁移表.md](Makefile迁移表.md)` |
 | C glue／pipeline_x · K seed-tools · L std-variant · N/O alias | ⬜／🟡 同上 |
 
 ### 推荐推进序（非流水）
