@@ -1,11 +1,14 @@
 /*
- * thread_cap_raw_smoke.c — Stage 10 (10.6.1) slice0 Cap residual probe.
+ * thread_cap_raw_smoke.c — Stage 10 (10.6.1) Cap residual probe.
  *
- * Host-cc smoke for xlang_thread_cap.h: mmap stack + futex wake + timed wait.
- * No libpthread. PLATFORM: LINUX|x86_64|aarch64 gold.
+ * Host-cc smoke for xlang_thread_cap.h:
+ *   slice0: mmap stack + futex wake + timed wait
+ *   slice1: clone3/clone spawn + join (no libpthread)
+ *
+ * PLATFORM: LINUX|x86_64|aarch64 gold.
  *
  * Build (gate): cc -O0 -Icompiler/include -o /tmp/... tests/sys/thread_cap_raw_smoke.c
- * Exit: 0 ok; 1..5 step failure.
+ * Exit: 0 ok; 1..8 step failure.
  */
 
 #include <errno.h>
@@ -22,8 +25,23 @@ int main(void) {
 }
 #else
 
+/** Shared slot written by Cap-spawned child. */
+static volatile int g_child_slot = 0;
+
 /**
- * Cap residual 10.6.1 slice0 probe entry.
+ * Cap spawn child: set shared slot to 42.
+ * @param arg unused
+ * @return NULL
+ * PLATFORM: LINUX
+ */
+static void *thread_cap_child(void *arg) {
+  (void)arg;
+  g_child_slot = 42;
+  return 0;
+}
+
+/**
+ * Cap residual 10.6.1 probe entry (slice0 futex/mmap + slice1 spawn/join).
  * @return 0 ok; nonzero step id on failure
  * PLATFORM: LINUX
  */
@@ -33,6 +51,7 @@ int main(void) {
   volatile uint32_t word = 0;
   long wr = 0;
   long r = 0;
+  struct xlang_thread_join join;
 
   /* Step1: mmap anonymous stack and touch. */
   stack = xlang_thread_mmap_stack(stack_len);
@@ -63,9 +82,24 @@ int main(void) {
     return 4;
   }
   if (errno != ETIMEDOUT && errno != EAGAIN) {
-    /* EAGAIN if word changed; ETIMEDOUT expected for pure timeout. */
     fprintf(stderr, "futex_wait errno=%d (want ETIMEDOUT/EAGAIN)\n", errno);
     return 5;
+  }
+
+  /* Step4: Cap spawn + join (clone3 / clone fallback). */
+  memset(&join, 0, sizeof(join));
+  g_child_slot = 0;
+  if (xlang_thread_spawn(thread_cap_child, 0, &join, stack_len) != 0) {
+    fprintf(stderr, "thread_spawn failed errno=%d\n", errno);
+    return 6;
+  }
+  if (xlang_thread_join(&join) != 0) {
+    fprintf(stderr, "thread_join failed errno=%d\n", errno);
+    return 7;
+  }
+  if (g_child_slot != 42) {
+    fprintf(stderr, "child slot=%d want 42\n", g_child_slot);
+    return 8;
   }
 
   return 0;
