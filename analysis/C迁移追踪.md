@@ -244,7 +244,7 @@
 - 🟡 **10.6.1** Linux futex／clone／mmap 栈 — **slice0–2 ✅（Ubuntu）**＠`e8777cb6b`：futex／mmap／clone trampoline＋**product `runtime_thread_glue` Linux Cap**（pool／create／join；nm 无 pthread；STD-043 run=2）。残：Darwin pthread · TLS  
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows sync Cap
-- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0–17 ✅（SHARED Cap＋语言＋arity＋host-cc＋rt_preamble＋unsafe 豁免＋产品 `-backend c -o` Cap `-I`＋默认 asm Cap i32/i64/ptr＋typed `va_arg<T>(ap)`＋aarch64 asm Cap＋f32／f64 XMM／NEON＋stack extras）**＠`e8298b5b2`：slice17 GP-ov／FP-ov 各 8 槽（va_start 拷 [rbp+16]／[x29,#frame+16]；-8 走出寄存器文件）。残：MSVC（须切 Windows）· mixed GP＋FP 同栈 overflow · host-C 多份 `va_arg<i32>` 同符号
+- 🟡 **10.7.1** va_list + va_start／arg／end — **slice0–18 ✅（SHARED Cap＋语言＋arity＋host-cc＋rt_preamble＋unsafe 豁免＋产品 `-backend c -o` Cap `-I`＋默认 asm Cap i32/i64/ptr＋typed `va_arg<T>(ap)`＋aarch64 asm Cap＋f32／f64 XMM／NEON＋stack extras＋mixed overflow）**＠`d79894f86`：slice18 header(24) GP／FP／共享 OV 游标；OV[8] 只拷一次；va_arg 过 class_end 走共享 overflow（SysV mixed GP＋FP）。残：MSVC（须切 Windows）· host-C 多份 `va_arg<i32>` 同符号
 - 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–21 ✅（SHARED）**＠`b5b7d323d`：产品 seed／gen pin／Track L／build_tool cold **Cap 收口**（labi「snprintf」仅为注释假阳）。残：纯 .x fmt · MSVC
 
 ---
