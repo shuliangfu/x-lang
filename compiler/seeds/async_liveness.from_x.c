@@ -22,6 +22,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: async_liveness type/name format → Cap snprintf */
+/* G.7: single Cap authority for this TU (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
 int expr_has_await(const struct ASTExpr *e);
