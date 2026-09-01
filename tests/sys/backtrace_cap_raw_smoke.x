@@ -1,10 +1,10 @@
 /**
  * Stage9 Cap residual 9.1.11 probe: stack capture without libc backtrace()
- * (runtime_backtrace_platform → xlang_backtrace_cap.h frame walk on Linux).
+ * (runtime_backtrace_platform → xlang_backtrace_cap.h frame walk on Linux/Darwin).
  *
  * Contract: capture at least one frame; return 0 on success.
  * No std imports — same link model as io_write_raw_smoke.x.
- * PLATFORM: LINUX|x86_64 gold.
+ * PLATFORM: LINUX|DARWIN|x86_64|aarch64 gold.
  */
 
 extern "C" function backtrace_capture_c(buf: *u8, max_frames: i32): i32;
