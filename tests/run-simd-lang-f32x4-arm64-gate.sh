@@ -72,15 +72,22 @@ fi
 [ -f "$SMOKE_O" ] || die "missing object $SMOKE_O"
 RUN_OK=$((RUN_OK + 1))
 
-if command -v objdump >/dev/null 2>&1; then
-  if ! objdump -d "$SMOKE_O" 2>/dev/null | grep -Eq 'fadd|fmul|fsub'; then
-    die "objdump missing fadd/fmul/fsub in $SMOKE_O"
+# Disasm check: scan LE opcode bytes (Ubuntu x86 gold lacks aarch64-linux-gnu-objdump).
+neon_ok=0
+if grep -a -q $'\x00\xd4\x21\x4e' "$SMOKE_O" 2>/dev/null; then neon_ok=1; fi
+if grep -a -q $'\x00\xdc\x21\x6e' "$SMOKE_O" 2>/dev/null; then neon_ok=1; fi
+if grep -a -q $'\x00\xd4\xa1\x4e' "$SMOKE_O" 2>/dev/null; then neon_ok=1; fi
+if [ "$neon_ok" -eq 0 ]; then
+  if command -v objdump >/dev/null 2>&1; then
+    if objdump -d "$SMOKE_O" 2>/dev/null | grep -Eq 'fadd|fmul|fsub'; then
+      neon_ok=1
+    fi
   fi
-  RUN_OK=$((RUN_OK + 1))
-else
-  SKIP=$((SKIP + 1))
-  echo "simd-lang-f32x4-arm64 WARN: no objdump (skip disasm check)" >&2
 fi
+if [ "$neon_ok" -eq 0 ]; then
+  die "missing NEON fadd/fmul/fsub opcode bytes in $SMOKE_O"
+fi
+RUN_OK=$((RUN_OK + 1))
 
 # Native Darwin arm64: product run lane check (optional second run=).
 if ci_is_darwin && ci_is_arm64_host; then
