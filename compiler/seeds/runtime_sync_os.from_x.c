@@ -290,6 +290,7 @@ int32_t sync_condvar_contention_smoke_c(void) {
 #else
 #include <pthread.h>
 #include <time.h>
+#include <xlang_time_cap.h> /* Cap residual 9.1.5 nanosleep */
 
 /** POSIX: mutex is pthread_mutex_t*, heap-allocated for opaque return. */
 typedef pthread_mutex_t xlang_mutex_impl_t;
@@ -572,7 +573,8 @@ int32_t sync_condvar_contention_smoke_c(void) {
     }
     {
         struct timespec ts = { 0, 20000000L };
-        nanosleep(&ts, NULL);
+        /* PLATFORM: LINUX Cap / POSIX fallback — no libc nanosleep */
+        (void)xlang_time_nanosleep(&ts, NULL);
     }
     if (sync_mutex_lock_c(ctx.mu) != 0) {
         pthread_join(tid, NULL);
