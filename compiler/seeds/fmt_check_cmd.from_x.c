@@ -962,38 +962,34 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
  */
 #ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect_impl(const char *dir) {
-    DIR *d;
-    struct dirent *ent;
+    void *d;
+    char *name;
     char child[768];
     char dir_buf[512];
     if (!dir)
         return;
     snprintf(dir_buf, sizeof dir_buf, "%s", dir);
-    d = opendir(dir_buf);
+    /* Cap residual 9.1.10: cold twin also uses Cap (no libc opendir). */
+    d = xlang_dir_open(dir_buf);
     if (!d)
         return;
-    while ((ent = readdir(d)) != NULL) {
+    while ((name = xlang_dir_readdir_name(d)) != NULL) {
         int is_dir = 0;
         int is_reg = 0;
-        if (fmt_walk_skip_dot_name(ent->d_name))
+        if (fmt_walk_skip_dot_name(name))
             continue;
-        snprintf(child, sizeof child, "%s/%s", dir_buf, ent->d_name);
-        if (ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN) {
+        snprintf(child, sizeof child, "%s/%s", dir_buf, name);
+        {
             struct stat st;
             if (stat(child, &st) == 0 && S_ISDIR(st.st_mode))
                 is_dir = 1;
-        }
-        if (!is_dir && (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN)) {
-            struct stat st;
-            if (ent->d_type == DT_REG)
-                is_reg = 1;
             else if (stat(child, &st) == 0 && S_ISREG(st.st_mode))
                 is_reg = 1;
         }
         /* 调 public：冷 seed public→_impl path；hybrid 不编此函数 */
         walk_dir_collect_process_child(child, is_dir, is_reg);
     }
-    closedir(d);
+    (void)xlang_dir_close(d);
 }
 
 /* G-02f-249：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
