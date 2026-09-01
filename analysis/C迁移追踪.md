@@ -157,7 +157,7 @@
 - ✅ **9.1.5** clock_gettime／nanosleep／gmtime_r／QPC／Sleep — **Ubuntu ✅（WIP）**：`xlang_time_cap.h`（Linux syscall＋civil gmtime）；`runtime_time_os`＋scheduler／channel／sync／driver wall。探针 `time_raw_smoke.x`。残：localtime_r／mktime（tz）· mega 未注入 · Darwin／Win QPC 面既有  
 - ✅ **9.1.6** getrandom／getentropy／BCryptGenRandom — **Ubuntu ✅（WIP）**：`xlang_random_cap.h`（Linux getrandom syscall）；`random_fill_bytes_impl`。探针 `random_raw_smoke.x`。残：Darwin getentropy · Win BCrypt 既有  
 - 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–1 Ubuntu ✅（WIP）**：`xlang_net_cap.h`（socket／connect／bind／listen／accept／poll／close＋**slice1** recvmmsg／sendmmsg）；sock_fast＋ipv6_fast＋udp_batch／stubs；补全 `xlang_sys_*`。探针 `net_sock_raw_smoke.x`／`net_mmsg_raw_smoke.x`。残：net.o U poll（io）· getaddrinfo · WSAStartup／Darwin  
-- 🟡 **9.1.8** `_write`／write — **Ubuntu WIP**：`xlang_io_cap.h`（Linux write／read／writev syscall）；preamble＋asm_io_stubs weak `xlang_sys_*`＋io_abi 离 libc write。探针 `io_write_raw_smoke.x`。残：host 直 `write` 余点／Darwin／Win  
+- 🟡 **9.1.8** `_write`／write — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`（Linux write／read／writev syscall）；preamble＋asm_io_stubs weak `xlang_sys_*`＋io_abi 离 libc write。探针 `io_write_raw_smoke.x`＠**`7486a3f51`**。残：cold io_abi U read · Darwin／Win  
 - ⬜ **9.1.9** inline asm syscall（Linux x86_64）  
 - ⬜ **9.1.10** opendir／readdir／closedir  
 - ⬜ **9.1.11** execinfo／dladdr／DbgHelp／CaptureStackBackTrace  
