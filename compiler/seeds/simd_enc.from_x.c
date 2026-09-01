@@ -1170,11 +1170,13 @@ int32_t simd_x86_pshufd_xmm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, in
 
 
 
-/** x86 AVX2：vpshufd ymm0, ymm0, imm8（C5 FE 70 C0 imm8）。 */
-/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-399：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x simd_x86_vpshufd_ymm0_imm8.
+ * x86 AVX2 vpshufd ymm0, ymm0, imm8 = VEX 2-byte C5 FD 70 C0 imm8.
+ * VEX.pp=01 (66). C5 FE (pp=F3) is vpshufhw — L4 gold Vec8i shuffle exit=5.
+ * PLATFORM: SHARED emit / x86 AVX2. G.7 complete existing encoder; no third.
+ */
 int32_t simd_x86_vpshufd_ymm0_imm8_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm8) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x70, 0xc0};
+    static const uint8_t prefix[4] = {0xc5, 0xfd, 0x70, 0xc0};
     uint8_t ib;
     if (simd_append_impl(elf_ctx, prefix, 4) != 0)
         return -1;

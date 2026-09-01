@@ -1013,8 +1013,9 @@ int32_t simd_x86_pshufd_xmm0_imm8(uint8_t * elf, int32_t imm8) {
   return r;
 }
 int32_t simd_x86_vpshufd_ymm0_imm8(uint8_t * elf, int32_t imm8) {
+  /* Twin simd_enc.x: C5 FD 70 C0 (vpshufd ymm), not C5 FE (vpshufhw). */
   uint8_t b0 = 197;
-  uint8_t b1 = 254;
+  uint8_t b1 = 253;
   uint8_t b2 = 112;
   uint8_t b3 = 192;
   uint8_t ib = ((uint8_t)((imm8 & 255)));

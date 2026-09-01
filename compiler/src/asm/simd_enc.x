@@ -821,16 +821,19 @@ export function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
 }
 
 
-/** Exported function `simd_x86_vpshufd_ymm0_imm8`.
- * Implements `simd_x86_vpshufd_ymm0_imm8`.
- * @param elf *u8
- * @param imm8 i32
- * @return i32
+/**
+ * Emit AVX2 `vpshufd ymm0, ymm0, imm8` as VEX 2-byte `C5 FD 70 C0 imm8`.
+ * VEX.pp must be 01 (66-prefix vpshufd). pp=10 (F3, byte 0xFE) encodes
+ * `vpshufhw` and breaks Vec8i shuffle (L4 gold roundtrip exit=5).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @param imm8 i32 — pshufd control in the low 8 bits
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX2
  */
 #[no_mangle]
 export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
   let b0: u8 = 0xc5;
-  let b1: u8 = 0xfe;
+  let b1: u8 = 0xfd;
   let b2: u8 = 0x70;
   let b3: u8 = 0xc0;
   let ib: u8 = (imm8 & 255) as u8;
