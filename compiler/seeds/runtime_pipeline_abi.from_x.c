@@ -46964,6 +46964,9 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_misc(uint8_t *path) {
     return 1;
   if (memcmp(path, "std.context", 11) == 0 && (path[11] == 0 || path[11] == '.'))
     return 1;
+  /* std.simd: simd.o formal_surface is link authority (skip co-emit mod.x). PLATFORM: SHARED. */
+  if (memcmp(path, "std.simd", 8) == 0 && (path[8] == 0 || path[8] == '.'))
+    return 1;
   return 0;
 }
 
