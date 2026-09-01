@@ -224,6 +224,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: pipeline path/diag/float format → Cap snprintf */
+/* G.7: single Cap authority for this mega rest/cold TU (after first stdio).
+ * Later #include <stdio.h> must not undo this under -D_FORTIFY_SOURCE=0. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <dirent.h>
 #include <sys/stat.h>
