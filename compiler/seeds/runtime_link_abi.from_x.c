@@ -3222,7 +3222,11 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
       "std.error",
       /* context：context.o (mod.x + context.x) 权威；co-emit mod.x 的 deadline_ns/with_deadline
        * etc. 与 context.o 强符号 duplicate（net-context gate 红）。G.7 single authority. */
-      "std.context", NULL};
+      "std.context",
+      /* std.simd：simd.o = formal_surface.c (f32x4/i32x8 mangle) 权威；co-emit mod.x
+       * overload CALL 在 Ubuntu pure .x 易选错 mul(Vec8i) → dot 算错 / BLD001。
+       * PLATFORM: SHARED — STD-SIMD-INTRINSIC product gate. */
+      "std.simd", NULL};
   int i;
   size_t n;
   size_t plen;
