@@ -18381,6 +18381,14 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
         (void)((p = (p + 1)));
       }
     }
+    /* Cap 10.7.1 slice6: emit `, ...` on function definitions when is_variadic
+     * (≡ codegen.x). Declarations already emit; defs must match. PLATFORM: SHARED. */
+    if (((pipeline_module_func_is_variadic_at(module, fi) !=0) && (pipeline_module_func_num_params_at(module, fi) > 0))) {
+      uint8_t ellipsis_def[5] = {44, 32, 46, 46, 46};
+      if ((codegen_emit_bytes_from_ptr(out, &((ellipsis_def)[0]), 5) !=0)) {
+        return -1;
+      }
+    }
     uint8_t rpar[3] = {41, 32, 0};
     if ((codegen_emit_bytes_3(out, &((rpar)[0]), 2) !=0)) {
       return -1;
