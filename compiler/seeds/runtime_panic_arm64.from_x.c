@@ -22,6 +22,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: crash evidence path → Cap snprintf */
+/* G.7: Cap after stdio for user-link panic residual (Darwin/arm64). */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <xlang_environ_cap.h>
 
 /* wave251: user-domain cold twin of product link_abi_getenv face (≡ pure thin + _impl).
