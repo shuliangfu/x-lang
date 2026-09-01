@@ -876,7 +876,13 @@ def patch_string_lit_dispatch(src: str) -> tuple[str, bool]:
 
 def insert_allow_legacy_helpers(src: str) -> tuple[str, bool]:
     """Insert typeck_set/get_allow_legacy_extern_calls once (strong symbols for -E)."""
-    if "XLANG_ALLOW_LEGACY_EXTERN" in src or "XLANG_ALLOW_LEGACY_EXTERN" in src:
+    # Skip when the pin twin already carries the bodies (7.4.5 Track L) even if
+    # the XLANG_ALLOW_LEGACY_EXTERN comment marker is absent. Re-inserting the
+    # block made L4 g05 `cc typeck_gen.c` fail with a redefinition (7.4.7).
+    if (
+        "g_typeck_allow_legacy_extern_calls" in src
+        or "XLANG_ALLOW_LEGACY_EXTERN" in src
+    ):
         # XLANG_ALLOW: legacy marker if a stale gen slipped through; still skip re-insert.
         return src, False
     # Place after first includes block / before first function if possible

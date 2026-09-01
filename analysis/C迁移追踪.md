@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 前排大多闭；3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128（~85%） |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6** typeck pin extra-paren ✅；parser seed 物理删／CI 漂移闸 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6** extra-paren ✅；**7.4.7** archaeology patch 幂等已落盘（L4 未重跑）；parser seed 物理删／CI 漂移闸 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | 🟡 | **9.1.3** getpid／getppid／getcwd／chdir Linux raw ✅（WIP）；其余 9.1～9.7 仍开 |
@@ -32,7 +32,7 @@
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
-| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip L4＠`93595ea81` **红**；UNDEF 修补已落盘、未重跑 |
+| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip L4＠`7dc2ef0ea` phase1 OK／g05 红；7.4.7 已落盘未重跑 |
 | BC（自举编译层零 host-cc） | 🟡 | inventory 冻；`pipeline_x` 仍 host-cc mega |
 | PC（产品默认 asm／禁默 host-cc） | 🟡 | 去 import→C／FORBID／ALLOW／ld-only ✅；invoke_cc 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名；产品 thin-first／inject |
