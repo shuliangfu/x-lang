@@ -85,8 +85,8 @@ if command -v objdump >/dev/null 2>&1; then
     OBS=$((OBS + 1))
     echo "simd-lang-f32x8 WARN: could not compile -o .o for objdump (obs)" >&2
   else
-    if ! objdump -d "$SMOKE_O" 2>/dev/null | grep -Eq 'vaddps|vmulps|addps|mulps'; then
-      die "objdump missing vaddps/vmulps/addps/mulps in $SMOKE_O"
+    if ! objdump -d "$SMOKE_O" 2>/dev/null | grep -Eq 'vaddps|vmulps|vsubps|addps|mulps|subps'; then
+      die "objdump missing vaddps/vmulps/vsubps/addps/mulps/subps in $SMOKE_O"
     fi
     RUN_OK=$((RUN_OK + 1))
   fi
