@@ -80,6 +80,33 @@ __attribute__((weak)) ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t co
 __attribute__((weak)) ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return (ssize_t)xlang_io_writev((int)fd, (const void *)iov, (int)iovcnt);
 }
+
+/*
+ * Cap residual 9.1.11: weak backtrace_capture_c for -backend asm probes.
+ * Strong twin in runtime_backtrace_platform.o wins on full product link.
+ * PLATFORM: LINUX
+ */
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#include <xlang_backtrace_cap.h>
+#include <string.h>
+
+/** Weak probe/product stub: frame walk into buf (void* slots). */
+__attribute__((weak)) int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
+  void *arr[256];
+  int cap;
+  int n;
+  int i;
+  if (!buf || max_frames <= 0)
+    return 0;
+  cap = max_frames > 256 ? 256 : (int)max_frames;
+  n = xlang_bt_backtrace(arr, cap);
+  if (n <= 0)
+    return 0;
+  for (i = 0; i < n; i++)
+    memcpy(buf + (size_t)i * sizeof(void *), &arr[i], sizeof(void *));
+  return (int32_t)n;
+}
+#endif /* LINUX backtrace Cap */
 #endif
 
 /** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
