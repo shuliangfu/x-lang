@@ -19,6 +19,10 @@
  */
 #include <stdint.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: build_tool asm cmd path → Cap snprintf */
+/* G.7: Cap after stdio for build_tool-local cold twin (not product xlang bag). */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <stdlib.h>
 #include <string.h>
 
