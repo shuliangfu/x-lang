@@ -404,6 +404,7 @@ extern int32_t arch_arm64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenC
 extern int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
 extern int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
+extern int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
 extern int32_t arch_arm64_enc_enc_sub_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_add_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_str_x0_sp_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
@@ -2217,6 +2218,9 @@ int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *
 int32_t backend_enc_mov_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   if (ta == 0)
     return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
+  /* Stage10 10.2.2 slice1: AAPCS arg → x0 for asm! lateout. */
+  if (ta == 1)
+    return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
   return -1;
 }
 #endif
