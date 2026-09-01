@@ -67,7 +67,8 @@ if ! grep -E 'lang_va_cap_probe\([^)]*42' "$OUT_C" >/dev/null 2>&1; then
   exit 1
 fi
 # slice17: stack extras 33/44 must appear at the call site (host-C and asm).
-if ! grep -E 'lang_va_cap_probe\([^)]*33' "$OUT_C" >/dev/null 2>&1; then
+# Do not use [^)]* — host-C emits &(m) which contains ')' before 33.
+if ! grep -E 'lang_va_cap_probe\(.*33' "$OUT_C" >/dev/null 2>&1; then
   echo "xlang: [XLANG_LANG_VA_CAP_BUILTINS] status=fail run=0 obs=0 skip=0 reason=no_stack_extra" >&2
   grep -n 'lang_va_cap_probe' "$OUT_C" | head -20 >&2 || true
   exit 1
