@@ -15,10 +15,10 @@
 
 | 平台 | capture | symbolicate |
 |------|---------|-------------|
-| Linux (glibc) | `backtrace()` | `dladdr()` → `dli_sname` |
-| macOS | `backtrace()` | `dladdr()` |
-| Windows | `CaptureStackBackTrace` | `SymFromAddr` + `UnDecorateSymbolName` |
-| musl / 其他 | 0 | 十六进制地址回退 |
+| Linux | Cap FP walk（无 libc `backtrace`） | Cap maps+ELF（无 `dladdr`） |
+| macOS | Cap FP walk | Cap Mach-O LC_SYMTAB |
+| Windows | Cap FP walk（无 `CaptureStackBackTrace`） | Cap PE export（无 DbgHelp） |
+| musl / 其他 | 0 或 Cap（若架构支持） | 十六进制地址回退 |
 
 无法解析符号时，名称槽写入 `0x…` 十六进制地址（不计入成功帧数）。
 
