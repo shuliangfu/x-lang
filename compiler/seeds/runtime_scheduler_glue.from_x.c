@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdatomic.h>
 #include <time.h>
+#include <xlang_time_cap.h> /* Cap residual 9.1.5 clock_gettime */
 
 /* wave230 G.7: public pure thin link_abi_getenv (wave222 → _impl host getenv).
  * PLATFORM: SHARED — scheduler env gates share single host getenv residual. */
@@ -173,7 +174,8 @@ uint64_t xlang_async_trace_slow_us(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint64_t xlang_async_trace_now_us_impl(void) {
     struct timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+    /* PLATFORM: LINUX Cap / POSIX fallback — no libc clock_gettime */
+    if (xlang_time_clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
         return 0;
     return (uint64_t)ts.tv_sec * 1000000ull + (uint64_t)ts.tv_nsec / 1000ull;
 }
