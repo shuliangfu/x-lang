@@ -28,6 +28,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: freestanding vsnprintf authority */
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -603,50 +604,11 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
     return 0;
 }
 
-/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f %F %g %G %e %E
- * （浮点均走 bootstrap_format_double；精度有限，足够 codegen C 字面量 / 诊断）。
- * PLATFORM: LINUX — nostdlib-only TU；g05 动态链不链接本 stub。
- * NL-07 L7：%.17g 曾落 default 吐出字面 'g' + emit 补 ".0" → 非法 C token "g.0"。 */
+/** Cap residual 10.7.2: float decimal — thin wrap over xlang_format_double (G.7).
+ * PLATFORM: SHARED — nostdlib TU; logic lives in xlang_fmt_cap.h. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int bootstrap_format_double_impl(double x, char *out, size_t cap) {
-    size_t n = 0;
-    long ipart;
-    unsigned frac6;
-    int scale;
-    if (cap == 0)
-        return 0;
-    if (x < 0.0) {
-        if (n < cap)
-            out[n++] = '-';
-        x = -x;
-    }
-    ipart = (long)x;
-    frac6 = (unsigned)((x - (double)ipart) * 1000000.0 + 0.5);
-    if (frac6 >= 1000000u) {
-        ipart++;
-        frac6 = 0;
-    }
-    if (ipart == 0) {
-        if (n < cap)
-            out[n++] = '0';
-    } else {
-        char ib[32];
-        int in = 0;
-        long v = ipart;
-        while (v > 0) {
-            ib[in++] = (char)('0' + (v % 10));
-            v /= 10;
-        }
-        while (in > 0 && n < cap)
-            out[n++] = ib[--in];
-    }
-    if (n < cap)
-        out[n++] = '.';
-    for (scale = 100000; scale >= 1; scale /= 10) {
-        if (n < cap)
-            out[n++] = (char)('0' + ((frac6 / (unsigned)scale) % 10u));
-    }
-    return (int)n;
+    return xlang_format_double(x, out, cap);
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
@@ -658,209 +620,22 @@ int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_
 
 
 /**
- * Minimal vsnprintf: %% %c %s %d %u %ld %lu %x %p %f/%F/%g/%G/%e/%E plus width/precision.
+ * Minimal vsnprintf — Cap residual 10.7.2 thin wrap (G.7: body in xlang_fmt_cap.h).
  *
- * PLATFORM: LINUX — nostdlib freestanding face; authority = this TU only (G.7).
+ * PLATFORM: SHARED — nostdlib freestanding face; symbol name remains libc-compatible.
  *
- * NL-07 L4 expose: product diagnostics use `%.*s` (e.g. driver_diagnostic
- * `generic function '%.*s' expects %d...`). Prior stub ignored `*` precision, left
- * literal `*s`, and desynced va_list → garbage expect/got (bstrict run-generic red).
- * Fix: parse `*` width/precision as va_arg(int); honor prec on %s (bounded copy).
+ * NL-07 L4: Cap honors %.*s / * width so product diagnostics stay va-aligned.
  */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
-    size_t pos = 0;
-    if (!buf || size == 0)
-        return fmt ? (int)strlen(fmt) : 0;
-    if (!fmt) {
-        buf[0] = '\0';
-        return 0;
-    }
-    while (*fmt) {
-        if (*fmt != '%') {
-            if (pos + 1 < size)
-                buf[pos] = *fmt;
-            pos++;
-            fmt++;
-            continue;
-        }
-        fmt++;
-        if (*fmt == '%') {
-            if (pos + 1 < size)
-                buf[pos] = '%';
-            pos++;
-            fmt++;
-            continue;
-        }
-        {
-            char tmp[64];
-            int tn = 0;
-            int width = 0;
-            int prec = -1;
-            int longmod = 0;
-            /* Optional width: digits or '*' (va_arg int). */
-            if (*fmt == '*') {
-                width = va_arg(ap, int);
-                fmt++;
-            } else {
-                while (*fmt >= '0' && *fmt <= '9') {
-                    width = width * 10 + (*fmt - '0');
-                    fmt++;
-                }
-            }
-            /* Optional precision: .digits or .* (va_arg int). */
-            if (*fmt == '.') {
-                fmt++;
-                if (*fmt == '*') {
-                    prec = va_arg(ap, int);
-                    fmt++;
-                } else {
-                    prec = 0;
-                    while (*fmt >= '0' && *fmt <= '9') {
-                        prec = prec * 10 + (*fmt - '0');
-                        fmt++;
-                    }
-                }
-            }
-            if (*fmt == 'l') {
-                longmod = 1;
-                fmt++;
-            }
-            (void)width;
-            switch (*fmt) {
-            case 'c': {
-                char c = (char)va_arg(ap, int);
-                tmp[tn++] = c;
-                break;
-            }
-            case 's': {
-                const char *s = va_arg(ap, const char *);
-                int si = 0;
-                if (!s)
-                    s = "(null)";
-                /* %.*s / %.Ns: stop after prec bytes (when prec >= 0). */
-                while (s[si] && (prec < 0 || si < prec)) {
-                    if (pos + 1 < size)
-                        buf[pos] = s[si];
-                    pos++;
-                    si++;
-                }
-                fmt++;
-                continue;
-            }
-            case 'd': {
-                long v = longmod ? va_arg(ap, long) : va_arg(ap, int);
-                char ib[32];
-                int in = 0;
-                int neg = 0;
-                if (v < 0) {
-                    neg = 1;
-                    v = -v;
-                }
-                if (v == 0)
-                    ib[in++] = '0';
-                while (v > 0) {
-                    ib[in++] = (char)('0' + (v % 10));
-                    v /= 10;
-                }
-                if (neg && in < (int)sizeof(ib))
-                    ib[in++] = '-';
-                while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = ib[--in];
-                break;
-            }
-            case 'u': {
-                unsigned long v = longmod ? va_arg(ap, unsigned long) : va_arg(ap, unsigned int);
-                char ib[32];
-                int in = 0;
-                if (v == 0)
-                    ib[in++] = '0';
-                while (v > 0) {
-                    ib[in++] = (char)('0' + (v % 10));
-                    v /= 10;
-                }
-                while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = ib[--in];
-                break;
-            }
-            case 'x': {
-                unsigned long v = longmod ? va_arg(ap, unsigned long) : va_arg(ap, unsigned int);
-                char ib[32];
-                int in = 0;
-                if (v == 0)
-                    ib[in++] = '0';
-                while (v > 0) {
-                    ib[in++] = "0123456789abcdef"[v & 15];
-                    v >>= 4;
-                }
-                while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = ib[--in];
-                break;
-            }
-            case 'p': {
-                void *p = va_arg(ap, void *);
-                tmp[tn++] = '0';
-                tmp[tn++] = 'x';
-                {
-                    uintptr_t v = (uintptr_t)p;
-                    char ib[2 * sizeof(uintptr_t) + 1];
-                    int in = 0;
-                    if (v == 0)
-                        ib[in++] = '0';
-                    while (v > 0) {
-                        ib[in++] = "0123456789abcdef"[v & 15];
-                        v >>= 4;
-                    }
-                    while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                        tmp[tn++] = ib[--in];
-                }
-                break;
-            }
-            /* %f/%F and %g/%G/%e/%E: freestanding fixed decimal via bootstrap_format_double.
-             * PLATFORM: LINUX nostdlib — not full glibc float conversions; consume va_arg(double)
-             * so subsequent conversions stay aligned (unknown specs still risk desync). */
-            case 'f':
-            case 'F':
-            case 'g':
-            case 'G':
-            case 'e':
-            case 'E': {
-                double dv = va_arg(ap, double);
-                char fb[32];
-                int fn = bootstrap_format_double(dv, fb, sizeof(fb));
-                int fi = 0;
-                if (fn < 0)
-                    fn = 0;
-                while (fi < fn && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = fb[fi++];
-                break;
-            }
-            default:
-                /* Unknown conversion: copy char only (do not invent a second float path). */
-                tmp[tn++] = *fmt;
-                break;
-            }
-            fmt++;
-            {
-                int ti;
-                for (ti = 0; ti < tn; ti++) {
-                    if (pos + 1 < size)
-                        buf[pos] = tmp[ti];
-                    pos++;
-                }
-            }
-        }
-    }
-    if (size > 0)
-        buf[pos < size ? pos : size - 1] = '\0';
-    return (int)pos;
+    return xlang_vsnprintf(buf, size, fmt, ap);
 }
 
-/** snprintf 包装 vsnprintf。 */
+/** snprintf — Cap residual 10.7.2 thin wrap over xlang_vsnprintf. */
 int snprintf(char *buf, size_t size, const char *fmt, ...) {
     va_list ap;
     int n;
     va_start(ap, fmt);
-    n = vsnprintf(buf, size, fmt, ap);
+    n = xlang_vsnprintf(buf, size, fmt, ap);
     va_end(ap);
     return n;
 }
