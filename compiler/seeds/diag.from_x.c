@@ -9,6 +9,7 @@
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: report/human/json/print/code-query/levenshtein/…; C: table data + va_list.
  * Cap residual 10.7.2／9.5.3: reportf formats via xlang_vsnprintf (no libc vsnprintf).
+ * Cap residual 10.7.1: Cap va face via xlang_va_cap (no <stdarg.h>).
  */
 #include "diag.h"
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
@@ -24,7 +25,6 @@ int diag_json_get_state(void);
 void diag_json_set_state(int v);
 #endif
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -760,28 +760,28 @@ void diag_report(const char *file, int line, int col, const char *kind, const ch
 extern void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail);
 #endif
 
-void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, va_list ap) {
+void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, xlang_va_list ap) {
     char buf[1024];
 
     if (!fmt)
         fmt = "";
-    /* PLATFORM: SHARED — Cap fmt (10.7.2); public API still uses C va_list. */
+    /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg/vsnprintf. */
     (void)xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
     diag_report_with_code(file, line, col, kind, code, buf, detail ? detail : buf);
 }
 
-void diag_vreportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, va_list ap) {
+void diag_vreportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, xlang_va_list ap) {
     diag_vreportf_with_code(file, line, col, kind, NULL, detail, fmt, ap);
 }
 
 
 
 void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
 
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     diag_vreportf_with_code(file, line, col, kind, code, detail, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
 }
 
 
@@ -789,11 +789,11 @@ void diag_reportf_with_code(const char *file, int line, int col, const char *kin
 
 
 void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
 
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     diag_vreportf_with_code(file, line, col, kind, NULL, detail, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
 }
 
 
