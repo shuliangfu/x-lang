@@ -47,12 +47,16 @@ export extern function va_arg_ptr(ap: VaList): *u8;
 
 /**
  * Cap 10.7.1 slice14: typed va_arg<T>(ap) — turbofish type arg, not C va_arg(ap,T).
- * Generic body is a typeck face (panic); codegen/asm rewrite the call to Cap.
- * @param ap Cap VaList local.
+ * Generic body is a typeck/host-C face only (never executed); call sites rewrite
+ * to Cap xlang_va_arg. Null-deref return compiles for any T without panic FFI.
+ * @param ap Cap VaList local (unused in the face body).
  * @return Next variadic value of T (i32 / i64 / *u8 this slice).
  */
 export function va_arg<T>(ap: VaList): T {
-  panic("va_arg");
+  unsafe {
+    let p: *T = 0 as *T;
+    return *p;
+  }
 }
 
 /**
