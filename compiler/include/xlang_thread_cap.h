@@ -6,7 +6,8 @@
  * only — no libc futex/mmap/pthread wrappers on the Cap path.
  *
  * Slice0: futex wait/wake + anonymous stack mmap/munmap.
- * Slice1: clone3 (fallback classic clone) + spawn/join via futex.
+ * Slice1: clone trampoline spawn/join (child never C-continues after clone).
+ *         Raw xlang_clone / xlang_clone3 helpers kept for Cap faces.
  * Later: product pthread face → Cap · Windows CreateThread (10.6.2).
  *
  * Windows / Darwin: not provided — callers keep OS thread APIs.
@@ -281,7 +282,94 @@ static inline long xlang_clone(unsigned long flags, void *stack_top, int *parent
 }
 
 /**
- * Spawn fn(arg) on a Cap-mapped stack (clone3, ENOSYS → classic clone).
+ * Fixed Cap child entry: run user fn then signal join.done (asm exits after return).
+ * @param p xlang_thread_spawn_pack*
+ * @return 0
+ * PLATFORM: LINUX
+ */
+static inline int xlang_thread_child_entry(void *p) {
+  struct xlang_thread_spawn_pack *pack = (struct xlang_thread_spawn_pack *)p;
+  if (pack != 0 && pack->fn != 0) {
+    (void)pack->fn(pack->arg);
+  }
+  if (pack != 0 && pack->join != 0) {
+    pack->join->done = 1;
+    (void)xlang_futex_wake(&pack->join->done, 1);
+  }
+  return 0;
+}
+
+/**
+ * Raw clone trampoline: child never returns into C (fn(arg) then SYS_exit).
+ * stack_top = high address; fn/arg placed on new stack by Cap.
+ * @return tid in parent; does not return in child
+ * PLATFORM: LINUX x86_64 | aarch64
+ */
+static inline long xlang_clone_tramp(int (*fn)(void *), void *stack_top, unsigned long flags,
+                                    void *arg, int *ptid, int *ctid) {
+  long ret = 0;
+  void **sp = (void **)(((uintptr_t)stack_top) & ~(uintptr_t)15);
+  if (fn == 0 || stack_top == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  sp -= 2;
+  sp[0] = arg;                   /* first pop -> arg */
+  sp[1] = (void *)(uintptr_t)fn; /* second pop -> fn */
+#if defined(__x86_64__)
+  __asm__ __volatile__(
+      "mov %[flags], %%rdi\n\t"
+      "mov %[stack], %%rsi\n\t"
+      "mov %[ptid], %%rdx\n\t"
+      "mov %[ctid], %%r10\n\t"
+      "xor %%r8, %%r8\n\t"
+      "mov $56, %%rax\n\t"
+      "syscall\n\t"
+      "test %%rax, %%rax\n\t"
+      "jnz 1f\n\t"
+      "xor %%ebp, %%ebp\n\t"
+      "pop %%rdi\n\t"
+      "pop %%r9\n\t"
+      "call *%%r9\n\t"
+      "xor %%edi, %%edi\n\t"
+      "mov $60, %%rax\n\t"
+      "syscall\n\t"
+      "1:\n\t"
+      : "=a"(ret)
+      : [flags] "r"(flags), [stack] "r"(sp), [ptid] "r"(ptid), [ctid] "r"(ctid)
+      : "rcx", "r11", "rdi", "rsi", "rdx", "r8", "r9", "r10", "memory");
+#elif defined(__aarch64__)
+  __asm__ __volatile__(
+      "mov x0, %[flags]\n\t"
+      "mov x1, %[stack]\n\t"
+      "mov x2, %[ptid]\n\t"
+      "mov x3, xzr\n\t"
+      "mov x4, %[ctid]\n\t"
+      "mov x8, #220\n\t"
+      "svc #0\n\t"
+      "cbnz x0, 1f\n\t"
+      "mov x29, xzr\n\t"
+      "mov x30, xzr\n\t"
+      "ldp x0, x1, [sp], #16\n\t"
+      "blr x1\n\t"
+      "mov x0, xzr\n\t"
+      "mov x8, #93\n\t"
+      "svc #0\n\t"
+      "1:\n\t"
+      "mov %[ret], x0\n\t"
+      : [ret] "=r"(ret)
+      : [flags] "r"(flags), [stack] "r"(sp), [ptid] "r"(ptid), [ctid] "r"(ctid)
+      : "x0", "x1", "x2", "x3", "x4", "x8", "x29", "x30", "memory");
+#endif
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return ret;
+}
+
+/**
+ * Spawn fn(arg) on a Cap-mapped stack via clone trampoline (no C-continuation).
  * join must be zero-initialized; owns stack until xlang_thread_join.
  * @return 0 parent ok; -1 with errno (never returns in child)
  * PLATFORM: LINUX
@@ -290,10 +378,8 @@ static inline int xlang_thread_spawn(xlang_thread_start_fn fn, void *arg,
                                      struct xlang_thread_join *join, size_t stack_len) {
   void *stack = 0;
   struct xlang_thread_spawn_pack *pack = 0;
-  struct xlang_clone_args ca;
   unsigned char *base = 0;
   size_t pack_off = 0;
-  size_t usable = 0;
   void *stack_top = 0;
   long r = 0;
   unsigned long flags = (unsigned long)XLANG_CLONE_THREAD_FLAGS;
@@ -313,7 +399,6 @@ static inline int xlang_thread_spawn(xlang_thread_start_fn fn, void *arg,
     return -1;
   }
 
-  /* Reserve pack at low end of mapping (shared VM; clone3 stack = low+size). */
   base = (unsigned char *)stack;
   pack_off = (sizeof(struct xlang_thread_spawn_pack) + 15u) & ~(size_t)15u;
   if (pack_off + 4096u > stack_len) {
@@ -325,40 +410,15 @@ static inline int xlang_thread_spawn(xlang_thread_start_fn fn, void *arg,
   pack->fn = fn;
   pack->arg = arg;
   pack->join = join;
-  usable = stack_len - pack_off;
 
-  ca.flags = (uint64_t)flags;
-  ca.pidfd = 0;
-  ca.child_tid = (uint64_t)(uintptr_t)&join->child_tid;
-  ca.parent_tid = (uint64_t)(uintptr_t)&join->child_tid;
-  ca.exit_signal = 0;
-  ca.stack = (uint64_t)(uintptr_t)(base + pack_off);
-  ca.stack_size = (uint64_t)usable;
-  ca.tls = 0;
-
-  r = xlang_clone3(&ca, sizeof(ca));
-  if (r < 0 && errno == ENOSYS) {
-    /* Fallback: classic clone — stack_top = high end, 16-byte aligned. */
-    stack_top = (void *)(((uintptr_t)(base + stack_len)) & ~(uintptr_t)15u);
-    r = xlang_clone(flags, stack_top, &join->child_tid, &join->child_tid, 0);
-  }
+  stack_top = (void *)(uintptr_t)(base + stack_len);
+  r = xlang_clone_tramp(xlang_thread_child_entry, stack_top, flags, pack, &join->child_tid,
+                        &join->child_tid);
   if (r < 0) {
     (void)xlang_thread_munmap_stack(stack, stack_len);
     return -1;
   }
 
-  if (r == 0) {
-    /* Child: pack lives at mapping base (CLONE_VM). */
-    xlang_thread_start_fn child_fn = pack->fn;
-    void *child_arg = pack->arg;
-    struct xlang_thread_join *child_join = pack->join;
-    (void)child_fn(child_arg);
-    child_join->done = 1;
-    (void)xlang_futex_wake(&child_join->done, 1);
-    xlang_thread_exit(0);
-  }
-
-  /* Parent */
   join->stack = stack;
   join->stack_len = stack_len;
   return 0;
@@ -377,7 +437,6 @@ static inline int xlang_thread_join(struct xlang_thread_join *join) {
   while (join->done == 0) {
     (void)xlang_futex_wait_timeout_ns(&join->done, 0, 0);
   }
-  /* CLONE_CHILD_CLEARTID: kernel stores 0 and futex-wakes child_tid on exit. */
   while (join->child_tid != 0) {
     uint32_t expect = (uint32_t)join->child_tid;
     (void)xlang_futex((uint32_t *)(void *)&join->child_tid, XLANG_FUTEX_WAIT, expect, 0);
