@@ -15,6 +15,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: asm tmp path → Cap snprintf */
+/* G.7: Cap after stdio for rt_run_asm_backend cold seed. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
