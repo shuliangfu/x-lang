@@ -27,6 +27,9 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <xlang_io_cap.h>
+#endif
 /* 【Why 根源】MinGW open() 默认文本模式，read/write 做 CRLF↔LF 转换，
  * 导致 fstat 报告的 st_size（物理字节数）与 read 实际返回字节数不一致。
  * 例：fmt 写入 37 字节 LF，文本模式 write 磁盘为 40 字节 CRLF；
@@ -325,6 +328,7 @@ int xlang_read_file_into_path(const char *path, void *buf, size_t cap) {
 /**
  * B-20：open(O_WRONLY|O_CREAT|O_TRUNC)/write 写整文件。
  * 参数：见 runtime_io_abi.h。
+ * Cap residual 9.1.8: Linux via xlang_io_cap.h (no libc write); .x twin same.
  * Cap residual pure：.x 真迁；FROM_X 时由 .x 提供。
  */
 #ifndef XLANG_RUNTIME_IO_ABI_FROM_X
@@ -338,7 +342,11 @@ int xlang_write_path_bytes_impl(const char *path, const void *data, size_t len) 
         return -1;
     off = 0;
     while (off < len) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        n = (ssize_t)xlang_io_write(fd, (const char *)data + off, len - off);
+#else
         n = write(fd, (const char *)data + off, len - off);
+#endif
         if (n < 0) {
             close(fd);
             return -1;
@@ -442,7 +450,11 @@ ssize_t std_fs_fs_read(int32_t fd, uint8_t * buf, size_t count) {
     return neg;
   }
   (void)(({   {
+#if !defined(_WIN32) && !defined(_WIN64)
+    ssize_t n = (ssize_t)xlang_io_read((int)fd, (void *)buf, count);
+#else
     ssize_t n = read(fd, buf, count);
+#endif
     return n;
   }
  }));
@@ -456,7 +468,11 @@ ssize_t std_fs_fs_write(int32_t fd, uint8_t * buf, size_t count) {
     return neg;
   }
   (void)(({   {
+#if !defined(_WIN32) && !defined(_WIN64)
+    ssize_t n = (ssize_t)xlang_io_write((int)fd, (const void *)buf, count);
+#else
     ssize_t n = write(fd, buf, count);
+#endif
     return n;
   }
  }));
