@@ -262,7 +262,7 @@ export function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
 }
 
 /** Exported function `simd_x86_vaddps_ymm0_ymm1`.
- * AVX vaddps ymm0, ymm1, ymm0 — lane-wise f32 subtract is separate (vsubps).
+ * AVX vaddps ymm0, ymm1, ymm0 — 8-wide lane-wise f32 add.
  * @param elf *u8 — ELF codegen ctx
  * @return i32 — 0 on success, -1 on append failure
  * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
@@ -297,6 +297,31 @@ export function simd_x86_vmulps_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 252;
   let b2: u8 = 89;
+  let b3: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
+/** Exported function `simd_x86_vsubps_ymm0_ymm1`.
+ * AVX vsubps ymm0, ymm1, ymm0 — 8-wide f32 subtract.
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
+ */
+#[no_mangle]
+export function simd_x86_vsubps_ymm0_ymm1(elf: *u8): i32 {
+  let b0: u8 = 197;
+  let b1: u8 = 252;
+  let b2: u8 = 92;
   let b3: u8 = 193;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
@@ -1641,17 +1666,17 @@ export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, s
 }
 
 /** Exported function `simd_enc_try_hw_vector_fsub_rbp`.
- * HW f32 vector subtract for stack-slot operands (SSE subps, lanes==4).
+ * HW f32 vector subtract for stack-slot operands (SSE subps lanes==4; AVX2 vsubps lanes==8).
  * @param elf_ctx *u8 — ELF codegen ctx
  * @param slot_off_a i32 — rbp-relative home of operand a
  * @param slot_off_b i32 — rbp-relative home of operand b
  * @param slot_off_dst i32 — rbp-relative dest home
- * @param lanes i32 — must be 4
+ * @param lanes i32 — 4 (xmm) or 8 (ymm / dual-half SSE)
  * @param esz i32 — must be 4 (f32)
  * @param ta i32 — target arch (0 = x86_64)
- * @param cpu_features u32 — SSE2 bit required
+ * @param cpu_features u32 — SSE2 required; AVX2 bit for lanes==8 fast path
  * @return i32 — 0 handled, -1 fall back / error
- * PLATFORM: LINUX+MACOS x86_64 SSE.
+ * PLATFORM: LINUX+MACOS x86_64 SSE/AVX.
  */
 #[no_mangle]
 export function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
@@ -1660,9 +1685,36 @@ export function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
-  if (lanes != 4) { return 0 - 1; }
+  if (lanes != 4 && lanes != 8) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
   if ((cpu_features & 1) == 0) { return 0 - 1; }
+  if (lanes == 8) {
+    let da8: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
+    let db8: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
+    let dd8: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
+    if ((cpu_features & 4) != 0) {
+      if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da8) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db8) != 0) { return 0 - 1; }
+      if (simd_x86_vsubps_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd8) != 0) { return 0 - 1; }
+      return 0;
+    }
+    let da_lo: i32 = simd_rbp_disp32(slot_off_a, 4, esz);
+    let db_lo: i32 = simd_rbp_disp32(slot_off_b, 4, esz);
+    let dd_lo: i32 = simd_rbp_disp32(slot_off_dst, 4, esz);
+    let da_hi: i32 = da_lo + 16;
+    let db_hi: i32 = db_lo + 16;
+    let dd_hi: i32 = dd_lo + 16;
+    if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da_lo) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db_lo) != 0) { return 0 - 1; }
+    if (simd_x86_subps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd_lo) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da_hi) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db_hi) != 0) { return 0 - 1; }
+    if (simd_x86_subps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd_hi) != 0) { return 0 - 1; }
+    return 0;
+  }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
   let dd: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
