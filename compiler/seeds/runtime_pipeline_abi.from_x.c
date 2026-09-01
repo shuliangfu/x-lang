@@ -227,6 +227,8 @@
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <dirent.h>
 #include <sys/stat.h>
+/* Cap residual 9.1.10: sibling-dir scan uses xlang_dir_* (no libc opendir). */
+#include <xlang_dir_cap.h>
 #endif
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -1354,7 +1356,7 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
      * entry_dir's parent directory for sibling subdirs containing <name>.x or
      * <name>/<name>.x. This mirrors how modern module resolvers fall back to a
      * parent-level search when a bare name is not found in the current dir.
-     * PLATFORM: POSIX (opendir/readdir); Windows skips (rare in bootstrap path). */
+     * PLATFORM: POSIX Cap residual 9.1.10 (xlang_dir_cap.h); Windows skips. */
     if (entry_dir && entry_dir[0] && path_size >= 16) {
         const char *last_slash = strrchr(entry_dir, '/');
         if (last_slash) {
@@ -1364,11 +1366,11 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
                 (void)memcpy(parent_buf, entry_dir, parent_len);
                 parent_buf[parent_len] = '\0';
 #if !defined(_WIN32) && !defined(_WIN64)
-                DIR *d = opendir(parent_buf);
+                {
+                void *d = xlang_dir_open(parent_buf);
                 if (d) {
-                    struct dirent *de;
-                    while ((de = readdir(d)) != NULL) {
-                        const char *dn = de->d_name;
+                    char *dn;
+                    while ((dn = xlang_dir_readdir_name(d)) != NULL) {
                         if (dn[0] == '.') continue;
                         if (strchr(import_path, '.') == NULL) {
                             /* Single-segment: <parent>/<sibling>/<name>.x
@@ -1376,7 +1378,7 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
                             (void)snprintf(path, path_size, "%s/%s/%.200s.x",
                                            parent_buf, dn, import_path);
                             if (access(path, R_OK) == 0) {
-                                closedir(d);
+                                (void)xlang_dir_close(d);
                                 return;
                             }
                             int imp_n = (int)strlen(import_path);
@@ -1384,7 +1386,7 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
                                 (void)snprintf(path, path_size, "%s/%s/%.64s/%.64s.x",
                                                parent_buf, dn, import_path, import_path);
                                 if (access(path, R_OK) == 0) {
-                                    closedir(d);
+                                    (void)xlang_dir_close(d);
                                     return;
                                 }
                             }
@@ -1406,21 +1408,22 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
                                 if (off + 5 <= path_size) {
                                     (void)snprintf(path + off, path_size - off, ".x");
                                     if (access(path, R_OK) == 0) {
-                                        closedir(d);
+                                        (void)xlang_dir_close(d);
                                         return;
                                     }
                                 }
                                 if (off + 9 <= path_size) {
                                     (void)snprintf(path + off, path_size - off, "/mod.x");
                                     if (access(path, R_OK) == 0) {
-                                        closedir(d);
+                                        (void)xlang_dir_close(d);
                                         return;
                                     }
                                 }
                             }
                         }
                     }
-                    closedir(d);
+                    (void)xlang_dir_close(d);
+                }
                 }
 #endif
             }
