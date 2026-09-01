@@ -27,8 +27,8 @@
 | Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；parser seed 物理删／CI 漂移闸 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
-| Cap residual 消灭（阶段 9） | ⬜ | 0/~50；依赖阶段 10 |
-| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0–10**（含 x8 lateout／noreturn 截断／ud2／r10／clobber）＋**10.2.2 slice0** ✅＠`381431c00`；残：options 语义／10.2.3／10.1.3 NT（须 Windows）／Darwin pin |
+| Cap residual 消灭（阶段 9） | 🟡 | **9.1.3** getpid／getppid／getcwd／chdir Linux raw ✅（WIP）；其余 9.1～9.7 仍开 |
+| 语言能力 L2（阶段 10） | 🟡 | **10.1.1–2** ✅ · **10.1.4** slice1–2 ✅ · **10.3.*** Ubuntu ✅ · **10.4.1–2** ✅＠`a2277e5e3` · **10.2.1 slice0–16**（options 族；WIP）＋**10.2.2 slice0–2**（nop＋AAPCS x0..x7 lateout；WIP）；残：qemu／10.2.3／10.1.3 NT／Darwin pin |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
@@ -150,13 +150,13 @@
 
 ### 9.1 OS 系统调用（P0）
 
-- ⬜ **9.1.1** getenv／setenv／unsetenv／environ  
-- ⬜ **9.1.2** stat／access／realpath  
-- ⬜ **9.1.3** getcwd／chdir／getpid／getppid  
-- ⬜ **9.1.4** execve／waitpid／pipe／spawn／system  
-- ⬜ **9.1.5** clock_gettime／nanosleep／gmtime_r／QPC／Sleep  
-- ⬜ **9.1.6** getrandom／getentropy／BCryptGenRandom  
-- ⬜ **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg  
+- ✅ **9.1.1** getenv／setenv／unsetenv／environ — **Ubuntu ✅（WIP）**：POSIX `xlang_environ_cap.h` 走查／改写 environ（无 libc getenv／setenv／unsetenv）；权威 `link_abi_getenv_impl`＋process／env_os。探针 `process_env_raw_smoke.x`。残：Darwin／Win CRT  
+- ✅ **9.1.2** stat／access／realpath — **Ubuntu ✅（WIP）**：`xlang_path_cap.h`（faccessat／newfstatat／fstat／open+readlink）；`fs_libc_stat`／`fstat` raw_syscall；fk0＋`std_fs_stat`。探针 `fs_stat_raw_smoke.x`。残：Darwin／Win · fmt_check.o  
+- ✅ **9.1.3** getcwd／chdir／getpid／getppid — **Ubuntu ✅（WIP）**：四 API Linux raw syscall（无 libc）；缓存语义保留。探针 `process_getpid_raw_smoke.x`／`process_getcwd_raw_smoke.x`。残：Darwin／Win  
+- ✅ **9.1.4** execve／waitpid／pipe／spawn／system — **Ubuntu ✅（WIP）**：产品 `xlang_process_cap.h`＋host `spawn_sync`／`waitpid_retry`／`system_impl`／`execvp` PATH。探针 `process_spawn_raw_smoke.x`／`process_pipe_raw_smoke.x`。残：signal／strerror 文案 · Darwin／Win  
+- ✅ **9.1.5** clock_gettime／nanosleep／gmtime_r／QPC／Sleep — **Ubuntu ✅（WIP）**：`xlang_time_cap.h`（Linux syscall＋civil gmtime）；`runtime_time_os`＋scheduler／channel／sync／driver wall。探针 `time_raw_smoke.x`。残：localtime_r／mktime（tz）· mega 未注入 · Darwin／Win QPC 面既有  
+- ✅ **9.1.6** getrandom／getentropy／BCryptGenRandom — **Ubuntu ✅（WIP）**：`xlang_random_cap.h`（Linux getrandom syscall）；`random_fill_bytes_impl`。探针 `random_raw_smoke.x`。残：Darwin getentropy · Win BCrypt 既有  
+- 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–1 Ubuntu ✅（WIP）**：`xlang_net_cap.h`（socket／connect／bind／listen／accept／poll／close＋**slice1** recvmmsg／sendmmsg）；sock_fast＋ipv6_fast＋udp_batch／stubs；补全 `xlang_sys_*`。探针 `net_sock_raw_smoke.x`／`net_mmsg_raw_smoke.x`。残：net.o U poll（io）· getaddrinfo · WSAStartup／Darwin  
 - ⬜ **9.1.8** `_write`／write  
 - ⬜ **9.1.9** inline asm syscall（Linux x86_64）  
 - ⬜ **9.1.10** opendir／readdir／closedir  
@@ -225,8 +225,8 @@
 
 ### 10.2 inline asm
 
-- 🟡 **10.2.1** x86_64 inline asm — **slice0–10 ✅**＠`381431c00`：`lateout("x8")`（G.7 `enc_mov_x8_to_rax`）；探针 `asm_lateout_x8_smoke.x` LE 三操作码；slice9 截断＠`fdd4fbfcc`。残：CFG 臂／其余 options／10.2.3  
-- 🟡 **10.2.2** arm64 inline asm — **slice0 ✅（Ubuntu）**＠`146ad835a`：同 try_emit ta==1 → LE `1f 20 03 d5`；探针 `asm_nop_arm64_smoke.x`（`-target aarch64-linux-gnu -c`；无 qemu）。残：操作数／运行时 qemu  
+- 🟡 **10.2.1** x86_64 inline asm — **slice0–16**（options 族大体收；WIP）：`opt_bits&28` 拒本地 out；`pure+noreturn` 硬拒。探针 `asm_readonly_*`／`asm_pure_*`／既有 nomem／nostack／pf。残：10.2.3  
+- 🟡 **10.2.2** arm64 inline asm — **slice0–2 ✅（Ubuntu encode）**：slice0 nop；slice1 `mov_arg_reg_to_rax` ta==1；slice2 开 x6／x7（mk 7／8）→ **AAPCS x0..x7**。探针 `asm_lateout_x{1,2,6,7}_arm64_smoke.x`。残：运行时 qemu  
 - ⬜ **10.2.3** Windows inline asm／intrinsics  
 
 ### 10.3 fnptr
