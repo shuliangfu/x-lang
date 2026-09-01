@@ -178,56 +178,48 @@ static int http_pool_url_matches(const http_client_pool_t *p, const uint8_t *url
   return 1;
 }
 
-/** 新建 TCP 连接至 pool 绑定的 host:port。 */
+/** 新建 TCP 连接至 pool 绑定的 host:port。
+ * Cap residual 9.1.7 slice2: Linux via http_dial_host_port (no getaddrinfo). */
 static int http_pool_connect_new(http_client_pool_t *p) {
-  struct addrinfo hints;
-  struct addrinfo *res = NULL;
   int fd;
   if (!p) return -1;
 #if defined(_WIN32) || defined(_WIN64)
   {
     WSADATA wsa;
+    struct addrinfo hints;
+    struct addrinfo *res = NULL;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return -1;
-  }
-#endif
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  if (getaddrinfo(p->host, p->port, &hints, &res) != 0 || !res) {
-#if defined(_WIN32) || defined(_WIN64)
-    WSACleanup();
-#endif
-    return -1;
-  }
-#if defined(_WIN32) || defined(_WIN64)
-  {
-    SOCKET s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (s == INVALID_SOCKET) {
-      freeaddrinfo(res);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    if (getaddrinfo(p->host, p->port, &hints, &res) != 0 || !res) {
       WSACleanup();
       return -1;
     }
-    if (connect(s, res->ai_addr, (int)res->ai_addrlen) != 0) {
-      XLANG_HTTP_CLOSE((int)s);
-      freeaddrinfo(res);
-      WSACleanup();
-      return -1;
+    {
+      SOCKET s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+      if (s == INVALID_SOCKET) {
+        freeaddrinfo(res);
+        WSACleanup();
+        return -1;
+      }
+      if (connect(s, res->ai_addr, (int)res->ai_addrlen) != 0) {
+        XLANG_HTTP_CLOSE((int)s);
+        freeaddrinfo(res);
+        WSACleanup();
+        return -1;
+      }
+      fd = (int)s;
     }
-    fd = (int)s;
+    freeaddrinfo(res);
   }
 #else
-  fd = (int)socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-  if (fd < 0) {
-    freeaddrinfo(res);
-    return -1;
-  }
-  if (connect(fd, res->ai_addr, (socklen_t)res->ai_addrlen) != 0) {
-    XLANG_HTTP_CLOSE(fd);
-    freeaddrinfo(res);
-    return -1;
+  {
+    int32_t dr = http_dial_host_port(p->host, p->port, 0, &fd);
+    if (dr != 0)
+      return -1;
   }
 #endif
-  freeaddrinfo(res);
   p->connect_count++;
   return fd;
 }
