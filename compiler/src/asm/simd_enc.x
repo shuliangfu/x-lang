@@ -261,6 +261,56 @@ export function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
   return r;
 }
 
+/** Exported function `simd_x86_vaddps_ymm0_ymm1`.
+ * AVX vaddps ymm0, ymm1, ymm0 — lane-wise f32 subtract is separate (vsubps).
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
+ */
+#[no_mangle]
+export function simd_x86_vaddps_ymm0_ymm1(elf: *u8): i32 {
+  let b0: u8 = 197;
+  let b1: u8 = 252;
+  let b2: u8 = 88;
+  let b3: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
+/** Exported function `simd_x86_vmulps_ymm0_ymm1`.
+ * AVX vmulps ymm0, ymm1, ymm0 — 8-wide f32 multiply.
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
+ */
+#[no_mangle]
+export function simd_x86_vmulps_ymm0_ymm1(elf: *u8): i32 {
+  let b0: u8 = 197;
+  let b1: u8 = 252;
+  let b2: u8 = 89;
+  let b3: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
 /** Exported function `simd_x86_vpaddd_ymm0_ymm1`.
  * Implements `simd_x86_vpaddd_ymm0_ymm1`.
  * @param elf *u8
@@ -1503,12 +1553,33 @@ export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
-  if (lanes != 4) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
-  if ((cpu_features & 1) == 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
   let dd: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
+  if (lanes == 8) {
+    if ((cpu_features & 8) != 0) {
+      if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_vaddps_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      return 0;
+    }
+    /* f32x8 without AVX2: dual 128-bit addps (SSE). PLATFORM: LINUX gold fallback. */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
+      return 0;
+    }
+  }
+  if (lanes != 4) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
   if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
   if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
   if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
@@ -1535,12 +1606,33 @@ export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
-  if (lanes != 4) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
-  if ((cpu_features & 1) == 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
   let dd: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
+  if (lanes == 8) {
+    if ((cpu_features & 8) != 0) {
+      if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_vmulps_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      return 0;
+    }
+    /* f32x8 without AVX2: dual 128-bit mulps. PLATFORM: LINUX gold fallback. */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
+      return 0;
+    }
+  }
+  if (lanes != 4) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
   if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
   if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
   if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
