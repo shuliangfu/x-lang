@@ -3,7 +3,7 @@
  *
  * wave252–253 G.7: residual STD_AND_PANIC leaves (backtrace/env_os/process_os/log_os/http_glue)
  * must not call raw libc getenv; authority name is link_abi_getenv (≡ wave222 pure thin
- * null/empty gate → link_abi_getenv_impl host getenv).
+ * null/empty gate → link_abi_getenv_impl Cap residual environ walk / Win CRT).
  *
  * Product host g05 authority remains labi_diag_pure.x + mega link_abi_getenv_impl —
  * this header / user_env.o are NEVER compiled into the g05 60/62-obj bag.
@@ -41,17 +41,23 @@ extern "C" {
 #if defined(XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN)
 
 #include <stdlib.h>
+#include <xlang_environ_cap.h>
 
 /**
  * Cap residual host getenv (legacy in-header weak twin; prefer runtime_link_abi_user_env.o).
  * @param name NUL-terminated environment key; may be null
  * @return value pointer from process env block, or NULL
+ * PLATFORM: POSIX environ walk; Windows CRT getenv.
  */
 XLANG_USER_ENV_WEAK
 const char *link_abi_getenv_impl(const char *name) {
   if (!name || !name[0])
     return NULL;
+#if defined(_WIN32) || defined(_WIN64)
   return getenv(name);
+#else
+  return xlang_environ_getenv(name);
+#endif
 }
 
 /**
