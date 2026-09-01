@@ -27,6 +27,10 @@
 #include "async_cps_codegen.h"
 #include <stdio.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: async_cps sched name → Cap snprintf */
+/* G.7: single Cap authority for this TU (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
 
 int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target);
 
