@@ -4,8 +4,9 @@
  * R2 full mode (wave504): public API in src/asm/runtime_sync_os.x (thin),
  * OS bridge _impl functions here (rest). Thin+rest linked via ld -r.
  * Platform-specific: Windows (CRITICAL_SECTION/SRWLOCK/CONDITION_VARIABLE)
- * vs POSIX (pthread_mutex_t/pthread_rwlock_t/pthread_cond_t).
- * PLATFORM: SHARED
+ * vs POSIX. LINUX primary: mutex/cond → xlang_sync_cap (futex); rwlock still
+ * pthread until Cap rwlock exists. Darwin/other POSIX: pthread for mutex/cond/rwlock.
+ * PLATFORM: SHARED — LINUX Cap mutex/cond · POSIX rwlock · WINDOWS Win32
  */
 /**
  * runtime_sync_os.c — Mutex/RwLock/Condvar OS 胶层（F-ZC：自 std/sync/sync_os_glue.c 迁入）
@@ -291,19 +292,34 @@ int32_t sync_condvar_contention_smoke_c(void) {
 #include <pthread.h>
 #include <time.h>
 #include <xlang_time_cap.h> /* Cap residual 9.1.5 nanosleep */
+#if defined(__linux__)
+#include <xlang_sync_cap.h> /* Cap residual 10.6.3: futex mutex/cond */
+#endif
 
-/** POSIX: mutex is pthread_mutex_t*, heap-allocated for opaque return. */
+#if defined(__linux__)
+/** PLATFORM: LINUX — Cap futex mutex (no pthread_mutex_*). */
+typedef struct xlang_cap_mutex xlang_mutex_impl_t;
+#else
+/** POSIX (non-Linux): mutex is pthread_mutex_t*, heap-allocated for opaque return. */
 typedef pthread_mutex_t xlang_mutex_impl_t;
+#endif
 
 /** Create new mutex; returns NULL on failure. */
 /* G-02f-20 thin+rest: _impl OS bridge */
 void *sync_mutex_new_impl(void) {
     xlang_mutex_impl_t *m = (xlang_mutex_impl_t *)malloc(sizeof(xlang_mutex_impl_t));
     if (m == NULL) return NULL;
+#if defined(__linux__)
+    if (xlang_cap_mutex_init(m) != 0) {
+        free(m);
+        return NULL;
+    }
+#else
     if (pthread_mutex_init(m, NULL) != 0) {
         free(m);
         return NULL;
     }
+#endif
     return (void *)m;
 }
 
@@ -318,9 +334,15 @@ int32_t sync_mutex_lock_impl(void *m) {
     if (sync_lock_diag_before_lock(m) != 0) {
         return -1;
     }
+#if defined(__linux__)
+    if (xlang_cap_mutex_lock((struct xlang_cap_mutex *)m) != 0) {
+        return -1;
+    }
+#else
     if (pthread_mutex_lock((pthread_mutex_t *)m) != 0) {
         return -1;
     }
+#endif
     sync_lock_diag_after_lock(m);
     return 0;
 }
@@ -336,9 +358,15 @@ int32_t sync_mutex_try_lock_impl(void *m) {
     if (sync_lock_diag_before_lock(m) != 0) {
         return -1;
     }
+#if defined(__linux__)
+    if (xlang_cap_mutex_trylock((struct xlang_cap_mutex *)m) != 0) {
+        return 1;
+    }
+#else
     if (pthread_mutex_trylock((pthread_mutex_t *)m) != 0) {
         return 1;
     }
+#endif
     sync_lock_diag_after_lock(m);
     return 0;
 }
@@ -354,9 +382,15 @@ int32_t sync_mutex_unlock_impl(void *m) {
     if (sync_lock_diag_before_unlock(m) != 0) {
         return -1;
     }
+#if defined(__linux__)
+    if (xlang_cap_mutex_unlock((struct xlang_cap_mutex *)m) != 0) {
+        return -1;
+    }
+#else
     if (pthread_mutex_unlock((pthread_mutex_t *)m) != 0) {
         return -1;
     }
+#endif
     sync_lock_diag_after_unlock(m);
     return 0;
 }
@@ -369,7 +403,11 @@ int32_t sync_mutex_unlock_c(void *m) { return sync_mutex_unlock_impl(m); }
 /* G-02f-20 thin+rest: _impl OS bridge */
 void sync_mutex_free_impl(void *m) {
     if (m == NULL) return;
+#if defined(__linux__)
+    (void)xlang_cap_mutex_destroy((struct xlang_cap_mutex *)m);
+#else
     pthread_mutex_destroy((pthread_mutex_t *)m);
+#endif
     free(m);
 }
 
@@ -452,18 +490,30 @@ void sync_rwlock_free_impl(void *rw) {
 void sync_rwlock_free_c(void *rw) { sync_rwlock_free_impl(rw); }
 #endif
 
-/** POSIX: condvar is pthread_cond_t*, heap-allocated. */
+#if defined(__linux__)
+/** PLATFORM: LINUX — Cap futex condvar (no pthread_cond_*). */
+typedef struct xlang_cap_cond xlang_condvar_impl_t;
+#else
+/** POSIX (non-Linux): condvar is pthread_cond_t*, heap-allocated. */
 typedef pthread_cond_t xlang_condvar_impl_t;
+#endif
 
 /** Create Condvar; returns NULL on failure. */
 /* G-02f-20 thin+rest: _impl OS bridge */
 void *sync_condvar_new_impl(void) {
     xlang_condvar_impl_t *cv = (xlang_condvar_impl_t *)malloc(sizeof(xlang_condvar_impl_t));
     if (!cv) return NULL;
+#if defined(__linux__)
+    if (xlang_cap_cond_init(cv) != 0) {
+        free(cv);
+        return NULL;
+    }
+#else
     if (pthread_cond_init(cv, NULL) != 0) {
         free(cv);
         return NULL;
     }
+#endif
     return (void *)cv;
 }
 
@@ -475,7 +525,13 @@ void *sync_condvar_new_c(void) { return sync_condvar_new_impl(); }
 /* G-02f-20 thin+rest: _impl OS bridge */
 int32_t sync_condvar_wait_impl(void *cv, void *mutex) {
     if (!cv || !mutex) return -1;
+#if defined(__linux__)
+    return (xlang_cap_cond_wait((struct xlang_cap_cond *)cv, (struct xlang_cap_mutex *)mutex) == 0)
+               ? 0
+               : -1;
+#else
     return (pthread_cond_wait((pthread_cond_t *)cv, (pthread_mutex_t *)mutex) == 0) ? 0 : -1;
+#endif
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
@@ -486,7 +542,11 @@ int32_t sync_condvar_wait_c(void *cv, void *mutex) { return sync_condvar_wait_im
 /* G-02f-20 thin+rest: _impl OS bridge */
 int32_t sync_condvar_signal_impl(void *cv) {
     if (!cv) return -1;
+#if defined(__linux__)
+    return (xlang_cap_cond_signal((struct xlang_cap_cond *)cv) == 0) ? 0 : -1;
+#else
     return (pthread_cond_signal((pthread_cond_t *)cv) == 0) ? 0 : -1;
+#endif
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
@@ -497,7 +557,11 @@ int32_t sync_condvar_signal_c(void *cv) { return sync_condvar_signal_impl(cv); }
 /* G-02f-20 thin+rest: _impl OS bridge */
 int32_t sync_condvar_broadcast_impl(void *cv) {
     if (!cv) return -1;
+#if defined(__linux__)
+    return (xlang_cap_cond_broadcast((struct xlang_cap_cond *)cv) == 0) ? 0 : -1;
+#else
     return (pthread_cond_broadcast((pthread_cond_t *)cv) == 0) ? 0 : -1;
+#endif
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
@@ -508,7 +572,11 @@ int32_t sync_condvar_broadcast_c(void *cv) { return sync_condvar_broadcast_impl(
 /* G-02f-20 thin+rest: _impl OS bridge */
 void sync_condvar_free_impl(void *cv) {
     if (!cv) return;
+#if defined(__linux__)
+    (void)xlang_cap_cond_destroy((struct xlang_cap_cond *)cv);
+#else
     pthread_cond_destroy((pthread_cond_t *)cv);
+#endif
     free(cv);
 }
 
