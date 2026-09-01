@@ -10,13 +10,15 @@
  *
  * wave252 G.7: XLANG_LOG_MIN_LEVEL via public face link_abi_getenv (not raw getenv).
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
+ * Cap residual 10.7.2: rotate path format via xlang_snprintf (no libc snprintf).
  * PLATFORM: SHARED
  */
 #include <stdint.h>
-#include <stdio.h>
+#include <stdio.h> /* FILE* for sink helpers; format via Cap xlang_snprintf */
 #include <stdlib.h>
 #include <string.h>
 #include <xlang_user_link_abi_getenv.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: log rotate path → xlang_snprintf */
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
@@ -192,16 +194,16 @@ int32_t log_do_rotate_impl(void) {
     s_file_fd = open(s_file_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 #endif
   } else {
-    snprintf(oldpath, sizeof(oldpath), "%s.%d", s_file_path, max_b);
+    xlang_snprintf(oldpath, sizeof(oldpath), "%s.%d", s_file_path, max_b);
 #if !defined(_WIN32) && !defined(_WIN64)
     unlink(oldpath);
 #endif
     for (int32_t i = max_b - 1; i >= 1; i--) {
-      snprintf(oldpath, sizeof(oldpath), "%s.%d", s_file_path, i);
-      snprintf(newpath, sizeof(newpath), "%s.%d", s_file_path, i + 1);
+      xlang_snprintf(oldpath, sizeof(oldpath), "%s.%d", s_file_path, i);
+      xlang_snprintf(newpath, sizeof(newpath), "%s.%d", s_file_path, i + 1);
       rename(oldpath, newpath);
     }
-    snprintf(newpath, sizeof(newpath), "%s.1", s_file_path);
+    xlang_snprintf(newpath, sizeof(newpath), "%s.1", s_file_path);
     rename(s_file_path, newpath);
 #if defined(_WIN32) || defined(_WIN64)
     s_file_fd = _open(s_file_path, _O_WRONLY | _O_CREAT | _O_APPEND | _O_BINARY, _S_IWRITE);
@@ -437,7 +439,7 @@ int32_t log_rotate_async_smoke_c(const char *path) {
 #if !defined(_WIN32) && !defined(_WIN64)
   unlink(path);
 #endif
-  snprintf(path1, sizeof(path1), "%s.1", path);
+  xlang_snprintf(path1, sizeof(path1), "%s.1", path);
 #if !defined(_WIN32) && !defined(_WIN64)
   unlink(path1);
 #endif
