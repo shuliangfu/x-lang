@@ -15,7 +15,7 @@
  * FROM_X rest T=0 (empty TU of public business symbols).
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./xlang-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
- *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
+ *         merge fixed-msg wrappers; polish slice strings; Cap snprintf (10.7.2).
  * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note +
  *   debug_log/parser_diag + typeck debug/scratch + residual pure (incl. skip/warn/binop/shape/module).
  */
@@ -53,6 +53,12 @@ void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pr
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: cold driver_diagnostic → Cap fmt */
+/* G.7: single Cap authority for this cold TU (after stdio). Prefer thin.x already avoids libc fmt. */
+#undef snprintf
+#undef vsnprintf
+#define snprintf xlang_snprintf
+#define vsnprintf xlang_vsnprintf
 
 /* G-02f-73 diagnostic gates */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
