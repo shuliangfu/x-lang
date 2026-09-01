@@ -99,6 +99,11 @@ export extern "C" function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx:
 export extern "C" function arch_x86_64_enc_enc_sete_al(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32;
+export extern "C" function arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
+/* Cap 10.7.1 slice12: bump VaList cursor (addq $imm,%rax). */
+export extern function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, ta: i32): i32;
+/* Cap 10.7.1 slice12: current emit func index for named-param gp skip. */
+export extern function pipeline_asm_emit_func_index_c(): i32;
 /* 10.4.1 slice2: i64 atomic encoders. */
 export extern "C" function arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx: *u8): i32;
@@ -2877,6 +2882,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       if (rs_mc < 0) { return 0 - 1; }
       if (rs_mc > 0) { return 0; }
     }
+    /* Cap 10.7.1 slice12: va_* Cap METHOD_CALL (x86_64). */
+    {
+      let va_mc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (va_mc < 0) { return 0 - 1; }
+      if (va_mc > 0) { return 0; }
+    }
     /* 10.4.1 slice1: atomic_load/store/cas_i32 METHOD_CALL (x86_64 only). */
     {
       let at_mc: i32 = try_emit_atomic_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
@@ -4267,6 +4278,190 @@ function try_emit_raw_syscall_call_elf_c(
 }
 
 /**
+ * Cap 10.7.1 slice12: language va_start / va_end / va_arg_i32 → asm Cap (no UNDEF).
+ *
+ * Host-C uses xlang_va_* macros (SysV). Asm Cap is Cap-private: at va_start,
+ * spill the 6 SysV GP arg regs into call-spill scratch (regs still hold entry
+ * values because this intercept runs before call-arg packing), then store a
+ * cursor pointer into the VaList local (first 8 bytes) at save+8*nparams.
+ * va_arg_i32 loads *cursor as i32 and advances by 8. va_end is a no-op.
+ *
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param expr_ref i32 — CALL or METHOD_CALL expr
+ * @param ctx *u8 — AsmFuncCtx (next_offset@4, module@16)
+ * @param ta i32 — 0 = x86_64 only this slice; other → 0 fallthrough
+ * @return i32 — 1 emitted; 0 not Cap va; -1 emit error
+ * PLATFORM: SHARED emit · LINUX|x86_64 Cap runtime (arm64 residual).
+ */
+function try_emit_va_cap_builtin_call_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0 as *u8 || elf_ctx == 0 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  if (ta != 0) {
+    return 0;
+  }
+  unsafe {
+    let ko: i32 = 0;
+    let name: u8[128] = [];
+    let nlen: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let i: i32 = 0;
+    let nm_start: u8[8] = [118, 97, 95, 115, 116, 97, 114, 116]; /* va_start */
+    let nm_end: u8[6] = [118, 97, 95, 101, 110, 100]; /* va_end */
+    let nm_argi32_full: u8[10] = [118, 97, 95, 97, 114, 103, 95, 105, 51, 50]; /* va_arg_i32 */
+    let ap_ref: i32 = 0;
+    let ap_off: i32 = 0;
+    let cur: i32 = 0;
+    let save_off: i32 = 0;
+    let mod: *u8 = 0 as *u8;
+    let fi: i32 = 0;
+    let np: i32 = 0;
+    let k: i32 = 0;
+
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (ko == 49) {
+      nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+      if (nlen <= 0 || nlen > 127) { return 0; }
+      pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
+      n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+      is_method = 1;
+    } else if (ko == 48) {
+      let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      let cko: i32 = 0;
+      if (callee_ref <= 0) { return 0; }
+      cko = pipeline_expr_kind_ord_at(arena, callee_ref);
+      if (cko == 44) {
+        nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 127) { return 0; }
+        pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
+      } else if (cko == 3) {
+        nlen = pipeline_expr_var_name_len(arena, callee_ref);
+        if (nlen <= 0 || nlen > 127) { return 0; }
+        pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+      } else {
+        return 0;
+      }
+      n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    } else {
+      return 0;
+    }
+
+    which = 0;
+    if (nlen == 8) {
+      i = 0;
+      while (i < 8) {
+        if (name[i] != nm_start[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 8) { which = 1; }
+    }
+    if (which == 0 && nlen == 6) {
+      i = 0;
+      while (i < 6) {
+        if (name[i] != nm_end[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 6) { which = 2; }
+    }
+    if (which == 0 && nlen == 10) {
+      i = 0;
+      while (i < 10) {
+        if (name[i] != nm_argi32_full[i]) { i = 99; }
+        else { i = i + 1; }
+      }
+      if (i == 10) { which = 3; }
+    }
+    if (which == 0) { return 0; }
+
+    /* va_end(ap): Cap no-op (do not emit call). */
+    if (which == 2) {
+      if (n_args != 1) { return 0; }
+      return 1;
+    }
+
+    if (which == 1) {
+      /* va_start(ap, last): need ap as local VAR. */
+      if (n_args != 2) { return 0; }
+      if (is_method != 0) {
+        ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        ap_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (ap_ref <= 0) { return 0 - 1; }
+      if (pipeline_expr_kind_ord_at(arena, ap_ref) != 3) { return 0; }
+      ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
+      if (ap_off < 16) { return 0 - 1; }
+
+      mod = call_dispatch_load_ptr_le(ctx, 16);
+      fi = pipeline_asm_emit_func_index_c();
+      np = 0;
+      if (mod != 0 as *u8 && fi >= 0) {
+        np = pipeline_module_func_num_params_at(mod, fi);
+      }
+      if (np < 0) { np = 0; }
+      if (np > 6) { np = 6; }
+
+      /* Reserve 48B GP save in call-spill scratch (frame already ≥512). */
+      cur = call_dispatch_load_i32_le(ctx, 4);
+      save_off = cur + 16;
+      if (save_off < 16) { save_off = 16; }
+      call_dispatch_store_i32_le(ctx, 4, save_off + 48);
+
+      /* Spill rdi..r9 while entry values still live. */
+      k = 0;
+      while (k < 6) {
+        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off + k * 8, ta) != 0) {
+          return 0 - 1;
+        }
+        k = k + 1;
+      }
+
+      /* ap cursor = &save[np] (first trailing GP). */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, save_off + np * 8, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+      return 1;
+    }
+
+    /* which == 3: va_arg_i32(ap) */
+    if (n_args != 1) { return 0; }
+    if (is_method != 0) {
+      ap_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      ap_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (ap_ref <= 0) { return 0 - 1; }
+    if (pipeline_expr_kind_ord_at(arena, ap_ref) != 3) { return 0; }
+    ap_off = glue_asm_local_var_stack_off_scoped(arena, ctx, ap_ref);
+    if (ap_off < 16) { return 0 - 1; }
+
+    /* rcx = &ap; rax = cursor; rbx = cursor; eax = *cursor; bump; restore eax. */
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, ap_off, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx) != 0) { return 0 - 1; }
+    if (arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx) != 0) { return 0 - 1; }
+    return 1;
+  }
+}
+
+/**
  * Stage 10 (10.4.1) slice1–3 + (10.4.2) fences + arm64 i32/fence:
  * atomic load/store/cas i16/i32/i64 (x86) and i32 (aarch64 LSE),
  * fence_seq_cst/acquire/release on both.
@@ -5609,6 +5804,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       let rs_rc: i32 = try_emit_raw_syscall_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
       if (rs_rc < 0) { return 0 - 1; }
       if (rs_rc > 0) { return 0; }
+    }
+    /* Cap 10.7.1 slice12: va_start/end/va_arg_i32 Cap (x86_64). */
+    {
+      let va_rc: i32 = try_emit_va_cap_builtin_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (va_rc < 0) { return 0 - 1; }
+      if (va_rc > 0) { return 0; }
     }
     /* 10.4.1 slice1: atomic_load/store/cas_i32 CALL (x86_64 only). */
     {
