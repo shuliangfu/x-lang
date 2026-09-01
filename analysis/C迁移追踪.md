@@ -193,8 +193,8 @@
 
 - ⬜ **9.5.1** driver_preamble_fputs  
 - ✅ **9.5.2** xlang_target_cpu_print（FILE／fprintf）— **Linux+Darwin ✅（WIP）**：Cap `xlang_io_write`（Linux/Darwin syscall）＋手工 hex；`--print-target-cpu`＠**`390af683a`** · target_cpu.o **无 U fprintf** 双端。残：Win    
-- ⬜ **9.5.3** reportf／va_list  
-- ⬜ **9.5.4** vsnprintf + write  
+- 🟡 **9.5.3** reportf／va_list — **slice0 ✅（diag Cap fmt）**＠`51423a9af`：`diag_vreportf_with_code` → `xlang_vsnprintf`；diag.o **无 U vsnprintf**。残：其它 reportf 消费叶 · 语言 va  
+- 🟡 **9.5.4** vsnprintf + write — 部分吸收于 **10.7.2** Cap（nostdlib＋diag）；残：write 路径／更多 seed  
 
 ### 9.6 全局／static／巨型数据（P1）
 
@@ -245,7 +245,7 @@
 - 🟡 **10.6.2** Windows CreateThread／WaitForSingleObject — **slice0 ✅（源码＋gate；Ubuntu skip）**＠`0d906f7e8`：Cap spawn／join＋product glue join-handle ABI。残：MSYS／Win 实机 **run=1** · pool／affinity 金标  
 - 🟡 **10.6.3** 互斥锁／条件变量／信号量 — **slice0–4 ✅（Ubuntu）**＠`7959148f7`：futex mutex／cond／sem／**rwlock**＋**Linux sync_os 叶无 pthread**（Cap spawn smoke）。残：Darwin mutex／cond／rwlock 仍 pthread · Windows sync Cap
 - 🟡 **10.7.1** va_list + va_start／arg／end — **slice0 ✅（SHARED Cap）**＠`61d670a19`：`xlang_va_cap.h` builtins（无 `<stdarg.h>`）；VA-CAP **run=1**。残：语言层 .x builtins · MSVC  
-- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0 ✅（SHARED Cap）**＠`c3573ec41`：`xlang_fmt_cap.h`＋nostdlib 薄包装（G.7 单一权威）；FMT-CAP **run=1**。残：产品 seed 入链 · 纯 .x 面
+- 🟡 **10.7.2** .x／Cap 自实现 vsnprintf — **slice0–1 ✅（SHARED）**＠`51423a9af`：Cap header＋nostdlib 薄包装＋**diag reportf 入链**；FMT-CAP **run=1**。残：其它 seed · 纯 .x 面
 
 ---
 
