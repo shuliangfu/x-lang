@@ -1,0 +1,91 @@
+---
+alwaysApply: true
+---
+# 操作规则：Git 提交 / 推送与发布
+
+本规则约定日常提交、推送以及正式发布（打 tag、推 tag）时的流程与格式，保证版本可追溯、发布可重复。
+
+---
+
+## 1. Git 提交 (Commit)
+
+### 1.1 提交流程：先检查变化，再批量提交
+
+- **第一步：检查所有变化文件**  
+  提交前先执行 `git status`（或 `git diff --name-only`）查看本次修改了哪些文件，做到心中有数。
+- **第二步：相关改动一并 add + commit**  
+  同一波次／同一主题的改动可一次提交多个文件（推荐 `git add -A` 或显式列出相关路径后一次 `git commit`）。
+- **不再要求「一文件一 commit」**——文件多时单文件提交过慢；按**逻辑波次**拆分即可（例：Cap 头＋接线＋探针＋文档可同 commit；无关大重构仍宜另开 commit）。
+- commit message 写清本波做了什么（例：新增某功能、修复某错误、调整某接口），不要写笼统的「更新」。
+- 由 AI 或脚本生成提交时：可 `git add` 本波相关文件后一次 commit；message 用 Conventional Commits 概括主题。
+
+
+### 1.2 提交信息格式
+
+- **一律使用英文**撰写 commit message。
+- **采用 Conventional Commits** 格式，便于生成 changelog 与语义化版本：
+  - `feat: 简短描述` — 新功能
+  - `fix: 简短描述` — 错误修复
+  - `perf: 简短描述` — 性能相关
+  - `refactor: 简短描述` — 重构（不修 bug、不加 feature）
+  - `docs: 简短描述` — 文档
+  - `chore: 简短描述` — 构建、工具、依赖等
+  - `test: 简短描述` — 测试
+- 首行不超过约 72 字符；需要时在首行后空一行再写 body。
+- 描述中可带文件或模块名，例如：`fix(http): handle empty body fallback in getWithClient`。
+
+### 1.3 提交前检查
+
+- 根据**本波**修改内容归纳出准确的 type 与描述，避免笼统的 "update"、"fix"。
+- 若同一次提交内有多处不同性质改动，以**主要改动**定 type，或在 body 中分条简述。
+
+---
+
+## 2. Git 推送 (Push)
+
+### 2.1 推送时机
+
+- 本地 commit 完成后，在合适时机执行 `git push` 推送到远程（如 `origin`）。
+- 发布前应确保**待发布 commit 已全部推送**，再执行打 tag 与推 tag。
+
+### 2.2 推送分支
+
+- 默认推当前分支：`git push` 或 `git push origin <当前分支名>`。
+- 首次推送新分支时使用：`git push -u origin <分支名>`。
+
+### 2.3 与发布的关系
+
+- **先 push 分支，再 push tag**；避免 tag 指向的 commit 尚未在远程的情况。
+
+---
+
+## 3. 发布 (Release) 与 Tag
+
+### 3.1 发布即打 Tag
+
+- 每次正式发布**必须**打一个**版本 tag**，与版本号一一对应。
+- Tag 命名采用**语义化版本**：`v<major>.<minor>.<patch>`，例如 `v1.0.0`、`v0.2.1`。
+- 预发布可在版本后加后缀，如 `v1.0.0-beta.1`（与项目约定一致即可）。
+
+### 3.2 打 Tag 的步骤
+
+1. **确认当前分支**：在要发布的分支上（通常为 `main` 或 `master`）。
+2. **确认工作区**：无未提交修改，且待发布内容已 commit 并 push。
+3. **打带注释的 tag**（推荐）：
+   - `git tag -a v<major>.<minor>.<patch> -m "Release v<major>.<minor>.<patch>"`
+   - 或简短：`git tag -a v1.0.0 -m "Release v1.0.0"`
+4. **推送该 tag 到远程**：
+   - `git push origin v<major>.<minor>.<patch>`
+   - 或推送所有未推送的 tag：`git push origin --tags`（慎用，避免误推本地临时 tag）。
+
+### 3.3 发布流程小结
+
+1. 完成所有待发布改动并 commit。
+2. `git push` 推送当前分支。
+3. `git tag -a vX.Y.Z -m "Release vX.Y.Z"` 在当前 commit 打 tag。
+4. `git push origin vX.Y.Z` 推送该 tag。
+
+### 3.4 其他约定
+
+- **不强制**在 tag 上再建 GitHub/GitLab Release 页面；若建，则 Release 的 tag 与上述 git tag 一致。
+- 若项目有 CHANGELOG，发布前应更新对应版本条目；CHANGELOG 的版本号与 tag 保持一致。

@@ -21,6 +21,7 @@
        `impact --max-results 40`，再只打开高风险文件；**禁止**默认全库  
        `dead-code` 或把 CRG 整份 JSON 灌进上下文；图只导航，不替代 Ubuntu 金标
      - **一条债一层一个 commit**；禁止批量改 std、改测试期望、soft-skip 糊绿顶编译器债
+     - **Git 提交**：相关文件可同波一次 commit（**不**再要求一文件一 commit；见 `.cursor/rules/03-操作规则.mdc`）
      - seed 与 `.x` / glue 副本同 commit；改后 Ubuntu 重建对应 `.o` + g05
      - 探针 + 邻域矩阵绿后才扩全量 bstrict
 
