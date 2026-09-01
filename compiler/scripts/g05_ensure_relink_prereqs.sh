@@ -206,6 +206,12 @@ g05_try_x_to_o() {
     echo '#include <stdlib.h>'
     echo '#include <string.h>'
     echo '#include <stdio.h>'
+    # Cap residual 10.7.2 (slice18): Track L -E may embed CRASH_EVIDENCE snprintf;
+    # redirect at compile face (same authority as driver_leaf_x_to_o prologue).
+    # PLATFORM: SHARED — Cap header under compiler/include.
+    echo '#include <xlang_fmt_cap.h>'
+    echo '#undef snprintf'
+    echo '#define snprintf xlang_snprintf'
     echo '#ifndef _WIN32'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
