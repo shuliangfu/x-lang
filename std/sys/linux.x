@@ -122,6 +122,42 @@ export function linux_syscall_nr_mmap_amd64(): i64 {
   return 9;
 }
 
+/**
+ * Linux x86_64 getpid syscall number (arch/x86 entry syscall_64.tbl).
+ * @return i64 — 39
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_getpid_amd64(): i64 {
+  return 39;
+}
+
+/**
+ * Linux x86_64 getppid syscall number.
+ * @return i64 — 110
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_getppid_amd64(): i64 {
+  return 110;
+}
+
+/**
+ * Linux x86_64 getcwd syscall number.
+ * @return i64 — 79
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_getcwd_amd64(): i64 {
+  return 79;
+}
+
+/**
+ * Linux x86_64 chdir syscall number.
+ * @return i64 — 80
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_chdir_amd64(): i64 {
+  return 80;
+}
+
 // --- aarch64（AAPCS64：x8=nr, x0-x5=args）---
 
 /** Exported function `linux_syscall_nr_read_arm64`.
@@ -170,6 +206,42 @@ export function linux_syscall_nr_exit_arm64(): i64 {
  */
 export function linux_syscall_nr_mmap_arm64(): i64 {
   return 222;
+}
+
+/**
+ * Linux aarch64 getpid syscall number (asm-generic unistd).
+ * @return i64 — 172
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_getpid_arm64(): i64 {
+  return 172;
+}
+
+/**
+ * Linux aarch64 getppid syscall number.
+ * @return i64 — 173
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_getppid_arm64(): i64 {
+  return 173;
+}
+
+/**
+ * Linux aarch64 getcwd syscall number.
+ * @return i64 — 17
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_getcwd_arm64(): i64 {
+  return 17;
+}
+
+/**
+ * Linux aarch64 chdir syscall number.
+ * @return i64 — 49
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_chdir_arm64(): i64 {
+  return 49;
 }
 
 /**
@@ -250,6 +322,47 @@ export function linux_syscall_exit(code: i32): void {
 export function raw_syscall0(nr: i64): i64 {
   panic();
   return 0;
+}
+
+/**
+ * Cap residual 9.1.3: getpid via raw_syscall0 (x86_64 nr=39).
+ * Asm product intercepts the call; body panics if not lowered.
+ * @return i32 — kernel pid
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_arch = "x86_64")]
+export function linux_getpid(): i32 {
+  return raw_syscall0(39) as i32;
+}
+
+/**
+ * Cap residual 9.1.3: getpid via raw_syscall0 (aarch64 nr=172).
+ * @return i32 — kernel pid
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_arch = "aarch64")]
+export function linux_getpid(): i32 {
+  return raw_syscall0(172) as i32;
+}
+
+/**
+ * Cap residual 9.1.3: getppid via raw_syscall0 (x86_64 nr=110).
+ * @return i32 — kernel ppid
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_arch = "x86_64")]
+export function linux_getppid(): i32 {
+  return raw_syscall0(110) as i32;
+}
+
+/**
+ * Cap residual 9.1.3: getppid via raw_syscall0 (aarch64 nr=173).
+ * @return i32 — kernel ppid
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_arch = "aarch64")]
+export function linux_getppid(): i32 {
+  return raw_syscall0(173) as i32;
 }
 
 /**
@@ -496,7 +609,11 @@ export const LINUX_SOCK_STREAM: i32 = 1;
 export const LINUX_SOCK_DGRAM: i32 = 2;
 
 /**
- * See implementation.
+ * Cap residual 9.1.7: socket via xlang_sys_socket (sock_fast Cap body).
+ * @param domain address family (e.g. AF_INET)
+ * @param sock_type SOCK_STREAM / SOCK_DGRAM
+ * @param protocol IPPROTO_* or 0
+ * @return i32 fd or -1
  */
 export function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32): i32 {
   let _rc: i32 = 0;
@@ -505,7 +622,11 @@ export function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32)
 }
 
 /**
- * See implementation.
+ * Cap residual 9.1.7: connect via xlang_sys_connect (sock_fast Cap body).
+ * @param sockfd socket fd
+ * @param addr sockaddr bytes
+ * @param addrlen address length
+ * @return i32 0 ok, -1 fail
  */
 export function linux_syscall_connect(sockfd: i32, addr: *u8, addrlen: i32): i32 {
   if (addr == 0 || addrlen <= 0) {
