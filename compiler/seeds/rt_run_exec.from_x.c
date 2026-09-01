@@ -15,6 +15,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: run-test cmd path → Cap snprintf */
+/* G.7: Cap after stdio for rt_run_exec cold seed. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
