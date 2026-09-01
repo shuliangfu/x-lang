@@ -4,13 +4,15 @@
 // runtime_random_fill.x — R2 full wave514
 //
 // CSPRNG OS glue: random_fill_bytes_c for crypto-secure random byte fill
-// (Windows BCryptGenRandom / Linux getrandom / macOS getentropy).
+// (Windows BCryptGenRandom / Linux Cap getrandom via xlang_random_cap.h /
+// macOS getentropy).
 // Windows BCrypt algorithm handle lazy init (random_get_alg) is also thin.
 // OS API calls are delegated to C bridge functions declared below as
 // extern "C", implemented in seeds/runtime_random_fill.from_x.c and linked
 // via the product pipeline (thin+rest ld -r pattern).
 //
-// PLATFORM: SHARED (Windows BCrypt / Linux getrandom / macOS getentropy)
+// PLATFORM: SHARED (Windows BCrypt / Linux Cap getrandom / macOS getentropy)
+// Cap residual 9.1.6: Linux no libc getrandom.
 //
 // Wave514 (2026-07-27): R2 migration. random_fill_bytes_c business logic
 // moved to .x; the .c seed provides _impl OS bridge implementations only.
@@ -28,7 +30,7 @@ export extern "C" function random_get_alg_impl(): *u8;
 /**
  * Bridge: fill buffer with crypto-secure random bytes.
  * Windows: BCryptGenRandom
- * Linux: getrandom loop (handles EINTR)
+ * Linux: Cap getrandom loop (xlang_random_cap.h; handles EINTR)
  * macOS: getentropy chunked (≤GETENTROPY_MAX per call)
  * @param buf output buffer
  * @param len byte count (≥0)
