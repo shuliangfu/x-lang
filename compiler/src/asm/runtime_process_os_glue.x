@@ -44,6 +44,7 @@ export function process_getenv_c(name: *u8): *u8 {
 }
 
 /** Set environment variable.
+ * Cap residual 9.1.1: process_setenv_impl mutates environ on POSIX (no libc setenv).
  * @param name Variable name.
  * @param value Variable value.
  * @param overwrite If non-zero, overwrite existing value.
@@ -54,6 +55,7 @@ export function process_setenv_c(name: *u8, value: *u8, overwrite: i32): i32 {
 }
 
 /** Delete environment variable.
+ * Cap residual 9.1.1: process_unsetenv_impl mutates environ on POSIX (no libc unsetenv).
  * @param name Variable name.
  * @return 0 on success, -1 on failure. */
 #[no_mangle]
@@ -62,6 +64,8 @@ export function process_unsetenv_c(name: *u8): i32 {
 }
 
 /** Get current process ID.
+ * Stage10 Cap residual 9.1.3: body calls process_getpid_impl which on Linux
+ * uses raw syscall (nr 39/172) — no libc getpid. Prefer thin keeps this face.
  * @return Process ID. */
 #[no_mangle]
 export function process_getpid_c(): i32 {
@@ -69,6 +73,7 @@ export function process_getpid_c(): i32 {
 }
 
 /** Get parent process ID.
+ * Stage10 Cap residual 9.1.3: Linux raw syscall (nr 110/173); Windows -1.
  * @return Parent process ID. */
 #[no_mangle]
 export function process_getppid_c(): i32 {
@@ -76,6 +81,7 @@ export function process_getppid_c(): i32 {
 }
 
 /** Get current working directory into buffer.
+ * Stage10 Cap residual 9.1.3: Linux impl uses raw getcwd syscall (no libc).
  * @param buf Output buffer.
  * @param buf_size Buffer capacity.
  * @return Bytes written (excluding NUL) on success, -1 on failure. */
@@ -85,6 +91,7 @@ export function process_getcwd_c(buf: *u8, buf_size: i32): i32 {
 }
 
 /** Get zero-copy pointer to current working directory.
+ * Stage10 Cap residual 9.1.3: Linux raw getcwd fill of cache.
  * @return Pointer to internal cache or null on failure. */
 #[no_mangle]
 export function process_getcwd_ptr_c(): *u8 {
@@ -99,6 +106,7 @@ export function process_getcwd_cached_len_c(): i32 {
 }
 
 /** Change current working directory.
+ * Stage10 Cap residual 9.1.3: Linux raw chdir syscall (no libc).
  * @param path Target directory path.
  * @return 0 on success, -1 on failure. */
 #[no_mangle]
@@ -155,6 +163,7 @@ export function process_exec_c(program: *u8, argv_ptr: *u8): i32 {
 }
 
 /** Wait for child process to exit.
+ * Cap residual 9.1.4: process_waitpid_impl uses Linux wait4 (no libc waitpid).
  * @param pid Child process ID.
  * @return Exit code (low 8 bits) on success, -1 on failure. */
 #[no_mangle]
@@ -163,6 +172,7 @@ export function process_waitpid_c(pid: i32): i32 {
 }
 
 /** Simplified spawn with argv = [program, NULL].
+ * Cap residual 9.1.4: routes to process_spawn_impl (Linux raw fork+execve).
  * @param program Program path.
  * @return Child PID (>0) on success, -1 on failure. */
 #[no_mangle]
