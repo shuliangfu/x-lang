@@ -31337,7 +31337,8 @@ void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
  * set — must close wave178 + enclosing wave154 first.
  * Reopen both after this cluster (wave224 typeck_active / wave261 glue_statics
  * stay closed on leftover rest; type_alias unique is a later extract after
- * wave261; remaining enum/tl/sl unique stay nested).
+ * wave261; enum unique is a later extract after wave263; remaining tl/sl
+ * unique stay nested).
  * Header does not declare sret get/set (not a dual-decl). Always-compiled
  * proto of sret get/set is absent in this TU. No cluster callees.
  * Getters are not unique (SAT / leftover standalone provide T); leftover rest
@@ -31451,9 +31452,10 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  * standalone provide T). Same produce point as F7: inserting an OR inside
  * a FALSE outer ifndef is never parsed when FROM_X is set — must close
  * wave178 + enclosing wave154 first.
- * Reopen both after this unique (wave263 import / wave264 enum unique /
- * wave265 top_level_let unique / wave266 struct_layout unique stay closed
- * on leftover rest until their own extracts).
+ * Reopen both after this unique (wave263 import / remaining wave262
+ * alloc stay closed on leftover rest). Enum unique is a later extract
+ * after wave263; remaining tl/sl unique stay closed until their own
+ * extracts.
  * Header does not declare the unique (not a dual-decl). leftover rest
  * WAVE279 already extern void* of these faces later @45585 — do not
  * re-extern here (def-before-use in leftover rest; later extern is
@@ -31462,7 +31464,8 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  * rest has no xlang_ptr_slot_get/set).
  * Do not convert neighboring wave224 typeck_active / wave261 glue_statics
  * (not unique; sit before this close) or remaining wave262 alloc/set
- * (not unique) or remaining enum/tl/sl unique (own extracts).
+ * (not unique) or remaining enum/tl/sl unique (own extracts; enum is a
+ * later extract after wave263).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
@@ -32242,22 +32245,48 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
   return rows[abs * WAVE263_IMP_SEL_ROW + off];
 }
 
+#endif /* close wave178 FROM_X for leftover-PE enum storage unique */
+#endif /* close wave154 FROM_X after glue_type for leftover-PE enum storage unique */
 
-/*
- * wave264 cold twins: ast_pool_module_enum Cap residual pure leave.
- * Freestanding multi-module ModuleEnumEntry map (33932-byte entries).
- * Hybrid product links pure; cold seed keeps bodies under #ifndef FROM_X.
- * Layout ≡ C ModuleEnumEntry LE:
- *   name[128]@0 | name_len@128 | num_variants@132 | variant_name[256][128]@136
- *   | variant_name_len[256]@32904 | is_export@33928
- * Soft-reset: storage_reset zeros n + header num_module_enums@64.
- * Soft-sync when header num_module_enums@64 == 0.
- * Mark helpers: freestanding no-ops (need Cap expr faces); product pure owns mark.
- * PLATFORM: SHARED freestanding module_enum Cap leave.
+/* Enum leftover unique (surgical extract of nested wave264 unique
+ * after closing enclosing wave154 reopen-after-type_alias + wave178
+ * INDEX-peel): pipeline_module_enum_storage_reset / storage_release only.
+ * Unique lists these two faces.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave264 @81189).
+ * Seed bodies are real (find_slot + zero n / free tables + header
+ * num_module_enums@64), not stubs.
+ * Convert unique + BSS + find_slot + header_n/set_header_n together so
+ * leftover rest WAVE279 ast_pool_module_reset/release (ALWAYS compiled,
+ * calls both unique) has a cell. Remaining wave264 find_or_create /
+ * ensure / entry_at / alloc / set / getters stay closed on leftover rest
+ * (not unique; SAT / leftover standalone provide T). Same produce point
+ * as F7: inserting an OR inside a FALSE outer ifndef is never parsed
+ * when FROM_X is set — must close wave178 + enclosing wave154 first.
+ * Reopen both after this unique (remaining wave264 alloc / wave265
+ * top_level_let unique / wave266 struct_layout unique stay closed on
+ * leftover rest until their own extracts).
+ * Header does not declare the unique (not a dual-decl). leftover rest
+ * WAVE279 already extern void* of these faces later @45643 — do not
+ * re-extern here (def-before-use in leftover rest; later extern is
+ * redundant).
+ * C encoding of the .x ptr-slot tables is direct static BSS (leftover
+ * rest has no xlang_ptr_slot_get/set). Header n is memcpy of module+64.
+ * Do not convert neighboring wave263 import (not unique; sit before
+ * this close) or remaining wave264 alloc/set (not unique) or remaining
+ * tl/sl unique (own extracts).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
+ * with getter — convert together later).
+ * PLATFORM: SHARED freestanding enum Cap leave · WINDOWS leftover
+ * PE cannot -E that thin.
  */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE264_EN_SLOTS 128
 #define WAVE264_EN_ENTRY_SZ 33932
-#define WAVE264_EN_MAX_VAR 256
 static void *g_wave264_en_mod[WAVE264_EN_SLOTS];
 static int32_t g_wave264_en_n[WAVE264_EN_SLOTS];
 static int32_t g_wave264_en_cap[WAVE264_EN_SLOTS];
@@ -32287,6 +32316,65 @@ static int wave264_en_find_slot(void *module) {
   }
   return -1;
 }
+
+/**
+ * Soft-reset pure module-enum count for module (keep malloc capacity).
+ * Also clears header num_module_enums@64.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave264 @81189.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_enum_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0) {
+    wave264_en_set_header_n(module, 0);
+    return;
+  }
+  g_wave264_en_n[s] = 0;
+  wave264_en_set_header_n(module, 0);
+}
+
+/**
+ * Free pure module-enum storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave264 @81210.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_enum_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave264_en_entries[s])
+    free(g_wave264_en_entries[s]);
+  g_wave264_en_mod[s] = NULL;
+  g_wave264_en_entries[s] = NULL;
+  g_wave264_en_n[s] = 0;
+  g_wave264_en_cap[s] = 0;
+  wave264_en_set_header_n(module, 0);
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE enum storage unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE enum storage unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE enum storage unique */
+
+/*
+ * wave264 cold twins: ast_pool_module_enum Cap residual pure leave.
+ * enum unique extracted above with the real seed body; leftover rest
+ * does not compile remaining alloc/set/getters (not unique). Hybrid
+ * product links pure. Cold full seed compiles BSS in the OR then these
+ * helpers in the same TU.
+ * Layout ≡ C ModuleEnumEntry LE:
+ *   name[128]@0 | name_len@128 | num_variants@132 | variant_name[256][128]@136
+ *   | variant_name_len[256]@32904 | is_export@33928
+ * Soft-sync when header num_module_enums@64 == 0.
+ * Mark helpers: freestanding no-ops (need Cap expr faces); product pure owns mark.
+ * PLATFORM: SHARED freestanding module_enum Cap leave.
+ */
+#define WAVE264_EN_MAX_VAR 256
 
 static void wave264_en_soft_sync(void *module) {
   int s;
@@ -32356,35 +32444,6 @@ static uint8_t *wave264_en_at(int slot, int32_t idx) {
   if (!g_wave264_en_entries[slot])
     return NULL;
   return g_wave264_en_entries[slot] + (size_t)idx * (size_t)WAVE264_EN_ENTRY_SZ;
-}
-
-void pipeline_module_enum_storage_reset(void *module) {
-  int s;
-  if (!module)
-    return;
-  s = wave264_en_find_slot(module);
-  if (s < 0) {
-    wave264_en_set_header_n(module, 0);
-    return;
-  }
-  g_wave264_en_n[s] = 0;
-  wave264_en_set_header_n(module, 0);
-}
-
-void pipeline_module_enum_storage_release(void *module) {
-  int s;
-  if (!module)
-    return;
-  s = wave264_en_find_slot(module);
-  if (s < 0)
-    return;
-  if (g_wave264_en_entries[s])
-    free(g_wave264_en_entries[s]);
-  g_wave264_en_mod[s] = NULL;
-  g_wave264_en_entries[s] = NULL;
-  g_wave264_en_n[s] = 0;
-  g_wave264_en_cap[s] = 0;
-  wave264_en_set_header_n(module, 0);
 }
 
 int32_t pipeline_module_enum_alloc(void *module) {

@@ -3428,8 +3428,18 @@ ensure_pipeline_abi_prefer_one() {
   #          rest WAVE279 ast_pool_module_reset/release has a cell;
   #          remaining wave262 alloc/set/getters stay closed on leftover
   #          rest — not unique; SAT / leftover standalone provide T; do
-  #          not convert neighboring wave224 / wave261 — not unique — or
-  #          remaining enum/tl/sl unique — own extracts).
+  #          not convert neighboring wave224 / wave261 — not unique) +
+  #          enum leftover unique (surgical extract of nested wave264
+  #          unique after closing enclosing wave154 reopen-after-
+  #          type_alias + wave178 INDEX-peel: pipeline_module_enum_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot + header_n/set_header_n
+  #          together so leftover rest WAVE279 ast_pool_module_reset/release
+  #          has a cell; remaining wave264 alloc/set/getters stay closed
+  #          on leftover rest — not unique; SAT / leftover standalone
+  #          provide T; do not convert neighboring wave263 import — not
+  #          unique — or remaining tl/sl unique — own extracts).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
