@@ -50,7 +50,11 @@ gate_run_timeout() {
       alarm 0;
       if ($status & 127) {
         my $sig = $status & 127;
-        exit 124 if $sig == 14 || $sig == 15 || $sig == 9;
+        # ALRM/TERM = our bound (alarm handler already exit 124).
+        # SIGKILL from outside (Darwin jetsam / OOM) is not a timeout —
+        # 137 matches shells (128+9). Do not report Killed:9 as timeout.
+        exit 124 if $sig == 14 || $sig == 15;
+        exit 137 if $sig == 9;
         exit $sig;
       }
       exit($status >> 8);

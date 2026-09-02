@@ -46,10 +46,13 @@
 #                                 Darwin L4 default 1200s (mega asm gates
 #                                 ~840s serial). Ubuntu keeps 300s.
 #   XLANG_BSTRICT_JOBS            forwarded to run-all-bstrict
-#                                 Darwin L4 default 8 (M5 Max 18-core/64GB;
-#                                 packing floor ~18–20 min bstrict). Ubuntu
-#                                 default 1 (~17 min). Override to 4/2/1 if
-#                                 Darwin OOM.
+#                                 Darwin L4 default 4 (M5 Max 18-core/64GB;
+#                                 packing floor ~35–40 min bstrict). Ubuntu
+#                                 default 1 (~17 min). JOBS=8 OOMed this box
+#                                 (Killed:9). Override to 2/1 if Darwin OOM.
+#   XLANG_CASE_TIMEOUT            forwarded to gate scripts. Darwin L4
+#                                 default 180s (typeck default 30s flakes
+#                                 under JOBS>1). Ubuntu keeps script defaults.
 #
 # Step wall-clock: each major step logs `stepN: … wall=Ns` and a final
 # `step walls summary` table (wipe/pin are sub-second; bootstrap + g05 +
@@ -103,17 +106,25 @@ HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
 HOST="${HOST_OS}-${HOST_ARCH}"
 # PLATFORM: MACOS — Darwin L4 bstrict is wall-dominated by serial asm gates
 # (assign-index-expr ~840s / binop-cfg-merge ~760s at JOBS=1 → ~2.5 h total).
-# JOBS=8 on this 18-core/64GB machine overlaps those + the rest of the 129
-# whitelist (packing floor ~ max(840s, sum/8) ≈ 18–20 min bstrict; JOBS=4
-# was ~35–40 min). Skips Darwin inter-script sleeps. RSS comment in
-# run-all-bstrict is ~75MB per xlang_asm; 8-way is well under 64GB.
-# OOM (Killed:9) still retries ×3. Ubuntu gold stays JOBS=1 (~17 min).
-# Explicit XLANG_BSTRICT_JOBS always wins (1 to serialize; 4/2 if a smaller
-# Darwin box OOMs). Cap in run-all-bstrict is 8 — this default uses it.
+# JOBS=4 on this 18-core/64GB machine overlaps those + the rest of the 129
+# whitelist (packing floor ~ max(840s, sum/4) ≈ 35–40 min bstrict). JOBS=8
+# on the same box hit Killed:9 (jetsam/OOM: 8× xlang_asm + host-cc peak RSS
+# is not the idle ~75MB figure). Skips Darwin inter-script sleeps.
+# Ubuntu gold stays JOBS=1 (~17 min). Explicit XLANG_BSTRICT_JOBS always
+# wins (1 to serialize; 2 if a smaller Darwin box OOMs). Cap is 8.
 if [ -z "${XLANG_BSTRICT_JOBS:-}" ]; then
   case "$HOST_OS" in
-    Darwin) export XLANG_BSTRICT_JOBS=8 ;;
+    Darwin) export XLANG_BSTRICT_JOBS=4 ;;
     *) export XLANG_BSTRICT_JOBS=1 ;;
+  esac
+fi
+# PLATFORM: MACOS — inner gate_run_timeout defaults (typeck 30s) assume
+# idle Darwin -o. Under JOBS>1 the same -o contends past 30s and false-FAIL
+# as "timeout" (or SIGKILL mapped to 124). Darwin L4 floor 180s. Ubuntu
+# keeps each script's own default. Explicit XLANG_CASE_TIMEOUT always wins.
+if [ -z "${XLANG_CASE_TIMEOUT:-}" ]; then
+  case "$HOST_OS" in
+    Darwin) export XLANG_CASE_TIMEOUT=180 ;;
   esac
 fi
 # PLATFORM: MACOS — mega asm gates (~840s serial) exceed the product
