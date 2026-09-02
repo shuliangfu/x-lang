@@ -1096,8 +1096,7 @@ void xlang_import_path_to_file_path_impl(const char *lib_root, const char *impor
  * Header declares the five public wrappers; seed defines them (not a dual-decl).
  * cstr_ends_with_dot_x is the helper import_path_is_file_path calls.
  * path_try_realpath_inplace forwards to public link_abi_realpath_cap (wave218).
- * xlang_asm_out_buf_is_object(_magic) / xlang_cstr_offset /
- * pipeline_set_dep_slots stay closed. */
+ * xlang_asm_out_buf_is_object(_magic) / xlang_cstr_offset stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
@@ -1514,7 +1513,7 @@ void xlang_resolve_import_file_path_multi(const char **lib_roots, int n_lib_root
  * Independent ifndefs (not nested in wave149/154/273). Same produce point as
  * wave123: OR WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
  * Header declares functions; cold twin arrays are static behind those functions
- * (not a dual-decl). get_dep_module / pipeline_set_dep_slots stay closed. */
+ * (not a dual-decl). get_dep_module stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /** pipeline dep 全局槽：arena/module 指针、import 路径注册表、seeded 标记。 */
@@ -2202,9 +2201,23 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  * 填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .x 内 resolve_path_x 使用。
  * 参数：ctx 非 NULL；entry_dir 入口目录；lib_roots/n_lib_roots 与 -L 一致。
  */
-/* G-02f-230 / wave67：hybrid pure owns path_bufs_reset; cold twin under #ifndef FROM_X.
- * Pure orch: LP64 offsetof + LE store (loaded_len i64 + three i32 cells). PLATFORM: SHARED LP64. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-230 / wave67: hybrid pure owns path_bufs_reset / copy_entry_dir;
+ * cold twins under #ifndef FROM_X. Pure orch: LP64 offsetof + LE store
+ * (loaded_len i64 + three i32 cells). PLATFORM: SHARED LP64.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * pipeline_dep_ctx_path_bufs_reset / pipeline_dep_ctx_copy_entry_dir /
+ * xlang_pipeline_fill_ctx_path_buffers / xlang_pipeline_pctx_seed_dep_slots /
+ * xlang_pipeline_pctx_seed_dep_import_paths_only /
+ * xlang_pipeline_pctx_update_dep_slots_no_reset /
+ * pipeline_dep_ctx_set_use_asm_backend. leftover standalone defines 0 of
+ * remaining unique. Independent ifndefs (not nested in wave149/154/273).
+ * Same produce point as wave123: OR WIN_LEFTOVER_GROW_VEC so leftover-PE
+ * FROM_X rest compiles them. Header / seed prototypes declare the functions;
+ * seed defines them (not a dual-decl). fill_ctx / pctx_seed wrappers are
+ * thin call-through; _impl already always compiled.
+ * xlang_asm_out_buf_is_object(_magic) stay closed. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {
     if (!ctx)
         return;
@@ -2248,7 +2261,8 @@ void xlang_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, c
 }
 
 /* G-02f-230：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots) {
   if (ctx == NULL) {
@@ -2284,7 +2298,8 @@ void xlang_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, voi
 }
 
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
   if (ctx == NULL) {
@@ -2313,7 +2328,8 @@ void xlang_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepC
 }
 
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
   if (ctx == NULL) {
     return;
@@ -2329,7 +2345,8 @@ void xlang_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *c
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
  */
 /* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                          void **dep_ars, char **import_paths, int n) {
     int i;
@@ -2367,7 +2384,8 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
 /* G-02f-233：字段写 helper（.x 早退编排调用） */
 /* G-02f-233 / wave67：hybrid pure owns set_use_asm_backend thin → G.7
  * driver_pipeline_dep_ctx_set_use_asm; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v) {
     if (!ctx)
         return;
@@ -2554,7 +2572,20 @@ int xlang_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
 /* wave69: hybrid pure owns resolved_path BSS; cold-only static under #ifndef FROM_X. */
 /* wave70: hybrid pure owns dep arena/module slot tables; cold-only statics under #ifndef FROM_X. */
 /* wave72: hybrid pure owns loaded_import BSS; cold-only statics under #ifndef FROM_X. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * pipeline_set_entry_dir / pipeline_entry_dir_{copy,set_dot,get} /
+ * pipeline_set_dep_slots / pipeline_dep_{arena,module}_slot_{set,at} /
+ * pipeline_get_dep_{arena,module}_slot. BSS (entry_dir_buf / entry_dir /
+ * dep_arena_slots / dep_module_slots plus resolved_path / loaded_import
+ * cells in the same static block) must compile with the writers.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Always-compiled prototypes at the seed head declare set_entry_dir /
+ * set_dep_slots; seed defines them (not a dual-decl).
+ * pipeline_resolve_path / read_file / loaded_import commit stay closed. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
 static char pipeline_resolved_path_buf[512];
@@ -2584,7 +2615,8 @@ extern int32_t pipeline_module_num_funcs(void *module);
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
 /* G-02f-231 / wave68：hybrid pure owns entry_dir_copy / set_dot / get (pure BSS);
  * cold twins under #ifndef FROM_X share seed static buf + pointer. PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_entry_dir_copy(const char *path) {
     if (!path)
         return;
@@ -2612,7 +2644,8 @@ void pipeline_set_entry_dir(const char *path) {
 
 /* G-02f-226 / wave70：hybrid pure owns dep_arena/module_slot_set/at (pure BSS 32×LP64);
  * cold twins under #ifndef FROM_X share seed static tables. PLATFORM: SHARED LP64. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_dep_arena_slot_set(int32_t i, void *p) {
     if (i < 0 || i >= 32)
         return;
@@ -2640,7 +2673,8 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
 
 /* G-02f-231 / wave68：hybrid pure owns entry_dir_get; cold twin under #ifndef FROM_X.
  * Cold uses seed static pointer cell (may point at buf or "." lit). PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 const char *pipeline_entry_dir_get(void) {
     return pipeline_entry_dir ? pipeline_entry_dir : ".";
 }
@@ -2811,7 +2845,8 @@ int32_t pipeline_read_file(void) {
 
 /** 取 dep arena 槽指针。 */
 /* G-02f-226 / wave70：hybrid pure owns slot_at; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *pipeline_dep_arena_slot_at(int32_t i) {
     if (i < 0 || i >= 32)
         return NULL;

@@ -3239,12 +3239,16 @@ ensure_pipeline_abi_prefer_one() {
   #          pipeline_diag_* + path wrappers (import_path_to_file_path /
   #          get_entry_dir / cstr_ends_with_dot_x / import_path_is_file_path /
   #          path_try_realpath_inplace / resolve_file_import_path /
-  #          resolve_import_file_path_multi; _impl already always compiled;
-  #          independent ifndefs; leftover standalone defines 0 of remaining
-  #          unique).
+  #          resolve_import_file_path_multi; _impl already always compiled) +
+  #          wave67 path_bufs_reset / copy_entry_dir / fill_ctx_path_buffers /
+  #          pctx_seed_dep_slots / pctx_seed_dep_import_paths_only /
+  #          pctx_update_dep_slots_no_reset / set_use_asm_backend +
+  #          wave68/70 entry_dir BSS+set/get + dep arena/module slots
+  #          (set_dep_slots / get_dep_arena_slot; independent ifndefs;
+  #          leftover standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
-  #          pipeline_set_dep_slots stay closed this wave.
+  #          pipeline_resolve_path / read_file stay closed this wave.
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
