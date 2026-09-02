@@ -40025,7 +40025,7 @@ void *onefunc_sidecar_get(void *key, int create) {
 }
 
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
-#endif /* WAVE275_SIDECAR_POOL_COLD */ */
+#endif /* WAVE275_SIDECAR_POOL_COLD *//
 
 /* =============================================================================
  * WAVE276 ALWAYS: value-ABI residual (by-value get/set_copy + name aliases +
