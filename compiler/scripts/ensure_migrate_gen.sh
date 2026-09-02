@@ -73,6 +73,18 @@ MODE="${1:-all}"
 
 log() { echo "ensure-migrate-gen: $*" >&2; }
 
+# True when the only -E binaries are leftover Windows PE that cannot compile
+# tip parser/typeck/codegen (hang, no alarm on typeck/codegen loops).
+# Same contract as pipeline_abi_windows_leftover_pe_cannot_e (ensure_host_cc_seed_o.sh):
+# skip launch, fall through to archaeology pin. POSIX gold xlang_asm CAN -E.
+# PLATFORM: WINDOWS — leftover 2026-07-31 PE is present for Track L / can_run.
+migrate_gen_windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
 # Product pin seeds (*.linux.x86_64.c) are host-portable generated C.
 # PLATFORM: SHARED — cold start on Darwin/Windows uses the same pins.
 seed_ok() {
@@ -196,6 +208,11 @@ parser_run_tip_e() {
   local b err
   err="${out}.err"
   rm -f "$out" "$err"
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip parser.x; archaeology pin.
+  if migrate_gen_windows_leftover_pe_cannot_e; then
+    log "parser tip -E skip: Windows leftover PE cannot -E tip parser.x"
+    return 1
+  fi
   for b in ${XLANG_PARSER_E:-} xlang_asm xlang xlang-c xlang-x; do
     [ -z "$b" ] && continue
     [ -x "./$b" ] || continue
@@ -330,6 +347,12 @@ typeck_run_tip_e() {
   local b err
   err="${out}.err"
   rm -f "$out" "$err"
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip typeck.x (hang, no alarm).
+  # Fall through to archaeology pin (same as "no working product -E binary").
+  if migrate_gen_windows_leftover_pe_cannot_e; then
+    log "typeck tip -E skip: Windows leftover PE cannot -E tip typeck.x"
+    return 1
+  fi
   for b in ${XLANG_TYPECK_E:-} xlang xlang_asm xlang-c bootstrap_xlangc; do
     [ -n "$b" ] || continue
     if [ ! -x "./$b" ] && [ ! -f "./$b" ]; then
@@ -473,6 +496,11 @@ codegen_run_tip_e() {
   local b err
   err="${out}.err"
   rm -f "$out" "$err"
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip codegen.x (hang, no alarm).
+  if migrate_gen_windows_leftover_pe_cannot_e; then
+    log "codegen tip -E skip: Windows leftover PE cannot -E tip codegen.x"
+    return 1
+  fi
   for b in ${XLANG_CODEGEN_E:-} xlang xlang_asm xlang-c bootstrap_xlangc; do
     [ -n "$b" ] || continue
     if [ ! -x "./$b" ] && [ ! -f "./$b" ]; then
