@@ -22,6 +22,10 @@ if ! ci_is_windows_msys; then
   exit 0
 fi
 
+# PLATFORM: WINDOWS — native MinGW gcc cannot read MSYS /tmp. Pin before seed.
+ci_windows_pin_tmpdir || exit 1
+echo "bootstrap-bstrict-windows-gate: TMPDIR=$TMPDIR TEMP=$TEMP"
+
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
