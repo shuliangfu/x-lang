@@ -3365,8 +3365,16 @@ ensure_pipeline_abi_prefer_one() {
   #          leftover standalone defines 0 of remaining unique; name_is_shared
   #          / load / store not unique — SAT / leftover standalone provide T;
   #          convert together so unique faces have a cell; do not convert
-  #          neighboring wave140 index — not unique — or
-  #          pipeline_asm_array_lit_elem_byte_sz_c /
+  #          neighboring wave140 index — not unique) +
+  #          array_lit leftover cluster (surgical extract of nested wave143
+  #          unique after closing enclosing remaining wave136:
+  #          pipeline_asm_array_lit_elem_byte_sz_c + helper
+  #          pipeline_asm_array_lit_elem_type_ref; unique lists
+  #          elem_byte_sz_c; leftover standalone defines 0 of remaining
+  #          unique; elem_type_ref not unique — SAT / leftover standalone
+  #          provide T; convert together so unique has a helper; do not
+  #          convert neighboring wave140 index — not unique — or remaining
+  #          wave143 emit/empty/force_esz — not unique — or
   #          glue_asm_local_var_stack_off_scoped — still nested remaining
   #          wave136).
   #          pipeline_resolve_path / read_file stay closed this wave.

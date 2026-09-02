@@ -13994,8 +13994,8 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
  * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
  * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
  * set — must close wave136 first.
- * Reopen wave136 after this cluster (wave140 index / array_lit_elem_byte_sz_c /
- * glue_asm_local_var_stack_off_scoped still closed on leftover rest).
+ * Reopen wave136 after this cluster (wave140 index still closed on leftover
+ * rest; array_lit unique extracted later from remaining wave136).
  * Header does not declare the modlet faces (not a dual-decl).
  * Cluster already carries callee externs (elf append/reloc/label/sym/common,
  * top_level_let readers, expr_kind/int_val, type_kind/elem_ref,
@@ -14008,9 +14008,9 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
  * leftover standalone provide T; convert together so unique faces have a
  * cell. rec leftover rest already U load_to_rax (@26849) — leftover rest T
  * here satisfies that U in the same TU.
- * Do not convert neighboring wave140 index cluster (not unique) or
- * pipeline_asm_array_lit_elem_byte_sz_c / glue_asm_local_var_stack_off_scoped
- * (still nested remaining wave136).
+ * Do not convert neighboring wave140 index cluster (not unique).
+ * pipeline_asm_array_lit_elem_byte_sz_c is extracted later from remaining
+ * wave136; glue_asm_local_var_stack_off_scoped stays nested remaining wave136.
  * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
@@ -14689,7 +14689,8 @@ int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void
  * Cap residual: field_type_ref, fixed_array_total_bytes, esz_from_type_ref,
  *   var_type_fallback, assign_addr_cache, eff_addr_scaled, lvalue_eff_addr, enc loads.
  * PLATFORM: SHARED freestanding · continues same #ifndef FROM_X as wave139
- * (reopened after leftover-PE modlet cluster; leftover rest still closed here).
+ * (reopened after leftover-PE modlet cluster; leftover rest still closed here;
+ * array_lit unique is extracted later from this remaining wave136).
  */
 
 #ifndef PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED
@@ -16655,12 +16656,58 @@ extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
 extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
 
-/* forward within cold twin set */
+#endif /* close remaining wave136 FROM_X for leftover-PE array_lit unique */
+
+/* Array-lit leftover cluster (surgical extract of nested wave143 unique
+ * after closing enclosing remaining wave136):
+ * pipeline_asm_array_lit_elem_byte_sz_c plus helper
+ * pipeline_asm_array_lit_elem_type_ref (same produce point: unique calls
+ * helper — extracting unique-only would leave leftover rest U the helper
+ * from a body that leftover rest itself T's).
+ * Unique lists elem_byte_sz_c only.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the face (runtime_pipeline_abi.x wave143 @37827).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
+ * set — must close remaining wave136 first.
+ * Reopen remaining wave136 after this cluster (wave143 emit/empty/force_esz
+ * / glue_asm_local_var_stack_off_scoped still closed on leftover rest).
+ * Header does not declare the array_lit unique (not a dual-decl).
+ * Cluster carries callee externs matching leftover-rest-visible twins
+ * (void* kind_ord / resolved_type / elem_ref / array_lit readers;
+ * glue_type_size_simple leftover rest already T after glue_type cluster;
+ * glue_fixed_array_total_bytes_c / pipeline_asm_emit_module_ref_c not unique
+ * — leftover rest U, SAT / leftover standalone provide T). Do not re-extern
+ * a struct* glue_type_size_simple (leftover rest already T void*).
+ * elem_type_ref is not unique — SAT / leftover standalone provide T; convert
+ * together so unique has a helper in the same TU.
+ * Do not convert neighboring wave140 index (not unique) or remaining wave143
+ * emit/empty/force_esz (not unique) or glue_asm_local_var_stack_off_scoped
+ * (still nested remaining wave136).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * PLATFORM: SHARED freestanding ARRAY_LIT elem width · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+#ifndef GLUE_TYPE_KIND_SLICE
+#define GLUE_TYPE_KIND_SLICE 11
+#endif
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern void *pipeline_asm_emit_module_ref_c(void);
+
 int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref);
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
-int32_t glue_fixed_array_temp_bytes(void *arena, int32_t type_ref);
-int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
-                                                     int32_t ta, int32_t force_esz);
 
 int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref) {
   int32_t arr_tr;
@@ -16719,6 +16766,13 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
   }
   return 4;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE array_lit unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE array_lit unique */
+/* forward within cold twin set (rest of wave143; leftover rest still closed) */
+int32_t glue_fixed_array_temp_bytes(void *arena, int32_t type_ref);
+int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                     int32_t ta, int32_t force_esz);
 
 int32_t glue_init_is_empty_array_lit(void *arena, int32_t init_ref) {
   if (init_ref <= 0)
