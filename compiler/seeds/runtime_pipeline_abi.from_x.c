@@ -31335,8 +31335,9 @@ void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
  * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
  * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
  * set — must close wave178 + enclosing wave154 first.
- * Reopen both after this cluster (named_layout stub / module storage / wave224
- * still closed on leftover rest).
+ * Reopen both after this cluster (wave224 typeck_active / wave261 glue_statics
+ * stay closed on leftover rest; type_alias unique is a later extract after
+ * wave261; remaining enum/tl/sl unique stay nested).
  * Header does not declare sret get/set (not a dual-decl). Always-compiled
  * proto of sret get/set is absent in this TU. No cluster callees.
  * Getters are not unique (SAT / leftover standalone provide T); leftover rest
@@ -31433,13 +31434,45 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
     pipeline_asm_emit_ctx_dep_pipe_set(dep);
 }
 
-/*
- * wave262 cold twins: ast_pool_type_alias Cap residual pure leave.
- * Freestanding multi-module TypeAliasEntry map (136-byte entries).
- * Hybrid product links pure; cold seed keeps bodies under #ifndef FROM_X.
- * Layout ≡ C TypeAliasEntry: name[128]@0 | name_len@128 | target@132.
- * PLATFORM: SHARED freestanding type_alias Cap leave.
+#endif /* close wave178 FROM_X for leftover-PE type_alias storage unique */
+#endif /* close wave154 FROM_X after glue_type for leftover-PE type_alias storage unique */
+
+/* Type-alias leftover unique (surgical extract of nested wave262 unique
+ * after closing enclosing wave154 reopen-after-sret + wave178 INDEX-peel):
+ * pipeline_module_type_alias_storage_reset / storage_release only.
+ * Unique lists these two faces.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave262 @80668).
+ * Seed bodies are real (find_slot + zero n / free tables), not stubs.
+ * Convert unique + BSS + find_slot together so leftover rest WAVE279
+ * ast_pool_module_reset/release (ALWAYS compiled, calls both unique) has
+ * a cell. Remaining wave262 find_or_create / ensure / entry_at / alloc /
+ * set / getters stay closed on leftover rest (not unique; SAT / leftover
+ * standalone provide T). Same produce point as F7: inserting an OR inside
+ * a FALSE outer ifndef is never parsed when FROM_X is set — must close
+ * wave178 + enclosing wave154 first.
+ * Reopen both after this unique (wave263 import / wave264 enum unique /
+ * wave265 top_level_let unique / wave266 struct_layout unique stay closed
+ * on leftover rest until their own extracts).
+ * Header does not declare the unique (not a dual-decl). leftover rest
+ * WAVE279 already extern void* of these faces later @45585 — do not
+ * re-extern here (def-before-use in leftover rest; later extern is
+ * redundant).
+ * C encoding of the .x ptr-slot tables is direct static BSS (leftover
+ * rest has no xlang_ptr_slot_get/set).
+ * Do not convert neighboring wave224 typeck_active / wave261 glue_statics
+ * (not unique; sit before this close) or remaining wave262 alloc/set
+ * (not unique) or remaining enum/tl/sl unique (own extracts).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
+ * with getter — convert together later).
+ * PLATFORM: SHARED freestanding type_alias Cap leave · WINDOWS leftover
+ * PE cannot -E that thin.
  */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE262_TA_SLOTS 128
 #define WAVE262_TA_ENTRY_SZ 136
 static void *g_wave262_ta_mod[WAVE262_TA_SLOTS];
@@ -31457,6 +31490,49 @@ static int wave262_ta_find_slot(void *module) {
   }
   return -1;
 }
+
+/**
+ * Soft-reset pure type-alias count for module (keep malloc capacity).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave262 @80668.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_type_alias_storage_reset(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  g_wave262_ta_n[s] = 0;
+}
+
+/**
+ * Free pure type-alias storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave262 @80687.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_type_alias_storage_release(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave262_ta_entries[s])
+    free(g_wave262_ta_entries[s]);
+  g_wave262_ta_mod[s] = NULL;
+  g_wave262_ta_entries[s] = NULL;
+  g_wave262_ta_n[s] = 0;
+  g_wave262_ta_cap[s] = 0;
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE type_alias storage unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE type_alias storage unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE type_alias storage unique */
+
+/*
+ * wave262 cold twins: ast_pool_type_alias Cap residual pure leave.
+ * type_alias unique extracted above with the real seed body; leftover rest
+ * does not compile remaining alloc/set/getters (not unique). Hybrid product
+ * links pure. Cold full seed compiles BSS in the OR then these helpers in
+ * the same TU.
+ * Layout ≡ C TypeAliasEntry: name[128]@0 | name_len@128 | target@132.
+ * PLATFORM: SHARED freestanding type_alias Cap leave.
+ */
 
 static int wave262_ta_find_or_create(void *module) {
   int i;
@@ -31514,25 +31590,6 @@ static uint8_t *wave262_ta_entry_at(int slot, int32_t idx) {
   if (!g_wave262_ta_entries[slot])
     return NULL;
   return g_wave262_ta_entries[slot] + (size_t)idx * (size_t)WAVE262_TA_ENTRY_SZ;
-}
-
-void pipeline_module_type_alias_storage_reset(void *module) {
-  int s = wave262_ta_find_slot(module);
-  if (s < 0)
-    return;
-  g_wave262_ta_n[s] = 0;
-}
-
-void pipeline_module_type_alias_storage_release(void *module) {
-  int s = wave262_ta_find_slot(module);
-  if (s < 0)
-    return;
-  if (g_wave262_ta_entries[s])
-    free(g_wave262_ta_entries[s]);
-  g_wave262_ta_mod[s] = NULL;
-  g_wave262_ta_entries[s] = NULL;
-  g_wave262_ta_n[s] = 0;
-  g_wave262_ta_cap[s] = 0;
 }
 
 int32_t pipeline_module_type_alias_alloc(void *module) {

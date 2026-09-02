@@ -3418,7 +3418,18 @@ ensure_pipeline_abi_prefer_one() {
   #          extract carries resolve + get_dep_return_type void* externs;
   #          leftover rest U glue_asm_resolve — SAT / leftover standalone
   #          provide T; do not convert neighboring param_agg / load_var /
-  #          wave195–199 — not unique — or glue_asm_resolve — seed stub).
+  #          wave195–199 — not unique — or glue_asm_resolve — seed stub) +
+  #          type_alias leftover unique (surgical extract of nested
+  #          wave262 unique after closing enclosing wave154 reopen-after-
+  #          sret + wave178 INDEX-peel: pipeline_module_type_alias_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot together so leftover
+  #          rest WAVE279 ast_pool_module_reset/release has a cell;
+  #          remaining wave262 alloc/set/getters stay closed on leftover
+  #          rest — not unique; SAT / leftover standalone provide T; do
+  #          not convert neighboring wave224 / wave261 — not unique — or
+  #          remaining enum/tl/sl unique — own extracts).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
