@@ -3075,8 +3075,39 @@ uint8_t *pipeline_run_x_thread_fn_ptr(void) {
 
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
 /* G-02f-241 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
- * XLANG_DEBUG_PIPE notes only in cold twin (pure skips). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * XLANG_DEBUG_PIPE notes only in cold twin (pure skips).
+ * PLATFORM: SHARED — pthread entry writes args->result; null arg → null.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * pipeline_run_x_thread_fn / xlang_pipeline_run_x_pipeline_large_stack /
+ * xlang_pipeline_dep_prerun_{parse_skip_typeck,typeck_only,parse_only,
+ * for_asm_module_o}. leftover standalone defines 0 of remaining unique.
+ * Dep_prerun leftover cluster (6 independent ifndefs, not nested in
+ * wave149/154/273): thread_fn_impl+wrapper / large_stack_impl+wrapper /
+ * parse_skip_impl+wrapper / typeck_only_impl+wrapper /
+ * parse_only_impl+wrapper / for_asm_module_o.
+ * parse_skip_impl calls large_stack; large_stack_impl calls thread_fn;
+ * thread_fn_impl calls always-extern pipeline_run_x_pipeline;
+ * for_asm_module_o calls typeck_only; typeck_only_impl calls always-extern
+ * pipeline_parse_set_main_from_buf_c / load_and_sync / typeck_dep_prerun;
+ * parse_only_impl calls always-extern parser_parse_into_init +
+ * pipeline_parse_set_main_from_buf_c + proto pipeline_asm_debug_enabled
+ * (body stays ifndef — not unique).
+ * Same produce point as collect: OR WIN_LEFTOVER_GROW_VEC so leftover-PE
+ * FROM_X rest compiles the cluster. Unlike merge/one_ctx, _impl is still
+ * ifndef — convert it with the wrapper.
+ * Header declares wrappers @242/@246/@250/@254/@257 (prototype+definition,
+ * not a dual-decl). Always-compiled proto of _impl @316/@322/@324/@327
+ * and wrappers @329/@353 is prototype+definition, not dual.
+ * FROM_X proto of _impl at wave56–60 is prototype+definition, not dual.
+ * Do not convert neighboring pipeline_run_x_thread_fn_ptr (not unique) or
+ * xlang_asm_codegen_elf_o_* (next independent cluster) or
+ * xlang_driver_asm_prepare_entry_elf_emit (calls closed debug_trace).
+ * pipeline_run_x_pipeline_impl stays closed (nested in wave101).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * Larger twins (emit_expr_elf_rec / glue_type_size / append_reloc_absolute64)
+ * stay closed (helper/dual-decl). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *pipeline_run_x_thread_fn_impl(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     if (!a)
@@ -3097,14 +3128,17 @@ void *pipeline_run_x_thread_fn(void *arg) {
         return NULL;
     return pipeline_run_x_thread_fn_impl(arg);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
-/* G-02f-239 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-239 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * Converted with the dep_prerun leftover cluster — see cluster-head at
+ * pipeline_run_x_thread_fn_impl. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
@@ -3128,15 +3162,18 @@ int xlang_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const u
         return -1;
     return xlang_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 
 /** dep 预跑：完整 parse，跳过 typeck/codegen。 */
 /* G-02f-239 / wave58：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Pure orch uses G.7 driver_pipeline_dep_ctx_* asm_entry accessors (no C field).
- * PLATFORM: SHARED — same flag order as pure orch. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED — same flag order as pure orch.
+ * Converted with the dep_prerun leftover cluster — see cluster-head at
+ * pipeline_run_x_thread_fn_impl. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     int saved = driver_check_only_get();
@@ -3166,15 +3203,18 @@ int xlang_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, 
         return -1;
     return xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 
 /** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
 /* G-02f-typeck_only / wave60：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Pure orch calls pipeline_parse_set_main_from_buf_c + load_and_sync + typeck_dep_prerun;
- * XLANG_DEBUG_PIPE notes live on cold twin only. PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * XLANG_DEBUG_PIPE notes live on cold twin only. PLATFORM: SHARED.
+ * Converted with the dep_prerun leftover cluster — see cluster-head at
+ * pipeline_run_x_thread_fn_impl. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
     int32_t len_i32;
@@ -3245,12 +3285,15 @@ int xlang_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const 
   }
   return -1;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* G-02f-parse_only / wave59：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Must use pipeline_parse_set_main_from_buf_c (parse_into_with_init_buf); bare
- * parser_parse_into under-parses large std modules. PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * parser_parse_into under-parses large std modules. PLATFORM: SHARED.
+ * Converted with the dep_prerun leftover cluster — see cluster-head at
+ * pipeline_run_x_thread_fn_impl. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /**
  * dep 预跑：仅 parse，不做全量 typeck。
  * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
@@ -3295,16 +3338,19 @@ int xlang_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const u
   }
   return -1;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /** asm 单模块 -o：dep 预跑走 typeck_only。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* Converted with the dep_prerun leftover cluster — see cluster-head at
+ * pipeline_run_x_thread_fn_impl. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     (void)driver_asm_entry_module_only_from_env;
     return xlang_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /** ast.x 模块释放；LSP import 列表清理用。 */
 extern void ast_module_free(struct ast_Module *mod);
