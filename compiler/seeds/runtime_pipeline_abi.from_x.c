@@ -34049,13 +34049,28 @@ int32_t pipeline_type_find_or_alloc_compound(void *a, int32_t kind_ord, int32_t 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave270 cold twins */
 
 /*
+ * Close enclosing FROM_X (wave178 @28474, wave154 @27198) so WAVE271 can
+ * compile under XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC while
+ * FROM_X rest is still the product TU. Reopened immediately after this
+ * block so wave272–274 stay cold-only. PLATFORM: WINDOWS leftover-PE.
+ */
+#endif /* close wave178 FROM_X @28474 for wave271 WIN leftover */
+#endif /* close wave154 FROM_X @27198 for wave271 WIN leftover */
+
+/*
  * WAVE271: pipeline_grow_vec pure-owned leave cold twins
  * (grow_vec_init/free/ensure/at/push/copy_append + mmap large path).
- * Only compiled when product pure is NOT linked (-U FROM_X cold path).
+ * Compiled when product pure is NOT linked (-U FROM_X cold path),
+ * OR when PLATFORM: WINDOWS leftover-PE hybrid sets
+ * XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC (leftover PE cannot
+ * -E .x thin; leftover standalone does not define grow_vec_*; POSIX
+ * still uses runtime_pipeline_abi.x -E as the live GrowVec authority).
  * GrowVec LE layout sizeof 32: data*@0 cap@8 len@12 elem_sz@16 mmap@24.
- * PLATFORM: SHARED freestanding GrowVec Cap leave · POSIX mmap.
+ * PLATFORM: SHARED freestanding GrowVec Cap leave · POSIX mmap ·
+ * WINDOWS leftover-PE uses calloc/realloc (no mmap) in this block.
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
 #ifndef AST_POOL_GROW
 #define AST_POOL_GROW 4096
@@ -34074,6 +34089,12 @@ typedef struct {
   size_t elem_sz;
   int32_t mmap_backed;
 } GrowVec;
+/* WAVE277+ FROM_X rest keeps a local GrowVec typedef behind this guard.
+ * When this cold-twin block is compiled under FROM_X (Windows leftover-PE
+ * WIN_LEFTOVER_GROW_VEC), skip those later re-typedefs. PLATFORM: WINDOWS. */
+#ifndef W277_NEED_GROWVEC
+#define W277_NEED_GROWVEC 1
+#endif
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <sys/mman.h>
@@ -34237,7 +34258,10 @@ void grow_vec_copy_append(GrowVec *dst, GrowVec *src) {
 }
 
 /* end wave271 grow_vec cold twins */
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave271 cold twins */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave271 cold twins */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after wave271 */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after wave271 */
 
 /* ==========================================================================
  * WAVE272: PipelineDepCtx Cap residual pure-owned leave cold twins
@@ -39602,13 +39626,16 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */
 
 /* WAVE275: Arena/Module/OneFunc sidecar process tables pure-owned leave cold twins
- * under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X, or under
+ * XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC (PLATFORM: WINDOWS leftover-PE;
+ * PE cannot -E .x thin that owns arena/module/onefunc_sidecar_get).
  * Layout LE matches pure + host typedefs (Arena 816 / Module 432 / OneFunc 944).
  * PLATFORM: SHARED freestanding Cap residual cold twin.
  */
 #ifndef WAVE275_SIDECAR_POOL_COLD
 #define WAVE275_SIDECAR_POOL_COLD 1
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
 #include <stdint.h>
 #include <stddef.h>
@@ -39997,8 +40024,8 @@ void *onefunc_sidecar_get(void *key, int create) {
   return NULL;
 }
 
-#endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
-#endif /* WAVE275_SIDECAR_POOL_COLD */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
+#endif /* WAVE275_SIDECAR_POOL_COLD */ */
 
 /* =============================================================================
  * WAVE276 ALWAYS: value-ABI residual (by-value get/set_copy + name aliases +

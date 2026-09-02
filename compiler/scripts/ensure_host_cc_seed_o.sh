@@ -3227,9 +3227,13 @@ ensure_pipeline_abi_prefer_one() {
   # seeds/runtime_pipeline_abi.from_x.c — not a viable identity path (wave176).
   # G.7 有则补全 of the POSIX hybrid rest CC line + pure_ld_partial_merge:
   #   rest = host-cc seed under -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X (3s, 220KiB)
+  #          plus WIN_LEFTOVER_GROW_VEC so wave271 grow_vec_* and wave275
+  #          arena/module/onefunc_sidecar_* cold twins compile in this TU
+  #          (FROM_X rest otherwise only externs them; POSIX .x thin provides T)
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
-  #          on-disk provider of the ifndef-FROM_X cold twins when PE cannot -E)
+  #          on-disk provider of pipeline_type_* / ast_pool_* ifndef-FROM_X
+  #          twins when PE cannot -E; it does NOT define grow_vec/sidecar)
   # Merge rest-first so tip FROM_X wins overlaps; leftover fills missing twins.
   # POSIX (Linux gold / Darwin): FORCE hybrid -E stays the product path.
   if pipeline_abi_windows_leftover_pe_cannot_e; then
@@ -3241,10 +3245,11 @@ ensure_pipeline_abi_prefer_one() {
       return 1
     fi
     win_rest="$(mktemp "${TMPDIR:-/tmp}/pabi_win_rest.XXXXXX")"
-    log "pipeline_abi prefer: leftover PE cannot -E mega; host-cc FROM_X rest + leftover standalone thin"
+    log "pipeline_abi prefer: leftover PE cannot -E mega; host-cc FROM_X rest + grow_vec/sidecar twins + leftover standalone thin"
     # shellcheck disable=SC2086
     if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
          -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+         -DXLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC \
          -c -o "$win_rest" "$seed"; then
       echo "ensure_host_cc_seed_o: Windows FROM_X rest cc failed for $o" >&2
       rm -f "$win_rest"
@@ -3257,7 +3262,7 @@ ensure_pipeline_abi_prefer_one() {
     fi
     rm -f "$win_rest"
     win_sz=$(wc -c <"$o" | tr -d ' ')
-    log "prefer Windows leftover-PE hybrid $o <- FROM_X rest + $win_thin (${win_sz:-0}B)"
+    log "prefer Windows leftover-PE hybrid $o <- FROM_X rest + grow_vec/sidecar + $win_thin (${win_sz:-0}B)"
     return 0
   fi
 
