@@ -4341,8 +4341,24 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
  * Product pure thin → G.7 xlang_preprocess_raw_to_malloc_impl; cold keeps LEGACY
  * preprocess_c_fallback when !XLANG_USE_X_PIPELINE || XLANG_LEGACY_PREPROCESS_C.
  * PLATFORM: SHARED.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_preprocess / xlang_preprocess_with_path / xlang_preprocess_quiet.
+ * leftover standalone defines 0 of remaining unique. Independent ifndef
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares preprocess (char*) @310 and with_path/quiet @93; seed
+ * defines them (prototype+definition, not a dual-decl). No FROM_X proto
+ * of the wrappers in this TU.
+ * Wrappers call xlang_preprocess_raw_to_malloc_impl (already T in leftover
+ * rest after the load_direct wave). leftover rest compiles with
+ * XLANG_USE_X_PIPELINE so the LEGACY preprocess_c_fallback #else is not parsed.
+ * Unique lists preprocess + with_path; quiet is only called by preprocess.
+ * xlang_lsp_free_loaded_imports stays closed this wave (separate unique;
+ * _impl already always compiled).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 char *xlang_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
     return xlang_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }

@@ -3267,14 +3267,18 @@ ensure_pipeline_abi_prefer_one() {
   #          (independent ifndefs; unlike merge/one_ctx, _impl is still ifndef —
   #          convert it with the wrapper; resolve_read calls already-OR'd path
   #          wrappers / pipeline_diag plus preprocess_raw_to_malloc; leftover
+  #          standalone defines 0 of remaining unique) +
+  #          public xlang_preprocess / with_path / quiet (one independent
+  #          ifndef; wrappers call already-T _impl; leftover rest compiles
+  #          with XLANG_USE_X_PIPELINE so LEGACY preprocess_c_fallback #else
+  #          is not parsed; unique lists preprocess + with_path; leftover
   #          standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
-  #          (void* vs struct* extern). Public xlang_preprocess / with_path /
-  #          quiet and xlang_lsp_free_loaded_imports stay closed this wave
-  #          (separate unique; lsp _impl already always compiled).
+  #          (void* vs struct* extern). xlang_lsp_free_loaded_imports stays
+  #          closed this wave (separate unique; _impl already always compiled).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
