@@ -154,49 +154,51 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "XLANG=$XLANG_BIN"
+gate_case_pool_begin
 
 # tag src want [max_b_ldur] [require_spill]
-run_case if_merge tests/asm/binop_if_plus_eq_merge.x 13
-run_case if_both_a tests/asm/binop_if_both_assign_a.x 13
-run_case if_both_b tests/asm/binop_if_both_assign_keep_b.x 13 2
-run_case if_keep_b tests/asm/binop_if_merge_keep_b.x 13 2
-run_case if_after_b tests/asm/binop_if_after_use_b.x 13 2
-run_case if_nested tests/asm/binop_if_nested_after_b.x 8
-run_case if_nested_ldur tests/asm/binop_if_nested_after_b.x 8 2
-run_case while_merge tests/asm/binop_while_plus_eq_merge.x 3
-run_case while_merge_b tests/asm/binop_while_plus_eq_merge.x 3 2
-run_case while_twice tests/asm/binop_while_twice_merge.x 4
-run_case while_if tests/asm/binop_while_if_in_body.x 3
-run_case while_if2b tests/asm/binop_while_if_twice_keep_b.x 4 2
-run_case while_break tests/asm/binop_while_break_merge.x 3
-run_case while_break_b tests/asm/binop_while_break_keep_b.x 3 2
-run_case while_cont_br tests/asm/binop_while_continue_break.x 6
-run_case while_nest_cb tests/asm/binop_while_nested_cont_br.x 5 2
-run_case while_cont_b tests/asm/binop_while_continue_keep_b.x 6 2
-run_case while_let tests/asm/binop_while_let_in_body.x 3
-run_case if_while tests/asm/binop_if_while_in_then.x 3 2
-run_case while_nested_b tests/asm/binop_while_nested_after_b.x 3 2
-run_case while_nest_br tests/asm/binop_while_nested_inner_break.x 4
-run_case while_nest_br_b tests/asm/binop_while_nested_inner_break.x 4 2
-run_case while_after_b tests/asm/binop_while_after_use_b.x 3
-run_case while_keep_b tests/asm/binop_while_keep_b.x 3 3
-run_case for_merge tests/asm/binop_for_plus_eq_merge.x 3
-run_case for_twice tests/asm/binop_for_twice_merge.x 4
-run_case for_if tests/asm/binop_for_if_in_body.x 3
-run_case if_for tests/asm/binop_if_for_in_then.x 3 2
-run_case for_step tests/asm/binop_for_step_header.x 3
-run_case for_keep_b tests/asm/binop_for_keep_b.x 3 3
-run_case for_cont_br tests/asm/binop_for_continue_break.x 6
-run_case for_carried_b tests/asm/binop_for_carried_keep_b.x 3 2
-run_case if_ret_eight tests/asm/binop_if_return_eight_add.x 36
-run_case if_ret_twelve tests/asm/binop_if_return_twelve_add.x 78
-run_case if_ret_thirteen tests/asm/binop_if_return_thirteen_add.x 91
-run_case if_ret_fourteen tests/asm/binop_if_return_fourteen_add.x 105 "" 1
-run_case while_ret_fourteen tests/asm/binop_while_return_fourteen_add.x 105 "" 1
-run_case for_ret_fourteen tests/asm/binop_for_return_fourteen_add.x 105 "" 1
-run_case if_while_ret_fourteen tests/asm/binop_if_while_return_fourteen_add.x 105 "" 1
-run_case if_phi_ret_fourteen tests/asm/binop_if_phi_return_fourteen_add.x 105
-run_case while_phi_ret_fourteen tests/asm/binop_while_phi_return_fourteen_add.x 105
+gate_case_submit run_case if_merge tests/asm/binop_if_plus_eq_merge.x 13
+gate_case_submit run_case if_both_a tests/asm/binop_if_both_assign_a.x 13
+gate_case_submit run_case if_both_b tests/asm/binop_if_both_assign_keep_b.x 13 2
+gate_case_submit run_case if_keep_b tests/asm/binop_if_merge_keep_b.x 13 2
+gate_case_submit run_case if_after_b tests/asm/binop_if_after_use_b.x 13 2
+gate_case_submit run_case if_nested tests/asm/binop_if_nested_after_b.x 8
+gate_case_submit run_case if_nested_ldur tests/asm/binop_if_nested_after_b.x 8 2
+gate_case_submit run_case while_merge tests/asm/binop_while_plus_eq_merge.x 3
+gate_case_submit run_case while_merge_b tests/asm/binop_while_plus_eq_merge.x 3 2
+gate_case_submit run_case while_twice tests/asm/binop_while_twice_merge.x 4
+gate_case_submit run_case while_if tests/asm/binop_while_if_in_body.x 3
+gate_case_submit run_case while_if2b tests/asm/binop_while_if_twice_keep_b.x 4 2
+gate_case_submit run_case while_break tests/asm/binop_while_break_merge.x 3
+gate_case_submit run_case while_break_b tests/asm/binop_while_break_keep_b.x 3 2
+gate_case_submit run_case while_cont_br tests/asm/binop_while_continue_break.x 6
+gate_case_submit run_case while_nest_cb tests/asm/binop_while_nested_cont_br.x 5 2
+gate_case_submit run_case while_cont_b tests/asm/binop_while_continue_keep_b.x 6 2
+gate_case_submit run_case while_let tests/asm/binop_while_let_in_body.x 3
+gate_case_submit run_case if_while tests/asm/binop_if_while_in_then.x 3 2
+gate_case_submit run_case while_nested_b tests/asm/binop_while_nested_after_b.x 3 2
+gate_case_submit run_case while_nest_br tests/asm/binop_while_nested_inner_break.x 4
+gate_case_submit run_case while_nest_br_b tests/asm/binop_while_nested_inner_break.x 4 2
+gate_case_submit run_case while_after_b tests/asm/binop_while_after_use_b.x 3
+gate_case_submit run_case while_keep_b tests/asm/binop_while_keep_b.x 3 3
+gate_case_submit run_case for_merge tests/asm/binop_for_plus_eq_merge.x 3
+gate_case_submit run_case for_twice tests/asm/binop_for_twice_merge.x 4
+gate_case_submit run_case for_if tests/asm/binop_for_if_in_body.x 3
+gate_case_submit run_case if_for tests/asm/binop_if_for_in_then.x 3 2
+gate_case_submit run_case for_step tests/asm/binop_for_step_header.x 3
+gate_case_submit run_case for_keep_b tests/asm/binop_for_keep_b.x 3 3
+gate_case_submit run_case for_cont_br tests/asm/binop_for_continue_break.x 6
+gate_case_submit run_case for_carried_b tests/asm/binop_for_carried_keep_b.x 3 2
+gate_case_submit run_case if_ret_eight tests/asm/binop_if_return_eight_add.x 36
+gate_case_submit run_case if_ret_twelve tests/asm/binop_if_return_twelve_add.x 78
+gate_case_submit run_case if_ret_thirteen tests/asm/binop_if_return_thirteen_add.x 91
+gate_case_submit run_case if_ret_fourteen tests/asm/binop_if_return_fourteen_add.x 105 "" 1
+gate_case_submit run_case while_ret_fourteen tests/asm/binop_while_return_fourteen_add.x 105 "" 1
+gate_case_submit run_case for_ret_fourteen tests/asm/binop_for_return_fourteen_add.x 105 "" 1
+gate_case_submit run_case if_while_ret_fourteen tests/asm/binop_if_while_return_fourteen_add.x 105 "" 1
+gate_case_submit run_case if_phi_ret_fourteen tests/asm/binop_if_phi_return_fourteen_add.x 105
+gate_case_submit run_case while_phi_ret_fourteen tests/asm/binop_while_phi_return_fourteen_add.x 105
 
+gate_case_pool_finish || die "case pool failed"
 ok_report
 echo "asm binop cfg merge OK"

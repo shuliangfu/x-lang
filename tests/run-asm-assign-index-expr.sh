@@ -111,53 +111,55 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "XLANG=$XLANG_BIN"
+gate_case_pool_begin
 
-run_case assign_index_var_plus_lit tests/asm/assign_index_var_plus_lit.x 99 1
-run_case binop_index_add_chain tests/asm/binop_index_add_chain.x 30 0
-run_case assign_index_var_plus_var tests/asm/assign_index_var_plus_var.x 99 1
-run_case assign_index_var_plus_var_copy tests/asm/assign_index_var_plus_var_copy.x 15 1
-run_case assign_index_var_minus_lit tests/asm/assign_index_var_minus_lit.x 99 1
-run_case assign_index_var_minus_var tests/asm/assign_index_var_minus_var.x 99 1
-run_case assign_index_var_mul_lit tests/asm/assign_index_var_mul_lit.x 99 1
-run_case assign_index_lit_mul_var tests/asm/assign_index_lit_mul_var.x 88 1
-run_case index_read_var_mul_lit tests/asm/index_read_var_mul_lit.x 30 1
-run_case index_read_var_plus_lit tests/asm/index_read_var_plus_lit.x 10 1
-run_case index_read_var_minus_lit tests/asm/index_read_var_minus_lit.x 10 1
-run_case index_read_var_plus_var tests/asm/index_read_var_plus_var.x 15 1
-run_case index_read_var_mul_var tests/asm/index_read_var_mul_var.x 30 1
-run_case index_read_var_plus_var_plus_var tests/asm/index_read_var_plus_var_plus_var.x 40 1
-run_case index_read_var_plus_var_mul_lit tests/asm/index_read_var_plus_var_mul_lit.x 30 1
-run_case index_read_var_plus_paren_var_plus_var tests/asm/index_read_var_plus_paren_var_plus_var.x 40 1
-run_case index_read_var_add3_mul_lit tests/asm/index_read_var_add3_mul_lit.x 30 1
-run_case index_read_var_minus_var_plus_var tests/asm/index_read_var_minus_var_plus_var.x 30 1
-run_case assign_index_var_minus_var_plus_var tests/asm/assign_index_var_minus_var_plus_var.x 99 1
-run_case assign_read_index_var_minus_var_plus_var tests/asm/assign_read_index_var_minus_var_plus_var.x 99 1
-run_case index_read_var_minus_var_minus_var tests/asm/index_read_var_minus_var_minus_var.x 30 1
-run_case index_read_var_minus_add3 tests/asm/index_read_var_minus_add3.x 20 1
-run_case index_read_var_minus_var_mul_lit tests/asm/index_read_var_minus_var_mul_lit.x 30 1
-run_case assign_index_var_minus_var_minus_var tests/asm/assign_index_var_minus_var_minus_var.x 99 1
-run_case assign_index_var_minus_add3 tests/asm/assign_index_var_minus_add3.x 99 1
-run_case assign_index_var_minus_var_mul_lit tests/asm/assign_index_var_minus_var_mul_lit.x 99 1
-run_case assign_read_index_var_minus_add3 tests/asm/assign_read_index_var_minus_add3.x 99 1
-run_case assign_index_var_plus_paren_var_plus_var tests/asm/assign_index_var_plus_paren_var_plus_var.x 99 1
-run_case assign_index_var_add3_mul_lit tests/asm/assign_index_var_add3_mul_lit.x 99 1
-run_case assign_index_var_plus_var_plus_var tests/asm/assign_index_var_plus_var_plus_var.x 99 1
-run_case assign_index_var_plus_var_mul_lit tests/asm/assign_index_var_plus_var_mul_lit.x 99 1
-run_case assign_index_var_mul_var tests/asm/assign_index_var_mul_var.x 99 1
-run_case assign_read_index_var_mul_lit tests/asm/assign_read_index_var_mul_lit.x 99 1
-run_case assign_read_index_var_mul_var tests/asm/assign_read_index_var_mul_var.x 99 1
-run_case assign_read_index_var_plus_var_mul_lit tests/asm/assign_read_index_var_plus_var_mul_lit.x 99 1
-run_case assign_read_index_var_add3_mul_lit tests/asm/assign_read_index_var_add3_mul_lit.x 99 1
-run_case index_read_var_subadd3_mul_lit tests/asm/index_read_var_subadd3_mul_lit.x 30 1
-run_case assign_index_var_subadd3_mul_lit tests/asm/assign_index_var_subadd3_mul_lit.x 99 1
-run_case assign_read_index_var_subadd3_mul_lit tests/asm/assign_read_index_var_subadd3_mul_lit.x 99 1
-run_case index_read_var_subsub3_mul_lit tests/asm/index_read_var_subsub3_mul_lit.x 30 1
-run_case assign_index_var_subsub3_mul_lit tests/asm/assign_index_var_subsub3_mul_lit.x 99 1
-run_case assign_read_index_var_subsub3_mul_lit tests/asm/assign_read_index_var_subsub3_mul_lit.x 99 1
-run_case index_read_var_minus_add3_mul_lit tests/asm/index_read_var_minus_add3_mul_lit.x 30 1
-run_case assign_index_var_minus_add3_mul_lit tests/asm/assign_index_var_minus_add3_mul_lit.x 99 1
-run_case assign_read_index_var_minus_add3_mul_lit tests/asm/assign_read_index_var_minus_add3_mul_lit.x 99 1
+gate_case_submit run_case assign_index_var_plus_lit tests/asm/assign_index_var_plus_lit.x 99 1
+gate_case_submit run_case binop_index_add_chain tests/asm/binop_index_add_chain.x 30 0
+gate_case_submit run_case assign_index_var_plus_var tests/asm/assign_index_var_plus_var.x 99 1
+gate_case_submit run_case assign_index_var_plus_var_copy tests/asm/assign_index_var_plus_var_copy.x 15 1
+gate_case_submit run_case assign_index_var_minus_lit tests/asm/assign_index_var_minus_lit.x 99 1
+gate_case_submit run_case assign_index_var_minus_var tests/asm/assign_index_var_minus_var.x 99 1
+gate_case_submit run_case assign_index_var_mul_lit tests/asm/assign_index_var_mul_lit.x 99 1
+gate_case_submit run_case assign_index_lit_mul_var tests/asm/assign_index_lit_mul_var.x 88 1
+gate_case_submit run_case index_read_var_mul_lit tests/asm/index_read_var_mul_lit.x 30 1
+gate_case_submit run_case index_read_var_plus_lit tests/asm/index_read_var_plus_lit.x 10 1
+gate_case_submit run_case index_read_var_minus_lit tests/asm/index_read_var_minus_lit.x 10 1
+gate_case_submit run_case index_read_var_plus_var tests/asm/index_read_var_plus_var.x 15 1
+gate_case_submit run_case index_read_var_mul_var tests/asm/index_read_var_mul_var.x 30 1
+gate_case_submit run_case index_read_var_plus_var_plus_var tests/asm/index_read_var_plus_var_plus_var.x 40 1
+gate_case_submit run_case index_read_var_plus_var_mul_lit tests/asm/index_read_var_plus_var_mul_lit.x 30 1
+gate_case_submit run_case index_read_var_plus_paren_var_plus_var tests/asm/index_read_var_plus_paren_var_plus_var.x 40 1
+gate_case_submit run_case index_read_var_add3_mul_lit tests/asm/index_read_var_add3_mul_lit.x 30 1
+gate_case_submit run_case index_read_var_minus_var_plus_var tests/asm/index_read_var_minus_var_plus_var.x 30 1
+gate_case_submit run_case assign_index_var_minus_var_plus_var tests/asm/assign_index_var_minus_var_plus_var.x 99 1
+gate_case_submit run_case assign_read_index_var_minus_var_plus_var tests/asm/assign_read_index_var_minus_var_plus_var.x 99 1
+gate_case_submit run_case index_read_var_minus_var_minus_var tests/asm/index_read_var_minus_var_minus_var.x 30 1
+gate_case_submit run_case index_read_var_minus_add3 tests/asm/index_read_var_minus_add3.x 20 1
+gate_case_submit run_case index_read_var_minus_var_mul_lit tests/asm/index_read_var_minus_var_mul_lit.x 30 1
+gate_case_submit run_case assign_index_var_minus_var_minus_var tests/asm/assign_index_var_minus_var_minus_var.x 99 1
+gate_case_submit run_case assign_index_var_minus_add3 tests/asm/assign_index_var_minus_add3.x 99 1
+gate_case_submit run_case assign_index_var_minus_var_mul_lit tests/asm/assign_index_var_minus_var_mul_lit.x 99 1
+gate_case_submit run_case assign_read_index_var_minus_add3 tests/asm/assign_read_index_var_minus_add3.x 99 1
+gate_case_submit run_case assign_index_var_plus_paren_var_plus_var tests/asm/assign_index_var_plus_paren_var_plus_var.x 99 1
+gate_case_submit run_case assign_index_var_add3_mul_lit tests/asm/assign_index_var_add3_mul_lit.x 99 1
+gate_case_submit run_case assign_index_var_plus_var_plus_var tests/asm/assign_index_var_plus_var_plus_var.x 99 1
+gate_case_submit run_case assign_index_var_plus_var_mul_lit tests/asm/assign_index_var_plus_var_mul_lit.x 99 1
+gate_case_submit run_case assign_index_var_mul_var tests/asm/assign_index_var_mul_var.x 99 1
+gate_case_submit run_case assign_read_index_var_mul_lit tests/asm/assign_read_index_var_mul_lit.x 99 1
+gate_case_submit run_case assign_read_index_var_mul_var tests/asm/assign_read_index_var_mul_var.x 99 1
+gate_case_submit run_case assign_read_index_var_plus_var_mul_lit tests/asm/assign_read_index_var_plus_var_mul_lit.x 99 1
+gate_case_submit run_case assign_read_index_var_add3_mul_lit tests/asm/assign_read_index_var_add3_mul_lit.x 99 1
+gate_case_submit run_case index_read_var_subadd3_mul_lit tests/asm/index_read_var_subadd3_mul_lit.x 30 1
+gate_case_submit run_case assign_index_var_subadd3_mul_lit tests/asm/assign_index_var_subadd3_mul_lit.x 99 1
+gate_case_submit run_case assign_read_index_var_subadd3_mul_lit tests/asm/assign_read_index_var_subadd3_mul_lit.x 99 1
+gate_case_submit run_case index_read_var_subsub3_mul_lit tests/asm/index_read_var_subsub3_mul_lit.x 30 1
+gate_case_submit run_case assign_index_var_subsub3_mul_lit tests/asm/assign_index_var_subsub3_mul_lit.x 99 1
+gate_case_submit run_case assign_read_index_var_subsub3_mul_lit tests/asm/assign_read_index_var_subsub3_mul_lit.x 99 1
+gate_case_submit run_case index_read_var_minus_add3_mul_lit tests/asm/index_read_var_minus_add3_mul_lit.x 30 1
+gate_case_submit run_case assign_index_var_minus_add3_mul_lit tests/asm/assign_index_var_minus_add3_mul_lit.x 99 1
+gate_case_submit run_case assign_read_index_var_minus_add3_mul_lit tests/asm/assign_read_index_var_minus_add3_mul_lit.x 99 1
 
+gate_case_pool_finish || die "case pool failed"
 ok_report
 echo "asm assign index expr OK"
 

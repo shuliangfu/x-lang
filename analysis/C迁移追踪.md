@@ -32,7 +32,7 @@
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
-| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip Ubuntu L4＠`4cb6ef907` **129 OK**；Darwin L4 同 SHA STD-092 connect 红（L2 已修）；tip 双端 L4 未绿 |
+| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip Ubuntu L4＠`48979da1c` **129 OK** 17m47s；Darwin L4 编排改 JOBS=4＋case pool（不升钉）；tip 双端 L4 未绿 |
 | BC（自举编译层零 host-cc） | 🟡 | inventory 冻；`pipeline_x` 仍 host-cc mega |
 | PC（产品默认 asm／禁默 host-cc） | 🟡 | 去 import→C／FORBID／ALLOW／ld-only ✅；invoke_cc 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名；产品 thin-first／inject |

@@ -121,23 +121,25 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "XLANG=$XLANG_BIN"
+gate_case_pool_begin
 
-run_case lit_sum tests/asm/assign_index_block_sum.x 6
-run_case var_idx tests/asm/assign_index_block_var.x 6
-run_case nested tests/asm/assign_index_block_nested.x 62
-run_case sub_mul tests/asm/assign_index_block_sub_mul.x 33
-run_case sub_mul_reuse tests/asm/assign_index_block_sub_mul.x 33 6
-run_case seq tests/asm/assign_index_block_seq.x 45
-run_case same_idx_reuse tests/asm/assign_index_block_reuse_same_index.x 22 8
-run_case subadd3_mul_lit tests/asm/assign_index_block_subadd3_mul_lit.x 33 5
-run_case minus_mul_lit tests/asm/assign_index_block_minus_mul_lit.x 33 6
-run_case minus_mul_lit_seq tests/asm/assign_index_block_minus_mul_lit_seq.x 33 4
-run_case rhs_index tests/asm/assign_index_block_rhs_index.x 20
-run_case read_between tests/asm/assign_index_block_read_between.x 33 10
-run_case let_read_cache tests/asm/assign_index_block_let_read_addr_cache.x 99 3
-run_case read_subadd3 tests/asm/assign_index_block_read_subadd3.x 198 4
-run_case read_minus_mul tests/asm/assign_index_block_read_minus_mul.x 22 5
-run_case read_minus_mul_seq tests/asm/assign_index_block_read_minus_mul_seq.x 110 3
+gate_case_submit run_case lit_sum tests/asm/assign_index_block_sum.x 6
+gate_case_submit run_case var_idx tests/asm/assign_index_block_var.x 6
+gate_case_submit run_case nested tests/asm/assign_index_block_nested.x 62
+gate_case_submit run_case sub_mul tests/asm/assign_index_block_sub_mul.x 33
+gate_case_submit run_case sub_mul_reuse tests/asm/assign_index_block_sub_mul.x 33 6
+gate_case_submit run_case seq tests/asm/assign_index_block_seq.x 45
+gate_case_submit run_case same_idx_reuse tests/asm/assign_index_block_reuse_same_index.x 22 8
+gate_case_submit run_case subadd3_mul_lit tests/asm/assign_index_block_subadd3_mul_lit.x 33 5
+gate_case_submit run_case minus_mul_lit tests/asm/assign_index_block_minus_mul_lit.x 33 6
+gate_case_submit run_case minus_mul_lit_seq tests/asm/assign_index_block_minus_mul_lit_seq.x 33 4
+gate_case_submit run_case rhs_index tests/asm/assign_index_block_rhs_index.x 20
+gate_case_submit run_case read_between tests/asm/assign_index_block_read_between.x 33 10
+gate_case_submit run_case let_read_cache tests/asm/assign_index_block_let_read_addr_cache.x 99 3
+gate_case_submit run_case read_subadd3 tests/asm/assign_index_block_read_subadd3.x 198 4
+gate_case_submit run_case read_minus_mul tests/asm/assign_index_block_read_minus_mul.x 22 5
+gate_case_submit run_case read_minus_mul_seq tests/asm/assign_index_block_read_minus_mul_seq.x 110 3
 
+gate_case_pool_finish || die "case pool failed"
 ok_report
 echo "asm assign index block OK"

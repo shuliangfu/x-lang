@@ -100,13 +100,15 @@ HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
 HOST="${HOST_OS}-${HOST_ARCH}"
 # PLATFORM: MACOS — Darwin L4 bstrict is wall-dominated by serial asm gates
 # (assign-index-expr ~840s / binop-cfg-merge ~760s at JOBS=1 → ~2.5 h total).
-# JOBS=2 overlaps those on this 18-core/64GB machine and skips Darwin
-# inter-script sleeps. Ubuntu gold stays JOBS=1 (~17 min). Do not raise
-# Darwin default to 4 here: run-all-bstrict still warns OOM (Killed:9).
-# Explicit XLANG_BSTRICT_JOBS always wins (1 to serialize; 3–4 to experiment).
+# JOBS=4 on this 18-core/64GB machine overlaps those + the rest of the 129
+# whitelist (packing floor ~ max(840s, sum/4) ≈ 35–40 min bstrict, not 2.5 h).
+# Skips Darwin inter-script sleeps. RSS comment in run-all-bstrict is ~75MB
+# per xlang_asm; 4-way is well under 64GB. OOM (Killed:9) still retries ×3.
+# Ubuntu gold stays JOBS=1 (~17 min). Explicit XLANG_BSTRICT_JOBS always wins
+# (1 to serialize; 2 if a smaller Darwin box OOMs).
 if [ -z "${XLANG_BSTRICT_JOBS:-}" ]; then
   case "$HOST_OS" in
-    Darwin) export XLANG_BSTRICT_JOBS=2 ;;
+    Darwin) export XLANG_BSTRICT_JOBS=4 ;;
     *) export XLANG_BSTRICT_JOBS=1 ;;
   esac
 fi

@@ -199,30 +199,32 @@ XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse sof
 export XLANG="$XLANG_BIN"
 export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "XLANG=$XLANG_BIN"
+gate_case_pool_begin
 
 # tag src want max_b max_a [spill] [noround]
-run_case repeat_add tests/asm/binop_block_repeat_add.x 60 1 2
-run_case repeat_mul tests/asm/binop_block_repeat_mul.x 12 1 2
-run_case prune_dead_b tests/asm/binop_block_prune_dead_b.x 10 1 99
-run_case shared_right tests/asm/binop_block_shared_right.x 90 3 4
-run_case swap_add tests/asm/binop_block_swap_add.x 60 1 2
-run_case three_var tests/asm/binop_block_three_var.x 6 99 99
-run_case four_var tests/asm/binop_block_four_var.x 10 99 99
-run_case five_var tests/asm/binop_block_five_var.x 231 99 99
-run_case six_var tests/asm/binop_block_six_var.x 21 99 99
-run_case ret_four_add tests/asm/binop_return_four_add.x 10 99 99 x10
-run_case ret_four_mul tests/asm/binop_return_four_mul.x 24 99 99 x10
-run_case ret_four_and tests/asm/binop_return_four_and.x 1 99 99 x10
-run_case ret_four_or tests/asm/binop_return_four_or.x 15 99 99 x10
-run_case ret_four_xor tests/asm/binop_return_four_xor.x 15 99 99 x10
-run_case ret_five_add tests/asm/binop_return_five_add.x 15 99 99 x10or11
-run_case ret_six_add tests/asm/binop_return_six_add.x 21 99 99 x11
-run_case ret_seven_add tests/asm/binop_return_seven_add.x 28 99 99 x12
-run_case ret_eight_add tests/asm/binop_return_eight_add.x 36 99 99 x13
-run_case ret_nine_add tests/asm/binop_return_nine_add.x 45 99 99 x14 1
-run_case ret_thirteen_add tests/asm/binop_return_thirteen_add.x 91 99 99 x15 1
-run_case ret_fourteen_add tests/asm/binop_return_fourteen_add.x 105 99 99 x15
-run_case two_phase tests/asm/binop_block_two_phase_add.x 36 99 99
+gate_case_submit run_case repeat_add tests/asm/binop_block_repeat_add.x 60 1 2
+gate_case_submit run_case repeat_mul tests/asm/binop_block_repeat_mul.x 12 1 2
+gate_case_submit run_case prune_dead_b tests/asm/binop_block_prune_dead_b.x 10 1 99
+gate_case_submit run_case shared_right tests/asm/binop_block_shared_right.x 90 3 4
+gate_case_submit run_case swap_add tests/asm/binop_block_swap_add.x 60 1 2
+gate_case_submit run_case three_var tests/asm/binop_block_three_var.x 6 99 99
+gate_case_submit run_case four_var tests/asm/binop_block_four_var.x 10 99 99
+gate_case_submit run_case five_var tests/asm/binop_block_five_var.x 231 99 99
+gate_case_submit run_case six_var tests/asm/binop_block_six_var.x 21 99 99
+gate_case_submit run_case ret_four_add tests/asm/binop_return_four_add.x 10 99 99 x10
+gate_case_submit run_case ret_four_mul tests/asm/binop_return_four_mul.x 24 99 99 x10
+gate_case_submit run_case ret_four_and tests/asm/binop_return_four_and.x 1 99 99 x10
+gate_case_submit run_case ret_four_or tests/asm/binop_return_four_or.x 15 99 99 x10
+gate_case_submit run_case ret_four_xor tests/asm/binop_return_four_xor.x 15 99 99 x10
+gate_case_submit run_case ret_five_add tests/asm/binop_return_five_add.x 15 99 99 x10or11
+gate_case_submit run_case ret_six_add tests/asm/binop_return_six_add.x 21 99 99 x11
+gate_case_submit run_case ret_seven_add tests/asm/binop_return_seven_add.x 28 99 99 x12
+gate_case_submit run_case ret_eight_add tests/asm/binop_return_eight_add.x 36 99 99 x13
+gate_case_submit run_case ret_nine_add tests/asm/binop_return_nine_add.x 45 99 99 x14 1
+gate_case_submit run_case ret_thirteen_add tests/asm/binop_return_thirteen_add.x 91 99 99 x15 1
+gate_case_submit run_case ret_fourteen_add tests/asm/binop_return_fourteen_add.x 105 99 99 x15
+gate_case_submit run_case two_phase tests/asm/binop_block_two_phase_add.x 36 99 99
 
+gate_case_pool_finish || die "case pool failed"
 ok_report
 echo "asm binop block var OK"
