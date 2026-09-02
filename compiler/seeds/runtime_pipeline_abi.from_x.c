@@ -1886,8 +1886,20 @@ int xlang_find_loaded_import_index(const char *import_path, char **all_paths, in
  * 返回值：优先 lib_roots[0] 或 main_entry_dir。
  */
 
-/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-223: hybrid pure owns xlang_dep_prerun_entry_dir +
+ * xlang_dep_prerun_entry_dir_pick (lib_roots[0] over main entry_dir).
+ * PLATFORM: SHARED — n_lib_roots<=0 or empty lib_roots[0] → main_entry_dir.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_dep_prerun_entry_dir / _pick.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares entry_dir (const char*); seed defines it (not a dual-decl).
+ * Always-compiled proto of _pick at G-02f-51 is prototype+definition, not dual.
+ * entry_dir calls _pick; convert the pair together because POSIX .x thin
+ * owns both. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 const char *xlang_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
     if (lib_roots && n_lib_roots > 0 && lib_roots[0] && lib_roots[0][0])
         return lib_roots[0];
@@ -1957,7 +1969,8 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
     }
     return 0;
 }
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 const char *xlang_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
   {
     if (n_lib_roots <= 0) {
