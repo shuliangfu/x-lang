@@ -1096,7 +1096,7 @@ void xlang_import_path_to_file_path_impl(const char *lib_root, const char *impor
  * Header declares the five public wrappers; seed defines them (not a dual-decl).
  * cstr_ends_with_dot_x is the helper import_path_is_file_path calls.
  * path_try_realpath_inplace forwards to public link_abi_realpath_cap (wave218).
- * xlang_asm_out_buf_is_object(_magic) / xlang_cstr_offset stay closed. */
+ * xlang_cstr_offset stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
@@ -1180,7 +1180,18 @@ int xlang_cstr_ends_with_dot_x(const char *s) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-63 / wave79: hybrid pure owns xlang_asm_out_buf_is_object_magic
+ * (Mach-O 64 / ELF magic bytes). is_object is a thin len>=4 + magic call.
+ * PLATFORM: SHARED — same null / 4-byte prefix as the .x thin.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_asm_out_buf_is_object / xlang_asm_out_buf_is_object_magic.
+ * leftover standalone defines 0 of remaining unique. Independent ifndef
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Always-compiled prototype at G-02f-33; seed defines (not a dual-decl).
+ * Convert magic with is_object: is_object calls magic. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_out_buf_is_object_magic(const unsigned char *data) {
     unsigned char b0;
     unsigned char b1;
@@ -2132,9 +2143,20 @@ const char *xlang_entry_lib_name_from_path(const char *input_path) {
  * asm 后端写出 FILE *：stdout 仅 fflush，避免 fclose(stdout)。
  * 参数：fp 汇编输出流，可为 NULL。
  */
-/* wave78: hybrid pure owns driver_asm_fp_is_stdout + driver_asm_fclose_file (g05 opaque);
- * cold twins under #ifndef FROM_X. PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave78 / G-02f-234: hybrid pure owns driver_asm_fp_is_stdout +
+ * driver_asm_fclose_file + driver_asm_fclose_asm_out (g05 opaque / fflush).
+ * PLATFORM: SHARED — stdout identity: fflush only; else fclose.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * driver_asm_fclose_asm_out / driver_asm_fp_is_stdout / driver_asm_fclose_file.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares fclose_asm_out (FILE*); FROM_X prototypes declare
+ * fp_is_stdout / fclose_file; seed defines them (not a dual-decl).
+ * Seed fclose_asm_out inlines stdout vs fclose (does not call the helpers);
+ * convert the cluster together because POSIX .x thin owns all three. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int driver_asm_fp_is_stdout(FILE *fp) {
     return fp == stdout ? 1 : 0;
 }
@@ -2145,7 +2167,8 @@ XLANG_WEAK void driver_asm_fflush_stdout(void) {
     fflush(stdout);
 }
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_asm_fclose_file(FILE *fp) {
     if (fp)
         fclose(fp);
@@ -2153,7 +2176,8 @@ void driver_asm_fclose_file(FILE *fp) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_asm_fclose_asm_out(FILE *fp) {
     if (!fp || fp == stdout)
         fflush(stdout);
@@ -2169,7 +2193,8 @@ void driver_asm_fclose_asm_out(FILE *fp) {
  * 参数：data/len 为 codegen out_buf 内容。
  * 返回值：非 0 表示已是对象文件字节。
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_out_buf_is_object(const unsigned char *data, size_t len) {
   if (data == NULL) {
     return 0;
@@ -2215,7 +2240,7 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  * FROM_X rest compiles them. Header / seed prototypes declare the functions;
  * seed defines them (not a dual-decl). fill_ctx / pctx_seed wrappers are
  * thin call-through; _impl already always compiled.
- * xlang_asm_out_buf_is_object(_magic) stay closed. */
+ * pipeline_resolve_path / read_file stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {

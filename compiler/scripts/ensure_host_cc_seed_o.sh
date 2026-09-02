@@ -3244,8 +3244,10 @@ ensure_pipeline_abi_prefer_one() {
   #          pctx_seed_dep_slots / pctx_seed_dep_import_paths_only /
   #          pctx_update_dep_slots_no_reset / set_use_asm_backend +
   #          wave68/70 entry_dir BSS+set/get + dep arena/module slots
-  #          (set_dep_slots / get_dep_arena_slot; independent ifndefs;
-  #          leftover standalone defines 0 of remaining unique).
+  #          (set_dep_slots / get_dep_arena_slot; independent ifndefs) +
+  #          is_object/_magic + fclose_asm_out cluster (fp_is_stdout /
+  #          fclose_file; independent ifndefs; leftover standalone
+  #          defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
