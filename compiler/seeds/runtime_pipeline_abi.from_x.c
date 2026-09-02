@@ -35118,6 +35118,145 @@ int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes) {
   return ctx->code_len;
 }
 
+#endif /* WAVE273_ELF_DOMAIN_COLD — close before leftover-PE F7 */
+#endif /* close wave273 FROM_X for leftover-PE F7 data-section */
+#endif /* close wave178 FROM_X @34287 for leftover-PE F7 */
+#endif /* close wave154 FROM_X @34286 for leftover-PE F7 */
+
+/*
+ * wave273 F7 data-section accessors: independent leftover-PE twins.
+ * POSIX hybrid FROM_X rest omits these (live T = runtime_pipeline_abi.x -E).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; leftover standalone
+ * does not define emit_data_len / append_data_u32_le / set_shndx_override.
+ * Close wave273 + enclosing wave178/wave154 FROM_X (reopened after wave271)
+ * so WIN_LEFTOVER_GROW_VEC can compile these without the rest of wave273
+ * (append_bytes uint8_t* vs void* dual-decl / BSS-after-use). Same produce
+ * point as wave271 grow_vec: inserting an OR inside a FALSE outer ifndef
+ * is never parsed when FROM_X is set. BSS is declared first so
+ * current_shndx in the reopen cold path sees it. Do not reopen
+ * WAVE273_ELF_DOMAIN_COLD — that guard is already defined in the first
+ * FROM_X block on the cold path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* F7: data section buffer for vtable static data (read-only data with absolute
+ * pointer relocations; cannot live in __TEXT,__text which is pure_instructions).
+ * Single-threaded compile; reset per-module via pipeline_elf_ctx_reset_data. */
+static uint8_t g_pipeline_elf_data_buf[65536];
+static int32_t g_pipeline_elf_data_len;
+static uint8_t *g_pipeline_elf_data_owner;
+/* F7: shndx override (0 = no override; 4 = data section). When non-zero,
+ * pipeline_elf_ctx_current_shndx returns this value, so new relocs/syms/labels
+ * are tagged as data-section. Single-threaded compile; safe as a global mutable. */
+static int32_t g_pipeline_elf_shndx_override;
+
+/**
+ * F7: Reset the data section buffer at module start.
+ * Must be called once per module BEFORE emitting any vtable statics.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+void pipeline_elf_ctx_reset_data(uint8_t *ctx_bytes) {
+  g_pipeline_elf_data_len = 0;
+  g_pipeline_elf_data_owner = ctx_bytes;
+}
+
+/**
+ * F7: Current data section length (bytes already emitted to data buf).
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return 0;
+  return g_pipeline_elf_data_len;
+}
+
+/**
+ * F7: Pointer to data section buffer start.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+uint8_t *pipeline_elf_ctx_data_data_ptr(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return 0;
+  return &g_pipeline_elf_data_buf[0];
+}
+
+/**
+ * F7: Append 4 bytes (little-endian u32) to the data section buffer.
+ * Returns 0 ok, -1 overflow/null.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx_bytes, uint32_t word) {
+  int32_t off;
+  if (!ctx_bytes)
+    return -1;
+  if (g_pipeline_elf_data_len < 0)
+    g_pipeline_elf_data_len = 0;
+  if (g_pipeline_elf_data_len + 4 > 65536)
+    return -1;
+  off = g_pipeline_elf_data_len;
+  g_pipeline_elf_data_buf[off] = (uint8_t)(word & 255);
+  g_pipeline_elf_data_buf[off + 1] = (uint8_t)((word >> 8) & 255);
+  g_pipeline_elf_data_buf[off + 2] = (uint8_t)((word >> 16) & 255);
+  g_pipeline_elf_data_buf[off + 3] = (uint8_t)((word >> 24) & 255);
+  g_pipeline_elf_data_len = off + 4;
+  return 0;
+}
+
+/**
+ * F7: Append `n` zero bytes to the data section buffer (reserve + clear).
+ * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_append_data_zeros.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_append_data_zeros(uint8_t *ctx_bytes, int32_t n) {
+  int32_t off;
+  if (!ctx_bytes)
+    return -1;
+  if (n <= 0)
+    return 0;
+  if (g_pipeline_elf_data_len < 0)
+    g_pipeline_elf_data_len = 0;
+  if (g_pipeline_elf_data_len + n > 65536)
+    return -1;
+  off = g_pipeline_elf_data_len;
+  memset(&g_pipeline_elf_data_buf[off], 0, (size_t)n);
+  g_pipeline_elf_data_len = off + n;
+  return 0;
+}
+
+/**
+ * F7: Poke one byte into an already-reserved data-section offset.
+ * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_data_poke_u8.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b) {
+  if (!ctx_bytes || off < 0 || off >= g_pipeline_elf_data_len)
+    return -1;
+  g_pipeline_elf_data_buf[off] = (uint8_t)(b & 255);
+  return 0;
+}
+
+/**
+ * F7: Set/clear shndx override. When set to 4 (data section), subsequent
+ * relocs/syms/labels are tagged as data-section. Set to 0 to restore default.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx_bytes, int32_t shndx) {
+  (void)ctx_bytes;
+  g_pipeline_elf_shndx_override = shndx;
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave273 F7 */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after F7 */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after F7 */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave273 after F7 */
+
 /** PGO-Lite ELF 段索引（与 write_elf_o_pgo 中 shdr 顺序一致）。 */
 enum {
   PIPELINE_ELF_SHNX_TEXT = 1,
@@ -35142,101 +35281,6 @@ static int32_t pipeline_elf_ctx_current_shndx(PipelineElfCtxAccess *ctx) {
     return PIPELINE_ELF_SHNX_TEXT_UNLIKELY;
   }
   return PIPELINE_ELF_SHNX_TEXT;
-}
-
-/**
- * F7: Reset the data section buffer at module start.
- * Must be called once per module BEFORE emitting any vtable statics.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-void pipeline_elf_ctx_reset_data(uint8_t *ctx_bytes) {
-  g_pipeline_elf_data_len = 0;
-  g_pipeline_elf_data_owner = ctx_bytes;
-}
-
-/**
- * F7: Current data section length (bytes already emitted to data buf).
- * PLATFORM: SHARED freestanding ELF leave.
- */
-int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes) {
-  if (!ctx_bytes)
-    return 0;
-  return g_pipeline_elf_data_len;
-}
-
-/**
- * F7: Pointer to data section buffer start.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-uint8_t *pipeline_elf_ctx_data_data_ptr(uint8_t *ctx_bytes) {
-  if (!ctx_bytes)
-    return 0;
-  return &g_pipeline_elf_data_buf[0];
-}
-
-/**
- * F7: Append 4 bytes (little-endian u32) to the data section buffer.
- * Returns 0 ok, -1 overflow/null.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx_bytes, uint32_t word) {
-  int32_t off;
-  if (!ctx_bytes)
-    return -1;
-  if (g_pipeline_elf_data_len < 0)
-    g_pipeline_elf_data_len = 0;
-  if (g_pipeline_elf_data_len + 4 > 65536)
-    return -1;
-  off = g_pipeline_elf_data_len;
-  g_pipeline_elf_data_buf[off] = (uint8_t)(word & 255);
-  g_pipeline_elf_data_buf[off + 1] = (uint8_t)((word >> 8) & 255);
-  g_pipeline_elf_data_buf[off + 2] = (uint8_t)((word >> 16) & 255);
-  g_pipeline_elf_data_buf[off + 3] = (uint8_t)((word >> 24) & 255);
-  g_pipeline_elf_data_len = off + 4;
-  return 0;
-}
-
-/**
- * F7: Append `n` zero bytes to the data section buffer (reserve + clear).
- * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_append_data_zeros.
- * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
- */
-int32_t pipeline_elf_ctx_append_data_zeros(uint8_t *ctx_bytes, int32_t n) {
-  int32_t off;
-  if (!ctx_bytes)
-    return -1;
-  if (n <= 0)
-    return 0;
-  if (g_pipeline_elf_data_len < 0)
-    g_pipeline_elf_data_len = 0;
-  if (g_pipeline_elf_data_len + n > 65536)
-    return -1;
-  off = g_pipeline_elf_data_len;
-  memset(&g_pipeline_elf_data_buf[off], 0, (size_t)n);
-  g_pipeline_elf_data_len = off + n;
-  return 0;
-}
-
-/**
- * F7: Poke one byte into an already-reserved data-section offset.
- * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_data_poke_u8.
- * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
- */
-int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b) {
-  if (!ctx_bytes || off < 0 || off >= g_pipeline_elf_data_len)
-    return -1;
-  g_pipeline_elf_data_buf[off] = (uint8_t)(b & 255);
-  return 0;
-}
-
-/**
- * F7: Set/clear shndx override. When set to 4 (data section), subsequent
- * relocs/syms/labels are tagged as data-section. Set to 0 to restore default.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx_bytes, int32_t shndx) {
-  (void)ctx_bytes;
-  g_pipeline_elf_shndx_override = shndx;
 }
 
 /** 按段索引取 code 缓冲指针（unlikely 与 legacy .text 共用 code_data）。 */
@@ -35312,16 +35356,9 @@ static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_reloc_r_type[PIPELINE_ELF_CTX_TABLE_CAP];
 static int8_t g_pipeline_elf_reloc_r_pcrel[PIPELINE_ELF_CTX_TABLE_CAP];
 
-/* F7: data section buffer for vtable static data (read-only data with absolute
- * pointer relocations; cannot live in __TEXT,__text which is pure_instructions).
- * Single-threaded compile; reset per-module via pipeline_elf_ctx_reset_data. */
-static uint8_t g_pipeline_elf_data_buf[65536];
-static int32_t g_pipeline_elf_data_len;
-static uint8_t *g_pipeline_elf_data_owner;
-/* F7: shndx override (0 = no override; 4 = data section). When non-zero,
- * pipeline_elf_ctx_current_shndx returns this value, so new relocs/syms/labels
- * are tagged as data-section. Single-threaded compile; safe as a global mutable. */
-static int32_t g_pipeline_elf_shndx_override;
+/* F7 BSS (g_pipeline_elf_data_* / g_pipeline_elf_shndx_override) lives in the
+ * leftover-PE OR block above so WIN FROM_X rest and the cold path both see
+ * the declaration before first use. Do not re-declare here (duplicate static). */
 
 static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
   g_pipeline_elf_common_owner = ctx_bytes;
@@ -37990,8 +38027,7 @@ void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, i
 }
 
 
-#endif /* WAVE273_ELF_DOMAIN_COLD */
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave273 cold twins */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave273 cold twins (reopen after F7; WAVE273_ELF_DOMAIN_COLD closed before leftover-PE F7) */
 
 /* ==========================================================================
  * WAVE274: asm WPO v0 DCE + PGO-Lite Cap residual pure-owned leave cold twins

@@ -3232,8 +3232,11 @@ ensure_pipeline_abi_prefer_one() {
   #          grow_vec/sidecar + wave123 glue_arm64_mov_*/lea + wave125
   #          pipeline_asm_ctx_layout + wave133 glue_enc_sxt/zxt (closed out
   #          of wave132 so WIN rest does not take ty_ref / append_bytes
-  #          dual-decl). Larger twins (emit_expr_elf_rec / glue_type_size /
-  #          elf_ctx extras) stay closed (helper/dual-decl/BSS-after-use).
+  #          dual-decl) + wave273 F7 data-section (emit_data_len /
+  #          append_data_u32_le / set_shndx_override; BSS moved before first
+  #          use; rest of wave273 stays closed — append_bytes dual-decl).
+  #          Larger twins (emit_expr_elf_rec / glue_type_size /
+  #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
