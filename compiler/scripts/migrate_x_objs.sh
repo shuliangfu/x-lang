@@ -158,12 +158,22 @@ want_ensure_gen() {
     if cmp -s "$seed" "$gen" 2>/dev/null; then
       return 0
     fi
+    # Post-pull: tip seed newer than gitignored pin → re-enter ensure (8.3.3).
+    # Without this, leftover PE keeps 7/31 codegen_gen.c (differs from seed)
+    # and never host-cc codegen_builtin_type_name_into.
+    if [ "$seed" -nt "$gen" ]; then
+      return 0
+    fi
+    if ! grep -Eq '^int32_t codegen_builtin_type_name_into\(' "$gen"; then
+      return 0
+    fi
   fi
   # PLATFORM: SHARED — typeck pin contract (phase1 link surface).
   if [ "$mode" = "typeck" ]; then
     if ! grep -Fq 'typeck_check_call_arity' "$gen" \
       || ! grep -Fq 'typeck_expr_is_null_keyword' "$gen" \
-      || ! grep -Fq 'typeck_type_is_valid_subscript_index' "$gen"; then
+      || ! grep -Fq 'typeck_type_is_valid_subscript_index' "$gen" \
+      || ! grep -Eq '^int32_t typeck_call_arg_repr_compatible_ok\(' "$gen"; then
       return 0
     fi
     # Post-pull: tip seed newer than gitignored pin → re-enter ensure (8.3.3).
@@ -173,6 +183,23 @@ want_ensure_gen() {
     fi
   fi
   return 1
+}
+
+# Twin of migrate_gen_windows_leftover_pe_cannot_e (ensure_migrate_gen.sh).
+# PLATFORM: WINDOWS — leftover 2026-07-31 PE cannot -E tip typeck.x/codegen.x.
+migrate_windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
+# True when $1 .o exports $2 as T. Darwin nm prefixes `_`; MinGW/ELF do not.
+# PLATFORM: SHARED — leftover-PE unique harvest + POSIX pin rebuild.
+obj_has_t_sym() {
+  local o="$1" s="$2"
+  [ -f "$o" ] || return 1
+  nm -g "$o" 2>/dev/null | grep -E " T (_?${s})$" >/dev/null
 }
 
 # wave329: Track L retirement — bespoke cold-seed rung for front-end M4 leaves
@@ -269,12 +296,25 @@ build_typeck() {
     ensure_gen_via_shell typeck
   fi
   # Skip patch+cc when .o is current (patch may rewrite gen even when no-op-ish).
+  # PLATFORM: WINDOWS leftover PE — 7/31 typeck_x.o can be newer than a stale
+  # gitignored gen and still lack unique T. Force pin rebuild in that case.
   if ! need_rebuild typeck_x.o typeck_gen.c; then
-    log "typeck_x.o up-to-date"
-    return 0
+    if migrate_windows_leftover_pe_cannot_e \
+      && ! obj_has_t_sym typeck_x.o typeck_call_arg_repr_compatible_ok; then
+      log "typeck_x.o leftover PE missing unique T; force pin rebuild"
+    else
+      log "typeck_x.o up-to-date"
+      return 0
+    fi
+  fi
+  _typeck_bak=""
+  if migrate_windows_leftover_pe_cannot_e && [ -f typeck_x.o ]; then
+    _typeck_bak="typeck_x.o.bak_leftover_pe"
+    cp -f typeck_x.o "$_typeck_bak"
   fi
   # wave329: try Track L cold seed first (bypasses assemble/patch chain)
   if _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
+    rm -f "$_typeck_bak"
     return 0
   fi
   log "typeck_x.o: Track L cold seed failed; falling back to typeck_gen.c (archaeology)"
@@ -283,13 +323,29 @@ build_typeck() {
     "$PYTHON" scripts/patch_typeck_gen_lang007.py || true
   fi
   # shellcheck disable=SC2086
+  set +e
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
-  sz=$(obj_size typeck_x.o)
-  if [ "$sz" -le 10000 ]; then
+  _typeck_cc=$?
+  set -e
+  if [ "$_typeck_cc" -eq 0 ]; then
+    sz=$(obj_size typeck_x.o)
+    if [ "$sz" -gt 10000 ]; then
+      rm -f "$_typeck_bak"
+      log "typeck_x.o OK ($sz bytes)"
+      return 0
+    fi
     log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && bash scripts/ensure_migrate_gen.sh typeck)"
-    exit 1
+  else
+    log "typeck_x.o: host-cc typeck_gen.c rc=$_typeck_cc"
   fi
-  log "typeck_x.o OK ($sz bytes)"
+  # PLATFORM: WINDOWS leftover PE — pin cc may fail on MinGW; keep prior .o
+  # so pabi leftover unique harvest is not blocked by typeck pin SAT.
+  if [ -n "$_typeck_bak" ] && [ -f "$_typeck_bak" ]; then
+    mv -f "$_typeck_bak" typeck_x.o
+    log "typeck_x.o leftover PE pin cc failed; restored prior .o (unique may stay)"
+    return 0
+  fi
+  exit 1
 }
 
 build_codegen() {
@@ -297,22 +353,47 @@ build_codegen() {
     ensure_gen_via_shell codegen
   fi
   if ! need_rebuild codegen_x.o codegen_gen.c; then
-    log "codegen_x.o up-to-date"
-    return 0
+    if migrate_windows_leftover_pe_cannot_e \
+      && ! obj_has_t_sym codegen_x.o codegen_builtin_type_name_into; then
+      log "codegen_x.o leftover PE missing unique T; force pin rebuild"
+    else
+      log "codegen_x.o up-to-date"
+      return 0
+    fi
+  fi
+  _codegen_bak=""
+  if migrate_windows_leftover_pe_cannot_e && [ -f codegen_x.o ]; then
+    _codegen_bak="codegen_x.o.bak_leftover_pe"
+    cp -f codegen_x.o "$_codegen_bak"
   fi
   # wave329: try Track L cold seed first
   if _try_frontend_track_l_cold_seed codegen_x.o "seeds/codegen_gen.linux.x86_64.c"; then
+    rm -f "$_codegen_bak"
     return 0
   fi
   log "codegen_x.o: Track L cold seed failed; falling back to codegen_gen.c (archaeology)"
   # shellcheck disable=SC2086
+  set +e
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_x.o
-  sz=$(obj_size codegen_x.o)
-  if [ "$sz" -le 50000 ]; then
+  _codegen_cc=$?
+  set -e
+  if [ "$_codegen_cc" -eq 0 ]; then
+    sz=$(obj_size codegen_x.o)
+    if [ "$sz" -gt 50000 ]; then
+      rm -f "$_codegen_bak"
+      log "codegen_x.o OK ($sz bytes)"
+      return 0
+    fi
     log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && bash scripts/ensure_migrate_gen.sh codegen)"
-    exit 1
+  else
+    log "codegen_x.o: host-cc codegen_gen.c rc=$_codegen_cc"
   fi
-  log "codegen_x.o OK ($sz bytes)"
+  if [ -n "$_codegen_bak" ] && [ -f "$_codegen_bak" ]; then
+    mv -f "$_codegen_bak" codegen_x.o
+    log "codegen_x.o leftover PE pin cc failed; restored prior .o (unique may stay)"
+    return 0
+  fi
+  exit 1
 }
 
 case "$MODE" in

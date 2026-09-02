@@ -101,20 +101,40 @@ gen_has_sym() {
   [ -s "$1" ] && grep -Fq "$2" "$1"
 }
 
+# True when $1 defines $2 as a C function body (not a mere extern).
+# Leftover-PE unique harvest needs T in typeck_x.o/codegen_x.o; a 7/31
+# gitignored pin can still grep-match the name as `extern` and fake-green
+# the old substring contract.
+# PLATFORM: SHARED — same pin bodies on Darwin/Linux/Windows MinGW SAT.
+gen_has_defn() {
+  # $1=file $2=C identifier
+  [ -s "$1" ] && grep -Eq "^int32_t ${2}\\(" "$1"
+}
+
 typeck_gen_contract_ok() {
   # phase1 UNDEF surface from pipeline_x → typeck_x
+  # Unique leftover-PE faces: archaeology pin HAS bodies; 7/31 leftover
+  # typeck_x.o does not. Substring-only would pass on extern-only drift.
   gen_has_sym "$1" 'typeck_check_call_arity' \
     && gen_has_sym "$1" 'typeck_check_call_arg_types' \
     && gen_has_sym "$1" 'typeck_expr_is_null_keyword' \
-    && gen_has_sym "$1" 'typeck_type_is_valid_subscript_index'
+    && gen_has_sym "$1" 'typeck_type_is_valid_subscript_index' \
+    && gen_has_defn "$1" 'typeck_call_arg_repr_compatible_ok' \
+    && gen_has_defn "$1" 'typeck_check_extern_call_unsafe_boundary' \
+    && gen_has_defn "$1" 'typeck_match_subject_field_type' \
+    && gen_has_defn "$1" 'pipeline_typeck_check_call_struct_stack_escape_c' \
+    && gen_has_defn "$1" 'pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal' \
+    && gen_has_defn "$1" 'pipeline_typeck_expr_is_any_assign_kind_c'
 }
 
 codegen_gen_contract_ok() {
   # product pure-ld needs emit_expr + x_ast + Cap residual faces
+  # Unique leftover-PE face: pin HAS the body; 7/31 leftover codegen_x.o does not.
   (gen_has_sym "$1" 'codegen_emit_expr' || gen_has_sym "$1" 'codegen_emit_expr_ASTArena') \
     && gen_has_sym "$1" 'codegen_x_ast' \
     && gen_has_sym "$1" 'codegen_set_host_call_arg_param_ty' \
-    && gen_has_sym "$1" 'pipeline_loop_should_continue_ndep_c'
+    && gen_has_sym "$1" 'pipeline_loop_should_continue_ndep_c' \
+    && gen_has_defn "$1" 'codegen_builtin_type_name_into'
 }
 
 parser_gen_contract_ok() {
@@ -448,6 +468,12 @@ ensure_typeck_gen() {
         fi
       else
         log "typeck_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+        # PLATFORM: WINDOWS leftover PE cannot -E typeck.x. Dual-boot
+        # gitignored typeck_gen.c can stay at 7/31 (old contract still
+        # greps) while tip seed HAS unique bodies. G.7: existing
+        # refresh_gen_from_seed_if_stale is the authority (lexer already
+        # uses it); do not keep a stale pin that fails unique defn.
+        refresh_gen_from_seed_if_stale typeck_gen.c "$seed" typeck_gen_contract_ok typeck_gen.c || true
       fi
     fi
   fi
@@ -592,6 +618,9 @@ ensure_codegen_gen() {
         fi
       else
         log "codegen_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+        # PLATFORM: WINDOWS leftover PE cannot -E codegen.x. Same dual-boot
+        # gitignored-pin drift as typeck: G.7 refresh_gen_from_seed_if_stale.
+        refresh_gen_from_seed_if_stale codegen_gen.c "$seed" codegen_gen_contract_ok codegen_gen.c || true
       fi
     fi
   fi
