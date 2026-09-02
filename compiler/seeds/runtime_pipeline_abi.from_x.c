@@ -653,8 +653,37 @@ extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
-/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* Leftover unique cluster: pipeline_debug_trace_named_func_bodies
+ * (independent ifndefs; not nested in wave101/154/178).
+ *
+ * Unique lists pipeline_debug_trace_named_func_bodies only.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the wrapper (runtime_pipeline_abi.x @8486) and impl
+ * (@8329). leftover rest WAVE parse_into_buf_impl_c ALWAYS calls the
+ * wrapper (@49986) — POSIX unique is U not ABSENT (.x thin provides T).
+ *
+ * Prior stay-closed reason was void* definition vs struct ast_Module*
+ * extern later in FROM_X rest. That struct* extern @18600 lives inside
+ * the continuing #ifndef FROM_X wave144/145 nest (FALSE when FROM_X is
+ * set) so leftover rest never parses it. Leftover rest FROM_X proto
+ * @49851 is void* — same signature as this cold twin. Always-compiled
+ * proto of match @345 / impl @265 is prototype+definition, not dual.
+ * Header does not declare debug_trace (not a dual-decl).
+ *
+ * Convert match + impl + wrapper together so leftover rest wrapper
+ * calls leftover rest impl which calls leftover rest match (same TU).
+ * match / impl are not unique — SAT / leftover standalone provide T.
+ *
+ * Do not convert neighboring pipeline_asm_debug_enabled (not unique)
+ * or the mega_pre_reset wrappers after this cluster (not unique).
+ * xlang_driver_asm_prepare_entry_elf_emit is a separate leftover unique
+ * (calls this wrapper; converted after this cluster).
+ *
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin; OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles the cluster.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int pipeline_debug_body_func_match(const char *filter, const char *name) {
     const char *p;
     size_t name_len;
@@ -682,15 +711,15 @@ int pipeline_debug_body_func_match(const char *filter, const char *name) {
     }
     return 0;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
-
-
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE debug_trace unique helper */
 
 
 /* wave82: pure owns pipeline_debug_trace_named_func_bodies_impl under PREFER FROM_X
  * (append+diag_report, no reportf). Cold twin keeps historical reportf format.
- * wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
+ * Leftover unique cluster: convert impl with the wrapper (see match cluster-head). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
     const char *filter = link_abi_getenv("XLANG_DEBUG_BODY_FUNC");
     int32_t nf;
@@ -725,9 +754,10 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
                      body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
     }
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE debug_trace unique impl */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
   if (module == NULL) {
     return;
@@ -739,7 +769,7 @@ void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, voi
     pipeline_debug_trace_named_func_bodies_impl(phase, module, arena);
   }
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE debug_trace unique wrapper */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
@@ -1893,8 +1923,9 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
  * parser_parse_into / parser_parse_into_init / parser_get_module_num_imports
  * already always-compiled externs. pipe_release_tmp_arena_module already
  * always-compiled static.
- * pipeline_debug_trace_named_func_bodies stays closed (void* definition vs
- * struct ast_Module* extern later in FROM_X rest). */
+ * pipeline_debug_trace_named_func_bodies leftover unique is a separate
+ * independent ifndef (match+impl+wrapper; leftover rest FROM_X proto is
+ * void* — the struct* extern later is inside FALSE #ifndef FROM_X). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
@@ -3102,10 +3133,12 @@ uint8_t *pipeline_run_x_thread_fn_ptr(void) {
  * Do not convert neighboring pipeline_run_x_thread_fn_ptr (not unique) or
  * xlang_asm_codegen_elf_o_product_emit / thread_fn_ptr (not unique; elf_o
  * leftover cluster converts thread_fn+large_stack only) or
- * xlang_driver_asm_prepare_entry_elf_emit (calls closed debug_trace).
+ * xlang_driver_asm_prepare_entry_elf_emit leftover unique (independent
+ * ifndef after debug_trace unique).
  * pipeline_run_x_pipeline_impl is a separate leftover cluster (surgical
  * extract after closing enclosing wave101).
- * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * pipeline_debug_trace_named_func_bodies leftover unique (independent
+ * ifndef: match+impl+wrapper; leftover rest FROM_X proto is void*).
  * Larger leftover clusters rec / glue_type / append_reloc_absolute64 / sret
  * are separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -4233,8 +4266,25 @@ extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
  * ARRAY_LIT / FIELD_ACCESS / fill_var: G.7 single site in
  * pipeline_backend_asm_codegen_ast_to_elf_c after dep SoA merge
  * (Stage12 mega pure-asm emit wall — ban double fill in prepare).
- * PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED.
+ *
+ * Leftover unique: xlang_driver_asm_prepare_entry_elf_emit (independent
+ * ifndef; not nested). Unique lists this face. leftover standalone
+ * defines 0 of remaining unique. POSIX .x thin owns it
+ * (runtime_pipeline_abi.x @7518). leftover rest does not call it so
+ * POSIX unique is ABSENT (.x thin provides T).
+ * Header declares it @292 (prototype+definition, not a dual-decl).
+ * Callees: always-extern asm_skip_heavy_set_pipeline_ctx /
+ * pipeline_module_fixup_with_arena_stmt_orders; leftover rest T
+ * pipeline_debug_trace_named_func_bodies (converted just above).
+ * Prior stay-closed reason was calling closed debug_trace.
+ * Do not convert neighboring xlang_asm_codegen_elf_o_product_emit /
+ * thread_fn_ptr (not unique).
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin; OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles it.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
   {
     asm_skip_heavy_set_pipeline_ctx(pctx);
@@ -4243,7 +4293,7 @@ void xlang_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pc
     pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
   }
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE prepare_entry unique */
 
 
 /** pthread 大栈 emit 参数包。 */

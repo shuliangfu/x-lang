@@ -3478,12 +3478,24 @@ ensure_pipeline_abi_prefer_one() {
   #          standalone already T reset/append; leftover standalone
   #          defines 0 of remaining unique; seed bodies are real; do not
   #          convert neighboring asm_qual_sym_layer_* — not unique,
-  #          separate BSS family; pabi leftover unique coding is exhausted
-  #          after this extract except stay-closed debug_trace /
-  #          prepare_entry).
+  #          separate BSS family) +
+  #          debug_trace leftover unique (independent ifndefs: match +
+  #          impl + wrapper together so leftover rest wrapper calls
+  #          leftover rest impl; unique lists wrapper only; leftover
+  #          standalone defines 0 of remaining unique; leftover rest
+  #          FROM_X proto @49851 is void* — the struct* extern @18600
+  #          is inside FALSE #ifndef FROM_X wave144/145 nest, not a
+  #          leftover-rest dual-decl; do not convert neighboring
+  #          pipeline_asm_debug_enabled / mega_pre_reset wrappers —
+  #          not unique) +
+  #          prepare_entry leftover unique (independent ifndef: unique
+  #          lists xlang_driver_asm_prepare_entry_elf_emit; leftover
+  #          standalone defines 0 of remaining unique; header @292
+  #          prototype+definition; calls leftover rest T debug_trace;
+  #          do not convert neighboring product_emit / thread_fn_ptr —
+  #          not unique; pabi leftover unique coding is exhausted
+  #          after this extract).
   #          pipeline_resolve_path / read_file stay closed this wave.
-  #          pipeline_debug_trace_named_func_bodies stays closed
-  #          (void* vs struct* extern).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
