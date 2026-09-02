@@ -26,6 +26,30 @@ fi
 ci_windows_pin_tmpdir || exit 1
 echo "bootstrap-bstrict-windows-gate: TMPDIR=$TMPDIR TEMP=$TEMP"
 
+# Live log on a Windows-native path. Non-TTY SSH fully buffers `tee /tmp`, so
+# the user cannot watch progress. Line-buffer + tee to C:/xlang_tmp/win_gate.log
+# (Notepad++ Monitoring, or: powershell Get-Content C:\xlang_tmp\win_gate.log -Wait -Tail 40).
+WIN_LIVE_LOG="${XLANG_WIN_LIVE_LOG:-C:/xlang_tmp/win_gate.log}"
+mkdir -p "$(dirname "$WIN_LIVE_LOG")" 2>/dev/null || true
+: > "$WIN_LIVE_LOG"
+echo "bootstrap-bstrict-windows-gate: live log $WIN_LIVE_LOG"
+echo "  watch: powershell  Get-Content C:\\xlang_tmp\\win_gate.log -Wait -Tail 40"
+_win_tee() {
+  local dest="$1"
+  if command -v stdbuf >/dev/null 2>&1; then
+    stdbuf -oL -eL tee -a "$WIN_LIVE_LOG" "$dest"
+  else
+    tee -a "$WIN_LIVE_LOG" "$dest"
+  fi
+}
+_win_run() {
+  if command -v stdbuf >/dev/null 2>&1; then
+    stdbuf -oL -eL "$@"
+  else
+    "$@"
+  fi
+}
+
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
@@ -47,7 +71,7 @@ if [ "$WIN_BSTRICT" = "1" ]; then
   #      exited 0. B-hybrid branch below already captures SEED_RC; B-strict
   #      must do the same for its single make call.
   set -o pipefail
-  xlang_compiler_make bootstrap-driver-bstrict 2>&1 | tee /tmp/boot_win_bstrict.log
+  _win_run xlang_compiler_make bootstrap-driver-bstrict 2>&1 | _win_tee /tmp/boot_win_bstrict.log
   BOOT_RC=${PIPESTATUS[0]}
   set +o pipefail
   if [ "$BOOT_RC" -ne 0 ]; then
@@ -73,13 +97,17 @@ else
   # PLATFORM: WINDOWS | MSYS | MINGW (script only runs on MSYS2 hosts; see
   #           ci_is_windows_msys guard above).
   echo "bootstrap-bstrict-windows-gate: xlang_compiler_make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
-  xlang_compiler_make bootstrap-driver-seed 2>&1 | tee /tmp/boot_win_seed.log
+  set -o pipefail
+  _win_run xlang_compiler_make bootstrap-driver-seed 2>&1 | _win_tee /tmp/boot_win_seed.log
   SEED_RC=${PIPESTATUS[0]}
+  set +o pipefail
   if [ "$SEED_RC" -ne 0 ]; then
     echo "bootstrap-bstrict-windows-gate FAIL: bootstrap-driver-seed rc=$SEED_RC" >&2
     exit 1
   fi
-  xlang_compiler_make bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
+  set -o pipefail
+  _win_run xlang_compiler_make bootstrap-driver-hybrid 2>&1 | _win_tee /tmp/boot_win_hybrid.log
+  set +o pipefail
   BOOT_LOG=/tmp/boot_win_hybrid.log
   EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
 fi
