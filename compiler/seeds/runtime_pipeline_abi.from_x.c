@@ -26686,14 +26686,42 @@ int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum
                                                    variant_len);
 }
 
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — close wave149 before leftover-PE rec cluster */
 
 /* ========================================================================
- * wave152 cold twins: pipeline_asm_emit_expr_rec pure-owned leave.
- * Faithful C bodies under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Rec leftover cluster (surgical extract of the inner wave152 ifndef after
+ * closing enclosing wave149): pipeline_asm_emit_expr_elf_rec + helpers
+ * pipeline_asm_expr_lit_i32_at_c / glue_try_emit_match_subject_field_var_elf_c
+ * / pipeline_asm_emit_expr_elf_c wrapper / pipeline_asm_emit_expr_elf_fast
+ * (rec calls fast — convert together).
+ * Unique lists pipeline_asm_emit_expr_elf_rec.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the face (runtime_pipeline_abi.x wave152).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Wave149 ends at rec —
+ * close it before this inner ifndef (same produce point as F7: inserting an
+ * OR inside a FALSE outer ifndef is never parsed when FROM_X is set).
+ * Do not reopen wave149 (nothing remains after rec). Wave153 stays its own
+ * independent ifndef.
+ * Header does not declare rec (not a dual-decl). Always-compiled proto of
+ * rec is absent in this TU.
+ * Cluster callees that leftover rest U (emit_binop_* / emit_call_* /
+ * glue_emit_module_from_ctx / macho_leading_underscore / …) are not unique;
+ * SAT / leftover standalone provide T. Fast Cap-fn-ptr path needs extra
+ * externs wave149 used to declare (elem_ref / module_from_ctx / func_index
+ * / no_mangle / macho_underscore / lea_sym) — add them below with FROM_X
+ * rest signatures.
+ * Do not convert neighboring wave149 binop helpers (closed above) or
+ * wave153 block_body (independent ifndef after this cluster).
+ * pipeline_elf_ctx_append_reloc_absolute64 stays closed (rest of wave273).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
  * ======================================================================== */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
 #ifndef PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED
 #define PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED (-99)
@@ -26816,6 +26844,17 @@ extern int32_t glue_i64_to_f32_bits(int64_t v);
 extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
 extern void *g_pipeline_asm_emit_module;
 extern void *pipeline_asm_emit_module_ref_c(void);
+/* Fast Cap-fn-ptr path callees. Wave149 used to declare these; leftover rest
+ * does not compile that block. Signatures match FROM_X rest / SAT leftovers
+ * (void*). leftover rest U the closed-block bodies; SAT / leftover standalone
+ * provide T. Do not re-extern void* ndep (always-compiled struct* @2724). */
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+extern int32_t backend_enc_lea_sym_to_reg_arch(void *elf_ctx, int32_t reg, uint8_t *name,
+                                              int32_t name_len, int32_t ta);
 
 /* Minimal Expr view for cold twin const_folded fields (LP64 layout match product). */
 struct wave152_ExprView {
@@ -27233,9 +27272,7 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
   return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 }
 
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* ========================================================================== *
  * wave153 cold twins: pipeline_asm_emit_block_body pure-owned leave.
@@ -27675,7 +27712,8 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  * wave132 (not unique); leftover rest externs it (SAT / leftover standalone).
  * Do not convert neighboring typeck_typeck_struct_layout_metrics (not unique)
  * or glue_type_named_layout_size_any_module_elf_c (nested in wave178).
- * pipeline_asm_emit_expr_elf_rec stays closed (nested in wave149).
+ * pipeline_asm_emit_expr_elf_rec is a separate leftover cluster (wave152
+ * extract after closing wave149).
  * pipeline_elf_ctx_append_reloc_absolute64 stays closed (rest of wave273).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).

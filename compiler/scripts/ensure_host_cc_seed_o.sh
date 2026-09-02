@@ -3325,9 +3325,17 @@ ensure_pipeline_abi_prefer_one() {
   #          stays closed — not unique — leftover rest externs it; do not
   #          convert neighboring typeck_typeck_struct_layout_metrics — not
   #          unique — or glue_type_named_layout_size_any_module_elf_c —
+  #          nested in wave178) +
+  #          rec leftover cluster (surgical extract of inner wave152
+  #          ifndef after closing enclosing wave149: rec + lit_i32 /
+  #          match_subject_field / emit_expr_elf_c wrapper / emit_expr_elf_fast;
+  #          rec calls fast — convert together; unique lists rec; leftover
+  #          standalone defines 0 of remaining unique; wave149 binop helpers
+  #          stay closed; wave153 block_body stays its own ifndef; do not
+  #          convert neighboring append_reloc_absolute64 — nested rest of
+  #          wave273 — or glue_type_named_layout_size_any_module_elf_c —
   #          nested in wave178).
-  #          Larger twins (emit_expr_elf_rec / append_reloc_absolute64)
-  #          stay closed (nested wave149 / rest of wave273).
+  #          Larger twin append_reloc_absolute64 stays closed (rest of wave273).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
