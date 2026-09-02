@@ -3100,7 +3100,8 @@ uint8_t *pipeline_run_x_thread_fn_ptr(void) {
  * and wrappers @329/@353 is prototype+definition, not dual.
  * FROM_X proto of _impl at wave56–60 is prototype+definition, not dual.
  * Do not convert neighboring pipeline_run_x_thread_fn_ptr (not unique) or
- * xlang_asm_codegen_elf_o_* (next independent cluster) or
+ * xlang_asm_codegen_elf_o_product_emit / thread_fn_ptr (not unique; elf_o
+ * leftover cluster converts thread_fn+large_stack only) or
  * xlang_driver_asm_prepare_entry_elf_emit (calls closed debug_trace).
  * pipeline_run_x_pipeline_impl stays closed (nested in wave101).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
@@ -4279,8 +4280,35 @@ uint8_t *xlang_asm_codegen_elf_o_thread_fn_ptr(void) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：调用 product emit 并将 ec 写入 args->result。 */
-/* G-02f-241 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-241 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — pthread entry writes args->result via always-extern
+ * asm_asm_codegen_elf_o (user_asm_seed_bridge at final link; unique does
+ * not list it); null arg → null.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_asm_codegen_elf_o_thread_fn / xlang_asm_codegen_elf_o_large_stack.
+ * leftover standalone defines 0 of remaining unique.
+ * Elf_o leftover cluster (2 independent ifndefs, not nested in
+ * wave149/154/273): thread_fn_impl+wrapper / large_stack_impl+wrapper.
+ * thread_fn_impl calls always-extern asm_asm_codegen_elf_o;
+ * large_stack_impl calls thread_fn + always-extern
+ * driver_run_thread_on_large_stack + fallback asm_asm_codegen_elf_o.
+ * Unique lists thread_fn + large_stack.
+ * Same produce point as dep_prerun: OR WIN_LEFTOVER_GROW_VEC so leftover-PE
+ * FROM_X rest compiles the cluster. Unlike merge/one_ctx, _impl is still
+ * ifndef — convert it with the wrapper.
+ * Header declares large_stack @297 (prototype+definition, not a dual-decl).
+ * Always-compiled proto of large_stack_impl+wrapper @293/@295 and thread_fn
+ * @356 is prototype+definition, not dual.
+ * FROM_X proto of _impl at wave57 is prototype+definition, not dual.
+ * Do not convert neighboring xlang_asm_codegen_elf_o_product_emit (not unique;
+ * leftover/pure thin owns it) or xlang_asm_codegen_elf_o_thread_fn_ptr
+ * (not unique) or xlang_driver_asm_prepare_entry_elf_emit (calls closed
+ * debug_trace). pipeline_run_x_pipeline_impl stays closed (nested in
+ * wave101). pipeline_debug_trace_named_func_bodies stays closed
+ * (void* vs struct*). Larger twins (emit_expr_elf_rec / glue_type_size /
+ * append_reloc_absolute64) stay closed (helper/dual-decl). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *xlang_asm_codegen_elf_o_thread_fn_impl(void *arg) {
     XlangAsmCodegenElfLargeArgs *a = (XlangAsmCodegenElfLargeArgs *)arg;
     if (!a)
@@ -4294,14 +4322,16 @@ void *xlang_asm_codegen_elf_o_thread_fn(void *arg) {
         return NULL;
     return xlang_asm_codegen_elf_o_thread_fn_impl(arg);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
-/* G-02f-240 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* Converted with the elf_o leftover cluster — see cluster-head at
+ * xlang_asm_codegen_elf_o_thread_fn_impl. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t xlang_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     XlangAsmCodegenElfLargeArgs args;
@@ -4325,7 +4355,7 @@ int32_t xlang_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx
         return -1;
     return xlang_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 

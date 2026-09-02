@@ -3301,10 +3301,22 @@ ensure_pipeline_abi_prefer_one() {
   #          unique lists thread_fn + large_stack + four dep_prerun
   #          wrappers; leftover standalone defines 0 of remaining unique;
   #          do not convert neighboring pipeline_run_x_thread_fn_ptr —
-  #          not unique — or xlang_asm_codegen_elf_o_* — next cluster —
-  #          or xlang_driver_asm_prepare_entry_elf_emit — calls closed
+  #          not unique — or xlang_asm_codegen_elf_o_product_emit /
+  #          thread_fn_ptr — not unique; elf_o leftover cluster converts
+  #          thread_fn+large_stack only — or
+  #          xlang_driver_asm_prepare_entry_elf_emit — calls closed
   #          debug_trace; pipeline_run_x_pipeline_impl stays closed
-  #          nested in wave101).
+  #          nested in wave101) +
+  #          elf_o leftover cluster (2 independent ifndefs: thread_fn
+  #          impl+wrapper / large_stack impl+wrapper; unlike merge/one_ctx,
+  #          _impl is still ifndef — convert with the wrapper; thread_fn_impl
+  #          calls always-extern asm_asm_codegen_elf_o; large_stack_impl
+  #          calls thread_fn + driver_run_thread_on_large_stack; unique
+  #          lists thread_fn + large_stack; leftover standalone defines 0
+  #          of remaining unique; do not convert neighboring
+  #          xlang_asm_codegen_elf_o_product_emit / thread_fn_ptr — not
+  #          unique — or xlang_driver_asm_prepare_entry_elf_emit — calls
+  #          closed debug_trace).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
