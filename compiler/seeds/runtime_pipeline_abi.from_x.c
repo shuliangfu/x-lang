@@ -11553,16 +11553,29 @@ extern int32_t backend_enc_not_eax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_setz_movzbl_eax_arch(void *elf_ctx, int32_t ta);
 extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
 
+#endif /* close wave132 FROM_X for leftover-PE glue_enc sxt/zxt */
+
+/*
+ * wave133 sxt/zxt: independent leftover-PE twins.
+ * POSIX hybrid FROM_X rest omits these (live T = runtime_pipeline_abi.x -E).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; leftover standalone
+ * does not define glue_enc_sxt/zxt_*. Close wave132 around these three so
+ * WIN_LEFTOVER_GROW_VEC can compile them without the rest of wave132
+ * (ty_ref undeclared / append_bytes uint8_t* vs void* dual-decl).
+ * append_bytes uses wave123's uint8_t* prototype (already in this TU).
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t glue_enc_sxt_i32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
   if (!elf_ctx)
     return -1;
   if (ta == 0) {
     static const uint8_t cdqe[2] = {0x48, 0x98};
-    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)cdqe, 2);
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cdqe, 2);
   }
   if (ta == 1) {
     static const uint8_t sxtw[4] = {0x00, 0x7c, 0x40, 0x93};
-    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)sxtw, 4);
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)sxtw, 4);
   }
   return 0;
 }
@@ -11573,11 +11586,11 @@ int32_t glue_enc_zxt_u32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
     return -1;
   if (ta == 0) {
     static const uint8_t mov_eax[2] = {0x89, 0xc0};
-    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mov_eax, 2);
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mov_eax, 2);
   }
   if (ta == 1) {
     static const uint8_t uxtw[4] = {0x00, 0x7c, 0x40, 0xd3};
-    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)uxtw, 4);
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)uxtw, 4);
   }
   return 0;
 }
@@ -11588,14 +11601,17 @@ int32_t glue_enc_zxt_u8_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
     return -1;
   if (ta == 0) {
     static const uint8_t and_ff[5] = {0x25, 0xff, 0x00, 0x00, 0x00};
-    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)and_ff, 5);
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_ff, 5);
   }
   if (ta == 1) {
     static const uint8_t uxtb[4] = {0x00, 0x1c, 0x00, 0x53};
-    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)uxtb, 4);
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)uxtb, 4);
   }
   return 0;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave133 sxt/zxt */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave132 after glue_enc */
 
 /* Stage 12.0.5 cold twin: canonicalize formal in rax before param_home store.
  * PLATFORM: SHARED — pure leave owns product; cold under #ifndef FROM_X. */

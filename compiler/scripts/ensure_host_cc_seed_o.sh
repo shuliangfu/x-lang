@@ -3230,8 +3230,10 @@ ensure_pipeline_abi_prefer_one() {
   #          plus WIN_LEFTOVER_GROW_VEC so leftover-PE rest compiles seed
   #          ifndef-FROM_X cold twins POSIX .x thin -E would provide T:
   #          grow_vec/sidecar + wave123 glue_arm64_mov_*/lea + wave125
-  #          pipeline_asm_ctx_layout. Larger twins (emit_expr_elf_rec /
-  #          glue_type_size / elf_ctx extras) stay closed (helper/dual-decl).
+  #          pipeline_asm_ctx_layout + wave133 glue_enc_sxt/zxt (closed out
+  #          of wave132 so WIN rest does not take ty_ref / append_bytes
+  #          dual-decl). Larger twins (emit_expr_elf_rec / glue_type_size /
+  #          elf_ctx extras) stay closed (helper/dual-decl/BSS-after-use).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
