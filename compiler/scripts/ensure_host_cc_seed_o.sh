@@ -3236,11 +3236,15 @@ ensure_pipeline_abi_prefer_one() {
   #          append_data_u32_le / set_shndx_override; BSS moved before first
   #          use; rest of wave273 stays closed — append_bytes dual-decl) +
   #          wave74 driver_dep_* + wave77 typeck_ndep/sidecar + wave73
-  #          pipeline_diag_* (independent ifndefs; leftover standalone
-  #          defines 0 of remaining unique).
+  #          pipeline_diag_* + path wrappers (import_path_to_file_path /
+  #          get_entry_dir / cstr_ends_with_dot_x / import_path_is_file_path /
+  #          path_try_realpath_inplace / resolve_file_import_path /
+  #          resolve_import_file_path_multi; _impl already always compiled;
+  #          independent ifndefs; leftover standalone defines 0 of remaining
+  #          unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
-  #          path wrappers / pipeline_set_dep_slots stay closed this wave.
+  #          pipeline_set_dep_slots stay closed this wave.
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only

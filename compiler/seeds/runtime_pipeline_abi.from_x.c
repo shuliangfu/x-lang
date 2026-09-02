@@ -474,8 +474,7 @@ void xlang_path_try_realpath_inplace(char *path, size_t path_size);
  * emitted_reset / import_open_fail_once / merge_dep_missing. leftover standalone defines
  * 0 of remaining unique. Independent ifndefs (not nested in wave149/154/273). Same produce
  * point as wave123: OR WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
- * Header declares functions; seed defines them (not a dual-decl). path wrappers /
- * pipeline_set_dep_slots stay closed. */
+ * Header declares functions; seed defines them (not a dual-decl). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 static int pipeline_diag_emitted_flag;
@@ -1081,8 +1080,26 @@ void xlang_import_path_to_file_path_impl(const char *lib_root, const char *impor
         snprintf(path + off, path_size - off, ".x");
 }
 
-/* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-229 / G-02f-231 / G-02f-232 / G-02f-63 / wave79: hybrid pure owns the
+ * .x thin wrappers (import_path_to_file_path / get_entry_dir /
+ * cstr_ends_with_dot_x / import_path_is_file_path / path_try_realpath_inplace /
+ * resolve_file_import_path / resolve_import_file_path_multi). _impl bodies are
+ * always compiled; wrappers are thin call-through under #ifndef FROM_X.
+ * PLATFORM: SHARED — same null / cap / NUL-term contracts as the .x thin.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_get_entry_dir / xlang_import_path_to_file_path /
+ * xlang_import_path_is_file_path / xlang_resolve_file_import_path /
+ * xlang_resolve_import_file_path_multi / xlang_path_try_realpath_inplace.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares the five public wrappers; seed defines them (not a dual-decl).
+ * cstr_ends_with_dot_x is the helper import_path_is_file_path calls.
+ * path_try_realpath_inplace forwards to public link_abi_realpath_cap (wave218).
+ * xlang_asm_out_buf_is_object(_magic) / xlang_cstr_offset /
+ * pipeline_set_dep_slots stay closed. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
@@ -1115,7 +1132,8 @@ void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t si
 }
 
 /* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
   if (entry_dir == NULL) {
     return;
@@ -1139,7 +1157,8 @@ void xlang_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
  */
 
 /* G-02f-63：真逻辑来自 .x（逐字节扫 / 魔数比较；无 _impl）。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_cstr_ends_with_dot_x(const char *s) {
     size_t n;
     if (s == NULL) {
@@ -1209,7 +1228,8 @@ int xlang_asm_out_buf_is_object_magic(const unsigned char *data) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_import_path_is_file_path(const char *import_path) {
   if (import_path == NULL) {
     return 0;
@@ -1246,7 +1266,8 @@ int xlang_import_path_is_file_path(const char *import_path) {
  * realpath), not raw libc realpath — align with product link_abi face (pure still uses
  * xlang_driver_realpath_opaque for -E *u8/char* cast residual under g05 harness).
  * PLATFORM: SHARED — POSIX/APPLE realpath face+snprintf; non-POSIX no-op (same as pure harness null). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* Forward: defined in labi_path_io / mega rest (same product bag). */
 extern char *link_abi_realpath_cap(const char *path, char *out);
 void xlang_path_try_realpath_inplace(char *path, size_t path_size) {
@@ -1279,7 +1300,8 @@ void xlang_resolve_file_import_path_impl(const char *entry_dir, const char *impo
 }
 
 /* G-02f-231：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
@@ -1464,7 +1486,8 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
 }
 
 /* G-02f-232：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
