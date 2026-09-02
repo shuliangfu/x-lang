@@ -31338,8 +31338,8 @@ void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
  * Reopen both after this cluster (wave224 typeck_active / wave261 glue_statics
  * stay closed on leftover rest; type_alias unique is a later extract after
  * wave261; enum unique is a later extract after wave263; top_level_let
- * unique is a later extract after remaining wave264; remaining sl unique
- * stay nested).
+ * unique is a later extract after remaining wave264; struct_layout unique
+ * is a later extract after remaining wave265).
  * Header does not declare sret get/set (not a dual-decl). Always-compiled
  * proto of sret get/set is absent in this TU. No cluster callees.
  * Getters are not unique (SAT / leftover standalone provide T); leftover rest
@@ -31456,7 +31456,8 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  * Reopen both after this unique (wave263 import / remaining wave262
  * alloc stay closed on leftover rest). Enum unique is a later extract
  * after wave263; top_level_let unique is a later extract after remaining
- * wave264; remaining sl unique stay closed until its own extract.
+ * wave264; struct_layout unique is a later extract after remaining
+ * wave265.
  * Header does not declare the unique (not a dual-decl). leftover rest
  * WAVE279 already extern void* of these faces later @45585 — do not
  * re-extern here (def-before-use in leftover rest; later extern is
@@ -31467,7 +31468,7 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  * (not unique; sit before this close) or remaining wave262 alloc/set
  * (not unique) or remaining enum/tl/sl unique (own extracts; enum is a
  * later extract after wave263; tl is a later extract after remaining
- * wave264).
+ * wave264; sl is a later extract after remaining wave265).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
@@ -32267,8 +32268,8 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
  * when FROM_X is set — must close wave178 + enclosing wave154 first.
  * Reopen both after this unique (remaining wave264 alloc stay closed
  * on leftover rest). Top-level-let unique is a later extract after
- * remaining wave264; remaining sl unique stay closed until its own
- * extract.
+ * remaining wave264; struct_layout unique is a later extract after
+ * remaining wave265.
  * Header does not declare the unique (not a dual-decl). leftover rest
  * WAVE279 already extern void* of these faces later @45643 — do not
  * re-extern here (def-before-use in leftover rest; later extern is
@@ -32278,7 +32279,7 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
  * Do not convert neighboring wave263 import (not unique; sit before
  * this close) or remaining wave264 alloc/set (not unique) or remaining
  * tl/sl unique (own extracts; tl is a later extract after remaining
- * wave264).
+ * wave264; sl is a later extract after remaining wave265).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
@@ -32741,9 +32742,9 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
  * (not unique; SAT / leftover standalone provide T). Same produce point
  * as F7: inserting an OR inside a FALSE outer ifndef is never parsed
  * when FROM_X is set — must close wave178 + enclosing wave154 first.
- * Reopen both after this unique (remaining wave265 alloc / wave266
- * struct_layout unique stay closed on leftover rest until their own
- * extracts).
+ * Reopen both after this unique (remaining wave265 alloc stay closed
+ * on leftover rest). struct_layout unique is a later extract after
+ * remaining wave265.
  * Header does not declare the unique (not a dual-decl). leftover rest
  * WAVE279 already extern void* of these faces later @45703 — do not
  * re-extern here (def-before-use in leftover rest; later extern is
@@ -32752,7 +32753,7 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
  * rest has no xlang_ptr_slot_get/set). Header n is memcpy of module+12.
  * Do not convert neighboring remaining wave264 alloc/set (not unique;
  * sit before this close) or remaining wave265 alloc/set (not unique)
- * or remaining sl unique (own extract).
+ * or remaining sl unique (own extract after remaining wave265).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
@@ -33253,23 +33254,47 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
   return -1;
 }
 
+#endif /* close wave178 FROM_X for leftover-PE struct_layout storage unique */
+#endif /* close wave154 FROM_X after glue_type for leftover-PE struct_layout storage unique */
 
-
-/* =============================================================================
- * wave266 cold twins: StructLayout multi-module map + struct_layout Cap leave faces.
- * Hybrid product links pure; cold seed keeps bodies under #ifndef FROM_X.
- * Layout entry pure 168B LE:
- *   name[128]@0 | name_len@128 | field_base@132 | num_fields@136
- *   | allow_padding@140 | soa@144 | packed@148 | repr_compatible@152
- *   | is_export@156 | tp_base@160 | tp_count@164
- * Field 144B: name[128]|name_len|offset|type_ref|align
- * TP 132B: name[128]|name_len
- * Soft-reset: storage_reset zeros n + header num_struct_layouts@16.
- * Soft-sync when header num_struct_layouts@16 == 0.
- * next_field_offset / type_ref_byte_size: freestanding minimal (need pure glue_type);
- * product pure owns full sizing path.
- * PLATFORM: SHARED freestanding struct_layout Cap leave.
+/* Struct-layout leftover unique (surgical extract of nested wave266 unique
+ * after closing enclosing wave154 reopen-after-tl + wave178 INDEX-peel):
+ * pipeline_module_struct_layout_storage_reset / storage_release only.
+ * Unique lists these two faces.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave266 @83445).
+ * Seed bodies are real (find_slot + zero n/fn/tpn / free three tables +
+ * header num_struct_layouts@16), not stubs.
+ * Convert unique + BSS + find_slot + header_n/set_header_n together so
+ * leftover rest WAVE279 ast_pool_module_reset/release (ALWAYS compiled,
+ * calls both unique) has a cell. Remaining wave266 find_or_create /
+ * ensure / layout_at / field_entry / alloc / set / getters stay closed
+ * on leftover rest (not unique; SAT / leftover standalone provide T).
+ * Same produce point as F7: inserting an OR inside a FALSE outer ifndef
+ * is never parsed when FROM_X is set — must close wave178 + enclosing
+ * wave154 first.
+ * Reopen both after this unique (remaining wave266 alloc/set stay closed
+ * on leftover rest). pabi leftover unique with a real seed body is
+ * exhausted after this extract (glue_asm_block_diverged_set has no seed
+ * twin and shares BSS with getter — convert together later).
+ * Header does not declare the unique (not a dual-decl). leftover rest
+ * WAVE279 already extern void* of these faces later @45766 — do not
+ * re-extern here (def-before-use in leftover rest; later extern is
+ * redundant).
+ * C encoding of the .x ptr-slot tables is direct static BSS (leftover
+ * rest has no xlang_ptr_slot_get/set). Header n is memcpy of module+16.
+ * Do not convert neighboring remaining wave265 alloc/set (not unique;
+ * sit before this close) or remaining wave266 alloc/set (not unique).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
+ * with getter — convert together later).
+ * PLATFORM: SHARED freestanding struct_layout Cap leave · WINDOWS leftover
+ * PE cannot -E that thin.
  */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE266_SL_SLOTS 128
 #define WAVE266_SL_LAYOUT_SZ 168
 #define WAVE266_SL_FIELD_SZ 144
@@ -33310,6 +33335,79 @@ static int wave266_sl_find_slot(void *module) {
   return -1;
 }
 
+/**
+ * Soft-reset pure struct_layout live counts for module (keep malloc capacity).
+ * Also clears header num_struct_layouts@16.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave266 @83445.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_struct_layout_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave266_sl_find_slot(module);
+  if (s < 0) {
+    wave266_sl_set_header_n(module, 0);
+    return;
+  }
+  g_wave266_sl_n[s] = 0;
+  g_wave266_sl_fn[s] = 0;
+  g_wave266_sl_tpn[s] = 0;
+  wave266_sl_set_header_n(module, 0);
+}
+
+/**
+ * Free pure struct_layout storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave266 @83468.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_struct_layout_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave266_sl_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave266_sl_layouts[s])
+    free(g_wave266_sl_layouts[s]);
+  if (g_wave266_sl_fields[s])
+    free(g_wave266_sl_fields[s]);
+  if (g_wave266_sl_tp[s])
+    free(g_wave266_sl_tp[s]);
+  g_wave266_sl_mod[s] = NULL;
+  g_wave266_sl_layouts[s] = NULL;
+  g_wave266_sl_fields[s] = NULL;
+  g_wave266_sl_tp[s] = NULL;
+  g_wave266_sl_n[s] = 0;
+  g_wave266_sl_cap[s] = 0;
+  g_wave266_sl_fn[s] = 0;
+  g_wave266_sl_fcap[s] = 0;
+  g_wave266_sl_tpn[s] = 0;
+  g_wave266_sl_tpcap[s] = 0;
+  wave266_sl_set_header_n(module, 0);
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE struct_layout storage unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE struct_layout storage unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE struct_layout storage unique */
+
+/*
+ * wave266 cold twins: StructLayout multi-module map + struct_layout Cap leave faces.
+ * struct_layout unique extracted above with the real seed body; leftover rest
+ * does not compile remaining alloc/set/getters (not unique). Hybrid
+ * product links pure. Cold full seed compiles BSS in the OR then these
+ * helpers in the same TU.
+ * Layout entry pure 168B LE:
+ *   name[128]@0 | name_len@128 | field_base@132 | num_fields@136
+ *   | allow_padding@140 | soa@144 | packed@148 | repr_compatible@152
+ *   | is_export@156 | tp_base@160 | tp_count@164
+ * Field 144B: name[128]|name_len|offset|type_ref|align
+ * TP 132B: name[128]|name_len
+ * Soft-sync when header num_struct_layouts@16 == 0.
+ * next_field_offset / type_ref_byte_size: freestanding minimal (need pure glue_type);
+ * product pure owns full sizing path.
+ * PLATFORM: SHARED freestanding struct_layout Cap leave.
+ */
 static void wave266_sl_soft_sync(void *module) {
   int s;
   if (!module || wave266_sl_header_n(module) != 0)
@@ -33493,47 +33591,6 @@ static uint8_t *wave266_sl_field_entry(void *module, int32_t li, int32_t j, int 
     memcpy(sl + 136, &nf, 4);
   }
   return wave266_sl_field_abs(s, abs);
-}
-
-void pipeline_module_struct_layout_storage_reset(void *module) {
-  int s;
-  if (!module)
-    return;
-  s = wave266_sl_find_slot(module);
-  if (s < 0) {
-    wave266_sl_set_header_n(module, 0);
-    return;
-  }
-  g_wave266_sl_n[s] = 0;
-  g_wave266_sl_fn[s] = 0;
-  g_wave266_sl_tpn[s] = 0;
-  wave266_sl_set_header_n(module, 0);
-}
-
-void pipeline_module_struct_layout_storage_release(void *module) {
-  int s;
-  if (!module)
-    return;
-  s = wave266_sl_find_slot(module);
-  if (s < 0)
-    return;
-  if (g_wave266_sl_layouts[s])
-    free(g_wave266_sl_layouts[s]);
-  if (g_wave266_sl_fields[s])
-    free(g_wave266_sl_fields[s]);
-  if (g_wave266_sl_tp[s])
-    free(g_wave266_sl_tp[s]);
-  g_wave266_sl_mod[s] = NULL;
-  g_wave266_sl_layouts[s] = NULL;
-  g_wave266_sl_fields[s] = NULL;
-  g_wave266_sl_tp[s] = NULL;
-  g_wave266_sl_n[s] = 0;
-  g_wave266_sl_cap[s] = 0;
-  g_wave266_sl_fn[s] = 0;
-  g_wave266_sl_fcap[s] = 0;
-  g_wave266_sl_tpn[s] = 0;
-  g_wave266_sl_tpcap[s] = 0;
-  wave266_sl_set_header_n(module, 0);
 }
 
 int32_t pipeline_module_struct_layout_alloc(void *module) {

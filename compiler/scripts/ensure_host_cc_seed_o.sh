@@ -3450,7 +3450,19 @@ ensure_pipeline_abi_prefer_one() {
   #          has a cell; remaining wave265 alloc/set/getters stay closed
   #          on leftover rest — not unique; SAT / leftover standalone
   #          provide T; do not convert neighboring remaining wave264
-  #          alloc/set — not unique — or remaining sl unique — own extract).
+  #          alloc/set — not unique — or remaining sl unique — own extract) +
+  #          struct_layout leftover unique (surgical extract of nested
+  #          wave266 unique after closing enclosing wave154 reopen-after-
+  #          tl + wave178 INDEX-peel: pipeline_module_struct_layout_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot + header_n/set_header_n
+  #          together so leftover rest WAVE279 ast_pool_module_reset/release
+  #          has a cell; remaining wave266 alloc/set/getters stay closed
+  #          on leftover rest — not unique; SAT / leftover standalone
+  #          provide T; do not convert neighboring remaining wave265
+  #          alloc/set — not unique; pabi leftover unique with a real
+  #          seed body is exhausted after this extract).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
