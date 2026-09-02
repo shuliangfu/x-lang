@@ -3395,7 +3395,7 @@ ensure_pipeline_abi_prefer_one() {
   #          func_return_type_at leftover rest T later so extract carries
   #          a void* extern; leftover rest U num_funcs — SAT / leftover
   #          standalone provide T; do not convert neighboring dual_gp /
-  #          param_home_width — not unique — or glue_call_return — seed stub) +
+  #          param_home_width — not unique) +
   #          named_layout leftover unique (surgical extract of nested
   #          wave191 unique after closing enclosing wave154 reopen-after-
   #          glue_type + wave178 INDEX-peel: glue_type_named_layout_size_any_module_elf_c;
@@ -3406,8 +3406,19 @@ ensure_pipeline_abi_prefer_one() {
   #          always-compiled struct* — do not re-extern; leftover rest U
   #          emit_module_ref_c / emit_dep_pipe_c defs — SAT / leftover
   #          standalone provide T; do not convert neighboring pass_addr /
-  #          dual_gp / param_home_width — not unique — or glue_call_return
-  #          — seed stub).
+  #          dual_gp / param_home_width — not unique) +
+  #          glue_call_return leftover unique (surgical extract of nested
+  #          wave194 unique after closing enclosing wave154 reopen-after-
+  #          glue_type + wave178 INDEX-peel: glue_call_return_byte_size_c;
+  #          unique lists this face; leftover standalone defines 0 of
+  #          remaining unique; seed body was a stub return -1 — port the
+  #          real .x body instead of OR'ing the stub; callees size_simple
+  #          leftover rest already T; kind_ord / func_return_type_at /
+  #          emit_dep_pipe / emit_module_ref leftover rest already extern;
+  #          extract carries resolve + get_dep_return_type void* externs;
+  #          leftover rest U glue_asm_resolve — SAT / leftover standalone
+  #          provide T; do not convert neighboring param_agg / load_var /
+  #          wave195–199 — not unique — or glue_asm_resolve — seed stub).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).

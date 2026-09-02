@@ -21508,7 +21508,8 @@ int32_t glue_block_let_is_simd_vector_type(void *arena, int32_t block_ref, int32
  * stub).
  * glue_func_return_byte_size_c is a separate leftover unique (wave192 extract
  * after closing wave154/wave178; real .x body, not the seed stub).
- * glue_call_return_byte_size_c stays closed (seed stub).
+ * glue_call_return_byte_size_c is a separate leftover unique (wave194 extract
+ * after closing wave154/wave178; real .x body, not the seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
@@ -29670,8 +29671,8 @@ int32_t glue_call_arg_var_use_lea_not_load_elf_c(void *arena, int32_t expr_ref, 
  * leftover rest U emit_module_ref_c / emit_dep_pipe_c defs (nested closed
  * remaining wave136) — SAT / leftover standalone provide T.
  * Do not convert neighboring glue_call_param_named_struct_pass_addr (not
- * unique) or dual_gp / param_home_width (not unique) or glue_call_return
- * (seed stub; more complex resolve).
+ * unique) or dual_gp / param_home_width (not unique). glue_call_return unique
+ * is a separate extract after glue_func_return (real .x body, not the seed stub).
  * glue_func_return_byte_size_c is a separate leftover unique (wave192 extract
  * after closing this reopen; real .x body).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
@@ -29834,11 +29835,12 @@ int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index,
  * faithful. Same produce point as F7: inserting an OR inside a FALSE outer
  * ifndef is never parsed when FROM_X is set — must close wave178 + enclosing
  * wave154 first.
- * Reopen both after this unique (glue_call_return stub / remaining wave193
- * load / wave194 stay closed on leftover rest). named_layout is a separate
- * leftover unique (wave191 extract after closing wave154/178; real .x body).
+ * Reopen both after this unique (param_agg / load_var stay closed on leftover
+ * rest until the glue_call_return close). named_layout is a separate leftover
+ * unique (wave191 extract after closing wave154/178; real .x body).
  * dual_gp / param_home_width sit before this close (still in the nest
- * between named_layout reopen and this close).
+ * between named_layout reopen and this close). glue_call_return unique is a
+ * separate extract after load_var (real .x body, not the seed stub).
  * Header does not declare the unique (not a dual-decl).
  * Cluster carries callee extern matching leftover-rest-visible twins
  * (pipeline_module_func_return_type_at leftover rest T @46177 — after this
@@ -29849,8 +29851,9 @@ int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index,
  * glue_type cluster — do not re-extern).
  * leftover rest U pipeline_module_num_funcs (def nested closed wave101) —
  * SAT / leftover standalone provide T.
- * Do not convert neighboring glue_sysv_dual_gp / param_home_width (not unique)
- * or glue_call_return_byte_size_c (seed stub; more complex resolve).
+ * Do not convert neighboring glue_sysv_dual_gp / param_home_width (not unique).
+ * glue_call_return_byte_size_c is a separate leftover unique (wave194 extract
+ * after closing this reopen; real .x body, not the seed stub).
  * glue_type_named_layout_size_any_module_elf_c is a separate leftover unique
  * (wave191 extract; real .x body, not the seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
@@ -29920,16 +29923,128 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
   return -1;
 }
 
-/*
- * wave194 cold twin: CALL expr return byte size (G.7 pure leave).
- * Freestanding-safe stub. Hybrid product links pure.
- * PLATFORM: SHARED freestanding CALL return sizing.
+#endif /* close wave178 FROM_X for leftover-PE glue_call_return unique */
+#endif /* close wave154 FROM_X after glue_type for leftover-PE glue_call_return unique */
+
+/* Call-return leftover unique (surgical extract of nested wave194 unique
+ * after closing enclosing wave154 reopen-after-glue_type + wave178 INDEX-peel):
+ * glue_call_return_byte_size_c only.
+ * Unique lists this face.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the face (runtime_pipeline_abi.x wave194 @72875).
+ * Seed body at former ~29928 was a stub `return -1` — converting the stub
+ * would fake-green unique with wrong semantics. Port the real .x body
+ * (resolve callee → size return type; void=0; TYPE_ARRAY=8; else size_simple;
+ * dep map via pipeline_typeck_get_dep_return_type when dep_ix≥0) so leftover
+ * rest is faithful. Same produce point as F7: inserting an OR inside a FALSE
+ * outer ifndef is never parsed when FROM_X is set — must close wave178 +
+ * enclosing wave154 first.
+ * Reopen both after this unique (wave195 call_arg_value / wave196 return_kind
+ * / wave197 struct16 / wave198 param_type_ref / wave199 resolve stub stay
+ * closed on leftover rest). glue_func_return unique is a separate extract
+ * after dual_gp (real .x body). named_layout unique is a separate extract
+ * before pass_addr (real .x body).
+ * Header does not declare the unique (not a dual-decl).
+ * Cluster carries callee externs leftover rest does not already see:
+ * glue_asm_resolve_call_target_module_c leftover rest U (def is later seed
+ * stub nested closed wave199 — not unique; SAT / leftover standalone provide
+ * T); pipeline_typeck_get_dep_return_type_in_caller_arena_c not in this TU
+ * (typeck provides T; leftover rest needs a void* extern).
+ * Do not re-extern pipeline_module_func_return_type_at (glue_func_return
+ * cluster leftover rest already extern void*); pipeline_type_kind_ord_at
+ * (glue_type cluster leftover rest already extern void*); glue_type_size_simple
+ * leftover rest already T @28007; pipeline_asm_emit_dep_pipe_c leftover rest
+ * already extern void* in glue_type cluster; pipeline_asm_emit_module_ref_c
+ * leftover rest already extern void* in array_lit cluster.
+ * leftover rest U glue_asm_resolve / emit_module_ref_c / emit_dep_pipe_c
+ * defs — SAT / leftover standalone provide T.
+ * Do not convert neighboring param_agg / load_var (not unique; sit before
+ * this close) or wave195/196/197/198 (not unique) or glue_asm_resolve
+ * (not unique; seed stub stays closed).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * PLATFORM: SHARED freestanding CALL return sizing · LINUX sret gate · MACOS|ARM64 x8.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
+                                                    void **mod_out, int32_t *func_ix_out,
+                                                    int32_t *dep_ix_out);
+extern int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+                                                                    int32_t dep_return_type_ref,
+                                                                    void *caller_arena, void *ctx);
+
+int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+
+/**
+ * Byte size of a CALL expression's return type (-1 resolve failure, 0 void).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave194 @72875.
+ * Seed stub `return -1` is not compiled on leftover rest.
+ * C encoding of the .x LP64 Module** cell is void** (same ABI as the seed
+ * resolve stub); leftover rest has no pipe_load/store_ptr_slot.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED sizing contract.
  */
 int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref) {
-  (void)arena;
-  (void)call_expr_ref;
+  void *mod;
+  int32_t fi;
+  int32_t dep_ix;
+  int32_t rty;
+  int32_t sz;
+  void *sz_mod;
+  int32_t mapped;
+  int32_t k;
+  void *dep_pipe;
+  int32_t rc;
+  if (!arena || call_expr_ref <= 0)
+    return -1;
+  mod = 0;
+  fi = -1;
+  dep_ix = -1;
+  rc = glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix);
+  if (rc != 0)
+    return -1;
+  if (!mod || fi < 0)
+    return -1;
+  rty = pipeline_module_func_return_type_at(mod, fi);
+  if (rty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, rty);
+  /* void == 15 */
+  if (k == 15)
+    return 0;
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (dep_ix >= 0 && dep_pipe) {
+    mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, dep_pipe);
+    if (mapped > 0)
+      rty = mapped;
+  }
+  sz_mod = pipeline_asm_emit_module_ref_c();
+  if (!sz_mod)
+    sz_mod = mod;
+  k = pipeline_type_kind_ord_at(arena, rty);
+  /* TYPE_ARRAY == 10 → E* return (8B); match glue_func_return_byte_size_c */
+  if (k == 10)
+    return 8;
+  sz = glue_type_size_simple(sz_mod, arena, rty, 0);
+  if (sz <= 0)
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+  if (sz > 0)
+    return sz;
   return -1;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE glue_call_return unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_call_return unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE glue_call_return unique */
+
+/*
+ * wave194 cold twin: CALL expr return byte size (G.7 pure leave).
+ * glue_call_return unique extracted above with the real .x body; leftover rest
+ * does not compile the seed stub. Remaining wave195+ stay closed on leftover
+ * rest (not unique). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL return sizing.
+ */
 
 /*
  * wave195 cold twin: CALL-arg value byte size (G.7 pure leave).
