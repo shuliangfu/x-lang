@@ -4318,8 +4318,26 @@ void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_path
     }
 }
 
-/* G-02f-227：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/**
+ * Public LSP free-loaded-imports wrapper (G-02f-227: hybrid pure owns;
+ * cold twin under #ifndef FROM_X). Product pure thin → G.7
+ * xlang_lsp_free_loaded_imports_impl (void**; always compiled).
+ * PLATFORM: SHARED.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_lsp_free_loaded_imports. leftover standalone defines 0 of remaining
+ * unique. Independent ifndef (not nested in wave149/154/273). Same produce
+ * point as public preprocess: OR WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X
+ * rest compiles the wrapper.
+ * Header declares xlang_lsp_free_loaded_imports (struct ast_Module **) @304;
+ * seed defines the same (prototype+definition, not a dual-decl). No FROM_X
+ * proto of the wrapper in this TU. _impl is always compiled (void**).
+ * Do not convert neighboring xlang_lsp_ptr_slot_clear (not unique).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * Larger twins (emit_expr_elf_rec / glue_type_size / append_reloc_absolute64)
+ * stay closed (helper/dual-decl).
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
   if (all_dep_mods == NULL) {
     return;
@@ -4334,7 +4352,7 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
     xlang_lsp_free_loaded_imports_impl((void **)all_dep_mods, all_dep_paths, n_all);
   }
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /**
  * Public preprocess surface (wave81: hybrid pure owns; cold twin under #ifndef FROM_X).
@@ -4353,8 +4371,8 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
  * rest after the load_direct wave). leftover rest compiles with
  * XLANG_USE_X_PIPELINE so the LEGACY preprocess_c_fallback #else is not parsed.
  * Unique lists preprocess + with_path; quiet is only called by preprocess.
- * xlang_lsp_free_loaded_imports stays closed this wave (separate unique;
- * _impl already always compiled).
+ * xlang_lsp_free_loaded_imports is a separate unique (independent ifndef
+ * immediately above; converted in the same leftover-PE rest pattern).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
