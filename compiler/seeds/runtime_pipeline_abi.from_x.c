@@ -2493,6 +2493,8 @@ extern void parser_parse_into_init(void *module, void *arena);
 extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct xlang_slice_uint8_t *source);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
+/* Thin wrap of parser_collect_imports_buf; ALWAYS body in WAVE287. PLATFORM: SHARED. */
+void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t len);
 
 /**
  * 单 dep 预跑 ctx：按 dep 自身 import 表过滤 ctx 槽（import_idx 与 ctx 下标一一对应）。
@@ -3981,7 +3983,9 @@ void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int
 
 /* wave52 pure in .x; cold twin for non-PREFER product.
  * wave48 Cap residual was always-seed; now pure orch + cold twin under #ifndef FROM_X.
- * Ensure tmp arena/module, parse prep bytes, enqueue sub-imports.
+ * Ensure tmp arena/module, collect_imports (not full parse), enqueue sub-imports.
+ * Collect-deps only needs the import table; hello -o sample was ~41% discarded
+ * full parse here then prerun parse_only of the same bytes.
  * PLATFORM: SHARED — cold keeps XLANG_DEBUG_PIPE note; pure skips debug-only note.
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -4000,13 +4004,13 @@ void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, si
         memset(*tmp_module, 0, module_sz);
         {
             int n_imp;
-            int pr_rc;
-            pr_rc = pipeline_parse_into_bytes(*tmp_arena, *tmp_module, (uint8_t *)prep, prep_len);
+            parser_parse_into_init(*tmp_module, *tmp_arena);
+            xlang_module_collect_imports_from_buf(*tmp_module, (uint8_t *)prep, (int64_t)prep_len);
             n_imp = parser_get_module_num_imports(*tmp_module);
             if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
-                             "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
-                             debug_path ? debug_path : "?", pr_rc == 0 ? 1 : 0, n_imp);
+                             "pipeline debug: collect imports dep=%s n_imp=%d",
+                             debug_path ? debug_path : "?", n_imp);
             }
             (void)n_imp;
             xlang_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, n_loaded);
@@ -51519,6 +51523,32 @@ void pipeline_parser_onefunc_buf_into_set_success_c(void *out_raw, struct lexer_
 
 struct xlang_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
   return parser_slice_from_buf(data, len);
+}
+
+/**
+ * Collect top-level import paths from source bytes into module (no function-body parse).
+ * Thin wrap of parser_collect_imports_buf for runtime_pipeline_abi.x (*u8 ABI; no Lexer type).
+ * Caller must parser_parse_into_init the module first so import sidecar is live.
+ * @param module AST module; null -> no-op
+ * @param data source bytes; null -> no-op
+ * @param len byte length; <=0 or >INT32_MAX -> no-op
+ * PLATFORM: SHARED — Darwin / Ubuntu product -o collect-deps; leftover PE rest ALWAYS T.
+ */
+extern struct lexer_Lexer lexer_init(void);
+extern void parser_collect_imports_buf(struct lexer_Lexer lex, uint8_t *data, int32_t len, void *module,
+                                       struct parser_CollectImportsResult *out);
+void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t len) {
+  struct lexer_Lexer lex;
+  struct parser_CollectImportsResult import_res;
+  int32_t n;
+  if (!module || !data || len <= 0)
+    return;
+  if (len > 2147483647)
+    return;
+  n = (int32_t)len;
+  lex = lexer_init();
+  import_res.lex = lex;
+  parser_collect_imports_buf(lex, data, n, module, &import_res);
 }
 
 #endif /* WAVE287_PARSER_RESULT_ALWAYS */

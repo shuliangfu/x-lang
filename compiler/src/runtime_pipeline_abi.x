@@ -451,6 +451,17 @@ export extern "C" function ast_pool_module_release(m: *u8): void;
 // PLATFORM: SHARED - same ABI as seed cold twin; free() still releases ownership.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+/**
+ * Collect top-level import paths from source bytes into module (no function-body parse).
+ * Thin wrap of parser_collect_imports_buf so collect-deps can skip pipeline_parse_into_bytes.
+ * Caller must parser_parse_into_init the module first (import sidecar live).
+ * @param module *u8 — AST module; already parse_into_init'd; null -> no-op
+ * @param data *u8 — source bytes; null -> no-op
+ * @param len i64 — byte length; <=0 or >INT32_MAX -> no-op
+ * @return void
+ * PLATFORM: SHARED — Darwin / Ubuntu product -o collect; leftover seed ALWAYS provides T.
+ */
+export extern "C" function xlang_module_collect_imports_from_buf(module: *u8, data: *u8, len: i64): void;
 // wave54: xlang_collect_strdup is pure export function below (not Cap residual).
 // Do not export-extern libc strdup by name - conflicts with string.h after -E preamble.
 // wave52: xlang_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
@@ -9251,7 +9262,9 @@ export function xlang_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n:
  * @return void
  * wave52 pure Cap residual orch:
  *   if *tmp_arena null -> malloc arena_sz + module_sz into both slots;
- *   if both live -> memset zero, pipeline_parse_into_bytes, G.7 pure enqueue_module_imports.
+ *   if both live -> memset zero, parser_parse_into_init, collect_imports (not
+ *   pipeline_parse_into_bytes: collect-deps only needs the import table; hello -o
+ *   sample was ~41% discarded full parse here, then prerun parse_only again).
  *   OOM on malloc: leave null slots and return (same as cold twin skip parse).
  * G.7 process_one / paths_tmp Cap residual call this. PLATFORM: SHARED.
  */
@@ -9291,13 +9304,14 @@ export function xlang_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: 
     memset(ta, 0, arena_sz as usize);
     memset(tm, 0, module_sz as usize);
   }
-  // ParseIntoResult lives in seed; pure only sees rc (unused beyond call).
-  let pr_rc: i32 = 0;
+  // Collect-deps only reads the import table. Full pipeline_parse_into_bytes
+  // parsed every function body into this throwaway tmp and freed it; prerun
+  // parse_only then parsed the same prep bytes into the real slot. Use the
+  // existing parser_collect_imports authority (via *u8 wrapper) instead.
+  // PLATFORM: SHARED — Darwin / Ubuntu product -o; leftover seed twin matches.
   unsafe {
-    pr_rc = pipeline_parse_into_bytes(ta, tm, prep, prep_len);
-  }
-  if (pr_rc != 0) {
-    // Still enqueue whatever imports the partial/failed parse left (same as cold twin).
+    parser_parse_into_init(tm, ta);
+    xlang_module_collect_imports_from_buf(tm, prep, prep_len);
   }
   xlang_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded);
 }
@@ -9370,7 +9384,7 @@ export function xlang_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_r
   }
   let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
   let prep_len: i64 = xlang_size_slot_get(&prep_len_cell[0], 0);
-  // G.7 pure: memset + parse_into_bytes + enqueue (tmp already live from ensure above).
+  // G.7 pure: memset + parse_into_init + collect_imports + enqueue (tmp already live).
   unsafe {
     xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load, to_load_n, dep_paths, n_loaded);
   }

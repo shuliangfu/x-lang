@@ -22,6 +22,7 @@
 #include <dirent.h>
 #endif
 extern void parser_parse_into_init(uint8_t * module, uint8_t * arena);
+extern void xlang_module_collect_imports_from_buf(uint8_t * module, uint8_t * data, int64_t len);
 extern int32_t parser_get_module_num_imports(uint8_t * module);
 extern void parser_get_module_import_path(uint8_t * module, int32_t idx, uint8_t * path_buf);
 extern int32_t parser_copy_module_import_path64(uint8_t * module, int32_t i, uint8_t * out);
@@ -5353,10 +5354,8 @@ void xlang_collect_tmp_parse_and_enqueue(uint8_t * tmp_arena, uint8_t * tmp_modu
   }
   (void)(memset(ta, 0, ((size_t)(arena_sz))));
   (void)(memset(tm, 0, ((size_t)(module_sz))));
-  int32_t pr_rc = 0;
-  (void)((pr_rc = pipeline_parse_into_bytes(ta, tm, prep, prep_len)));
-  if ((pr_rc !=0)) {
-  }
+  (void)(parser_parse_into_init(tm, ta));
+  (void)(xlang_module_collect_imports_from_buf(tm, prep, prep_len));
   (void)(xlang_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded));
 }
 int32_t xlang_collect_paths_tmp_resolve_parse_enqueue(uint8_t * path_c, uint8_t * lib_roots, int32_t n_lib_roots, uint8_t * entry_dir, uint8_t * defines, int32_t ndefines, uint8_t * tmp_arena, uint8_t * tmp_module, int64_t arena_sz, int64_t module_sz, uint8_t * to_load, int32_t * to_load_n, uint8_t * dep_paths, int32_t n_loaded) {
