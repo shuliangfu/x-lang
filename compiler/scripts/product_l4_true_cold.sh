@@ -43,7 +43,10 @@
 #   XLANG_L4_NO_BSTRICT=1  same as --no-bstrict
 #   XLANG_L4_REBUILD_ONLY=1 same as --rebuild-only
 #   XLANG_BSTRICT_SCRIPT_TIMEOUT  forwarded to run-all-bstrict (default there)
-#   XLANG_BSTRICT_JOBS            forwarded to run-all-bstrict (default 1)
+#   XLANG_BSTRICT_JOBS            forwarded to run-all-bstrict
+#                                 Darwin L4 default 2 (M5 Max 64GB; overlap
+#                                 14-min asm gates). Ubuntu default 1 (already
+#                                 ~17 min). Override to 1 if Darwin OOM.
 #
 # Step wall-clock: each major step logs `stepN: … wall=Ns` and a final
 # `step walls summary` table (wipe/pin are sub-second; bootstrap + g05 +
@@ -95,6 +98,18 @@ SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 HOST_OS="$(uname -s 2>/dev/null || echo unknown)"
 HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
 HOST="${HOST_OS}-${HOST_ARCH}"
+# PLATFORM: MACOS — Darwin L4 bstrict is wall-dominated by serial asm gates
+# (assign-index-expr ~840s / binop-cfg-merge ~760s at JOBS=1 → ~2.5 h total).
+# JOBS=2 overlaps those on this 18-core/64GB machine and skips Darwin
+# inter-script sleeps. Ubuntu gold stays JOBS=1 (~17 min). Do not raise
+# Darwin default to 4 here: run-all-bstrict still warns OOM (Killed:9).
+# Explicit XLANG_BSTRICT_JOBS always wins (1 to serialize; 3–4 to experiment).
+if [ -z "${XLANG_BSTRICT_JOBS:-}" ]; then
+  case "$HOST_OS" in
+    Darwin) export XLANG_BSTRICT_JOBS=2 ;;
+    *) export XLANG_BSTRICT_JOBS=1 ;;
+  esac
+fi
 LOG="${XLANG_L4_LOG:-/tmp/xlang_l4_${HOST_OS}_${SHA}.log}"
 WALL_START="$(date +%s)"
 # Per-step walls: "name secs" lines; printed at end (and on early exit).
@@ -284,6 +299,7 @@ log "step8: run-all-bstrict (XLANG_BSTRICT_SKIP_BUILD=1 JOBS=${XLANG_BSTRICT_JOB
 set +e
 XLANG_BSTRICT_SKIP_BUILD=1 \
   XLANG="$XLANG" \
+  XLANG_BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}" \
   bash tests/run-all-bstrict.sh 2>&1 | tee -a "$LOG"
 BSTRICT_RC=$?
 set -e
