@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 路径／验收／为何开）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端 `/tmp` 日志、「证：…」长叙事。波次流水只写 `[自举进度.md](自举进度.md)` §6。  
 > **考古副本**（本波重写前全文）：`[archive/C迁移追踪-流水账归档-20260825.md](archive/C迁移追踪-流水账归档-20260825.md)`  
-> **刷新**：2026-08-25 · 钉盘 **`e8176cbe5`**（不随微步升钉）
+> **刷新**：2026-09-02 · 钉盘 **`b5be5ed97`**（不随微步升钉）
 
 ### 维护约定
 
@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 前排大多闭；3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128（~85%） |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6–7.4.9** pin 孪生已落盘；Ubuntu L4＠`f63f3f959` bstrict **129**；Darwin 同 SHA JOBS=4 OOM（入口回 JOBS=2）；parser seed 物理删／CI 漂移闸 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin 5/5；**7.4.6–7.4.9** pin 孪生已落盘；双端 L4＠`b5be5ed97` bstrict **129**；parser seed 物理删／CI 漂移闸 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3（glue／ast／BC） | 🟡 | 结构 leave 多 ✅；`pipeline_x` 整 TU 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | 🟡 | **9.1.3** getpid／getppid／getcwd／chdir Linux raw ✅（WIP）；其余 9.1～9.7 仍开 |
@@ -32,7 +32,7 @@
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；核心终局／零 cc CI／editors 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s`／门禁大半 ✅；最小 seed／全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
-| 产品 L4 钉盘 | ✅ | **`e8176cbe5`**；bstrict 129；tip Ubuntu L4＠`f63f3f959` **129 OK** 17m48s；Darwin L4＠同 SHA JOBS=4 **OOM**（不升钉）；入口回 JOBS=2＋case pool 仅 outer=1 自动 2；tip 双端 L4 未绿 |
+| 产品 L4 钉盘 | ✅ | **`b5be5ed97`**；bstrict 129；Ubuntu L4 17m47s；Darwin JOBS=1 137m25s；pin 蛋自本波 `xlang_asm`；L4 Darwin 默认 JOBS=1＋GATE_CASE_JOBS=1 |
 | BC（自举编译层零 host-cc） | 🟡 | inventory 冻；`pipeline_x` 仍 host-cc mega |
 | PC（产品默认 asm／禁默 host-cc） | 🟡 | 去 import→C／FORBID／ALLOW／ld-only ✅；invoke_cc 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名；产品 thin-first／inject |
@@ -752,7 +752,7 @@
 | CORE-012 core.debug assert extend | ✅ | 闸 prefer asm＋assert_extend product `-o` exit0 run hard（soft auto-make／soft SKIP→OK 已退役） |
 | CORE／lang runnable soft SKIP | ✅ | 余例已空（本类收口） |
 | nest 冻 64 | ✅ 纪律 | — |
-| 钉盘 `e8176cbe5` | ✅ | 不随微步升钉 |
+| 钉盘 `b5be5ed97` | ✅ | 不随微步升钉 |
 
 ---
 
@@ -762,7 +762,7 @@
 
 | 项 | 值 |
 |----|-----|
-| 产品 L4 放行钉盘 | **`e8176cbe5`** |
+| 产品 L4 放行钉盘 | **`b5be5ed97`** |
 | bstrict | 129 |
 | 升钉条件 | 用户点名 L4／谈自举；禁止微步升钉 |
 

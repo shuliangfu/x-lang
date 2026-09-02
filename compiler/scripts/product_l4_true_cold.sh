@@ -105,19 +105,21 @@ HOST_OS="$(uname -s 2>/dev/null || echo unknown)"
 HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
 HOST="${HOST_OS}-${HOST_ARCH}"
 # PLATFORM: MACOS — Darwin L4 bstrict is wall-dominated by serial asm gates
-# (assign-index-expr ~840s / binop-cfg-merge ~760s at JOBS=1 → ~2.5 h total).
-# JOBS=8 and JOBS=4 both hit Killed:9 on this 18-core/64GB box (N× xlang_asm
-# + host-cc peak RSS is not the idle ~75MB figure; leftover serial L2 of the
-# same xlang_asm still greens typeck/void-main/fmt-wrap/check). Default
-# JOBS=2 keeps total concurrent xlang_asm = 2 (gate_case_jobs auto-inner=2
-# only when outer==1; outer>=2 stays inner=1). Packing floor
-# ~ max(840s, sum/2) ≈ 70–80 min bstrict. Skips Darwin inter-script sleeps.
-# Ubuntu gold stays JOBS=1 (~17 min). Explicit XLANG_BSTRICT_JOBS always
-# wins (1 to serialize). Cap is 8.
+# (assign-index-expr 712s / binop-cfg-merge 658s at JOBS=1 + cooldown=0 →
+# ~130 min bstrict / ~137 min total @ b5be5ed97). JOBS=8 / 4 / 2 all hit
+# Killed:9 on this 18-core/64GB box while Cursor/Chrome/iTerm hold most RAM
+# (peak is N× xlang_asm + host-cc, not the idle ~75MB figure; leftover
+# serial L2 of the same xlang_asm still greens the "failed" gates). Default
+# JOBS=1 is the only packing that dual-L4 greened here. gate_case_jobs
+# Darwin auto-inner=2 when outer==1 would recreate the JOBS=2 OOM, so L4
+# also pins GATE_CASE_JOBS=1. Ubuntu gold stays JOBS=1 (~17 min). Explicit
+# XLANG_BSTRICT_JOBS / XLANG_GATE_CASE_JOBS always win. Cap is 8.
 if [ -z "${XLANG_BSTRICT_JOBS:-}" ]; then
+  export XLANG_BSTRICT_JOBS=1
+fi
+if [ -z "${XLANG_GATE_CASE_JOBS:-}" ]; then
   case "$HOST_OS" in
-    Darwin) export XLANG_BSTRICT_JOBS=2 ;;
-    *) export XLANG_BSTRICT_JOBS=1 ;;
+    Darwin) export XLANG_GATE_CASE_JOBS=1 ;;
   esac
 fi
 # PLATFORM: MACOS — inner gate_run_timeout defaults (typeck 30s) assume

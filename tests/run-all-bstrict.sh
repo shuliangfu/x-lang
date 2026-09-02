@@ -25,8 +25,8 @@ fi
 : >"${XLANG_BSTRICT_TIMING_FILE}"
 # Parallelism: default 1 (serial; product gold path). Opt-in XLANG_BSTRICT_JOBS=N.
 # PLATFORM: SHARED — parallel is opt-in. Darwin L4 (product_l4_true_cold.sh)
-# defaults JOBS=2 on 64GB (JOBS=8 and JOBS=4 both hit Killed:9 on this box).
-# Fall back to 1 on OOM. Ubuntu gold stays 1. Cap at 8.
+# defaults JOBS=1 on this 64GB box (JOBS=8 / 4 / 2 all hit Killed:9 here).
+# Ubuntu gold stays 1. Cap at 8.
 _BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}"
 case "$_BSTRICT_JOBS" in
   ''|*[!0-9]*) _BSTRICT_JOBS=1 ;;
@@ -630,8 +630,8 @@ done
 # ---------------------------------------------------------------------------
 # Parallel product pool (XLANG_BSTRICT_JOBS>1). Bash 3.2 portable (no wait -n).
 # PLATFORM: SHARED — default JOBS=1; Ubuntu opt-in JOBS=2..4 typical;
-# Darwin L4 defaults JOBS=2 on 64GB (product_l4_true_cold.sh); JOBS=8
-# and JOBS=4 OOMed this box (Killed:9). Each worker: timeout + 3 retries.
+# Darwin L4 defaults JOBS=1 (product_l4_true_cold.sh); JOBS=8 / 4 / 2
+# OOMed this box (Killed:9). Each worker: timeout + 3 retries.
 # ---------------------------------------------------------------------------
 if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ] \
    && [ -s "${_BSTRICT_JOB_QUEUE:-}" ]; then
@@ -639,7 +639,7 @@ if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]
   echo "run-all-bstrict: parallel pool JOBS=${_BSTRICT_JOBS} queue=${_bstrict_njobs} scripts"
   case "$(uname -s)" in
     Darwin)
-      echo "run-all-bstrict: WARN Darwin JOBS>1 may OOM (Killed:9); 64GB box default JOBS=2, fall back to 1" >&2
+      echo "run-all-bstrict: WARN Darwin JOBS>1 may OOM (Killed:9); 64GB box default JOBS=1" >&2
       ;;
   esac
   _BSTRICT_FAIL_FLAG="/tmp/xlang_bstrict_fail_$$.flag"
