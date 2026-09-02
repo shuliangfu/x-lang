@@ -3189,8 +3189,9 @@ ensure_pipeline_abi_prefer_one() {
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
     # OUT already exists, inject-only instead of full hybrid rebuild.
-    # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer.
-    # PLATFORM: SHARED shell · LINUX gold + MACOS.
+    # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer
+    # on POSIX gold. PLATFORM: SHARED shell · LINUX gold + MACOS.
+    # PLATFORM: WINDOWS — leftover PE cannot -E mega; FORCE skip is below.
     if [ -s "$o" ] && ! pipeline_abi_o_is_libtool_archive "$o" \
       && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
       || [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; }; then
@@ -3213,6 +3214,19 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       return 0
     fi
+  fi
+
+  # PLATFORM: WINDOWS — leftover PE (Track L / can_run egg) is executable so
+  # hybrid rt_prefer_try_x_to_o would launch ./xlang -E of mega
+  # runtime_pipeline_abi.x (92k LOC; hang / multi-GB RSS, stderr discarded).
+  # SAT rebuild sets XLANG_HOST_CC_SEED_FORCE=1 which skips the inject-only
+  # keep above. Keep existing hybrid $o; same contract as inject keep
+  # (407040853) but BEFORE launch — leftover PE mega -E does not fail, it hangs.
+  # POSIX (Linux gold / Darwin): FORCE hybrid -E stays the product path.
+  if pipeline_abi_windows_leftover_pe_cannot_e \
+    && [ -s "$o" ] && ! pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi prefer: keep existing $o (Windows leftover PE cannot -E mega; skip FORCE hybrid)"
+    return 0
   fi
 
   mkdir -p "$(dirname "$o")"
@@ -3374,6 +3388,19 @@ pipeline_abi_o_is_libtool_archive() {
   [ "$mag" = '!<arch>' ]
 }
 
+# True when this host's product -E binary is a leftover Windows PE that cannot
+# compile tip pipeline_abi sources (mega hang; thin -E fail).
+# PLATFORM: WINDOWS — 2026-07-31 leftover PE is present for Track L / can_run
+# so the "no xlang binary" skip does not fire. POSIX gold xlang_asm CAN -E.
+# G.7: one predicate; prefer FORCE hybrid + thin inject both consult it
+# BEFORE launching leftover PE -E (post-fail keep is not enough: mega hangs).
+pipeline_abi_windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
 # Return 0 if every global text symbol in THIN is already a global T in BASE.
 # PLATFORM: SHARED nm (Darwin leading underscore accepted as-is).
 pipeline_abi_thin_already_defined() {
@@ -3411,6 +3438,13 @@ pipeline_abi_inject_thin_leaf() {
     log "pipeline_abi ${tag} inject skip: $o is libtool archive (rebuild pabi first)"
     return 1
   fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins (fail or hang).
+  # Do not launch; keep existing hybrid $o (same as no-binary skip).
+  # POSIX (Linux gold / Darwin): continue with product -E.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi ${tag} inject skip: Windows leftover PE cannot -E tip thins; keep $o"
+    return 0
+  fi
   if [ -x ./xlang_asm ]; then
     xlang_bin=./xlang_asm
   elif [ -x ./xlang ]; then
@@ -3427,16 +3461,6 @@ pipeline_abi_inject_thin_leaf() {
   if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
     log "pipeline_abi ${tag} inject: -E failed"
     rm -f "$gen_c" "$thin_o" "$base_o"
-    # PLATFORM: WINDOWS — leftover PE (Track L / can_run egg) is present so
-    # the "no xlang binary" skip above does not fire, but that PE cannot -E
-    # tip pipeline_abi thins. Keep the existing hybrid $o (same as no-binary).
-    # POSIX (Linux gold / Darwin): -E fail is a hard inject miss.
-    case "$(uname -s 2>/dev/null)" in
-      MINGW*|MSYS*|CYGWIN*)
-        log "pipeline_abi ${tag} inject: keep existing $o (Windows leftover PE cannot -E tip thins)"
-        return 0
-        ;;
-    esac
     return 1
   fi
   # shellcheck disable=SC2086
@@ -3546,6 +3570,11 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
     log "pipeline_abi fnptr-arr-esz inject skip: $o is libtool archive"
     return 1
   fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi fnptr-arr-esz inject skip: Windows leftover PE cannot -E; keep $o"
+    return 0
+  fi
   if [ -x ./xlang_asm ]; then
     xlang_bin=./xlang_asm
   elif [ -x ./xlang ]; then
@@ -3618,6 +3647,11 @@ pipeline_abi_inject_param_ptr_slot_thin() {
   local xlang_bin=""
   local gen_c thin_o base_o oc
   if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi ptrslot-thin inject skip: Windows leftover PE cannot -E; keep $o"
     return 0
   fi
   if [ -x ./xlang_asm ]; then
