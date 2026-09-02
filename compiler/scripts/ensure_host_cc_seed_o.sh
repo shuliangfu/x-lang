@@ -3461,8 +3461,17 @@ ensure_pipeline_abi_prefer_one() {
   #          has a cell; remaining wave266 alloc/set/getters stay closed
   #          on leftover rest — not unique; SAT / leftover standalone
   #          provide T; do not convert neighboring remaining wave265
-  #          alloc/set — not unique; pabi leftover unique with a real
-  #          seed body is exhausted after this extract).
+  #          alloc/set — not unique) +
+  #          block_diverged leftover unique (independent ifndef after
+  #          lsp_free; no seed twin in wave213 cluster: glue_asm_block_diverged_set
+  #          + getter + BSS together so leftover rest SET/GET share leftover
+  #          rest BSS; unique lists setter only — leftover standalone already
+  #          T getter; leftover standalone defines 0 of remaining unique;
+  #          port from .x @77841/@77856; do not add faces to wave213 cluster
+  #          — cold full seed compiles this OR; a second def would dual-def
+  #          in the same TU; pabi leftover unique coding is exhausted after
+  #          this extract except stay-closed debug_trace / prepare_entry /
+  #          driver_emit_lib_root_release).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).

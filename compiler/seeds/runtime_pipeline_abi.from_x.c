@@ -4481,6 +4481,53 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
+/* Block-diverged leftover unique (independent ifndef; no seed twin in the
+ * wave213 cluster). Unique lists glue_asm_block_diverged_set only
+ * (leftover standalone already T getter). Convert setter + getter + BSS
+ * together so leftover rest SET/GET share leftover rest BSS (rest-first
+ * merge wins getter overlap). Faithful leftover twin of
+ * runtime_pipeline_abi.x wave213 slice9 @77841/@77856.
+ * leftover standalone defines 0 of remaining unique (getter is already T
+ * there — not unique). POSIX .x thin owns both faces.
+ * Seed wave213 cluster never got the slice9 cell — do not add the faces
+ * there (cold full seed compiles this OR; a second def in wave213 would
+ * dual-def in the same TU).
+ * Header does not declare the unique (not a dual-decl). leftover rest
+ * has no later extern of these faces.
+ * Independent ifndef (not nested in wave149/154/178/273). Same produce
+ * point as lsp_free: OR WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest
+ * compiles setter+getter+BSS.
+ * Do not convert neighboring wave213 live-control scalars (not unique;
+ * sit inside FALSE FROM_X nest).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * glue_asm_resolve stays closed (not unique; seed stub).
+ * PLATFORM: SHARED freestanding emit · WINDOWS leftover PE cannot -E that thin.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+static int32_t g_wave213_block_diverged = 0;
+
+/**
+ * Stamp block-emit diverged flag (stage10 10.2.1 slice9).
+ * Faithful leftover twin of runtime_pipeline_abi.x @77841.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit.
+ */
+void glue_asm_block_diverged_set(int32_t v) {
+  g_wave213_block_diverged = v ? 1 : 0;
+}
+
+/**
+ * Return 1 when block emit should skip unreachable trailing code.
+ * Faithful leftover twin of runtime_pipeline_abi.x @77856.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit.
+ */
+int32_t glue_asm_block_diverged_get(void) {
+  return g_wave213_block_diverged;
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE block_diverged unique */
+
 /**
  * Public preprocess surface (wave81: hybrid pure owns; cold twin under #ifndef FROM_X).
  * Product pure thin → G.7 xlang_preprocess_raw_to_malloc_impl; cold keeps LEGACY
@@ -30733,6 +30780,9 @@ void glue_asm73_cfg_final_expr_use_n_set(int32_t n) { g_wave212_cfg_final_expr_u
  * (G.7 pure leave). Working freestanding BSS twins of pure control/interf.
  * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
  * glue_asm73_cfg_peak_clear stays Cap residual (peak_live host BSS) — no cold twin.
+ * slice9 glue_asm_block_diverged_set/get + BSS live in the leftover unique
+ * OR (independent; after lsp_free). Not here — cold full seed compiles
+ * that OR; a second def here would dual-def in the same TU.
  * PLATFORM: SHARED freestanding 7.3.
  */
 static int32_t g_wave213_cfg_parent = 0;
@@ -31472,8 +31522,8 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
- * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
- * with getter — convert together later).
+ * glue_asm_block_diverged_set/get + BSS extracted independently after
+ * lsp_free (no seed twin in wave213; leftover unique lists setter).
  * PLATFORM: SHARED freestanding type_alias Cap leave · WINDOWS leftover
  * PE cannot -E that thin.
  */
@@ -32283,8 +32333,8 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
- * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
- * with getter — convert together later).
+ * glue_asm_block_diverged_set/get + BSS extracted independently after
+ * lsp_free (no seed twin in wave213; leftover unique lists setter).
  * PLATFORM: SHARED freestanding enum Cap leave · WINDOWS leftover
  * PE cannot -E that thin.
  */
@@ -32757,8 +32807,8 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
- * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
- * with getter — convert together later).
+ * glue_asm_block_diverged_set/get + BSS extracted independently after
+ * lsp_free (no seed twin in wave213; leftover unique lists setter).
  * PLATFORM: SHARED freestanding top_level Cap leave · WINDOWS leftover
  * PE cannot -E that thin.
  */
@@ -33275,8 +33325,8 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
  * wave154 first.
  * Reopen both after this unique (remaining wave266 alloc/set stay closed
  * on leftover rest). pabi leftover unique with a real seed body is
- * exhausted after this extract (glue_asm_block_diverged_set has no seed
- * twin and shares BSS with getter — convert together later).
+ * exhausted after this extract; glue_asm_block_diverged_set/get + BSS
+ * extracted independently after lsp_free (no seed twin in wave213).
  * Header does not declare the unique (not a dual-decl). leftover rest
  * WAVE279 already extern void* of these faces later @45766 — do not
  * re-extern here (def-before-use in leftover rest; later extern is
@@ -33288,8 +33338,6 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
- * glue_asm_block_diverged_set stays closed (no seed twin; shares BSS
- * with getter — convert together later).
  * PLATFORM: SHARED freestanding struct_layout Cap leave · WINDOWS leftover
  * PE cannot -E that thin.
  */
