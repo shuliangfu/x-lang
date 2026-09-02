@@ -854,8 +854,14 @@ int xlang_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, cha
 
 /* G-02f-33 / wave77: hybrid pure owns typeck_ndep + typeck_dep_* table BSS + slot/get/set_impl /
  * ptrs_base; cold twins under #ifndef FROM_X keep naked C globals for cold run seed naked
- * writers. PLATFORM: SHARED LP64 — 32 void* + int ndep. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * writers. PLATFORM: SHARED LP64 — 32 void* + int ndep.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns typeck_ndep_store /
+ * typeck_dep_*_set; leftover standalone does not define them. Independent ifndef
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles these twins.
+ * driver_dep_seeded_clear_all calls sidecar_clear which writes these arrays. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep；cold path）。 */
 void *typeck_dep_module_ptrs[32];
 void *typeck_dep_arena_ptrs[32];
@@ -922,8 +928,11 @@ void typeck_dep_arena_set(int32_t i, void *arena) {
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
-/* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc.
+ * PLATFORM: WINDOWS leftover-PE rest compiles this with WIN_LEFTOVER_GROW_VEC
+ * (writes typeck_ndep / typeck_dep_*_ptrs from the wave77 OR block above). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_typeck_dep_sidecar_clear(void) {
     int i;
     typeck_ndep = 0;
@@ -1457,8 +1466,16 @@ void xlang_resolve_import_file_path_multi(const char **lib_roots, int n_lib_root
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-34 / wave74: hybrid pure owns driver_dep table BSS + slot/set/at/buf;
- * cold twins under #ifndef FROM_X. PLATFORM: SHARED LP64 — XLANG_DRIVER_DEP_SLOT_MAX=32. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * cold twins under #ifndef FROM_X. PLATFORM: SHARED LP64 — XLANG_DRIVER_DEP_SLOT_MAX=32.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns driver_dep_arena_buf /
+ * module_buf / path_registry_at / publish_slot / seed_slots / seeded_get /
+ * seeded_clear_all / slot_for_path. leftover standalone defines 0 of those.
+ * Independent ifndefs (not nested in wave149/154/273). Same produce point as
+ * wave123: OR WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares functions; cold twin arrays are static behind those functions
+ * (not a dual-decl). get_dep_module / pipeline_set_dep_slots stay closed. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /** pipeline dep 全局槽：arena/module 指针、import 路径注册表、seeded 标记。 */
 static void *driver_dep_arena_ptrs[XLANG_DRIVER_DEP_SLOT_MAX];
 static void *driver_dep_module_ptrs[XLANG_DRIVER_DEP_SLOT_MAX];
@@ -1493,7 +1510,8 @@ extern size_t pipeline_sizeof_module(void);
 
 /* G-02f-42: driver dep pointer/path slots for .x publish_slot */
 /* wave74: pure owns BSS write under hybrid; cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
     if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return;
@@ -1506,7 +1524,8 @@ void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_arena_ptr_set(int32_t i, void *arena) {
     driver_dep_arena_ptr_set_impl(i, arena);
 }
@@ -1516,7 +1535,8 @@ void driver_dep_arena_ptr_set(int32_t i, void *arena) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_module_ptr_set(int32_t i, void *module) {
     driver_dep_module_ptr_set_impl(i, module);
 }
@@ -1526,7 +1546,8 @@ void driver_dep_module_ptr_set(int32_t i, void *module) {
 
 
 /* G-02f-224 / wave74：pure path_registry_set under hybrid; cold twin stores non-null only. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_path_registry_set(int32_t i, const char *path) {
     if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return;
@@ -1536,7 +1557,8 @@ void driver_dep_path_registry_set(int32_t i, const char *path) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t driver_dep_seeded_get(int32_t i) {
   if ((i < 0)) {
     return 0;
@@ -1560,7 +1582,8 @@ int32_t driver_dep_seeded_get(int32_t i) {
  * 设置 dep 槽 seeded 标志（run_compiler_x_path 预填后调用）。
  * 参数：i 槽下标；v 非 0 表示 seeded。
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_seeded_set(int32_t i, int32_t v) {
   if ((i < 0)) {
     return;
@@ -1581,7 +1604,8 @@ void driver_dep_seeded_set(int32_t i, int32_t v) {
  * 参数：arenas/modules 各 32 槽；n 有效 dep 数。
  */
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
     int j;
     for (j = 0; j < XLANG_DRIVER_DEP_SLOT_MAX && j < n; j++) {
@@ -1600,7 +1624,8 @@ void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
  * 单槽发布：dep 预跑 parse 完成后供 pipeline_load 按 import 路径绑定。
  * 参数：import_path 逻辑路径指针须存活至 clear_all（通常 dep_paths[j]）。
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *import_path) {
   if ((i < 0)) {
     return;
@@ -1623,7 +1648,8 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
  * 返回值：槽下标 0..31，未 publish 返回 -1。
  */
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t driver_dep_slot_for_path_scan(const char *path) {
     int i;
     for (i = 0; i < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
@@ -1635,7 +1661,8 @@ int32_t driver_dep_slot_for_path_scan(const char *path) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t driver_dep_slot_for_path(const char *path) {
   if (path == NULL) {
     return -1;
@@ -1651,7 +1678,8 @@ int32_t driver_dep_slot_for_path(const char *path) {
  * entry pipeline 返回后清除 seeded 与槽指针；并同步清 runtime.c typeck dep 侧车。
  */
 /* G-02f-230 / wave74：pure clear_slots under hybrid; cold twin direct-writes static tables. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_seeded_clear_slots_impl(void) {
     int i;
     for (i = 0; i < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
@@ -1669,7 +1697,8 @@ void driver_dep_seeded_clear_slots(void) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void driver_dep_seeded_clear_all(void) {
   {
     driver_dep_seeded_clear_slots_impl();
@@ -1683,7 +1712,8 @@ void driver_dep_seeded_clear_all(void) {
  * 返回值：arena 字节区或 NULL（i 越界 / OOM）。
  * wave74: pure owns under hybrid; cold twin below.
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 uint8_t *driver_dep_arena_buf(int32_t i) {
     if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return NULL;
@@ -1716,7 +1746,8 @@ uint8_t *driver_dep_module_buf(int32_t i) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_module_buf。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 uint8_t *typeck_driver_dep_module_buf(int32_t i) {
   (void)(({   {
     uint8_t * r = driver_dep_module_buf(i);
@@ -1726,7 +1757,8 @@ uint8_t *typeck_driver_dep_module_buf(int32_t i) {
   return ((void *)(0));
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 uint8_t *typeck_driver_dep_arena_buf(int32_t i) {
   (void)(({   {
     uint8_t * r = driver_dep_arena_buf(i);
@@ -1738,7 +1770,8 @@ uint8_t *typeck_driver_dep_arena_buf(int32_t i) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_seeded_get。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t typeck_driver_dep_seeded_get(int32_t i) {
   return driver_dep_seeded_get(i);
 }

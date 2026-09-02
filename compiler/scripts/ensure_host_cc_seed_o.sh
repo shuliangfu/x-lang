@@ -3234,7 +3234,9 @@ ensure_pipeline_abi_prefer_one() {
   #          of wave132 so WIN rest does not take ty_ref / append_bytes
   #          dual-decl) + wave273 F7 data-section (emit_data_len /
   #          append_data_u32_le / set_shndx_override; BSS moved before first
-  #          use; rest of wave273 stays closed — append_bytes dual-decl).
+  #          use; rest of wave273 stays closed — append_bytes dual-decl) +
+  #          wave74 driver_dep_* + wave77 typeck_ndep/sidecar (independent
+  #          ifndefs; leftover standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          FROM_X rest otherwise only externs them.
