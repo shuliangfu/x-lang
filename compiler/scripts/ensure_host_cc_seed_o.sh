@@ -3469,9 +3469,18 @@ ensure_pipeline_abi_prefer_one() {
   #          T getter; leftover standalone defines 0 of remaining unique;
   #          port from .x @77841/@77856; do not add faces to wave213 cluster
   #          — cold full seed compiles this OR; a second def would dual-def
-  #          in the same TU; pabi leftover unique coding is exhausted after
-  #          this extract except stay-closed debug_trace / prepare_entry /
-  #          driver_emit_lib_root_release).
+  #          in the same TU) +
+  #          driver_emit leftover unique (surgical extract of nested
+  #          wave104 emit sidecar after closing enclosing wave101:
+  #          driver_emit_lib_root_release + reset/append/count/len/copy +
+  #          BSS + find together so leftover rest SET/GET/release share
+  #          leftover rest BSS; unique lists release only — leftover
+  #          standalone already T reset/append; leftover standalone
+  #          defines 0 of remaining unique; seed bodies are real; do not
+  #          convert neighboring asm_qual_sym_layer_* — not unique,
+  #          separate BSS family; pabi leftover unique coding is exhausted
+  #          after this extract except stay-closed debug_trace /
+  #          prepare_entry).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).

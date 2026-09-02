@@ -4501,7 +4501,10 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
  * sit inside FALSE FROM_X nest).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * glue_asm_resolve stays closed (not unique; seed stub).
  * PLATFORM: SHARED freestanding emit · WINDOWS leftover PE cannot -E that thin.
  */
@@ -4980,25 +4983,42 @@ int32_t lsp_diag_parse_typeck_buf_c(void *module, void *arena, uint8_t *source_d
     return wave103_lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
   return args.result;
 }
+#endif /* close wave101 FROM_X for leftover-PE driver_emit sidecar */
 
-/* wave104 emit_sidecar leave cold twins — former pipeline_emit_sidecar.c.
- * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
- * owns strong driver_emit_* / asm_qual_sym_* after host-cc leave. Fixed caps
- * match pure: 64 state slots, 32 roots/slot × 256B, 32 qual layers × 64B. */
+/* Driver-emit leftover unique (surgical extract of nested wave104 emit
+ * sidecar after closing enclosing wave101). Unique lists
+ * driver_emit_lib_root_release only (leftover standalone already T
+ * reset/append). Convert unique + BSS siblings together so leftover rest
+ * SET/GET/release share leftover rest BSS (rest-first merge wins
+ * reset/append overlap). Seed bodies are real (find_slot + zero n / free
+ * slot) — leftover twin of runtime_pipeline_abi.x wave104 @12059/@12076.
+ * leftover standalone defines 0 of remaining unique (reset/append are
+ * already T there — not unique). POSIX .x thin owns all six faces.
+ * Header does not declare the unique (not a dual-decl). leftover rest
+ * has no later extern of these faces.
+ * Same produce point as F7: inserting an OR inside a FALSE outer ifndef
+ * is never parsed when FROM_X is set — must close wave101 first.
+ * Reopen wave101 after this cluster (qual_* / wave105 resolve_path /
+ * remaining wrappers stay closed on leftover rest — not unique; SAT /
+ * leftover standalone provide T).
+ * Do not convert neighboring asm_qual_sym_layer_* (not unique; separate
+ * BSS family; leftover standalone already T).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * glue_asm_resolve stays closed (not unique; seed stub).
+ * PLATFORM: SHARED freestanding emit sidecar · WINDOWS leftover PE cannot -E that thin.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE104_EMIT_SC_MAX 64
 #define WAVE104_EMIT_ROOTS 32
 #define WAVE104_EMIT_PATH 256
-#define WAVE104_QUAL_MAX 32
-#define WAVE104_QUAL_W 64
 
 static int32_t wave104_emit_used[WAVE104_EMIT_SC_MAX];
 static uint8_t *wave104_emit_state[WAVE104_EMIT_SC_MAX];
 static int32_t wave104_emit_n[WAVE104_EMIT_SC_MAX];
 static uint8_t wave104_emit_rows[WAVE104_EMIT_SC_MAX * WAVE104_EMIT_ROOTS * WAVE104_EMIT_PATH];
 static int32_t wave104_emit_lens[WAVE104_EMIT_SC_MAX * WAVE104_EMIT_ROOTS];
-static int32_t wave104_qual_n;
-static uint8_t wave104_qual_rows[WAVE104_QUAL_MAX * WAVE104_QUAL_W];
-static int32_t wave104_qual_lens[WAVE104_QUAL_MAX];
 
 static int32_t wave104_emit_sc_find(uint8_t *state, int create) {
   int i;
@@ -5021,6 +5041,11 @@ static int32_t wave104_emit_sc_find(uint8_t *state, int create) {
   return -1;
 }
 
+/**
+ * Clear -L lib_root list for `state` (keep slot occupied).
+ * Faithful leftover twin of runtime_pipeline_abi.x @12059.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
 void driver_emit_lib_root_reset(uint8_t *state) {
   int32_t s = wave104_emit_sc_find(state, 0);
   if (s < 0)
@@ -5028,6 +5053,13 @@ void driver_emit_lib_root_reset(uint8_t *state) {
   wave104_emit_n[s] = 0;
 }
 
+/**
+ * Release DriverEmit sidecar for `state` (mark slot free so the table
+ * does not exhaust). Unique leftover twin; leftover standalone already T
+ * reset/append — this face + BSS siblings share leftover rest BSS.
+ * Faithful leftover twin of runtime_pipeline_abi.x @12076.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
 void driver_emit_lib_root_release(uint8_t *state) {
   int32_t s = wave104_emit_sc_find(state, 0);
   if (s < 0)
@@ -5037,8 +5069,13 @@ void driver_emit_lib_root_release(uint8_t *state) {
   wave104_emit_state[s] = NULL;
 }
 
+/**
+ * Append one -L lib root path for `state` (create slot on first use).
+ * Faithful leftover twin of runtime_pipeline_abi.x @12096.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
 int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len) {
-  int32_t s, n, clen, base, k;
+  int32_t s, n, clen, base;
   if (!state || !path || len <= 0)
     return -1;
   s = wave104_emit_sc_find(state, 1);
@@ -5056,11 +5093,21 @@ int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len) 
   return n;
 }
 
+/**
+ * Return stored -L lib_root count for `state`.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave104.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
 int32_t driver_emit_lib_root_count(uint8_t *state) {
   int32_t s = wave104_emit_sc_find(state, 0);
   return s < 0 ? 0 : wave104_emit_n[s];
 }
 
+/**
+ * Return stored path length of lib_root `i` for `state`.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave104.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
 int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i) {
   int32_t s;
   if (i < 0)
@@ -5071,6 +5118,11 @@ int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i) {
   return wave104_emit_lens[s * WAVE104_EMIT_ROOTS + i];
 }
 
+/**
+ * Copy stored lib_root `i` for `state` into `dst` (NUL-padded).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave104.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
 void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap) {
   int32_t s, n, base, k;
   if (!dst || cap <= 0)
@@ -5088,6 +5140,23 @@ void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t 
   for (k = 0; k < n; k++)
     dst[k] = wave104_emit_rows[base + k];
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE driver_emit sidecar unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave101 FROM_X after leftover-PE driver_emit sidecar */
+
+/* wave104 emit_sidecar leave cold twins — remaining qual_* (not unique).
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong asm_qual_sym_* after host-cc leave. Fixed caps match pure:
+ * 32 qual layers × 64B. Emit lib_root unique + BSS live in the leftover
+ * unique OR above (after closing enclosing wave101). Not here — leftover
+ * rest compiles that OR; a second def here would dual-def in the same TU
+ * (cold full seed compiles both). */
+#define WAVE104_QUAL_MAX 32
+#define WAVE104_QUAL_W 64
+
+static int32_t wave104_qual_n;
+static uint8_t wave104_qual_rows[WAVE104_QUAL_MAX * WAVE104_QUAL_W];
+static int32_t wave104_qual_lens[WAVE104_QUAL_MAX];
 
 void asm_qual_sym_layer_reset(void) {
   wave104_qual_n = 0;
@@ -5602,8 +5671,9 @@ int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *o
  * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
  * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
  * set — must close wave101 first.
- * Reopen wave101 after this cluster (resolve_path_x / wave106 / driver_emit
- * lib_root sidecar still closed on leftover rest).
+ * Reopen wave101 after this cluster (resolve_path_x / wave106 stay closed
+ * on leftover rest). driver_emit leftover unique was extracted earlier
+ * (wave104 emit sidecar + BSS after closing enclosing wave101).
  * Header does not declare pipeline_run_x_pipeline_impl (not a dual-decl).
  * Always-compiled proto of impl is absent in this TU. Wave106 extern of
  * impl stays in the reopened ifndef (closed on leftover rest).
@@ -5619,10 +5689,9 @@ int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *o
  * dep_ctx_asm_entry_module_only (always-compiled void* @47888 — glue_type
  * dual-decl lesson).
  * Do not convert neighboring parse_entry_if_needed / load_deps /
- * typecheck_after_load / codegen_* wrappers (not unique) or
- * driver_emit_lib_root_release (nested wave101 sidecar BSS — leftover
- * standalone already T reset/append; extracting release+BSS would split
- * the sidecar across TUs).
+ * typecheck_after_load / codegen_* wrappers (not unique).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release).
  * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
@@ -14062,7 +14131,10 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
  * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding modlet COMMON/.data · LINUX gold · MACOS co-path.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -16737,7 +16809,10 @@ extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32
  * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding ARRAY_LIT elem width · LINUX gold · MACOS co-path.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -21559,7 +21634,10 @@ int32_t glue_block_let_is_simd_vector_type(void *arena, int32_t block_ref, int32
  * after closing wave154/wave178; real .x body, not the seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding VAR rbp offset · LINUX gold · MACOS co-path.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -29724,7 +29802,10 @@ int32_t glue_call_arg_var_use_lea_not_load_elf_c(void *arena, int32_t expr_ref, 
  * after closing this reopen; real .x body).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding layout size · LINUX gold · MACOS co-path.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -29905,7 +29986,10 @@ int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index,
  * (wave191 extract; real .x body, not the seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding return sizing · LINUX sret gate · MACOS|ARM64 x8.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -30010,7 +30094,10 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
  * (not unique; seed stub stays closed).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding CALL return sizing · LINUX sret gate · MACOS|ARM64 x8.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -31521,7 +31608,10 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  * wave264; sl is a later extract after remaining wave265).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * glue_asm_block_diverged_set/get + BSS extracted independently after
  * lsp_free (no seed twin in wave213; leftover unique lists setter).
  * PLATFORM: SHARED freestanding type_alias Cap leave · WINDOWS leftover
@@ -32332,7 +32422,10 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
  * wave264; sl is a later extract after remaining wave265).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * glue_asm_block_diverged_set/get + BSS extracted independently after
  * lsp_free (no seed twin in wave213; leftover unique lists setter).
  * PLATFORM: SHARED freestanding enum Cap leave · WINDOWS leftover
@@ -32806,7 +32899,10 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
  * or remaining sl unique (own extract after remaining wave265).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * glue_asm_block_diverged_set/get + BSS extracted independently after
  * lsp_free (no seed twin in wave213; leftover unique lists setter).
  * PLATFORM: SHARED freestanding top_level Cap leave · WINDOWS leftover
@@ -33337,7 +33433,10 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
  * sit before this close) or remaining wave266 alloc/set (not unique).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
- * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * driver_emit leftover unique lives in the leftover unique OR (wave104
+ * emit sidecar + BSS after closing enclosing wave101; unique lists release;
+ * leftover standalone already T reset/append — convert unique + BSS
+ * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding struct_layout Cap leave · WINDOWS leftover
  * PE cannot -E that thin.
  */
