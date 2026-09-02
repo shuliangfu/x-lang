@@ -94157,7 +94157,10 @@ export function pipeline_asm_wpo_pgo_is_hot_func(m: *u8, fi: i32): i32 {
 // G.7 single authority — no residual g_arena_sc dual table.
 // P2 Darwin -o compile: sidecar_get linear-scanned MAX slots on every field
 // access (hello -o sample: onefunc_sidecar_get 2nd-hottest after binop chain).
-// 2-slot MRU per table (copy src/dst ping-pong); free of a cached slot drops it.
+// Arena/module keep 2-slot MRU (copy src/dst ping-pong). Onefunc uses a 16-slot
+// ring: parse_one_function dummy-wire lives ~9 stack keys (out / out_clean /
+// impl_snap / six _w), so 2-slot still missed into the MAX=1024 walk. used_hi
+// stops the miss walk at the last occupied slot. Free of a cached slot drops it.
 // =============================================================================
 
 function pipe_arena_sc_size(): i32 { return 816; }
@@ -94171,8 +94174,8 @@ function pipe_onefunc_sc_max(): i32 { return 1024; }
 let g_pipe_arena_sc_blob: u8[417792] = [];
 let g_pipe_module_sc_blob: u8[221184] = [];
 let g_pipe_onefunc_sc_blob: u8[966656] = [];
-// 2-slot MRU for sidecar_get. parser_copy_onefunc_into ping-pongs src/dst
-// keys; one slot misses every other call. Miss still walks MAX.
+// Arena/module: 2-slot MRU (copy src/dst ping-pong). Onefunc: 16-slot ring
+// + used_hi (dummy-wire live keys). Miss walk for onefunc stops at used_hi.
 // PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
 let g_pipe_arena_sc_last_key0: *u8 = 0 as *u8;
 let g_pipe_arena_sc_last_sc0: *u8 = 0 as *u8;
@@ -94182,10 +94185,13 @@ let g_pipe_module_sc_last_key0: *u8 = 0 as *u8;
 let g_pipe_module_sc_last_sc0: *u8 = 0 as *u8;
 let g_pipe_module_sc_last_key1: *u8 = 0 as *u8;
 let g_pipe_module_sc_last_sc1: *u8 = 0 as *u8;
-let g_pipe_onefunc_sc_last_key0: *u8 = 0 as *u8;
-let g_pipe_onefunc_sc_last_sc0: *u8 = 0 as *u8;
-let g_pipe_onefunc_sc_last_key1: *u8 = 0 as *u8;
-let g_pipe_onefunc_sc_last_sc1: *u8 = 0 as *u8;
+// Onefunc 16-slot ring: slot i stores key at ptr-index 2*i and sidecar at 2*i+1
+// (LP64 8-byte cells; 16*(key+sc) = 256 bytes). Clock is next insert index.
+// used_hi is exclusive end of occupied process-table slots (0..MAX).
+// PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
+let g_pipe_onefunc_mru_blob: u8[256] = [];
+let g_pipe_onefunc_mru_clock: i32 = 0;
+let g_pipe_onefunc_sc_used_hi: i32 = 0;
 
 /**
  * True if sidecar slot is used and its key pointer equals `key`.
@@ -94308,53 +94314,110 @@ function pipe_module_sc_drop_last(sc: *u8): void {
 }
 
 /**
- * 2-slot MRU lookup for the onefunc sidecar table.
+ * Onefunc ring capacity (covers dummy-wire live keys without MAX walk).
+ * @return i32 — 16
+ */
+function pipe_onefunc_mru_n(): i32 {
+  return 16;
+}
+
+/**
+ * 16-slot ring lookup for the onefunc sidecar table.
  * @param key *u8 — onefunc pointer key
  * @return *u8 — cached sidecar or null
  */
 function pipe_onefunc_sc_recall(key: *u8): *u8 {
-  if (g_pipe_onefunc_sc_last_key0 == key) {
-    if (pipe_sc_last_slot_ok(g_pipe_onefunc_sc_last_sc0, key) != 0) {
-      return g_pipe_onefunc_sc_last_sc0;
-    }
+  let n: i32 = pipe_onefunc_mru_n();
+  let i: i32 = 0;
+  let blob: *u8 = 0 as *u8;
+  unsafe {
+    blob = &g_pipe_onefunc_mru_blob[0];
   }
-  if (g_pipe_onefunc_sc_last_key1 == key) {
-    if (pipe_sc_last_slot_ok(g_pipe_onefunc_sc_last_sc1, key) != 0) {
-      return g_pipe_onefunc_sc_last_sc1;
+  while (i < n) {
+    let k: *u8 = pipe_load_ptr_slot(blob, i * 2);
+    if (k == key) {
+      let sc: *u8 = pipe_load_ptr_slot(blob, i * 2 + 1);
+      if (pipe_sc_last_slot_ok(sc, key) != 0) {
+        return sc;
+      }
     }
+    i = i + 1;
   }
   return 0 as *u8;
 }
 
 /**
- * Remember onefunc sidecar as MRU slot 0; previous slot 0 shifts to 1.
+ * Remember onefunc sidecar in the 16-slot ring (update in place, else clock insert).
  * @param key *u8 — onefunc pointer key
  * @param sc *u8 — sidecar base
  */
 function pipe_onefunc_sc_remember(key: *u8, sc: *u8): void {
-  if (g_pipe_onefunc_sc_last_key0 == key) {
-    g_pipe_onefunc_sc_last_sc0 = sc;
-    return;
+  let n: i32 = pipe_onefunc_mru_n();
+  let i: i32 = 0;
+  let blob: *u8 = 0 as *u8;
+  let slot: i32 = 0;
+  unsafe {
+    blob = &g_pipe_onefunc_mru_blob[0];
   }
-  g_pipe_onefunc_sc_last_key1 = g_pipe_onefunc_sc_last_key0;
-  g_pipe_onefunc_sc_last_sc1 = g_pipe_onefunc_sc_last_sc0;
-  g_pipe_onefunc_sc_last_key0 = key;
-  g_pipe_onefunc_sc_last_sc0 = sc;
+  while (i < n) {
+    let k: *u8 = pipe_load_ptr_slot(blob, i * 2);
+    if (k == key) {
+      pipe_store_ptr_slot(blob, i * 2 + 1, sc);
+      return;
+    }
+    i = i + 1;
+  }
+  slot = g_pipe_onefunc_mru_clock;
+  if (slot < 0) {
+    slot = 0;
+  }
+  if (slot >= n) {
+    slot = 0;
+  }
+  pipe_store_ptr_slot(blob, slot * 2, key);
+  pipe_store_ptr_slot(blob, slot * 2 + 1, sc);
+  slot = slot + 1;
+  if (slot >= n) {
+    slot = 0;
+  }
+  g_pipe_onefunc_mru_clock = slot;
 }
 
 /**
- * Drop onefunc last-hit slots that point at `sc` (called from free).
+ * Drop onefunc ring slots that point at `sc` (called from free).
  * @param sc *u8 — sidecar being freed
  */
 function pipe_onefunc_sc_drop_last(sc: *u8): void {
-  if (g_pipe_onefunc_sc_last_sc0 == sc) {
-    g_pipe_onefunc_sc_last_key0 = 0 as *u8;
-    g_pipe_onefunc_sc_last_sc0 = 0 as *u8;
+  let n: i32 = pipe_onefunc_mru_n();
+  let i: i32 = 0;
+  let blob: *u8 = 0 as *u8;
+  unsafe {
+    blob = &g_pipe_onefunc_mru_blob[0];
   }
-  if (g_pipe_onefunc_sc_last_sc1 == sc) {
-    g_pipe_onefunc_sc_last_key1 = 0 as *u8;
-    g_pipe_onefunc_sc_last_sc1 = 0 as *u8;
+  while (i < n) {
+    let s: *u8 = pipe_load_ptr_slot(blob, i * 2 + 1);
+    if (s == sc) {
+      pipe_store_ptr_slot(blob, i * 2, 0 as *u8);
+      pipe_store_ptr_slot(blob, i * 2 + 1, 0 as *u8);
+    }
+    i = i + 1;
   }
+}
+
+/**
+ * Exclusive end of occupied onefunc process-table slots (0..MAX).
+ * @return i32 — used_hi clamped to [0, MAX]
+ */
+function pipe_onefunc_sc_used_lim(): i32 {
+  let lim: i32 = g_pipe_onefunc_sc_used_hi;
+  let mx: i32 = pipe_onefunc_sc_max();
+  if (lim < 0) {
+    return 0;
+  }
+  if (lim > mx) {
+    return mx;
+  }
+  return lim;
 }
 
 /**
@@ -94406,6 +94469,19 @@ function pipe_onefunc_sc_at(i: i32): *u8 {
   }
   let off: i64 = (i as i64) * (pipe_onefunc_sc_size() as i64);
   return &g_pipe_onefunc_sc_blob[0] + (off as usize);
+}
+
+/**
+ * After a slot is marked unused, drop trailing empty slots from used_hi.
+ */
+function pipe_onefunc_sc_shrink_hi(): void {
+  while (g_pipe_onefunc_sc_used_hi > 0) {
+    let last: *u8 = pipe_onefunc_sc_at(g_pipe_onefunc_sc_used_hi - 1);
+    if (pipe_load_i32_le(last, 8) != 0) {
+      return;
+    }
+    g_pipe_onefunc_sc_used_hi = g_pipe_onefunc_sc_used_hi - 1;
+  }
 }
 
 
@@ -94504,6 +94580,7 @@ function pipe_onefunc_sc_free(sc: *u8): void {
   unsafe {
     memset(sc, 0, pipe_onefunc_sc_size() as usize);
   }
+  pipe_onefunc_sc_shrink_hi();
 }
 
 /**
@@ -94797,8 +94874,8 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
- * P2 Darwin -o: 2-slot MRU before the MAX=1024 linear walk
- * (parser_copy_onefunc_into ping-pongs src/dst; field gets reuse those two keys).
+ * P2 Darwin -o: 16-slot ring before the used_hi linear walk (dummy-wire live
+ * keys miss a 2-slot src/dst cache; miss walk stops at last occupied slot).
  * PLATFORM: SHARED freestanding onefunc Cap leave.
  */
 #[no_mangle]
@@ -94811,7 +94888,8 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
     return hit;
   }
   let i: i32 = 0;
-  while (i < pipe_onefunc_sc_max()) {
+  let lim: i32 = pipe_onefunc_sc_used_lim();
+  while (i < lim) {
     let sc: *u8 = pipe_onefunc_sc_at(i);
     let used: i32 = pipe_load_i32_le(sc, 8);
     if (used != 0) {
@@ -94833,6 +94911,9 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
     if (used2 == 0) {
       pipe_store_ptr_slot(sc2, 0, key);
       pipe_store_i32_le(sc2, 8, 1);
+      if (i + 1 > g_pipe_onefunc_sc_used_hi) {
+        g_pipe_onefunc_sc_used_hi = i + 1;
+      }
       let ic: i32 = pipe_gv_init_cap();
       if (grow_vec_init(sc2 + (16 as usize), 4, ic) == 0) {
         pipe_onefunc_sc_free(sc2);

@@ -41241,7 +41241,8 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
  * XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC (PLATFORM: WINDOWS leftover-PE;
  * PE cannot -E .x thin that owns arena/module/onefunc_sidecar_get).
  * Layout LE matches pure + host typedefs (Arena 816 / Module 432 / OneFunc 944).
- * P2 Darwin -o compile: sidecar_get 2-slot MRU matches the .x thin;
+ * P2 Darwin -o compile: arena/module 2-slot MRU; onefunc 16-slot ring + used_hi
+ * matches the .x thin (dummy-wire live keys miss a 2-slot src/dst cache).
  * leftover-PE rest is the only seed body (FROM_X omits this block).
  * PLATFORM: SHARED freestanding Cap residual cold twin.
  */
@@ -41268,7 +41269,7 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
 static uint8_t g_w275_arena_sc_blob[W275_ARENA_SC_MAX * W275_ARENA_SC_SIZE];
 static uint8_t g_w275_module_sc_blob[W275_MODULE_SC_MAX * W275_MODULE_SC_SIZE];
 static uint8_t g_w275_onefunc_sc_blob[W275_ONEFUNC_SC_MAX * W275_ONEFUNC_SC_SIZE];
-/* 2-slot MRU: parser_copy_onefunc_into ping-pongs src/dst keys. */
+/* Arena/module: 2-slot MRU. Onefunc: 16-slot ring + used_hi. */
 static void *g_w275_arena_last_key0;
 static uint8_t *g_w275_arena_last_sc0;
 static void *g_w275_arena_last_key1;
@@ -41277,10 +41278,11 @@ static void *g_w275_module_last_key0;
 static uint8_t *g_w275_module_last_sc0;
 static void *g_w275_module_last_key1;
 static uint8_t *g_w275_module_last_sc1;
-static void *g_w275_onefunc_last_key0;
-static uint8_t *g_w275_onefunc_last_sc0;
-static void *g_w275_onefunc_last_key1;
-static uint8_t *g_w275_onefunc_last_sc1;
+#define W275_ONEFUNC_MRU_N 16
+static void *g_w275_onefunc_mru_key[W275_ONEFUNC_MRU_N];
+static uint8_t *g_w275_onefunc_mru_sc[W275_ONEFUNC_MRU_N];
+static int g_w275_onefunc_mru_clock;
+static int g_w275_onefunc_used_hi;
 
 static uint8_t *w275_arena_sc_at(int i) {
   if (i < 0 || i >= W275_ARENA_SC_MAX) return NULL;
@@ -41346,6 +41348,55 @@ static void w275_sidecar_drop(void **k0, uint8_t **s0, void **k1, uint8_t **s1, 
   }
 }
 
+static uint8_t *w275_onefunc_mru_recall(void *key) {
+  int i;
+  for (i = 0; i < W275_ONEFUNC_MRU_N; i++) {
+    if (g_w275_onefunc_mru_key[i] == key &&
+        w275_sidecar_slot_ok(g_w275_onefunc_mru_sc[i], key))
+      return g_w275_onefunc_mru_sc[i];
+  }
+  return NULL;
+}
+
+static void w275_onefunc_mru_remember(void *key, uint8_t *sc) {
+  int i;
+  int slot;
+  for (i = 0; i < W275_ONEFUNC_MRU_N; i++) {
+    if (g_w275_onefunc_mru_key[i] == key) {
+      g_w275_onefunc_mru_sc[i] = sc;
+      return;
+    }
+  }
+  slot = g_w275_onefunc_mru_clock;
+  if (slot < 0 || slot >= W275_ONEFUNC_MRU_N)
+    slot = 0;
+  g_w275_onefunc_mru_key[slot] = key;
+  g_w275_onefunc_mru_sc[slot] = sc;
+  slot++;
+  if (slot >= W275_ONEFUNC_MRU_N)
+    slot = 0;
+  g_w275_onefunc_mru_clock = slot;
+}
+
+static void w275_onefunc_mru_drop(uint8_t *sc) {
+  int i;
+  for (i = 0; i < W275_ONEFUNC_MRU_N; i++) {
+    if (g_w275_onefunc_mru_sc[i] == sc) {
+      g_w275_onefunc_mru_key[i] = NULL;
+      g_w275_onefunc_mru_sc[i] = NULL;
+    }
+  }
+}
+
+static void w275_onefunc_shrink_hi(void) {
+  while (g_w275_onefunc_used_hi > 0) {
+    uint8_t *last = w275_onefunc_sc_at(g_w275_onefunc_used_hi - 1);
+    if (w275_load_i32(last, 8) != 0)
+      return;
+    g_w275_onefunc_used_hi--;
+  }
+}
+
 static void arena_sidecar_free_inner(uint8_t *sc) {
   if (!sc) return;
   w275_sidecar_drop(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
@@ -41400,8 +41451,7 @@ static void module_sidecar_free_inner(uint8_t *sc) {
 void module_sidecar_free(void *sc) { module_sidecar_free_inner((uint8_t *)sc); }
 static void onefunc_sidecar_free_inner(uint8_t *sc) {
   if (!sc) return;
-  w275_sidecar_drop(&g_w275_onefunc_last_key0, &g_w275_onefunc_last_sc0,
-                    &g_w275_onefunc_last_key1, &g_w275_onefunc_last_sc1, sc);
+  w275_onefunc_mru_drop(sc);
   grow_vec_free((GrowVec *)(sc + 16));
   grow_vec_free((GrowVec *)(sc + 48));
   grow_vec_free((GrowVec *)(sc + 80));
@@ -41432,6 +41482,7 @@ static void onefunc_sidecar_free_inner(uint8_t *sc) {
   grow_vec_free((GrowVec *)(sc + 880));
   grow_vec_free((GrowVec *)(sc + 912));
   memset(sc, 0, W275_ONEFUNC_SC_SIZE);
+  w275_onefunc_shrink_hi();
 }
 void onefunc_sidecar_free(void *sc) { onefunc_sidecar_free_inner((uint8_t *)sc); }
 void *arena_sidecar_get(void *key, int create) {
@@ -41608,17 +41659,21 @@ void *module_sidecar_get(void *key, int create) {
 }
 void *onefunc_sidecar_get(void *key, int create) {
   int i;
+  int lim;
   uint8_t *hit;
   if (!key) return NULL;
-  hit = w275_sidecar_recall(g_w275_onefunc_last_key0, g_w275_onefunc_last_sc0,
-                            g_w275_onefunc_last_key1, g_w275_onefunc_last_sc1, key);
+  hit = w275_onefunc_mru_recall(key);
   if (hit)
     return hit;
-  for (i = 0; i < W275_ONEFUNC_SC_MAX; i++) {
+  lim = g_w275_onefunc_used_hi;
+  if (lim < 0)
+    lim = 0;
+  if (lim > W275_ONEFUNC_SC_MAX)
+    lim = W275_ONEFUNC_SC_MAX;
+  for (i = 0; i < lim; i++) {
     uint8_t *sc = w275_onefunc_sc_at(i);
     if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
-      w275_sidecar_remember(&g_w275_onefunc_last_key0, &g_w275_onefunc_last_sc0,
-                            &g_w275_onefunc_last_key1, &g_w275_onefunc_last_sc1, key, sc);
+      w275_onefunc_mru_remember(key, sc);
       return sc;
     }
   }
@@ -41628,6 +41683,8 @@ void *onefunc_sidecar_get(void *key, int create) {
     if (w275_load_i32(sc, 8) == 0) {
       w275_store_ptr(sc, 0, key);
       w275_store_i32(sc, 8, 1);
+      if (i + 1 > g_w275_onefunc_used_hi)
+        g_w275_onefunc_used_hi = i + 1;
       if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)4, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
@@ -41715,8 +41772,7 @@ void *onefunc_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 912), (size_t)272, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
-      w275_sidecar_remember(&g_w275_onefunc_last_key0, &g_w275_onefunc_last_sc0,
-                            &g_w275_onefunc_last_key1, &g_w275_onefunc_last_sc1, key, sc);
+      w275_onefunc_mru_remember(key, sc);
       return sc;
     }
   }
