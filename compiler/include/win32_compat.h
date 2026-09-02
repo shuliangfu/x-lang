@@ -88,6 +88,24 @@ static inline char *realpath(const char *path, char *resolved) {
 #define access _access
 #endif
 
+/* read/write/rmdir/unlink — MinGW CRT is _read/_write/_rmdir/_unlink.
+ * Product -E dumps emit xlang_sys_read/write → POSIX read()/write()/rmdir().
+ * Without these aliases MinGW -Werror=implicit-function-declaration fails
+ * rt-prefer of src/runtime_driver_no_c.o.
+ * PLATFORM: WINDOWS | MSYS | MINGW — same pattern as access → _access. */
+#ifndef read
+#define read _read
+#endif
+#ifndef write
+#define write _write
+#endif
+#ifndef rmdir
+#define rmdir _rmdir
+#endif
+#ifndef unlink
+#define unlink _unlink
+#endif
+
 /* setenv / unsetenv — MinGW lacks these POSIX functions.
  * Why: Historically defined inline here; now provided by shared header
  *      xlang_posix_env.h (also pulled in via include/unistd.h). The shared

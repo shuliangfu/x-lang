@@ -212,7 +212,10 @@ g05_try_x_to_o() {
     echo '#include <xlang_fmt_cap.h>'
     echo '#undef snprintf'
     echo '#define snprintf xlang_snprintf'
-    echo '#ifndef _WIN32'
+    echo '#ifdef _WIN32'
+    # PLATFORM: WINDOWS — twin of ensure_host_cc_seed_o rt-prefer prologue.
+    echo '#include "win32_compat.h"'
+    echo '#else'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'

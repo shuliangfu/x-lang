@@ -1951,7 +1951,11 @@ rt_prefer_try_x_to_o() {
     echo '#include <stdlib.h>'
     echo '#include <string.h>'
     echo '#include <stdio.h>'
-    echo '#ifndef _WIN32'
+    echo '#ifdef _WIN32'
+    # PLATFORM: WINDOWS — -E dumps call POSIX read/write/rmdir; MinGW CRT is
+    # _read/_write/_rmdir. win32_compat.h is the alias authority (access too).
+    echo '#include "win32_compat.h"'
+    echo '#else'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'
