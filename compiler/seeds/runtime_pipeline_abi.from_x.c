@@ -27653,9 +27653,40 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  * Heavy fields_elf: hybrid product links pure (FROM_X set). Cold stub returns -1
  * for fields_elf only (wave153 body_sync pattern). L2 hybrid uses pure.
  * PLATFORM: SHARED freestanding cold seed path.
+ *
+ * Glue_type leftover cluster (surgical extract at the start of this independent
+ * wave154 ifndef, not nested in wave149): glue_type_size_simple +
+ * glue_type_align_simple + helpers glue_type_is_empty_struct_c /
+ * glue_struct_layout_metrics_c / w154_layout_name_eq.
+ * Unique lists glue_type_size_simple + glue_type_align_simple.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave154).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Close the OR after
+ * glue_type_align_simple and reopen #ifndef FROM_X for the rest of wave154
+ * (struct_lit / named_layout / module storage / wave178). Same produce point
+ * as F7: inserting an OR inside a FALSE outer ifndef is never parsed when
+ * FROM_X is set — here the wave154 opening IS the independent ifndef, so
+ * convert it and slice. Header does not declare size/align (not a dual-decl).
+ * Always-compiled proto of size/align is absent in this TU (closed-block
+ * externs only). Cluster callees use FROM_X-rest signatures: name_byte_at
+ * is uint8_t (not int32_t); ndep uses always-compiled struct* proto @2724
+ * (do not re-extern void*). glue_vector_type_lanes_esz_c stays closed in
+ * wave132 (not unique); leftover rest externs it (SAT / leftover standalone).
+ * Do not convert neighboring typeck_typeck_struct_layout_metrics (not unique)
+ * or glue_type_named_layout_size_any_module_elf_c (nested in wave178).
+ * pipeline_asm_emit_expr_elf_rec stays closed (nested in wave149).
+ * pipeline_elf_ctx_append_reloc_absolute64 stays closed (rest of wave273).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
+/* Cluster callees only. Signatures match always-compiled FROM_X rest
+ * (header proto of ndep @2724 is struct ast_PipelineDepCtx*; name_byte_at
+ * @47876 is uint8_t). Do not re-extern void* ndep — dual-decl vs @2724.
+ * Unused wave154 rest externs stay in the reopen ifndef. */
 extern int32_t pipeline_type_kind_ord_at(void *a, int32_t ref);
 extern int32_t pipeline_type_named_name_into(void *a, int32_t ref, uint8_t *out64);
 extern int32_t pipeline_type_elem_ref_at(void *a, int32_t ref);
@@ -27663,38 +27694,28 @@ extern int32_t pipeline_type_array_size_at(void *a, int32_t ref);
 extern int32_t pipeline_arena_num_types(void *a);
 extern int32_t pipeline_module_num_struct_layouts_at(void *m);
 extern int32_t pipeline_module_struct_layout_name_len(void *m, int32_t idx);
-extern int32_t pipeline_module_struct_layout_name_byte_at(void *m, int32_t idx, int32_t off);
+extern uint8_t pipeline_module_struct_layout_name_byte_at(void *m, int32_t idx, int32_t off);
 extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
 extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
 extern int32_t pipeline_module_struct_layout_field_align_at(void *m, int32_t li, int32_t j);
-extern int32_t pipeline_module_struct_layout_field_offset_at(void *m, int32_t li, int32_t j);
 extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t fi);
 extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t fi, uint8_t *out64);
 extern void pipeline_module_struct_layout_name_into(void *m, int32_t idx, uint8_t *out64);
-extern void pipeline_module_struct_layout_set_field_offset(void *m, int32_t li, int32_t j, int32_t foff);
 extern int32_t pipeline_module_struct_layout_packed_at(void *m, int32_t idx);
 extern int32_t pipeline_module_struct_layout_allow_padding_at(void *m, int32_t idx);
 extern int32_t typeck_x_type_size_from_layout_glue(void *m, void *a, int32_t li, int32_t depth);
 extern int32_t typeck_soa_array_storage_size_glue(void *m, void *a, int32_t elem, int32_t alen, int32_t depth);
 extern void *pipeline_asm_emit_dep_pipe_c(void);
-extern int32_t pipeline_dep_ctx_ndep(void *ctx);
 extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t di);
 extern void *pipeline_dep_ctx_arena_at(void *ctx, int32_t di);
-extern void *glue_arena_expr_at_ref(void *a, int32_t expr_ref);
-extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
 extern int32_t pipeline_driver_asm_build_skip_typeck(void);
 extern void driver_diagnostic_typeck_struct_padding_before(uint8_t *s, int32_t sl, int32_t gap, uint8_t *f, int32_t fl);
 extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *s, int32_t sl, int32_t gap);
 extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *s, int32_t sl, uint8_t *f, int32_t fl);
-extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t *s, int32_t sl, uint8_t *f0, int32_t f0l, uint8_t *f1, int32_t f1l);
-extern void driver_diagnostic_warn_hot_reorder_field(uint8_t *s, int32_t sl, uint8_t *h, int32_t hl, uint8_t *c, int32_t cl);
-extern char *link_abi_getenv(const char *name);
-extern int32_t pipeline_typeck_type_refs_equal_c(void *a, int32_t x, int32_t y);
-extern void *pipeline_asm_emit_module_ref_c(void);
-extern void pipeline_asm_emit_set_module(void *m);
-extern int32_t glue_sysv_dual_gp_byte_size_c(void *a, int32_t ty);
-extern int32_t glue_type_named_layout_size_any_module_elf_c(void *a, int32_t ty);
-extern int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t er, int32_t j);
+/* Not unique; body stays in closed wave132. WIN leftover rest U it; SAT /
+ * leftover standalone provide T. PLATFORM: WINDOWS leftover-PE hybrid. */
+extern int32_t glue_vector_type_lanes_esz_c(void *a, int32_t ty_ref, int32_t *out_lanes,
+                                           int32_t *out_esz);
 
 /* LP64 Expr peels matching pure */
 #define W154_EXPR_OFF_SL_NAME 536
@@ -27778,7 +27799,8 @@ int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
     }
     dep = pipeline_asm_emit_dep_pipe_c();
     if (dep) {
-      nd = pipeline_dep_ctx_ndep(dep);
+      /* Always-compiled proto @2724 is struct ast_PipelineDepCtx* (not void*). */
+      nd = pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)dep);
       for (di = 0; di < nd; di++) {
         dm = pipeline_dep_ctx_module_at(dep, di);
         da = pipeline_dep_ctx_arena_at(dep, di);
@@ -27898,6 +27920,10 @@ int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) 
   }
   return 1;
 }
+
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_type cluster */
 
 int32_t typeck_typeck_struct_layout_metrics(void *module, void *arena, int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
   return glue_struct_layout_metrics_c(module, arena, li, depth, check_pad, out_sz, out_al);

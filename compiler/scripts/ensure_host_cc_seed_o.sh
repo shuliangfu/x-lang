@@ -3316,9 +3316,18 @@ ensure_pipeline_abi_prefer_one() {
   #          of remaining unique; do not convert neighboring
   #          xlang_asm_codegen_elf_o_product_emit / thread_fn_ptr — not
   #          unique — or xlang_driver_asm_prepare_entry_elf_emit — calls
-  #          closed debug_trace).
-  #          Larger twins (emit_expr_elf_rec / glue_type_size /
-  #          append_reloc_absolute64) stay closed (helper/dual-decl).
+  #          closed debug_trace) +
+  #          glue_type leftover cluster (surgical extract at start of
+  #          independent wave154 ifndef: size_simple + align_simple +
+  #          helpers empty_struct / layout_metrics / w154_layout_name_eq;
+  #          unique lists size_simple + align_simple; leftover standalone
+  #          defines 0 of remaining unique; glue_vector_type_lanes_esz_c
+  #          stays closed — not unique — leftover rest externs it; do not
+  #          convert neighboring typeck_typeck_struct_layout_metrics — not
+  #          unique — or glue_type_named_layout_size_any_module_elf_c —
+  #          nested in wave178).
+  #          Larger twins (emit_expr_elf_rec / append_reloc_absolute64)
+  #          stay closed (nested wave149 / rest of wave273).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
