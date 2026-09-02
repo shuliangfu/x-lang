@@ -467,9 +467,17 @@ void xlang_path_try_realpath_inplace(char *path, size_t path_size);
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-33 / wave73: hybrid pure owns flag BSS + slot; cold twin under #ifndef FROM_X.
- * PLATFORM: SHARED — same sticky int as pure g_pipe_diag_emitted_flag. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-33 / wave73: hybrid pure owns flag BSS + slot; cold twins under #ifndef FROM_X
+ * (emitted_get/reset/note + import_open_fail_once + merge_dep_missing + preprocess_*).
+ * PLATFORM: SHARED — same sticky int as pure g_pipe_diag_emitted_flag.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns pipeline_diag_emitted_get /
+ * emitted_reset / import_open_fail_once / merge_dep_missing. leftover standalone defines
+ * 0 of remaining unique. Independent ifndefs (not nested in wave149/154/273). Same produce
+ * point as wave123: OR WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares functions; seed defines them (not a dual-decl). path wrappers /
+ * pipeline_set_dep_slots stay closed. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 static int pipeline_diag_emitted_flag;
 
 int32_t *pipeline_diag_emitted_flag_slot(void) {
@@ -480,7 +488,8 @@ static int pipeline_last_import_open_valid;
 static char pipeline_last_import_open_import[65];
 static char pipeline_last_import_open_resolved[PATH_MAX];
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_emitted_reset(void) {
   (void)(({   {
     int32_t * p = pipeline_diag_emitted_flag_slot();
@@ -490,7 +499,8 @@ void pipeline_diag_emitted_reset(void) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_emitted_note(void) {
   (void)(({   {
     int32_t * p = pipeline_diag_emitted_flag_slot();
@@ -500,7 +510,8 @@ void pipeline_diag_emitted_note(void) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t pipeline_diag_emitted_get(void) {
   (void)(({   {
     int32_t * p = pipeline_diag_emitted_flag_slot();
@@ -516,7 +527,8 @@ int32_t pipeline_diag_emitted_get(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 /* G-02f-227：逻辑源 .x（真迁）；seed 保留 printf 细文案 + 去重表 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
     const char *import_key = import_path ? import_path : "?";
     const char *resolved_key = resolved_path ? resolved_path : "?";
@@ -539,7 +551,8 @@ void pipeline_diag_import_open_fail_once(const char *import_path, const char *re
 
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（含 printf 细文案） */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_report_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
@@ -547,7 +560,8 @@ void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_preprocess_fail(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
@@ -557,7 +571,8 @@ void pipeline_diag_preprocess_fail(const char *path_diag) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave46 Cap residual pure: directive code map in .x; cold twin below. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* 指令级失败码（preprocess_x_buf 负返回值）→ 历史 C 文案。 */
 void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code) {
     const char *msg = NULL;
@@ -583,7 +598,8 @@ void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_IMPORT_IMP002, NULL,
@@ -594,7 +610,8 @@ void pipeline_diag_import_preprocess_fail(const char *import_path, const char *r
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005, NULL,
@@ -604,7 +621,8 @@ void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_diag_merge_dep_missing(const char *import_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(import_path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP004, NULL,
