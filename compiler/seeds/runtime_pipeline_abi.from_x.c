@@ -787,8 +787,19 @@ void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
 /* G-02f-240 / wave61：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Pure orch: scratch + define table + preprocess_x_buf + owned dup; Cap residual
  * preprocess_* engine; pure pipeline_diag_preprocess_* (oversized reportf cold-only).
- * PLATFORM: SHARED. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * preprocess_raw_to_malloc / _impl. Converted with the load_direct cluster
+ * because resolve_read_preprocess calls the wrapper. Independent ifndef
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares wrapper (int); seed defines it (not a dual-decl).
+ * FROM_X proto of _impl at wave61 is prototype+definition, not dual.
+ * Always-compiled proto of _impl at G-02f-54 is prototype+definition, not dual.
+ * Public xlang_preprocess / with_path / quiet stay closed this wave
+ * (separate unique; they call _impl). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag) {
     int di;
@@ -3355,8 +3366,31 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 供 parse-only 填 dep struct layout；避免 xlang_collect_deps_transitive 耗时/失败。
  * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
  */
-/* wave46 pure in .x; cold twin for non-PREFER product. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave46 pure in .x; cold twin for non-PREFER product.
+ * G-02f-236: hybrid pure owns xlang_module_num_imports
+ * (null module → 0; else parser_get_module_num_imports).
+ * PLATFORM: SHARED — parser_x authority for import count.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * load_direct_imports_for_asm_layout / _impl / module_num_imports /
+ * load_one_direct_resolve_read_preprocess / load_one_direct_import_at /
+ * load_direct_fail_cleanup.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares load_direct wrapper (int); seed defines it (not a dual-decl).
+ * Always-compiled proto of _impl at G-02f-61 is prototype+definition, not dual.
+ * FROM_X proto of module_num_imports / resolve_read / import_at / fail_cleanup
+ * at wave46/51/55 is prototype+definition, not dual.
+ * Unlike merge/one_ctx, _impl is still ifndef — convert it with the wrapper.
+ * wrapper calls _impl; _impl calls module_num_imports + import_at + fail_cleanup;
+ * import_at calls resolve_read; resolve_read calls already-OR'd path wrappers /
+ * pipeline_diag and preprocess_raw_to_malloc (converted with this cluster).
+ * parser_get_module_num_imports / parser_get_module_import_path already
+ * always-compiled externs.
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * Public xlang_preprocess / lsp_free_loaded_imports stay closed this wave. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* G-02f-236：module import 计数（.x 编排） */
 int32_t xlang_module_num_imports(void *module) {
     if (!module)
@@ -3368,8 +3402,10 @@ int32_t xlang_module_num_imports(void *module) {
 /* wave55 pure in .x; cold twin for non-PREFER product.
  * wave51 Cap residual always-seed → wave55 pure orch (stack PATH + FileView + pure resolve/preprocess).
  * Pure load_one orch stores dep slots; paths_tmp reuses this (G.7).
- * PLATFORM: SHARED — PATH_MAX stack + XlangRuntimeFileView cold twin only. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED — PATH_MAX stack + XlangRuntimeFileView cold twin only.
+ * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
     size_t *out_prep_len) {
@@ -3408,8 +3444,10 @@ int xlang_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, in
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
  * G-02f-236：单项 Cap residual resolve/read/preprocess + store dep 槽 mi；0 成功，1 失败。
- * Cold uses libc strdup (same as historical); pure orch uses Cap residual xlang_collect_strdup. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * Cold uses libc strdup (same as historical); pure orch uses Cap residual xlang_collect_strdup.
+ * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
     const char *import_key, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int32_t mi) {
@@ -3439,8 +3477,10 @@ int xlang_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots,
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
- * G-02f-236：失败时释放 0..mi-1 已写 dep_sources/dep_paths */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * G-02f-236：失败时释放 0..mi-1 已写 dep_sources/dep_paths.
+ * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi) {
     while (mi > 0) {
         mi--;
@@ -3456,8 +3496,11 @@ void xlang_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int3
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-236：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（cold only under non-FROM_X） */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-236：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（cold only under non-FROM_X）.
+ * Unlike merge/one_ctx, _impl is still ifndef — convert with the wrapper.
+ * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {
@@ -3491,8 +3534,10 @@ int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-236：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-236：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc.
+ * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {

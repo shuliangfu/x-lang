@@ -3260,14 +3260,21 @@ ensure_pipeline_abi_prefer_one() {
   #          one_ctx_for_dep_prerun + map_impl + find_loaded_import_index +
   #          _scan (independent ifndefs; wrapper calls always-compiled _impl;
   #          _impl already calls map_impl; map_impl calls find_loaded_import_index
-  #          which calls _scan; leftover standalone defines 0 of remaining unique).
+  #          which calls _scan; leftover standalone defines 0 of remaining unique) +
+  #          load_direct_imports_for_asm_layout + _impl + module_num_imports +
+  #          load_one_direct_resolve_read_preprocess + load_one_direct_import_at +
+  #          load_direct_fail_cleanup + preprocess_raw_to_malloc / _impl
+  #          (independent ifndefs; unlike merge/one_ctx, _impl is still ifndef —
+  #          convert it with the wrapper; resolve_read calls already-OR'd path
+  #          wrappers / pipeline_diag plus preprocess_raw_to_malloc; leftover
+  #          standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
-  #          (void* vs struct* extern). xlang_load_direct_imports_for_asm_layout
-  #          stays closed this wave (needs _impl still ifndef + load_one_direct
-  #          helpers; _impl is not always compiled).
+  #          (void* vs struct* extern). Public xlang_preprocess / with_path /
+  #          quiet and xlang_lsp_free_loaded_imports stay closed this wave
+  #          (separate unique; lsp _impl already always compiled).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
