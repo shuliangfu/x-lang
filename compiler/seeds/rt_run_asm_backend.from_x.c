@@ -564,10 +564,30 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
-                lib_roots_arr, n_lib_roots);
-            xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
-            (const uint8_t *)dep_sources[j], dep_lens[j]);
+            /* Import-map ctx is consumed only by parse_skip_typeck / for_asm_module_o.
+             * parse_only does not take ctx; skip map_impl's throwaway tmp parse of
+             * the same source (P2 Darwin -o: hello prerun was ~50% discarded parse).
+             * PLATFORM: SHARED — leftover/cold twin of rt_run_asm_backend.x.
+             */
+            int need_import_map = 1;
+            if (asm_smoke_only)
+                need_import_map = 0;
+            else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j]))
+                need_import_map = 0;
+            else if (emit_elf_o && xlang_asm_user_dep_parse_skip_typeck_path(dep_paths[j]))
+                need_import_map = 1;
+            else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0)
+                need_import_map = 0;
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
+            else if (emit_elf_o && !asm_smoke_only && !driver_asm_build_skip_typeck())
+                need_import_map = 0;
+#endif
+            if (need_import_map) {
+                xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
+                    lib_roots_arr, n_lib_roots);
+                xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+                (const uint8_t *)dep_sources[j], dep_lens[j]);
+            }
             /*
              * 无 -o 烟测：dep 仅 parse 填槽；全量 .x typeck 在 strict typeck.o 上对 std.io 等大库易 SIGSEGV。
              * 有 -o 用户链仍 typeck dep（std.io 经 seed bridge）；入口走 C typeck。

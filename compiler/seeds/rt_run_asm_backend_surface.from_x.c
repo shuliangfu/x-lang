@@ -1441,6 +1441,7 @@ int32_t rt_ab_step_prerun(void) {
   uint8_t * prerun_dir = ((uint8_t *)(0));
   int32_t ec_loop = 0;
   int32_t skip_tk = 0;
+  int32_t need_import_map = 0;
   {
     (void)((n_deps = driver_asm_work_i_get(ai_ndeps())));
     (void)((emit_elf = driver_asm_work_i_get(ai_emit_elf())));
@@ -1511,7 +1512,35 @@ int32_t rt_ab_step_prerun(void) {
       (void)(rt_ab_diag(((uint8_t *)(0)), 3, 6, 7));
       return 1;
     }
-    {
+    /* Import-map ctx is consumed only by parse_skip_typeck / for_asm_module_o.
+     * parse_only does not take ctx; skip map_impl's throwaway tmp parse.
+     * PLATFORM: SHARED — twin of rt_run_asm_backend.x rt_ab_step_prerun.
+     */
+    need_import_map = 1;
+    if ((smoke !=0)) {
+      need_import_map = 0;
+    } else {
+      if ((emit_elf !=0)) {
+        if ((xlang_asm_user_std_dep_skip_x_typeck(dep_path) !=0)) {
+          need_import_map = 0;
+        } else {
+          if ((xlang_asm_user_dep_parse_skip_typeck_path(dep_path) !=0)) {
+            need_import_map = 1;
+          } else {
+            if ((skip_tk ==0)) {
+              if ((eo !=0)) {
+                need_import_map = 0;
+              } else {
+                if ((driver_asm_use_compiler_impl_c() !=0)) {
+                  need_import_map = 0;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if ((need_import_map !=0)) {
       (void)((prerun_dir = xlang_dep_prerun_entry_dir(entry, lib, nlib)));
       (void)(xlang_pipeline_fill_ctx_path_buffers(one, prerun_dir, lib, nlib));
       (void)(xlang_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len));
