@@ -71,11 +71,15 @@ pure_ld_platform_prefix() {
 #           returns empty — same as experimental_bootstrap. Do NOT reintroduce.
 # PLATFORM: LINUX — GNU ld still supports --allow-multiple-definition (thin
 #           inject first-wins / residual strong overlays).
+# PLATFORM: WINDOWS — MinGW/MSYS ld is GNU-like; same flag for leftover-PE
+#           pabi rest+standalone first-wins merge (709 overlapping T). Darwin
+#           stays empty (obsolete -multiply_defined).
 # ---------------------------------------------------------------------------
 pure_ld_multidef_flags() {
   case "$(uname -s 2>/dev/null || echo Unknown)" in
     Darwin) printf '%s\n' "" ;;
     Linux) printf '%s\n' "--allow-multiple-definition" ;;
+    MINGW*|MSYS*|CYGWIN*) printf '%s\n' "--allow-multiple-definition" ;;
     *) printf '%s\n' "" ;;
   esac
 }

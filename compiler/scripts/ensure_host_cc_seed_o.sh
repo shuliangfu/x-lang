@@ -3220,12 +3220,44 @@ ensure_pipeline_abi_prefer_one() {
   # hybrid rt_prefer_try_x_to_o would launch ./xlang -E of mega
   # runtime_pipeline_abi.x (92k LOC; hang / multi-GB RSS, stderr discarded).
   # SAT rebuild sets XLANG_HOST_CC_SEED_FORCE=1 which skips the inject-only
-  # keep above. Keep existing hybrid $o; same contract as inject keep
-  # (407040853) but BEFORE launch — leftover PE mega -E does not fail, it hangs.
+  # keep above. Do NOT keep leftover hybrid $o: Windows leftover pabi is tens
+  # of KiB (FROM_X rest without thin) vs ~1.4MiB POSIX hybrid, and omits
+  # pipeline_type_* / pipeline_asm_* / ast_pool_* that tip glue UNDEF at phase1.
+  # Cold full seed (no FROM_X) hits 251 void*/struct* dual-decls in
+  # seeds/runtime_pipeline_abi.from_x.c — not a viable identity path (wave176).
+  # G.7 有则补全 of the POSIX hybrid rest CC line + pure_ld_partial_merge:
+  #   rest = host-cc seed under -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X (3s, 220KiB)
+  #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
+  #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
+  #          on-disk provider of the ifndef-FROM_X cold twins when PE cannot -E)
+  # Merge rest-first so tip FROM_X wins overlaps; leftover fills missing twins.
   # POSIX (Linux gold / Darwin): FORCE hybrid -E stays the product path.
-  if pipeline_abi_windows_leftover_pe_cannot_e \
-    && [ -s "$o" ] && ! pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi prefer: keep existing $o (Windows leftover PE cannot -E mega; skip FORCE hybrid)"
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    local win_rest win_thin win_sz
+    win_thin="build_asm/pipeline_glue_standalone.o"
+    mkdir -p "$(dirname "$o")"
+    if [ ! -s "$win_thin" ]; then
+      echo "ensure_host_cc_seed_o: Windows leftover PE cannot -E; missing $win_thin (cold twins)" >&2
+      return 1
+    fi
+    win_rest="$(mktemp "${TMPDIR:-/tmp}/pabi_win_rest.XXXXXX")"
+    log "pipeline_abi prefer: leftover PE cannot -E mega; host-cc FROM_X rest + leftover standalone thin"
+    # shellcheck disable=SC2086
+    if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+         -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+         -c -o "$win_rest" "$seed"; then
+      echo "ensure_host_cc_seed_o: Windows FROM_X rest cc failed for $o" >&2
+      rm -f "$win_rest"
+      return 1
+    fi
+    if ! pure_ld_partial_merge "$o" "$win_rest" "$win_thin"; then
+      echo "ensure_host_cc_seed_o: Windows rest+standalone merge failed for $o" >&2
+      rm -f "$win_rest"
+      return 1
+    fi
+    rm -f "$win_rest"
+    win_sz=$(wc -c <"$o" | tr -d ' ')
+    log "prefer Windows leftover-PE hybrid $o <- FROM_X rest + $win_thin (${win_sz:-0}B)"
     return 0
   fi
 
@@ -3238,7 +3270,9 @@ ensure_pipeline_abi_prefer_one() {
   # ensure_prereqs → pure-ld phase1 missing src/runtime_pipeline_abi.o.
   # Cold full seed is not a viable identity path until seed dual-decls are
   # cleaned; egg hybrid is the single working product cold path for this leaf.
+  # PLATFORM: WINDOWS — leftover PE cannot -E; skip this block (predicate).
   if [ -f "$x_src" ] \
+    && ! pipeline_abi_windows_leftover_pe_cannot_e \
     && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
