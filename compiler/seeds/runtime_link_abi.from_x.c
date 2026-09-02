@@ -2681,18 +2681,28 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
 #endif
 
+/* P2 Darwin -o compress sibling: these two _impls share the one-slot
+ * per-path cache defined later (UNDEF + T/t + all-names). Forward decls
+ * so the public bodies can sit next to their wave210/211 comments. */
+static int xlang_undef_cache_load(const char *o_path);
+static int xlang_all_cache_has_substr(const char *needle);
+static int xlang_undef_cache_has_substr(const char *needle);
+
 /**
- * Cap residual (wave211): host nm/popen export-marker probe body.
+ * Cap residual (wave211): export-marker substring probe body.
  * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
  * Params: obj_o / marker — caller pure already rejected null/empty (defense in depth here too).
- * Returns: 1 if any nm line contains marker substring, else 0.
- * PLATFORM: SHARED — host realpath via link_abi_realpath_cap (wave261) + popen nm;
+ * Returns: 1 if any symbol name contains marker substring, else 0.
+ *
+ * P2 Darwin -o compress sibling: hello -o still spawned 11 full-nm after
+ * UNDEF + T/t caches (3 markers + 8 UNDEF/prefix needles on one user.o).
+ * G.7 complete: same mmap fills an all-names blob; lookup is in-process
+ * strstr. Markers are data (`d`/`s`/`b`), not T/t — do not reuse the
+ * defined blob. PLATFORM: SHARED residual; LINUX ELF / DARWIN Mach-O;
+ * nm once fallback. realpath via link_abi_realpath_cap (wave261);
  * Windows hybrid via tools (face null → use path as-is).
  */
 int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
-    char cmd[PATH_MAX + 96];
-    FILE *fp;
-    char line[512];
     const char *use = obj_o;
     static char resolved[PATH_MAX];
     if (!obj_o || !obj_o[0] || !marker || !marker[0])
@@ -2702,25 +2712,16 @@ int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
     if (link_abi_realpath_cap(obj_o, resolved) != NULL)
         use = resolved;
 #endif
-    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", use) >= sizeof cmd)
+    if (!xlang_undef_cache_load(use))
         return 0;
-    fp = popen(cmd, "r");
-    if (!fp)
-        return 0;
-    while (fgets(line, sizeof line, fp)) {
-        if (strstr(line, marker) != NULL) {
-            pclose(fp);
-            return 1;
-        }
-    }
-    pclose(fp);
-    return 0;
+    return xlang_all_cache_has_substr(marker);
 }
 
 /* wave211: link_abi_obj_exports_marker pure orch lives in labi_ondemand_list.x (hybrid L8b);
  * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
  * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
- * Pure: null/empty gates; Cap residual link_abi_obj_exports_marker_impl (nm/popen) always mega.
+ * Pure: null/empty gates; Cap residual link_abi_obj_exports_marker_impl
+ * (all-names cache substring; same mmap as UNDEF/T/t) always mega.
  * Why: hybrid still had exports_marker body always mega C (gates+nm).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
 #ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X
@@ -2731,17 +2732,21 @@ int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 
 
 /**
- * Cap residual (wave210): host nm/popen UNDEF substring probe body.
+ * Cap residual (wave210): UNDEF substring probe body.
  * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
  * Params: obj_o / sym — caller pure already rejected null/empty (defense in depth here too).
- * Returns: 1 if any nm line has " U " and contains sym, else 0.
- * PLATFORM: SHARED — host realpath via link_abi_realpath_cap (wave261) + popen nm;
- * Windows hybrid via tools (face null → use path as-is).
+ * Returns: 1 if any UNDEF name contains sym, else 0.
+ *
+ * Historical: popen full nm, require " U " and strstr(line, needle). Needles
+ * are prefix (`ZSTD_` / `_ZSTD`) or Darwin-underscore exact (`_compress2`).
+ * G.7 complete: substring over the UNDEF cache blob from the same mmap.
+ * Darwin reconstructs one leading '_' so `_ZSTD` still hits stripped
+ * `ZSTD_compress`; Linux does not (ELF nm has no '_', so `_compress2`
+ * historically missed — do not "fix" that). PLATFORM: SHARED residual;
+ * LINUX ELF / DARWIN Mach-O; nm once fallback. realpath via
+ * link_abi_realpath_cap (wave261); Windows hybrid via tools.
  */
 int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym) {
-    char cmd[PATH_MAX + 96];
-    FILE *fp;
-    char line[512];
     const char *use = obj_o;
     static char resolved[PATH_MAX];
     if (!obj_o || !obj_o[0] || !sym || !sym[0])
@@ -2751,25 +2756,16 @@ int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym) {
     if (link_abi_realpath_cap(obj_o, resolved) != NULL)
         use = resolved;
 #endif
-    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", use) >= sizeof cmd)
+    if (!xlang_undef_cache_load(use))
         return 0;
-    fp = popen(cmd, "r");
-    if (!fp)
-        return 0;
-    while (fgets(line, sizeof line, fp)) {
-        if (strstr(line, " U ") != NULL && strstr(line, sym) != NULL) {
-            pclose(fp);
-            return 1;
-        }
-    }
-    pclose(fp);
-    return 0;
+    return xlang_undef_cache_has_substr(sym);
 }
 
 /* wave210: link_abi_obj_has_undef_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
  * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
  * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
- * Pure: null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl (nm/popen) always mega.
+ * Pure: null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl
+ * (UNDEF cache substring; same mmap as needs_undef) always mega.
  * Why: hybrid still had has_undef_sym body always mega C (gates+nm).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
 #ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X
@@ -3971,18 +3967,20 @@ static int xlang_elf64_obj_scan_undef(const char *o_path, const char *want_sym) 
 #endif /* __linux__ */
 
 /*
- * One-slot per-path UNDEF + defined (T/t) name cache.
+ * One-slot per-path UNDEF + defined (T/t) + all-names cache.
  *
  * Produce-point (P2 Darwin -o): every product -o walks on_demand std gates
  * (heap / sys / vec / async / …) and each gate calls needs_undef once per
  * symbol. The previous body popen("nm -u") + fgets per probe. Darwin hello
  * -o was ~17s / ~2.3M page-reclaims, sample 100% in posix_spawn+read of nm.
- * Sibling (this knife): has_defined_sym_impl still popen("nm") T/t per probe
- * (hello -o: 11 full-nm on the same user.o after the UNDEF cache). G.7
- * complete: one mmap fills both blobs; lookups stay in-process.
+ * Sibling 1: has_defined_sym_impl still popen("nm") T/t per probe.
+ * Sibling 2 (this knife): compress orch still popen full nm 11 times per
+ * hello -o (exports_marker strstr + has_undef " U "+needle). G.7 complete:
+ * one mmap fills UNDEF + T/t + all-names; lookups stay in-process.
  *
  * Blob: concatenated NUL-terminated bare names (leading '_' stripped).
  * Defined blob matches historical nm T/t only (text; not D/S/B/W).
+ * All-names blob is every non-debug symbol (markers live in d/s/b).
  * PLATFORM: SHARED cache; loaders LINUX ELF / DARWIN Mach-O / nm once fallback.
  */
 #define XLANG_UNDEF_CACHE_BLOB_MAX (256u * 1024u)
@@ -3991,6 +3989,8 @@ static char g_undef_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
 static size_t g_undef_cache_blob_len;
 static char g_defined_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
 static size_t g_defined_cache_blob_len;
+static char g_all_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
+static size_t g_all_cache_blob_len;
 static int g_undef_cache_ready;
 
 static int xlang_nameblob_append(char *blob, size_t *len, const char *name) {
@@ -4025,10 +4025,42 @@ static int xlang_nameblob_has(const char *blob, size_t len, const char *sym) {
     return 0;
 }
 
+/**
+ * Substring search over a name blob (historical nm strstr).
+ * PLATFORM: DARWIN — stored names are stripped; reconstruct one leading '_'
+ * so needles like `_compress2` / `_ZSTD` still hit. LINUX/WINDOWS — no
+ * extra '_' (ELF/COFF nm lines have no Mach-O prefix; do not invent one).
+ */
+static int xlang_nameblob_has_substr(const char *blob, size_t len, const char *needle) {
+    size_t i = 0;
+    size_t nlen;
+    if (!needle || !needle[0] || !blob)
+        return 0;
+    nlen = strlen(needle);
+    while (i < len) {
+        const char *name = blob + i;
+        size_t n = strlen(name);
+        if (n >= nlen && strstr(name, needle) != NULL)
+            return 1;
+#if defined(__APPLE__)
+        if (n + 1 >= nlen && n + 2 <= 512) {
+            char rec[512];
+            rec[0] = '_';
+            memcpy(rec + 1, name, n + 1);
+            if (strstr(rec, needle) != NULL)
+                return 1;
+        }
+#endif
+        i += n + 1;
+    }
+    return 0;
+}
+
 static void xlang_undef_cache_reset(void) {
     g_undef_cache_path[0] = '\0';
     g_undef_cache_blob_len = 0;
     g_defined_cache_blob_len = 0;
+    g_all_cache_blob_len = 0;
     g_undef_cache_ready = 0;
 }
 
@@ -4040,6 +4072,10 @@ static int xlang_defined_cache_append_name(const char *name) {
     return xlang_nameblob_append(g_defined_cache_blob, &g_defined_cache_blob_len, name);
 }
 
+static int xlang_all_cache_append_name(const char *name) {
+    return xlang_nameblob_append(g_all_cache_blob, &g_all_cache_blob_len, name);
+}
+
 static int xlang_undef_cache_has(const char *sym) {
     return xlang_nameblob_has(g_undef_cache_blob, g_undef_cache_blob_len, sym);
 }
@@ -4048,9 +4084,17 @@ static int xlang_defined_cache_has(const char *sym) {
     return xlang_nameblob_has(g_defined_cache_blob, g_defined_cache_blob_len, sym);
 }
 
+static int xlang_undef_cache_has_substr(const char *needle) {
+    return xlang_nameblob_has_substr(g_undef_cache_blob, g_undef_cache_blob_len, needle);
+}
+
+static int xlang_all_cache_has_substr(const char *needle) {
+    return xlang_nameblob_has_substr(g_all_cache_blob, g_all_cache_blob_len, needle);
+}
+
 #if defined(__APPLE__)
 /**
- * Fill UNDEF + defined (T/t) caches from a thin Mach-O 64 object.
+ * Fill UNDEF + defined (T/t) + all-names caches from a thin Mach-O 64 object.
  * @return 1 if the file is a parseable Mach-O 64 (even with 0 names); 0 if
  *         not Mach-O / mmap fail — caller falls back to nm.
  * PLATFORM: DARWIN — in-process nlist_64 scan; no popen.
@@ -4150,6 +4194,11 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
         name = strtab + strx;
         if (!name[0])
             continue;
+        /* All-names: markers are data (d/s/b), not T/t. Fill every non-STAB. */
+        if (!xlang_all_cache_append_name(name)) {
+            munmap(map, sz);
+            return 0;
+        }
         if ((nt & N_TYPE) == N_UNDF && (nt & N_EXT) != 0) {
             if (!xlang_undef_cache_append_name(name)) {
                 munmap(map, sz);
@@ -4177,7 +4226,7 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
 
 #if defined(__linux__)
 /**
- * Fill UNDEF + defined (T/t) caches from ELF64 SHT_SYMTAB.
+ * Fill UNDEF + defined (T/t) + all-names caches from ELF64 SHT_SYMTAB.
  * UNDEF = SHN_UNDEF non-local; T/t = STT_FUNC in a real section, not weak.
  * @return 1 if the file is a parseable ELF64; 0 on error (nm fallback).
  * PLATFORM: LINUX — in-process .symtab scan; no popen.
@@ -4247,6 +4296,11 @@ static int xlang_elf64_obj_fill_undef_cache(const char *o_path) {
         name = strs + syms[i].st_name;
         if (!name[0])
             continue;
+        /* All-names: markers are data (d/s/b), not T/t. Fill every .symtab name. */
+        if (!xlang_all_cache_append_name(name)) {
+            munmap(map, sz);
+            return 0;
+        }
         bind = ELF64_ST_BIND(syms[i].st_info);
         type = ELF64_ST_TYPE(syms[i].st_info);
         if (syms[i].st_shndx == SHN_UNDEF) {
@@ -4320,8 +4374,9 @@ static int xlang_nm_u_fill_undef_cache(const char *o_path) {
 }
 
 /**
- * One nm (no -u) popen into the defined T/t cache (fallback when in-process scan fails).
- * Same line rules as the historical per-probe T/t parser: skip addr + T/t + '_'.
+ * One nm (no -u) popen into the defined T/t + all-names caches (fallback).
+ * T/t: same line rules as the historical per-probe parser (addr + T/t + '_').
+ * All-names: last whitespace token of every line (markers are d/s/b, not T/t).
  * @return 1 if popen succeeded (even 0 names); 0 if nm unavailable.
  * PLATFORM: SHARED residual host nm.
  */
@@ -4338,7 +4393,35 @@ static int xlang_nm_t_fill_defined_cache(const char *o_path) {
         return 0;
     while (fgets(line, sizeof line, fp)) {
         char *p = line;
+        char *last;
+        char *q;
         size_t rest;
+        /* All-names: last whitespace token of every full-nm line. */
+        last = line;
+        q = line;
+        while (*q) {
+            if (*q == ' ' || *q == '\t') {
+                while (*q == ' ' || *q == '\t')
+                    q++;
+                if (*q)
+                    last = q;
+            } else {
+                q++;
+            }
+        }
+        rest = strlen(last);
+        while (rest > 0 && (last[rest - 1] == '\n' || last[rest - 1] == '\r' || last[rest - 1] == ' '))
+            rest--;
+        if (rest > 0) {
+            char saved = last[rest];
+            last[rest] = '\0';
+            if (!xlang_all_cache_append_name(last)) {
+                last[rest] = saved;
+                pclose(fp);
+                return 0;
+            }
+            last[rest] = saved;
+        }
         while (*p == ' ' || *p == '\t' || (*p >= '0' && *p <= '9') ||
                (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))
             p++;
@@ -4370,6 +4453,10 @@ static int xlang_nm_t_fill_defined_cache(const char *o_path) {
 
 static int xlang_undef_cache_load(const char *o_path) {
     size_t n;
+    if (!o_path || !o_path[0])
+        return 0;
+    if (g_undef_cache_ready && strcmp(g_undef_cache_path, o_path) == 0)
+        return 1;
     xlang_undef_cache_reset();
     n = strlen(o_path);
     if (n >= sizeof(g_undef_cache_path))
@@ -4387,7 +4474,7 @@ static int xlang_undef_cache_load(const char *o_path) {
         return 1;
     }
 #endif
-    /* In-process scan failed: one nm -u for UNDEF + one nm T/t for defined. */
+    /* In-process scan failed: one nm -u for UNDEF + one nm for T/t and all-names. */
     (void)xlang_nm_u_fill_undef_cache(o_path);
     (void)xlang_nm_t_fill_defined_cache(o_path);
     /* nm unavailable: empty ready cache (same as historical Darwin popen-fail → 0). */

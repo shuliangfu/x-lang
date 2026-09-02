@@ -108,9 +108,10 @@ HOST="${HOST_OS}-${HOST_ARCH}"
 # by serial asm gates (assign-index-expr 712s / binop-cfg-merge 658s) because
 # xlang_link_obj_needs_undef_sym_impl popen("nm -u") per on_demand probe.
 # After the one-slot UNDEF cache + Mach-O scan, those gates are ~19s / ~17s
-# L2; hello -o 17s → ~1.9s. Sibling: has_defined_sym_impl still popen("nm")
-# T/t per probe (hello 11 full-nm on one user.o); now filled in the same
-# mmap as UNDEF. JOBS=8 / 4 / 2 still hit Killed:9 on this
+# L2; hello -o 17s → ~1.9s. Sibling 1: has_defined_sym_impl T/t in the same
+# mmap. Sibling 2: compress exports_marker / has_undef substring (hello 11
+# full-nm on one user.o) now all-names + UNDEF-substr in the same mmap.
+# JOBS=8 / 4 / 2 still hit Killed:9 on this
 # 18-core/64GB box while Cursor/Chrome/iTerm hold most RAM (peak is N×
 # xlang_asm + host-cc, RSS still ~104MB each). Default JOBS=1 is the only
 # packing that dual-L4 greened here. gate_case_jobs Darwin auto-inner=2

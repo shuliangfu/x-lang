@@ -39,9 +39,11 @@
 //     (product on_demand shell: pure needs/provides + pure push/path peers;
 //      Cap residual ensure/skip/path + freestanding_get + undef_sym).
 //   wave210 link_abi_obj_has_undef_sym pure thin orch
-//     (null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl = nm/popen).
+//     (null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl =
+//      UNDEF-cache substring, sibling of needs_undef mmap).
 //   wave211 link_abi_obj_exports_marker pure thin orch
-//     (null/empty gates; Cap residual link_abi_obj_exports_marker_impl = nm/popen strstr).
+//     (null/empty gates; Cap residual link_abi_obj_exports_marker_impl =
+//      all-names cache substring; markers are d/s/b, not T/t).
 //   wave212 xlang_link_obj_needs_undef_sym pure thin orch
 //     (null/empty gates; Cap residual xlang_link_obj_needs_undef_sym_impl = nm/popen + ELF).
 //   wave213 xlang_link_obj_has_defined_sym pure thin orch
@@ -49,7 +51,7 @@
 //      Mach-O/ELF T/t scan or one nm; per-path cache sibling of UNDEF).
 // Cap residual: ensure/skip/path Cap inside shell peers; needs_undef_impl /
 //   has_undef_impl / exports_marker_impl / has_defined_impl Cap
-//   (wave210–213 pure own has_undef + exports_marker + needs_undef + has_defined public gates).
+//   (wave210–213: one-slot UNDEF + T/t + all-names mmap; no per-probe nm).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9 core_builtin=10 std_ffi=11.
@@ -129,7 +131,7 @@ export extern "C" function xlang_link_obj_has_defined_sym_impl(o_path: *u8, sym:
  * Cap residual: xlang_link_obj_has_defined_sym_impl (Mach-O/ELF T/t scan or one nm;
  * strip optional _). Per-path cache shares the UNDEF mmap: on_demand also probes
  * defined-sym tables against the same user.o — do not popen nm per symbol
- * (P2 Darwin -o sibling; hello still spawned 11 full-nm after UNDEF cache).
+ * (P2 Darwin -o sibling). Compress substring probes share this mmap too.
  * Why (wave213): hybrid still had has_defined_sym body always mega C (gates+nm).
  * Used by wave140 user_o_provides_* orch and wave170 heap_user ensure stub reject.
  * PLATFORM: SHARED orch; residual scan/nm is host (POSIX; Windows hybrid via tools).
@@ -156,25 +158,29 @@ export function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32 {
 }
 
 /**
- * Cap residual (wave211): host nm/popen export-marker probe body.
- * Pure orch owns null/empty gates; _impl is always mega (realpath + nm + strstr marker).
+ * Cap residual (wave211): export-marker substring probe body (all-names cache).
+ * Pure orch owns null/empty gates; _impl is always mega.
  * @param obj_o *u8 — path to .o (caller already rejected null/empty)
  * @param marker *u8 — marker substring (caller already rejected null/empty)
- * @return i32 — 1 if any nm line contains marker
- * PLATFORM: SHARED — always mega C (popen/nm Cap)
+ * @return i32 — 1 if any symbol name contains marker
+ * PLATFORM: SHARED residual; LINUX ELF / DARWIN Mach-O in-process; nm once fallback
  */
 export extern "C" function link_abi_obj_exports_marker_impl(obj_o: *u8, marker: *u8): i32;
 
 /**
- * Return 1 iff .o nm output contains marker substring; null/empty → 0 without residual.
+ * Return 1 iff .o exports a symbol whose name contains marker; null/empty → 0 without residual.
  * @param obj_o *u8 — path to .o; null/empty rejected at pure gate
  * @param marker *u8 — marker substring; null/empty rejected at pure gate
- * @return i32 — 1 if any nm line contains marker, else 0
- * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave211).
- * Cap residual: link_abi_obj_exports_marker_impl (realpath + `nm` + strstr marker).
+ * @return i32 — 1 if any symbol name contains marker, else 0
+ * Pure orch: ≡ mega null/empty gates before Cap residual all-names lookup.
+ * Cap residual: link_abi_obj_exports_marker_impl (Mach-O/ELF all-names scan or one nm;
+ * strstr on stripped names; Darwin reconstructs one leading '_'). Markers live in
+ * data (d/s/b), not T/t — do not reuse the defined blob. Per-path cache shares the
+ * UNDEF mmap (P2 Darwin -o compress sibling; hello still spawned 11 full-nm after
+ * UNDEF + T/t caches).
  * Why (wave211): hybrid still had exports_marker body always mega C (gates+nm).
  * Used by compress pure orch (zlib/zstd/brotli package markers) and net TLS ensure.
- * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * PLATFORM: SHARED orch; residual scan/nm is host (POSIX; Windows hybrid via tools).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]
@@ -198,25 +204,28 @@ export function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
 }
 
 /**
- * Cap residual (wave210): host nm/popen UNDEF substring probe body.
- * Pure orch owns null/empty gates; _impl is always mega (realpath + nm + " U " + needle).
+ * Cap residual (wave210): UNDEF substring probe body (one-slot cache).
+ * Pure orch owns null/empty gates; _impl is always mega.
  * @param obj_o *u8 — path to .o (caller already rejected null/empty)
  * @param sym *u8 — symbol name or prefix needle (caller already rejected null/empty)
- * @return i32 — 1 if any UNDEF line contains needle
- * PLATFORM: SHARED — always mega C (popen/nm Cap); zstd uses prefix needles ZSTD_ / _ZSTD
+ * @return i32 — 1 if any UNDEF name contains needle
+ * PLATFORM: SHARED residual; LINUX ELF / DARWIN Mach-O in-process; nm once fallback
  */
 export extern "C" function link_abi_obj_has_undef_sym_impl(obj_o: *u8, sym: *u8): i32;
 
 /**
- * Return 1 iff .o has an UNDEF line containing sym (host nm); null/empty → 0 without residual.
+ * Return 1 iff .o has an UNDEF name containing sym; null/empty → 0 without residual.
  * @param obj_o *u8 — path to .o; null/empty rejected at pure gate
  * @param sym *u8 — symbol name or prefix needle; null/empty rejected at pure gate
- * @return i32 — 1 if UNDEF line hits, else 0
- * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave210).
- * Cap residual: link_abi_obj_has_undef_sym_impl (realpath + `nm` + " U " + needle).
+ * @return i32 — 1 if UNDEF substring hits, else 0
+ * Pure orch: ≡ mega null/empty gates before Cap residual UNDEF-cache substring.
+ * Cap residual: link_abi_obj_has_undef_sym_impl (Mach-O/ELF UNDEF scan or one nm;
+ * strstr on stripped names; Darwin reconstructs one leading '_' so `_ZSTD` /
+ * `_compress2` still hit). Per-path cache shares the needs_undef mmap
+ * (P2 Darwin -o compress sibling; 8 of hello's 11 leftover full-nm).
  * Why (wave210): hybrid still had has_undef_sym body always mega C (gates+nm).
  * Used by compress pure orch (exact lib symbols and zstd prefix needles).
- * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * PLATFORM: SHARED orch; residual scan/nm is host (POSIX; Windows hybrid via tools).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]

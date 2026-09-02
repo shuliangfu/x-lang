@@ -3290,7 +3290,8 @@ export function xlang_asm_nostdlib_minimal_selfcontained_exe_link(o_path: *u8, e
  * Authority (G.7 / wave211): product pure orch is labi_ondemand_list.x
  * `link_abi_obj_exports_marker` (same gates + Cap residual _impl). This mega .x twin
  * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
- * Cap residual: link_abi_obj_exports_marker_impl (realpath + nm + strstr marker).
+ * Cap residual: link_abi_obj_exports_marker_impl (all-names cache substring;
+ * same mmap as UNDEF/T/t — P2 Darwin -o compress sibling).
  * PLATFORM: SHARED orch; residual nm/popen is host.
  * Track-L: #[no_mangle] keeps surface short name.
  */
@@ -3322,7 +3323,8 @@ export function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
  * Authority (G.7 / wave210): product pure orch is labi_ondemand_list.x
  * `link_abi_obj_has_undef_sym` (same gates + Cap residual _impl). This mega .x twin
  * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
- * Cap residual: link_abi_obj_has_undef_sym_impl (realpath + nm + " U " + needle).
+ * Cap residual: link_abi_obj_has_undef_sym_impl (UNDEF cache substring;
+ * same mmap as needs_undef — P2 Darwin -o compress sibling).
  * PLATFORM: SHARED orch; residual nm/popen is host.
  * Track-L: #[no_mangle] keeps surface short name.
  */
