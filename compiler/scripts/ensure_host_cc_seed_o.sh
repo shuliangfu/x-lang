@@ -3427,6 +3427,16 @@ pipeline_abi_inject_thin_leaf() {
   if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
     log "pipeline_abi ${tag} inject: -E failed"
     rm -f "$gen_c" "$thin_o" "$base_o"
+    # PLATFORM: WINDOWS — leftover PE (Track L / can_run egg) is present so
+    # the "no xlang binary" skip above does not fire, but that PE cannot -E
+    # tip pipeline_abi thins. Keep the existing hybrid $o (same as no-binary).
+    # POSIX (Linux gold / Darwin): -E fail is a hard inject miss.
+    case "$(uname -s 2>/dev/null)" in
+      MINGW*|MSYS*|CYGWIN*)
+        log "pipeline_abi ${tag} inject: keep existing $o (Windows leftover PE cannot -E tip thins)"
+        return 0
+        ;;
+    esac
     return 1
   fi
   # shellcheck disable=SC2086
