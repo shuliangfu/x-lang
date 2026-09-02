@@ -3227,9 +3227,12 @@ ensure_pipeline_abi_prefer_one() {
   # seeds/runtime_pipeline_abi.from_x.c — not a viable identity path (wave176).
   # G.7 有则补全 of the POSIX hybrid rest CC line + pure_ld_partial_merge:
   #   rest = host-cc seed under -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X (3s, 220KiB)
-  #          plus WIN_LEFTOVER_GROW_VEC so wave271 grow_vec_* and wave275
-  #          arena/module/onefunc_sidecar_* cold twins compile in this TU
-  #          (FROM_X rest otherwise only externs them; POSIX .x thin provides T)
+  #          plus WIN_LEFTOVER_GROW_VEC so leftover-PE rest compiles seed
+  #          ifndef-FROM_X cold twins POSIX .x thin -E would provide T:
+  #          grow_vec/sidecar + wave123 glue_arm64_mov_*/lea + wave125
+  #          pipeline_asm_ctx_layout. Larger twins (emit_expr_elf_rec /
+  #          glue_type_size / elf_ctx extras) stay closed (helper/dual-decl).
+  #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
   #          on-disk provider of pipeline_type_* / ast_pool_* ifndef-FROM_X

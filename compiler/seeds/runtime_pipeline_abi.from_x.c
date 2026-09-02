@@ -10259,10 +10259,13 @@ int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t t
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave123: pipeline_asm_emit_lea_common pure leave cold twins under #ifndef FROM_X.
+/* wave123: pipeline_asm_emit_lea_common pure leave cold twins under #ifndef FROM_X,
+ * or WIN leftover-PE rest (PE cannot -E .x thin that owns glue_arm64_mov_* / lea).
  * PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+ * PLATFORM: WINDOWS leftover-PE hybrid compiles these twins in FROM_X rest.
  * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
 extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len);
@@ -10496,10 +10499,14 @@ int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_r
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave125: pipeline_asm_ctx_layout pure leave cold twin under #ifndef FROM_X.
+/* wave125: pipeline_asm_ctx_layout pure leave cold twin under #ifndef FROM_X,
+ * or WIN leftover-PE rest (PE cannot -E .x thin; leftover standalone 7/31
+ * does not define this identity cast).
  * Identity cast: residual C reinterprets return as pipeline_glue_AsmFuncCtxLayout*.
- * PLATFORM: SHARED freestanding · PREFER pure; cold when PREFER!=1 / hybrid fail. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED freestanding · PREFER pure; cold when PREFER!=1 / hybrid fail.
+ * PLATFORM: WINDOWS leftover-PE hybrid compiles this twin in FROM_X rest. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *pipeline_asm_ctx_layout(void *ctx) {
   return ctx;
 }
