@@ -3246,11 +3246,17 @@ ensure_pipeline_abi_prefer_one() {
   #          wave68/70 entry_dir BSS+set/get + dep arena/module slots
   #          (set_dep_slots / get_dep_arena_slot; independent ifndefs) +
   #          is_object/_magic + fclose_asm_out cluster (fp_is_stdout /
-  #          fclose_file; independent ifndefs; leftover standalone
-  #          defines 0 of remaining unique).
+  #          fclose_file; independent ifndefs) + user_std_net/skip_typeck
+  #          cluster (std_dep_skip_x_typeck / std_net_dep_path /
+  #          std_io_driver_dep_path / dep_parse_skip_typeck_path;
+  #          independent ifndefs; wrappers call always-extern pipeline.x
+  #          faces; leftover standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
+  #          pipeline_debug_trace_named_func_bodies stays closed
+  #          (void* vs struct* extern). xlang_dep_prerun_entry_dir stays
+  #          closed this wave (needs _pick).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only

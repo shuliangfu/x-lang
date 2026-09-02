@@ -2520,7 +2520,24 @@ void xlang_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j
 
 
 /** asm 用户程序：std.io/fs/net dep 跳过 .x typeck（符号由并列 .o 提供）。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-235: hybrid pure owns xlang_asm_user_std_dep_skip_x_typeck +
+ * xlang_asm_user_std_net_dep_path + xlang_asm_user_std_io_driver_dep_path +
+ * xlang_asm_user_dep_parse_skip_typeck_path (asm user dep skip/parse gates).
+ * PLATFORM: SHARED — null / empty path → 0; else call pipeline.x faces.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_asm_user_std_net_dep_path / std_dep_skip_x_typeck /
+ * std_io_driver_dep_path / dep_parse_skip_typeck_path.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares the four wrappers (const char*); seed defines them
+ * (not a dual-decl). Wrappers call always-extern pipeline.x faces
+ * (pipeline_asm_user_dep_skip_x_typeck / pipeline_asm_user_std_net_dep_path /
+ * pipeline_codegen_path_is_std_io_driver_bytes).
+ * dep_parse_skip_typeck_path calls net + io_driver; convert the cluster
+ * together because POSIX .x thin owns all four. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
   if (dep_path == NULL) {
     return 0;
@@ -2539,7 +2556,8 @@ int xlang_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** std.net dep：须 co-emit listen/accept_many，seed typeck 对 stream_* 假阳性。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_user_std_net_dep_path(const char *dep_path) {
   if (dep_path == NULL) {
     return 0;
@@ -2558,7 +2576,8 @@ int xlang_asm_user_std_net_dep_path(const char *dep_path) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** std.io.driver：co-emit submit_* 包装；seed typeck 对 register 假阳性。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_user_std_io_driver_dep_path(const char *dep_path) {
   if (dep_path == NULL) {
     return 0;
@@ -2577,7 +2596,8 @@ int xlang_asm_user_std_io_driver_dep_path(const char *dep_path) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** dep 预跑 parse+skip typeck 路径（std.net / std.io.driver）。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
   {
     if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
