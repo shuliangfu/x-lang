@@ -34,22 +34,32 @@ mkdir -p "$(dirname "$WIN_LIVE_LOG")" 2>/dev/null || true
 : > "$WIN_LIVE_LOG"
 echo "bootstrap-bstrict-windows-gate: live log $WIN_LIVE_LOG"
 echo "  watch: powershell  Get-Content C:\\xlang_tmp\\win_gate.log -Wait -Tail 40"
-_win_tee() {
-  local dest="$1"
-  if command -v stdbuf >/dev/null 2>&1; then
-    stdbuf -oL -eL tee -a "$WIN_LIVE_LOG" "$dest"
-  else
-    tee -a "$WIN_LIVE_LOG" "$dest"
-  fi
-}
+# Dest logs also under TMPDIR (MinGW-visible). Default /tmp hides them from Explorer.
+WIN_SEED_LOG="${XLANG_WIN_SEED_LOG:-${TMPDIR:-/tmp}/boot_win_seed.log}"
+WIN_HYBRID_LOG="${XLANG_WIN_HYBRID_LOG:-${TMPDIR:-/tmp}/boot_win_hybrid.log}"
+WIN_BSTRICT_LOG="${XLANG_WIN_BSTRICT_LOG:-${TMPDIR:-/tmp}/boot_win_bstrict.log}"
 # stdbuf cannot exec a bash function (127). Run compiler-make hub as a process.
-_win_cm() {
-  local hub="${XLANG_REPO_ROOT}/tests/lib/compiler-make.sh"
+# Do not pipe bash *functions* (PIPESTATUS[0] / set -e on MSYS is unreliable).
+_win_hub="${XLANG_REPO_ROOT}/tests/lib/compiler-make.sh"
+_win_run_cm() {
+  # $1 = dest log; remaining args = compiler-make targets.
+  local dest="$1"
+  shift
+  local rc=0
+  : > "$dest"
+  # Leave errexit off until the caller stores rc. `return 1` under `set -e`
+  # would abort the gate before SEED_RC=$? (same swallow as `if ! cmd; rc=$?`).
+  set +e
+  set -o pipefail
   if command -v stdbuf >/dev/null 2>&1; then
-    stdbuf -oL -eL bash "$hub" "$@"
+    stdbuf -oL -eL bash "$_win_hub" "$@" 2>&1 | stdbuf -oL -eL tee -a "$WIN_LIVE_LOG" "$dest"
+    rc=${PIPESTATUS[0]}
   else
-    bash "$hub" "$@"
+    bash "$_win_hub" "$@" 2>&1 | tee -a "$WIN_LIVE_LOG" "$dest"
+    rc=${PIPESTATUS[0]}
   fi
+  set +o pipefail
+  return "$rc"
 }
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
@@ -72,15 +82,15 @@ if [ "$WIN_BSTRICT" = "1" ]; then
   #      the 2026-07-20 Windows gate state: make returned Error 2 but the gate
   #      exited 0. B-hybrid branch below already captures SEED_RC; B-strict
   #      must do the same for its single make call.
-  set -o pipefail
-  _win_cm bootstrap-driver-bstrict 2>&1 | _win_tee /tmp/boot_win_bstrict.log
-  BOOT_RC=${PIPESTATUS[0]}
-  set +o pipefail
+  set +e
+  _win_run_cm "$WIN_BSTRICT_LOG" bootstrap-driver-bstrict
+  BOOT_RC=$?
+  set -e
   if [ "$BOOT_RC" -ne 0 ]; then
     echo "bootstrap-bstrict-windows-gate FAIL: xlang_compiler_make bootstrap-driver-bstrict rc=$BOOT_RC" >&2
     exit 1
   fi
-  BOOT_LOG=/tmp/boot_win_bstrict.log
+  BOOT_LOG="$WIN_BSTRICT_LOG"
   EXPECT_MARKER='bootstrap-driver-bstrict OK|asm_only_strict|asm_only_experimental|B-strict OK'
 else
   # Why: bootstrap-driver-hybrid depends on $(TARGET)=xlang, whose link rule
@@ -99,18 +109,23 @@ else
   # PLATFORM: WINDOWS | MSYS | MINGW (script only runs on MSYS2 hosts; see
   #           ci_is_windows_msys guard above).
   echo "bootstrap-bstrict-windows-gate: xlang_compiler_make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
-  set -o pipefail
-  _win_cm bootstrap-driver-seed 2>&1 | _win_tee /tmp/boot_win_seed.log
-  SEED_RC=${PIPESTATUS[0]}
-  set +o pipefail
+  set +e
+  _win_run_cm "$WIN_SEED_LOG" bootstrap-driver-seed
+  SEED_RC=$?
+  set -e
   if [ "$SEED_RC" -ne 0 ]; then
     echo "bootstrap-bstrict-windows-gate FAIL: bootstrap-driver-seed rc=$SEED_RC" >&2
     exit 1
   fi
-  set -o pipefail
-  _win_cm bootstrap-driver-hybrid 2>&1 | _win_tee /tmp/boot_win_hybrid.log
-  set +o pipefail
-  BOOT_LOG=/tmp/boot_win_hybrid.log
+  set +e
+  _win_run_cm "$WIN_HYBRID_LOG" bootstrap-driver-hybrid
+  HYBRID_RC=$?
+  set -e
+  if [ "$HYBRID_RC" -ne 0 ]; then
+    echo "bootstrap-bstrict-windows-gate FAIL: bootstrap-driver-hybrid rc=$HYBRID_RC" >&2
+    exit 1
+  fi
+  BOOT_LOG="$WIN_HYBRID_LOG"
   EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
 fi
 

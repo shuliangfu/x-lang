@@ -96,6 +96,13 @@ _xlang_cm_dispatch_one() {
       bash scripts/bootstrap_driver_seed.sh
       return $?
       ;;
+    bootstrap-driver-hybrid|bootstrap-driver-asm)
+      # wave872 shell body. Missing this arm made `bash compiler-make.sh
+      # bootstrap-driver-hybrid` fall through to try-heat of the phony name
+      # (Windows catalog parse hang). PLATFORM: SHARED
+      bash scripts/bootstrap_driver_hybrid.sh
+      return $?
+      ;;
     bootstrap-driver-bstrict)
       bash scripts/bootstrap_driver_bstrict.sh
       return $?
@@ -251,8 +258,12 @@ xlang_compiler_make() {
     cd "$_cm_dir" || exit 1
     for _a in "${_cm_args[@]}"; do
       _had_target=1
-      if ! _xlang_cm_dispatch_one "$_a"; then
-        _rc=$?
+      # Capture rc before `if`. `if ! cmd; then rc=$?` is always 0 because
+      # the `if` test succeeded — that swallowed bootstrap-driver-seed FAIL
+      # (Windows min-gate then started hybrid and hung). PLATFORM: SHARED
+      _xlang_cm_dispatch_one "$_a"
+      _rc=$?
+      if [ "$_rc" -ne 0 ]; then
         # Match make: continue on later targets only if -k was requested.
         # Default: stop on first failure.
         exit "$_rc"
