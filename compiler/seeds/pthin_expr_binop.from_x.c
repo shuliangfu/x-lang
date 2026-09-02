@@ -4,6 +4,9 @@
  *
  * Body: seeds/parser_asm/parser_asm_expr_binop_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
+ * P2 Darwin -o: slice-local 1-token peek cache for left-assoc chains
+ * (term…logor re-lexed the same unconsumed token once per level).
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>

@@ -3,6 +3,8 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * cast/unary/as_suffix 已 thin delegate；本 slice 处理 expr 左结合二元链至 compare。
+ * P2 Darwin -o: 1-token peek cache (term…logor share one unconsumed token).
+ * PLATFORM: SHARED. Do not assemble parser.x.
  */
 #ifndef PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
 #define PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
@@ -193,6 +195,57 @@ static int32_t parser_asm_binop_wrap_c(void *arena, struct parser_asm_parse_expr
   return bin_ref;
 }
 
+/**
+ * One-token peek cache for left-assoc binop chains in this slice.
+ *
+ * Produce: each precedence level calls lexer_next_into from the same
+ * unconsumed lex pos after lower() already peeked-and-restored. A typical
+ * primary (call / ident / lit) therefore re-lexes the following token once
+ * per level (term, addsub, shift, rel, eq, bitand, bitxor, bitor, logand,
+ * logor) — ten times for ')' / ',' / ';' / EOF.
+ * Store: __thread last (source data/len + lex pos/line/col) → lexer result.
+ * Consume: this slice's peek-and-restore loops. Matching an operator
+ * invalidates; mismatch keeps the slot so the parent level hits.
+ * PLATFORM: SHARED — TLS so large-stack / dep threads do not clobber.
+ * Do not assemble parser.x; product authority is this .inc via
+ * pthin_expr_binop.from_x.c (XLANG_PTHIN_EXPR_BINOP_FROM_X).
+ */
+static __thread int32_t g_pipe_binop_peek_ok;
+static __thread uint8_t *g_pipe_binop_peek_data;
+static __thread size_t g_pipe_binop_peek_len;
+static __thread size_t g_pipe_binop_peek_pos;
+static __thread int32_t g_pipe_binop_peek_line;
+static __thread int32_t g_pipe_binop_peek_col;
+static __thread struct parser_asm_lexer_result g_pipe_binop_peek_r;
+
+static void parser_asm_binop_lex_peek_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
+                                           struct parser_asm_slice_u8 *source) {
+  if (!out)
+    return;
+  if (source && g_pipe_binop_peek_ok != 0 && g_pipe_binop_peek_data == source->data &&
+      g_pipe_binop_peek_len == source->length && g_pipe_binop_peek_pos == lex.pos &&
+      g_pipe_binop_peek_line == lex.line && g_pipe_binop_peek_col == lex.col) {
+    *out = g_pipe_binop_peek_r;
+    return;
+  }
+  lexer_next_into(out, lex, source);
+  if (!source)
+    return;
+  g_pipe_binop_peek_ok = 1;
+  g_pipe_binop_peek_data = source->data;
+  g_pipe_binop_peek_len = source->length;
+  g_pipe_binop_peek_pos = lex.pos;
+  g_pipe_binop_peek_line = lex.line;
+  g_pipe_binop_peek_col = lex.col;
+  g_pipe_binop_peek_r = *out;
+}
+
+static void parser_asm_binop_lex_advance_from_peek(struct parser_asm_lexer *lex_inout,
+                                                   struct parser_asm_lexer_result r) {
+  parser_asm_lex_from_result_val_into(lex_inout, r);
+  g_pipe_binop_peek_ok = 0;
+}
+
 /** parse_term_into：cast ( (*|/|%) cast )*。 */
 void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                         struct parser_asm_parse_expr_result *out) {
@@ -209,7 +262,7 @@ void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_mul_binop_audit_c(out->next_lex, source));
   lex_cur = out->next_lex;
   for (;;) {
-    lexer_next_into(&r, lex_cur, source);
+    parser_asm_binop_lex_peek_into(&r, lex_cur, source);
     kind = -1;
     if (r.tok.kind == (int32_t)TOKEN_STAR)
       kind = PARSER_ASM_EXPR_MUL;
@@ -222,7 +275,7 @@ void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex
       return;
     }
     left_ref = out->expr_ref;
-    parser_asm_lex_from_result_val_into(&lex_cur, r);
+    parser_asm_binop_lex_advance_from_peek(&lex_cur, r);
     parser_parse_cast_into(arena, lex_cur, source, out);
     if (!out->ok)
       return;
@@ -247,7 +300,7 @@ void parser_asm_parse_addsub_into_slice_c(void *arena, struct parser_asm_lexer l
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_addsub_binop_audit_c(out->next_lex, source));
   lex_cur = out->next_lex;
   for (;;) {
-    lexer_next_into(&r, lex_cur, source);
+    parser_asm_binop_lex_peek_into(&r, lex_cur, source);
     kind = -1;
     if (r.tok.kind == (int32_t)TOKEN_PLUS)
       kind = PARSER_ASM_EXPR_ADD;
@@ -258,7 +311,7 @@ void parser_asm_parse_addsub_into_slice_c(void *arena, struct parser_asm_lexer l
       return;
     }
     left_ref = out->expr_ref;
-    parser_asm_lex_from_result_val_into(&lex_cur, r);
+    parser_asm_binop_lex_advance_from_peek(&lex_cur, r);
     parser_parse_term_into(arena, lex_cur, source, out);
     if (!out->ok)
       return;
@@ -283,7 +336,7 @@ void parser_asm_parse_shift_into_slice_c(void *arena, struct parser_asm_lexer le
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_shift_binop_audit_c(out->next_lex, source));
   lex_cur = out->next_lex;
   for (;;) {
-    lexer_next_into(&r, lex_cur, source);
+    parser_asm_binop_lex_peek_into(&r, lex_cur, source);
     kind = -1;
     if (r.tok.kind == (int32_t)TOKEN_LSHIFT)
       kind = PARSER_ASM_EXPR_SHL;
@@ -294,7 +347,7 @@ void parser_asm_parse_shift_into_slice_c(void *arena, struct parser_asm_lexer le
       return;
     }
     left_ref = out->expr_ref;
-    parser_asm_lex_from_result_val_into(&lex_cur, r);
+    parser_asm_binop_lex_advance_from_peek(&lex_cur, r);
     parser_parse_addsub_into(arena, lex_cur, source, out);
     if (!out->ok)
       return;
@@ -321,7 +374,7 @@ void parser_asm_parse_relcompare_into_slice_c(void *arena, struct parser_asm_lex
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_rel_binop_audit_c(out->next_lex, source));
   lex_cur = out->next_lex;
   for (;;) {
-    lexer_next_into(&r, lex_cur, source);
+    parser_asm_binop_lex_peek_into(&r, lex_cur, source);
     kind = -1;
     if (r.tok.kind == (int32_t)TOKEN_LT)
       kind = PARSER_ASM_EXPR_LT;
@@ -336,7 +389,7 @@ void parser_asm_parse_relcompare_into_slice_c(void *arena, struct parser_asm_lex
       return;
     }
     left_ref = out->expr_ref;
-    parser_asm_lex_from_result_val_into(&lex_cur, r);
+    parser_asm_binop_lex_advance_from_peek(&lex_cur, r);
     parser_parse_shift_into(arena, lex_cur, source, out);
     if (!out->ok)
       return;
@@ -361,7 +414,7 @@ void parser_asm_parse_compare_into_slice_c(void *arena, struct parser_asm_lexer 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_eq_binop_audit_c(out->next_lex, source));
   lex_cur = out->next_lex;
   for (;;) {
-    lexer_next_into(&r, lex_cur, source);
+    parser_asm_binop_lex_peek_into(&r, lex_cur, source);
     kind = -1;
     if (r.tok.kind == (int32_t)TOKEN_EQ)
       kind = PARSER_ASM_EXPR_EQ;
@@ -372,7 +425,7 @@ void parser_asm_parse_compare_into_slice_c(void *arena, struct parser_asm_lexer 
       return;
     }
     left_ref = out->expr_ref;
-    parser_asm_lex_from_result_val_into(&lex_cur, r);
+    parser_asm_binop_lex_advance_from_peek(&lex_cur, r);
     parser_parse_relcompare_into(arena, lex_cur, source, out);
     if (!out->ok)
       return;
@@ -403,13 +456,13 @@ static void parser_asm_binop_single_tok_chain_c(void *arena, struct parser_asm_l
     (void)audit_fn(out->next_lex, source);
   lex_cur = out->next_lex;
   for (;;) {
-    lexer_next_into(&r, lex_cur, source);
+    parser_asm_binop_lex_peek_into(&r, lex_cur, source);
     if (r.tok.kind != tok_kind) {
       out->next_lex = lex_cur;
       return;
     }
     left_ref = out->expr_ref;
-    parser_asm_lex_from_result_val_into(&lex_cur, r);
+    parser_asm_binop_lex_advance_from_peek(&lex_cur, r);
     lower(arena, lex_cur, source, out);
     if (!out->ok)
       return;
