@@ -3305,8 +3305,8 @@ ensure_pipeline_abi_prefer_one() {
   #          thread_fn_ptr — not unique; elf_o leftover cluster converts
   #          thread_fn+large_stack only — or
   #          xlang_driver_asm_prepare_entry_elf_emit — calls closed
-  #          debug_trace; pipeline_run_x_pipeline_impl stays closed
-  #          nested in wave101) +
+  #          debug_trace; pipeline_run_x_pipeline_impl is a separate
+  #          leftover cluster after closing enclosing wave101) +
   #          elf_o leftover cluster (2 independent ifndefs: thread_fn
   #          impl+wrapper / large_stack impl+wrapper; unlike merge/one_ctx,
   #          _impl is still ifndef — convert with the wrapper; thread_fn_impl
@@ -3350,7 +3350,14 @@ ensure_pipeline_abi_prefer_one() {
   #          standalone provide T; convert together so setters have a
   #          cell; do not convert neighboring wave222 module/dep_pipe —
   #          not unique — or named_layout — seed body is a stub — or
-  #          pipeline_module_*_storage_* — nested wave178 sidecar).
+  #          pipeline_module_*_storage_* — nested wave178 sidecar) +
+  #          pipeline_run_x_pipeline_impl leftover cluster (surgical
+  #          extract after closing enclosing wave101: impl only; unique
+  #          lists impl; leftover standalone defines 0 of remaining unique;
+  #          callees parse_entry/load_deps/typecheck/codegen wrappers not
+  #          unique — SAT / leftover standalone provide T; do not convert
+  #          neighboring driver_emit_lib_root_release — nested wave101
+  #          sidecar BSS).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).

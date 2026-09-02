@@ -3103,10 +3103,11 @@ uint8_t *pipeline_run_x_thread_fn_ptr(void) {
  * xlang_asm_codegen_elf_o_product_emit / thread_fn_ptr (not unique; elf_o
  * leftover cluster converts thread_fn+large_stack only) or
  * xlang_driver_asm_prepare_entry_elf_emit (calls closed debug_trace).
- * pipeline_run_x_pipeline_impl stays closed (nested in wave101).
+ * pipeline_run_x_pipeline_impl is a separate leftover cluster (surgical
+ * extract after closing enclosing wave101).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
- * Larger leftover clusters rec / glue_type / append_reloc_absolute64 are
- * separate extracts (not this ifndef). */
+ * Larger leftover clusters rec / glue_type / append_reloc_absolute64 / sret
+ * are separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *pipeline_run_x_thread_fn_impl(void *arg) {
@@ -4303,10 +4304,11 @@ uint8_t *xlang_asm_codegen_elf_o_thread_fn_ptr(void) {
  * Do not convert neighboring xlang_asm_codegen_elf_o_product_emit (not unique;
  * leftover/pure thin owns it) or xlang_asm_codegen_elf_o_thread_fn_ptr
  * (not unique) or xlang_driver_asm_prepare_entry_elf_emit (calls closed
- * debug_trace). pipeline_run_x_pipeline_impl stays closed (nested in
- * wave101). pipeline_debug_trace_named_func_bodies stays closed
- * (void* vs struct*). Larger leftover clusters rec / glue_type /
- * append_reloc_absolute64 are separate extracts (not this ifndef). */
+ * debug_trace). pipeline_run_x_pipeline_impl is a separate leftover cluster
+ * (surgical extract after closing enclosing wave101).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * Larger leftover clusters rec / glue_type / append_reloc_absolute64 / sret
+ * are separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *xlang_asm_codegen_elf_o_thread_fn_impl(void *arg) {
@@ -5541,7 +5543,63 @@ int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *o
   return run_x_pipeline_codegen_entry_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
                                         out_buf, (struct ast_PipelineDepCtx *)ctx);
 }
-/* pipeline_run_x_pipeline_impl cold: compose Cap product faces (prefer pure owns STRONG). */
+#endif /* close wave101 FROM_X for leftover-PE pipeline_run_x_pipeline_impl */
+
+/* Run_x_pipeline_impl leftover cluster (surgical extract of nested
+ * pipeline_run_x_pipeline_impl after closing enclosing wave101):
+ * pipeline_run_x_pipeline_impl only (compose Cap parse/load/typeck/codegen).
+ * Unique lists pipeline_run_x_pipeline_impl.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the face (runtime_pipeline_abi.x wave307 @13322).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
+ * set — must close wave101 first.
+ * Reopen wave101 after this cluster (resolve_path_x / wave106 / driver_emit
+ * lib_root sidecar still closed on leftover rest).
+ * Header does not declare pipeline_run_x_pipeline_impl (not a dual-decl).
+ * Always-compiled proto of impl is absent in this TU. Wave106 extern of
+ * impl stays in the reopened ifndef (closed on leftover rest).
+ * Cluster callees parse_entry_if_needed / load_deps_after_parse /
+ * typecheck_after_load / codegen_deps / codegen_entry /
+ * driver_compile_phase_timing_* / last_rc_get / skip_codegen_get /
+ * diagnostic_before_codegen are not unique; SAT / leftover standalone
+ * provide T. Leftover rest compiling impl is proto+def; add FROM_X rest
+ * signature externs below (timing / last_rc / skip_codegen / diagnostic /
+ * parse/load/typeck/codegen wrappers / check_only / out_buf_set_len /
+ * dep_ctx_asm_entry_module_only void*). Do not re-extern
+ * pipeline_module_num_funcs (always-compiled void* @646) or a struct*
+ * dep_ctx_asm_entry_module_only (always-compiled void* @47888 — glue_type
+ * dual-decl lesson).
+ * Do not convert neighboring parse_entry_if_needed / load_deps /
+ * typecheck_after_load / codegen_* wrappers (not unique) or
+ * driver_emit_lib_root_release (nested wave101 sidecar BSS — leftover
+ * standalone already T reset/append; extracting release+BSS would split
+ * the sidecar across TUs).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * PLATFORM: SHARED freestanding run_x orch compose · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern void driver_compile_phase_timing_begin(int32_t phase);
+extern void driver_compile_phase_timing_end(int32_t phase);
+extern void driver_compile_phase_timing_flush(void);
+extern void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len);
+extern int32_t driver_check_only_get(void);
+extern int32_t driver_x_pipeline_skip_codegen_get(void);
+extern int32_t run_x_pipeline_last_rc_get(void);
+extern void codegen_out_buf_set_len(void *out, int32_t n);
+extern int32_t pipeline_dep_ctx_asm_entry_module_only(void *ctx);
+extern int32_t pipeline_run_x_pipeline_parse_entry_if_needed(void *module, void *arena, uint8_t *source_data,
+                                                            size_t source_len, void *ctx);
+extern int32_t pipeline_run_x_pipeline_load_deps_after_parse(void *module, void *arena, void *ctx);
+extern int32_t pipeline_run_x_pipeline_typecheck_after_load(void *module, void *arena, void *ctx);
+extern int32_t pipeline_run_x_pipeline_codegen_deps(void *module, void *arena, void *out_buf, void *ctx,
+                                                   int32_t skip_asm_dep_codegen);
+extern int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *out_buf, void *ctx);
+
 int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_data, size_t source_len,
                                      void *out_buf, void *ctx) {
   int32_t rc;
@@ -5598,6 +5656,9 @@ int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_
   (void)rc;
   return 0;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE pipeline_run_x_pipeline_impl */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave101 FROM_X after leftover-PE pipeline_run_x_pipeline_impl */
 
 int32_t pipeline_resolve_path_x_impl_c(void *ctx, uint8_t *import_path, int32_t path_len) {
   int32_t r;
