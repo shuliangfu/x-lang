@@ -3374,9 +3374,16 @@ ensure_pipeline_abi_prefer_one() {
   #          unique; elem_type_ref not unique — SAT / leftover standalone
   #          provide T; convert together so unique has a helper; do not
   #          convert neighboring wave140 index — not unique — or remaining
-  #          wave143 emit/empty/force_esz — not unique — or
-  #          glue_asm_local_var_stack_off_scoped — still nested remaining
-  #          wave136).
+  #          wave143 emit/empty/force_esz — not unique) +
+  #          stack_off leftover unique (surgical extract of nested wave148
+  #          unique after closing enclosing remaining wave136:
+  #          glue_asm_local_var_stack_off_scoped; unique lists this face;
+  #          leftover standalone defines 0 of remaining unique; callees
+  #          var_name_len/into leftover rest already T; find_offset_scoped
+  #          leftover rest already T uint8_t*; find_offset leftover rest U —
+  #          SAT / leftover standalone provide T; do not convert neighboring
+  #          remaining wave143 emit/empty/force_esz — not unique — or
+  #          remaining wave148 vector-lane emit — not unique).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).

@@ -14010,7 +14010,8 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
  * here satisfies that U in the same TU.
  * Do not convert neighboring wave140 index cluster (not unique).
  * pipeline_asm_array_lit_elem_byte_sz_c is extracted later from remaining
- * wave136; glue_asm_local_var_stack_off_scoped stays nested remaining wave136.
+ * wave136; glue_asm_local_var_stack_off_scoped is extracted later from
+ * remaining wave136.
  * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
@@ -16672,7 +16673,8 @@ extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32
  * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
  * set — must close remaining wave136 first.
  * Reopen remaining wave136 after this cluster (wave143 emit/empty/force_esz
- * / glue_asm_local_var_stack_off_scoped still closed on leftover rest).
+ * still closed on leftover rest; stack_off_scoped extracted later from
+ * remaining wave136).
  * Header does not declare the array_lit unique (not a dual-decl).
  * Cluster carries callee externs matching leftover-rest-visible twins
  * (void* kind_ord / resolved_type / elem_ref / array_lit readers;
@@ -16683,8 +16685,8 @@ extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32
  * elem_type_ref is not unique — SAT / leftover standalone provide T; convert
  * together so unique has a helper in the same TU.
  * Do not convert neighboring wave140 index (not unique) or remaining wave143
- * emit/empty/force_esz (not unique) or glue_asm_local_var_stack_off_scoped
- * (still nested remaining wave136).
+ * emit/empty/force_esz (not unique). glue_asm_local_var_stack_off_scoped is
+ * extracted later from remaining wave136.
  * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
@@ -21477,6 +21479,47 @@ int32_t glue_block_let_is_simd_vector_type(void *arena, int32_t block_ref, int32
   return 0;
 }
 
+#endif /* close remaining wave136 FROM_X for leftover-PE stack_off_scoped unique */
+
+/* Stack-off leftover unique (surgical extract of nested wave148 unique
+ * after closing enclosing remaining wave136):
+ * glue_asm_local_var_stack_off_scoped only.
+ * Unique lists this face.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the face (runtime_pipeline_abi.x wave148 @46342).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. Same produce point as F7:
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
+ * set — must close remaining wave136 first.
+ * Reopen remaining wave136 after this unique (wave148 vector-lane emit /
+ * glue_vector_type_lanes_esz_c still closed on leftover rest).
+ * Header does not declare the unique (not a dual-decl).
+ * Cluster carries callee externs matching leftover-rest-visible twins
+ * (void* pipeline_expr_var_name_len/into leftover rest already T @44754/44720;
+ * uint8_t* asm_ctx_local_find_offset_scoped leftover rest already T @47699;
+ * asm_ctx_local_find_offset leftover rest U — SAT / leftover standalone
+ * provide T). Do not re-extern a void* asm_ctx_local_find_offset_scoped
+ * (leftover rest already T uint8_t*).
+ * Do not convert neighboring remaining wave143 emit/empty/force_esz (not
+ * unique) or glue_block_let_is_simd_vector_type (not unique) or remaining
+ * wave148 vector-lane emit (not unique).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
+ * glue_func_return_byte_size_c / glue_call_return_byte_size_c stay closed
+ * (seed stubs).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * PLATFORM: SHARED freestanding VAR rbp offset · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_var_name_len(void *a, int32_t er);
+extern void pipeline_expr_var_name_into(void *a, int32_t er, uint8_t *out);
+extern int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+
+int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx, int32_t var_expr_ref);
+
 /** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
 int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx,
                                                    int32_t var_expr_ref) {
@@ -21494,6 +21537,9 @@ int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx,
     off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
   return off;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE stack_off_scoped unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE stack_off_scoped unique */
 
 int32_t glue_emit_vector_operand_lane_elf_c(void *arena,
                                                    void *elf_ctx, int32_t expr_ref,
