@@ -3769,17 +3769,46 @@ int xlang_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports
  * 返回 0 成功，1 失败（调用方负责释放已分配）。
  */
 /* wave54 pure in .x; cold twin for non-PREFER product (wraps libc strdup).
- * PLATFORM: SHARED — null s → null; free() still releases ownership. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED — null s → null; free() still releases ownership.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * xlang_collect_deps_transitive / xlang_collect_dep_paths_transitive.
+ * leftover standalone defines 0 of remaining unique. Collect leftover
+ * cluster (12 independent ifndefs, not nested in wave149/154/273):
+ * strdup / to_load_has / seed_to_load / enqueue_module_imports /
+ * tmp_parse_and_enqueue / deps_process_one / deps_transitive_impl /
+ * deps_transitive / paths_tmp_resolve_parse_enqueue / paths_process_one /
+ * dep_paths_transitive_impl / dep_paths_transitive.
+ * Same produce point as load_direct: OR WIN_LEFTOVER_GROW_VEC so
+ * leftover-PE FROM_X rest compiles the cluster. Unlike merge/one_ctx,
+ * _impl is still ifndef — convert it with the wrapper.
+ * wrappers call _impl; _impl calls seed_to_load + process_one;
+ * process_one calls already-OR'd load_one_direct_import_at +
+ * find_loaded_import_index + tmp_parse_and_enqueue;
+ * paths_process_one calls already-OR'd resolve_read + tmp_parse.
+ * Header declares collect wrappers (int) @283/@288; seed defines them
+ * (prototype+definition, not a dual-decl). Always-compiled proto of
+ * _impl @286/@289 is prototype+definition, not dual.
+ * FROM_X proto of helpers at wave46–54 is prototype+definition, not dual.
+ * parser_get_module_num_imports / parser_get_module_import_path already
+ * always-compiled externs (void*).
+ * Do not convert neighboring xlang_driver_asm_prepare_entry_elf_emit
+ * (calls closed pipeline_debug_trace_named_func_bodies).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * Larger twins (emit_expr_elf_rec / glue_type_size / append_reloc_absolute64)
+ * stay closed (helper/dual-decl). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 char *xlang_collect_strdup(const char *s) {
     if (!s)
         return NULL;
     return strdup(s);
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
-/* wave47 pure in .x; cold twin for non-PREFER product. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave47 pure in .x; cold twin for non-PREFER product.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* G-02f-238：入口 import → to_load 队列（strdup）；0 成功，1 OOM（已清队列） */
 int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     int32_t n_imports;
@@ -3813,10 +3842,12 @@ int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     }
     return 0;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
-/* wave46 pure in .x; cold twin for non-PREFER product. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave46 pure in .x; cold twin for non-PREFER product.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* G-02f-238：to_load 是否已有 path */
 int xlang_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
     int t;
@@ -3828,10 +3859,12 @@ int xlang_collect_to_load_has(char *to_load[], int to_load_n, const char *path) 
     }
     return 0;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
-/* wave47 pure in .x; cold twin for non-PREFER product. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave47 pure in .x; cold twin for non-PREFER product.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* G-02f-239：从已 parse 的 tmp_module 入队子 import（未 loaded / 未在 to_load） */
 void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded) {
@@ -3863,13 +3896,15 @@ void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int
         (*to_load_n)++;
     }
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave52 pure in .x; cold twin for non-PREFER product.
  * wave48 Cap residual was always-seed; now pure orch + cold twin under #ifndef FROM_X.
  * Ensure tmp arena/module, parse prep bytes, enqueue sub-imports.
- * PLATFORM: SHARED — cold keeps XLANG_DEBUG_PIPE note; pure skips debug-only note. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED — cold keeps XLANG_DEBUG_PIPE note; pure skips debug-only note.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
     char *prep, size_t prep_len, const char *debug_path, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded) {
@@ -3897,12 +3932,14 @@ void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, si
         }
     }
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave48 pure in .x; cold twin for non-PREFER product.
  * G-02f-241：处理 to_load 一项（owned path_c）；0 继续，1 失败。*n 递增；可更新 tmp_* / to_load
- * Cold body uses Cap residual load_one + tmp_parse_and_enqueue (same as pure orch). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * Cold body uses Cap residual load_one + tmp_parse_and_enqueue (same as pure orch).
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
@@ -3930,12 +3967,14 @@ int xlang_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int
         dep_paths[mi], to_load, to_load_n, dep_paths, *n);
     return 0;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave50 pure in .x; cold twin for non-PREFER product.
  * G-02f-237：seed queue + process_one drain + free leftovers / fail partial deps.
- * Cold body mirrors pure orch (stack to_load + tmp cells via locals). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * Cold body mirrors pure orch (stack to_load + tmp cells via locals).
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
@@ -3974,10 +4013,12 @@ fail_to_load:
     }
     return 1;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
-/* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
@@ -3996,7 +4037,7 @@ int xlang_collect_deps_transitive(void *module, size_t arena_sz, size_t module_s
   }
   return -1;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 /* wave53 pure in .x; cold twin for non-PREFER product.
@@ -4005,8 +4046,10 @@ int xlang_collect_deps_transitive(void *module, size_t arena_sz, size_t module_s
  * If tmp malloc fails: no-op success (path already registered; same as historical body).
  * wave51/wave55: G.7 reuses pure xlang_load_one_direct_resolve_read_preprocess (no dual FILE/PATH_MAX body).
  * wave52: G.7 pure tmp_parse_and_enqueue (FROM_X weak pure; cold twin under #ifndef).
- * PLATFORM: SHARED — Cap residual resolve/read/preprocess + G.7 tmp_parse_and_enqueue. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED — Cap residual resolve/read/preprocess + G.7 tmp_parse_and_enqueue.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz, char *to_load[], int *to_load_n, char *dep_paths[], int n_loaded) {
@@ -4030,12 +4073,14 @@ int xlang_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib
     free(prep);
     return 0;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave49 pure in .x; cold twin for non-PREFER product.
  * G-02f-241：paths-only process one（owned path_c）；0 继续，1 失败
- * Cold body mirrors pure orch: strdup key + Cap residual resolve/parse. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * Cold body mirrors pure orch: strdup key + Cap residual resolve/parse.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n, char *to_load[],
     int *to_load_n, void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz) {
@@ -4062,11 +4107,13 @@ int xlang_collect_paths_process_one(char *path_c, const char **lib_roots_arr, in
     free(path_c);
     return rc;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave50 pure in .x; cold twin for non-PREFER product.
- * paths-only transitive: same orch as deps_transitive_impl without sources/lens. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * paths-only transitive: same orch as deps_transitive_impl without sources/lens.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
     int n = 0;
@@ -4102,10 +4149,12 @@ fail_to_load:
     }
     return 1;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
-/* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc.
+ * Converted with the collect leftover cluster — see cluster-head at strdup. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
   if (module == NULL) {
@@ -4123,7 +4172,7 @@ int xlang_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t mod
   }
   return -1;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
 /** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（runtime_pipeline_abi；mega shells left wave309）。 */

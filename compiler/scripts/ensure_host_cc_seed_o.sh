@@ -3277,7 +3277,20 @@ ensure_pipeline_abi_prefer_one() {
   #          calls already-T _impl with void**; header struct ast_Module **
   #          @304 is prototype+definition, not a dual-decl; leftover
   #          standalone defines 0 of remaining unique; do not convert
-  #          neighboring xlang_lsp_ptr_slot_clear — not unique).
+  #          neighboring xlang_lsp_ptr_slot_clear — not unique) +
+  #          collect leftover cluster (12 independent ifndefs: strdup /
+  #          to_load_has / seed_to_load / enqueue_module_imports /
+  #          tmp_parse_and_enqueue / deps_process_one / deps_transitive_impl /
+  #          deps_transitive / paths_tmp_resolve_parse_enqueue /
+  #          paths_process_one / dep_paths_transitive_impl /
+  #          dep_paths_transitive; unlike merge/one_ctx, _impl is still
+  #          ifndef — convert with the wrapper; wrappers call _impl;
+  #          _impl calls seed_to_load + process_one; process_one calls
+  #          already-OR'd load_one_direct_import_at + find_loaded_import_index
+  #          + tmp_parse; unique lists deps_transitive + dep_paths_transitive;
+  #          leftover standalone defines 0 of remaining unique; do not
+  #          convert neighboring xlang_driver_asm_prepare_entry_elf_emit —
+  #          it calls closed debug_trace).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
