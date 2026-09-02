@@ -42,6 +42,12 @@ static inline char *strndup(const char *s, size_t n) {
 #define WIFSIGNALED(s) 0
 #define WTERMSIG(s) 0
 #define WIFSTOPPED(s) 0
+/* WNOHANG — POSIX waitpid flag; MinGW has no sys/wait.h. Stub waitpid
+ * ignores options, so the numeric value only has to compile.
+ * PLATFORM: WINDOWS | MSYS | MINGW */
+#ifndef WNOHANG
+#define WNOHANG 1
+#endif
 static inline int waitpid(int pid, int *status, int options) {
     (void)pid; (void)options; if (status) *status = 0; return 0;
 }
