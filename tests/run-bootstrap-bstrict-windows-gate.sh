@@ -42,11 +42,13 @@ _win_tee() {
     tee -a "$WIN_LIVE_LOG" "$dest"
   fi
 }
-_win_run() {
+# stdbuf cannot exec a bash function (127). Run compiler-make hub as a process.
+_win_cm() {
+  local hub="${XLANG_REPO_ROOT}/tests/lib/compiler-make.sh"
   if command -v stdbuf >/dev/null 2>&1; then
-    stdbuf -oL -eL "$@"
+    stdbuf -oL -eL bash "$hub" "$@"
   else
-    "$@"
+    bash "$hub" "$@"
   fi
 }
 
@@ -71,7 +73,7 @@ if [ "$WIN_BSTRICT" = "1" ]; then
   #      exited 0. B-hybrid branch below already captures SEED_RC; B-strict
   #      must do the same for its single make call.
   set -o pipefail
-  _win_run xlang_compiler_make bootstrap-driver-bstrict 2>&1 | _win_tee /tmp/boot_win_bstrict.log
+  _win_cm bootstrap-driver-bstrict 2>&1 | _win_tee /tmp/boot_win_bstrict.log
   BOOT_RC=${PIPESTATUS[0]}
   set +o pipefail
   if [ "$BOOT_RC" -ne 0 ]; then
@@ -98,7 +100,7 @@ else
   #           ci_is_windows_msys guard above).
   echo "bootstrap-bstrict-windows-gate: xlang_compiler_make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
   set -o pipefail
-  _win_run xlang_compiler_make bootstrap-driver-seed 2>&1 | _win_tee /tmp/boot_win_seed.log
+  _win_cm bootstrap-driver-seed 2>&1 | _win_tee /tmp/boot_win_seed.log
   SEED_RC=${PIPESTATUS[0]}
   set +o pipefail
   if [ "$SEED_RC" -ne 0 ]; then
@@ -106,7 +108,7 @@ else
     exit 1
   fi
   set -o pipefail
-  _win_run xlang_compiler_make bootstrap-driver-hybrid 2>&1 | _win_tee /tmp/boot_win_hybrid.log
+  _win_cm bootstrap-driver-hybrid 2>&1 | _win_tee /tmp/boot_win_hybrid.log
   set +o pipefail
   BOOT_LOG=/tmp/boot_win_hybrid.log
   EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
