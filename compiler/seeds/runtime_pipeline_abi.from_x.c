@@ -3105,8 +3105,8 @@ uint8_t *pipeline_run_x_thread_fn_ptr(void) {
  * xlang_driver_asm_prepare_entry_elf_emit (calls closed debug_trace).
  * pipeline_run_x_pipeline_impl stays closed (nested in wave101).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
- * Larger twins (emit_expr_elf_rec / glue_type_size / append_reloc_absolute64)
- * stay closed (helper/dual-decl). */
+ * Larger leftover clusters rec / glue_type / append_reloc_absolute64 are
+ * separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *pipeline_run_x_thread_fn_impl(void *arg) {
@@ -3841,8 +3841,8 @@ int xlang_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports
  * Do not convert neighboring xlang_driver_asm_prepare_entry_elf_emit
  * (calls closed pipeline_debug_trace_named_func_bodies).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
- * Larger twins (emit_expr_elf_rec / glue_type_size / append_reloc_absolute64)
- * stay closed (helper/dual-decl). */
+ * Larger leftover clusters rec / glue_type / append_reloc_absolute64 are
+ * separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 char *xlang_collect_strdup(const char *s) {
@@ -4305,8 +4305,8 @@ uint8_t *xlang_asm_codegen_elf_o_thread_fn_ptr(void) {
  * (not unique) or xlang_driver_asm_prepare_entry_elf_emit (calls closed
  * debug_trace). pipeline_run_x_pipeline_impl stays closed (nested in
  * wave101). pipeline_debug_trace_named_func_bodies stays closed
- * (void* vs struct*). Larger twins (emit_expr_elf_rec / glue_type_size /
- * append_reloc_absolute64) stay closed (helper/dual-decl). */
+ * (void* vs struct*). Larger leftover clusters rec / glue_type /
+ * append_reloc_absolute64 are separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *xlang_asm_codegen_elf_o_thread_fn_impl(void *arg) {
@@ -4458,8 +4458,8 @@ void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_path
  * proto of the wrapper in this TU. _impl is always compiled (void**).
  * Do not convert neighboring xlang_lsp_ptr_slot_clear (not unique).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
- * Larger twins (emit_expr_elf_rec / glue_type_size / append_reloc_absolute64)
- * stay closed (helper/dual-decl).
+ * Larger leftover clusters rec / glue_type / append_reloc_absolute64 are
+ * separate extracts (not this ifndef).
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
@@ -26713,7 +26713,8 @@ int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum
  * rest signatures.
  * Do not convert neighboring wave149 binop helpers (closed above) or
  * wave153 block_body (independent ifndef after this cluster).
- * pipeline_elf_ctx_append_reloc_absolute64 stays closed (rest of wave273).
+ * pipeline_elf_ctx_append_reloc_absolute64 is a separate leftover cluster
+ * (wave273 extract after closing wave154/wave178/wave273 reopen-after-F7).
  * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
@@ -27714,7 +27715,8 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  * or glue_type_named_layout_size_any_module_elf_c (nested in wave178).
  * pipeline_asm_emit_expr_elf_rec is a separate leftover cluster (wave152
  * extract after closing wave149).
- * pipeline_elf_ctx_append_reloc_absolute64 stays closed (rest of wave273).
+ * pipeline_elf_ctx_append_reloc_absolute64 is a separate leftover cluster
+ * (wave273 extract after closing wave154/wave178/wave273 reopen-after-F7).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  */
@@ -38423,17 +38425,58 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
   return 0;
 }
 
+#endif /* close wave273 FROM_X reopen after F7 for leftover-PE append_reloc_absolute64 */
+#endif /* close wave178 FROM_X after F7 for leftover-PE append_reloc_absolute64 */
+#endif /* close wave154 FROM_X after F7 for leftover-PE append_reloc_absolute64 */
+
+/*
+ * Append_reloc leftover cluster (surgical extract of nested wave273 after
+ * closing enclosing wave154/wave178/wave273 reopen-after-F7):
+ * pipeline_elf_ctx_append_reloc_absolute64 only.
+ * Unique lists pipeline_elf_ctx_append_reloc_absolute64.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the face (runtime_pipeline_abi.x wave273 @90567).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
+ * set — must close wave273 + enclosing wave178/wave154 first.
+ * Reopen all three after this cluster (rest of wave273 + wave178 named_layout
+ * / module storage still closed on leftover rest).
+ * Header does not declare absolute64 (not a dual-decl). Always-compiled proto
+ * of absolute64 is absent in this TU.
+ * Cluster callee pipeline_elf_ctx_append_reloc_typed is leftover rest U
+ * (body stays in closed wave273); unique does not list it; SAT / leftover
+ * standalone provide T. Signature matches wave123 leftover-OR extern.
+ * Do not convert neighboring pipeline_elf_ctx_append_reloc /
+ * pipeline_elf_ctx_append_reloc_typed (not unique) or
+ * pipeline_elf_ctx_reloc_sym_name_ptr (not unique).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * PLATFORM: SHARED freestanding ELF leave · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+
 /* F7: Append an absolute 64-bit pointer relocation (data slot holding a symbol
  * address). Mirrors .x pipeline_elf_ctx_append_reloc_absolute64. Sentinel
  * r_type=200 (mapped by writers to ARM64_RELOC_UNSIGNED / R_X86_64_64 /
  * R_AARCH64_ABS64 / R_RISCV_64) with r_pcrel=0. The untyped append_reloc
  * defaults to a pc-relative branch reloc (Mach-O BRANCH26) which ld rejects on
  * non-b/bl bytes; vtable static data slots need this absolute64 form instead.
- * PLATFORM: SHARED — G.7 single authority for absolute64. */
+ * PLATFORM: SHARED — G.7 single authority for absolute64.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest. */
 int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx_bytes, int32_t offset,
                                                  uint8_t *name, int32_t name_len) {
   return pipeline_elf_ctx_append_reloc_typed(ctx_bytes, offset, name, name_len, 200, 0);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE append_reloc_absolute64 */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE append_reloc */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE append_reloc */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave273 after leftover-PE append_reloc */
 
 /** 返回 reloc_sym_names[idx] 首地址；越界返回 NULL（含 heap sidecar）。 */
 uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
@@ -38527,7 +38570,7 @@ void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, i
 }
 
 
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave273 cold twins (reopen after F7; WAVE273_ELF_DOMAIN_COLD closed before leftover-PE F7) */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave273 cold twins (reopen after leftover-PE append_reloc; WAVE273_ELF_DOMAIN_COLD closed before leftover-PE F7) */
 
 /* ==========================================================================
  * WAVE274: asm WPO v0 DCE + PGO-Lite Cap residual pure-owned leave cold twins
