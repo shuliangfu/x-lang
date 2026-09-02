@@ -415,7 +415,15 @@ static inline long xlang_net_recvfrom(int sockfd, void *buf, size_t len, int fla
   return r;
 }
 
-/** PLATFORM: POSIX fallback — libc fcntl. */
+/** PLATFORM: POSIX fallback — libc fcntl.
+ * Callers that include this header on Darwin must already have a fcntl
+ * prototype: KEEP_C leftover is 3-arg i32 (tcp/udp/sock/ipv6.x); C seeds
+ * (ipv6_fast/sock_fast/http_glue) include <fcntl.h> (variadic). Do NOT
+ * declare fcntl here — a prototype cannot match both, and <fcntl.h> in
+ * this header also declares open() which clashes with X static open in
+ * formal_mod KEEP_C. dns_fast is the seed that was missing <fcntl.h>.
+ * Linux Cap (above) uses syscall and never reaches this wrapper.
+ */
 static inline int xlang_net_fcntl(int fd, int cmd, long arg) {
   return fcntl(fd, cmd, arg);
 }

@@ -11,6 +11,15 @@
 #include <ws2tcpip.h>
 static int net_dns_wsa_ready = 0;
 #else
+/* PLATFORM: POSIX — Darwin xlang_net_fcntl calls fcntl(2), which lives in
+ * <fcntl.h> not <unistd.h>. ipv6_fast/sock_fast/http_glue already include
+ * it; this seed did not, so cc of dns_fast failed undeclared-fcntl after
+ * net/mod.x connect clash closed. Do NOT add <fcntl.h> to xlang_net_cap.h:
+ * formal_mod KEEP_C (rt_preamble injects that header) already has X
+ * `static open` / leftover 3-arg fcntl, and Darwin fcntl.h's open() +
+ * variadic fcntl() conflict. G.7 complete this seed's include bag.
+ */
+#include <fcntl.h>
 #include <xlang_dns_cap.h>
 #endif
 

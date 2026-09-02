@@ -1507,6 +1507,16 @@ for fm in _func_def_re.finditer(s):
 # (Ubuntu L4@b5d919060 channel already green). Do NOT add send/recv to the
 # SHARED #define lists (same leftover-steal risk as listen). close/free
 # already clash-renamed (same arity as libc). G.7 complete this table.
+#
+# PLATFORM: MACOS — POSIX connect(2) is 3-arg; X std.net export connect
+# (addr, port, timeout_ms) is also 3-arg (same arity as libc, like write).
+# POSIX accept(2) is 3-arg; X std.net export accept(listener, timeout_ms)
+# is 2-arg (mixed, like listen). Darwin socket.h makes
+# `static connect(...)` / `static accept(...)` fail; net.o never lands →
+# L4 STD-092 product -o UNDEF _std_net_*. X bodies call net_tcp_connect_c /
+# net_accept_c (no leftover connect/accept in this TU); leftover POSIX
+# FFI lives in tcp.x / ipv6.x other TUs. Do NOT add connect/accept to the
+# SHARED #define lists (same leftover-steal risk). G.7 complete this table.
 _libc_clash = {
     'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
     'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
@@ -1516,6 +1526,7 @@ _libc_clash = {
     'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
     'listen',
     'send', 'recv',
+    'connect', 'accept',
     'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
     'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
@@ -1534,6 +1545,7 @@ _libc_clash_posix_arity = {
     'listen': 2,
     'send': 4,
     'recv': 4,
+    'accept': 3,
 }
 def _arg_count(args_str):
     a = (args_str or '').strip()
