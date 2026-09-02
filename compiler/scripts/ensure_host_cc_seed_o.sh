@@ -3357,7 +3357,18 @@ ensure_pipeline_abi_prefer_one() {
   #          callees parse_entry/load_deps/typecheck/codegen wrappers not
   #          unique — SAT / leftover standalone provide T; do not convert
   #          neighboring driver_emit_lib_root_release — nested wave101
-  #          sidecar BSS).
+  #          sidecar BSS) +
+  #          modlet leftover cluster (surgical extract of nested wave139
+  #          after closing enclosing wave136: four unique prepare/seed/
+  #          register/lit_inits faces + BSS g_pipeline_asm_modlet_cold +
+  #          helpers name_is_shared/load/store; unique lists the four;
+  #          leftover standalone defines 0 of remaining unique; name_is_shared
+  #          / load / store not unique — SAT / leftover standalone provide T;
+  #          convert together so unique faces have a cell; do not convert
+  #          neighboring wave140 index — not unique — or
+  #          pipeline_asm_array_lit_elem_byte_sz_c /
+  #          glue_asm_local_var_stack_off_scoped — still nested remaining
+  #          wave136).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).

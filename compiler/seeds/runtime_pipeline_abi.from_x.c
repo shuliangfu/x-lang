@@ -13975,8 +13975,50 @@ int32_t pipeline_asm_emit_as_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
 
 mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
 }
+#endif /* close wave136 FROM_X for leftover-PE modlet cluster */
 
-
+/* Modlet leftover cluster (surgical extract of nested wave139 after
+ * closing enclosing wave136):
+ * pipeline_asm_modlet_prepare_and_emit_elf_c /
+ * pipeline_asm_modlet_seed_nonzero_inits_elf_c /
+ * pipeline_asm_register_module_top_level_lets_c /
+ * pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c plus BSS
+ * g_pipeline_asm_modlet_cold and helpers name_is_shared / load / store /
+ * reset / find / lea / bake / unique_label (same produce point as sret:
+ * unique faces share a sidecar — extracting unique-only would split the
+ * table across TUs).
+ * Unique lists the four prepare/seed/register/lit_inits faces.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave139 @32916+).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
+ * set — must close wave136 first.
+ * Reopen wave136 after this cluster (wave140 index / array_lit_elem_byte_sz_c /
+ * glue_asm_local_var_stack_off_scoped still closed on leftover rest).
+ * Header does not declare the modlet faces (not a dual-decl).
+ * Cluster already carries callee externs (elf append/reloc/label/sym/common,
+ * top_level_let readers, expr_kind/int_val, type_kind/elem_ref,
+ * glue_fixed_array_total_bytes_c, asm_ctx_local_*, backend_enc_*,
+ * pipeline_asm_ctx_layout, hoist_target, let_init_stack_reserve). Keep those
+ * signatures: leftover-rest-visible twins match (wave125 layout T @11007;
+ * wave133 append_bytes/reloc; F7 emit_data_len/data_poke). Do not re-extern
+ * a struct* pipeline_asm_ctx_layout (wave125 leftover rest already T void*).
+ * name_is_shared / load_to_rax / store_from_rax are not unique — SAT /
+ * leftover standalone provide T; convert together so unique faces have a
+ * cell. rec leftover rest already U load_to_rax (@26849) — leftover rest T
+ * here satisfies that U in the same TU.
+ * Do not convert neighboring wave140 index cluster (not unique) or
+ * pipeline_asm_array_lit_elem_byte_sz_c / glue_asm_local_var_stack_off_scoped
+ * (still nested remaining wave136).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (seed stub).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * driver_emit_lib_root_release stays closed (nested wave101 sidecar BSS).
+ * PLATFORM: SHARED freestanding modlet COMMON/.data · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
 /*
  * wave139: pipeline_asm_emit_modlet pure-owned leave cold twins.
@@ -14636,8 +14678,9 @@ int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void
   }
   return 0;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE modlet cluster */
 
-
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave136 FROM_X after leftover-PE modlet cluster */
 
 /*
  * wave140: pipeline_asm_emit_index pure-owned leave cold twins.
@@ -14645,7 +14688,8 @@ int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void
  * Faces: index_elem_byte_sz_c / index_elem_byte_sz / emit_index / addr_of / deref.
  * Cap residual: field_type_ref, fixed_array_total_bytes, esz_from_type_ref,
  *   var_type_fallback, assign_addr_cache, eff_addr_scaled, lvalue_eff_addr, enc loads.
- * PLATFORM: SHARED freestanding · continues same #ifndef FROM_X as wave139.
+ * PLATFORM: SHARED freestanding · continues same #ifndef FROM_X as wave139
+ * (reopened after leftover-PE modlet cluster; leftover rest still closed here).
  */
 
 #ifndef PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED
