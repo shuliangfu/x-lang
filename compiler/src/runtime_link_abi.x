@@ -2797,8 +2797,9 @@ export function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
  * Authority (G.7 / wave213): product pure orch is labi_ondemand_list.x
  * `xlang_link_obj_has_defined_sym` (same gates + Cap residual _impl). This mega .x twin
  * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
- * Cap residual: xlang_link_obj_has_defined_sym_impl (nm T/t + optional leading _).
- * PLATFORM: SHARED orch; residual nm/popen is host.
+ * Cap residual: xlang_link_obj_has_defined_sym_impl (Mach-O/ELF T/t scan or one nm;
+ * per-path cache sibling of UNDEF — P2 Darwin -o).
+ * PLATFORM: SHARED orch; residual scan/nm is host.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]

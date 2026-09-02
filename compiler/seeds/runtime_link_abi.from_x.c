@@ -3971,31 +3971,29 @@ static int xlang_elf64_obj_scan_undef(const char *o_path, const char *want_sym) 
 #endif /* __linux__ */
 
 /*
- * One-slot UNDEF-name cache for xlang_link_obj_needs_undef_sym_impl.
+ * One-slot per-path UNDEF + defined (T/t) name cache.
  *
  * Produce-point (P2 Darwin -o): every product -o walks on_demand std gates
- * (heap / sys / vec / async / …) and each gate calls this impl once per
+ * (heap / sys / vec / async / …) and each gate calls needs_undef once per
  * symbol. The previous body popen("nm -u") + fgets per probe. Darwin hello
  * -o was ~17s / ~2.3M page-reclaims, sample 100% in posix_spawn+read of nm.
- * One user.o is probed hundreds of times per -o, so cache+in-process scan
- * is the G.7 complete of this residual (do not add a second probe).
+ * Sibling (this knife): has_defined_sym_impl still popen("nm") T/t per probe
+ * (hello -o: 11 full-nm on the same user.o after the UNDEF cache). G.7
+ * complete: one mmap fills both blobs; lookups stay in-process.
  *
  * Blob: concatenated NUL-terminated bare names (leading '_' stripped).
- * PLATFORM: SHARED cache; loaders LINUX ELF / DARWIN Mach-O / nm -u once.
+ * Defined blob matches historical nm T/t only (text; not D/S/B/W).
+ * PLATFORM: SHARED cache; loaders LINUX ELF / DARWIN Mach-O / nm once fallback.
  */
 #define XLANG_UNDEF_CACHE_BLOB_MAX (256u * 1024u)
 static char g_undef_cache_path[PATH_MAX];
 static char g_undef_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
 static size_t g_undef_cache_blob_len;
+static char g_defined_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
+static size_t g_defined_cache_blob_len;
 static int g_undef_cache_ready;
 
-static void xlang_undef_cache_reset(void) {
-    g_undef_cache_path[0] = '\0';
-    g_undef_cache_blob_len = 0;
-    g_undef_cache_ready = 0;
-}
-
-static int xlang_undef_cache_append_name(const char *name) {
+static int xlang_nameblob_append(char *blob, size_t *len, const char *name) {
     size_t n;
     if (!name || !name[0])
         return 1;
@@ -4004,34 +4002,57 @@ static int xlang_undef_cache_append_name(const char *name) {
     n = strlen(name);
     if (n == 0)
         return 1;
-    if (g_undef_cache_blob_len + n + 1 >= XLANG_UNDEF_CACHE_BLOB_MAX)
+    if (*len + n + 1 >= XLANG_UNDEF_CACHE_BLOB_MAX)
         return 0;
-    memcpy(g_undef_cache_blob + g_undef_cache_blob_len, name, n);
-    g_undef_cache_blob_len += n;
-    g_undef_cache_blob[g_undef_cache_blob_len++] = '\0';
+    memcpy(blob + *len, name, n);
+    *len += n;
+    blob[(*len)++] = '\0';
     return 1;
 }
 
-static int xlang_undef_cache_has(const char *sym) {
+static int xlang_nameblob_has(const char *blob, size_t len, const char *sym) {
     size_t i = 0;
     size_t slen;
     if (!sym || !sym[0])
         return 0;
     slen = strlen(sym);
-    while (i < g_undef_cache_blob_len) {
-        size_t n = strlen(g_undef_cache_blob + i);
-        if (n == slen && memcmp(g_undef_cache_blob + i, sym, slen) == 0)
+    while (i < len) {
+        size_t n = strlen(blob + i);
+        if (n == slen && memcmp(blob + i, sym, slen) == 0)
             return 1;
         i += n + 1;
     }
     return 0;
 }
 
+static void xlang_undef_cache_reset(void) {
+    g_undef_cache_path[0] = '\0';
+    g_undef_cache_blob_len = 0;
+    g_defined_cache_blob_len = 0;
+    g_undef_cache_ready = 0;
+}
+
+static int xlang_undef_cache_append_name(const char *name) {
+    return xlang_nameblob_append(g_undef_cache_blob, &g_undef_cache_blob_len, name);
+}
+
+static int xlang_defined_cache_append_name(const char *name) {
+    return xlang_nameblob_append(g_defined_cache_blob, &g_defined_cache_blob_len, name);
+}
+
+static int xlang_undef_cache_has(const char *sym) {
+    return xlang_nameblob_has(g_undef_cache_blob, g_undef_cache_blob_len, sym);
+}
+
+static int xlang_defined_cache_has(const char *sym) {
+    return xlang_nameblob_has(g_defined_cache_blob, g_defined_cache_blob_len, sym);
+}
+
 #if defined(__APPLE__)
 /**
- * Fill the UNDEF cache from a thin Mach-O 64 object (MH_MAGIC_64 + LC_SYMTAB).
- * @return 1 if the file is a parseable Mach-O 64 (even with 0 UNDEFs); 0 if
- *         not Mach-O / mmap fail — caller falls back to one nm -u.
+ * Fill UNDEF + defined (T/t) caches from a thin Mach-O 64 object.
+ * @return 1 if the file is a parseable Mach-O 64 (even with 0 names); 0 if
+ *         not Mach-O / mmap fail — caller falls back to nm.
  * PLATFORM: DARWIN — in-process nlist_64 scan; no popen.
  */
 static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
@@ -4046,7 +4067,9 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
     const char *strtab;
     uint32_t i;
     uint32_t ncmds;
+    uint32_t sect_no;
     size_t off;
+    uint8_t is_text[256];
     if (!o_path || !o_path[0])
         return 0;
     fd = open(o_path, O_RDONLY);
@@ -4070,23 +4093,42 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
         munmap(map, sz);
         return 0;
     }
+    memset(is_text, 0, sizeof is_text);
     ncmds = mh->ncmds;
     off = sizeof(struct mach_header_64);
+    sect_no = 1;
     for (i = 0; i < ncmds; i++) {
         if (off + sizeof(struct load_command) > sz)
             break;
         lc = (const struct load_command *)(map + off);
         if (lc->cmdsize < sizeof(struct load_command) || off + lc->cmdsize > sz)
             break;
-        if (lc->cmd == LC_SYMTAB && lc->cmdsize >= sizeof(struct symtab_command)) {
+        if (lc->cmd == LC_SYMTAB && lc->cmdsize >= sizeof(struct symtab_command) && !stcmd)
             stcmd = (const struct symtab_command *)lc;
-            break;
+        if (lc->cmd == LC_SEGMENT_64 && lc->cmdsize >= sizeof(struct segment_command_64)) {
+            const struct segment_command_64 *sg = (const struct segment_command_64 *)lc;
+            size_t sect_off = off + sizeof(struct segment_command_64);
+            uint32_t j;
+            for (j = 0; j < sg->nsects; j++) {
+                const struct section_64 *sec;
+                if (sect_off + sizeof(struct section_64) > sz)
+                    break;
+                sec = (const struct section_64 *)(map + sect_off);
+                if (sect_no < 256) {
+                    if ((sec->flags & (S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS)) != 0)
+                        is_text[sect_no] = 1;
+                    if (strncmp(sec->sectname, "__text", 16) == 0)
+                        is_text[sect_no] = 1;
+                }
+                sect_no++;
+                sect_off += sizeof(struct section_64);
+            }
         }
         off += lc->cmdsize;
     }
     if (!stcmd) {
         munmap(map, sz);
-        return 1; /* Mach-O with no symtab: treat as 0 UNDEF, not nm fallback. */
+        return 1; /* Mach-O with no symtab: treat as 0 names, not nm fallback. */
     }
     if ((size_t)stcmd->symoff + (size_t)stcmd->nsyms * sizeof(struct nlist_64) > sz ||
         (size_t)stcmd->stroff + (size_t)stcmd->strsize > sz) {
@@ -4099,11 +4141,8 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
         uint32_t strx;
         const char *name;
         uint8_t nt = nl[i].n_type;
+        uint8_t nsect;
         if (nt & N_STAB)
-            continue;
-        if ((nt & N_TYPE) != N_UNDF)
-            continue;
-        if ((nt & N_EXT) == 0)
             continue;
         strx = nl[i].n_un.n_strx;
         if (strx >= stcmd->strsize)
@@ -4111,7 +4150,22 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
         name = strtab + strx;
         if (!name[0])
             continue;
-        if (!xlang_undef_cache_append_name(name)) {
+        if ((nt & N_TYPE) == N_UNDF && (nt & N_EXT) != 0) {
+            if (!xlang_undef_cache_append_name(name)) {
+                munmap(map, sz);
+                return 0;
+            }
+            continue;
+        }
+        /* Historical nm T/t: text section. Darwin still prints N_WEAK_DEF as t
+         * (not W) — include them so has_defined matches the old nm T/t parser. */
+        if ((nt & N_TYPE) != N_SECT)
+            continue;
+        nsect = nl[i].n_sect;
+        /* n_sect is uint8_t (1-based); 0 = NO_SECT. is_text[256] covers 0..255. */
+        if (nsect == 0 || !is_text[nsect])
+            continue;
+        if (!xlang_defined_cache_append_name(name)) {
             munmap(map, sz);
             return 0;
         }
@@ -4123,7 +4177,8 @@ static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
 
 #if defined(__linux__)
 /**
- * Fill the UNDEF cache from ELF64 SHT_SYMTAB SHN_UNDEF globals.
+ * Fill UNDEF + defined (T/t) caches from ELF64 SHT_SYMTAB.
+ * UNDEF = SHN_UNDEF non-local; T/t = STT_FUNC in a real section, not weak.
  * @return 1 if the file is a parseable ELF64; 0 on error (nm fallback).
  * PLATFORM: LINUX — in-process .symtab scan; no popen.
  */
@@ -4185,16 +4240,32 @@ static int xlang_elf64_obj_fill_undef_cache(const char *o_path) {
     strs = (const char *)(map + strtab->sh_offset);
     for (i = 0; i < nsym; i++) {
         const char *name;
-        if (syms[i].st_shndx != SHN_UNDEF)
-            continue;
-        if (ELF64_ST_BIND(syms[i].st_info) == STB_LOCAL)
-            continue;
+        unsigned bind;
+        unsigned type;
         if (syms[i].st_name >= strtab->sh_size)
             continue;
         name = strs + syms[i].st_name;
         if (!name[0])
             continue;
-        if (!xlang_undef_cache_append_name(name)) {
+        bind = ELF64_ST_BIND(syms[i].st_info);
+        type = ELF64_ST_TYPE(syms[i].st_info);
+        if (syms[i].st_shndx == SHN_UNDEF) {
+            if (bind == STB_LOCAL)
+                continue;
+            if (!xlang_undef_cache_append_name(name)) {
+                munmap(map, sz);
+                return 0;
+            }
+            continue;
+        }
+        /* Historical nm T/t: STT_FUNC in a real section; skip weak (nm W). */
+        if (syms[i].st_shndx == SHN_ABS || syms[i].st_shndx == SHN_COMMON)
+            continue;
+        if (type != STT_FUNC)
+            continue;
+        if (bind == STB_WEAK)
+            continue;
+        if (!xlang_defined_cache_append_name(name)) {
             munmap(map, sz);
             return 0;
         }
@@ -4248,6 +4319,55 @@ static int xlang_nm_u_fill_undef_cache(const char *o_path) {
     return 1;
 }
 
+/**
+ * One nm (no -u) popen into the defined T/t cache (fallback when in-process scan fails).
+ * Same line rules as the historical per-probe T/t parser: skip addr + T/t + '_'.
+ * @return 1 if popen succeeded (even 0 names); 0 if nm unavailable.
+ * PLATFORM: SHARED residual host nm.
+ */
+static int xlang_nm_t_fill_defined_cache(const char *o_path) {
+    char cmd[PATH_MAX + 160];
+    FILE *fp;
+    char line[512];
+    if (!o_path || !o_path[0])
+        return 0;
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", o_path) >= sizeof cmd)
+        return 0;
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 0;
+    while (fgets(line, sizeof line, fp)) {
+        char *p = line;
+        size_t rest;
+        while (*p == ' ' || *p == '\t' || (*p >= '0' && *p <= '9') ||
+               (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))
+            p++;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p != 'T' && *p != 't')
+            continue;
+        p++;
+        if (*p != ' ' && *p != '\t')
+            continue;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == '_')
+            p++;
+        rest = strlen(p);
+        while (rest > 0 && (p[rest - 1] == '\n' || p[rest - 1] == '\r' || p[rest - 1] == ' '))
+            rest--;
+        if (rest == 0)
+            continue;
+        p[rest] = '\0';
+        if (!xlang_defined_cache_append_name(p)) {
+            pclose(fp);
+            return 0;
+        }
+    }
+    pclose(fp);
+    return 1;
+}
+
 static int xlang_undef_cache_load(const char *o_path) {
     size_t n;
     xlang_undef_cache_reset();
@@ -4267,10 +4387,9 @@ static int xlang_undef_cache_load(const char *o_path) {
         return 1;
     }
 #endif
-    if (xlang_nm_u_fill_undef_cache(o_path)) {
-        g_undef_cache_ready = 1;
-        return 1;
-    }
+    /* In-process scan failed: one nm -u for UNDEF + one nm T/t for defined. */
+    (void)xlang_nm_u_fill_undef_cache(o_path);
+    (void)xlang_nm_t_fill_defined_cache(o_path);
     /* nm unavailable: empty ready cache (same as historical Darwin popen-fail → 0). */
     g_undef_cache_ready = 1;
     return 1;
@@ -4315,65 +4434,35 @@ int xlang_link_obj_needs_undef_sym(const char *o_path, const char *sym);
 #endif
 
 /**
- * Cap residual (wave213): host nm/popen defined (T/t) probe body.
+ * Cap residual (wave213): exact defined (T/t) probe body.
  * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
  * Params: o_path / sym - caller pure already rejected null/empty (defense in depth here too).
- * Returns: 1 if nm shows T/t definition for bare sym (optional leading underscore), else 0.
+ * Returns: 1 if the object defines bare sym as text (optional leading _), else 0.
  *
  * Why: co-emit after user.o may already define core_mem_* or std_heap_* strongs;
  * skip hard-link mem.o/heap.o. Darwin nm: "0000 T _sym"; ELF: "0000 T sym".
- * PLATFORM: SHARED residual; host nm/popen.
+ *
+ * P2 Darwin -o sibling: load T/t names once per o_path in the same Mach-O / ELF
+ * scan as UNDEF (or one nm T/t fallback), then in-process lookup. Do not popen
+ * nm per defined-sym probe — hello -o still spawned 11 full-nm on one user.o
+ * after the UNDEF cache closed nm -u.
+ * PLATFORM: SHARED residual; LINUX ELF / DARWIN Mach-O in-process; nm fallback.
  */
 int xlang_link_obj_has_defined_sym_impl(const char *o_path, const char *sym) {
-    char cmd[PATH_MAX + 160];
-    FILE *fp;
-    char line[512];
-    size_t sym_len;
     if (!o_path || !o_path[0] || !sym || !sym[0])
         return 0;
-    sym_len = strlen(sym);
-    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", o_path) >= sizeof cmd)
-        return 0;
-    fp = popen(cmd, "r");
-    if (!fp)
-        return 0;
-    while (fgets(line, sizeof line, fp)) {
-        char *p = line;
-        char *type_p;
-        size_t rest;
-        /* Skip address column (hex digits / spaces). */
-        while (*p == ' ' || *p == '\t' || (*p >= '0' && *p <= '9') ||
-               (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))
-            p++;
-        while (*p == ' ' || *p == '\t')
-            p++;
-        if (*p != 'T' && *p != 't')
-            continue;
-        type_p = p;
-        p++;
-        if (*p != ' ' && *p != '\t')
-            continue;
-        while (*p == ' ' || *p == '\t')
-            p++;
-        if (*p == '_')
-            p++;
-        rest = strlen(p);
-        while (rest > 0 && (p[rest - 1] == '\n' || p[rest - 1] == '\r' || p[rest - 1] == ' '))
-            rest--;
-        (void)type_p;
-        if (rest == sym_len && strncmp(p, sym, sym_len) == 0) {
-            pclose(fp);
-            return 1;
-        }
+    if (!g_undef_cache_ready || strcmp(g_undef_cache_path, o_path) != 0) {
+        if (!xlang_undef_cache_load(o_path))
+            return 0;
     }
-    pclose(fp);
-    return 0;
+    return xlang_defined_cache_has(sym);
 }
 
 /* wave213: xlang_link_obj_has_defined_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
  * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
  * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
- * Pure: null/empty gates; Cap residual xlang_link_obj_has_defined_sym_impl (nm T/t) always mega.
+ * Pure: null/empty gates; Cap residual xlang_link_obj_has_defined_sym_impl
+ * (Mach-O/ELF T/t scan or one nm; per-path cache) always mega.
  * Why: hybrid still had has_defined_sym body always mega C (gates+nm).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
 #ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X

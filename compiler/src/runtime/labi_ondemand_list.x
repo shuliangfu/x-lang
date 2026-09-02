@@ -45,7 +45,8 @@
 //   wave212 xlang_link_obj_needs_undef_sym pure thin orch
 //     (null/empty gates; Cap residual xlang_link_obj_needs_undef_sym_impl = nm/popen + ELF).
 //   wave213 xlang_link_obj_has_defined_sym pure thin orch
-//     (null/empty gates; Cap residual xlang_link_obj_has_defined_sym_impl = nm/popen T/t).
+//     (null/empty gates; Cap residual xlang_link_obj_has_defined_sym_impl =
+//      Mach-O/ELF T/t scan or one nm; per-path cache sibling of UNDEF).
 // Cap residual: ensure/skip/path Cap inside shell peers; needs_undef_impl /
 //   has_undef_impl / exports_marker_impl / has_defined_impl Cap
 //   (wave210–213 pure own has_undef + exports_marker + needs_undef + has_defined public gates).
@@ -110,12 +111,12 @@ export function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
 export extern "C" function link_abi_ld_argv_entry_is_obj(s: *u8): i32;
 
 /**
- * Cap residual (wave213): host nm/popen defined (T/t) probe body.
- * Pure orch owns null/empty gates; _impl is always mega (nm line parse; strip optional _).
+ * Cap residual (wave213): exact defined (T/t) probe body (one-slot cache + in-process scan).
+ * Pure orch owns null/empty gates; _impl is always mega.
  * @param o_path *u8 — path to .o (caller already rejected null/empty)
  * @param sym *u8 — exact bare symbol name, no leading underscore (caller rejected null/empty)
- * @return i32 — 1 if nm shows T/t definition for sym, else 0
- * PLATFORM: SHARED residual; host nm/popen (POSIX; Windows hybrid via tools)
+ * @return i32 — 1 if the object defines sym as text (T/t), else 0
+ * PLATFORM: SHARED residual; LINUX ELF / DARWIN Mach-O in-process; nm once fallback
  */
 export extern "C" function xlang_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
 
@@ -124,11 +125,14 @@ export extern "C" function xlang_link_obj_has_defined_sym_impl(o_path: *u8, sym:
  * @param o_path *u8 — path to .o; null/empty rejected at pure gate
  * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
  * @return i32 — 1 if defined hit, else 0
- * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave213).
- * Cap residual: xlang_link_obj_has_defined_sym_impl (`nm` + skip addr + T/t + optional _).
+ * Pure orch: ≡ mega null/empty gates before Cap residual T/t cache lookup.
+ * Cap residual: xlang_link_obj_has_defined_sym_impl (Mach-O/ELF T/t scan or one nm;
+ * strip optional _). Per-path cache shares the UNDEF mmap: on_demand also probes
+ * defined-sym tables against the same user.o — do not popen nm per symbol
+ * (P2 Darwin -o sibling; hello still spawned 11 full-nm after UNDEF cache).
  * Why (wave213): hybrid still had has_defined_sym body always mega C (gates+nm).
  * Used by wave140 user_o_provides_* orch and wave170 heap_user ensure stub reject.
- * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * PLATFORM: SHARED orch; residual scan/nm is host (POSIX; Windows hybrid via tools).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]
