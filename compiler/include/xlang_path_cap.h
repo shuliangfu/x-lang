@@ -8,9 +8,17 @@
  *
  * Linux: faccessat / newfstatat|fstatat / fstat / open+readlink(/proc/self/fd/N).
  * Other POSIX: thin wrappers over libc (Darwin residual until later).
- * Windows: not used — call sites keep Win32 paths.
+ * Windows (MinGW/MSYS leftover PE SAT): _access / stat / fstat / _fullpath.
+ *   Call sites in runtime_link_abi.from_x.c use xlang_path_access / xlang_path_stat
+ *   unconditionally (path_readable_impl / path_executable_impl /
+ *   nonempty_regular_file_impl). The previous `#if !defined(_WIN32)` wrapper
+ *   left those names undeclared on MinGW, so SAT full-seed cc of current
+ *   link_abi failed and leftover PE kept the 7/31 .o
+ *   (xlang_link_capture_opt_level_from_argv unique). G.7 有则补全 this header —
+ *   do not add a second Windows path probe in the seed.
  *
- * PLATFORM: LINUX primary (x86_64 + aarch64); POSIX fallback elsewhere.
+ * PLATFORM: LINUX primary (x86_64 + aarch64); POSIX fallback elsewhere;
+ *           WINDOWS MinGW CRT wrappers (leftover-PE SAT).
  */
 
 #ifndef XLANG_PATH_CAP_H
@@ -199,6 +207,58 @@ static inline const char *xlang_path_realpath(const char *path, char *out) {
 }
 
 #endif /* LINUX */
+
+#else /* _WIN32|_WIN64 — leftover PE / MinGW SAT compiles link_abi rest */
+
+/*
+ * PLATFORM: WINDOWS — complete the existing path-cap authority (G.7 有则补全).
+ * MinGW CRT: _access / stat / fstat / _fullpath. Execute-bit (X_OK) is not a
+ * distinct ACL on Win32; treat as R_OK like win32_compat.h (X_OK=4) when the
+ * F_OK family is not already defined. POSIX gold path above is unchanged.
+ * link_abi_realpath_cap_impl still returns NULL on Windows (product semantic
+ * at that layer); this face exists so the four-name family compiles as one
+ * authority if a later caller uses xlang_path_realpath on MinGW.
+ */
+#include <io.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+
+#ifndef F_OK
+#define F_OK 0
+#define W_OK 2
+#define R_OK 4
+#define X_OK 4
+#endif
+
+#ifndef _MAX_PATH
+#define _MAX_PATH 260
+#endif
+
+static inline int xlang_path_access(const char *path, int mode) {
+  if (!path || !path[0])
+    return -1;
+  return _access(path, mode);
+}
+
+static inline int xlang_path_stat(const char *path, struct stat *st) {
+  if (!path || !path[0] || !st)
+    return -1;
+  return stat(path, st);
+}
+
+static inline int xlang_path_fstat(int fd, struct stat *st) {
+  if (fd < 0 || !st)
+    return -1;
+  return fstat(fd, st);
+}
+
+static inline const char *xlang_path_realpath(const char *path, char *out) {
+  if (!path || !path[0] || !out)
+    return NULL;
+  if (!_fullpath(out, path, _MAX_PATH))
+    return NULL;
+  return out;
+}
 
 #endif /* !_WIN32 */
 
