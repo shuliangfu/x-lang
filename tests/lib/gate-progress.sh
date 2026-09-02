@@ -85,10 +85,11 @@ gate_progress_run() {
 # ---------------------------------------------------------------------------
 # Intra-script case pool (bash 3.2 portable; no wait -n).
 #
-# PLATFORM: SHARED — default serial. Darwin auto-uses 2 when the outer
-# XLANG_BSTRICT_JOBS pool is 1 or 2, so 45-case asm gates drop ~840s → ~420s.
-# When outer JOBS>=4, auto inner=1 so total concurrent xlang_asm stays ≤4.
-# Explicit XLANG_GATE_CASE_JOBS always wins (capped at 4).
+# PLATFORM: SHARED — default serial. Darwin auto-uses 2 only when the outer
+# XLANG_BSTRICT_JOBS pool is 1, so 45-case asm gates drop ~840s → ~420s at
+# peak 2× xlang_asm. Outer JOBS>=2 stays inner=1: JOBS=2×inner=2 was 4
+# concurrent and OOMed this 64GB box (same as outer JOBS=4). Explicit
+# XLANG_GATE_CASE_JOBS always wins (capped at 4).
 #
 # G.7: single authority for gate case parallelism — extend here; do not
 # fork a second pool helper. Callers: source this file, then
@@ -119,9 +120,10 @@ gate_case_jobs() {
     inner=1
     case "$(uname -s 2>/dev/null)" in
       Darwin)
-        # PLATFORM: MACOS — 18-core/64GB: overlap 45 serial -o inside one script
-        # when the outer bstrict pool is small. Outer JOBS>=4 already saturates.
-        if [ "$outer" -le 2 ]; then
+        # PLATFORM: MACOS — 18-core/64GB: overlap 45 serial -o inside one
+        # script only when the outer pool is serial. Outer>=2 already
+        # saturates the OOM-safe peak of 2 concurrent xlang_asm.
+        if [ "$outer" -eq 1 ]; then
           inner=2
         fi
         ;;
