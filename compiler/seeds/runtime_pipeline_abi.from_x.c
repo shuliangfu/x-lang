@@ -1862,7 +1862,30 @@ int xlang_merge_deps_path_already_out_scan(const char *path, char *out_paths[], 
 void xlang_emit_pipeline_glue_include_impl(void);
 int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size);
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-51: hybrid pure owns xlang_find_loaded_import_index
+ * (null / n_all<=0 → -1; else _scan).
+ * PLATFORM: SHARED — match → index, else -1.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * find_loaded_import_index / _scan / one_ctx_for_dep_prerun / map_impl.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Header declares find_loaded_import_index / one_ctx (const char* /
+ * struct ast_PipelineDepCtx *); seed defines them (not a dual-decl).
+ * Always-compiled proto of _scan at G-02f-51 is prototype+definition, not dual.
+ * FROM_X proto of map_impl at wave62 is prototype+definition, not dual.
+ * find_loaded_import_index calls _scan; map_impl calls find_loaded_import_index;
+ * always-compiled one_ctx _impl already calls map_impl — convert the four
+ * together because POSIX .x thin owns all.
+ * ast_pipeline_dep_ctx_set_* typed externs already used by OR'd wave67
+ * pctx_update_dep_slots (header/seed prototype+definition, not dual).
+ * parser_parse_into / parser_parse_into_init / parser_get_module_num_imports
+ * already always-compiled externs. pipe_release_tmp_arena_module already
+ * always-compiled static.
+ * pipeline_debug_trace_named_func_bodies stays closed (void* definition vs
+ * struct ast_Module* extern later in FROM_X rest). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
   if (import_path == NULL) {
     return -1;
@@ -1907,8 +1930,11 @@ const char *xlang_dep_prerun_entry_dir_pick(const char *main_entry_dir, const ch
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-134: hybrid pure owns xlang_find_loaded_import_index_scan
+ * (strcmp loop over all_paths[0..n_all)). Converted with find_loaded_import_index
+ * / map_impl / one_ctx — see cluster-head at find_loaded_import_index. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
     int i;
     for (i = 0; i < n_all; i++) {
@@ -2442,9 +2468,12 @@ void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-233 / wave62：hybrid pure owns map_impl; cold twin under #ifndef FROM_X.
- * PLATFORM: SHARED — same control flow as pure orch (ok 0|-2 accept; else full slots). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-233 / wave62: hybrid pure owns map_impl; converted with
+ * find_loaded_import_index / _scan / one_ctx — see cluster-head at
+ * find_loaded_import_index. PLATFORM: SHARED — same control flow as
+ * pure orch (ok 0|-2 accept; else full slots). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
@@ -2528,8 +2557,12 @@ void xlang_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, 
     xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
 }
 
-/* G-02f-233：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-233: hybrid pure owns one_ctx_for_dep_prerun thin wrapper
+ * (null ctx → return; else always-compiled _impl). Converted with
+ * map_impl / find_loaded_import_index / _scan — see cluster-head at
+ * find_loaded_import_index. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void xlang_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {

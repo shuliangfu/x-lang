@@ -3256,13 +3256,18 @@ ensure_pipeline_abi_prefer_one() {
   #          merge_deps_path_already_out + _scan + merge_direct_then_transitive
   #          deps / dep_paths (independent ifndefs; wrappers call always-
   #          compiled _impl; _impl already calls already_out; leftover
-  #          standalone defines 0 of remaining unique).
+  #          standalone defines 0 of remaining unique) +
+  #          one_ctx_for_dep_prerun + map_impl + find_loaded_import_index +
+  #          _scan (independent ifndefs; wrapper calls always-compiled _impl;
+  #          _impl already calls map_impl; map_impl calls find_loaded_import_index
+  #          which calls _scan; leftover standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
-  #          (void* vs struct* extern). xlang_pipeline_one_ctx_for_dep_prerun
-  #          stays closed this wave (needs map_impl).
+  #          (void* vs struct* extern). xlang_load_direct_imports_for_asm_layout
+  #          stays closed this wave (needs _impl still ifndef + load_one_direct
+  #          helpers; _impl is not always compiled).
   #          FROM_X rest otherwise only externs them.
   #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
   #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
