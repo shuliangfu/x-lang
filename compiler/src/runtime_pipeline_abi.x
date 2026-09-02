@@ -94141,6 +94141,9 @@ export function pipeline_asm_wpo_pgo_is_hot_func(m: *u8, fi: i32): i32 {
 // Caps: MAX_ARENA=512 MAX_MODULE=512 MAX_ONEFUNC=1024 (codegen M1 peak)
 // BSS: 512*816 + 512*432 + 1024*944 = 1605632 bytes total
 // G.7 single authority — no residual g_arena_sc dual table.
+// P2 Darwin -o compile: sidecar_get linear-scanned MAX slots on every field
+// access (hello -o sample: onefunc_sidecar_get 2nd-hottest after binop chain).
+// 2-slot MRU per table (copy src/dst ping-pong); free of a cached slot drops it.
 // =============================================================================
 
 function pipe_arena_sc_size(): i32 { return 816; }
@@ -94154,6 +94157,191 @@ function pipe_onefunc_sc_max(): i32 { return 1024; }
 let g_pipe_arena_sc_blob: u8[417792] = [];
 let g_pipe_module_sc_blob: u8[221184] = [];
 let g_pipe_onefunc_sc_blob: u8[966656] = [];
+// 2-slot MRU for sidecar_get. parser_copy_onefunc_into ping-pongs src/dst
+// keys; one slot misses every other call. Miss still walks MAX.
+// PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
+let g_pipe_arena_sc_last_key0: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_sc0: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_key1: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_sc1: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_key0: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_sc0: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_key1: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_sc1: *u8 = 0 as *u8;
+let g_pipe_onefunc_sc_last_key0: *u8 = 0 as *u8;
+let g_pipe_onefunc_sc_last_sc0: *u8 = 0 as *u8;
+let g_pipe_onefunc_sc_last_key1: *u8 = 0 as *u8;
+let g_pipe_onefunc_sc_last_sc1: *u8 = 0 as *u8;
+
+/**
+ * True if sidecar slot is used and its key pointer equals `key`.
+ * @param sc *u8 — sidecar base; null -> 0
+ * @param key *u8 — lookup key
+ * @return i32 — 1 ok, 0 miss
+ * PLATFORM: SHARED — 2-slot MRU helper for sidecar_get.
+ */
+function pipe_sc_last_slot_ok(sc: *u8, key: *u8): i32 {
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (pipe_load_i32_le(sc, 8) == 0) {
+    return 0;
+  }
+  if (pipe_load_ptr_slot(sc, 0) != key) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * 2-slot MRU lookup for the arena sidecar table.
+ * @param key *u8 — arena pointer key
+ * @return *u8 — cached sidecar or null
+ */
+function pipe_arena_sc_recall(key: *u8): *u8 {
+  if (g_pipe_arena_sc_last_key0 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc0, key) != 0) {
+      return g_pipe_arena_sc_last_sc0;
+    }
+  }
+  if (g_pipe_arena_sc_last_key1 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc1, key) != 0) {
+      return g_pipe_arena_sc_last_sc1;
+    }
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Remember arena sidecar as MRU slot 0; previous slot 0 shifts to 1.
+ * @param key *u8 — arena pointer key
+ * @param sc *u8 — sidecar base
+ */
+function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
+  if (g_pipe_arena_sc_last_key0 == key) {
+    g_pipe_arena_sc_last_sc0 = sc;
+    return;
+  }
+  g_pipe_arena_sc_last_key1 = g_pipe_arena_sc_last_key0;
+  g_pipe_arena_sc_last_sc1 = g_pipe_arena_sc_last_sc0;
+  g_pipe_arena_sc_last_key0 = key;
+  g_pipe_arena_sc_last_sc0 = sc;
+}
+
+/**
+ * Drop arena last-hit slots that point at `sc` (called from free).
+ * @param sc *u8 — sidecar being freed
+ */
+function pipe_arena_sc_drop_last(sc: *u8): void {
+  if (g_pipe_arena_sc_last_sc0 == sc) {
+    g_pipe_arena_sc_last_key0 = 0 as *u8;
+    g_pipe_arena_sc_last_sc0 = 0 as *u8;
+  }
+  if (g_pipe_arena_sc_last_sc1 == sc) {
+    g_pipe_arena_sc_last_key1 = 0 as *u8;
+    g_pipe_arena_sc_last_sc1 = 0 as *u8;
+  }
+}
+
+/**
+ * 2-slot MRU lookup for the module sidecar table.
+ * @param key *u8 — module pointer key
+ * @return *u8 — cached sidecar or null
+ */
+function pipe_module_sc_recall(key: *u8): *u8 {
+  if (g_pipe_module_sc_last_key0 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_module_sc_last_sc0, key) != 0) {
+      return g_pipe_module_sc_last_sc0;
+    }
+  }
+  if (g_pipe_module_sc_last_key1 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_module_sc_last_sc1, key) != 0) {
+      return g_pipe_module_sc_last_sc1;
+    }
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Remember module sidecar as MRU slot 0; previous slot 0 shifts to 1.
+ * @param key *u8 — module pointer key
+ * @param sc *u8 — sidecar base
+ */
+function pipe_module_sc_remember(key: *u8, sc: *u8): void {
+  if (g_pipe_module_sc_last_key0 == key) {
+    g_pipe_module_sc_last_sc0 = sc;
+    return;
+  }
+  g_pipe_module_sc_last_key1 = g_pipe_module_sc_last_key0;
+  g_pipe_module_sc_last_sc1 = g_pipe_module_sc_last_sc0;
+  g_pipe_module_sc_last_key0 = key;
+  g_pipe_module_sc_last_sc0 = sc;
+}
+
+/**
+ * Drop module last-hit slots that point at `sc` (called from free).
+ * @param sc *u8 — sidecar being freed
+ */
+function pipe_module_sc_drop_last(sc: *u8): void {
+  if (g_pipe_module_sc_last_sc0 == sc) {
+    g_pipe_module_sc_last_key0 = 0 as *u8;
+    g_pipe_module_sc_last_sc0 = 0 as *u8;
+  }
+  if (g_pipe_module_sc_last_sc1 == sc) {
+    g_pipe_module_sc_last_key1 = 0 as *u8;
+    g_pipe_module_sc_last_sc1 = 0 as *u8;
+  }
+}
+
+/**
+ * 2-slot MRU lookup for the onefunc sidecar table.
+ * @param key *u8 — onefunc pointer key
+ * @return *u8 — cached sidecar or null
+ */
+function pipe_onefunc_sc_recall(key: *u8): *u8 {
+  if (g_pipe_onefunc_sc_last_key0 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_onefunc_sc_last_sc0, key) != 0) {
+      return g_pipe_onefunc_sc_last_sc0;
+    }
+  }
+  if (g_pipe_onefunc_sc_last_key1 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_onefunc_sc_last_sc1, key) != 0) {
+      return g_pipe_onefunc_sc_last_sc1;
+    }
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Remember onefunc sidecar as MRU slot 0; previous slot 0 shifts to 1.
+ * @param key *u8 — onefunc pointer key
+ * @param sc *u8 — sidecar base
+ */
+function pipe_onefunc_sc_remember(key: *u8, sc: *u8): void {
+  if (g_pipe_onefunc_sc_last_key0 == key) {
+    g_pipe_onefunc_sc_last_sc0 = sc;
+    return;
+  }
+  g_pipe_onefunc_sc_last_key1 = g_pipe_onefunc_sc_last_key0;
+  g_pipe_onefunc_sc_last_sc1 = g_pipe_onefunc_sc_last_sc0;
+  g_pipe_onefunc_sc_last_key0 = key;
+  g_pipe_onefunc_sc_last_sc0 = sc;
+}
+
+/**
+ * Drop onefunc last-hit slots that point at `sc` (called from free).
+ * @param sc *u8 — sidecar being freed
+ */
+function pipe_onefunc_sc_drop_last(sc: *u8): void {
+  if (g_pipe_onefunc_sc_last_sc0 == sc) {
+    g_pipe_onefunc_sc_last_key0 = 0 as *u8;
+    g_pipe_onefunc_sc_last_sc0 = 0 as *u8;
+  }
+  if (g_pipe_onefunc_sc_last_sc1 == sc) {
+    g_pipe_onefunc_sc_last_key1 = 0 as *u8;
+    g_pipe_onefunc_sc_last_sc1 = 0 as *u8;
+  }
+}
 
 /**
  * Pointer to ArenaSidecar slot i (0..511).
@@ -94211,6 +94399,7 @@ function pipe_arena_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
+  pipe_arena_sc_drop_last(sc);
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -94245,6 +94434,7 @@ function pipe_module_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
+  pipe_module_sc_drop_last(sc);
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -94267,6 +94457,7 @@ function pipe_onefunc_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
+  pipe_onefunc_sc_drop_last(sc);
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -94340,12 +94531,17 @@ export function onefunc_sidecar_free(sc: *u8): void {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
+ * P2 Darwin -o: 2-slot MRU before the MAX=512 linear walk.
  * PLATFORM: SHARED freestanding arena Cap leave.
  */
 #[no_mangle]
 export function arena_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
+  }
+  let hit: *u8 = pipe_arena_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
   }
   let i: i32 = 0;
   while (i < pipe_arena_sc_max()) {
@@ -94354,6 +94550,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
+        pipe_arena_sc_remember(key, sc);
         return sc;
       }
     }
@@ -94470,6 +94667,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
+      pipe_arena_sc_remember(key, sc2);
       return sc2;
     }
     i = i + 1;
@@ -94483,12 +94681,17 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
+ * P2 Darwin -o: 2-slot MRU before the MAX=512 linear walk.
  * PLATFORM: SHARED freestanding module Cap leave.
  */
 #[no_mangle]
 export function module_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
+  }
+  let hit: *u8 = pipe_module_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
   }
   let i: i32 = 0;
   while (i < pipe_module_sc_max()) {
@@ -94497,6 +94700,7 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
+        pipe_module_sc_remember(key, sc);
         return sc;
       }
     }
@@ -94565,6 +94769,7 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
+      pipe_module_sc_remember(key, sc2);
       return sc2;
     }
     i = i + 1;
@@ -94578,12 +94783,18 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
+ * P2 Darwin -o: 2-slot MRU before the MAX=1024 linear walk
+ * (parser_copy_onefunc_into ping-pongs src/dst; field gets reuse those two keys).
  * PLATFORM: SHARED freestanding onefunc Cap leave.
  */
 #[no_mangle]
 export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
+  }
+  let hit: *u8 = pipe_onefunc_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
   }
   let i: i32 = 0;
   while (i < pipe_onefunc_sc_max()) {
@@ -94592,6 +94803,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
+        pipe_onefunc_sc_remember(key, sc);
         return sc;
       }
     }
@@ -94724,6 +94936,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
+      pipe_onefunc_sc_remember(key, sc2);
       return sc2;
     }
     i = i + 1;

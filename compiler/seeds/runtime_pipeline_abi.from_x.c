@@ -41237,6 +41237,8 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
  * XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC (PLATFORM: WINDOWS leftover-PE;
  * PE cannot -E .x thin that owns arena/module/onefunc_sidecar_get).
  * Layout LE matches pure + host typedefs (Arena 816 / Module 432 / OneFunc 944).
+ * P2 Darwin -o compile: sidecar_get 2-slot MRU matches the .x thin;
+ * leftover-PE rest is the only seed body (FROM_X omits this block).
  * PLATFORM: SHARED freestanding Cap residual cold twin.
  */
 #ifndef WAVE275_SIDECAR_POOL_COLD
@@ -41262,6 +41264,19 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
 static uint8_t g_w275_arena_sc_blob[W275_ARENA_SC_MAX * W275_ARENA_SC_SIZE];
 static uint8_t g_w275_module_sc_blob[W275_MODULE_SC_MAX * W275_MODULE_SC_SIZE];
 static uint8_t g_w275_onefunc_sc_blob[W275_ONEFUNC_SC_MAX * W275_ONEFUNC_SC_SIZE];
+/* 2-slot MRU: parser_copy_onefunc_into ping-pongs src/dst keys. */
+static void *g_w275_arena_last_key0;
+static uint8_t *g_w275_arena_last_sc0;
+static void *g_w275_arena_last_key1;
+static uint8_t *g_w275_arena_last_sc1;
+static void *g_w275_module_last_key0;
+static uint8_t *g_w275_module_last_sc0;
+static void *g_w275_module_last_key1;
+static uint8_t *g_w275_module_last_sc1;
+static void *g_w275_onefunc_last_key0;
+static uint8_t *g_w275_onefunc_last_sc0;
+static void *g_w275_onefunc_last_key1;
+static uint8_t *g_w275_onefunc_last_sc1;
 
 static uint8_t *w275_arena_sc_at(int i) {
   if (i < 0 || i >= W275_ARENA_SC_MAX) return NULL;
@@ -41293,8 +41308,44 @@ static void w275_store_ptr(uint8_t *b, int off, void *p) {
   memcpy(b + off, &p, sizeof(void *));
 }
 
+static int w275_sidecar_slot_ok(uint8_t *sc, void *key) {
+  return sc && w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key;
+}
+
+static uint8_t *w275_sidecar_recall(void *k0, uint8_t *s0, void *k1, uint8_t *s1, void *key) {
+  if (k0 == key && w275_sidecar_slot_ok(s0, key))
+    return s0;
+  if (k1 == key && w275_sidecar_slot_ok(s1, key))
+    return s1;
+  return NULL;
+}
+
+static void w275_sidecar_remember(void **k0, uint8_t **s0, void **k1, uint8_t **s1, void *key, uint8_t *sc) {
+  if (*k0 == key) {
+    *s0 = sc;
+    return;
+  }
+  *k1 = *k0;
+  *s1 = *s0;
+  *k0 = key;
+  *s0 = sc;
+}
+
+static void w275_sidecar_drop(void **k0, uint8_t **s0, void **k1, uint8_t **s1, uint8_t *sc) {
+  if (*s0 == sc) {
+    *k0 = NULL;
+    *s0 = NULL;
+  }
+  if (*s1 == sc) {
+    *k1 = NULL;
+    *s1 = NULL;
+  }
+}
+
 static void arena_sidecar_free_inner(uint8_t *sc) {
   if (!sc) return;
+  w275_sidecar_drop(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
+                    &g_w275_arena_last_key1, &g_w275_arena_last_sc1, sc);
   grow_vec_free((GrowVec *)(sc + 16));
   grow_vec_free((GrowVec *)(sc + 48));
   grow_vec_free((GrowVec *)(sc + 80));
@@ -41325,6 +41376,8 @@ static void arena_sidecar_free_inner(uint8_t *sc) {
 void arena_sidecar_free(void *sc) { arena_sidecar_free_inner((uint8_t *)sc); }
 static void module_sidecar_free_inner(uint8_t *sc) {
   if (!sc) return;
+  w275_sidecar_drop(&g_w275_module_last_key0, &g_w275_module_last_sc0,
+                    &g_w275_module_last_key1, &g_w275_module_last_sc1, sc);
   grow_vec_free((GrowVec *)(sc + 16));
   grow_vec_free((GrowVec *)(sc + 48));
   grow_vec_free((GrowVec *)(sc + 80));
@@ -41343,6 +41396,8 @@ static void module_sidecar_free_inner(uint8_t *sc) {
 void module_sidecar_free(void *sc) { module_sidecar_free_inner((uint8_t *)sc); }
 static void onefunc_sidecar_free_inner(uint8_t *sc) {
   if (!sc) return;
+  w275_sidecar_drop(&g_w275_onefunc_last_key0, &g_w275_onefunc_last_sc0,
+                    &g_w275_onefunc_last_key1, &g_w275_onefunc_last_sc1, sc);
   grow_vec_free((GrowVec *)(sc + 16));
   grow_vec_free((GrowVec *)(sc + 48));
   grow_vec_free((GrowVec *)(sc + 80));
@@ -41377,10 +41432,19 @@ static void onefunc_sidecar_free_inner(uint8_t *sc) {
 void onefunc_sidecar_free(void *sc) { onefunc_sidecar_free_inner((uint8_t *)sc); }
 void *arena_sidecar_get(void *key, int create) {
   int i;
+  uint8_t *hit;
   if (!key) return NULL;
+  hit = w275_sidecar_recall(g_w275_arena_last_key0, g_w275_arena_last_sc0,
+                            g_w275_arena_last_key1, g_w275_arena_last_sc1, key);
+  if (hit)
+    return hit;
   for (i = 0; i < W275_ARENA_SC_MAX; i++) {
     uint8_t *sc = w275_arena_sc_at(i);
-    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) return sc;
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
+      w275_sidecar_remember(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
+                            &g_w275_arena_last_key1, &g_w275_arena_last_sc1, key, sc);
+      return sc;
+    }
   }
   if (!create) return NULL;
   for (i = 0; i < W275_ARENA_SC_MAX; i++) {
@@ -41463,6 +41527,8 @@ void *arena_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)136, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
+      w275_sidecar_remember(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
+                            &g_w275_arena_last_key1, &g_w275_arena_last_sc1, key, sc);
       return sc;
     }
   }
@@ -41470,10 +41536,19 @@ void *arena_sidecar_get(void *key, int create) {
 }
 void *module_sidecar_get(void *key, int create) {
   int i;
+  uint8_t *hit;
   if (!key) return NULL;
+  hit = w275_sidecar_recall(g_w275_module_last_key0, g_w275_module_last_sc0,
+                            g_w275_module_last_key1, g_w275_module_last_sc1, key);
+  if (hit)
+    return hit;
   for (i = 0; i < W275_MODULE_SC_MAX; i++) {
     uint8_t *sc = w275_module_sc_at(i);
-    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) return sc;
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
+      w275_sidecar_remember(&g_w275_module_last_key0, &g_w275_module_last_sc0,
+                            &g_w275_module_last_key1, &g_w275_module_last_sc1, key, sc);
+      return sc;
+    }
   }
   if (!create) return NULL;
   for (i = 0; i < W275_MODULE_SC_MAX; i++) {
@@ -41520,6 +41595,8 @@ void *module_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)8, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
+      w275_sidecar_remember(&g_w275_module_last_key0, &g_w275_module_last_sc0,
+                            &g_w275_module_last_key1, &g_w275_module_last_sc1, key, sc);
       return sc;
     }
   }
@@ -41527,10 +41604,19 @@ void *module_sidecar_get(void *key, int create) {
 }
 void *onefunc_sidecar_get(void *key, int create) {
   int i;
+  uint8_t *hit;
   if (!key) return NULL;
+  hit = w275_sidecar_recall(g_w275_onefunc_last_key0, g_w275_onefunc_last_sc0,
+                            g_w275_onefunc_last_key1, g_w275_onefunc_last_sc1, key);
+  if (hit)
+    return hit;
   for (i = 0; i < W275_ONEFUNC_SC_MAX; i++) {
     uint8_t *sc = w275_onefunc_sc_at(i);
-    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) return sc;
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
+      w275_sidecar_remember(&g_w275_onefunc_last_key0, &g_w275_onefunc_last_sc0,
+                            &g_w275_onefunc_last_key1, &g_w275_onefunc_last_sc1, key, sc);
+      return sc;
+    }
   }
   if (!create) return NULL;
   for (i = 0; i < W275_ONEFUNC_SC_MAX; i++) {
@@ -41625,6 +41711,8 @@ void *onefunc_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 912), (size_t)272, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
+      w275_sidecar_remember(&g_w275_onefunc_last_key0, &g_w275_onefunc_last_sc0,
+                            &g_w275_onefunc_last_key1, &g_w275_onefunc_last_sc1, key, sc);
       return sc;
     }
   }
@@ -41632,7 +41720,7 @@ void *onefunc_sidecar_get(void *key, int create) {
 }
 
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
-#endif /* WAVE275_SIDECAR_POOL_COLD *//
+#endif /* WAVE275_SIDECAR_POOL_COLD */
 
 /* =============================================================================
  * WAVE276 ALWAYS: value-ABI residual (by-value get/set_copy + name aliases +
