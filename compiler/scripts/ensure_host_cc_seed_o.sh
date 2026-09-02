@@ -3395,8 +3395,19 @@ ensure_pipeline_abi_prefer_one() {
   #          func_return_type_at leftover rest T later so extract carries
   #          a void* extern; leftover rest U num_funcs — SAT / leftover
   #          standalone provide T; do not convert neighboring dual_gp /
-  #          param_home_width — not unique — or glue_call_return / named_layout
-  #          — seed stubs).
+  #          param_home_width — not unique — or glue_call_return — seed stub) +
+  #          named_layout leftover unique (surgical extract of nested
+  #          wave191 unique after closing enclosing wave154 reopen-after-
+  #          glue_type + wave178 INDEX-peel: glue_type_named_layout_size_any_module_elf_c;
+  #          unique lists this face; leftover standalone defines 0 of
+  #          remaining unique; seed body was a stub return 0 — port the
+  #          real .x body instead of OR'ing the stub; callees leftover rest
+  #          already T/extern from glue_type + array_lit clusters; ndep
+  #          always-compiled struct* — do not re-extern; leftover rest U
+  #          emit_module_ref_c / emit_dep_pipe_c defs — SAT / leftover
+  #          standalone provide T; do not convert neighboring pass_addr /
+  #          dual_gp / param_home_width — not unique — or glue_call_return
+  #          — seed stub).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
