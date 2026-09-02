@@ -104,15 +104,16 @@ SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 HOST_OS="$(uname -s 2>/dev/null || echo unknown)"
 HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
 HOST="${HOST_OS}-${HOST_ARCH}"
-# PLATFORM: MACOS — Darwin L4 bstrict is wall-dominated by serial asm gates
-# (assign-index-expr 712s / binop-cfg-merge 658s at JOBS=1 + cooldown=0 →
-# ~130 min bstrict / ~137 min total @ b5be5ed97). JOBS=8 / 4 / 2 all hit
-# Killed:9 on this 18-core/64GB box while Cursor/Chrome/iTerm hold most RAM
-# (peak is N× xlang_asm + host-cc, not the idle ~75MB figure; leftover
-# serial L2 of the same xlang_asm still greens the "failed" gates). Default
-# JOBS=1 is the only packing that dual-L4 greened here. gate_case_jobs
-# Darwin auto-inner=2 when outer==1 would recreate the JOBS=2 OOM, so L4
-# also pins GATE_CASE_JOBS=1. Ubuntu gold stays JOBS=1 (~17 min). Explicit
+# PLATFORM: MACOS — Darwin L4 packing. Pin L4 @ b5be5ed97 was wall-dominated
+# by serial asm gates (assign-index-expr 712s / binop-cfg-merge 658s) because
+# xlang_link_obj_needs_undef_sym_impl popen("nm -u") per on_demand probe.
+# After the one-slot UNDEF cache + Mach-O scan, those gates are ~19s / ~17s
+# L2; hello -o 17s → ~1.9s. JOBS=8 / 4 / 2 still hit Killed:9 on this
+# 18-core/64GB box while Cursor/Chrome/iTerm hold most RAM (peak is N×
+# xlang_asm + host-cc, RSS still ~104MB each). Default JOBS=1 is the only
+# packing that dual-L4 greened here. gate_case_jobs Darwin auto-inner=2
+# when outer==1 would recreate the JOBS=2 OOM, so L4 also pins
+# GATE_CASE_JOBS=1. Ubuntu gold stays JOBS=1 (~17 min). Explicit
 # XLANG_BSTRICT_JOBS / XLANG_GATE_CASE_JOBS always win. Cap is 8.
 if [ -z "${XLANG_BSTRICT_JOBS:-}" ]; then
   export XLANG_BSTRICT_JOBS=1

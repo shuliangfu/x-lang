@@ -2764,8 +2764,9 @@ export function xlang_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): v
  * Authority (G.7 / wave212): product pure orch is labi_ondemand_list.x
  * `xlang_link_obj_needs_undef_sym` (same gates + Cap residual _impl). This mega .x twin
  * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
- * Cap residual: xlang_link_obj_needs_undef_sym_impl (nm -u + optional LINUX ELF).
- * PLATFORM: SHARED orch; residual nm/popen is host.
+ * Cap residual: xlang_link_obj_needs_undef_sym_impl (Mach-O/ELF scan or one nm -u;
+ * per-path UNDEF cache — P2 Darwin -o).
+ * PLATFORM: SHARED orch; residual scan/nm is host.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]

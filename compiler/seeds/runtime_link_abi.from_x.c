@@ -177,7 +177,11 @@ const char *xlang_empty_cstr(void);
 #endif
 
 #if defined(__APPLE__)
+#include <fcntl.h>
 #include <mach-o/dyld.h>
+#include <mach-o/loader.h>
+#include <mach-o/nlist.h>
+#include <sys/mman.h>
 #endif
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -3966,74 +3970,344 @@ static int xlang_elf64_obj_scan_undef(const char *o_path, const char *want_sym) 
 }
 #endif /* __linux__ */
 
+/*
+ * One-slot UNDEF-name cache for xlang_link_obj_needs_undef_sym_impl.
+ *
+ * Produce-point (P2 Darwin -o): every product -o walks on_demand std gates
+ * (heap / sys / vec / async / …) and each gate calls this impl once per
+ * symbol. The previous body popen("nm -u") + fgets per probe. Darwin hello
+ * -o was ~17s / ~2.3M page-reclaims, sample 100% in posix_spawn+read of nm.
+ * One user.o is probed hundreds of times per -o, so cache+in-process scan
+ * is the G.7 complete of this residual (do not add a second probe).
+ *
+ * Blob: concatenated NUL-terminated bare names (leading '_' stripped).
+ * PLATFORM: SHARED cache; loaders LINUX ELF / DARWIN Mach-O / nm -u once.
+ */
+#define XLANG_UNDEF_CACHE_BLOB_MAX (256u * 1024u)
+static char g_undef_cache_path[PATH_MAX];
+static char g_undef_cache_blob[XLANG_UNDEF_CACHE_BLOB_MAX];
+static size_t g_undef_cache_blob_len;
+static int g_undef_cache_ready;
+
+static void xlang_undef_cache_reset(void) {
+    g_undef_cache_path[0] = '\0';
+    g_undef_cache_blob_len = 0;
+    g_undef_cache_ready = 0;
+}
+
+static int xlang_undef_cache_append_name(const char *name) {
+    size_t n;
+    if (!name || !name[0])
+        return 1;
+    if (*name == '_')
+        name++;
+    n = strlen(name);
+    if (n == 0)
+        return 1;
+    if (g_undef_cache_blob_len + n + 1 >= XLANG_UNDEF_CACHE_BLOB_MAX)
+        return 0;
+    memcpy(g_undef_cache_blob + g_undef_cache_blob_len, name, n);
+    g_undef_cache_blob_len += n;
+    g_undef_cache_blob[g_undef_cache_blob_len++] = '\0';
+    return 1;
+}
+
+static int xlang_undef_cache_has(const char *sym) {
+    size_t i = 0;
+    size_t slen;
+    if (!sym || !sym[0])
+        return 0;
+    slen = strlen(sym);
+    while (i < g_undef_cache_blob_len) {
+        size_t n = strlen(g_undef_cache_blob + i);
+        if (n == slen && memcmp(g_undef_cache_blob + i, sym, slen) == 0)
+            return 1;
+        i += n + 1;
+    }
+    return 0;
+}
+
+#if defined(__APPLE__)
 /**
- * Cap residual (wave212): host nm/popen exact UNDEF probe body (+ LINUX ELF freestanding).
+ * Fill the UNDEF cache from a thin Mach-O 64 object (MH_MAGIC_64 + LC_SYMTAB).
+ * @return 1 if the file is a parseable Mach-O 64 (even with 0 UNDEFs); 0 if
+ *         not Mach-O / mmap fail — caller falls back to one nm -u.
+ * PLATFORM: DARWIN — in-process nlist_64 scan; no popen.
+ */
+static int xlang_macho64_obj_fill_undef_cache(const char *o_path) {
+    int fd;
+    struct stat st;
+    unsigned char *map = NULL;
+    size_t sz;
+    const struct mach_header_64 *mh;
+    const struct load_command *lc;
+    const struct symtab_command *stcmd = NULL;
+    const struct nlist_64 *nl;
+    const char *strtab;
+    uint32_t i;
+    uint32_t ncmds;
+    size_t off;
+    if (!o_path || !o_path[0])
+        return 0;
+    fd = open(o_path, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    if (xlang_path_fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(struct mach_header_64)) {
+        close(fd);
+        return 0;
+    }
+    sz = (size_t)st.st_size;
+    map = (unsigned char *)mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (map == MAP_FAILED)
+        return 0;
+    mh = (const struct mach_header_64 *)map;
+    if (mh->magic != MH_MAGIC_64) {
+        munmap(map, sz);
+        return 0;
+    }
+    if ((size_t)sizeof(struct mach_header_64) + (size_t)mh->sizeofcmds > sz) {
+        munmap(map, sz);
+        return 0;
+    }
+    ncmds = mh->ncmds;
+    off = sizeof(struct mach_header_64);
+    for (i = 0; i < ncmds; i++) {
+        if (off + sizeof(struct load_command) > sz)
+            break;
+        lc = (const struct load_command *)(map + off);
+        if (lc->cmdsize < sizeof(struct load_command) || off + lc->cmdsize > sz)
+            break;
+        if (lc->cmd == LC_SYMTAB && lc->cmdsize >= sizeof(struct symtab_command)) {
+            stcmd = (const struct symtab_command *)lc;
+            break;
+        }
+        off += lc->cmdsize;
+    }
+    if (!stcmd) {
+        munmap(map, sz);
+        return 1; /* Mach-O with no symtab: treat as 0 UNDEF, not nm fallback. */
+    }
+    if ((size_t)stcmd->symoff + (size_t)stcmd->nsyms * sizeof(struct nlist_64) > sz ||
+        (size_t)stcmd->stroff + (size_t)stcmd->strsize > sz) {
+        munmap(map, sz);
+        return 0;
+    }
+    nl = (const struct nlist_64 *)(map + stcmd->symoff);
+    strtab = (const char *)(map + stcmd->stroff);
+    for (i = 0; i < stcmd->nsyms; i++) {
+        uint32_t strx;
+        const char *name;
+        uint8_t nt = nl[i].n_type;
+        if (nt & N_STAB)
+            continue;
+        if ((nt & N_TYPE) != N_UNDF)
+            continue;
+        if ((nt & N_EXT) == 0)
+            continue;
+        strx = nl[i].n_un.n_strx;
+        if (strx >= stcmd->strsize)
+            continue;
+        name = strtab + strx;
+        if (!name[0])
+            continue;
+        if (!xlang_undef_cache_append_name(name)) {
+            munmap(map, sz);
+            return 0;
+        }
+    }
+    munmap(map, sz);
+    return 1;
+}
+#endif /* __APPLE__ */
+
+#if defined(__linux__)
+/**
+ * Fill the UNDEF cache from ELF64 SHT_SYMTAB SHN_UNDEF globals.
+ * @return 1 if the file is a parseable ELF64; 0 on error (nm fallback).
+ * PLATFORM: LINUX — in-process .symtab scan; no popen.
+ */
+static int xlang_elf64_obj_fill_undef_cache(const char *o_path) {
+    int fd;
+    struct stat st;
+    unsigned char *map = NULL;
+    size_t sz;
+    Elf64_Ehdr *eh;
+    Elf64_Shdr *sh;
+    Elf64_Shdr *symtab = NULL;
+    Elf64_Shdr *strtab = NULL;
+    Elf64_Sym *syms;
+    const char *strs;
+    size_t i, nsym;
+    if (!o_path || !o_path[0])
+        return 0;
+    fd = open(o_path, O_RDONLY, 0);
+    if (fd < 0)
+        return 0;
+    if (xlang_path_fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(Elf64_Ehdr)) {
+        close(fd);
+        return 0;
+    }
+    sz = (size_t)st.st_size;
+    map = (unsigned char *)mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (map == MAP_FAILED)
+        return 0;
+    eh = (Elf64_Ehdr *)map;
+    if (memcmp(eh->e_ident, ELFMAG, SELFMAG) != 0 || eh->e_ident[EI_CLASS] != ELFCLASS64) {
+        munmap(map, sz);
+        return 0;
+    }
+    if (eh->e_shoff == 0 || eh->e_shentsize != sizeof(Elf64_Shdr) || eh->e_shnum == 0) {
+        munmap(map, sz);
+        return 0;
+    }
+    if ((size_t)eh->e_shoff + (size_t)eh->e_shnum * sizeof(Elf64_Shdr) > sz) {
+        munmap(map, sz);
+        return 0;
+    }
+    sh = (Elf64_Shdr *)(map + eh->e_shoff);
+    for (i = 0; i < eh->e_shnum; i++) {
+        if (sh[i].sh_type == SHT_SYMTAB) {
+            symtab = &sh[i];
+            if (sh[i].sh_link < eh->e_shnum)
+                strtab = &sh[sh[i].sh_link];
+            break;
+        }
+    }
+    if (!symtab || !strtab || symtab->sh_entsize != sizeof(Elf64_Sym) ||
+        symtab->sh_offset + symtab->sh_size > sz || strtab->sh_offset + strtab->sh_size > sz) {
+        munmap(map, sz);
+        return 0;
+    }
+    nsym = symtab->sh_size / sizeof(Elf64_Sym);
+    syms = (Elf64_Sym *)(map + symtab->sh_offset);
+    strs = (const char *)(map + strtab->sh_offset);
+    for (i = 0; i < nsym; i++) {
+        const char *name;
+        if (syms[i].st_shndx != SHN_UNDEF)
+            continue;
+        if (ELF64_ST_BIND(syms[i].st_info) == STB_LOCAL)
+            continue;
+        if (syms[i].st_name >= strtab->sh_size)
+            continue;
+        name = strs + syms[i].st_name;
+        if (!name[0])
+            continue;
+        if (!xlang_undef_cache_append_name(name)) {
+            munmap(map, sz);
+            return 0;
+        }
+    }
+    munmap(map, sz);
+    return 1;
+}
+#endif /* __linux__ */
+
+/**
+ * One nm -u popen into the UNDEF cache (fallback when in-process scan fails).
+ * Same line rules as the historical per-probe parser: skip optional U + '_'.
+ * @return 1 if popen succeeded (even 0 names); 0 if nm unavailable.
+ * PLATFORM: SHARED residual host nm.
+ */
+static int xlang_nm_u_fill_undef_cache(const char *o_path) {
+    char cmd[PATH_MAX + 160];
+    FILE *fp;
+    char line[512];
+    if (!o_path || !o_path[0])
+        return 0;
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
+        return 0;
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 0;
+    while (fgets(line, sizeof line, fp)) {
+        char *p = line;
+        size_t rest;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == 'U' && (p[1] == ' ' || p[1] == '\t')) {
+            p += 2;
+            while (*p == ' ' || *p == '\t')
+                p++;
+        }
+        if (*p == '_')
+            p++;
+        rest = strlen(p);
+        while (rest > 0 && (p[rest - 1] == '\n' || p[rest - 1] == '\r' || p[rest - 1] == ' '))
+            rest--;
+        if (rest == 0)
+            continue;
+        p[rest] = '\0';
+        if (!xlang_undef_cache_append_name(p)) {
+            pclose(fp);
+            return 0;
+        }
+    }
+    pclose(fp);
+    return 1;
+}
+
+static int xlang_undef_cache_load(const char *o_path) {
+    size_t n;
+    xlang_undef_cache_reset();
+    n = strlen(o_path);
+    if (n >= sizeof(g_undef_cache_path))
+        return 0;
+    memcpy(g_undef_cache_path, o_path, n + 1);
+#if defined(__APPLE__)
+    if (xlang_macho64_obj_fill_undef_cache(o_path)) {
+        g_undef_cache_ready = 1;
+        return 1;
+    }
+#endif
+#if defined(__linux__)
+    if (xlang_elf64_obj_fill_undef_cache(o_path)) {
+        g_undef_cache_ready = 1;
+        return 1;
+    }
+#endif
+    if (xlang_nm_u_fill_undef_cache(o_path)) {
+        g_undef_cache_ready = 1;
+        return 1;
+    }
+    /* nm unavailable: empty ready cache (same as historical Darwin popen-fail → 0). */
+    g_undef_cache_ready = 1;
+    return 1;
+}
+
+/**
+ * Cap residual (wave212): exact UNDEF probe body.
  * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
  * Params: o_path / sym — caller pure already rejected null/empty (defense in depth here too).
- * Returns: 1 if UNDEF line matches bare sym (optional U type + leading _), else 0.
+ * Returns: 1 if UNDEF matches bare sym (optional U type + leading _), else 0.
  *
  * Why root: Darwin `nm -u` is `_sym` alone (no type letter U) with Mach-O leading `_`.
  * Old code used `nm -u --porcelain` (often empty on Apple) and only bare names / lines with U
  * → http.o UNDEF for std_heap_* never hit → on_demand skipped heap.o → link fail.
  * Freestanding: popen stub always NULL → always 0 → minimal gcc never on_demand (si UNDEF).
  * Invariant: skip optional U type field and optional leading `_`, then compare bare sym.
- * PLATFORM: SHARED residual; LINUX freestanding ELF scan when popen fails.
+ *
+ * P2 Darwin -o: load UNDEF names once per o_path (Mach-O / ELF / one nm -u), then
+ * in-process lookup. Do not popen nm per symbol — on_demand walks hundreds of
+ * probes against the same user.o on every product -o.
+ * PLATFORM: SHARED residual; LINUX ELF / DARWIN Mach-O in-process; nm fallback.
  */
 int xlang_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
-    char cmd[PATH_MAX + 160];
-    FILE *fp;
-    char line[512];
-    size_t sym_len;
     if (!o_path || !o_path[0] || !sym || !sym[0])
         return 0;
-    sym_len = strlen(sym);
-    /* 统一 nm -u；勿用 Apple 上常失效的 --porcelain */
-    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
-        return 0;
-    fp = popen(cmd, "r");
-    if (!fp) {
-#if defined(__linux__)
-        /* PLATFORM: LINUX freestanding — popen stub; ELF UNDEF scan authority. */
-        return xlang_elf64_obj_scan_undef(o_path, sym);
-#else
-        return 0; /* nm 不可用时不臆测缺符号，避免 on_demand 全量误链 net/heap 等 */
-#endif
+    if (!g_undef_cache_ready || strcmp(g_undef_cache_path, o_path) != 0) {
+        if (!xlang_undef_cache_load(o_path))
+            return 0;
     }
-    while (fgets(line, sizeof line, fp)) {
-        char *p = line;
-        size_t rest;
-        while (*p == ' ' || *p == '\t')
-            p++;
-        /* GNU/ELF: "U sym" 或 "U _sym"；部分工具行内含 U */
-        if (*p == 'U' && (p[1] == ' ' || p[1] == '\t')) {
-            p += 2;
-            while (*p == ' ' || *p == '\t')
-                p++;
-        }
-        /* Mach-O nm -u: "_std_heap_alloc_usize\n" */
-        if (*p == '_')
-            p++;
-        rest = strlen(p);
-        while (rest > 0 && (p[rest - 1] == '\n' || p[rest - 1] == '\r' || p[rest - 1] == ' '))
-            rest--;
-        if (rest == sym_len && strncmp(p, sym, sym_len) == 0) {
-            pclose(fp);
-            return 1;
-        }
-        /* 兼容：行内任意位置出现 U 与符号（旧 ELF 多列格式） */
-        if (strchr(line, 'U') != NULL && strstr(line, sym) != NULL) {
-            pclose(fp);
-            return 1;
-        }
-    }
-    pclose(fp);
-    return 0;
+    return xlang_undef_cache_has(sym);
 }
 
 /* wave212: xlang_link_obj_needs_undef_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
  * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
  * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
- * Pure: null/empty gates; Cap residual xlang_link_obj_needs_undef_sym_impl (nm/ELF) always mega.
+ * Pure: null/empty gates; Cap residual xlang_link_obj_needs_undef_sym_impl
+ * (Mach-O/ELF scan or one nm -u; per-path cache) always mega.
  * Why: hybrid still had needs_undef_sym body always mega C (gates+nm+ELF).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
 #ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X

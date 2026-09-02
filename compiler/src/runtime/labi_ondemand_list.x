@@ -57,12 +57,12 @@
 // g11: pure-asm import METHOD mangle → std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x).
 
 /**
- * Cap residual (wave212): host nm/popen exact UNDEF probe body (+ LINUX ELF freestanding).
- * Pure orch owns null/empty gates; _impl is always mega (nm -u line parse + optional ELF scan).
+ * Cap residual (wave212): exact UNDEF probe body (one-slot cache + in-process scan).
+ * Pure orch owns null/empty gates; _impl is always mega.
  * @param user_o *u8 — path to .o (caller already rejected null/empty)
  * @param sym *u8 — exact bare symbol name, no leading underscore (caller rejected null/empty)
  * @return i32 — 1 if user.o has UNDEF for sym, else 0
- * PLATFORM: SHARED orch residual; LINUX freestanding ELF path inside _impl
+ * PLATFORM: SHARED orch residual; LINUX ELF / DARWIN Mach-O in-process; nm -u once fallback
  */
 export extern "C" function xlang_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
 
@@ -71,11 +71,13 @@ export extern "C" function xlang_link_obj_needs_undef_sym_impl(user_o: *u8, sym:
  * @param user_o *u8 — path to user .o; null/empty rejected at pure gate
  * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
  * @return i32 — 1 if UNDEF hit, else 0
- * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (+ ELF on LINUX freestanding).
- * Cap residual: xlang_link_obj_needs_undef_sym_impl (nm -u parse; strip optional U/_).
+ * Pure orch: ≡ mega null/empty gates before Cap residual UNDEF cache lookup.
+ * Cap residual: xlang_link_obj_needs_undef_sym_impl (Mach-O/ELF scan or one nm -u;
+ * strip optional U/_). Per-path cache: on_demand walks hundreds of probes against
+ * the same user.o — do not popen nm per symbol (P2 Darwin -o).
  * Why (wave212): hybrid still had needs_undef_sym body always mega C (gates+nm+ELF).
  * Used by all L8b pure needs_* orch tables (net/set/map/queue/fk/… on_demand gates).
- * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * PLATFORM: SHARED orch; residual scan/nm is host (POSIX; Windows hybrid via tools).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]
